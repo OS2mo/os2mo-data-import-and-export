@@ -2,12 +2,12 @@
 import pickle
 import random
 import requests
-
+import pathlib
 
 class CreateDummyOrg(object):
     """ Create a dummy organisation to use as test data """
 
-    def __init__(self, kommune):
+    def __init__(self, kommune, navne):
         self.kommunekoder = {'København': 101,
                              'Frederiksberg': 147,
                              'Ballerup': 151,
@@ -25,9 +25,9 @@ class CreateDummyOrg(object):
                 pickle.dump(self.adresser, file_handle)
 
         self.names = {}
-        self.names['first'] = self._load_names('fornavne.txt')
-        self.names['middle'] = self._load_names('mellemnavne.txt')
-        self.names['last'] = self._load_names('efternavne.txt')
+        self.names['first'] = self._load_names(navne[0])
+        self.names['middle'] = self._load_names(navne[1])
+        self.names['last'] = self._load_names(navne[2])
         self.used_bvns = []
 
     def _load_names(self, name_file):
@@ -35,7 +35,7 @@ class CreateDummyOrg(object):
         :param name_file: Name of the text file with names
         :return: A weighted list of names
         """
-        with open(name_file, 'r') as f:
+        with name_file.open('r') as f:
             names_file = f.read()
         name_lines = names_file.split('\n')
         names = []
@@ -192,7 +192,12 @@ class CreateDummyOrg(object):
 
 if __name__ == '__main__':
     # TODO: Use cvr-data to extract realistic names
-    dummy_creator = CreateDummyOrg('Næstved')
+    path = pathlib.Path.cwd()
+    path = path /  'navne'
+    navne_list = [path / 'fornavne.txt',
+                  path / 'mellemnavne.txt',
+                  path / 'efternavne.txt']
+    dummy_creator = CreateDummyOrg('Næstved', navne_list)
     org = dummy_creator.create_org_func_list()
 
     brugere = []
