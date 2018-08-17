@@ -97,12 +97,12 @@ class CreateDummyOrg(object):
 
         middle = ''
         if random.random() > 0.3:
-            middle = middle + ' ' + self._pick_name_from_list('middle') + ' '
+            middle = middle + self._pick_name_from_list('middle') 
         if random.random() > 0.9:
-            middle = middle + ' ' + self._pick_name_from_list('middle') + ' '
+            middle = middle + ' ' + self._pick_name_from_list('middle')
 
         last = self._pick_name_from_list('last')
-        name = first + middle + last
+        name = first  + ' ' + middle + ' ' + last
         bvn = first + last[0]
         i = 0
         while bvn in self.used_bvns:
@@ -197,12 +197,14 @@ if __name__ == '__main__':
     navne_list = [path / 'fornavne.txt',
                   path / 'mellemnavne.txt',
                   path / 'efternavne.txt']
-    dummy_creator = CreateDummyOrg('Næstved', navne_list)
+    dummy_creator = CreateDummyOrg('Ballerup', navne_list)
     org = dummy_creator.create_org_func_list()
 
     brugere = []
     for i in range(0, 5):
         brugere.append(dummy_creator.create_bruger())
 
-    print(org)
-    print(brugere)
+    import json
+    #print(json.dumps(org, indent=2))
+    #print(json.dumps(brugere, indent=2))
+    print(org.keys()) 
