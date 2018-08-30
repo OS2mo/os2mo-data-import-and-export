@@ -11,7 +11,10 @@ Helper class to make a number of pre-defined queries into MO
 """
 
 import csv
+import time
+import queue
 import requests
+import threading
 from anytree import Node, PreOrderIter
 
 
@@ -308,25 +311,49 @@ class MoraQuery(object):
                 rows.append(row)
         self._write_csv(fieldnames, rows, filename)
 
-    def main(self):
-        # top_units = self.read_top_units(org_id)
+    def cache_user(self, user_queue):
+        while not user_queue.empty():
+            user = user_queue.get_nowait()
+            print(user_queue.qsize())
+            self.read_user_address(user['uuid'], username=True)
+            user_queue.task_done()
 
-        # nodes = self.read_ou_tree('f414a2f1-5cac-4634-8767-b8d3109d3133')
-        nodes = self.read_ou_tree('82b42d4e-f7c0-4787-aa2d-9312b284e519')
+    def main(self, threaded_speedup=False):
+        t = time.time()
+        if threaded_speedup:
+            org_id = self.read_organisation()
+            user_queue = queue.Queue()
+            for user in self._mo_lookup(org_id, 'o/{}/e?limit=99999')['items']:
+                user_queue.put(user)
+            workers = {}
+            for i in range(0, 5):
+                workers[i] = threading.Thread(target=self.cache_user,
+                                              args=[user_queue])
+                workers[i].start()
+            user_queue.join()
+
+        print('Build cache: {}'.format(time.time() - t))
+        nodes = self.read_ou_tree('f414a2f1-5cac-4634-8767-b8d3109d3133')
+        print('Read nodes: {}'.format(time.time() - t))
 
         filename = 'Alle_lederfunktioner_os2mo.csv'
         self.export_bosses(nodes, filename)
+        print('Alle ledere: {}'.format(time.time() - t))
 
         filename = 'AlleBK-stilling-email_os2mo.csv'
         self.export_all_employees(nodes, filename)
+        print('AlleBK-stilling-email: {}'.format(time.time() - t))
 
         filename = 'Ballerup_org_incl-medarbejdere_os2mo.csv'
         self.export_orgs(nodes, filename)
+        print('Ballerup org incl medarbejdere: {}'.format(time.time() - t))
 
         nodes = self.read_ou_tree('4bb95b86-8a1e-4335-a721-a555f46333f6')
         filename = 'SD-løn org med Pnr_os2mo.csv'
         self.export_orgs(nodes, filename, include_employees=False)
+        print('SD-løn: {}'.format(time.time() - t))
+
 
 if __name__ == '__main__':
     mora_data = MoraQuery()
-    mora_data.main()
+    mora_data.main(threaded_speedup=True)
