@@ -316,6 +316,7 @@ class MoraQuery(object):
         filename = 'SD-løn org med Pnr_os2mo.csv'
         self.export_orgs(nodes, filename, include_employees=False)
 
+
 if __name__ == '__main__':
     mora_data = MoraQuery()
     mora_data.main()
