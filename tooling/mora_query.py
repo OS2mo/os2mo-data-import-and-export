@@ -261,7 +261,7 @@ class MoraQuery(object):
                 rows.append(row)
         self._write_csv(fieldnames, rows, filename)
 
-    def export_bosses(self, nodes, filename):
+    def export_managers(self, nodes, filename):
         """ Traverses a tree of OUs, for each OU finds the manager of the OU.
         The list of managers will be saved o a csv-file.
         :param nodes: The nodes of the OU tree
@@ -318,26 +318,32 @@ class MoraQuery(object):
             self.read_user_address(user['uuid'], username=True)
             user_queue.task_done()
 
+    def pre_cache_users(self):
+        """ Pre-read all users in organisation, can give a significant
+        performance enhancement, since this can be multi-threaded. Only
+        works for the complete organisation.
+        """
+        org_id = self.read_organisation()
+        user_queue = queue.Queue()
+        for user in self._mo_lookup(org_id, 'o/{}/e?limit=99999')['items']:
+            user_queue.put(user)
+        workers = {}
+        for i in range(0, 5):
+            workers[i] = threading.Thread(target=self.cache_user,
+                                          args=[user_queue])
+            workers[i].start()
+        user_queue.join()
+
     def main(self, threaded_speedup=False):
         t = time.time()
         if threaded_speedup:
-            org_id = self.read_organisation()
-            user_queue = queue.Queue()
-            for user in self._mo_lookup(org_id, 'o/{}/e?limit=99999')['items']:
-                user_queue.put(user)
-            workers = {}
-            for i in range(0, 5):
-                workers[i] = threading.Thread(target=self.cache_user,
-                                              args=[user_queue])
-                workers[i].start()
-            user_queue.join()
-
-        print('Build cache: {}'.format(time.time() - t))
+            self.pre_cache_users()
+            print('Build cache: {}'.format(time.time() - t))
         nodes = self.read_ou_tree('f414a2f1-5cac-4634-8767-b8d3109d3133')
         print('Read nodes: {}'.format(time.time() - t))
 
         filename = 'Alle_lederfunktioner_os2mo.csv'
-        self.export_bosses(nodes, filename)
+        self.export_managers(nodes, filename)
         print('Alle ledere: {}'.format(time.time() - t))
 
         filename = 'AlleBK-stilling-email_os2mo.csv'
