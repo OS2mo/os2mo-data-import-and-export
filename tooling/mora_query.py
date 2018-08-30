@@ -20,6 +20,9 @@ class MoraQuery(object):
         self.host = 'http://' + hostname + '/service/'
         self.ou_cache = {}
         self.address_cache = {}
+        self.user_cahce = {}
+        self.personal_info_cache = {}
+        self.cache = {}
 
     def _split_name(self, name):
         """ Split a name into first and last name.
@@ -60,6 +63,13 @@ class MoraQuery(object):
         return fieldnames
 
     def _write_csv(self, fieldnames, rows, filename):
+        """ Write a csv-file from a a dataset. Only fields explicitly mentioned
+        in fieldnames will be saved, the rest will be ignored.
+        :param fieldnames: The headline for the columns, also act as filter.
+        :param rows: A list of dicts, each list element will become a row, keys
+        in dict will be matched to fieldnames.
+        :param filename: The name of the exported file.
+        """
         with open(filename, 'w') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
                                     extrasaction='ignore')
@@ -68,6 +78,11 @@ class MoraQuery(object):
                 writer.writerow(row)
 
     def _create_path_dict(self, fieldnames, node):
+        """ Create a dict with a MO-path to a given node.
+        :param fieldnames: The headline for each level of the path.
+        :node: The node to find the path for.
+        :return: A dict with headlines as keys and nodes as values.
+        """
         path = self._read_node_path(node)
         path_dict = {}
         i = 0
@@ -76,14 +91,21 @@ class MoraQuery(object):
             i += 1
         return path_dict
 
+    def _mo_lookup(self, uuid, url):
+        full_url = self.host + url.format(uuid)
+        if full_url in self.cache:
+            return_dict = self.cache[full_url]
+        else:
+            return_dict = requests.get(full_url).json()
+            self.cache[full_url] = return_dict
+        return return_dict
+
     def read_organisation(self):
         """ Read the main Organisation, all OU's will have this as root.
         Currently reads only one, theroretically more than root org can exist.
         :return: UUID of root organisation
         """
-        url = self.host + 'o'
-        response = requests.get(url)
-        org_id = response.json()
+        org_id = self._mo_lookup(uuid=None, url='o')
         return org_id[0]['uuid']
 
     def read_organisationsenhed(self, uuid):
@@ -91,9 +113,7 @@ class MoraQuery(object):
         :param uuid: The UUID of the OU
         :return: Dict with the information about the OU
         """
-        url = self.host + 'ou/' + uuid
-        response = requests.get(url)
-        org_enhed = response.json()
+        org_enhed = self._mo_lookup(uuid, 'ou/{}')
         return org_enhed
 
     def read_ou_address(self, uuid):
@@ -102,12 +122,7 @@ class MoraQuery(object):
         :return: Dict with the information about the OU
         """
         return_address = {}
-        if uuid not in self.address_cache:
-            url = self.host + 'ou/' + uuid + '/details/address'
-            addresses = requests.get(url).json()
-            self.address_cache[uuid] = addresses
-        else:
-            addresses = self.address_cache[uuid]
+        addresses = self._mo_lookup(uuid, 'ou/{}/details/address')
         for address in addresses:
             if address['address_type']['scope'] == 'DAR':
                 return_address['Adresse'] = address['name']
@@ -118,8 +133,7 @@ class MoraQuery(object):
         :param user: UUID of the wanted user
         :return: Dict witn phone number and email (if the exists in MO
         """
-        url = self.host + 'e/' + user + '/details/address'
-        addresses = requests.get(url).json()
+        addresses = self._mo_lookup(user, 'e/{}/details/address')
         return_address = {}
         for address in addresses:
             if address['address_type']['scope'] == 'PHONE':
@@ -127,8 +141,7 @@ class MoraQuery(object):
             if address['address_type']['scope'] == 'EMAIL':
                 return_address['E-mail'] = address['name']
         if username or cpr:
-            url = self.host + 'e/' + user
-            personal_info = requests.get(url).json()
+            personal_info = self._mo_lookup(user, 'e/{}')
             if username:
                 return_address['Brugernavn'] = personal_info['user_key']
             if cpr:
@@ -143,8 +156,7 @@ class MoraQuery(object):
         :return: Returns 0 or 1 manager of the OU.
         """
         manager_list = {}
-        url = self.host + 'ou/' + org_uuid + '/details/manager'
-        managers = requests.get(url).json()
+        managers = self._mo_lookup(org_uuid, 'ou/{}/details/manager')
         # Iterate over all managers, use uuid as key, if more than one
         # distinct uuid shows up in list, rasie an error
         for manager in managers:
@@ -297,11 +309,10 @@ class MoraQuery(object):
         self._write_csv(fieldnames, rows, filename)
 
     def main(self):
-        # org_id = self.read_organisation()
         # top_units = self.read_top_units(org_id)
 
-        nodes = self.read_ou_tree('f414a2f1-5cac-4634-8767-b8d3109d3133')
-        # nodes = self.read_ou_tree('82b42d4e-f7c0-4787-aa2d-9312b284e519')
+        # nodes = self.read_ou_tree('f414a2f1-5cac-4634-8767-b8d3109d3133')
+        nodes = self.read_ou_tree('82b42d4e-f7c0-4787-aa2d-9312b284e519')
 
         filename = 'Alle_lederfunktioner_os2mo.csv'
         self.export_bosses(nodes, filename)
@@ -315,7 +326,6 @@ class MoraQuery(object):
         nodes = self.read_ou_tree('4bb95b86-8a1e-4335-a721-a555f46333f6')
         filename = 'SD-løn org med Pnr_os2mo.csv'
         self.export_orgs(nodes, filename, include_employees=False)
-
 
 if __name__ == '__main__':
     mora_data = MoraQuery()
