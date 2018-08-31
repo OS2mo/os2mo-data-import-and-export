@@ -5,10 +5,13 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-
+# import sys
+# sys.path.append('../')
+# sys.path.append('../../tests')
 import os
 import csv
 import unittest
+from chardet.universaldetector import UniversalDetector
 from mora_query import MoraQuery
 # from mora import lora
 # from tests import util
@@ -25,17 +28,27 @@ class QueryTests(unittest.TestCase):
         self.moraq.export_orgs(self.nodes, 'all_orgs.csv',
                                include_employees=False)
         self.moraq.export_managers(self.nodes, 'all_managers.csv')
+        self.moraq.export_adm_org(self.nodes, 'adm_org.csv')
 
     @classmethod
     def tearDownClass(self):
         os.remove('all_employees.csv')
         os.remove('all_managers.csv')
         os.remove('all_orgs.csv')
+        pass
 
     def _load_csv(self, filename):
         rows = []
-        with open(filename) as csvfile:
-            reader = csv.DictReader(csvfile)
+        detector = UniversalDetector()
+        with open(filename, 'rb') as csvfile:
+            for row in csvfile:
+                detector.feed(row)
+                if detector.done:
+                    break
+        detector.close()
+        encoding = detector.result['encoding']
+        with open(filename, encoding=encoding) as csvfile:
+            reader = csv.DictReader(csvfile, delimiter=';')
             for row in reader:
                 rows.append(row)
         return rows
@@ -58,10 +71,15 @@ class QueryTests(unittest.TestCase):
                 usernames.append(row['Brugernavn'])
         self.assertTrue(len(usernames) > len(rows) * 0.85)
 
+    def test_adm_orgs(self):
+        """ Test that we have exported all OUs exactly once """
+        rows = self._load_csv('adm_org.csv')
+        self.assertEqual(len(rows), 21)
+
     def test_all_employees(self):
         """ Test that we have exported all employees exactly once """
         rows = self._load_csv('all_employees.csv')
-        self.assertEqual(len(rows), 206)
+        self.assertEqual(len(rows), 203)
 
     def test_consistency(self):
         rows = self._load_csv('all_orgs.csv')

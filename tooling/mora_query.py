@@ -13,6 +13,7 @@ Helper class to make a number of pre-defined queries into MO
 import csv
 import time
 import queue
+import codecs
 import requests
 import threading
 from anytree import Node, PreOrderIter
@@ -21,10 +22,6 @@ from anytree import Node, PreOrderIter
 class MoraQuery(object):
     def __init__(self, hostname='localhost'):
         self.host = 'http://' + hostname + '/service/'
-        self.ou_cache = {}
-        self.address_cache = {}
-        self.user_cahce = {}
-        self.personal_info_cache = {}
         self.cache = {}
 
     def _split_name(self, name):
@@ -45,11 +42,7 @@ class MoraQuery(object):
         """
         path = []
         for sub_node in node.path:
-            if sub_node.name in self.ou_cache:
-                ou = self.ou_cache[sub_node.name]
-            else:
-                ou = self.read_organisationsenhed(sub_node.name)
-                self.ou_cache[sub_node.name] = ou
+            ou = self.read_organisationsenhed(sub_node.name)
             path += [ou['name']]
         return path
 
@@ -65,7 +58,7 @@ class MoraQuery(object):
             fieldnames += [str(i) + 'xsub org']
         return fieldnames
 
-    def _write_csv(self, fieldnames, rows, filename):
+    def _write_csv(self, fieldnames, rows, filename, convert_to_ansi=True):
         """ Write a csv-file from a a dataset. Only fields explicitly mentioned
         in fieldnames will be saved, the rest will be ignored.
         :param fieldnames: The headline for the columns, also act as filter.
@@ -75,10 +68,18 @@ class MoraQuery(object):
         """
         with open(filename, 'w') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
-                                    extrasaction='ignore')
+                                    extrasaction='ignore',
+                                    delimiter=';',
+                                    quoting=csv.QUOTE_ALL)
             writer.writeheader()
             for row in rows:
                 writer.writerow(row)
+        if convert_to_ansi:
+            with codecs.open(filename, 'r', encoding='utf-8') as csvfile:
+                lines = csvfile.read()
+            with codecs.open(filename, 'w',
+                             encoding='windows-1252') as csvfile:
+                csvfile.write(lines)
 
     def _create_path_dict(self, fieldnames, node):
         """ Create a dict with a MO-path to a given node.
@@ -183,33 +184,32 @@ class MoraQuery(object):
             # raise Exception('Too many managers')
         return manager
 
-    def read_organisation_employees(self, org_uuid, split_name=True):
+    def read_organisation_people(self, org_uuid, person_type='engagement',
+                                 split_name=True):
         """ Read all employees in an ou. If the same employee is listed
         more than once, only the latest listing will be included.
         :param org_uuid: UUID of the OU to find emplyees in.
         :return: The list of emplyoees
         """
-        # TODO: Check if managers are included in engament
-        employee_list = {}
-        url = self.host + 'ou/' + org_uuid + '/details/engagement'
-        employees = requests.get(url).json()
-        for employee in employees:
-            uuid = employee['person']['uuid']
-            data = {'Ansættelse gyldig fra': employee['validity']['from'],
-                    'Ansættelse gyldig til': employee['validity']['to'],
+        person_list = {}
+        persons = self._mo_lookup(org_uuid, 'ou/{}/details/' + person_type)
+        for person in persons:
+            uuid = person['person']['uuid']
+            data = {'Ansættelse gyldig fra': person['validity']['from'],
+                    'Ansættelse gyldig til': person['validity']['to'],
                     'Person UUID': uuid,
-                    'Org-enhed': employee['org_unit']['name'],
-                    'Org-enhed UUID': employee['org_unit']['uuid'],
-                    'Stillingsbetegnelse': employee['job_function']['name'],
-                    'Engagement UUID': employee['uuid']
+                    'Org-enhed': person['org_unit']['name'],
+                    'Org-enhed UUID': person['org_unit']['uuid'],
+                    'Stillingsbetegnelse': person['job_function']['name'],
+                    'Engagement UUID': person['uuid']
                     }
             # Finally, add name
             if split_name:
-                data.update(self._split_name(employee['person']['name']))
+                data.update(self._split_name(person['person']['name']))
             else:
-                data['Navn'] = employee['person']['name']
-            employee_list[uuid] = data
-        return employee_list
+                data['Navn'] = person['person']['name']
+            person_list[uuid] = data
+        return person_list
 
     def read_top_units(self, organisation):
         """ Read the ous tha refers directoly to the organisation
@@ -242,7 +242,6 @@ class MoraQuery(object):
 
     def export_all_employees(self, nodes, filename):
         """ Traverses a tree of OUs, for each OU finds the manager of the OU.
-        The list of managers will be saved o a csv-file.
         :param nodes: The nodes of the OU tree
         """
         fieldnames = ['CPR-Nummer', 'Ansættelse gyldig fra',
@@ -252,13 +251,51 @@ class MoraQuery(object):
                       'Stillingsbetegnelse', 'Engagement UUID']
         rows = []
         for node in PreOrderIter(nodes['root']):
-            employees = self.read_organisation_employees(node.name)
+            employees = self.read_organisation_people(node.name)
             for uuid, employee in employees.items():
                 row = {}
                 address = self.read_user_address(uuid, username=True, cpr=True)
                 row.update(address)  # E-mail, Telefon
                 row.update(employee)  # Everything else
                 rows.append(row)
+        self._write_csv(fieldnames, rows, filename)
+
+    def export_all_teams(self, nodes, filename):
+        """ Traverses a tree of OUs, for each OU finds associations
+        :param nodes: The nodes of the OU tree
+        """
+        fieldnames = ['Org-enhed', 'Overordnet ID', 'CPR-numer', 'Navn',
+                      'OrgEnhedNavn', 'Navn', 'Person UUID']
+        rows = []
+        for node in PreOrderIter(nodes['root']):
+            people = self.read_organisation_people(node.name, 'association')
+            for uuid, person in people.items():
+                ou = self.read_organisationsenhed(node.name)
+                row = {}
+                row['Overordnet ID'] = ou['parent']['uuid']
+                address = self.read_user_address(uuid, username=True, cpr=True)
+                row.update(address)  # E-mail, Telefon
+                row.update(person)  # Everything else
+                rows.append(row)
+        self._write_csv(fieldnames, rows, filename)
+
+    def export_adm_org(self, nodes, filename):
+        fieldnames = ['uuid', 'Navn', 'Enhedtype UUID',
+                      'Gyldig fra', 'Gyldig til', 'Enhedstype Titel']
+        rows = []
+        for node in PreOrderIter(nodes['root']):
+            ou = self.read_organisationsenhed(node.name)
+            fra = ou['validity']['from'] if ou['validity']['from'] else ''
+            til = ou['validity']['to'] if ou['validity']['to'] else ''
+            over_uuid = ou['parent']['uuid'] if ou['parent'] else ''
+            row = {'uuid': ou['uuid'],
+                   'Overordnet ID': over_uuid,
+                   'Navn': ou['name'],
+                   'Enhedtype UUID': ou['org_unit_type']['uuid'],
+                   'Gyldig fra': fra,
+                   'Gyldig til': til,
+                   'Enhedstype Titel': ou['org_unit_type']['name']}
+            rows.append(row)
         self._write_csv(fieldnames, rows, filename)
 
     def export_managers(self, nodes, filename):
@@ -294,8 +331,8 @@ class MoraQuery(object):
         for node in PreOrderIter(nodes['root']):
             path_dict = self._create_path_dict(fieldnames, node)
             if include_employees:
-                employees = self.read_organisation_employees(node.name,
-                                                             split_name=False)
+                employees = self.read_organisation_people(node.name,
+                                                          split_name=False)
                 for uuid, employee in employees.items():
                     row = {}
                     address = self.read_user_address(uuid, username=True)
@@ -336,29 +373,39 @@ class MoraQuery(object):
 
     def main(self, threaded_speedup=False):
         t = time.time()
+        """
         if threaded_speedup:
             self.pre_cache_users()
             print('Build cache: {}'.format(time.time() - t))
+        """
         nodes = self.read_ou_tree('f414a2f1-5cac-4634-8767-b8d3109d3133')
-        print('Read nodes: {}'.format(time.time() - t))
-
+        print('Read nodes: {}s'.format(time.time() - t))
+        """
         filename = 'Alle_lederfunktioner_os2mo.csv'
         self.export_managers(nodes, filename)
-        print('Alle ledere: {}'.format(time.time() - t))
+        print('Alle ledere: {}s'.format(time.time() - t))
 
         filename = 'AlleBK-stilling-email_os2mo.csv'
         self.export_all_employees(nodes, filename)
-        print('AlleBK-stilling-email: {}'.format(time.time() - t))
+        print('AlleBK-stilling-email: {}s'.format(time.time() - t))
 
         filename = 'Ballerup_org_incl-medarbejdere_os2mo.csv'
         self.export_orgs(nodes, filename)
-        print('Ballerup org incl medarbejdere: {}'.format(time.time() - t))
+        print('Ballerup org incl medarbejdere: {}s'.format(time.time() - t))
 
+        filename = 'Adm-org-incl-start-og-stopdata-og-enhedstyper-os2mo.csv'
+        self.export_adm_org(nodes, filename)
+        print('Adm-org-incl-start-stop: {}s'.format(time.time() - t))
+        """
+        filename = 'teams-tilknyttede-os2mo.csv'
+        self.export_all_teams(nodes, filename)
+        print('Teams: {}s'.format(time.time() - t))
+        """
         nodes = self.read_ou_tree('4bb95b86-8a1e-4335-a721-a555f46333f6')
         filename = 'SD-løn org med Pnr_os2mo.csv'
         self.export_orgs(nodes, filename, include_employees=False)
         print('SD-løn: {}'.format(time.time() - t))
-
+        """
 
 if __name__ == '__main__':
     mora_data = MoraQuery()
