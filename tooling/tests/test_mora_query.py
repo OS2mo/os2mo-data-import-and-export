@@ -12,7 +12,9 @@ import os
 import csv
 import unittest
 from chardet.universaldetector import UniversalDetector
-from mora_query import MoraQuery
+
+import mora_query
+from mora_helpers import MoraHelper
 # from mora import lora
 # from tests import util
 
@@ -22,20 +24,20 @@ class QueryTests(unittest.TestCase):
     def setUpClass(self):
         # c = lora.Connector(virkningfra='-infinity', virkningtil='infinity')
         start_ou = '82b42d4e-f7c0-4787-aa2d-9312b284e519'
-        self.moraq = MoraQuery()
-        self.nodes = self.moraq.read_ou_tree(start_ou)
-        self.moraq.export_orgs(self.nodes, 'all_employees.csv')
-        self.moraq.export_orgs(self.nodes, 'all_orgs.csv',
+        self.morah = MoraHelper()
+        self.nodes = self.morah.read_ou_tree(start_ou)
+        mora_query.export_orgs(self.morah, self.nodes, 'all_employees.csv')
+        mora_query.export_orgs(self.morah, self.nodes, 'all_orgs.csv',
                                include_employees=False)
-        self.moraq.export_managers(self.nodes, 'all_managers.csv')
-        self.moraq.export_adm_org(self.nodes, 'adm_org.csv')
+        mora_query.export_managers(self.morah, self.nodes, 'all_managers.csv')
+        mora_query.export_adm_org(self.morah, self.nodes, 'adm_org.csv')
 
     @classmethod
     def tearDownClass(self):
         os.remove('all_employees.csv')
-        os.remove('all_managers.csv')
         os.remove('all_orgs.csv')
-        pass
+        os.remove('all_managers.csv')
+        os.remove('adm_org.csv')
 
     def _load_csv(self, filename):
         rows = []
