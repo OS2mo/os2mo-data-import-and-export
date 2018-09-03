@@ -264,16 +264,18 @@ class MoraQuery(object):
         """ Traverses a tree of OUs, for each OU finds associations
         :param nodes: The nodes of the OU tree
         """
-        fieldnames = ['Org-enhed', 'Overordnet ID', 'CPR-numer', 'Navn',
-                      'OrgEnhedNavn', 'Navn', 'Person UUID']
+        fieldnames = ['Org-UUID', 'Org-enhed', 'Overordnet UUID', 'Navn',
+                      'Person UUID', 'CPR-Nummer']
         rows = []
         for node in PreOrderIter(nodes['root']):
-            people = self.read_organisation_people(node.name, 'association')
+            people = self.read_organisation_people(node.name, 'association',
+                                                   split_name=False)
             for uuid, person in people.items():
                 ou = self.read_organisationsenhed(node.name)
                 row = {}
-                row['Overordnet ID'] = ou['parent']['uuid']
-                address = self.read_user_address(uuid, username=True, cpr=True)
+                row['Org-UUID'] = ou['uuid']
+                row['Overordnet UUID'] = ou['parent']['uuid']
+                address = self.read_user_address(uuid, cpr=True)
                 row.update(address)  # E-mail, Telefon
                 row.update(person)  # Everything else
                 rows.append(row)
