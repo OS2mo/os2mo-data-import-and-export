@@ -100,7 +100,7 @@ class AposImport(object):
         til = _format_time(details['gyldighed']['@til'])
         unit = self.org.OrganisationUnit.add(
             name=apos_unit['@navn'],
-            #brugervendtnoegle=apos_unit['@brugervendtNoegle'],
+            user_key=apos_unit['@brugervendtNoegle'],
             type_ref=self.org.Klasse.get_uuid(details['@enhedstype']),
             date_from=fra,
             date_to=til,
@@ -126,13 +126,25 @@ class AposImport(object):
             if person['@mellemnavn']:
                 name += person['@mellemnavn']
             name += person['@efternavn']
-            print(name)
+            fra = _format_time(medarbejder['gyldighed']['@fra'])
+            til = _format_time(medarbejder['gyldighed']['@til'])
+            bvn = medarbejder['@brugervendtNoegle']
+            self.org.Employee.add(name=name,
+                                  cpr_no=person['@personnummer'],
+                                  #brugervendtnoegle=bvn,
+                                  date_from=fra,
+                                  date_to=til)
+
+            # NOTE: Hvorfor ser vi samme medarbejder flere gange?
             #print(medarbejder['@uuid'])
-            #print(medarbejder['@brugervendtNoegle'])
-            #print(medarbejder['gyldighed'])
             #print(medarbejder['person'])
             #print(medarbejder['lokationer'])
             #print(medarbejder['klassifikationKontaktKanaler'])
+            opgaver = medarbejder['opgaver']['opgave']
+            print(opgaver[0])
+            1/0
+            if not opgaver['@klassifikation'] == 'stillingsbetegnelser':
+                print(opgaver)
             #print(medarbejder['integrationAttributter'])
 
     def create_ou_tree(self):
@@ -157,7 +169,6 @@ class AposImport(object):
                     remaining_org_units.append(unit)
             org_units = remaining_org_units
             nodes.update(new)
-
             
 """
 print('---- Tilknytninger ----')
