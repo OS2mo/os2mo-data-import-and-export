@@ -1,35 +1,42 @@
 """ Create dummy data to populate MO """
 import pickle
 import random
-import requests
 import pathlib
+import requests
+from uuid import uuid4
+from anytree import Node, PreOrderIter
+
+kommunekoder = {'København': 101,
+                'Frederiksberg': 147,
+                'Ballerup': 151,
+                'Næstved': 370}
 
 class CreateDummyOrg(object):
     """ Create a dummy organisation to use as test data """
 
-    def __init__(self, kommune, navne):
-        self.kommunekoder = {'København': 101,
-                             'Frederiksberg': 147,
-                             'Ballerup': 151,
-                             'Næstved': 370}
-        self.kommune = kommune
+    def __init__(self, kommunekode, kommunenavn, navne):
+        self.nodes = {}
+        self.kommunenavn = kommunenavn
+        self.nodes['root'] = Node(kommunenavn)
+
         try:
-            with open(kommune + '.p', 'rb') as file_handle:
+            with open(str(kommunekode) + '.p', 'rb') as file_handle:
                 self.adresser = pickle.load(file_handle)
         except OSError:
             addr = ('http://dawa.aws.dk/adgangsadresser' +
                     '?kommunekode={}&struktur=mini')
-            r = requests.get(addr.format(self.kommunekoder[kommune]))
+            r = requests.get(addr.format(kommunekode))
             self.adresser = r.json()
-            with open(kommune + '.p', 'wb') as file_handle:
+            with open(str(kommunekode) + '.p', 'wb') as file_handle:
                 pickle.dump(self.adresser, file_handle)
 
-        self.names = {}
-        self.names['first'] = self._load_names(navne[0])
-        self.names['middle'] = self._load_names(navne[1])
-        self.names['last'] = self._load_names(navne[2])
-        self.used_bvns = []
+        self.names = {'first': self._load_names(navne[0]),
+                      'middle': self._load_names(navne[1]),
+                      'last': self._load_names(navne[2])}
 
+        # Used to keep track of used bvns to keep them unique
+        self.used_bvns = []
+        
     def _load_names(self, name_file):
         """ Load a weighted list of names
         :param name_file: Name of the text file with names
@@ -83,10 +90,10 @@ class CreateDummyOrg(object):
         # TODO: We should use the open adresse data to create realistic data
         # in the same way names are currently created
         addr = self.adresser[random.randrange(len(self.adresser))]
-        adresse = {}
-        adresse['postnummer'] = addr['postnr']
-        adresse['postdistrikt'] = addr['postnrnavn']
-        adresse['adresse'] = addr['vejnavn'] + ' ' + addr['husnr']
+        adresse = {'postnummer' :addr['postnr'],
+                   'postdistrikt': addr['postnrnavn'],
+                   'adresse': addr['vejnavn'] + ' ' + addr['husnr'],
+                   'dar-uuid': addr['id']}
         return adresse
 
     def create_name(self, bvn=False):
@@ -107,7 +114,9 @@ class CreateDummyOrg(object):
         i = 0
         while bvn in self.used_bvns:
             i = i + 1
-            bvn = first + last[0:i]
+            bvn = first[0:i+2] + last[0:i]
+            if i > len(last):
+                bvn = bvn +  str(random.randrange(1, 999))
         self.used_bvns.append(bvn)
 
         if bvn:
@@ -115,31 +124,21 @@ class CreateDummyOrg(object):
         else:
             return name
 
-    def create_bruger(self):
+    def create_bruger(self, manager=False):
         """ Create a MO bruger with a random name and phone
         :return: A Dict with information about the bruger
         """
         navn, bvn = self.create_name(bvn=True)
-        bruger = {}
-        bruger['fra'] = '1964-05-24 00:00:00'
-        bruger['til'] = 'infinity'
-        bruger['brugervendtnoegle'] = bvn
-        bruger['brugernavn'] = navn
-        bruger['email'] = bvn + '@' + self.kommune + '.dk'
-        bruger['telefon'] = self._telefon()
+        bruger = {'fra': '1964-05-24',  # TODO
+                  'til': None,  # TODO
+                  'brugervendtnoegle': bvn,
+                  'brugernavn': navn,
+                  'email': bvn + '@' + self.kommunenavn + '.dk',
+                  'telefon':self._telefon(),
+                  'manager': manager,
+                  'adresse': self._adresse()
+                  }
         return bruger
-
-    def _create_org_level(self, org_list):
-        """ Create a dict with names, adresses and room for subunits
-        :param org_list: List of names of the organisation
-        :return: A flat dict with name, random adress and room for sub-units
-        """
-        org_dict = {}
-        for org in org_list:
-            org_dict[org] = {}
-            org_dict[org]['adresse'] = self._adresse()
-            org_dict[org]['subunits'] = {}
-        return org_dict
 
     def _postdistrikter(self):
         """ Create a list of all unique postal areas
@@ -151,21 +150,35 @@ class CreateDummyOrg(object):
                 postdistrikter.append(adresse['postnrnavn'])
         return postdistrikter
 
-    def create_org_func_list(self):
+    def _create_org_level(self, org_list, parent):
+        """ Create a dict with names, adresses and parents
+        :param org_list: List of names of the organisation
+        :return: A flat dict with name, random adress and room for sub-units
+        """
+        uuid_list = []
+        for org in org_list:
+            uuid = uuid4()
+            uuid_list.append(uuid)
+            self.nodes[uuid] = Node(org, adresse=self._adresse(),
+                                    type='ou', parent=parent)
+        return uuid_list
+
+    def create_org_func_tree(self):
         orgs = ['Borgmesterens Afdeling',
                 'Teknik og Miljø',
                 'Skole og Børn',
                 'Social og sundhed']
-        org_func_list = self._create_org_level(orgs)
+        self._create_org_level(orgs, parent=self.nodes['root'])
 
-        for org in org_func_list.keys():
+        for node in list(self.nodes.keys()): 
+            org = self.nodes[node].name
             if org == 'Teknik og Miljø':
                 orgs = ['Kloakering',
                         'Park og vej',
                         'Renovation',
                         'Belysning',
                         'IT-Support']
-                org_func_list[org]['subunits'] = self._create_org_level(orgs)
+                self._create_org_level(orgs, self.nodes[node])
 
             if org == 'Borgmesterens Afdeling':
                 orgs = ['Budget og Planlægning',
@@ -173,38 +186,64 @@ class CreateDummyOrg(object):
                         'Erhverv',
                         'Byudvikling',
                         'IT-Support']
-                org_func_list[org]['subunits'] = self._create_org_level(orgs)
+                self._create_org_level(orgs, self.nodes[node])
 
             if org == 'Skole og Børn':
-                orgs = ['Skole', 'Børnehaver', 'Social Indsats', 'IT-Support']
-                org_func_list[org]['subunits'] = self._create_org_level(orgs)
+                orgs = ['Social Indsats', 'IT-Support']
+                self._create_org_level(orgs, self.nodes[node])
 
-                skoler = self._create_org_level([dist + " skole"
-                                                 for dist in
-                                                 self._postdistrikter()])
-                børnehaver = self._create_org_level([dist + " børnehus"
-                                                     for dist in
-                                                     self._postdistrikter()])
+                org = ['Skoler og børnehaver']
+                uuid = self._create_org_level(org, self.nodes[node])[0]
 
-                org_func_list[org]['subunits']['Skole']['subunits'] = skoler
-                org_func_list[org]['subunits']['Børnehaver']['subunits'] = børnehaver
-        return org_func_list
+                skoler = [dist + " skole" for dist in self._postdistrikter()]
+                self._create_org_level(skoler, self.nodes[uuid])
+                
+                børnehaver = [dist + " børnehus"
+                              for dist in self._postdistrikter()]
+                self._create_org_level(børnehaver, self.nodes[uuid])
 
+    def add_users_to_tree(self, ou_size_scale):
+        new_nodes = {}
+        for node in PreOrderIter(self.nodes['root']):
+            print(node)
+            size = ou_size_scale * (node.depth + 1)
+            ran_size = random.randrange(round(size/4), size)
+            for _ in range(0, ran_size):
+                #print(ran_size)
+                print(node.depth + 1)
+                user = self.create_bruger()
+                #print(user['brugernavn'])
+                new_nodes[uuid4()] ={'name': user['brugernavn'], 'user': user,
+                                     'parent': node}
+                                     #Node(user['brugernavn'], user=user,
+                                     #   type='user', parent=node)
+            # In version one we always add a single manager to a OU
+            # This should be randomized and also sometimes be a vacant
+            # position
+            user = self.create_bruger(manager=True)
+            self.nodes[uuid4()] = {'name': user['brugernavn'], 'user': user,
+                                   'parent': node}
+
+        for key, node in new_nodes.items():
+            node = Node(user['brugernavn'], user=user,
+                                        type='user', parent=node)
+                
+                
 if __name__ == '__main__':
-    # TODO: Use cvr-data to extract realistic names
     path = pathlib.Path.cwd()
     path = path /  'navne'
     navne_list = [path / 'fornavne.txt',
                   path / 'mellemnavne.txt',
                   path / 'efternavne.txt']
-    dummy_creator = CreateDummyOrg('Ballerup', navne_list)
-    org = dummy_creator.create_org_func_list()
+    dummy_creator = CreateDummyOrg(151, 'Ballerup', navne_list)
+    dummy_creator.create_org_func_tree()
 
-    brugere = []
-    for i in range(0, 5):
-        brugere.append(dummy_creator.create_bruger())
+    dummy_creator.add_users_to_tree(2)
 
-    import json
-    #print(json.dumps(org, indent=2))
-    #print(json.dumps(brugere, indent=2))
-    print(org.keys()) 
+    #brugere = []
+    #for i in range(0, 5):
+    #    brugere.append(dummy_creator.create_bruger())
+    #print(brugere)
+
+    from anytree.exporter import DotExporter
+    DotExporter(dummy_creator.nodes['root']).to_picture("org.png")
