@@ -6,15 +6,54 @@ import requests
 from uuid import uuid4
 from anytree import Node, PreOrderIter
 
-kommunekoder = {'København': 101,
-                'Frederiksberg': 147,
-                'Ballerup': 151,
-                'Næstved': 370}
+
+# Name handling
+def _path_to_names():
+    path = pathlib.Path.cwd()
+    path = path / 'navne'
+    navne_list = [path / 'fornavne.txt',
+                  path / 'mellemnavne.txt',
+                  path / 'efternavne.txt']
+    return navne_list
+
+
+def _load_names(name_file):
+    """ Load a weighted list of names
+    :param name_file: Name of the text file with names
+    :return: A weighted list of names
+    """
+    with name_file.open('r') as f:
+        names_file = f.read()
+    name_lines = names_file.split('\n')
+    names = []
+    for name_set in name_lines:
+        try:
+            parts = name_set.split('\t')
+            if parts[2].find(',') > 0:
+                subnames = parts[2].split(',')
+                for subname in subnames:
+                    names.append([int(parts[1]), subname])
+            else:
+                names.append([int(parts[1]), parts[2]])
+        except IndexError:
+            pass
+    return names
+
+
+def _telefon():
+    """ Create a random phone number
+    :return: A random phone number
+    """
+    tlf = str(random.randrange(1, 9))
+    for i in range(0, 6):
+        tlf += str(random.randrange(0, 9))
+    return tlf
+
 
 class CreateDummyOrg(object):
     """ Create a dummy organisation to use as test data """
 
-    def __init__(self, kommunekode, kommunenavn, navne):
+    def __init__(self, kommunekode, kommunenavn, path_to_names):
         self.nodes = {}
         self.kommunenavn = kommunenavn
         self.nodes['root'] = Node(kommunenavn)
@@ -30,34 +69,12 @@ class CreateDummyOrg(object):
             with open(str(kommunekode) + '.p', 'wb') as file_handle:
                 pickle.dump(self.adresser, file_handle)
 
-        self.names = {'first': self._load_names(navne[0]),
-                      'middle': self._load_names(navne[1]),
-                      'last': self._load_names(navne[2])}
+        self.names = {'first': _load_names(path_to_names[0]),
+                      'middle': _load_names(path_to_names[1]),
+                      'last': _load_names(path_to_names[2])}
 
         # Used to keep track of used bvns to keep them unique
         self.used_bvns = []
-        
-    def _load_names(self, name_file):
-        """ Load a weighted list of names
-        :param name_file: Name of the text file with names
-        :return: A weighted list of names
-        """
-        with name_file.open('r') as f:
-            names_file = f.read()
-        name_lines = names_file.split('\n')
-        names = []
-        for name_set in name_lines:
-            try:
-                parts = name_set.split('\t')
-                if parts[2].find(',') > 0:
-                    subnames = parts[2].split(',')
-                    for subname in subnames:
-                        names.append([int(parts[1]), subname])
-                else:
-                    names.append([int(parts[1]), parts[2]])
-            except IndexError:
-                pass
-        return names
 
     def _pick_name_from_list(self, name_type):
         """ Pick a name
@@ -76,21 +93,20 @@ class CreateDummyOrg(object):
                 break
         return name[1]
 
-    def _telefon(self):
-        """ Create a random phone number
-        :return: A random phone number
+    def _postdistrikter(self):
+        """ Create a list of all unique postal areas
+        :return: List of all unique postal areas
         """
-        tlf = str(random.randrange(1, 9))
-        for i in range(0, 6):
-            tlf += str(random.randrange(0, 9))
-        return tlf
+        postdistrikter = []
+        for adresse in self.adresser:
+            if adresse['postnrnavn'] not in postdistrikter:
+                postdistrikter.append(adresse['postnrnavn'])
+        return postdistrikter
 
     def _adresse(self):
         """ Create a Danish adresse """
-        # TODO: We should use the open adresse data to create realistic data
-        # in the same way names are currently created
         addr = self.adresser[random.randrange(len(self.adresser))]
-        adresse = {'postnummer' :addr['postnr'],
+        adresse = {'postnummer': addr['postnr'],
                    'postdistrikt': addr['postnrnavn'],
                    'adresse': addr['vejnavn'] + ' ' + addr['husnr'],
                    'dar-uuid': addr['id']}
@@ -104,19 +120,19 @@ class CreateDummyOrg(object):
 
         middle = ''
         if random.random() > 0.3:
-            middle = middle + self._pick_name_from_list('middle') 
+            middle = middle + self._pick_name_from_list('middle')
         if random.random() > 0.9:
             middle = middle + ' ' + self._pick_name_from_list('middle')
 
         last = self._pick_name_from_list('last')
-        name = first  + ' ' + middle + ' ' + last
+        name = first + ' ' + middle + ' ' + last
         bvn = first + last[0]
         i = 0
         while bvn in self.used_bvns:
             i = i + 1
             bvn = first[0:i+2] + last[0:i]
             if i > len(last):
-                bvn = bvn +  str(random.randrange(1, 999))
+                bvn = bvn + str(random.randrange(1, 999))
         self.used_bvns.append(bvn)
 
         if bvn:
@@ -134,21 +150,11 @@ class CreateDummyOrg(object):
                   'brugervendtnoegle': bvn,
                   'brugernavn': navn,
                   'email': bvn + '@' + self.kommunenavn + '.dk',
-                  'telefon':self._telefon(),
+                  'telefon': _telefon(),
                   'manager': manager,
                   'adresse': self._adresse()
                   }
         return bruger
-
-    def _postdistrikter(self):
-        """ Create a list of all unique postal areas
-        :return: List of all unique postal areas
-        """
-        postdistrikter = []
-        for adresse in self.adresser:
-            if adresse['postnrnavn'] not in postdistrikter:
-                postdistrikter.append(adresse['postnrnavn'])
-        return postdistrikter
 
     def _create_org_level(self, org_list, parent):
         """ Create a dict with names, adresses and parents
@@ -170,7 +176,7 @@ class CreateDummyOrg(object):
                 'Social og sundhed']
         self._create_org_level(orgs, parent=self.nodes['root'])
 
-        for node in list(self.nodes.keys()): 
+        for node in list(self.nodes.keys()):
             org = self.nodes[node].name
             if org == 'Teknik og Miljø':
                 orgs = ['Kloakering',
@@ -197,7 +203,7 @@ class CreateDummyOrg(object):
 
                 skoler = [dist + " skole" for dist in self._postdistrikter()]
                 self._create_org_level(skoler, self.nodes[uuid])
-                
+
                 børnehaver = [dist + " børnehus"
                               for dist in self._postdistrikter()]
                 self._create_org_level(børnehaver, self.nodes[uuid])
@@ -205,45 +211,32 @@ class CreateDummyOrg(object):
     def add_users_to_tree(self, ou_size_scale):
         new_nodes = {}
         for node in PreOrderIter(self.nodes['root']):
-            print(node)
             size = ou_size_scale * (node.depth + 1)
             ran_size = random.randrange(round(size/4), size)
             for _ in range(0, ran_size):
-                #print(ran_size)
-                print(node.depth + 1)
                 user = self.create_bruger()
-                #print(user['brugernavn'])
-                new_nodes[uuid4()] ={'name': user['brugernavn'], 'user': user,
-                                     'parent': node}
-                                     #Node(user['brugernavn'], user=user,
-                                     #   type='user', parent=node)
+                new_nodes[uuid4()] = {'name': user['brugernavn'], 'user': user,
+                                      'parent': node}
             # In version one we always add a single manager to a OU
             # This should be randomized and also sometimes be a vacant
             # position
             user = self.create_bruger(manager=True)
-            self.nodes[uuid4()] = {'name': user['brugernavn'], 'user': user,
-                                   'parent': node}
+            new_nodes[uuid4()] = {'name': user['brugernavn'], 'user': user,
+                                  'parent': node}
 
-        for key, node in new_nodes.items():
-            node = Node(user['brugernavn'], user=user,
-                                        type='user', parent=node)
-                
-                
+        for key, user_info in new_nodes.items():
+            user_node = Node(user_info['user']['brugernavn'],
+                             user=user_info['user'], type='user',
+                             parent=user_info['parent'])
+            self.nodes[key] = user_node
+
+
 if __name__ == '__main__':
-    path = pathlib.Path.cwd()
-    path = path /  'navne'
-    navne_list = [path / 'fornavne.txt',
-                  path / 'mellemnavne.txt',
-                  path / 'efternavne.txt']
-    dummy_creator = CreateDummyOrg(151, 'Ballerup', navne_list)
+    dummy_creator = CreateDummyOrg(860, 'Hjørring Kommune',
+                                   _path_to_names())
     dummy_creator.create_org_func_tree()
+    dummy_creator.add_users_to_tree(ou_size_scale=1)
 
-    dummy_creator.add_users_to_tree(2)
-
-    #brugere = []
-    #for i in range(0, 5):
-    #    brugere.append(dummy_creator.create_bruger())
-    #print(brugere)
-
-    from anytree.exporter import DotExporter
-    DotExporter(dummy_creator.nodes['root']).to_picture("org.png")
+    # Iterate over all nodes:
+    for node in PreOrderIter(dummy_creator.nodes['root']):
+        print(node)
