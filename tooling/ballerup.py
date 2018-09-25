@@ -210,11 +210,7 @@ class AposImport(object):
                 uuid = person['@uuid']
 
                 url = "app-organisation/GetBruger?uuid={}"
-                print(self._apos_lookup(url.format(uuid)))
                 # print(self.org.Employee.get_data(uuid))
-            print('*')
-            print(unit)
-            print('----')
 
     def dawa_lookup(self, address):
         """ Lookup an APOS address object in DAWA and find a UUID
@@ -241,31 +237,37 @@ class AposImport(object):
             # adgangsadresse
             dar_data = _dawa_request(address, adgangsadresse=True)
             if len(dar_data) == 1:
-                print(dar_data[0]['id'])
+                dar_uuid = dar_data[0]['id']
             else:
                 del self.address_challenges[address['@uuid']]
                 self.address_errors[address['@uuid']] = address
         return dar_uuid
 
     def read_locations(self, unit):
-        print(unit)
         url = 'app-organisation/GetLocations?uuid={}'
         locations = self._apos_lookup(url.format(unit['@uuid']))
-        print('**********')
-        print(unit)
-        print(locations)
-        if int(locations['total']) > 0:
-            locations = locations['location']
-            if not isinstance(locations, list):
-                locations = [locations]
-            for location in locations:
-                # TODO: What to do with information regarding primary?
-                print(location)
-                uuid = location['@adresse']
-                print(uuid)
-                url = 'app-part/GetAdresseList?uuid={}'
-                opus_address = self._apos_lookup(url.format(uuid))
-                dawa = self.dawa_lookup(opus_address['adresse'])
+        mo_locations = []
+        if int(locations['total']) == 0:
+            # Return imidiately of no locations are returned
+            return mo_locations
+
+        locations = locations['location']
+        if not isinstance(locations, list):
+            locations = [locations]
+        for location in locations:
+            # TODO: What to do with information regarding primary?
+            uuid = location['@adresse']
+            url = 'app-part/GetAdresseList?uuid={}'
+            opus_address = self._apos_lookup(url.format(uuid))
+
+            dawa_uuid = self.dawa_lookup(opus_address['adresse'])
+            pnummer = location.get('@pnummer', None)
+            primary = (location.get('@primary', None) == 'JA')
+            mo_location = {'pnummer': pnummer,
+                           'primary': primary,
+                           'dawa_uuid': dawa_uuid}
+            mo_locations.append(mo_location)
+        return mo_locations
 
     def create_ou_tree(self):
         org_units = self._read_ous_from_apos(re_read=False)
@@ -278,7 +280,7 @@ class AposImport(object):
             remaining_org_units = []
             new = {}
             for unit in org_units:
-                print(self.read_locations(unit))
+                unit_locations = self.read_locations(unit)
                 over_id = int(unit['@overordnetid'])
                 unit_id = int(unit['@objectid'])
                 if over_id in nodes.keys():
