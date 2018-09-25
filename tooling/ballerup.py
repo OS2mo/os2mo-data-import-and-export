@@ -3,8 +3,8 @@ import pickle
 import requests
 import xmltodict
 from datetime import datetime
-from os2mo_data_import.adapters.builder import Organisation
-from os2mo_data_import.http_utils import temp_import_all
+from os2mo_data_import import Organisation
+#from os2mo_data_import.http_utils import temp_import_all
 
 
 def _format_time(timestring):
@@ -99,7 +99,6 @@ class AposImport(object):
         apos_facetter = self._read_apos_facetter(klassifikation_uuid)
         for mo_facet_navn, apos_facet_navn in facet_typer.items():
             facet = apos_facetter[apos_facet_navn]
-            mo_facet_uuid = self.org.Facet.get_uuid(mo_facet_navn)
 
             klasser = self._read_apos_klasser(facet['@uuid'])
             for klasse in klasser:
@@ -107,7 +106,7 @@ class AposImport(object):
                         "omfang": None,  # TODO: Hvad er dette?
                         "titel": klasse['@title']}
                 self.org.Klasse.add(identifier=klasse['@uuid'],
-                                    facet_ref=mo_facet_uuid,
+                                    facet_type=mo_facet_navn,
                                     properties=data)
 
     def create_facetter_and_klasser(self):
@@ -148,7 +147,7 @@ class AposImport(object):
             identifier=apos_unit['@uuid'],
             name=apos_unit['@navn'],
             user_key=apos_unit['@brugervendtNoegle'],
-            type_ref=self.org.Klasse.get_uuid(details['@enhedstype']),
+            type_ref=details['@enhedstype'],
             date_from=fra,
             date_to=til,
             parent_ref=parent)
@@ -157,7 +156,6 @@ class AposImport(object):
     def create_employees_for_ou(self, unit):
         url = 'composite-services/GetEngagementDetailed?unitUuid={}'
         medarbejdere = self._apos_lookup(url.format(unit['@uuid']))
-
         if medarbejdere['total'] == '0':
             return
         elif medarbejdere['total'] == '1':
@@ -185,7 +183,10 @@ class AposImport(object):
             # print(medarbejder['person'])
             # print(medarbejder['lokationer'])
             # print(medarbejder['klassifikationKontaktKanaler'])
+            # Dette er telefon og email - hold fast i dem
             opgaver = medarbejder['opgaver']['opgave']
+            """
+            # Debug code - remove
             if isinstance(opgaver, list):
                 assert(len(opgaver) == 2)
                 assert(opgaver[0]['@klassifikation'] == 'stillingsbetegnelser')
@@ -281,6 +282,36 @@ class AposImport(object):
             mo_locations.append(mo_location)
         return mo_locations
 
+    def get_ou_functions(self, unit):
+        stop = False
+        url = 'app-organisation/GetFunctionsForUnit?uuid={}'
+        org_funcs = self._apos_lookup(url.format(unit['@uuid']))
+        if int(org_funcs['total']) > 0:
+            for func in org_funcs['function']:
+                persons = func['persons']
+                if persons:
+                    if persons['person']['@uuid']:
+                        print('*****')
+                        #print(func)
+                        print(func.keys())
+                        print(func['@bvn'])
+                        #print(func['@navn'])
+                        person = func['persons']['person']['@uuid']
+                        assert(len(func['persons']) == 1)
+                        assert(func['units']['unit']['@uuid'] == unit['@uuid'])
+
+                        tasks = func['tasks']['task']
+                        for task in tasks:
+                            print(task)
+                        # These task corresond to klasser in Leder
+                        print('--**--')
+                        #print(persons['person'])
+                        #print(type(persons['person']))
+                        # print(persons['person'].keys())
+                        stop = True
+        if stop:
+            1/0
+    
     def create_ou_tree(self):
         org_units = self._read_ous_from_apos(re_read=False)
         nodes = {}
@@ -296,10 +327,12 @@ class AposImport(object):
                 over_id = int(unit['@overordnetid'])
                 unit_id = int(unit['@objectid'])
                 if over_id in nodes.keys():
-                    print(unit['@uuid'])
+                    print(unit['@uuid'])                  
                     new[unit_id] = self._create_ou_from_apos(unit,
                                                              nodes[over_id])
                     self.create_employees_for_ou(unit)
+                    self.get_ou_functions(unit)
+
                 else:
                     remaining_org_units.append(unit)
             org_units = remaining_org_units
@@ -310,7 +343,7 @@ if __name__ == '__main__':
     apos_import = AposImport('Ballerup APOS 1')
 
     apos_import.create_facetter_and_klasser()
-    #apos_import.create_ou_tree()
+    apos_import.create_ou_tree()
     #temp_import_all(apos_import.org)
 
     print('********************************')
