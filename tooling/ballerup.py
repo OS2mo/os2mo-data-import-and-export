@@ -73,35 +73,42 @@ class AposImport(object):
     def _read_apos_facetter(self, uuid):
         url = "app-klassifikation/GetFacetterForKlassifikation?uuid={}"
         r = self._apos_lookup(url.format(uuid))
-        facet = r['facet']
-        return facet
+        facetter = r['facet']
+        if not isinstance(facetter, list):
+            facetter = [facetter]
+        facet_dict = {}
+        for facet in facetter:
+            beskrivelse = facet['@brugervendtnoegle']
+            facet_dict[beskrivelse] = facet
+        return facet_dict
 
     def _read_apos_klasser(self, facet_uuid):
         url = "app-klassifikation/GetKlasseForFacet?uuid={}"
         r = self._apos_lookup(url.format(facet_uuid))
         return r['klasse']
 
-    def create_typer(self, uuid, facet_type):
+    def create_typer(self, klassifikation_uuid, facet_typer):
         """ Read all klasser from a klassifikation from Apos
         and create them in LoRa. Apos has only a single facet
         for these types, so the Apos Klassifikation will be mapped
         as a LoRa facet.
-        :param uuid: The apos uuid for the klassifikation
-        :param facet_type: The type of facet, only two allowed
+        :param klassifikation_uuid: The apos uuid for the klassifikation
+        :param facet_type: Dict with MO facets as keys and APOS facets as
+        values
         """
-        if facet_type not in ['Enhedstype', 'Stillingsbetegnelse']:
-            raise('Wrong facet type')
-        # We have only a single facet in these Klassifikationer
-        apos_facet = self._read_apos_facetter(uuid)
-        klasser = self._read_apos_klasser(apos_facet['@uuid'])
-        facet_uuid = self.org.Facet.get_uuid(facet_type)
-        for klasse in klasser:
-            data = {"brugervendtnoegle": klasse['@title'],
-                    "omfang": None,  # TODO: Hvad er dette?
-                    "titel": klasse['@title']}
-            self.org.Klasse.add(identifier=klasse['@uuid'],
-                                facet_ref=facet_uuid,
-                                properties=data)
+        apos_facetter = self._read_apos_facetter(klassifikation_uuid)
+        for mo_facet_navn, apos_facet_navn in facet_typer.items():
+            facet = apos_facetter[apos_facet_navn]
+            mo_facet_uuid = self.org.Facet.get_uuid(mo_facet_navn)
+
+            klasser = self._read_apos_klasser(facet['@uuid'])
+            for klasse in klasser:
+                data = {"brugervendtnoegle": klasse['@title'],
+                        "omfang": None,  # TODO: Hvad er dette?
+                        "titel": klasse['@title']}
+                self.org.Klasse.add(identifier=klasse['@uuid'],
+                                    facet_ref=mo_facet_uuid,
+                                    properties=data)
 
     def create_facetter_and_klasser(self):
         """ Her laver vi de facetter Niels efterspørger """
@@ -110,9 +117,14 @@ class AposImport(object):
         klassifikationer = r['klassifikation']
         for k in klassifikationer:
             if k['@kaldenavn'] == 'Stillingsbetegnelser':
-                self.create_typer(k['@uuid'], 'Stillingsbetegnelse')
+                self.create_typer(k['@uuid'],
+                                  {'Stillingsbetegnelse': 'Alfabetisk'})
             if k['@kaldenavn'] == 'Enhedstyper':
-                self.create_typer(k['@uuid'], 'Enhedstype')
+                self.create_typer(k['@uuid'],
+                                  {'Enhedstype': 'Alfabetisk'})
+            if k['@kaldenavn'] == 'Leder':
+                self.create_typer(k['@uuid'], {'Lederansvar': 'Ansvar',
+                                               'Ledertyper': 'Typer'})
 
     def _read_ous_from_apos(self, re_read=False):
         if re_read:
@@ -298,8 +310,8 @@ if __name__ == '__main__':
     apos_import = AposImport('Ballerup APOS 1')
 
     apos_import.create_facetter_and_klasser()
-    apos_import.create_ou_tree()
-    # temp_import_all(apos_import.org)
+    #apos_import.create_ou_tree()
+    #temp_import_all(apos_import.org)
 
     print('********************************')
     print('Address challenges:')
