@@ -105,9 +105,20 @@ class AposImport(object):
                 data = {"brugervendtnoegle": klasse['@title'],
                         "omfang": None,  # TODO: Hvad er dette?
                         "titel": klasse['@title']}
-                self.org.Klasse.add(identifier=klasse['@uuid'],
-                                    facet_type=mo_facet_navn,
-                                    properties=data)
+
+                if klasse['@uuid'] == '4d3ac2ff-96a5-45c8-9108-856f56110fee':
+                    print('!!!!!!!!!!!!!!!!!!')
+                    print(klasse)
+                #if klasse['@uuid'] == '41504f53-0203-001f-4158-41504f494e54':
+                #    print(klasse)
+                klaf = self.org.Klasse.add(identifier=klasse['@uuid'],
+                                           facet_type=mo_facet_navn,
+                                           properties=data)
+                if klasse['@uuid'] == '4d3ac2ff-96a5-45c8-9108-856f56110fee':
+                    print('Klaf:')
+                    print(klaf)
+                    print(':Klaf')
+
 
     def create_facetter_and_klasser(self):
         """ Her laver vi de facetter Niels efterspørger """
@@ -124,6 +135,11 @@ class AposImport(object):
             if k['@kaldenavn'] == 'Leder':
                 self.create_typer(k['@uuid'], {'Lederansvar': 'Ansvar',
                                                'Ledertyper': 'Typer'})
+            if k['@kaldenavn'] == 'Kontaktkanaler':
+                self.create_typer(k['@uuid'], {'Adressetype': 'Lokation typer',
+                                               'Adressetype': 'Egenskaber',
+                                               'Adressetype':
+                                               'Engagement typer'})
 
     def _read_ous_from_apos(self, re_read=False):
         if re_read:
@@ -172,6 +188,8 @@ class AposImport(object):
             fra = _format_time(medarbejder['gyldighed']['@fra'])
             til = _format_time(medarbejder['gyldighed']['@til'])
             bvn = medarbejder['@brugervendtNoegle']
+
+            # TODO: Hvorfor ser vi samme medarbejder flere gange?
             self.org.Employee.add(name=name,
                                   identifier=medarbejder['@uuid'],
                                   cpr_no=person['@personnummer'],
@@ -179,14 +197,18 @@ class AposImport(object):
                                   date_from=fra,
                                   date_to=til)
 
-            # TODO: Hvorfor ser vi samme medarbejder flere gange?
-            # print(medarbejder['person'])
             # print(medarbejder['lokationer'])
-            # print(medarbejder['klassifikationKontaktKanaler'])
+
             # Dette er telefon og email - hold fast i dem
+            kontakt = medarbejder['klassifikationKontaktKanaler']
+            kontaktmuligheder = kontakt['klassifikationKontaktKanal']
+            print(kontakt)
+
+            #if kontakt['@type'] == '41504f53-0203-001f-4158-41504f494e54':
+            #    print('!!!')
+            #    print(kontakt['@vaerdi'])
+            #1/0
             opgaver = medarbejder['opgaver']['opgave']
-            """
-            # Debug code - remove
             if isinstance(opgaver, list):
                 assert(len(opgaver) == 2)
                 assert(opgaver[0]['@klassifikation'] == 'stillingsbetegnelser')
@@ -200,16 +222,14 @@ class AposImport(object):
                 assert(opgaver['@klassifikation'] == 'stillingsbetegnelser')
                 stilling = opgaver['@uuid']
 
-            # stillingstype = self.org.Klasse.get_uuid(stilling)
             # engagementstype = self.org.Klasse.get_uuid("Ansat")
-            """
+            print(stilling)
             job = self.org.Employee.add_type_engagement(
                 identifier=stilling,
                 org_unit_ref=unit['@uuid'],
-                job_function_type=stillingstype,
-                engagement_type=engagementstype,
+                job_function_ref=stilling,
+                engagement_type_ref='56e1214a-330f-4592-89f3-ae3ee8d5b2e6',
                 date_from=fra)
-            """
             # print(medarbejder['integrationAttributter'])
 
     def create_associations_for_ou(self, unit):
@@ -286,29 +306,32 @@ class AposImport(object):
         stop = False
         url = 'app-organisation/GetFunctionsForUnit?uuid={}'
         org_funcs = self._apos_lookup(url.format(unit['@uuid']))
-        if int(org_funcs['total']) > 0:
-            for func in org_funcs['function']:
-                persons = func['persons']
-                if persons:
-                    if persons['person']['@uuid']:
-                        print('*****')
-                        #print(func)
-                        print(func.keys())
-                        print(func['@bvn'])
-                        #print(func['@navn'])
-                        person = func['persons']['person']['@uuid']
-                        assert(len(func['persons']) == 1)
-                        assert(func['units']['unit']['@uuid'] == unit['@uuid'])
+        if int(org_funcs['total']) == 0:
+            return
 
-                        tasks = func['tasks']['task']
-                        for task in tasks:
-                            print(task)
-                        # These task corresond to klasser in Leder
-                        print('--**--')
-                        #print(persons['person'])
-                        #print(type(persons['person']))
-                        # print(persons['person'].keys())
-                        stop = True
+        for func in org_funcs['function']:
+            persons = func['persons']
+            if not persons:
+                continue
+            if persons['person']['@uuid']:
+                print(func.keys())
+                print(func['@bvn'])
+                print(func['@navn'])
+                person = func['persons']['person']['@uuid']
+                assert(len(func['persons']) == 1)
+                assert(func['units']['unit']['@uuid'] == unit['@uuid'])
+                tasks = func['tasks']['task']
+                print(tasks)
+                #for task in tasks:
+                #    self.org.Employee.add_type_manager(
+                #        org_unit_ref=unit['@uuid'],
+                #        manager_type_ref=func['tasks']['task']['@uuid']
+                # These task corresond to klasser in Leder
+                print('--**--')
+                #print(persons['person'])
+                #print(type(persons['person']))
+                # print(persons['person'].keys())
+                stop = True
         if stop:
             1/0
     
