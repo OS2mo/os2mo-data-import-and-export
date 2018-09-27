@@ -82,7 +82,7 @@ class AposImport(object):
         dar_uuid = None
         dar_data = _dawa_request(address)
         if len(dar_data) == 0:
-            # Found no hits, first attempts is to remove the letter
+            # Found no hits, first attempt is to remove the letter
             # from the address and note it for manual verifikation
             self.address_challenges[address['@uuid']] = address
             dar_data = _dawa_request(address, skip_letters=True)
@@ -232,6 +232,24 @@ class AposImport(object):
                 date_from=None)
         return unit
 
+    def update_contact_information(self, employee):
+        kontakt = employee['klassifikationKontaktKanaler']
+        if kontakt is None:
+            return
+        kontaktmuligheder = kontakt['klassifikationKontaktKanal']
+        for kontaktmulighed in kontaktmuligheder:
+            if isinstance(kontaktmulighed, str):
+                return
+            value = kontaktmulighed['@vaerdi']
+            if value:
+                apos_type = kontaktmulighed['@type']
+                data = self.org.Klasse.get(apos_type)['data']
+                if data['titel'] == 'E-mail':
+                    print(self.org.Klasse.get('Email'))
+                    print(employee['person']['@uuid'])
+
+                #print(data['titel'])
+    
     def create_employees_for_ou(self, unit):
         url = 'composite-services/GetEngagementDetailed?unitUuid={}'
         medarbejdere = self._apos_lookup(url.format(unit))
@@ -270,17 +288,9 @@ class AposImport(object):
                                   date_to=til)
 
             # print(medarbejder['lokationer'])
-            # Dette er telefon og email - hold fast i dem
-            # kontakt = medarbejder['klassifikationKontaktKanaler']
-            # kontaktmuligheder = kontakt['klassifikationKontaktKanal']
-            # print(kontakt)
+            self.update_contact_information(medarbejder)
 
-            # if kontakt['@type'] == '41504f53-0203-001f-4158-41504f494e54':
-            #     print('!!!')
-            #     print(kontakt['@vaerdi'])
-            # 1/0
             opgaver = medarbejder['opgaver']['opgave']
-
             if isinstance(opgaver, list):
                 assert(len(opgaver) == 2)
                 assert(opgaver[0]['@klassifikation'] == 'stillingsbetegnelser')
@@ -423,6 +433,7 @@ if __name__ == '__main__':
     apos_import.create_facetter_and_klasser()
     apos_import.create_ou_tree()
 
+    exit()
     ballerup = ImportUtility(apos_import.org, dry_run=True)
     ballerup.import_all()
 
