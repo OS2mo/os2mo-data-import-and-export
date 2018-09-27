@@ -258,7 +258,7 @@ class AposImport(object):
             try:
                 self.org.Employee.get(person['@uuid'])
                 self.duplicate_persons[person['@uuid']] = person
-                # Some employees are duplicated, skip them and reember them.
+                # Some employees are duplicated, skip them and remember them.
                 continue
             except KeyError:
                 pass
@@ -349,15 +349,16 @@ class AposImport(object):
 
                 manager_type = None
                 manager_responsibility = []
-                # TODO: We refer directly to storage_map - nok ok!
-                # Look at the export functions instead
+
                 for task in tasks:
                     try:
                         klasse = task['@uuid']
                     except TypeError:
                         continue
 
-                    if klasse not in self.org.Klasse.storage_map:
+                    try: # We have a few problematic Klasser, chack manually
+                        self.org.Klasse.get(klasse)
+                    except KeyError:
                         self.klassifikation_errors[klasse] = True
                         continue
 
@@ -425,17 +426,24 @@ if __name__ == '__main__':
     ballerup = ImportUtility(apos_import.org, dry_run=True)
     ballerup.import_all()
 
-    """
+
     print('********************************')
     print('Address challenges:')
     for challenge in apos_import.address_challenges:
         print(apos_import.address_challenges[challenge])
+    print()
 
     print('Address Errors:')
     for error in apos_import.address_errors:
         print(apos_import.address_errors[error])
+    print()
 
     print('Klassifikation Errors:')
-    for error in apos_import.klassifikation_errors:
-        print(apos_import.klassifikation_errors[error])
-    """
+    for uuid, error in apos_import.klassifikation_errors.items():
+        print(uuid)
+    print()
+
+    #print('Duplicate people:')
+    #for uuid, person in apos_import.duplicate_persons.items():
+    #    print(person['@adresseringsnavn'])
+
