@@ -4,16 +4,16 @@ import requests
 import xmltodict
 import collections
 from datetime import datetime
-from os2mo_data_import import Organisation
-from os2mo_data_import.data_import import import_handler
+from os2mo_data_import import Organisation, ImportUtility
 
 
 def _format_time(timestring):
     try:
-        dato = datetime.strptime(timestring, '%d/%m/%Y')
+        date = datetime.strptime(timestring, '%d/%m/%Y')
+        text_date = date.strftime('%Y-%m-%d')
     except ValueError:
-        dato = None
-    return dato
+        text_date = None
+    return text_date
 
 
 def _dawa_request(address, adgangsadresse=False, skip_letters=False):
@@ -54,6 +54,7 @@ class AposImport(object):
         self.base_url = 'http://apos.balk.dk:8080/apos2-'
         self.org = Organisation(org_name, org_name)
         self.address_challenges = {}
+        self.duplicate_persons = {}
         self.address_errors = {}
         self.klassifikation_errors = {}
 
@@ -160,12 +161,11 @@ class AposImport(object):
                 facet = apos_facetter[apos_facet_navn]
                 klasser = self._read_apos_klasser(facet['@uuid'])
                 for klasse in klasser:
-                    data = {"brugervendtnoegle": klasse['@title'],
-                            "omfang": None,  # TODO: Hvad er dette?
-                            "titel": klasse['@title']}
                     self.org.Klasse.add(identifier=klasse['@uuid'],
-                                        facet_type=mo_facet_navn,
-                                        properties=data)
+                                        titel=klasse['@title'],
+                                        brugervendtnoegle=klasse['@title'],
+                                        omfang=None,  # TODO: Hvad er dette?
+                                        facet_type_ref=mo_facet_navn)
 
     def create_facetter_and_klasser(self):
         url = "app-klassifikation/GetKlassifikationList"
@@ -212,7 +212,7 @@ class AposImport(object):
             identifier=apos_unit['@uuid'],
             name=apos_unit['@navn'],
             user_key=apos_unit['@brugervendtNoegle'],
-            type_ref=details['@enhedstype'],
+            org_unit_type_ref=details['@enhedstype'],
             date_from=fra,
             date_to=til,
             parent_ref=parent)
@@ -255,7 +255,13 @@ class AposImport(object):
             til = _format_time(medarbejder['gyldighed']['@til'])
             bvn = medarbejder['@brugervendtNoegle']
 
-            # TODO: Hvorfor ser vi samme medarbejder flere gange?
+            try:
+                self.org.Employee.get(person['@uuid'])
+                self.duplicate_persons[person['@uuid']] = person
+                # Some employees are duplicated, skip them and reember them.
+                continue
+            except KeyError:
+                pass
             self.org.Employee.add(name=name,
                                   identifier=person['@uuid'],
                                   cpr_no=person['@personnummer'],
@@ -274,6 +280,7 @@ class AposImport(object):
             #     print(kontakt['@vaerdi'])
             # 1/0
             opgaver = medarbejder['opgaver']['opgave']
+
             if isinstance(opgaver, list):
                 assert(len(opgaver) == 2)
                 assert(opgaver[0]['@klassifikation'] == 'stillingsbetegnelser')
@@ -288,7 +295,7 @@ class AposImport(object):
                 stilling = opgaver['@uuid']
 
             self.org.Employee.add_type_engagement(
-                identifier=person['@uuid'],
+                owner_ref=person['@uuid'],
                 org_unit_ref=unit,
                 job_function_ref=stilling,
                 engagement_type_ref='56e1214a-330f-4592-89f3-ae3ee8d5b2e6',
@@ -354,7 +361,8 @@ class AposImport(object):
                         self.klassifikation_errors[klasse] = True
                         continue
 
-                    facet = self.org.Klasse.storage_map[klasse]['facet_type']
+                    klasse_ref = self.org.Klasse.get(klasse)
+                    facet = klasse_ref['facet_type_ref']
 
                     if facet == 'Ledertyper':
                         manager_type = klasse  # TODO, Do we always get this?
@@ -368,12 +376,12 @@ class AposImport(object):
                 if manager_type:
                     try:
                         self.org.Employee.add_type_manager(
-                            identifier=person['@uuid'],
+                            owner_ref=person['@uuid'],
                             org_unit_ref=unit,
                             manager_level_ref=None,  # TODO?
                             address_uuid=None,  # TODO
                             manager_type_ref=manager_type,
-                            responsabilities=manager_responsibility,
+                            responsibility_list=manager_responsibility,
                             date_from=fra,
                             date_to=til
                         )
@@ -414,7 +422,8 @@ if __name__ == '__main__':
     apos_import.create_facetter_and_klasser()
     apos_import.create_ou_tree()
 
-    # store = import_handler(apos_import.org)
+    ballerup = ImportUtility(apos_import.org, dry_run=True)
+    ballerup.import_all()
 
     """
     print('********************************')
