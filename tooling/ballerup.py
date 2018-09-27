@@ -7,13 +7,16 @@ from datetime import datetime
 from os2mo_data_import import Organisation, ImportUtility
 
 
-def _format_time(timestring):
-    try:
-        date = datetime.strptime(timestring, '%d/%m/%Y')
-        text_date = date.strftime('%Y-%m-%d')
-    except ValueError:
-        text_date = None
-    return text_date
+def _format_time(gyldighed):   
+    from_time = None
+    to_time = None
+    if not gyldighed['@fra'] == '-INFINITY':
+        from_time = datetime.strptime(gyldighed['@fra'], '%d/%m/%Y')
+        from_time = from_time.strftime('%Y-%m-%d')
+    if not gyldighed['@til'] == 'INFINITY':
+        to_time = datetime.strptime(gyldighed['@til'], '%d/%m/%Y')
+        to_time = to_time.strftime('%Y-%m-%d')
+    return from_time, to_time
 
 
 def _dawa_request(address, adgangsadresse=False, skip_letters=False):
@@ -111,7 +114,6 @@ class AposImport(object):
         if int(locations['total']) == 0:
             # Return imidiately if no locations are found
             return mo_locations
-
         locations = locations['location']
         if not isinstance(locations, list):
             locations = [locations]
@@ -160,6 +162,8 @@ class AposImport(object):
             for apos_facet_navn in apos_facet_navne:
                 facet = apos_facetter[apos_facet_navn]
                 klasser = self._read_apos_klasser(facet['@uuid'])
+                if not isinstance(klasser, list):
+                    klasser = [klasser]
                 for klasse in klasser:
                     self.org.Klasse.add(identifier=klasse['@uuid'],
                                         titel=klasse['@title'],
@@ -178,6 +182,9 @@ class AposImport(object):
             if k['@kaldenavn'] == 'Enhedstyper':
                 self.create_typer(k['@uuid'],
                                   {'Enhedstype': ['Alfabetisk']})
+            if k['@kaldenavn'] == 'Tilknytningstyper':
+                self.create_typer(k['@uuid'],
+                                  {'Engagementstype': ['Alfabetisk']})
             if k['@kaldenavn'] == 'Leder':
                 self.create_typer(k['@uuid'], {'Lederansvar': ['Ansvar'],
                                                'Ledertyper': ['Typer']})
@@ -206,8 +213,7 @@ class AposImport(object):
         url = "app-organisation/GetUnitDetails?uuid={}"
         r = self._apos_lookup(url.format(apos_unit['@uuid']))
         details = r['enhed']
-        fra = _format_time(details['gyldighed']['@fra'])
-        til = _format_time(details['gyldighed']['@til'])
+        fra, til = _format_time(details['gyldighed'])
         unit = self.org.OrganisationUnit.add(
             identifier=apos_unit['@uuid'],
             name=apos_unit['@navn'],
@@ -244,12 +250,52 @@ class AposImport(object):
             if value:
                 apos_type = kontaktmulighed['@type']
                 data = self.org.Klasse.get(apos_type)['data']
-                if data['titel'] == 'E-mail':
-                    print(self.org.Klasse.get('Email'))
-                    print(employee['person']['@uuid'])
+                employee_identifier = employee['person']['@uuid']
 
-                #print(data['titel'])
-    
+                if data['titel'] == 'E-mail':
+                    klasse_ref = 'Email'
+                elif data['titel'] == 'Kontakt Tlf.':
+                    klasse_ref = 'Telefon'
+                elif data['titel'] == 'Alt. Tlf.':
+                    klasse_ref = apos_type
+                else:
+                    print(data['titel'])
+                    1/0
+                try:
+                    self.org.Employee.add_type_address(
+                        owner_ref=employee_identifier,
+                        value=value,
+                        address_type_ref=klasse_ref,
+                        date_from=None,
+                        date_to=None
+                    )
+                except AssertionError:
+                    pass  # Already inserted
+
+    def update_tasks(self, employee, unit):
+        tasks = employee['opgaver']['opgave']
+        fra, til = _format_time(employee['gyldighed'])
+        if isinstance(tasks, list):
+            assert(len(tasks) == 2)
+            assert(tasks[0]['@klassifikation'] == 'stillingsbetegnelser')
+            assert(tasks[1]['@klassifikation'] == 'tilknytningstyper')
+            stilling = tasks[0]['@uuid']
+            tilknytning = tasks[1]['@uuid']
+            if not tilknytning == '56e1214a-330f-4592-89f3-ae3ee8d5b2e6':
+                pass  # Tilknyting bør altid være 'Ansat', vi ignorerer
+                      # derfor denne oplysning, men kan debugge her hvis
+                      # der opstår behov
+        else:
+            assert(tasks['@klassifikation'] == 'stillingsbetegnelser')
+            stilling = tasks['@uuid']
+
+        self.org.Employee.add_type_engagement(
+            owner_ref=employee['person']['@uuid'],
+            org_unit_ref=unit,
+            job_function_ref=stilling,
+            engagement_type_ref='56e1214a-330f-4592-89f3-ae3ee8d5b2e6', #Ansat
+            date_from=fra)
+                
     def create_employees_for_ou(self, unit):
         url = 'composite-services/GetEngagementDetailed?unitUuid={}'
         medarbejdere = self._apos_lookup(url.format(unit))
@@ -269,8 +315,7 @@ class AposImport(object):
             if person['@mellemnavn']:
                 name += person['@mellemnavn']
             name += person['@efternavn']
-            fra = _format_time(medarbejder['gyldighed']['@fra'])
-            til = _format_time(medarbejder['gyldighed']['@til'])
+            fra, til = _format_time(medarbejder['gyldighed'])
             bvn = medarbejder['@brugervendtNoegle']
 
             try:
@@ -286,60 +331,37 @@ class AposImport(object):
                                   user_key=bvn,
                                   date_from=fra,
                                   date_to=til)
-
-            # print(medarbejder['lokationer'])
             self.update_contact_information(medarbejder)
-
-            opgaver = medarbejder['opgaver']['opgave']
-            if isinstance(opgaver, list):
-                assert(len(opgaver) == 2)
-                assert(opgaver[0]['@klassifikation'] == 'stillingsbetegnelser')
-                assert(opgaver[1]['@klassifikation'] == 'tilknytningstyper')
-                stilling = opgaver[0]['@uuid']
-                tilknytning = opgaver[1]['@uuid']
-                if not tilknytning == '56e1214a-330f-4592-89f3-ae3ee8d5b2e6':
-                    # TODO: Disse findes ikke i klassifikation
-                    pass
-            else:
-                assert(opgaver['@klassifikation'] == 'stillingsbetegnelser')
-                stilling = opgaver['@uuid']
-
-            self.org.Employee.add_type_engagement(
-                owner_ref=person['@uuid'],
-                org_unit_ref=unit,
-                job_function_ref=stilling,
-                engagement_type_ref='56e1214a-330f-4592-89f3-ae3ee8d5b2e6',
-                date_from=fra)
-            # print(medarbejder['integrationAttributter'])
+            self.update_tasks(medarbejder, unit)
 
     def create_associations_for_ou(self, unit):
         """ De returnerede personer findes tilsyneladende ikke?
         Skal undersøges!!! """
-        uuid = unit['@uuid']
         url = "app-organisation/GetAttachedPersonsForUnit?uuid={}"
-        associations = self._apos_lookup(url.format(uuid))
+        associations = self._apos_lookup(url.format(unit))
         if int(associations['total']) > 0:
-            for person in associations['person']:
-                uuid = person['@uuid']
+            print(associations)
+            print('---')
+            print()
 
-                url = "app-organisation/GetBruger?uuid={}"
-                # print(self.org.Employee.get_data(uuid))
+        #    for person in associations['person']:
+        #        uuid = person['@uuid']
+        #
+        #        url = "app-organisation/GetBruger?uuid={}"
+        #        # print(self.org.Employee.get_data(uuid))
 
     def get_ou_functions(self, unit):
         url = 'app-organisation/GetFunctionsForUnit?uuid={}'
         org_funcs = self._apos_lookup(url.format(unit))
         if int(org_funcs['total']) == 0:
             return
-
         for func in org_funcs['function']:
             # TODO: Check if other information than managers should be
             # extracted
             if not isinstance(func, collections.OrderedDict):
                 continue  # This func is empty
 
-            fra = _format_time(func['gyldighed']['@fra'])
-            til = _format_time(func['gyldighed']['@til'])
-
+            fra, til = _format_time(func['gyldighed'])
             opus_persons = func['persons']
             if not opus_persons:
                 continue
@@ -366,7 +388,7 @@ class AposImport(object):
                     except TypeError:
                         continue
 
-                    try: # We have a few problematic Klasser, chack manually
+                    try:  # We have a few problematic Klasser, chack manually
                         self.org.Klasse.get(klasse)
                     except KeyError:
                         self.klassifikation_errors[klasse] = True
@@ -376,10 +398,10 @@ class AposImport(object):
                     facet = klasse_ref['facet_type_ref']
 
                     if facet == 'Ledertyper':
-                        manager_type = klasse  # TODO, Do we always get this?
+                        manager_type = klasse
                     elif facet == 'Lederansvar':
                         manager_responsibility.append(klasse)
-                    elif facet == 'Stillingsbetegnelse':
+                    elif facet in ('Stillingsbetegnelse', 'Engagementstype'):
                         pass
                     else:
                         print('WARNING')
@@ -390,7 +412,7 @@ class AposImport(object):
                             owner_ref=person['@uuid'],
                             org_unit_ref=unit,
                             manager_level_ref=None,  # TODO?
-                            address_uuid=None,  # TODO
+                            address_uuid=None,  # TODO?
                             manager_type_ref=manager_type,
                             responsibility_list=manager_responsibility,
                             date_from=fra,
@@ -425,18 +447,16 @@ class AposImport(object):
         units = apos_import.org.OrganisationUnit.export()
         for unit in units:
             self.get_ou_functions(unit[0])
-
+            self.create_associations_for_ou(unit[0])
 
 if __name__ == '__main__':
     apos_import = AposImport('Ballerup APOS 1')
 
     apos_import.create_facetter_and_klasser()
     apos_import.create_ou_tree()
-
     exit()
     ballerup = ImportUtility(apos_import.org, dry_run=True)
     ballerup.import_all()
-
 
     print('********************************')
     print('Address challenges:')
@@ -454,7 +474,6 @@ if __name__ == '__main__':
         print(uuid)
     print()
 
-    #print('Duplicate people:')
-    #for uuid, person in apos_import.duplicate_persons.items():
+    # print('Duplicate people:')
+    # for uuid, person in apos_import.duplicate_persons.items():
     #    print(person['@adresseringsnavn'])
-
