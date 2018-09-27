@@ -108,7 +108,7 @@ class AposImport(object):
         locations = self._apos_lookup(url.format(unit['@uuid']))
         mo_locations = []
         if int(locations['total']) == 0:
-            # Return imidiately of no locations are returned
+            # Return imidiately if no locations are found
             return mo_locations
 
         locations = locations['location']
@@ -119,7 +119,6 @@ class AposImport(object):
             uuid = location['@adresse']
             url = 'app-part/GetAdresseList?uuid={}'
             opus_address = self._apos_lookup(url.format(uuid))
-
             dawa_uuid = self.dawa_lookup(opus_address['adresse'])
             pnummer = location.get('@pnummer', None)
             primary = (location.get('@primary', None) == 'JA')
@@ -156,17 +155,17 @@ class AposImport(object):
         values
         """
         apos_facetter = self._read_apos_facetter(klassifikation_uuid)
-        for mo_facet_navn, apos_facet_navn in facet_typer.items():
-            facet = apos_facetter[apos_facet_navn]
-
-            klasser = self._read_apos_klasser(facet['@uuid'])
-            for klasse in klasser:
-                data = {"brugervendtnoegle": klasse['@title'],
-                        "omfang": None,  # TODO: Hvad er dette?
-                        "titel": klasse['@title']}
-                self.org.Klasse.add(identifier=klasse['@uuid'],
-                                    facet_type=mo_facet_navn,
-                                    properties=data)
+        for mo_facet_navn, apos_facet_navne in facet_typer.items():
+            for apos_facet_navn in apos_facet_navne:
+                facet = apos_facetter[apos_facet_navn]
+                klasser = self._read_apos_klasser(facet['@uuid'])
+                for klasse in klasser:
+                    data = {"brugervendtnoegle": klasse['@title'],
+                            "omfang": None,  # TODO: Hvad er dette?
+                            "titel": klasse['@title']}
+                    self.org.Klasse.add(identifier=klasse['@uuid'],
+                                        facet_type=mo_facet_navn,
+                                        properties=data)
 
     def create_facetter_and_klasser(self):
         url = "app-klassifikation/GetKlassifikationList"
@@ -175,18 +174,18 @@ class AposImport(object):
         for k in klassifikationer:
             if k['@kaldenavn'] == 'Stillingsbetegnelser':
                 self.create_typer(k['@uuid'],
-                                  {'Stillingsbetegnelse': 'Alfabetisk'})
+                                  {'Stillingsbetegnelse': ['Alfabetisk']})
             if k['@kaldenavn'] == 'Enhedstyper':
                 self.create_typer(k['@uuid'],
-                                  {'Enhedstype': 'Alfabetisk'})
+                                  {'Enhedstype': ['Alfabetisk']})
             if k['@kaldenavn'] == 'Leder':
-                self.create_typer(k['@uuid'], {'Lederansvar': 'Ansvar',
-                                               'Ledertyper': 'Typer'})
+                self.create_typer(k['@uuid'], {'Lederansvar': ['Ansvar'],
+                                               'Ledertyper': ['Typer']})
             if k['@kaldenavn'] == 'Kontaktkanaler':
-                self.create_typer(k['@uuid'], {'Adressetype': 'Lokation typer',
-                                               'Adressetype': 'Egenskaber',
-                                               'Adressetype':
-                                               'Engagement typer'})
+                self.create_typer(k['@uuid'], {'Adressetype':
+                                               ['Lokation typer',
+                                                'Egenskaber',
+                                                'Engagement typer']})
 
     def _read_ous_from_apos(self, re_read=False):
         if re_read:
@@ -201,6 +200,9 @@ class AposImport(object):
         return org_units['hierakiResponse']['node']
 
     def _create_ou_from_apos(self, apos_unit, parent=None):
+        """ Create a MO org_unit from the corresponding APOS object,
+        includes looking up address information """
+
         url = "app-organisation/GetUnitDetails?uuid={}"
         r = self._apos_lookup(url.format(apos_unit['@uuid']))
         details = r['enhed']
@@ -214,11 +216,23 @@ class AposImport(object):
             date_from=fra,
             date_to=til,
             parent_ref=parent)
+
+        location = self.read_locations(apos_unit)
+        if 'pnummer' in location:
+            self.org.OrganisationUnit.add_type_address(
+                identifier=apos_unit['@uuid'],
+                address_type_ref='PNUMBER',
+                value=location['pnummer'],
+                date_from=None)
+        if 'dawa_uuid' in location:
+            self.org.OrganisationUnit.add_type_address(
+                identifier=apos_unit['@uuid'],
+                address_type_ref='AdressePost',
+                value=location['dawa_uuid'],
+                date_from=None)
         return unit
 
     def create_employees_for_ou(self, unit):
-        # Be carefull, the employee has uuids both as persons and as
-        # employees
         url = 'composite-services/GetEngagementDetailed?unitUuid={}'
         medarbejdere = self._apos_lookup(url.format(unit))
 
@@ -229,6 +243,8 @@ class AposImport(object):
         else:
             medarbejdere = medarbejdere['engagementer']['engagement']
 
+        # Be carefull, the employee has uuids both as persons and as
+        # employees
         for medarbejder in medarbejdere:
             person = medarbejder['person']
             name = person['@fornavn'] + ' '
@@ -376,7 +392,6 @@ class AposImport(object):
             remaining_org_units = []
             new = {}
             for unit in org_units:
-                unit_locations = self.read_locations(unit)
                 over_id = int(unit['@overordnetid'])
                 unit_id = int(unit['@objectid'])
                 if over_id in nodes.keys():
@@ -390,7 +405,6 @@ class AposImport(object):
 
         units = apos_import.org.OrganisationUnit.export()
         for unit in units:
-            print(unit[1]['name'])
             self.get_ou_functions(unit[0])
 
 
