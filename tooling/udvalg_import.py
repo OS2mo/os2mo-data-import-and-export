@@ -4,7 +4,10 @@ from anytree import Node
 from chardet.universaldetector import UniversalDetector
 
 
-BALLERUP = '3a87187c-f25a-40a1-8d42-312b2e2b43bd'
+#BALLERUP = '3a87187c-f25a-40a1-8d42-312b2e2b43bd' # Ballerup
+BALLERUP = '5c36daeb-fa4f-4312-9595-19adba7f4253' # Enterprise
+BALLERUP = '85f007c6-b4ac-4573-ad6d-acb91cf09e69'
+BALLERUP = '456362c4-0ee4-4e5e-a72c-751239745e62'
 queries = {}
 
 
@@ -68,12 +71,24 @@ def _load_csv(file_name):
 
 
 def _create_mo_ou(name, parent):
+    ou_type = '656d6551-e3e4-4c8e-bb0f-9a369d9334d2'
+    print(parent)
+    if parent is 'root':
+        parent = BALLERUP
     # Chceck org_unit_type, might need a new facet
     payload = {'name': name,
                'brugervendtnoegle': name,
-               'org_unit_type': '656d6551-e3e4-4c8e-bb0f-9a369d9334d2',
-               'parent': {'uuid': parent}}
-    return payload
+               'org_unit_type': {'uuid': ou_type},
+               'parent': {'uuid': parent},
+               'validity': {'from': '1970-01-01',
+                            'to': '2100-01-01'}
+    }
+    print(payload)
+    url = 'http://mora_dev_tools/service/ou/create'
+    response = requests.post(url, json=payload)
+    print(response.text)
+    uuid = response.json()
+    return uuid
 
 
 def _read_udvalg(file_name, path_columns, udvalgs_type, nodes):
@@ -86,10 +101,15 @@ def _read_udvalg(file_name, path_columns, udvalgs_type, nodes):
             if not node:
                 break  # Field is empty, step out of the loop
 
+            print('Node: ' + str(node) + ', current: ' + str(current_node))
             mo_ou_uuid = search_mo_unit(node, current_node)
             if mo_ou_uuid is None:
                 print('No such unit ' + node)
-                print(_create_mo_ou(node, current_node.name))
+                uuid = _create_mo_ou(node, current_node.name)
+                nodes[mo_ou_uuid] = Node(uuid,
+                                         parent=current_node,
+                                         real_name=node)
+                current_node = nodes[mo_ou_uuid]
             elif mo_ou_uuid in nodes:
                 current_node = nodes[mo_ou_uuid]
             else:
@@ -108,14 +128,13 @@ def _read_udvalg(file_name, path_columns, udvalgs_type, nodes):
                                    udvalgs_type=udvalgs_type,
                                    parent=current_node)
         current_node = nodes['root']
-
     return nodes
 
 
 def read_AMR_udvalg(nodes):
     path_columns = ['Hoved-MED-niveau1', 'Center-MED-niveau3',
                     'Lokal-MED-niveau3', 'AMR-Gruppe']
-    filename = '/home/robertj/ballerup_tmp/AMR-udvalg.csv'
+    filename = 'AMR-udvalg.csv'
     nodes = _read_udvalg(filename, path_columns, 'AMR', nodes)
     return nodes
 
@@ -123,7 +142,7 @@ def read_AMR_udvalg(nodes):
 def read_MED_udvalg(nodes):
     path_columns = ['Hoved-M-niveau1', 'Center-MED-niveau2',
                     'Lokal-MED-niveau3']
-    filename = '/home/robertj/ballerup_tmp/MED-udvalg.csv'
+    filename = 'MED-udvalg.csv'
     nodes = _read_udvalg(filename, path_columns, 'MED', nodes)
     return nodes
 
@@ -132,7 +151,7 @@ if __name__ == '__main__':
     from anytree import RenderTree
 
     nodes = {'root': Node('root', parent=None)}
-    # nodes = read_AMR_udvalg(nodes)
-    nodes = read_MED_udvalg(nodes)
+    nodes = read_AMR_udvalg(nodes)
+    #nodes = read_MED_udvalg(nodes)
 
-    print(RenderTree(nodes['root']))
+    #print(RenderTree(nodes['root']))
