@@ -7,7 +7,7 @@ from datetime import datetime
 from os2mo_data_import import Organisation, ImportUtility
 
 
-def _format_time(gyldighed):   
+def _format_time(gyldighed):
     from_time = None
     to_time = None
     if not gyldighed['@fra'] == '-INFINITY':
@@ -117,7 +117,10 @@ class AposImport(object):
         locations = locations['location']
         if not isinstance(locations, list):
             locations = [locations]
+
         for location in locations:
+            if '@adresse' not in location:
+                continue  # This entry is broken and should be ignored
             # TODO: What to do with information regarding primary?
             uuid = location['@adresse']
             url = 'app-part/GetAdresseList?uuid={}'
@@ -165,6 +168,7 @@ class AposImport(object):
                 if not isinstance(klasser, list):
                     klasser = [klasser]
                 for klasse in klasser:
+                    print(klasse['@uuid'] + ': ' + klasse['@title'])
                     self.org.Klasse.add(identifier=klasse['@uuid'],
                                         titel=klasse['@title'],
                                         brugervendtnoegle=klasse['@title'],
@@ -179,46 +183,52 @@ class AposImport(object):
             if k['@kaldenavn'] == 'Stillingsbetegnelser':
                 self.create_typer(k['@uuid'],
                                   {'Stillingsbetegnelse': ['Alfabetisk']})
+
             if k['@kaldenavn'] == 'Enhedstyper':
                 self.create_typer(k['@uuid'],
                                   {'Enhedstype': ['Alfabetisk']})
+
             if k['@kaldenavn'] == 'Tilknytningstyper':
                 self.create_typer(k['@uuid'],
                                   {'Engagementstype': ['Alfabetisk']})
+
             if k['@kaldenavn'] == 'Leder':
                 self.create_typer(k['@uuid'], {'Lederansvar': ['Ansvar'],
                                                'Ledertyper': ['Typer']})
+
+            if k['@kaldenavn'] == 'SD løn enhedstyper':
+                self.create_typer(k['@uuid'], {'Enhedstyper':
+                                               ['sd_loen_enhedstyper']})
+
             if k['@kaldenavn'] == 'Kontaktkanaler':
                 self.create_typer(k['@uuid'], {'Adressetype':
                                                ['Lokation typer',
                                                 'Egenskaber',
                                                 'Engagement typer']})
 
-    def _read_ous_from_apos(self, re_read=False):
-        if re_read:
-            url = self.base_url + "app-organisation/GetEntireHierarchy"
-            response = requests.get(url)
-            org_units = xmltodict.parse(response.text)
-            with open('ou_cache.p', 'wb') as f:
-                pickle.dump(org_units, f, pickle.HIGHEST_PROTOCOL)
-        else:
-            with open('ou_cache.p', 'rb') as f:
-                org_units = pickle.load(f)
-        return org_units['hierakiResponse']['node']
+    def _read_ous_from_apos(self, org_uuid):
+        url = "app-organisation/GetEntireHierarchy?uuid={}"
+        r = self._apos_lookup(url.format(org_uuid))
+        org_units = r['node']
+        return org_units
 
-    def _create_ou_from_apos(self, apos_unit, parent=None):
+    def _create_ou_from_apos(self, apos_unit, parent=None, enhedstype=None):
         """ Create a MO org_unit from the corresponding APOS object,
         includes looking up address information """
-
         url = "app-organisation/GetUnitDetails?uuid={}"
         r = self._apos_lookup(url.format(apos_unit['@uuid']))
         details = r['enhed']
         fra, til = _format_time(details['gyldighed'])
+
+        # If enhedstype is not hard-coded, we take it from APOS
+        if not enhedstype:
+            enhedstype = details['@enhedstype']
+
         unit = self.org.OrganisationUnit.add(
             identifier=apos_unit['@uuid'],
             name=apos_unit['@navn'],
             user_key=apos_unit['@brugervendtNoegle'],
-            org_unit_type_ref=details['@enhedstype'],
+            org_unit_type_ref=enhedstype,
             date_from=fra,
             date_to=til,
             parent_ref=parent)
@@ -237,6 +247,17 @@ class AposImport(object):
                 value=location['dawa_uuid'],
                 date_from=None)
         return unit
+
+    def create_associations_for_ou(self, unit):
+        """ Returnerer tilsyneladende personer som ikke er ansat.
+        Dette skal undersges.
+        """
+        url = "app-organisation/GetAttachedPersonsForUnit?uuid={}"
+        associations = self._apos_lookup(url.format(unit))
+        if int(associations['total']) > 0:
+            for person in associations['person']:
+                for p in person:
+                    pass
 
     def update_contact_information(self, employee):
         kontakt = employee['klassifikationKontaktKanaler']
@@ -258,9 +279,9 @@ class AposImport(object):
                     klasse_ref = 'Telefon'
                 elif data['titel'] == 'Alt. Tlf.':
                     klasse_ref = apos_type
-                else:
+                else:  # This should never happen
                     print(data['titel'])
-                    1/0
+                    raise Exception('Ukendt kontaktmulighed')
                 try:
                     self.org.Employee.add_type_address(
                         owner_ref=employee_identifier,
@@ -282,24 +303,26 @@ class AposImport(object):
             stilling = tasks[0]['@uuid']
             tilknytning = tasks[1]['@uuid']
             if not tilknytning == '56e1214a-330f-4592-89f3-ae3ee8d5b2e6':
-                pass  # Tilknyting bør altid være 'Ansat', vi ignorerer
-                      # derfor denne oplysning, men kan debugge her hvis
-                      # der opstår behov
+                # Tilknyting bør altid være 'Ansat', vi ignorerer # derfor
+                # denne oplysning, men kan debugge her hvis der opstår behov
+                pass
         else:
             assert(tasks['@klassifikation'] == 'stillingsbetegnelser')
             stilling = tasks['@uuid']
 
+        engagement_ref = '56e1214a-330f-4592-89f3-ae3ee8d5b2e6'  # Ansat
         self.org.Employee.add_type_engagement(
             owner_ref=employee['person']['@uuid'],
             org_unit_ref=unit,
             job_function_ref=stilling,
-            engagement_type_ref='56e1214a-330f-4592-89f3-ae3ee8d5b2e6', #Ansat
+            engagement_type_ref=engagement_ref,
             date_from=fra)
-                
+
     def create_employees_for_ou(self, unit):
         url = 'composite-services/GetEngagementDetailed?unitUuid={}'
         medarbejdere = self._apos_lookup(url.format(unit))
-
+        if 'total' not in medarbejdere:
+            return   # This unit has no employees
         if medarbejdere['total'] == '0':
             return
         elif medarbejdere['total'] == '1':
@@ -334,30 +357,12 @@ class AposImport(object):
             self.update_contact_information(medarbejder)
             self.update_tasks(medarbejder, unit)
 
-    def create_associations_for_ou(self, unit):
-        """ De returnerede personer findes tilsyneladende ikke?
-        Skal undersøges!!! """
-        url = "app-organisation/GetAttachedPersonsForUnit?uuid={}"
-        associations = self._apos_lookup(url.format(unit))
-        if int(associations['total']) > 0:
-            print(associations)
-            print('---')
-            print()
-
-        #    for person in associations['person']:
-        #        uuid = person['@uuid']
-        #
-        #        url = "app-organisation/GetBruger?uuid={}"
-        #        # print(self.org.Employee.get_data(uuid))
-
     def get_ou_functions(self, unit):
         url = 'app-organisation/GetFunctionsForUnit?uuid={}'
         org_funcs = self._apos_lookup(url.format(unit))
         if int(org_funcs['total']) == 0:
             return
         for func in org_funcs['function']:
-            # TODO: Check if other information than managers should be
-            # extracted
             if not isinstance(func, collections.OrderedDict):
                 continue  # This func is empty
 
@@ -422,11 +427,12 @@ class AposImport(object):
                         print('Problem adding manager:')
                         print(person['@uuid'])
 
-    def create_ou_tree(self):
-        org_units = self._read_ous_from_apos(re_read=True)
+    def create_ou_tree(self, org_uuid, enhedstype=None):
+        org_units = self._read_ous_from_apos(org_uuid)
         nodes = {}
         # The root org is always first row in APOS
-        nodes[1] = self._create_ou_from_apos(org_units[0])
+        objectid = int(org_units[0]['@objectid'])
+        nodes[objectid] = self._create_ou_from_apos(org_units[0])
         del(org_units[0])
 
         while org_units:
@@ -436,27 +442,38 @@ class AposImport(object):
                 over_id = int(unit['@overordnetid'])
                 unit_id = int(unit['@objectid'])
                 if over_id in nodes.keys():
-                    new[unit_id] = self._create_ou_from_apos(unit,
-                                                             nodes[over_id])
+                    new[unit_id] = self._create_ou_from_apos(
+                        unit,
+                        nodes[over_id],
+                        enhedstype=enhedstype)
                     self.create_employees_for_ou(unit['@uuid'])
                 else:
                     remaining_org_units.append(unit)
+            print(len(remaining_org_units))
             org_units = remaining_org_units
             nodes.update(new)
 
+    def create_managers(self):
+        """ Create org_funcs, at the momen this means managers """
         units = apos_import.org.OrganisationUnit.export()
         for unit in units:
             self.get_ou_functions(unit[0])
-            self.create_associations_for_ou(unit[0])
+
 
 if __name__ == '__main__':
     apos_import = AposImport('Ballerup APOS 1')
 
     apos_import.create_facetter_and_klasser()
-    apos_import.create_ou_tree()
-    exit()
+    apos_import.create_ou_tree('b78993bb-d67f-405f-acc0-27653bd8c116')
+    sd_enhedstype = '324b8c95-5ff9-439b-a49c-1a6a6bba4651'
+    apos_import.create_ou_tree('945bb286-9753-4f77-9082-a67a5d7bdbaf',
+                               enhedstype=sd_enhedstype)
+    apos_import.create_managers()
+
     ballerup = ImportUtility(apos_import.org, dry_run=True)
-    ballerup.import_all()
+    #ballerup.import_all()
+
+    #exit()  # <---- NOTICE!
 
     print('********************************')
     print('Address challenges:')
