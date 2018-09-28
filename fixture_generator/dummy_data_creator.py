@@ -45,7 +45,7 @@ def _telefon():
     :return: A random phone number
     """
     tlf = str(random.randrange(1, 9))
-    for i in range(0, 6):
+    for i in range(0, 7):
         tlf += str(random.randrange(0, 9))
     return tlf
 
@@ -56,8 +56,6 @@ class CreateDummyOrg(object):
     def __init__(self, kommunekode, kommunenavn, path_to_names):
         self.nodes = {}
         self.kommunenavn = kommunenavn
-        self.nodes['root'] = Node(kommunenavn)
-
         try:
             with open(str(kommunekode) + '.p', 'rb') as file_handle:
                 self.adresser = pickle.load(file_handle)
@@ -73,6 +71,8 @@ class CreateDummyOrg(object):
                       'middle': _load_names(path_to_names[1]),
                       'last': _load_names(path_to_names[2])}
 
+        self.nodes['root'] = Node(kommunenavn, adresse=self._adresse(),
+                                  type='ou', key='root')
         # Used to keep track of used bvns to keep them unique
         self.used_bvns = []
 
@@ -149,7 +149,7 @@ class CreateDummyOrg(object):
                   'til': None,  # TODO
                   'brugervendtnoegle': bvn,
                   'brugernavn': navn,
-                  'email': bvn + '@' + self.kommunenavn + '.dk',
+                  'email': bvn.lower() + '@' + self.kommunenavn + '.dk',
                   'telefon': _telefon(),
                   'manager': manager,
                   'adresse': self._adresse()
@@ -166,7 +166,7 @@ class CreateDummyOrg(object):
             uuid = uuid4()
             uuid_list.append(uuid)
             self.nodes[uuid] = Node(org, adresse=self._adresse(),
-                                    type='ou', parent=parent)
+                                    type='ou', parent=parent, key=str(uuid))
         return uuid_list
 
     def create_org_func_tree(self):
@@ -221,8 +221,9 @@ class CreateDummyOrg(object):
             # This should be randomized and also sometimes be a vacant
             # position
             user = self.create_bruger(manager=True)
-            new_nodes[uuid4()] = {'name': user['brugernavn'], 'user': user,
-                                  'parent': node}
+            uuid = uuid4()
+            new_nodes[uuid] = {'name': user['brugernavn'], 'user': user,
+                               'parent': node}
 
         for key, user_info in new_nodes.items():
             user_node = Node(user_info['user']['brugernavn'],
@@ -237,6 +238,26 @@ if __name__ == '__main__':
     dummy_creator.create_org_func_tree()
     dummy_creator.add_users_to_tree(ou_size_scale=1)
 
-    # Iterate over all nodes:
+    # Example of iteration over all nodes:
     for node in PreOrderIter(dummy_creator.nodes['root']):
-        print(node)
+
+        if node.type == 'ou':
+            print(node.name)  # Name of the ou
+            if node.parent:
+                print(node.parent.key)  # Key for parent unit
+            # Postal address of the ou, real-world name also available
+            print(node.adresse['dar-uuid'])
+
+        if node.type == 'user':
+            print(node.name)  # Name of the employee
+            print(node.parent.key)  # Key for parent unit
+
+            user = node.user  # All unser information is here
+            print(user['brugervendtnoegle'])
+            # Postal address of the employee, real-world name also available
+            print(user['adresse']['dar-uuid'])
+            print(user['email'])
+            print(user['telefon'])
+            print(user['manager'])  # True if employee is manager
+            print(user['fra'])
+            print(user['til'])
