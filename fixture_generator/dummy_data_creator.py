@@ -49,6 +49,16 @@ def _telefon():
         tlf += str(random.randrange(0, 9))
     return tlf
 
+def _name_to_host(name):
+    """ Turn an org name into a valid hostname """
+    if name.find(' ') > -1:
+        name = name[:name.find(' ')]
+    name = name.lower()
+    name = name.replace('æ', 'ae')
+    name = name.replace('ø', 'o')
+    name = name.replace('å', 'a')
+    name = name + '.dk'
+    return name
 
 class CreateDummyOrg(object):
     """ Create a dummy organisation to use as test data """
@@ -56,6 +66,7 @@ class CreateDummyOrg(object):
     def __init__(self, kommunekode, kommunenavn, path_to_names):
         self.nodes = {}
         self.kommunenavn = kommunenavn
+        _name_to_host(kommunenavn)
         try:
             with open(str(kommunekode) + '.p', 'rb') as file_handle:
                 self.adresser = pickle.load(file_handle)
@@ -149,7 +160,7 @@ class CreateDummyOrg(object):
                   'til': None,  # TODO
                   'brugervendtnoegle': bvn,
                   'brugernavn': navn,
-                  'email': bvn.lower() + '@' + self.kommunenavn + '.dk',
+                  'email': bvn.lower() + '@' + _name_to_host(self.kommunenavn),
                   'telefon': _telefon(),
                   'manager': manager,
                   'adresse': self._adresse()
