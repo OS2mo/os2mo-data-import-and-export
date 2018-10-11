@@ -6,16 +6,25 @@ import collections
 from datetime import datetime
 from os2mo_data_import import Organisation, ImportUtility
 
+# From-date for objects that have no intrinsic dates.
+# This can replaced with None when the import tool supports
+# to add the associated objects validity to the relations
+GLOBAL_DATE = '2010-01-01'
+
 
 def _format_time(gyldighed):
-    from_time = None
+    from_time = GLOBAL_DATE
     to_time = None
+    # NOTICE: DATES ARE INCONSISTENT, CURRENTLY, WE RETURN A
+    # FIXED DATE!!!!!!!!
+    """
     if not gyldighed['@fra'] == '-INFINITY':
         from_time = datetime.strptime(gyldighed['@fra'], '%d/%m/%Y')
         from_time = from_time.strftime('%Y-%m-%d')
     if not gyldighed['@til'] == 'INFINITY':
         to_time = datetime.strptime(gyldighed['@til'], '%d/%m/%Y')
         to_time = to_time.strftime('%Y-%m-%d')
+    """
     return from_time, to_time
 
 
@@ -169,10 +178,15 @@ class AposImport(object):
                     klasser = [klasser]
                 for klasse in klasser:
                     print(klasse['@uuid'] + ': ' + klasse['@title'])
+                    # Add more here if necessary
+                    if klasse['@title'] == 'Alt. Tlf.':
+                        scope = 'PHONE'
+                    else:
+                        scope = 'TEXT'
                     self.org.Klasse.add(identifier=klasse['@uuid'],
-                                        titel=klasse['@title'],
-                                        brugervendtnoegle=klasse['@title'],
-                                        omfang=None,  # TODO: Hvad er dette?
+                                        title=klasse['@title'],
+                                        user_key=klasse['@title'],
+                                        scope=scope,
                                         facet_type_ref=mo_facet_navn)
 
     def create_facetter_and_klasser(self):
@@ -197,7 +211,7 @@ class AposImport(object):
                                                'Ledertyper': ['Typer']})
 
             if k['@kaldenavn'] == 'SD løn enhedstyper':
-                self.create_typer(k['@uuid'], {'Enhedstyper':
+                self.create_typer(k['@uuid'], {'Enhedstype':
                                                ['sd_loen_enhedstyper']})
 
             if k['@kaldenavn'] == 'Kontaktkanaler':
@@ -218,14 +232,21 @@ class AposImport(object):
         url = "app-organisation/GetUnitDetails?uuid={}"
         r = self._apos_lookup(url.format(apos_unit['@uuid']))
         details = r['enhed']
-        fra, til = _format_time(details['gyldighed'])
+        if 'overordnet' in details:
+            gyldighed = {'@fra': details['overordnet']['@fra'],
+                         '@til': details['overordnet']['@til']
+                         }
+            fra, til = _format_time(gyldighed)
+        else:
+            fra, til = _format_time(details['gyldighed'])
+        unit_id = int(apos_unit['@objectid'])
 
         # If enhedstype is not hard-coded, we take it from APOS
         if not enhedstype:
             enhedstype = details['@enhedstype']
 
         unit = self.org.OrganisationUnit.add(
-            identifier=apos_unit['@uuid'],
+            identifier=unit_id,
             name=apos_unit['@navn'],
             user_key=apos_unit['@brugervendtNoegle'],
             org_unit_type_ref=enhedstype,
@@ -236,16 +257,16 @@ class AposImport(object):
         location = self.read_locations(apos_unit)
         if 'pnummer' in location:
             self.org.OrganisationUnit.add_type_address(
-                identifier=apos_unit['@uuid'],
+                owener_ref=unit_id,
                 address_type_ref='PNUMBER',
                 value=location['pnummer'],
-                date_from=None)
+                date_from=GLOBAL_DATE)
         if 'dawa_uuid' in location:
             self.org.OrganisationUnit.add_type_address(
-                identifier=apos_unit['@uuid'],
+                owner_ref=unit_id,
                 address_type_ref='AdressePost',
                 value=location['dawa_uuid'],
-                date_from=None)
+                date_from=GLOBAL_DATE)
         return unit
 
     def create_associations_for_ou(self, unit):
@@ -287,7 +308,7 @@ class AposImport(object):
                         owner_ref=employee_identifier,
                         value=value,
                         address_type_ref=klasse_ref,
-                        date_from=None,
+                        date_from=GLOBAL_DATE,
                         date_to=None
                     )
                 except AssertionError:
@@ -321,6 +342,7 @@ class AposImport(object):
     def create_employees_for_ou(self, unit):
         url = 'composite-services/GetEngagementDetailed?unitUuid={}'
         medarbejdere = self._apos_lookup(url.format(unit))
+
         if 'total' not in medarbejdere:
             return   # This unit has no employees
         if medarbejdere['total'] == '0':
@@ -333,6 +355,7 @@ class AposImport(object):
         # Be carefull, the employee has uuids both as persons and as
         # employees
         for medarbejder in medarbejdere:
+            objectid = int(medarbejder['pathToRoot']['enhed'][-1]['@objectid'])
             person = medarbejder['person']
             name = person['@fornavn'] + ' '
             if person['@mellemnavn']:
@@ -351,11 +374,9 @@ class AposImport(object):
             self.org.Employee.add(name=name,
                                   identifier=person['@uuid'],
                                   cpr_no=person['@personnummer'],
-                                  user_key=bvn,
-                                  date_from=fra,
-                                  date_to=til)
+                                  user_key=bvn)
             self.update_contact_information(medarbejder)
-            self.update_tasks(medarbejder, unit)
+            self.update_tasks(medarbejder, objectid)
 
     def get_ou_functions(self, unit):
         url = 'app-organisation/GetFunctionsForUnit?uuid={}'
@@ -444,7 +465,7 @@ class AposImport(object):
                 if over_id in nodes.keys():
                     new[unit_id] = self._create_ou_from_apos(
                         unit,
-                        nodes[over_id],
+                        over_id,
                         enhedstype=enhedstype)
                     self.create_employees_for_ou(unit['@uuid'])
                 else:
@@ -461,19 +482,46 @@ class AposImport(object):
 
 
 if __name__ == '__main__':
-    apos_import = AposImport('Ballerup APOS 1')
+    apos_import = AposImport('APOS 12')
 
     apos_import.create_facetter_and_klasser()
     apos_import.create_ou_tree('b78993bb-d67f-405f-acc0-27653bd8c116')
     sd_enhedstype = '324b8c95-5ff9-439b-a49c-1a6a6bba4651'
-    apos_import.create_ou_tree('945bb286-9753-4f77-9082-a67a5d7bdbaf',
-                               enhedstype=sd_enhedstype)
+    # apos_import.create_ou_tree('945bb286-9753-4f77-9082-a67a5d7bdbaf',
+    #                            enhedstype=sd_enhedstype)
     apos_import.create_managers()
 
-    ballerup = ImportUtility(apos_import.org, dry_run=True)
-    #ballerup.import_all()
+    """
+    # This does not actually work, need a method to apply the changes
+    # back to the memory map
+    units = apos_import.org.OrganisationUnit.export()
+    for unit in units:
+        for data in unit[1]['data']:
+            if data[0] == 'validity':
+                unit_validity = data
+                unit_from = datetime.strptime(data[1]['from'], '%Y-%m-%d')
 
-    #exit()  # <---- NOTICE!
+        parent_ref = unit[1]['parent_ref']
+        if apos_import.org.OrganisationUnit.check_if_exists(parent_ref):
+            parent = apos_import.org.OrganisationUnit.get(parent_ref)
+        else:
+            continue
+
+        for data in parent['data']:
+            if data[0] == 'validity':
+                parent_validity = data
+                parent_from = datetime.strptime(data[1]['from'], '%Y-%m-%d')
+
+        if parent_from < unit_from:
+            unit[1]['data'].remove(unit_validity)
+            unit[1]['data'].append(parent_validity)
+    """
+
+    ballerup = ImportUtility(dry_run=False, mox_base='http://localhost:8080',
+                             mora_base='http://localhost:80')
+    ballerup.import_all(apos_import.org)
+
+    exit()  # <---- NOTICE!
 
     print('********************************')
     print('Address challenges:')
