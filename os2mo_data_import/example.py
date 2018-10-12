@@ -58,6 +58,24 @@ def example_import():
         date_from="1986-01-01"
     )
 
+    # HOTFIX: nested units are failing
+    # This will 'really' be fixed in the refactoring state
+
+    # Adding sub units to the example
+    Magenta.OrganisationUnit.add(
+        identifier="Sysadmins",
+        org_unit_type_ref="Afdeling",
+        parent_ref="SJA2",  # Sub unit of/Belongs to SJA2
+        date_from="1986-01-01"
+    )
+
+    Magenta.OrganisationUnit.add(
+        identifier="Dummy",
+        org_unit_type_ref="Afdeling",
+        parent_ref="Sysadmins",  # Sub unit of/Belongs to SJA2
+        date_from="1986-01-01"
+    )
+
     # Address types for Organisation Unit
     Magenta.OrganisationUnit.add_type_address(
         owner_ref="Magenta",

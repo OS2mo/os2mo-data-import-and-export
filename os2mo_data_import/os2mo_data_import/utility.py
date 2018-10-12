@@ -579,6 +579,27 @@ class ImportUtility(object):
 
         return payload
 
+    def _import_org_units(self, identifier, org_unit):
+        """
+        HOTFIX: temporary fix for nested organisation units
+        """
+        parent_ref = org_unit["parent_ref"]
+
+        # Insert parent if the organisation unit has a parent
+        if parent_ref and parent_ref not in self.inserted_org_unit_map:
+
+            parent_data = self.org.OrganisationUnit.get(parent_ref)
+            self._import_org_units(parent_ref, parent_data)
+
+        # Insert the actual organisation unit
+        uuid = self.import_org_unit(
+            reference=identifier,
+            organisation_unit_data=org_unit["data"],
+            optional_data=org_unit["optional_data"]
+        )
+
+        print("Inserted org unit: %s" % uuid)
+
     def import_all(self, org):
         """
         The main import function
@@ -596,6 +617,9 @@ class ImportUtility(object):
 
         # Set global validity
         self.global_validity = org.validity
+
+        # HOTFIX: temporary fix for nested organisation units
+        self.org = org
 
         # Insert Organisation
         org_export = org.export()
@@ -627,28 +651,7 @@ class ImportUtility(object):
         # Insert Organisation Units
         for identifier, org_unit in org.OrganisationUnit.export():
 
-            parent_ref = org_unit["parent_ref"]
-
-            # Insert parent if the organisation unit has a parent
-            if parent_ref and parent_ref not in self.inserted_org_unit_map:
-                parent = org.OrganisationUnit.get(parent_ref)
-                parent_uuid = self.import_org_unit(
-                    reference=parent_ref,
-                    organisation_unit_data=parent["data"],
-                    optional_data=parent["optional_data"]
-                )
-
-
-                print("Inserted parent org unit: %s" % parent_uuid)
-
-            # Insert the actual organisation unit
-            uuid = self.import_org_unit(
-                reference=identifier,
-                organisation_unit_data = org_unit["data"],
-                optional_data=org_unit["optional_data"]
-            )
-
-            print("Inserted org unit: %s" % uuid)
+            self._import_org_units(identifier, org_unit)
 
         # Insert Employees
         for identifier, employee in org.Employee.export():
