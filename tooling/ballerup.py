@@ -65,6 +65,7 @@ class AposImport(object):
     def __init__(self, org_name):
         self.base_url = 'http://apos.balk.dk:8080/apos2-'
         self.org = Organisation(org_name, org_name)
+        self.object_to_uuid = {}
         self.address_challenges = {}
         self.duplicate_persons = {}
         self.address_errors = {}
@@ -254,19 +255,27 @@ class AposImport(object):
             date_to=til,
             parent_ref=parent)
 
-        location = self.read_locations(apos_unit)
-        if 'pnummer' in location:
-            self.org.OrganisationUnit.add_type_address(
-                owener_ref=unit_id,
-                address_type_ref='PNUMBER',
-                value=location['pnummer'],
-                date_from=GLOBAL_DATE)
-        if 'dawa_uuid' in location:
-            self.org.OrganisationUnit.add_type_address(
-                owner_ref=unit_id,
-                address_type_ref='AdressePost',
-                value=location['dawa_uuid'],
-                date_from=GLOBAL_DATE)
+        locations = self.read_locations(apos_unit)
+
+        for location in locations:
+            if location['pnummer']:
+                try:
+                    self.org.OrganisationUnit.add_type_address(
+                        owner_ref=unit_id,
+                        address_type_ref='PNUMBER',
+                        value=location['pnummer'],
+                        date_from=GLOBAL_DATE)
+                except AssertionError:  # pnumber added multiple times
+                    pass
+            if location['dawa_uuid']:
+                try:
+                    self.org.OrganisationUnit.add_type_address(
+                        owner_ref=unit_id,
+                        address_type_ref='AdressePost',
+                        uuid=location['dawa_uuid'],
+                        date_from=GLOBAL_DATE)
+                except AssertionError:  # Address already added
+                    pass
         return unit
 
     def create_associations_for_ou(self, unit):
@@ -331,6 +340,15 @@ class AposImport(object):
             assert(tasks['@klassifikation'] == 'stillingsbetegnelser')
             stilling = tasks['@uuid']
 
+        if not (
+                self.org.Klasse.check_if_exists(stilling) and
+                self.org.OrganisationUnit.check_if_exists(unit) and
+                self.org.Employee.check_if_exists(employee['person']['@uuid'])
+        ):
+            print(employee)
+            print('Medarbejder ukendt')
+            1/0
+
         engagement_ref = '56e1214a-330f-4592-89f3-ae3ee8d5b2e6'  # Ansat
         self.org.Employee.add_type_engagement(
             owner_ref=employee['person']['@uuid'],
@@ -380,7 +398,9 @@ class AposImport(object):
 
     def get_ou_functions(self, unit):
         url = 'app-organisation/GetFunctionsForUnit?uuid={}'
-        org_funcs = self._apos_lookup(url.format(unit))
+        uuid = self.object_to_uuid[unit]
+        org_funcs = self._apos_lookup(url.format(uuid))
+
         if int(org_funcs['total']) == 0:
             return
         for func in org_funcs['function']:
@@ -402,7 +422,7 @@ class AposImport(object):
                 if not person['@uuid']:
                     continue
 
-                assert(func['units']['unit']['@uuid'] == unit)
+                assert(func['units']['unit']['@uuid'] == uuid)
                 tasks = func['tasks']['task']
 
                 manager_type = None
@@ -434,10 +454,11 @@ class AposImport(object):
 
                 if manager_type:
                     try:
+                        print(unit)
                         self.org.Employee.add_type_manager(
                             owner_ref=person['@uuid'],
                             org_unit_ref=unit,
-                            manager_level_ref=None,  # TODO?
+                            manager_level_ref='Lederniveau',
                             address_uuid=None,  # TODO?
                             manager_type_ref=manager_type,
                             responsibility_list=manager_responsibility,
@@ -453,6 +474,7 @@ class AposImport(object):
         nodes = {}
         # The root org is always first row in APOS
         objectid = int(org_units[0]['@objectid'])
+        self.object_to_uuid[objectid] = org_units[0]['@uuid']
         nodes[objectid] = self._create_ou_from_apos(org_units[0])
         del(org_units[0])
 
@@ -463,6 +485,7 @@ class AposImport(object):
                 over_id = int(unit['@overordnetid'])
                 unit_id = int(unit['@objectid'])
                 if over_id in nodes.keys():
+                    self.object_to_uuid[unit_id] = unit['@uuid']
                     new[unit_id] = self._create_ou_from_apos(
                         unit,
                         over_id,
@@ -482,13 +505,13 @@ class AposImport(object):
 
 
 if __name__ == '__main__':
-    apos_import = AposImport('APOS 12')
+    apos_import = AposImport('APOS 1')
 
     apos_import.create_facetter_and_klasser()
     apos_import.create_ou_tree('b78993bb-d67f-405f-acc0-27653bd8c116')
     sd_enhedstype = '324b8c95-5ff9-439b-a49c-1a6a6bba4651'
-    # apos_import.create_ou_tree('945bb286-9753-4f77-9082-a67a5d7bdbaf',
-    #                            enhedstype=sd_enhedstype)
+    apos_import.create_ou_tree('945bb286-9753-4f77-9082-a67a5d7bdbaf',
+                               enhedstype=sd_enhedstype)
     apos_import.create_managers()
 
     """
