@@ -134,8 +134,8 @@ class AposImport(object):
             # TODO: What to do with information regarding primary?
             uuid = location['@adresse']
             url = 'app-part/GetAdresseList?uuid={}'
-            opus_address = self._apos_lookup(url.format(uuid))
-            dawa_uuid = self.dawa_lookup(opus_address['adresse'])
+            apos_address = self._apos_lookup(url.format(uuid))
+            dawa_uuid = self.dawa_lookup(apos_address['adresse'])
             pnummer = location.get('@pnummer', None)
             primary = (location.get('@primary', None) == 'JA')
             mo_location = {'pnummer': pnummer,
@@ -206,6 +206,12 @@ class AposImport(object):
             if k['@kaldenavn'] == 'Tilknytningstyper':
                 self.create_typer(k['@uuid'],
                                   {'Engagementstype': ['Alfabetisk']})
+
+            if k['@kaldenavn'] == 'AM/MED':
+                self.create_typer(k['@uuid'],
+                                  {'Tilknytningstype': ['Repræsentanttyper',
+                                                        'Medlemstyper',
+                                                        'Forbund']})
 
             if k['@kaldenavn'] == 'Leder':
                 self.create_typer(k['@uuid'], {'Lederansvar': ['Ansvar'],
@@ -408,13 +414,13 @@ class AposImport(object):
                 continue  # This func is empty
 
             fra, til = _format_time(func['gyldighed'])
-            opus_persons = func['persons']
-            if not opus_persons:
+            apos_persons = func['persons']
+            if not apos_persons:
                 continue
-            if not opus_persons['person']:
+            if not apos_persons['person']:
                 continue  # Vacant manager?
 
-            personer = opus_persons['person']
+            personer = apos_persons['person']
             if not isinstance(personer, list):
                 personer = [personer]
 
@@ -505,9 +511,10 @@ class AposImport(object):
 
 
 if __name__ == '__main__':
-    apos_import = AposImport('APOS 1')
+    apos_import = AposImport('APOS')
 
     apos_import.create_facetter_and_klasser()
+
     apos_import.create_ou_tree('b78993bb-d67f-405f-acc0-27653bd8c116')
     sd_enhedstype = '324b8c95-5ff9-439b-a49c-1a6a6bba4651'
     apos_import.create_ou_tree('945bb286-9753-4f77-9082-a67a5d7bdbaf',
