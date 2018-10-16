@@ -4,29 +4,52 @@ import requests
 from anytree import Node
 from chardet.universaldetector import UniversalDetector
 
+BASE_URL = 'http://mora_dev_tools/service/'
+CACHE = {}
 
-BALLERUP = '2f41ace9-4c69-4d82-b26e-2d2ae2ff0e0b'
-queries = {}
+
+def _find_class(find_facet, find_class):
+    if find_class in CACHE:
+        return CACHE[find_class]
+    uuid = None
+    url = BASE_URL + 'o/{}/f/{}'
+    response = requests.get(url.format(ROOT, find_facet)).json()
+    for actual_class in response['data']['items']:
+        if actual_class['name'] == find_class:
+            uuid = actual_class['uuid']
+            CACHE[find_class] = uuid
+    return uuid
 
 
-def mo_lookup(uuid):
-    url = 'http://mora_dev_tools/service/e/{}'.format(uuid)
-    response = requests.get(url)
+def _mo_lookup(uuid, details=''):
+    if not details:
+        url = BASE_URL + 'e/{}'
+    else:
+        url = BASE_URL + 'e/{}/details/' + details
+    response = requests.get(url.format(uuid))
     return(response.json())
 
 
-def search_mo_name(name, user_key):
-    url = 'http://mora_dev_tools/service/o/{}/e?query={}'
-    response = requests.get(url.format(BALLERUP, name))
+def _find_org():
+    url = BASE_URL + 'o'
+    response = requests.get(url).json()
+    assert(len(response) == 1)
+    uuid = response[0]['uuid']
+    return(uuid)
+
+
+def _search_mo_name(name, user_key):
+    url = BASE_URL + 'o/{}/e?query={}'
+    response = requests.get(url.format(ROOT, name))
     result = response.json()
     if len(result['items']) == 1:
         return result['items'][0]['uuid']
     # Did not succeed with simple search, try user_Key
-    response = requests.get(url.format(BALLERUP, user_key))
+    response = requests.get(url.format(ROOT, user_key))
     result = response.json()
     for employee in result['items']:
         uuid = employee['uuid']
-        mo_user = mo_lookup(uuid)
+        mo_user = _mo_lookup(uuid)
         if mo_user['user_key'] == user_key:
             return(employee['uuid'])
     # Still no success, give up and return None
@@ -51,11 +74,10 @@ def _load_csv(file_name):
     return rows
 
 
-def _create_mo_ou(name, parent):
-    ou_type = '656d6551-e3e4-4c8e-bb0f-9a369d9334d2'
+def _create_mo_ou(name, parent, org_type):
+    ou_type = _find_class(find_facet='org_unit_type', find_class=org_type)
     if parent is 'root':
-        parent = BALLERUP
-    # Chceck org_unit_type, might need a new facet
+        parent = ROOT
     payload = {'name': name,
                'brugervendtnoegle': name,
                'org_unit_type': {'uuid': ou_type},
@@ -68,37 +90,41 @@ def _create_mo_ou(name, parent):
     return uuid
 
 
-def _create_mo_association(user, org_unit):
+def _create_mo_association(user, org_unit, association_type):
     # Chceck org_unit_type, might need a new facet
-    url = 'http://mora_dev_tools/service/e/{}/details/engagement'
-    response = requests.get(url.format(user)).json()
+    response = _mo_lookup(user, details='engagement')
     job_function = response[0]['job_function']['uuid']
     payload = [{'type': 'association',
                 'org_unit': {'uuid': org_unit},
                 'person': {'uuid': user},
-                'association_type': {
-                    'uuid': '74de4089-56f9-4a6e-a044-1758ff941896'
-                },
+                'association_type': {'uuid': association_type},
                 'job_function': {'uuid': job_function},
                 'validity': {'from': '2010-01-01', 'to': '2100-01-01'}}]
-    url = 'http://mora_dev_tools/service/details/create'
+    url = BASE_URL + 'details/create'
     response = requests.post(url, json=payload)
     uuid = response.json()
     return uuid
 
 
-def _read_udvalg(file_name, nodes):
+def create_udvalg(nodes, file_name):
     rows = _load_csv(file_name)
     for row in rows:
+        if ('Formand' in row) and (row['Formand'] == '1'):
+            association_type = _find_class('association_type', 'Formand')
+        elif ('Næstformand' in row) and (row['Næstformand'] == '1'):
+            association_type = _find_class('association_type', 'Næstformand')
+        else:
+            association_type = _find_class('association_type', 'Medlem')
+
         org_id = int(row['Id'])
-        uuid = search_mo_name(row['Fornavn'] + ' ' + row['Efternavn'],
-                              row['BrugerID'])
+        uuid = _search_mo_name(row['Fornavn'] + ' ' + row['Efternavn'],
+                               row['BrugerID'])
         if uuid:
             nodes[uuid] = Node(row['Fornavn'] + ' ' + row['Efternavn'],
                                uuid=uuid,
                                org_type=row['OrgType'],
                                parent=nodes[org_id])
-            _create_mo_association(uuid, nodes[org_id].uuid)
+            _create_mo_association(uuid, nodes[org_id].uuid, association_type)
         else:
             print('Error: {} {}, bvn: {}'.format(row['Fornavn'],
                                                  row['Efternavn'],
@@ -106,26 +132,27 @@ def _read_udvalg(file_name, nodes):
     return nodes
 
 
-def read_tree(file_name):
+def create_tree(file_name):
     nodes = {}
     rows = _load_csv(file_name)
     while rows:
         new = {}
         remaining_nodes = []
         for row in rows:
+            org_type = row['OrgType'].strip()
             id_nr = int(row['Id'])
             parent = int(row['ParentID']) if row['ParentID'] else None
             if parent is None:
-                uuid = _create_mo_ou(row['OrgEnhed'], parent='root')
+                uuid = _create_mo_ou(row['OrgEnhed'], parent='root',
+                                     org_type=org_type)
                 new[id_nr] = Node(row['OrgEnhed'],
-                                  uuid=uuid,
-                                  org_type=row['OrgType'].strip())
+                                  uuid=uuid, org_type=org_type)
             elif parent in nodes:
                 uuid = _create_mo_ou(row['OrgEnhed'],
-                                     parent=nodes[parent].uuid)
+                                     parent=nodes[parent].uuid,
+                                     org_type=org_type)
                 new[id_nr] = Node(row['OrgEnhed'],
-                                  uuid=uuid,
-                                  org_type=row['OrgType'].strip(),
+                                  uuid=uuid, org_type=org_type,
                                   parent=nodes[parent])
             else:
                 remaining_nodes.append(row)
@@ -134,31 +161,20 @@ def read_tree(file_name):
     return nodes
 
 
-def read_AMR_udvalg(nodes):
-    filename = 'AMR-medlemmer.csv'
-    nodes = _read_udvalg(filename, nodes)
-    return nodes
-
-
-def read_MED_udvalg(nodes):
-    filename = 'MED-medlemmer.csv'
-    nodes = _read_udvalg(filename, nodes)
-    return nodes
-
-
 if __name__ == '__main__':
-    from anytree import RenderTree
+    ROOT = _find_org()
 
     if False:
-        nodes = read_tree('OrgTyper.csv')
+        nodes = create_tree('OrgTyper.csv')
         with open('nodes.p', 'wb') as f:
             pickle.dump(nodes, f, pickle.HIGHEST_PROTOCOL)
 
     with open('nodes.p', 'rb') as f:
         nodes = pickle.load(f)
 
-    # nodes = read_AMR_udvalg(nodes)
-    nodes = read_MED_udvalg(nodes)
+    nodes = create_udvalg(nodes, 'AMR-medlemmer.csv')
+    nodes = create_udvalg(nodes, 'MED-medlemmer.csv')
 
     # root = min(nodes.keys())
+    # from anytree import RenderTree
     # print(RenderTree(nodes[root]))

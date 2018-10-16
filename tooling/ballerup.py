@@ -204,7 +204,7 @@ class AposImport(object):
                                   {'Enhedstype': ['Alfabetisk']})
 
             if k['@kaldenavn'] == 'Tilknytningstyper':
-                self.create_typer(k['@uuid'],
+                 self.create_typer(k['@uuid'],
                                   {'Engagementstype': ['Alfabetisk']})
 
             if k['@kaldenavn'] == 'AM/MED':
@@ -226,6 +226,19 @@ class AposImport(object):
                                                ['Lokation typer',
                                                 'Egenskaber',
                                                 'Engagement typer']})
+
+        specific_klasser = [{'titel': 'AMR', 'facet': 'Enhedstype'},
+                            {'titel': 'H-MED', 'facet': 'Enhedstype'},
+                            {'titel': 'C-MED', 'facet': 'Enhedstype'},
+                            {'titel': 'L-MED', 'facet': 'Enhedstype'}]
+
+        for klasse in specific_klasser:
+            self.org.Klasse.add(identifier=klasse['titel'],
+                                title=klasse['titel'],
+                                user_key=klasse['titel'],
+                                scope='TEXT',
+                                facet_type_ref=klasse['facet'])
+
 
     def _read_ous_from_apos(self, org_uuid):
         url = "app-organisation/GetEntireHierarchy?uuid={}"
