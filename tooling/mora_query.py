@@ -157,24 +157,30 @@ def pre_cache_users(mh):
     workers = {}
     for i in range(0, 5):
         workers[i] = threading.Thread(target=cache_user,
-                                      args=[user_queue])
+                                      args=[mh, user_queue])
         workers[i].start()
     user_queue.join()
 
 
 if __name__ == '__main__':
-    threaded_speedup = False
+    threaded_speedup = True
 
     mh = MoraHelper()
 
+    org = mh.read_organisation()
+    roots = mh.read_top_units(org)
+    for root in roots:
+        if root['name'] == 'Ballerup Kommune':
+            ballerup = root['uuid']
+        if root['name'] == '9B':
+            sd = root['uuid']
     t = time.time()
 
     if threaded_speedup:
-        mh.pre_cache_users()
+        pre_cache_users(mh)
         print('Build cache: {}'.format(time.time() - t))
 
-    # nodes = mh.read_ou_tree('f414a2f1-5cac-4634-8767-b8d3109d3133')
-    nodes = mh.read_ou_tree('82b42d4e-f7c0-4787-aa2d-9312b284e519')
+    nodes = mh.read_ou_tree(ballerup)
     print('Read nodes: {}s'.format(time.time() - t))
 
     filename = 'Alle_lederfunktioner_os2mo.csv'
@@ -197,7 +203,7 @@ if __name__ == '__main__':
     export_all_teams(mh, nodes, filename)
     print('Teams: {}s'.format(time.time() - t))
 
-    nodes = mh.read_ou_tree('4bb95b86-8a1e-4335-a721-a555f46333f6')
+    nodes = mh.read_ou_tree(sd)
     filename = 'SD-løn org med Pnr_os2mo.csv'
     export_orgs(mh, nodes, filename, include_employees=False)
     print('SD-løn: {}'.format(time.time() - t))
