@@ -65,7 +65,7 @@ class AposImport(object):
     def __init__(self, org_name):
         self.base_url = 'http://apos.balk.dk:8080/apos2-'
         self.org = Organisation(org_name, org_name)
-        self.object_to_uuid = {}
+        self.object_to_uuid = {}  # Mapping of Opus object ID to Opus UUID
         self.address_challenges = {}
         self.duplicate_persons = {}
         self.address_errors = {}
@@ -204,7 +204,7 @@ class AposImport(object):
                                   {'Enhedstype': ['Alfabetisk']})
 
             if k['@kaldenavn'] == 'Tilknytningstyper':
-                 self.create_typer(k['@uuid'],
+                self.create_typer(k['@uuid'],
                                   {'Engagementstype': ['Alfabetisk']})
 
             if k['@kaldenavn'] == 'AM/MED':
@@ -238,7 +238,6 @@ class AposImport(object):
                                 user_key=klasse['titel'],
                                 scope='TEXT',
                                 facet_type_ref=klasse['facet'])
-
 
     def _read_ous_from_apos(self, org_uuid):
         url = "app-organisation/GetEntireHierarchy?uuid={}"
@@ -302,11 +301,44 @@ class AposImport(object):
         Dette skal undersges.
         """
         url = "app-organisation/GetAttachedPersonsForUnit?uuid={}"
-        associations = self._apos_lookup(url.format(unit))
+        uuid = self.object_to_uuid[unit]
+        added_persons = []
+        associations = self._apos_lookup(url.format(uuid))
         if int(associations['total']) > 0:
-            for person in associations['person']:
-                for p in person:
-                    pass
+            persons = associations['person']
+            if not isinstance(persons, list):
+                persons = [persons]
+
+            for person in persons:
+                for p in person.values():
+                    if p in added_persons:
+                        # Some persons are reported more than once?
+                        break
+                    else:
+                        added_persons.append(p)
+                    if not self.org.Employee.check_if_exists(p):
+                        print('Association error: {}'.format(p))
+                        break
+
+                    p_info = self.org.Employee.get(p)
+                    for data in p_info['optional_data']:
+                        if data[0][1] == 'engagement':
+                            break
+                    for info in data:
+                        if info[0] == 'job_function':
+                            job_function = info[1]
+                        if info[0] == 'validity':
+                            from_date = info[1]['from']
+                    ansat = '56e1214a-330f-4592-89f3-ae3ee8d5b2e6'
+                    print(p)
+                    print(unit)
+                    self.org.Employee.add_type_association(
+                        owner_ref=p,
+                        org_unit_ref=unit,
+                        job_function_ref=job_function,
+                        association_type_ref=ansat,
+                        date_from=from_date
+                    )
 
     def update_contact_information(self, employee):
         kontakt = employee['klassifikationKontaktKanaler']
@@ -516,23 +548,23 @@ class AposImport(object):
             org_units = remaining_org_units
             nodes.update(new)
 
-    def create_managers(self):
+    def create_managers_and_associatins(self):
         """ Create org_funcs, at the momen this means managers """
         units = apos_import.org.OrganisationUnit.export()
         for unit in units:
             self.get_ou_functions(unit[0])
+            self.create_associations_for_ou(unit[0])
 
 
 if __name__ == '__main__':
     apos_import = AposImport('APOS')
-
     apos_import.create_facetter_and_klasser()
 
     apos_import.create_ou_tree('b78993bb-d67f-405f-acc0-27653bd8c116')
     sd_enhedstype = '324b8c95-5ff9-439b-a49c-1a6a6bba4651'
     apos_import.create_ou_tree('945bb286-9753-4f77-9082-a67a5d7bdbaf',
                                enhedstype=sd_enhedstype)
-    apos_import.create_managers()
+    apos_import.create_managers_and_associatins()
 
     """
     # This does not actually work, need a method to apply the changes
@@ -560,7 +592,7 @@ if __name__ == '__main__':
             unit[1]['data'].append(parent_validity)
     """
 
-    ballerup = ImportUtility(dry_run=False, mox_base='http://localhost:8080',
+    ballerup = ImportUtility(dry_run=True, mox_base='http://localhost:8080',
                              mora_base='http://localhost:80')
     ballerup.import_all(apos_import.org)
 
@@ -582,6 +614,6 @@ if __name__ == '__main__':
         print(uuid)
     print()
 
-    # print('Duplicate people:')
-    # for uuid, person in apos_import.duplicate_persons.items():
-    #    print(person['@adresseringsnavn'])
+    print('Duplicate people:')
+    for uuid, person in apos_import.duplicate_persons.items():
+        print(person['@adresseringsnavn'])
