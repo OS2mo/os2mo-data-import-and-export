@@ -78,12 +78,18 @@ class MoraHelper(object):
                              encoding='windows-1252') as csvfile:
                 csvfile.write(lines)
 
-    def _create_path_dict(self, fieldnames, node):
+    def _create_path_dict(self, fieldnames, node, org_types=None):
         """ Create a dict with a MO-path to a given node.
         :param fieldnames: The headline for each level of the path.
         :node: The node to find the path for.
         :return: A dict with headlines as keys and nodes as values.
         """
+        ou = self.read_organisationsenhed(node.name)
+        ou_type = ou['org_unit_type']['name']
+
+        if org_types and (ou_type not in org_types):
+            return None
+
         path = self._read_node_path(node)
         path_dict = {}
         i = 0
@@ -124,7 +130,10 @@ class MoraHelper(object):
         """
         return_address = {}
         addresses = self._mo_lookup(uuid, 'ou/{}/details/address')
+
         for address in addresses:
+            if address['address_type']['scope'] == 'DAR':
+                return_address['Adresse'] = address['name']
             if address['address_type']['scope'] == 'DAR':
                 return_address['Adresse'] = address['name']
         return return_address
@@ -148,6 +157,20 @@ class MoraHelper(object):
             if cpr:
                 return_address['CPR-Nummer'] = personal_info['cpr_no']
         return return_address
+
+    def read_user_manager_status(self, user):
+        """ Returns True of user has responsibility:
+        'Personale: ansættelse/afskedigelse'
+        :param user: UUID of the wanted user
+        :return: True if person is manager accoring to above mentioned rule
+        """
+        wanted_responsiblity = 'Personale: ansættelse/afskedigelse'
+        manager_functions = self._mo_lookup(user, 'e/{}/details/manager')
+        for manager_function in manager_functions:
+            for responsibility in manager_function['responsibility']:
+                if responsibility['name'] == wanted_responsiblity:
+                    return True
+        return False
 
     def read_organisation_managers(self, org_uuid):
         """ Read the manager of an organisation.
@@ -200,6 +223,8 @@ class MoraHelper(object):
                     'Stillingsbetegnelse': person['job_function']['name'],
                     'Engagement UUID': person['uuid']
                     }
+            if 'association_type' in person:
+                data['Post'] = person['association_type']['name']
             # Finally, add name
             if split_name:
                 data.update(self._split_name(person['person']['name']))
@@ -227,6 +252,7 @@ class MoraHelper(object):
         """
         url = self.host + 'ou/' + org + '/children'
         units = requests.get(url).json()
+
         if parent is None:
             nodes['root'] = Node(org)
             parent = nodes['root']

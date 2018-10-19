@@ -111,16 +111,19 @@ def export_orgs(mh, nodes, filename, include_employees=True):
     if include_employees:
         fieldnames += ['Navn', 'Brugernavn', 'Telefon',
                        'E-mail', 'Adresse']
+    else:
+        fieldnames += ['Adresse', 'p-nummer']
+
     rows = []
     for node in PreOrderIter(nodes['root']):
         path_dict = mh._create_path_dict(fieldnames, node)
+        org_address = mh.read_ou_address(node.name)
         if include_employees:
             employees = mh.read_organisation_people(node.name,
                                                     split_name=False)
             for uuid, employee in employees.items():
                 row = {}
                 address = mh.read_user_address(uuid, username=True)
-                org_address = mh.read_ou_address(node.name)
                 row.update(path_dict)    # Path
                 row.update(address)      # E-mail, Telefon
                 row.update(org_address)  # Work address
@@ -128,7 +131,38 @@ def export_orgs(mh, nodes, filename, include_employees=True):
                 rows.append(row)
         else:
             row = {}
+            row.update(org_address)  # Work address
             row.update(path_dict)  # Path
+            rows.append(row)
+    mh._write_csv(fieldnames, rows, filename)
+
+
+def export_udvalg(mh, nodes, filename, fieldnames, org_types):
+    """ Traverses a tree of OUs, find members of 'udvalg'
+    :param mh: Instance of MoraHelper to do the actual work
+    :param nodes: The nodes of the OU tree
+    :param fieldnames: Fieldnames for structur of the 'udvalg'
+    :param org_types: Org types belong to this kind of 'udvalg'
+    """
+    fieldnames = fieldnames + ['Fornavn', 'Efternavn', 'Brugernavn', 'Post',
+                               'Leder']
+    rows = []
+    for node in PreOrderIter(nodes['root']):
+        path_dict = mh._create_path_dict(fieldnames, node, org_types)
+        if not path_dict:
+            continue
+        employees = mh.read_organisation_people(node.name,
+                                                person_type='association',
+                                                split_name=True)
+        for uuid, employee in employees.items():
+            row = {}
+            address = mh.read_user_address(uuid, username=True)
+            mh.read_user_manager_status(uuid)
+            if mh.read_user_manager_status(uuid):
+                row['Leder'] = 'Ja'
+            row.update(path_dict)    # Path
+            row.update(address)      # Brugernavn
+            row.update(employee)     # Everything else
             rows.append(row)
     mh._write_csv(fieldnames, rows, filename)
 
@@ -163,7 +197,8 @@ def pre_cache_users(mh):
 
 
 if __name__ == '__main__':
-    threaded_speedup = True
+    threaded_speedup = False
+    t = time.time()
 
     mh = MoraHelper()
 
@@ -174,12 +209,14 @@ if __name__ == '__main__':
             ballerup = root['uuid']
         if root['name'] == '9B':
             sd = root['uuid']
-    t = time.time()
+        if root['name'] == 'Hoved-MED':
+            udvalg = root['uuid']
 
     if threaded_speedup:
         pre_cache_users(mh)
         print('Build cache: {}'.format(time.time() - t))
 
+    """
     nodes = mh.read_ou_tree(ballerup)
     print('Read nodes: {}s'.format(time.time() - t))
 
@@ -207,3 +244,21 @@ if __name__ == '__main__':
     filename = 'SD-løn org med Pnr_os2mo.csv'
     export_orgs(mh, nodes, filename, include_employees=False)
     print('SD-løn: {}'.format(time.time() - t))
+    """
+
+    fieldnames = ['Hoved-MED', 'Center-MED', 'Lokal-MED']
+    org_types = ['H-MED', 'C-MED', 'L-MED']
+    nodes = mh.read_ou_tree(udvalg)
+
+    #for node in PreOrderIter(nodes['root']):
+    #    path_dict = mh._create_path_dict(fieldnames, node, org_types)
+
+    # filename = 'MED-udvalgsmedlemer_i_hieraki.csv'
+    # export_orgs(mh, nodes, filename, include_employees=False)
+    # print('SD-løn: {}'.format(time.time() - t))
+
+    filename = 'AMR-udvalgsmedlemer_i_hieraki.csv'
+    fieldnames = ['Hoved-MED', 'Center-MED', 'Lokal-MED', 'AMR-Gruppe']
+    org_types = ['AMR']
+    export_udvalg(mh, nodes, filename, fieldnames, org_types)
+    print('AMR: {}'.format(time.time() - t))
