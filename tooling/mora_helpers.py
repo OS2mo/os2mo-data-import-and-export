@@ -15,6 +15,8 @@ import codecs
 import requests
 from anytree import Node
 
+PRIMARY_RESPONSIBILITY = 'Personale: ansættelse/afskedigelse'
+
 
 class MoraHelper(object):
     def __init__(self, hostname='localhost'):
@@ -164,11 +166,10 @@ class MoraHelper(object):
         :param user: UUID of the wanted user
         :return: True if person is manager accoring to above mentioned rule
         """
-        wanted_responsiblity = 'Personale: ansættelse/afskedigelse'
         manager_functions = self._mo_lookup(user, 'e/{}/details/manager')
         for manager_function in manager_functions:
             for responsibility in manager_function['responsibility']:
-                if responsibility['name'] == wanted_responsiblity:
+                if responsibility['name'] == PRIMARY_RESPONSIBILITY:
                     return True
         return False
 
@@ -184,11 +185,16 @@ class MoraHelper(object):
         # Iterate over all managers, use uuid as key, if more than one
         # distinct uuid shows up in list, rasie an error
         for manager in managers:
+            for responsibility in manager['responsibility']:
+                if responsibility['name'] == PRIMARY_RESPONSIBILITY:
+                    break
+            # TODO: if primary reponsibility is found, this is now selected,
+            # otherwise we simply use the last element in the list
+
             uuid = manager['person']['uuid']
-            # Note: We pick the first responsibility, no room for more in list
-            # TODO: This is not good enough, we need correct responsibility
             data = {'Navn': manager['person']['name'],
-                    'Ansvar': manager['responsibility'][0]['name'],
+                    # 'Ansvar': manager['responsibility'][0]['name'],
+                    'Ansvar': responsibility['name'],
                     'uuid': uuid
                     }
             manager_list[uuid] = data

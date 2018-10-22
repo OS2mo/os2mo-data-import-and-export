@@ -216,7 +216,6 @@ if __name__ == '__main__':
         pre_cache_users(mh)
         print('Build cache: {}'.format(time.time() - t))
 
-    """
     nodes = mh.read_ou_tree(ballerup)
     print('Read nodes: {}s'.format(time.time() - t))
 
@@ -244,21 +243,16 @@ if __name__ == '__main__':
     filename = 'SD-løn org med Pnr_os2mo.csv'
     export_orgs(mh, nodes, filename, include_employees=False)
     print('SD-løn: {}'.format(time.time() - t))
-    """
 
-    fieldnames = ['Hoved-MED', 'Center-MED', 'Lokal-MED']
-    org_types = ['H-MED', 'C-MED', 'L-MED']
     nodes = mh.read_ou_tree(udvalg)
-
-    #for node in PreOrderIter(nodes['root']):
-    #    path_dict = mh._create_path_dict(fieldnames, node, org_types)
-
-    # filename = 'MED-udvalgsmedlemer_i_hieraki.csv'
-    # export_orgs(mh, nodes, filename, include_employees=False)
-    # print('SD-løn: {}'.format(time.time() - t))
-
     filename = 'AMR-udvalgsmedlemer_i_hieraki.csv'
     fieldnames = ['Hoved-MED', 'Center-MED', 'Lokal-MED', 'AMR-Gruppe']
     org_types = ['AMR']
     export_udvalg(mh, nodes, filename, fieldnames, org_types)
     print('AMR: {}'.format(time.time() - t))
+
+    filename = 'MED-udvalgsmedlemer_i_hieraki.csv'
+    fieldnames = ['Hoved-MED', 'Center-MED', 'Lokal-MED', 'AMR-Gruppe']
+    org_types = ['H-MED', 'C-MED', 'L-MED']
+    export_udvalg(mh, nodes, filename, fieldnames, org_types)
+    print('MED: {}'.format(time.time() - t))
