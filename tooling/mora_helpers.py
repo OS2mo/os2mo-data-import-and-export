@@ -173,6 +173,17 @@ class MoraHelper(object):
                     return True
         return False
 
+    def read_user_roller(self, user):
+        """ Returns the role of the user
+        :param user: UUID of the wanted user
+        :return: The roles for the user
+        """
+        roles = self._mo_lookup(user, 'e/{}/details/role')
+        role_types = []
+        for role in roles:
+            role_types.append(role['role_type']['name'])
+        return role_types
+
     def read_organisation_managers(self, org_uuid):
         """ Read the manager of an organisation.
         Currently an exception will be raised if an ou has more than

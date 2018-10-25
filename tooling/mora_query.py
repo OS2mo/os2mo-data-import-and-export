@@ -145,7 +145,7 @@ def export_udvalg(mh, nodes, filename, fieldnames, org_types):
     :param org_types: Org types belong to this kind of 'udvalg'
     """
     fieldnames = fieldnames + ['Fornavn', 'Efternavn', 'Brugernavn', 'Post',
-                               'Leder']
+                               'Leder', 'Tillidrepræsentant']
     rows = []
     for node in PreOrderIter(nodes['root']):
         path_dict = mh._create_path_dict(fieldnames, node, org_types)
@@ -160,6 +160,8 @@ def export_udvalg(mh, nodes, filename, fieldnames, org_types):
             mh.read_user_manager_status(uuid)
             if mh.read_user_manager_status(uuid):
                 row['Leder'] = 'Ja'
+            if 'Tillidrepræsentant' in mh.read_user_roller(uuid):
+                row[' Tillidrepræsentant'] = 'Ja'
             row.update(path_dict)    # Path
             row.update(address)      # Brugernavn
             row.update(employee)     # Everything else
