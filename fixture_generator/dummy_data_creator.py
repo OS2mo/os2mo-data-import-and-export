@@ -7,6 +7,18 @@ from uuid import uuid4
 from anytree import Node, PreOrderIter
 
 
+KLASSER = {
+    'Stillingsbetegnelse': ['Udvikler'],
+    'Enhedstype': ['Afdeling'],
+    'Ledertyper': ['Direktør'],
+    'Lederniveau': ['Højeste niveau'],
+    'Lederansvar': ['Personale: ansættelse/afskedigelse',
+                    'Beredskabsledelse',
+                    'Ansvar for bygninger og arealer',
+                    'Personale: MUS-kompetence']
+}
+
+
 # Name handling
 def _path_to_names():
     path = pathlib.Path.cwd()
@@ -54,6 +66,7 @@ def _cpr():
     """ Create a random valid cpr.
     :return: A random phone number
     """
+    mod_11_table = [4, 3, 2, 7, 6, 5, 4, 3, 2]
     days_in_month = {
         '01': 31, '02': 28, '03': 31, '04': 30,
         '05': 31, '06': 30, '07': 31, '08': 31,
@@ -61,21 +74,24 @@ def _cpr():
     }
     month = list(days_in_month.keys())[random.randrange(0, 12)]
     day = str(random.randrange(1, 1 + days_in_month[month])).zfill(2)
-    year = str(random.randrange(1940, 2000))
+    year = str(random.randrange(40, 99))
     digit_7 = str(random.randrange(0, 4))
-    digit_8_9 = str(random.randrange(10, 100))
-    cpr_number = day + month + year + digit_7 + digit_8_9
 
-    mod_11_tabel = [4, 3, 2, 7, 6, 5, 4, 3, 2]
-    mod_11_sum = 0
-    for i in range(0, 9):
-        mod_11_sum += int(cpr_number[i]) * mod_11_tabel[i]
-    remainder = mod_11_sum % 11
+    valid_10 = False
+    while not valid_10:
+        digit_8_9 = str(random.randrange(10, 100))
+        cpr_number = day + month + year + digit_7 + digit_8_9
+        mod_11_sum = 0
+        for i in range(0, 9):
+            mod_11_sum += int(cpr_number[i]) * mod_11_table[i]
+        remainder = mod_11_sum % 11
 
-    if remainder == 0:
-        digit_10 = '0'
-    else:
-        digit_10 = str(11 - remainder)
+        if remainder == 0:
+            digit_10 = '0'
+        else:
+            digit_10 = str(11 - remainder)
+        valid_10 = (remainder is not 1)
+
     cpr_number = cpr_number + digit_10
     return cpr_number
 
@@ -96,6 +112,7 @@ class CreateDummyOrg(object):
     """ Create a dummy organisation to use as test data """
 
     def __init__(self, kommunekode, kommunenavn, path_to_names):
+        self.klasser = KLASSER
         self.nodes = {}
         self.kommunenavn = kommunenavn
         self.kommunekode = kommunekode
@@ -104,7 +121,7 @@ class CreateDummyOrg(object):
             with open(str(kommunekode) + '.p', 'rb') as file_handle:
                 self.adresser = pickle.load(file_handle)
         except OSError:
-            addr = ('http://dawa.aws.dk/adgangsadresser' +
+            addr = ('http://dawa.aws.dk/adresser' +
                     '?kommunekode={}&struktur=mini')
             r = requests.get(addr.format(kommunekode))
             self.adresser = r.json()
@@ -184,7 +201,7 @@ class CreateDummyOrg(object):
         else:
             return name
 
-    def create_bruger(self, manager=False):
+    def create_bruger(self, manager=[]):
         """ Create a MO bruger with a random name and phone
         :return: A Dict with information about the bruger
         """
@@ -253,6 +270,17 @@ class CreateDummyOrg(object):
                               for dist in self._postdistrikter()]
                 self._create_org_level(børnehaver, self.nodes[uuid])
 
+    def create_manager(self):
+        antal_ansvar = len(KLASSER['Lederansvar'])
+        ansvar_list = [0]
+        ansvar_list += random.sample(range(1, antal_ansvar), 2)
+        responsibility_list = []
+        for i in ansvar_list:
+            ansvar = KLASSER['Lederansvar'][i]
+            responsibility_list.append(ansvar)
+        user = self.create_bruger(manager=responsibility_list)
+        return user
+
     def add_users_to_tree(self, ou_size_scale):
         new_nodes = {}
         for node in PreOrderIter(self.nodes['root']):
@@ -265,10 +293,9 @@ class CreateDummyOrg(object):
             # In version one we always add a single manager to a OU
             # This should be randomized and also sometimes be a vacant
             # position
-            user = self.create_bruger(manager=True)
-            uuid = uuid4()
-            new_nodes[uuid] = {'name': user['brugernavn'], 'user': user,
-                               'parent': node}
+            user = self.create_manager()
+            new_nodes[uuid4()] = {'name': user['brugernavn'], 'user': user,
+                                  'parent': node}
 
         for key, user_info in new_nodes.items():
             user_node = Node(user_info['user']['brugernavn'],

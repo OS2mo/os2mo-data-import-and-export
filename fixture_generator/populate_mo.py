@@ -3,147 +3,115 @@ from anytree import PreOrderIter
 from os2mo_data_import import Organisation, ImportUtility
 
 
-def _create_klasser(org):
-    org.Klasse.add(
-        identifier="Udvikler",
-        facet_type_ref="Stillingsbetegnelse",
-        user_key="Udvikler",
-        title="Udvikler"
-    )
+class CreateDummyOrg(object):
 
-    org.Klasse.add(
-        identifier="Afdeling",
-        facet_type_ref="Enhedstype",
-        user_key="91154D1E-E7CA-439B-B910-D4622FD3FD21",
-        title="Afdeling"
-    )
+    def __init__(self, kommunekode, name, scale=1):
+        # Fill in self.data
+        self.create_dummy_data(kommunekode, name, scale=scale)
 
-    # Manager type
-    org.Klasse.add(
-        identifier="Direktør",
-        facet_type_ref="Ledertyper",
-        user_key="Direktør",
-        title="Virksomhedens direktør"
-    )
+        self.org = Organisation(
+            name=self.data.nodes['root'].name,
+            user_key=self.data.nodes['root'].name,
+            municipality_code=self.data.kommunekode,
+            create_defaults=True
+        )
+        self.create_klasser()
+        for node in PreOrderIter(self.data.nodes['root']):
+            if node.type == 'ou':
+                self.create_ou(node)
+            if node.type == 'user':
+                self.create_user(node)
 
-    # Manager level
-    org.Klasse.add(
-        identifier="Højeste niveau",
-        facet_type_ref="Lederniveau",
-        user_key="Højeste niveau",
-        title="Højeste niveau"
-    )
-
-    # Add responsabilities
-    org.Klasse.add(
-        identifier="Tage beslutninger",
-        facet_type_ref="Lederansvar",
-        user_key="Tage beslutninger",
-        title="Tage beslutninger"
-    )
-
-
-def create_dummy_data(kommunekode, navn):
-    name_path = dummy_data_creator._path_to_names()
-    dummy_creator = dummy_data_creator.CreateDummyOrg(kommunekode,
+    def create_dummy_data(self, kommunekode, navn, scale):
+        name_path = dummy_data_creator._path_to_names()
+        self.data = dummy_data_creator.CreateDummyOrg(kommunekode,
                                                       navn,
                                                       name_path)
-    dummy_creator.create_org_func_tree()
-    dummy_creator.add_users_to_tree(ou_size_scale=1)
-    return dummy_creator
+        self.data.create_org_func_tree()
+        self.data.add_users_to_tree(ou_size_scale=scale)
+        return len(self.data.nodes)
 
-
-def _create_user(org, user_node):
-            user = user_node.user  # All unser information is here
-
-            org.Employee.add(
-                name=user_node.name,
-                identifier=user['brugervendtnoegle'],
-                cpr_no=user['cpr']
-            )
-
-            org.Employee.add_type_engagement(
-                owner_ref=user['brugervendtnoegle'],
-                org_unit_ref=user_node.parent.key,
-                job_function_ref="Projektleder",  # TODO
-                engagement_type_ref="Ansat",
-                date_from="1986-02-01"
-            )
-
-            org.Employee.add_type_address(
-                owner_ref=user['brugervendtnoegle'],
-                uuid=user['adresse']['dar-uuid'],
-                address_type_ref="AdressePost",
-                date_from="1986-02-01",
-            )
-
-            org.Employee.add_type_address(
-                owner_ref=user['brugervendtnoegle'],
-                value=user['telefon'],
-                address_type_ref="Telefon",
-                date_from=user['fra'],
-                # date_to=user['to']  # No date_to keyword?
-            )
-
-            # E-mail
-
-            if user['manager']:
-                org.Employee.add_type_manager(
-                    owner_ref=user['brugervendtnoegle'],
-                    org_unit_ref=user_node.parent.key,
-                    manager_type_ref="Direktør",
-                    manager_level_ref="Højeste niveau",
-                    responsibility_list=["Tage beslutninger",
-                                         "Motivere medarbejdere",
-                                         "Betale løn"],
-                    date_from="1986-12-01",
+    def create_klasser(self):
+        for facet, klasser in self.data.klasser.items():
+            for klasse in klasser:
+                self.org.Klasse.add(
+                    identifier=klasse,
+                    facet_type_ref=facet,
+                    user_key=klasse,
+                    title=klasse
                 )
 
+    def create_ou(self, ou_node):
+        if ou_node.parent:
+            parent = ou_node.parent.key
+        else:
+            parent = None
 
-def create_dummy_org(dummy_data):
-    org = Organisation(
-        name=dummy_data.nodes['root'].name,
-        user_key=dummy_data.nodes['root'].name,
-        municipality_code=dummy_data.kommunekode,
-        create_defaults=True
-    )
+        self.org.OrganisationUnit.add(
+            identifier=ou_node.key,
+            name=ou_node.name,
+            parent_ref=parent,
+            org_unit_type_ref="Afdeling",  # TODO
+            date_from="1986-01-01"  # TODO
+        )
 
-    _create_klasser(org)
+        self.org.OrganisationUnit.add_type_address(
+            owner_ref=ou_node.key,
+            uuid=ou_node.adresse['dar-uuid'],
+            address_type_ref="AdressePost",
+            date_from="1986-01-01"
+        )
 
-    for node in PreOrderIter(dummy_data.nodes['root']):
-        if node.type == 'ou':
-            if node.parent:
-                parent = node.parent.key
-            else:
-                parent = None
+    def create_user(self, user_node):
+        user = user_node.user  # All user information is here
 
-            org.OrganisationUnit.add(
-                identifier=node.key,
-                name=node.name,
-                parent_ref=parent,
-                org_unit_type_ref="Afdeling",  # TODO
-                date_from="1986-01-01"  # TODO
+        self.org.Employee.add(
+            name=user_node.name,
+            identifier=user['brugervendtnoegle'],
+            cpr_no=user['cpr']
+        )
+
+        self.org.Employee.add_type_engagement(
+            owner_ref=user['brugervendtnoegle'],
+            org_unit_ref=user_node.parent.key,
+            job_function_ref='Udvikler',  # TODO
+            engagement_type_ref="Ansat",
+            date_from="2010-02-01"
+        )
+
+        self.org.Employee.add_type_address(
+            owner_ref=user['brugervendtnoegle'],
+            uuid=user['adresse']['dar-uuid'],
+            address_type_ref="AdressePost",
+            date_from="2010-02-01",
+        )
+
+        self.org.Employee.add_type_address(
+            owner_ref=user['brugervendtnoegle'],
+            value=user['telefon'],
+            address_type_ref="Telefon",
+            date_from=user['fra'],
+            # date_to=user['to']  # No date_to keyword?
+        )
+
+        # E-mail
+
+        if user['manager']:
+            self.org.Employee.add_type_manager(
+                owner_ref=user['brugervendtnoegle'],
+                org_unit_ref=user_node.parent.key,
+                manager_type_ref="Direktør",  # TODO
+                manager_level_ref="Højeste niveau",  # TODO
+                responsibility_list=user['manager'],
+                date_from="2010-12-01",
             )
-
-            org.OrganisationUnit.add_type_address(
-                owner_ref=node.key,
-                uuid=node.adresse['dar-uuid'],
-                address_type_ref="AdressePost",
-                date_from="1986-01-01"
-            )
-
-        if node.type == 'user':
-            _create_user(org, node)
-    return org
 
 
 if __name__ == '__main__':
-    dummy_data = create_dummy_data(860, 'Hjørring Kommune')
-    org = create_dummy_org(dummy_data)
-
+    creator = CreateDummyOrg(860, 'Fiktiv Hjørring 3', scale=3)
     dummy_import = ImportUtility(
-        dry_run=True,
+        dry_run=False,
         mox_base='http://localhost:8080',
         mora_base='http://localhost:80'
     )
-    dummy_import.import_all(org)
+    dummy_import.import_all(creator.org)
