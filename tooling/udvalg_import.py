@@ -134,8 +134,6 @@ def create_udvalg(nodes, file_name):
 
         if ('TR' in row) and (row['TR'] == '1'):
             role_type = _find_class('role_type', 'Tillidrepræsentant')
-            print('TR')
-            print(role_type)
         else:
             role_type = None
 
