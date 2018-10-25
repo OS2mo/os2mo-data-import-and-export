@@ -8,14 +8,30 @@ from anytree import Node, PreOrderIter
 
 
 KLASSER = {
-    'Stillingsbetegnelse': ['Udvikler'],
-    'Enhedstype': ['Afdeling'],
-    'Ledertyper': ['Direktør'],
-    'Lederniveau': ['Højeste niveau'],
-    'Lederansvar': ['Personale: ansættelse/afskedigelse',
-                    'Beredskabsledelse',
-                    'Ansvar for bygninger og arealer',
-                    'Personale: MUS-kompetence']
+    'Stillingsbetegnelse': [
+        'Udvikler', 'Specialkonsulent', 'Ergoterapeut', 'Udviklingskonsulent',
+        'Specialist', 'Jurist', 'Personalekonsulent', 'Lønkonsulent',
+        'Kontorelev', 'Ressourcepædagog', 'Pædagoisk vejleder',
+        'Skolepsykolog', 'Støttepædagog', 'Bogopsætter', 'Timelønnet lærer',
+        'Pædagogmedhjælper', 'Teknisk Servicemedarb.', 'Lærer/Overlærer'
+    ],
+    'Enhedstype': [
+        'Afdeling', 'Institutionsafsnit', 'Institution', 'Fagligt center',
+        'Direktør område'
+    ],
+    'Lederansvar': [
+        'Personale: ansættelse/afskedigelse',
+        'Beredskabsledelse',
+        'Personale: øvrige administrative opgaver',
+        'Personale: Sygefravær',
+        'Ansvar for bygninger og arealer',
+        'Personale: MUS-kompetence'
+    ],
+    'Ledertyper': [
+        'Direktør', 'Distriktsleder', 'Beredskabschef', 'Sekretariatschef',
+        'Systemadministrator', 'Områdeleder', 'Centerchef', 'Institutionsleder'
+    ],
+    'Lederniveau': ['Niveau 4', 'Niveau 3', 'Niveau 2', 'Niveau 1']
 }
 
 
