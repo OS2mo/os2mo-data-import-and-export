@@ -49,6 +49,37 @@ def _telefon():
         tlf += str(random.randrange(0, 9))
     return tlf
 
+
+def _cpr():
+    """ Create a random valid cpr.
+    :return: A random phone number
+    """
+    days_in_month = {
+        '01': 31, '02': 28, '03': 31, '04': 30,
+        '05': 31, '06': 30, '07': 31, '08': 31,
+        '09': 30, '10': 31, '11': 30, '12': 31
+    }
+    month = list(days_in_month.keys())[random.randrange(0, 12)]
+    day = str(random.randrange(1, 1 + days_in_month[month])).zfill(2)
+    year = str(random.randrange(1940, 2000))
+    digit_7 = str(random.randrange(0, 4))
+    digit_8_9 = str(random.randrange(10, 100))
+    cpr_number = day + month + year + digit_7 + digit_8_9
+
+    mod_11_tabel = [4, 3, 2, 7, 6, 5, 4, 3, 2]
+    mod_11_sum = 0
+    for i in range(0, 9):
+        mod_11_sum += int(cpr_number[i]) * mod_11_tabel[i]
+    remainder = mod_11_sum % 11
+
+    if remainder == 0:
+        digit_10 = '0'
+    else:
+        digit_10 = str(11 - remainder)
+    cpr_number = cpr_number + digit_10
+    return cpr_number
+
+
 def _name_to_host(name):
     """ Turn an org name into a valid hostname """
     if name.find(' ') > -1:
@@ -60,12 +91,14 @@ def _name_to_host(name):
     name = name + '.dk'
     return name
 
+
 class CreateDummyOrg(object):
     """ Create a dummy organisation to use as test data """
 
     def __init__(self, kommunekode, kommunenavn, path_to_names):
         self.nodes = {}
         self.kommunenavn = kommunenavn
+        self.kommunekode = kommunekode
         _name_to_host(kommunenavn)
         try:
             with open(str(kommunekode) + '.p', 'rb') as file_handle:
@@ -162,6 +195,7 @@ class CreateDummyOrg(object):
                   'brugernavn': navn,
                   'email': bvn.lower() + '@' + _name_to_host(self.kommunenavn),
                   'telefon': _telefon(),
+                  'cpr': _cpr(),
                   'manager': manager,
                   'adresse': self._adresse()
                   }
