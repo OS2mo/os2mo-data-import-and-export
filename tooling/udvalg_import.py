@@ -106,6 +106,22 @@ def _create_mo_association(user, org_unit, association_type):
     return uuid
 
 
+def _create_mo_role(user, org_unit, role_type):
+    # Chceck org_unit_type, might need a new facet
+    response = _mo_lookup(user, details='engagement')
+    job_function = response[0]['job_function']['uuid']
+    payload = [{'type': 'role',
+                'org_unit': {'uuid': org_unit},
+                'person': {'uuid': user},
+                'role_type': {'uuid': role_type},
+                'job_function': {'uuid': job_function},
+                'validity': {'from': '2010-01-01', 'to': '2100-01-01'}}]
+    url = BASE_URL + 'details/create'
+    response = requests.post(url, json=payload)
+    uuid = response.json()
+    return uuid
+
+
 def create_udvalg(nodes, file_name):
     rows = _load_csv(file_name)
     for row in rows:
@@ -116,6 +132,13 @@ def create_udvalg(nodes, file_name):
         else:
             association_type = _find_class('association_type', 'Medlem')
 
+        if ('TR' in row) and (row['TR'] == '1'):
+            role_type = _find_class('role_type', 'Tillidrepræsentant')
+            print('TR')
+            print(role_type)
+        else:
+            role_type = None
+
         org_id = int(row['Id'])
         uuid = _search_mo_name(row['Fornavn'] + ' ' + row['Efternavn'],
                                row['BrugerID'])
@@ -125,6 +148,9 @@ def create_udvalg(nodes, file_name):
                                org_type=row['OrgType'],
                                parent=nodes[org_id])
             _create_mo_association(uuid, nodes[org_id].uuid, association_type)
+            if role_type:
+                _create_mo_role(uuid, nodes[org_id].uuid, role_type)
+
         else:
             print('Error: {} {}, bvn: {}'.format(row['Fornavn'],
                                                  row['Efternavn'],
@@ -164,7 +190,7 @@ def create_tree(file_name):
 if __name__ == '__main__':
     ROOT = _find_org()
 
-    if False:
+    if True:
         nodes = create_tree('OrgTyper.csv')
         with open('nodes.p', 'wb') as f:
             pickle.dump(nodes, f, pickle.HIGHEST_PROTOCOL)

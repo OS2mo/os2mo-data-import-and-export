@@ -3,7 +3,7 @@ import pickle
 import requests
 import xmltodict
 import collections
-from datetime import datetime
+# from datetime import datetime
 from os2mo_data_import import Organisation, ImportUtility
 
 # From-date for objects that have no intrinsic dates.
@@ -198,6 +198,10 @@ class AposImport(object):
             if k['@kaldenavn'] == 'Stillingsbetegnelser':
                 self.create_typer(k['@uuid'],
                                   {'Stillingsbetegnelse': ['Alfabetisk']})
+
+            if k['@kaldenavn'] == 'Rolle':
+                self.create_typer(k['@uuid'],
+                                  {'Rolletype': ['Rolle']})
 
             if k['@kaldenavn'] == 'Enhedstyper':
                 self.create_typer(k['@uuid'],
@@ -592,7 +596,7 @@ if __name__ == '__main__':
             unit[1]['data'].append(parent_validity)
     """
 
-    ballerup = ImportUtility(dry_run=True, mox_base='http://localhost:8080',
+    ballerup = ImportUtility(dry_run=False, mox_base='http://localhost:8080',
                              mora_base='http://localhost:80')
     ballerup.import_all(apos_import.org)
 
