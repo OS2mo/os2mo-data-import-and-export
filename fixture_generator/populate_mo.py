@@ -6,13 +6,13 @@ from os2mo_data_import import Organisation, ImportUtility
 
 class CreateDummyOrg(object):
 
-    def __init__(self, kommunekode, name, scale=1):
-        self.data = self.create_dummy_data(kommunekode, name, scale=scale)
+    def __init__(self, municipality_code, name, scale=1):
+        self.data = self.create_dummy_data(municipality_code, name, scale)
 
         self.org = Organisation(
             name=self.data.nodes['root'].name,
             user_key=self.data.nodes['root'].name,
-            municipality_code=self.data.kommunekode,
+            municipality_code=municipality_code,
             create_defaults=True
         )
 
@@ -25,16 +25,16 @@ class CreateDummyOrg(object):
             if node.type == 'user':
                 self.create_user(node)
 
-    def create_dummy_data(self, kommunekode, navn, scale):
+    def create_dummy_data(self, municipality_code, name, scale):
         name_path = dummy_data_creator._path_to_names()
-        data = dummy_data_creator.CreateDummyOrg(kommunekode,
-                                                 navn, name_path)
+        data = dummy_data_creator.CreateDummyOrg(municipality_code,
+                                                 name, name_path)
         data.create_org_func_tree()
         data.add_users_to_tree(ou_size_scale=scale)
         return data
 
     def create_classes(self):
-        for facet, klasser in self.data.klasser.items():
+        for facet, klasser in self.data.classes.items():
             for klasse in klasser:
                 self.org.Klasse.add(
                     identifier=klasse,
@@ -44,7 +44,7 @@ class CreateDummyOrg(object):
                 )
 
     def create_it_systems(self):
-        for it_system in self.data.it_systemer:
+        for it_system in self.data.it_systems:
             self.org.Itsystem.add(
                 identifier=it_system,
                 system_name=it_system
@@ -101,7 +101,7 @@ class CreateDummyOrg(object):
         self.org.Employee.add_type_engagement(
             owner_ref=owner_ref,
             org_unit_ref=user_node.parent.key,
-            job_function_ref='Udvikler',  # TODO
+            job_function_ref=user['job_function'],
             engagement_type_ref="Ansat",
             date_from=date_from,
             date_to=date_to
@@ -179,7 +179,7 @@ class CreateDummyOrg(object):
 
 
 if __name__ == '__main__':
-    creator = CreateDummyOrg(860, 'Hjørring 3', scale=1)
+    creator = CreateDummyOrg(860, 'Hjørring 2', scale=1)
     dummy_import = ImportUtility(
         dry_run=False,
         mox_base='http://localhost:8080',

@@ -9,7 +9,7 @@ from uuid import uuid4
 from anytree import Node, PreOrderIter
 
 
-KLASSER = {
+CLASSES = {
     'Stillingsbetegnelse': [
         'Udvikler', 'Specialkonsulent', 'Ergoterapeut', 'Udviklingskonsulent',
         'Specialist', 'Jurist', 'Personalekonsulent', 'Lønkonsulent',
@@ -40,7 +40,7 @@ KLASSER = {
     'Lederniveau': ['Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4']
 }
 
-IT_SYSTEMER = ['Active Directory', 'SAP', 'Office 365', 'Plone', 'Open Desk']
+IT_SYSTEMS = ['Active Directory', 'SAP', 'Office 365', 'Plone', 'Open Desk']
 
 START_DATE = '1960-01-01'
 
@@ -141,33 +141,31 @@ def _name_to_host(name):
 class CreateDummyOrg(object):
     """ Create a dummy organisation to use as test data """
 
-    def __init__(self, kommunekode, kommunenavn, path_to_names):
+    def __init__(self, municipality_code, name, path_to_names):
         self.global_start_date = datetime.strptime(START_DATE, '%Y-%m-%d')
-        self.klasser = KLASSER
-        self.it_systemer = IT_SYSTEMER
+        self.classes = CLASSES
+        self.it_systems = IT_SYSTEMS
         self.nodes = {}
-        self.kommunenavn = kommunenavn
-        self.kommunekode = kommunekode
-        _name_to_host(kommunenavn)
+        self.name = name
         try:
-            with open(str(kommunekode) + '.p', 'rb') as file_handle:
+            with open(str(municipality_code) + '.p', 'rb') as file_handle:
                 self.adresser = pickle.load(file_handle)
         except OSError:
             addr = ('http://dawa.aws.dk/adresser' +
                     '?kommunekode={}&struktur=mini')
-            r = requests.get(addr.format(kommunekode))
+            r = requests.get(addr.format(municipality_code))
             self.adresser = r.json()
-            with open(str(kommunekode) + '.p', 'wb') as file_handle:
+            with open(str(municipality_code) + '.p', 'wb') as file_handle:
                 pickle.dump(self.adresser, file_handle)
 
         self.names = {'first': _load_names(path_to_names[0]),
                       'middle': _load_names(path_to_names[1]),
                       'last': _load_names(path_to_names[2])}
 
-        self.nodes['root'] = Node(kommunenavn, adresse=self._adresse(),
+        self.nodes['root'] = Node(name, adresse=self._adresse(),
                                   type='ou', key='root')
-        # Used to keep track of used bvns to keep them unique
-        self.used_bvns = []
+        # Used to keep track of used user_keys to keep them unique
+        self.used_user_keys = []
 
     def _pick_name_from_list(self, name_type):
         """
@@ -207,7 +205,21 @@ class CreateDummyOrg(object):
                    'dar-uuid': addr['id']}
         return adresse
 
-    def create_name(self, bvn=False):
+    def _create_org_level(self, org_list, parent):
+        """
+        Create a dict with names, adresses and parents
+        :param org_list: List of names of the organisation
+        :return: A flat dict with name, random adress and room for sub-units
+        """
+        uuid_list = []
+        for org in org_list:
+            uuid = uuid4()
+            uuid_list.append(uuid)
+            self.nodes[uuid] = Node(org, adresse=self._adresse(),
+                                    type='ou', parent=parent, key=str(uuid))
+        return uuid_list
+
+    def create_name(self, return_user_key=False):
         """
         Create a full name
         :return: The full name as a string
@@ -222,38 +234,39 @@ class CreateDummyOrg(object):
 
         last = self._pick_name_from_list('last')
         name = first + ' ' + middle + ' ' + last
-        bvn = first + last[0]
+        user_key = first + last[0]
         i = 0
-        while bvn in self.used_bvns:
+        while user_key in self.used_user_keys:
             i = i + 1
-            bvn = first[0:i+2] + last[0:i]
+            user_key = first[0:i+2] + last[0:i]
             if i > len(last):
-                bvn = bvn + str(random.randrange(1, 999))
-        self.used_bvns.append(bvn)
+                user_key = user_key + str(random.randrange(1, 999))
+        self.used_user_keys.append(user_key)
 
-        if bvn:
-            return name, bvn
+        if return_user_key:
+            return name, user_key
         else:
             return name
 
-    def create_bruger(self, manager=[]):
+    def create_user(self, manager=[]):
         """
         Create a MO user with a random name and phone
         :return: A Dict with information about the user
         """
-        name, user_key = self.create_name(bvn=True)
-        it_systems = random.sample(self.it_systemer, random.randrange(0, 3))
+        name, user_key = self.create_name(return_user_key=True)
+        it_systems = random.sample(self.it_systems, random.randrange(0, 3))
+        job_function = random.choice(self.classes['Stillingsbetegnelse'])
 
         from_delta = timedelta(days=30 * random.randrange(0, 750))
         # Some employees will fail cpr-check. So be it.
         time_from = self.global_start_date + from_delta
-        if random.random() > 0.8:
+        if random.random() > 0.75:
             to_delta = timedelta(days=30 * random.randrange(100, 500))
             time_to = time_from + to_delta
         else:
             time_to = None
 
-        host = _name_to_host(self.kommunenavn)
+        host = _name_to_host(self.name)
         bruger = {'fra': time_from,
                   'til': time_to,
                   'brugervendtnoegle': user_key,
@@ -261,25 +274,12 @@ class CreateDummyOrg(object):
                   'email': user_key.lower() + '@' + host,
                   'telefon': _telefon(),
                   'cpr': _cpr(time_from),
+                  'job_function': job_function,
                   'manager': manager,
                   'it_systemer': it_systems,
                   'adresse': self._adresse()
                   }
         return bruger
-
-    def _create_org_level(self, org_list, parent):
-        """
-        Create a dict with names, adresses and parents
-        :param org_list: List of names of the organisation
-        :return: A flat dict with name, random adress and room for sub-units
-        """
-        uuid_list = []
-        for org in org_list:
-            uuid = uuid4()
-            uuid_list.append(uuid)
-            self.nodes[uuid] = Node(org, adresse=self._adresse(),
-                                    type='ou', parent=parent, key=str(uuid))
-        return uuid_list
 
     def create_org_func_tree(self):
         orgs = ['Borgmesterens Afdeling',
@@ -337,14 +337,13 @@ class CreateDummyOrg(object):
         Create a user, that is also a manager.
         :return: The user object, including manager classes
         """
-        antal_ansvar = len(KLASSER['Lederansvar'])
+        antal_ansvar = len(CLASSES['Lederansvar'])
         ansvar_list = [0]
         ansvar_list += random.sample(range(1, antal_ansvar), 2)
         responsibility_list = []
         for i in ansvar_list:
-            ansvar = KLASSER['Lederansvar'][i]
-            responsibility_list.append(ansvar)
-        user = self.create_bruger(manager=responsibility_list)
+            responsibility_list.append(CLASSES['Lederansvar'][i])
+        user = self.create_user(manager=responsibility_list)
         user['association'] = None
         user['role'] = None
         return user
@@ -365,7 +364,7 @@ class CreateDummyOrg(object):
         if random.random() > 0.6:
             payload = {
                 'unit': unit,
-                'type': random.choice(KLASSER[facet])
+                'type': random.choice(self.classes[facet])
             }
         return payload
 
@@ -375,7 +374,7 @@ class CreateDummyOrg(object):
             size = ou_size_scale * (node.depth + 1)
             ran_size = random.randrange(round(size/4), size)
             for _ in range(0, ran_size):
-                user = self.create_bruger()
+                user = self.create_user()
                 user['association'] = self.add_user_func('Tilknytningstype')
                 user['role'] = self.add_user_func('Rolletype', node)
 
