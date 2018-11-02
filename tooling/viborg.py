@@ -157,7 +157,6 @@ class SdImport(object):
             if 'TelephoneNumberIdentifier' in info['ContactInformation']:
                 # We only a sinlge phnone number, this is most likely
                 # no a real number
-                #print(info['ContactInformation'])
                 pass
 
         if 'ProductionUnitIdentifier' in info:
@@ -265,7 +264,6 @@ class SdImport(object):
                         date_from=date_from,
                         date_to=date_to
                     )
-
 
 
 if __name__ == '__main__':
