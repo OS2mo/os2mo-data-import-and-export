@@ -1,6 +1,7 @@
 import pickle
 import requests
 import xmltodict
+from anytree import Node
 from os2mo_data_import import Organisation, ImportUtility
 
 # Longest engagement in Viborg is from 1977
@@ -47,6 +48,7 @@ class SdImport(object):
         self.address_errors = {}
 
         self.org = Organisation(org_name, org_name)
+        self.nodes = {}  # Will be populated when org-tree is created
         self.add_people()
         self.info = self._read_department_info()
         for level in [(1040, 'Leder'), (1035, 'Chef'), (1030, 'Direktør')]:
@@ -186,6 +188,35 @@ class SdImport(object):
             self._add_sd_department(department['DepartmentReference'],
                                     contains_subunits=True)
 
+    def _create_org_tree_structure(self):
+        nodes = {}
+        all_ous = self.org.OrganisationUnit.export()
+        new_ous = []
+        for ou in all_ous:
+            parent = ou[1]['parent_ref']
+            if parent is None:
+                uuid = ou[0]
+                for field in ou[1]['data']:
+                    if field[0] == 'org_unit_type':
+                        niveau = field[1]
+                nodes[uuid] = Node(niveau, uuid=uuid)
+            else:
+                new_ous.append(ou)
+        while len(new_ous) > 0:
+            all_ous = new_ous
+            new_ous = []
+            for ou in all_ous:
+                parent = ou[1]['parent_ref']
+                if parent in nodes.keys():
+                    uuid = ou[0]
+                    for field in ou[1]['data']:
+                        if field[0] == 'org_unit_type':
+                            niveau = field[1]
+                    nodes[uuid] = Node(niveau, parent=nodes[parent], uuid=uuid)
+                else:
+                    new_ous.append(ou)
+        return nodes
+
     def add_people(self):
         """ Load all person details and store for later user """
         people = self._sd_lookup('GetPerson20111201.xml')
@@ -213,6 +244,7 @@ class SdImport(object):
         departments = organisation['Organization']['DepartmentReference']
         for department in departments:
             self._add_sd_department(department)
+        self.nodes = self._create_org_tree_structure()
 
     def create_employees(self):
         persons = sd._sd_lookup('GetEmployment20111201.xml')
@@ -232,12 +264,19 @@ class SdImport(object):
 
                 emp_dep = employment['EmploymentDepartment']
                 unit = emp_dep['DepartmentUUIDIdentifier']
+
                 date_from = emp_dep['ActivationDate']
-                # date_from = GLOBAL_DATE
                 date_to = emp_dep['DeactivationDate']
                 if date_to == '9999-12-31':
                     date_to = None
 
+                # Employees are not allowed to be in these units (allthough
+                # we do make an association). We must instead find the lowerst
+                # higher level to put she or he.
+                too_deep = ['Afdelings-niveau', 'NY1-niveau', 'NY2-niveau']
+                original_unit = unit
+                while self.nodes[unit].name in too_deep:
+                    unit = self.nodes[unit].parent.uuid
                 try:
                     self.org.Employee.add_type_engagement(
                         owner_ref=cpr,
@@ -245,7 +284,18 @@ class SdImport(object):
                         job_function_ref=job_func,
                         engagement_type_ref='Ansat',
                         date_from=date_from,
-                        date_to=date_to)
+                        date_to=date_to
+                    )
+                    # Remove this to remove any sign of the employee from the
+                    # lowest levels of the org
+                    self.org.Employee.add_type_association(
+                        owner_ref=cpr,
+                        org_unit_ref=original_unit,
+                        job_function_ref=job_func,
+                        association_type_ref='Ansat',
+                        date_from=date_from
+                    )
+
                 except AssertionError:
                     self.double_employment.append(cpr)
                 if job_id in [1040, 1035, 1030]:
