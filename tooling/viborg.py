@@ -3,8 +3,8 @@ import requests
 import xmltodict
 from os2mo_data_import import Organisation, ImportUtility
 
-
-GLOBAL_DATE = '2010-01-01'
+# Longest engagement in Viborg is from 1977
+GLOBAL_DATE = '1977-01-01'
 
 
 def _dawa_request(address, adgangsadresse=False,
@@ -233,7 +233,7 @@ class SdImport(object):
                 emp_dep = employment['EmploymentDepartment']
                 unit = emp_dep['DepartmentUUIDIdentifier']
                 date_from = emp_dep['ActivationDate']
-                date_from = GLOBAL_DATE
+                # date_from = GLOBAL_DATE
                 date_to = emp_dep['DeactivationDate']
                 if date_to == '9999-12-31':
                     date_to = None
@@ -275,7 +275,13 @@ if __name__ == '__main__':
                            mora_base='http://localhost:80')
     viborg.import_all(sd.org)
     exit()
+
     for info in sd.address_errors.values():
-        print(info['PostalAddress'])
+        print(info['DepartmentName'])
+        print(info['DepartmentIdentifier'])
+        print(info['PostalAddress']['StandardAddressIdentifier'])
+        print(info['PostalAddress']['PostalCode'] + ' ' +
+              info['PostalAddress']['DistrictName'])
+        print()
         print()
     print(len(sd.address_errors))
