@@ -56,6 +56,9 @@ class SdImport(object):
         for adresse_type in ['Email', 'Pnummer']:
             self._add_klasse(adresse_type, adresse_type, 'Adressetype')
         self._add_klasse('Lederansvar', 'Lederansvar', 'Lederansvar')
+        self._add_klasse('non-primary',
+                         'Ikke-primær ansættelse',
+                         'Engagementstype')
 
     def _sd_lookup(self, filename):
         with open(filename, 'r') as f:
@@ -143,6 +146,7 @@ class SdImport(object):
                 user_key=user_key,
                 org_unit_type_ref=ou_level,
                 date_from=date_from,
+                uuid=unit_id,
                 date_to=None,
                 parent_ref=parent_uuid)
 
@@ -254,10 +258,41 @@ class SdImport(object):
             if not isinstance(employments, list):
                 employments = [employments]
 
+            max_rate = 0
+            min_id = 999999
+            for employment in employments:
+                status = employment['EmploymentStatus']['EmploymentStatusCode']
+                if (int(status) == 0):
+                    continue
+                employment_id = int(employment['EmploymentIdentifier'])
+                occupation_rate = float(employment['WorkingTime']
+                                        ['OccupationRate'])
+                if occupation_rate == 0:
+                    continue
+
+                if occupation_rate == max_rate:
+                    if employment_id < min_id:
+                        min_id = employment_id
+                if occupation_rate > max_rate:
+                    max_rate = occupation_rate
+                    min_id = employment_id
+
+            exactly_one_primary = False
             for employment in employments:
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
                 if int(status) == 0:
                     continue
+                occupation_rate = float(employment['WorkingTime']
+                                        ['OccupationRate'])
+                employment_id = int(employment['EmploymentIdentifier'])
+
+                if occupation_rate == max_rate and employment_id == min_id:
+                    assert(exactly_one_primary is False)
+                    engagement_type_ref = 'Ansat'
+                    exactly_one_primary = True
+                else:
+                    engagement_type_ref = 'non-primary'
+
                 job_id = int(employment['Profession']['JobPositionIdentifier'])
                 job_func = employment['Profession']['EmploymentName']
                 self._add_klasse(job_func, job_func, 'Stillingsbetegnelse')
@@ -282,7 +317,7 @@ class SdImport(object):
                         owner_ref=cpr,
                         org_unit_ref=unit,
                         job_function_ref=job_func,
-                        engagement_type_ref='Ansat',
+                        engagement_type_ref=engagement_type_ref,
                         date_from=date_from,
                         date_to=date_to
                     )
@@ -292,7 +327,7 @@ class SdImport(object):
                         owner_ref=cpr,
                         org_unit_ref=original_unit,
                         job_function_ref=job_func,
-                        association_type_ref='Ansat',
+                        association_type_ref=engagement_type_ref,
                         date_from=date_from
                     )
 
@@ -314,6 +349,11 @@ class SdImport(object):
                         date_from=date_from,
                         date_to=date_to
                     )
+            # This assertment really should hold...
+            # assert(exactly_one_primary is True)
+            if exactly_one_primary is not True:
+                print()
+                print(employments)
 
 
 if __name__ == '__main__':
