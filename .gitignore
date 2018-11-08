@@ -2,7 +2,12 @@
 .idea
 *.gz
 
+# Mac
+.DS_Store
+
 # Python
 __pychache__
 *.pyc
 
+# Virtual environment
+venv-*
