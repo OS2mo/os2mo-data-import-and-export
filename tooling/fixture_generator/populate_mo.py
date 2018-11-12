@@ -6,8 +6,9 @@ from os2mo_data_import import Organisation, ImportUtility
 
 class CreateDummyOrg(object):
 
-    def __init__(self, municipality_code, name, scale=1):
-        self.data = self.create_dummy_data(municipality_code, name, scale)
+    def __init__(self, municipality_code, name, scale=1, multiple_employments=False):
+        self.data = self.create_dummy_data(municipality_code, name, scale,
+                                           multiple_employments)
 
         self.org = Organisation(
             name=self.data.nodes['root'].name,
@@ -25,12 +26,13 @@ class CreateDummyOrg(object):
             if node.type == 'user':
                 self.create_user(node)
 
-    def create_dummy_data(self, municipality_code, name, scale):
+    def create_dummy_data(self, municipality_code, name, scale,
+                          multiple_employments):
         name_path = dummy_data_creator._path_to_names()
         data = dummy_data_creator.CreateDummyOrg(municipality_code,
                                                  name, name_path)
         data.create_org_func_tree()
-        data.add_users_to_tree(ou_size_scale=scale)
+        data.add_users_to_tree(scale, multiple_employments)
         return data
 
     def create_classes(self):
@@ -84,104 +86,104 @@ class CreateDummyOrg(object):
         """
 
     def create_user(self, user_node):
-        user = user_node.user  # All user information is here
-        date_from = datetime.strftime(user['fra'], '%Y-%m-%d')
-        if user['til'] is not None:
-            date_to = datetime.strftime(user['til'], '%Y-%m-%d')
-        else:
-            date_to = None
-        owner_ref = user['brugervendtnoegle']
+        for user in user_node.user:  # All user information is here
+            date_from = datetime.strftime(user['fra'], '%Y-%m-%d')
+            if user['til'] is not None:
+                date_to = datetime.strftime(user['til'], '%Y-%m-%d')
+            else:
+                date_to = None
+            owner_ref = user['brugervendtnoegle']
 
-        self.org.Employee.add(
-            name=user_node.name,
-            identifier=owner_ref,
-            cpr_no=user['cpr']
-        )
-
-        self.org.Employee.add_type_engagement(
-            owner_ref=owner_ref,
-            org_unit_ref=user_node.parent.key,
-            job_function_ref=user['job_function'],
-            engagement_type_ref="Ansat",
-            date_from=date_from,
-            date_to=date_to
-        )
-
-        self.org.Employee.add_type_address(
-            owner_ref=owner_ref,
-            uuid=user['adresse']['dar-uuid'],
-            address_type_ref="AdressePost",
-            date_from=date_from,
-            date_to=date_to
-        )
-
-        self.org.Employee.add_type_address(
-            owner_ref=owner_ref,
-            value=user['telefon'],
-            address_type_ref="Telefon",
-            date_from=date_from,
-            date_to=date_to
-        )
-
-        self.org.Employee.add_type_address(
-            owner_ref=owner_ref,
-            value=user['email'],
-            address_type_ref="Email",
-            date_from=date_from,
-            date_to=date_to
-        )
-
-        for it_system in user['it_systemer']:
-            self.org.Employee.add_type_itsystem(
-                owner_ref=owner_ref,
-                user_key=owner_ref,
-                itsystem_ref=it_system,
-                date_from=date_from,
-                date_to=date_to
+            self.org.Employee.add(
+                name=user_node.name,
+                identifier=owner_ref,
+                cpr_no=user['cpr']
             )
 
-        if user['association'] is not None:
-            data_list = self.org.Employee.get(owner_ref)['optional_data'][0]
-            for data in data_list:
-                if data[0] == 'job_function':
-                    job_function = data[1]
-
-            association = user['association']
-            self.org.Employee.add_type_association(
-                owner_ref=owner_ref,
-                org_unit_ref=str(association['unit']),
-                job_function_ref=job_function,
-                association_type_ref=association['type'],
-                date_from=date_from,
-                date_to=date_to
-            )
-
-        if user['role'] is not None:
-            role = user['role']
-            self.org.Employee.add_type_role(
-                owner_ref=owner_ref,
-                org_unit_ref=str(role['unit']),
-                role_type_ref=role['type'],
-                date_from=date_from,
-                date_to=date_to
-            )
-
-        if user['manager']:
-            self.org.Employee.add_type_manager(
+            self.org.Employee.add_type_engagement(
                 owner_ref=owner_ref,
                 org_unit_ref=user_node.parent.key,
-                manager_type_ref="Direktør",  # TODO
-                manager_level_ref='Niveau 4',  # TODO
-                responsibility_list=user['manager'],
+                job_function_ref=user['job_function'],
+                engagement_type_ref="Ansat",
                 date_from=date_from,
                 date_to=date_to
             )
+
+            self.org.Employee.add_type_address(
+                owner_ref=owner_ref,
+                uuid=user['adresse']['dar-uuid'],
+                address_type_ref="AdressePost",
+                date_from=date_from,
+                date_to=date_to
+            )
+
+            self.org.Employee.add_type_address(
+                owner_ref=owner_ref,
+                value=user['telefon'],
+                address_type_ref="Telefon",
+                date_from=date_from,
+                date_to=date_to
+            )
+
+            self.org.Employee.add_type_address(
+                owner_ref=owner_ref,
+                value=user['email'],
+                address_type_ref="Email",
+                date_from=date_from,
+                date_to=date_to
+            )
+
+            for it_system in user['it_systemer']:
+                self.org.Employee.add_type_itsystem(
+                    owner_ref=owner_ref,
+                    user_key=owner_ref,
+                    itsystem_ref=it_system,
+                    date_from=date_from,
+                    date_to=date_to
+                )
+
+            if user['association'] is not None:
+                data_list = self.org.Employee.get(owner_ref)['optional_data'][0]
+                for data in data_list:
+                    if data[0] == 'job_function':
+                        job_function = data[1]
+
+                association = user['association']
+                self.org.Employee.add_type_association(
+                    owner_ref=owner_ref,
+                    org_unit_ref=str(association['unit']),
+                    job_function_ref=job_function,
+                    association_type_ref=association['type'],
+                    date_from=date_from,
+                    date_to=date_to
+                )
+
+            if user['role'] is not None:
+                role = user['role']
+                self.org.Employee.add_type_role(
+                    owner_ref=owner_ref,
+                    org_unit_ref=str(role['unit']),
+                    role_type_ref=role['type'],
+                    date_from=date_from,
+                    date_to=date_to
+                )
+
+            if user['manager']:
+                self.org.Employee.add_type_manager(
+                    owner_ref=owner_ref,
+                    org_unit_ref=user_node.parent.key,
+                    manager_type_ref="Direktør",  # TODO
+                    manager_level_ref='Niveau 4',  # TODO
+                    responsibility_list=user['manager'],
+                    date_from=date_from,
+                    date_to=date_to
+                )
 
 
 if __name__ == '__main__':
-    creator = CreateDummyOrg(860, 'Hjørring 2', scale=1)
+    creator = CreateDummyOrg(370, 'Næstved', scale=4, multiple_employments=True)
     dummy_import = ImportUtility(
-        dry_run=False,
+        dry_run=True,
         mox_base='http://localhost:8080',
         mora_base='http://localhost:80'
     )

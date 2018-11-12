@@ -248,37 +248,55 @@ class CreateDummyOrg(object):
         else:
             return name
 
-    def create_user(self, manager=[]):
-        """
-        Create a MO user with a random name and phone
-        :return: A Dict with information about the user
-        """
-        name, user_key = self.create_name(return_user_key=True)
+    def _create_user(self, name, user_key, time_from, time_to, cpr=None, manager=[]):
         it_systems = random.sample(self.it_systems, random.randrange(0, 3))
         job_function = random.choice(self.classes['Stillingsbetegnelse'])
 
-        from_delta = timedelta(days=30 * random.randrange(0, 750))
-        # Some employees will fail cpr-check. So be it.
-        time_from = self.global_start_date + from_delta
-        if random.random() > 0.75:
-            to_delta = timedelta(days=30 * random.randrange(100, 500))
-            time_to = time_from + to_delta
-        else:
-            time_to = None
-
         host = _name_to_host(self.name)
+        if cpr is None:
+            cpr = _cpr(time_from)
         bruger = {'fra': time_from,
                   'til': time_to,
                   'brugervendtnoegle': user_key,
                   'brugernavn': name,
                   'email': user_key.lower() + '@' + host,
                   'telefon': _telefon(),
-                  'cpr': _cpr(time_from),
+                  'cpr': cpr,
                   'job_function': job_function,
                   'manager': manager,
                   'it_systemer': it_systems,
                   'adresse': self._adresse()
                   }
+        return bruger
+
+    def create_user(self, manager=[], multiple_employments=False):
+        """
+        Create a MO user with a random name and phone
+        :return: A Dict with information about the user
+        """
+        name, user_key = self.create_name(return_user_key=True)
+        bruger = []
+        if not multiple_employments:
+            from_delta = timedelta(days=30 * random.randrange(0, 750))
+            # Some employees will fail cpr-check. So be it.
+            time_from = self.global_start_date + from_delta
+            cpr = _cpr(time_from)
+            if random.random() > 0.75:
+                to_delta = timedelta(days=30 * random.randrange(100, 500))
+                time_to = time_from + to_delta
+            else:
+                time_to = None
+            bruger.append(self._create_user(name, user_key, time_from, time_to,
+                                            cpr, manager))
+        else:
+            time_from = self.global_start_date()
+            cpr = _cpr(time_from)
+            for i in range(0, random.randrange(1, 30)):
+                delta = timedelta(days=30 * random.randrange(0, 25))
+                time_to = time_from + delta
+                bruger.append(self._create_user(name, user_key,
+                                                time_from, time_to, cpr))
+                time_from = time_to + from_delta
         return bruger
 
     def create_org_func_tree(self):
@@ -344,8 +362,8 @@ class CreateDummyOrg(object):
         for i in ansvar_list:
             responsibility_list.append(CLASSES['Lederansvar'][i])
         user = self.create_user(manager=responsibility_list)
-        user['association'] = None
-        user['role'] = None
+        user[0]['association'] = None
+        user[0]['role'] = None
         return user
 
     def add_user_func(self, facet, node=None):
@@ -368,28 +386,28 @@ class CreateDummyOrg(object):
             }
         return payload
 
-    def add_users_to_tree(self, ou_size_scale):
+    def add_users_to_tree(self, ou_size_scale, multiple_employments=False):
         new_nodes = {}
         for node in PreOrderIter(self.nodes['root']):
             size = ou_size_scale * (node.depth + 1)
             ran_size = random.randrange(round(size/4), size)
             for _ in range(0, ran_size):
-                user = self.create_user()
-                user['association'] = self.add_user_func('Tilknytningstype')
-                user['role'] = self.add_user_func('Rolletype', node)
-
-                new_nodes[uuid4()] = {'name': user['brugernavn'], 'user': user,
+                user = self.create_user(multiple_employments)
+                for engagement in user:
+                    engagement['association'] = self.add_user_func('Tilknytningstype')
+                    engagement['role'] = self.add_user_func('Rolletype', node)
+                new_nodes[uuid4()] = {'name': user[0]['brugernavn'], 'user': user,
                                       'parent': node}
 
             # In version one we always add a single manager to a OU
             # This should be randomized and also sometimes be a vacant
             # position
             user = self.create_manager()
-            new_nodes[uuid4()] = {'name': user['brugernavn'], 'user': user,
+            new_nodes[uuid4()] = {'name': user[0]['brugernavn'], 'user': user,
                                   'parent': node}
 
         for key, user_info in new_nodes.items():
-            user_node = Node(user_info['user']['brugernavn'],
+            user_node = Node(user_info['user'][0]['brugernavn'],
                              user=user_info['user'], type='user',
                              parent=user_info['parent'])
             self.nodes[key] = user_node
@@ -417,13 +435,14 @@ if __name__ == '__main__':
             print(node.name)  # Name of the employee
             print(node.parent.key)  # Key for parent unit
             user = node.user  # All unser information is here
-            print(user['brugervendtnoegle'])
-            # Postal address of the employee, real-world name also available
-            print(user['adresse']['dar-uuid'])
-            print(user['email'])
-            print(user['telefon'])
-            print(user['role'])
-            print(user['association'])
-            print(user['manager'])  # True if employee is manager
-            print(user['fra'])
-            print(user['til'])
+            for engagement in user:
+                print(engagement['brugervendtnoegle'])
+                # Postal address of the employee, real-world name also available
+                print(engagement['adresse']['dar-uuid'])
+                print(engagement['email'])
+                print(engagement['telefon'])
+                print(engagement['role'])
+                print(engagement['association'])
+                print(engagement['manager'])  # True if employee is manager
+                print(engagement['fra'])
+                print(engagement['til'])
