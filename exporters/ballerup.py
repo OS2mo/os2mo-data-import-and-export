@@ -15,6 +15,7 @@ from anytree import PreOrderIter
 from mora_helpers import MoraHelper
 import common_queries as cq
 
+
 def export_udvalg(mh, nodes, filename, fieldnames, org_types):
     """ Traverses a tree of OUs, find members of 'udvalg'
     :param mh: Instance of MoraHelper to do the actual work
@@ -47,13 +48,11 @@ def export_udvalg(mh, nodes, filename, fieldnames, org_types):
     mh._write_csv(fieldnames, rows, filename)
 
 
-
-
 if __name__ == '__main__':
     threaded_speedup = False
     t = time.time()
 
-    mh = cq.MoraHelper()
+    mh = MoraHelper()
 
     org = mh.read_organisation()
     roots = mh.read_top_units(org)
@@ -73,39 +72,39 @@ if __name__ == '__main__':
     print('Read nodes: {}s'.format(time.time() - t))
 
     filename = 'Alle_lederfunktioner_os2mo.csv'
-    export_managers(mh, nodes, filename)
+    cq.export_managers(mh, nodes, filename)
     print('Alle ledere: {}s'.format(time.time() - t))
 
     filename = 'AlleBK-stilling-email_os2mo.csv'
-    export_all_employees(mh, nodes, filename)
+    cq.export_all_employees(mh, nodes, filename)
     print('AlleBK-stilling-email: {}s'.format(time.time() - t))
 
     filename = 'Ballerup_org_incl-medarbejdere_os2mo.csv'
-    export_orgs(mh, nodes, filename)
+    cq.export_orgs(mh, nodes, filename)
     print('Ballerup org incl medarbejdere: {}s'.format(time.time() - t))
 
     filename = 'Adm-org-incl-start-og-stopdata-og-enhedstyper-os2mo.csv'
-    export_adm_org(mh, nodes, filename)
+    cq.export_adm_org(mh, nodes, filename)
     print('Adm-org-incl-start-stop: {}s'.format(time.time() - t))
 
     filename = 'teams-tilknyttede-os2mo.csv'
-    export_all_teams(mh, nodes, filename)
+    cq.export_all_teams(mh, nodes, filename)
     print('Teams: {}s'.format(time.time() - t))
 
     nodes = mh.read_ou_tree(sd)
     filename = 'SD-løn org med Pnr_os2mo.csv'
-    export_orgs(mh, nodes, filename, include_employees=False)
+    cq.export_orgs(mh, nodes, filename, include_employees=False)
     print('SD-løn: {}'.format(time.time() - t))
 
     nodes = mh.read_ou_tree(udvalg)
     filename = 'AMR-udvalgsmedlemer_i_hieraki.csv'
     fieldnames = ['Hoved-MED', 'Center-MED', 'Lokal-MED', 'AMR-Gruppe']
     org_types = ['AMR']
-    export_udvalg(mh, nodes, filename, fieldnames, org_types)
+    cq.export_udvalg(mh, nodes, filename, fieldnames, org_types)
     print('AMR: {}'.format(time.time() - t))
 
     filename = 'MED-udvalgsmedlemer_i_hieraki.csv'
     fieldnames = ['Hoved-MED', 'Center-MED', 'Lokal-MED', 'AMR-Gruppe']
     org_types = ['H-MED', 'C-MED', 'L-MED']
-    export_udvalg(mh, nodes, filename, fieldnames, org_types)
+    cq.export_udvalg(mh, nodes, filename, fieldnames, org_types)
     print('MED: {}'.format(time.time() - t))

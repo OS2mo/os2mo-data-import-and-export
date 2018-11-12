@@ -144,7 +144,6 @@ def pre_cache_users(mh):
         user_queue.put(user)
     workers = {}
     for i in range(0, 5):
-        workers[i] = threading.Thread(target=cache_user,
-                                      args=[mh, user_queue])
+        workers[i] = threading.Thread(target=cache_user, args=[mh, user_queue])
         workers[i].start()
     user_queue.join()

@@ -12,9 +12,6 @@ These are specfic for Viborg
 """
 
 import time
-import queue
-import threading
-from anytree import PreOrderIter
 from mora_helpers import MoraHelper
 import common_queries as cq
 
@@ -54,6 +51,6 @@ if __name__ == '__main__':
     cq.export_adm_org(mh, nodes, filename)
     print('Adm-org-incl-start-stop: {}s'.format(time.time() - t))
 
-    filename = 'Teams-tilknyttede.csv'
-    cq.export_all_teams(mh, nodes, filename)
-    print('Teams: {}s'.format(time.time() - t))
+    # filename = 'Teams-tilknyttede.csv'
+    # cq.export_all_teams(mh, nodes, filename)
+    # print('Teams: {}s'.format(time.time() - t))
