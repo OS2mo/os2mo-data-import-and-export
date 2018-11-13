@@ -43,7 +43,7 @@ IT_SYSTEMS = ['Active Directory', 'SAP', 'Office 365', 'Plone', 'Open Desk']
 
 START_DATE = '1960-01-01'
 
-SEED = 1
+SEED = None
 random.seed(SEED)
 
 
@@ -141,7 +141,12 @@ def _name_to_host(name):
 
 
 class CreateDummyOrg(object):
-    """ Create a dummy organisation to use as test data """
+    """ Create a dummy organisation to use as test data
+    Users are randomly created within the sample space provided by
+    the above constants. The units and addresses in the organisation
+    is based on the given municipality code to make the generated data
+    look realistic.
+    """
 
     def __init__(self, municipality_code, name, path_to_names):
         self.global_start_date = datetime.strptime(START_DATE, '%Y-%m-%d')
@@ -209,9 +214,9 @@ class CreateDummyOrg(object):
 
     def _create_org_level(self, org_list, parent):
         """
-        Create a dict with names, adresses and parents
-        :param org_list: List of names of the organisation
-        :return: A flat dict with name, random adress and room for sub-units
+        Create a dict with names, adresses and parents.
+        :param org_list: List of names of the organisation.
+        :return: A flat dict with name, random adress and room for sub-units.
         """
         uuid_list = []
         for org in org_list:
@@ -223,19 +228,19 @@ class CreateDummyOrg(object):
 
     def create_name(self, return_user_key=False):
         """
-        Create a full name
-        :return: The full name as a string
+        Create a full name.
+        :return: The full name as a string.
         """
         first = self._pick_name_from_list('first')
 
         middle = ''
         if random.random() > 0.3:
-            middle = middle + self._pick_name_from_list('middle')
+            middle = middle + ' ' + self._pick_name_from_list('middle')
         if random.random() > 0.9:
             middle = middle + ' ' + self._pick_name_from_list('middle')
 
         last = self._pick_name_from_list('last')
-        name = first + ' ' + middle + ' ' + last
+        name = first + middle + ' ' + last
         user_key = first + last[0]
         i = 0
         while user_key in self.used_user_keys:
@@ -251,33 +256,43 @@ class CreateDummyOrg(object):
             return name
 
     def _create_user(self, name, user_key, time_from, time_to, cpr=None, manager=[]):
+        """
+        Create a primitive user payload. Phone, job_function, it_systems
+        and address will be randomized.
+        :param name: Name of the user.
+        :param user_key: user key of the user.
+        :param time_from: Start date of the engagement.
+        :param time_to: End date of the engagement.
+        :param cpr: cpr of the user, of none a random will be chosen.
+        :param manager: List of manager responsibilities, if empty the user is
+        not a manager.
+        :return: A dict with information about the user
+        """
         it_systems = random.sample(self.it_systems, random.randrange(0, 3))
         job_function = random.choice(self.classes['Stillingsbetegnelse'])
         host = _name_to_host(self.name)
         if cpr is None:
             cpr = _cpr(time_from)
-        bruger = {'fra': time_from,
-                  'til': time_to,
-                  'brugervendtnoegle': user_key,
-                  'brugernavn': name,
-                  'email': user_key.lower() + '@' + host,
-                  'telefon': _telefon(),
-                  'cpr': cpr,
-                  'job_function': job_function,
-                  'manager': manager,
-                  'it_systemer': it_systems,
-                  'adresse': self._adresse()
-                  }
-        return bruger
+        user = {'fra': time_from,
+                'til': time_to,
+                'brugervendtnoegle': user_key,
+                'brugernavn': name,
+                'email': user_key.lower() + '@' + host,
+                'telefon': _telefon(),
+                'cpr': cpr,
+                'job_function': job_function,
+                'manager': manager,
+                'it_systemer': it_systems,
+                'adresse': self._adresse()}
+        return user
 
     def create_user(self, manager=[], multiple_employments=False):
         """
-        Create a MO user with a random name and phone
-        :return: A Dict with information about the user
+        Create a MO user with a random name and phone.
+        :return: A dict with information about the user.
         """
         name, user_key = self.create_name(return_user_key=True)
-        bruger = []
-
+        user = []
         if not multiple_employments:
             from_delta = timedelta(days=30 * random.randrange(0, 750))
             # Some employees will fail cpr-check. So be it.
@@ -288,8 +303,8 @@ class CreateDummyOrg(object):
                 time_to = time_from + to_delta
             else:
                 time_to = None
-            bruger.append(self._create_user(name, user_key, time_from, time_to,
-                                            cpr, manager))
+            user.append(self._create_user(name, user_key, time_from, time_to,
+                                          cpr, manager))
         else:
             delta = timedelta(days=30 * random.randrange(0, 240))
             time_from = self.global_start_date + delta
@@ -297,15 +312,18 @@ class CreateDummyOrg(object):
             for i in range(0, random.randrange(1, 15)):
                 delta = timedelta(days=30 * random.randrange(0, 150))
                 time_to = time_from + delta
-                bruger.append(self._create_user(name, user_key,
-                                                time_from, time_to, cpr))
+                user.append(self._create_user(name, user_key,
+                                              time_from, time_to, cpr))
                 delta = timedelta(days=30 * random.randrange(0, 5))
                 time_from = time_to + delta
-            bruger.append(self._create_user(name, user_key,
-                                            time_from, None, cpr))
-        return bruger
+            user.append(self._create_user(name, user_key, time_from, None, cpr))
+        return user
 
-    def create_org_func_tree(self):
+    def create_org_func_tree(self, too_many_units=False):
+        """ Create an organisational structure, based on the municipality code.
+        :param too_many_units: If True a large number of units will be made in
+        one of the the sub-trees for performance testing purposes.
+        """
         orgs = ['Borgmesterens Afdeling',
                 'Teknik og Miljø',
                 'Skole og Børn',
@@ -340,7 +358,12 @@ class CreateDummyOrg(object):
                 org = ['Skoler og børnehaver']
                 uuid = self._create_org_level(org, self.nodes[node])[0]
 
-                skoler = [dist + " skole" for dist in self._postdistrikter()]
+                skoler = []
+                for dist in self._postdistrikter():
+                    skoler.append(dist + " skole")
+                    if too_many_units:
+                        for i in range(0, 25):
+                            skoler.append(dist + " skole " + str(i))
                 self._create_org_level(skoler, self.nodes[uuid])
 
                 børnehaver = [dist + " børnehus"
@@ -425,9 +448,9 @@ class CreateDummyOrg(object):
 if __name__ == '__main__':
     dummy_creator = CreateDummyOrg(860, 'Hjørring Kommune',
                                    _path_to_names())
-    dummy_creator.create_org_func_tree()
+    dummy_creator.create_org_func_tree(too_many_units=True)
     dummy_creator.add_users_to_tree(ou_size_scale=1, multiple_employments=True)
-    1/0
+
     # Example of iteration over all nodes:
     for node in PreOrderIter(dummy_creator.nodes['root']):
         """
