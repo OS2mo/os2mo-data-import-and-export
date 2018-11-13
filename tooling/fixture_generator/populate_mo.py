@@ -86,6 +86,12 @@ class CreateDummyOrg(object):
         """
 
     def create_user(self, user_node):
+        self.org.Employee.add(
+            name=user_node.name,
+            identifier=user_node.user[0]['brugervendtnoegle'],
+            cpr_no=user_node.user[0]['cpr']
+        )
+
         for user in user_node.user:  # All user information is here
             date_from = datetime.strftime(user['fra'], '%Y-%m-%d')
             if user['til'] is not None:
@@ -93,12 +99,6 @@ class CreateDummyOrg(object):
             else:
                 date_to = None
             owner_ref = user['brugervendtnoegle']
-
-            self.org.Employee.add(
-                name=user_node.name,
-                identifier=owner_ref,
-                cpr_no=user['cpr']
-            )
 
             self.org.Employee.add_type_engagement(
                 owner_ref=owner_ref,
@@ -183,7 +183,7 @@ class CreateDummyOrg(object):
 if __name__ == '__main__':
     creator = CreateDummyOrg(370, 'Næstved', scale=4, multiple_employments=True)
     dummy_import = ImportUtility(
-        dry_run=True,
+        dry_run=False,
         mox_base='http://localhost:8080',
         mora_base='http://localhost:80'
     )

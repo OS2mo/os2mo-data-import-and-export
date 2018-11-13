@@ -5,9 +5,8 @@ import pathlib
 import requests
 from datetime import datetime
 from datetime import timedelta
-from uuid import uuid4
+from uuid import uuid5, NAMESPACE_DNS
 from anytree import Node, PreOrderIter
-
 
 CLASSES = {
     'Stillingsbetegnelse': [
@@ -44,9 +43,12 @@ IT_SYSTEMS = ['Active Directory', 'SAP', 'Office 365', 'Plone', 'Open Desk']
 
 START_DATE = '1960-01-01'
 
+SEED = 1
+random.seed(SEED)
 
-# Name handling
+
 def _path_to_names():
+    """ Return a list of paths to the name-lists """
     path = pathlib.Path.cwd()
     path = path / 'navne'
     navne_list = [path / 'fornavne.txt',
@@ -213,7 +215,7 @@ class CreateDummyOrg(object):
         """
         uuid_list = []
         for org in org_list:
-            uuid = uuid4()
+            uuid = uuid5(NAMESPACE_DNS, str(random.random()))
             uuid_list.append(uuid)
             self.nodes[uuid] = Node(org, adresse=self._adresse(),
                                     type='ou', parent=parent, key=str(uuid))
@@ -251,7 +253,6 @@ class CreateDummyOrg(object):
     def _create_user(self, name, user_key, time_from, time_to, cpr=None, manager=[]):
         it_systems = random.sample(self.it_systems, random.randrange(0, 3))
         job_function = random.choice(self.classes['Stillingsbetegnelse'])
-
         host = _name_to_host(self.name)
         if cpr is None:
             cpr = _cpr(time_from)
@@ -276,6 +277,7 @@ class CreateDummyOrg(object):
         """
         name, user_key = self.create_name(return_user_key=True)
         bruger = []
+
         if not multiple_employments:
             from_delta = timedelta(days=30 * random.randrange(0, 750))
             # Some employees will fail cpr-check. So be it.
@@ -289,14 +291,18 @@ class CreateDummyOrg(object):
             bruger.append(self._create_user(name, user_key, time_from, time_to,
                                             cpr, manager))
         else:
-            time_from = self.global_start_date()
+            delta = timedelta(days=30 * random.randrange(0, 240))
+            time_from = self.global_start_date + delta
             cpr = _cpr(time_from)
-            for i in range(0, random.randrange(1, 30)):
-                delta = timedelta(days=30 * random.randrange(0, 25))
+            for i in range(0, random.randrange(1, 15)):
+                delta = timedelta(days=30 * random.randrange(0, 150))
                 time_to = time_from + delta
                 bruger.append(self._create_user(name, user_key,
                                                 time_from, time_to, cpr))
-                time_from = time_to + from_delta
+                delta = timedelta(days=30 * random.randrange(0, 5))
+                time_from = time_to + delta
+            bruger.append(self._create_user(name, user_key,
+                                            time_from, None, cpr))
         return bruger
 
     def create_org_func_tree(self):
@@ -392,19 +398,22 @@ class CreateDummyOrg(object):
             size = ou_size_scale * (node.depth + 1)
             ran_size = random.randrange(round(size/4), size)
             for _ in range(0, ran_size):
-                user = self.create_user(multiple_employments)
-                for engagement in user:
-                    engagement['association'] = self.add_user_func('Tilknytningstype')
-                    engagement['role'] = self.add_user_func('Rolletype', node)
-                new_nodes[uuid4()] = {'name': user[0]['brugernavn'], 'user': user,
-                                      'parent': node}
+                user = self.create_user(multiple_employments=multiple_employments)
+                for eng in user:
+                    eng['association'] = self.add_user_func('Tilknytningstype')
+                    eng['role'] = self.add_user_func('Rolletype', node)
+
+                uuid = uuid5(NAMESPACE_DNS, str(random.random()))
+                new_nodes[uuid] = {'name': user[0]['brugernavn'], 'user': user,
+                                   'parent': node}
 
             # In version one we always add a single manager to a OU
             # This should be randomized and also sometimes be a vacant
             # position
             user = self.create_manager()
-            new_nodes[uuid4()] = {'name': user[0]['brugernavn'], 'user': user,
-                                  'parent': node}
+            uuid = uuid5(NAMESPACE_DNS, str(random.random()))
+            new_nodes[uuid] = {'name': user[0]['brugernavn'], 'user': user,
+                               'parent': node}
 
         for key, user_info in new_nodes.items():
             user_node = Node(user_info['user'][0]['brugernavn'],
@@ -417,11 +426,11 @@ if __name__ == '__main__':
     dummy_creator = CreateDummyOrg(860, 'Hjørring Kommune',
                                    _path_to_names())
     dummy_creator.create_org_func_tree()
-    dummy_creator.add_users_to_tree(ou_size_scale=1)
-
+    dummy_creator.add_users_to_tree(ou_size_scale=1, multiple_employments=True)
+    1/0
     # Example of iteration over all nodes:
     for node in PreOrderIter(dummy_creator.nodes['root']):
-
+        """
         if node.type == 'ou':
             print()
             print(node.name)  # Name of the ou
@@ -429,20 +438,21 @@ if __name__ == '__main__':
                 print(node.parent.key)  # Key for parent unit
             # Postal address of the ou, real-world name also available
             print(node.adresse['dar-uuid'])
-
+        """
         if node.type == 'user':
             print()
+            print('---')
             print(node.name)  # Name of the employee
-            print(node.parent.key)  # Key for parent unit
+            # print(node.parent.key)  # Key for parent unit
             user = node.user  # All unser information is here
             for engagement in user:
                 print(engagement['brugervendtnoegle'])
                 # Postal address of the employee, real-world name also available
-                print(engagement['adresse']['dar-uuid'])
-                print(engagement['email'])
-                print(engagement['telefon'])
-                print(engagement['role'])
-                print(engagement['association'])
-                print(engagement['manager'])  # True if employee is manager
-                print(engagement['fra'])
-                print(engagement['til'])
+                # print(engagement['adresse']['dar-uuid'])
+                # print(engagement['email'])
+                # print(engagement['telefon'])
+                print('Rolle: {}'.format(engagement['role']))
+                print('Tilknytning: {}'.format(engagement['association']))
+                print('Ansvar: {}'.format(engagement['manager']))
+                print('Fra: {}. Til: {}'.format(engagement['fra'],
+                                                engagement['til']))
