@@ -6,9 +6,9 @@ from os2mo_data_import import Organisation, ImportUtility
 
 class CreateDummyOrg(object):
 
-    def __init__(self, municipality_code, name, scale=1, multiple_employments=False):
+    def __init__(self, municipality_code, name, scale=1, heavy_data_set=False):
         self.data = self.create_dummy_data(municipality_code, name, scale,
-                                           multiple_employments)
+                                           heavy_data_set)
 
         self.org = Organisation(
             name=self.data.nodes['root'].name,
@@ -27,12 +27,12 @@ class CreateDummyOrg(object):
                 self.create_user(node)
 
     def create_dummy_data(self, municipality_code, name, scale,
-                          multiple_employments):
+                          heavy_data_set):
         name_path = dummy_data_creator._path_to_names()
         data = dummy_data_creator.CreateDummyOrg(municipality_code,
                                                  name, name_path)
-        data.create_org_func_tree()
-        data.add_users_to_tree(scale, multiple_employments)
+        data.create_org_func_tree(too_many_units=heavy_data_set)
+        data.add_users_to_tree(scale, multiple_employments=heavy_data_set)
         return data
 
     def create_classes(self):
@@ -166,6 +166,7 @@ class CreateDummyOrg(object):
                     role_type_ref=role['type'],
                     date_from=date_from,
                     date_to=date_to
+
                 )
 
             if user['manager']:
@@ -181,7 +182,7 @@ class CreateDummyOrg(object):
 
 
 if __name__ == '__main__':
-    creator = CreateDummyOrg(370, 'Næstved', scale=4, multiple_employments=True)
+    creator = CreateDummyOrg(370, 'Næstved', scale=8, heavy_data_set=False)
     dummy_import = ImportUtility(
         dry_run=False,
         mox_base='http://localhost:8080',
