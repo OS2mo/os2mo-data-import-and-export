@@ -1,3 +1,32 @@
+Dummy data creator
+******************
+
+This application will generate tree structure containing a mock-up of a Danish
+municipality. The organisation is randomized but modelled to be somewhat realistic.
+The model is provided with a municipality code and this information is used to provided addresses and also to create fictional schools and kindergartens based on the postal
+areas in the municipality.
+
+Installation
+============
+To import the created organisation into OS2MO, the import code from the same repo
+will need to be in the Python-path:
+``export PYTHONPATH=
+$PYTHONPATH:~/os2mo-data-import-and-export/tooling/os2mo_data_import``
+
+Classification
+==============
+A number of classes are provided, they are partly used to create the fictional users
+and units, but also to allow the user interface to work in a reasonable realistic way
+after the initial creation of the structure.
+
+Unit properties
+===============
+In the default state, all units will have exactly on manager and a number of users.
+The number of users will on average be higher in the deeper parts of the tree. A
+scale factor is provided to allow for as few or as many users as wanted. A scale
+factor of one, will create a very small tree, possible some units will have no
+employees at all. A scale factor of 4 will yield an organization of ~700-800 users.
+
 User properties
 ===============
 In the default configuration, all users will have exactly one engagement, which will
