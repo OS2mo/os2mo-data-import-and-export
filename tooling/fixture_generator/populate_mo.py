@@ -184,7 +184,7 @@ class CreateDummyOrg(object):
 if __name__ == '__main__':
     creator = CreateDummyOrg(370, 'Næstved', scale=8, heavy_data_set=False)
     dummy_import = ImportUtility(
-        dry_run=False,
+        dry_run=True,
         mox_base='http://localhost:8080',
         mora_base='http://localhost:80'
     )
