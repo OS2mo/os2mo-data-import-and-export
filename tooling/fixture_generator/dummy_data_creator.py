@@ -418,7 +418,6 @@ class CreateDummyOrg(object):
 
     def add_users_to_tree(self, ou_size_scale, multiple_employments=False):
         new_nodes = {}
-        i = 0
         for node in PreOrderIter(self.nodes['root']):
             size = ou_size_scale * (node.depth + 1)
             ran_size = random.randrange(round(size/4), size)
@@ -439,9 +438,6 @@ class CreateDummyOrg(object):
             uuid = uuid5(NAMESPACE_DNS, str(random.random()))
             new_nodes[uuid] = {'name': user[0]['brugernavn'], 'user': user,
                                'parent': node}
-            i += 1
-            if i == 3:
-                1/0
         keys = sorted(new_nodes.keys())
         for key in list(keys):
             user_info = new_nodes[key]
