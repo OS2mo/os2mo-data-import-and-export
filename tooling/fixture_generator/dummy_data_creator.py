@@ -43,9 +43,6 @@ IT_SYSTEMS = ['Active Directory', 'SAP', 'Office 365', 'Plone', 'Open Desk']
 
 START_DATE = '1960-01-01'
 
-SEED = None
-random.seed(SEED)
-
 
 def _path_to_names():
     """ Return a list of paths to the name-lists """
@@ -100,8 +97,10 @@ def _cpr(time_from=None):
         '05': 31, '06': 30, '07': 31, '08': 31,
         '09': 30, '10': 31, '11': 30, '12': 31
     }
-    month = list(days_in_month.keys())[random.randrange(0, 12)]
+    days_to_choose = sorted(days_in_month.keys())
+    month = list(days_to_choose)[random.randrange(0, 12)]
     day = str(random.randrange(1, 1 + days_in_month[month])).zfill(2)
+
     if time_from is not None:
         max_year = min(99, time_from.year - 1900 - 18)
         year = str(random.randrange(40, max_year))
@@ -123,7 +122,6 @@ def _cpr(time_from=None):
         else:
             digit_10 = str(11 - remainder)
         valid_10 = (remainder is not 1)
-
     cpr_number = cpr_number + digit_10
     return cpr_number
 
@@ -158,8 +156,7 @@ class CreateDummyOrg(object):
             with open(str(municipality_code) + '.p', 'rb') as file_handle:
                 self.adresser = pickle.load(file_handle)
         except OSError:
-            addr = ('http://dawa.aws.dk/adresser' +
-                    '?kommunekode={}&struktur=mini')
+            addr = 'http://dawa.aws.dk/adresser?kommunekode={}&struktur=mini'
             r = requests.get(addr.format(municipality_code))
             self.adresser = r.json()
             with open(str(municipality_code) + '.p', 'wb') as file_handle:
@@ -220,7 +217,10 @@ class CreateDummyOrg(object):
         """
         uuid_list = []
         for org in org_list:
-            uuid = uuid5(NAMESPACE_DNS, str(random.random()))
+            # This somewhat complicated way of making uuids ensures that
+            # it is possible to make consistent uuid's by freezing the
+            # random seed.
+            uuid = str(uuid5(NAMESPACE_DNS, str(random.random())))
             uuid_list.append(uuid)
             self.nodes[uuid] = Node(org, adresse=self._adresse(),
                                     type='ou', parent=parent, key=str(uuid))
@@ -330,7 +330,8 @@ class CreateDummyOrg(object):
                 'Social og sundhed']
         self._create_org_level(orgs, parent=self.nodes['root'])
 
-        for node in list(self.nodes.keys()):
+        keys = sorted(self.nodes.keys())  # Sort the keys to ensure test-cosistency
+        for node in list(keys):
             org = self.nodes[node].name
             if org == 'Teknik og Miljø':
                 orgs = ['Kloakering',
@@ -417,6 +418,7 @@ class CreateDummyOrg(object):
 
     def add_users_to_tree(self, ou_size_scale, multiple_employments=False):
         new_nodes = {}
+        i = 0
         for node in PreOrderIter(self.nodes['root']):
             size = ou_size_scale * (node.depth + 1)
             ran_size = random.randrange(round(size/4), size)
@@ -437,8 +439,12 @@ class CreateDummyOrg(object):
             uuid = uuid5(NAMESPACE_DNS, str(random.random()))
             new_nodes[uuid] = {'name': user[0]['brugernavn'], 'user': user,
                                'parent': node}
-
-        for key, user_info in new_nodes.items():
+            i += 1
+            if i == 3:
+                1/0
+        keys = sorted(new_nodes.keys())
+        for key in list(keys):
+            user_info = new_nodes[key]
             user_node = Node(user_info['user'][0]['brugernavn'],
                              user=user_info['user'], type='user',
                              parent=user_info['parent'])
@@ -446,20 +452,19 @@ class CreateDummyOrg(object):
 
 
 if __name__ == '__main__':
-    dummy_creator = CreateDummyOrg(860, 'Hjørring Kommune',
+    dummy_creator = CreateDummyOrg(825, 'Læsø Kommune',
                                    _path_to_names())
-    dummy_creator.create_org_func_tree(too_many_units=True)
-    dummy_creator.add_users_to_tree(ou_size_scale=1, multiple_employments=True)
+    dummy_creator.create_org_func_tree(too_many_units=False)
+    dummy_creator.add_users_to_tree(ou_size_scale=1, multiple_employments=False)
 
     # Example of iteration over all nodes:
     for node in PreOrderIter(dummy_creator.nodes['root']):
-        """
+
         if node.type == 'ou':
             print()
             print(node.name)  # Name of the ou
             if node.parent:
                 print(node.parent.key)  # Key for parent unit
-            # Postal address of the ou, real-world name also available
             print(node.adresse['dar-uuid'])
         """
         if node.type == 'user':
@@ -479,3 +484,4 @@ if __name__ == '__main__':
                 print('Ansvar: {}'.format(engagement['manager']))
                 print('Fra: {}. Til: {}'.format(engagement['fra'],
                                                 engagement['til']))
+        """
