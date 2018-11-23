@@ -19,9 +19,10 @@ PRIMARY_RESPONSIBILITY = 'Personale: ansættelse/afskedigelse'
 
 
 class MoraHelper(object):
-    def __init__(self, hostname='localhost'):
+    def __init__(self, hostname='localhost', export_ansi=True):
         self.host = 'http://' + hostname + '/service/'
         self.cache = {}
+        self.export_ansi = export_ansi
 
     def _split_name(self, name):
         """ Split a name into first and last name.
@@ -57,7 +58,7 @@ class MoraHelper(object):
             fieldnames += [str(i) + 'xsub org']
         return fieldnames
 
-    def _write_csv(self, fieldnames, rows, filename, convert_to_ansi=True):
+    def _write_csv(self, fieldnames, rows, filename):
         """ Write a csv-file from a a dataset. Only fields explicitly mentioned
         in fieldnames will be saved, the rest will be ignored.
         :param fieldnames: The headline for the columns, also act as filter.
@@ -73,7 +74,7 @@ class MoraHelper(object):
             writer.writeheader()
             for row in rows:
                 writer.writerow(row)
-        if convert_to_ansi:
+        if self.export_ansi:
             with codecs.open(filename, 'r', encoding='utf-8') as csvfile:
                 lines = csvfile.read()
             with codecs.open(filename, 'w',
