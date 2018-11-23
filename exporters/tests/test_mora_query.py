@@ -5,32 +5,29 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# import sys
-# sys.path.append('../')
-# sys.path.append('../../tests')
 import os
 import csv
 import unittest
 from chardet.universaldetector import UniversalDetector
-
-import mora_query
+import common_queries as cq
 from mora_helpers import MoraHelper
-# from mora import lora
-# from tests import util
 
 
 class QueryTests(unittest.TestCase):
     @classmethod
     def setUpClass(self):
-        # c = lora.Connector(virkningfra='-infinity', virkningtil='infinity')
-        start_ou = '82b42d4e-f7c0-4787-aa2d-9312b284e519'
         self.morah = MoraHelper()
-        self.nodes = self.morah.read_ou_tree(start_ou)
-        mora_query.export_orgs(self.morah, self.nodes, 'all_employees.csv')
-        mora_query.export_orgs(self.morah, self.nodes, 'all_orgs.csv',
+        org = self.morah.read_organisation()
+        # This assumes a single top-unit. Tests will fail if we have more.
+        roots = self.morah.read_top_units(org)
+        self.nodes = self.morah.read_ou_tree(roots[0]['uuid'])
+        self.counts = self.morah._mo_lookup(org, 'o/{}/')
+
+        cq.export_orgs(self.morah, self.nodes, 'all_employees.csv')
+        cq.export_orgs(self.morah, self.nodes, 'all_orgs.csv',
                                include_employees=False)
-        mora_query.export_managers(self.morah, self.nodes, 'all_managers.csv')
-        mora_query.export_adm_org(self.morah, self.nodes, 'adm_org.csv')
+        cq.export_managers(self.morah, self.nodes, 'all_managers.csv')
+        cq.export_adm_org(self.morah, self.nodes, 'adm_org.csv')
 
     @classmethod
     def tearDownClass(self):
@@ -56,9 +53,9 @@ class QueryTests(unittest.TestCase):
         return rows
 
     def test_node_levels(self):
-        """ Test that the tree has the expected height """
+        """ Test that the tree is not flat """
         height = self.nodes['root'].height
-        self.assertEqual(height, 3)
+        self.assertTrue(height > 2)
 
     def test_user_names(self):
         """ Test that we did not mistakingly write the same username for
@@ -76,12 +73,12 @@ class QueryTests(unittest.TestCase):
     def test_adm_orgs(self):
         """ Test that we have exported all OUs exactly once """
         rows = self._load_csv('adm_org.csv')
-        self.assertEqual(len(rows), 21)
+        self.assertEqual(len(rows), len(self.nodes))
 
     def test_all_employees(self):
         """ Test that we have exported all employees exactly once """
         rows = self._load_csv('all_employees.csv')
-        self.assertEqual(len(rows), 203)
+        self.assertEqual(len(rows), self.counts['engagement_count'])
 
     def test_consistency(self):
         rows = self._load_csv('all_orgs.csv')
@@ -89,8 +86,7 @@ class QueryTests(unittest.TestCase):
 
     def test_all_managers(self):
         rows = self._load_csv('all_managers.csv')
-        self.assertEqual(len(rows), 9)
-
+        self.assertEqual(len(rows), self.counts['manager_count'])
 
 if __name__ == '__main__':
         unittest.main()
