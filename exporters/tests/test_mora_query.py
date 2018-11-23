@@ -25,7 +25,7 @@ class QueryTests(unittest.TestCase):
 
         cq.export_orgs(self.morah, self.nodes, 'all_employees.csv')
         cq.export_orgs(self.morah, self.nodes, 'all_orgs.csv',
-                               include_employees=False)
+                       include_employees=False)
         cq.export_managers(self.morah, self.nodes, 'all_managers.csv')
         cq.export_adm_org(self.morah, self.nodes, 'adm_org.csv')
 
@@ -87,6 +87,7 @@ class QueryTests(unittest.TestCase):
     def test_all_managers(self):
         rows = self._load_csv('all_managers.csv')
         self.assertEqual(len(rows), self.counts['manager_count'])
+
 
 if __name__ == '__main__':
         unittest.main()

@@ -18,10 +18,10 @@ import click
 from mora_helpers import MoraHelper
 import common_queries as cq
 
+
 @click.command()
 @click.option('--root', default=None, help='uuid of the root to be exported')
 @click.option('--threaded-speedup', default=False, help='Run in multithreaded mode')
-
 def export_from_mo(root, threaded_speedup):
     threaded_speedup = threaded_speedup
     t = time.time()
