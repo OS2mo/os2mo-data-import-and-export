@@ -12,10 +12,10 @@ setup(
     packages=["os2mo_data_import"],
     zip_safe=False,
     install_requires=[
-        "certifi==2018.8.24",
+        "certifi==2018.10.15",
         "chardet==3.0.4",
         "idna==2.7",
-        "requests==2.19.1",
-        "urllib3==1.23"
+        "requests==2.20.0",
+        "urllib3==1.24.1"
     ]
 )
