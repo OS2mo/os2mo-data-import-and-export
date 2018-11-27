@@ -1,11 +1,15 @@
+import os
 import pickle
 import requests
 import xmltodict
 from anytree import Node
 from os2mo_data_import import Organisation, ImportUtility
 
-# Longest engagement in Viborg is from 1977
-GLOBAL_DATE = '1977-01-01'
+
+MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
+GLOBAL_DATE = os.environ.get('GLOBAL_DATE', '1977-01-01')
+MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
+MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
 
 
 def _dawa_request(address, adgangsadresse=False,
@@ -357,14 +361,13 @@ class SdImport(object):
 
 
 if __name__ == '__main__':
-    sd = SdImport('Viborg Kommune')
+    sd = SdImport('MUNICIPALTY_NAME')
     sd.create_ou_tree()
     sd.create_employees()
 
-    viborg = ImportUtility(dry_run=False, mox_base='http://localhost:8080',
-                           mora_base='http://localhost:80')
-    viborg.import_all(sd.org)
-    exit()
+    import_tool = ImportUtility(dry_run=False, mox_base=MOX_BASE,
+                                mora_base=MORA_BASE)
+    import_tool.import_all(sd.org)
 
     for info in sd.address_errors.values():
         print(info['DepartmentName'])
