@@ -15,13 +15,13 @@ import collections
 # from datetime import datetime
 from os2mo_data_import import Organisation
 
-MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
+MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
 GLOBAL_DATE = os.environ.get('GLOBAL_DATE', '1977-01-01')
 BASE_APOS_URL = os.environ.get('BASE_APOS_URL', 'http://localhost:8080/apos2-')
 
 # Phone names will become a list once we have more examples of naming of
 # the concept phone numbers
-PHONE_NAMES = [os.environ.get('PHONE_NAME', 'Telefon')]
+PHONE_NAMES = os.environ.get('PHONE_NAMES', 'Telefon').split(':')
 
 ANSAT_UUID = os.environ.get('ANSAT_UUID', '00000000-0000-0000-0000-000000000000')
 CREATE_UDVALGS_CLASSES = os.environ.get('CREATE_UDVALGS_CLASSES', 'No') == 'yes'
@@ -94,6 +94,7 @@ class AposImport(object):
             with open(path_url + '.p', 'rb') as f:
                 response = pickle.load(f)
         except FileNotFoundError:
+            print(self.base_url + url)
             response = requests.get(self.base_url + url)
             with open(path_url + '.p', 'wb') as f:
                 pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
