@@ -572,9 +572,7 @@ class AposImport(object):
 
     def create_managers_and_associatins(self):
         """ Create org_funcs, at the momen this means managers """
-        units = apos_import.org.OrganisationUnit.export()
+        units = self.org.OrganisationUnit.export()
         for unit in units:
             self.get_ou_functions(unit[0])
             self.create_associations_for_ou(unit[0])
-
-
