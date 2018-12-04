@@ -323,8 +323,8 @@ class Klasse(BaseMap):
     def __init__(self):
         super().__init__()
 
-    def add(self, identifier, facet_type_ref, user_key=None,
-            description=None, example=None, scope=None, title=None):
+    def add(self, identifier, facet_type_ref, user_key=None, description=None,
+            example=None, scope=None, title=None, uuid=None):
         """
         Add new facet to the storage map.
         In the context of the os2mo application,
@@ -359,6 +359,11 @@ class Klasse(BaseMap):
             This value is used for validation and field generation.
             E.g. scope: DAR will render a field with validation for address uuids
 
+        :param uuid:
+            (Optional) uuid (uuid)
+            If uuid is provided, the object will be imported into LoRa with this
+            uuid value.
+
         :return:
             Returns data as dict.
 
@@ -373,6 +378,7 @@ class Klasse(BaseMap):
         }
 
         data = {
+            "uuid": uuid,
             "facet_type_ref": facet_type_ref,
             "data": {
                 key: value

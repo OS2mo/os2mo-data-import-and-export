@@ -49,7 +49,7 @@ class ImportUtility(object):
         self.inserted_employee_map = {}
         self.inserted_itsystem_map = {}
 
-    def insert_mox_data(self, resource, data):
+    def insert_mox_data(self, resource, data, uuid=None):
         """
         Insert post data into the MOX/OIO REST interface
 
@@ -69,18 +69,19 @@ class ImportUtility(object):
         service = urljoin(self.mox_base, resource)
 
         if self.dry_run:
-
             print(
                 json.dumps(data, indent=2)
             )
-
             response_data = {
                 "uuid": str(
                     uuid4()
                 )
             }
         else:
-            response = self.session.post(url=service, json=data)
+            if uuid is not None:
+                response = self.session.put(url=service + '/' + uuid, json=data)
+            else:
+                response = self.session.post(url=service, json=data)
             response_data = response.json()
 
         return response_data["uuid"]
@@ -141,7 +142,6 @@ class ImportUtility(object):
         )
 
         service = urljoin(self.mora_base, resource)
-
 
         if self.dry_run:
             for value in self.inserted_klasse_map.values():
@@ -281,6 +281,7 @@ class ImportUtility(object):
 
         """
 
+        uuid = klasse['uuid']
         klasse_data = klasse["data"]
         facet_type_ref = klasse["facet_type_ref"]
 
@@ -300,10 +301,12 @@ class ImportUtility(object):
             validity=self.global_validity
         )
 
-        uuid = self.insert_mox_data(
+        import_uuid = self.insert_mox_data(
             resource="klassifikation/klasse",
-            data=payload
+            data=payload,
+            uuid=uuid
         )
+        assert(uuid is None or import_uuid == uuid)
 
         self.inserted_klasse_map[reference] = uuid
 
