@@ -421,6 +421,8 @@ class ImportUtility(object):
         payload = self.build_mo_payload(employee_data)
 
         uuid = self.insert_mora_data(resource="service/e/create", data=payload)
+        if 'uuid' in payload:
+            assert(uuid == payload['uuid'])
 
         # Add uuid to the inserted employee map
         self.inserted_employee_map[reference] = uuid
