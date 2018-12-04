@@ -106,7 +106,6 @@ class ImportUtility(object):
             Inserted UUID (str)
 
         """
-        print(data)
         service = urljoin(self.mora_base, resource)
 
         if self.dry_run:
@@ -114,9 +113,12 @@ class ImportUtility(object):
             print(
                 json.dumps(data, indent=2)
             )
-
+            if 'uuid' in data:
+                dry_uuid = data['uuid']
+            else:
+                dry_uuid = uuid4()
             response_data = str(
-                uuid4()
+                dry_uuid
             )
         else:
             response = self.session.post(url=service, json=data)
@@ -359,7 +361,6 @@ class ImportUtility(object):
             Inserted UUID (str)
 
         """
-
         if reference in self.inserted_org_unit_map:
             print("The organisation unit has already been inserted")
             return False
@@ -382,7 +383,8 @@ class ImportUtility(object):
             resource="service/ou/create",
             data=payload
         )
-
+        if 'uuid' in payload:
+            assert(uuid == payload['uuid'])
         if not uuid:
             raise ConnectionError("Something went wrong")
 
