@@ -72,9 +72,13 @@ class ImportUtility(object):
             print(
                 json.dumps(data, indent=2)
             )
+            if uuid is None:
+                dry_uuid = uuid4()
+            else:
+                dry_uuid = uuid
             response_data = {
                 "uuid": str(
-                    uuid4()
+                    dry_uuid
                 )
             }
         else:
@@ -102,7 +106,7 @@ class ImportUtility(object):
             Inserted UUID (str)
 
         """
-
+        print(data)
         service = urljoin(self.mora_base, resource)
 
         if self.dry_run:
