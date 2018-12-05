@@ -314,7 +314,7 @@ class ImportUtility(object):
         )
         assert(uuid is None or import_uuid == uuid)
 
-        self.inserted_klasse_map[reference] = uuid
+        self.inserted_klasse_map[reference] = import_uuid
 
         return uuid
 
