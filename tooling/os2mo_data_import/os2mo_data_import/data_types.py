@@ -630,6 +630,10 @@ class Employee(ExtendedMap):
         :param date_to:
             End date e.g. "1900-01-01" (str)
 
+        :param uuid:
+            Imported UUID from the source (str)
+            (Optional: uuid is either imported or created on insert)
+
         :return:
             Returns data as a list of tuples (list)
 
@@ -648,7 +652,8 @@ class Employee(ExtendedMap):
             ("validity", validity)
         ]
         if uuid is not None:
-            engagement_data.append(("uuid", uuid))
+            item = ("uuid", uuid)
+            engagement_data.append(item)
 
         return self.save_opt(owner_ref, engagement_data)
 
@@ -748,7 +753,7 @@ class Employee(ExtendedMap):
 
     def add_type_manager(self, owner_ref, org_unit_ref, manager_type_ref,
                          manager_level_ref, responsibility_list, date_from,
-                         date_to=None, address_uuid=None):
+                         date_to=None, address_uuid=None, uuid=None):
         """
 
         :param owner_ref:
@@ -782,6 +787,10 @@ class Employee(ExtendedMap):
         :param date_to:
             End date e.g. "1900-01-01" (str)
 
+        :param uuid:
+            Imported UUID from the source (str)
+            (Optional: uuid is either imported or created on insert)
+
         :return:
             Returns data as a list of tuples (list)
 
@@ -803,6 +812,9 @@ class Employee(ExtendedMap):
             ("responsibility", responsibility_list),
             ("validity", validity)
         ]
+        if uuid is not None:
+            item = ("uuid", uuid)
+            manager_data.append(item)
 
         if address_uuid:
             item = ("address", address_uuid)
