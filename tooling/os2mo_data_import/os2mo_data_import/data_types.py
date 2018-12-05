@@ -606,7 +606,7 @@ class Employee(ExtendedMap):
         return self.save(identifier, data)
 
     def add_type_engagement(self, owner_ref, org_unit_ref, job_function_ref,
-                            engagement_type_ref, date_from, date_to=None):
+                            engagement_type_ref, date_from, date_to=None, uuid=None):
         """
 
         :param owner_ref:
@@ -647,6 +647,8 @@ class Employee(ExtendedMap):
             ("engagement_type", engagement_type_ref),
             ("validity", validity)
         ]
+        if uuid is not None:
+            engagement_data.append(("uuid", uuid))
 
         return self.save_opt(owner_ref, engagement_data)
 
