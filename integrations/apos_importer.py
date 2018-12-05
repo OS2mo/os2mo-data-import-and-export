@@ -13,6 +13,7 @@ import requests
 import xmltodict
 import collections
 # from datetime import datetime
+from uuid import UUID
 from os2mo_data_import import Organisation
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
@@ -202,7 +203,14 @@ class AposImport(object):
                         scope = 'PHONE'
                     else:
                         scope = 'TEXT'
+                    try:
+                        UUID(klasse['@uuid'], version=4)
+                        uuid = klasse['@uuid']
+                    except ValueError:
+                        uuid = None
+                        # TODO: Add the value to the Rodekasse!!!
                     self.org.Klasse.add(identifier=klasse['@uuid'],
+                                        uuid=uuid,
                                         title=klasse['@title'],
                                         user_key=klasse['@title'],
                                         scope=scope,
@@ -289,6 +297,7 @@ class AposImport(object):
 
         unit = self.org.OrganisationUnit.add(
             identifier=unit_id,
+            uuid=apos_unit['@uuid'],
             name=apos_unit['@navn'],
             user_key=apos_unit['@brugervendtNoegle'],
             org_unit_type_ref=enhedstype,
@@ -353,8 +362,7 @@ class AposImport(object):
                         if info[0] == 'validity':
                             from_date = info[1]['from']
                     ansat = ANSAT_UUID
-                    print(p)
-                    print(unit)
+
                     self.org.Employee.add_type_association(
                         owner_ref=p,
                         org_unit_ref=unit,
@@ -426,6 +434,7 @@ class AposImport(object):
         engagement_ref = '56e1214a-330f-4592-89f3-ae3ee8d5b2e6'  # Ansat
         self.org.Employee.add_type_engagement(
             owner_ref=employee['person']['@uuid'],
+            uuid=employee['@uuid'],
             org_unit_ref=unit,
             job_function_ref=stilling,
             engagement_type_ref=engagement_ref,
@@ -464,6 +473,7 @@ class AposImport(object):
             except KeyError:
                 pass
             self.org.Employee.add(name=name,
+                                  uuid=person['@uuid'],
                                   identifier=person['@uuid'],
                                   cpr_no=person['@personnummer'],
                                   user_key=bvn)
@@ -492,6 +502,9 @@ class AposImport(object):
             if not isinstance(personer, list):
                 personer = [personer]
 
+            # Only one person should ever be in this list, but sometimes
+            # empty entries are also included. These are filtered out by
+            # abcense of a person uuid.
             for person in personer:
                 if not person['@uuid']:
                     continue
@@ -528,7 +541,6 @@ class AposImport(object):
 
                 if manager_type:
                     try:
-                        print(unit)
                         self.org.Employee.add_type_manager(
                             owner_ref=person['@uuid'],
                             org_unit_ref=unit,
@@ -537,7 +549,8 @@ class AposImport(object):
                             manager_type_ref=manager_type,
                             responsibility_list=manager_responsibility,
                             date_from=fra,
-                            date_to=til
+                            date_to=til,
+                            uuid=func['@uuid']
                         )
                     except KeyError:
                         print('Problem adding manager:')
