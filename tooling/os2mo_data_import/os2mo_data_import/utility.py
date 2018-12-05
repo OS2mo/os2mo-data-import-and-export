@@ -33,7 +33,11 @@ class ImportUtility(object):
 
         """
 
-    def __init__(self, dry_run=False, mox_base=MOX_BASE, mora_base=MORA_BASE):
+    def __init__(self, dry_run=False, mox_base=MOX_BASE, mora_base=MORA_BASE,
+                 system_name='Import', store_integration_data=False):
+        self.system_name = system_name
+        self.store_integration_data = store_integration_data
+
         # Service endpoints
         self.mox_base = mox_base
         self.mora_base = mora_base
@@ -48,6 +52,29 @@ class ImportUtility(object):
         self.inserted_org_unit_map = {}
         self.inserted_employee_map = {}
         self.inserted_itsystem_map = {}
+
+    def _integration_data(self, resource, payload, reference):
+        if self.store_integration_data:
+            service = urljoin(self.mox_base, resource)
+            integration_data = json.dumps({self.system_name: reference})
+
+            query = service + '?integrationsdata=%{}%'.format(integration_data)
+            response = self.session.get(url=query)
+            response = response.json()['results'][0]
+
+            if len(response) == 0:
+                pass
+            elif len(response) == 1:
+                uuid = response[0]
+                if 'uuid' in payload:
+                    assert(uuid == payload['uuid'])
+                else:
+                    payload['uuid'] = uuid
+            else:
+                raise('Inconsistent integration data!')
+
+            payload['integration_data'] = integration_data
+        return payload
 
     def insert_mox_data(self, resource, data, uuid=None):
         """
@@ -316,7 +343,7 @@ class ImportUtility(object):
 
         self.inserted_klasse_map[reference] = import_uuid
 
-        return uuid
+        return import_uuid
 
     def import_itsystem(self, itsystem):
         """
@@ -366,6 +393,8 @@ class ImportUtility(object):
             return False
 
         payload = self.build_mo_payload(organisation_unit_data)
+        payload = self._integration_data('organisation/organisationenhed',
+                                         payload, reference)
 
         if optional_data:
             additional_payload = [
@@ -419,6 +448,8 @@ class ImportUtility(object):
             return False
 
         payload = self.build_mo_payload(employee_data)
+        payload = self._integration_data('organisation/bruger',
+                                         payload, reference)
 
         uuid = self.insert_mora_data(resource="service/e/create", data=payload)
         if 'uuid' in payload:
@@ -656,7 +687,6 @@ class ImportUtility(object):
         for identifier, itsystem in org.Itsystem.export():
             uuid = self.import_itsystem(itsystem)
             self.inserted_itsystem_map[identifier] = uuid
-
             print("Inserted itsystem: %s" % uuid)
 
         # Insert Organisation Units
