@@ -53,7 +53,39 @@ class ImportUtility(object):
         self.inserted_employee_map = {}
         self.inserted_itsystem_map = {}
 
+    def _get_mo_organisation(self):
+        """
+        Return the name and uuid of an existing organisation
+        :return: None if no organisation exisits, otherwise a dict with name and uuid
+        """
+
+        resource = 'service/o/'
+        service = urljoin(self.mora_base, resource)
+        response = self.session.get(url=service)
+        response = response.json()
+        print(len(response))
+        if len(response) == 0:
+            return_val = None
+        if len(response) == 1:
+            return_val = response
+        else:
+            # In principle, we could support more organisations, but currently
+            # this is an uneeded complexity
+            raise('Too many organisation')
+        return return_val
+
     def _integration_data(self, resource, payload, reference):
+        """
+        Update the payload with integration data. Checks if an object with this
+        integration data already exists. In this case the uuid of the exisiting
+        object is put into the payload. If a supplied uuid is inconsistent with
+        the uuid found from integration data, an exception is raised.
+        :param resource: TODO
+        :param payload: TODO
+        :param referece: TODO
+        :return: TODO
+        """
+
         if self.store_integration_data:
             service = urljoin(self.mox_base, resource)
             integration_data = json.dumps({self.system_name: reference})
@@ -662,6 +694,9 @@ class ImportUtility(object):
 
         # HOTFIX: temporary fix for nested organisation units
         self.org = org
+
+        # Check if import has already been run on this organisation
+        mo_org_name = self._get_mo_organisation()
 
         # Insert Organisation
         org_export = org.export()
