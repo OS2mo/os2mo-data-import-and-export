@@ -2,69 +2,69 @@
 
 
 def organisation_payload(organisation, municipality_code, validity):
-        """
-        MOX/Lora paylod for organisation
+    """
+    MOX/Lora paylod for organisation
 
-        :param organisation:
-            Data object: Organisation (dict)
-            Example:
-                {
-                    "name": "Magenta Aps,
-                    "user_key": "ABC34D61-FB3F-451A-9299-31218B4570E6",
-                    "municipality_code": 101,
-                }
+    :param organisation:
+        Data object: Organisation (dict)
+        Example:
+            {
+                "name": "Magenta Aps,
+                "user_key": "ABC34D61-FB3F-451A-9299-31218B4570E6",
+                "municipality_code": 101,
+            }
 
-        :param validity:
-            Start and end date (dict)
-            Example:
-                {
-                    "from": "1900-01-01",
-                    "to": "infinity"
-                }
+    :param validity:
+        Start and end date (dict)
+        Example:
+            {
+                "from": "1900-01-01",
+                "to": "infinity"
+            }
 
-        :return:
-            POST data payload (dict)
+    :return:
+        POST data payload (dict)
 
-        """
+    """
 
-        properties = {
-            "virkning": validity
-        }
+    properties = {
+        "virkning": validity
+    }
 
-        properties.update(organisation)
+    properties.update(organisation)
 
-        attributter = {
-            "organisationegenskaber": [properties]
-        }
+    attributter = {
+        "organisationegenskaber": [properties]
+    }
 
-        # Create urn value
-        urn_municipality_code = "urn:dk:kommune:{code}".format(
-            code=str(municipality_code)
-        )
+    # Create urn value
+    urn_municipality_code = "urn:dk:kommune:{code}".format(
+        code=str(municipality_code)
+    )
 
-        relationer = {
-            "myndighed": [
-                {
-                    "urn": urn_municipality_code,
-                    "virkning": validity
-                }
-            ]
-        }
+    relationer = {
+        "myndighed": [
+            {
+                "urn": urn_municipality_code,
+                "virkning": validity
+            }
+        ]
+    }
 
-        tilstande = {
-            "organisationgyldighed": [
-                {
-                    "gyldighed": "Aktiv",
-                    "virkning": validity
-                }
-            ]
-        }
+    tilstande = {
+        "organisationgyldighed": [
+            {
+                "gyldighed": "Aktiv",
+                "virkning": validity
+            }
+        ]
+    }
 
-        return {
-            "note": "Automatisk indlæsning",
-            "attributter": attributter,
-            "relationer": relationer,
-            "tilstande": tilstande
+    return {
+        "note": "Automatisk indlæsning",
+        "attributter": attributter,
+        "relationer": relationer,
+        "tilstande": tilstande
     }
 
 
@@ -134,7 +134,8 @@ def klassifikation_payload(klassifikation, organisation_uuid, validity):
     }
 
 
-def facet_payload(facet, klassifikation_uuid, organisation_uuid, validity):
+def facet_payload(facet, klassifikation_uuid, organisation_uuid, validity,
+                  integration_data):
     """
     MOX/Lora paylod for facet
 
@@ -155,21 +156,22 @@ def facet_payload(facet, klassifikation_uuid, organisation_uuid, validity):
                 "to": "infinity"
             }
 
+    :param integrationdata:
+        TODO!!!
+
     :return:
         OIO formatted post data payload (dict)
 
     """
 
-    properties = {
-        "virkning": validity
-    }
-
+    properties = {"virkning": validity}
     properties.update(facet)
+    if integration_data is not {}:
+        properties['integrationsdata'] = integration_data['integration_data']
 
     attributter = {
         "facetegenskaber": [properties]
     }
-
     relationer = {
         "ansvarlig": [
             {
@@ -196,11 +198,16 @@ def facet_payload(facet, klassifikation_uuid, organisation_uuid, validity):
         ]
     }
 
-    return {
+    return_dict = {
         "attributter": attributter,
         "relationer": relationer,
         "tilstande": tilstande
     }
+
+    if 'uuid' in integration_data:
+        return_dict['uuid'] = integration_data['uuid']
+
+    return return_dict
 
 
 def klasse_payload(klasse, facet_uuid, organisation_uuid, validity):
@@ -274,7 +281,7 @@ def klasse_payload(klasse, facet_uuid, organisation_uuid, validity):
         "attributter": attributter,
         "relationer": relationer,
         "tilstande": tilstande
-}
+    }
 
 
 def itsystem_payload(itsystem, organisation_uuid, validity):
