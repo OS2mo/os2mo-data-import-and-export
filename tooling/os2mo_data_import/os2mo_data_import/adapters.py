@@ -1,7 +1,8 @@
 # -- coding: utf-8 --
 
 
-def organisation_payload(organisation, municipality_code, validity):
+def organisation_payload(organisation, municipality_code, validity,
+                         integration_data={}):
     """
     MOX/Lora paylod for organisation
 
@@ -22,6 +23,9 @@ def organisation_payload(organisation, municipality_code, validity):
                 "to": "infinity"
             }
 
+    :param integration_data:
+        TODO!!!
+
     :return:
         POST data payload (dict)
 
@@ -30,6 +34,8 @@ def organisation_payload(organisation, municipality_code, validity):
     properties = {
         "virkning": validity
     }
+    if integration_data is not {}:
+        properties['integrationsdata'] = integration_data['integration_data']
 
     properties.update(organisation)
 
@@ -60,15 +66,20 @@ def organisation_payload(organisation, municipality_code, validity):
         ]
     }
 
-    return {
-        "note": "Automatisk indlæsning",
+    return_dict = {
         "attributter": attributter,
         "relationer": relationer,
         "tilstande": tilstande
     }
 
+    if 'uuid' in integration_data:
+        return_dict['uuid'] = integration_data['uuid']
 
-def klassifikation_payload(klassifikation, organisation_uuid, validity):
+    return return_dict
+
+
+def klassifikation_payload(klassifikation, organisation_uuid, validity,
+                           integration_data={}):
     """
     MOX/Lora paylod for klassifikation
 
@@ -86,6 +97,9 @@ def klassifikation_payload(klassifikation, organisation_uuid, validity):
                 "to": "infinity"
             }
 
+    :param integration_data:
+        TODO!!!
+
     :return:
         OIO formatted post data payload (dict)
 
@@ -94,6 +108,8 @@ def klassifikation_payload(klassifikation, organisation_uuid, validity):
     properties = {
         "virkning": validity
     }
+    if integration_data is not {}:
+        properties['integrationsdata'] = integration_data['integration_data']
 
     properties.update(klassifikation)
 
@@ -127,15 +143,20 @@ def klassifikation_payload(klassifikation, organisation_uuid, validity):
         ]
     }
 
-    return {
+    return_dict = {
         "attributter": attributter,
         "relationer": relationer,
         "tilstande": tilstande
     }
 
+    if 'uuid' in integration_data:
+        return_dict['uuid'] = integration_data['uuid']
+
+    return return_dict
+
 
 def facet_payload(facet, klassifikation_uuid, organisation_uuid, validity,
-                  integration_data):
+                  integration_data={}):
     """
     MOX/Lora paylod for facet
 
@@ -210,7 +231,8 @@ def facet_payload(facet, klassifikation_uuid, organisation_uuid, validity,
     return return_dict
 
 
-def klasse_payload(klasse, facet_uuid, organisation_uuid, validity):
+def klasse_payload(klasse, facet_uuid, organisation_uuid, validity,
+                   integration_data):
     """
     MOX/Lora paylod for klasse
 
@@ -231,6 +253,9 @@ def klasse_payload(klasse, facet_uuid, organisation_uuid, validity):
                 "to": "infinity"
             }
 
+    :param integrationdata:
+        TODO!!!
+
     :return:
         OIO formatted post data payload (dict)
 
@@ -246,6 +271,10 @@ def klasse_payload(klasse, facet_uuid, organisation_uuid, validity):
 
     # Add all user specified properties
     properties.update(klasse)
+    # TODO: The integration data do not belong in 'retskilde' but, currently
+    # it is not possible to add an integrations data field to Klasse.
+    if integration_data is not {}:
+        properties['retskilde'] = integration_data['integration_data']
 
     attributter = {
         "klasseegenskaber": [properties]
@@ -277,11 +306,16 @@ def klasse_payload(klasse, facet_uuid, organisation_uuid, validity):
         ]
     }
 
-    return {
+    return_dict = {
         "attributter": attributter,
         "relationer": relationer,
         "tilstande": tilstande
     }
+
+    if 'uuid' in integration_data:
+        return_dict['uuid'] = integration_data['uuid']
+
+    return return_dict
 
 
 def itsystem_payload(itsystem, organisation_uuid, validity):

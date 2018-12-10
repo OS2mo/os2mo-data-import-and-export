@@ -70,9 +70,10 @@ class ImportUtility(object):
         else:
             # In principle, we could support more organisations, but currently
             # this is an uneeded complexity
-            raise('Too many organisation')
+            raise Exception('Too many organisation')
         return return_val
 
+    # TODO: This can be removed!!!!!
     def _get_mox_object(self, name, resource, relation=None):
         """
         Find an existing facet in LoRa. This really should be done using integration
@@ -95,7 +96,7 @@ class ImportUtility(object):
             return_val = response[0]
         else:
             print(service)
-            raise(Exception('Too many objects with name {}'.format(name)))
+            raise Exception('Too many objects with name {}'.format(name))
         return return_val
 
     def _integration_data(self, resource, reference, payload={}):
@@ -109,14 +110,14 @@ class ImportUtility(object):
         :param referece: TODO
         :return: TODO
         """
-        print('!')
-        print(payload)
-        print('!')
         if self.store_integration_data:
             service = urljoin(self.mox_base, resource)
             integration_data = json.dumps({self.system_name: reference})
 
-            query = service + '?integrationsdata=%{}%'.format(integration_data)
+            if resource.find('klasse') > 0:
+                query = service + '?retskilde=%{}%'.format(integration_data)
+            else:
+                query = service + '?integrationsdata=%{}%'.format(integration_data)
             response = self.session.get(url=query)
             response = response.json()['results'][0]
 
@@ -130,7 +131,7 @@ class ImportUtility(object):
                 else:
                     payload['uuid'] = uuid
             else:
-                raise('Inconsistent integration data!')
+                raise Exception('Inconsistent integration data!')
 
             payload['integration_data'] = integration_data
         return payload
@@ -269,20 +270,29 @@ class ImportUtility(object):
             Inserted UUID (str)
 
         """
+        name = org_export['data']['organisationsnavn']
+        resource = "organisation/organisation"
+        integration_data = self._integration_data(resource, name, {})
 
         payload = adapters.organisation_payload(
             organisation=org_export["data"],
             municipality_code=org_export["municipality_code"],
-            validity=self.global_validity
+            validity=self.global_validity,
+            integration_data=integration_data
         )
 
-        if "uuid" in org_export:
-            # TODO: Import uuid if passed
-            pass
+        # The uuid should not be an actual part of the payload, we pick it out
+        # and serve it to insert_mox_data instead
+        if 'uuid' in payload:
+            organisation_uuid = payload['uuid']
+            del(payload['uuid'])
+        else:
+            organisation_uuid = None
 
         self.organisation_uuid = self.insert_mox_data(
             resource="organisation/organisation",
-            data=payload
+            data=payload,
+            uuid=organisation_uuid
         )
 
         return self.organisation_uuid
@@ -306,23 +316,36 @@ class ImportUtility(object):
         user_key = "Organisation {name}".format(name=parent_name)
         description = "Belongs to {name}".format(name=parent_name)
 
+        resource = "klassifikation/klassifikation"
+        integration_data = self._integration_data(resource, user_key, {})
+
         klassifikation = {
             "brugervendtnoegle": user_key,
             "beskrivelse": description,
-            "kaldenavn": parent_name
+            "kaldenavn": parent_name,
         }
 
-        klassifikation_data = adapters.klassifikation_payload(
+        payload = adapters.klassifikation_payload(
             klassifikation=klassifikation,
             organisation_uuid=self.organisation_uuid,
-            validity=self.global_validity
+            validity=self.global_validity,
+            integration_data=integration_data
         )
 
-        # TODO: We should find the existing klassifikation
+        # The uuid should not be an actual part of the payload, we pick it out
+        # and serve it to insert_mox_data instead
+        if 'uuid' in payload:
+            klassifikation_uuid = payload['uuid']
+            del(payload['uuid'])
+        else:
+            klassifikation_uuid = None
+
         self.klassifikation_uuid = self.insert_mox_data(
             resource="klassifikation/klassifikation",
-            data=klassifikation_data
+            data=payload,
+            uuid=klassifikation_uuid
         )
+
         return self.klassifikation_uuid
 
     def import_facet(self, reference, facet):
@@ -393,35 +416,37 @@ class ImportUtility(object):
             )
             raise KeyError(error_message)
 
-        # TODO: We desperately need integration data on Klasser!!!!
-        if uuid is None:
-            resource = 'klassifikation/klasse?bvn={}'
-        else:
-            resource = 'klassifikation/klasse?bvn={}&uuid={}'
-        print()
-        print('Klasse: {}'.format(klasse))
-        print('uuid: {}'.format(uuid))
+        resource = "klassifikation/klasse"
+        integration_data = self._integration_data(resource, reference, {})
 
-        mox_klasse = self._get_mox_object(klasse['data'],
-                                          resource,
-                                          relation=uuid)
+        # mox_klasse = self._get_mox_object(klasse['data'],
+        #                                  resource,
+        #                                  relation=uuid)
 
         # If mox_klasse contains an uuid, the Klasse was inserted in a
         # previous import.
-        if mox_klasse is not None:
-            payload = adapters.klasse_payload(
-                klasse=klasse_data,
-                facet_uuid=facet_uuid,
-                organisation_uuid=self.organisation_uuid,
-                validity=self.global_validity
-            )
-            import_uuid = self.insert_mox_data(
-                resource="klassifikation/klasse",
-                data=payload,
-                uuid=uuid
-            )
+        payload = adapters.klasse_payload(
+            klasse=klasse_data,
+            facet_uuid=facet_uuid,
+            organisation_uuid=self.organisation_uuid,
+            validity=self.global_validity,
+            integration_data=integration_data
+        )
+
+        # The uuid should not be an actual part of the payload, we pick it out
+        # and serve it to insert_mox_data instead
+        if 'uuid' in payload:
+            klasse_uuid = payload['uuid']
+            assert(uuid is None or klasse_uuid == uuid)
+            del(payload['uuid'])
         else:
-            impport_uuid = mox_klasse
+            klasse_uuid = uuid
+
+        import_uuid = self.insert_mox_data(
+            resource="klassifikation/klasse",
+            data=payload,
+            uuid=klasse_uuid
+        )
         assert(uuid is None or import_uuid == uuid)
 
         self.inserted_klasse_map[reference] = import_uuid
@@ -747,18 +772,21 @@ class ImportUtility(object):
         # HOTFIX: temporary fix for nested organisation units
         self.org = org
 
+        # TODO: Remove this primitive check, now we use real integration data
         # Check if import has already been run on this organisation
-        mo_organisation = self._get_mo_organisation()
-        if mo_organisation is not None:
-            assert(mo_organisation['name'] == self.org.name)
-            org_uuid = mo_organisation['uuid']
-            self.organisation_uuid = org_uuid
-            print("Found existig organisation: %s" % org_uuid)
-        else:
-            # Insert Organisation
-            org_export = org.export()
-            org_uuid = self.import_organisation(org_export)
-            print("Inserted organisation: %s" % org_uuid)
+        # mo_organisation = self._get_mo_organisation()
+        # print(mo_organisation)
+        # 1/0
+        # if mo_organisation is not None:
+        #    assert(mo_organisation['name'] == self.org.name)
+        #    org_uuid = mo_organisation['uuid']
+        #    self.organisation_uuid = org_uuid
+        #    print("Found existig organisation: %s" % org_uuid)
+        # else:
+        #    # Insert Organisation
+        org_export = org.export()
+        org_uuid = self.import_organisation(org_export)
+        print("Inserted organisation: %s" % org_uuid)
 
         # Insert Klassifikation
         parent_name = (org.user_key or org.name)
