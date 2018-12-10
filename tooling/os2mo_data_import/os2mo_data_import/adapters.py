@@ -66,16 +66,11 @@ def organisation_payload(organisation, municipality_code, validity,
         ]
     }
 
-    return_dict = {
+    return {
         "attributter": attributter,
         "relationer": relationer,
         "tilstande": tilstande
     }
-
-    if 'uuid' in integration_data:
-        return_dict['uuid'] = integration_data['uuid']
-
-    return return_dict
 
 
 def klassifikation_payload(klassifikation, organisation_uuid, validity,
@@ -143,16 +138,11 @@ def klassifikation_payload(klassifikation, organisation_uuid, validity,
         ]
     }
 
-    return_dict = {
+    return{
         "attributter": attributter,
         "relationer": relationer,
         "tilstande": tilstande
     }
-
-    if 'uuid' in integration_data:
-        return_dict['uuid'] = integration_data['uuid']
-
-    return return_dict
 
 
 def facet_payload(facet, klassifikation_uuid, organisation_uuid, validity,
@@ -219,16 +209,11 @@ def facet_payload(facet, klassifikation_uuid, organisation_uuid, validity,
         ]
     }
 
-    return_dict = {
+    return {
         "attributter": attributter,
         "relationer": relationer,
         "tilstande": tilstande
     }
-
-    if 'uuid' in integration_data:
-        return_dict['uuid'] = integration_data['uuid']
-
-    return return_dict
 
 
 def klasse_payload(klasse, facet_uuid, organisation_uuid, validity,
@@ -306,16 +291,11 @@ def klasse_payload(klasse, facet_uuid, organisation_uuid, validity,
         ]
     }
 
-    return_dict = {
+    return {
         "attributter": attributter,
         "relationer": relationer,
         "tilstande": tilstande
     }
-
-    if 'uuid' in integration_data:
-        return_dict['uuid'] = integration_data['uuid']
-
-    return return_dict
 
 
 def itsystem_payload(itsystem, organisation_uuid, validity):

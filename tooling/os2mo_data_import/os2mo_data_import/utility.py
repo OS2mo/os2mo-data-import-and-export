@@ -53,26 +53,6 @@ class ImportUtility(object):
         self.inserted_employee_map = {}
         self.inserted_itsystem_map = {}
 
-    def _get_mo_organisation(self):
-        """
-        Return the name and uuid of an existing organisation
-        :return: None if no organisation exisits, otherwise a dict with name and uuid
-        """
-
-        resource = 'service/o/'
-        service = urljoin(self.mora_base, resource)
-        response = self.session.get(url=service)
-        response = response.json()
-        if len(response) == 0:
-            return_val = None
-        elif len(response) == 1:
-            return_val = response[0]
-        else:
-            # In principle, we could support more organisations, but currently
-            # this is an uneeded complexity
-            raise Exception('Too many organisation')
-        return return_val
-
     # TODO: This can be removed!!!!!
     def _get_mox_object(self, name, resource, relation=None):
         """
@@ -174,6 +154,9 @@ class ImportUtility(object):
             else:
                 response = self.session.post(url=service, json=data)
             response_data = response.json()
+        if uuid is not None:
+            assert(uuid == response_data["uuid"])
+
         return response_data["uuid"]
 
     def insert_mora_data(self, resource, data):
@@ -281,14 +264,7 @@ class ImportUtility(object):
             integration_data=integration_data
         )
 
-        # The uuid should not be an actual part of the payload, we pick it out
-        # and serve it to insert_mox_data instead
-        if 'uuid' in payload:
-            organisation_uuid = payload['uuid']
-            del(payload['uuid'])
-        else:
-            organisation_uuid = None
-
+        organisation_uuid = integration_data.get('uuid', None)
         self.organisation_uuid = self.insert_mox_data(
             resource="organisation/organisation",
             data=payload,
@@ -332,14 +308,7 @@ class ImportUtility(object):
             integration_data=integration_data
         )
 
-        # The uuid should not be an actual part of the payload, we pick it out
-        # and serve it to insert_mox_data instead
-        if 'uuid' in payload:
-            klassifikation_uuid = payload['uuid']
-            del(payload['uuid'])
-        else:
-            klassifikation_uuid = None
-
+        klassifikation_uuid = integration_data.get('uuid', None)
         self.klassifikation_uuid = self.insert_mox_data(
             resource="klassifikation/klassifikation",
             data=payload,
@@ -374,19 +343,9 @@ class ImportUtility(object):
             integration_data=integration_data
         )
 
-        # The uuid should not be an actual part of the payload, we pick it out
-        # and serve it to insert_mox_data instead
-        if 'uuid' in payload:
-            facet_uuid = payload['uuid']
-            del(payload['uuid'])
-        else:
-            facet_uuid = None
+        facet_uuid = integration_data.get('uuid', None)
+        uuid = self.insert_mox_data(resource=resource, data=payload, uuid=facet_uuid)
 
-        uuid = self.insert_mox_data(
-            resource=resource,
-            data=payload,
-            uuid=facet_uuid
-        )
         self.inserted_facet_map[reference] = uuid
         return uuid
 
@@ -419,12 +378,6 @@ class ImportUtility(object):
         resource = "klassifikation/klasse"
         integration_data = self._integration_data(resource, reference, {})
 
-        # mox_klasse = self._get_mox_object(klasse['data'],
-        #                                  resource,
-        #                                  relation=uuid)
-
-        # If mox_klasse contains an uuid, the Klasse was inserted in a
-        # previous import.
         payload = adapters.klasse_payload(
             klasse=klasse_data,
             facet_uuid=facet_uuid,
@@ -433,12 +386,9 @@ class ImportUtility(object):
             integration_data=integration_data
         )
 
-        # The uuid should not be an actual part of the payload, we pick it out
-        # and serve it to insert_mox_data instead
-        if 'uuid' in payload:
-            klasse_uuid = payload['uuid']
+        if uuid in integration_data:
+            klasse_uuid = integration_data['uuid']
             assert(uuid is None or klasse_uuid == uuid)
-            del(payload['uuid'])
         else:
             klasse_uuid = uuid
 
@@ -448,7 +398,6 @@ class ImportUtility(object):
             uuid=klasse_uuid
         )
         assert(uuid is None or import_uuid == uuid)
-
         self.inserted_klasse_map[reference] = import_uuid
 
         return import_uuid
@@ -772,18 +721,7 @@ class ImportUtility(object):
         # HOTFIX: temporary fix for nested organisation units
         self.org = org
 
-        # TODO: Remove this primitive check, now we use real integration data
-        # Check if import has already been run on this organisation
-        # mo_organisation = self._get_mo_organisation()
-        # print(mo_organisation)
-        # 1/0
-        # if mo_organisation is not None:
-        #    assert(mo_organisation['name'] == self.org.name)
-        #    org_uuid = mo_organisation['uuid']
-        #    self.organisation_uuid = org_uuid
-        #    print("Found existig organisation: %s" % org_uuid)
-        # else:
-        #    # Insert Organisation
+        # Insert Organisation
         org_export = org.export()
         org_uuid = self.import_organisation(org_export)
         print("Inserted organisation: %s" % org_uuid)
