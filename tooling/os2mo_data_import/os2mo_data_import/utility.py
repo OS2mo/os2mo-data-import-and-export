@@ -53,32 +53,6 @@ class ImportUtility(object):
         self.inserted_employee_map = {}
         self.inserted_itsystem_map = {}
 
-    # TODO: This can be removed!!!!!
-    def _get_mox_object(self, name, resource, relation=None):
-        """
-        Find an existing facet in LoRa. This really should be done using integration
-        data, but since this is currently not available, it is implemented as a
-        name search.
-        :return: None if the facet does not exist otherwise, return the uuid
-        """
-        print('Name: {}, resource: {}, relation: {}'.format(name, resource,
-                                                            relation))
-        if relation is None:
-            resource = resource.format(name['brugervendtnoegle'])
-        else:
-            resource = resource.format(name['brugervendtnoegle'], relation)
-        service = urljoin(self.mox_base, resource)
-        response = self.session.get(url=service)
-        response = response.json()['results'][0]
-        if len(response) == 0:
-            return_val = None
-        elif len(response) == 1:
-            return_val = response[0]
-        else:
-            print(service)
-            raise Exception('Too many objects with name {}'.format(name))
-        return return_val
-
     def _integration_data(self, resource, reference, payload={}):
         """
         Update the payload with integration data. Checks if an object with this
@@ -98,14 +72,13 @@ class ImportUtility(object):
                 query = service + '?retskilde=%{}%'.format(integration_data)
             else:
                 query = service + '?integrationsdata=%{}%'.format(integration_data)
+
             response = self.session.get(url=query)
             response = response.json()['results'][0]
-
             if len(response) == 0:
                 pass
             elif len(response) == 1:
                 uuid = response[0]
-                print(payload)
                 if 'uuid' in payload:
                     assert(uuid == payload['uuid'])
                 else:
@@ -386,7 +359,7 @@ class ImportUtility(object):
             integration_data=integration_data
         )
 
-        if uuid in integration_data:
+        if 'uuid' in integration_data:
             klasse_uuid = integration_data['uuid']
             assert(uuid is None or klasse_uuid == uuid)
         else:
