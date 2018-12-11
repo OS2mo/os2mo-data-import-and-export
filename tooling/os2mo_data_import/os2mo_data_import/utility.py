@@ -15,23 +15,22 @@ MORA_BASE = "http://localhost:5000"
 
 class ImportUtility(object):
     """
-        The ImportUtility class is the handler for storing
-        the organisation content into the os2mo datastore.
+    The ImportUtility class is the handler for storing
+    the organisation content into the os2mo datastore.
 
-        :param dry_run:
-            A toggle for a simulation of the import procedure (bool)
-            During a dry run, uuid's for inserts are generated
-            and the post data payloads are shown in json format.
+    :param dry_run:
+    A toggle for a simulation of the import procedure (bool)
+    During a dry run, uuid's for inserts are generated
+    and the post data payloads are shown in json format.
 
-        :param mox_base:
-            The base url of the mox backend (str)
-            E.g. http://mox.magenta.dk
+    :param mox_base:
+    The base url of the mox backend (str)
+    E.g. http://mox.magenta.dk
 
-        :param mora_base:
-            The base url of the mora backend (str)
-            E.g. http://mora.magenta.dk
-
-        """
+    :param mora_base:
+    The base url of the mora backend (str)
+    E.g. http://mora.magenta.dk
+    """
 
     def __init__(self, dry_run=False, mox_base=MOX_BASE, mora_base=MORA_BASE,
                  system_name='Import', store_integration_data=False):
@@ -59,14 +58,30 @@ class ImportUtility(object):
         integration data already exists. In this case the uuid of the exisiting
         object is put into the payload. If a supplied uuid is inconsistent with
         the uuid found from integration data, an exception is raised.
-        :param resource: TODO
-        :param payload: TODO
-        :param referece: TODO
-        :return: TODO
+
+        :param resource:
+        LoRa resource URL
+
+        :param referece:
+        Unique label that will be stored in the integration data to identify the
+        object on re-import
+
+        :param payload:
+        The supplied payload will be updated with values for integration and uuid
+        (if the integration data was found from an earlier import). For MO objects,
+        payload will typically be pre-populated and will then be ready for import
+        when returned. For MOX objects, the initial payload
+        will typically be empty, and the returned values can be fed to the relevant
+        adapter.
+
+        :return:
+        The original payload updated with integration data and object uuid, if the
+        object was already imported.
         """
+
         if self.store_integration_data:
             service = urljoin(self.mox_base, resource)
-            #integration_data = {self.system_name: reference + self.system_name}
+            # integration_data = {self.system_name: reference + self.system_name}
             integration_data = {self.system_name: str(reference) + 'Jørgen'}
             if resource.find('klasse') > 0:
                 query = service + '?retskilde=%{}%'
@@ -113,17 +128,16 @@ class ImportUtility(object):
         Insert post data into the MOX/OIO REST interface
 
         :param resource:
-            Resource path of the service endpoint (str)
-            e.g. /organisation/organisation
+        Resource path of the service endpoint (str) e.g. /organisation/organisation
 
         :param data:
-            Post data object (dict)
-            Metadata converted into OIO REST formatted post data
+        Post data object (dict)
+        Metadata converted into OIO REST formatted post data
 
         :return:
-            Inserted UUID (str)
-
+        Inserted UUID (str)
         """
+
         service = urljoin(self.mox_base, resource)
 
         if self.dry_run:
@@ -154,17 +168,16 @@ class ImportUtility(object):
         Insert post data into the MORA backend
 
         :param resource:
-            Resource path of the service endpoint (str)
-            e.g. /service/ou/create
+        Resource path of the service endpoint (str) e.g. /service/ou/create
 
         :param data:
-            Post data object (dict)
-            Metadata converted into OIO REST formatted post data
+        Post data object (dict)
+        Metadata converted into OIO REST formatted post data
 
         :return:
-            Inserted UUID (str)
-
+        Inserted UUID (str)
         """
+
         service = urljoin(self.mora_base, resource)
 
         if self.dry_run:
@@ -193,7 +206,6 @@ class ImportUtility(object):
 
         For more detailed information, please refer to the official mora docs:
         https://mora.readthedocs.io/en/development/api/address.html
-
         """
 
         if hasattr(self, "facet_types"):
@@ -237,12 +249,12 @@ class ImportUtility(object):
         and import into the MOX datastore.
 
         :param org_export:
-            Data objected returned by the export() method (dict)
+        Data objected returned by the export() method (dict)
 
         :returns:
-            Inserted UUID (str)
-
+        Inserted UUID (str)
         """
+
         name = org_export['data']['organisationsnavn']
         resource = "organisation/organisation"
         integration_data = self._integration_data(resource, name, {})
@@ -270,13 +282,12 @@ class ImportUtility(object):
         belong to the organisation.
 
         :param parent_name:
-            The user_key of the parent organisation (str)
-            This is used to generate the user_key, description
-            and alias for the klassifikation object.
+        The user_key of the parent organisation (str)
+        This is used to generate the user_key, description
+        and alias for the klassifikation object.
 
         :returns:
-            Inserted UUID (str)
-
+        Inserted UUID (str)
         """
 
         user_key = "Organisation {name}".format(name=parent_name)
@@ -320,7 +331,6 @@ class ImportUtility(object):
 
         :returns:
             Inserted UUID (str)
-
         """
 
         resource = "klassifikation/facet"
@@ -344,15 +354,15 @@ class ImportUtility(object):
         Insert a klasse object
 
         :param reference:
-            Reference to the user defined identifier (str)
+        Reference to the user defined identifier (str)
 
         :param klasse:
-            Klasse type data object (dict)
+        Klasse type data object (dict)
 
         :returns:
-            Inserted UUID (str)
-
+        Inserted UUID (str)
         """
+
         uuid = klasse['uuid']
         klasse_data = klasse["data"]
         facet_type_ref = klasse["facet_type_ref"]
@@ -397,11 +407,10 @@ class ImportUtility(object):
         Insert an itsystem object
 
         :param itsystem:
-            Itsystem data object (dict)
+        Itsystem data object (dict)
 
         :returns:
-            Inserted UUID (str)
-
+        Inserted UUID (str)
         """
 
         payload = adapters.itsystem_payload(
@@ -423,18 +432,18 @@ class ImportUtility(object):
         belong to the organisation unit, such as an address type
 
         :param reference:
-            Reference to the user defined identifier (str)
+        Reference to the user defined identifier (str)
 
         :param organisation_unit_data:
-            Organisation Unit primary data object (dict)
+        Organisation Unit primary data object (dict)
 
         :param optional_data:
-            Organisation Unit optional data object (dict)
+        Organisation Unit optional data object (dict)
 
         :returns:
-            Inserted UUID (str)
-
+        Inserted UUID (str)
         """
+
         print('Import org unit')
         if reference in self.inserted_org_unit_map:
             print("The organisation unit has already been inserted")
@@ -479,17 +488,16 @@ class ImportUtility(object):
         belong to the employee, such as an engagement, address, role etc.
 
         :param reference:
-            Reference to the user defined identifier (str)
+        Reference to the user defined identifier (str)
 
         :param employee_data:
-            Employee primary data object (dict)
+        Employee primary data object (dict)
 
         :param optional_data:
-            Employee optional data object (dict)
+        Employee optional data object (dict)
 
         :returns:
-            Inserted UUID (str)
-
+        Inserted UUID (str)
         """
 
         if reference in self.inserted_employee_map:
@@ -528,33 +536,32 @@ class ImportUtility(object):
         from a list of key value pairs.
 
         TODO:
-            * This adapter is crude and needs to be reworked
+        * This adapter is crude and needs to be reworked
 
         :param list_of_tuples:
-            Accepts a list of tuples exported by
-            the Organisation Unit and Employee classes.
-            Example: (employee)
+        Accepts a list of tuples exported by
+        the Organisation Unit and Employee classes.
+        Example: (employee)
 
-            [
-                ("name", name),
-                ("cpr_no", cpr_no),
-                ("org", None)
-            ]
+        [
+            ("name", name),
+            ("cpr_no", cpr_no),
+            ("org", None)
+        ]
 
         :param person_uuid:
-            The UUID of the employee which optional data belongs to.
-            If the parameter is passed, a reference to the person is
-            attached to the final payload, e.g.
+        The UUID of the employee which optional data belongs to.
+        If the parameter is passed, a reference to the person is
+        attached to the final payload, e.g.
 
-            {
-                "person": {
-                    "uuid": "A9E559BD-BA31-48CC-8898-E36A7FAF3E05"
-                }
+        {
+            "person": {
+                "uuid": "A9E559BD-BA31-48CC-8898-E36A7FAF3E05"
             }
+        }
 
         :return:
-            Post data payload (dict)
-
+        Post data payload (dict)
         """
 
         payload = {}
@@ -678,7 +685,6 @@ class ImportUtility(object):
 
         # Insert parent if the organisation unit has a parent
         if parent_ref and parent_ref not in self.inserted_org_unit_map:
-
             parent_data = self.org.OrganisationUnit.get(parent_ref)
             self._import_org_units(parent_ref, parent_data)
 
@@ -696,11 +702,10 @@ class ImportUtility(object):
         The main import function
 
         :param org:
-            An object of the Organistion class type (Organisation)
+        An object of the Organistion class type (Organisation)
 
         :return:
-            A dummy return status (bool)
-
+        A dummy return status (bool)
         """
 
         if not isinstance(org, Organisation):

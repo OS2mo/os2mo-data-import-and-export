@@ -7,36 +7,38 @@ def organisation_payload(organisation, municipality_code, validity,
     MOX/Lora paylod for organisation
 
     :param organisation:
-        Data object: Organisation (dict)
-        Example:
-            {
-                "name": "Magenta Aps,
-                "user_key": "ABC34D61-FB3F-451A-9299-31218B4570E6",
-                "municipality_code": 101,
-            }
+    Data object: Organisation (dict)
+    Example:
+    {
+        "name": "Magenta Aps,
+        "user_key": "ABC34D61-FB3F-451A-9299-31218B4570E6",
+        "municipality_code": 101,
+    }
 
     :param validity:
-        Start and end date (dict)
-        Example:
-            {
-                "from": "1900-01-01",
-                "to": "infinity"
-            }
+    Start and end date (dict)
+    Example:
+    {
+        "from": "1900-01-01",
+        "to": "infinity"
+    }
 
     :param integration_data:
-        TODO!!!
+    If a non-empty dict is provided, it should contain a key with the  name
+    'integration_data'. The value for this key shoud be a valid json object
+    continaing a key-value pair that can later be used for identification of
+    the object.
 
     :return:
-        POST data payload (dict)
-
+    POST data payload (dict)
     """
 
     properties = {
         "virkning": validity
     }
+
     if integration_data is not {}:
         properties['integrationsdata'] = integration_data['integration_data']
-
     properties.update(organisation)
 
     attributter = {
@@ -93,7 +95,10 @@ def klassifikation_payload(klassifikation, organisation_uuid, validity,
             }
 
     :param integration_data:
-        TODO!!!
+    If a non-empty dict is provided, it should contain a key with the  name
+    'integration_data'. The value for this key shoud be a valid json object
+    continaing a key-value pair that can later be used for identification of
+    the object.
 
     :return:
         OIO formatted post data payload (dict)
@@ -168,7 +173,10 @@ def facet_payload(facet, klassifikation_uuid, organisation_uuid, validity,
             }
 
     :param integrationdata:
-        TODO!!!
+    If a non-empty dict is provided, it should contain a key with the  name
+    'integration_data'. The value for this key shoud be a valid json object
+    continaing a key-value pair that can later be used for identification of
+    the object.
 
     :return:
         OIO formatted post data payload (dict)
@@ -217,33 +225,35 @@ def facet_payload(facet, klassifikation_uuid, organisation_uuid, validity,
 
 
 def klasse_payload(klasse, facet_uuid, organisation_uuid, validity,
-                   integration_data):
+                   integration_data={}):
     """
     MOX/Lora paylod for klasse
 
     :param klasse:
-         Data object: klasse (dict)
+    Data object: klasse (dict)
 
     :param facet_uuid:
-        UUID of the parent type: facet (str: uuid)
+    UUID of the parent type: facet (str: uuid)
 
     :param organisation_uuid:
-        UUID of the organisation wrapper (str: uuid)
+    UUID of the organisation wrapper (str: uuid)
 
     :param validity:
-        Start and end date (dict)
-        Example:
-            {
-                "from": "1900-01-01",
-                "to": "infinity"
-            }
+    Start and end date (dict)
+    Example:
+        {
+            "from": "1900-01-01",
+            "to": "infinity"
+        }
 
     :param integrationdata:
-        TODO!!!
+    If a non-empty dict is provided, it should contain a key with the  name
+    'integration_data'. The value for this key shoud be a valid json object
+    continaing a key-value pair that can later be used for identification of
+    the object.
 
     :return:
-        OIO formatted post data payload (dict)
-
+    OIO formatted post data payload (dict)
     """
 
     # The following keys are required:
@@ -257,7 +267,7 @@ def klasse_payload(klasse, facet_uuid, organisation_uuid, validity,
     # Add all user specified properties
     properties.update(klasse)
     # TODO: The integration data do not belong in 'retskilde' but, currently
-    # it is not possible to add an integrations data field to Klasse.
+    # it is not possible to add an integration data field to Klasse.
     if integration_data is not {}:
         properties['retskilde'] = integration_data['integration_data']
 
