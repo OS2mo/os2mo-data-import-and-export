@@ -52,7 +52,8 @@ class ImportUtility(object):
         self.inserted_employee_map = {}
         self.inserted_itsystem_map = {}
 
-    def _integration_data(self, resource, reference, payload={}):
+    def _integration_data(self, resource, reference, payload={},
+                          encode_integration=True):
         """
         Update the payload with integration data. Checks if an object with this
         integration data already exists. In this case the uuid of the exisiting
@@ -60,11 +61,11 @@ class ImportUtility(object):
         the uuid found from integration data, an exception is raised.
 
         :param resource:
-        LoRa resource URL
+        LoRa resource URL.
 
         :param referece:
         Unique label that will be stored in the integration data to identify the
-        object on re-import
+        object on re-import.
 
         :param payload:
         The supplied payload will be updated with values for integration and uuid
@@ -73,6 +74,9 @@ class ImportUtility(object):
         when returned. For MOX objects, the initial payload
         will typically be empty, and the returned values can be fed to the relevant
         adapter.
+
+        :param encode_integration:
+        If True, the integration data will be returned in json-encoded form.
 
         :return:
         The original payload updated with integration data and object uuid, if the
@@ -120,7 +124,10 @@ class ImportUtility(object):
             else:
                 raise Exception('Inconsistent integration data!')
 
-            payload['integration_data'] = json.dumps(integration_data)
+            if encode_integration:
+                payload['integration_data'] = json.dumps(integration_data)
+            else:
+                payload['integration_data'] = integration_data
         return payload
 
     def insert_mox_data(self, resource, data, uuid=None):
@@ -451,7 +458,8 @@ class ImportUtility(object):
 
         payload = self.build_mo_payload(organisation_unit_data)
         payload = self._integration_data('organisation/organisationenhed',
-                                         reference, payload)
+                                         reference, payload,
+                                         encode_integration=False)
 
         if optional_data:
             additional_payload = [
@@ -506,7 +514,8 @@ class ImportUtility(object):
 
         payload = self.build_mo_payload(employee_data)
         payload = self._integration_data('organisation/bruger',
-                                         reference, payload)
+                                         reference, payload,
+                                         encode_integration=False)
 
         uuid = self.insert_mora_data(resource="service/e/create", data=payload)
         if 'uuid' in payload:
