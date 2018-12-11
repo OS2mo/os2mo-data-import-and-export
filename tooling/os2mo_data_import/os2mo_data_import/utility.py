@@ -66,27 +66,46 @@ class ImportUtility(object):
         """
         if self.store_integration_data:
             service = urljoin(self.mox_base, resource)
-            integration_data = json.dumps({self.system_name: reference})
-
+            #integration_data = {self.system_name: reference + self.system_name}
+            integration_data = {self.system_name: str(reference) + 'Jørgen'}
             if resource.find('klasse') > 0:
-                query = service + '?retskilde=%{}%'.format(integration_data)
+                query = service + '?retskilde=%{}%'
             else:
-                query = service + '?integrationsdata=%{}%'.format(integration_data)
+                query = service + '?integrationsdata=%{}%'
+            query = query.format(json.dumps(integration_data)[1:-1])
 
-            response = self.session.get(url=query)
+            # Call repr to ensure escaping consistent with the payload from request
+            response = self.session.get(url=repr(query)[1:-1])
             response = response.json()['results'][0]
+
             if len(response) == 0:
                 pass
+
             elif len(response) == 1:
                 uuid = response[0]
                 if 'uuid' in payload:
                     assert(uuid == payload['uuid'])
                 else:
                     payload['uuid'] = uuid
+
+                # Get the entire integration data string, we need to be polite
+                # towards the existing content:
+                object_url = '{}/{}'.format(service, uuid)
+                object_data = self.session.get(object_url)
+                object_data = object_data.json()[uuid]
+                attributter = object_data[0]['registreringer'][0]['attributter']
+                for key in attributter.keys():
+                    if key.find('egenskaber') > 0:
+                        egenskaber = attributter[key][0]
+
+                if resource.find('klasse') > 0:
+                    integration_data = json.loads(egenskaber['retskilde'])
+                else:
+                    integration_data = json.loads(egenskaber['integrationsdata'])
             else:
                 raise Exception('Inconsistent integration data!')
 
-            payload['integration_data'] = integration_data
+            payload['integration_data'] = json.dumps(integration_data)
         return payload
 
     def insert_mox_data(self, resource, data, uuid=None):
@@ -105,7 +124,6 @@ class ImportUtility(object):
             Inserted UUID (str)
 
         """
-
         service = urljoin(self.mox_base, resource)
 
         if self.dry_run:
@@ -129,7 +147,6 @@ class ImportUtility(object):
             response_data = response.json()
         if uuid is not None:
             assert(uuid == response_data["uuid"])
-
         return response_data["uuid"]
 
     def insert_mora_data(self, resource, data):
@@ -443,6 +460,7 @@ class ImportUtility(object):
             resource="service/ou/create",
             data=payload
         )
+
         if 'uuid' in payload:
             assert(uuid == payload['uuid'])
         if not uuid:
