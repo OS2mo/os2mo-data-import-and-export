@@ -331,11 +331,11 @@ Assign the manager position of Magenta to "Sussanne Chæf": ::
   )
 
 
-Preseration of uuid's
+Preservation of UUIDs
 """""""""""""""""""""
-If the system to be imported into MO contains uuid's that is to be preserved in MO,
-it is possible to import the values for employees, organisational units, classes and
-classifications. This is achieved by added an extra uuid argument when creating the
+If the system to be imported into MO contains UUIDs that should be preserved in MO,
+it is possible to import the UUIDs for employees, organisational units, classes and
+classifications. This is achieved by adding an extra uuid argument when creating the
 object, eg: ::
 
   Magenta.Klasse.add(
