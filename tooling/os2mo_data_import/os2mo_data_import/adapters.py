@@ -37,7 +37,7 @@ def organisation_payload(organisation, municipality_code, validity,
         "virkning": validity
     }
 
-    if integration_data is not {}:
+    if integration_data:
         properties['integrationsdata'] = integration_data['integration_data']
     properties.update(organisation)
 
@@ -108,7 +108,7 @@ def klassifikation_payload(klassifikation, organisation_uuid, validity,
     properties = {
         "virkning": validity
     }
-    if integration_data is not {}:
+    if integration_data:
         properties['integrationsdata'] = integration_data['integration_data']
 
     properties.update(klassifikation)
@@ -185,7 +185,7 @@ def facet_payload(facet, klassifikation_uuid, organisation_uuid, validity,
 
     properties = {"virkning": validity}
     properties.update(facet)
-    if integration_data is not {}:
+    if integration_data:
         properties['integrationsdata'] = integration_data['integration_data']
 
     attributter = {
@@ -268,7 +268,7 @@ def klasse_payload(klasse, facet_uuid, organisation_uuid, validity,
     properties.update(klasse)
     # TODO: The integration data do not belong in 'retskilde' but, currently
     # it is not possible to add an integration data field to Klasse.
-    if integration_data is not {}:
+    if integration_data:
         properties['retskilde'] = integration_data['integration_data']
 
     attributter = {
