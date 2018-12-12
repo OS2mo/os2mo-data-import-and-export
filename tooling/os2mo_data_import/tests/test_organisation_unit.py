@@ -35,7 +35,8 @@ class TestOrganisationUnit(unittest.TestCase):
             user_key="A0089744-ACC8-41DB-833C-155B66CF6C1A",
             org_unit_type_ref="Custom",
             parent_ref=None,
-            date_from="1980-01-01"
+            date_from="1980-01-01",
+            uuid="A0089744-ACC8-41DB-833C-155B66CF6C1A"
         )
 
         data = self.OrgUnit.get_data("test_unit")
@@ -45,7 +46,8 @@ class TestOrganisationUnit(unittest.TestCase):
             ("parent", None),
             ("org_unit_type", "Custom"),
             ("validity", {"from": "1980-01-01", "to": None}),
-            ("user_key", "A0089744-ACC8-41DB-833C-155B66CF6C1A")
+            ("user_key", "A0089744-ACC8-41DB-833C-155B66CF6C1A"),
+            ("uuid", "A0089744-ACC8-41DB-833C-155B66CF6C1A")
         ]
 
         self.assertEqual(expected, data)

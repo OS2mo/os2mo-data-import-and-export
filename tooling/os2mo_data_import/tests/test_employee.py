@@ -15,6 +15,7 @@ class TestEmployee(unittest.TestCase):
             cpr_no="0101805566",
             name="Susanne Chæf",
             user_key="5AD1E0B0-632C-4909-924E-2996F4F6961A",
+            uuid="5AD1E0B0-632C-4909-924E-2996F4F6961A",
         )
 
     def test_data_payload(self):
@@ -24,7 +25,8 @@ class TestEmployee(unittest.TestCase):
             ("name", "Susanne Chæf"),
             ("cpr_no", "0101805566"),
             ("org", None),
-            ("user_key", "5AD1E0B0-632C-4909-924E-2996F4F6961A")
+            ("user_key", "5AD1E0B0-632C-4909-924E-2996F4F6961A"),
+            ("uuid", "5AD1E0B0-632C-4909-924E-2996F4F6961A")
         ]
 
         self.assertEqual(expected, data)

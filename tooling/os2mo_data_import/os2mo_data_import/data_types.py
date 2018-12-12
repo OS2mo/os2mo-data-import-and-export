@@ -378,7 +378,6 @@ class Klasse(BaseMap):
         }
 
         data = {
-            "uuid": uuid,
             "facet_type_ref": facet_type_ref,
             "data": {
                 key: value
@@ -386,6 +385,8 @@ class Klasse(BaseMap):
                 if value
             }
         }
+        if uuid is not None:
+            data['uuid'] = uuid,
 
         return self.save(identifier, data)
 
