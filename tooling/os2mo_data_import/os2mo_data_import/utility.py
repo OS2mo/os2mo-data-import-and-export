@@ -33,8 +33,10 @@ class ImportUtility(object):
     """
 
     def __init__(self, dry_run=False, mox_base=MOX_BASE, mora_base=MORA_BASE,
-                 system_name='Import', store_integration_data=False):
+                 system_name='Import', store_integration_data=False,
+                 end_marker='Jørgen'):
         self.system_name = system_name
+        self.end_marker = end_marker
         self.store_integration_data = store_integration_data
 
         # Service endpoints
@@ -86,7 +88,7 @@ class ImportUtility(object):
         if self.store_integration_data:
             service = urljoin(self.mox_base, resource)
             # integration_data = {self.system_name: reference + self.system_name}
-            integration_data = {self.system_name: str(reference) + 'Jørgen'}
+            integration_data = {self.system_name: str(reference) + self.end_marker}
             if resource.find('klasse') > 0:
                 query = service + '?retskilde=%{}%'
             else:
@@ -129,6 +131,28 @@ class ImportUtility(object):
             else:
                 payload['integration_data'] = integration_data
         return payload
+
+    def _payload_compare(self, item_payload, engagement_data):
+        found_hit = False
+        if item_payload['type'] == 'engagement':
+            for engagement in engagement_data:
+                identical = (
+                    (engagement['org_unit']['uuid'] ==
+                     item_payload['org_unit']['uuid']) and
+
+                    (engagement['validity']['from'] ==
+                     item_payload['validity']['from']) and
+
+                    (engagement['validity']['to'] ==
+                     item_payload['validity']['to']) and
+
+                    (engagement['job_function']['uuid'] ==
+                     item_payload['job_function']['uuid'])
+                )
+                print('Identical: {}'.format(identical))
+                if identical:
+                    found_hit = True
+        return found_hit
 
     def insert_mox_data(self, resource, data, uuid=None):
         """
@@ -370,7 +394,8 @@ class ImportUtility(object):
         Inserted UUID (str)
         """
 
-        uuid = klasse['uuid']
+        uuid = klasse.get('uuid', None)
+        # uuid = klasse['uuid'] # TODO: Remove
         klasse_data = klasse["data"]
         facet_type_ref = klasse["facet_type_ref"]
 
@@ -524,18 +549,25 @@ class ImportUtility(object):
         # Add uuid to the inserted employee map
         self.inserted_employee_map[reference] = uuid
 
+        service = urljoin(self.mora_base, 'service/e/{}/details/engagement')
+        url = service.format(uuid)
+        engagement_data = self.session.get(url)
+        engagement_data = engagement_data.json()
+
         # Details: /service/details/create endpoint
         if optional_data:
-            additional_payload = [
-                self.build_mo_payload(item, person_uuid=uuid)
-                for item in optional_data
-            ]
+            additional_payload = []
+            for item in optional_data:
+                item_payload = self.build_mo_payload(item, person_uuid=uuid)
+                found_engagement = self._payload_compare(item_payload,
+                                                         engagement_data)
+                if not found_engagement:
+                    additional_payload.append(item_payload)
 
             self.insert_mora_data(
                 resource="service/details/create",
                 data=additional_payload
             )
-
         return uuid
 
     def build_mo_payload(self, list_of_tuples, person_uuid=None):
