@@ -101,9 +101,9 @@ class MoraHelper(object):
             i += 1
         return path_dict
 
-    def _mo_lookup(self, uuid, url):
+    def _mo_lookup(self, uuid, url, use_cache=True):
         full_url = self.host + url.format(uuid)
-        if full_url in self.cache:
+        if (full_url in self.cache) and use_cache:
             return_dict = self.cache[full_url]
         else:
             return_dict = requests.get(full_url).json()
