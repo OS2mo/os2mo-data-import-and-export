@@ -132,26 +132,62 @@ class ImportUtility(object):
                 payload['integration_data'] = integration_data
         return payload
 
-    def _payload_compare(self, item_payload, engagement_data):
+    def _ou_and_validity_compare(self, item_payload, data_item, extra_field=None):
+        identical = (
+            (data_item['org_unit']['uuid'] ==
+             item_payload['org_unit']['uuid']) and
+
+            (data_item['validity']['from'] ==
+             item_payload['validity']['from']) and
+
+            (data_item['validity']['to'] ==
+             item_payload['validity']['to'])
+            )
+        if extra_field is not None:
+            identical = (
+                identical and
+                data_item[extra_field]['uuid'] == item_payload[extra_field]['uuid']
+            )
+        return identical
+    
+    def _payload_compare(self, item_payload, data):
+        data_type = item_payload['type']
         found_hit = False
-        if item_payload['type'] == 'engagement':
-            for engagement in engagement_data:
-                identical = (
-                    (engagement['org_unit']['uuid'] ==
-                     item_payload['org_unit']['uuid']) and
+        if data_type == 'engagement':
+            for data_item in data[data_type]:
+                if self._ou_and_validity_compare(item_payload, data_item,
+                                                'job_function'):
+                    found_hit = True
 
-                    (engagement['validity']['from'] ==
-                     item_payload['validity']['from']) and
-
-                    (engagement['validity']['to'] ==
-                     item_payload['validity']['to']) and
-
-                    (engagement['job_function']['uuid'] ==
-                     item_payload['job_function']['uuid'])
-                )
-                print('Identical: {}'.format(identical))
+        elif data_type == 'role':
+            for data_item in data[data_type]:
+                if self._ou_and_validity_compare(item_payload, data_item,
+                                                 'role_type'):
+                    found_hit = True
+                    
+        elif data_type == 'manager':
+            for data_item in data[data_type]:
+                identical = self._ou_and_validity_compare(item_payload, data_item,
+                                                          'manager_level')
+                uuids = []
+                for item in item_payload['responsibility']:
+                    uuids.append(item['uuid'])
+                for responsibility in data_item['responsibility']:
+                    identical = identical and (responsibility['uuid'] in uuids)
+                identical = (identical and
+                             (len(data_item['responsibility']) == len(uuids)))
                 if identical:
                     found_hit = True
+
+        elif data_type == 'association':
+            for data_item in data[data_type]:
+                if self._ou_and_validity_compare(item_payload, data_item,
+                                                 'association_type'):
+                    found_hit = True
+
+        else:
+            raise Exception('Uknown detail!')
+        print('Compared {}, found a hit: {}'.format(data_type, found_hit))
         return found_hit
 
     def insert_mox_data(self, resource, data, uuid=None):
@@ -513,6 +549,19 @@ class ImportUtility(object):
 
         return uuid
 
+    def _get_detail(self, uuid, field_type):
+        """ Get information from /detail for an employee
+        :param uuid: uuid for the employee
+        :param field_type: detail field type
+        :return: dict with the relevant information
+        """
+        service = urljoin(self.mora_base, 'service/e/{}/details/{}')
+        url = service.format(uuid, field_type)
+        data = self.session.get(url)
+        data = data.json()
+        return data
+        
+    
     def import_employee(self, reference, employee_data, optional_data=None):
         """
         Insert primary and optional data for an employee
@@ -549,19 +598,27 @@ class ImportUtility(object):
         # Add uuid to the inserted employee map
         self.inserted_employee_map[reference] = uuid
 
-        service = urljoin(self.mora_base, 'service/e/{}/details/engagement')
-        url = service.format(uuid)
-        engagement_data = self.session.get(url)
-        engagement_data = engagement_data.json()
-
+        data = {}
+        data['role'] =  self._get_detail(uuid, 'role')
+        data['manager'] = self._get_detail(uuid, 'manager')
+        data['engagement'] = self._get_detail(uuid, 'engagement')
+        data['association'] =  self._get_detail(uuid, 'association')
+        # todo: check association
+        # todo: it
+        
         # Details: /service/details/create endpoint
         if optional_data:
             additional_payload = []
             for item in optional_data:
+                found_hit = False
                 item_payload = self.build_mo_payload(item, person_uuid=uuid)
-                found_engagement = self._payload_compare(item_payload,
-                                                         engagement_data)
-                if not found_engagement:
+
+                if item_payload['type'] in data.keys():
+                    found_hit = self._payload_compare(item_payload, data)
+                else:
+                    print(item_payload['type'])
+
+                if not found_hit:
                     additional_payload.append(item_payload)
 
             self.insert_mora_data(
