@@ -46,7 +46,8 @@ START_DATE = '1960-01-01'
 
 def _path_to_names():
     """ Return a list of paths to the name-lists """
-    path = pathlib.Path.cwd()
+    # path = pathlib.Path.cwd()
+    path = pathlib.Path(__file__).resolve().parent
     path = path / 'navne'
     navne_list = [path / 'fornavne.txt',
                   path / 'mellemnavne.txt',
@@ -319,11 +320,12 @@ class CreateDummyOrg(object):
             user.append(self._create_user(name, user_key, time_from, None, cpr))
         return user
 
-    def create_org_func_tree(self, too_many_units=False):
+    def create_org_func_tree(self, too_many_units=False, small_set=False):
         """ Create an organisational structure, based on the municipality code.
         :param too_many_units: If True a large number of units will be made in
         one of the the sub-trees for performance testing purposes.
         """
+        # TODO: Unify the two size arguments
         orgs = ['Borgmesterens Afdeling',
                 'Teknik og Miljø',
                 'Skole og Børn',
@@ -333,24 +335,25 @@ class CreateDummyOrg(object):
         keys = sorted(self.nodes.keys())  # Sort the keys to ensure test-cosistency
         for node in list(keys):
             org = self.nodes[node].name
-            if org == 'Teknik og Miljø':
-                orgs = ['Kloakering',
-                        'Park og vej',
-                        'Renovation',
-                        'Belysning',
-                        'IT-Support']
-                uuids = self._create_org_level(orgs, self.nodes[node])
-                for uuid in uuids:
-                    if random.random() > 0.5:
-                        self._create_org_level(['Kantine'], self.nodes[uuid])
+            if not small_set:
+                if org == 'Teknik og Miljø':
+                    orgs = ['Kloakering',
+                            'Park og vej',
+                            'Renovation',
+                            'Belysning',
+                            'IT-Support']
+                    uuids = self._create_org_level(orgs, self.nodes[node])
+                    for uuid in uuids:
+                        if random.random() > 0.5:
+                            self._create_org_level(['Kantine'], self.nodes[uuid])
 
-            if org == 'Borgmesterens Afdeling':
-                orgs = ['Budget og Planlægning',
-                        'HR og organisation',
-                        'Erhverv',
-                        'Byudvikling',
-                        'IT-Support']
-                self._create_org_level(orgs, self.nodes[node])
+                if org == 'Borgmesterens Afdeling':
+                    orgs = ['Budget og Planlægning',
+                            'HR og organisation',
+                            'Erhverv',
+                            'Byudvikling',
+                            'IT-Support']
+                    self._create_org_level(orgs, self.nodes[node])
 
             if org == 'Skole og Børn':
                 orgs = ['Social Indsats', 'IT-Support']
@@ -407,7 +410,7 @@ class CreateDummyOrg(object):
         if node is not None:
             unit = node.key
         else:
-            unit = random.choice(list(self.nodes.keys()))
+            unit = random.choice(sorted(list(self.nodes.keys())))
         payload = None
         if random.random() > 0.6:
             payload = {
@@ -462,7 +465,7 @@ if __name__ == '__main__':
             if node.parent:
                 print(node.parent.key)  # Key for parent unit
             print(node.adresse['dar-uuid'])
-        """
+
         if node.type == 'user':
             print()
             print('---')
@@ -480,4 +483,3 @@ if __name__ == '__main__':
                 print('Ansvar: {}'.format(engagement['manager']))
                 print('Fra: {}. Til: {}'.format(engagement['fra'],
                                                 engagement['til']))
-        """
