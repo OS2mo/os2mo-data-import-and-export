@@ -132,43 +132,65 @@ class ImportUtility(object):
                 payload['integration_data'] = integration_data
         return payload
 
-    def _ou_and_validity_compare(self, item_payload, data_item, extra_field=None):
+    def _std_compare(self, item_payload, data_item, extra_field=None):
+
         identical = (
-            (data_item['org_unit']['uuid'] ==
-             item_payload['org_unit']['uuid']) and
-
-            (data_item['validity']['from'] ==
-             item_payload['validity']['from']) and
-
-            (data_item['validity']['to'] ==
-             item_payload['validity']['to'])
-            )
+            (data_item['org_unit']['uuid'] == item_payload['org_unit']['uuid']) and
+            (data_item['validity']['from'] == item_payload['validity']['from']) and
+            (data_item['validity']['to'] == item_payload['validity']['to'])
+        )
         if extra_field is not None:
             identical = (
                 identical and
                 data_item[extra_field]['uuid'] == item_payload[extra_field]['uuid']
             )
         return identical
-    
+
     def _payload_compare(self, item_payload, data):
         data_type = item_payload['type']
         found_hit = False
         if data_type == 'engagement':
             for data_item in data[data_type]:
-                if self._ou_and_validity_compare(item_payload, data_item,
-                                                'job_function'):
+                if self._std_compare(item_payload, data_item, 'job_function'):
                     found_hit = True
 
         elif data_type == 'role':
             for data_item in data[data_type]:
-                if self._ou_and_validity_compare(item_payload, data_item,
-                                                 'role_type'):
+                if self._std_compare(item_payload, data_item, 'role_type'):
                     found_hit = True
-                    
+
+        elif data_type == 'it':
+            for data_item in data[data_type]:
+                if (
+                    (data_item['validity']['from'] ==
+                     item_payload['validity']['from']) and
+
+                    (data_item['validity']['to'] ==
+                     item_payload['validity']['to']) and
+
+                    (data_item['itsystem']['uuid'] ==
+                     item_payload['itsystem']['uuid'])
+                ):
+                    found_hit = True
+
+        elif data_type == 'address':
+            for data_item in data[data_type]:
+                if (
+                    (data_item['validity']['from'] ==
+                     item_payload['validity']['from']) and
+
+                    (data_item['validity']['to'] ==
+                     item_payload['validity']['to']) and
+
+                    (data_item['href'] == item_payload['value'])
+                ):
+                    found_hit = True
+            found_hit = True
+
         elif data_type == 'manager':
             for data_item in data[data_type]:
-                identical = self._ou_and_validity_compare(item_payload, data_item,
-                                                          'manager_level')
+                identical = self._std_compare(item_payload, data_item,
+                                              'manager_level')
                 uuids = []
                 for item in item_payload['responsibility']:
                     uuids.append(item['uuid'])
@@ -181,13 +203,10 @@ class ImportUtility(object):
 
         elif data_type == 'association':
             for data_item in data[data_type]:
-                if self._ou_and_validity_compare(item_payload, data_item,
-                                                 'association_type'):
+                if self._std_compare(item_payload, data_item, 'association_type'):
                     found_hit = True
-
         else:
             raise Exception('Uknown detail!')
-        print('Compared {}, found a hit: {}'.format(data_type, found_hit))
         return found_hit
 
     def insert_mox_data(self, resource, data, uuid=None):
@@ -481,15 +500,25 @@ class ImportUtility(object):
         Inserted UUID (str)
         """
 
+        resource = 'organisation/itsystem'
+        name = itsystem['itsystemnavn']
+        integration_data = self._integration_data(resource, name, {})
+        if 'uuid' in integration_data:
+            itsystem_uuid = integration_data['uuid']
+        else:
+            itsystem_uuid = None
+
         payload = adapters.itsystem_payload(
             itsystem=itsystem,
             organisation_uuid=self.organisation_uuid,
-            validity=self.global_validity
+            validity=self.global_validity,
+            integration_data=integration_data
         )
 
         return self.insert_mox_data(
-            resource="organisation/itsystem",
-            data=payload
+            resource=resource,
+            data=payload,
+            uuid=itsystem_uuid
         )
 
     def import_org_unit(self, reference, organisation_unit_data, optional_data=None):
@@ -555,12 +584,24 @@ class ImportUtility(object):
         :param field_type: detail field type
         :return: dict with the relevant information
         """
-        service = urljoin(self.mora_base, 'service/e/{}/details/{}')
-        url = service.format(uuid, field_type)
-        data = self.session.get(url)
-        data = data.json()
-        return data
-        
+        all_data = []
+        for validity in ['past', 'present', 'future']:
+            service = urljoin(self.mora_base, 'service/e/{}/details/{}?validity={}')
+            url = service.format(uuid, field_type, validity)
+            data = self.session.get(url)
+            data = data.json()
+            all_data += data
+        return all_data
+
+    def _check_employee_existence(self, payload):
+        existing_employee = False
+        if 'uuid' in payload:
+            service = urljoin(self.mora_base, 'service/e/{}')
+            url = service.format(payload['uuid'])
+            data = self.session.get(url).json()
+            if 'name' in data:
+                existing_employee = True
+        return existing_employee
     
     def import_employee(self, reference, employee_data, optional_data=None):
         """
@@ -590,7 +631,11 @@ class ImportUtility(object):
         payload = self._integration_data('organisation/bruger',
                                          reference, payload,
                                          encode_integration=False)
+        existing_employee = self._check_employee_existence(payload)
 
+        # We need to unconditionally create or update the user, even though
+        # he or she is already created. Alternatively we could check if the
+        # name is unchanged and only update if it is.
         uuid = self.insert_mora_data(resource="service/e/create", data=payload)
         if 'uuid' in payload:
             assert(uuid == payload['uuid'])
@@ -599,27 +644,31 @@ class ImportUtility(object):
         self.inserted_employee_map[reference] = uuid
 
         data = {}
-        data['role'] =  self._get_detail(uuid, 'role')
+        data['it'] = self._get_detail(uuid, 'it')
+        data['role'] = self._get_detail(uuid, 'role')
+        # A bug in MO implies that the address information is thrown away after
+        # the re-creation of the underlying user.
+        # data['address'] = self._get_detail(uuid, 'address')
         data['manager'] = self._get_detail(uuid, 'manager')
         data['engagement'] = self._get_detail(uuid, 'engagement')
-        data['association'] =  self._get_detail(uuid, 'association')
-        # todo: check association
-        # todo: it
-        
+        data['association'] = self._get_detail(uuid, 'association')
+
         # Details: /service/details/create endpoint
         if optional_data:
             additional_payload = []
             for item in optional_data:
                 found_hit = False
                 item_payload = self.build_mo_payload(item, person_uuid=uuid)
-
                 if item_payload['type'] in data.keys():
                     found_hit = self._payload_compare(item_payload, data)
                 else:
-                    print(item_payload['type'])
+                    print(item_payload)
+                    # raise Exception('Unknown payload')
 
                 if not found_hit:
                     additional_payload.append(item_payload)
+
+            print('Additional payload: {}'.format(len(additional_payload)))
 
             self.insert_mora_data(
                 resource="service/details/create",
