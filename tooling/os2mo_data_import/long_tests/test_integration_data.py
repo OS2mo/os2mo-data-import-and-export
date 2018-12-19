@@ -7,6 +7,7 @@
 #
 import sys
 import random
+import requests
 import unittest
 fixture_generator_path = '/home/clint/os2mo-data-import-and-export/tooling/fixture_generator'
 exporters_path = '/home/clint/os2mo-data-import-and-export/exporters/'
@@ -15,6 +16,7 @@ sys.path.append(import_path)
 sys.path.append(exporters_path)
 sys.path.append(fixture_generator_path)
 from datetime import datetime
+from urllib.parse import urljoin
 from mora_helpers import MoraHelper
 
 from os2mo_data_import.data_types import Organisation
@@ -30,7 +32,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.mora_base = 'http://localhost:80'
         self.system_name = 'Test Dummy Import'
         self.dummy_org = CreateDummyOrg(825, 'Læsø Kommune', scale=1,
-                                        heavy_data_set=False)
+                                        heavy_data_set=False, small_set=True)
 
     @classmethod
     def setUp(self):
@@ -62,12 +64,12 @@ class IntegrationDataTests(unittest.TestCase):
         org = self.morah.read_organisation()
         counts = self.morah._mo_lookup(org, 'o/{}/', use_cache=False)
         test_values = [
-            ('role_count', 11),
-            ('association_count', 12),
-            ('engagement_count', 47),
-            ('unit_count', 23 + extra),
-            ('manager_count', 18),
-            ('person_count', 60 + extra)
+            ('role_count', 3),
+            ('association_count', 5),
+            ('engagement_count', 21),
+            ('unit_count', 12 + extra),
+            ('manager_count', 10),
+            ('person_count', 29 + extra)
         ]
         for key, value in test_values:
             with self.subTest(key=key, value=value):
@@ -101,7 +103,47 @@ class IntegrationDataTests(unittest.TestCase):
         assert(len(classes['data']['items']) == 19)
 
     def test_020_re_import(self):
-        """ Run the import again. This should result in the same organisation """
+        """ Run the import again. This should result in an organisation of
+        the same size. We also at the same time move a single user between
+        two units. The success of this move is checked in a later test."""
+
+        new_uuid = self._find_park_og_vej()
+        print(new_uuid)
+        henny = self.dummy_org.org.Employee.storage_map['HennyR']
+        henny['optional_data'] = [
+            [('type', 'engagement'),
+             ('org_unit', new_uuid),
+             ('job_function', 'Udviklingskonsulent'),
+             ('engagement_type', 'Ansat'),
+             ('validity', {'to': None, 'from': '1997-01-16'})],
+            [('type', 'address'),
+             ('address_type', 'AdressePost'),
+             ('validity', {'to': None, 'from': '1997-01-16'}),
+             ('uuid', '919eb449-41e0-4290-b3c7-98cb83a652f9')],
+            [('type', 'address'), ('address_type', 'Telefon'),
+             ('validity', {'to': None, 'from': '1997-01-16'}),
+             ('value', '46571200')],
+            [('type', 'address'),
+             ('address_type', 'Email'),
+             ('validity', {'to': None, 'from': '1997-01-16'}),
+             ('value', 'hennyr@laeso.dk')],
+            [('type', 'it'), ('user_key', 'HennyR'),
+             ('itsystem', 'Office 365'),
+             ('validity', {'to': None, 'from': '1997-01-16'})],
+            [('type', 'it'), ('user_key', 'HennyR'),
+             ('itsystem', 'Active Directory'),
+             ('validity', {'to': None, 'from': '1997-01-16'})],
+            [('type', 'manager'),
+             ('org_unit', new_uuid),
+             ('manager_type', 'Direktør'),
+             ('manager_level', 'Niveau 4'),
+             ('responsibility', ['Personale: ansættelse/afskedigelse',
+                                 'Personale: øvrige administrative opgaver',
+                                 'Personale: Sygefravær']),
+             ('validity', {'to': None, 'from': '1997-01-16'})]
+        ]
+        self.dummy_org.org.Employee.storage_map['HennyR']['optional_data'] = henny
+
         self._run_import_and_test_org_sanity()
 
     def test_021_klasse_re_import(self):
@@ -109,6 +151,13 @@ class IntegrationDataTests(unittest.TestCase):
         org = self.morah.read_organisation()
         classes = self.morah._mo_lookup(org, 'o/{}/f/job_function/', use_cache=False)
         assert(len(classes['data']['items']) == 19)
+
+    def test_022_it_system_re_import(self):
+        """ No extra itsystems should be imprted after the second import """
+        service = urljoin(self.mox_base, '/organisation/itsystem?bvn=%')
+        response = requests.get(service)
+        response = response.json()
+        assert(len(response['results'][0]) == 5)
 
     def test_030_add_forced_uuids(self):
         """ Add a unit, employees and classes with forced uuid, and re-import """
