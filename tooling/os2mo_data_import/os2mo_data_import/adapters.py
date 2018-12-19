@@ -308,7 +308,7 @@ def klasse_payload(klasse, facet_uuid, organisation_uuid, validity,
     }
 
 
-def itsystem_payload(itsystem, organisation_uuid, validity):
+def itsystem_payload(itsystem, organisation_uuid, validity, integration_data={}):
     """
     MOX/Lora paylod for itsystem
 
@@ -334,6 +334,8 @@ def itsystem_payload(itsystem, organisation_uuid, validity):
     properties = {
         "virkning": validity
     }
+    if integration_data:
+        properties['integrationsdata'] = integration_data['integration_data']
 
     properties.update(itsystem)
 
