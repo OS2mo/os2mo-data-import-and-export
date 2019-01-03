@@ -143,7 +143,7 @@ def klassifikation_payload(klassifikation, organisation_uuid, validity,
         ]
     }
 
-    return{
+    return {
         "attributter": attributter,
         "relationer": relationer,
         "tilstande": tilstande
