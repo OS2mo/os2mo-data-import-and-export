@@ -192,7 +192,7 @@ class CreateDummyOrg(object):
 
 
 if __name__ == '__main__':
-    creator = CreateDummyOrg(101, 'København', scale=10, heavy_data_set=False)
+    creator = CreateDummyOrg(101, 'København', scale=10, org_size=Size.Normal)
     dummy_import = ImportUtility(
         dry_run=False,
         mox_base='http://localhost:8080',
