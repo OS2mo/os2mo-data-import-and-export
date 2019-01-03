@@ -208,7 +208,7 @@ class AposImport(object):
                         uuid = klasse['@uuid']
                     except ValueError:
                         uuid = None
-                        # TODO: Add the value to the Rodekasse!!!
+
                     self.org.Klasse.add(identifier=klasse['@uuid'],
                                         uuid=uuid,
                                         title=klasse['@title'],
