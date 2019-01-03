@@ -231,7 +231,7 @@ class IntegrationDataTests(unittest.TestCase):
     @freeze_time("2018-12-04")
     def test_040_correct_initial_import(self):
         """ Import and test that the org is as expected """
-        self._run_import_and_test_org_sanity()
+        self._run_import_and_test_org_sanity(extra=1)
 
 
 if __name__ == '__main__':
