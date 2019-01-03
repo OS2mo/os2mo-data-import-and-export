@@ -21,9 +21,11 @@ sys.path.append(import_path)
 sys.path.append(exporters_path)
 sys.path.append(fixture_generator_path)
 from mora_helpers import MoraHelper
+# Will be needed for test 020
 # from os2mo_data_import.data_types import Organisation
 from os2mo_data_import.utility import ImportUtility
 from populate_mo import CreateDummyOrg
+from populate_mo import Size
 
 
 class IntegrationDataTests(unittest.TestCase):
@@ -35,7 +37,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.mora_base = 'http://localhost:80'
         self.system_name = 'Test Dummy Import'
         self.dummy_org = CreateDummyOrg(825, 'Læsø Kommune', scale=1,
-                                        heavy_data_set=False, small_set=True)
+                                        org_size=Size.Small)
 
     @classmethod
     def setUp(self):
@@ -48,8 +50,6 @@ class IntegrationDataTests(unittest.TestCase):
     def _find_top_unit(self):
         """ Find the imported uuid of 'Park og Vej' """
         org = self.morah.read_organisation()
-        # Kan slettes?
-        # org_uuid = self.morah._mo_lookup(org, 'o/', use_cache=False)[0]['uuid']
         units = self.morah._mo_lookup(org, 'o/{}/ou', use_cache=False)
         for unit in units['items']:
             if unit['name'] == 'Læsø Kommune':

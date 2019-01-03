@@ -11,14 +11,12 @@ sys.path.append(fixture_generator_path)
 # from os2mo_data_import.utility import ImportUtility
 from os2mo_data_import.data_types import Organisation
 from os2mo_data_import.utility import ImportUtility
+from dummy_data_creator import Size
 
 
 class CreateDummyOrg(object):
-
-    def __init__(self, municipality_code, name, scale=1, heavy_data_set=False,
-                 small_set=False):
-        self.data = self.create_dummy_data(municipality_code, name, scale,
-                                           heavy_data_set, small_data_set=small_set)
+    def __init__(self, municipality_code, name, scale=1, org_size=Size.Normal):
+        self.data = self.create_dummy_data(municipality_code, name, scale, org_size)
 
         self.org = Organisation(
             name=self.data.nodes['root'].name,
@@ -36,16 +34,14 @@ class CreateDummyOrg(object):
             if node.type == 'user':
                 self.create_user(node)
 
-    def create_dummy_data(self, municipality_code, name, scale,
-                          heavy_data_set, small_data_set):
+    def create_dummy_data(self, municipality_code, name, scale, org_size):
         name_path = dummy_data_creator._path_to_names()
         data = dummy_data_creator.CreateDummyOrg(municipality_code,
                                                  name, name_path)
 
-        data.create_org_func_tree(too_many_units=heavy_data_set,
-                                  small_set=small_data_set)
+        data.create_org_func_tree(org_size=org_size)
 
-        data.add_users_to_tree(scale, multiple_employments=heavy_data_set)
+        data.add_users_to_tree(scale, multiple_employments=org_size == Size.Large)
         return data
 
     def create_classes(self):

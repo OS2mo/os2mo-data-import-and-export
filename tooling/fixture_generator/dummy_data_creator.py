@@ -3,6 +3,7 @@ import pickle
 import random
 import pathlib
 import requests
+from enum import Enum
 from datetime import datetime
 from datetime import timedelta
 from uuid import uuid5, NAMESPACE_DNS
@@ -46,7 +47,6 @@ START_DATE = '1960-01-01'
 
 def _path_to_names():
     """ Return a list of paths to the name-lists """
-    # path = pathlib.Path.cwd()
     path = pathlib.Path(__file__).resolve().parent
     path = path / 'navne'
     navne_list = [path / 'fornavne.txt',
@@ -137,6 +137,9 @@ def _name_to_host(name):
     name = name.replace('å', 'a')
     name = name + '.dk'
     return name
+
+
+Size = Enum('Size', 'Small Normal Large')
 
 
 class CreateDummyOrg(object):
@@ -320,12 +323,13 @@ class CreateDummyOrg(object):
             user.append(self._create_user(name, user_key, time_from, None, cpr))
         return user
 
-    def create_org_func_tree(self, too_many_units=False, small_set=False):
+    def create_org_func_tree(self, org_size=Size.Normal):
         """ Create an organisational structure, based on the municipality code.
-        :param too_many_units: If True a large number of units will be made in
-        one of the the sub-trees for performance testing purposes.
+        :param org_size: If 'Normal' a standard number of units will be made. If
+        'Large' a  large number of units will be made in one of the the sub-trees for
+        performance testing purposes. If 'Small' the a smaller amount of units is
+        created, mainly to facilitate faster testing.
         """
-        # TODO: Unify the two size arguments
         orgs = ['Borgmesterens Afdeling',
                 'Teknik og Miljø',
                 'Skole og Børn',
@@ -335,7 +339,7 @@ class CreateDummyOrg(object):
         keys = sorted(self.nodes.keys())  # Sort the keys to ensure test-cosistency
         for node in list(keys):
             org = self.nodes[node].name
-            if not small_set:
+            if not org_size == Size.Small:
                 if org == 'Teknik og Miljø':
                     orgs = ['Kloakering',
                             'Park og vej',
@@ -365,12 +369,12 @@ class CreateDummyOrg(object):
                 skoler = []
                 for dist in self._postdistrikter():
                     skoler.append(dist + " skole")
-                    if too_many_units:
+                    if org_size == Size.Large:
                         for i in range(0, 25):
                             skoler.append(dist + " skole " + str(i))
                 self._create_org_level(skoler, self.nodes[uuid])
 
-                if not small_set:
+                if not org_size == Size.Small:
                     børnehaver = [dist + " børnehus"
                                   for dist in self._postdistrikter()]
                     uuids = self._create_org_level(børnehaver, self.nodes[uuid])
