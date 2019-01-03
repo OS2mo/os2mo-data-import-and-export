@@ -148,6 +148,8 @@ class IntegrationDataTests(unittest.TestCase):
         the same size. We also at the same time move a single user between
         two units. The success of this move is checked in a later test."""
 
+        # TODO: We need to check that we can change the name of a person
+
         # TODO: This needs to work:
         """
         new_uuid = self._find_top_unit()
