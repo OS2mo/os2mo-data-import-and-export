@@ -370,18 +370,19 @@ class CreateDummyOrg(object):
                             skoler.append(dist + " skole " + str(i))
                 self._create_org_level(skoler, self.nodes[uuid])
 
-                børnehaver = [dist + " børnehus"
-                              for dist in self._postdistrikter()]
-                uuids = self._create_org_level(børnehaver, self.nodes[uuid])
-                for uuid in uuids:
-                    if random.random() > 0.5:
-                        self._create_org_level(['Administration'],
-                                               self.nodes[uuid])
-                    elif random.random() > 0.5:
-                        self._create_org_level(
-                            ['Administration', 'Teknisk Support'],
-                            self.nodes[uuid]
-                        )
+                if not small_set:
+                    børnehaver = [dist + " børnehus"
+                                  for dist in self._postdistrikter()]
+                    uuids = self._create_org_level(børnehaver, self.nodes[uuid])
+                    for uuid in uuids:
+                        if random.random() > 0.5:
+                            self._create_org_level(['Administration'],
+                                                   self.nodes[uuid])
+                        elif random.random() > 0.5:
+                            self._create_org_level(
+                                ['Administration', 'Teknisk Support'],
+                                self.nodes[uuid]
+                            )
 
     def create_manager(self):
         """
