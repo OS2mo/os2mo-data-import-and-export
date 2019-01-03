@@ -1,14 +1,24 @@
+import sys
 import dummy_data_creator
 from datetime import datetime
 from anytree import PreOrderIter
-from os2mo_data_import import Organisation, ImportUtility
+base_path = '/home/clint/os2mo-data-import-and-export/'
+fixture_generator_path = base_path + 'tooling/fixture_generator'
+import_path = base_path + 'tooling/os2mo_data_import/os2mo_data_import'
+sys.path.append(import_path)
+sys.path.append(fixture_generator_path)
+# from os2mo_data_import.adapters import Organisation
+# from os2mo_data_import.utility import ImportUtility
+from os2mo_data_import.data_types import Organisation
+from os2mo_data_import.utility import ImportUtility
 
 
 class CreateDummyOrg(object):
 
-    def __init__(self, municipality_code, name, scale=1, heavy_data_set=False):
+    def __init__(self, municipality_code, name, scale=1, heavy_data_set=False,
+                 small_set=False):
         self.data = self.create_dummy_data(municipality_code, name, scale,
-                                           heavy_data_set)
+                                           heavy_data_set, small_data_set=small_set)
 
         self.org = Organisation(
             name=self.data.nodes['root'].name,
@@ -27,11 +37,14 @@ class CreateDummyOrg(object):
                 self.create_user(node)
 
     def create_dummy_data(self, municipality_code, name, scale,
-                          heavy_data_set):
+                          heavy_data_set, small_data_set):
         name_path = dummy_data_creator._path_to_names()
         data = dummy_data_creator.CreateDummyOrg(municipality_code,
                                                  name, name_path)
-        data.create_org_func_tree(too_many_units=heavy_data_set)
+
+        data.create_org_func_tree(too_many_units=heavy_data_set,
+                                  small_set=small_data_set)
+
         data.add_users_to_tree(scale, multiple_employments=heavy_data_set)
         return data
 
@@ -88,6 +101,7 @@ class CreateDummyOrg(object):
     def create_user(self, user_node):
         self.org.Employee.add(
             name=user_node.name,
+            user_key=user_node.user[0]['brugervendtnoegle'],
             identifier=user_node.user[0]['brugervendtnoegle'],
             cpr_no=user_node.user[0]['cpr']
         )
@@ -182,9 +196,9 @@ class CreateDummyOrg(object):
 
 
 if __name__ == '__main__':
-    creator = CreateDummyOrg(370, 'Næstved', scale=8, heavy_data_set=False)
+    creator = CreateDummyOrg(101, 'København', scale=10, heavy_data_set=False)
     dummy_import = ImportUtility(
-        dry_run=True,
+        dry_run=False,
         mox_base='http://localhost:8080',
         mora_base='http://localhost:80'
     )
