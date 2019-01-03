@@ -39,7 +39,7 @@ class ImportUtility(object):
                  end_marker='Jørgen'):
         self.system_name = system_name
         self.end_marker = end_marker
-        self.existing_uuids = [] # List of all uuids we know already lives in LoRa
+        self.existing_uuids = []  # List of all uuids we know already lives in LoRa
         self.store_integration_data = store_integration_data
 
         # Service endpoints
@@ -108,7 +108,7 @@ class ImportUtility(object):
 
             elif len(response) == 1:
                 uuid = response[0]
-                self.existing_uuids.append(uuid) 
+                self.existing_uuids.append(uuid)
                 if 'uuid' in payload:
                     assert(uuid == payload['uuid'])
                 else:
@@ -138,7 +138,14 @@ class ImportUtility(object):
         return payload
 
     def _std_compare(self, item_payload, data_item, extra_field=None):
-
+        """ Helper for _payload_compare, performs the checks that are identical
+        for most object types.
+        :param item_payload: The new payload data.
+        :param data_item: The existing set of data.
+        :param extra_field: If not None the comparison will also be done on this
+        field, otherwise the comparison is only performed on uuid and validity.
+        :return: True if identical, otherwise False
+        """
         identical = (
             (data_item['org_unit']['uuid'] == item_payload['org_unit']['uuid']) and
             (data_item['validity']['from'] == item_payload['validity']['from']) and
@@ -152,6 +159,14 @@ class ImportUtility(object):
         return identical
 
     def _payload_compare(self, item_payload, data):
+        """ Compare an exising data-set with a new payload and tell whether
+        the new payload is different from the exiting data.
+        :param item_payload: New the payload data.
+        :param data_item: The existing set of data.
+        :param extra_field: If not None the comparison will also be done on this
+        field, otherwise the comparison is only performed on uuid and validity.
+        :return: True if identical, otherwise False
+        """
         data_type = item_payload['type']
         found_hit = False
         if data_type == 'engagement':
@@ -455,7 +470,6 @@ class ImportUtility(object):
         """
 
         uuid = klasse.get('uuid', None)
-        # uuid = klasse['uuid'] # TODO: Remove
         klasse_data = klasse["data"]
         facet_type_ref = klasse["facet_type_ref"]
 
@@ -598,26 +612,14 @@ class ImportUtility(object):
             all_data += data
         return all_data
 
-    # Todo: Remove?
-    def _check_employee_existence(self, payload):
-        existing_employee = False
-        if 'uuid' in payload:
-            service = urljoin(self.mora_base, 'service/e/{}')
-            url = service.format(payload['uuid'])
-            data = self.session.get(url).json()
-            if 'name' in data:
-                existing_employee = True
-        return existing_employee
-
     def _terminate_employee(self, uuid):
         service = urljoin(self.mora_base, 'service/e/{}/terminate')
         yesterday = datetime.now() - timedelta(days=1)
         payload = {'validity': {'to': yesterday.strftime('%Y-%m-%d')}}
         url = service.format(uuid)
         data = self.session.post(url, json=payload).json()
-        print(data)
         return uuid
-    
+
     def import_employee(self, reference, employee_data, optional_data=None):
         """
         Insert primary and optional data for an employee
@@ -646,11 +648,9 @@ class ImportUtility(object):
         payload = self._integration_data('organisation/bruger',
                                          reference, payload,
                                          encode_integration=False)
-        # existing_employee = self._check_employee_existence(payload)
 
-        # We need to unconditionally create or update the user, even though
-        # he or she is already created. Alternatively we could check if the
-        # name is unchanged and only update if it is.
+        # We unconditionally create or update the user, this should
+        # ensure that we alwas updated with correct current information.
         uuid = self.insert_mora_data(resource="service/e/create", data=payload)
         if 'uuid' in payload:
             assert(uuid == payload['uuid'])
@@ -670,7 +670,7 @@ class ImportUtility(object):
 
         # Details: /service/details/create endpoint
         if optional_data:
-            complete_additional_payload = [] # We needs this for a complete update
+            complete_additional_payload = []
             additional_payload = []
             for item in optional_data:
                 found_hit = False
@@ -686,17 +686,15 @@ class ImportUtility(object):
                 new_item_payload = copy.deepcopy(item_payload)
                 today = datetime.now().strftime('%Y-%m-%d')
                 valid_to = new_item_payload['validity']['to']
-                print(valid_to)
-                print(type(valid_to))
-                if (valid_to is None or
-                    datetime.strptime(valid_to, '%Y-%m-%d') > datetime.now()):
+                future = datetime.strptime(valid_to, '%Y-%m-%d') > datetime.now()
+                if (valid_to is None) or (future is True):
 
                     new_item_payload['validity']['from'] = today
                     complete_additional_payload.append(new_item_payload)
                     # Clean this up. We do not need a long and a short list
                     # of payloads, we need to know if something changes and thus
                     # if we need to terminate and re-hire the employee
-                    # if not found_hit:
+                    # if not found_hit. This awaits fixing the current issues in MO.
                 additional_payload.append(item_payload)
 
             # Hvad sker der, hvis man fyrer en person og ansætter igen samme dag...?
