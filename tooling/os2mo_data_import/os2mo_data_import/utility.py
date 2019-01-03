@@ -1,8 +1,10 @@
 # -- coding: utf-8 --
 
+import copy
 import json
 from uuid import uuid4
 from requests import Session
+from datetime import datetime, timedelta
 from urllib.parse import urljoin
 
 import os2mo_data_import.adapters as adapters
@@ -37,6 +39,7 @@ class ImportUtility(object):
                  end_marker='Jørgen'):
         self.system_name = system_name
         self.end_marker = end_marker
+        self.existing_uuids = [] # List of all uuids we know already lives in LoRa
         self.store_integration_data = store_integration_data
 
         # Service endpoints
@@ -84,7 +87,8 @@ class ImportUtility(object):
         The original payload updated with integration data and object uuid, if the
         object was already imported.
         """
-
+        # TODO: We need to have a list of all objects with integration data to
+        # be able to make a list of objects that has disappeared
         if self.store_integration_data:
             service = urljoin(self.mox_base, resource)
             # integration_data = {self.system_name: reference + self.system_name}
@@ -104,6 +108,7 @@ class ImportUtility(object):
 
             elif len(response) == 1:
                 uuid = response[0]
+                self.existing_uuids.append(uuid) 
                 if 'uuid' in payload:
                     assert(uuid == payload['uuid'])
                 else:
@@ -593,6 +598,7 @@ class ImportUtility(object):
             all_data += data
         return all_data
 
+    # Todo: Remove?
     def _check_employee_existence(self, payload):
         existing_employee = False
         if 'uuid' in payload:
@@ -602,6 +608,15 @@ class ImportUtility(object):
             if 'name' in data:
                 existing_employee = True
         return existing_employee
+
+    def _terminate_employee(self, uuid):
+        service = urljoin(self.mora_base, 'service/e/{}/terminate')
+        yesterday = datetime.now() - timedelta(days=1)
+        payload = {'validity': {'to': yesterday.strftime('%Y-%m-%d')}}
+        url = service.format(uuid)
+        data = self.session.post(url, json=payload).json()
+        print(data)
+        return uuid
     
     def import_employee(self, reference, employee_data, optional_data=None):
         """
@@ -631,7 +646,7 @@ class ImportUtility(object):
         payload = self._integration_data('organisation/bruger',
                                          reference, payload,
                                          encode_integration=False)
-        existing_employee = self._check_employee_existence(payload)
+        # existing_employee = self._check_employee_existence(payload)
 
         # We need to unconditionally create or update the user, even though
         # he or she is already created. Alternatively we could check if the
@@ -655,25 +670,49 @@ class ImportUtility(object):
 
         # Details: /service/details/create endpoint
         if optional_data:
+            complete_additional_payload = [] # We needs this for a complete update
             additional_payload = []
             for item in optional_data:
                 found_hit = False
                 item_payload = self.build_mo_payload(item, person_uuid=uuid)
+
                 if item_payload['type'] in data.keys():
                     found_hit = self._payload_compare(item_payload, data)
                 else:
-                    print(item_payload)
                     # raise Exception('Unknown payload')
+                    # When the address-bug is fixed, we can raise an exception here
+                    pass
 
-                if not found_hit:
-                    additional_payload.append(item_payload)
+                new_item_payload = copy.deepcopy(item_payload)
+                today = datetime.now().strftime('%Y-%m-%d')
+                valid_to = new_item_payload['validity']['to']
+                print(valid_to)
+                print(type(valid_to))
+                if (valid_to is None or
+                    datetime.strptime(valid_to, '%Y-%m-%d') > datetime.now()):
 
-            print('Additional payload: {}'.format(len(additional_payload)))
+                    new_item_payload['validity']['from'] = today
+                    complete_additional_payload.append(new_item_payload)
+                    # Clean this up. We do not need a long and a short list
+                    # of payloads, we need to know if something changes and thus
+                    # if we need to terminate and re-hire the employee
+                    # if not found_hit:
+                additional_payload.append(item_payload)
 
-            self.insert_mora_data(
-                resource="service/details/create",
-                data=additional_payload
-            )
+            # Hvad sker der, hvis man fyrer en person og ansætter igen samme dag...?
+            # This will always happen as long as the date-bug exists
+            if uuid in self.existing_uuids and len(additional_payload) > 0:
+                print('Terminate: {}'.format(uuid))
+                self._terminate_employee(uuid)
+                self.insert_mora_data(
+                    resource="service/details/create",
+                    data=complete_additional_payload
+                )
+            else:
+                self.insert_mora_data(
+                    resource="service/details/create",
+                    data=additional_payload
+                )
         return uuid
 
     def build_mo_payload(self, list_of_tuples, person_uuid=None):
