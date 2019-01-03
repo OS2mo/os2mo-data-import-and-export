@@ -1,3 +1,5 @@
+*.p
+
 # Development
 .idea
 *.gz
