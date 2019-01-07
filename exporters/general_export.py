@@ -22,11 +22,12 @@ import common_queries as cq
 @click.command()
 @click.option('--root', default=None, help='uuid of the root to be exported')
 @click.option('--threaded-speedup', default=False, help='Run in multithreaded mode')
+@click.option('--hostname', default='localhost', help='MO hostname')
 def export_from_mo(root, threaded_speedup):
     threaded_speedup = threaded_speedup
     t = time.time()
 
-    mh = MoraHelper(export_ansi=False)
+    mh = MoraHelper(hostname=hostname, export_ansi=False)
 
     org = mh.read_organisation()
     roots = mh.read_top_units(org)
