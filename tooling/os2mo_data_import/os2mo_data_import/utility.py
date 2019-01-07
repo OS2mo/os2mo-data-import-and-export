@@ -261,6 +261,7 @@ class ImportUtility(object):
             }
         else:
             if uuid is not None:
+                print(uuid)
                 response = self.session.put(url=service + '/' + uuid, json=data)
             else:
                 response = self.session.post(url=service, json=data)
@@ -468,7 +469,6 @@ class ImportUtility(object):
         :returns:
         Inserted UUID (str)
         """
-
         uuid = klasse.get('uuid', None)
         klasse_data = klasse["data"]
         facet_type_ref = klasse["facet_type_ref"]
@@ -496,14 +496,17 @@ class ImportUtility(object):
             klasse_uuid = integration_data['uuid']
             assert(uuid is None or klasse_uuid == uuid)
         else:
-            klasse_uuid = uuid
+            if uuid is None:
+                klasse_uuid = None
+            else:
+                klasse_uuid = uuid[0] # Internal representation is a 1-element tuple
 
         import_uuid = self.insert_mox_data(
             resource="klassifikation/klasse",
             data=payload,
             uuid=klasse_uuid
         )
-        assert(uuid is None or import_uuid == uuid)
+        assert(uuid is None or import_uuid == klasse_uuid)
         self.inserted_klasse_map[reference] = import_uuid
 
         return import_uuid
@@ -686,9 +689,12 @@ class ImportUtility(object):
                 new_item_payload = copy.deepcopy(item_payload)
                 today = datetime.now().strftime('%Y-%m-%d')
                 valid_to = new_item_payload['validity']['to']
-                future = datetime.strptime(valid_to, '%Y-%m-%d') > datetime.now()
-                if (valid_to is None) or (future is True):
+                if valid_to is not None:
+                    future = datetime.strptime(valid_to, '%Y-%m-%d') > datetime.now()
+                else:
+                    future = False
 
+                if valid_to is None or future is True:
                     new_item_payload['validity']['from'] = today
                     complete_additional_payload.append(new_item_payload)
                     # Clean this up. We do not need a long and a short list
