@@ -12,7 +12,7 @@ Helper class to make a number of pre-defined queries into MO
 
 import time
 from anytree import PreOrderIter
-from mora_helpers import MoraHelper
+from os2mo_helpers.mora_helpers import MoraHelper
 import common_queries as cq
 
 

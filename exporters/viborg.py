@@ -13,6 +13,7 @@ These are specfic for Viborg
 
 import time
 from mora_helpers import MoraHelper
+from os2mo_helpers.mora_helpers import MoraHelper
 import common_queries as cq
 
 
