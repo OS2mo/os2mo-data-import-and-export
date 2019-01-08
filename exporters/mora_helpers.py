@@ -76,11 +76,12 @@ class MoraHelper(object):
             writer.writeheader()
             for row in rows:
                 writer.writerow(row)
+
         if self.export_ansi:
             with codecs.open(filename, 'r', encoding='utf-8') as csvfile:
                 lines = csvfile.read()
             with codecs.open(filename, 'w',
-                             encoding='windows-1252') as csvfile:
+                             encoding='cp1252') as csvfile:
                 csvfile.write(lines)
 
     def _create_path_dict(self, fieldnames, node, org_types=None):
