@@ -15,14 +15,14 @@ The general code can be run directly from the folder with no installation requir
 
 Requirements
 ------------
-The requirements are indicated in requirements.txt
+The modules depend on mora_helper wich can be install from the Helpers directory from
+the root of this repo:
+sudo pip3 install -e os2mo_helpers
 
 Configuration
 -------------
-If MO is setup to use authentication, the exporter needs a valid service SAML token.
+If MO is set up to use authentication, the exporter needs a valid service SAML token.
 This is read from the environment variable SAML_TOKEN.
-
-
 
 Exported data
 -------------
@@ -34,14 +34,31 @@ The general exporter will produce the following data-files:
  * adm-org-incl-start-og-stopdata-og-enhedstyper-os2mo.csv
  * tilknytninger.csv
 
-Please note that these exports contain the same personal details as MO itself, and thus it is important to have a very strict handling of the exported files.
+Please note that these exports contain the same personal details as MO itself, and
+thus it is important to have a very strict handling of the exported files.
 
 Command line options
 --------------------
 general_export.py accepts two command line parameters:
 
---root: uuid for the root org to export. If this parameter is not given, the deepest available tree will be assumed.
+--root: uuid for the root org to export. If this parameter is not given, the deepest
+available tree will be assumed.
 
---threaded-speedup: If set to True, the program will start a full multithreaded read of all employees in MO. On most systems this will be significantly faster, but will result in a higher server load and a longer delay before the first export is finished.
+--threaded-speedup: If set to True, the program will start a full multithreaded read
+of all employees in MO. On most systems this will be significantly faster, but will
+result in a higher server load and a longer delay before the first export is finished.
 
 --hostname: Hostname for the MO instance. Defaults to localhost.
+
+Deployment
+-----------
+In order to run the exporter on a continuous basis (eg a nightly run) a cron job
+should be set up and SAML_TOKEN should be given a valid value.
+
+To set up the cron job, find the uuid of the wanted root-unit and run this command
+from cron:
+
+python3 general_export.py --hostname=localhost --root=<uuid>
+
+unless the deployment is for one of the specific municipalities with a specific set
+of export code.
