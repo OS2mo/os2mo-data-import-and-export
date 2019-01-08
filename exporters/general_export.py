@@ -15,7 +15,7 @@ is typically a better solution.
 """
 import time
 import click
-from mora_helpers import MoraHelper
+from os2mo_helpers.mora_helpers import MoraHelper
 import common_queries as cq
 
 
