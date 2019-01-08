@@ -10,7 +10,7 @@ import csv
 import unittest
 from chardet.universaldetector import UniversalDetector
 import common_queries as cq
-from mora_helpers import MoraHelper
+from os2mo_helpers.mora_helpers import MoraHelper
 
 
 class QueryTests(unittest.TestCase):
