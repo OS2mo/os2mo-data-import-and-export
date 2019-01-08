@@ -23,7 +23,7 @@ import common_queries as cq
 @click.option('--root', default=None, help='uuid of the root to be exported')
 @click.option('--threaded-speedup', default=False, help='Run in multithreaded mode')
 @click.option('--hostname', default='localhost', help='MO hostname')
-def export_from_mo(root, threaded_speedup):
+def export_from_mo(root, threaded_speedup, hostname):
     threaded_speedup = threaded_speedup
     t = time.time()
 
