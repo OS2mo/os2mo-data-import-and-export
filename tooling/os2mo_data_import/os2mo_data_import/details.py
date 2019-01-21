@@ -80,9 +80,11 @@ class EngagementType(MoType):
     type_id = "engagement"
 
     def __init__(self, type_ref, org_unit, job_function,
-                 date_from, date_to=None):
+                 date_from, date_to=None, uuid=None):
         super().__init__()
-        
+
+        self.uuid = uuid
+
         self.org_unit = org_unit
         self.job_function = job_function
 
@@ -96,6 +98,9 @@ class EngagementType(MoType):
         self.date_to = date_to
 
     def build(self):
+
+        if self.uuid:
+            self.payload["uuid"] = self.uuid
 
         # Reference the parent org unit uuid
         if not self.org_unit_uuid:
@@ -261,8 +266,10 @@ class ManagerType(MoType):
     type_id = "manager"
 
     def __init__(self, org_unit, type_ref, manager_level,
-                 address_uuid, responsibility, date_from, date_to=None):
+                 address_uuid, responsibility, date_from, date_to=None, uuid=None):
         super().__init__()
+
+        self.uuid = uuid
 
         self.org_unit = org_unit
         self.org_unit_uuid = None
@@ -281,6 +288,9 @@ class ManagerType(MoType):
         self.address_uuid = address_uuid
 
     def build(self):
+        if self.uuid:
+            self.payload["uuid"] = self.uuid
+
         self.payload["org_unit"] = {
             "uuid": self.org_unit_uuid
         }
