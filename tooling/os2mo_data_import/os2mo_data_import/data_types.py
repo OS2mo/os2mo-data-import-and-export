@@ -2,6 +2,17 @@
 
 import os2mo_data_import.defaults as defaults
 
+from os2mo_data_import.details import (
+    AddressType,
+    ItsystemType,
+    EngagementType,
+    AssociationType,
+    RoleType,
+    ManagerType,
+    LeaveType,
+    OrganisationUnitType,
+    EmployeeType
+)
 
 class BaseMap(object):
     """
@@ -132,9 +143,10 @@ class ExtendedMap(BaseMap):
             Returns contents of the "optional_data" dict key
 
         """
-        return self.storage_map[owner_ref]["optional_data"]
+        data_type = self.storage_map[owner_ref]
+        return data_type.optional_data
 
-    def save_opt(self, owner_ref, data):
+    def save_opt(self, owner_ref, new_data_object):
         """
         Update existing data object with optional content.
 
@@ -157,12 +169,12 @@ class ExtendedMap(BaseMap):
 
         optional_data = self.get_opt(owner_ref)
 
-        if data in optional_data:
+        if new_data_object in optional_data:
             raise AssertionError("Optional data already exists")
 
-        optional_data.append(data)
+        optional_data.append(new_data_object)
 
-        return data
+        return new_data_object
 
     def add_type_address(self, owner_ref, address_type_ref,
                          date_from, date_to=None, value=None, uuid=None):
@@ -204,26 +216,53 @@ class ExtendedMap(BaseMap):
         if not value and not uuid:
             raise ValueError("Missing parameter (either value or uuid")
 
-        validity = {
-            "from": date_from,
-            "to": date_to
-        }
-
-        address_data = [
-            ("type", "address"),
-            ("address_type", address_type_ref),
-            ("validity", validity)
-        ]
+        address_data = AddressType(
+            type_ref=address_type_ref,
+            date_from=date_from,
+            date_to=date_to
+        )
 
         # Do NOT append uuid if value is passed
         if value:
-            item = ("value", value)
+            address_data.value = value
         else:
-            item = ("uuid", uuid)
-
-        address_data.append(item)
+            address_data.uuid = uuid
 
         return self.save_opt(owner_ref, address_data)
+
+    def add_type_itsystem(self, owner_ref, user_key, itsystem_ref,
+                          date_from, date_to=None):
+        """
+
+        :param user_key:
+            Refers to the employee's username for the itsystem (str)
+
+        :param owner_ref:
+            Refers to the user defined identifier when added (str)
+
+        :param itsystem_ref:
+            Refers to the user defined identifier
+            of the klasse object which holds the leave type (str)
+
+        :param date_from:
+            Start date e.g. "1900-01-01" (str)
+
+        :param date_to:
+            End date e.g. "1900-01-01" (str)
+
+        :return:
+            Returns data as a list of tuples (list)
+
+        """
+
+        it_data = ItsystemType(
+            user_key=user_key,
+            type_ref=itsystem_ref,
+            date_from=date_from,
+            date_to=date_to
+        )
+
+        return self.save_opt(owner_ref, it_data)
 
 
 class Facet(BaseMap):
@@ -506,36 +545,17 @@ class OrganisationUnit(ExtendedMap):
 
         name = (name or identifier)
 
-        validity = {
-            "from": date_from,
-            "to": date_to
-        }
+        organisation_unit_data = OrganisationUnitType(
+            name=name,
+            user_key=user_key,
+            uuid=uuid,
+            parent_ref=parent_ref,
+            type_ref=org_unit_type_ref,
+            date_from=date_from,
+            date_to=date_to
+        )
 
-        organisation_unit_data = [
-            ("name", name),
-            ("parent", parent_ref),
-            ("org_unit_type", org_unit_type_ref),
-            ("validity", validity)
-        ]
-
-        # Import user_key if passed
-        if user_key:
-            item = ("user_key", user_key)
-            organisation_unit_data.append(item)
-
-        # Import uuid if passed
-        if uuid:
-            uuid = str(uuid)
-            item = ("uuid", uuid)
-            organisation_unit_data.append(item)
-
-        data = {
-            "parent_ref": parent_ref,
-            "data": organisation_unit_data,
-            "optional_data": []
-        }
-
-        return self.save(identifier, data)
+        return self.save(identifier, organisation_unit_data)
 
 
 class Employee(ExtendedMap):
@@ -584,27 +604,14 @@ class Employee(ExtendedMap):
 
         name = (name or identifier)
 
-        employee_data = [
-            ("name", name),
-            ("cpr_no", cpr_no),
-            ("org", None),
-        ]
+        employee_data = EmployeeType(
+            uuid=uuid,
+            user_key=user_key,
+            name=name,
+            cpr_no=cpr_no
+        )
 
-        if user_key:
-            item = ("user_key", user_key)
-            employee_data.append(item)
-
-        if uuid:
-            uuid = str(uuid)
-            item = ("uuid", uuid)
-            employee_data.append(item)
-
-        data = {
-            "data": employee_data,
-            "optional_data": []
-        }
-
-        return self.save(identifier, data)
+        return self.save(identifier, employee_data)
 
     def add_type_engagement(self, owner_ref, org_unit_ref, job_function_ref,
                             engagement_type_ref, date_from, date_to=None, uuid=None):
@@ -640,21 +647,14 @@ class Employee(ExtendedMap):
 
         """
 
-        validity = {
-            "from": date_from,
-            "to": date_to
-        }
-
-        engagement_data = [
-            ("type", "engagement"),
-            ("org_unit", org_unit_ref),
-            ("job_function", job_function_ref),
-            ("engagement_type", engagement_type_ref),
-            ("validity", validity)
-        ]
-        if uuid is not None:
-            item = ("uuid", uuid)
-            engagement_data.append(item)
+        engagement_data = EngagementType(
+            uuid=uuid,
+            org_unit=org_unit_ref,
+            type_ref=engagement_type_ref,
+            job_function=job_function_ref,
+            date_from=date_from,
+            date_to=date_to
+        )
 
         return self.save_opt(owner_ref, engagement_data)
 
@@ -693,22 +693,14 @@ class Employee(ExtendedMap):
 
         """
 
-        validity = {
-            "from": date_from,
-            "to": date_to
-        }
-
-        association_data = [
-            ("type", "association"),
-            ("org_unit", org_unit_ref),
-            ("job_function", job_function_ref),
-            ("association_type", association_type_ref),
-            ("validity", validity)
-        ]
-
-        if address_uuid:
-            item = ("address", address_uuid)
-            association_data.append(item)
+        association_data = AssociationType(
+            org_unit=org_unit_ref,
+            job_function=job_function_ref,
+            type_ref=association_type_ref,
+            address_uuid=address_uuid,
+            date_from=date_from,
+            date_to=date_to
+        )
 
         return self.save_opt(owner_ref, association_data)
 
@@ -738,17 +730,12 @@ class Employee(ExtendedMap):
 
         """
 
-        validity = {
-            "from": date_from,
-            "to": date_to
-        }
-
-        role_data = [
-            ("type", "role"),
-            ("org_unit", org_unit_ref),
-            ("role_type", role_type_ref),
-            ("validity", validity)
-        ]
+        role_data = RoleType(
+            org_unit=org_unit_ref,
+            type_ref=role_type_ref,
+            date_from=date_from,
+            date_to=date_to
+        )
 
         return self.save_opt(owner_ref, role_data)
 
@@ -800,26 +787,16 @@ class Employee(ExtendedMap):
         if isinstance(responsibility_list, str):
             responsibility_list = list(responsibility_list)
 
-        validity = {
-            "from": date_from,
-            "to": date_to
-        }
-
-        manager_data = [
-            ("type", "manager"),
-            ("org_unit", org_unit_ref),
-            ("manager_type", manager_type_ref),
-            ("manager_level", manager_level_ref),
-            ("responsibility", responsibility_list),
-            ("validity", validity)
-        ]
-        if uuid is not None:
-            item = ("uuid", uuid)
-            manager_data.append(item)
-
-        if address_uuid:
-            item = ("address", address_uuid)
-            manager_data.append(item)
+        manager_data = ManagerType(
+            uuid=uuid,
+            org_unit=org_unit_ref,
+            type_ref=manager_type_ref,
+            manager_level=manager_level_ref,
+            responsibility=responsibility_list,
+            address_uuid=address_uuid,
+            date_from=date_from,
+            date_to=date_to
+        )
 
         return self.save_opt(owner_ref, manager_data)
 
@@ -845,57 +822,13 @@ class Employee(ExtendedMap):
 
         """
 
-        validity = {
-            "from": date_from,
-            "to": date_to
-        }
-
-        leave_data = [
-            ("type", "leave"),
-            ("leave_type", leave_type_ref),
-            ("validity", validity)
-        ]
+        leave_data = LeaveType(
+            type_ref=leave_type_ref,
+            date_from=date_from,
+            date_to=date_to
+        )
 
         return self.save_opt(owner_ref, leave_data)
-
-    def add_type_itsystem(self, owner_ref, user_key, itsystem_ref,
-                          date_from, date_to=None):
-        """
-
-        :param user_key:
-            Refers to the employee's username for the itsystem (str)
-
-        :param owner_ref:
-            Refers to the user defined identifier when added (str)
-
-        :param itsystem_ref:
-            Refers to the user defined identifier
-            of the klasse object which holds the leave type (str)
-
-        :param date_from:
-            Start date e.g. "1900-01-01" (str)
-
-        :param date_to:
-            End date e.g. "1900-01-01" (str)
-
-        :return:
-            Returns data as a list of tuples (list)
-
-        """
-
-        validity = {
-            "from": date_from,
-            "to": date_to
-        }
-
-        it_data = [
-            ("type", "it"),
-            ("user_key", user_key),
-            ("itsystem", itsystem_ref),
-            ("validity", validity)
-        ]
-
-        return self.save_opt(owner_ref, it_data)
 
 
 class Organisation(object):
