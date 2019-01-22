@@ -464,7 +464,7 @@ if __name__ == '__main__':
     dummy_creator.add_users_to_tree(ou_size_scale=1, multiple_employments=False)
 
     # Example of iteration over all nodes:
-    for node in PreOrderIter(dummy_creator.nodes[self.root_name]):
+    for node in PreOrderIter(dummy_creator.nodes['root']):
 
         if node.type == 'ou':
             print()
