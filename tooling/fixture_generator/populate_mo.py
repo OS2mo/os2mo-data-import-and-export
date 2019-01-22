@@ -18,6 +18,10 @@ class CreateDummyOrg(object):
     def __init__(self, municipality_code, name, scale=1, org_size=Size.Normal):
         self.data = self.create_dummy_data(municipality_code, name, scale, org_size)
 
+        self.extra_data = self.create_dummy_data(municipality_code, name,
+                                                 scale, org_size=Size.Small,
+                                                 root_name='extra_root')
+
         self.org = Organisation(
             name=self.data.nodes['root'].name,
             user_key=self.data.nodes['root'].name,
@@ -34,10 +38,25 @@ class CreateDummyOrg(object):
             if node.type == 'user':
                 self.create_user(node)
 
-    def create_dummy_data(self, municipality_code, name, scale, org_size):
+        for node in PreOrderIter(self.extra_data.nodes['extra_root']):
+            self.extra_data.nodes['extra_root'].name = 'Lønorganisation'
+            if node.type == 'ou':
+                self.create_ou(node)
+
+                for org_node in PreOrderIter(self.data.nodes['root']):
+                    if ((org_node.name == node.name) and
+                        ((org_node.parent.name == node.parent.name) or
+                         node.parent.name == 'Lønorganisation')):
+
+                        for sub_node in org_node.children:
+                            if sub_node.type == 'user':
+                                print(sub_node.name)
+
+    def create_dummy_data(self, municipality_code, name, scale, org_size,
+                          root_name='root'):
         name_path = dummy_data_creator._path_to_names()
         data = dummy_data_creator.CreateDummyOrg(municipality_code,
-                                                 name, name_path)
+                                                 name, name_path, root_name)
 
         data.create_org_func_tree(org_size=org_size)
 
@@ -192,7 +211,7 @@ class CreateDummyOrg(object):
 
 
 if __name__ == '__main__':
-    creator = CreateDummyOrg(101, 'København', scale=10, org_size=Size.Normal)
+    creator = CreateDummyOrg(825, 'Læsø Kommune', scale=1, org_size=Size.Normal)
     dummy_import = ImportUtility(
         dry_run=False,
         mox_base='http://localhost:8080',
