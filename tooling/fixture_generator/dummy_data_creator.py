@@ -150,12 +150,14 @@ class CreateDummyOrg(object):
     look realistic.
     """
 
-    def __init__(self, municipality_code, name, path_to_names):
+    def __init__(self, municipality_code, name, path_to_names,
+                 root_name='root'):
         self.global_start_date = datetime.strptime(START_DATE, '%Y-%m-%d')
         self.classes = CLASSES
         self.it_systems = IT_SYSTEMS
         self.nodes = {}
         self.name = name
+        self.root_name = root_name
         try:
             with open(str(municipality_code) + '.p', 'rb') as file_handle:
                 self.adresser = pickle.load(file_handle)
@@ -170,8 +172,8 @@ class CreateDummyOrg(object):
                       'middle': _load_names(path_to_names[1]),
                       'last': _load_names(path_to_names[2])}
 
-        self.nodes['root'] = Node(name, adresse=self._adresse(),
-                                  type='ou', key='root')
+        self.nodes[self.root_name] = Node(name, adresse=self._adresse(),
+                                          type='ou', key=self.root_name)
         # Used to keep track of used user_keys to keep them unique
         self.used_user_keys = []
 
@@ -334,7 +336,7 @@ class CreateDummyOrg(object):
                 'Teknik og Miljø',
                 'Skole og Børn',
                 'Social og sundhed']
-        self._create_org_level(orgs, parent=self.nodes['root'])
+        self._create_org_level(orgs, parent=self.nodes[self.root_name])
 
         keys = sorted(self.nodes.keys())  # Sort the keys to ensure test-cosistency
         for node in list(keys):
@@ -426,7 +428,7 @@ class CreateDummyOrg(object):
 
     def add_users_to_tree(self, ou_size_scale, multiple_employments=False):
         new_nodes = {}
-        for node in PreOrderIter(self.nodes['root']):
+        for node in PreOrderIter(self.nodes[self.root_name]):
             size = ou_size_scale * (node.depth + 1)
             ran_size = random.randrange(round(size/4), size)
             for _ in range(0, ran_size):
@@ -462,7 +464,7 @@ if __name__ == '__main__':
     dummy_creator.add_users_to_tree(ou_size_scale=1, multiple_employments=False)
 
     # Example of iteration over all nodes:
-    for node in PreOrderIter(dummy_creator.nodes['root']):
+    for node in PreOrderIter(dummy_creator.nodes[self.root_name]):
 
         if node.type == 'ou':
             print()
