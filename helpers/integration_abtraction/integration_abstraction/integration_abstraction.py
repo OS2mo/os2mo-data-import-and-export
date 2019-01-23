@@ -10,22 +10,6 @@ class IntegrationAbstraction(object):
         self.end_marker = end_marker
         self.session = Session()
 
-    def _test_payload(self):
-        properties = {
-            "attributter": {
-                "facetegenskaber": [
-                    {
-                        'integrationsdata': 'Test',
-                        'virkning': {
-                            "from": "2014-05-22 12:02:32",
-                            "to": "infinity", 
-                            }
-                    }
-                ]
-            }
-        }
-        return properties
-        
     def _get_complete_object(self, resource, uuid):
         response = self.session.get(url=self.mox_base + resource + '/' + uuid)
         return response.json()
@@ -37,19 +21,35 @@ class IntegrationAbstraction(object):
         return attributes
 
     def _get_integration_data(self, resource, uuid):
+        """
+        Return the the raw integration data string, no interpretation
+        is performed, except for a validation of the data as valid json
+        :param resource:
+        Path of the service endpoint (str) e.g. /organisation/organisation
+        :param uuid:
+        uuid of the object to be returned.
+        :return: Raw integration data string.
+        """
         attributes = self._get_attributes(resource, uuid)
         for key in attributes.keys():
             if key.find('egenskaber') > 0:
                 data = attributes[key][0].get('integrationsdata', None)
+        if data is not None:
+            try:
+                json.loads(data)
+            except json.decoder.JSONDecodeError:
+                raise Exception('Invalid json in integration data')
         return data
 
     def _set_integration_data(self, resource, uuid, data):
-        """ Updates or creates a raw integrationsdata string in LoRa.
+        """
+        Updates or creates a raw integration data string in LoRa.
         This is a helper function that will do no attempts of preserving
-        existing data.
+        existing data. The resulting integration data string is guaranted to
+        be valid json.
         :param resource:
         Path of the service endpoint (str) e.g. /organisation/organisation
-        :param uuid: uuid of the object to be updated
+        :param uuid: uuid of the object to be updated.
         :return: Return none if data is unchanged, otherwise the uuid of the
         object is returned.
         """
@@ -70,14 +70,15 @@ class IntegrationAbstraction(object):
         return response.json()
 
     def read_integration_data(self, resource, uuid):
-        """ Returns the integratio data (if any) with the relevant system name
+        """
+        Returns the integration data (if any) with the relevant system name.
         :param  resource:
         Path of the service endpoint (str) e.g. /organisation/organisation
-        :param uuid: uuid of the object
-        :return: Integration data associated with self.system_name
+        :param uuid: uuid of the object.
+        :return: Integration data associated with self.system_name.
         """
         return_value = None
-        
+
         integration_data = self._get_integration_data(resource, uuid)
         if integration_data is not None:
             structured_data = json.loads(integration_data)
@@ -87,15 +88,57 @@ class IntegrationAbstraction(object):
                 return_value = data[0:end_pos]
         return return_value
 
+    def write_integration_data(self, resource, uuid, value):
+        """
+        Write new integration data for current system.name. If data is already
+        present, it will be overwritten.
+        Returns the integration data (if any) with the relevant system name.
+        :param  resource:
+        Path of the service endpoint (str) e.g. /organisation/organisation
+        :param uuid: uuid of the object.
+        :param value: New integration data value.
+        """
+        integration_data_string = self._get_integration_data(resource, uuid)
+        integration_data = json.loads(integration_data_string)
+        value_string = '{}{}'.format(value, self.end_marker)
+
+        integration_data[self.system_name] = value_string
+        integration_data_string = json.dumps(integration_data)
+
+        self._set_integration_data(resource, uuid, integration_data_string)
+        return True
+
+    def find_object(self, resource, key):
+        url = self.mox_base + resource + '?integrationsdata=%{}%'
+
+        # key_string = repr(key[1:-1]) + self.end_marker
+        key_string = key + self.end_marker
+        search_val = json.dumps({self.system_name: key_string})
+        search_val = search_val[1:-1]  # Remove { and }
+        search_string = search_val.replace('\\', '\\\\')
+
+        response = self.session.get(url=url.format(search_string))
+        results = response.json()['results'][0]
+        if len(results) == 0:
+            return_val = None
+        elif len(results) == 1:
+            return_val = results[0]
+        else:
+            raise Exception('Inconsistent integration data!')
+        return return_val
+
+
 if __name__ == '__main__':
     ia = IntegrationAbstraction(mox_base='http://localhost:8080',
                                 system_name='test',
                                 end_marker='Jørgen')
 
     test_integration_data = json.dumps({"test": "1234Jørgen", "system": "98Jørgen"})
-    
+
     resource = '/klassifikation/facet'
     uuid = '645e9050-0cad-4138-96b2-6dc89dbdce01'
-    #print(ia._get_complete_object(resource, uuid))
-    #print(ia._set_integration_data(resource, uuid, test_integration_data))
+    print(ia._get_complete_object(resource, uuid))
+    print(ia._set_integration_data(resource, uuid, test_integration_data))
     print(ia.read_integration_data(resource, uuid))
+    print(ia.find_object(resource, '1234'))
+    print(ia.write_integration_data(resource, uuid, '123'))
