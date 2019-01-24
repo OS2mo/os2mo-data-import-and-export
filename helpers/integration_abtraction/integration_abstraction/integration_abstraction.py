@@ -11,10 +11,12 @@ class IntegrationAbstraction(object):
         self.session = Session()
 
     def _get_complete_object(self, resource, uuid):
+        """ Return a complete LoRa object """
         response = self.session.get(url=self.mox_base + resource + '/' + uuid)
         return response.json()
 
     def _get_attributes(self, resource, uuid):
+        """ Return the 'Attributter' part of a LoRa object """
         mox_object = self._get_complete_object(resource, uuid)
         # How to handle multiple 'registreringer'?
         attributes = mox_object[uuid][0]['registreringer'][0]['attributter']
@@ -64,7 +66,6 @@ class IntegrationAbstraction(object):
         # whether it is different from the current value
         if current == data:
             return None
-
         response = self.session.patch(url=self.mox_base + resource +
                                       '/' + uuid, json=properties)
         return response.json()
@@ -99,7 +100,10 @@ class IntegrationAbstraction(object):
         :param value: New integration data value.
         """
         integration_data_string = self._get_integration_data(resource, uuid)
-        integration_data = json.loads(integration_data_string)
+        if integration_data_string is not None:
+            integration_data = json.loads(integration_data_string)
+        else:
+            integration_data = {}
         value_string = '{}{}'.format(value, self.end_marker)
 
         integration_data[self.system_name] = value_string
@@ -133,12 +137,13 @@ if __name__ == '__main__':
                                 system_name='test',
                                 end_marker='Jørgen')
 
-    test_integration_data = json.dumps({"test": "1234Jørgen", "system": "98Jørgen"})
+    test_integration_data = json.dumps({"test": "12345Jørgen", "system": "98Jør\\gen"})
+    #test_integration_data = '"test": "12345Jørgen", "system": "98Jør\gen"'
 
     resource = '/klassifikation/facet'
     uuid = '645e9050-0cad-4138-96b2-6dc89dbdce01'
     print(ia._get_complete_object(resource, uuid))
     print(ia._set_integration_data(resource, uuid, test_integration_data))
-    print(ia.read_integration_data(resource, uuid))
-    print(ia.find_object(resource, '1234'))
-    print(ia.write_integration_data(resource, uuid, '123'))
+    #print(ia.read_integration_data(resource, uuid))
+    #print(ia.find_object(resource, '1234'))
+    #print(ia.write_integration_data(resource, uuid, '123'))
