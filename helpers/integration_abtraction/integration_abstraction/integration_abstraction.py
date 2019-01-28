@@ -4,7 +4,7 @@ from requests import Session
 
 class IntegrationAbstraction(object):
 
-    def __init__(self, mox_base, system_name, end_marker=None):
+    def __init__(self, mox_base, system_name, end_marker='STOP'):
         self.mox_base = mox_base
         self.system_name = system_name
         self.end_marker = end_marker
@@ -86,14 +86,13 @@ class IntegrationAbstraction(object):
             data = structured_data.get(self.system_name, '')
             end_pos = data.find(self.end_marker)
             if end_pos > -1:
-                return_value = data[0:end_pos]
+                return_value = json.loads(data[0:end_pos])
         return return_value
 
     def write_integration_data(self, resource, uuid, value):
         """
         Write new integration data for current system.name. If data is already
         present, it will be overwritten.
-        Returns the integration data (if any) with the relevant system name.
         :param  resource:
         Path of the service endpoint (str) e.g. /organisation/organisation
         :param uuid: uuid of the object.
@@ -104,19 +103,19 @@ class IntegrationAbstraction(object):
             integration_data = json.loads(integration_data_string)
         else:
             integration_data = {}
-        value_string = '{}{}'.format(value, self.end_marker)
+
+        value_string = '{}{}'.format(json.dumps(value), self.end_marker)
 
         integration_data[self.system_name] = value_string
         integration_data_string = json.dumps(integration_data)
-
         self._set_integration_data(resource, uuid, integration_data_string)
         return True
 
     def find_object(self, resource, key):
-        url = self.mox_base + resource + '?integrationsdata=%{}%'
+        url = self.mox_base + resource + '?integrationsdata=%25{}%25'
 
         # key_string = repr(key[1:-1]) + self.end_marker
-        key_string = key + self.end_marker
+        key_string = json.dumps(key) + self.end_marker
         search_val = json.dumps({self.system_name: key_string})
         search_val = search_val[1:-1]  # Remove { and }
         search_string = search_val.replace('\\', '\\\\')
@@ -137,13 +136,13 @@ if __name__ == '__main__':
                                 system_name='test',
                                 end_marker='Jørgen')
 
-    test_integration_data = json.dumps({"test": "12345Jørgen", "system": "98Jør\\gen"})
-    #test_integration_data = '"test": "12345Jørgen", "system": "98Jør\gen"'
+    test_integration_data = json.dumps({"test": "12345Jørgen",
+                                        "system": "98Jør\\gen"})
 
     resource = '/klassifikation/facet'
     uuid = '645e9050-0cad-4138-96b2-6dc89dbdce01'
     print(ia._get_complete_object(resource, uuid))
     print(ia._set_integration_data(resource, uuid, test_integration_data))
-    #print(ia.read_integration_data(resource, uuid))
-    #print(ia.find_object(resource, '1234'))
-    #print(ia.write_integration_data(resource, uuid, '123'))
+    # print(ia.read_integration_data(resource, uuid))
+    # print(ia.find_object(resource, '1234'))
+    # print(ia.write_integration_data(resource, uuid, '123'))
