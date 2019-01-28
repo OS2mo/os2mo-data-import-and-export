@@ -88,7 +88,7 @@ that the vaulue does not contain characters that are considred special by the
 underlying search engnine in LoRa(see https://github.com/magenta-aps/mox/blob/95adfd192a729d6a82b08b2188dbda77522b881b/doc/dev/wildcards.rst), ie avoid characters such as
 '%', '&', '\' and '_' if the object should be found in a search.
 
-In not possible to easily find more complex objects like dictionaries in a
+It is not possible to easily find more complex objects like dictionaries in a
 search.
 
 To find a object with integration data value 'AndyFl': ::
