@@ -50,6 +50,7 @@ Writing and reading Integration Data
 ------------------------------------
 
 To write integration data to an object: ::
+
   mox_base = 'http://localhost:8080'
   resource = '/klassifikation/facet'
   uuid = '00000000-0000-0000-0000-000000000001'
@@ -71,6 +72,7 @@ Complex data
 It is to some degree possible to store more complex data structures. The data
 is stored as JSON, and thus dictionaries can be stored, as long as keys are
 strings: ::
+
   set_value = {'a': 'klaf', 'b': 3, 'c': {'a': 1, 'b': 2, '5': {'def': 9}}}
   ia.write_integration_data(resource, uuid, set_value)
 
@@ -90,6 +92,7 @@ In not possible to easily find more complex objects like dictionaries in a
 search.
 
 To find a object with integration data value 'AndyFl': ::
+
   value = 'AndyFl'
 
   # Write the value
