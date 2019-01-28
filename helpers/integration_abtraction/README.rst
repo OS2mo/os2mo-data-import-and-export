@@ -1,13 +1,13 @@
 Intergation abstraction
 =======================
 
-A small library to easy the use of the `integrations_data` field in LoRa.
+A small library to easy the use of the `integrationsdata` field in LoRa.
 
 The utility provides functionality to read and write fields from the
 integration data stored with an object, while taking care of not overwriting
 other keys stored by other integrations on the same object.
 
-The utility also provides functionality to find objects based on their
+The utility also provides basic functionality to find objects based on their
 integration data.
 
 
@@ -35,9 +35,9 @@ Import the utility, eg: ::
 
 The tool takes parameters for `system_name` and `end_marker`. `system_name`
 is the name of the key that will be used for the current session, the
-utility will take of abstracting away the unerlying json-structure atully
-stored in the integration_data field, and will only handle the values
-associated with the chosen key.
+utility will take of abstracting away the underlying json-structure that is
+actually stored in the `integrationsdata` field, and will only presnet the user
+with the values associated with the key chosen by `system_name`.
 
 `end_marker` is the value that is appeded to all values to ensure that it is
 possible to uniquely find objects despite the fact that structured search
