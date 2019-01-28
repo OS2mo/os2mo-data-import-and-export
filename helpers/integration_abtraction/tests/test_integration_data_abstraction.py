@@ -1,5 +1,4 @@
 import json
-import pickle
 import random
 import unittest
 import requests
@@ -60,6 +59,9 @@ class IntegratioAbstractionTests(unittest.TestCase):
         self.assertTrue(set_value == read_value)
 
     def test_find_simple_value(self):
+        """
+        Test that we can find a simple value by searchig for the value
+        """
         value = 'Klaff'
         ia = IntegrationAbstraction(self.mox_base, 'simpel', 'STOP')
 
@@ -73,9 +75,11 @@ class IntegratioAbstractionTests(unittest.TestCase):
         self.assertFalse(found_uuid)
 
     def test_find_complex_value(self):
-        """ Check that we can find a value with non-trival characters.
-        This does not mean tha we can find everything, searchigh for
-        characters also used as escapes (?, #, &) will not work"""
+        """
+        Check that we can find a value with non-trival characters.
+        This does not mean that we can find everything, searchig for
+        characters also used as escapes (?, #, &) will not work
+        """
         value = 'abc"¤μ)(d'
         ia = IntegrationAbstraction(self.mox_base, 'compløx', 'Jørgen')
 
@@ -89,12 +93,73 @@ class IntegratioAbstractionTests(unittest.TestCase):
         self.assertFalse(found_uuid)
 
     def test_nested_value(self):
-        """ Values can be nested, but they need to string keys """
+        """
+        Values can be nested, but they need to have string keys
+        """
         ia = IntegrationAbstraction(self.mox_base, 'system', 'Jørgen')
         set_value = {'a': 2, 'b': 3, 'c': {'a': 1, 'b': 2, '5': {'def': 9}}}
         ia.write_integration_data(self.resource, self.uuids[2], set_value)
         read_value = ia.read_integration_data(self.resource, self.uuids[2])
-        self.assertTrue(value_key == read_value)
+        self.assertTrue(set_value == read_value)
 
-    def test_many__keys(self):
-        self.assertTrue(True)
+    def _prepare_many_systems(self, uuids):
+        system_names = {'System', 'SD', 'ML-Gore', 'LØN', 'Løn', 'μ-system',
+                        'Black', 'White', '-', 'klaf', 'bang', 'integration',
+                        'Integration', 'INTEGRATION', '1', '2', '3', '4', '5'
+                        '6', '101', '1962', '1961', '1981', '1982', '1983',
+                        '1984', '1986', '1987', '1990', '1993', '1997', '2001',
+                        '2005', '2009', '2013', '2017', 'WE', 'WANT', 'MÅER'}
+        ias = {}
+        for system in system_names:
+            uuid = random.choice(uuids)
+            value = system + str(random.randint(1, 999999))
+            ias[system] = IntegrationAbstraction(self.mox_base, system)
+            ias[system].write_integration_data(self.resource, uuid, value)
+        return system_names, ias
+
+    def test_many_keys(self):
+        """
+        Verify that we can have a number of keys and be able to read them all.
+        """
+        system_names, ias = self._prepare_many_systems(self.uuids)
+
+        visited_systems = set()
+        for uuid in self.uuids:
+            for system in system_names:
+                value = ias[system].read_integration_data(self.resource, uuid)
+                if value is not None:
+                    prefix = value[0:len(system)]
+                    nummeric = int(value[len(system):])
+                    self.assertTrue(prefix == system)
+                    self.assertTrue(1 <= nummeric <= 999999)
+
+                    self.assertTrue(system not in visited_systems)
+                    visited_systems.add(system)
+        self.assertTrue(visited_systems == system_names)
+
+    def test_many_writes(self):
+        """
+        Verify that we can have a number of keys -  write extensively to one of
+        them and still have them all intact.
+        """
+        uuid = self.uuids[0]
+        system_names, ias = self._prepare_many_systems([uuid])
+
+        system = system_names.pop()
+        system_names.add(system)  # The system should stay in the list
+        for i in range(0, 150):
+            value = system + str(random.randint(1, 999999))
+            ias[system].write_integration_data(self.resource, uuid, value)
+
+        visited_systems = set()
+        for system in system_names:
+            value = ias[system].read_integration_data(self.resource, uuid)
+            if value is not None:
+                prefix = value[0:len(system)]
+                nummeric = int(value[len(system):])
+                self.assertTrue(prefix == system)
+                self.assertTrue(1 <= nummeric <= 999999)
+
+                self.assertTrue(system not in visited_systems)
+                visited_systems.add(system)
+        self.assertTrue(visited_systems == system_names)
