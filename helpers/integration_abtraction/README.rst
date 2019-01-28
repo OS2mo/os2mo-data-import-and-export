@@ -11,19 +11,19 @@ The utility also provides functionality to find objects based on their
 integration data.
 
 
-nstalling
+Installing
 ----------
 
 Install the integration_abstraction package as follows: ::
 
-# Checkout the mora source repository
-git clone https://github.com/OS2mo/os2mo-data-import-and-export
+  # Checkout the mora source repository
+  git clone https://github.com/OS2mo/os2mo-data-import-and-export
 
-# Navigate to the local copy of the repository
-cd /path/to/os2mo-data-import-and-export
+  # Navigate to the local copy of the repository
+  cd /path/to/os2mo-data-import-and-export
 
-# Install package with pip
-pip install helpers/integration_abstraction
+  # Install package with pip
+  pip install helpers/integration_abstraction
 
 
 Usage
@@ -44,3 +44,58 @@ possible to uniquely find objects despite the fact that structured search
 is not avaiable for integration data in LoRa. The value defaults to STOP. If
 this word could potentially be bart of the actual stored value, another
 `end_marker` should be chosen.
+
+
+Writing and reading Integration Data
+------------------------------------
+
+To write integration data to an object: ::
+  mox_base = 'http://localhost:8080'
+  resource = '/klassifikation/facet'
+  uuid = '00000000-0000-0000-0000-000000000001'
+  
+  set_value = 'Rose Bowl 101'
+  ia = IntegrationAbstraction(mox_base, 'AD', 'STOP')
+  ia.write_integration_data(resource, uuid, set_value)
+
+The data will be written to the objects `integrations_data' field while all
+other keys will be left untouched.
+
+To read back he value: ::
+
+  read_value ia.write_integration_data(resource, uuid)
+
+
+Complex data
+------------
+It is to some degree possible to store more complex data structures. The data
+is stored as JSON, and thus dictionaries can be stored, as long as keys are
+strings: ::
+  set_value = {'a': 'klaf', 'b': 3, 'c': {'a': 1, 'b': 2, '5': {'def': 9}}}
+  ia.write_integration_data(resource, uuid, set_value)
+
+The values must be json-serializable and thus it is not possible to store more
+complex structures like Python pickle objects.
+
+  
+Searching
+---------
+
+It is possible to find objects based on their integration data value, provided
+that the vaulue does not contain characters that are considred special by the
+underlying search engnine in LoRa(see https://github.com/magenta-aps/mox/blob/95adfd192a729d6a82b08b2188dbda77522b881b/doc/dev/wildcards.rst), ie avoid characters such as
+'%', '&', '\' and '_' if the object should be found in a search.
+
+In not possible to easily find more complex objects like dictionaries in a
+search.
+
+To find a object with integration data value 'AndyFl': ::
+  value = 'AndyFl'
+
+  # Write the value
+  ia.write_integration_data(resource, uuid, value)
+
+  # Find the object
+  uuid = ia.find_object(resource, value)
+
+						 
