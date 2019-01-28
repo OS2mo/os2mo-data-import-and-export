@@ -3,6 +3,7 @@
 # Development
 .idea
 *.gz
+*~
 
 # Mac
 .DS_Store
