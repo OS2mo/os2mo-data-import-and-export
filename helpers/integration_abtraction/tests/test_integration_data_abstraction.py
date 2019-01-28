@@ -47,64 +47,54 @@ class IntegratioAbstractionTests(unittest.TestCase):
                                             "system": "98Jør\\gen"})
         ia._set_integration_data(self.resource, self.uuids[1],
                                  test_integration_data)
-        set_key = '1'
-        ia.write_integration_data(self.resource, self.uuids[1], set_key)
-        read_key = ia.read_integration_data(self.resource, self.uuids[1])
-        self.assertTrue(set_key == read_key)
+        set_value = '1'
+        ia.write_integration_data(self.resource, self.uuids[1], set_value)
+        read_value = ia.read_integration_data(self.resource, self.uuids[1])
+        self.assertTrue(set_value == read_value)
 
     def test_writing_complicated_value(self):
         ia = IntegrationAbstraction(self.mox_base, 'system', 'Jørgen')
-        set_key = 'kμl!%a/h\&#/##=)=&"rf'
-        ia.write_integration_data(self.resource, self.uuids[2], set_key)
-        read_key = ia.read_integration_data(self.resource, self.uuids[2])
-        self.assertTrue(set_key == read_key)
+        set_value = 'kμl!%a/h\&#/##=)=&"rf'
+        ia.write_integration_data(self.resource, self.uuids[2], set_value)
+        read_value = ia.read_integration_data(self.resource, self.uuids[2])
+        self.assertTrue(set_value == read_value)
 
     def test_find_simple_value(self):
-        key = 'Klaff'
+        value = 'Klaff'
         ia = IntegrationAbstraction(self.mox_base, 'simpel', 'STOP')
 
         # Check we find the key
-        ia.write_integration_data(self.resource, self.uuids[3], key)
-        found_uuid = ia.find_object(self.resource, key)
+        ia.write_integration_data(self.resource, self.uuids[3], value)
+        found_uuid = ia.find_object(self.resource, value)
         self.assertTrue(found_uuid == self.uuids[3])
 
         # Check we do not find a wrong key
-        found_uuid = ia.find_object(self.resource, key[:-1])
+        found_uuid = ia.find_object(self.resource, value[:-1])
         self.assertFalse(found_uuid)
 
     def test_find_complex_value(self):
         """ Check that we can find a value with non-trival characters.
         This does not mean tha we can find everything, searchigh for
         characters also used as escapes (?, #, &) will not work"""
-        key = 'abc"¤μ)(d'
+        value = 'abc"¤μ)(d'
         ia = IntegrationAbstraction(self.mox_base, 'compløx', 'Jørgen')
 
         # Check we find the key
-        ia.write_integration_data(self.resource, self.uuids[3], key)
-        found_uuid = ia.find_object(self.resource, key)
+        ia.write_integration_data(self.resource, self.uuids[3], value)
+        found_uuid = ia.find_object(self.resource, value)
         self.assertTrue(found_uuid == self.uuids[3])
 
         # Check we do not find a wrong key
-        found_uuid = ia.find_object(self.resource, key[:-1])
+        found_uuid = ia.find_object(self.resource, value[:-1])
         self.assertFalse(found_uuid)
 
     def test_nested_value(self):
         """ Values can be nested, but they need to string keys """
         ia = IntegrationAbstraction(self.mox_base, 'system', 'Jørgen')
-        set_key = {'a': 2, 'b': 3, 'c': {'a': 1, 'b': 2, '5': {'def': 9}}}
-        ia.write_integration_data(self.resource, self.uuids[2], set_key)
-        read_key = ia.read_integration_data(self.resource, self.uuids[2])
-        self.assertTrue(set_key == read_key)
+        set_value = {'a': 2, 'b': 3, 'c': {'a': 1, 'b': 2, '5': {'def': 9}}}
+        ia.write_integration_data(self.resource, self.uuids[2], set_value)
+        read_value = ia.read_integration_data(self.resource, self.uuids[2])
+        self.assertTrue(value_key == read_value)
 
-    def test_pickle_save(self):
-        """ Values can be nested, but they need to string keys """
-        ia = IntegrationAbstraction(self.mox_base, 'system', 'Jørgen')
-        data = []
-        for i in range(0, 100):
-            data.append(random.random())
-        set_key = pickle.dumps(data)
-        ia.write_integration_data(self.resource, self.uuids[1], set_key)
-        
-        read_key = ia.read_integration_data(self.resource, self.uuids[1])
-        read_data = pickle.loads(read_key)
-        self.assertTrue(read_data == data)
+    def test_many__keys(self):
+        self.assertTrue(True)
