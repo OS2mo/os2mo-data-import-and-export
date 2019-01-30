@@ -389,3 +389,5 @@ class EmployeeType(MoType):
                 "uuid": self.org_uuid
             }
         }
+
+        return self.payload

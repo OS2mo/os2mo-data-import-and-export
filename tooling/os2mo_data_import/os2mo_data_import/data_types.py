@@ -897,7 +897,7 @@ class Organisation(object):
             self.Facet.create_defaults()
             self.Klasse.create_defaults()
 
-    def export(self):
+    def build(self):
         """
 
         :return:
@@ -911,3 +911,12 @@ class Organisation(object):
             "municipality_code": self.municipality_code,
             "validity": self.validity
         }
+
+    def export(self):
+        """
+        Compatibility method
+
+        :return:
+        """
+
+        return self.build()
