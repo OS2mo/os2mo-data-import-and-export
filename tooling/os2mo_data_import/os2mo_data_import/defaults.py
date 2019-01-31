@@ -25,21 +25,8 @@ TODO: Default types should only be added if not created by the user
 # Facet types are simple as they only require a user_key to be generated
 # NOTE: There should not be any cases where a custom facet type is needed.
 
-facet_types = [
-    "Engagementstype",
-    "Stillingsbetegnelse",
-    "Rolletype",
-    "Tilknytningstype",
-    "Enhedstype",
-    "Orlovstype",
-    "Ledertyper",
-    "Lederansvar",
-    "Lederniveau",
-    "Adressetype",
-    "Lederadressetype"
-]
 
-new_facet_list = [
+facet_defaults = [
     "org_unit_address_type",
     "employee_address_type",
     "manager_address_type",
@@ -56,148 +43,152 @@ new_facet_list = [
     "manager_level"
 ]
 
-# TODO: Refactor into more elegant Klasse type generation
-klasse_types = [
+klasse_defaults = [
     (
-        "Enhed", "Enhedstype",
+        "Enhed",
+        "org_unit_type",
         {
-            "user_key": "Enhed",
             "description": "Dette er en organisationsenhed",
             "title": "Enhed"
         }
     ),
     (
-        "AdressePost", "Adressetype",
+        "LederAdressePost",
+        "manager_address_type",
         {
-            "user_key": "AdressePost",
             "example": "<UUID>",
             "scope": "DAR",
             "title": "Adresse"
         }
     ),
     (
-        "Email", "Adressetype",
+        "LederEmail",
+        "manager_address_type",
         {
-            "user_key": "Email",
             "example": "test@example.com",
             "scope": "EMAIL",
             "title": "Email"
         }
     ),
     (
-        "Telefon", "Adressetype",
+        "LederTelefon",
+        "manager_address_type",
         {
-            "user_key": "Telefon",
             "example": "20304060",
             "scope": "PHONE",
             "title": "Tlf"
         }
     ),
     (
-        "Webadresse", "Adressetype",
+        "LederWebadresse",
+        "manager_address_type",
         {
-            "user_key": "Webadresse",
             "example": "http://www.magenta.dk",
             "scope": "WWW",
             "title": "Webadresse"
         }
     ),
     (
-        "LederAdressePost", "Lederadressetype",
+        "Leder",
+        "manager_type",
         {
-            "user_key": "LederAdressePost",
+            "title": "Leder"
+        }
+    ),
+    (
+        "Lederansvar",
+        "responsibility",
+        {
+            "title": "Ansvar for organisationsenheden"
+        }
+    ),
+    (
+        "Lederniveau",
+        "manager_level",
+        {
+            "title": "Niveau 90",
+        }
+    ),
+    (
+        "Ansat",
+        "engagement_type",
+        {
+            "title": "Ansat"
+        }
+    ),
+    (
+        "Medarbejder",
+        "engagement_job_function",
+        {
+            "title": "Generisk Medarbejder"
+        }
+    ),
+]
+
+# Waiting for the correct implementation of address types
+pending_klasse_items = [
+    (
+        "AdressePost",
+        "Adressetype",
+
+        {
             "example": "<UUID>",
             "scope": "DAR",
             "title": "Adresse"
         }
     ),
     (
-        "LederEmail", "Lederadressetype",
+        "Email",
+        "Adressetype",
         {
-            "user_key": "LederEmail",
             "example": "test@example.com",
             "scope": "EMAIL",
             "title": "Email"
         }
     ),
     (
-        "LederTelefon", "Lederadressetype",
+        "Telefon",
+        "Adressetype",
         {
-            "user_key": "LederTelefon",
             "example": "20304060",
             "scope": "PHONE",
             "title": "Tlf"
         }
     ),
     (
-        "LederWebadresse", "Lederadressetype",
+        "Webadresse",
+        "Adressetype",
         {
-            "user_key": "LederWebadresse",
             "example": "http://www.magenta.dk",
             "scope": "WWW",
             "title": "Webadresse"
         }
     ),
     (
-        "EAN", "Adressetype",
+        "EAN",
+        "Adressetype",
         {
-            "user_key": "EAN",
             "example": "00112233",
             "scope": "EAN",
             "title": "EAN-nr."
         }
     ),
     (
-        "PNUMBER", "Adressetype",
+        "PNUMBER",
+        "Adressetype",
         {
-            "user_key": "PNUMBER",
             "example": "00112233",
             "scope": "PNUMBER",
             "title": "P-nr."
         }
     ),
     (
-        "TEXT", "Adressetype",
+        "TEXT",
+        "Adressetype",
         {
-            "user_key": "TEXT",
             "example": "Fritekst",
             "scope": "TEXT",
             "title": "Fritekst"
-        }
-    ),
-    (
-        "Leder", "Ledertyper",
-        {
-            "user_key": "Leder",
-            "title": "Leder"
-        }
-    ),
-    (
-        "Lederansvar", "Lederansvar",
-        {
-            "user_key": "Lederansvar",
-            "title": "Ansvar for organisationsenheden"
-        }
-    ),
-    (
-        "Lederniveau", "Lederniveau",
-        {
-            "user_key": "Lederniveau",
-            "title": "Niveau 90",
-        }
-    ),
-    (
-        "Ansat", "Engagementstype",
-        {
-            "user_key": "Ansat",
-            "title": "Ansat"
-        }
-    ),
-    (
-        "Medarbejder", "Stillingsbetegnelse",
-        {
-            "user_key": "Generisk Medarbejder",
-            "title": "Generisk Medarbejder"
         }
     ),
 ]
