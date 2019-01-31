@@ -413,8 +413,6 @@ def example_import():
         date_from="1987-10-01"
     )
 
-    os2mo.export()
-
 
 if __name__ == "__main__":
     example_import()
