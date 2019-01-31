@@ -41,12 +41,11 @@ class Facet(Base):
 
     """
 
-    def __init__(self, identifier, uuid=None, user_key=None,
-                 organisation_uuid=None, klassifikation_uuid=None,
-                 integration_data={}, date_from=None, date_to=None):
+    def __init__(self, user_key, uuid=None, organisation_uuid=None,
+                 klassifikation_uuid=None, date_from=None, date_to=None,
+                 integration_data={}):
         self.uuid = uuid
-        self.identifier = identifier
-        self.user_key = (user_key or identifier)
+        self.user_key = user_key
 
         self.organisation_uuid = str(organisation_uuid)
         self.klassifikation_uuid = str(klassifikation_uuid)
@@ -188,7 +187,7 @@ class Klasse(Base):
         super().__init__()
 
         self.facet_type_ref = facet_type_ref
-        self.user_key = "usder key"
+        self.user_key = user_key
         self.description = description
         self.scope = scope
         self.title = (title or user_key)
