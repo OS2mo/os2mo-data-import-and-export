@@ -10,7 +10,7 @@ def example_import():
     """
 
     # Init
-    os2mo = ImportUtility()
+    os2mo = ImportUtility(create_defaults=False)
 
 
     # The Organisation class is the main entry point,

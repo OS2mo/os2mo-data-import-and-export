@@ -2,11 +2,11 @@
 
 from os2mo_data_import.mora_data_types import *
 from os2mo_data_import.mox_data_types import *
-
+from os2mo_data_import.defaults import facet_defaults, klasse_defaults
 
 class ImportUtility(object):
 
-    def __init__(self):
+    def __init__(self, create_defaults=True):
 
         self.organisation = None
         self.klassifikation = None
@@ -18,6 +18,11 @@ class ImportUtility(object):
 
         self.organisation_units = {}
         self.employees = {}
+
+        # Create default facet and klasse
+        if create_defaults:
+            self.create_default_facet_types()
+            self.create_default_klasse_types()
 
     def create_validity(self, date_from, date_to):
 
@@ -42,6 +47,9 @@ class ImportUtility(object):
 
         if identifier in self.klasse_objects:
             raise ReferenceError("Unique constraint - Klasse identifier exists")
+
+        if "user_key" not in kwargs:
+            kwargs["user_key"] = identifier
 
         self.klasse_objects[identifier] = Klasse(**kwargs)
 
@@ -186,3 +194,24 @@ class ImportUtility(object):
         owner = self.employees.get(employee)
 
         owner.add_detail(itsystem)
+
+
+    def create_default_facet_types(self, facet_defaults=facet_defaults):
+
+        for user_key in facet_defaults:
+
+            self.add_facet(
+                identifier=user_key,
+                user_key=user_key
+            )
+
+
+    def create_default_klasse_types(self, klasse_defaults=klasse_defaults):
+
+        for identifier, facet_type_ref, kwargs in klasse_defaults:
+
+            self.add_klasse(
+                identifier=identifier,
+                facet_type_ref=facet_type_ref,
+                **kwargs
+            )
