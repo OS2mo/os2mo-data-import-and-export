@@ -123,13 +123,9 @@ klasse_defaults = [
             "title": "Generisk Medarbejder"
         }
     ),
-]
-
-# Waiting for the correct implementation of address types
-pending_klasse_items = [
     (
         "AdressePost",
-        "Adressetype",
+        "org_unit_address_type",
 
         {
             "example": "<UUID>",
@@ -138,17 +134,8 @@ pending_klasse_items = [
         }
     ),
     (
-        "Email",
-        "Adressetype",
-        {
-            "example": "test@example.com",
-            "scope": "EMAIL",
-            "title": "Email"
-        }
-    ),
-    (
         "Telefon",
-        "Adressetype",
+        "org_unit_address_type",
         {
             "example": "20304060",
             "scope": "PHONE",
@@ -156,8 +143,18 @@ pending_klasse_items = [
         }
     ),
     (
+        "Email",
+        "org_unit_address_type",
+        {
+            "example": "test@example.com",
+            "scope": "EMAIL",
+            "title": "Email"
+        }
+    ),
+
+    (
         "Webadresse",
-        "Adressetype",
+        "org_unit_address_type",
         {
             "example": "http://www.magenta.dk",
             "scope": "WWW",
@@ -166,7 +163,7 @@ pending_klasse_items = [
     ),
     (
         "EAN",
-        "Adressetype",
+        "org_unit_address_type",
         {
             "example": "00112233",
             "scope": "EAN",
@@ -175,7 +172,7 @@ pending_klasse_items = [
     ),
     (
         "PNUMBER",
-        "Adressetype",
+        "org_unit_address_type",
         {
             "example": "00112233",
             "scope": "PNUMBER",
@@ -184,11 +181,58 @@ pending_klasse_items = [
     ),
     (
         "TEXT",
-        "Adressetype",
+        "org_unit_address_type",
         {
             "example": "Fritekst",
             "scope": "TEXT",
             "title": "Fritekst"
         }
     ),
+(
+        "AdressePostEmployee",
+        "employee_address_type",
+
+        {
+            "example": "<UUID>",
+            "scope": "DAR",
+            "title": "Adresse"
+        }
+    ),
+    (
+        "PhoneEmployee",
+        "employee_address_type",
+        {
+            "example": "20304060",
+            "scope": "PHONE",
+            "title": "Tlf"
+        }
+    ),
+    (
+        "EmailEmployee",
+        "employee_address_type",
+        {
+            "example": "test@example.com",
+            "scope": "EMAIL",
+            "title": "Email"
+        }
+    ),
+
+    (
+        "WebadresseEmployee",
+        "employee_address_type",
+        {
+            "example": "http://www.magenta.dk",
+            "scope": "WWW",
+            "title": "Webadresse"
+        }
+    ),
+    (
+        "TEXTEmployee",
+        "employee_address_type",
+        {
+            "example": "Fritekst",
+            "scope": "TEXT",
+            "title": "Fritekst"
+        }
+    )
 ]
