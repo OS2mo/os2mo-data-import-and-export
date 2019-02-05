@@ -9,37 +9,25 @@ from urllib.parse import urljoin
 from requests import Session
 from uuid import uuid4
 
-# Default settings
-MOX_BASE = "http://localhost:8080"
-MORA_BASE = "http://localhost:5000"
-
-
-class HttpUtility(Session):
-
-    def __init__(self):
-        super().__init__()
-
-class TestHttpUtility(object):
-    def __init__(self):
-        pass
-
 
 class ImportUtility(object):
 
-    def __init__(self, dry_run=False, mox_base=MOX_BASE, mora_base=MORA_BASE,
-                 system_name='Import', store_integration_data=False,
-                 end_marker='Jørgen'):
+    def __init__(self, dry_run=False, system_name='Import',
+                 store_integration_data=False, end_marker='Jørgen'):
+
+        super().__init__()
 
         # Params
         self.dry_run = dry_run
-        self.mox_base = mox_base
-        self.mora_base = mora_base
         self.system_name = system_name
         self.store_integration_data = store_integration_data
         self.end_marker = end_marker
 
+        self.mox_base = "http://localhost:8080"
+        self.mora_base = "http://localhost:5000"
+
         # Session
-        self.session = HttpUtility()
+        self.session = Session()
 
         # Placeholder for UUID import
         self.organisation_uuid = None
@@ -436,7 +424,7 @@ class ImportUtility(object):
 
         # Set validity
         detail.date_from = self.date_from
-        detail.date_to = self.date_to
+        detail.date_to = None
 
         common_attributes = [
             ("type_ref", "type_ref_uuid"),
@@ -470,26 +458,6 @@ class ImportUtility(object):
             )
 
         return detail.build()
-
-    def insert_mox_data(self, resource, data, uuid=None):
-
-        print(data)
-        print(resource)
-
-        if not uuid:
-            uuid = uuid4()
-        return str(uuid)
-
-    def insert_mora_data(self, resource, data, uuid=None):
-        print(data)
-        print(resource)
-
-        if not uuid:
-            uuid = uuid4()
-
-        return str(uuid)
-
-
 
     def _integration_data(self, resource, reference, payload={},
                           encode_integration=True):
@@ -581,3 +549,54 @@ class ImportUtility(object):
                 payload['integration_data'] = integration_data
 
         return payload
+
+    def insert_mox_data(self, resource, data, uuid=None):
+
+        print(self.session)
+
+        # TESTING
+        if self.dry_run:
+            uuid = uuid4()
+            return str(uuid)
+
+        service_url = urljoin(
+            base=self.mox_base,
+            url=resource
+        )
+
+        response = self.session.post(
+            url=service_url,
+            json=data
+        )
+
+        data = response.json()
+
+        if "uuid" not in data:
+            to_json = json.dumps(data)
+            print(to_json)
+
+            raise RuntimeError("ERROR ERROR ERROR")
+
+        return data["uuid"]
+
+
+    def insert_mora_data(self, resource, data, uuid=None):
+
+        # TESTING
+        if self.dry_run:
+            uuid = uuid4()
+            return str(uuid)
+
+        service_url = urljoin(
+            base=self.mora_base,
+            url=resource
+        )
+
+        response = self.session.post(
+            url=service_url,
+            json=data
+        )
+
+        data = response.json()
+
+        return data
