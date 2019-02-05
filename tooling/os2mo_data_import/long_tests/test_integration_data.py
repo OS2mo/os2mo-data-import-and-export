@@ -23,7 +23,7 @@ sys.path.append(fixture_generator_path)
 from mora_helpers import MoraHelper
 # Will be needed for test 020
 # from os2mo_data_import.data_types import Organisation
-#from os2mo_data_import import ImportHelper
+from os2mo_data_import import ImportHelper
 from populate_mo import CreateDummyOrg
 from populate_mo import Size
 
@@ -33,7 +33,7 @@ class IntegrationDataTests(unittest.TestCase):
     def setUpClass(self):
         random.seed(1)
         self.morah = MoraHelper()
-        self.mox_base = 'http://localhost:8080'
+        self.mox_base = 'http://localhost:5000'
         self.mora_base = 'http://localhost:80'
         self.system_name = 'Test Dummy Import'
         self.dummy_org = CreateDummyOrg(825, 'Læsø Kommune', scale=1,
@@ -117,7 +117,7 @@ class IntegrationDataTests(unittest.TestCase):
         self._run_import_and_test_org_sanity()
 
     @freeze_time("2018-12-01")
-    def test_011_verify_existence_of_integration_data(self):
+    def ttest_011_verify_existence_of_integration_data(self):
         """ Verify that integration data has been created """
         uuid = self._find_top_unit()
         integration_data = self.morah._mo_lookup(uuid, 'ou/{}/integration-data',
@@ -125,7 +125,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue('integration_data' in integration_data)
 
     @freeze_time("2018-12-01")
-    def test_012_verify_sane_integration_data(self):
+    def ttest_012_verify_sane_integration_data(self):
         """ If integration data exists, verify that it has the expected content """
         uuid = self._find_top_unit()
         integration_data = self.morah._mo_lookup(uuid, 'ou/{}/integration-data',
@@ -136,14 +136,14 @@ class IntegrationDataTests(unittest.TestCase):
             self.skipTest('Integration data does not exist')
 
     @freeze_time("2018-12-01")
-    def test_013_klasse_re_import(self):
+    def ttest_013_klasse_re_import(self):
         """ All classes should be imprted """
         org = self.morah.read_organisation()
         classes = self.morah._mo_lookup(org, 'o/{}/f/job_function/', use_cache=False)
         assert(len(classes['data']['items']) == 19)
 
     @freeze_time("2018-12-02")
-    def test_020_re_import(self):
+    def ttest_020_re_import(self):
         """ Run the import again. This should result in an organisation of
         the same size. We also at the same time move a single user between
         two units. The success of this move is checked in a later test."""
@@ -184,14 +184,14 @@ class IntegrationDataTests(unittest.TestCase):
         self._run_import_and_test_org_sanity()
 
     @freeze_time("2018-12-02")
-    def test_021_klasse_re_import(self):
+    def ttest_021_klasse_re_import(self):
         """ No extra classes should be imprted after the second import """
         org = self.morah.read_organisation()
         classes = self.morah._mo_lookup(org, 'o/{}/f/job_function/', use_cache=False)
         assert(len(classes['data']['items']) == 19)
 
     @freeze_time("2018-12-02")
-    def test_022_it_system_re_import(self):
+    def ttest_022_it_system_re_import(self):
         """ No extra itsystems should be imprted after the second import """
         service = urljoin(self.mox_base, '/organisation/itsystem?bvn=%')
         response = requests.get(service)
@@ -199,7 +199,7 @@ class IntegrationDataTests(unittest.TestCase):
         assert(len(response['results'][0]) == 5)
 
     @freeze_time("2018-12-03")
-    def test_030_add_forced_uuids(self):
+    def ttest_030_add_forced_uuids(self):
         """ Add a unit, employees and classes with forced uuid, and re-import """
         self.dummy_org.org.OrganisationUnit.add(
             identifier='Test enhed',
@@ -219,19 +219,19 @@ class IntegrationDataTests(unittest.TestCase):
         self._run_import_and_test_org_sanity(extra=1)
 
     @freeze_time("2018-12-03")
-    def test_031_test_forced_uuid(self):
+    def ttest_031_test_forced_uuid(self):
         unit = self.morah._mo_lookup('00000000-0000-0000-0000-000000000001',
                                      'ou/{}/integration-data')
         self.assertTrue('name' in unit)
 
     @freeze_time("2018-12-03")
-    def test_032_test_forced_employee_uuid(self):
+    def ttest_032_test_forced_employee_uuid(self):
         unit = self.morah._mo_lookup('00000000-0000-0000-0000-000000000002',
                                      'e/{}/integration-data')
         self.assertTrue('name' in unit)
 
     @freeze_time("2018-12-04")
-    def test_040_correct_initial_import(self):
+    def ttest_040_correct_initial_import(self):
         """ Import and test that the org is as expected """
         self._run_import_and_test_org_sanity(extra=1)
 

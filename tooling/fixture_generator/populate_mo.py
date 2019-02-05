@@ -99,7 +99,7 @@ class CreateDummyOrg(object):
 
         self.importer.add_address_type(
             organisation_unit=ou_node.key,
-            uuid=ou_node.adresse['dar-uuid'],
+            value=ou_node.adresse['dar-uuid'],
             type_ref="AdressePost",
             date_from=date_from
         )
@@ -142,7 +142,7 @@ class CreateDummyOrg(object):
 
             self.importer.add_address_type(
                 employee=owner_ref,
-                uuid=user['adresse']['dar-uuid'],
+                value=user['adresse']['dar-uuid'],
                 type_ref="AdressePost",
                 date_from=date_from,
                 date_to=date_to
