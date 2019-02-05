@@ -42,30 +42,32 @@ class Facet(Base):
     """
 
     def __init__(self, user_key, uuid=None, organisation_uuid=None,
-                 klassifikation_uuid=None, date_from=None, date_to=None,
-                 integration_data={}):
+                 klassifikation_uuid=None, date_from=None, date_to=None):
+
+        # Init parent
+        super().__init__()
+
         self.uuid = uuid
         self.user_key = user_key
 
         self.organisation_uuid = str(organisation_uuid)
         self.klassifikation_uuid = str(klassifikation_uuid)
 
-        self.integration_data = integration_data
-
         self.date_from = (date_from or "1900-01-01")
         self.date_to = (date_to or "infinity")
 
     def build(self):
+
         properties = {
             "brugervendtnoegle": self.user_key,
+            "integrationsdata": self.validate_integration_data(),
             "virkning": self.create_validity()
         }
-
-        properties['integrationsdata'] = self.validate_integration_data()
 
         attributter = {
             "facetegenskaber": [properties]
         }
+
         relationer = {
             "ansvarlig": [
                 {
@@ -138,7 +140,7 @@ class Klasse(Base):
     """
 
     def __init__(self, facet_type_ref, user_key, description=None,
-                 example=None, scope=None, title=None, uuid=None, integration_data=None,
+                 example=None, scope=None, title=None, uuid=None,
                  date_from=None, date_to=None):
         """
         Add new facet to the storage map.
@@ -194,8 +196,6 @@ class Klasse(Base):
         self.example = example
         self.uuid = uuid
 
-        self.integration_data = integration_data
-
         self.organisation_uuid = None
         self.facet_uuid = None
 
@@ -216,6 +216,7 @@ class Klasse(Base):
 
         properties = {
             "brugervendtnoegle": self.user_key,
+            "integrationsdata": self.validate_integration_data(),
             "title": self.title,
             "virkning": self.create_validity()
         }
@@ -229,10 +230,6 @@ class Klasse(Base):
 
         if self.example:
             properties["eksempel"] = self.example
-
-        # TODO: The integration data do not belong in 'retskilde' but, currently
-        # it is not possible to add an integration data field to Klasse.
-        properties['retskilde'] = self.validate_integration_data()
 
         attributter = {
             "klasseegenskaber": [properties]
@@ -285,15 +282,13 @@ class Itsystem(Base):
 
     """
 
-    def __init__(self, system_name, user_key=None, integration_data={}):
+    def __init__(self, system_name, user_key=None):
         super().__init__()
 
         self.system_name = system_name
         self.user_key = (user_key or system_name)
 
         self.organisation_uuid = None
-
-        self.integration_data = integration_data
 
     def build(self):
         properties = {
@@ -334,12 +329,14 @@ class Itsystem(Base):
 
 class Klassifikation(Base):
 
-    def __init__(self, user_key, parent_name, description, integration_data={},
+    def __init__(self, user_key, parent_name, description,
                  date_from=None, date_to=None):
+
+        # Init parent
+        super().__init__()
 
         self.user_key = user_key
         self.description = description
-        self.integration_data = integration_data
         self.parent_name = parent_name
 
         self.organisation_uuid = None
@@ -434,13 +431,14 @@ class Organisation(Base):
     """
 
     def __init__(self, name, user_key=None, municipality_code=999,
-                 uuid=None, date_from=None, date_to=None,
-                 integration_data={}):
+                 uuid=None, date_from=None, date_to=None):
+        super().__init__()
+
         self.uuid = uuid
         self.name = name
         self.user_key = (user_key or name)
         self.municipality_code = str(municipality_code)
-        self.integration_data = integration_data
+
         self.date_from = (date_from or "1900-01-01")
         self.date_to = (date_to or "infinity")
 
@@ -448,10 +446,9 @@ class Organisation(Base):
         properties = {
             "brugervendtnoegle": self.user_key,
             "organisationsnavn": self.name,
+            "integrationsdata": self.validate_integration_data(),
             "virkning": self.create_validity()
         }
-
-        properties['integrationsdata'] = self.validate_integration_data()
 
         attributter = {
             "organisationegenskaber": [
