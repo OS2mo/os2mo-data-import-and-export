@@ -133,7 +133,7 @@ class AssociationType(MoType):
     type_id = "association"
 
     def __init__(self, association_type_ref, org_unit_ref, job_function_ref,
-                 address_uuid, date_from, date_to=None, address_type_ref=None):
+                 date_from, date_to=None, address_uuid=None, address_type_ref=None):
         super().__init__()
 
         self.org_unit_ref = org_unit_ref
