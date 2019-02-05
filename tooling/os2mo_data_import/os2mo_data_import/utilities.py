@@ -299,7 +299,7 @@ class ImportUtility(object):
 
         return self.inserted_itsystem_map[reference]
 
-    def import_org_unit(self, reference, organisation_unit):
+    def import_org_unit(self, reference, organisation_unit, details=[]):
         """
         Insert primary and optional data for an organisation unit
 
@@ -350,7 +350,20 @@ class ImportUtility(object):
 
         organisation_unit.type_ref_uuid = type_ref_uuid
 
+        # Build details (if any)
+        organisation_unit.details = [
+            self.build_detail(detail)
+            for detail in details
+        ]
+
+        if organisation_unit.details:
+            print("========= DETAILS ==========")
+            print(organisation_unit.details)
+
         payload = organisation_unit.build()
+
+        print("========= PAYLOAD ===========")
+        print(payload)
 
         uuid = self.insert_mora_data(
             resource="service/ou/create",
@@ -367,8 +380,32 @@ class ImportUtility(object):
 
         return uuid
 
-    def build_details(self):
-        pass
+    def build_detail(self, detail):
+
+        checks = [
+            "type_ref",
+            "job_function_ref",
+            "address_type_ref",
+            "manager_level_ref"
+        ]
+
+        for check in checks:
+
+            if hasattr(detail, check):
+                attribute = getattr(detail, check)
+
+                uuid = self.inserted_klasse_map.get(attribute)
+
+                setattr(detail, check, uuid)
+
+        # PLACEHOLDER FOR ADDRESS METADATA
+        if hasattr(detail, "address_type_meta"):
+            detail.address_type_meta = {
+                "uuid": str(uuid4())
+            }
+
+        return detail.build()
+
 
     def insert_mox_data(self, resource, data, uuid=None):
 
@@ -385,6 +422,7 @@ class ImportUtility(object):
 
         if not uuid:
             uuid = uuid4()
+
         return str(uuid)
 
 

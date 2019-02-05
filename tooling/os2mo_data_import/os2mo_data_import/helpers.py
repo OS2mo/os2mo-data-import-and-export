@@ -137,7 +137,7 @@ class ImportHelper(object):
         if not organisation_unit in self.organisation_units:
             raise ReferenceError("Organisation unit does not exist")
 
-        association = AssociationType(org_unit=organisation_unit, **kwargs)
+        association = AssociationType(org_unit_ref=organisation_unit, **kwargs)
 
         self.employee_details[employee].append(association)
 
@@ -253,9 +253,21 @@ class ImportHelper(object):
 
             if parent_ref and parent_ref not in store.inserted_org_unit_map:
                 parent_unit = self.organisation_units.get(parent_ref)
-                store.import_org_unit(parent_ref, parent_unit)
+                parent_details = self.organisation_unit_details.get(parent_ref)
 
-            store.import_org_unit(identifier, org_unit)
+                store.import_org_unit(
+                    reference=parent_ref,
+                    organisation_unit=parent_unit,
+                    details=parent_details
+                )
+
+            details = self.organisation_unit_details.get(identifier)
+
+            store.import_org_unit(
+                reference=identifier,
+                organisation_unit=org_unit,
+                details=details
+            )
 
         #
         # # Insert Employees
