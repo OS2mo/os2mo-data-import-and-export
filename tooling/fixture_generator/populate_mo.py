@@ -9,8 +9,9 @@ sys.path.append(import_path)
 sys.path.append(fixture_generator_path)
 # from os2mo_data_import.adapters import Organisation
 # from os2mo_data_import.utility import ImportUtility
-from os2mo_data_import.data_types import Organisation
-from os2mo_data_import.utility import ImportUtility
+from os2mo_data_import import ImportHelper
+#from os2mo_data_import.data_types import Organisation
+#from os2mo_data_import.utility import ImportUtility
 from dummy_data_creator import Size
 
 
@@ -22,11 +23,12 @@ class CreateDummyOrg(object):
                                                  scale, org_size=Size.Small,
                                                  root_name='extra_root')
 
-        self.org = Organisation(
-            name=self.data.nodes['root'].name,
+        self.importer = ImportHelper(create_defaults=True)
+
+        self.importer.add_organisation(
+            identifier=self.data.nodes['root'].name,
             user_key=self.data.nodes['root'].name,
-            municipality_code=municipality_code,
-            create_defaults=True
+            municipality_code=municipality_code
         )
 
         self.create_classes()
@@ -66,7 +68,7 @@ class CreateDummyOrg(object):
     def create_classes(self):
         for facet, klasser in self.data.classes.items():
             for klasse in klasser:
-                self.org.Klasse.add(
+                self.importer.add_klasse(
                     identifier=klasse,
                     facet_type_ref=facet,
                     user_key=klasse,
@@ -75,7 +77,7 @@ class CreateDummyOrg(object):
 
     def create_it_systems(self):
         for it_system in self.data.it_systems:
-            self.org.Itsystem.add(
+            self.importer.new_itsystem(
                 identifier=it_system,
                 system_name=it_system
             )
@@ -87,18 +89,18 @@ class CreateDummyOrg(object):
         else:
             parent = None
 
-        self.org.OrganisationUnit.add(
+        self.importer.add_organisation_unit(
             identifier=ou_node.key,
             name=ou_node.name,
             parent_ref=parent,
-            org_unit_type_ref="Afdeling",  # TODO
+            type_ref="Afdeling",
             date_from=date_from
         )
 
-        self.org.OrganisationUnit.add_type_address(
-            owner_ref=ou_node.key,
+        self.importer.add_address_type(
+            organisation_unit=ou_node.key,
             uuid=ou_node.adresse['dar-uuid'],
-            address_type_ref="AdressePost",
+            type_ref="AdressePost",
             date_from=date_from
         )
 
@@ -114,7 +116,7 @@ class CreateDummyOrg(object):
         """
 
     def create_user(self, user_node):
-        self.org.Employee.add(
+        self.importer.add_employee(
             name=user_node.name,
             user_key=user_node.user[0]['brugervendtnoegle'],
             identifier=user_node.user[0]['brugervendtnoegle'],
@@ -129,42 +131,42 @@ class CreateDummyOrg(object):
                 date_to = None
             owner_ref = user['brugervendtnoegle']
 
-            self.org.Employee.add_type_engagement(
-                owner_ref=owner_ref,
-                org_unit_ref=user_node.parent.key,
+            self.importer.add_engagement(
+                employee=owner_ref,
+                organisation_unit=user_node.parent.key,
                 job_function_ref=user['job_function'],
                 engagement_type_ref="Ansat",
                 date_from=date_from,
                 date_to=date_to
             )
 
-            self.org.Employee.add_type_address(
-                owner_ref=owner_ref,
+            self.importer.add_address_type(
+                employee=owner_ref,
                 uuid=user['adresse']['dar-uuid'],
-                address_type_ref="AdressePost",
+                type_ref="AdressePost",
                 date_from=date_from,
                 date_to=date_to
             )
 
-            self.org.Employee.add_type_address(
-                owner_ref=owner_ref,
+            self.importer.add_address_type(
+                employee=owner_ref,
                 value=user['telefon'],
-                address_type_ref="Telefon",
+                type_ref="Telefon",
                 date_from=date_from,
                 date_to=date_to
             )
 
-            self.org.Employee.add_type_address(
-                owner_ref=owner_ref,
+            self.importer.add_address_type(
+                employee=owner_ref,
                 value=user['email'],
-                address_type_ref="Email",
+                type_ref="Email",
                 date_from=date_from,
                 date_to=date_to
             )
 
             for it_system in user['it_systemer']:
-                self.org.Employee.add_type_itsystem(
-                    owner_ref=owner_ref,
+                self.importer.join_itsystem(
+                    employee=owner_ref,
                     user_key=owner_ref,
                     itsystem_ref=it_system,
                     date_from=date_from,
@@ -172,15 +174,17 @@ class CreateDummyOrg(object):
                 )
 
             if user['association'] is not None:
-                data_list = self.org.Employee.get(owner_ref)['optional_data'][0]
-                for data in data_list:
-                    if data[0] == 'job_function':
-                        job_function = data[1]
+                for detail in self.importer.employee_details[owner_ref]:
+                    print(detail)
+                    if 'job_function_ref' in detail.__dict__:
+                        job_function = detail.__dict__['job_function_ref']
 
                 association = user['association']
-                self.org.Employee.add_type_association(
-                    owner_ref=owner_ref,
-                    org_unit_ref=str(association['unit']),
+                print(association['unit'])
+
+                self.importer.add_association(
+                    employee=owner_ref,
+                    organisation_unit=str(association['unit']),
                     job_function_ref=job_function,
                     association_type_ref=association['type'],
                     date_from=date_from,
@@ -189,9 +193,9 @@ class CreateDummyOrg(object):
 
             if user['role'] is not None:
                 role = user['role']
-                self.org.Employee.add_type_role(
-                    owner_ref=owner_ref,
-                    org_unit_ref=str(role['unit']),
+                self.importer.add_role(
+                    employee=owner_ref,
+                    organisation_unit=str(role['unit']),
                     role_type_ref=role['type'],
                     date_from=date_from,
                     date_to=date_to
@@ -199,9 +203,9 @@ class CreateDummyOrg(object):
                 )
 
             if user['manager']:
-                self.org.Employee.add_type_manager(
-                    owner_ref=owner_ref,
-                    org_unit_ref=user_node.parent.key,
+                self.importer.add_manager(
+                    employee=owner_ref,
+                    organisation_unit=user_node.parent.key,
                     manager_type_ref="Direktør",  # TODO
                     manager_level_ref='Niveau 4',  # TODO
                     responsibility_list=user['manager'],

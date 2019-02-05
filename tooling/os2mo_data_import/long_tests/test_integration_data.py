@@ -23,7 +23,7 @@ sys.path.append(fixture_generator_path)
 from mora_helpers import MoraHelper
 # Will be needed for test 020
 # from os2mo_data_import.data_types import Organisation
-from os2mo_data_import.utility import ImportUtility
+#from os2mo_data_import import ImportHelper
 from populate_mo import CreateDummyOrg
 from populate_mo import Size
 
