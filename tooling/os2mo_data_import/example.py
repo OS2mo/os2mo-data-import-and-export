@@ -1,7 +1,7 @@
 # -- coding: utf-8 --
 from uuid import uuid4
 
-from os2mo_data_import import ImportUtility
+from os2mo_data_import import ImportHelper
 
 def example_import():
     """
@@ -10,7 +10,7 @@ def example_import():
     """
 
     # Init
-    os2mo = ImportUtility(create_defaults=True)
+    os2mo = ImportHelper(create_defaults=True)
 
 
     # The Organisation class is the main entry point,

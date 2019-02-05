@@ -7,6 +7,7 @@ from os2mo_data_import.defaults import facet_defaults, klasse_defaults
 import json
 from urllib.parse import urljoin
 from requests import Session
+from uuid import uuid4
 
 # Default settings
 MOX_BASE = "http://localhost:8080"
@@ -23,8 +24,7 @@ class TestHttpUtility(object):
         pass
 
 
-
-class DataStore(object):
+class ImportUtility(object):
 
     def __init__(self, dry_run=False, mox_base=MOX_BASE, mora_base=MORA_BASE,
                  system_name='Import', store_integration_data=False,
@@ -50,12 +50,16 @@ class DataStore(object):
 
         # UUID map
         self.inserted_organisation = {}
+        self.inserted_facet_map = {}
+        self.inserted_klasse_map = {}
+        self.inserted_itsystem_map = {}
+        self.inserted_org_unit_map = {}
 
     def insert_organisation(self, identifier, organisation):
 
         self.insert_mox_data("organisation", identifier, organisation)
 
-    def import_organisation(self, organisation):
+    def import_organisation(self, reference, organisation):
         """
         Convert organisation to OIO formatted post data
         and import into the MOX datastore.
@@ -70,18 +74,17 @@ class DataStore(object):
         if not isinstance(organisation, Organisation):
             raise TypeError("Not of type Organisation")
 
-        name = organisation.name
         resource = "organisation/organisation"
 
         integration_data = self._integration_data(
             resource=resource,
-            reference=name,
+            reference=reference,
             payload={}
         )
 
         # Set integration data
-        # if integration_data:
-        #     organisation.integration_data = integration_data
+        if integration_data:
+            organisation.integration_data = integration_data
 
         payload = organisation.build()
 
@@ -93,12 +96,278 @@ class DataStore(object):
             uuid=organisation_uuid
         )
 
+        # Compatibility
+        self.global_validity = {
+            "from": organisation.date_from,
+            "to": organisation.date_to
+        }
+
+        self.date_from = organisation.date_from
+        self.date_to = organisation.date_to
+
         return self.organisation_uuid
 
-    def insert_facet(self):
-        pass
+    def import_klassifikation(self, reference, klassifikation):
+        if not isinstance(klassifikation, Klassifikation):
+            raise TypeError("Not of type Klassifikation")
 
-    def insert_klasse(self):
+        resource = "klassifikation/klassifikation"
+
+        integration_data = self._integration_data(
+            resource=resource,
+            reference=reference,
+            payload={}
+        )
+
+        # Set integration data
+        if integration_data:
+            klassifikation.integration_data = integration_data
+
+        klassifikation.organisation_uuid = self.organisation_uuid
+
+        payload = klassifikation.build()
+
+        klassifikation_uuid = integration_data.get('uuid', None)
+
+        self.klassifikation_uuid = self.insert_mox_data(
+            resource=resource,
+            data=payload,
+            uuid=klassifikation_uuid
+        )
+
+        return self.klassifikation_uuid
+
+    def import_facet(self, reference, facet):
+        """
+        Generate and insert a facet object
+        This is the parent of all the klasse type objects.
+
+        :param reference:
+            Reference to the user defined identifier (str)
+
+        :param klasse:
+            Facet type data object (dict)
+
+        :returns:
+            Inserted UUID (str)
+        """
+
+        if not isinstance(facet, Facet):
+            raise TypeError("Not of type Facet")
+
+        resource = "klassifikation/facet"
+
+        integration_data = self._integration_data(
+            resource=resource,
+            reference=reference,
+            payload={}
+        )
+
+        # Set integration data
+        if integration_data:
+            facet.integration_data = integration_data
+
+        facet.organisation_uuid = self.organisation_uuid
+        facet.klassifikation_uuid = self.klassifikation_uuid
+
+        # NEED TO BE FIXED
+        facet.date_from = self.date_from
+        facet.date_to = self.date_to
+
+        payload = facet.build()
+
+        print(payload)
+
+        facet_uuid = integration_data.get('uuid', None)
+
+        self.inserted_facet_map[reference] = self.insert_mox_data(
+            resource=resource,
+            data=payload,
+            uuid=facet_uuid
+        )
+
+        return self.inserted_facet_map[reference]
+
+    def import_klasse(self, reference, klasse):
+        """
+        Insert a klasse object
+
+        :param reference:
+        Reference to the user defined identifier (str)
+
+        :param klasse:
+        Klasse type data object (dict)
+
+        :returns:
+        Inserted UUID (str)
+        """
+
+        if not isinstance(klasse, Klasse):
+            raise TypeError("Not of type Facet")
+
+        uuid = klasse.uuid
+        facet_ref = klasse.facet_type_ref
+
+        print("FACET REF")
+        print(facet_ref)
+
+
+        facet_uuid = self.inserted_facet_map.get(facet_ref)
+
+        if not facet_uuid:
+            print(klasse)
+            error_message = "Facet ref: {ref} does not exist".format(
+                ref=facet_ref
+            )
+            raise KeyError(error_message)
+
+        resource = "klassifikation/klasse"
+
+        integration_data = self._integration_data(
+            resource=resource,
+            reference=reference,
+            payload={}
+        )
+
+        if integration_data:
+            klasse.integration_data = integration_data
+
+        klasse.organisation_uuid = self.organisation_uuid
+        klasse.facet_uuid = facet_uuid
+        klasse.date_from = self.date_from
+        klasse.date_to = self.date_to
+
+        payload = klasse.build()
+
+        if 'uuid' in integration_data:
+            klasse_uuid = integration_data['uuid']
+            assert(uuid is None or klasse_uuid == uuid)
+        else:
+            if uuid is None:
+                klasse_uuid = None
+            else:
+                klasse_uuid = uuid[0] # Internal representation is a 1-element tuple
+
+        import_uuid = self.insert_mox_data(
+            resource="klassifikation/klasse",
+            data=payload,
+            uuid=klasse_uuid
+        )
+
+        assert(uuid is None or import_uuid == klasse_uuid)
+        self.inserted_klasse_map[reference] = import_uuid
+
+        return self.inserted_klasse_map[reference]
+
+    def import_itsystem(self, reference, itsystem):
+        """
+        Insert an itsystem object
+
+        :param itsystem:
+        Itsystem data object (dict)
+
+        :returns:
+        Inserted UUID (str)
+        """
+
+        if not isinstance(itsystem, Itsystem):
+            raise TypeError("Not of type Itsystem")
+
+        resource = 'organisation/itsystem'
+
+        integration_data = self._integration_data(resource, reference, {})
+
+        if integration_data:
+            itsystem.integration_data = integration_data
+
+        if 'uuid' in integration_data:
+            itsystem_uuid = integration_data['uuid']
+        else:
+            itsystem_uuid = None
+
+        itsystem.organisation_uuid = self.organisation_uuid
+        itsystem.date_from = self.date_from
+        itsystem.date_to = self.date_to
+
+        payload = itsystem.build()
+
+        self.inserted_itsystem_map[reference] = self.insert_mox_data(
+            resource=resource,
+            data=payload,
+            uuid=itsystem_uuid
+        )
+
+        return self.inserted_itsystem_map[reference]
+
+    def import_org_unit(self, reference, organisation_unit):
+        """
+        Insert primary and optional data for an organisation unit
+
+        Optional data objects are relational objects which
+        belong to the organisation unit, such as an address type
+
+        :param reference:
+        Reference to the user defined identifier (str)
+
+        :param organisation_unit_data:
+        Organisation Unit primary data object (dict)
+
+        :param optional_data:
+        Organisation Unit optional data object (dict)
+
+        :returns:
+        Inserted UUID (str)
+        """
+
+        if not isinstance(organisation_unit, OrganisationUnitType):
+            raise TypeError("Not of type OrganisationUnitType")
+
+        if reference in self.inserted_org_unit_map:
+            print("The organisation unit has already been inserted")
+            return False
+
+        resource = 'organisation/organisationenhed'
+
+        integration_data = self._integration_data(
+            resource=resource,
+            reference=reference,
+            payload={},
+            encode_integration=False
+        )
+
+        # payload = self.build_mo_payload(organisation_unit_data)
+        parent_ref = organisation_unit.parent_ref
+        if parent_ref:
+            parent_uuid = self.inserted_org_unit_map.get(parent_ref)
+            organisation_unit.parent_uuid = parent_uuid
+
+        if not organisation_unit.parent_uuid:
+            organisation_unit.parent_uuid = self.organisation_uuid
+
+        type_ref_uuid = self.inserted_klasse_map.get(
+            organisation_unit.type_ref
+        )
+
+        organisation_unit.type_ref_uuid = type_ref_uuid
+
+        payload = organisation_unit.build()
+
+        uuid = self.insert_mora_data(
+            resource="service/ou/create",
+            data=payload
+        )
+
+        if 'uuid' in integration_data:
+            assert (uuid == integration_data['uuid'])
+        if not uuid:
+            raise ConnectionError("Something went wrong")
+
+        # Add to the inserted map
+        self.inserted_org_unit_map[reference] = uuid
+
+        return uuid
+
+    def build_details(self):
         pass
 
     def insert_mox_data(self, resource, data, uuid=None):
@@ -106,7 +375,17 @@ class DataStore(object):
         print(data)
         print(resource)
 
-        return uuid
+        if not uuid:
+            uuid = uuid4()
+        return str(uuid)
+
+    def insert_mora_data(self, resource, data, uuid=None):
+        print(data)
+        print(resource)
+
+        if not uuid:
+            uuid = uuid4()
+        return str(uuid)
 
 
 
@@ -200,234 +479,3 @@ class DataStore(object):
                 payload['integration_data'] = integration_data
 
         return payload
-
-
-class ImportUtility(object):
-
-    def __init__(self, create_defaults=True):
-
-        self.organisation = {}
-        self.klassifikation = {}
-
-        self.klasse_objects = {}
-        self.facet_objects = {}
-        self.addresses = []
-        self.itsystems = {}
-
-        self.organisation_units = {}
-        self.employees = {}
-
-        # Create default facet and klasse
-        if create_defaults:
-            self.create_default_facet_types()
-            self.create_default_klasse_types()
-
-    def create_validity(self, date_from, date_to):
-
-        if not date_from or not date_to:
-            raise AssertionError("Date is not specified, cannot create validity")
-
-        return {
-            "from": date_from,
-            "to": date_to
-        }
-
-    def add_organisation(self, identifier, **kwargs):
-
-        name = (
-            kwargs.get("name") or identifier
-        )
-
-        self.organisation[identifier] = Organisation(name=name, **kwargs)
-        self.klassifikation[identifier] = Klassifikation(user_key=name, parent_name=name, description="umbrella")
-
-    def add_klasse(self, identifier, **kwargs):
-
-        if identifier in self.klasse_objects:
-            raise ReferenceError("Unique constraint - Klasse identifier exists")
-
-        if "user_key" not in kwargs:
-            kwargs["user_key"] = identifier
-
-        self.klasse_objects[identifier] = Klasse(**kwargs)
-
-    def add_facet(self, identifier, **kwargs):
-
-        if identifier in self.facet_objects:
-            raise ReferenceError("Unique constraint - Facet identifier exists")
-
-        self.facet_objects[identifier] = Facet(**kwargs)
-
-
-    def add_organisation_unit(self, identifier, **kwargs):
-
-        if identifier in self.organisation_units:
-            raise ReferenceError("Identifier exists")
-
-        self.organisation_units[identifier] = OrganisationUnitType(**kwargs)
-
-    def add_employee(self, identifier, **kwargs):
-
-        if identifier in self.employees:
-            raise ReferenceError("Identifier exists")
-
-        if "name" not in kwargs:
-            kwargs["name"] = identifier
-
-        self.employees[identifier] = EmployeeType(**kwargs)
-
-
-    def add_address_type(self, organisation_unit=None, employee=None, **kwargs):
-
-        if not (organisation_unit or employee):
-            raise ReferenceError("Either organisation unit or employee must be owner")
-
-        if organisation_unit and employee:
-            raise ReferenceError("Must reference either organisation unit or employee and not both")
-
-        if employee:
-
-            if employee not in self.employees:
-                raise ReferenceError("Owner does not exist")
-
-            owner = self.employees[employee]
-            owner.add_detail(
-                AddressType(**kwargs)
-            )
-
-        if organisation_unit:
-
-            if organisation_unit not in self.organisation_units:
-                raise ReferenceError("Owner does not exist")
-
-            owner = self.organisation_units[organisation_unit]
-            owner.add_detail(
-                AddressType(**kwargs)
-            )
-
-
-    def add_engagement(self, employee, organisation_unit, **kwargs):
-
-        if employee not in self.employees:
-            raise ReferenceError("Employee does not exist")
-
-        if not organisation_unit in self.organisation_units:
-            raise ReferenceError("Organisation unit does not exist")
-
-        engagement = EngagementType(org_unit_ref=organisation_unit, **kwargs)
-
-        owner = self.employees[employee]
-        owner.add_detail(engagement)
-
-
-    def add_association(self, employee, organisation_unit, **kwargs):
-
-        if employee not in self.employees:
-            raise ReferenceError("Employee does not exist")
-
-        if not organisation_unit in self.organisation_units:
-            raise ReferenceError("Organisation unit does not exist")
-
-        association = AssociationType(org_unit=organisation_unit, **kwargs)
-
-        owner = self.employees.get(employee)
-
-        owner.add_detail(association)
-
-
-    def add_role(self, employee, organisation_unit, **kwargs):
-
-        if employee not in self.employees:
-            raise ReferenceError("Employee does not exist")
-
-        if not organisation_unit in self.organisation_units:
-            raise ReferenceError("Organisation unit does not exist")
-
-        role = RoleType(org_unit=organisation_unit, **kwargs)
-
-        owner = self.employees.get(employee)
-
-        owner.add_detail(role)
-
-    def add_manager(self, employee, organisation_unit, **kwargs):
-
-        if employee not in self.employees:
-            raise ReferenceError("Employee does not exist")
-
-        if not organisation_unit in self.organisation_units:
-            raise ReferenceError("Organisation unit does not exist")
-
-        manager = ManagerType(org_unit=organisation_unit, **kwargs)
-
-        owner = self.employees.get(employee)
-
-        owner.add_detail(manager)
-
-
-    def add_leave(self, employee, **kwargs):
-
-        if employee not in self.employees:
-            raise ReferenceError("Employee does not exist")
-
-        leave = LeaveType(**kwargs)
-
-        owner = self.employees.get(employee)
-
-        owner.add_detail(leave)
-
-
-    def new_itsystem(self, identifier, **kwargs):
-
-        if identifier in self.itsystems:
-            raise ReferenceError("It system already exists")
-
-        self.itsystems[identifier] = Itsystem(**kwargs)
-
-    def join_itsystem(self, employee, **kwargs):
-        if employee not in self.employees:
-            raise ReferenceError("Employee does not exist")
-
-        itsystem = ItsystemType(**kwargs)
-
-        owner = self.employees.get(employee)
-
-        owner.add_detail(itsystem)
-
-
-    def create_default_facet_types(self, facet_defaults=facet_defaults):
-
-        for user_key in facet_defaults:
-
-            self.add_facet(
-                identifier=user_key,
-                user_key=user_key
-            )
-
-
-    def create_default_klasse_types(self, klasse_defaults=klasse_defaults):
-
-        for identifier, facet_type_ref, kwargs in klasse_defaults:
-
-            self.add_klasse(
-                identifier=identifier,
-                facet_type_ref=facet_type_ref,
-                **kwargs
-            )
-
-
-    def import_all(self, DataStore=DataStore):
-
-        # Before
-        defaults = True
-
-
-        # Insert
-        store = DataStore()
-
-        for identifier, organisation in self.organisation.items():
-            storing = store.import_organisation(organisation)
-
-            print(storing)
-
-
-
