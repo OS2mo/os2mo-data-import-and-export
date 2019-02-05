@@ -100,12 +100,7 @@ class ImportUtility(object):
             uuid=organisation_uuid
         )
 
-        # Compatibility
-        self.global_validity = {
-            "from": organisation.date_from,
-            "to": organisation.date_to
-        }
-
+        # Global validity
         self.date_from = organisation.date_from
         self.date_to = organisation.date_to
 
