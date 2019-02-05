@@ -248,7 +248,7 @@ class ImportHelper(object):
         print('Will now import org units')
         for identifier, org_unit in self.organisation_units.items():
 
-
+            # Insert parents first!
             parent_ref = org_unit.parent_ref
 
             if parent_ref and parent_ref not in store.inserted_org_unit_map:
@@ -261,6 +261,7 @@ class ImportHelper(object):
                     details=parent_details
                 )
 
+            # Now insert actual units
             details = self.organisation_unit_details.get(identifier)
 
             store.import_org_unit(
@@ -269,12 +270,13 @@ class ImportHelper(object):
                 details=details
             )
 
-        #
-        # # Insert Employees
-        # print('Will now import employees')
-        # for identifier, employee in org.Employee.export():
-        #     uuid = self.import_employee(
-        #         reference=identifier,
-        #         employee_data=employee["data"],
-        #         optional_data=employee["optional_data"]
-        #         )
+        # Insert Employees
+        print('Will now import employees')
+        for identifier, employee in self.employees.items():
+
+            details = self.employee_details.get(identifier)
+            store.import_employee(
+                reference=identifier,
+                employee=employee,
+                details=details
+            )

@@ -54,6 +54,7 @@ class ImportUtility(object):
         self.inserted_klasse_map = {}
         self.inserted_itsystem_map = {}
         self.inserted_org_unit_map = {}
+        self.inserted_employee_map = {}
 
     def insert_organisation(self, identifier, organisation):
 
@@ -380,23 +381,84 @@ class ImportUtility(object):
 
         return uuid
 
-    def build_detail(self, detail):
+    def import_employee(self, reference, employee, details=[]):
+        if not isinstance(employee, EmployeeType):
+            raise TypeError("Not of type EmployeeType")
 
-        checks = [
-            "type_ref",
-            "job_function_ref",
-            "address_type_ref",
-            "manager_level_ref"
+        print("============ Employees =============")
+
+        resource = 'organisation/organisationenhed'
+
+        integration_data = self._integration_data(
+            resource=resource,
+            reference=reference,
+            payload={},
+            encode_integration=False
+        )
+
+        # Build details (if any)
+        employee.details = [
+            self.build_detail(detail)
+            for detail in details
         ]
 
-        for check in checks:
+        employee.org_uuid = self.organisation_uuid
+        payload = employee.build()
 
-            if hasattr(detail, check):
-                attribute = getattr(detail, check)
+        print("=========== PAYLOAD ==============")
+        print(payload)
 
-                uuid = self.inserted_klasse_map.get(attribute)
+        ## MARKER ##
+        resource = 'organisation/organisationenhed'
 
-                setattr(detail, check, uuid)
+        integration_data = self._integration_data(
+            resource=resource,
+            reference=reference,
+            payload={},
+            encode_integration=False
+        )
+
+        # We unconditionally create or update the user, this should
+        # ensure that we alwas updated with correct current information.
+        mora_resource = "service/e/create"
+        uuid = self.insert_mora_data(
+            resource=mora_resource,
+            data=integration_data
+        )
+
+        if 'uuid' in integration_data:
+            assert (uuid == integration_data['uuid'])
+
+        # Add uuid to the inserted employee map
+        self.inserted_employee_map[reference] = uuid
+
+        return uuid
+
+    def build_detail(self, detail):
+
+        detail.type_ref_uuid = self.inserted_klasse_map.get(
+            detail.type_ref
+        )
+
+        if hasattr(detail, "job_function_ref"):
+            detail.job_function_uuid = self.inserted_klasse_map.get(
+                detail.job_function_ref
+            )
+
+        if hasattr(detail, "address_type_ref"):
+            detail.address_type_uuid = self.inserted_klasse_map.get(
+                detail.address_type_ref
+            )
+
+        if hasattr(detail, "manager_level_ref"):
+            detail.manager_level_uuid = self.inserted_klasse_map.get(
+                detail.manager_level_ref
+            )
+
+        if hasattr(detail, "org_unit_ref"):
+            detail.org_unit_uuid = self.inserted_org_unit_map.get(
+                detail.org_unit_ref
+            )
 
         # PLACEHOLDER FOR ADDRESS METADATA
         if hasattr(detail, "address_type_meta"):
@@ -405,6 +467,8 @@ class ImportUtility(object):
             }
 
         return detail.build()
+
+
 
 
     def insert_mox_data(self, resource, data, uuid=None):
