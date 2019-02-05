@@ -217,7 +217,7 @@ class Klasse(Base):
         properties = {
             "brugervendtnoegle": self.user_key,
             "integrationsdata": self.validate_integration_data(),
-            "title": self.title,
+            "titel": self.title,
             "virkning": self.create_validity()
         }
 
