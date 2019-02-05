@@ -54,7 +54,7 @@ class AddressType(MoType):
         self.type_ref_uuid = None
 
         # SPECIAL
-        self.address_type = None
+        self.address_type_meta = None
 
         self.date_from = date_from
         self.date_to = date_to
@@ -65,10 +65,10 @@ class AddressType(MoType):
             raise ValueError("Either value or uuid must be passed")
 
         # Add address_type meta data from the "facet" endpoint
-        if not self.address_type:
+        if not self.address_type_meta:
             raise ValueError("Cannot build payload, missing type ref")
 
-        self.payload["address_type"] = self.address_type
+        self.payload["address_type"] = self.address_type_meta
 
         if self.value:
             self.payload["value"] = self.value
@@ -83,27 +83,22 @@ class EngagementType(MoType):
     type_id = "engagement"
 
     def __init__(self, org_unit_ref, job_function_ref, engagement_type_ref,
-                 date_from, date_to=None, uuid=None):
+                 date_from, date_to=None):
         super().__init__()
 
-        self.uuid = uuid
-
-        self.org_unit = org_unit_ref
-        self.job_function = job_function_ref
+        self.org_unit_ref = org_unit_ref
+        self.org_unit_uuid = None
 
         self.type_ref = engagement_type_ref
         self.type_ref_uuid = None
 
-        self.org_unit_uuid = None
+        self.job_function_ref = job_function_ref
         self.job_function_uuid = None
 
         self.date_from = date_from
         self.date_to = date_to
 
     def build(self):
-
-        if self.uuid:
-            self.payload["uuid"] = self.uuid
 
         # Reference the parent org unit uuid
         if not self.org_unit_uuid:
@@ -136,14 +131,14 @@ class AssociationType(MoType):
 
     type_id = "association"
 
-    def __init__(self, association_type_ref, org_unit, job_function_ref,
+    def __init__(self, association_type_ref, org_unit_ref, job_function_ref,
                  address_uuid, date_from, date_to=None, address_type_ref=None):
         super().__init__()
 
-        self.org_unit = org_unit
+        self.org_unit_ref = org_unit_ref
         self.org_unit_uuid = None
 
-        self.job_function = job_function_ref
+        self.job_function_ref = job_function_ref
         self.job_function_uuid = None
 
         self.type_ref = association_type_ref
@@ -270,7 +265,8 @@ class ManagerType(MoType):
     type_id = "manager"
 
     def __init__(self, org_unit, manager_type_ref, manager_level_ref,
-                 responsibility_list, date_from, date_to=None, uuid=None, address_uuid=None):
+                 responsibility_list, date_from, date_to=None, uuid=None,
+                 address_uuid=None, address_type_ref=None):
         super().__init__()
 
         self.uuid = uuid
@@ -281,7 +277,7 @@ class ManagerType(MoType):
         self.type_ref = manager_type_ref
         self.type_ref_uuid = None
 
-        self.manager_level = manager_level_ref
+        self.manager_level_ref = manager_level_ref
         self.manager_level_uuid = None
 
         if not isinstance(responsibility_list, list):
@@ -290,6 +286,8 @@ class ManagerType(MoType):
         self.responsibility = responsibility_list
 
         self.address_uuid = address_uuid
+        self.address_type_ref = address_type_ref
+        self.address_type_meta = None
 
     def build(self):
         if self.uuid:
@@ -314,7 +312,8 @@ class ManagerType(MoType):
             for responsibility_uuid in self.responsibility
         ]
 
-        self.payload["address"] = self.address_uuid
+        if self.address_type_meta:
+            self.payload["address"] = self.address_type_meta
 
         return self._build_payload()
 
