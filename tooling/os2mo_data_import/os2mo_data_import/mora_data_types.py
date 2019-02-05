@@ -342,13 +342,6 @@ class OrganisationUnitType(MoType):
         self.date_from = date_from
         self.date_to = date_to
 
-    def add_detail(self, detail):
-
-        if detail in self.details:
-            raise ReferenceError("Detail already exists")
-
-        self.details.append(detail)
-
     def build(self):
 
         if not self.parent_uuid:
@@ -369,6 +362,9 @@ class OrganisationUnitType(MoType):
             }
         }
 
+        if self.details:
+            self.payload["details"] = self.details
+
         return self._build_payload()
 
 
@@ -388,19 +384,6 @@ class EmployeeType(MoType):
         self.org = org
         self.org_uuid = None
 
-    def add_detail(self, detail):
-
-        if detail in self.details:
-            raise ReferenceError("Already exists")
-
-        self.details.append(detail)
-
-    def render_details(self):
-
-        for payload in self.details:
-
-            yield payload
-
     def build(self):
 
         if not self.org_uuid:
@@ -413,8 +396,10 @@ class EmployeeType(MoType):
             "cpr_no": self.cpr_no,
             "org": {
                 "uuid": self.org_uuid
-            },
-            "details": self.render_details()
+            }
         }
+
+        if self.details:
+            self.payload["details"] = self.details
 
         return self.payload
