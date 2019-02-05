@@ -112,7 +112,7 @@ class ImportHelper(object):
             if organisation_unit not in self.organisation_units:
                 raise ReferenceError("Owner does not exist")
 
-            self.employee_details[organisation_unit].append(
+            self.organisation_unit_details[organisation_unit].append(
                 AddressType(**kwargs)
             )
 
@@ -126,8 +126,7 @@ class ImportHelper(object):
 
         engagement = EngagementType(org_unit_ref=organisation_unit, **kwargs)
 
-        owner = self.employees[employee]
-        owner.add_detail(engagement)
+        self.employee_details[employee].append(engagement)
 
 
     def add_association(self, employee, organisation_unit, **kwargs):
@@ -140,9 +139,7 @@ class ImportHelper(object):
 
         association = AssociationType(org_unit=organisation_unit, **kwargs)
 
-        owner = self.employees.get(employee)
-
-        owner.add_detail(association)
+        self.employee_details[employee].append(association)
 
 
     def add_role(self, employee, organisation_unit, **kwargs):
@@ -155,9 +152,7 @@ class ImportHelper(object):
 
         role = RoleType(org_unit=organisation_unit, **kwargs)
 
-        owner = self.employees.get(employee)
-
-        owner.add_detail(role)
+        self.employee_details[employee].append(role)
 
     def add_manager(self, employee, organisation_unit, **kwargs):
 
@@ -169,9 +164,7 @@ class ImportHelper(object):
 
         manager = ManagerType(org_unit=organisation_unit, **kwargs)
 
-        owner = self.employees.get(employee)
-
-        owner.add_detail(manager)
+        self.employee_details[employee].append(manager)
 
 
     def add_leave(self, employee, **kwargs):
@@ -181,9 +174,7 @@ class ImportHelper(object):
 
         leave = LeaveType(**kwargs)
 
-        owner = self.employees.get(employee)
-
-        owner.add_detail(leave)
+        self.employee_details[employee].append(leave)
 
 
     def new_itsystem(self, identifier, **kwargs):
@@ -199,9 +190,7 @@ class ImportHelper(object):
 
         itsystem = ItsystemType(**kwargs)
 
-        owner = self.employees.get(employee)
-
-        owner.add_detail(itsystem)
+        self.employee_details[employee].append(itsystem)
 
 
     def create_default_facet_types(self, facet_defaults=facet_defaults):
