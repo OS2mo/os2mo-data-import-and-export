@@ -10,7 +10,7 @@ def example_import():
     """
 
     # Init
-    os2mo = ImportUtility(create_defaults=False)
+    os2mo = ImportUtility(create_defaults=True)
 
 
     # The Organisation class is the main entry point,
@@ -24,17 +24,17 @@ def example_import():
     )
 
 
-    # Add klasse with reference to facet "Enhedstype"
+    # Add klasse with reference to facet "org_unit_type"
     os2mo.add_klasse(
         identifier="Hovedenhed",
-        facet_type_ref="Enhedstype",
+        facet_type_ref="org_unit_type",
         user_key="D1ED90C5-643A-4C12-8889-6B4174EF4467",
         title="Hovedenhed"  # This is the displayed value
     )
 
     os2mo.add_klasse(
         identifier="Afdeling",
-        facet_type_ref="Enhedstype",
+        facet_type_ref="org_unit_type",
         user_key="91154D1E-E7CA-439B-B910-D4622FD3FD21",
         title="Afdeling"
     )
@@ -110,28 +110,28 @@ def example_import():
     # Add job functions
     os2mo.add_klasse(
         identifier="Direktør",
-        facet_type_ref="Stillingsbetegnelse",
+        facet_type_ref="engagement_type",
         user_key="Direktør",
         title="Direktør"
     )
 
     os2mo.add_klasse(
         identifier="Projektleder",
-        facet_type_ref="Stillingsbetegnelse",
+        facet_type_ref="engagement_type",
         user_key="Projektleder",
         title="Projektleder"
     )
 
     os2mo.add_klasse(
         identifier="Udvikler",
-        facet_type_ref="Stillingsbetegnelse",
+        facet_type_ref="engagement_type",
         user_key="Udvikler",
         title="Udvikler"
     )
 
     os2mo.add_klasse(
         identifier="Projektmedarbejder",
-        facet_type_ref="Stillingsbetegnelse",
+        facet_type_ref="engagement_type",
         user_key="Projektmedarbejder",
         title="Projektmedarbejder"
     )
@@ -219,7 +219,7 @@ def example_import():
     # Association
     os2mo.add_klasse(
         identifier="Ekstern Konsulent",
-        facet_type_ref="Tilknytningstype",
+        facet_type_ref="association_type",
         user_key="Ekstern Konsulent",
         title="Ekstern Konsulent"
     )
@@ -280,14 +280,14 @@ def example_import():
     # Add roles and assign to employees
     os2mo.add_klasse(
         identifier="Medarbejder repræsentant",
-        facet_type_ref="Rolletype",
+        facet_type_ref="role_type",
         user_key="Medarbejder repræsentant",
         title="Medarbejder repræsentant"
     )
 
     os2mo.add_klasse(
         identifier="Nøgleansvarlig",
-        facet_type_ref="Rolletype",
+        facet_type_ref="role_type",
         user_key="Nøgleansvarlig",
         title="Nøgleansvarlig"
     )
@@ -319,17 +319,17 @@ def example_import():
     # and assign to employee
 
     # Manager type
-    os2mo.add_klasse(
-        identifier="Leder",
-        facet_type_ref="Ledertyper",
-        user_key="Direktør",
-        title="Virksomhedens direktør"
-    )
+    # os2mo.add_klasse(
+    #     identifier="Leder",
+    #     facet_type_ref="Ledertyper",
+    #     user_key="Direktør",
+    #     title="Virksomhedens direktør"
+    # )
 
     # Manager level
     os2mo.add_klasse(
         identifier="Højeste niveau",
-        facet_type_ref="Lederniveau",
+        facet_type_ref="manager_level",
         user_key="Højeste niveau",
         title="Højeste niveau"
     )
@@ -337,21 +337,21 @@ def example_import():
     # Add responsabilities
     os2mo.add_klasse(
         identifier="Tage beslutninger",
-        facet_type_ref="Lederansvar",
+        facet_type_ref="responsibility",
         user_key="Tage beslutninger",
         title="Tage beslutninger"
     )
 
     os2mo.add_klasse(
         identifier="Motivere medarbejdere",
-        facet_type_ref="Lederansvar",
+        facet_type_ref="responsibility",
         user_key="Motivere medarbejdere",
         title="Motivere medarbejdere"
     )
 
     os2mo.add_klasse(
         identifier="Betale løn",
-        facet_type_ref="Lederansvar",
+        facet_type_ref="responsibility",
         user_key="Betale løn",
         title="Betale løn"
     )
@@ -373,7 +373,7 @@ def example_import():
 
     os2mo.add_klasse(
         identifier="Sygeorlov",
-        facet_type_ref="Orlovstype",
+        facet_type_ref="leave_type",
         user_key="Sygeorlov",
         title="Sygeorlov"
     )
