@@ -86,7 +86,7 @@ def example_import():
 
     os2mo.add_address_type(
         organisation_unit="Magenta",
-        uuid="0a3f50c4-379f-32b8-e044-0003ba298018",
+        value="0a3f50c4-379f-32b8-e044-0003ba298018",
         type_ref="AdressePost",
         date_from="1986-01-01"
     )
@@ -235,14 +235,14 @@ def example_import():
 
     os2mo.add_address_type(
         employee="Susanne Chæf",
-        uuid="0a3f50a0-ef5a-32b8-e044-0003ba298018",
+        value="0a3f50a0-ef5a-32b8-e044-0003ba298018",
         type_ref="AdressePost",
         date_from="1986-11-01",
     )
 
     os2mo.add_address_type(
         employee="Odin Perskov",
-        uuid="0a3f50a0-ef5a-32b8-e044-0003ba298018",
+        value="0a3f50a0-ef5a-32b8-e044-0003ba298018",
         type_ref="AdressePost",
         date_from="1986-11-01",
     )
@@ -250,28 +250,28 @@ def example_import():
 
     os2mo.add_address_type(
         employee="Ronja Rwander",
-        uuid="0a3f50a0-ef5a-32b8-e044-0003ba298018",
+        value="0a3f50a0-ef5a-32b8-e044-0003ba298018",
         type_ref="AdressePost",
         date_from="1986-11-01",
     )
 
     os2mo.add_address_type(
         employee="Jens Mortensen",
-        uuid="0a3f50a0-ef5a-32b8-e044-0003ba298018",
+        value="0a3f50a0-ef5a-32b8-e044-0003ba298018",
         type_ref="AdressePost",
         date_from="1986-11-01",
     )
 
     os2mo.add_address_type(
         employee="Bolette Buhl",
-        uuid="0a3f50a0-ef5a-32b8-e044-0003ba298018",
+        value="0a3f50a0-ef5a-32b8-e044-0003ba298018",
         type_ref="AdressePost",
         date_from="1986-11-01",
     )
 
     os2mo.add_address_type(
         employee="Carl Sand Holth",
-        uuid="0a3f50a0-ef5a-32b8-e044-0003ba298018",
+        value="0a3f50a0-ef5a-32b8-e044-0003ba298018",
         type_ref="AdressePost",
         date_from="1986-11-01",
     )

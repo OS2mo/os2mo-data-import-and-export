@@ -56,6 +56,9 @@ class ImportUtility(object):
         self.inserted_org_unit_map = {}
         self.inserted_employee_map = {}
 
+        # Facet types
+        self.facet_types = {}
+
     def insert_organisation(self, identifier, organisation):
 
         self.insert_mox_data("organisation", identifier, organisation)
@@ -436,40 +439,42 @@ class ImportUtility(object):
 
     def build_detail(self, detail):
 
-        detail.type_ref_uuid = self.inserted_klasse_map.get(
-            detail.type_ref
-        )
+        # Set validity
+        detail.date_from = self.date_from
+        detail.date_to = self.date_to
 
-        if hasattr(detail, "job_function_ref"):
-            detail.job_function_uuid = self.inserted_klasse_map.get(
-                detail.job_function_ref
+        common_attributes = [
+            ("type_ref", "type_ref_uuid"),
+            ("job_function_ref", "job_function_uuid"),
+            ("address_type_ref", "address_type_uuid"),
+            ("manager_level_ref", "manager_level_uuid")
+        ]
+
+        for check_value, set_value in common_attributes:
+            if not hasattr(detail, check_value):
+                continue
+
+            uuid = self.inserted_klasse_map.get(
+                getattr(detail, check_value)
             )
 
-        if hasattr(detail, "address_type_ref"):
-            detail.address_type_uuid = self.inserted_klasse_map.get(
-                detail.address_type_ref
-            )
+            setattr(detail, set_value, uuid)
 
-        if hasattr(detail, "manager_level_ref"):
-            detail.manager_level_uuid = self.inserted_klasse_map.get(
-                detail.manager_level_ref
-            )
-
+        # Uncommon attributes
         if hasattr(detail, "org_unit_ref"):
             detail.org_unit_uuid = self.inserted_org_unit_map.get(
                 detail.org_unit_ref
             )
 
-        # PLACEHOLDER FOR ADDRESS METADATA
-        if hasattr(detail, "address_type_meta"):
-            detail.address_type_meta = {
-                "uuid": str(uuid4())
-            }
+        if hasattr(detail, "organisation_uuid"):
+            detail.organisation_uuid = self.organisation_uuid
+
+        if hasattr(detail, "itsystem_ref"):
+            detail.itsystem_uuid = self.inserted_itsystem_map.get(
+                detail.itsystem_ref
+            )
 
         return detail.build()
-
-
-
 
     def insert_mox_data(self, resource, data, uuid=None):
 

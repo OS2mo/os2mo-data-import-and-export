@@ -45,13 +45,15 @@ class AddressType(MoType):
 
     type_id = "address"
 
-    def __init__(self, type_ref, date_from, date_to=None, value=None, uuid=None):
+    def __init__(self, value, type_ref, date_from, date_to=None):
         super().__init__()
 
         self.value = value
-        self.uuid = uuid
         self.type_ref = type_ref
         self.type_ref_uuid = None
+
+        # https://os2mo.readthedocs.io/en/development/api/address.html#writing
+        self.organisation_uuid = None
 
         # SPECIAL
         self.address_type_meta = None
@@ -61,19 +63,18 @@ class AddressType(MoType):
 
     def build(self):
 
-        if not self.value and not self.uuid:
-            raise ValueError("Either value or uuid must be passed")
+        if not self.organisation_uuid:
+            raise ValueError("Organisation UUID is missing")
 
-        # Add address_type meta data from the "facet" endpoint
-        if not self.address_type_meta:
-            raise ValueError("Cannot build payload, missing type ref")
-
-        self.payload["address_type"] = self.address_type_meta
-
-        if self.value:
-            self.payload["value"] = self.value
-        else:
-            self.payload["uuid"] = self.uuid
+        self.payload = {
+            "value": self.value,
+            "org": {
+                "uuid": self.organisation_uuid
+            },
+            "address_type": {
+                "uuid": self.type_ref_uuid
+            }
+        }
 
         return self._build_payload()
 
@@ -146,7 +147,7 @@ class AssociationType(MoType):
 
         self.address_uuid = address_uuid
         self.address_type_ref = address_type_ref
-        self.address_type_meta = None
+        self.address_type_uuid = None
 
         self.date_from = date_from
         self.date_to = date_to
@@ -156,28 +157,30 @@ class AssociationType(MoType):
         if not self.org_unit_uuid:
             raise ReferenceError("Reference to org_unit_uuid is missing")
 
-        self.payload["org_unit"] = {
-              "uuid": self.org_unit_uuid
-        }
-
         if not self.job_function_uuid:
             raise ReferenceError("Reference to job_function_uuid is missing")
-
-        self.payload["job_function_uuid"] = {
-              "uuid": self.job_function_uuid
-        }
 
         if not self.type_ref_uuid:
             raise ReferenceError("Reference to association_type_uuid is missing")
 
-        self.payload["association_type_uuid"] = {
-              "uuid": self.type_ref_uuid
+        self.payload = {
+            "org_unit": {
+                "uuid": self.org_unit_uuid
+            },
+            "job_function_uuid": {
+                "uuid": self.job_function_uuid
+            },
+            "association_type_uuid": {
+                "uuid": self.type_ref_uuid
+            }
         }
 
         if self.address_uuid:
             self.payload["address"] = {
                 "uuid": self.address_uuid,
-                "address_type": self.address_type_meta
+                "address_type": {
+                    "uuid": self.address_type_uuid
+                }
             }
 
         return self._build_payload()
@@ -187,24 +190,26 @@ class ItsystemType(MoType):
 
     type_id = "it"
 
-    def __init__(self, itsystem_ref, date_from, date_to=None, user_key=None):
+    def __init__(self, user_key, itsystem_ref, date_from, date_to=None):
         super().__init__()
 
         self.user_key = user_key
-        self.type_ref = itsystem_ref
-        self.type_ref_uuid = None
+        self.itsystem_ref = itsystem_ref
+        self.itsystem_uuid = None
 
         self.date_from = date_from
         self.date_to = date_to
 
     def build(self):
 
-        self.payload["user_key"] = {
-            "uuid": self.user_key
-        }
+        if not self.itsystem_uuid:
+            raise ReferenceError("UUID of itsystem type is missing")
 
-        self.payload["itsystem"] = {
-            "uuid": self.type_ref_uuid
+        self.payload = {
+            "user_key": self.user_key,
+            "itsystem": {
+                "uuid": self.itsystem_uuid
+            }
         }
 
         return self._build_payload()
@@ -225,9 +230,11 @@ class LeaveType(MoType):
 
     def build(self):
 
-        self.payload["leave_type"] = {
-              "uuid": self.type_ref_uuid
+        self.payload = {
+            "leave_type": {
+                "uuid": self.type_ref_uuid
             }
+        }
 
         return self._build_payload()
 
@@ -250,12 +257,13 @@ class RoleType(MoType):
 
     def build(self):
 
-        self.payload["org_unit"] = {
-            "uuid": self.org_unit_uuid
-        }
-
-        self.payload["role_type"] = {
-            "uuid": self.type_ref_uuid
+        self.payload = {
+            "org_unit": {
+                "uuid": self.org_unit_uuid
+            },
+            "role_type": {
+                "uuid": self.type_ref_uuid
+            }
         }
 
         return self._build_payload()
@@ -265,11 +273,9 @@ class ManagerType(MoType):
     type_id = "manager"
 
     def __init__(self, org_unit, manager_type_ref, manager_level_ref,
-                 responsibility_list, date_from, date_to=None, uuid=None,
+                 responsibility_list, date_from, date_to=None,
                  address_uuid=None, address_type_ref=None):
         super().__init__()
-
-        self.uuid = uuid
 
         self.org_unit = org_unit
         self.org_unit_uuid = None
@@ -287,33 +293,35 @@ class ManagerType(MoType):
 
         self.address_uuid = address_uuid
         self.address_type_ref = address_type_ref
-        self.address_type_meta = None
+        self.address_type_uuid = None
 
     def build(self):
-        if self.uuid:
-            self.payload["uuid"] = self.uuid
 
-        self.payload["org_unit"] = {
-            "uuid": self.org_unit_uuid
+        self.payload = {
+            "org_unit": {
+                "uuid": self.org_unit_uuid
+            },
+            "manager_type": {
+                "uuid": self.type_ref_uuid
+            },
+            "manager_level": {
+                "uuid": self.manager_level_uuid
+            },
+            "responsibility": [
+                {
+                    "uuid": responsibility_uuid
+                }
+                for responsibility_uuid in self.responsibility
+            ]
         }
 
-        self.payload["manager_type"] = {
-            "uuid": self.type_ref_uuid
-        }
-
-        self.payload["manager_level"] = {
-            "uuid": self.manager_level_uuid
-        }
-
-        self.payload["responsibility"] = [
-            {
-                "uuid": responsibility_uuid
+        if self.address_uuid:
+            self.payload["address"] = {
+                "uuid": self.address_uuid,
+                "address_type": {
+                    "uuid": self.address_type_uuid
+                }
             }
-            for responsibility_uuid in self.responsibility
-        ]
-
-        if self.address_type_meta:
-            self.payload["address"] = self.address_type_meta
 
         return self._build_payload()
 
