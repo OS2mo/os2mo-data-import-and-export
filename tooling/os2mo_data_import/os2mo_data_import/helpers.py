@@ -131,12 +131,6 @@ class ImportHelper(object):
 
     def add_association(self, employee, organisation_unit, **kwargs):
 
-        if employee not in self.employees:
-            raise ReferenceError("Employee does not exist")
-
-        if not organisation_unit in self.organisation_units:
-            raise ReferenceError("Organisation unit does not exist")
-
         association = AssociationType(org_unit_ref=organisation_unit, **kwargs)
 
         self.employee_details[employee].append(association)
