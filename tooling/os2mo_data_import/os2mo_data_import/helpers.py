@@ -8,16 +8,17 @@ class ImportHelper(object):
 
     def __init__(self, system_name="Import", end_marker="_|-STOP",
                  mox_base="http://localhost:8080", mora_base="http://localhost:5000",
-                 store_integration_data=False, create_defaults=True):
+                 store_integration_data=False, create_defaults=True,
+                 ImportUtility=ImportUtility):
 
-        # Import Params
-        self.system_name = system_name
-        self.end_marker = end_marker
-        self.store_integration_data = store_integration_data
-
-        # Service endpoint base
-        self.mox_base = mox_base
-        self.mora_base = mora_base
+        # Import Utility
+        self.store = ImportUtility(
+            mox_base=mox_base,
+            mora_base=mora_base,
+            system_name=system_name,
+            end_marker=end_marker,
+            store_integration_data=store_integration_data
+        )
 
         self.organisation = None
         self.klassifikation = None
@@ -221,76 +222,70 @@ class ImportHelper(object):
                 **kwargs
             )
 
-    def import_all(self, Utility=ImportUtility):
+    def import_organisation_units_recursively(self, reference, org_unit):
 
-        # Before
-        defaults = True
+        # Insert parents first!
+        parent_ref = org_unit.parent_ref
 
+        if parent_ref and parent_ref not in self.store.inserted_org_unit_map:
+            parent_unit = self.organisation_units.get(parent_ref)
+            parent_details = self.organisation_unit_details.get(parent_ref)
 
-        # Insert
-        store = Utility(
-            mox_base=self.mox_base,
-            mora_base=self.mora_base,
-            system_name=self.system_name,
-            end_marker=self.end_marker,
-            store_integration_data=self.store_integration_data
+            # Insert parent first
+            self.import_organisation_units_recursively(parent_ref, parent_unit)
+
+            self.store.import_org_unit(
+                reference=parent_ref,
+                organisation_unit=parent_unit,
+                details=parent_details
+            )
+
+        # Now insert actual units
+        details = self.organisation_unit_details.get(reference)
+
+        self.store.import_org_unit(
+            reference=reference,
+            organisation_unit=org_unit,
+            details=details
         )
+
+    def import_all(self):
 
         # Insert Organisation
         print('Will now import organisation')
-        store.import_organisation(*self.organisation)
+        self.store.import_organisation(*self.organisation)
 
         # Insert Klassifikation
         print('Will now import klassifikation')
-        store.import_klassifikation(*self.klassifikation)
+        self.store.import_klassifikation(*self.klassifikation)
 
         # Insert Facet
         print('Will now import facet')
         for identifier, facet in self.facet_objects.items():
-            store.import_facet(identifier, facet)
+            self.store.import_facet(identifier, facet)
 
         # Insert Klasse
         print('Will now import klasse')
         for identifier, klasse in self.klasse_objects.items():
-            store.import_klasse(identifier, klasse)
+            self.store.import_klasse(identifier, klasse)
 
         # Insert Itsystem
         print('Will now import IT-systems')
         for identifier, itsystem in self.itsystems.items():
-            store.import_itsystem(identifier, itsystem)
+            self.store.import_itsystem(identifier, itsystem)
 
         # Insert Organisation Units
         print('Will now import org units')
         for identifier, org_unit in self.organisation_units.items():
+            self.import_organisation_units_recursively(identifier, org_unit)
 
-            # Insert parents first!
-            parent_ref = org_unit.parent_ref
-
-            if parent_ref and parent_ref not in store.inserted_org_unit_map:
-                parent_unit = self.organisation_units.get(parent_ref)
-                parent_details = self.organisation_unit_details.get(parent_ref)
-
-                store.import_org_unit(
-                    reference=parent_ref,
-                    organisation_unit=parent_unit,
-                    details=parent_details
-                )
-
-            # Now insert actual units
-            details = self.organisation_unit_details.get(identifier)
-
-            store.import_org_unit(
-                reference=identifier,
-                organisation_unit=org_unit,
-                details=details
-            )
 
         # Insert Employees
         print('Will now import employees')
         for identifier, employee in self.employees.items():
 
             details = self.employee_details.get(identifier)
-            store.import_employee(
+            self.store.import_employee(
                 reference=identifier,
                 employee=employee,
                 details=details
