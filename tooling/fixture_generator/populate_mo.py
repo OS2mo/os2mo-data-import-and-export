@@ -222,9 +222,9 @@ if __name__ == '__main__':
                             mora_base='http://localhost:80',
                             system_name="Dummy import",
                             end_marker="STOP",
-                            store_integration_data=False
+                            store_integration_data=True
     )
     creator = CreateDummyOrg(importer, 101, 'København', scale=1,
                              org_size=Size.Normal)
     
-    # importer.import_all()
+    importer.import_all()
