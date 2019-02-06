@@ -45,10 +45,6 @@ class ImportUtility(object):
         # Deprecated
         self.dry_run = dry_run
 
-    def insert_organisation(self, identifier, organisation):
-
-        self.insert_mox_data("organisation", identifier, organisation)
-
     def import_organisation(self, reference, organisation):
         """
         Convert organisation to OIO formatted post data
@@ -66,23 +62,19 @@ class ImportUtility(object):
 
         resource = "organisation/organisation"
 
+        payload = organisation.build()
+
         integration_data = self._integration_data(
             resource=resource,
             reference=reference,
-            payload={}
+            payload=payload
         )
-
-        # Set integration data
-        if integration_data:
-            organisation.integration_data = integration_data
-
-        payload = organisation.build()
 
         organisation_uuid = integration_data.get('uuid', None)
 
         self.organisation_uuid = self.insert_mox_data(
             resource=resource,
-            data=payload,
+            data=integration_data,
             uuid=organisation_uuid
         )
 
@@ -98,25 +90,21 @@ class ImportUtility(object):
 
         resource = "klassifikation/klassifikation"
 
-        integration_data = self._integration_data(
-            resource=resource,
-            reference=reference,
-            payload={}
-        )
-
-        # Set integration data
-        if integration_data:
-            klassifikation.integration_data = integration_data
-
         klassifikation.organisation_uuid = self.organisation_uuid
 
         payload = klassifikation.build()
+
+        integration_data = self._integration_data(
+            resource=resource,
+            reference=reference,
+            payload=payload
+        )
 
         klassifikation_uuid = integration_data.get('uuid', None)
 
         self.klassifikation_uuid = self.insert_mox_data(
             resource=resource,
-            data=payload,
+            data=integration_data,
             uuid=klassifikation_uuid
         )
 
@@ -142,16 +130,6 @@ class ImportUtility(object):
 
         resource = "klassifikation/facet"
 
-        integration_data = self._integration_data(
-            resource=resource,
-            reference=reference,
-            payload={}
-        )
-
-        # Set integration data
-        if integration_data:
-            facet.integration_data = integration_data
-
         facet.organisation_uuid = self.organisation_uuid
         facet.klassifikation_uuid = self.klassifikation_uuid
 
@@ -161,11 +139,17 @@ class ImportUtility(object):
 
         payload = facet.build()
 
+        integration_data = self._integration_data(
+            resource=resource,
+            reference=reference,
+            payload=payload
+        )
+
         facet_uuid = integration_data.get('uuid', None)
 
         self.inserted_facet_map[reference] = self.insert_mox_data(
             resource=resource,
-            data=payload,
+            data=integration_data,
             uuid=facet_uuid
         )
 
@@ -202,21 +186,18 @@ class ImportUtility(object):
 
         resource = "klassifikation/klasse"
 
-        integration_data = self._integration_data(
-            resource=resource,
-            reference=reference,
-            payload={}
-        )
-
-        if integration_data:
-            klasse.integration_data = integration_data
-
         klasse.organisation_uuid = self.organisation_uuid
         klasse.facet_uuid = facet_uuid
         klasse.date_from = self.date_from
         klasse.date_to = self.date_to
 
         payload = klasse.build()
+
+        integration_data = self._integration_data(
+            resource=resource,
+            reference=reference,
+            payload=payload
+        )
 
         if 'uuid' in integration_data:
             klasse_uuid = integration_data['uuid']
@@ -229,7 +210,7 @@ class ImportUtility(object):
 
         import_uuid = self.insert_mox_data(
             resource="klassifikation/klasse",
-            data=payload,
+            data=integration_data,
             uuid=klasse_uuid
         )
 
@@ -254,25 +235,26 @@ class ImportUtility(object):
 
         resource = 'organisation/itsystem'
 
-        integration_data = self._integration_data(resource, reference, {})
-
-        if integration_data:
-            itsystem.integration_data = integration_data
-
-        if 'uuid' in integration_data:
-            itsystem_uuid = integration_data['uuid']
-        else:
-            itsystem_uuid = None
-
         itsystem.organisation_uuid = self.organisation_uuid
         itsystem.date_from = self.date_from
         itsystem.date_to = self.date_to
 
         payload = itsystem.build()
 
+        integration_data = self._integration_data(
+            resource=resource,
+            reference=reference,
+            payload=payload
+        )
+
+        if 'uuid' in integration_data:
+            itsystem_uuid = integration_data['uuid']
+        else:
+            itsystem_uuid = None
+
         self.inserted_itsystem_map[reference] = self.insert_mox_data(
             resource=resource,
-            data=payload,
+            data=integration_data,
             uuid=itsystem_uuid
         )
 
@@ -306,13 +288,6 @@ class ImportUtility(object):
             return False
 
         resource = 'organisation/organisationenhed'
-
-        integration_data = self._integration_data(
-            resource=resource,
-            reference=reference,
-            payload={},
-            encode_integration=False
-        )
 
         # payload = self.build_mo_payload(organisation_unit_data)
         parent_ref = organisation_unit.parent_ref
@@ -351,9 +326,16 @@ class ImportUtility(object):
 
         payload = organisation_unit.build()
 
+        integration_data = self._integration_data(
+            resource=resource,
+            reference=reference,
+            payload=payload,
+            encode_integration=False
+        )
+
         uuid = self.insert_mora_data(
             resource="service/ou/create",
-            data=payload
+            data=integration_data
         )
 
         if 'uuid' in integration_data:
@@ -369,15 +351,6 @@ class ImportUtility(object):
     def import_employee(self, reference, employee, details=[]):
         if not isinstance(employee, EmployeeType):
             raise TypeError("Not of type EmployeeType")
-
-        resource = 'organisation/organisationenhed'
-
-        integration_data = self._integration_data(
-            resource=resource,
-            reference=reference,
-            payload={},
-            encode_integration=False
-        )
 
         # Build details (if any)
         for detail in details:
@@ -400,16 +373,12 @@ class ImportUtility(object):
         employee.org_uuid = self.organisation_uuid
         payload = employee.build()
 
-        if not payload:
-            raise RuntimeError("PAYLOAD IS EMPTY")
-
-        ## MARKER ##
-        resource = 'organisation/organisationenhed'
+        mox_resource = 'organisation/bruger'
 
         integration_data = self._integration_data(
-            resource=resource,
+            resource=mox_resource,
             reference=reference,
-            payload={},
+            payload=payload,
             encode_integration=False
         )
 
@@ -418,7 +387,7 @@ class ImportUtility(object):
         mora_resource = "service/e/create"
         uuid = self.insert_mora_data(
             resource=mora_resource,
-            data=payload
+            data=integration_data
         )
 
         if 'uuid' in integration_data:
@@ -578,34 +547,47 @@ class ImportUtility(object):
 
     def insert_mox_data(self, resource, data, uuid=None):
 
-        # TESTING
-        if self.dry_run:
-            uuid = uuid4()
-            return str(uuid)
-
         service_url = urljoin(
             base=self.mox_base,
             url=resource
         )
 
-        response = self.session.post(
-            url=service_url,
-            json=data
-        )
-
-        response_data = response.json()
-
-        if response.status_code != 201:
-
-            # DEBUG
-            # TODO: Implement logging
-            print("============ ERROR ===========")
-            print(resource)
-            print(
-                json.dumps(data, indent=2)
+        if uuid:
+            update_url = urljoin(service_url, uuid)
+            response = self.session.put(
+                url=update_url,
+                json=data
             )
 
-            raise HTTPError("Inserting mox data failed")
+            if response.status_code != 200:
+                # DEBUG
+                # TODO: Implement logging
+                print("============ ERROR ===========")
+                print(resource)
+                print(
+                    json.dumps(data, indent=2)
+                )
+
+                raise HTTPError("Inserting mox data failed")
+
+        else:
+            response = self.session.post(
+                url=service_url,
+                json=data
+            )
+
+            if response.status_code != 201:
+                # DEBUG
+                # TODO: Implement logging
+                print("============ ERROR ===========")
+                print(resource)
+                print(
+                    json.dumps(data, indent=2)
+                )
+
+                raise HTTPError("Inserting mox data failed")
+
+        response_data = response.json()
 
         return response_data["uuid"]
 

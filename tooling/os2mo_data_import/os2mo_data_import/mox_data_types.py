@@ -7,17 +7,6 @@ class Base(object):
 
         self.date_from = "1900-01-01"
         self.date_to = "infinity"
-        self.integration_data = {}
-
-    def validate_integration_data(self):
-
-        if not isinstance(self.integration_data, dict):
-            raise TypeError("Integration data must be passed as dict")
-
-        if "integration_data" not in self.integration_data:
-            return str()
-
-        return self.integration_data['integration_data']
 
     def create_validity(self):
 
@@ -60,7 +49,6 @@ class Facet(Base):
 
         properties = {
             "brugervendtnoegle": self.user_key,
-            "integrationsdata": self.validate_integration_data(),
             "virkning": self.create_validity()
         }
 
@@ -216,7 +204,6 @@ class Klasse(Base):
 
         properties = {
             "brugervendtnoegle": self.user_key,
-            "integrationsdata": self.validate_integration_data(),
             "titel": self.title,
             "virkning": self.create_validity()
         }
@@ -294,7 +281,6 @@ class Itsystem(Base):
         properties = {
             "brugervendtnoegle": self.user_key,
             "itsystemnavn": self.system_name,
-            "integrationsdata": self.validate_integration_data(),
             "virkning": self.create_validity()
         }
 
@@ -348,7 +334,6 @@ class Klassifikation(Base):
             "brugervendtnoegle": self.user_key,
             "beskrivelse": self.description,
             "kaldenavn": self.parent_name,
-            "integrationsdata": self.validate_integration_data(),
             "virkning": self.create_validity()
         }
 
@@ -446,7 +431,6 @@ class Organisation(Base):
         properties = {
             "brugervendtnoegle": self.user_key,
             "organisationsnavn": self.name,
-            "integrationsdata": self.validate_integration_data(),
             "virkning": self.create_validity()
         }
 
