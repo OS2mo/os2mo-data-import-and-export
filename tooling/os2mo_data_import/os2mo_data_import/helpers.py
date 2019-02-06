@@ -76,6 +76,9 @@ class ImportHelper(object):
         if identifier in self.organisation_units:
             raise ReferenceError("Identifier exists")
 
+        if "name" not in kwargs:
+            kwargs["name"] = identifier
+
         self.organisation_units[identifier] = OrganisationUnitType(**kwargs)
         self.organisation_unit_details[identifier] = []
 
@@ -217,18 +220,20 @@ class ImportHelper(object):
         store = Utility()
 
         # Insert Organisation
-        identifier, organisation = self.organisation
-        store.import_organisation(identifier, organisation)
+        print('Will now import organisation')
+        store.import_organisation(*self.organisation)
 
         # Insert Klassifikation
-        identifier, klassifikation = self.klassifikation
-        store.import_klassifikation(identifier, klassifikation)
+        print('Will now import klassifikation')
+        store.import_klassifikation(*self.klassifikation)
 
         # Insert Facet
+        print('Will now import facet')
         for identifier, facet in self.facet_objects.items():
             store.import_facet(identifier, facet)
 
         # Insert Klasse
+        print('Will now import klasse')
         for identifier, klasse in self.klasse_objects.items():
             store.import_klasse(identifier, klasse)
 

@@ -146,7 +146,9 @@ class AssociationType(MoType):
         self.type_ref_uuid = None
 
         self.address_uuid = address_uuid
-        self.address_type_ref = address_type_ref
+
+        # Workaround for address_type_ref
+        self.address_type_ref = (address_type_ref or "AdressePostEmployee")
         self.address_type_uuid = None
 
         self.date_from = date_from
@@ -167,10 +169,10 @@ class AssociationType(MoType):
             "org_unit": {
                 "uuid": self.org_unit_uuid
             },
-            "job_function_uuid": {
+            "job_function": {
                 "uuid": self.job_function_uuid
             },
-            "association_type_uuid": {
+            "association_type": {
                 "uuid": self.type_ref_uuid
             }
         }
@@ -246,7 +248,7 @@ class RoleType(MoType):
     def __init__(self, org_unit, role_type_ref, date_from, date_to=None):
         super().__init__()
 
-        self.org_unit = org_unit
+        self.org_unit_ref = org_unit
         self.org_unit_uuid = None
 
         self.type_ref = role_type_ref
@@ -277,7 +279,7 @@ class ManagerType(MoType):
                  address_uuid=None, address_type_ref=None):
         super().__init__()
 
-        self.org_unit = org_unit
+        self.org_unit_ref = org_unit
         self.org_unit_uuid = None
 
         self.type_ref = manager_type_ref
@@ -289,11 +291,15 @@ class ManagerType(MoType):
         if not isinstance(responsibility_list, list):
             raise TypeError("Responsabilities must be passed as a list")
 
-        self.responsibility = responsibility_list
+        self.responsibility_list = responsibility_list
+        self.responsibilities = []
 
         self.address_uuid = address_uuid
         self.address_type_ref = address_type_ref
         self.address_type_uuid = None
+
+        self.date_from = date_from
+        self.date_to = date_to
 
     def build(self):
 
@@ -311,7 +317,7 @@ class ManagerType(MoType):
                 {
                     "uuid": responsibility_uuid
                 }
-                for responsibility_uuid in self.responsibility
+                for responsibility_uuid in self.responsibilities
             ]
         }
 
@@ -328,15 +334,13 @@ class ManagerType(MoType):
 
 class OrganisationUnitType(MoType):
 
-    def __init__(self, type_ref,
-                 date_from, date_to=None, uuid=None, user_key=None,
-                 parent_ref=None, name=None):
+    def __init__(self, name, type_ref, date_from, date_to=None,
+                 uuid=None, user_key=None, parent_ref=None):
         super().__init__()
 
-        # self.identifier = identifier
         self.name = name
         self.uuid = uuid
-        self.user_key = user_key
+        self.user_key = (user_key or name)
 
         self.parent_ref = parent_ref
         self.parent_uuid = None
@@ -358,7 +362,6 @@ class OrganisationUnitType(MoType):
             raise ReferenceError("UUID of the unit type is missing")
 
         self.payload = {
-            "uuid": self.uuid,
             "user_key": self.user_key,
             "name": self.name,
             "parent": {
@@ -368,6 +371,9 @@ class OrganisationUnitType(MoType):
                 "uuid": self.type_ref_uuid
             }
         }
+
+        if self.uuid:
+            self.payload["uuid"] = self.uuid
 
         if self.details:
             self.payload["details"] = self.details
@@ -397,14 +403,15 @@ class EmployeeType(MoType):
             raise ReferenceError("UUID of the organisation is missing")
 
         self.payload = {
-            "uuid": self.uuid,
-            "user_key": self.user_key,
             "name": self.name,
             "cpr_no": self.cpr_no,
             "org": {
                 "uuid": self.org_uuid
             }
         }
+        #
+        # "uuid": self.uuid,
+        # "user_key": self.user_key,
 
         if self.details:
             self.payload["details"] = self.details

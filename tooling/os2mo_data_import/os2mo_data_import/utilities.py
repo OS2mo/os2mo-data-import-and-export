@@ -6,7 +6,7 @@ from os2mo_data_import.defaults import facet_defaults, klasse_defaults
 
 import json
 from urllib.parse import urljoin
-from requests import Session
+from requests import Session, HTTPError
 from uuid import uuid4
 
 
@@ -163,8 +163,6 @@ class ImportUtility(object):
 
         payload = facet.build()
 
-        print(payload)
-
         facet_uuid = integration_data.get('uuid', None)
 
         self.inserted_facet_map[reference] = self.insert_mox_data(
@@ -194,10 +192,6 @@ class ImportUtility(object):
 
         uuid = klasse.uuid
         facet_ref = klasse.facet_type_ref
-
-        print("FACET REF")
-        print(facet_ref)
-
 
         facet_uuid = self.inserted_facet_map.get(facet_ref)
 
@@ -338,19 +332,26 @@ class ImportUtility(object):
         organisation_unit.type_ref_uuid = type_ref_uuid
 
         # Build details (if any)
-        organisation_unit.details = [
-            self.build_detail(detail)
-            for detail in details
-        ]
+        for detail in details:
 
-        if organisation_unit.details:
-            print("========= DETAILS ==========")
-            print(organisation_unit.details)
+            date_from = detail.date_from
+
+            if not date_from:
+                date_from = organisation_unit.date_from
+
+            build_detail = self.build_detail(
+                detail=detail,
+                date_from=date_from,
+                date_to=organisation_unit.date_to
+            )
+
+            if not build_detail:
+                continue
+
+            organisation_unit.details.append(build_detail)
+
 
         payload = organisation_unit.build()
-
-        print("========= PAYLOAD ===========")
-        print(payload)
 
         uuid = self.insert_mora_data(
             resource="service/ou/create",
@@ -371,8 +372,6 @@ class ImportUtility(object):
         if not isinstance(employee, EmployeeType):
             raise TypeError("Not of type EmployeeType")
 
-        print("============ Employees =============")
-
         resource = 'organisation/organisationenhed'
 
         integration_data = self._integration_data(
@@ -383,16 +382,28 @@ class ImportUtility(object):
         )
 
         # Build details (if any)
-        employee.details = [
-            self.build_detail(detail)
-            for detail in details
-        ]
+        for detail in details:
+            date_from = detail.date_from
+
+            if not date_from:
+                date_from = self.date_from
+
+            build_payload = self.build_detail(
+                detail=detail,
+                date_from=date_from,
+                date_to=employee.date_to
+            )
+
+            if not build_payload:
+                continue
+
+            employee.details.append(build_payload)
 
         employee.org_uuid = self.organisation_uuid
         payload = employee.build()
 
-        print("=========== PAYLOAD ==============")
-        print(payload)
+        if not payload:
+            raise RuntimeError("PAYLOAD IS EMPTY")
 
         ## MARKER ##
         resource = 'organisation/organisationenhed'
@@ -409,7 +420,7 @@ class ImportUtility(object):
         mora_resource = "service/e/create"
         uuid = self.insert_mora_data(
             resource=mora_resource,
-            data=integration_data
+            data=payload
         )
 
         if 'uuid' in integration_data:
@@ -420,11 +431,16 @@ class ImportUtility(object):
 
         return uuid
 
-    def build_detail(self, detail):
+    def build_detail(self, detail, date_from, date_to):
+
+        # Temporarily disabled
+        disabled = ["address", "association", "leave"]
+        if detail.type_id in disabled:
+            return
 
         # Set validity
-        detail.date_from = self.date_from
-        detail.date_to = None
+        detail.date_from = date_from
+        detail.date_to = date_to
 
         common_attributes = [
             ("type_ref", "type_ref_uuid"),
@@ -456,6 +472,12 @@ class ImportUtility(object):
             detail.itsystem_uuid = self.inserted_itsystem_map.get(
                 detail.itsystem_ref
             )
+
+        if hasattr(detail, "responsibilities"):
+            detail.responsibilities = [
+                self.inserted_klasse_map[reference]
+                for reference in detail.responsibility_list
+            ]
 
         return detail.build()
 
@@ -552,8 +574,6 @@ class ImportUtility(object):
 
     def insert_mox_data(self, resource, data, uuid=None):
 
-        print(self.session)
-
         # TESTING
         if self.dry_run:
             uuid = uuid4()
@@ -569,15 +589,21 @@ class ImportUtility(object):
             json=data
         )
 
-        data = response.json()
+        response_data = response.json()
 
-        if "uuid" not in data:
-            to_json = json.dumps(data)
-            print(to_json)
+        if response.status_code != 201:
 
-            raise RuntimeError("ERROR ERROR ERROR")
+            # DEBUG
+            # TODO: Implement logging
+            print("============ ERROR ===========")
+            print(resource)
+            print(
+                json.dumps(data, indent=2)
+            )
 
-        return data["uuid"]
+            raise HTTPError("Inserting mox data failed")
+
+        return response_data["uuid"]
 
 
     def insert_mora_data(self, resource, data, uuid=None):
@@ -597,6 +623,22 @@ class ImportUtility(object):
             json=data
         )
 
-        data = response.json()
+        response_data = response.json()
 
-        return data
+        if response.status_code != 201:
+
+            # DEBUG
+            # TODO: Implement logging
+            print("============ ERROR ===========")
+            print(resource)
+            print(
+                json.dumps(data, indent=2)
+            )
+
+            raise HTTPError("Inserting mora data failed")
+
+        response_data = response.json()
+
+        # Returns a string rather than a json object
+        # Example: "0fd6a479-8569-42dd-9614-4aacb611306e"
+        return response_data

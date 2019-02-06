@@ -362,11 +362,8 @@ def example_import():
         manager_type_ref="Leder",
         manager_level_ref="Højeste niveau",
         responsibility_list=["Tage beslutninger", "Motivere medarbejdere", "Betale løn"],
-        date_from="1986-12-01",
+        date_from="1987-12-01",
     )
-
-
-
 
     # Leave of absence (Does not work after release 0.10)
     # Leave type requires an exisiting engagement type
