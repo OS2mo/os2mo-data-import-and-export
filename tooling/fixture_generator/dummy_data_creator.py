@@ -10,18 +10,18 @@ from uuid import uuid5, NAMESPACE_DNS
 from anytree import Node, PreOrderIter
 
 CLASSES = {
-    'Stillingsbetegnelse': [
+    'engagement_job_function': [
         'Udvikler', 'Specialkonsulent', 'Ergoterapeut', 'Udviklingskonsulent',
         'Specialist', 'Jurist', 'Personalekonsulent', 'Lønkonsulent',
         'Kontorelev', 'Ressourcepædagog', 'Pædagoisk vejleder',
         'Skolepsykolog', 'Støttepædagog', 'Bogopsætter', 'Timelønnet lærer',
         'Pædagogmedhjælper', 'Teknisk Servicemedarb.', 'Lærer/Overlærer'
     ],
-    'Enhedstype': [
+    'org_unit_type': [
         'Afdeling', 'Institutionsafsnit', 'Institution', 'Fagligt center',
         'Direktør område'
     ],
-    'Lederansvar': [
+    'responsibility': [
         'Personale: ansættelse/afskedigelse',
         'Beredskabsledelse',
         'Personale: øvrige administrative opgaver',
@@ -29,15 +29,15 @@ CLASSES = {
         'Ansvar for bygninger og arealer',
         'Personale: MUS-kompetence'
     ],
-    'Ledertyper': [
+    'manager_type': [
         'Direktør', 'Distriktsleder', 'Beredskabschef', 'Sekretariatschef',
         'Systemadministrator', 'Områdeleder', 'Centerchef', 'Institutionsleder'
     ],
-    'Rolletype': [
+    'role_type': [
         'Tillidsrepræsentant', 'Ergonomiambasadør', 'Ansvarlig for sommerfest'
     ],
-    'Tilknytningstype': ['Problemknuser', 'Konsulent', 'Medhjælper'],
-    'Lederniveau': ['Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4']
+    'association_type': ['Problemknuser', 'Konsulent', 'Medhjælper'],
+    'manager_level': ['Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4']
 }
 
 IT_SYSTEMS = ['Active Directory', 'SAP', 'Office 365', 'Plone', 'Open Desk']
@@ -275,7 +275,7 @@ class CreateDummyOrg(object):
         :return: A dict with information about the user
         """
         it_systems = random.sample(self.it_systems, random.randrange(0, 3))
-        job_function = random.choice(self.classes['Stillingsbetegnelse'])
+        job_function = random.choice(self.classes['engagement_job_function'])
         host = _name_to_host(self.name)
         if cpr is None:
             cpr = _cpr(time_from)
@@ -395,12 +395,12 @@ class CreateDummyOrg(object):
         Create a user, that is also a manager.
         :return: The user object, including manager classes
         """
-        antal_ansvar = len(CLASSES['Lederansvar'])
+        antal_ansvar = len(CLASSES['responsibility'])
         ansvar_list = [0]
         ansvar_list += random.sample(range(1, antal_ansvar), 2)
         responsibility_list = []
         for i in ansvar_list:
-            responsibility_list.append(CLASSES['Lederansvar'][i])
+            responsibility_list.append(CLASSES['responsibility'][i])
         user = self.create_user(manager=responsibility_list)
         user[0]['association'] = None
         user[0]['role'] = None
@@ -434,8 +434,8 @@ class CreateDummyOrg(object):
             for _ in range(0, ran_size):
                 user = self.create_user(multiple_employments=multiple_employments)
                 for eng in user:
-                    eng['association'] = self.add_user_func('Tilknytningstype')
-                    eng['role'] = self.add_user_func('Rolletype', node)
+                    eng['association'] = self.add_user_func('association_type')
+                    eng['role'] = self.add_user_func('role_type', node)
 
                 uuid = uuid5(NAMESPACE_DNS, str(random.random()))
                 new_nodes[uuid] = {'name': user[0]['brugernavn'], 'user': user,
