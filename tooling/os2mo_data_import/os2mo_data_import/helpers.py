@@ -6,10 +6,21 @@ from os2mo_data_import.defaults import facet_defaults, klasse_defaults
 
 class ImportHelper(object):
 
-    def __init__(self, create_defaults=True):
+    def __init__(self, system_name="Import", end_marker="_|-STOP",
+                 mox_base="http://localhost:8080", mora_base="http://localhost:5000",
+                 store_integration_data=False, create_defaults=True):
 
-        self.organisation = ()
-        self.klassifikation = ()
+        # Import Params
+        self.system_name = system_name
+        self.end_marker = end_marker
+        self.store_integration_data = store_integration_data
+
+        # Service endpoint base
+        self.mox_base = mox_base
+        self.mora_base = mora_base
+
+        self.organisation = None
+        self.klassifikation = None
 
         self.klasse_objects = {}
         self.facet_objects = {}
@@ -217,7 +228,13 @@ class ImportHelper(object):
 
 
         # Insert
-        store = Utility()
+        store = Utility(
+            mox_base=self.mox_base,
+            mora_base=self.mora_base,
+            system_name=self.system_name,
+            end_marker=self.end_marker,
+            store_integration_data=self.store_integration_data
+        )
 
         # Insert Organisation
         print('Will now import organisation')

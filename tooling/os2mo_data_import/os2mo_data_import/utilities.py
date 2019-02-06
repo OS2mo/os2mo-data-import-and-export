@@ -2,7 +2,6 @@
 
 from os2mo_data_import.mora_data_types import *
 from os2mo_data_import.mox_data_types import *
-from os2mo_data_import.defaults import facet_defaults, klasse_defaults
 
 import json
 from urllib.parse import urljoin
@@ -12,19 +11,18 @@ from uuid import uuid4
 
 class ImportUtility(object):
 
-    def __init__(self, dry_run=False, system_name='Import',
-                 store_integration_data=False, end_marker='Jørgen'):
+    def __init__(self, system_name, end_marker, mox_base, mora_base,
+                 store_integration_data=False, dry_run=False):
 
-        super().__init__()
-
-        # Params
-        self.dry_run = dry_run
+        # Import Params
         self.system_name = system_name
-        self.store_integration_data = store_integration_data
         self.end_marker = end_marker
+        self.store_integration_data = store_integration_data
 
-        self.mox_base = "http://localhost:8080"
-        self.mora_base = "http://localhost:5000"
+
+        # Service endpoint base
+        self.mox_base = mox_base
+        self.mora_base = mora_base
 
         # Session
         self.session = Session()
@@ -44,8 +42,8 @@ class ImportUtility(object):
         self.inserted_org_unit_map = {}
         self.inserted_employee_map = {}
 
-        # Facet types
-        self.facet_types = {}
+        # Deprecated
+        self.dry_run = dry_run
 
     def insert_organisation(self, identifier, organisation):
 
