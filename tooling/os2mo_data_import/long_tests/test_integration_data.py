@@ -36,8 +36,15 @@ class IntegrationDataTests(unittest.TestCase):
         self.mox_base = 'http://localhost:5000'
         self.mora_base = 'http://localhost:80'
         self.system_name = 'Test Dummy Import'
-        self.dummy_org = CreateDummyOrg(825, 'Læsø Kommune', scale=1,
-                                        org_size=Size.Small)
+        self.importer = ImportHelper(create_defaults=True,
+                                     mox_base='http://localhost:5000',
+                                     mora_base='http://localhost:80',
+                                     system_name="Dummy import",
+                                     end_marker="STOP",
+                                     store_integration_data=True
+        )
+        self.dummy_org = CreateDummyOrg(self.importer, 825, 'Læsø Kommune',
+                                        scale=1, org_size=Size.Small)
 
     @classmethod
     def setUp(self):
@@ -89,15 +96,16 @@ class IntegrationDataTests(unittest.TestCase):
         return counts
 
     def _run_import_and_test_org_sanity(self, extra=0):
-        dummy_import = ImportUtility(
-            dry_run=False,
-            mox_base=self.mox_base,
-            mora_base=self.mora_base,
-            store_integration_data=True,
-            system_name=self.system_name
-        )
+        #dummy_import = ImportUtility(
+        #    dry_run=False,
+        #    mox_base=self.mox_base,
+        #    mora_base=self.mora_base,
+        #    store_integration_data=True,
+        #    system_name=self.system_name
+        #)
         counts = self._count()
-        dummy_import.import_all(self.dummy_org.org)
+        self.importer.import_all()
+        # dummy_import.import_all(self.dummy_org.org)
         counts = self._count()
         test_values = [
             ('role_count', 3),
@@ -117,7 +125,7 @@ class IntegrationDataTests(unittest.TestCase):
         self._run_import_and_test_org_sanity()
 
     @freeze_time("2018-12-01")
-    def ttest_011_verify_existence_of_integration_data(self):
+    def test_011_verify_existence_of_integration_data(self):
         """ Verify that integration data has been created """
         uuid = self._find_top_unit()
         integration_data = self.morah._mo_lookup(uuid, 'ou/{}/integration-data',
@@ -125,7 +133,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue('integration_data' in integration_data)
 
     @freeze_time("2018-12-01")
-    def ttest_012_verify_sane_integration_data(self):
+    def test_012_verify_sane_integration_data(self):
         """ If integration data exists, verify that it has the expected content """
         uuid = self._find_top_unit()
         integration_data = self.morah._mo_lookup(uuid, 'ou/{}/integration-data',
@@ -136,7 +144,7 @@ class IntegrationDataTests(unittest.TestCase):
             self.skipTest('Integration data does not exist')
 
     @freeze_time("2018-12-01")
-    def ttest_013_klasse_re_import(self):
+    def test_013_klasse_re_import(self):
         """ All classes should be imprted """
         org = self.morah.read_organisation()
         classes = self.morah._mo_lookup(org, 'o/{}/f/job_function/', use_cache=False)
