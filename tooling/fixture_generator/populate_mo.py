@@ -16,7 +16,8 @@ from dummy_data_creator import Size
 
 
 class CreateDummyOrg(object):
-    def __init__(self, municipality_code, name, scale=1, org_size=Size.Normal):
+    def __init__(self, importer, municipality_code, name,
+                 scale=1, org_size=Size.Normal):
         self.data = self.create_dummy_data(municipality_code, name, scale, org_size)
 
         self.extra_data = self.create_dummy_data(municipality_code, name,
@@ -216,9 +217,12 @@ class CreateDummyOrg(object):
 
 if __name__ == '__main__':
     creator = CreateDummyOrg(825, 'Læsø Kommune', scale=1, org_size=Size.Normal)
-    dummy_import = ImportUtility(
-        dry_run=False,
-        mox_base='http://localhost:8080',
-        mora_base='http://localhost:80'
+
+    importer = ImportHelper(create_defaults=True,
+                            mox_base='http://localhost:5000',
+                            mora_base='http://localhost:80'
     )
-    dummy_import.import_all(creator.org)
+    creator = CreateDummyOrg(importer, 101, 'København', scale=1,
+                             org_size=Size.Normal)
+    
+    importer.import_all()
