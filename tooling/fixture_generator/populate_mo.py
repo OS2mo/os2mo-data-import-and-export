@@ -85,6 +85,7 @@ class CreateDummyOrg(object):
 
     def create_ou(self, ou_node):
         date_from = datetime.strftime(self.data.global_start_date, '%Y-%m-%d')
+
         if ou_node.parent:
             parent = ou_node.parent.key
         else:
@@ -176,12 +177,10 @@ class CreateDummyOrg(object):
 
             if user['association'] is not None:
                 for detail in self.importer.employee_details[owner_ref]:
-                    print(detail)
                     if 'job_function_ref' in detail.__dict__:
                         job_function = detail.__dict__['job_function_ref']
 
                 association = user['association']
-                print(association['unit'])
 
                 self.importer.add_association(
                     employee=owner_ref,
@@ -220,9 +219,12 @@ if __name__ == '__main__':
 
     importer = ImportHelper(create_defaults=True,
                             mox_base='http://localhost:5000',
-                            mora_base='http://localhost:80'
+                            mora_base='http://localhost:80',
+                            system_name="Dummy import",
+                            end_marker="STOP",
+                            store_integration_data=False
     )
     creator = CreateDummyOrg(importer, 101, 'København', scale=1,
                              org_size=Size.Normal)
     
-    importer.import_all()
+    # importer.import_all()
