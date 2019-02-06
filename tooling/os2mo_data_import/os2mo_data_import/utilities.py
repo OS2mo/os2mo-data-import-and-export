@@ -62,19 +62,21 @@ class ImportUtility(object):
 
         resource = "organisation/organisation"
 
-        payload = organisation.build()
-
         integration_data = self._integration_data(
             resource=resource,
             reference=reference,
-            payload=payload
+            payload={}
         )
+
+        organisation.integration_data = integration_data
+
+        payload = organisation.build()
 
         organisation_uuid = integration_data.get('uuid', None)
 
         self.organisation_uuid = self.insert_mox_data(
             resource=resource,
-            data=integration_data,
+            data=payload,
             uuid=organisation_uuid
         )
 
@@ -92,19 +94,20 @@ class ImportUtility(object):
 
         klassifikation.organisation_uuid = self.organisation_uuid
 
-        payload = klassifikation.build()
-
         integration_data = self._integration_data(
             resource=resource,
             reference=reference,
-            payload=payload
+            payload={}
         )
+
+        klassifikation.integration_data = integration_data
+        payload = klassifikation.build()
 
         klassifikation_uuid = integration_data.get('uuid', None)
 
         self.klassifikation_uuid = self.insert_mox_data(
             resource=resource,
-            data=integration_data,
+            data=payload,
             uuid=klassifikation_uuid
         )
 
@@ -137,19 +140,20 @@ class ImportUtility(object):
         facet.date_from = self.date_from
         facet.date_to = self.date_to
 
-        payload = facet.build()
-
         integration_data = self._integration_data(
             resource=resource,
             reference=reference,
-            payload=payload
+            payload={}
         )
+
+        facet.integration_data = integration_data
+        payload = facet.build()
 
         facet_uuid = integration_data.get('uuid', None)
 
         self.inserted_facet_map[reference] = self.insert_mox_data(
             resource=resource,
-            data=integration_data,
+            data=payload,
             uuid=facet_uuid
         )
 
@@ -191,12 +195,12 @@ class ImportUtility(object):
         klasse.date_from = self.date_from
         klasse.date_to = self.date_to
 
-        payload = klasse.build()
+
 
         integration_data = self._integration_data(
             resource=resource,
             reference=reference,
-            payload=payload
+            payload={}
         )
 
         if 'uuid' in integration_data:
@@ -208,9 +212,13 @@ class ImportUtility(object):
             else:
                 klasse_uuid = uuid[0] # Internal representation is a 1-element tuple
 
+        klasse.integration_data = integration_data
+        payload = klasse.build()
+
+
         import_uuid = self.insert_mox_data(
             resource="klassifikation/klasse",
-            data=integration_data,
+            data=payload,
             uuid=klasse_uuid
         )
 
@@ -239,12 +247,10 @@ class ImportUtility(object):
         itsystem.date_from = self.date_from
         itsystem.date_to = self.date_to
 
-        payload = itsystem.build()
-
         integration_data = self._integration_data(
             resource=resource,
             reference=reference,
-            payload=payload
+            payload={}
         )
 
         if 'uuid' in integration_data:
@@ -252,9 +258,12 @@ class ImportUtility(object):
         else:
             itsystem_uuid = None
 
+        itsystem.integration_data = integration_data
+        payload = itsystem.build()
+
         self.inserted_itsystem_map[reference] = self.insert_mox_data(
             resource=resource,
-            data=integration_data,
+            data=payload,
             uuid=itsystem_uuid
         )
 

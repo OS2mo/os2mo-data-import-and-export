@@ -10,7 +10,7 @@ def example_import():
     """
 
     # Init
-    os2mo = ImportHelper(create_defaults=True)
+    os2mo = ImportHelper(create_defaults=True, store_integration_data=True)
 
 
     # The Organisation class is the main entry point,
