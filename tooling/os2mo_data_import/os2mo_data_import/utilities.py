@@ -433,9 +433,15 @@ class ImportUtility(object):
 
     def build_detail(self, detail, date_from, date_to):
 
-        # Temporarily disabled
-        disabled = ["address", "association", "leave"]
-        if detail.type_id in disabled:
+        # Waiting for removal of scope requirement
+        # Validation fails when attempting to insert "leave"
+        # as detail during employee creation
+        blacklist = [
+            "address",
+            "leave"
+        ]
+
+        if detail.type_id in blacklist:
             return
 
         # Set validity
@@ -613,6 +619,10 @@ class ImportUtility(object):
             uuid = uuid4()
             return str(uuid)
 
+        params = {
+            "force": 1
+        }
+
         service_url = urljoin(
             base=self.mora_base,
             url=resource
@@ -620,7 +630,8 @@ class ImportUtility(object):
 
         response = self.session.post(
             url=service_url,
-            json=data
+            json=data,
+            params=params
         )
 
         response_data = response.json()
