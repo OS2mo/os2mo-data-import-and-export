@@ -229,16 +229,9 @@ class ImportHelper(object):
 
         if parent_ref and parent_ref not in self.store.inserted_org_unit_map:
             parent_unit = self.organisation_units.get(parent_ref)
-            parent_details = self.organisation_unit_details.get(parent_ref)
 
             # Insert parent first
             self.import_organisation_units_recursively(parent_ref, parent_unit)
-
-            self.store.import_org_unit(
-                reference=parent_ref,
-                organisation_unit=parent_unit,
-                details=parent_details
-            )
 
         # Now insert actual units
         details = self.organisation_unit_details.get(reference)
