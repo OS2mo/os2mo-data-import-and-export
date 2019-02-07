@@ -672,7 +672,7 @@ class ImportUtility(object):
 
         response_data = response.json()
 
-        if response.status_code != 200 or response.status_code != 201:
+        if response.status_code not in (200, 201):
 
             # DEBUG
             # TODO: Implement logging
