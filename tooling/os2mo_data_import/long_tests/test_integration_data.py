@@ -44,7 +44,8 @@ class IntegrationDataTests(unittest.TestCase):
                                      store_integration_data=True
         )
         self.dummy_org = CreateDummyOrg(self.importer, 825, 'Læsø Kommune',
-                                        scale=1, org_size=Size.Small)
+                                        scale=1, org_size=Size.Small,
+                                        extra_root=False)
 
     @classmethod
     def setUp(self):
@@ -125,7 +126,7 @@ class IntegrationDataTests(unittest.TestCase):
         self._run_import_and_test_org_sanity()
 
     @freeze_time("2018-12-01")
-    def test_011_verify_existence_of_integration_data(self):
+    def ttest_011_verify_existence_of_integration_data(self):
         """ Verify that integration data has been created """
         uuid = self._find_top_unit()
         integration_data = self.morah._mo_lookup(uuid, 'ou/{}/integration-data',
@@ -133,7 +134,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue('integration_data' in integration_data)
 
     @freeze_time("2018-12-01")
-    def test_012_verify_sane_integration_data(self):
+    def ttest_012_verify_sane_integration_data(self):
         """ If integration data exists, verify that it has the expected content """
         uuid = self._find_top_unit()
         integration_data = self.morah._mo_lookup(uuid, 'ou/{}/integration-data',
@@ -144,14 +145,14 @@ class IntegrationDataTests(unittest.TestCase):
             self.skipTest('Integration data does not exist')
 
     @freeze_time("2018-12-01")
-    def test_013_klasse_re_import(self):
+    def ttest_013_klasse_re_import(self):
         """ All classes should be imprted """
         org = self.morah.read_organisation()
         classes = self.morah._mo_lookup(org, 'o/{}/f/job_function/', use_cache=False)
         assert(len(classes['data']['items']) == 19)
 
     @freeze_time("2018-12-02")
-    def ttest_020_re_import(self):
+    def test_020_re_import(self):
         """ Run the import again. This should result in an organisation of
         the same size. We also at the same time move a single user between
         two units. The success of this move is checked in a later test."""
