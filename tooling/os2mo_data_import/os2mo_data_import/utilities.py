@@ -412,62 +412,61 @@ class ImportUtility(object):
         data['engagement'] = self._get_detail(uuid, 'engagement')
         data['association'] = self._get_detail(uuid, 'association')
 
-        for detail in details:
-
+        if details:
             complete_additional_payload = []
             additional_payload = []
+            for detail in details:
+                if not detail.date_from:
+                    detail.date_from = self.date_from
 
-            if not detail.date_from:
-                detail.date_from = self.date_from
-
-            # Create payload (as dict)
-            detail_payload = self.build_detail(
-                detail=detail,
-                employee_uuid=uuid
-            )
-
-            if not detail_payload:
-                continue
-
-            if detail.type_id in data.keys():
-                found_hit = self._payload_compare(detail_payload, data)
-            else:
-                found_hit = False
-
-            new_item_payload = copy.deepcopy(detail_payload)
-
-            today = datetime.now().strftime('%Y-%m-%d')
-            valid_to = new_item_payload['validity']['to']
-
-            if valid_to:
-                future = datetime.strptime(valid_to, '%Y-%m-%d') > datetime.now()
-            else:
-                future = False
-
-            if not valid_to or future:
-                new_item_payload['validity']['from'] = today
-                complete_additional_payload.append(new_item_payload)
-                # Clean this up. We do not need a long and a short list
-                # of payloads, we need to know if something changes and thus
-                # if we need to terminate and re-hire the employee
-                # if not found_hit. This awaits fixing the current issues in MO.
-            additional_payload.append(detail_payload)
-
-            # Hvad sker der, hvis man fyrer en person og ansætter igen samme dag...?
-            # This will always happen as long as the date-bug exists
-            if uuid in self.existing_uuids and len(additional_payload) > 0:
-                print('Terminate: {}'.format(uuid))
-                self._terminate_employee(uuid)
-
-                self.insert_mora_data(
-                    resource="service/details/create",
-                    data=complete_additional_payload
+                # Create payload (as dict)
+                detail_payload = self.build_detail(
+                    detail=detail,
+                    employee_uuid=uuid
                 )
-            else:
-                self.insert_mora_data(
-                    resource="service/details/create",
-                    data=additional_payload
-                )
+
+                if not detail_payload:
+                    continue
+
+                if detail.type_id in data.keys():
+                    found_hit = self._payload_compare(detail_payload, data)
+                else:
+                    found_hit = False
+
+                new_item_payload = copy.deepcopy(detail_payload)
+
+                today = datetime.now().strftime('%Y-%m-%d')
+                valid_to = new_item_payload['validity']['to']
+
+                if valid_to:
+                    future = datetime.strptime(valid_to, '%Y-%m-%d') > datetime.now()
+                else:
+                    future = False
+
+                if not valid_to or future:
+                    new_item_payload['validity']['from'] = today
+                    complete_additional_payload.append(new_item_payload)
+                    # Clean this up. We do not need a long and a short list
+                    # of payloads, we need to know if something changes and thus
+                    # if we need to terminate and re-hire the employee
+                    # if not found_hit. This awaits fixing the current issues in MO.
+                additional_payload.append(detail_payload)
+
+                # Hvad sker der, hvis man fyrer en person og ansætter igen samme dag...?
+                # This will always happen as long as the date-bug exists
+                if uuid in self.existing_uuids and len(additional_payload) > 0:
+                    print('Terminate: {}'.format(uuid))
+                    self._terminate_employee(uuid)
+
+                    self.insert_mora_data(
+                        resource="service/details/create",
+                        data=complete_additional_payload
+                    )
+                else:
+                    self.insert_mora_data(
+                        resource="service/details/create",
+                        data=additional_payload
+                    )
 
         return uuid
 
