@@ -19,6 +19,10 @@ class MoType():
         self.date_from = None
         self.date_to = None
 
+        # Compatibility:
+        # Write details after unit or employee is stored
+        self.person_uuid = None
+
     def _build_payload(self):
 
         if not isinstance(self.payload, dict):
@@ -27,6 +31,11 @@ class MoType():
         # Add type:
         if self.type_id:
             self.payload["type"] = self.type_id
+
+        if self.person_uuid:
+            self.payload["person"] = {
+                "uuid": self.person_uuid
+            }
 
         # Add validity:
         self.payload["validity"] = {
