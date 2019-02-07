@@ -9,7 +9,6 @@
 
 class MoType():
 
-    uuid = None
     type_id = None
     insert_data = True
 
@@ -335,11 +334,10 @@ class ManagerType(MoType):
 class OrganisationUnitType(MoType):
 
     def __init__(self, name, type_ref, date_from, date_to=None,
-                 uuid=None, user_key=None, parent_ref=None):
+                 user_key=None, parent_ref=None):
         super().__init__()
 
         self.name = name
-        self.uuid = uuid
         self.user_key = (user_key or name)
 
         self.parent_ref = parent_ref
@@ -372,12 +370,6 @@ class OrganisationUnitType(MoType):
             }
         }
 
-        if self.uuid:
-            self.payload["uuid"] = self.uuid
-
-        if self.details:
-            self.payload["details"] = self.details
-
         return self._build_payload()
 
 
@@ -391,8 +383,6 @@ class EmployeeType(MoType):
 
         self.uuid = uuid
         self.user_key = user_key
-
-        self.details = []
 
         self.org = org
         self.org_uuid = None
@@ -409,11 +399,5 @@ class EmployeeType(MoType):
                 "uuid": self.org_uuid
             }
         }
-        #
-        # "uuid": self.uuid,
-        # "user_key": self.user_key,
-
-        if self.details:
-            self.payload["details"] = self.details
 
         return self.payload
