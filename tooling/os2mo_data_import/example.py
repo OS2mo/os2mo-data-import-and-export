@@ -23,7 +23,6 @@ def example_import():
         municipality_code=101
     )
 
-
     # Add klasse with reference to facet "org_unit_type"
     os2mo.add_klasse(
         identifier="Hovedenhed",
@@ -84,6 +83,16 @@ def example_import():
         date_from="1986-01-01"
     )
 
+    # Address Types
+    os2mo.add_klasse(
+        identifier="AdressePost",
+        facet_type_ref="org_unit_address_type",
+        user_key="7C76AF82-AC79-41F8-9AB8-762F301BB22B",
+        title="Adresse",
+        scope="DAR",
+        example="<UUID>"
+    )
+
     os2mo.add_address_type(
         organisation_unit="Magenta",
         value="0a3f50c4-379f-32b8-e044-0003ba298018",
@@ -91,11 +100,29 @@ def example_import():
         date_from="1986-01-01"
     )
 
+    os2mo.add_klasse(
+        identifier="EAN",
+        facet_type_ref="org_unit_address_type",
+        user_key="C8EC85B4-A088-434A-B034-CA08A9FD655A",
+        title="EAN-nr.",
+        scope="EAN",
+        example="00112233"
+    )
+
     os2mo.add_address_type(
         organisation_unit="Magenta",
         value="00112233",
         type_ref="EAN",
         date_from="1986-01-01",
+    )
+
+    os2mo.add_klasse(
+        identifier="Telefon",
+        facet_type_ref="org_unit_address_type",
+        user_key="E9B487F6-A94E-4393-9127-BB646956EAB8",
+        title="Tlf",
+        scope="PHONE",
+        example="20304060"
     )
 
     os2mo.add_address_type(
@@ -167,6 +194,13 @@ def example_import():
     )
 
     # Assign job functions
+    os2mo.add_klasse(
+        identifier="Ansat",
+        facet_type_ref="engagement_type",
+        user_key="CF297115-309B-4535-88C8-5BA41C90929B",
+        title="Ansat"
+    )
+
     os2mo.add_engagement(
         employee="Susanne Chæf",
         organisation_unit="Magenta",
@@ -220,7 +254,7 @@ def example_import():
     os2mo.add_klasse(
         identifier="Ekstern Konsulent",
         facet_type_ref="association_type",
-        user_key="Ekstern Konsulent",
+        user_key="F997F306-71DF-477C-AD42-E753F9C21B42",
         title="Ekstern Konsulent"
     )
 
@@ -233,17 +267,26 @@ def example_import():
         date_from="1986-10-01"
     )
 
+    os2mo.add_klasse(
+        identifier="AdressePostEmployee",
+        facet_type_ref="employee_address_type",
+        user_key="2F29C717-5D78-4AA9-BDAE-7CDB3A378018",
+        title="Adresse",
+        scope="DAR",
+        example="<UUID>"
+    )
+
     os2mo.add_address_type(
         employee="Susanne Chæf",
         value="0a3f50a0-ef5a-32b8-e044-0003ba298018",
-        type_ref="AdressePost",
+        type_ref="AdressePostEmployee",
         date_from="1986-11-01",
     )
 
     os2mo.add_address_type(
         employee="Odin Perskov",
         value="0a3f50a0-ef5a-32b8-e044-0003ba298018",
-        type_ref="AdressePost",
+        type_ref="AdressePostEmployee",
         date_from="1986-11-01",
     )
 
@@ -251,28 +294,28 @@ def example_import():
     os2mo.add_address_type(
         employee="Ronja Rwander",
         value="0a3f50a0-ef5a-32b8-e044-0003ba298018",
-        type_ref="AdressePost",
+        type_ref="AdressePostEmployee",
         date_from="1986-11-01",
     )
 
     os2mo.add_address_type(
         employee="Jens Mortensen",
         value="0a3f50a0-ef5a-32b8-e044-0003ba298018",
-        type_ref="AdressePost",
+        type_ref="AdressePostEmployee",
         date_from="1986-11-01",
     )
 
     os2mo.add_address_type(
         employee="Bolette Buhl",
         value="0a3f50a0-ef5a-32b8-e044-0003ba298018",
-        type_ref="AdressePost",
+        type_ref="AdressePostEmployee",
         date_from="1986-11-01",
     )
 
     os2mo.add_address_type(
         employee="Carl Sand Holth",
         value="0a3f50a0-ef5a-32b8-e044-0003ba298018",
-        type_ref="AdressePost",
+        type_ref="AdressePostEmployee",
         date_from="1986-11-01",
     )
 
@@ -281,14 +324,14 @@ def example_import():
     os2mo.add_klasse(
         identifier="Medarbejder repræsentant",
         facet_type_ref="role_type",
-        user_key="Medarbejder repræsentant",
+        user_key="893A0670-BAFB-4DDF-8270-0EDACE6C520C",
         title="Medarbejder repræsentant"
     )
 
     os2mo.add_klasse(
         identifier="Nøgleansvarlig",
         facet_type_ref="role_type",
-        user_key="Nøgleansvarlig",
+        user_key="0E078F23-A5B4-4FB4-909B-60E49295C5E9",
         title="Nøgleansvarlig"
     )
 
@@ -319,18 +362,18 @@ def example_import():
     # and assign to employee
 
     # Manager type
-    # os2mo.add_klasse(
-    #     identifier="Leder",
-    #     facet_type_ref="Ledertyper",
-    #     user_key="Direktør",
-    #     title="Virksomhedens direktør"
-    # )
+    os2mo.add_klasse(
+        identifier="Leder",
+        facet_type_ref="manager_type",
+        user_key="55BD7A09-86C3-4E15-AF5D-EAD20EB12F81",
+        title="Virksomhedens direktør"
+    )
 
     # Manager level
     os2mo.add_klasse(
         identifier="Højeste niveau",
         facet_type_ref="manager_level",
-        user_key="Højeste niveau",
+        user_key="6EAA7DA7-212D-4FD0-A068-BA3F932FDB10",
         title="Højeste niveau"
     )
 
@@ -338,21 +381,21 @@ def example_import():
     os2mo.add_klasse(
         identifier="Tage beslutninger",
         facet_type_ref="responsibility",
-        user_key="Tage beslutninger",
+        user_key="A9ABDCCB-EC83-468F-AB7D-175B95E94956",
         title="Tage beslutninger"
     )
 
     os2mo.add_klasse(
         identifier="Motivere medarbejdere",
         facet_type_ref="responsibility",
-        user_key="Motivere medarbejdere",
+        user_key="DC475AF8-21C9-4112-94AE-E9FB13FE8D14",
         title="Motivere medarbejdere"
     )
 
     os2mo.add_klasse(
         identifier="Betale løn",
         facet_type_ref="responsibility",
-        user_key="Betale løn",
+        user_key="0A929060-3392-4C07-8F4E-EF5F9B6AFDE2",
         title="Betale løn"
     )
 
@@ -371,7 +414,7 @@ def example_import():
     os2mo.add_klasse(
         identifier="Sygeorlov",
         facet_type_ref="leave_type",
-        user_key="Sygeorlov",
+        user_key="DB8E39C3-9160-47DB-A314-B0F8D1A2D536",
         title="Sygeorlov"
     )
 

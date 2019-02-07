@@ -1,7 +1,7 @@
 from os2mo_data_import.mora_data_types import *
 from os2mo_data_import.mox_data_types import *
 from os2mo_data_import.utilities import ImportUtility
-from os2mo_data_import.defaults import facet_defaults, klasse_defaults
+from os2mo_data_import.defaults import facet_defaults
 
 
 class ImportHelper(object):
@@ -37,7 +37,6 @@ class ImportHelper(object):
         # Create default facet and klasse
         if create_defaults:
             self.create_default_facet_types()
-            self.create_default_klasse_types()
 
     def create_validity(self, date_from, date_to):
 
@@ -209,17 +208,6 @@ class ImportHelper(object):
             self.add_facet(
                 identifier=user_key,
                 user_key=user_key
-            )
-
-
-    def create_default_klasse_types(self, klasse_defaults=klasse_defaults):
-
-        for identifier, facet_type_ref, kwargs in klasse_defaults:
-
-            self.add_klasse(
-                identifier=identifier,
-                facet_type_ref=facet_type_ref,
-                **kwargs
             )
 
     def import_organisation_units_recursively(self, reference, org_unit):
