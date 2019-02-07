@@ -17,7 +17,7 @@ from dummy_data_creator import Size
 
 class CreateDummyOrg(object):
     def __init__(self, importer, municipality_code, name,
-                 scale=1, org_size=Size.Normal):
+                 scale=1, org_size=Size.Normal, extra_root=True):
         self.data = self.create_dummy_data(municipality_code, name, scale, org_size)
 
         self.extra_data = self.create_dummy_data(municipality_code, name,
@@ -40,19 +40,21 @@ class CreateDummyOrg(object):
             if node.type == 'user':
                 self.create_user(node)
                 print(node)
-        for node in PreOrderIter(self.extra_data.nodes['extra_root']):
-            self.extra_data.nodes['extra_root'].name = 'Lønorganisation'
-            if node.type == 'ou':
-                self.create_ou(node)
 
-                for org_node in PreOrderIter(self.data.nodes['root']):
-                    if ((org_node.name == node.name) and
-                        ((org_node.parent.name == node.parent.name) or
-                         node.parent.name == 'Lønorganisation')):
+        if extra_root:
+            for node in PreOrderIter(self.extra_data.nodes['extra_root']):
+                self.extra_data.nodes['extra_root'].name = 'Lønorganisation'
+                if node.type == 'ou':
+                    self.create_ou(node)
 
-                        for sub_node in org_node.children:
-                            if sub_node.type == 'user':
-                                pass
+                    for org_node in PreOrderIter(self.data.nodes['root']):
+                        if ((org_node.name == node.name) and
+                            ((org_node.parent.name == node.parent.name) or
+                             node.parent.name == 'Lønorganisation')):
+
+                            for sub_node in org_node.children:
+                                if sub_node.type == 'user':
+                                    pass
 
     def create_dummy_data(self, municipality_code, name, scale, org_size,
                           root_name='root'):
@@ -73,7 +75,8 @@ class CreateDummyOrg(object):
                     identifier=klasse,
                     facet_type_ref=facet,
                     user_key=klasse,
-                    title=klasse
+                    title=klasse,
+                    scope='TEXT'
                 )
 
     def create_it_systems(self):
@@ -145,7 +148,7 @@ class CreateDummyOrg(object):
             self.importer.add_address_type(
                 employee=owner_ref,
                 value=user['adresse']['dar-uuid'],
-                type_ref="AdressePost",
+                type_ref="AdressePostEmployee",
                 date_from=date_from,
                 date_to=date_to
             )
@@ -153,7 +156,7 @@ class CreateDummyOrg(object):
             self.importer.add_address_type(
                 employee=owner_ref,
                 value=user['telefon'],
-                type_ref="Telefon",
+                type_ref="PhoneEmployee",
                 date_from=date_from,
                 date_to=date_to
             )
@@ -161,7 +164,7 @@ class CreateDummyOrg(object):
             self.importer.add_address_type(
                 employee=owner_ref,
                 value=user['email'],
-                type_ref="Email",
+                type_ref="EmailEmployee",
                 date_from=date_from,
                 date_to=date_to
             )
@@ -221,7 +224,7 @@ if __name__ == '__main__':
                             system_name="Artificial import",
                             end_marker="STOP",
                             store_integration_data=True)
-    creator = CreateDummyOrg(importer, 840, 'Rebild Kommune', scale=3,
-                             org_size=Size.Normal)
+    creator = CreateDummyOrg(importer, 825, 'Læsø Kommune', scale=2,
+                             org_size=Size.Normal, extra_root=True)
 
     importer.import_all()
