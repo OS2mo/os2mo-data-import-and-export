@@ -673,7 +673,7 @@ class ImportUtility(object):
             return str(uuid)
 
         params = {
-            "force": 0
+            "force": 1
         }
 
         service_url = urljoin(
@@ -723,11 +723,15 @@ class ImportUtility(object):
         return all_data
 
     def _terminate_employee(self, uuid):
-        service = urljoin(self.mora_base, 'service/e/{}/terminate')
+        endpoint = 'service/e/{}/terminate'
         yesterday = datetime.now() - timedelta(days=1)
         payload = {'validity': {'to': yesterday.strftime('%Y-%m-%d')}}
-        url = service.format(uuid)
-        data = self.session.post(url, json=payload).json()
+        resource = endpoint.format(uuid)
+
+        self.insert_mora_data(
+            resource=resource,
+            data=payload
+        )
         return uuid
 
     def _std_compare(self, item_payload, data_item, extra_field=None):
