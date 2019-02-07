@@ -475,18 +475,6 @@ class ImportUtility(object):
         if employee_uuid:
             detail.person_uuid = employee_uuid
 
-        # Waiting for removal of scope requirement
-        # Validation fails when attempting to insert "leave"
-        # as detail during employee creation
-        blacklist = [
-            "address",
-            "leave",
-            "association"
-        ]
-
-        if detail.type_id in blacklist:
-            return
-
         common_attributes = [
             ("type_ref", "type_ref_uuid"),
             ("job_function_ref", "job_function_uuid"),
