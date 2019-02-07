@@ -1,12 +1,13 @@
 # -- coding: utf-8 --
 
-from os2mo_data_import.mora_data_types import *
-from os2mo_data_import.mox_data_types import *
-
-import json
+import json, copy
+from uuid import uuid4
 from urllib.parse import urljoin
 from requests import Session, HTTPError
-from uuid import uuid4
+from datetime import datetime, timedelta
+
+from os2mo_data_import.mora_data_types import *
+from os2mo_data_import.mox_data_types import *
 
 
 class ImportUtility(object):
@@ -322,9 +323,7 @@ class ImportUtility(object):
                 date_from = organisation_unit.date_from
 
             build_detail = self.build_detail(
-                detail=detail,
-                date_from=date_from,
-                date_to=organisation_unit.date_to
+                detail=detail
             )
 
             if not build_detail:
@@ -361,24 +360,6 @@ class ImportUtility(object):
         if not isinstance(employee, EmployeeType):
             raise TypeError("Not of type EmployeeType")
 
-        # Build details (if any)
-        for detail in details:
-            date_from = detail.date_from
-
-            if not date_from:
-                date_from = self.date_from
-
-            build_payload = self.build_detail(
-                detail=detail,
-                date_from=date_from,
-                date_to=employee.date_to
-            )
-
-            if not build_payload:
-                continue
-
-            employee.details.append(build_payload)
-
         employee.org_uuid = self.organisation_uuid
         payload = employee.build()
 
@@ -405,24 +386,90 @@ class ImportUtility(object):
         # Add uuid to the inserted employee map
         self.inserted_employee_map[reference] = uuid
 
+        data = {}
+        data['it'] = self._get_detail(uuid, 'it')
+        data['role'] = self._get_detail(uuid, 'role')
+        # A bug in MO implies that the address information is thrown away after
+        # the re-creation of the underlying user.
+        # data['address'] = self._get_detail(uuid, 'address')
+        data['manager'] = self._get_detail(uuid, 'manager')
+        data['engagement'] = self._get_detail(uuid, 'engagement')
+        data['association'] = self._get_detail(uuid, 'association')
+
+        for detail in details:
+
+            complete_additional_payload = []
+            additional_payload = []
+
+            if not detail.date_from:
+                detail.date_from = self.date_from
+
+            # Create payload (as dict)
+            detail_payload = self.build_detail(
+                detail=detail,
+                employee_uuid=uuid
+            )
+
+            if not detail_payload:
+                continue
+
+            if detail.type_id in data.keys():
+                found_hit = self._payload_compare(detail_payload, data)
+            else:
+                found_hit = False
+
+            new_item_payload = copy.deepcopy(detail_payload)
+
+            today = datetime.now().strftime('%Y-%m-%d')
+            valid_to = new_item_payload['validity']['to']
+
+            if valid_to:
+                future = datetime.strptime(valid_to, '%Y-%m-%d') > datetime.now()
+            else:
+                future = False
+
+            if not valid_to or future:
+                new_item_payload['validity']['from'] = today
+                complete_additional_payload.append(new_item_payload)
+                # Clean this up. We do not need a long and a short list
+                # of payloads, we need to know if something changes and thus
+                # if we need to terminate and re-hire the employee
+                # if not found_hit. This awaits fixing the current issues in MO.
+            additional_payload.append(detail_payload)
+
+            # Hvad sker der, hvis man fyrer en person og ansætter igen samme dag...?
+            # This will always happen as long as the date-bug exists
+            if uuid in self.existing_uuids and len(additional_payload) > 0:
+                print('Terminate: {}'.format(uuid))
+                self._terminate_employee(uuid)
+                self.insert_mora_data(
+                    resource="service/details/create",
+                    data=complete_additional_payload
+                )
+            else:
+                self.insert_mora_data(
+                    resource="service/details/create",
+                    data=additional_payload
+                )
+
         return uuid
 
-    def build_detail(self, detail, date_from, date_to):
+    def build_detail(self, detail, employee_uuid=None):
+
+        if employee_uuid:
+            detail.person_uuid = employee_uuid
 
         # Waiting for removal of scope requirement
         # Validation fails when attempting to insert "leave"
         # as detail during employee creation
         blacklist = [
             "address",
-            "leave"
+            "leave",
+            "association"
         ]
 
         if detail.type_id in blacklist:
             return
-
-        # Set validity
-        detail.date_from = date_from
-        detail.date_to = date_to
 
         common_attributes = [
             ("type_ref", "type_ref_uuid"),
@@ -642,3 +689,119 @@ class ImportUtility(object):
         # Returns a string rather than a json object
         # Example: "0fd6a479-8569-42dd-9614-4aacb611306e"
         return response_data
+
+    def _get_detail(self, uuid, field_type):
+        """ Get information from /detail for an employee
+        :param uuid: uuid for the employee
+        :param field_type: detail field type
+        :return: dict with the relevant information
+        """
+        all_data = []
+        for validity in ['past', 'present', 'future']:
+            service = urljoin(self.mora_base, 'service/e/{}/details/{}?validity={}')
+            url = service.format(uuid, field_type, validity)
+            data = self.session.get(url)
+            data = data.json()
+            all_data += data
+        return all_data
+
+    def _terminate_employee(self, uuid):
+        service = urljoin(self.mora_base, 'service/e/{}/terminate')
+        yesterday = datetime.now() - timedelta(days=1)
+        payload = {'validity': {'to': yesterday.strftime('%Y-%m-%d')}}
+        url = service.format(uuid)
+        data = self.session.post(url, json=payload).json()
+        return uuid
+
+    def _std_compare(self, item_payload, data_item, extra_field=None):
+        """ Helper for _payload_compare, performs the checks that are identical
+        for most object types.
+        :param item_payload: The new payload data.
+        :param data_item: The existing set of data.
+        :param extra_field: If not None the comparison will also be done on this
+        field, otherwise the comparison is only performed on uuid and validity.
+        :return: True if identical, otherwise False
+        """
+        identical = (
+            (data_item['org_unit']['uuid'] == item_payload['org_unit']['uuid']) and
+            (data_item['validity']['from'] == item_payload['validity']['from']) and
+            (data_item['validity']['to'] == item_payload['validity']['to'])
+        )
+        if extra_field is not None:
+            identical = (
+                identical and
+                data_item[extra_field]['uuid'] == item_payload[extra_field]['uuid']
+            )
+        return identical
+
+    def _payload_compare(self, item_payload, data):
+        """ Compare an exising data-set with a new payload and tell whether
+        the new payload is different from the exiting data.
+        :param item_payload: New the payload data.
+        :param data_item: The existing set of data.
+        :param extra_field: If not None the comparison will also be done on this
+        field, otherwise the comparison is only performed on uuid and validity.
+        :return: True if identical, otherwise False
+        """
+        data_type = item_payload['type']
+
+        found_hit = False
+        if data_type == 'engagement':
+            for data_item in data[data_type]:
+                if self._std_compare(item_payload, data_item, 'job_function'):
+                    found_hit = True
+
+        elif data_type == 'role':
+            for data_item in data[data_type]:
+                if self._std_compare(item_payload, data_item, 'role_type'):
+                    found_hit = True
+
+        elif data_type == 'it':
+            for data_item in data[data_type]:
+                if (
+                    (data_item['validity']['from'] ==
+                     item_payload['validity']['from']) and
+
+                    (data_item['validity']['to'] ==
+                     item_payload['validity']['to']) and
+
+                    (data_item['itsystem']['uuid'] ==
+                     item_payload['itsystem']['uuid'])
+                ):
+                    found_hit = True
+
+        elif data_type == 'address':
+            for data_item in data[data_type]:
+                if (
+                    (data_item['validity']['from'] ==
+                     item_payload['validity']['from']) and
+
+                    (data_item['validity']['to'] ==
+                     item_payload['validity']['to']) and
+
+                    (data_item['href'] == item_payload['value'])
+                ):
+                    found_hit = True
+            found_hit = True
+
+        elif data_type == 'manager':
+            for data_item in data[data_type]:
+                identical = self._std_compare(item_payload, data_item,
+                                              'manager_level')
+                uuids = []
+                for item in item_payload['responsibility']:
+                    uuids.append(item['uuid'])
+                for responsibility in data_item['responsibility']:
+                    identical = identical and (responsibility['uuid'] in uuids)
+                identical = (identical and
+                             (len(data_item['responsibility']) == len(uuids)))
+                if identical:
+                    found_hit = True
+
+        elif data_type == 'association':
+            for data_item in data[data_type]:
+                if self._std_compare(item_payload, data_item, 'association_type'):
+                    found_hit = True
+        else:
+            raise Exception('Uknown detail!')
+        return found_hit
