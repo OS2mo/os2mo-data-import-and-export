@@ -460,7 +460,7 @@ class CreateDummyOrg(object):
 if __name__ == '__main__':
     dummy_creator = CreateDummyOrg(825, 'Læsø Kommune',
                                    _path_to_names())
-    dummy_creator.create_org_func_tree(too_many_units=False)
+    dummy_creator.create_org_func_tree(org_size=Size.Normal)
     dummy_creator.add_users_to_tree(ou_size_scale=1, multiple_employments=False)
 
     # Example of iteration over all nodes:

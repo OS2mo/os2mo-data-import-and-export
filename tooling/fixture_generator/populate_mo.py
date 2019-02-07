@@ -23,8 +23,7 @@ class CreateDummyOrg(object):
         self.extra_data = self.create_dummy_data(municipality_code, name,
                                                  scale, org_size=Size.Small,
                                                  root_name='extra_root')
-
-        self.importer = ImportHelper(create_defaults=True)
+        self.importer = importer
 
         self.importer.add_organisation(
             identifier=self.data.nodes['root'].name,
@@ -63,7 +62,8 @@ class CreateDummyOrg(object):
 
         data.create_org_func_tree(org_size=org_size)
 
-        data.add_users_to_tree(scale, multiple_employments=org_size == Size.Large)
+        data.add_users_to_tree(scale,
+                               multiple_employments=org_size == Size.Large)
         return data
 
     def create_classes(self):
@@ -222,9 +222,8 @@ if __name__ == '__main__':
                             mora_base='http://localhost:80',
                             system_name="Dummy import",
                             end_marker="STOP",
-                            store_integration_data=True
-    )
-    creator = CreateDummyOrg(importer, 101, 'København', scale=1,
+                            store_integration_data=True)
+    creator = CreateDummyOrg(importer, 825, 'Læse Kommune', scale=1,
                              org_size=Size.Normal)
-    
+
     importer.import_all()
