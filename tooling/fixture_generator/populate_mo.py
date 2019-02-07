@@ -39,7 +39,7 @@ class CreateDummyOrg(object):
                 self.create_ou(node)
             if node.type == 'user':
                 self.create_user(node)
-
+                print(node)
         for node in PreOrderIter(self.extra_data.nodes['extra_root']):
             self.extra_data.nodes['extra_root'].name = 'Lønorganisation'
             if node.type == 'ou':
@@ -52,7 +52,7 @@ class CreateDummyOrg(object):
 
                         for sub_node in org_node.children:
                             if sub_node.type == 'user':
-                                print(sub_node.name)
+                                pass
 
     def create_dummy_data(self, municipality_code, name, scale, org_size,
                           root_name='root'):
@@ -215,15 +215,13 @@ class CreateDummyOrg(object):
 
 
 if __name__ == '__main__':
-    creator = CreateDummyOrg(825, 'Læsø Kommune', scale=1, org_size=Size.Normal)
-
     importer = ImportHelper(create_defaults=True,
                             mox_base='http://localhost:5000',
                             mora_base='http://localhost:80',
-                            system_name="Dummy import",
+                            system_name="Artificial import",
                             end_marker="STOP",
                             store_integration_data=True)
-    creator = CreateDummyOrg(importer, 825, 'Læse Kommune', scale=1,
+    creator = CreateDummyOrg(importer, 840, 'Rebild Kommune', scale=3,
                              org_size=Size.Normal)
 
     importer.import_all()
