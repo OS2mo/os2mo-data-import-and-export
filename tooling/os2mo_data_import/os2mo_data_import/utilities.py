@@ -314,24 +314,6 @@ class ImportUtility(object):
 
         organisation_unit.type_ref_uuid = type_ref_uuid
 
-        # Build details (if any)
-        for detail in details:
-
-            date_from = detail.date_from
-
-            if not date_from:
-                date_from = organisation_unit.date_from
-
-            build_detail = self.build_detail(
-                detail=detail
-            )
-
-            if not build_detail:
-                continue
-
-            organisation_unit.details.append(build_detail)
-
-
         payload = organisation_unit.build()
 
         integration_data = self._integration_data(
@@ -353,6 +335,33 @@ class ImportUtility(object):
 
         # Add to the inserted map
         self.inserted_org_unit_map[reference] = uuid
+
+        # Details
+        # Build details (if any)
+        details_payload = []
+
+        for detail in details:
+
+            detail.org_unit_uuid = uuid
+
+            date_from = detail.date_from
+
+            if not date_from:
+                date_from = organisation_unit.date_from
+
+            build_detail = self.build_detail(
+                detail=detail
+            )
+
+            if not build_detail:
+                continue
+
+            details_payload.append(build_detail)
+
+        self.insert_mora_data(
+            resource="service/details/create",
+            data=details_payload
+        )
 
         return uuid
 

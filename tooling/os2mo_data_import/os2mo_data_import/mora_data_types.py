@@ -22,6 +22,7 @@ class MoType():
         # Compatibility:
         # Write details after unit or employee is stored
         self.person_uuid = None
+        self.org_unit_uuid = None
 
     def _build_payload(self):
 
@@ -35,6 +36,11 @@ class MoType():
         if self.person_uuid:
             self.payload["person"] = {
                 "uuid": self.person_uuid
+            }
+
+        if self.org_unit_uuid:
+            self.payload["org_unit"] = {
+                "uuid": self.org_unit_uuid
             }
 
         # Add validity:
