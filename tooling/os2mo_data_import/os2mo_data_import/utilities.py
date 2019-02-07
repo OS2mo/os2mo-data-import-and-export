@@ -452,21 +452,21 @@ class ImportUtility(object):
                     # if not found_hit. This awaits fixing the current issues in MO.
                 additional_payload.append(detail_payload)
 
-                # Hvad sker der, hvis man fyrer en person og ansætter igen samme dag...?
-                # This will always happen as long as the date-bug exists
-                if uuid in self.existing_uuids and len(additional_payload) > 0:
-                    print('Terminate: {}'.format(uuid))
-                    self._terminate_employee(uuid)
+            # Hvad sker der, hvis man fyrer en person og ansætter igen samme dag...?
+            # This will always happen as long as the date-bug exists
+            if uuid in self.existing_uuids and len(additional_payload) > 0:
+                print('Terminate: {}'.format(uuid))
+                self._terminate_employee(uuid)
 
-                    self.insert_mora_data(
-                        resource="service/details/create",
-                        data=complete_additional_payload
-                    )
-                else:
-                    self.insert_mora_data(
-                        resource="service/details/create",
-                        data=additional_payload
-                    )
+                self.insert_mora_data(
+                    resource="service/details/create",
+                    data=complete_additional_payload
+                )
+            else:
+                self.insert_mora_data(
+                    resource="service/details/create",
+                    data=additional_payload
+                )
 
         return uuid
 
