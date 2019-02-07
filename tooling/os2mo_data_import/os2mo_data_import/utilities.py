@@ -372,6 +372,13 @@ class ImportUtility(object):
             encode_integration=False
         )
 
+        if 'uuid' in integration_data:
+            print(
+                json.dumps(integration_data, indent=2)
+            )
+        else:
+            print("NEW EMPLOYEEE")
+
         # We unconditionally create or update the user, this should
         # ensure that we alwas updated with correct current information.
         mora_resource = "service/e/create"
@@ -544,25 +551,28 @@ class ImportUtility(object):
         # be able to make a list of objects that has disappeared
         if self.store_integration_data:
 
+            print("============== RESSOURCE ===============")
+            print(resource)
+
             service = urljoin(self.mox_base, resource)
-            query_params = {
-                "integrationsdata": "%{}%"
-            }
 
             # integration_data = {self.system_name: reference + self.system_name}
-
-            integration_data = {
-                self.system_name: "{reference}{end}".format(
-                    reference=reference,
-                    end=self.end_marker
-                )
-            }
-
-            integration_data_as_json = json.dumps(integration_data)[1:-1]
+            integration_data = {self.system_name: str(reference) + self.end_marker}
 
             # Call repr to ensure escaping consistent with the payload from request
-            response = self.session.get(url=service, params=query_params)
+            query = service + '?integrationsdata=%{}%'
+            query = query.format(json.dumps(integration_data)[1:-1])
+            response = self.session.get(url=repr(query)[1:-1])
+
+            print("============ FILTH.BIZ =============")
+            print(
+                json.dumps(response.json(), indent=2)
+            )
+
+
             response = response.json()['results'][0]
+
+
 
             if len(response) == 0:
                 pass
@@ -609,7 +619,14 @@ class ImportUtility(object):
         )
 
         if uuid:
-            update_url = urljoin(service_url, uuid)
+            update_url = "{service}/{uuid}".format(
+                service=service_url,
+                uuid=uuid
+            )
+
+            print("========SERIVICE=============")
+            print(update_url)
+
             response = self.session.put(
                 url=update_url,
                 json=data
@@ -627,6 +644,9 @@ class ImportUtility(object):
                 raise HTTPError("Inserting mox data failed")
 
         else:
+            print("========NO UUID=============")
+            print("========SERIVICE=============")
+            print(service_url)
             response = self.session.post(
                 url=service_url,
                 json=data
@@ -656,7 +676,7 @@ class ImportUtility(object):
             return str(uuid)
 
         params = {
-            "force": 1
+            "force": 0
         }
 
         service_url = urljoin(
