@@ -708,7 +708,12 @@ class ImportUtility(object):
     def _terminate_employee(self, uuid):
         endpoint = 'service/e/{}/terminate'
         yesterday = datetime.now() - timedelta(days=1)
-        payload = {'validity': {'to': yesterday.strftime('%Y-%m-%d')}}
+        payload = {
+            'terminateall': True,
+            'validity': {
+                'to': yesterday.strftime('%Y-%m-%d')
+            }
+        }
         resource = endpoint.format(uuid)
 
         self.insert_mora_data(
