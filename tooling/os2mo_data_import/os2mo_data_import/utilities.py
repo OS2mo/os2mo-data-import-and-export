@@ -458,6 +458,7 @@ class ImportUtility(object):
             if uuid in self.existing_uuids and len(additional_payload) > 0:
                 print('Terminate: {}'.format(uuid))
                 self._terminate_employee(uuid)
+
                 self.insert_mora_data(
                     resource="service/details/create",
                     data=complete_additional_payload
@@ -548,9 +549,6 @@ class ImportUtility(object):
         # be able to make a list of objects that has disappeared
         if self.store_integration_data:
 
-            print("============== RESSOURCE ===============")
-            print(resource)
-
             service = urljoin(self.mox_base, resource)
 
             # integration_data = {self.system_name: reference + self.system_name}
@@ -561,15 +559,7 @@ class ImportUtility(object):
             query = query.format(json.dumps(integration_data)[1:-1])
             response = self.session.get(url=repr(query)[1:-1])
 
-            print("============ FILTH.BIZ =============")
-            print(
-                json.dumps(response.json(), indent=2)
-            )
-
-
             response = response.json()['results'][0]
-
-
 
             if len(response) == 0:
                 pass
@@ -621,9 +611,6 @@ class ImportUtility(object):
                 uuid=uuid
             )
 
-            print("========SERIVICE=============")
-            print(update_url)
-
             response = self.session.put(
                 url=update_url,
                 json=data
@@ -641,9 +628,6 @@ class ImportUtility(object):
                 raise HTTPError("Inserting mox data failed")
 
         else:
-            print("========NO UUID=============")
-            print("========SERIVICE=============")
-            print(service_url)
             response = self.session.post(
                 url=service_url,
                 json=data
@@ -689,7 +673,7 @@ class ImportUtility(object):
 
         response_data = response.json()
 
-        if response.status_code != 201:
+        if response.status_code != 200 or response.status_code != 201:
 
             # DEBUG
             # TODO: Implement logging
