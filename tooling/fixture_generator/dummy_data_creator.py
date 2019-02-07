@@ -36,8 +36,13 @@ CLASSES = {
     'role_type': [
         'Tillidsrepræsentant', 'Ergonomiambasadør', 'Ansvarlig for sommerfest'
     ],
+    'employee_address_type': ['AdressePostEmployee', 'PhoneEmployee',
+                              'EmailEmployee'],
+    'manager_address_type': ['LederEmail', 'LederTelefon', 'LederWebadresse'],
+    'org_unit_address_type': ['EAN', 'p-nummer', 'AdressePost'],
     'association_type': ['Problemknuser', 'Konsulent', 'Medhjælper'],
-    'manager_level': ['Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4']
+    'manager_level': ['Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4'],
+    'engagement_type': ['Ansat']
 }
 
 IT_SYSTEMS = ['Active Directory', 'SAP', 'Office 365', 'Plone', 'Open Desk']
