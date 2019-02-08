@@ -39,7 +39,6 @@ class CreateDummyOrg(object):
                 self.create_ou(node)
             if node.type == 'user':
                 self.create_user(node)
-                print(node)
 
         if extra_root:
             for node in PreOrderIter(self.extra_data.nodes['extra_root']):
@@ -71,12 +70,21 @@ class CreateDummyOrg(object):
     def create_classes(self):
         for facet, klasser in self.data.classes.items():
             for klasse in klasser:
+                if isinstance(klasse, tuple):
+                    identifier = klasse[0]
+                    title = klasse[1]
+                    scope = klasse[2]
+                else:
+                    identifier = klasse
+                    title = klasse
+                    scope = 'TEXT'
+            
                 self.importer.add_klasse(
-                    identifier=klasse,
+                    identifier=identifier,
                     facet_type_ref=facet,
-                    user_key=klasse,
-                    title=klasse,
-                    scope='TEXT'
+                    user_key=identifier,
+                    title=title,
+                    scope=scope
                 )
 
     def create_it_systems(self):

@@ -36,10 +36,19 @@ CLASSES = {
     'role_type': [
         'Tillidsrepræsentant', 'Ergonomiambasadør', 'Ansvarlig for sommerfest'
     ],
-    'employee_address_type': ['AdressePostEmployee', 'PhoneEmployee',
-                              'EmailEmployee'],
-    'manager_address_type': ['LederEmail', 'LederTelefon', 'LederWebadresse'],
-    'org_unit_address_type': ['EAN', 'p-nummer', 'AdressePost'],
+    'employee_address_type': [('AdressePostEmployee', 'AdressePost', 'DAR'),
+                              ('PhoneEmployee', 'Telefon', 'PHONE'),
+                              ('EmailEmployee', 'Email', 'EMAIL')
+    ],
+    'manager_address_type': [('LederEmail', 'Email', 'EMAIL'),
+                             ('LederTelefon', 'Telefon', 'PHONE'),
+                             ('AdressePostLeder', 'AdressePost', 'DAR'),
+                             ('LederWebadresse', 'Webadresse', 'TEXT')
+    ],
+    'org_unit_address_type': [('EAN', 'EAN Nummer', 'EAN'),
+                              ('p-nummer', 'p-nummer', 'PNUMBER'),
+                              ('AdressePost', 'AdressePost', 'DAR')
+    ],
     'association_type': ['Problemknuser', 'Konsulent', 'Medhjælper'],
     'manager_level': ['Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4'],
     'engagement_type': ['Ansat']
