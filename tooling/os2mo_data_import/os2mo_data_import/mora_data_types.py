@@ -19,6 +19,9 @@ class MoType():
         self.date_from = None
         self.date_to = None
 
+        # Force uuid
+        self.uuid = None
+
         # Compatibility:
         # Write details after unit or employee is stored
         self.person_uuid = None
@@ -32,6 +35,11 @@ class MoType():
         # Add type:
         if self.type_id:
             self.payload["type"] = self.type_id
+
+        if self.uuid:
+            self.payload["uuid"] = {
+                "uuid": self.uuid
+            }
 
         if self.person_uuid:
             self.payload["person"] = {
