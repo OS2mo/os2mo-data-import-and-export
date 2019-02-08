@@ -96,17 +96,16 @@ class SdImport(object):
             uuid = department['DepartmentUUIDIdentifier']
             department_info[uuid] = department
             unit_type = department['DepartmentLevelIdentifier']
-            # if not self.org.Klasse.check_if_exists(unit_type):
-            if True:
+            if not self.importer.check_if_exists('klasse', unit_type):
                 self.importer.add_klasse(identifier=unit_type,
                                          facet_type_ref='Enhedstype',
                                          user_key=unit_type,
-                                         title=unit_type)
+                                         title=unit_type,
+                                         scope='TEXT')
         return department_info
 
     def _add_klasse(self, klasse_id, klasse, facet):
-        #if not self.org.Klasse.check_if_exists(klasse_id):
-        if True:
+        if not self.importer.check_if_exists('klasse', klasse_id):
             self.importer.add_klasse(identifier=klasse_id,
                                      facet_type_ref=facet,
                                      user_key=klasse,
@@ -163,12 +162,13 @@ class SdImport(object):
         # Activation dates are not consistent
         date_from = GLOBAL_DATE
         # No units have termination dates: date_to is None
-        if not self.org.OrganisationUnit.check_if_exists(unit_id):
-            self.org.OrganisationUnit.add(
+        # if not self.org.OrganisationUnit.check_if_exists(unit_id):
+        if not self.importer.check_if_exists('organisation_unit', unit_id):
+            self.importer.add_organisation_unit(
                 identifier=unit_id,
                 name=info['DepartmentName'],
                 user_key=user_key,
-                org_unit_type_ref=ou_level,
+                type_ref=ou_level,
                 date_from=date_from,
                 uuid=unit_id,
                 date_to=None,
@@ -259,11 +259,11 @@ class SdImport(object):
 
     def create_ou_tree(self):
         """ Read all department levels from SD """
-        self.org.OrganisationUnit.add(
+        self.importer.add_organisation_unit(
                 identifier='OrphanUnits',
                 name='Forældreløse enheder',
                 user_key='OrphanUnits',
-                org_unit_type_ref='Enhed',
+                type_ref='Enhed',
                 date_from='1900-01-01',
                 date_to=None,
                 parent_ref=None)
