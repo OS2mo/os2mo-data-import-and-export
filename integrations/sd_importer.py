@@ -11,10 +11,12 @@ import pickle
 import requests
 import xmltodict
 from anytree import Node
-from os2mo_data_import import Organisation, ImportUtility
+from os2mo_data_import import ImportHelper
+# from os2mo_data_import import Organisation, ImportUtility
 
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
+MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_NAME', 0)
 GLOBAL_DATE = os.environ.get('GLOBAL_DATE', '1977-01-01')
 MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
@@ -55,11 +57,17 @@ def _dawa_request(address, adgangsadresse=False,
 
 
 class SdImport(object):
-    def __init__(self, org_name):
+    def __init__(self, importer, org_name, municipality_code):
         self.double_employment = []
         self.address_errors = {}
 
-        self.org = Organisation(org_name, org_name)
+        self.importer = importer
+        self.importer.add_organisation(
+            identifier=org_name,
+            user_key=org_name,
+            municipality_code=municipality_code
+        )
+
         self.nodes = {}  # Will be populated when org-tree is created
         self.add_people()
         self.info = self._read_department_info()
@@ -88,18 +96,22 @@ class SdImport(object):
             uuid = department['DepartmentUUIDIdentifier']
             department_info[uuid] = department
             unit_type = department['DepartmentLevelIdentifier']
-            if not self.org.Klasse.check_if_exists(unit_type):
-                self.org.Klasse.add(unit_type, 'Enhedstype',
-                                    user_key=unit_type, title=unit_type)
+            # if not self.org.Klasse.check_if_exists(unit_type):
+            if True:
+                self.importer.add_klasse(identifier=unit_type,
+                                         facet_type_ref='Enhedstype',
+                                         user_key=unit_type,
+                                         title=unit_type)
         return department_info
 
     def _add_klasse(self, klasse_id, klasse, facet):
-        if not self.org.Klasse.check_if_exists(klasse_id):
-            self.org.Klasse.add(identifier=klasse_id,
-                                facet_type_ref=facet,
-                                user_key=klasse,
-                                scope='TEXT',
-                                title=klasse)
+        #if not self.org.Klasse.check_if_exists(klasse_id):
+        if True:
+            self.importer.add_klasse(identifier=klasse_id,
+                                     facet_type_ref=facet,
+                                     user_key=klasse,
+                                     scope='TEXT',
+                                     title=klasse)
 
     def _dawa_lookup(self, address):
         """ Lookup an APOS address object in DAWA and find a UUID
@@ -240,10 +252,10 @@ class SdImport(object):
             cpr = person['PersonCivilRegistrationIdentifier']
             name = (person['PersonGivenName'] + ' ' +
                     person['PersonSurnameName'])
-            self.org.Employee.add(name=name,
-                                  identifier=cpr,
-                                  cpr_no=cpr,
-                                  user_key=name)
+            self.importer.add_employee(name=name,
+                                       identifier=cpr,
+                                       cpr_no=cpr,
+                                       user_key=name)
 
     def create_ou_tree(self):
         """ Read all department levels from SD """
@@ -369,13 +381,19 @@ class SdImport(object):
 
 
 if __name__ == '__main__':
-    sd = SdImport('MUNICIPALTY_NAME')
+
+    importer = ImportHelper(create_defaults=True,
+                            mox_base=MOX_BASE,
+                            mora_base=MORA_BASE,
+                            system_name='SD-Import',
+                            end_marker='SDSTOP',
+                            store_integration_data=True)
+    
+    sd = SdImport(importer, MUNICIPALTY_NAME, MUNICIPALTY_CODE)
     sd.create_ou_tree()
     sd.create_employees()
 
-    import_tool = ImportUtility(dry_run=False, mox_base=MOX_BASE,
-                                mora_base=MORA_BASE)
-    import_tool.import_all(sd.org)
+    importer.import_all()
 
     for info in sd.address_errors.values():
         print(info['DepartmentName'])
