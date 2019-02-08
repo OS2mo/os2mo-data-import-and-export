@@ -19,9 +19,6 @@ class MoType():
         self.date_from = None
         self.date_to = None
 
-        # Force uuid
-        self.uuid = None
-
         # Compatibility:
         # Write details after unit or employee is stored
         self.person_uuid = None
@@ -35,11 +32,6 @@ class MoType():
         # Add type:
         if self.type_id:
             self.payload["type"] = self.type_id
-
-        if self.uuid:
-            self.payload["uuid"] = {
-                "uuid": self.uuid
-            }
 
         if self.person_uuid:
             self.payload["person"] = {
@@ -357,9 +349,10 @@ class ManagerType(MoType):
 class OrganisationUnitType(MoType):
 
     def __init__(self, name, type_ref, date_from, date_to=None,
-                 user_key=None, parent_ref=None):
+                 user_key=None, parent_ref=None, uuid=None):
         super().__init__()
 
+        self.uuid = uuid
         self.name = name
         self.user_key = (user_key or name)
 
@@ -381,6 +374,11 @@ class OrganisationUnitType(MoType):
 
         if not self.type_ref_uuid:
             raise ReferenceError("UUID of the unit type is missing")
+
+        if self.uuid:
+            self.payload["uuid"] = {
+                "uuid": self.uuid
+            }
 
         self.payload = {
             "user_key": self.user_key,
@@ -414,6 +412,11 @@ class EmployeeType(MoType):
 
         if not self.org_uuid:
             raise ReferenceError("UUID of the organisation is missing")
+
+        if self.uuid:
+            self.payload["uuid"] = {
+                "uuid": self.uuid
+            }
 
         self.payload = {
             "name": self.name,
