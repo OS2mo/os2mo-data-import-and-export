@@ -178,9 +178,9 @@ class SdImport(object):
             emails = info['ContactInformation']['EmailAddressIdentifier']
             for email in emails:
                 if email.find('Empty') == -1:
-                    self.org.OrganisationUnit.add_type_address(
-                        owner_ref=unit_id,
-                        address_type_ref='Email',
+                    self.importer.add_address_type(
+                        organisation_unit=unit_id,
+                        type_ref='Email',
                         value=email,
                         date_from=date_from
                     )
@@ -190,9 +190,9 @@ class SdImport(object):
                 pass
 
         if 'ProductionUnitIdentifier' in info:
-            self.org.OrganisationUnit.add_type_address(
-                owner_ref=unit_id,
-                address_type_ref='Pnummer',
+            self.importer.add_address_type(
+                organisation_unit=unit_id,
+                type_ref='Pnummer',
                 value=info['ProductionUnitIdentifier'],
                 date_from=date_from
             )
@@ -202,10 +202,10 @@ class SdImport(object):
             if all(element in info['PostalAddress'] for element in needed):
                 dar_uuid = self._dawa_lookup(info['PostalAddress'])
                 if dar_uuid is not None:
-                    self.org.OrganisationUnit.add_type_address(
-                        owner_ref=unit_id,
-                        address_type_ref='AdressePost',
-                        uuid=dar_uuid,
+                    self.importer.add_address_type(
+                        organisation_unit=unit_id,
+                        type_ref='AdressePost',
+                        value=dar_uuid,
                         date_from=date_from
                     )
                 else:
@@ -218,7 +218,7 @@ class SdImport(object):
 
     def _create_org_tree_structure(self):
         nodes = {}
-        all_ous = self.org.OrganisationUnit.export()
+        all_ous = self.importer.export()
         new_ous = []
         for ou in all_ous:
             parent = ou[1]['parent_ref']
