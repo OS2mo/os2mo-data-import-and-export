@@ -38,6 +38,31 @@ class ImportHelper(object):
         if create_defaults:
             self.create_default_facet_types()
 
+    def check_if_exists(self, object_type, object_reference):
+
+        available_types = {
+            "klasse": "klasse_objects",
+            "facet": "facet_objects",
+            "organisation_unit": "organisation_units",
+            "employee": "employees"
+        }
+
+        if object_type not in available_types:
+            raise TypeError(
+                "Cannot check for this type, available types: {}".format(
+                    available_types
+                )
+            )
+
+        object_type = available_types.get(object_type)
+
+        attribute = getattr(self, object_type)
+
+        if not attribute.get(object_reference):
+            return False
+
+        return True
+
     def create_validity(self, date_from, date_to):
 
         if not date_from or not date_to:
