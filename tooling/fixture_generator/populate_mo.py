@@ -2,16 +2,7 @@ import sys
 import dummy_data_creator
 from datetime import datetime
 from anytree import PreOrderIter
-base_path = '/home/clint/os2mo-data-import-and-export/'
-fixture_generator_path = base_path + 'tooling/fixture_generator'
-import_path = base_path + 'tooling/os2mo_data_import/os2mo_data_import'
-sys.path.append(import_path)
-sys.path.append(fixture_generator_path)
-# from os2mo_data_import.adapters import Organisation
-# from os2mo_data_import.utility import ImportUtility
 from os2mo_data_import import ImportHelper
-#from os2mo_data_import.data_types import Organisation
-#from os2mo_data_import.utility import ImportUtility
 from dummy_data_creator import Size
 
 
@@ -78,7 +69,7 @@ class CreateDummyOrg(object):
                     identifier = klasse
                     title = klasse
                     scope = 'TEXT'
-            
+
                 self.importer.add_klasse(
                     identifier=identifier,
                     facet_type_ref=facet,
