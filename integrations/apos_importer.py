@@ -16,7 +16,6 @@ import collections
 from uuid import UUID
 from os2mo_data_import import ImportHelper
 from os2mo_data_import.mora_data_types import EngagementType
-#from os2mo_data_import import Organisation
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
 GLOBAL_DATE = os.environ.get('GLOBAL_DATE', '1977-01-01')
@@ -284,7 +283,7 @@ class AposImport(object):
             {'titel': 'Telefon',
              'facet': 'employee_address_type',
              'scope': 'PHONE'},
-            {'titel': 'PNUMBER',
+            {'titel': 'p-nummer',
              'facet': 'org_unit_address_type',
              'scope': 'PNUMBER'},
             {'titel': 'AdressePost',
@@ -324,9 +323,7 @@ class AposImport(object):
         if not enhedstype:
             enhedstype = details['@enhedstype']
 
-        unit = self.importer.add_organisation_unit( # Notice, does this still return as expected!
-            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            # unit = self.org.OrganisationUnit.add(
+        unit = self.importer.add_organisation_unit(
             identifier=unit_id,
             uuid=apos_unit['@uuid'],
             name=apos_unit['@navn'],
@@ -343,7 +340,7 @@ class AposImport(object):
                 try:
                     self.importer.add_address_type(
                         organisation_unit=unit_id,
-                        type_ref='PNUMBER',
+                        type_ref='p-nummer',
                         value=location['pnummer'],
                         date_from=GLOBAL_DATE)
                 except AssertionError:  # pnumber added multiple times
@@ -383,20 +380,12 @@ class AposImport(object):
                         print('Association error: {}'.format(p))
                         break
 
-                    details = self.importer.employee_details[p]
-                    for data in details:
-                        if isinstance(data, EngagementType):
-                            break
-                    # print(data)
-                    from_date = data.date_from
-                    job_function = data.job_function_ref
-                    """ The good old procuedure - we need to check the new is correct
-                    for info in data:
-                        if info[0] == 'job_function':
-                            job_function = info[1]
-                        if info[0] == 'validity':
-                            from_date = info[1]['from']
-                    """
+                    details = self.importer.get_details(owner_type="employee",
+                                                        owner_ref=p,
+                                                        type_id="engagement")
+                    from_date = details[0].date_from
+                    job_function = details[0].job_function_ref
+
                     ansat = ANSAT_UUID
 
                     self.importer.add_association(
@@ -418,8 +407,6 @@ class AposImport(object):
             value = kontaktmulighed['@vaerdi']
             if value:
                 apos_type = kontaktmulighed['@type']
-
-                # data = self.org.Klasse.get(apos_type)['data']
 
                 klasse = self.importer.get('klasse', apos_type)
                 employee_identifier = employee['person']['@uuid']
