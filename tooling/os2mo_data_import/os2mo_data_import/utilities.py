@@ -211,7 +211,7 @@ class ImportUtility(object):
             if uuid is None:
                 klasse_uuid = None
             else:
-                klasse_uuid = uuid[0] # Internal representation is a 1-element tuple
+                klasse_uuid = uuid
 
         klasse.integration_data = integration_data
         payload = klasse.build()
