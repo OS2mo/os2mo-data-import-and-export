@@ -1,4 +1,5 @@
 export MUNICIPALITY_NAME='Ballerup'
+export MUNICIPALITY_CODE=151
 export ANSAT_UUID=56e1214a-330f-4592-89f3-ae3ee8d5b2e6
 export GLOBAL_DATE=2010-01-01
 export BASE_APOS_URL=http://apos.balk.dk:8080/apos2-
