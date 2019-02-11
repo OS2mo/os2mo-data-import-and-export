@@ -8,10 +8,10 @@
 #
 import os
 import sys
+from os2mo_data_import import ImportHelper
 sys.path.append('..')
 import apos_importer
-from os2mo_data_import import ImportHelper
-# from os2mo_data_import import ImportUtility
+
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
 MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:5000')
@@ -37,10 +37,6 @@ apos_import.create_ou_tree('945bb286-9753-4f77-9082-a67a5d7bdbaf',
                            enhedstype=sd_enhedstype)
 apos_import.create_managers_and_associatins()
 
-#import_tool = ImportUtility(dry_run=False, mox_base=MOX_BASE,
-#                            mora_base=MORA_BASE, store_integration_data=True,
-#                            system_name='APOS Import')
-#import_tool.import_all(apos_import.org)
 importer.import_all()
 
 print('********************************')

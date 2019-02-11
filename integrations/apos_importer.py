@@ -14,8 +14,7 @@ import xmltodict
 import collections
 # from datetime import datetime
 from uuid import UUID
-from os2mo_data_import import ImportHelper
-from os2mo_data_import.mora_data_types import EngagementType
+
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
 GLOBAL_DATE = os.environ.get('GLOBAL_DATE', '1977-01-01')
@@ -288,7 +287,7 @@ class AposImport(object):
              'scope': 'PNUMBER'},
             {'titel': 'AdressePost',
              'facet': 'org_unit_address_type',
-             'scope':'DAR'}
+             'scope': 'DAR'}
         ]
 
         for klasse in specific_klasser + standard_klasser:
@@ -506,7 +505,7 @@ class AposImport(object):
                 self.duplicate_persons[person['@uuid']] = person
                 # Some employees are duplicated, skip them and remember them.
                 continue
-                
+
             self.importer.add_employee(name=name,
                                        uuid=person['@uuid'],
                                        identifier=person['@uuid'],
@@ -565,10 +564,10 @@ class AposImport(object):
                     """
                     klasse_ref = self.importer.get('klasse', klasse)
                     # We have a few problematic Klasser, chack manually
-                    if klasse_ref is None: 
+                    if klasse_ref is None:
                         self.klassifikation_errors[klasse] = True
                         continue
-                    
+
                     facet = klasse_ref.facet_type_ref
 
                     if facet == 'manager_type':
