@@ -15,6 +15,7 @@ import collections
 # from datetime import datetime
 from uuid import UUID
 from os2mo_data_import import ImportHelper
+from os2mo_data_import.mora_data_types import EngagementType
 #from os2mo_data_import import Organisation
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
@@ -358,24 +359,29 @@ class AposImport(object):
                         break
                     else:
                         added_persons.append(p)
-                    if not self.org.Employee.check_if_exists(p):
+                    if not self.importer.check_if_exists('employee', p):
                         print('Association error: {}'.format(p))
                         break
 
-                    p_info = self.org.Employee.get(p)
-                    for data in p_info['optional_data']:
-                        if data[0][1] == 'engagement':
+                    details = self.importer.employee_details[p]
+                    for data in details:
+                        if isinstance(data, EngagementType):
                             break
+                    # print(data)
+                    from_date = data.date_from
+                    job_function = data.job_function_ref
+                    """ The good old procuedure - we need to check the new is correct
                     for info in data:
                         if info[0] == 'job_function':
                             job_function = info[1]
                         if info[0] == 'validity':
                             from_date = info[1]['from']
+                    """
                     ansat = ANSAT_UUID
 
-                    self.org.Employee.add_type_association(
-                        owner_ref=p,
-                        org_unit_ref=unit,
+                    self.importer.add_association(
+                        employee=p,
+                        organisation_unit=unit,
                         job_function_ref=job_function,
                         association_type_ref=ansat,
                         date_from=from_date
@@ -392,25 +398,26 @@ class AposImport(object):
             value = kontaktmulighed['@vaerdi']
             if value:
                 apos_type = kontaktmulighed['@type']
+
                 # data = self.org.Klasse.get(apos_type)['data']
-                # TODO: CHECK THIS WORKS CORRECTLY
-                data = self.importer.get('klasse', apos_type)
+
+                klasse = self.importer.get('klasse', apos_type)
                 employee_identifier = employee['person']['@uuid']
 
-                if data['titel'] == EMAIL_NAME:
+                if klasse.title == EMAIL_NAME:
                     klasse_ref = 'Email'
-                elif data['titel'] == MAIN_PHONE_NAME:
+                elif klasse.title == MAIN_PHONE_NAME:
                     klasse_ref = 'Telefon'
-                elif data['titel'] in PHONE_NAMES:
+                elif klasse.title in PHONE_NAMES:
                     klasse_ref = apos_type
                 else:  # This should never happen
-                    print(data['titel'])
+                    print(klasse.title)
                     raise Exception('Ukendt kontaktmulighed')
                 try:
-                    self.org.Employee.add_type_address(
-                        owner_ref=employee_identifier,
+                    self.importer.add_address_type(
+                        employee=employee_identifier,
                         value=value,
-                        address_type_ref=klasse_ref,
+                        type_ref=klasse_ref,
                         date_from=GLOBAL_DATE,
                         date_to=None
                     )
@@ -435,19 +442,20 @@ class AposImport(object):
             stilling = tasks['@uuid']
 
         if not (
-                self.org.Klasse.check_if_exists(stilling) and
-                self.org.OrganisationUnit.check_if_exists(unit) and
-                self.org.Employee.check_if_exists(employee['person']['@uuid'])
+                self.importer.check_if_exists('klasse', stilling) and
+                self.importer.check_if_exists('organisation_unit', unit) and
+                self.importer.check_if_exists('employee',
+                                              employee['person']['@uuid'])
         ):
             print(employee)
             print('Medarbejder ukendt')
             1/0
 
         engagement_ref = '56e1214a-330f-4592-89f3-ae3ee8d5b2e6'  # Ansat
-        self.org.Employee.add_type_engagement(
-            owner_ref=employee['person']['@uuid'],
-            uuid=employee['@uuid'],
-            org_unit_ref=unit,
+        self.importer.add_engagement(
+            employee=employee['person']['@uuid'],
+            # uuid=employee['@uuid'], # TODO!!!!!!!!!!!!!!!
+            organisation_unit=unit,
             job_function_ref=stilling,
             engagement_type_ref=engagement_ref,
             date_from=fra)
@@ -541,14 +549,20 @@ class AposImport(object):
                     except TypeError:
                         continue
 
+                    """ This is the old procedure, check the new one works
                     try:  # We have a few problematic Klasser, chack manually
-                        self.org.Klasse.get(klasse)
+                        self.importer.get('klasse', klasse)
                     except KeyError:
                         self.klassifikation_errors[klasse] = True
                         continue
-
-                    klasse_ref = self.org.Klasse.get(klasse)
-                    facet = klasse_ref['facet_type_ref']
+                    """
+                    klasse_ref = self.importer.get('klasse', klasse)
+                    # We have a few problematic Klasser, chack manually
+                    if klasse_ref is None: 
+                        self.klassifikation_errors[klasse] = True
+                        continue
+                    
+                    facet = klasse_ref.facet_type_ref
 
                     if facet == 'Ledertyper':
                         manager_type = klasse
@@ -561,18 +575,18 @@ class AposImport(object):
 
                 if manager_type:
                     try:
-                        self.org.Employee.add_type_manager(
-                            owner_ref=person['@uuid'],
-                            org_unit_ref=unit,
+                        self.importer.add_manager(
+                            employee=person['@uuid'],
+                            organisation_unit=unit,
                             manager_level_ref='Lederniveau',
                             address_uuid=None,  # TODO?
                             manager_type_ref=manager_type,
                             responsibility_list=manager_responsibility,
+                            # uuid=func['@uuid'],
                             date_from=fra,
-                            date_to=til,
-                            uuid=func['@uuid']
+                            date_to=til
                         )
-                    except KeyError:
+                    except ReferenceError:
                         print('Problem adding manager:')
                         print(person['@uuid'])
 
@@ -606,7 +620,8 @@ class AposImport(object):
 
     def create_managers_and_associatins(self):
         """ Create org_funcs, at the momen this means managers """
-        units = self.org.OrganisationUnit.export()
+        # units = self.org.OrganisationUnit.export()
+        units = self.importer.export('organisation_unit')
         for unit in units:
-            self.get_ou_functions(unit[0])
-            self.create_associations_for_ou(unit[0])
+            self.get_ou_functions(unit)
+            self.create_associations_for_ou(unit)
