@@ -19,6 +19,10 @@ class MoType():
         self.date_from = None
         self.date_to = None
 
+        # Streamline
+        # Force uuid on objects
+        self.uuid = None
+
         # Compatibility:
         # Write details after unit or employee is stored
         self.person_uuid = None
@@ -28,6 +32,9 @@ class MoType():
 
         if not isinstance(self.payload, dict):
             raise TypeError("Cannot build non-dict types")
+
+        if self.uuid:
+            self.payload["uuid"] = self.uuid
 
         # Add type:
         if self.type_id:
@@ -59,8 +66,10 @@ class AddressType(MoType):
 
     type_id = "address"
 
-    def __init__(self, value, type_ref, date_from, date_to=None):
+    def __init__(self, value, type_ref, date_from, date_to=None, uuid=None):
         super().__init__()
+
+        self.uuid = uuid
 
         self.value = value
         self.type_ref = type_ref
@@ -98,9 +107,10 @@ class EngagementType(MoType):
     type_id = "engagement"
 
     def __init__(self, org_unit_ref, job_function_ref, engagement_type_ref,
-                 date_from, date_to=None):
+                 date_from, date_to=None, uuid=None):
         super().__init__()
 
+        self.uuid = uuid
         self.org_unit_ref = org_unit_ref
         self.org_unit_uuid = None
 
@@ -147,8 +157,11 @@ class AssociationType(MoType):
     type_id = "association"
 
     def __init__(self, association_type_ref, org_unit_ref, job_function_ref,
-                 date_from, date_to=None, address_uuid=None, address_type_ref=None):
+                 date_from, date_to=None, address_uuid=None, address_type_ref=None,
+                 uuid=None):
         super().__init__()
+
+        self.uuid = uuid
 
         self.org_unit_ref = org_unit_ref
         self.org_unit_uuid = None
@@ -206,8 +219,10 @@ class ItsystemType(MoType):
 
     type_id = "it"
 
-    def __init__(self, user_key, itsystem_ref, date_from, date_to=None):
+    def __init__(self, user_key, itsystem_ref, date_from, date_to=None, uuid=None):
         super().__init__()
+
+        self.uuid = uuid
 
         self.user_key = user_key
         self.itsystem_ref = itsystem_ref
@@ -235,8 +250,10 @@ class LeaveType(MoType):
 
     type_id = "leave"
 
-    def __init__(self, leave_type_ref, date_from, date_to=None):
+    def __init__(self, leave_type_ref, date_from, date_to=None, uuid=None):
         super().__init__()
+
+        self.uuid = uuid
 
         self.type_ref = leave_type_ref
         self.type_ref_uuid = None
@@ -259,8 +276,10 @@ class RoleType(MoType):
 
     type_id = "role"
 
-    def __init__(self, org_unit, role_type_ref, date_from, date_to=None):
+    def __init__(self, org_unit, role_type_ref, date_from, date_to=None, uuid=None):
         super().__init__()
+
+        self.uuid = uuid
 
         self.org_unit_ref = org_unit
         self.org_unit_uuid = None
@@ -290,8 +309,10 @@ class ManagerType(MoType):
 
     def __init__(self, org_unit, manager_type_ref, manager_level_ref,
                  responsibility_list, date_from, date_to=None,
-                 address_uuid=None, address_type_ref=None):
+                 address_uuid=None, address_type_ref=None, uuid=None):
         super().__init__()
+
+        self.uuid = uuid
 
         self.org_unit_ref = org_unit
         self.org_unit_uuid = None
@@ -375,11 +396,6 @@ class OrganisationUnitType(MoType):
         if not self.type_ref_uuid:
             raise ReferenceError("UUID of the unit type is missing")
 
-        if self.uuid:
-            self.payload["uuid"] = {
-                "uuid": self.uuid
-            }
-
         self.payload = {
             "user_key": self.user_key,
             "name": self.name,
@@ -412,11 +428,6 @@ class EmployeeType(MoType):
 
         if not self.org_uuid:
             raise ReferenceError("UUID of the organisation is missing")
-
-        if self.uuid:
-            self.payload["uuid"] = {
-                "uuid": self.uuid
-            }
 
         self.payload = {
             "name": self.name,
