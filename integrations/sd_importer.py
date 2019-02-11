@@ -16,7 +16,7 @@ from os2mo_data_import import ImportHelper
 
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
-MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_NAME', 0)
+MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_CODE', 0)
 GLOBAL_DATE = os.environ.get('GLOBAL_DATE', '1977-01-01')
 MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
