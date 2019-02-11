@@ -73,6 +73,29 @@ class ImportHelper(object):
 
         return True
 
+    def get_details(self, owner_type, owner_ref, type_id=None):
+
+        if owner_type == "organisation_unit":
+            details = self.organisation_unit_details[owner_ref]
+        elif owner_type == "employee":
+            details = self.employee_details[owner_ref]
+        else:
+            raise ReferenceError(
+                "Owner type must be either employee or organisation_unit"
+            )
+
+        if not details:
+            details = []
+
+        if type_id:
+            details = [
+                detail
+                for detail in details
+                if detail.type_id == type_id
+            ]
+
+        return details
+
     def create_validity(self, date_from, date_to):
 
         if not date_from or not date_to:
