@@ -14,7 +14,8 @@ import xmltodict
 import collections
 # from datetime import datetime
 from uuid import UUID
-from os2mo_data_import import Organisation
+from os2mo_data_import import ImportHelper
+#from os2mo_data_import import Organisation
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
 GLOBAL_DATE = os.environ.get('GLOBAL_DATE', '1977-01-01')
@@ -80,9 +81,16 @@ def _dawa_request(address, adgangsadresse=False, skip_letters=False):
 
 class AposImport(object):
 
-    def __init__(self, org_name):
+    def __init__(self, importer, org_name, municipality_code):
         self.base_url = BASE_APOS_URL
-        self.org = Organisation(org_name, org_name)
+
+        self.importer = importer
+        self.importer.add_organisation(
+            identifier=org_name,
+            user_key=org_name,
+            municipality_code=municipality_code
+        )
+
         self.object_to_uuid = {}  # Mapping of Opus object ID to Opus UUID
         self.address_challenges = {}
         self.duplicate_persons = {}
@@ -209,12 +217,12 @@ class AposImport(object):
                     except ValueError:
                         uuid = None
 
-                    self.org.Klasse.add(identifier=klasse['@uuid'],
-                                        uuid=uuid,
-                                        title=klasse['@title'],
-                                        user_key=klasse['@title'],
-                                        scope=scope,
-                                        facet_type_ref=mo_facet_navn)
+                    self.importer.add_klasse(identifier=klasse['@uuid'],
+                                             uuid=uuid,
+                                             title=klasse['@title'],
+                                             user_key=klasse['@title'],
+                                             scope=scope,
+                                             facet_type_ref=mo_facet_navn)
 
     def create_facetter_and_klasser(self):
         url = "app-klassifikation/GetKlassifikationList"
@@ -264,11 +272,11 @@ class AposImport(object):
                                 {'titel': 'L-MED', 'facet': 'Enhedstype'}]
 
             for klasse in specific_klasser:
-                self.org.Klasse.add(identifier=klasse['titel'],
-                                    title=klasse['titel'],
-                                    user_key=klasse['titel'],
-                                    scope='TEXT',
-                                    facet_type_ref=klasse['facet'])
+                self.importer.add_klasse(identifier=klasse['titel'],
+                                         title=klasse['titel'],
+                                         user_key=klasse['titel'],
+                                         scope='TEXT',
+                                         facet_type_ref=klasse['facet'])
 
     def _read_ous_from_apos(self, org_uuid):
         url = "app-organisation/GetEntireHierarchy?uuid={}"
@@ -295,12 +303,14 @@ class AposImport(object):
         if not enhedstype:
             enhedstype = details['@enhedstype']
 
-        unit = self.org.OrganisationUnit.add(
+        unit = self.importer.add_organisation_unit( # Notice, does this still return as expected!
+            # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            # unit = self.org.OrganisationUnit.add(
             identifier=unit_id,
             uuid=apos_unit['@uuid'],
             name=apos_unit['@navn'],
             user_key=apos_unit['@brugervendtNoegle'],
-            org_unit_type_ref=enhedstype,
+            type_ref=enhedstype,
             date_from=fra,
             date_to=til,
             parent_ref=parent)
@@ -310,19 +320,19 @@ class AposImport(object):
         for location in locations:
             if location['pnummer']:
                 try:
-                    self.org.OrganisationUnit.add_type_address(
-                        owner_ref=unit_id,
-                        address_type_ref='PNUMBER',
+                    self.importer.add_address_type(
+                        organisation_unit=unit_id,
+                        type_ref='PNUMBER',
                         value=location['pnummer'],
                         date_from=GLOBAL_DATE)
                 except AssertionError:  # pnumber added multiple times
                     pass
             if location['dawa_uuid']:
                 try:
-                    self.org.OrganisationUnit.add_type_address(
-                        owner_ref=unit_id,
-                        address_type_ref='AdressePost',
-                        uuid=location['dawa_uuid'],
+                    self.importer.add_address_type(
+                        organisation_unit=unit_id,
+                        type_ref='AdressePost',
+                        value=location['dawa_uuid'],
                         date_from=GLOBAL_DATE)
                 except AssertionError:  # Address already added
                     pass
@@ -382,7 +392,9 @@ class AposImport(object):
             value = kontaktmulighed['@vaerdi']
             if value:
                 apos_type = kontaktmulighed['@type']
-                data = self.org.Klasse.get(apos_type)['data']
+                # data = self.org.Klasse.get(apos_type)['data']
+                # TODO: CHECK THIS WORKS CORRECTLY
+                data = self.importer.get('klasse', apos_type)
                 employee_identifier = employee['person']['@uuid']
 
                 if data['titel'] == EMAIL_NAME:
@@ -465,6 +477,7 @@ class AposImport(object):
             fra, til = _format_time(medarbejder['gyldighed'])
             bvn = medarbejder['@brugervendtNoegle']
 
+            """
             try:
                 self.org.Employee.get(person['@uuid'])
                 self.duplicate_persons[person['@uuid']] = person
@@ -472,11 +485,18 @@ class AposImport(object):
                 continue
             except KeyError:
                 pass
-            self.org.Employee.add(name=name,
-                                  uuid=person['@uuid'],
-                                  identifier=person['@uuid'],
-                                  cpr_no=person['@personnummer'],
-                                  user_key=bvn)
+            """
+            # TODO: VERIFY THAT THIS IS THE SAME AS THE ABOVE
+            if self.importer.check_if_exists('employee', person['@uuid']):
+                self.duplicate_persons[person['@uuid']] = person
+                # Some employees are duplicated, skip them and remember them.
+                continue
+                
+            self.importer.add_employee(name=name,
+                                       uuid=person['@uuid'],
+                                       identifier=person['@uuid'],
+                                       cpr_no=person['@personnummer'],
+                                       user_key=bvn)
             self.update_contact_information(medarbejder)
             self.update_tasks(medarbejder, objectid)
 
