@@ -31,6 +31,14 @@ class ImportHelper(object):
         self.organisation_units = {}
         self.employees = {}
 
+        # Compatibility map
+        self.available_types = {
+            "klasse": "klasse_objects",
+            "facet": "facet_objects",
+            "organisation_unit": "organisation_units",
+            "employee": "employees"
+        }
+
         self.organisation_unit_details = {}
         self.employee_details = {}
 
@@ -38,25 +46,27 @@ class ImportHelper(object):
         if create_defaults:
             self.create_default_facet_types()
 
-    def check_if_exists(self, object_type, object_reference):
+    def get(self, object_type, object_reference):
+        available = self.export(object_type)
+        return available.get(object_reference)
 
-        available_types = {
-            "klasse": "klasse_objects",
-            "facet": "facet_objects",
-            "organisation_unit": "organisation_units",
-            "employee": "employees"
-        }
+    def export(self, object_type):
+        available = self.available_types.keys()
 
-        if object_type not in available_types:
+        if object_type not in available:
             raise TypeError(
                 "Cannot check for this type, available types: {}".format(
-                    available_types
+                    available
                 )
             )
 
-        object_type = available_types.get(object_type)
+        object_type = self.available_types.get(object_type)
 
-        attribute = getattr(self, object_type)
+        return getattr(self, object_type)
+
+    def check_if_exists(self, object_type, object_reference):
+
+        attribute = self.export(object_type)
 
         if not attribute.get(object_reference):
             return False
