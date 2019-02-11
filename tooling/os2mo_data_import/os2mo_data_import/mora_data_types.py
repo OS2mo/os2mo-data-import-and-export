@@ -9,10 +9,11 @@
 
 class MoType():
 
-    type_id = None
     insert_data = True
 
     def __init__(self):
+
+        self.type_id = None
 
         self.payload = {}
 
@@ -64,10 +65,10 @@ class MoType():
 
 class AddressType(MoType):
 
-    type_id = "address"
-
     def __init__(self, value, type_ref, date_from, date_to=None, uuid=None):
         super().__init__()
+
+        self.type_id = "address"
 
         self.uuid = uuid
 
@@ -104,11 +105,11 @@ class AddressType(MoType):
 
 class EngagementType(MoType):
 
-    type_id = "engagement"
-
     def __init__(self, org_unit_ref, job_function_ref, engagement_type_ref,
                  date_from, date_to=None, uuid=None):
         super().__init__()
+
+        self.type_id = "engagement"
 
         self.uuid = uuid
         self.org_unit_ref = org_unit_ref
@@ -154,12 +155,12 @@ class EngagementType(MoType):
 
 class AssociationType(MoType):
 
-    type_id = "association"
-
     def __init__(self, association_type_ref, org_unit_ref, job_function_ref,
                  date_from, date_to=None, address_uuid=None, address_type_ref=None,
                  uuid=None):
         super().__init__()
+
+        self.type_id = "association"
 
         self.uuid = uuid
 
@@ -217,10 +218,10 @@ class AssociationType(MoType):
 
 class ItsystemType(MoType):
 
-    type_id = "it"
-
     def __init__(self, user_key, itsystem_ref, date_from, date_to=None, uuid=None):
         super().__init__()
+
+        self.type_id = "it"
 
         self.uuid = uuid
 
@@ -248,10 +249,10 @@ class ItsystemType(MoType):
 
 class LeaveType(MoType):
 
-    type_id = "leave"
-
     def __init__(self, leave_type_ref, date_from, date_to=None, uuid=None):
         super().__init__()
+
+        self.type_id = "leave"
 
         self.uuid = uuid
 
@@ -274,10 +275,10 @@ class LeaveType(MoType):
 
 class RoleType(MoType):
 
-    type_id = "role"
-
     def __init__(self, org_unit, role_type_ref, date_from, date_to=None, uuid=None):
         super().__init__()
+
+        self.type_id = "role"
 
         self.uuid = uuid
 
@@ -305,12 +306,13 @@ class RoleType(MoType):
 
 
 class ManagerType(MoType):
-    type_id = "manager"
 
     def __init__(self, org_unit, manager_type_ref, manager_level_ref,
                  responsibility_list, date_from, date_to=None,
                  address_uuid=None, address_type_ref=None, uuid=None):
         super().__init__()
+
+        self.type_id = "manager"
 
         self.uuid = uuid
 
