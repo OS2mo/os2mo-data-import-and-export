@@ -232,52 +232,72 @@ class AposImport(object):
         for k in klassifikationer:
             if k['@kaldenavn'] == 'Stillingsbetegnelser':
                 self.create_typer(k['@uuid'],
-                                  {'Stillingsbetegnelse': ['Alfabetisk']})
-
+                                  {'engagement_job_function': ['Alfabetisk']})
             if k['@kaldenavn'] == 'Rolle':
                 self.create_typer(k['@uuid'],
-                                  {'Rolletype': ['Rolle']})
+                                  {'role_type': ['Rolle']})
 
             if k['@kaldenavn'] == 'Enhedstyper':
                 self.create_typer(k['@uuid'],
-                                  {'Enhedstype': ['Alfabetisk']})
+                                  {'org_unit_type': ['Alfabetisk']})
 
             if k['@kaldenavn'] == 'Tilknytningstyper':
                 self.create_typer(k['@uuid'],
-                                  {'Engagementstype': ['Alfabetisk']})
+                                  {'engagement_type': ['Alfabetisk']})
 
             if k['@kaldenavn'] == 'AM/MED':
                 self.create_typer(k['@uuid'],
-                                  {'Tilknytningstype': ['Repræsentanttyper',
+                                  {'association_type': ['Repræsentanttyper',
                                                         'Medlemstyper',
                                                         'Forbund']})
 
             if k['@kaldenavn'] == 'Leder':
-                self.create_typer(k['@uuid'], {'Lederansvar': ['Ansvar'],
-                                               'Ledertyper': ['Typer']})
+                self.create_typer(k['@uuid'], {'responsibility': ['Ansvar'],
+                                               'manager_type': ['Typer']})
 
             if k['@kaldenavn'] == 'SD løn enhedstyper':
-                self.create_typer(k['@uuid'], {'Enhedstype':
+                self.create_typer(k['@uuid'], {'org_unit_type':
                                                ['sd_loen_enhedstyper']})
 
             if k['@kaldenavn'] == 'Kontaktkanaler':
-                self.create_typer(k['@uuid'], {'Adressetype':
+                self.create_typer(k['@uuid'], {'employee_address_type':
                                                ['Lokation typer',
                                                 'Egenskaber',
                                                 'Engagement typer']})
 
         if CREATE_UDVALGS_CLASSES:
-            specific_klasser = [{'titel': 'AMR', 'facet': 'Enhedstype'},
-                                {'titel': 'H-MED', 'facet': 'Enhedstype'},
-                                {'titel': 'C-MED', 'facet': 'Enhedstype'},
-                                {'titel': 'L-MED', 'facet': 'Enhedstype'}]
+            specific_klasser = [
+                {'titel': 'AMR', 'facet': 'org_unit_type', 'scope': 'TEXT'},
+                {'titel': 'H-MED', 'facet': 'org_unit_type', 'scope': 'TEXT'},
+                {'titel': 'C-MED', 'facet': 'org_unit_type', 'scope': 'TEXT'},
+                {'titel': 'L-MED', 'facet': 'org_unit_type', 'scope': 'TEXT'}
+            ]
+        else:
+            specific_klasser = []
+        standard_klasser = [
+            {'titel': 'Lederniveau',
+             'facet': 'manager_level',
+             'scope': 'TEXT'},
+            {'titel': 'Email',
+             'facet': 'employee_address_type',
+             'scope': 'EMAIL'},
+            {'titel': 'Telefon',
+             'facet': 'employee_address_type',
+             'scope': 'PHONE'},
+            {'titel': 'PNUMBER',
+             'facet': 'org_unit_address_type',
+             'scope': 'PNUMBER'},
+            {'titel': 'AdressePost',
+             'facet': 'org_unit_address_type',
+             'scope':'DAR'}
+        ]
 
-            for klasse in specific_klasser:
-                self.importer.add_klasse(identifier=klasse['titel'],
-                                         title=klasse['titel'],
-                                         user_key=klasse['titel'],
-                                         scope='TEXT',
-                                         facet_type_ref=klasse['facet'])
+        for klasse in specific_klasser + standard_klasser:
+            self.importer.add_klasse(identifier=klasse['titel'],
+                                     title=klasse['titel'],
+                                     user_key=klasse['titel'],
+                                     scope=klasse['scope'],
+                                     facet_type_ref=klasse['facet'])
 
     def _read_ous_from_apos(self, org_uuid):
         url = "app-organisation/GetEntireHierarchy?uuid={}"
@@ -454,7 +474,7 @@ class AposImport(object):
         engagement_ref = '56e1214a-330f-4592-89f3-ae3ee8d5b2e6'  # Ansat
         self.importer.add_engagement(
             employee=employee['person']['@uuid'],
-            # uuid=employee['@uuid'], # TODO!!!!!!!!!!!!!!!
+            uuid=employee['@uuid'],
             organisation_unit=unit,
             job_function_ref=stilling,
             engagement_type_ref=engagement_ref,
@@ -564,11 +584,11 @@ class AposImport(object):
                     
                     facet = klasse_ref.facet_type_ref
 
-                    if facet == 'Ledertyper':
+                    if facet == 'manager_type':
                         manager_type = klasse
-                    elif facet == 'Lederansvar':
+                    elif facet == 'responsibility':
                         manager_responsibility.append(klasse)
-                    elif facet in ('Stillingsbetegnelse', 'Engagementstype'):
+                    elif facet in ('engagement_job_function', 'engagement_type'):
                         pass
                     else:
                         print('WARNING')
@@ -582,7 +602,7 @@ class AposImport(object):
                             address_uuid=None,  # TODO?
                             manager_type_ref=manager_type,
                             responsibility_list=manager_responsibility,
-                            # uuid=func['@uuid'],
+                            uuid=func['@uuid'],
                             date_from=fra,
                             date_to=til
                         )
