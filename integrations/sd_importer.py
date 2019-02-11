@@ -330,16 +330,16 @@ class SdImport(object):
                     date_to = None
 
                 # Employees are not allowed to be in these units (allthough
-                # we do make an association). We must instead find the lowerst
+                # we do make an association). We must instead find the lowest
                 # higher level to put she or he.
                 too_deep = ['Afdelings-niveau', 'NY1-niveau', 'NY2-niveau']
                 original_unit = unit
                 while self.nodes[unit].name in too_deep:
                     unit = self.nodes[unit].parent.uuid
                 try:
-                    self.org.Employee.add_type_engagement(
-                        owner_ref=cpr,
-                        org_unit_ref=unit,
+                    self.importer.add_engagement(
+                        employee=cpr,
+                        organisation_unit=unit,
                         job_function_ref=job_func,
                         engagement_type_ref=engagement_type_ref,
                         date_from=date_from,
@@ -347,9 +347,9 @@ class SdImport(object):
                     )
                     # Remove this to remove any sign of the employee from the
                     # lowest levels of the org
-                    self.org.Employee.add_type_association(
-                        owner_ref=cpr,
-                        org_unit_ref=original_unit,
+                    self.importer.add_association(
+                        employee=cpr,
+                        organisation_unit=original_unit,
                         job_function_ref=job_func,
                         association_type_ref=engagement_type_ref,
                         date_from=date_from
@@ -361,11 +361,11 @@ class SdImport(object):
                     manager_type_ref = 'manager_type_' + job_func
                     self._add_klasse(manager_type_ref,
                                      job_func,
-                                     'Ledertyper')
+                                     'manager_type')
 
-                    self.org.Employee.add_type_manager(
-                        owner_ref=cpr,
-                        org_unit_ref=unit,
+                    self.importer.add_manager(
+                        employee=cpr,
+                        organisation_unit=unit,
                         manager_level_ref=job_id,
                         address_uuid=None,  # TODO?
                         manager_type_ref=manager_type_ref,
