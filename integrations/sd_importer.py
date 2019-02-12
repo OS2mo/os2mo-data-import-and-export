@@ -5,7 +5,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-#   
+#
 import os
 import pickle
 import requests
@@ -72,9 +72,18 @@ class SdImport(object):
         self.info = self._read_department_info()
         for level in [(1040, 'Leder'), (1035, 'Chef'), (1030, 'Direktør')]:
             self._add_klasse(level[0], level[1], 'manager_level')
-        for adresse_type in ['Email', 'Pnummer']:
-            self._add_klasse(adresse_type, adresse_type, 'org_unit_address_type')
+
+        self._add_klasse('Pnummer', 'Pnummer',
+                         'org_unit_address_type', 'PNUMBER')
+        self._add_klasse('AdressePost', 'AdressePost',
+                         'org_unit_address_type', 'DAR')
+        self._add_klasse('Email', 'Email', 'org_unit_address_type', 'EMAIL')
+
+        self._add_klasse('Enhed', 'Enhed', 'org_unit_type')
         self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
+        self._add_klasse('Ansat',
+                         'Ansat',
+                         'engagement_type')
         self._add_klasse('non-primary',
                          'Ikke-primær ansættelse',
                          'engagement_type')
@@ -103,13 +112,16 @@ class SdImport(object):
                                          scope='TEXT')
         return department_info
 
-    def _add_klasse(self, klasse_id, klasse, facet):
+    def _add_klasse(self, klasse_id, klasse, facet, scope='TEXT'):
+        if isinstance(klasse_id, str):
+            klasse_id = klasse_id.replace('&', '_')
         if not self.importer.check_if_exists('klasse', klasse_id):
             self.importer.add_klasse(identifier=klasse_id,
                                      facet_type_ref=facet,
                                      user_key=klasse,
-                                     scope='TEXT',
+                                     scope=scope,
                                      title=klasse)
+        return klasse_id
 
     def _dawa_lookup(self, address):
         """ Lookup an APOS address object in DAWA and find a UUID
@@ -227,9 +239,6 @@ class SdImport(object):
                 print(uuid)
                 print('----')
                 niveau = ou.type_ref
-                #for field in ou[1]['data']: # TODO: CHECK NEW SOLUTION ACTUALLY WORKS
-                #    if field[0] == 'org_unit_type':
-                #        niveau = field[1]
                 nodes[uuid] = Node(niveau, uuid=uuid)
             else:
                 new_ous.append(ou)
@@ -243,9 +252,6 @@ class SdImport(object):
                 if parent in nodes.keys():
                     uuid = ou.uuid
                     niveau = ou.type_ref
-                    #for field in ou[1]['data']:  # TODO: CHECK NEW SOLUTION ACTUALLY WORKS
-                    #    if field[0] == 'org_unit_type':
-                    #        niveau = field[1]
                     nodes[uuid] = Node(niveau, parent=nodes[parent], uuid=uuid)
                 else:
                     new_ous.append(ou)
@@ -325,7 +331,9 @@ class SdImport(object):
 
                 job_id = int(employment['Profession']['JobPositionIdentifier'])
                 job_func = employment['Profession']['EmploymentName']
-                self._add_klasse(job_func, job_func, 'engagement_job_function')
+                job_func_ref = self._add_klasse(job_func,
+                                                job_func,
+                                                'engagement_job_function')
 
                 emp_dep = employment['EmploymentDepartment']
                 unit = emp_dep['DepartmentUUIDIdentifier']
@@ -346,7 +354,7 @@ class SdImport(object):
                     self.importer.add_engagement(
                         employee=cpr,
                         organisation_unit=unit,
-                        job_function_ref=job_func,
+                        job_function_ref=job_func_ref,
                         engagement_type_ref=engagement_type_ref,
                         date_from=date_from,
                         date_to=date_to
@@ -356,7 +364,7 @@ class SdImport(object):
                     self.importer.add_association(
                         employee=cpr,
                         organisation_unit=original_unit,
-                        job_function_ref=job_func,
+                        job_function_ref=job_func_ref,
                         association_type_ref=engagement_type_ref,
                         date_from=date_from
                     )
@@ -365,9 +373,9 @@ class SdImport(object):
                     self.double_employment.append(cpr)
                 if job_id in [1040, 1035, 1030]:
                     manager_type_ref = 'manager_type_' + job_func
-                    self._add_klasse(manager_type_ref,
-                                     job_func,
-                                     'manager_type')
+                    manager_type_ref = self._add_klasse(manager_type_ref,
+                                                        job_func,
+                                                        'manager_type')
 
                     self.importer.add_manager(
                         employee=cpr,
@@ -394,7 +402,7 @@ if __name__ == '__main__':
                             system_name='SD-Import',
                             end_marker='SDSTOP',
                             store_integration_data=True)
-    
+
     sd = SdImport(importer, MUNICIPALTY_NAME, MUNICIPALTY_CODE)
     sd.create_ou_tree()
     sd.create_employees()
