@@ -5,16 +5,17 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-#   
+#
 import os
 import pickle
 import requests
 import xmltodict
 from anytree import Node
-from os2mo_data_import import Organisation, ImportUtility
+from os2mo_data_import import ImportHelper
 
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
+MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_CODE', 0)
 GLOBAL_DATE = os.environ.get('GLOBAL_DATE', '1977-01-01')
 MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
@@ -55,22 +56,37 @@ def _dawa_request(address, adgangsadresse=False,
 
 
 class SdImport(object):
-    def __init__(self, org_name):
+    def __init__(self, importer, org_name, municipality_code):
         self.double_employment = []
         self.address_errors = {}
 
-        self.org = Organisation(org_name, org_name)
+        self.importer = importer
+        self.importer.add_organisation(
+            identifier=org_name,
+            user_key=org_name,
+            municipality_code=municipality_code
+        )
+
         self.nodes = {}  # Will be populated when org-tree is created
         self.add_people()
         self.info = self._read_department_info()
         for level in [(1040, 'Leder'), (1035, 'Chef'), (1030, 'Direktør')]:
-            self._add_klasse(level[0], level[1], 'Lederniveau')
-        for adresse_type in ['Email', 'Pnummer']:
-            self._add_klasse(adresse_type, adresse_type, 'Adressetype')
-        self._add_klasse('Lederansvar', 'Lederansvar', 'Lederansvar')
+            self._add_klasse(level[0], level[1], 'manager_level')
+
+        self._add_klasse('Pnummer', 'Pnummer',
+                         'org_unit_address_type', 'PNUMBER')
+        self._add_klasse('AdressePost', 'AdressePost',
+                         'org_unit_address_type', 'DAR')
+        self._add_klasse('Email', 'Email', 'org_unit_address_type', 'EMAIL')
+
+        self._add_klasse('Enhed', 'Enhed', 'org_unit_type')
+        self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
+        self._add_klasse('Ansat',
+                         'Ansat',
+                         'engagement_type')
         self._add_klasse('non-primary',
                          'Ikke-primær ansættelse',
-                         'Engagementstype')
+                         'engagement_type')
 
     def _sd_lookup(self, filename):
         with open(filename, 'r') as f:
@@ -88,18 +104,24 @@ class SdImport(object):
             uuid = department['DepartmentUUIDIdentifier']
             department_info[uuid] = department
             unit_type = department['DepartmentLevelIdentifier']
-            if not self.org.Klasse.check_if_exists(unit_type):
-                self.org.Klasse.add(unit_type, 'Enhedstype',
-                                    user_key=unit_type, title=unit_type)
+            if not self.importer.check_if_exists('klasse', unit_type):
+                self.importer.add_klasse(identifier=unit_type,
+                                         facet_type_ref='org_unit_type',
+                                         user_key=unit_type,
+                                         title=unit_type,
+                                         scope='TEXT')
         return department_info
 
-    def _add_klasse(self, klasse_id, klasse, facet):
-        if not self.org.Klasse.check_if_exists(klasse_id):
-            self.org.Klasse.add(identifier=klasse_id,
-                                facet_type_ref=facet,
-                                user_key=klasse,
-                                scope='TEXT',
-                                title=klasse)
+    def _add_klasse(self, klasse_id, klasse, facet, scope='TEXT'):
+        if isinstance(klasse_id, str):
+            klasse_id = klasse_id.replace('&', '_')
+        if not self.importer.check_if_exists('klasse', klasse_id):
+            self.importer.add_klasse(identifier=klasse_id,
+                                     facet_type_ref=facet,
+                                     user_key=klasse,
+                                     scope=scope,
+                                     title=klasse)
+        return klasse_id
 
     def _dawa_lookup(self, address):
         """ Lookup an APOS address object in DAWA and find a UUID
@@ -151,12 +173,13 @@ class SdImport(object):
         # Activation dates are not consistent
         date_from = GLOBAL_DATE
         # No units have termination dates: date_to is None
-        if not self.org.OrganisationUnit.check_if_exists(unit_id):
-            self.org.OrganisationUnit.add(
+        # if not self.org.OrganisationUnit.check_if_exists(unit_id):
+        if not self.importer.check_if_exists('organisation_unit', unit_id):
+            self.importer.add_organisation_unit(
                 identifier=unit_id,
                 name=info['DepartmentName'],
                 user_key=user_key,
-                org_unit_type_ref=ou_level,
+                type_ref=ou_level,
                 date_from=date_from,
                 uuid=unit_id,
                 date_to=None,
@@ -166,9 +189,9 @@ class SdImport(object):
             emails = info['ContactInformation']['EmailAddressIdentifier']
             for email in emails:
                 if email.find('Empty') == -1:
-                    self.org.OrganisationUnit.add_type_address(
-                        owner_ref=unit_id,
-                        address_type_ref='Email',
+                    self.importer.add_address_type(
+                        organisation_unit=unit_id,
+                        type_ref='Email',
                         value=email,
                         date_from=date_from
                     )
@@ -178,9 +201,9 @@ class SdImport(object):
                 pass
 
         if 'ProductionUnitIdentifier' in info:
-            self.org.OrganisationUnit.add_type_address(
-                owner_ref=unit_id,
-                address_type_ref='Pnummer',
+            self.importer.add_address_type(
+                organisation_unit=unit_id,
+                type_ref='Pnummer',
                 value=info['ProductionUnitIdentifier'],
                 date_from=date_from
             )
@@ -190,10 +213,10 @@ class SdImport(object):
             if all(element in info['PostalAddress'] for element in needed):
                 dar_uuid = self._dawa_lookup(info['PostalAddress'])
                 if dar_uuid is not None:
-                    self.org.OrganisationUnit.add_type_address(
-                        owner_ref=unit_id,
-                        address_type_ref='AdressePost',
-                        uuid=dar_uuid,
+                    self.importer.add_address_type(
+                        organisation_unit=unit_id,
+                        type_ref='AdressePost',
+                        value=dar_uuid,
                         date_from=date_from
                     )
                 else:
@@ -206,28 +229,29 @@ class SdImport(object):
 
     def _create_org_tree_structure(self):
         nodes = {}
-        all_ous = self.org.OrganisationUnit.export()
+        all_ous = self.importer.export('organisation_unit')
         new_ous = []
-        for ou in all_ous:
-            parent = ou[1]['parent_ref']
+        for key, ou in all_ous.items():
+            parent = ou.parent_ref
             if parent is None:
-                uuid = ou[0]
-                for field in ou[1]['data']:
-                    if field[0] == 'org_unit_type':
-                        niveau = field[1]
+                print(ou)
+                uuid = key
+                print(uuid)
+                print('----')
+                niveau = ou.type_ref
                 nodes[uuid] = Node(niveau, uuid=uuid)
             else:
                 new_ous.append(ou)
+
         while len(new_ous) > 0:
+            print(len(new_ous))
             all_ous = new_ous
             new_ous = []
             for ou in all_ous:
-                parent = ou[1]['parent_ref']
+                parent = ou.parent_ref
                 if parent in nodes.keys():
-                    uuid = ou[0]
-                    for field in ou[1]['data']:
-                        if field[0] == 'org_unit_type':
-                            niveau = field[1]
+                    uuid = ou.uuid
+                    niveau = ou.type_ref
                     nodes[uuid] = Node(niveau, parent=nodes[parent], uuid=uuid)
                 else:
                     new_ous.append(ou)
@@ -240,18 +264,18 @@ class SdImport(object):
             cpr = person['PersonCivilRegistrationIdentifier']
             name = (person['PersonGivenName'] + ' ' +
                     person['PersonSurnameName'])
-            self.org.Employee.add(name=name,
-                                  identifier=cpr,
-                                  cpr_no=cpr,
-                                  user_key=name)
+            self.importer.add_employee(name=name,
+                                       identifier=cpr,
+                                       cpr_no=cpr,
+                                       user_key=name)
 
     def create_ou_tree(self):
         """ Read all department levels from SD """
-        self.org.OrganisationUnit.add(
+        self.importer.add_organisation_unit(
                 identifier='OrphanUnits',
                 name='Forældreløse enheder',
                 user_key='OrphanUnits',
-                org_unit_type_ref='Enhed',
+                type_ref='Enhed',
                 date_from='1900-01-01',
                 date_to=None,
                 parent_ref=None)
@@ -307,7 +331,9 @@ class SdImport(object):
 
                 job_id = int(employment['Profession']['JobPositionIdentifier'])
                 job_func = employment['Profession']['EmploymentName']
-                self._add_klasse(job_func, job_func, 'Stillingsbetegnelse')
+                job_func_ref = self._add_klasse(job_func,
+                                                job_func,
+                                                'engagement_job_function')
 
                 emp_dep = employment['EmploymentDepartment']
                 unit = emp_dep['DepartmentUUIDIdentifier']
@@ -318,27 +344,27 @@ class SdImport(object):
                     date_to = None
 
                 # Employees are not allowed to be in these units (allthough
-                # we do make an association). We must instead find the lowerst
+                # we do make an association). We must instead find the lowest
                 # higher level to put she or he.
                 too_deep = ['Afdelings-niveau', 'NY1-niveau', 'NY2-niveau']
                 original_unit = unit
                 while self.nodes[unit].name in too_deep:
                     unit = self.nodes[unit].parent.uuid
                 try:
-                    self.org.Employee.add_type_engagement(
-                        owner_ref=cpr,
-                        org_unit_ref=unit,
-                        job_function_ref=job_func,
+                    self.importer.add_engagement(
+                        employee=cpr,
+                        organisation_unit=unit,
+                        job_function_ref=job_func_ref,
                         engagement_type_ref=engagement_type_ref,
                         date_from=date_from,
                         date_to=date_to
                     )
                     # Remove this to remove any sign of the employee from the
                     # lowest levels of the org
-                    self.org.Employee.add_type_association(
-                        owner_ref=cpr,
-                        org_unit_ref=original_unit,
-                        job_function_ref=job_func,
+                    self.importer.add_association(
+                        employee=cpr,
+                        organisation_unit=original_unit,
+                        job_function_ref=job_func_ref,
                         association_type_ref=engagement_type_ref,
                         date_from=date_from
                     )
@@ -347,13 +373,13 @@ class SdImport(object):
                     self.double_employment.append(cpr)
                 if job_id in [1040, 1035, 1030]:
                     manager_type_ref = 'manager_type_' + job_func
-                    self._add_klasse(manager_type_ref,
-                                     job_func,
-                                     'Ledertyper')
+                    manager_type_ref = self._add_klasse(manager_type_ref,
+                                                        job_func,
+                                                        'manager_type')
 
-                    self.org.Employee.add_type_manager(
-                        owner_ref=cpr,
-                        org_unit_ref=unit,
+                    self.importer.add_manager(
+                        employee=cpr,
+                        organisation_unit=unit,
                         manager_level_ref=job_id,
                         address_uuid=None,  # TODO?
                         manager_type_ref=manager_type_ref,
@@ -369,13 +395,19 @@ class SdImport(object):
 
 
 if __name__ == '__main__':
-    sd = SdImport('MUNICIPALTY_NAME')
+
+    importer = ImportHelper(create_defaults=True,
+                            mox_base=MOX_BASE,
+                            mora_base=MORA_BASE,
+                            system_name='SD-Import',
+                            end_marker='SDSTOP',
+                            store_integration_data=True)
+
+    sd = SdImport(importer, MUNICIPALTY_NAME, MUNICIPALTY_CODE)
     sd.create_ou_tree()
     sd.create_employees()
 
-    import_tool = ImportUtility(dry_run=False, mox_base=MOX_BASE,
-                                mora_base=MORA_BASE)
-    import_tool.import_all(sd.org)
+    importer.import_all()
 
     for info in sd.address_errors.values():
         print(info['DepartmentName'])

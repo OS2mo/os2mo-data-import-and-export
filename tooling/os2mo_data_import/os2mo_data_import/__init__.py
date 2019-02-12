@@ -1,2 +1,3 @@
-from os2mo_data_import.data_types import Organisation
-from os2mo_data_import.utility import ImportUtility
+# -- coding: utf-8 --
+
+from os2mo_data_import.helpers import ImportHelper

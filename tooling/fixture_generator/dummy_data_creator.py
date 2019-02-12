@@ -3,24 +3,25 @@ import pickle
 import random
 import pathlib
 import requests
+from enum import Enum
 from datetime import datetime
 from datetime import timedelta
 from uuid import uuid5, NAMESPACE_DNS
 from anytree import Node, PreOrderIter
 
 CLASSES = {
-    'Stillingsbetegnelse': [
+    'engagement_job_function': [
         'Udvikler', 'Specialkonsulent', 'Ergoterapeut', 'Udviklingskonsulent',
         'Specialist', 'Jurist', 'Personalekonsulent', 'Lønkonsulent',
         'Kontorelev', 'Ressourcepædagog', 'Pædagoisk vejleder',
         'Skolepsykolog', 'Støttepædagog', 'Bogopsætter', 'Timelønnet lærer',
         'Pædagogmedhjælper', 'Teknisk Servicemedarb.', 'Lærer/Overlærer'
     ],
-    'Enhedstype': [
+    'org_unit_type': [
         'Afdeling', 'Institutionsafsnit', 'Institution', 'Fagligt center',
         'Direktør område'
     ],
-    'Lederansvar': [
+    'responsibility': [
         'Personale: ansættelse/afskedigelse',
         'Beredskabsledelse',
         'Personale: øvrige administrative opgaver',
@@ -28,15 +29,32 @@ CLASSES = {
         'Ansvar for bygninger og arealer',
         'Personale: MUS-kompetence'
     ],
-    'Ledertyper': [
+    'manager_type': [
         'Direktør', 'Distriktsleder', 'Beredskabschef', 'Sekretariatschef',
         'Systemadministrator', 'Områdeleder', 'Centerchef', 'Institutionsleder'
     ],
-    'Rolletype': [
+    'role_type': [
         'Tillidsrepræsentant', 'Ergonomiambasadør', 'Ansvarlig for sommerfest'
     ],
-    'Tilknytningstype': ['Problemknuser', 'Konsulent', 'Medhjælper'],
-    'Lederniveau': ['Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4']
+    'employee_address_type': [
+        ('AdressePostEmployee', 'Adresse', 'DAR'),
+        ('PhoneEmployee', 'Telefon', 'PHONE'),
+        ('EmailEmployee', 'Email', 'EMAIL')
+    ],
+    'manager_address_type': [
+        ('LederEmail', 'Email', 'EMAIL'),
+        ('LederTelefon', 'Telefon', 'PHONE'),
+        ('AdressePostLeder', 'Adresse', 'DAR'),
+        ('LederWebadresse', 'Webadresse', 'TEXT')
+    ],
+    'org_unit_address_type': [
+        ('EAN', 'EAN Nummer', 'EAN'),
+        ('p-nummer', 'p-nummer', 'PNUMBER'),
+        ('AdressePost', 'Adresse', 'DAR')
+    ],
+    'association_type': ['Problemknuser', 'Konsulent', 'Medhjælper'],
+    'manager_level': ['Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4'],
+    'engagement_type': ['Ansat']
 }
 
 IT_SYSTEMS = ['Active Directory', 'SAP', 'Office 365', 'Plone', 'Open Desk']
@@ -46,7 +64,7 @@ START_DATE = '1960-01-01'
 
 def _path_to_names():
     """ Return a list of paths to the name-lists """
-    path = pathlib.Path.cwd()
+    path = pathlib.Path(__file__).resolve().parent
     path = path / 'navne'
     navne_list = [path / 'fornavne.txt',
                   path / 'mellemnavne.txt',
@@ -138,6 +156,9 @@ def _name_to_host(name):
     return name
 
 
+Size = Enum('Size', 'Small Normal Large')
+
+
 class CreateDummyOrg(object):
     """ Create a dummy organisation to use as test data
     Users are randomly created within the sample space provided by
@@ -146,12 +167,14 @@ class CreateDummyOrg(object):
     look realistic.
     """
 
-    def __init__(self, municipality_code, name, path_to_names):
+    def __init__(self, municipality_code, name, path_to_names,
+                 root_name='root'):
         self.global_start_date = datetime.strptime(START_DATE, '%Y-%m-%d')
         self.classes = CLASSES
         self.it_systems = IT_SYSTEMS
         self.nodes = {}
         self.name = name
+        self.root_name = root_name
         try:
             with open(str(municipality_code) + '.p', 'rb') as file_handle:
                 self.adresser = pickle.load(file_handle)
@@ -166,8 +189,8 @@ class CreateDummyOrg(object):
                       'middle': _load_names(path_to_names[1]),
                       'last': _load_names(path_to_names[2])}
 
-        self.nodes['root'] = Node(name, adresse=self._adresse(),
-                                  type='ou', key='root')
+        self.nodes[self.root_name] = Node(name, adresse=self._adresse(),
+                                          type='ou', key=self.root_name)
         # Used to keep track of used user_keys to keep them unique
         self.used_user_keys = []
 
@@ -269,7 +292,7 @@ class CreateDummyOrg(object):
         :return: A dict with information about the user
         """
         it_systems = random.sample(self.it_systems, random.randrange(0, 3))
-        job_function = random.choice(self.classes['Stillingsbetegnelse'])
+        job_function = random.choice(self.classes['engagement_job_function'])
         host = _name_to_host(self.name)
         if cpr is None:
             cpr = _cpr(time_from)
@@ -319,38 +342,41 @@ class CreateDummyOrg(object):
             user.append(self._create_user(name, user_key, time_from, None, cpr))
         return user
 
-    def create_org_func_tree(self, too_many_units=False):
+    def create_org_func_tree(self, org_size=Size.Normal):
         """ Create an organisational structure, based on the municipality code.
-        :param too_many_units: If True a large number of units will be made in
-        one of the the sub-trees for performance testing purposes.
+        :param org_size: If 'Normal' a standard number of units will be made. If
+        'Large' a  large number of units will be made in one of the the sub-trees for
+        performance testing purposes. If 'Small' the a smaller amount of units is
+        created, mainly to facilitate faster testing.
         """
         orgs = ['Borgmesterens Afdeling',
                 'Teknik og Miljø',
                 'Skole og Børn',
                 'Social og sundhed']
-        self._create_org_level(orgs, parent=self.nodes['root'])
+        self._create_org_level(orgs, parent=self.nodes[self.root_name])
 
         keys = sorted(self.nodes.keys())  # Sort the keys to ensure test-cosistency
         for node in list(keys):
             org = self.nodes[node].name
-            if org == 'Teknik og Miljø':
-                orgs = ['Kloakering',
-                        'Park og vej',
-                        'Renovation',
-                        'Belysning',
-                        'IT-Support']
-                uuids = self._create_org_level(orgs, self.nodes[node])
-                for uuid in uuids:
-                    if random.random() > 0.5:
-                        self._create_org_level(['Kantine'], self.nodes[uuid])
+            if not org_size == Size.Small:
+                if org == 'Teknik og Miljø':
+                    orgs = ['Kloakering',
+                            'Park og vej',
+                            'Renovation',
+                            'Belysning',
+                            'IT-Support']
+                    uuids = self._create_org_level(orgs, self.nodes[node])
+                    for uuid in uuids:
+                        if random.random() > 0.5:
+                            self._create_org_level(['Kantine'], self.nodes[uuid])
 
-            if org == 'Borgmesterens Afdeling':
-                orgs = ['Budget og Planlægning',
-                        'HR og organisation',
-                        'Erhverv',
-                        'Byudvikling',
-                        'IT-Support']
-                self._create_org_level(orgs, self.nodes[node])
+                if org == 'Borgmesterens Afdeling':
+                    orgs = ['Budget og Planlægning',
+                            'HR og organisation',
+                            'Erhverv',
+                            'Byudvikling',
+                            'IT-Support']
+                    self._create_org_level(orgs, self.nodes[node])
 
             if org == 'Skole og Børn':
                 orgs = ['Social Indsats', 'IT-Support']
@@ -362,35 +388,36 @@ class CreateDummyOrg(object):
                 skoler = []
                 for dist in self._postdistrikter():
                     skoler.append(dist + " skole")
-                    if too_many_units:
+                    if org_size == Size.Large:
                         for i in range(0, 25):
                             skoler.append(dist + " skole " + str(i))
                 self._create_org_level(skoler, self.nodes[uuid])
 
-                børnehaver = [dist + " børnehus"
-                              for dist in self._postdistrikter()]
-                uuids = self._create_org_level(børnehaver, self.nodes[uuid])
-                for uuid in uuids:
-                    if random.random() > 0.5:
-                        self._create_org_level(['Administration'],
-                                               self.nodes[uuid])
-                    elif random.random() > 0.5:
-                        self._create_org_level(
-                            ['Administration', 'Teknisk Support'],
-                            self.nodes[uuid]
-                        )
+                if not org_size == Size.Small:
+                    børnehaver = [dist + " børnehus"
+                                  for dist in self._postdistrikter()]
+                    uuids = self._create_org_level(børnehaver, self.nodes[uuid])
+                    for uuid in uuids:
+                        if random.random() > 0.5:
+                            self._create_org_level(['Administration'],
+                                                   self.nodes[uuid])
+                        elif random.random() > 0.5:
+                            self._create_org_level(
+                                ['Administration', 'Teknisk Support'],
+                                self.nodes[uuid]
+                            )
 
     def create_manager(self):
         """
         Create a user, that is also a manager.
         :return: The user object, including manager classes
         """
-        antal_ansvar = len(CLASSES['Lederansvar'])
+        antal_ansvar = len(CLASSES['responsibility'])
         ansvar_list = [0]
         ansvar_list += random.sample(range(1, antal_ansvar), 2)
         responsibility_list = []
         for i in ansvar_list:
-            responsibility_list.append(CLASSES['Lederansvar'][i])
+            responsibility_list.append(CLASSES['responsibility'][i])
         user = self.create_user(manager=responsibility_list)
         user[0]['association'] = None
         user[0]['role'] = None
@@ -407,7 +434,7 @@ class CreateDummyOrg(object):
         if node is not None:
             unit = node.key
         else:
-            unit = random.choice(list(self.nodes.keys()))
+            unit = random.choice(sorted(list(self.nodes.keys())))
         payload = None
         if random.random() > 0.6:
             payload = {
@@ -418,14 +445,14 @@ class CreateDummyOrg(object):
 
     def add_users_to_tree(self, ou_size_scale, multiple_employments=False):
         new_nodes = {}
-        for node in PreOrderIter(self.nodes['root']):
+        for node in PreOrderIter(self.nodes[self.root_name]):
             size = ou_size_scale * (node.depth + 1)
             ran_size = random.randrange(round(size/4), size)
             for _ in range(0, ran_size):
                 user = self.create_user(multiple_employments=multiple_employments)
                 for eng in user:
-                    eng['association'] = self.add_user_func('Tilknytningstype')
-                    eng['role'] = self.add_user_func('Rolletype', node)
+                    eng['association'] = self.add_user_func('association_type')
+                    eng['role'] = self.add_user_func('role_type', node)
 
                 uuid = uuid5(NAMESPACE_DNS, str(random.random()))
                 new_nodes[uuid] = {'name': user[0]['brugernavn'], 'user': user,
@@ -450,7 +477,7 @@ class CreateDummyOrg(object):
 if __name__ == '__main__':
     dummy_creator = CreateDummyOrg(825, 'Læsø Kommune',
                                    _path_to_names())
-    dummy_creator.create_org_func_tree(too_many_units=False)
+    dummy_creator.create_org_func_tree(org_size=Size.Normal)
     dummy_creator.add_users_to_tree(ou_size_scale=1, multiple_employments=False)
 
     # Example of iteration over all nodes:
@@ -462,7 +489,7 @@ if __name__ == '__main__':
             if node.parent:
                 print(node.parent.key)  # Key for parent unit
             print(node.adresse['dar-uuid'])
-        """
+
         if node.type == 'user':
             print()
             print('---')
@@ -480,4 +507,3 @@ if __name__ == '__main__':
                 print('Ansvar: {}'.format(engagement['manager']))
                 print('Fra: {}. Til: {}'.format(engagement['fra'],
                                                 engagement['til']))
-        """

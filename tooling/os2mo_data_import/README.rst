@@ -330,6 +330,32 @@ Assign the manager position of Magenta to "Sussanne Chæf": ::
       date_from="1986-12-01",
   )
 
+
+Preservation of UUIDs
+"""""""""""""""""""""
+If the system to be imported into MO contains UUIDs that should be preserved in MO,
+it is possible to import the UUIDs for employees, organisational units, classes and
+classifications. This is achieved by adding an extra uuid argument when creating the
+object, eg: ::
+
+  Magenta.Klasse.add(
+      identifier="Betale løn",
+      facet_type_ref="Lederansvar",
+      uuid="195da2b6-e648-4bdc-add1-e22654996997",
+      user_key="Betale løn",
+      title="Betale løn"
+  )
+
+
+Continuous integration
+""""""""""""""""""""""
+It is possible to run the importer in a mode where the internal identifiers will
+be stored in the special field 'integration_data' in LoRa. This identifier will
+be recognized upon the next import and the object will be re-imported in contrast to
+being created again. In effect this will turn the importer into a one-way integration
+of the imported system.
+
+
 Example
 """""""
 If a "real" os2mo application is available,

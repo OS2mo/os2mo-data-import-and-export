@@ -24,7 +24,6 @@ class TestKlasse(unittest.TestCase):
         )
 
         klasse_data = self.Klasse.get("test_klasse")
-
         expected = {
             "facet_type_ref": "test_facet",
             "data": {
@@ -43,7 +42,8 @@ class TestKlasse(unittest.TestCase):
             description="this is a placeholder",
             example="<UUID>",
             scope="CUSTOM",
-            title="this is the displayed value"
+            title="this is the displayed value",
+            uuid="a02a6465-AC52-4631-953D-75EC5D9A4FFF"
         )
 
         klasse_data = self.Klasse.get("test_klasse")

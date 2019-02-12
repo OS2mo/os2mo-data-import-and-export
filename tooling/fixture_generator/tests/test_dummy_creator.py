@@ -53,9 +53,7 @@ class DummyTest(unittest.TestCase):
         self.assertEqual(expected_cprs, cprs)
 
     def test_number_of_users(self):
-        """ Test that we get the expected number of users.
-        Unfortuantely the is not completly deterministic, and thus
-        we need to accept a range of answers. """
+        """ Test that we get the expected number of users. """
         self.ddc.add_users_to_tree(ou_size_scale=2)
         number_of_users = 0
         for node in PreOrderIter(self.ddc.nodes['root']):
@@ -93,6 +91,16 @@ class DummyTest(unittest.TestCase):
                     expected_roles[role['type']] += 1
         for role, count in expected_roles.items():
             self.assertTrue(count > 0)
+
+    def test_consistent_associations(self):
+        """ Test that associations are deterministic """
+        self.ddc.add_users_to_tree(ou_size_scale=2)
+        unit = None
+        for node in PreOrderIter(self.ddc.nodes['root']):
+            if node.type == 'user':
+                if node.user[0]['cpr'] == '1404433829':
+                    unit = node.user[0]['association']['unit']
+        assert(unit == '4efa9a5f-6185-54e8-9dbc-d4d8518e9754')
 
     def test_managers_in_ous(self):
         """ Test that all units have a manager """
