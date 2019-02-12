@@ -12,7 +12,6 @@ import requests
 import xmltodict
 from anytree import Node
 from os2mo_data_import import ImportHelper
-# from os2mo_data_import import Organisation, ImportUtility
 
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
@@ -72,13 +71,13 @@ class SdImport(object):
         self.add_people()
         self.info = self._read_department_info()
         for level in [(1040, 'Leder'), (1035, 'Chef'), (1030, 'Direktør')]:
-            self._add_klasse(level[0], level[1], 'Lederniveau')
+            self._add_klasse(level[0], level[1], 'manager_level')
         for adresse_type in ['Email', 'Pnummer']:
-            self._add_klasse(adresse_type, adresse_type, 'Adressetype')
-        self._add_klasse('Lederansvar', 'Lederansvar', 'Lederansvar')
+            self._add_klasse(adresse_type, adresse_type, 'org_unit_address_type')
+        self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
         self._add_klasse('non-primary',
                          'Ikke-primær ansættelse',
-                         'Engagementstype')
+                         'engagement_type')
 
     def _sd_lookup(self, filename):
         with open(filename, 'r') as f:
@@ -98,7 +97,7 @@ class SdImport(object):
             unit_type = department['DepartmentLevelIdentifier']
             if not self.importer.check_if_exists('klasse', unit_type):
                 self.importer.add_klasse(identifier=unit_type,
-                                         facet_type_ref='Enhedstype',
+                                         facet_type_ref='org_unit_type',
                                          user_key=unit_type,
                                          title=unit_type,
                                          scope='TEXT')
@@ -218,28 +217,35 @@ class SdImport(object):
 
     def _create_org_tree_structure(self):
         nodes = {}
-        all_ous = self.importer.export()
+        all_ous = self.importer.export('organisation_unit')
         new_ous = []
-        for ou in all_ous:
-            parent = ou[1]['parent_ref']
+        for key, ou in all_ous.items():
+            parent = ou.parent_ref
             if parent is None:
-                uuid = ou[0]
-                for field in ou[1]['data']:
-                    if field[0] == 'org_unit_type':
-                        niveau = field[1]
+                print(ou)
+                uuid = key
+                print(uuid)
+                print('----')
+                niveau = ou.type_ref
+                #for field in ou[1]['data']: # TODO: CHECK NEW SOLUTION ACTUALLY WORKS
+                #    if field[0] == 'org_unit_type':
+                #        niveau = field[1]
                 nodes[uuid] = Node(niveau, uuid=uuid)
             else:
                 new_ous.append(ou)
+
         while len(new_ous) > 0:
+            print(len(new_ous))
             all_ous = new_ous
             new_ous = []
             for ou in all_ous:
-                parent = ou[1]['parent_ref']
+                parent = ou.parent_ref
                 if parent in nodes.keys():
-                    uuid = ou[0]
-                    for field in ou[1]['data']:
-                        if field[0] == 'org_unit_type':
-                            niveau = field[1]
+                    uuid = ou.uuid
+                    niveau = ou.type_ref
+                    #for field in ou[1]['data']:  # TODO: CHECK NEW SOLUTION ACTUALLY WORKS
+                    #    if field[0] == 'org_unit_type':
+                    #        niveau = field[1]
                     nodes[uuid] = Node(niveau, parent=nodes[parent], uuid=uuid)
                 else:
                     new_ous.append(ou)
@@ -319,7 +325,7 @@ class SdImport(object):
 
                 job_id = int(employment['Profession']['JobPositionIdentifier'])
                 job_func = employment['Profession']['EmploymentName']
-                self._add_klasse(job_func, job_func, 'Stillingsbetegnelse')
+                self._add_klasse(job_func, job_func, 'engagement_job_function')
 
                 emp_dep = employment['EmploymentDepartment']
                 unit = emp_dep['DepartmentUUIDIdentifier']
