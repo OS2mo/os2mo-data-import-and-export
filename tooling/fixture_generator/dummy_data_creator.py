@@ -37,8 +37,9 @@ CLASSES = {
         'Tillidsrepræsentant', 'Ergonomiambasadør', 'Ansvarlig for sommerfest'
     ],
     'employee_address_type': [
-        ('AdressePostEmployee', 'Adresse', 'DAR'),
+        ('AdressePostEmployee', 'Postadresse', 'DAR'),
         ('PhoneEmployee', 'Telefon', 'PHONE'),
+        ('LocationEmployee', 'Lokation', 'TEXT'),
         ('EmailEmployee', 'Email', 'EMAIL')
     ],
     'manager_address_type': [
@@ -51,7 +52,7 @@ CLASSES = {
         ('AdressePost', 'Postadresse', 'DAR'),
         ('AdressePostRetur', 'Returadresse', 'DAR'),
         ('AdresseHenvendelsessted', 'Henvendelsessted', 'DAR'),
-        ('AdresseLokation', 'Lokation', 'TEXT'),
+        ('LocationUnit', 'Lokation', 'TEXT'),
         ('EmailUnit', 'Email', 'EMAIL'),
         ('PhoneUnit', 'Telefon', 'PHONE'),
         ('FaxUnit', 'Fax', 'PHONE'),
@@ -352,12 +353,19 @@ class CreateDummyOrg(object):
         host = _name_to_host(self.name)
         if cpr is None:
             cpr = _cpr(time_from)
+
+        if random.random() > 0.75:
+            location = 'Bygning {}'.format(random.randrange(1, 20))
+        else:
+            location = None
+
         user = {'fra': time_from,
                 'til': time_to,
                 'brugervendtnoegle': user_key,
                 'brugernavn': name,
                 'email': user_key.lower() + '@' + host,
                 'secret_phone': secret_phone[0],
+                'location': location,
                 'phone': _number(8),
                 'cpr': cpr,
                 'job_function': job_function,

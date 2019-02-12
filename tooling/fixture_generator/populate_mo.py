@@ -145,7 +145,7 @@ class CreateDummyOrg(object):
             self.importer.add_address_type(
                 organisation_unit=ou_node.key,
                 value=ou_node.location,
-                type_ref='AdresseLokation',
+                type_ref='LocationUnit',
                 date_from=date_from
             )
 
@@ -217,6 +217,15 @@ class CreateDummyOrg(object):
                 date_from=date_from,
                 date_to=date_to
             )
+
+            if user['location']:
+                self.importer.add_address_type(
+                    employee=owner_ref,
+                    value=user['location'],
+                    type_ref="LocationEmployee",
+                    date_from=date_from,
+                    date_to=date_to
+                )
 
             for it_system in user['it_systemer']:
                 self.importer.join_itsystem(
