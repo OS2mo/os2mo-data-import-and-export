@@ -1,4 +1,3 @@
-import sys
 import dummy_data_creator
 from datetime import datetime
 from anytree import PreOrderIter
@@ -97,16 +96,66 @@ class CreateDummyOrg(object):
             identifier=ou_node.key,
             name=ou_node.name,
             parent_ref=parent,
-            type_ref="Afdeling",
+            type_ref='Afdeling',
             date_from=date_from
         )
 
         self.importer.add_address_type(
             organisation_unit=ou_node.key,
-            value=ou_node.adresse['dar-uuid'],
-            type_ref="AdressePost",
+            value=ou_node.address['dar-uuid'],
+            type_ref='AdressePost',
             date_from=date_from
         )
+
+        self.importer.add_address_type(
+            organisation_unit=ou_node.key,
+            value=ou_node.place_of_contact['dar-uuid'],
+            type_ref='AdresseHenvendelsessted',
+            date_from=date_from
+        )
+
+        self.importer.add_address_type(
+            organisation_unit=ou_node.key,
+            value=ou_node.address['dar-uuid'],
+            type_ref='AdressePostRetur',
+            date_from=date_from
+        )
+
+        self.importer.add_address_type(
+            organisation_unit=ou_node.key,
+            value=ou_node.email,
+            type_ref='EmailUnit',
+            date_from=date_from
+        )
+        self.importer.add_address_type(
+            organisation_unit=ou_node.key,
+            value=ou_node.ean,
+            type_ref='EAN',
+            date_from=date_from
+        )
+
+        self.importer.add_address_type(
+            organisation_unit=ou_node.key,
+            value=ou_node.p_number,
+            type_ref='p-nummer',
+            date_from=date_from
+        )
+
+        if ou_node.location:
+            self.importer.add_address_type(
+                organisation_unit=ou_node.key,
+                value=ou_node.location,
+                type_ref='AdresseLokation',
+                date_from=date_from
+            )
+
+        if ou_node.url:
+            self.importer.add_address_type(
+                organisation_unit=ou_node.key,
+                value=ou_node.url,
+                type_ref='WebUnit',
+                date_from=date_from
+            )
 
         """
         # IT-systems for OUs are currently not supported by importer
@@ -146,7 +195,7 @@ class CreateDummyOrg(object):
 
             self.importer.add_address_type(
                 employee=owner_ref,
-                value=user['adresse']['dar-uuid'],
+                value=user['address']['dar-uuid'],
                 type_ref="AdressePostEmployee",
                 date_from=date_from,
                 date_to=date_to
@@ -154,7 +203,7 @@ class CreateDummyOrg(object):
 
             self.importer.add_address_type(
                 employee=owner_ref,
-                value=user['telefon'],
+                value=user['phone'],
                 visibility=user['secret_phone'],
                 type_ref="PhoneEmployee",
                 date_from=date_from,
