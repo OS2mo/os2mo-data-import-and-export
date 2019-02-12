@@ -10,11 +10,13 @@
 Helper class to make a number of pre-defined queries into MO
 """
 
+import os
 import csv
 import codecs
 import requests
 from anytree import Node
 
+SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
 PRIMARY_RESPONSIBILITY = 'Personale: ansættelse/afskedigelse'
 
 
@@ -74,11 +76,12 @@ class MoraHelper(object):
             writer.writeheader()
             for row in rows:
                 writer.writerow(row)
+
         if self.export_ansi:
             with codecs.open(filename, 'r', encoding='utf-8') as csvfile:
                 lines = csvfile.read()
             with codecs.open(filename, 'w',
-                             encoding='windows-1252') as csvfile:
+                             encoding='cp1252') as csvfile:
                 csvfile.write(lines)
 
     def _create_path_dict(self, fieldnames, node, org_types=None):
@@ -106,7 +109,11 @@ class MoraHelper(object):
         if (full_url in self.cache) and use_cache:
             return_dict = self.cache[full_url]
         else:
-            return_dict = requests.get(full_url).json()
+            if SAML_TOKEN is None:
+                return_dict = requests.get(full_url).json()
+            else:
+                header = {"SESSION": SAML_TOKEN}
+                return_dict = requests.get(full_url, headers=header).json()
             self.cache[full_url] = return_dict
         return return_dict
 
@@ -203,13 +210,17 @@ class MoraHelper(object):
             # TODO: if primary reponsibility is found, this is now selected,
             # otherwise we simply use the last element in the list
 
-            uuid = manager['person']['uuid']
-            data = {'Navn': manager['person']['name'],
-                    # 'Ansvar': manager['responsibility'][0]['name'],
-                    'Ansvar': responsibility['name'],
-                    'uuid': uuid
-                    }
-            manager_list[uuid] = data
+            if manager['person'] is not None:
+                uuid = manager['person']['uuid']
+                data = {'Navn': manager['person']['name'],
+                        # 'Ansvar': manager['responsibility'][0]['name'],
+                        'Ansvar': responsibility['name'],
+                        'uuid': uuid
+                        }
+                manager_list[uuid] = data
+            else:
+                # TODO: This is a vacant manager position
+                pass
         if len(manager_list) == 0:
             manager = {}
         elif len(manager_list) == 1:
@@ -256,9 +267,8 @@ class MoraHelper(object):
         :param organisation: UUID of the organisation
         :return: List of UUIDs of the root OUs in the organisation
         """
-        url = self.host + 'o/' + organisation + '/children'
-        response = requests.get(url)
-        units = response.json()
+        url = 'o/{}/children'
+        units = self._mo_lookup(organisation, url)
         return units
 
     def read_ou_tree(self, org, nodes={}, parent=None):
@@ -268,8 +278,8 @@ class MoraHelper(object):
         :param parent: The parent of the current node, None if this is root
         :return: A dict with all nodes in tree, top node is named 'root'
         """
-        url = self.host + 'ou/' + org + '/children'
-        units = requests.get(url).json()
+        url = 'ou/{}/children'
+        units = self._mo_lookup(org, url)
 
         if parent is None:
             nodes['root'] = Node(org)
