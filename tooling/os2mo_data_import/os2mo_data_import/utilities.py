@@ -1,5 +1,4 @@
 # -- coding: utf-8 --
-
 import json, copy
 from uuid import uuid4
 from urllib.parse import urljoin
@@ -19,7 +18,6 @@ class ImportUtility(object):
         self.system_name = system_name
         self.end_marker = end_marker
         self.store_integration_data = store_integration_data
-
 
         # Service endpoint base
         self.mox_base = mox_base
@@ -195,8 +193,6 @@ class ImportUtility(object):
         klasse.facet_uuid = facet_uuid
         klasse.date_from = self.date_from
         klasse.date_to = self.date_to
-
-
 
         integration_data = self._integration_data(
             resource=resource,
@@ -467,7 +463,6 @@ class ImportUtility(object):
                     resource="service/details/create",
                     data=additional_payload
                 )
-
         return uuid
 
     def build_detail(self, detail, employee_uuid=None):
@@ -493,6 +488,11 @@ class ImportUtility(object):
             setattr(detail, set_value, uuid)
 
         # Uncommon attributes
+        if hasattr(detail, "visibility_ref"):
+            detail.visibility_ref_uuid = self.inserted_klasse_map.get(
+                detail.visibility_ref
+            )
+
         if hasattr(detail, "org_unit_ref"):
             detail.org_unit_uuid = self.inserted_org_unit_map.get(
                 detail.org_unit_ref
