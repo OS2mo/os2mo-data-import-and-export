@@ -54,7 +54,11 @@ CLASSES = {
     ],
     'association_type': ['Problemknuser', 'Konsulent', 'Medhjælper'],
     'manager_level': ['Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4'],
-    'engagement_type': ['Ansat']
+    'engagement_type': ['Ansat'],
+    'visibility': [
+        ('Synlig', 'Synlig', 'VISIBLE'),
+        ('Hemmelig', 'Hemmelig', 'SECRET')
+    ]
 }
 
 IT_SYSTEMS = ['Active Directory', 'SAP', 'Office 365', 'Plone', 'Open Desk']
@@ -293,6 +297,7 @@ class CreateDummyOrg(object):
         """
         it_systems = random.sample(self.it_systems, random.randrange(0, 3))
         job_function = random.choice(self.classes['engagement_job_function'])
+        secret_phone = random.choice(self.classes['visibility'])
         host = _name_to_host(self.name)
         if cpr is None:
             cpr = _cpr(time_from)
@@ -302,6 +307,7 @@ class CreateDummyOrg(object):
                 'brugernavn': name,
                 'email': user_key.lower() + '@' + host,
                 'telefon': _telefon(),
+                'secret_phone': secret_phone[0],
                 'cpr': cpr,
                 'job_function': job_function,
                 'manager': manager,

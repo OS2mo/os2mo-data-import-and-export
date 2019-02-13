@@ -24,5 +24,6 @@ facet_defaults = [
     "leave_type",
     "manager_type",
     "responsibility",
-    "manager_level"
+    "manager_level",
+    "visibility"
 ]

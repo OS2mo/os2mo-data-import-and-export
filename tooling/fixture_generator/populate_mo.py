@@ -155,6 +155,7 @@ class CreateDummyOrg(object):
             self.importer.add_address_type(
                 employee=owner_ref,
                 value=user['telefon'],
+                visibility=user['secret_phone'],
                 type_ref="PhoneEmployee",
                 date_from=date_from,
                 date_to=date_to

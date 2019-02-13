@@ -65,7 +65,8 @@ class MoType():
 
 class AddressType(MoType):
 
-    def __init__(self, value, type_ref, date_from, date_to=None, uuid=None):
+    def __init__(self, value, type_ref, date_from,
+                 date_to=None, uuid=None, visibility=None):
         super().__init__()
 
         self.type_id = "address"
@@ -75,6 +76,9 @@ class AddressType(MoType):
         self.value = value
         self.type_ref = type_ref
         self.type_ref_uuid = None
+
+        self.visibility_ref = visibility
+        self.visibility_ref_uuid = None
 
         # https://os2mo.readthedocs.io/en/development/api/address.html#writing
         self.organisation_uuid = None
@@ -99,7 +103,8 @@ class AddressType(MoType):
                 "uuid": self.type_ref_uuid
             }
         }
-
+        if self.visibility_ref:
+            self.payload['visibility'] = {'uuid': self.visibility_ref_uuid}
         return self._build_payload()
 
 
