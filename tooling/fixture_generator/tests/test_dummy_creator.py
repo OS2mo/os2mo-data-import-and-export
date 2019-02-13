@@ -61,7 +61,7 @@ class DummyTest(unittest.TestCase):
         for node in PreOrderIter(self.ddc.nodes['root']):
             if node.type == 'user':
                 number_of_users += 1
-        self.assertEqual(number_of_users, 111)
+        self.assertEqual(number_of_users, 108)
 
     def test_it_systems(self):
         """ Test that all it-systems are given to users """
@@ -100,9 +100,9 @@ class DummyTest(unittest.TestCase):
         unit = None
         for node in PreOrderIter(self.ddc.nodes['root']):
             if node.type == 'user':
-                if node.user[0]['cpr'] == '2310750800':
+                if node.user[0]['cpr'] == '2808443964':
                     unit = node.user[0]['association']['unit']
-        assert(unit == 'c2a70b50-6a30-5771-bf8e-24c515fa1e34')
+        assert(unit == '4ba054d2-9f69-5b09-8c2a-862da1429e31')
 
     def test_managers_in_ous(self):
         """ Test that all units have a manager """
