@@ -37,26 +37,35 @@ CLASSES = {
         'Tillidsrepræsentant', 'Ergonomiambasadør', 'Ansvarlig for sommerfest'
     ],
     'employee_address_type': [
-        ('AdressePostEmployee', 'Adresse', 'DAR'),
+        ('AdressePostEmployee', 'Postadresse', 'DAR'),
         ('PhoneEmployee', 'Telefon', 'PHONE'),
+        ('LocationEmployee', 'Lokation', 'TEXT'),
         ('EmailEmployee', 'Email', 'EMAIL')
     ],
     'manager_address_type': [
-        ('LederEmail', 'Email', 'EMAIL'),
-        ('LederTelefon', 'Telefon', 'PHONE'),
-        ('AdressePostLeder', 'Adresse', 'DAR'),
-        ('LederWebadresse', 'Webadresse', 'TEXT')
+        ('EmailManager', 'Email', 'EMAIL'),
+        ('TelefonManager', 'Telefon', 'PHONE'),
+        ('AdressePostManager', 'Adresse', 'DAR'),
+        ('WebManager', 'Webadresse', 'TEXT')
     ],
     'org_unit_address_type': [
+        ('AdressePost', 'Postadresse', 'DAR'),
+        ('AdressePostRetur', 'Returadresse', 'DAR'),
+        ('AdresseHenvendelsessted', 'Henvendelsessted', 'DAR'),
+        ('LocationUnit', 'Lokation', 'TEXT'),
+        ('EmailUnit', 'Email', 'EMAIL'),
+        ('PhoneUnit', 'Telefon', 'PHONE'),
+        ('FaxUnit', 'Fax', 'PHONE'),
         ('EAN', 'EAN Nummer', 'EAN'),
-        ('p-nummer', 'p-nummer', 'PNUMBER'),
-        ('AdressePost', 'Adresse', 'DAR')
+        ('WebUnit', 'Webadresse', 'WWW'),
+        ('p-nummer', 'P-nummer', 'PNUMBER')
     ],
     'association_type': ['Problemknuser', 'Konsulent', 'Medhjælper'],
     'manager_level': ['Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4'],
     'engagement_type': ['Ansat'],
     'visibility': [
-        ('Synlig', 'Synlig', 'VISIBLE'),
+        ('Ekstern', 'Må vises eksternt', 'PUBLIC'),
+        ('Intern', 'Må vises internt', 'INTERNAL'),
         ('Hemmelig', 'Hemmelig', 'SECRET')
     ]
 }
@@ -99,14 +108,17 @@ def _load_names(name_file):
     return names
 
 
-def _telefon():
-    """ Create a random phone number
+def _number(length):
+    """ Create a random number of some length
+    Danish phone numbers should be 8 characters.
+    EAN numbers should be 13 characters.
+    :param length: The lengh of the number string.
     :return: A random phone number
     """
-    tlf = str(random.randrange(1, 9))
-    for i in range(0, 7):
-        tlf += str(random.randrange(0, 9))
-    return tlf
+    number = str(random.randrange(1, 9))
+    for i in range(0, length - 1):
+        number += str(random.randrange(0, 9))
+    return number
 
 
 def _cpr(time_from=None):
@@ -146,6 +158,11 @@ def _cpr(time_from=None):
         valid_10 = (remainder is not 1)
     cpr_number = cpr_number + digit_10
     return cpr_number
+
+
+def _name_to_email(name):
+    email = name.replace(' ', '_')
+    return email
 
 
 def _name_to_host(name):
@@ -193,8 +210,19 @@ class CreateDummyOrg(object):
                       'middle': _load_names(path_to_names[1]),
                       'last': _load_names(path_to_names[2])}
 
-        self.nodes[self.root_name] = Node(name, adresse=self._adresse(),
-                                          type='ou', key=self.root_name)
+        address = self._address()
+        self.nodes[self.root_name] = Node(
+            name,
+            address=address[0],
+            url='www.{}'.format(_name_to_host(self.name)),
+            email='info@{}'.format(_name_to_host(self.name)),
+            p_number=_number(10),
+            ean=_number(13),
+            place_of_contact=address[1],
+            location=None,
+            type='ou',
+            key=self.root_name
+        )
         # Used to keep track of used user_keys to keep them unique
         self.used_user_keys = []
 
@@ -227,14 +255,21 @@ class CreateDummyOrg(object):
                 postdistrikter.append(adresse['postnrnavn'])
         return postdistrikter
 
-    def _adresse(self):
+    def _address(self):
         """ Create a Danish adresse """
-        addr = self.adresser[random.randrange(len(self.adresser))]
-        adresse = {'postnummer': addr['postnr'],
+        addr_index = random.randrange(len(self.adresser))
+        addr = self.adresser[addr_index]
+        address = {'postnummer': addr['postnr'],
                    'postdistrikt': addr['postnrnavn'],
                    'adresse': addr['vejnavn'] + ' ' + addr['husnr'],
                    'dar-uuid': addr['id']}
-        return adresse
+
+        if random.random() > 0.8:
+            addr = self.adresser[addr_index + 1]
+            place_of_contact = {'dar-uuid': addr['id']}
+        else:
+            place_of_contact = address
+        return address, place_of_contact
 
     def _create_org_level(self, org_list, parent):
         """
@@ -249,8 +284,26 @@ class CreateDummyOrg(object):
             # random seed.
             uuid = str(uuid5(NAMESPACE_DNS, str(random.random())))
             uuid_list.append(uuid)
-            self.nodes[uuid] = Node(org, adresse=self._adresse(),
-                                    type='ou', parent=parent, key=str(uuid))
+            addresses = self._address()
+
+            if random.random() > 0.75:
+                location = 'Bygning {}'.format(random.randrange(1, 20))
+            else:
+                location = None
+
+            self.nodes[uuid] = Node(
+                org,
+                address=addresses[0],
+                place_of_contact=addresses[1],
+                location=location,
+                email='{}@{}'.format(_name_to_email(org), _name_to_host(self.name)),
+                ean=_number(13),
+                p_number=_number(10),
+                url=None,
+                parent=parent,
+                key=str(uuid),
+                type='ou'
+            )
         return uuid_list
 
     def create_name(self, return_user_key=False):
@@ -301,18 +354,25 @@ class CreateDummyOrg(object):
         host = _name_to_host(self.name)
         if cpr is None:
             cpr = _cpr(time_from)
+
+        if random.random() > 0.75:
+            location = 'Bygning {}'.format(random.randrange(1, 20))
+        else:
+            location = None
+
         user = {'fra': time_from,
                 'til': time_to,
                 'brugervendtnoegle': user_key,
                 'brugernavn': name,
                 'email': user_key.lower() + '@' + host,
-                'telefon': _telefon(),
                 'secret_phone': secret_phone[0],
+                'location': location,
+                'phone': _number(8),
                 'cpr': cpr,
                 'job_function': job_function,
                 'manager': manager,
                 'it_systemer': it_systems,
-                'adresse': self._adresse()}
+                'address': self._address()[0]}
         return user
 
     def create_user(self, manager=[], multiple_employments=False):
@@ -494,20 +554,16 @@ if __name__ == '__main__':
             print(node.name)  # Name of the ou
             if node.parent:
                 print(node.parent.key)  # Key for parent unit
-            print(node.adresse['dar-uuid'])
+            print(node.address['dar-uuid'])
 
         if node.type == 'user':
             print()
             print('---')
             print(node.name)  # Name of the employee
-            # print(node.parent.key)  # Key for parent unit
-            user = node.user  # All unser information is here
+            print(node.parent.key)  # Key for parent unit
+            user = node.user  # All user information is here
             for engagement in user:
                 print(engagement['brugervendtnoegle'])
-                # Postal address of the employee, real-world name also available
-                # print(engagement['adresse']['dar-uuid'])
-                # print(engagement['email'])
-                # print(engagement['telefon'])
                 print('Rolle: {}'.format(engagement['role']))
                 print('Tilknytning: {}'.format(engagement['association']))
                 print('Ansvar: {}'.format(engagement['manager']))
