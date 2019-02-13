@@ -64,8 +64,8 @@ CLASSES = {
     'manager_level': ['Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4'],
     'engagement_type': ['Ansat'],
     'visibility': [
-        ('Intern', 'Må vises eksternt', 'PUBLIC'),
-        ('Ekstern', 'Må vises internt', 'INTERNAL'),
+        ('Ekstern', 'Må vises eksternt', 'PUBLIC'),
+        ('Intern', 'Må vises internt', 'INTERNAL'),
         ('Hemmelig', 'Hemmelig', 'SECRET')
     ]
 }
