@@ -709,7 +709,7 @@ class ImportUtility(object):
         endpoint = 'service/e/{}/terminate'
         yesterday = datetime.now() - timedelta(days=1)
         payload = {
-            'terminateall': True,
+            'terminate_all': True,
             'validity': {
                 'to': yesterday.strftime('%Y-%m-%d')
             }
