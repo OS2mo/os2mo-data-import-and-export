@@ -89,6 +89,31 @@ class IntegrationAbstraction(object):
                 return_value = json.loads(data[0:end_pos])
         return return_value
 
+    def integration_data_payload(self, resource, value, uuid=None, encode=True):
+        """
+        Return payload for integration data after update of the relavant system.
+        This payload can be included in a bigger payload.
+        :param  resource:
+        Path of the service endpoint (str) e.g. /organisation/organisation
+        :param uuid: uuid of the object.
+        :param value: New integration data value.
+        """
+        if uuid:
+            integration_data_string = self._get_integration_data(resource, uuid)
+        if uuid and integration_data_string:
+            integration_data = json.loads(integration_data_string)
+        else:
+            integration_data = {}
+
+        value_string = '{}{}'.format(json.dumps(value), self.end_marker)
+        integration_data[self.system_name] = value_string
+        if encode:
+            integration_data_string = json.dumps(integration_data)
+        else:
+            integration_data_string = integration_data
+        return integration_data_string
+
+    
     def write_integration_data(self, resource, uuid, value):
         """
         Write new integration data for current system.name. If data is already
