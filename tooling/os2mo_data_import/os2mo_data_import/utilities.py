@@ -5,6 +5,7 @@ from urllib.parse import urljoin
 from requests import Session, HTTPError
 from datetime import datetime, timedelta
 
+from integration_abstraction.integration_abstraction import IntegrationAbstraction
 from os2mo_data_import.mora_data_types import *
 from os2mo_data_import.mox_data_types import *
 
@@ -431,7 +432,10 @@ class ImportUtility(object):
 
                 new_item_payload = copy.deepcopy(detail_payload)
 
-                today = datetime.now().strftime('%Y-%m-%d')
+                valid_from = new_item_payload['validity']['from']
+                if datetime.strptime(valid_from, '%Y-%m-%d') < datetime.now():
+                    vaild_from = datetime.now().strftime('%Y-%m-%d') # today
+
                 valid_to = new_item_payload['validity']['to']
 
                 if valid_to:
@@ -440,7 +444,8 @@ class ImportUtility(object):
                     future = False
 
                 if not valid_to or future:
-                    new_item_payload['validity']['from'] = today
+                    new_item_payload['validity']['from'] = valid_from
+                    # new_item_payload['validity']['from'] = today
                     complete_additional_payload.append(new_item_payload)
                     # Clean this up. We do not need a long and a short list
                     # of payloads, we need to know if something changes and thus
