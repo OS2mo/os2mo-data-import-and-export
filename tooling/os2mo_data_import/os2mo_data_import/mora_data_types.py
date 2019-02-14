@@ -444,4 +444,4 @@ class EmployeeType(MoType):
             }
         }
 
-        return self.payload
+        return self._build_payload()
