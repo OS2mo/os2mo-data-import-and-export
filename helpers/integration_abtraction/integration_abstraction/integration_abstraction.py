@@ -5,6 +5,8 @@ from requests import Session
 class IntegrationAbstraction(object):
 
     def __init__(self, mox_base, system_name, end_marker='STOP'):
+        if not mox_base[-1] == '/':
+            mox_base = mox_base + '/'
         self.mox_base = mox_base
         self.system_name = system_name
         self.end_marker = end_marker

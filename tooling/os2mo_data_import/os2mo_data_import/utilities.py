@@ -23,11 +23,9 @@ class ImportUtility(object):
                  store_integration_data=False, dry_run=False):
 
         # Import Params
-        # self.system_name = system_name # remove
-        # self.end_marker = end_marker # remove
         self.store_integration_data = store_integration_data
         if store_integration_data:
-            self.ia = IntegrationAbstraction(mox_base + '/', system_name, end_marker)
+            self.ia = IntegrationAbstraction(mox_base, system_name, end_marker)
 
         # Service endpoint base
         self.mox_base = mox_base
