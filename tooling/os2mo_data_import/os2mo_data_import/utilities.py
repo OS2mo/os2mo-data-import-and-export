@@ -1,13 +1,20 @@
 # -- coding: utf-8 --
-import json, copy
+import json
+import copy
 from uuid import uuid4
 from urllib.parse import urljoin
 from requests import Session, HTTPError
 from datetime import datetime, timedelta
 
 from integration_abstraction.integration_abstraction import IntegrationAbstraction
-from os2mo_data_import.mora_data_types import *
-from os2mo_data_import.mox_data_types import *
+from os2mo_data_import.mora_data_types import OrganisationUnitType
+from os2mo_data_import.mora_data_types import EmployeeType
+
+from os2mo_data_import.mox_data_types import Organisation
+from os2mo_data_import.mox_data_types import Klassifikation
+from os2mo_data_import.mox_data_types import Itsystem
+from os2mo_data_import.mox_data_types import Facet
+from os2mo_data_import.mox_data_types import Klasse
 
 
 class ImportUtility(object):
@@ -16,9 +23,11 @@ class ImportUtility(object):
                  store_integration_data=False, dry_run=False):
 
         # Import Params
-        self.system_name = system_name
-        self.end_marker = end_marker
+        # self.system_name = system_name # remove
+        # self.end_marker = end_marker # remove
         self.store_integration_data = store_integration_data
+        if store_integration_data:
+            self.ia = IntegrationAbstraction(mox_base + '/', system_name, end_marker)
 
         # Service endpoint base
         self.mox_base = mox_base
@@ -213,7 +222,6 @@ class ImportUtility(object):
         klasse.integration_data = integration_data
         payload = klasse.build()
 
-
         import_uuid = self.insert_mox_data(
             resource="klassifikation/klasse",
             data=payload,
@@ -368,7 +376,6 @@ class ImportUtility(object):
 
         employee.org_uuid = self.organisation_uuid
         payload = employee.build()
-
         mox_resource = 'organisation/bruger'
 
         integration_data = self._integration_data(
@@ -379,9 +386,7 @@ class ImportUtility(object):
         )
 
         if 'uuid' in integration_data:
-            print(
-                json.dumps(integration_data, indent=2)
-            )
+            print('Re-import employee')
         else:
             print("NEW EMPLOYEEE")
 
@@ -392,7 +397,8 @@ class ImportUtility(object):
             resource=mora_resource,
             data=integration_data
         )
-
+        print(uuid)
+        print()
         if 'uuid' in integration_data:
             assert (uuid == integration_data['uuid'])
 
@@ -434,7 +440,7 @@ class ImportUtility(object):
 
                 valid_from = new_item_payload['validity']['from']
                 if datetime.strptime(valid_from, '%Y-%m-%d') < datetime.now():
-                    vaild_from = datetime.now().strftime('%Y-%m-%d') # today
+                    valid_from = datetime.now().strftime('%Y-%m-%d')  # today
 
                 valid_to = new_item_payload['validity']['to']
 
@@ -524,8 +530,8 @@ class ImportUtility(object):
         """
         Update the payload with integration data. Checks if an object with this
         integration data already exists. In this case the uuid of the exisiting
-        object is put into the payload. If a supplied uuid is inconsistent with
-        the uuid found from integration data, an exception is raised.
+        object is put into the payload. If a supplied uuid is inconsistent with the
+        uuid found from integration data, an exception is raised.
 
         :param resource:
         LoRa resource URL.
@@ -535,12 +541,11 @@ class ImportUtility(object):
         object on re-import.
 
         :param payload:
-        The supplied payload will be updated with values for integration and uuid
-        (if the integration data was found from an earlier import). For MO objects,
+        The supplied payload will be updated with values for integration and uuid (if
+        the integration data was found from an earlier import). For MO objects,
         payload will typically be pre-populated and will then be ready for import
-        when returned. For MOX objects, the initial payload
-        will typically be empty, and the returned values can be fed to the relevant
-        adapter.
+        when returned. For MOX objects, the initial payload  will typically be empty,
+        and the returned values can be fed to the relevant adapter.
 
         :param encode_integration:
         If True, the integration data will be returned in json-encoded form.
@@ -552,54 +557,17 @@ class ImportUtility(object):
         # TODO: We need to have a list of all objects with integration data to
         # be able to make a list of objects that has disappeared
         if self.store_integration_data:
-
-            service = urljoin(self.mox_base, resource)
-
-            # integration_data = {self.system_name: reference + self.system_name}
-            integration_data = {self.system_name: str(reference) + self.end_marker}
-
-            # Call repr to ensure escaping consistent with the payload from request
-            query = service + '?integrationsdata=%{}%'
-            query = query.format(json.dumps(integration_data)[1:-1])
-            response = self.session.get(url=repr(query)[1:-1])
-
-            response = response.json()['results'][0]
-
-            if len(response) == 0:
-                pass
-
-            elif len(response) == 1:
-                uuid = response[0]
+            uuid = self.ia.find_object(resource, reference)
+            if uuid:
+                payload['uuid'] = uuid
                 self.existing_uuids.append(uuid)
-                if 'uuid' in payload:
-                    assert (uuid == payload['uuid'])
-                else:
-                    payload['uuid'] = uuid
 
-                # Get the entire integration data string, we need to be polite
-                # towards the existing content:
-
-                # Scope issue
-                egenskaber = None
-
-                object_url = '{}/{}'.format(service, uuid)
-                object_data = self.session.get(object_url)
-                object_data = object_data.json()[uuid]
-                attributter = object_data[0]['registreringer'][0]['attributter']
-                for key in attributter.keys():
-                    if key.find('egenskaber') > 0:
-                        egenskaber = attributter[key][0]
-
-                integration_data = json.loads(egenskaber['integrationsdata'])
-
-            else:
-                raise ValueError('Inconsistent integration data!')
-
-            if encode_integration:
-                payload['integration_data'] = json.dumps(integration_data)
-            else:
-                payload['integration_data'] = integration_data
-
+            payload['integration_data'] = self.ia.integration_data_payload(
+                resource,
+                reference,
+                uuid,
+                encode_integration
+            )
         return payload
 
     def insert_mox_data(self, resource, data, uuid=None):
@@ -649,9 +617,7 @@ class ImportUtility(object):
                 raise HTTPError("Inserting mox data failed")
 
         response_data = response.json()
-
         return response_data["uuid"]
-
 
     def insert_mora_data(self, resource, data, uuid=None):
 
