@@ -180,33 +180,34 @@ class IntegrationDataTests(unittest.TestCase):
         self._run_import_and_test_org_sanity()
 
     @freeze_time("2018-12-02")
-    def ttest_021_klasse_re_import(self):
+    def test_021_klasse_re_import(self):
         """ No extra classes should be imprted after the second import """
         org = self.morah.read_organisation()
-        classes = self.morah._mo_lookup(org, 'o/{}/f/job_function/', use_cache=False)
-        assert(len(classes['data']['items']) == 19)
+        classes = self.morah._mo_lookup(org, 'o/{}/f/engagement_job_function/',
+                                        use_cache=False)
+        self.assertTrue(len(classes['data']['items']) == 18)
 
     @freeze_time("2018-12-02")
-    def ttest_022_it_system_re_import(self):
+    def test_022_it_system_re_import(self):
         """ No extra itsystems should be imprted after the second import """
         service = urljoin(self.mox_base, '/organisation/itsystem?bvn=%')
         response = requests.get(service)
         response = response.json()
-        assert(len(response['results'][0]) == 5)
+        self.assertTrue(len(response['results'][0]) == 5)
 
     @freeze_time("2018-12-03")
-    def ttest_030_add_forced_uuids(self):
+    def test_030_add_forced_uuids(self):
         """ Add a unit, employees and classes with forced uuid, and re-import """
-        self.dummy_org.org.OrganisationUnit.add(
+        self.importer.add_organisation_unit(
             identifier='Test enhed',
             name='Test enhed',
             parent_ref=None,
-            org_unit_type_ref="Afdeling",
+            type_ref="Afdeling",
             uuid='00000000-0000-0000-0000-000000000001',
             date_from=datetime.strftime(self.dummy_org.data.global_start_date,
                                         '%Y-%m-%d')
         )
-        self.dummy_org.org.Employee.add(
+        self.importer.add_employee(
             name='Test user',
             identifier='Test user',
             cpr_no='1111111118',
@@ -215,19 +216,18 @@ class IntegrationDataTests(unittest.TestCase):
         self._run_import_and_test_org_sanity(extra=1)
 
     @freeze_time("2018-12-03")
-    def ttest_031_test_forced_uuid(self):
+    def test_031_test_forced_uuid(self):
         unit = self.morah._mo_lookup('00000000-0000-0000-0000-000000000001',
-                                     'ou/{}/integration-data')
+                                     'ou/{}/integration-data', use_cache=False)
         self.assertTrue('name' in unit)
 
     @freeze_time("2018-12-03")
-    def ttest_032_test_forced_employee_uuid(self):
-        unit = self.morah._mo_lookup('00000000-0000-0000-0000-000000000002',
-                                     'e/{}/integration-data')
-        self.assertTrue('name' in unit)
+    def test_032_test_forced_employee_uuid(self):
+        person = self.morah._mo_lookup('00000000-0000-0000-0000-000000000002',
+                                       'e/{}/integration-data', use_cache=False)
 
     @freeze_time("2018-12-04")
-    def ttest_040_correct_initial_import(self):
+    def test_040_correct_initial_import(self):
         """ Import and test that the org is as expected """
         self._run_import_and_test_org_sanity(extra=1)
 
