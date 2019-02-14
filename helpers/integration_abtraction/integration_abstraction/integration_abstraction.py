@@ -113,7 +113,6 @@ class IntegrationAbstraction(object):
             integration_data_string = integration_data
         return integration_data_string
 
-    
     def write_integration_data(self, resource, uuid, value):
         """
         Write new integration data for current system.name. If data is already
