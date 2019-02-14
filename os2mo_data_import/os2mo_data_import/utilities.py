@@ -406,20 +406,21 @@ class ImportUtility(object):
             encode_integration=False
         )
 
-        if 'uuid' in integration_data:
+        if 'uuid' in payload and payload['uuid'] in self.existing_uuids:
             print('Re-import employee')
+            re_import = 'NO'
         else:
+            re_import = 'NEW'
             print("NEW EMPLOYEEE")
 
         # We unconditionally create or update the user, this should
-        # ensure that we alwas updated with correct current information.
+        # ensure that we are always updated with correct current information.
         mora_resource = "service/e/create"
         uuid = self.insert_mora_data(
             resource=mora_resource,
             data=integration_data
         )
-        print(uuid)
-        print()
+
         if 'uuid' in integration_data:
             assert (uuid == integration_data['uuid'])
 
@@ -429,9 +430,7 @@ class ImportUtility(object):
         data = {}
         data['it'] = self._get_detail(uuid, 'it')
         data['role'] = self._get_detail(uuid, 'role')
-        # A bug in MO implies that the address information is thrown away after
-        # the re-creation of the underlying user.
-        # data['address'] = self._get_detail(uuid, 'address')
+        data['address'] = self._get_detail(uuid, 'address')
         data['manager'] = self._get_detail(uuid, 'manager')
         data['engagement'] = self._get_detail(uuid, 'engagement')
         data['association'] = self._get_detail(uuid, 'association')
@@ -452,17 +451,16 @@ class ImportUtility(object):
                 if not detail_payload:
                     continue
 
-                if detail.type_id in data.keys():
+                if data[detail_payload['type']]:
                     found_hit = self._payload_compare(detail_payload, data)
-                else:
-                    found_hit = False
+                    if not found_hit:
+                        re_import = 'YES'
 
                 new_item_payload = copy.deepcopy(detail_payload)
 
                 valid_from = new_item_payload['validity']['from']
                 if datetime.strptime(valid_from, '%Y-%m-%d') < datetime.now():
                     valid_from = datetime.now().strftime('%Y-%m-%d')  # today
-
                 valid_to = new_item_payload['validity']['to']
 
                 if valid_to:
@@ -479,9 +477,10 @@ class ImportUtility(object):
                     # if we need to terminate and re-hire the employee
                     # if not found_hit. This awaits fixing the current issues in MO.
                 additional_payload.append(detail_payload)
-
+            print('Re-import: {}'.format(re_import))
             # Hvad sker der, hvis man fyrer en person og ansætter igen samme dag...?
             # This will always happen as long as the date-bug exists
+            """
             if uuid in self.existing_uuids and len(additional_payload) > 0:
                 print('Terminate: {}'.format(uuid))
                 self._terminate_employee(uuid)
@@ -495,6 +494,21 @@ class ImportUtility(object):
                     resource="service/details/create",
                     data=additional_payload
                 )
+            """
+            if re_import == 'YES':
+                print('Terminate: {}'.format(uuid))
+                self._terminate_employee(uuid)
+
+                self.insert_mora_data(
+                    resource="service/details/create",
+                    data=complete_additional_payload
+                )
+            elif re_import == 'NEW':
+                self.insert_mora_data(
+                    resource="service/details/create",
+                    data=additional_payload
+                )
+
         return uuid
 
     def build_detail(self, detail, employee_uuid=None):
@@ -602,6 +616,8 @@ class ImportUtility(object):
         if self.store_integration_data:
             uuid = self.ia.find_object(resource, reference)
             if uuid:
+                if 'uuid' in payload:
+                    assert(payload['uuid'] == uuid)
                 payload['uuid'] = uuid
                 self.existing_uuids.append(uuid)
 
