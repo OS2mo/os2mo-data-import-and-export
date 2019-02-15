@@ -142,7 +142,6 @@ class AddressType(MoType):
         self.visibility_ref = visibility
         self.visibility_ref_uuid = None
 
-
         self.organisation_uuid = None
 
         # SPECIAL
@@ -273,7 +272,8 @@ class AssociationType(MoType):
     Examples: "Bridge officer", "Science assistant", "Space dock cleaner" etc.
 
     :param association_type_ref:
-    Reference to the association that the employee has with the organisation unit (str)
+    Reference to the association
+    that the employee has with the organisation unit (str)
     There are several ways to define an association,
     for example it could be that an employee is associated with
     any given projects/tasks within the organisation unit.
