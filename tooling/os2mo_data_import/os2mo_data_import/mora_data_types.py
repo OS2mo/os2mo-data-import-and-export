@@ -6,6 +6,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 
+
 class MoType():
     """
     Base class for all Mo (MORA) type objects

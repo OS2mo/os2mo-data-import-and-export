@@ -14,14 +14,20 @@ from requests import Session, HTTPError
 from datetime import datetime, timedelta
 
 from integration_abstraction.integration_abstraction import IntegrationAbstraction
-from os2mo_data_import.mora_data_types import OrganisationUnitType
-from os2mo_data_import.mora_data_types import EmployeeType
 
-from os2mo_data_import.mox_data_types import Organisation
-from os2mo_data_import.mox_data_types import Klassifikation
-from os2mo_data_import.mox_data_types import Itsystem
-from os2mo_data_import.mox_data_types import Facet
-from os2mo_data_import.mox_data_types import Klasse
+from os2mo_data_import.mora_data_types import (
+    OrganisationUnitType,
+    EmployeeType
+)
+
+from os2mo_data_import.mox_data_types import (
+    Organisation,
+    Klassifikation,
+    Facet,
+    Klasse,
+    Itsystem
+)
+>>>>>>> 26329: flake8
 
 
 class ImportUtility(object):

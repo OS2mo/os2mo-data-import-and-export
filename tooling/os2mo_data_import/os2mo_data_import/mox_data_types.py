@@ -6,6 +6,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 
+
 class Base(object):
     """
     Base class for all MOX type objects

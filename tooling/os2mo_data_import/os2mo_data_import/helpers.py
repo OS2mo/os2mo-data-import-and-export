@@ -6,10 +6,27 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 
-from os2mo_data_import.mora_data_types import *
-from os2mo_data_import.mox_data_types import *
 from os2mo_data_import.utilities import ImportUtility
 from os2mo_data_import.defaults import facet_defaults
+from os2mo_data_import.mora_data_types import (
+    AddressType,
+    EngagementType,
+    AssociationType,
+    RoleType,
+    ManagerType,
+    LeaveType,
+    ItsystemType,
+    OrganisationUnitType,
+    EmployeeType
+)
+
+from os2mo_data_import.mox_data_types import (
+    Organisation,
+    Klassifikation,
+    Facet,
+    Klasse,
+    Itsystem
+)
 
 
 class ImportHelper(object):
@@ -290,7 +307,6 @@ class ImportHelper(object):
 
         self.facet_objects[identifier] = Facet(**kwargs)
 
-
     def add_organisation_unit(self, identifier, **kwargs):
         """
         Add a OrganisationUnit object to the map
@@ -340,10 +356,14 @@ class ImportHelper(object):
         """
 
         if not (organisation_unit or employee):
-            raise ReferenceError("Either organisation unit or employee must be owner")
+            raise ReferenceError(
+                "Either organisation unit or employee must be owner"
+            )
 
         if organisation_unit and employee:
-            raise ReferenceError("Must reference either organisation unit or employee and not both")
+            raise ReferenceError(
+                "Must reference either organisation unit or employee and not both"
+            )
 
         if employee:
 
@@ -378,13 +398,12 @@ class ImportHelper(object):
         if employee not in self.employees:
             raise ReferenceError("Employee does not exist")
 
-        if not organisation_unit in self.organisation_units:
+        if organisation_unit not in self.organisation_units:
             raise ReferenceError("Organisation unit does not exist")
 
         engagement = EngagementType(org_unit_ref=organisation_unit, **kwargs)
 
         self.employee_details[employee].append(engagement)
-
 
     def add_association(self, employee, organisation_unit, **kwargs):
         """
@@ -402,7 +421,6 @@ class ImportHelper(object):
 
         self.employee_details[employee].append(association)
 
-
     def add_role(self, employee, organisation_unit, **kwargs):
         """
         Add a Role object to the map
@@ -418,7 +436,7 @@ class ImportHelper(object):
         if employee not in self.employees:
             raise ReferenceError("Employee does not exist")
 
-        if not organisation_unit in self.organisation_units:
+        if organisation_unit not in self.organisation_units:
             raise ReferenceError("Organisation unit does not exist")
 
         role = RoleType(org_unit=organisation_unit, **kwargs)
@@ -440,13 +458,12 @@ class ImportHelper(object):
         if employee not in self.employees:
             raise ReferenceError("Employee does not exist")
 
-        if not organisation_unit in self.organisation_units:
+        if organisation_unit not in self.organisation_units:
             raise ReferenceError("Organisation unit does not exist")
 
         manager = ManagerType(org_unit=organisation_unit, **kwargs)
 
         self.employee_details[employee].append(manager)
-
 
     def add_leave(self, employee, **kwargs):
         """
@@ -463,7 +480,6 @@ class ImportHelper(object):
         leave = LeaveType(**kwargs)
 
         self.employee_details[employee].append(leave)
-
 
     def new_itsystem(self, identifier, **kwargs):
         """
@@ -493,7 +509,6 @@ class ImportHelper(object):
         itsystem = ItsystemType(**kwargs)
 
         self.employee_details[employee].append(itsystem)
-
 
     def create_default_facet_types(self, facet_defaults=facet_defaults):
         """
@@ -586,7 +601,6 @@ class ImportHelper(object):
         print('Will now import org units')
         for identifier, org_unit in self.organisation_units.items():
             self.import_organisation_units_recursively(identifier, org_unit)
-
 
         # Insert Employees
         print('Will now import employees')
