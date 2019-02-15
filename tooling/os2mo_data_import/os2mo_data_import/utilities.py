@@ -27,7 +27,6 @@ from os2mo_data_import.mox_data_types import (
     Klasse,
     Itsystem
 )
->>>>>>> 26329: flake8
 
 
 class ImportUtility(object):
