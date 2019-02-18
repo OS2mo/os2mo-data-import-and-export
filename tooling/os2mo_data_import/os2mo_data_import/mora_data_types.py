@@ -13,8 +13,9 @@ class MoType():
 
     :param uuid:
     The object uuid (str/uuid)
-    This can be set to forcefully import the object with its current uuid.
-    If the object already exists in the database, it is updated/overridden.
+    This can be set to import the object with its current uuid.
+    On a lower level this means that the current registration is set to end (now)
+    and a new registration of the same object is created with from date set to now.
 
     :param type_id:
     Type identifier for "detail" objects (str)
