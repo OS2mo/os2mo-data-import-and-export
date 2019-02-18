@@ -463,6 +463,7 @@ class ImportUtility(object):
                     valid_from = datetime.now().strftime('%Y-%m-%d')  # today
                 valid_to = new_item_payload['validity']['to']
 
+                """
                 if valid_to:
                     future = datetime.strptime(valid_to, '%Y-%m-%d') > datetime.now()
                 else:
@@ -477,9 +478,13 @@ class ImportUtility(object):
                     # if we need to terminate and re-hire the employee
                     # if not found_hit. This awaits fixing the current issues in MO.
                 additional_payload.append(detail_payload)
+                """
+                complete_additional_payload.append(new_item_payload)
+                additional_payload.append(detail_payload)
+
             print('Re-import: {}'.format(re_import))
             # Hvad sker der, hvis man fyrer en person og ansætter igen samme dag...?
-            # This will always happen as long as the date-bug exists
+
             """
             if uuid in self.existing_uuids and len(additional_payload) > 0:
                 print('Terminate: {}'.format(uuid))
@@ -499,9 +504,13 @@ class ImportUtility(object):
                 print('Terminate: {}'.format(uuid))
                 self._terminate_employee(uuid)
 
+                #self.insert_mora_data(
+                #    resource="service/details/create",
+                #    data=complete_additional_payload
+                #)
                 self.insert_mora_data(
                     resource="service/details/create",
-                    data=complete_additional_payload
+                    data=additional_payload
                 )
             elif re_import == 'NEW':
                 self.insert_mora_data(
