@@ -481,7 +481,7 @@ class RoleType(MoType):
 
     :param role_type_ref:
     Reference to the role type (str)
-    Examples: "Illness", "R & R", "Captivity", "Off-record secret mission"
+    Examples: "Quartermaster", "Holder of keys", "Victory party organiser",
 
     :param uuid:
     The object uuid (str/uuid)
@@ -547,7 +547,7 @@ class ManagerType(MoType):
 
     :param responsibility_list:
     List of references to responsibility types (list)
-    Examples: "Bridge officer", "Squad leader", "Victory party organiser"
+    Examples: "Bridge officer", "Squad leader", "Ground team coordination"
 
     :param address_uuid:
     The (uuid) identifier of a DAR address object (str/uuid)
