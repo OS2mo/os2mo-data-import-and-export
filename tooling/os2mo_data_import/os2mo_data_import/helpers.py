@@ -54,7 +54,7 @@ class ImportHelper(object):
 
     The data (integration data) is stored as a json string:
 
-        { "Import": "ACME TM_|-STOP" }
+        "{\"Import\": \"ACME TM_|-STOP\"}"
 
     This is an attempt to eliminate collisions with "common" values.
 
