@@ -163,9 +163,16 @@ class Klasse(Base):
     In the current implementation of the os2mo application
     2 Klasse objects must be created:
 
-        "user_key: "Telefon"
-        "user_key: "AdressePost"
+        "user_key: "Telefon",
+        "facet_type_ref": "org_unit_address_type",
+        ...
 
+        "user_key: "AdressePost",
+        "facet_type_ref": "org_unit_address_type",
+        ...
+
+    As hinted in the example above, these objects belong to
+    (facet parent) org_unit_address_type.
 
     :param uuid:
     The object uuid (str/uuid)
