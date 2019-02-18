@@ -380,13 +380,18 @@ class Klassifikation(Base):
     The Klassification object is the parent of all Facet types
     within an organisation.
 
-    It is automatically created along with the organisation.
+    Using the ImportHelper
+    (See os2mo_data_import.helpers.ImportHelper)
+
+    The Klassifikation object is automatically created
+    with both user_key and parent_name set to the name of the organisation.
 
     :param user_key:
     Name of the parent organisation (str)
 
     :param parent_name:
     Name of the parent organisation or alias (str)
+    This primarily used as an internal alias.
 
     :param description:
     A description paragraph (str)
