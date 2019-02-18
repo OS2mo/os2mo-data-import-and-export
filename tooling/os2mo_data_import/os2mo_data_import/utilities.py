@@ -1,4 +1,11 @@
-# -- coding: utf-8 --
+#
+# Copyright (c) Magenta ApS
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
 import json
 import copy
 from uuid import uuid4
@@ -7,14 +14,19 @@ from requests import Session, HTTPError
 from datetime import datetime, timedelta
 
 from integration_abstraction.integration_abstraction import IntegrationAbstraction
-from os2mo_data_import.mora_data_types import OrganisationUnitType
-from os2mo_data_import.mora_data_types import EmployeeType
 
-from os2mo_data_import.mox_data_types import Organisation
-from os2mo_data_import.mox_data_types import Klassifikation
-from os2mo_data_import.mox_data_types import Itsystem
-from os2mo_data_import.mox_data_types import Facet
-from os2mo_data_import.mox_data_types import Klasse
+from os2mo_data_import.mora_data_types import (
+    OrganisationUnitType,
+    EmployeeType
+)
+
+from os2mo_data_import.mox_data_types import (
+    Organisation,
+    Klassifikation,
+    Facet,
+    Klasse,
+    Itsystem
+)
 
 
 class ImportUtility(object):
