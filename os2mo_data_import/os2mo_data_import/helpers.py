@@ -34,6 +34,9 @@ class ImportHelper(object):
     The entry point of an import is the ImportHelper.
 
     Example:
+
+    .. code-block:: python
+
         os2mo = ImportHelper(
             create_defaults=True,
             store_integration_data=True
@@ -41,43 +44,57 @@ class ImportHelper(object):
 
         os2mo.import_all()
 
-    :param system_name:
-    The main identifier for the specific import and/or integration (str)
+
+    :param str system_name: An identifier for import and/or integration
+
     It will be stored as the main identifier for integration data,
     allowing for consecutive imports without causing conflicts in the database.
 
-    :param end_marker:
-    A semi unique marker which marks the end of the system name value (str)
-    Consider the following example,
-    where the system name is "Import" and the value is "ACME TM".
-    The endmarker defaults to "_|-STOP".
+    :param str end_marker: A semi unique marker
 
-    The data (integration data) is stored as a json string:
+    This marks the end of the system name value.
 
-        "{\"Import\": \"ACME TM_|-STOP\"}"
+    .. note::
+        Consider the following example,
+        where the system name is "Import" and the value is "ACME TM".
+        The endmarker defaults to "_|-STOP".
 
-    This is an attempt to eliminate collisions with "common" values.
+        The data (integration data) is stored as a json string:
 
-    :param mox_base:
-    The base url of the mox backend (str)
-    E.g. http://mox.magenta.dk
+        .. code-block:: text
+            :emphasize-lines: 5
 
-    :param mora_base:
-    The base url of the mora backend (str)
-    E.g. http://mora.magenta.dk
+            {
+                "organisationegenskaber": [
+                    {
+                      ...
+                      "integrationsdata": "{\"Import\": \"ACME TM_|-STOP\"}",
+                      ...
+                  ]
+            }
 
-    :param store_integration_data:
-    Actually store the integration data in the database (bool)
+        This is an attempt to eliminate collisions with "common" values.
+
+    :param str mox_base: The base url of the mox backend
+    :param str mora_base: The base url of the mora backend
+
+    :param bool store_integration_data: Store the integration data in the database
+
     Any integration should only import store_integration_data=True.
 
-    :param create_defaults:
-    Create the default set of "facet" types (bool)
-    For more information on the actual types, please see the defaults module.
+    :param bool create_defaults: Create the default set of "facet" types
 
-    :param ImportUtility:
-    The actual ImportUtility class which is used to insert mapped objects (class)
-    via the MOX/OIO Rest interface
+    .. note::
+        For more information on the actual types, please see the defaults module.
 
+        :py:data:`os2mo_data_import.defaults`
+
+    :param class ImportUtility: Default import class
+
+    .. note::
+        For more information see:
+
+        :class:`os2mo_data_import.utilities.ImportUtility`
     """
 
     def __init__(self, system_name="Import", end_marker="_|-STOP",
@@ -125,21 +142,24 @@ class ImportHelper(object):
         Get a mapped object by type and reference.
 
         Example:
+
+        .. code-block:: python
+
             os2mo.get("employee", "Luke Skywalker")
 
-        :param object_type:
-        Reference to type of the map (str)
+        :param str object_type: Reference to type of the map
+
         This can be either of the following:
+
          - klasse
          - facet
          - organisation_unit
          - employee
 
-        :param object_reference:
-        Reference to the identifier of the object in the map (str)
+        :param str object_reference: Reference to an identifier in the map
 
-        :return:
-        The selected object (object)
+        :return: The selected object
+        :rtype: object
         """
         available = self.export(object_type)
         return available.get(object_reference)
@@ -148,11 +168,10 @@ class ImportHelper(object):
         """
         Compatibitlity method to fetch all objects by type.
 
-        :param object_type:
-        Reference to the identifier of the object in the map (str)
+        :param str object_type: Reference to type of the map
 
-        :return:
-        A list containing all mapped objects with selected type (list<object>)
+        :return: A list containing all mapped objects with selected type
+        :rtype: list<object>
         """
         available = self.available_types.keys()
 
@@ -172,13 +191,11 @@ class ImportHelper(object):
         Helper method to check for the existence of a mapped object
         by type and reference.
 
-        :param object_type:
-        Reference to type of the map (str)
+        :param str object_type: Reference to type of the map
+        :param str object_reference: Reference to an identifier in the map
 
-        :param object_reference:
-        Reference to the identifier of the object in the map (str)
-
-        :return:
+        :return: Exists or does not exist
+        :rtype: bool
         """
 
         attribute = self.export(object_type)
@@ -192,21 +209,18 @@ class ImportHelper(object):
         """
         Retrieve a list of details of either an employee or organisation unit.
 
-        :param owner_type:
-        Select either employee or organisation unit (str)
-
-        :param owner_ref:
-        Reference to the identifier of the employee or organisation unit (str)
-
-        :param type_id:
-        Optionally it can be specified which type of details
-        should be returned (rather than the full list). (str)
+        :param str owner_type: employee or organisation unit
+        :param str owner_ref: Reference to the identifier of the owner
+        :param str type_id: (optional) type of detail
 
         Example:
+
+        .. code-block:: python
+
             os2mo.get_details("employee", "Luke Skywalker", "engagement")
 
-        :return:
-        Returns a list of details objects (object)
+        :return: A list of details
+        :rtype: list<object>
         """
 
         if owner_type == "organisation_unit":
@@ -234,14 +248,12 @@ class ImportHelper(object):
         """
         Shorthand to create validity from the date_from and date_to attributes.
 
-        :param date_from:
-        Stringified start date (str)
+        :param str date_from: Start date e.g. "1982-01-01"
 
-        :param date_to:
-        Stringified start end (str)
+        :param str date_to: End date e.g. "1982-01-01"
 
-        :return:
-        Returns validity key/value pairs (dict)
+        :return: Validity
+        :rtype: dict
         """
 
         if not date_from or not date_to:
@@ -255,11 +267,12 @@ class ImportHelper(object):
     def add_organisation(self, identifier, **kwargs):
         """
         Add an Organisation object to the map
-        See available parameters for mox_data_types:Organisation
 
-        :param identifier:
-        A user defined identifier (str)
-        If name is not set, the identifier is used as the name.
+        :param str identifier: A user defined identifier
+        :param kwargs kwargs: :class:`os2mo_data_import.mox_data_types.Organisation`
+
+        .. note::
+            If name is not set, the identifier is used as the name.
         """
 
         name = (
@@ -278,11 +291,10 @@ class ImportHelper(object):
 
     def add_klasse(self, identifier, **kwargs):
         """
-        Add a Klasse object to the map
-        See available parameters for mox_data_types:Klasse
+        Add a Klasse object to the map.
 
-        :param identifier:
-        A user defined identifier (str)
+        :param str identifier: A user defined identifier
+        :param kwargs kwargs: :class:`os2mo_data_import.mox_data_types.Klasse`
         """
 
         if identifier in self.klasse_objects:
@@ -296,10 +308,9 @@ class ImportHelper(object):
     def add_facet(self, identifier, **kwargs):
         """
         Add a Facet object to the map
-        See available parameters for mox_data_types:Facet
 
-        :param identifier:
-        A user defined identifier (str)
+        :param str identifier: A user defined identifier
+        :param kwargs kwargs: :class:`os2mo_data_import.mox_data_types.Facet`
         """
 
         if identifier in self.facet_objects:
@@ -310,10 +321,9 @@ class ImportHelper(object):
     def add_organisation_unit(self, identifier, **kwargs):
         """
         Add a OrganisationUnit object to the map
-        See available parameters for mora_data_types:OrganisationUnitType
 
-        :param identifier:
-        A user defined identifier (str)
+        :param str identifier: A user defined identifier
+        :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.OrganisationUnitType`
         """
 
         if identifier in self.organisation_units:
@@ -328,10 +338,9 @@ class ImportHelper(object):
     def add_employee(self, identifier, **kwargs):
         """
         Add a Employee object to the map
-        See available parameters for mora_data_types:EmployeeType
 
-        :param identifier:
-        A user defined identifier (str)
+        :param str identifier: A user defined identifier
+        :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.EmployeeType`
         """
 
         if identifier in self.employees:
@@ -346,13 +355,10 @@ class ImportHelper(object):
     def add_address_type(self, organisation_unit=None, employee=None, **kwargs):
         """
         Add a Address object to the map
-        See available parameters for mora_data_types:AddressType
 
-        :param organisation_unit:
-        Reference to the user defined identifer of the parent unit (str)
-
-        :param employee:
-        Reference to the user defined identifer of the employee (str)
+        :param str organisation_unit: Reference to the parent unit
+        :param str employee: Reference to the employee
+        :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.AddressType`
         """
 
         if not (organisation_unit or employee):
@@ -386,13 +392,10 @@ class ImportHelper(object):
     def add_engagement(self, employee, organisation_unit, **kwargs):
         """
         Add a Engagement object to the map
-        See available parameters for mora_data_types:EngagementType
 
-        :param organisation_unit:
-        Reference to the user defined identifer of the parent unit (str)
-
-        :param employee:
-        Reference to the user defined identifer of the employee (str)
+        :param str organisation_unit: Reference to the parent unit
+        :param str employee: Reference to the employee
+        :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.EngagementType`
         """
 
         if employee not in self.employees:
@@ -408,13 +411,10 @@ class ImportHelper(object):
     def add_association(self, employee, organisation_unit, **kwargs):
         """
         Add a Association object to the map
-        See available parameters for mora_data_types:AssociationType
 
-        :param organisation_unit:
-        Reference to the user defined identifer of the parent unit (str)
-
-        :param employee:
-        Reference to the user defined identifer of the employee (str)
+        :param str organisation_unit: Reference to the parent unit
+        :param str employee: Reference to the employee
+        :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.AssociationType`
         """
 
         association = AssociationType(org_unit_ref=organisation_unit, **kwargs)
@@ -426,11 +426,9 @@ class ImportHelper(object):
         Add a Role object to the map
         See available parameters for mora_data_types:RoleType
 
-        :param organisation_unit:
-        Reference to the user defined identifer of the parent unit (str)
-
-        :param employee:
-        Reference to the user defined identifer of the employee (str)
+        :param str organisation_unit: Reference to the parent unit
+        :param str employee: Reference to the employee
+        :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.RoleType`
         """
 
         if employee not in self.employees:
@@ -446,13 +444,10 @@ class ImportHelper(object):
     def add_manager(self, employee, organisation_unit, **kwargs):
         """
         Add a Manager object to the map
-        See available parameters for mora_data_types:ManagerType
 
-        :param organisation_unit:
-        Reference to the user defined identifer of the parent unit (str)
-
-        :param employee:
-        Reference to the user defined identifer of the employee (str)
+        :param str organisation_unit: Reference to the parent unit
+        :param str employee: Reference to the employee
+        :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.ManagerType`
         """
 
         if employee not in self.employees:
@@ -468,10 +463,9 @@ class ImportHelper(object):
     def add_leave(self, employee, **kwargs):
         """
         Add a Leave object to the map
-        See available parameters for mora_data_types:LeaveType
 
-        :param employee:
-        Reference to the user defined identifer of the employee (str)
+        :param str employee: Reference to the employee
+        :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.LeaveType`
         """
 
         if employee not in self.employees:
@@ -484,10 +478,9 @@ class ImportHelper(object):
     def new_itsystem(self, identifier, **kwargs):
         """
         Add a new Itsystem object to the map
-        See available parameters for mox_data_types:Itsystem
 
-        :param identifier:
-        A user defined identifier (str)
+        :param str identifier: A user defined identifier
+        :param kwargs kwargs: :class:`os2mo_data_import.mox_data_types.Itsystem`
         """
 
         if identifier in self.itsystems:
@@ -498,10 +491,9 @@ class ImportHelper(object):
     def join_itsystem(self, employee, **kwargs):
         """
         Join Itsystem means adding a ItsystemType detail to the map
-        See available parameters for mora_data_types:ItsystemType
 
-        :param employee:
-        Reference to the user defined identifer of the employee (str)
+        :param str employee: Reference to the employee
+        :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.ItsystemType`
         """
         if employee not in self.employees:
             raise ReferenceError("Employee does not exist")
@@ -516,9 +508,7 @@ class ImportHelper(object):
         For more information, please see the "facet_defaults" list
         of the defaults module.
 
-        :param facet_defaults:
-        Default list of Facet types (list)
-        This may be overridden at run time
+        :param list facet_defaults: Default list of Facet types
         """
 
         for user_key in facet_defaults:
@@ -535,11 +525,8 @@ class ImportHelper(object):
         Organisation units without a parent reference
         automatically become "root" units.
 
-        :param reference:
-        Reference to the user defined identifer of the unit (str)
-
-        :param org_unit:
-        The OrganisationUnitType object (object)
+        :param str reference: Reference to organisation_unit
+        :param object org_unit: The OrganisationUnitType object
         """
 
         # Insert parents first!
@@ -563,15 +550,17 @@ class ImportHelper(object):
     def import_all(self):
         """
         The import method begins importing all objects
-        obtained in the maps in the following order:
+        obtained from the maps in the following order:
 
-        Organisation object
-        Klassifikation object (auto)
-        Facet objects
-        Klasse objects
+            #. Organisation object
+            #. Klassifikation object (auto)
+            #. Facet objects
+            #. Klasse objects
 
-        OrganisationUnit objects
-        Employees objects
+            #. OrganisationUnit objects
+            #. Employees objects
+
+        :TODO: Implement logging rather than print statements
         """
 
         # Insert Organisation
