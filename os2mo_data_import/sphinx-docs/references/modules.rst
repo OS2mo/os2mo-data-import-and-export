@@ -1,3 +1,5 @@
+:orphan:
+
 os2mo_data_import
 =================
 
