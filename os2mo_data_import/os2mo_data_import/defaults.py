@@ -6,6 +6,9 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 
+"""
+this is the defaults module sdfasdfasdf
+"""
 facet_defaults = [
     "org_unit_address_type",
     "employee_address_type",

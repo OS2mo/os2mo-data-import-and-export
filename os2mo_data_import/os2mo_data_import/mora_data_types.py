@@ -288,15 +288,14 @@ class AssociationType(MoType):
     :param address_uuid:
     The (uuid) identifier of a DAR address object (str/uuid)
 
-    :param address_type_ref:
-    Reference to the address type (str)
+    :param address_type_ref: Reference to the address type (str)
     NOTE: this can only be a reference to a Klasse object with the scope: DAR.
 
-    :param uuid:
-    The object uuid (str/uuid)
 
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
+    :param uuid: The object uuid (str/uuid)
+    :type uuid: str
+
+    :param date_from: Start date e.g. "1900-01-01" (str)
 
     :param date_to:
     End date e.g. "1900-01-01" (str)

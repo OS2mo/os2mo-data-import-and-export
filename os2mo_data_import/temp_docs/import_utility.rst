@@ -28,18 +28,26 @@ Install the os2mo_data_import package as follows: ::
 Getting started
 ---------------
 The main entry point (for most use cases) is the Organisation class,
-which functions as a wrapper for all the sub classes. ::
+which functions as a wrapper for all the sub classes.
 
-  # Imports
-  from os2mo_data_import import Organisation
 
-  # Init Organisation
-  Magenta = Organisation(
+.. code-block:: python
+   :caption: this.py
+   :name: this-py
+
+   print 'Explicit is better than implicit.'
+
+
+.. code-block:: python
+
+    from os2mo_data_import import Organisation
+
+    Magenta = Organisation(
       name="Magenta Aps",
       user_key="Magenta",
       municipality_code=101,
       create_defaults=True
-  )
+    )
 
 The parameter "create_defaults" toggles automatic generation of default
 types for Facet and Klasse.
