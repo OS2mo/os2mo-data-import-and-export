@@ -423,16 +423,16 @@ If a "real" os2mo application is available,
 a practial example is provided with contains similar import data
 as the given examples above.
 
-Feel free to run the "example.py" included in the repository:
+Feel free to run the "import_example.py" included in the repository:
 
-Example: $os2mo-data-import-and-export/os2mo_data_import/example.py
+Example: $os2mo-data-import-and-export/os2mo_data_import/import_example.py
 
 Run example:
 
 .. code-block:: bash
 
   cd os2mo_data_import
-  python example.py
+  python import_example.py
 
 
 Reference
