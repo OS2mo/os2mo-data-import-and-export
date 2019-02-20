@@ -12,8 +12,12 @@ setup(
     packages=[
         "os2mo_data_import",
         "integration_abstraction",
-        "os2mo_helpers"
+        "os2mo_helpers",
+        "fixture_generator",
     ],
+    package_data={
+        "fixture_generator": ["navne/*.txt", "*.p"],
+    },
     zip_safe=False,
     install_requires=[
         "certifi",
@@ -21,6 +25,7 @@ setup(
         "idna",
         "requests",
         "urllib3",
-        "anytree"
+        "anytree",
+        "freezegun",
     ]
 )
