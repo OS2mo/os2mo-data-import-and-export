@@ -12,15 +12,20 @@ setup(
     packages=[
         "os2mo_data_import",
         "integration_abstraction",
-        "os2mo_helpers"
+        "os2mo_helpers",
+        "fixture_generator",
     ],
+    package_data={
+        "fixture_generator": ["navne/*.txt", "*.p"],
+    },
     zip_safe=False,
     install_requires=[
-        "certifi==2018.10.15",
-        "chardet==3.0.4",
-        "idna==2.7",
-        "requests==2.21.0",
-        "urllib3==1.24.1",
-        "anytree >= 2.4.3"
+        "certifi",
+        "chardet",
+        "idna",
+        "requests",
+        "urllib3",
+        "anytree",
+        "freezegun",
     ]
 )
