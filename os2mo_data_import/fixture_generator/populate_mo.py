@@ -282,7 +282,7 @@ if __name__ == '__main__':
                             system_name="Artificial import",
                             end_marker="STOP",
                             store_integration_data=True)
-    creator = CreateDummyOrg(importer, 840, 'Rebild Kommune', scale=4,
+    creator = CreateDummyOrg(importer, 825, 'Læsø Kommune', scale=1,
                              org_size=Size.Normal, extra_root=True)
 
     importer.import_all()
