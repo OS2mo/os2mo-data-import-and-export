@@ -1,7 +1,7 @@
 import random
 import unittest
 from anytree import PreOrderIter
-import dummy_data_creator
+from fixture_generator import dummy_data_creator
 
 
 class DummyTest(unittest.TestCase):

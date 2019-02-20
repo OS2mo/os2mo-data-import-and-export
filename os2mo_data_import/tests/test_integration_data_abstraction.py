@@ -2,9 +2,7 @@ import json
 import random
 import unittest
 import requests
-from integration_abstraction.integration_abstraction import (
-    IntegrationAbstraction
-)
+from integration_abstraction import IntegrationAbstraction
 
 
 class IntegratioAbstractionTests(unittest.TestCase):

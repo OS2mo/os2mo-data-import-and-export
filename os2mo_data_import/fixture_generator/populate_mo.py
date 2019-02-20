@@ -1,8 +1,8 @@
-import dummy_data_creator
+from fixture_generator import dummy_data_creator
 from datetime import datetime
 from anytree import PreOrderIter
 from os2mo_data_import import ImportHelper
-from dummy_data_creator import Size
+from fixture_generator.dummy_data_creator import Size
 
 
 class CreateDummyOrg(object):

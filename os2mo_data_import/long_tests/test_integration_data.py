@@ -13,13 +13,10 @@ import unittest
 from datetime import datetime
 from urllib.parse import urljoin
 
-path_base = '/home/clint/os2mo-data-import-and-export/'
-fixture_generator_path = path_base + 'tooling/fixture_generator'
-sys.path.append(fixture_generator_path)
 from os2mo_helpers.mora_helpers import MoraHelper
 from os2mo_data_import import ImportHelper
-from populate_mo import CreateDummyOrg
-from populate_mo import Size
+from fixture_generator.populate_mo import CreateDummyOrg
+from fixture_generator.populate_mo import Size
 
 
 class IntegrationDataTests(unittest.TestCase):
