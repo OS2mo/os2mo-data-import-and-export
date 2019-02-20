@@ -11,21 +11,6 @@ The utility also provides basic functionality to find objects based on their
 integration data.
 
 
-Installing
-----------
-
-Install the integration_abstraction package as follows: ::
-
-  # Checkout the mora source repository
-  git clone https://github.com/OS2mo/os2mo-data-import-and-export
-
-  # Navigate to the local copy of the repository
-  cd /path/to/os2mo-data-import-and-export
-
-  # Install package with pip
-  pip install helpers/integration_abstraction
-
-
 Usage
 -----
 

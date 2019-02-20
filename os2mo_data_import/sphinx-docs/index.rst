@@ -20,6 +20,7 @@ into a running instance of os2mo.
    :maxdepth: 2
 
    introduction
+   integration_abstraction
 
 
 Indices and tables
