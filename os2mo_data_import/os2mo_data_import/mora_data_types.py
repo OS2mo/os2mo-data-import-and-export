@@ -11,25 +11,31 @@ class MoType():
     """
     Base class for all Mo (MORA) type objects
 
-    :param uuid:
-    The object uuid (str/uuid)
-    This can be set to import the object with its current uuid.
-    On a lower level this means that the current registration is set to end (now)
-    and a new registration of the same object is created with from date set to now.
+    :param str/uuid uuid: The object uuid
 
-    :param type_id:
-    Type identifier for "detail" objects (str)
-    A detail object can be one of the following types:
-        address, association, role, itsystem, engagement, manager
+    .. note::
+        This can be set to import the object with its current uuid.
+        On a lower level this means that the current registration
+        will be set to end now
+        and a new registration of the same object is created with from date set to now.
 
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
+    :param str type_id: Reference to the detail type
 
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
+    .. note::
+        A detail can be one of the following types:
+
+            - address
+            - asso
+            - role
+            - itsystem
+            - engagement
+            - manager
+
+        :Reference: :mod:`os2mo_data_import.mora_data_types`
+
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "1982-01-01"
     """
-
-    insert_data = True
 
     def __init__(self):
         self.type_id = None
@@ -48,6 +54,8 @@ class MoType():
         self.person_uuid = None
         self.org_unit_uuid = None
 
+        self.insert_data = True
+
     def _build_payload(self):
         """
         Create a POST data payload for os2mo (mora)
@@ -58,7 +66,8 @@ class MoType():
         on "detail" class objects which belong to either
         an organisation unit or a employee.
 
-        :return: Returns a POST data payload (Type: dict)
+        :return: POST data payload
+        :rtype: dict
         """
 
         if not isinstance(self.payload, dict):
@@ -97,35 +106,28 @@ class AddressType(MoType):
     """
     Address type detail which belongs to eit
 
-    :param value:
-    The address value (str)
-    Example:
+    :param str value: The address value
+
+    .. note::
         The value can be a phone number:
         value: 11223344
 
         or a reference to a DAR object:
         value: 62B99146-BA66-4563-B15E-A4F4B9000B58
 
-    :param type_ref:
-    Reference to the Klasse object that contains the scope (str)
+    :param str type_ref: Reference to the Klasse object
 
-    The os2mo representation of the values depends on its scope.
-    The type_ref refers to a scope by referencing the Klasse object that contains
-    the scope.
+    .. note::
+        The os2mo representation of the values depends on its scope.
+        The type_ref refers to a scope by referencing the Klasse object
+        that contains the scope.
 
-    For more information, please see mox_data_types:Klasse.
+        :Reference: :class:`os2mo_data_import.mox_data_types.Klasse`
 
-    :param visibility:
-    Visibility toggle of whether the value is displayed (bool)
-
-    :param uuid:
-    The object uuid (str/uuid)
-
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
-
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
+    :param bool visibility: Should the value be displayed
+    :param str/uuid uuid: The object uuid
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "1982-01-01"
     """
 
     def __init__(self, value, type_ref, date_from,
@@ -156,7 +158,8 @@ class AddressType(MoType):
         Apply class specific attributes before calling
         the underlying _build method to create the POST data payload.
 
-        :return: POST data payload (dict)
+        :return: POST data payload
+        :rtype: dict
         """
 
         if not self.organisation_uuid:
@@ -181,25 +184,18 @@ class EngagementType(MoType):
     Engagement type detail.
     This detail describes the current employment.
 
-    :param org_unit_ref:
-    Reference to the parent organisation unit of the employment (str)
+    :param str org_unit_ref: Reference to the parent organisation unit
+    :param str engagement_type_ref: Reference to the type of employment
 
-    :param engagement_type_ref:
-    Reference to the type of employment (str)
     Examples: "Full time", "Part time", "External", "Internal" etc.
 
-    :param job_function_ref:
-    Reference job function definition aka "job title" (str)
+    :param str job_function_ref: Reference to the "job title"
+
     Examples: "Bridge officer", "Science assistant", "Space dock cleaner" etc.
 
-    :param uuid:
-    The object uuid (str/uuid)
-
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
-
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
+    :param str/uuid uuid: The object uuid
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "1982-01-01"
     """
 
     def __init__(self, org_unit_ref, job_function_ref, engagement_type_ref,
@@ -226,7 +222,8 @@ class EngagementType(MoType):
         Apply class specific attributes before calling
         the underlying _build method to create the POST data payload.
 
-        :return: POST data payload (dict)
+        :return: POST data payload
+        :rtype: dict
         """
 
         # Reference the parent org unit uuid
@@ -261,45 +258,37 @@ class AssociationType(MoType):
     Engagement type detail.
     This detail describes the current employment.
 
-    :param org_unit_ref:
-    Reference to the parent organisation unit of the employment (str)
+    :param str org_unit_ref: Reference to the parent organisation unit
+    :param str engagement_type_ref: Reference to the type of employment
 
-    :param engagement_type_ref:
-    Reference to the type of employment (str)
     Examples: "Full time", "Part time", "External", "Internal" etc.
 
-    :param job_function_ref:
-    Reference job function definition aka "job title" (str)
+    :param str job_function_ref: Reference to the "job title"
+
     Examples: "Bridge officer", "Science assistant", "Space dock cleaner" etc.
 
-    :param association_type_ref:
-    Reference to the association
-    that the employee has with the organisation unit (str)
-    There are several ways to define an association,
-    for example it could be that an employee is associated with
-    any given projects/tasks within the organisation unit.
+    :param str association_type_ref: Reference to the type of association
 
-    Example:
-        Employee: Luke Skywalker
-        Organisation unit: Republic
-        Engagement: Jedi/Rebel scum
-        Association: Affairs on the moon of Endor
+    .. note::
+        There are several ways to define an association,
+        for example it could be that an employee is associated with
+        any given projects/tasks within the organisation unit.
 
-    :param address_uuid:
-    The (uuid) identifier of a DAR address object (str/uuid)
+         - Employee: Luke Skywalker
+         - Organisation unit: Republic
+         - Engagement: Jedi/Rebel scum
+         - Association: Affairs on the moon of Endor
 
-    :param address_type_ref:
-    Reference to the address type (str)
-    NOTE: this can only be a reference to a Klasse object with the scope: DAR.
+    :param str/uuid address_uuid: Reference to a DAR address object
 
-    :param uuid:
-    The object uuid (str/uuid)
+    :param str address_type_ref: Reference to the address type
 
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
+    .. important::
+        This can only be a reference to a Klasse object with the scope: DAR.
 
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
+    :param str/uuid uuid: The object uuid
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "1982-01-01"
     """
 
     def __init__(self, association_type_ref, org_unit_ref, job_function_ref,
@@ -334,7 +323,8 @@ class AssociationType(MoType):
         Apply class specific attributes before calling
         the underlying _build method to create the POST data payload.
 
-        :return: POST data payload (dict)
+        :return: POST data payload
+        :rtype: dict
         """
 
         if not self.org_unit_uuid:
@@ -374,17 +364,10 @@ class ItsystemType(MoType):
     Creates a detail object that describes the connection
     with an existing it system.
 
-    :param: itsystem_ref:
-    Reference to the it system type (str)
-
-    :param uuid:
-    The object uuid (str/uuid)
-
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
-
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
+    :param str itsystem_ref: Reference to the it system type
+    :param str/uuid uuid: The object uuid
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "1982-01-01"
     """
 
     def __init__(self, user_key, itsystem_ref, date_from, date_to=None, uuid=None):
@@ -406,7 +389,8 @@ class ItsystemType(MoType):
         Apply class specific attributes before calling
         the underlying _build method to create the POST data payload.
 
-        :return: POST data payload (dict)
+        :return: POST data payload
+        :rtype: dict
         """
 
         if not self.itsystem_uuid:
@@ -427,18 +411,13 @@ class LeaveType(MoType):
     Leave type detail describes a period of leave of absence
     of an associated employee.
 
-    :param leave_type_ref:
-    Reference to the type of leave (str)
+    :param str leave_type_ref: Reference to the type of leave
+
     Examples: "Illness", "R & R", "Captivity", "Off-record secret mission"
 
-    :param uuid:
-    The object uuid (str/uuid)
-
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
-
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
+    :param str/uuid uuid: The object uuid
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "1982-01-01"
     """
 
     def __init__(self, leave_type_ref, date_from, date_to=None, uuid=None):
@@ -459,7 +438,8 @@ class LeaveType(MoType):
         Apply class specific attributes before calling
         the underlying _build method to create the POST data payload.
 
-        :return: POST data payload (dict)
+        :return: POST data payload
+        :rtype: dict
         """
 
         self.payload = {
@@ -476,21 +456,14 @@ class RoleType(MoType):
     Role type detail describes a which role an employee holds
     with the associated organisation unit.
 
-    :param org_unit:
-    Reference to the associated organisation unit (str)
+    :param str org_unit: Reference to the associated organisation unit
+    :param str role_type_ref: Reference to the role type
 
-    :param role_type_ref:
-    Reference to the role type (str)
     Examples: "Quartermaster", "Holder of keys", "Victory party organiser",
 
-    :param uuid:
-    The object uuid (str/uuid)
-
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
-
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
+    :param str/uuid uuid: The object uuid
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "1982-01-01"
     """
 
     def __init__(self, org_unit, role_type_ref, date_from, date_to=None, uuid=None):
@@ -514,7 +487,8 @@ class RoleType(MoType):
         Apply class specific attributes before calling
         the underlying _build method to create the POST data payload.
 
-        :return: POST data payload (dict)
+        :return: POST data payload
+        :rtype: dict
         """
 
         self.payload = {
@@ -534,36 +508,29 @@ class ManagerType(MoType):
     Role type detail describes a which role an employee holds
     with the associated organisation unit.
 
-    :param org_unit:
-    Reference to the associated organisation unit (str)
+    :param str org_unit: Reference to the associated organisation unit
 
-    :param manager_type_ref:
-    Reference to type of manager position (str)
+    :param str manager_type_ref: Reference to type of manager position
+
     Examples: "Jedi Master", "Emperor" etc.
 
-    :param manager_level_ref:
-    Reference to the role type (str)
+    :param str manager_level_ref: Reference to the role type
+
     Examples: "Security level 5", "Bridge access" etc
 
-    :param responsibility_list:
-    List of references to responsibility types (list)
+    :param list responsibility_list: List of references to responsibilities
+
     Examples: "Bridge officer", "Squad leader", "Ground team coordination"
 
-    :param address_uuid:
-    The (uuid) identifier of a DAR address object (str/uuid)
+    :param str/uuid address_uuid: Reference to a DAR object
+    :param str address_type_ref: Reference to the address type
 
-    :param address_type_ref:
-    Reference to the address type (str)
-    NOTE: this can only be a reference to a Klasse object with the scope: DAR.
+    .. important::
+        this can only be a reference to a Klasse object with the scope: DAR.
 
-    :param uuid:
-    The object uuid (str/uuid)
-
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
-
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
+    :param str/uuid uuid: The object uuid
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "1982-01-01"
     """
 
     def __init__(self, org_unit, manager_type_ref, manager_level_ref,
@@ -602,8 +569,8 @@ class ManagerType(MoType):
         Apply class specific attributes before calling
         the underlying _build method to create the POST data payload.
 
-        :return: POST data payload (dict)
-        :return:
+        :return: POST data payload
+        :rtype: dict
         """
 
         self.payload = {
@@ -637,28 +604,17 @@ class ManagerType(MoType):
 
 class OrganisationUnitType(MoType):
     """
-    :param name:
-    Name of the organisation unit (str)
+    :param str name: Name of the organisation unit
+    :param str type_ref: Reference to the organisation unit type/Klasse
+    :param str user_key: (Optional) user key for internal reference
+    :param str parent_ref: Reference to the parent organisation
 
-    :param type_ref:
-    Reference to the organisation unit type/Klasse (str)
+    .. note::
+        If this value is not set, the organisation becomes the parent.
 
-    :param user_key:
-    Optionally set a specific user_key (str)
-    This is mainly usefull as an internal reference.
-
-    :param parent_ref:
-    Reference to the parent organisation unit/Klasse (str)
-    If this value is not set, the organisation becomes the parent.
-
-    :param uuid:
-    The object uuid (str/uuid)
-
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
-
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
+    :param str/uuid uuid: The object uuid
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "1982-01-01"
     """
 
     def __init__(self, name, type_ref, date_from, date_to=None,
@@ -685,7 +641,8 @@ class OrganisationUnitType(MoType):
         Apply class specific attributes before calling
         the underlying _build method to create the POST data payload.
 
-        :return: POST data payload (dict)
+        :return: POST data payload
+        :rtype: dict
         """
 
         if not self.parent_uuid:
@@ -710,27 +667,13 @@ class OrganisationUnitType(MoType):
 
 class EmployeeType(MoType):
     """
-    :param name:
-    Full name of the employee (str)
-
-    :param cpr_no:
-    10 digit CPR identifier code (str)
-
-    :param user_key:
-    Optionally set a specific user_key (str)
-    This is mainly usefull as an internal reference.
-
-    :param org:
-    Reference to the organisation to which the employee belongs (str)
-
-    :param uuid:
-    The object uuid (str/uuid)
-
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
-
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
+    :param str name: Full name of the employee
+    :param str cpr_no: 10 digit CPR identifier code
+    :param str user_key: (Optional) user key for internal reference
+    :param str org: Reference to the organisation to which the employee belongs
+    :param str/uuid uuid: The object uuid
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "1982-01-01"
     """
 
     def __init__(self, name, cpr_no, org=None, uuid=None, user_key=None):
@@ -750,7 +693,8 @@ class EmployeeType(MoType):
         Apply class specific attributes before calling
         the underlying _build method to create the POST data payload.
 
-        :return: POST data payload (dict)
+        :return: POST data payload
+        :rtype: dict
         """
 
         if not self.org_uuid:

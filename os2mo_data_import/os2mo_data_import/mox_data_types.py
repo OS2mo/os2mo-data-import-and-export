@@ -11,20 +11,17 @@ class Base(object):
     """
     Base class for all MOX type objects
 
-    :param integration_data:
-    An arbitrary json string with relationships between
-    user defined identifiers and the actual object uuids (str)
+    :param str/json integration_data: Custom json encoded data
 
-    This is an experimentation functionality
-    first and foremost to facilitate multiple imports
-    to avoid creating duplicate objects.
+    .. note::
+        An arbitrary json string with relationships between
+        user defined identifiers and the actual object uuids (str)
 
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
+        This functionality facilitates the option to perform
+        multiple imports wihtout creating duplicate objects.
 
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
-    If left empty, it defaults to "infinity"
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "infinity"
     """
     def __init__(self):
 
@@ -36,7 +33,8 @@ class Base(object):
         """
         Apply integration data to the payload.
 
-        :return: Integration data (dict)
+        :return: Integration data
+        :rtype: dict
         """
 
         if not isinstance(self.integration_data, dict):
@@ -51,7 +49,8 @@ class Base(object):
         """
         Create validity key/value pair from date_from and date_to.
 
-        :return: Validity (dict)
+        :return: Validity
+        :rtype: dict
         """
 
         if not self.date_from or not self.date_to:
@@ -73,21 +72,10 @@ class Facet(Base):
     In the current implementation of the os2mo application
     no other types than default values should be needed.
 
-    :param uuid:
-    The object uuid (str/uuid)
-    This can be set to forcefully import the object with its current uuid.
-    If the object already exists in the database, it is updated/overridden.
-
-    :param integration_data:
-    An arbitrary json string with relationships between
-    user defined identifiers and the actual object uuids (str)
-
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
-
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
-    If left empty, it defaults to "infinity"
+    :param uuid: The object uuid
+    :param integration_data: Custom json encoded data
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "infinity"
     """
 
     def __init__(self, user_key, uuid=None, organisation_uuid=None,
@@ -109,7 +97,8 @@ class Facet(Base):
         """
         Build a MOX POST data payload
 
-        :return: POST data payload (dict)
+        :return: POST data payload
+        :rtype: dict
         """
 
         properties = {
@@ -163,6 +152,8 @@ class Klasse(Base):
     In the current implementation of the os2mo application
     2 Klasse objects must be created:
 
+    .. code-block:: text
+
         "user_key: "Telefon",
         "facet_type_ref": "org_unit_address_type",
         ...
@@ -174,52 +165,52 @@ class Klasse(Base):
     As hinted in the example above, these objects belong to
     (facet parent) org_unit_address_type.
 
-    :param uuid:
-    The object uuid (str/uuid)
-    This can be set to forcefully import the object with its current uuid.
-    If the object already exists in the database, it is updated/overridden.
+    :param str/uuid uuid: The object uuid
+    :param str title: Displayed title value
+    :param str user_key: (Optional) user key for internal reference
+    :param str scope: Scope type value
 
-    :param title:
-    The frontend application expects these two klasse objects to exist.
-    These provide functionality for 2 required input fields.
+    .. important::
+        The scope determines which field type should be displayed
+        in the frontend application.
 
-    :param user_key:
-    Optionally set a specific user_key (str)
-    This is mainly usefull as an internal reference.
+        Must be one of the following values:
 
-    :param scope:
-    Scope type value for validation and field generation (str)
-    Must be one of the following values:
+            - DAR,
+            - EAN,
+            - EMAIL,
+            - PHONE,
+            - PNUMBER,
+            - TEXT,
+            - WWW
 
-        DAR, EAN, EMAIL, PHONE, PNUMBER, TEXT, WWW
+    :param str example: An example showcasing the format of the value.
 
-    :param example:
-    An example value displaying the format of the parameter.
-    This is currently not displayed in the frontend application.
+    .. note::
+        This is currently not displayed in the frontend application.
 
-    {
-        ...
-        "example": "<UUID>"
-    }
+        .. code-block:: text
 
-    :param description:
-    A description paragraph (str)
-    This is currently not displayed in the frontend application.
+            {
+                ...
+                "example": "<UUID>"
+            }
 
-    {
-        ...
-        "description": "Please write something beautiful"
-    }
+    :param str description: A description paragraph
 
-    :param facet_type_ref:
-    Reference to the parent Facet type (str)
+    .. note::
+        This is currently not displayed in the frontend application.
 
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
+        .. code-block:: text
 
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
-    If left empty, it defaults to "infinity"
+            {
+                ...
+                "description": "Please write something beautiful"
+            }
+
+    :param str facet_type_ref: Reference to the parent Facet type
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "infinity"
     """
 
     def __init__(self, facet_type_ref, user_key, description=None,
@@ -245,7 +236,8 @@ class Klasse(Base):
         """
         Build a MOX POST data payload
 
-        :return: POST data payload (dict)
+        :return: POST data payload
+        :rtype: dict
         """
 
         if not self.organisation_uuid:
@@ -317,12 +309,11 @@ class Itsystem(Base):
     Itsystem class for creating it systems which belong to the organisation.
     Employees can be tied to an it system with a user name.
 
-    :param system_name:
-    Name of the it system (str)
+    :param str system_name: Name of the it system
+    
     Examples: "Main computer", "Employee database" etc.
 
-    :param user_key:
-    Username or entry point to the associated it system (str)
+    :param str user_key: Username or user reference
     """
 
     def __init__(self, system_name, user_key=None):
@@ -337,7 +328,8 @@ class Itsystem(Base):
         """
         Build a MOX POST data payload
 
-        :return: POST data payload (dict)
+        :return: POST data payload
+        :rtype: dict
         """
         properties = {
             "brugervendtnoegle": self.user_key,
@@ -377,31 +369,19 @@ class Itsystem(Base):
 
 class Klassifikation(Base):
     """
-    The Klassification object is the parent of all Facet types
+    The Klassifikation object is the parent of all Facet types
     within an organisation.
-
-    Using the ImportHelper
-    (See os2mo_data_import.helpers.ImportHelper)
 
     The Klassifikation object is automatically created
     with both user_key and parent_name set to the name of the organisation.
 
-    :param user_key:
-    Name of the parent organisation (str)
+    :Reference: :class:`os2mo_data_import.helpers.ImportHelper.add_organisation`
 
-    :param parent_name:
-    Name of the parent organisation or alias (str)
-    This primarily used as an internal alias.
-
-    :param description:
-    A description paragraph (str)
-
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
-
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
-    If left empty, it defaults to "infinity"
+    :param str user_key: Name of the parent organisation
+    :param str parent_name: Name of the parent organisation or alias
+    :param str description: A description paragraph
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "infinity"
     """
 
     def __init__(self, user_key, parent_name, description,
@@ -423,7 +403,8 @@ class Klassifikation(Base):
         Apply class specific attributes before calling
         the underlying _build method to create the POST data payload.
 
-        :return: POST data payload (dict)
+        :return: POST data payload \
+        :rtype: dict
         """
         properties = {
             "brugervendtnoegle": self.user_key,
@@ -473,35 +454,21 @@ class Klassifikation(Base):
 class Organisation(Base):
     """
     The Organisation object is the top level parent
-    for all the underlying Facet, Klasse, Organisation Unit and Employee objects.
+    for all the underlying object types:
 
-    Organisation
-     \
-      - Facet
-      - Klasse
-      - Itsystem
-      - Organisation Unit
-      - Employee
+        #. Organisation
+        #. Facet
+        #. Klasse
+        #. Itsystem
+        #. Organisation Unit
+        #. Employee
 
-    :param name:
-    Canonical name of the organisation (str)
-
-    :param user_key:
-    Optionally reference a UUID or logical name for the organisation (str)
-
-    :param municipality_code:
-    3-digit municipality code (str)
-    In the current context the actual value is not in use.
-
-    :param uuid:
-    Imported UUID from the source (str)
-    (Optional: uuid is either imported or created on insert)
-
-    :param date_from:
-    Start date e.g. "1900-01-01" (str)
-
-    :param date_to:
-    End date e.g. "1900-01-01" (str)
+    :param str name: Canonical name of the organisation
+    :param user_key: (Optional) UUID or logical name for the organisation
+    :param str municipality_code: 3-digit municipality code
+    :param str/uuid uuid: (Optional) Imported UUID from the source
+    :param str date_from: Start date e.g. "1982-01-01"
+    :param str date_to: End date e.g. "infinity"
     """
 
     def __init__(self, name, user_key=None, municipality_code=999,

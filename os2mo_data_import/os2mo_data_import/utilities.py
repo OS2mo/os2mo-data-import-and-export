@@ -30,6 +30,9 @@ from os2mo_data_import.mox_data_types import (
 
 
 class ImportUtility(object):
+    """
+    ImportUtility
+    """
 
     def __init__(self, system_name, end_marker, mox_base, mora_base,
                  store_integration_data=False, dry_run=False):
@@ -69,11 +72,11 @@ class ImportUtility(object):
         Convert organisation to OIO formatted post data
         and import into the MOX datastore.
 
-        :param org_export:
-        Data objected returned by the export() method (dict)
+        :param str reference: Reference to the user defined identifier
+        :param object organisation: Organisation object
 
-        :returns:
-        Inserted UUID (str)
+        :returns: Inserted UUID
+        :rtype: str/uuid
         """
 
         if not isinstance(organisation, Organisation):
@@ -106,6 +109,15 @@ class ImportUtility(object):
         return self.organisation_uuid
 
     def import_klassifikation(self, reference, klassifikation):
+        """
+        Begin import of klassifikation
+
+        :param str reference: Reference to the user defined identifier
+        :param object klassifikation: Klassifikation object
+
+        :returns: Inserted UUID
+        :rtype: str/uuid
+        """
         if not isinstance(klassifikation, Klassifikation):
             raise TypeError("Not of type Klassifikation")
 
@@ -134,17 +146,13 @@ class ImportUtility(object):
 
     def import_facet(self, reference, facet):
         """
-        Generate and insert a facet object
-        This is the parent of all the klasse type objects.
+        Begin import of facet
 
-        :param reference:
-            Reference to the user defined identifier (str)
+        :param str reference: Reference to the user defined identifier
+        :param object facet: Facet object
 
-        :param klasse:
-            Facet type data object (dict)
-
-        :returns:
-            Inserted UUID (str)
+        :returns: Inserted UUID
+        :rtype: str/uuid
         """
 
         if not isinstance(facet, Facet):
@@ -182,14 +190,13 @@ class ImportUtility(object):
         """
         Insert a klasse object
 
-        :param reference:
-        Reference to the user defined identifier (str)
+        Begin import of klassifikation
 
-        :param klasse:
-        Klasse type data object (dict)
+        :param str reference: Reference to the user defined identifier
+        :param object organisation: Organisation object
 
-        :returns:
-        Inserted UUID (str)
+        :returns: Inserted UUID
+        :rtype: str/uuid
         """
 
         if not isinstance(klasse, Klasse):
@@ -245,13 +252,13 @@ class ImportUtility(object):
 
     def import_itsystem(self, reference, itsystem):
         """
-        Insert an itsystem object
+        Create IT System
 
-        :param itsystem:
-        Itsystem data object (dict)
+        :param str reference: Reference to the user defined identifier
+        :param object organisation: Organisation object
 
-        :returns:
-        Inserted UUID (str)
+        :returns: Inserted UUID
+        :rtype: str/uuid
         """
 
         if not isinstance(itsystem, Itsystem):
@@ -287,22 +294,17 @@ class ImportUtility(object):
 
     def import_org_unit(self, reference, organisation_unit, details=[]):
         """
-        Insert primary and optional data for an organisation unit
+        Insert organisation unit and details
 
-        Optional data objects are relational objects which
-        belong to the organisation unit, such as an address type
+        .. note::
+            Optional data objects are relational objects which
+            belong to the organisation unit, such as an address type
 
-        :param reference:
-        Reference to the user defined identifier (str)
-
-        :param organisation_unit_data:
-        Organisation Unit primary data object (dict)
-
-        :param optional_data:
-        Organisation Unit optional data object (dict)
-
-        :returns:
-        Inserted UUID (str)
+        :param str reference: Reference to the user defined identifier
+        :param object organisation_unit: Organisation object
+        :param list details: List of details
+        :returns: Inserted UUID
+        :rtype: str/uuid
         """
 
         if not isinstance(organisation_unit, OrganisationUnitType):
@@ -381,6 +383,15 @@ class ImportUtility(object):
         return uuid
 
     def import_employee(self, reference, employee, details=[]):
+        """
+        Import employee
+
+        :param str reference: Reference to the user defined identifier
+        :param object employee: Employee object
+        :param list details: List of details
+        :returns: Inserted UUID
+        :rtype: str/uuid
+        """
         if not isinstance(employee, EmployeeType):
             raise TypeError("Not of type EmployeeType")
 
@@ -487,6 +498,28 @@ class ImportUtility(object):
         return uuid
 
     def build_detail(self, detail, employee_uuid=None):
+        """
+        Build detail payload
+
+        :param MoType detail: Detail object
+
+        .. note::
+            A detail can be one of the following types:
+
+                - address
+                - asso
+                - role
+                - itsystem
+                - engagement
+                - manager
+
+            :Reference: :mod:`os2mo_data_import.mora_data_types`
+
+        :param str employee_uuid: (Option) Employee uuid if it exists
+
+        :return: Detail POST data payload
+        :rtype: dict
+        """
 
         if employee_uuid:
             detail.person_uuid = employee_uuid

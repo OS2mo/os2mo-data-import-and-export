@@ -85,9 +85,8 @@ def example_import():
 
     # Address Types
     os2mo.add_klasse(
-        identifier="AdressePost",
+        identifier="AddressMailUnit",
         facet_type_ref="org_unit_address_type",
-        user_key="7C76AF82-AC79-41F8-9AB8-762F301BB22B",
         title="Adresse",
         scope="DAR",
         example="<UUID>"
@@ -117,9 +116,8 @@ def example_import():
     )
 
     os2mo.add_klasse(
-        identifier="Telefon",
+        identifier="PhoneUnit",
         facet_type_ref="org_unit_address_type",
-        user_key="E9B487F6-A94E-4393-9127-BB646956EAB8",
         title="Tlf",
         scope="PHONE",
         example="20304060"
