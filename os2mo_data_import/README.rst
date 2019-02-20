@@ -92,21 +92,39 @@ Optional data or "details" can be associated with an organisation unit.
 
 .. note::
 
-    Currently there a 2 (klasse) types which MUST be created.
+    At least 2 "Klasse" objects must be created,
+    an object for the primary phone number and
+    an object for the primary mailing address (residence).
 
-    - AdressePost
-    - Telefon
+    The validation in the (os2mo) frontend application requires:
+
+    The user_key on the the primary phone number object
+    must be specified as "PhoneUnit"
+
+    The user_key on the primary mail address object
+    must be specified as "AddressMailUnit"
+
+    Hence either the "identifier" or the "user_key"
+    must be set to:
+
+        - PhoneUnit
+        - AddressMailUnit
+
+    (The "user_key" is derived from the value of the "identifier
+    if not explicitly set)
 
     See the example below:
+
 
 .. code-block:: python
 
     # Add klasse type "AdressePost"
     # Which belongs to facet type "org_unit_address_type"
+
+    # user_key is not explicitly set, identifier must be "AddressMailUnit"
     os2mo.add_klasse(
-        identifier="AdressePost",
+        identifier="AddressMailUnit",
         facet_type_ref="org_unit_address_type",
-        user_key="7C76AF82-AC79-41F8-9AB8-762F301BB22B",
         title="Adresse",
         scope="DAR",
         example="<UUID>"
@@ -114,10 +132,12 @@ Optional data or "details" can be associated with an organisation unit.
 
     # Add klasse type "Telefon"
     # Which belongs to facet type "org_unit_address_type"
+
+    # user_key is set to "PhoneUnit", hence the identifier can be anything
     os2mo.add_klasse(
         identifier="Telefon",
         facet_type_ref="org_unit_address_type",
-        user_key="E9B487F6-A94E-4393-9127-BB646956EAB8",
+        user_key="PhoneUnit",
         title="Tlf",
         scope="PHONE",
         example="20304060"
