@@ -17,9 +17,8 @@ class Base(object):
         An arbitrary json string with relationships between
         user defined identifiers and the actual object uuids (str)
 
-        This is an experimentation functionality
-        first and foremost to facilitate multiple imports
-        to avoid creating duplicate objects.
+        This functionality facilitates the option to perform
+        multiple imports wihtout creating duplicate objects.
 
     :param str date_from: Start date e.g. "1982-01-01"
     :param str date_to: End date e.g. "infinity"
