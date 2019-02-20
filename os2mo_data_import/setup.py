@@ -16,11 +16,11 @@ setup(
     ],
     zip_safe=False,
     install_requires=[
-        "certifi==2018.10.15",
-        "chardet==3.0.4",
-        "idna==2.7",
-        "requests==2.21.0",
-        "urllib3==1.24.1",
-        "anytree >= 2.4.3"
+        "certifi",
+        "chardet",
+        "idna",
+        "requests",
+        "urllib3",
+        "anytree"
     ]
 )
