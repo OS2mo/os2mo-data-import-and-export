@@ -6,18 +6,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-import os
 import pickle
 import requests
 import xmltodict
 from anytree import Node
-from os2mo_data_import import ImportHelper
-
-
-MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
-MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_CODE', 0)
-MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
 
 
 def _dawa_request(address, adgangsadresse=False,
@@ -55,7 +47,8 @@ def _dawa_request(address, adgangsadresse=False,
 
 
 class SdImport(object):
-    def __init__(self, importer, org_name, municipality_code):
+    def __init__(self, importer, org_name, municipality_code,
+                 forced_uuids={}):
         self.double_employment = []
         self.address_errors = {}
 
@@ -65,6 +58,7 @@ class SdImport(object):
             user_key=org_name,
             municipality_code=municipality_code
         )
+        self.employee_forced_uuids = forced_uuids
 
         self.nodes = {}  # Will be populated when org-tree is created
         self.add_people()
@@ -260,10 +254,17 @@ class SdImport(object):
             cpr = person['PersonCivilRegistrationIdentifier']
             name = (person['PersonGivenName'] + ' ' +
                     person['PersonSurnameName'])
-            self.importer.add_employee(name=name,
-                                       identifier=cpr,
-                                       cpr_no=cpr,
-                                       user_key=name)
+            uuid = self.employee_forced_uuids.get(cpr, None)
+            print(cpr)
+            print(uuid)
+
+            self.importer.add_employee(
+                name=name,
+                identifier=cpr,
+                cpr_no=cpr,
+                user_key=name,
+                uuid=uuid
+            )
 
     def create_ou_tree(self):
         """ Read all department levels from SD """
@@ -276,14 +277,14 @@ class SdImport(object):
                 date_to=None,
                 parent_ref=None)
 
-        organisation = sd._sd_lookup('GetOrganization20111201.xml')
+        organisation = self._sd_lookup('GetOrganization20111201.xml')
         departments = organisation['Organization']['DepartmentReference']
         for department in departments:
             self._add_sd_department(department)
         self.nodes = self._create_org_tree_structure()
 
     def create_employees(self):
-        persons = sd._sd_lookup('GetEmployment20111201.xml')
+        persons = self._sd_lookup('GetEmployment20111201.xml')
         for person in persons['Person']:
             cpr = person['PersonCivilRegistrationIdentifier']
             employments = person['Employment']
@@ -388,29 +389,3 @@ class SdImport(object):
             if exactly_one_primary is not True:
                 print()
                 print(employments)
-
-
-if __name__ == '__main__':
-
-    importer = ImportHelper(create_defaults=True,
-                            mox_base=MOX_BASE,
-                            mora_base=MORA_BASE,
-                            system_name='SD-Import',
-                            end_marker='SDSTOP',
-                            store_integration_data=True)
-
-    sd = SdImport(importer, MUNICIPALTY_NAME, MUNICIPALTY_CODE)
-    sd.create_ou_tree()
-    sd.create_employees()
-
-    importer.import_all()
-
-    for info in sd.address_errors.values():
-        print(info['DepartmentName'])
-        print(info['DepartmentIdentifier'])
-        print(info['PostalAddress']['StandardAddressIdentifier'])
-        print(info['PostalAddress']['PostalCode'] + ' ' +
-              info['PostalAddress']['DistrictName'])
-        print()
-        print()
-    print(len(sd.address_errors))
