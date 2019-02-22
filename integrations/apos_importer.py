@@ -264,38 +264,48 @@ class AposImport(object):
 
         if CREATE_UDVALGS_CLASSES:
             specific_klasser = [
-                {'titel': 'AMR', 'facet': 'org_unit_type', 'scope': 'TEXT'},
-                {'titel': 'H-MED', 'facet': 'org_unit_type', 'scope': 'TEXT'},
-                {'titel': 'C-MED', 'facet': 'org_unit_type', 'scope': 'TEXT'},
-                {'titel': 'L-MED', 'facet': 'org_unit_type', 'scope': 'TEXT'}
+                {'id': 'AMR', 'titel': 'AMR',
+                 'facet': 'org_unit_type', 'scope': 'TEXT'},
+                {'id': 'H-MED', 'titel': 'H-MED',
+                 'facet': 'org_unit_type', 'scope': 'TEXT'},
+                {'id': 'C-MED', 'titel': 'C-MED',
+                 'facet': 'org_unit_type', 'scope': 'TEXT'},
+                {'id': 'L-MED', 'titel': 'L-MED',
+                 'facet': 'org_unit_type', 'scope': 'TEXT'}
             ]
         else:
             specific_klasser = []
         standard_klasser = [
-            #{'titel': 'Leder',
-            # 'facet': 'association_job_function',
-            # 'scope': 'TEXT'},
-            {'titel': 'Lederniveau',
+            {'id': 'Lederniveau',
+             'titel': 'Lederniveau',
              'facet': 'manager_level',
              'scope': 'TEXT'},
-            {'titel': 'Email',
+            {'id': 'EmailEmployee',
+             'titel': 'Email',
              'facet': 'employee_address_type',
              'scope': 'EMAIL'},
-            {'titel': 'Telefon',
+            {'id': 'PhoneEmployee',
+             'titel': 'Telefon',
              'facet': 'employee_address_type',
              'scope': 'PHONE'},
-            {'titel': 'p-nummer',
+            {'id': 'p-nummer',
+             'titel': 'p-nummer',
              'facet': 'org_unit_address_type',
              'scope': 'PNUMBER'},
-            {'titel': 'AdressePost',
+            {'id': 'AddressMailUnit',
+             'titel': 'Adresse',
              'facet': 'org_unit_address_type',
-             'scope': 'DAR'}
+             'scope': 'DAR'},
+            {'id': 'PhoneUnit',
+             'titel': 'Telefon',
+             'facet': 'org_unit_address_type',
+             'scope': 'PHONE'}
         ]
-
+        
         for klasse in specific_klasser + standard_klasser:
-            self.importer.add_klasse(identifier=klasse['titel'],
+            self.importer.add_klasse(identifier=klasse['id'],
                                      title=klasse['titel'],
-                                     user_key=klasse['titel'],
+                                     user_key=klasse['id'],
                                      scope=klasse['scope'],
                                      facet_type_ref=klasse['facet'])
 
@@ -351,9 +361,8 @@ class AposImport(object):
                 try:
                     self.importer.add_address_type(
                         organisation_unit=unit_id,
-                        type_ref='AdressePost',
+                        type_ref='AddressMailUnit',
                         value=location['dawa_uuid'],
-                        # date_from=GLOBAL_DATE)
                         date_from=fra)
                 except AssertionError:  # Address already added
                     pass
@@ -389,13 +398,10 @@ class AposImport(object):
                     from_date = details[0].date_from
                     job_function = details[0].job_function_ref
 
-                    ansat = ANSAT_UUID
-
                     self.importer.add_association(
                         employee=p,
                         organisation_unit=unit,
-                        job_function_ref=job_function,
-                        association_type_ref=ansat,
+                        association_type_ref=ANSAT_UUID,
                         date_from=from_date
                     )
 
@@ -415,9 +421,9 @@ class AposImport(object):
                 employee_identifier = employee['person']['@uuid']
 
                 if klasse.title == EMAIL_NAME:
-                    klasse_ref = 'Email'
+                    klasse_ref = 'EmailEmployee'
                 elif klasse.title == MAIN_PHONE_NAME:
-                    klasse_ref = 'Telefon'
+                    klasse_ref = 'PhoneEmployee'
                 elif klasse.title in PHONE_NAMES:
                     klasse_ref = apos_type
                 else:  # This should never happen
