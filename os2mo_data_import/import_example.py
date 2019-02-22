@@ -1,7 +1,6 @@
 # -- coding: utf-8 --
-from uuid import uuid4
-
 from os2mo_data_import import ImportHelper
+
 
 def example_import():
     """
@@ -11,7 +10,6 @@ def example_import():
 
     # Init
     os2mo = ImportHelper(create_defaults=True, store_integration_data=True)
-
 
     # The Organisation class is the main entry point,
     # It exposes the related sub classes such as:
@@ -38,7 +36,6 @@ def example_import():
         title="Afdeling"
     )
 
-
     # Root unit: Magenta
     # Belongs to unit type: "Hovedenhed"
     os2mo.add_organisation_unit(
@@ -62,8 +59,6 @@ def example_import():
         parent_ref="Magenta",  # Sub unit of/Belongs to Magenta
         date_from="1986-01-01",
     )
-
-
 
     # HOTFIX: nested units are failing
     # This will 'really' be fixed in the refactoring state
@@ -95,7 +90,7 @@ def example_import():
     os2mo.add_address_type(
         organisation_unit="Magenta",
         value="0a3f50c4-379f-32b8-e044-0003ba298018",
-        type_ref="AdressePost",
+        type_ref="AddressMailUnit",
         date_from="1986-01-01"
     )
 
@@ -126,7 +121,7 @@ def example_import():
     os2mo.add_address_type(
         organisation_unit="Magenta",
         value="11223344",
-        type_ref="Telefon",
+        type_ref="PhoneUnit",
         date_from="1986-01-01",
     )
 
@@ -247,7 +242,6 @@ def example_import():
         date_from="1986-06-01"
     )
 
-
     # Association
     os2mo.add_klasse(
         identifier="Ekstern Konsulent",
@@ -287,7 +281,6 @@ def example_import():
         date_from="1986-11-01",
     )
 
-
     os2mo.add_address_type(
         employee="Ronja Rwander",
         value="0a3f50a0-ef5a-32b8-e044-0003ba298018",
@@ -316,7 +309,6 @@ def example_import():
         date_from="1986-11-01",
     )
 
-
     # Add roles and assign to employees
     os2mo.add_klasse(
         identifier="Medarbejder repræsentant",
@@ -331,7 +323,6 @@ def example_import():
         user_key="0E078F23-A5B4-4FB4-909B-60E49295C5E9",
         title="Nøgleansvarlig"
     )
-
 
     os2mo.add_role(
         employee="Susanne Chæf",
@@ -353,7 +344,6 @@ def example_import():
         role_type_ref="Medarbejder repræsentant",
         date_from="1986-12-01"
     )
-
 
     # Create manager type, level and responsibilites
     # and assign to employee
@@ -401,7 +391,9 @@ def example_import():
         organisation_unit="Magenta",
         manager_type_ref="Leder",
         manager_level_ref="Højeste niveau",
-        responsibility_list=["Tage beslutninger", "Motivere medarbejdere", "Betale løn"],
+        responsibility_list=["Tage beslutninger",
+                             "Motivere medarbejdere",
+                             "Betale løn"],
         date_from="1987-12-01",
     )
 
@@ -415,20 +407,14 @@ def example_import():
         title="Sygeorlov"
     )
 
+    """
     os2mo.add_leave(
         employee="Jens Mortensen",
         leave_type_ref="Sygeorlov",
         date_from="2018-01-22",
         date_to="2018-11-02"
     )
-
-    os2mo.add_leave(
-        employee="Bolette Buhl",
-        leave_type_ref="Sygeorlov",
-        date_from="2018-01-22",
-        date_to="2018-11-02"
-    )
-
+    """
     # Create IT system and assign to employee
 
     os2mo.new_itsystem(
