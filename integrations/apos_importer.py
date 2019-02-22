@@ -300,6 +300,18 @@ class AposImport(object):
              'titel': 'Telefon',
              'facet': 'org_unit_address_type',
              'scope': 'PHONE'}
+            {'id': 'Ekstern',
+             'titel': 'Må vises eksternt',
+             'facet': 'visibility',
+             'scope': 'PUBLIC'}
+            {'id': 'Intern',
+             'titel': 'Må vises internt',
+             'facet': 'visibility',
+             'scope': 'INTERNAL'}
+            {'id': 'Hemmelig',
+             'titel': 'Hemmelig',
+             'facet': 'visibility',
+             'scope': 'SECRET'}
         ]
         
         for klasse in specific_klasser + standard_klasser:
