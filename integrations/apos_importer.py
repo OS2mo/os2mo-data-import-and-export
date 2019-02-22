@@ -323,7 +323,7 @@ class AposImport(object):
             {'id': 'Teammedarbejder',
              'titel': 'Teammedarbejder',
              'facet': 'association_type',
-             'scope': 'TEXT'}
+             'scope': 'TEXT'},
             #{'id': 'Medarbejder',
             # 'titel': 'Medarbejder',
             # 'facet': 'association_type',
@@ -335,7 +335,7 @@ class AposImport(object):
             {'id': 'Projektleder',
              'titel': 'Projektleder',
              'facet': 'association_type',
-             'scope': 'TEXT'}
+             'scope': 'TEXT'},
             {'id': 'Projektgruppemedlem',
              'titel': 'Projektgruppemedlem',
              'facet': 'association_type',
