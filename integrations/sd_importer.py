@@ -68,18 +68,41 @@ class SdImport(object):
 
         self._add_klasse('Pnummer', 'Pnummer',
                          'org_unit_address_type', 'PNUMBER')
-        self._add_klasse('AdressePost', 'AdressePost',
+
+        self._add_klasse('AddressMailUnit', 'Postdresse',
                          'org_unit_address_type', 'DAR')
-        self._add_klasse('Email', 'Email', 'org_unit_address_type', 'EMAIL')
+
+        self._add_klasse('AdresseReturUnit', 'Returadresse',
+                         'org_unit_address_type', 'DAR')
+
+        self._add_klasse('AdresseHenvendelseUnit', 'Henvendelsessted',
+                         'org_unit_address_type', 'DAR')
+
+        self._add_klasse('PhoneUnit', 'Telefon',
+                         'org_unit_address_type', 'PHONE')
+
+        self._add_klasse('EmailUnit', 'Email',
+                         'org_unit_address_type', 'EMAIL')
+
+        self._add_klasse('AdressePostEmployee', 'Postadresse',
+                         'employee_address_type', 'DAR')
+
+        self._add_klasse('PhoneEmployee', 'Telefon',
+                         'employee_address_type', 'PHONE')
+
+        self._add_klasse('LocationEmployee', 'Lokation',
+                         'employee_address_type', 'TEXT')
+
+        self._add_klasse('EmailEmployee', 'Email',
+                         'employee_address_type', 'EMAIL')
 
         self._add_klasse('Enhed', 'Enhed', 'org_unit_type')
+
         self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
-        self._add_klasse('Ansat',
-                         'Ansat',
-                         'engagement_type')
-        self._add_klasse('non-primary',
-                         'Ikke-primær ansættelse',
-                         'engagement_type')
+
+        self._add_klasse('Ansat', 'Ansat', 'engagement_type')
+
+        self._add_klasse('non-primary', 'Ikke-primær ansættelse', 'engagement_type')
 
     def _sd_lookup(self, filename):
         with open(filename, 'r') as f:
@@ -111,7 +134,7 @@ class SdImport(object):
         if not self.importer.check_if_exists('klasse', klasse_id):
             self.importer.add_klasse(identifier=klasse_id,
                                      facet_type_ref=facet,
-                                     user_key=klasse,
+                                     user_key=str(klasse_id),
                                      scope=scope,
                                      title=klasse)
         return klasse_id
@@ -181,7 +204,7 @@ class SdImport(object):
                 if email.find('Empty') == -1:
                     self.importer.add_address_type(
                         organisation_unit=unit_id,
-                        type_ref='Email',
+                        type_ref='EmailUnit',
                         value=email,
                         date_from=date_from
                     )
@@ -205,7 +228,7 @@ class SdImport(object):
                 if dar_uuid is not None:
                     self.importer.add_address_type(
                         organisation_unit=unit_id,
-                        type_ref='AdressePost',
+                        type_ref='AddressMailUnit',
                         value=dar_uuid,
                         date_from=date_from
                     )
