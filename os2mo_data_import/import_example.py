@@ -259,7 +259,6 @@ def example_import():
     os2mo.add_association(
         employee="Carl Sand Holth",
         organisation_unit="Pilestræde",
-        job_function_ref="Projektmedarbejder",
         association_type_ref="Ekstern Konsulent",
         address_uuid="0a3f50c4-379f-32b8-e044-0003ba298018",
         date_from="1986-10-01"
