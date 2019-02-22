@@ -299,15 +299,15 @@ class AposImport(object):
             {'id': 'PhoneUnit',
              'titel': 'Telefon',
              'facet': 'org_unit_address_type',
-             'scope': 'PHONE'}
+             'scope': 'PHONE'},
             {'id': 'Ekstern',
              'titel': 'Må vises eksternt',
              'facet': 'visibility',
-             'scope': 'PUBLIC'}
+             'scope': 'PUBLIC'},
             {'id': 'Intern',
              'titel': 'Må vises internt',
              'facet': 'visibility',
-             'scope': 'INTERNAL'}
+             'scope': 'INTERNAL'},
             {'id': 'Hemmelig',
              'titel': 'Hemmelig',
              'facet': 'visibility',
