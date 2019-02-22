@@ -12,12 +12,11 @@ import pickle
 import requests
 import xmltodict
 import collections
-# from datetime import datetime
+from datetime import datetime
 from uuid import UUID
 
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
-GLOBAL_DATE = os.environ.get('GLOBAL_DATE', '1977-01-01')
 BASE_APOS_URL = os.environ.get('BASE_APOS_URL', 'http://localhost:8080/apos2-')
 
 # Phone names will become a list once we have more examples of naming of
@@ -31,18 +30,18 @@ MAIN_PHONE_NAME = os.environ.get('MAIN_PHONE_NAME', 'Telefon')
 
 
 def _format_time(gyldighed):
-    from_time = GLOBAL_DATE
+    from_time = '1900-01-01'
     to_time = None
-    # NOTICE: DATES ARE INCONSISTENT, CURRENTLY, WE RETURN A
-    # FIXED DATE!!!!!!!!
-    """
     if not gyldighed['@fra'] == '-INFINITY':
         from_time = datetime.strptime(gyldighed['@fra'], '%d/%m/%Y')
         from_time = from_time.strftime('%Y-%m-%d')
     if not gyldighed['@til'] == 'INFINITY':
         to_time = datetime.strptime(gyldighed['@til'], '%d/%m/%Y')
         to_time = to_time.strftime('%Y-%m-%d')
-    """
+
+    if from_time == None and to_time == None:
+        print(gyldighed)
+        1/0
     return from_time, to_time
 
 
@@ -273,6 +272,9 @@ class AposImport(object):
         else:
             specific_klasser = []
         standard_klasser = [
+            #{'titel': 'Leder',
+            # 'facet': 'association_job_function',
+            # 'scope': 'TEXT'},
             {'titel': 'Lederniveau',
              'facet': 'manager_level',
              'scope': 'TEXT'},
@@ -341,7 +343,8 @@ class AposImport(object):
                         organisation_unit=unit_id,
                         type_ref='p-nummer',
                         value=location['pnummer'],
-                        date_from=GLOBAL_DATE)
+                        # date_from=GLOBAL_DATE)
+                        date_from=fra)
                 except AssertionError:  # pnumber added multiple times
                     pass
             if location['dawa_uuid']:
@@ -350,7 +353,8 @@ class AposImport(object):
                         organisation_unit=unit_id,
                         type_ref='AdressePost',
                         value=location['dawa_uuid'],
-                        date_from=GLOBAL_DATE)
+                        # date_from=GLOBAL_DATE)
+                        date_from=fra)
                 except AssertionError:  # Address already added
                     pass
         return unit
@@ -420,12 +424,16 @@ class AposImport(object):
                     print(klasse.title)
                     raise Exception('Ukendt kontaktmulighed')
                 try:
+                    fra, til = _format_time(employee['gyldighed'])
+
                     self.importer.add_address_type(
                         employee=employee_identifier,
                         value=value,
                         type_ref=klasse_ref,
-                        date_from=GLOBAL_DATE,
-                        date_to=None
+                        # date_from=GLOBAL_DATE,
+                        # date_to=None
+                        date_from=fra,
+                        date_to=til
                     )
                 except AssertionError:
                     pass  # Already inserted
