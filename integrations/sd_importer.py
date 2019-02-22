@@ -68,41 +68,39 @@ class SdImport(object):
 
         self._add_klasse('Pnummer', 'Pnummer',
                          'org_unit_address_type', 'PNUMBER')
-
         self._add_klasse('AddressMailUnit', 'Postdresse',
                          'org_unit_address_type', 'DAR')
-
         self._add_klasse('AdresseReturUnit', 'Returadresse',
                          'org_unit_address_type', 'DAR')
-
         self._add_klasse('AdresseHenvendelseUnit', 'Henvendelsessted',
                          'org_unit_address_type', 'DAR')
-
         self._add_klasse('PhoneUnit', 'Telefon',
                          'org_unit_address_type', 'PHONE')
-
         self._add_klasse('EmailUnit', 'Email',
                          'org_unit_address_type', 'EMAIL')
 
         self._add_klasse('AdressePostEmployee', 'Postadresse',
                          'employee_address_type', 'DAR')
-
         self._add_klasse('PhoneEmployee', 'Telefon',
                          'employee_address_type', 'PHONE')
-
         self._add_klasse('LocationEmployee', 'Lokation',
                          'employee_address_type', 'TEXT')
-
         self._add_klasse('EmailEmployee', 'Email',
                          'employee_address_type', 'EMAIL')
 
-        self._add_klasse('Enhed', 'Enhed', 'org_unit_type')
+        self._add_klasse('Orphan', 'Virtuel Enhed', 'org_unit_type')
 
         self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
 
         self._add_klasse('Ansat', 'Ansat', 'engagement_type')
 
         self._add_klasse('non-primary', 'Ikke-primær ansættelse', 'engagement_type')
+
+        self._add_klasse('SD-medarbejder', 'SD-medarbejder', 'association_type')
+
+        self._add_klasse('Ekstern', 'Må vises eksternt', 'visibility', 'PUBLIC')
+        self._add_klasse('Intern', 'Må vises internt', 'visibility', 'INTERNAL')
+        self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
 
     def _sd_lookup(self, filename):
         with open(filename, 'r') as f:
@@ -295,7 +293,7 @@ class SdImport(object):
                 identifier='OrphanUnits',
                 name='Forældreløse enheder',
                 user_key='OrphanUnits',
-                type_ref='Enhed',
+                type_ref='Orphan',
                 date_from='1900-01-01',
                 date_to=None,
                 parent_ref=None)
@@ -384,8 +382,7 @@ class SdImport(object):
                     self.importer.add_association(
                         employee=cpr,
                         organisation_unit=original_unit,
-                        job_function_ref=job_func_ref,
-                        association_type_ref=engagement_type_ref,
+                        association_type_ref='SD-medarbejder',
                         date_from=date_from
                     )
 
