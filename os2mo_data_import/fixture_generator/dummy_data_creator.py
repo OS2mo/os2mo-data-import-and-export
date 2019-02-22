@@ -17,7 +17,7 @@ CLASSES = {
         'Skolepsykolog', 'Støttepædagog', 'Bogopsætter', 'Timelønnet lærer',
         'Pædagogmedhjælper', 'Teknisk Servicemedarb.', 'Lærer/Overlærer'
     ],
-    'association_job_function': [
+    'association_type': [
         'Formand', 'Leder', 'Medarbejder', 'Næstformand', 'Projektleder',
         'Projektgruppemedlem', 'Teammedarbejder'
     ],
@@ -67,7 +67,6 @@ CLASSES = {
         ('WebUnit', 'Webadresse', 'WWW'),
         ('p-nummer', 'P-nummer', 'PNUMBER')
     ],
-    'association_type': ['Problemknuser', 'Konsulent', 'Medhjælper'],
     'manager_level': ['Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4'],
     'engagement_type': ['Ansat'],
     'visibility': [
