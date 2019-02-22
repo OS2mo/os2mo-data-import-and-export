@@ -291,8 +291,8 @@ class AssociationType(MoType):
     :param str date_to: End date e.g. "1982-01-01"
     """
 
-    def __init__(self, association_type_ref, org_unit_ref, job_function_ref,
-                 date_from, date_to=None, address_uuid=None, address_type_ref=None,
+    def __init__(self, association_type_ref, org_unit_ref, date_from,
+                 date_to=None, address_uuid=None, address_type_ref=None,
                  uuid=None):
         super().__init__()
 
@@ -302,9 +302,6 @@ class AssociationType(MoType):
 
         self.org_unit_ref = org_unit_ref
         self.org_unit_uuid = None
-
-        self.job_function_ref = job_function_ref
-        self.job_function_uuid = None
 
         self.type_ref = association_type_ref
         self.type_ref_uuid = None
@@ -330,18 +327,12 @@ class AssociationType(MoType):
         if not self.org_unit_uuid:
             raise ReferenceError("Reference to org_unit_uuid is missing")
 
-        if not self.job_function_uuid:
-            raise ReferenceError("Reference to job_function_uuid is missing")
-
         if not self.type_ref_uuid:
             raise ReferenceError("Reference to association_type_uuid is missing")
 
         self.payload = {
             "org_unit": {
                 "uuid": self.org_unit_uuid
-            },
-            "job_function": {
-                "uuid": self.job_function_uuid
             },
             "association_type": {
                 "uuid": self.type_ref_uuid
@@ -355,7 +346,6 @@ class AssociationType(MoType):
                     "uuid": self.address_type_uuid
                 }
             }
-
         return self._build_payload()
 
 
