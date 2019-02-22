@@ -33,7 +33,6 @@ facet_defaults = [
     "manager_address_type",
     "address_property",
     "engagement_job_function",
-    "association_job_function",
     "org_unit_type",
     "engagement_type",
     "association_type",
