@@ -311,7 +311,36 @@ class AposImport(object):
             {'id': 'Hemmelig',
              'titel': 'Hemmelig',
              'facet': 'visibility',
-             'scope': 'SECRET'}
+             'scope': 'SECRET'},
+            #{'id': 'Formand',
+            # 'titel': 'Formand',
+            # 'facet': 'association_type',
+            # 'scope': 'TEXT'}
+            #{'id': 'Leder',
+            # 'titel': 'Leder',
+            # 'facet': 'association_type',
+            # 'scope': 'TEXT'}
+            {'id': 'Teammedarbejder',
+             'titel': 'Teammedarbejder',
+             'facet': 'association_type',
+             'scope': 'TEXT'}
+            #{'id': 'Medarbejder',
+            # 'titel': 'Medarbejder',
+            # 'facet': 'association_type',
+            # 'scope': 'TEXT'},
+            #{'id': 'Næstformand',
+            # 'titel': 'Næstformand',
+            # 'facet': 'association_type',
+            # 'scope': 'TEXT'}
+            {'id': 'Projektleder',
+             'titel': 'Projektleder',
+             'facet': 'association_type',
+             'scope': 'TEXT'}
+            {'id': 'Projektgruppemedlem',
+             'titel': 'Projektgruppemedlem',
+             'facet': 'association_type',
+             'scope': 'TEXT'}
+
         ]
         
         for klasse in specific_klasser + standard_klasser:
