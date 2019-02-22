@@ -9,8 +9,8 @@ class IntegratioAbstractionTests(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         self.session = requests.Session()
-        self.mox_base = 'http://localhost:8080'
-        self.resource = '/klassifikation/facet'
+        self.mox_base = 'http://localhost:5000/'
+        self.resource = 'klassifikation/facet'
         self.uuids = ['00000000-0000-0000-0000-000000000001',
                       '00000000-0000-0000-0000-000000000002',
                       '00000000-0000-0000-0000-000000000003',

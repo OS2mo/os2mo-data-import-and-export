@@ -103,7 +103,7 @@ class CreateDummyOrg(object):
         self.importer.add_address_type(
             organisation_unit=ou_node.key,
             value=ou_node.address['dar-uuid'],
-            type_ref='AdressePost',
+            type_ref='AddressMailUnit',
             date_from=date_from
         )
 
@@ -282,7 +282,7 @@ if __name__ == '__main__':
                             system_name="Artificial import",
                             end_marker="STOP",
                             store_integration_data=True)
-    creator = CreateDummyOrg(importer, 825, 'Læsø Kommune', scale=2,
+    creator = CreateDummyOrg(importer, 825, 'Læsø Kommune', scale=1,
                              org_size=Size.Normal, extra_root=True)
 
     importer.import_all()

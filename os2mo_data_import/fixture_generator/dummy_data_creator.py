@@ -17,6 +17,10 @@ CLASSES = {
         'Skolepsykolog', 'Støttepædagog', 'Bogopsætter', 'Timelønnet lærer',
         'Pædagogmedhjælper', 'Teknisk Servicemedarb.', 'Lærer/Overlærer'
     ],
+    'association_job_function': [
+        'Formand', 'Leder', 'Medarbejder', 'Næstformand', 'Projektleder',
+        'Projektgruppemedlem', 'Teammedarbejder'
+    ],
     'org_unit_type': [
         'Afdeling', 'Institutionsafsnit', 'Institution', 'Fagligt center',
         'Direktør område'
@@ -36,6 +40,9 @@ CLASSES = {
     'role_type': [
         'Tillidsrepræsentant', 'Ergonomiambasadør', 'Ansvarlig for sommerfest'
     ],
+    'leave_type': [
+        'Barselsorlov', 'Forældreorlov', 'Orlov til pasning af syg pårørende'
+    ],
     'employee_address_type': [
         ('AdressePostEmployee', 'Postadresse', 'DAR'),
         ('PhoneEmployee', 'Telefon', 'PHONE'),
@@ -49,7 +56,7 @@ CLASSES = {
         ('WebManager', 'Webadresse', 'TEXT')
     ],
     'org_unit_address_type': [
-        ('AdressePost', 'Postadresse', 'DAR'),
+        ('AddressMailUnit', 'Postadresse', 'DAR'),
         ('AdressePostRetur', 'Returadresse', 'DAR'),
         ('AdresseHenvendelsessted', 'Henvendelsessted', 'DAR'),
         ('LocationUnit', 'Lokation', 'TEXT'),
