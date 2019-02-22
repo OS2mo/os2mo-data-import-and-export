@@ -4,7 +4,7 @@ import requests
 from anytree import Node
 from chardet.universaldetector import UniversalDetector
 
-BASE_URL = 'http://mora_dev_tools/service/'
+BASE_URL = 'http://localhost/service/'
 CACHE = {}
 
 
@@ -84,7 +84,7 @@ def _create_mo_ou(name, parent, org_type):
                'parent': {'uuid': parent},
                'validity': {'from': '2010-01-01',
                             'to': '2100-01-01'}}
-    url = 'http://mora_dev_tools/service/ou/create'
+    url = 'http://localhost/service/ou/create'
     response = requests.post(url, json=payload)
     uuid = response.json()
     return uuid
