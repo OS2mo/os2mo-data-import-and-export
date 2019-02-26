@@ -345,7 +345,7 @@ class AposImport(object):
              'titel': 'Afdelingskode',
              'facet': 'org_unit_address_type',
              'scope': 'TEXT'},
-            {'id': 'Formålskode',
+            {'id': 'Formaalskode',
              'titel': 'Formålskode',
              'facet': 'org_unit_address_type',
              'scope': 'TEXT'},
