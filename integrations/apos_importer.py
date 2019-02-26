@@ -39,7 +39,7 @@ def _format_time(gyldighed):
         to_time = datetime.strptime(gyldighed['@til'], '%d/%m/%Y')
         to_time = to_time.strftime('%Y-%m-%d')
 
-    if from_time == None and to_time == None:
+    if from_time is None and to_time is None:
         print(gyldighed)
         1/0
     return from_time, to_time
@@ -312,11 +312,11 @@ class AposImport(object):
              'titel': 'Hemmelig',
              'facet': 'visibility',
              'scope': 'SECRET'},
-            #{'id': 'Formand',
+            # {'id': 'Formand',
             # 'titel': 'Formand',
             # 'facet': 'association_type',
             # 'scope': 'TEXT'}
-            #{'id': 'Leder',
+            # {'id': 'Leder',
             # 'titel': 'Leder',
             # 'facet': 'association_type',
             # 'scope': 'TEXT'}
@@ -324,11 +324,11 @@ class AposImport(object):
              'titel': 'Teammedarbejder',
              'facet': 'association_type',
              'scope': 'TEXT'},
-            #{'id': 'Medarbejder',
+            # {'id': 'Medarbejder',
             # 'titel': 'Medarbejder',
             # 'facet': 'association_type',
             # 'scope': 'TEXT'},
-            #{'id': 'Næstformand',
+            # {'id': 'Næstformand',
             # 'titel': 'Næstformand',
             # 'facet': 'association_type',
             # 'scope': 'TEXT'}
@@ -339,10 +339,23 @@ class AposImport(object):
             {'id': 'Projektgruppemedlem',
              'titel': 'Projektgruppemedlem',
              'facet': 'association_type',
+             'scope': 'TEXT'},
+            # Last three possbily not general to all APOS imports
+            {'id': 'Afdelingskode',
+             'titel': 'Afdelingskode',
+             'facet': 'org_unit_address_type',
+             'scope': 'TEXT'},
+            {'id': 'Formålskode',
+             'titel': 'Formålskode',
+             'facet': 'org_unit_address_type',
+             'scope': 'TEXT'},
+            {'id': 'Skolekode',
+             'titel': 'Skolekode',
+             'facet': 'org_unit_address_type',
              'scope': 'TEXT'}
 
         ]
-        
+
         for klasse in specific_klasser + standard_klasser:
             self.importer.add_klasse(identifier=klasse['id'],
                                      title=klasse['titel'],
@@ -361,7 +374,14 @@ class AposImport(object):
         includes looking up address information """
         url = "app-organisation/GetUnitDetails?uuid={}"
         r = self._apos_lookup(url.format(apos_unit['@uuid']))
+
         details = r['enhed']
+
+        """ This might turn out to be specfic for Ballerup in the current
+        implementation. Once other imports also needs these values, we should
+        make a parameter list """
+
+        unit_id = int(apos_unit['@objectid'])
         if 'overordnet' in details:
             gyldighed = {'@fra': details['overordnet']['@fra'],
                          '@til': details['overordnet']['@til']
@@ -369,7 +389,6 @@ class AposImport(object):
             fra, til = _format_time(gyldighed)
         else:
             fra, til = _format_time(details['gyldighed'])
-        unit_id = int(apos_unit['@objectid'])
 
         # If enhedstype is not hard-coded, we take it from APOS
         if not enhedstype:
@@ -385,8 +404,26 @@ class AposImport(object):
             date_to=til,
             parent_ref=parent)
 
-        locations = self.read_locations(apos_unit)
+        if 'integrationAttributter' in details:
+            if details['integrationAttributter'] is not None:
+                attributter = details['integrationAttributter']['attribut']
+                if not isinstance(attributter, list):
+                    attributter = [attributter]
 
+                for attribut in attributter:
+                    if isinstance(attribut, str):
+                        continue
+                    if len(attribut['@vaerdi']) > 0:
+                        self.importer.add_address_type(
+                            organisation_unit=unit_id,
+                            type_ref=attribut['@navn'],
+                            value=attribut['@vaerdi'],
+                            date_from=fra)
+
+        # This is most likely the orgunit relation information
+        # print(details['tilknyttedeEnheder']))
+
+        locations = self.read_locations(apos_unit)
         for location in locations:
             if location['pnummer']:
                 try:
@@ -394,7 +431,6 @@ class AposImport(object):
                         organisation_unit=unit_id,
                         type_ref='p-nummer',
                         value=location['pnummer'],
-                        # date_from=GLOBAL_DATE)
                         date_from=fra)
                 except AssertionError:  # pnumber added multiple times
                     pass
@@ -437,7 +473,6 @@ class AposImport(object):
                                                         owner_ref=p,
                                                         type_id="engagement")
                     from_date = details[0].date_from
-                    job_function = details[0].job_function_ref
 
                     self.importer.add_association(
                         employee=p,
