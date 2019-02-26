@@ -87,17 +87,18 @@ class IntegrationDataTests(unittest.TestCase):
         counts['person_count'] = len(response.json()['results'][0])
         return counts
 
-    def _run_import_and_test_org_sanity(self, extra=0):
+    def _run_import_and_test_org_sanity(self, extra_unit=0, extra_employee=0,
+                                        extra_engagement=0):
         counts = self._count()
         self.importer.import_all()
         counts = self._count()
         test_values = [
             ('role_count', 5),
             ('association_count', 4),
-            ('engagement_count', 15),
-            ('unit_count', 9 + extra),
+            ('engagement_count', 15 + extra_engagement),
+            ('unit_count', 9 + extra_unit),
             ('manager_count', 5),
-            ('person_count', 20 + extra)
+            ('person_count', 20 + extra_employee)
         ]
         for key, value in test_values:
             with self.subTest(key=key, value=value):
@@ -135,8 +136,13 @@ class IntegrationDataTests(unittest.TestCase):
                                         use_cache=False)
         self.assertTrue(len(classes['data']['items']) == 18)
 
+    def test_014_test_engagement_from_date(self):
+        """ Write a test that verifies that engagements of a certain age exists """
+        self.assertTrue(True)
+
+        
     @freeze_time("2018-12-02")
-    def test_020_re_import(self):
+    def ttest_020_re_import(self):
         """ Run the import again. This should result in an organisation of
         the same size. We also at the same time move a single user between
         two units. The success of this move is checked in a later test."""
@@ -192,6 +198,10 @@ class IntegrationDataTests(unittest.TestCase):
         response = response.json()
         self.assertTrue(len(response['results'][0]) == 5)
 
+    def test_23_test_engagement_from_date(self):
+        """ Write a test that verifies that engagements of a certain age exists """
+        self.assertTrue(True)
+
     @freeze_time("2018-12-03")
     def test_030_add_forced_uuids(self):
         """ Add a unit, employees and classes with forced uuid, and re-import """
@@ -204,13 +214,57 @@ class IntegrationDataTests(unittest.TestCase):
             date_from=datetime.strftime(self.dummy_org.data.global_start_date,
                                         '%Y-%m-%d')
         )
+
+        self.importer.add_organisation_unit(
+            identifier='Test underenhed 1',
+            name='Test underenhed 1',
+            parent_ref='Test enhed',
+            type_ref='Afdeling',
+            uuid='00000000-0000-0000-0000-000000000011',
+            date_from=datetime.strftime(self.dummy_org.data.global_start_date,
+                                        '%Y-%m-%d')
+        )
+
+        self.importer.add_organisation_unit(
+            identifier='Test underenhed 2',
+            name='Test underenhed 2',
+            parent_ref='Test enhed',
+            type_ref='Afdeling',
+            uuid='00000000-0000-0000-0000-000000000021',
+            date_from=datetime.strftime(self.dummy_org.data.global_start_date,
+                                        '%Y-%m-%d')
+        )
+
         self.importer.add_employee(
             name='Test user',
             identifier='Test user',
             cpr_no='1111111118',
             uuid='00000000-0000-0000-0000-000000000002'
         )
-        self._run_import_and_test_org_sanity(extra=1)
+
+        self.importer.add_engagement(
+            employee='Test user',
+            organisation_unit='Test enhed',
+            job_function_ref='Udvikler',
+            engagement_type_ref="Ansat",
+            date_from='1990-01-23',
+            date_to='2022-07-16'
+        )
+
+        self.importer.add_engagement(
+            employee='Test user',
+            organisation_unit='Test underenhed 2',
+            job_function_ref='Ergoterapeut',
+            engagement_type_ref="Ansat",
+            date_from='1990-01-23',
+            date_to=None
+        )
+        
+        self._run_import_and_test_org_sanity(
+            extra_unit=3,
+            extra_employee=1,
+            extra_engagement=2
+        )
 
     @freeze_time("2018-12-03")
     def test_031_test_forced_uuid(self):
@@ -223,11 +277,141 @@ class IntegrationDataTests(unittest.TestCase):
         person = self.morah._mo_lookup('00000000-0000-0000-0000-000000000002',
                                        'e/{}/integration-data', use_cache=False)
 
-    # TODO!!! HERE WE NEED TO MOVE SOMEBODY TO CHECK RE-IMPORT WORKS AS EXPECTED
-    @freeze_time("2018-12-04")
-    def test_040_correct_initial_import(self):
-        """ Import and test that the org is as expected """
-        self._run_import_and_test_org_sanity(extra=1)
+
+    @freeze_time("2018-12-05")
+    def test_040_test_length_of_double_engagements(self):
+        """ Check change of double engagement, length of one should
+        be independent af change of the other """
+        new_importer = ImportHelper(create_defaults=True,
+                                    mox_base='http://localhost:5000',
+                                    mora_base='http://localhost:80',
+                                    system_name=self.system_name,
+                                    end_marker="STOP",
+                                    store_integration_data=True
+        )
+
+        new_importer.add_organisation_unit(
+            identifier='Test enhed',
+            name='Test enhed',
+            parent_ref=None,
+            type_ref="Afdeling",
+            uuid='00000000-0000-0000-0000-000000000001',
+            date_from='2018-12-05'
+        )
+
+        new_importer.add_organisation_unit(
+            identifier='Test underenhed 1',
+            name='Test underenhed 1',
+            parent_ref='Test enhed',
+            type_ref='Afdeling',
+            uuid='00000000-0000-0000-0000-000000000011',
+            date_from='2018-12-05'
+        )
+
+        new_importer.add_organisation_unit(
+            identifier='Test underenhed 2',
+            name='Test underenhed 2',
+            parent_ref='Test enhed',
+            type_ref='Afdeling',
+            uuid='00000000-0000-0000-0000-000000000021',
+            date_from=datetime.strftime(self.dummy_org.data.global_start_date,
+                                        '%Y-%m-%d')
+        )
+
+        new_importer.add_employee(
+            name='Test user',
+            identifier='Test user',
+            cpr_no='1111111118',
+            uuid='00000000-0000-0000-0000-000000000002'
+        )
+
+        new_importer.add_engagement(
+            employee='Test user',
+            organisation_unit='Test enhed',
+            job_function_ref='Udvikler',
+            engagement_type_ref="Ansat",
+            date_from='1990-01-23',
+            date_to='2019-05-01'
+        )
+
+        new_importer.add_engagement(
+            employee='Test user',
+            organisation_unit='Test underenhed 2',
+            job_function_ref='Ergoterapeut',
+            engagement_type_ref="Ansat",
+            date_from='1990-01-23',
+            date_to=None
+        )
+        new_importer.import_all()        
+        
+    @freeze_time("2018-12-07")
+    def test_050_correct_initial_import(self):
+        """ Check behaviour when units are moved. Check tha history is not
+        wiped """
+        new_importer = ImportHelper(create_defaults=True,
+                                    mox_base='http://localhost:5000',
+                                    mora_base='http://localhost:80',
+                                    system_name=self.system_name,
+                                    end_marker="STOP",
+                                    store_integration_data=True
+        )
+
+        dummy_org = CreateDummyOrg(new_importer, 825, 'Læsø Kommune',
+                                   scale=1, org_size=Size.Small,
+                                   extra_root=False)
+        
+        new_importer.add_organisation_unit(
+            identifier='Test enhed',
+            name='Test enhed',
+            parent_ref=None,
+            type_ref="Afdeling",
+            uuid='00000000-0000-0000-0000-000000000001',
+            date_from='2018-12-05'
+        )
+
+        new_importer.add_organisation_unit(
+            identifier='Test underenhed 1',
+            name='Test underenhed 1',
+            parent_ref='Test enhed',
+            type_ref='Afdeling',
+            uuid='00000000-0000-0000-0000-000000000011',
+            date_from='2018-12-05'
+        )
+
+        new_importer.add_organisation_unit(
+            identifier='Test underenhed 2',
+            name='Test underenhed 2',
+            parent_ref='Test underenhed 1',
+            type_ref='Afdeling',
+            uuid='00000000-0000-0000-0000-000000000021',
+            date_from='2018-12-05'
+        )
+            
+        new_importer.add_employee(
+            name='Test user',
+            identifier='Test user',
+            cpr_no='1111111118',
+            uuid='00000000-0000-0000-0000-000000000002'
+        )
+
+        new_importer.add_engagement(
+            employee='Test user',
+            organisation_unit='Test enhed',
+            job_function_ref='Udvikler',
+            engagement_type_ref="Ansat",
+            date_from='1990-01-23',
+            date_to='2022-07-16'
+        )
+
+        new_importer.add_engagement(
+            employee='Test user',
+            organisation_unit='Test underenhed 2',
+            job_function_ref='Ergoterapeut',
+            engagement_type_ref="Ansat",
+            date_from='1990-01-23',
+            date_to=None
+        )
+        new_importer.import_all()        
 
 
 if __name__ == '__main__':

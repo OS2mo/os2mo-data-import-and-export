@@ -436,7 +436,7 @@ class ImportUtility(object):
         data['association'] = self._get_detail(uuid, 'association')
 
         if details:
-            complete_additional_payload = []
+            # complete_additional_payload = []
             additional_payload = []
             for detail in details:
                 if not detail.date_from:
@@ -456,58 +456,33 @@ class ImportUtility(object):
                     if not found_hit:
                         re_import = 'YES'
 
-                new_item_payload = copy.deepcopy(detail_payload)
+                #  new_item_payload = copy.deepcopy(detail_payload)
 
-                valid_from = new_item_payload['validity']['from']
-                if datetime.strptime(valid_from, '%Y-%m-%d') < datetime.now():
-                    valid_from = datetime.now().strftime('%Y-%m-%d')  # today
-                valid_to = new_item_payload['validity']['to']
-
-                """
-                if valid_to:
-                    future = datetime.strptime(valid_to, '%Y-%m-%d') > datetime.now()
+                # valid_from = new_item_payload['validity']['from']
+                # valid_to = new_item_payload['validity']['to']
+                valid_from = detail_payload['validity']['from']
+                valid_to = detail_payload['validity']['to']
+                now = datetime.now()
+                py_from = datetime.strptime(valid_from, '%Y-%m-%d')
+                if valid_to is not None:
+                    py_to = datetime.strptime(valid_to, '%Y-%m-%d')
                 else:
-                    future = False
-
-                if not valid_to or future:
-                    new_item_payload['validity']['from'] = valid_from
-                    # new_item_payload['validity']['from'] = today
-                    complete_additional_payload.append(new_item_payload)
-                    # Clean this up. We do not need a long and a short list
-                    # of payloads, we need to know if something changes and thus
-                    # if we need to terminate and re-hire the employee
-                    # if not found_hit. This awaits fixing the current issues in MO.
-                additional_payload.append(detail_payload)
-                """
-                complete_additional_payload.append(new_item_payload)
+                    py_to = datetime.strptime('2200-01-01', '%Y-%m-%d')
+                #if datetime.strptime(valid_from, '%Y-%m-%d') < datetime.now():
+                if re_import == 'YES' and py_from < now and py_to > now:
+                    valid_from = datetime.now().strftime('%Y-%m-%d')  # today
+                    detail_payload['validity']['from'] = valid_from
+                # print(detail_payload)
+                # 1/0
+                # complete_additional_payload.append(new_item_payload)
                 additional_payload.append(detail_payload)
 
             print('Re-import: {}'.format(re_import))
             # Hvad sker der, hvis man fyrer en person og ansætter igen samme dag...?
 
-            """
-            if uuid in self.existing_uuids and len(additional_payload) > 0:
-                print('Terminate: {}'.format(uuid))
-                self._terminate_employee(uuid)
-
-                self.insert_mora_data(
-                    resource="service/details/create",
-                    data=complete_additional_payload
-                )
-            else:
-                self.insert_mora_data(
-                    resource="service/details/create",
-                    data=additional_payload
-                )
-            """
             if re_import == 'YES':
                 print('Terminate: {}'.format(uuid))
                 self._terminate_employee(uuid)
-
-                #self.insert_mora_data(
-                #    resource="service/details/create",
-                #    data=complete_additional_payload
-                #)
                 self.insert_mora_data(
                     resource="service/details/create",
                     data=additional_payload
