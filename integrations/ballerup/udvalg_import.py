@@ -154,7 +154,6 @@ def create_udvalg(nodes, file_name):
         uuid = _search_mo_name(row['Fornavn'] + ' ' + row['Efternavn'],
                                row['BrugerID'])
         try:
-            # from_date = datetime.datetime.strptime(row['StartDato'], '%d-%b-%y')
             from_string = datetime.datetime.strftime(
                 datetime.datetime.strptime(row['StartDato'], '%d-%b-%y'),
                 '%Y-%m-%d'
