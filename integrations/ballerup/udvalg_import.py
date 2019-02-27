@@ -78,7 +78,7 @@ def _create_mo_ou(name, parent, org_type):
     ou_type = _find_class(find_facet='org_unit_type', find_class=org_type)
     if parent is 'root':
         parent = ROOT
-    payload = {'name': name,
+    payload = {'name': '{} {}'.format(org_type, name),
                'brugervendtnoegle': name,
                'org_unit_type': {'uuid': ou_type},
                'parent': {'uuid': parent},
