@@ -1,6 +1,7 @@
 import csv
 import pickle
 import requests
+import datetime
 from anytree import Node
 from chardet.universaldetector import UniversalDetector
 
@@ -82,40 +83,52 @@ def _create_mo_ou(name, parent, org_type):
                'brugervendtnoegle': name,
                'org_unit_type': {'uuid': ou_type},
                'parent': {'uuid': parent},
-               'validity': {'from': '2010-01-01',
-                            'to': '2100-01-01'}}
-    url = 'http://localhost/service/ou/create'
+               'validity': {'from': '1900-01-01',
+                            'to':  None}}
+    url = BASE_URL + 'ou/create'
     response = requests.post(url, json=payload)
     uuid = response.json()
     return uuid
 
 
-def _create_mo_association(user, org_unit, association_type):
-    # Chceck org_unit_type, might need a new facet
+def _create_mo_association(user, org_unit, association_type, from_string):
     response = _mo_lookup(user, details='engagement')
     job_function = response[0]['job_function']['uuid']
-    payload = [{'type': 'association',
-                'org_unit': {'uuid': org_unit},
-                'person': {'uuid': user},
-                'association_type': {'uuid': association_type},
-                'job_function': {'uuid': job_function},
-                'validity': {'from': '2010-01-01', 'to': '2100-01-01'}}]
+    payload = [
+        {
+            'type': 'association',
+            'org_unit': {'uuid': org_unit},
+            'person': {'uuid': user},
+            'association_type': {'uuid': association_type},
+            'job_function': {'uuid': job_function},
+            'validity': {
+                'from': from_string,
+                'to': None
+            }
+        }
+    ]
     url = BASE_URL + 'details/create'
     response = requests.post(url, json=payload)
     uuid = response.json()
     return uuid
 
 
-def _create_mo_role(user, org_unit, role_type):
-    # Chceck org_unit_type, might need a new facet
+def _create_mo_role(user, org_unit, role_type, from_string):
     response = _mo_lookup(user, details='engagement')
     job_function = response[0]['job_function']['uuid']
-    payload = [{'type': 'role',
-                'org_unit': {'uuid': org_unit},
-                'person': {'uuid': user},
-                'role_type': {'uuid': role_type},
-                'job_function': {'uuid': job_function},
-                'validity': {'from': '2010-01-01', 'to': '2100-01-01'}}]
+    payload = [
+        {
+            'type': 'role',
+            'org_unit': {'uuid': org_unit},
+            'person': {'uuid': user},
+            'role_type': {'uuid': role_type},
+            'job_function': {'uuid': job_function},
+            'validity': {
+                'from': from_string,
+                'to': None
+            }
+        }
+    ]
     url = BASE_URL + 'details/create'
     response = requests.post(url, json=payload)
     uuid = response.json()
@@ -140,14 +153,26 @@ def create_udvalg(nodes, file_name):
         org_id = int(row['Id'])
         uuid = _search_mo_name(row['Fornavn'] + ' ' + row['Efternavn'],
                                row['BrugerID'])
+        try:
+            # from_date = datetime.datetime.strptime(row['StartDato'], '%d-%b-%y')
+            from_string = datetime.datetime.strftime(
+                datetime.datetime.strptime(row['StartDato'], '%d-%b-%y'),
+                '%Y-%m-%d'
+            )
+        except ValueError:
+            from_string = '1900-01-01'
+
         if uuid:
             nodes[uuid] = Node(row['Fornavn'] + ' ' + row['Efternavn'],
                                uuid=uuid,
                                org_type=row['OrgType'],
                                parent=nodes[org_id])
-            _create_mo_association(uuid, nodes[org_id].uuid, association_type)
+            _create_mo_association(uuid,
+                                   nodes[org_id].uuid,
+                                   association_type,
+                                   from_string)
             if role_type:
-                _create_mo_role(uuid, nodes[org_id].uuid, role_type)
+                _create_mo_role(uuid, nodes[org_id].uuid, role_type, from_string)
 
         else:
             print('Error: {} {}, bvn: {}'.format(row['Fornavn'],
