@@ -22,6 +22,7 @@ setup(
     install_requires=[
         "certifi",
         "chardet",
+        "click",
         "idna",
         "requests",
         "urllib3",
