@@ -237,16 +237,11 @@ class CreateDummyOrg(object):
                 )
 
             if user['association'] is not None:
-                for detail in self.importer.employee_details[owner_ref]:
-                    if 'job_function_ref' in detail.__dict__:
-                        job_function = detail.__dict__['job_function_ref']
-
                 association = user['association']
 
                 self.importer.add_association(
                     employee=owner_ref,
                     organisation_unit=str(association['unit']),
-                    job_function_ref=job_function,
                     association_type_ref=association['type'],
                     date_from=date_from,
                     date_to=date_to

@@ -61,7 +61,7 @@ class DummyTest(unittest.TestCase):
         for node in PreOrderIter(self.ddc.nodes['root']):
             if node.type == 'user':
                 number_of_users += 1
-        self.assertEqual(number_of_users, 108)
+        self.assertEqual(number_of_users, 106)
 
     def test_it_systems(self):
         """ Test that all it-systems are given to users """
