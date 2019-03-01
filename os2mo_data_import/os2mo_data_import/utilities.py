@@ -310,9 +310,9 @@ class ImportUtility(object):
         if not isinstance(organisation_unit, OrganisationUnitType):
             raise TypeError("Not of type OrganisationUnitType")
 
-        if reference in self.inserted_org_unit_map:
-            print("The organisation unit has already been inserted")
-            return False
+        #if reference in self.inserted_org_unit_map:
+        #    print("The organisation unit has already been inserted")
+        #    return False
 
         resource = 'organisation/organisationenhed'
 
@@ -332,33 +332,48 @@ class ImportUtility(object):
         organisation_unit.type_ref_uuid = type_ref_uuid
 
         payload = organisation_unit.build()
-
-        integration_data = self._integration_data(
+        payload = self._integration_data(
             resource=resource,
             reference=reference,
             payload=payload,
             encode_integration=False
         )
 
+        if 'uuid' in payload:
+            if payload['uuid'] in self.existing_uuids:
+                resource = 'service/details/edit'
+                payload_keys = list(payload.keys())
+                payload['data'] = {}
+                for key in payload_keys:
+                    payload['data'][key] = payload[key]
+                    del payload[key]
+                payload['type'] = 'org_unit'
+                print(payload)
+            else:
+                resource = 'service/ou/create'
+        else:
+            resource = 'service/ou/create'
+
         uuid = self.insert_mora_data(
-            resource="service/ou/create",
-            data=integration_data
+            resource=resource,
+            data=payload
         )
 
-        if 'uuid' in integration_data:
-            assert (uuid == integration_data['uuid'])
+        if 'uuid' in payload:
+            assert (uuid == payload['uuid'])
         if not uuid:
             raise ConnectionError("Something went wrong")
 
         # Add to the inserted map
         self.inserted_org_unit_map[reference] = uuid
 
-        # Details
+        data = {}
+        data['address'] = self._get_detail(uuid, 'address', object_type='ou')
+
         # Build details (if any)
         details_payload = []
 
         for detail in details:
-
             detail.org_unit_uuid = uuid
 
             date_from = detail.date_from
@@ -373,6 +388,13 @@ class ImportUtility(object):
             if not build_detail:
                 continue
 
+            if data[build_detail['type']]:
+                found_hit = self._payload_compare(build_detail, data)
+                print(found_hit)
+                #if not found_hit:
+                #    re_import = 'YES'
+
+            
             details_payload.append(build_detail)
 
         self.insert_mora_data(
@@ -604,7 +626,7 @@ class ImportUtility(object):
                     assert(payload['uuid'] == uuid)
                 payload['uuid'] = uuid
                 self.existing_uuids.append(uuid)
-
+            
             payload['integration_data'] = self.ia.integration_data_payload(
                 resource,
                 reference,
@@ -683,7 +705,8 @@ class ImportUtility(object):
             json=data,
             params=params
         )
-
+        print(service_url)
+        print(response.text)
         response_data = response.json()
 
         if response.status_code not in (200, 201):
@@ -704,16 +727,16 @@ class ImportUtility(object):
         # Example: "0fd6a479-8569-42dd-9614-4aacb611306e"
         return response_data
 
-    def _get_detail(self, uuid, field_type):
-        """ Get information from /detail for an employee
-        :param uuid: uuid for the employee
+    def _get_detail(self, uuid, field_type, object_type='e'):
+        """ Get information from /detail for an employee or unit
+        :param uuid: uuid for the object
         :param field_type: detail field type
         :return: dict with the relevant information
         """
         all_data = []
         for validity in ['past', 'present', 'future']:
-            service = urljoin(self.mora_base, 'service/e/{}/details/{}?validity={}')
-            url = service.format(uuid, field_type, validity)
+            service = urljoin(self.mora_base, 'service/{}/{}/details/{}?validity={}')
+            url = service.format(object_type, uuid, field_type, validity)
             data = self.session.get(url)
             data = data.json()
             all_data += data

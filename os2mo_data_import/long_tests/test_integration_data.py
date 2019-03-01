@@ -183,7 +183,7 @@ class IntegrationDataTests(unittest.TestCase):
         self._run_import_and_test_org_sanity()
 
     @freeze_time("2018-12-02")
-    def test_021_klasse_re_import(self):
+    def ttest_021_klasse_re_import(self):
         """ No extra classes should be imprted after the second import """
         org = self.morah.read_organisation()
         classes = self.morah._mo_lookup(org, 'o/{}/f/engagement_job_function/',
@@ -191,7 +191,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(len(classes['data']['items']) == 18)
 
     @freeze_time("2018-12-02")
-    def test_022_it_system_re_import(self):
+    def ttest_022_it_system_re_import(self):
         """ No extra itsystems should be imprted after the second import """
         service = urljoin(self.mox_base, '/organisation/itsystem?bvn=%')
         response = requests.get(service)
@@ -267,19 +267,19 @@ class IntegrationDataTests(unittest.TestCase):
         )
 
     @freeze_time("2018-12-03")
-    def test_031_test_forced_uuid(self):
+    def ttest_031_test_forced_uuid(self):
         unit = self.morah._mo_lookup('00000000-0000-0000-0000-000000000001',
                                      'ou/{}/integration-data', use_cache=False)
         self.assertTrue('name' in unit)
 
     @freeze_time("2018-12-03")
-    def test_032_test_forced_employee_uuid(self):
+    def ttest_032_test_forced_employee_uuid(self):
         person = self.morah._mo_lookup('00000000-0000-0000-0000-000000000002',
                                        'e/{}/integration-data', use_cache=False)
 
 
     @freeze_time("2018-12-05")
-    def test_040_test_length_of_double_engagements(self):
+    def ttest_040_test_length_of_double_engagements(self):
         """ Check change of double engagement, length of one should
         be independent af change of the other """
         new_importer = ImportHelper(create_defaults=True,
@@ -289,6 +289,10 @@ class IntegrationDataTests(unittest.TestCase):
                                     end_marker="STOP",
                                     store_integration_data=True
         )
+
+        dummy_org = CreateDummyOrg(new_importer, 825, 'Ny Læsø Kommune',
+                                   scale=1, org_size=Size.Small,
+                                   extra_root=False)
 
         new_importer.add_organisation_unit(
             identifier='Test enhed',
@@ -345,7 +349,7 @@ class IntegrationDataTests(unittest.TestCase):
         new_importer.import_all()        
         
     @freeze_time("2018-12-07")
-    def test_050_correct_initial_import(self):
+    def ttest_050_correct_initial_import(self):
         """ Check behaviour when units are moved. Check tha history is not
         wiped """
         new_importer = ImportHelper(create_defaults=True,
