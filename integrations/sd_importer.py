@@ -6,10 +6,22 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+import os
 import pickle
+import hashlib
 import requests
+import datetime
 import xmltodict
 from anytree import Node
+
+
+# ORIGIN FOR TESTS WIH ACTUAL API
+GLOBAL_GET_DATE = datetime.datetime(2019, 2, 15, 0, 0)
+INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
+SD_USER = os.environ.get('SD_USER', None)
+SD_PASSWORD = os.environ.get('SD_PASSWORD', None)
+if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
+    raise Exception('Credentials missing')
 
 
 def _dawa_request(address, adgangsadresse=False,
@@ -49,6 +61,8 @@ def _dawa_request(address, adgangsadresse=False,
 class SdImport(object):
     def __init__(self, importer, org_name, municipality_code,
                  forced_uuids={}):
+        self.base_url = 'https://service.sd.dk/sdws/'
+
         self.double_employment = []
         self.address_errors = {}
 
@@ -102,18 +116,50 @@ class SdImport(object):
         self._add_klasse('Intern', 'Må vises internt', 'visibility', 'INTERNAL')
         self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
 
-    def _sd_lookup(self, filename):
-        with open(filename, 'r') as f:
-            data = f.read()
-        xml_response = xmltodict.parse(data)
-        outer_key = list(xml_response.keys())[0]
-        return xml_response[outer_key]
+    def _sd_lookup(self, url, params={}):
+        full_url = self.base_url + url
+
+        payload = {
+            'InstitutionIdentifier': INSTITUTION_IDENTIFIER,
+        }
+        payload.update(params)
+        m = hashlib.sha256()
+        m.update(str(payload).encode())
+        m.update(full_url.encode())
+        lookup_id = m.hexdigest()
+
+        try:
+            with open(lookup_id + '.p', 'rb') as f:
+                response = pickle.load(f)
+            print('CACHED')
+        except FileNotFoundError:
+            response = requests.get(
+                full_url,
+                params=payload,
+                auth=(SD_USER, SD_PASSWORD)
+            )
+            with open(lookup_id + '.p', 'wb') as f:
+                pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
+
+        xml_response = xmltodict.parse(response.text)[url]
+        return xml_response
 
     def _read_department_info(self):
         """ Load all deparment details and store for later user """
         department_info = {}
 
-        departments = self._sd_lookup('GetDepartment20111201.xml')
+        params = {
+            'ActivationDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
+            'DeactivationDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
+            'ContactInformationIndicator': 'true',
+            'DepartmentNameIndicator': 'true',
+            'PostalAddressIndicator': 'true',
+            'ProductionUnitIndicator': 'true',
+            'UUIDIndicator': 'true',
+            'EmploymentDepartmentIndicator': 'false'
+        }
+        departments = self._sd_lookup('GetDepartment20111201', params)
+
         for department in departments['Department']:
             uuid = department['DepartmentUUIDIdentifier']
             department_info[uuid] = department
@@ -270,7 +316,15 @@ class SdImport(object):
 
     def add_people(self):
         """ Load all person details and store for later user """
-        people = self._sd_lookup('GetPerson20111201.xml')
+        params = {
+            'EffectiveDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
+            'StatusActiveIndicator': 'true',
+            'StatusPassiveIndicator': 'false',
+            'ContactInformationIndicator': 'false',
+            'PostalAddressIndicator': 'false'
+        }
+        people = self._sd_lookup('GetPerson20111201', params)
+
         for person in people['Person']:
             cpr = person['PersonCivilRegistrationIdentifier']
             name = (person['PersonGivenName'] + ' ' +
@@ -297,15 +351,33 @@ class SdImport(object):
                 date_from='1900-01-01',
                 date_to=None,
                 parent_ref=None)
+        params = {
+            'ActivationDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
+            'DeactivationDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
+            'UUIDIndicator': 'true'
+        }
+        organisation = self._sd_lookup('GetOrganization20111201', params)
 
-        organisation = self._sd_lookup('GetOrganization20111201.xml')
         departments = organisation['Organization']['DepartmentReference']
         for department in departments:
             self._add_sd_department(department)
         self.nodes = self._create_org_tree_structure()
 
     def create_employees(self):
-        persons = self._sd_lookup('GetEmployment20111201.xml')
+        params = {
+            'EffectiveDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
+            'StatusActiveIndicator': 'true',
+            'DepartmentIndicator': 'true',
+            'EmploymentStatusIndicator': 'true',
+            'ProfessionIndicator': 'true',
+            'WorkingTimeIndicator': 'true',
+            'UUIDIndicator': 'true',
+            'StatusPassiveIndicator': 'false',
+            'SalaryAgreementIndicator': 'false',
+            'SalaryCodeGroupIndicator': 'false'
+        }
+        persons = self._sd_lookup('GetEmployment20111201', params)
+
         for person in persons['Person']:
             cpr = person['PersonCivilRegistrationIdentifier']
             employments = person['Employment']
@@ -352,7 +424,6 @@ class SdImport(object):
                 job_func_ref = self._add_klasse(job_func,
                                                 job_func,
                                                 'engagement_job_function')
-
                 emp_dep = employment['EmploymentDepartment']
                 unit = emp_dep['DepartmentUUIDIdentifier']
 
