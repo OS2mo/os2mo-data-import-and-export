@@ -3,15 +3,9 @@ Dummy data creator
 
 This application will generate tree structure containing a mock-up of a Danish
 municipality. The organisation is randomized but modelled to be somewhat realistic.
-The model is provided with a municipality code and this information is used to provided addresses and also to create fictional schools and kindergartens based on the postal
-areas in the municipality.
-
-Installation
-============
-To import the created organisation into OS2MO, the import code from the same repo
-will need to be in the Python-path:
-``export PYTHONPATH=
-$PYTHONPATH:~/os2mo-data-import-and-export/tooling/os2mo_data_import``
+The model is provided with a municipality code and this information is used to
+provided addresses and also to create fictional schools and kindergartens based on the
+postal areas in the municipality.
 
 Classification
 ==============
@@ -47,49 +41,47 @@ The two main functions ``create_org_func_tree`` and ``add_users_to_tree`` both t
 arguments that will produce a very large but much less realistic, dataset. The main
 purpose of this is to create datasets that can be used for performance tests.
 
-Specifically, if ``create_org_func_tree`` is call with ``too_many_units`` set to
-``True``, the structure will contain 25 copies of each school.
+Specifically, if ``create_org_func_tree`` is call with ``org_size`` set to
+``Size.Large``, the structure will contain 25 copies of each school.
 If ``add_users_to_tree`` is called with ``multiple_employments`` set to ``True``,
-each employee will have a large number of engagements, typically both and in the past
+each employee will have a large number of engagements, typically both in the past
 and in the future, and for most employees also in the present time.
 
 Data structure
 ==============
 The data is stored in an ``AnyTree`` data-structure. The tree will currently always
-have exactly one root (named ``root``), employees will always be leafs in the tree,
-some OUs might possibly have no employees. Additionally, all nodes have a type that
-can be either ``ou`` or ``user``.
+have either one root (default name ``root``), or two roots, employees will always be
+leafs in the tree, some OUs might possibly have no employees in which case a unit
+is a leaf. All nodes have a type that can be either ``ou`` or ``user``.
 
 The data is read by traversing the tree. The ``manager`` field contains a list of
 responsibilities if the person is a manager, otherwise an empty list.
 
 .. code-block:: python
 
-if node.type == 'ou':
-    print(node.name)  # Name of the ou
-    print(node.adresse['dar-uuid'])
-    if node.parent:
-        print(node.parent.key)  # Key for parent unit, root will have no parent
+    if node.type == 'ou':
+	print(node.name)  # Name of the ou
+	print(node.adresse['dar-uuid'])
+	if node.parent:
+	    print(node.parent.key)  # Key for parent unit, root will have no parent
 
-        if node.type == 'user':
-            print(node.name)  # Name of the employee
-            print(node.parent.key) # Key to the users unit
-            user = node.user  # All unser information is here
-            print(user[0]['cpr']) # user_key and cpr are identical in all elements
-            print(user[0]['brugervendtnoegle'])
-            for engagement in user: # An element for each engagement
-                print(engagement['adresse']['dar-uuid'])
-                print(engagement['email'])
-                print(engagement['telefon'])
-                print('engagement['role']))
-                print(engagement['association'])
-                print(engagement['manager'])
-                print('From: {}. To: {}'.format(engagement['fra'],
-                                                engagement['til']))
+	    if node.type == 'user':
+		print(node.name)  # Name of the employee
+		print(node.parent.key) # Key to the users unit
+		user = node.user  # All unser information is here
+		print(user[0]['cpr']) # user_key and cpr are identical in all elements
+		print(user[0]['brugervendtnoegle'])
+		for engagement in user: # An element for each engagement
+		    print(engagement['adresse']['dar-uuid'])
+		    print(engagement['email'])
+		    print(engagement['telefon'])
+		    print('engagement['role']))
+		    print(engagement['association'])
+		    print(engagement['manager'])
+		    print('From: {}. To: {}'.format(engagement['fra'],
+						    engagement['til']))
 
 Importing into MO
 =================
 If the user should want to import the structure into MO, this can be done with the
-script ``populate_mo.py``. Unfortunately, this script does not currently take
-parameters from the command line, the user must manually set the parameters in
-the ``__main__`` part of the code.
+script ``populate_mo.py``.
