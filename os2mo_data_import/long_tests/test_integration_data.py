@@ -142,48 +142,16 @@ class IntegrationDataTests(unittest.TestCase):
 
         
     @freeze_time("2018-12-02")
-    def ttest_020_re_import(self):
-        """ Run the import again. This should result in an organisation of
-        the same size. We also at the same time move a single user between
-        two units. The success of this move is checked in a later test."""
-
-        # TODO: We need to check that we can change the name of a person
-
-        # TODO: This needs to work:
+    def test_020_re_import(self):
         """
-        new_uuid = self._find_top_unit()
-        print(new_uuid)
-        karen = self.dummy_org.org.Employee.storage_map['KarenN']
-        karen['optional_data'] = [
-            [('type', 'engagement'),
-             ('org_unit', new_uuid),
-             ('job_function', 'Udviklingskonsulent'),
-             ('engagement_type', 'Ansat'),
-             ('validity', {'to': None, 'from': '1997-01-16'})],
-            [('type', 'address'),
-             ('address_type', 'AdressePost'),
-             ('validity', {'to': None, 'from': '1997-01-16'}),
-             ('uuid', '919eb449-41e0-4290-b3c7-98cb83a652f9')],
-            [('type', 'address'), ('address_type', 'Telefon'),
-             ('validity', {'to': None, 'from': '1997-01-16'}),
-             ('value', '46571200')],
-            [('type', 'address'),
-             ('address_type', 'Email'),
-             ('validity', {'to': None, 'from': '1997-01-16'}),
-             ('value', 'karenn@laeso.dk ')],
-            [('type', 'it'), ('user_key', 'KarenN'),
-             ('itsystem', 'Office 365'),
-             ('validity', {'to': None, 'from': '1997-01-16'})],
-            [('type', 'it'), ('user_key', 'KarenN'),
-             ('itsystem', 'Active Directory'),
-             ('validity', {'to': None, 'from': '1997-01-16'})]
-        ]
-        self.dummy_org.org.Employee.storage_map['KarenN'] = karen
+        Run the import again. This should result in an organisation of the same size.
+        We also at the same time move a single user between two units. The success of
+        this move is checked in a later test.
         """
         self._run_import_and_test_org_sanity()
 
     @freeze_time("2018-12-02")
-    def ttest_021_klasse_re_import(self):
+    def test_021_klasse_re_import(self):
         """ No extra classes should be imprted after the second import """
         org = self.morah.read_organisation()
         classes = self.morah._mo_lookup(org, 'o/{}/f/engagement_job_function/',
@@ -191,7 +159,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(len(classes['data']['items']) == 18)
 
     @freeze_time("2018-12-02")
-    def ttest_022_it_system_re_import(self):
+    def test_022_it_system_re_import(self):
         """ No extra itsystems should be imprted after the second import """
         service = urljoin(self.mox_base, '/organisation/itsystem?bvn=%')
         response = requests.get(service)
@@ -200,6 +168,7 @@ class IntegrationDataTests(unittest.TestCase):
 
     def test_23_test_engagement_from_date(self):
         """ Write a test that verifies that engagements of a certain age exists """
+        # TODO
         self.assertTrue(True)
 
     @freeze_time("2018-12-03")
@@ -267,21 +236,23 @@ class IntegrationDataTests(unittest.TestCase):
         )
 
     @freeze_time("2018-12-03")
-    def ttest_031_test_forced_uuid(self):
+    def test_031_test_forced_uuid(self):
         unit = self.morah._mo_lookup('00000000-0000-0000-0000-000000000001',
                                      'ou/{}/integration-data', use_cache=False)
         self.assertTrue('name' in unit)
 
     @freeze_time("2018-12-03")
-    def ttest_032_test_forced_employee_uuid(self):
+    def test_032_test_forced_employee_uuid(self):
         person = self.morah._mo_lookup('00000000-0000-0000-0000-000000000002',
                                        'e/{}/integration-data', use_cache=False)
 
 
     @freeze_time("2018-12-05")
-    def ttest_040_test_length_of_double_engagements(self):
-        """ Check change of double engagement, length of one should
-        be independent af change of the other """
+    def test_040_test_length_of_double_engagements(self):
+        """
+        Check change of double engagement, length of one should be independent of
+        change of the other
+        """
         new_importer = ImportHelper(create_defaults=True,
                                     mox_base='http://localhost:5000',
                                     mora_base='http://localhost:80',
@@ -349,9 +320,10 @@ class IntegrationDataTests(unittest.TestCase):
         new_importer.import_all()        
         
     @freeze_time("2018-12-07")
-    def ttest_050_correct_initial_import(self):
-        """ Check behaviour when units are moved. Check tha history is not
-        wiped """
+    def test_050_correct_initial_import(self):
+        """
+        Check behaviour when units are moved. Check that history is not wiped.
+        """
         new_importer = ImportHelper(create_defaults=True,
                                     mox_base='http://localhost:5000',
                                     mora_base='http://localhost:80',
