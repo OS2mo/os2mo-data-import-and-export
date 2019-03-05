@@ -1,3 +1,4 @@
+import sys
 from fixture_generator import dummy_data_creator
 from datetime import datetime
 from anytree import PreOrderIter
@@ -271,13 +272,66 @@ class CreateDummyOrg(object):
 
 
 if __name__ == '__main__':
-    importer = ImportHelper(create_defaults=True,
-                            mox_base='http://localhost:5000',
-                            mora_base='http://localhost:80',
-                            system_name="Artificial import",
-                            end_marker="STOP",
-                            store_integration_data=True)
-    creator = CreateDummyOrg(importer, 825, 'Læsø Kommune', scale=1,
-                             org_size=Size.Normal, extra_root=True)
+    if len(sys.argv) == 3:
+        municipality_number = int(sys.argv[1])
+        municipality_name = sys.argv[2]
+        scale = 4
+        mox_base = 'http://localhost:5000'
+        mora_base = 'http://localhost:80'
+        org_size = Size.Normal
+        extra_root = True
 
-    importer.import_all()
+    elif len(sys.argv) == 8:
+        municipality_number = sys.argv[1]
+        municipality_name = sys.argv[2]
+        scale = int(sys.argv[3])
+        org_size_param = sys.argv[4]
+        if org_size_param.lower() == 'small':
+            org_size = Size.Small
+        elif org_size_param.lower() == 'normal':
+            org_size = Size.Normal
+        elif org_size_param.lower() == 'large':
+            org_size = Size.Large
+        else:
+            print('Invalid org size')
+            exit()
+        extra_root = sys.argv[5] == 'True'
+        mox_base = sys.argv[6]
+        mora_base = sys.argv[7]
+    else:
+        print(
+            """
+            This tools needs either 2 or 7 arguments:
+            First two arguments
+            * Municipality number.
+            * Municipality name.
+
+            Five further arguments (either all or none of these should be supplied):
+            * Scale: Scales the number of employees (default 4).
+            * Org size: Small, Normal, Large. If large, multiple employmens will be
+            made for each employee.  If small, only very few units will be created.
+            * Extra root: Add an extra root unit (default True).
+            * mox_base: Default http://localhost:5000
+            * mora_base: Default http://localhost:80
+
+            Example:
+            python3 populate_mo.py 825 "Læsø Kommune" 2 Small True
+            http://localhost:5000 http://localhost:80
+            """
+        )
+        exit()
+
+    importer = ImportHelper(create_defaults=True,
+                            mox_base=mox_base,
+                            mora_base=mora_base,
+                            system_name="Artificial import",
+                            end_marker="STOP_DUMMY",
+                            store_integration_data=True)
+    creator = CreateDummyOrg(importer,
+                             municipality_code=municipality_number,
+                             name=municipality_name,
+                             scale=scale,
+                             org_size=org_size,
+                             extra_root=True)
+
+    # importer.import_all()
