@@ -16,7 +16,8 @@ from anytree import Node
 
 
 # ORIGIN FOR TESTS WIH ACTUAL API
-GLOBAL_GET_DATE = datetime.datetime(2019, 2, 15, 0, 0)
+GLOBAL_GET_DATE = datetime.datetime(2014, 2, 15, 0, 0) # CACHED
+# GLOBAL_GET_DATE = datetime.datetime(2019, 2, 15, 0, 0) # CACHED
 INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
 SD_USER = os.environ.get('SD_USER', None)
 SD_PASSWORD = os.environ.get('SD_PASSWORD', None)
@@ -330,9 +331,6 @@ class SdImport(object):
             name = (person['PersonGivenName'] + ' ' +
                     person['PersonSurnameName'])
             uuid = self.employee_forced_uuids.get(cpr, None)
-            print(cpr)
-            print(uuid)
-
             self.importer.add_employee(
                 name=name,
                 identifier=cpr,
@@ -420,7 +418,10 @@ class SdImport(object):
                     engagement_type_ref = 'non-primary'
 
                 job_id = int(employment['Profession']['JobPositionIdentifier'])
-                job_func = employment['Profession']['EmploymentName']
+                try:
+                    job_func = employment['Profession']['EmploymentName']
+                except KeyError:
+                    job_func = employment['Profession']['JobPositionIdentifier']
                 job_func_ref = self._add_klasse(job_func,
                                                 job_func,
                                                 'engagement_job_function')
