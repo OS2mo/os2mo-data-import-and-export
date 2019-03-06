@@ -12,6 +12,8 @@ from datetime import datetime
 from urllib.parse import urljoin
 from freezegun import freeze_time
 
+from . integration_test_helpers import _count
+
 from os2mo_helpers.mora_helpers import MoraHelper
 from os2mo_data_import import ImportHelper
 from fixture_generator.populate_mo import CreateDummyOrg
@@ -22,7 +24,7 @@ class IntegrationDataTests(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         random.seed(1)
-        self.morah = MoraHelper()
+        self.morah = MoraHelper(use_cache=False)
         self.mox_base = 'http://localhost:5000'
         self.mora_base = 'http://localhost:80'
         self.system_name = 'Test Dummy Import'
@@ -53,43 +55,10 @@ class IntegrationDataTests(unittest.TestCase):
                 uuid = unit['uuid']
         return uuid
 
-    def _count(self):
-        counts = {}
-        orgfunc = ('/organisation/organisationfunktion' +
-                   '?gyldighed=Aktiv&funktionsnavn={}')
-        unit = '/organisation/organisationenhed?gyldighed=Aktiv'
-        user = '/organisation/bruger?bvn=%'
-
-        url = urljoin(self.mox_base, orgfunc.format('Engagement'))
-        response = requests.get(url)
-        counts['engagement_count'] = len(response.json()['results'][0])
-
-        url = urljoin(self.mox_base, orgfunc.format('Rolle'))
-        response = requests.get(url)
-        counts['role_count'] = len(response.json()['results'][0])
-
-        url = urljoin(self.mox_base, orgfunc.format('Leder'))
-        response = requests.get(url)
-        counts['manager_count'] = len(response.json()['results'][0])
-
-        url = urljoin(self.mox_base, orgfunc.format('Tilknytning'))
-        response = requests.get(url)
-        counts['association_count'] = len(response.json()['results'][0])
-
-        url = urljoin(self.mox_base, unit)
-        response = requests.get(url)
-        counts['unit_count'] = len(response.json()['results'][0])
-
-        url = urljoin(self.mox_base, user)
-        response = requests.get(url)
-        counts['person_count'] = len(response.json()['results'][0])
-        return counts
-
     def _run_import_and_test_org_sanity(self, extra_unit=0, extra_employee=0,
                                         extra_engagement=0):
-        counts = self._count()
         self.importer.import_all()
-        counts = self._count()
+        counts = _count(self.mox_base)
         test_values = [
             ('role_count', 5),
             ('association_count', 4),
@@ -165,9 +134,14 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(len(response['results'][0]) == 5)
 
     def test_23_test_engagement_from_date(self):
-        """ Write a test that verifies that engagements of a certain age exists """
-        # TODO
-        self.assertTrue(True)
+        """
+        Verifies that engagements of a certain age and length exists, this ensures
+        that we did not accidentially cut off all engagements"""
+        count = _count(self.mox_base, at='1969-01-01')
+        self.assertTrue(count['engagement_count'] > 0)
+
+        count = _count(self.mox_base, at='2220-01-01')
+        self.assertTrue(count['engagement_count'] > 0)
 
     @freeze_time("2018-12-03")
     def test_030_add_forced_uuids(self):
@@ -243,6 +217,7 @@ class IntegrationDataTests(unittest.TestCase):
     def test_032_test_forced_employee_uuid(self):
         person = self.morah._mo_lookup('00000000-0000-0000-0000-000000000002',
                                        'e/{}/integration-data', use_cache=False)
+        self.assertTrue('name' in person)
 
 
 if __name__ == '__main__':
