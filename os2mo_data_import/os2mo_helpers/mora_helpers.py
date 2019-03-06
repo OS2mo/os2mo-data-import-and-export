@@ -21,9 +21,10 @@ PRIMARY_RESPONSIBILITY = 'Personale: ansættelse/afskedigelse'
 
 
 class MoraHelper(object):
-    def __init__(self, hostname='localhost', export_ansi=True):
+    def __init__(self, hostname='localhost', export_ansi=True, use_cache=True):
         self.host = 'http://' + hostname + '/service/'
         self.cache = {}
+        self.default_cache = use_cache
         self.export_ansi = export_ansi
 
     def _split_name(self, name):
@@ -104,16 +105,31 @@ class MoraHelper(object):
             i += 1
         return path_dict
 
-    def _mo_lookup(self, uuid, url, use_cache=True):
+    def _mo_lookup(self, uuid, url, at=None, use_cache=None):
+        # TODO: at-value is currently not part of cache key
+        if not use_cache:
+            use_cache = self.default_cache
+        if at:
+            params = {
+                "at": at
+            }
+        else:
+            params = None
+
         full_url = self.host + url.format(uuid)
         if (full_url in self.cache) and use_cache:
+            print('AAAARRRGGHHH')
             return_dict = self.cache[full_url]
         else:
             if SAML_TOKEN is None:
-                return_dict = requests.get(full_url).json()
+                return_dict = requests.get(full_url, params=params).json()
             else:
                 header = {"SESSION": SAML_TOKEN}
-                return_dict = requests.get(full_url, headers=header).json()
+                return_dict = requests.get(
+                    full_url,
+                    headers=header,
+                    params=params
+                ).json()
             self.cache[full_url] = return_dict
         return return_dict
 
@@ -125,21 +141,21 @@ class MoraHelper(object):
         org_id = self._mo_lookup(uuid=None, url='o')
         return org_id[0]['uuid']
 
-    def read_organisationsenhed(self, uuid):
+    def read_ou(self, uuid, at=None, use_cache=None):
         """ Return a dict with the data available about an OU
         :param uuid: The UUID of the OU
         :return: Dict with the information about the OU
         """
-        org_enhed = self._mo_lookup(uuid, 'ou/{}')
+        org_enhed = self._mo_lookup(uuid, 'ou/{}', at, use_cache)
         return org_enhed
 
-    def read_ou_address(self, uuid):
+    def read_ou_address(self, uuid, at=None, use_cache=None):
         """ Return a dict with the data available about an OU
         :param uuid: The UUID of the OU
         :return: Dict with the information about the OU
         """
         return_address = {}
-        addresses = self._mo_lookup(uuid, 'ou/{}/details/address')
+        addresses = self._mo_lookup(uuid, 'ou/{}/details/address', at, use_cache)
 
         for address in addresses:
             if address['address_type']['scope'] == 'DAR':
@@ -148,12 +164,13 @@ class MoraHelper(object):
                 return_address['Adresse'] = address['name']
         return return_address
 
-    def read_user_address(self, user, username=False, cpr=False):
+    def read_user_address(self, user, username=False, cpr=False,
+                          at=None, use_cache=None):
         """ Read phone number and email from user
         :param user: UUID of the wanted user
         :return: Dict witn phone number and email (if the exists in MO
         """
-        addresses = self._mo_lookup(user, 'e/{}/details/address')
+        addresses = self._mo_lookup(user, 'e/{}/details/address', at, use_cache)
         return_address = {}
         for address in addresses:
             if address['address_type']['scope'] == 'PHONE':
