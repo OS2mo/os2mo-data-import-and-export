@@ -488,20 +488,23 @@ class ImportUtility(object):
                     found_hit = self._payload_compare(detail_payload, data)
                     if not found_hit:
                         re_import = 'YES'
+                additional_payload.append(detail_payload)
 
-                valid_from = detail_payload['validity']['from']
-                valid_to = detail_payload['validity']['to']
+            for item in additional_payload:
+                valid_from = item['validity']['from']
+                valid_to = item['validity']['to']
                 now = datetime.now()
                 py_from = datetime.strptime(valid_from, '%Y-%m-%d')
                 if valid_to is not None:
                     py_to = datetime.strptime(valid_to, '%Y-%m-%d')
                 else:
                     py_to = datetime.strptime('2200-01-01', '%Y-%m-%d')
-                # if datetime.strptime(valid_from, '%Y-%m-%d') < datetime.now():
+
+                print('Py-from: {}, Py-to: {}, Now: {}'.format(py_from, py_to, now))
                 if re_import == 'YES' and py_from < now and py_to > now:
+                    print('Updating valid_from')
                     valid_from = datetime.now().strftime('%Y-%m-%d')  # today
-                    detail_payload['validity']['from'] = valid_from
-                additional_payload.append(detail_payload)
+                    item['validity']['from'] = valid_from
 
             print('Re-import: {}'.format(re_import))
 
@@ -706,17 +709,12 @@ class ImportUtility(object):
             json=data,
             params=params
         )
-        # print(service_url)
-        # print(response.text)
-        response_data = response.json()
 
         if response.status_code == 400:
             error = response.json()['description']
             if error.find('does not give raise to a new registration') > 0:
                 uuid_start = error.find('with id [')
                 uuid = error[uuid_start+9:uuid_start+45]
-                print('uuid: {}'.format(uuid))
-                # print('mora error msg: {}'.format(error))
                 try:
                     UUID(uuid, version=4)
                     print('Validtated uuid: {}'.format(uuid))
@@ -734,13 +732,7 @@ class ImportUtility(object):
             )
             raise HTTPError("Inserting mora data failed")
         else:
-            # response_data = response.json()
             uuid = response.json()
-        # print('*')
-        # print('Mora insert uuid: {}'.format(uuid))
-        # Returns a string rather than a json object
-        # Example: "0fd6a479-8569-42dd-9614-4aacb611306e"
-        # return response_data
         return uuid
 
     def _get_detail(self, uuid, field_type, object_type='e'):
