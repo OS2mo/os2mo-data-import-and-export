@@ -410,12 +410,6 @@ class ImportHelper(object):
         :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.EngagementType`
         """
 
-        if employee not in self.employees:
-            raise ReferenceError("Employee does not exist")
-
-        if organisation_unit not in self.organisation_units:
-            raise ReferenceError("Organisation unit does not exist")
-
         engagement = EngagementType(org_unit_ref=organisation_unit, **kwargs)
 
         self.employee_details[employee].append(engagement)

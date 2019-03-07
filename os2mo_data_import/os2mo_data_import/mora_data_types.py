@@ -240,7 +240,13 @@ class EngagementType(MoType):
 
         # Reference the parent org unit uuid
         if not self.org_unit_uuid:
-            raise ReferenceError("Reference to parent org unit is missing")
+            ou_res = 'organisation/organisationenhed'
+            uuid = self.ia.find_object(ou_res, self.org_unit_ref)
+            if uuid:
+                print('We do actually know: {}'.format(uuid))
+                self.org_unit_uuid = uuid
+            else:
+                raise ReferenceError("Reference to parent org unit is missing")
 
         self.payload["org_unit"] = {
               "uuid": self.org_unit_uuid
