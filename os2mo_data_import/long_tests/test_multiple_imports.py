@@ -16,11 +16,47 @@ from os2mo_helpers.mora_helpers import MoraHelper
 
 class IntegrationDataTests(unittest.TestCase):
     @classmethod
-    def setUp(self):
-        self.morah = MoraHelper(use_cache=False)
+    def setUpClass(self):
         self.mox_base = 'http://localhost:5000'
         self.mora_base = 'http://localhost:80'
         self.system_name = 'Test Dummy Import'
+
+        importer = ImportHelper(create_defaults=True,
+                                mox_base='http://localhost:5000',
+                                mora_base='http://localhost:80',
+                                system_name=self.system_name,
+                                end_marker="STOP",
+                                store_integration_data=True)
+
+        importer.add_organisation(identifier='Org', user_key='Org',
+                                  municipality_code=101)
+
+        importer.add_klasse(identifier='Afdeling',
+                            facet_type_ref="org_unit_type")
+
+        importer.add_klasse(identifier='Extra afdeling',
+                            facet_type_ref="org_unit_type")
+
+        importer.add_klasse(identifier='EAN', scope='TEXT',
+                            facet_type_ref='org_unit_address_type')
+
+        importer.add_klasse(identifier="PhoneUnit", scope='TEXT',
+                            facet_type_ref="org_unit_address_type")
+
+        importer.add_klasse(identifier='Kok', scope='TEXT',
+                            facet_type_ref='engagement_job_function')
+
+        importer.add_klasse(identifier='Vagt', scope='TEXT',
+                            facet_type_ref='engagement_job_function')
+
+        importer.add_klasse(identifier='Ansat', scope='TEXT',
+                            facet_type_ref="engagement_type")
+
+        importer.import_all()
+
+    @classmethod
+    def setUp(self):
+        self.morah = MoraHelper(use_cache=False)
         self.importer = ImportHelper(create_defaults=True,
                                      mox_base='http://localhost:5000',
                                      mora_base='http://localhost:80',
@@ -31,30 +67,16 @@ class IntegrationDataTests(unittest.TestCase):
         self.importer.add_organisation(identifier='Org', user_key='Org',
                                        municipality_code=101)
 
-        self.importer.add_klasse(identifier='Afdeling',
-                                 facet_type_ref="org_unit_type")
-
-        self.importer.add_klasse(identifier="PhoneUnit", scope='TEXT',
-                                 facet_type_ref="org_unit_address_type")
-
-        self.importer.add_klasse(identifier='EAN', scope='TEXT',
-                                 facet_type_ref='org_unit_address_type')
-
-        self.importer.add_klasse(identifier='Kok', scope='TEXT',
-                                 facet_type_ref='engagement_job_function')
-
-        self.importer.add_klasse(identifier='Vagt', scope='TEXT',
-                                 facet_type_ref='engagement_job_function')
-
-        self.importer.add_klasse(identifier='Ansat', scope='TEXT',
-                                 facet_type_ref="engagement_type")
-
     @classmethod
     def tearDownClass(self):
         pass
 
     @freeze_time("2018-12-05")
     def test_010_import_simple_org(self):
+        """
+        Test that we are able to perform a simple impor, including retreiving
+        class information from integration data.
+        """
 
         self.importer.add_organisation_unit(
             identifier='Root',
@@ -299,7 +321,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.importer.add_organisation_unit(
             identifier='Sub unit 3',
             parent_ref='Sub unit 2',
-            type_ref='Afdeling',
+            type_ref='Extra Afdeling',
             date_from='2018-12-15'
         )
         self.importer.import_all()
@@ -316,7 +338,6 @@ class IntegrationDataTests(unittest.TestCase):
 
     @freeze_time("2018-12-15")
     def test_017_prepare_stress_test(self):
-        """ Prepare a deeply nested org """
         self.importer.add_organisation_unit(
             identifier='Sub unit 9',
             parent_ref=None,
@@ -332,14 +353,13 @@ class IntegrationDataTests(unittest.TestCase):
             )
         self.importer.import_all()
         count = _count(self.mox_base)
-        print(count)
         self.assertTrue(count['unit_count'] == 20)
 
     @freeze_time("2018-12-15")
     def test_018_stress_integration_supported_import(self):
         """
-        Import a unit without its dependencies. The dependent units should be read
-        from integration data.
+        Import a unit without its dependencies. The dependent units and the
+        type class should be read from integration data.
         """
         self.importer.add_organisation_unit(
             identifier='Sub unit 25',
@@ -351,7 +371,6 @@ class IntegrationDataTests(unittest.TestCase):
         count = _count(self.mox_base)
         self.assertTrue(count['unit_count'] == 21)
 
-        
     @freeze_time("2018-12-10")
     def test_020_double_engagements(self):
         """
