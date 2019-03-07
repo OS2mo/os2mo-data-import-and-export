@@ -68,54 +68,6 @@ class MoType():
 
         self.insert_data = True
 
-    """
-    REMOVE!!!
-    def _import_klasse_from_integration_data(self, reference):
-        print(reference)
-        klasse_res = 'klassifikation/klasse'
-        facet_res = 'klassifikation/facet'
-        uuid = self.ia.find_object(klasse_res, reference)
-        # TODO: Should this include more than just present time?
-        service_url = urljoin(
-            base=self.mox_base,
-            url=klasse_res
-        )
-        response = requests.get(
-            url=service_url,
-            params={'uuid': uuid}
-        )
-        klasse_info = response.json()['results'][0][0]['registreringer'][0]
-        egenskaber = klasse_info['attributter']['klasseegenskaber'][0]
-        facet_uuid = klasse_info['relationer']['facet'][0]['uuid']
-
-        facet_ref = self.ia.read_integration_data(facet_res, facet_uuid)
-        user_key = egenskaber['brugervendtnoegle']
-        title = egenskaber['titel']
-        scope = egenskaber.get('omfang', None)
-        date_from_string = egenskaber['virkning']['from']
-        date_to_string = egenskaber['virkning']['to']
-        if date_from_string == '-infinity':
-            date_from = None
-        else:
-            date_from = date_from_string[:10]
-        if date_to_string == 'infinity':
-            date_to = None
-        else:
-            date_to = date_to_string[:10]
-
-        print('Adding {} to importer'.format(reference))
-        self.add_klasse(
-            identifier=reference,
-            facet_type_ref=facet_ref,
-            user_key=user_key,
-            title=title,
-            scope=scope,
-            #date_from=date_from,
-            #date_to=date_to,
-            uuid=uuid
-        )
-    """
-
     def _build_payload(self):
         """
         Create a POST data payload for os2mo (mora)
