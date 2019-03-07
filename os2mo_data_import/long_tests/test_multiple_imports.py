@@ -314,6 +314,44 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(len(address) == 1)
         self.assertTrue(address[0]['value'] == '33333334')
 
+    @freeze_time("2018-12-15")
+    def test_017_prepare_stress_test(self):
+        """ Prepare a deeply nested org """
+        self.importer.add_organisation_unit(
+            identifier='Sub unit 9',
+            parent_ref=None,
+            type_ref='Afdeling',
+            date_from='2018-12-15'
+        )
+        for i in range(10, 25):
+            self.importer.add_organisation_unit(
+                identifier='Sub unit {}'.format(i),
+                parent_ref='Sub unit {}'.format(i - 1),
+                type_ref='Afdeling',
+                date_from='2018-12-15'
+            )
+        self.importer.import_all()
+        count = _count(self.mox_base)
+        print(count)
+        self.assertTrue(count['unit_count'] == 20)
+
+    @freeze_time("2018-12-15")
+    def test_018_stress_integration_supported_import(self):
+        """
+        Import a unit without its dependencies. The dependent units should be read
+        from integration data.
+        """
+        self.importer.add_organisation_unit(
+            identifier='Sub unit 25',
+            parent_ref='Sub unit 24',
+            type_ref='Afdeling',
+            date_from='2018-12-15'
+        )
+        self.importer.import_all()
+        count = _count(self.mox_base)
+        self.assertTrue(count['unit_count'] == 21)
+
+        
     @freeze_time("2018-12-10")
     def test_020_double_engagements(self):
         """

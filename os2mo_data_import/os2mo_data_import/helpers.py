@@ -573,6 +573,7 @@ class ImportHelper(object):
             parent_ref = self.ia.read_integration_data(ou_res, parent_uuid)
         else:
             parent_ref = None
+        print('Adding {} to importer'.format(reference))
         self.add_organisation_unit(
             identifier=reference,
             parent_ref=parent_ref,
@@ -589,10 +590,11 @@ class ImportHelper(object):
         print(type(org_unit))
         print('Parent_ref: {}'.format(org_unit.parent_ref))
         parent_unit = self.organisation_units.get(org_unit.parent_ref)
-
+        print('Parent unit: {}'.format(parent_unit))
         # We also need to handle un-imported classes
         # print(type_ref)
         if org_unit.parent_ref and (not parent_unit):
+            print('Importing {} from integration data'.format(org_unit.parent_ref))
             re_run = True
             self._import_unit_from_integration_data(org_unit.parent_ref)
         else:
@@ -642,10 +644,12 @@ class ImportHelper(object):
         print('Will now import org units')
         re_run = True
         while re_run:
+            re_run = False
             identifiers = list(self.organisation_units.keys())
             for identifier in identifiers:
                 org_unit = self.organisation_units[identifier]
-                re_run = self.test_org_unit_refs(identifier, org_unit)
+                if self.test_org_unit_refs(identifier, org_unit):
+                    re_run = True
 
         for identifier, org_unit in self.organisation_units.items():
             self.import_organisation_units_recursively(identifier, org_unit)
