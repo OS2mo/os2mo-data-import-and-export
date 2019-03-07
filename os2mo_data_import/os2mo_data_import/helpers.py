@@ -5,6 +5,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+from os2mo_helpers.mora_helpers import MoraHelper
+from integration_abstraction.integration_abstraction import IntegrationAbstraction
 
 from os2mo_data_import.utilities import ImportUtility
 from os2mo_data_import.defaults import facet_defaults
@@ -110,6 +112,11 @@ class ImportHelper(object):
             end_marker=end_marker,
             store_integration_data=store_integration_data
         )
+        # TODO: store_integration_data could be passed to ImportUtility by passing
+        # the actual self.ia object
+        if store_integration_data:
+            self.morah = MoraHelper(use_cache=False)
+            self.ia = IntegrationAbstraction(mox_base, system_name, end_marker)
 
         self.organisation = None
         self.klassifikation = None
@@ -528,7 +535,6 @@ class ImportHelper(object):
         :param str reference: Reference to organisation_unit
         :param object org_unit: The OrganisationUnitType object
         """
-
         # Insert parents first!
         parent_ref = org_unit.parent_ref
 
@@ -546,6 +552,52 @@ class ImportHelper(object):
             organisation_unit=org_unit,
             details=details
         )
+
+    def _import_unit_from_integration_data(self, reference):
+        print(reference)
+        ou_res = 'organisation/organisationenhed'
+        klasse_res = 'klassifikation/klasse'
+        uuid = self.ia.find_object(ou_res, reference)
+        # TODO: Should this include more than just present time?
+        unit = self.morah.read_ou(uuid)
+
+        type_uuid = unit['org_unit_type']['uuid']
+        parent = unit['parent']
+        date_from = unit['validity']['from']
+        date_to = unit['validity']['to']
+        print('Type uuid: {}'.format(type_uuid))
+        print('Parent: {}'.format(parent))
+        type_ref = self.ia.read_integration_data(klasse_res, type_uuid)
+        if parent:
+            parent_uuid = parent['uuid']
+            parent_ref = self.ia.read_integration_data(ou_res, parent_uuid)
+        else:
+            parent_ref = None
+        self.add_organisation_unit(
+            identifier=reference,
+            parent_ref=parent_ref,
+            type_ref=type_ref,
+            uuid=unit['uuid'],
+            date_from=date_from,
+            date_to=date_to
+        )
+
+    def test_org_unit_refs(self, reference, org_unit):
+        print('--')
+        print(reference)
+        print(org_unit)
+        print(type(org_unit))
+        print('Parent_ref: {}'.format(org_unit.parent_ref))
+        parent_unit = self.organisation_units.get(org_unit.parent_ref)
+
+        # We also need to handle un-imported classes
+        # print(type_ref)
+        if org_unit.parent_ref and (not parent_unit):
+            re_run = True
+            self._import_unit_from_integration_data(org_unit.parent_ref)
+        else:
+            re_run = False
+        return re_run
 
     def import_all(self):
         """
@@ -588,6 +640,13 @@ class ImportHelper(object):
 
         # Insert Organisation Units
         print('Will now import org units')
+        re_run = True
+        while re_run:
+            identifiers = list(self.organisation_units.keys())
+            for identifier in identifiers:
+                org_unit = self.organisation_units[identifier]
+                re_run = self.test_org_unit_refs(identifier, org_unit)
+
         for identifier, org_unit in self.organisation_units.items():
             self.import_organisation_units_recursively(identifier, org_unit)
 

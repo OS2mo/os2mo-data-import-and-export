@@ -120,7 +120,6 @@ class IntegrationDataTests(unittest.TestCase):
         """
         Integration data should ensure nothing changes
         """
-
         self.importer.add_organisation_unit(
             identifier='Root',
             parent_ref=None,
@@ -285,6 +284,30 @@ class IntegrationDataTests(unittest.TestCase):
                                         at='2018-12-08')
         self.assertTrue(len(address) == 2)
 
+        address = self.morah._mo_lookup('00000000-0000-0000-0000-000000000021',
+                                        'ou/{}/details/address',
+                                        at='2018-12-10')
+        self.assertTrue(len(address) == 1)
+        self.assertTrue(address[0]['value'] == '33333334')
+
+    @freeze_time("2018-12-15")
+    def test_016_integration_supported_import(self):
+        """
+        Import a unit without its dependencies. The dependent units should be read
+        from integration data.
+        """
+        self.importer.add_organisation_unit(
+            identifier='Sub unit 3',
+            parent_ref='Sub unit 2',
+            type_ref='Afdeling',
+            date_from='2018-12-15'
+        )
+        self.importer.import_all()
+        count = _count(self.mox_base, at='1969-01-01')
+        self.assertTrue(count['unit_count'] == 0)
+
+        count = _count(self.mox_base)
+        self.assertTrue(count['unit_count'] == 4)
         address = self.morah._mo_lookup('00000000-0000-0000-0000-000000000021',
                                         'ou/{}/details/address',
                                         at='2018-12-10')
