@@ -11,6 +11,7 @@ from integration_abstraction.integration_abstraction import IntegrationAbstracti
 from os2mo_data_import.utilities import ImportUtility
 from os2mo_data_import.defaults import facet_defaults
 from os2mo_data_import.mora_data_types import (
+    mora_type_config,
     AddressType,
     EngagementType,
     AssociationType,
@@ -104,6 +105,10 @@ class ImportHelper(object):
                  store_integration_data=False, create_defaults=True,
                  ImportUtility=ImportUtility):
 
+        mora_type_config(mox_base=mox_base,
+                         system_name=system_name,
+                         end_marker=end_marker)
+        self.mox_base = mox_base
         # Import Utility
         self.store = ImportUtility(
             mox_base=mox_base,
@@ -565,15 +570,14 @@ class ImportHelper(object):
         parent = unit['parent']
         date_from = unit['validity']['from']
         date_to = unit['validity']['to']
-        print('Type uuid: {}'.format(type_uuid))
-        print('Parent: {}'.format(parent))
         type_ref = self.ia.read_integration_data(klasse_res, type_uuid)
+
         if parent:
             parent_uuid = parent['uuid']
             parent_ref = self.ia.read_integration_data(ou_res, parent_uuid)
         else:
             parent_ref = None
-        print('Adding {} to importer'.format(reference))
+
         self.add_organisation_unit(
             identifier=reference,
             parent_ref=parent_ref,
@@ -584,19 +588,12 @@ class ImportHelper(object):
         )
 
     def test_org_unit_refs(self, reference, org_unit):
-        print('--')
-        print(reference)
-        print(org_unit)
-        print(type(org_unit))
-        print('Parent_ref: {}'.format(org_unit.parent_ref))
         parent_unit = self.organisation_units.get(org_unit.parent_ref)
-        print('Parent unit: {}'.format(parent_unit))
-        # We also need to handle un-imported classes
-        # print(type_ref)
+
         if org_unit.parent_ref and (not parent_unit):
-            print('Importing {} from integration data'.format(org_unit.parent_ref))
             re_run = True
             self._import_unit_from_integration_data(org_unit.parent_ref)
+            print('Importing {} from integration data'.format(org_unit.parent_ref))
         else:
             re_run = False
         return re_run

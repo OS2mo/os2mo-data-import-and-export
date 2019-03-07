@@ -5,6 +5,14 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+from integration_abstraction.integration_abstraction import IntegrationAbstraction
+
+
+# TODO: This should be in some sort of global config
+def mora_type_config(mox_base, system_name, end_marker):
+    MoType.mox_base = mox_base
+    MoType.system_name = system_name
+    MoType.end_marker = end_marker
 
 
 class MoType():
@@ -15,9 +23,9 @@ class MoType():
 
     .. note::
         This can be set to import the object with its current uuid.
-        On a lower level this means that the current registration
-        will be set to end now
-        and a new registration of the same object is created with from date set to now.
+        On a lower level this means that the current registration will be set to end
+        now and a new registration of the same object is created with from date
+        set to now.
 
     :param str type_id: Reference to the detail type
 
@@ -38,6 +46,10 @@ class MoType():
     """
 
     def __init__(self):
+        self.ia = IntegrationAbstraction(self.mox_base,
+                                         self.system_name,
+                                         self.end_marker)
+
         self.type_id = None
 
         self.payload = {}
@@ -55,6 +67,54 @@ class MoType():
         self.org_unit_uuid = None
 
         self.insert_data = True
+
+    """
+    REMOVE!!!
+    def _import_klasse_from_integration_data(self, reference):
+        print(reference)
+        klasse_res = 'klassifikation/klasse'
+        facet_res = 'klassifikation/facet'
+        uuid = self.ia.find_object(klasse_res, reference)
+        # TODO: Should this include more than just present time?
+        service_url = urljoin(
+            base=self.mox_base,
+            url=klasse_res
+        )
+        response = requests.get(
+            url=service_url,
+            params={'uuid': uuid}
+        )
+        klasse_info = response.json()['results'][0][0]['registreringer'][0]
+        egenskaber = klasse_info['attributter']['klasseegenskaber'][0]
+        facet_uuid = klasse_info['relationer']['facet'][0]['uuid']
+
+        facet_ref = self.ia.read_integration_data(facet_res, facet_uuid)
+        user_key = egenskaber['brugervendtnoegle']
+        title = egenskaber['titel']
+        scope = egenskaber.get('omfang', None)
+        date_from_string = egenskaber['virkning']['from']
+        date_to_string = egenskaber['virkning']['to']
+        if date_from_string == '-infinity':
+            date_from = None
+        else:
+            date_from = date_from_string[:10]
+        if date_to_string == 'infinity':
+            date_to = None
+        else:
+            date_to = date_to_string[:10]
+
+        print('Adding {} to importer'.format(reference))
+        self.add_klasse(
+            identifier=reference,
+            facet_type_ref=facet_ref,
+            user_key=user_key,
+            title=title,
+            scope=scope,
+            #date_from=date_from,
+            #date_to=date_to,
+            uuid=uuid
+        )
+    """
 
     def _build_payload(self):
         """
@@ -639,7 +699,14 @@ class OrganisationUnitType(MoType):
             raise ReferenceError("UUID of the parent organisation is missing")
 
         if not self.type_ref_uuid:
-            raise ReferenceError("UUID of the unit type is missing")
+            print('Type ref at build time: {}'.format(self.type_ref))
+            klasse_res = 'klassifikation/klasse'
+            uuid = self.ia.find_object(klasse_res, self.type_ref)
+            if uuid:
+                print('We do actually know: {}'.format(uuid))
+                self.type_ref_uuid = uuid
+            else:
+                raise ReferenceError("UUID of the unit type is missing")
 
         self.payload = {
             "user_key": self.user_key,
