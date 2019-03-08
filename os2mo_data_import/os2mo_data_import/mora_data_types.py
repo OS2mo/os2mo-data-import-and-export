@@ -243,7 +243,6 @@ class EngagementType(MoType):
             ou_res = 'organisation/organisationenhed'
             uuid = self.ia.find_object(ou_res, self.org_unit_ref)
             if uuid:
-                print('We do actually know: {}'.format(uuid))
                 self.org_unit_uuid = uuid
             else:
                 raise ReferenceError("Reference to parent org unit is missing")
@@ -346,7 +345,6 @@ class AssociationType(MoType):
             ou_res = 'organisation/organisationenhed'
             uuid = self.ia.find_object(ou_res, self.org_unit_ref)
             if uuid:
-                print('We do actually know: {}'.format(uuid))
                 self.org_unit_uuid = uuid
             else:
                 raise ReferenceError("Reference to org_unit_uuid is missing")
@@ -368,7 +366,6 @@ class AssociationType(MoType):
                     "uuid": self.address_type_uuid
                 }
             }
-        print(self.payload)
         return self._build_payload()
 
 
@@ -662,11 +659,9 @@ class OrganisationUnitType(MoType):
             raise ReferenceError("UUID of the parent organisation is missing")
 
         if not self.type_ref_uuid:
-            print('Type ref at build time: {}'.format(self.type_ref))
             klasse_res = 'klassifikation/klasse'
             uuid = self.ia.find_object(klasse_res, self.type_ref)
             if uuid:
-                print('We do actually know: {}'.format(uuid))
                 self.type_ref_uuid = uuid
             else:
                 raise ReferenceError("UUID of the unit type is missing")

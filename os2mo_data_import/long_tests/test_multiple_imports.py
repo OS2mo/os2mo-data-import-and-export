@@ -62,7 +62,7 @@ class IntegrationDataTests(unittest.TestCase):
     @freeze_time("2018-12-05")
     def test_010_import_simple_org(self):
         """
-        Test that we are able to perform a simple impor, including retreiving
+        Test that we are able to perform a simple import, including retreiving
         class information from integration data.
         """
 
