@@ -405,8 +405,6 @@ class ImportUtility(object):
         if re_import == 'YES':
             print('Terminating details for {}'.format(uuid))
             for item in data['address']:
-                print()
-                print(item)
                 self._terminate_details(item['uuid'], 'address')
         if re_import in ('YES', 'NEW'):
             self.insert_mora_data(
@@ -484,7 +482,10 @@ class ImportUtility(object):
                 if not detail_payload:
                     continue
 
-                if data[detail_payload['type']]:
+                # If we do not have existing data, the new data should be imported
+                if len(data[detail_payload['type']]) == 0 and re_import == 'NO':
+                    re_import = 'UPDATE'
+                elif data[detail_payload['type']]:
                     found_hit = self._payload_compare(detail_payload, data)
                     if not found_hit:
                         re_import = 'YES'
@@ -500,7 +501,7 @@ class ImportUtility(object):
                 else:
                     py_to = datetime.strptime('2200-01-01', '%Y-%m-%d')
 
-                print('Py-from: {}, Py-to: {}, Now: {}'.format(py_from, py_to, now))
+                # print('Py-from:{}, Py-to:{}, Now:{}'.format(py_from, py_to, now))
                 if re_import == 'YES' and py_from < now and py_to > now:
                     print('Updating valid_from')
                     valid_from = datetime.now().strftime('%Y-%m-%d')  # today
@@ -512,7 +513,7 @@ class ImportUtility(object):
                 print('Terminate: {}'.format(uuid))
                 self._terminate_employee(uuid)
 
-            if re_import in ('YES', 'NEW'):
+            if re_import in ('YES', 'NEW', 'UPDATE'):
                 self.insert_mora_data(
                     resource="service/details/create",
                     data=additional_payload

@@ -28,30 +28,18 @@ class IntegrationDataTests(unittest.TestCase):
                                 end_marker="STOP",
                                 store_integration_data=True)
 
-        importer.add_organisation(identifier='Org', user_key='Org',
-                                  municipality_code=101)
+        importer.add_organisation('Org', user_key='Org', municipality_code=101)
 
-        importer.add_klasse(identifier='Afdeling',
-                            facet_type_ref="org_unit_type")
-
-        importer.add_klasse(identifier='Extra afdeling',
-                            facet_type_ref="org_unit_type")
-
-        importer.add_klasse(identifier='EAN', scope='TEXT',
+        importer.add_klasse('Afdeling', facet_type_ref="org_unit_type")
+        importer.add_klasse('Extra afdeling', facet_type_ref="org_unit_type")
+        importer.add_klasse('Kok', facet_type_ref='engagement_job_function')
+        importer.add_klasse('Vagt', facet_type_ref='engagement_job_function')
+        importer.add_klasse('Ansat', facet_type_ref="engagement_type")
+        importer.add_klasse('Konsulent', facet_type_ref="association_type")
+        importer.add_klasse('EAN', scope='EAN',
                             facet_type_ref='org_unit_address_type')
-
-        importer.add_klasse(identifier="PhoneUnit", scope='TEXT',
+        importer.add_klasse('PhoneUnit', scope='PHONE',
                             facet_type_ref="org_unit_address_type")
-
-        importer.add_klasse(identifier='Kok', scope='TEXT',
-                            facet_type_ref='engagement_job_function')
-
-        importer.add_klasse(identifier='Vagt', scope='TEXT',
-                            facet_type_ref='engagement_job_function')
-
-        importer.add_klasse(identifier='Ansat', scope='TEXT',
-                            facet_type_ref="engagement_type")
-
         importer.import_all()
 
     @classmethod
@@ -138,7 +126,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(count['unit_count'] == 3)
 
     @freeze_time("2018-12-06")
-    def ttest_011_re_import_simple_org(self):
+    def test_011_re_import_simple_org(self):
         """
         Integration data should ensure nothing changes
         """
@@ -166,7 +154,7 @@ class IntegrationDataTests(unittest.TestCase):
         count = _count(self.mox_base)
         self.assertTrue(count['unit_count'] == 3)
 
-    def ttest_012_import_without_uuids(self):
+    def test_012_import_without_uuids(self):
         """
         Test the units and uuids forced in test 010 are kept on re-import
         """
@@ -197,7 +185,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue('name' in unit)
 
     @freeze_time("2018-12-07")
-    def ttest_013_rename_unit(self):
+    def test_013_rename_unit(self):
         """
         Test that a rename returns old and new name on suitable dates
         """
@@ -232,7 +220,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(unit['name'] == 'Sub unit 1.1')
 
     @freeze_time("2018-12-08")
-    def ttest_014_move_unit(self):
+    def test_014_move_unit(self):
 
         self.importer.add_organisation_unit(
             identifier='Root',
@@ -337,7 +325,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(address[0]['value'] == '33333334')
 
     @freeze_time("2018-12-15")
-    def ttest_017_prepare_stress_test(self):
+    def test_017_prepare_stress_test(self):
         self.importer.add_organisation_unit(
             identifier='Sub unit 9',
             parent_ref=None,
@@ -356,7 +344,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(count['unit_count'] == 20)
 
     @freeze_time("2018-12-15")
-    def ttest_018_stress_integration_supported_import(self):
+    def test_018_stress_integration_supported_import(self):
         """
         Import a unit without its dependencies. The dependent units and the
         type class should be read from integration data.
@@ -447,29 +435,7 @@ class IntegrationDataTests(unittest.TestCase):
         Check change of double engagement, length of one should be independent of
         change of the other
         """
-        """
-        self.importer.add_organisation_unit(
-            identifier='Root',
-            parent_ref=None,
-            type_ref="Afdeling",
-            date_from='1970-01-01'
-        )
 
-        self.importer.add_organisation_unit(
-            identifier='Sub unit 1',
-            name='Sub unit 1.1',
-            parent_ref='Root',
-            type_ref='Afdeling',
-            date_from='2018-12-07'
-        )
-
-        self.importer.add_organisation_unit(
-            identifier='Sub unit 2',
-            parent_ref='Sub unit 1',
-            type_ref='Afdeling',
-            date_from='2018-12-08'
-        )
-        """
         self.importer.add_employee(
             name='Test user',
             identifier='Test user',
@@ -513,6 +479,44 @@ class IntegrationDataTests(unittest.TestCase):
         count = _count(self.mox_base, at='2023-01-01')
         self.assertTrue(count['person_count'] == 1)
         self.assertTrue(count['engagement_count'] == 0)
+
+    @freeze_time("2018-12-25")
+    def test_022_integration_supported_association_and_role(self):
+        """
+        Add a role and and association to employees without adding the  units to the
+        importer map.
+        """
+        self.importer.add_employee(
+            name='Another test user',
+            identifier='Another test user',
+            cpr_no='1111111128',
+        )
+        self.importer.add_association(
+            employee="Another test user",
+            organisation_unit="Sub unit 1",
+            association_type_ref="Konsulent",
+            date_from="2018-12-25"
+        )
+
+        # Add association to existing employee
+        self.importer.add_employee(
+            name='Test user',
+            identifier='Test user',
+            cpr_no='1111111118',
+        )
+
+        self.importer.add_association(
+            employee="Test user",
+            organisation_unit="Sub unit 1",
+            association_type_ref="Konsulent",
+            date_from="2018-12-25"
+        )
+
+        self.importer.import_all()
+        count = _count(self.mox_base, at='1969-01-01')
+        self.assertTrue(count['association_count'] == 0)
+        count = _count(self.mox_base, at='2019-01-01')
+        self.assertTrue(count['association_count'] == 2)
 
 
 if __name__ == '__main__':
