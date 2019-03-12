@@ -462,6 +462,7 @@ class ImportUtility(object):
         data = {}
         data['it'] = self._get_detail(uuid, 'it')
         data['role'] = self._get_detail(uuid, 'role')
+        data['leave'] = self._get_detail(uuid, 'leave')
         data['address'] = self._get_detail(uuid, 'address')
         data['manager'] = self._get_detail(uuid, 'manager')
         data['engagement'] = self._get_detail(uuid, 'engagement')
@@ -835,6 +836,15 @@ class ImportUtility(object):
         elif data_type == 'role':
             for data_item in data[data_type]:
                 if self._std_compare(item_payload, data_item, 'role_type'):
+                    found_hit = True
+
+        elif data_type == 'leave':
+            for data_item in data[data_type]:
+                if ((data_item['validity']['from'] ==
+                     item_payload['validity']['from']) and
+
+                    (data_item['validity']['to'] ==
+                     item_payload['validity']['to'])):
                     found_hit = True
 
         elif data_type == 'it':

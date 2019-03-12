@@ -35,6 +35,7 @@ class IntegrationDataTests(unittest.TestCase):
         importer.add_klasse('Kok', facet_type_ref='engagement_job_function')
         importer.add_klasse('Vagt', facet_type_ref='engagement_job_function')
         importer.add_klasse('Ansat', facet_type_ref="engagement_type")
+        importer.add_klasse('Orlov', facet_type_ref="leave_type")
         importer.add_klasse('Konsulent', facet_type_ref="association_type")
         importer.add_klasse('EAN', scope='EAN',
                             facet_type_ref='org_unit_address_type')
@@ -481,7 +482,89 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(count['engagement_count'] == 0)
 
     @freeze_time("2018-12-25")
-    def test_022_integration_supported_association_and_role(self):
+    def test_022_add_leave_to_user(self):
+        """
+        Add a leave to a user.
+        Check that the engagement is not stopped when the leave stops.
+        """
+        print('Add leave!')
+        self.importer.add_employee(
+            name='Test user',
+            identifier='Test user',
+            cpr_no='1111111118'
+        )
+
+        self.importer.add_leave(
+            employee='Test user',
+            leave_type_ref='Orlov',
+            date_from='2019-01-01',
+            date_to='2030-01-01'
+        )
+
+        self.importer.import_all()
+        count = _count(self.mox_base, at='1969-01-01')
+        self.assertTrue(count['engagement_count'] == 0)
+
+        count = _count(self.mox_base, at='2019-01-02')
+        print(count)
+        self.assertTrue(count['engagement_count'] == 2)
+        self.assertTrue(count['leave_count'] == 1)
+
+        count = _count(self.mox_base, at='2031-01-01')
+        self.assertTrue(count['leave_count'] == 0)
+
+    @freeze_time("2019-01-05")
+    def test_023_change_leave(self):
+        """
+        Add a leave to a user.
+        Check that the engagement is not stopped when the leave stops.
+        """
+        self.importer.add_employee(
+            name='Test user',
+            identifier='Test user',
+            cpr_no='1111111118'
+        )
+
+        self.importer.add_leave(
+            employee='Test user',
+            leave_type_ref='Orlov',
+            date_from='2019-01-01',
+            date_to='2020-01-01'
+        )
+        self.importer.add_engagement(
+            employee='Test user',
+            organisation_unit='Root',
+            job_function_ref='Kok',
+            engagement_type_ref="Ansat",
+            date_from='1992-01-23',
+            date_to='2022-07-16'
+        )
+
+        self.importer.add_engagement(
+            employee='Test user',
+            organisation_unit='Sub unit 1',
+            job_function_ref='Vagt',
+            engagement_type_ref="Ansat",
+            date_from='1990-01-23',
+            date_to=None
+        )
+
+        self.importer.import_all()
+        count = _count(self.mox_base, at='1969-01-01')
+        self.assertTrue(count['engagement_count'] == 0)
+
+        count = _count(self.mox_base, at='2019-01-02')
+        print(count)
+        self.assertTrue(count['engagement_count'] == 2)
+        self.assertTrue(count['leave_count'] == 1)
+
+        count = _count(self.mox_base, at='2021-01-02')
+        print(count)
+        self.assertTrue(count['engagement_count'] == 2)
+        self.assertTrue(count['leave_count'] == 0)
+
+    @freeze_time("2019-01-05")
+    def test_024_integration_supported_association_and_role(self):
         """
         Add a role and and association to employees without adding the  units to the
         importer map.
@@ -515,7 +598,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.importer.import_all()
         count = _count(self.mox_base, at='1969-01-01')
         self.assertTrue(count['association_count'] == 0)
-        count = _count(self.mox_base, at='2019-01-01')
+        count = _count(self.mox_base, at='2019-01-10')
         self.assertTrue(count['association_count'] == 2)
 
 

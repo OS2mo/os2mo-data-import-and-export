@@ -407,14 +407,13 @@ def example_import():
         title="Sygeorlov"
     )
 
-    """
     os2mo.add_leave(
         employee="Jens Mortensen",
         leave_type_ref="Sygeorlov",
         date_from="2018-01-22",
         date_to="2018-11-02"
     )
-    """
+
     # Create IT system and assign to employee
 
     os2mo.new_itsystem(
