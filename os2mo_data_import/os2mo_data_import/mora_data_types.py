@@ -142,13 +142,15 @@ class AddressType(MoType):
     :param str date_to: End date e.g. "1982-01-01"
     """
 
-    def __init__(self, value, type_ref, date_from,
+    def __init__(self, value, type_ref, date_from, user_key=None,
                  date_to=None, uuid=None, visibility=None):
         super().__init__()
 
         self.type_id = "address"
 
         self.uuid = uuid
+
+        self.user_key = user_key
 
         self.value = value
         self.type_ref = type_ref
@@ -186,6 +188,8 @@ class AddressType(MoType):
                 "uuid": self.type_ref_uuid
             }
         }
+        if self.user_key:
+            self.payload['user_key'] = self.user_key
         if self.visibility_ref:
             self.payload['visibility'] = {'uuid': self.visibility_ref_uuid}
         return self._build_payload()
