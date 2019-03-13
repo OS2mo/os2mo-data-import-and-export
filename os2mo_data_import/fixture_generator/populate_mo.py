@@ -336,5 +336,6 @@ def main(mox_base, mora_base, municipality, scale, org_size, extra_root):
 
     importer.import_all()
 
+
 if __name__ == '__main__':
     main()
