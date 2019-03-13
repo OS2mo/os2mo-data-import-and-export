@@ -25,6 +25,7 @@ By default the following types are automatically created:
     - responsibility
     - manager_level
     - visibility
+    - time_planning
 """
 
 facet_defaults = [
@@ -41,5 +42,6 @@ facet_defaults = [
     "manager_type",
     "responsibility",
     "manager_level",
-    "visibility"
+    "visibility",
+    "time_planning"
 ]

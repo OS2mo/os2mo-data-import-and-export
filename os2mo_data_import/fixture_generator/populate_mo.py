@@ -1,4 +1,3 @@
-import sys
 from fixture_generator import dummy_data_creator
 from datetime import datetime
 from click import command, option, Abort
@@ -31,7 +30,8 @@ http://localhost:5000 http://localhost:80
 class CreateDummyOrg(object):
     def __init__(self, importer, municipality_code, name,
                  scale=1, org_size=Size.Normal, extra_root=True):
-        self.data = self.create_dummy_data(municipality_code, name, scale, org_size)
+        self.data = self.create_dummy_data(municipality_code, name, scale, org_size,
+                                           predictable_uuids=True)
 
         self.extra_data = self.create_dummy_data(municipality_code, name,
                                                  scale, org_size=Size.Small,
@@ -69,10 +69,11 @@ class CreateDummyOrg(object):
                                     pass
 
     def create_dummy_data(self, municipality_code, name, scale, org_size,
-                          root_name='root'):
+                          predictable_uuids=False, root_name='root'):
         name_path = dummy_data_creator._path_to_names()
         data = dummy_data_creator.CreateDummyOrg(municipality_code,
-                                                 name, name_path, root_name)
+                                                 name, name_path, root_name,
+                                                 predictable_uuids=predictable_uuids)
 
         data.create_org_func_tree(org_size=org_size)
 
@@ -120,7 +121,8 @@ class CreateDummyOrg(object):
             name=ou_node.name,
             parent_ref=parent,
             type_ref='Afdeling',
-            date_from=date_from
+            date_from=date_from,
+            uuid=ou_node.uuid
         )
 
         self.importer.add_address_type(
@@ -313,7 +315,7 @@ def main(mox_base, mora_base, municipality, scale, org_size, extra_root):
         })
 
         if not r or not r.json():
-            raise Abort('no such municipality: ' + name)
+            raise Abort('no such municipality: ' + municipality)
 
         municipality_number = r.json()[0]['kode']
         municipality_name = r.json()[0]['navn'] + ' Kommune'
@@ -324,14 +326,15 @@ def main(mox_base, mora_base, municipality, scale, org_size, extra_root):
                             system_name="Artificial import",
                             end_marker="STOP_DUMMY",
                             store_integration_data=True)
-    creator = CreateDummyOrg(importer,
-                             municipality_code=municipality_number,
-                             name=municipality_name,
-                             scale=scale,
-                             org_size=org_size,
-                             extra_root=True)
+    CreateDummyOrg(importer,
+                   municipality_code=municipality_number,
+                   name=municipality_name,
+                   scale=scale,
+                   org_size=org_size,
+                   extra_root=True)
 
     importer.import_all()
+
 
 if __name__ == '__main__':
     main()

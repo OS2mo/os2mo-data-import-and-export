@@ -60,6 +60,9 @@ CLASSES = {
         ('AdressePostRetur', 'Returadresse', 'DAR'),
         ('AdresseHenvendelsessted', 'Henvendelsessted', 'DAR'),
         ('LocationUnit', 'Lokation', 'TEXT'),
+        ('Skolekode', 'Skolekode', 'TEXT'),
+        ('Formålskode', 'Formålskode', 'TEXT'),
+        ('Afdelingskode', 'Afdelingskode', 'TEXT'),
         ('EmailUnit', 'Email', 'EMAIL'),
         ('PhoneUnit', 'Telefon', 'PHONE'),
         ('FaxUnit', 'Fax', 'PHONE'),
@@ -68,6 +71,7 @@ CLASSES = {
         ('p-nummer', 'P-nummer', 'PNUMBER')
     ],
     'manager_level': ['Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4'],
+    'time_planning': ['Arbejdstidsplanner', 'Dannes ikke', 'Tjenestestid'],
     'engagement_type': ['Ansat'],
     'visibility': [
         ('Ekstern', 'Må vises eksternt', 'PUBLIC'),
@@ -195,13 +199,14 @@ class CreateDummyOrg(object):
     """
 
     def __init__(self, municipality_code, name, path_to_names,
-                 root_name='root'):
+                 root_name='root', predictable_uuids=False):
         self.global_start_date = datetime.strptime(START_DATE, '%Y-%m-%d')
         self.classes = CLASSES
         self.it_systems = IT_SYSTEMS
         self.nodes = {}
         self.name = name
         self.root_name = root_name
+        self.predictable_uuids = predictable_uuids
         try:
             with open(str(municipality_code) + '.p', 'rb') as file_handle:
                 self.adresser = pickle.load(file_handle)
@@ -227,7 +232,8 @@ class CreateDummyOrg(object):
             place_of_contact=address[1],
             location=None,
             type='ou',
-            key=self.root_name
+            key=self.root_name,
+            uuid=str(uuid5(NAMESPACE_DNS, self.root_name))
         )
         # Used to keep track of used user_keys to keep them unique
         self.used_user_keys = []
@@ -284,14 +290,21 @@ class CreateDummyOrg(object):
         :return: A flat dict with name, random adress and room for sub-units.
         """
         uuid_list = []
-        for org in org_list:
-            # This somewhat complicated way of making uuids ensures that
-            # it is possible to make consistent uuid's by freezing the
-            # random seed.
-            uuid = str(uuid5(NAMESPACE_DNS, str(random.random())))
-            uuid_list.append(uuid)
-            addresses = self._address()
+        for org_tuple in org_list:
+            if not isinstance(org_tuple, tuple):
+                org_tuple = (org_tuple, None)
 
+            org = org_tuple[0]
+            if org_tuple[1] and self.predictable_uuids:
+                uuid = org_tuple[1]
+            else:
+                # This somewhat complicated way of making uuids ensures that
+                # it is possible to make consistent uuid's by freezing the
+                # random seed.
+                uuid = str(uuid5(NAMESPACE_DNS, str(random.random())))
+            uuid_list.append(uuid)
+
+            addresses = self._address()
             if random.random() > 0.75:
                 location = 'Bygning {}'.format(random.randrange(1, 20))
             else:
@@ -308,6 +321,7 @@ class CreateDummyOrg(object):
                 url=None,
                 parent=parent,
                 key=str(uuid),
+                uuid=str(uuid),
                 type='ou'
             )
         return uuid_list
@@ -421,10 +435,10 @@ class CreateDummyOrg(object):
         performance testing purposes. If 'Small' the a smaller amount of units is
         created, mainly to facilitate faster testing.
         """
-        orgs = ['Borgmesterens Afdeling',
-                'Teknik og Miljø',
-                'Skole og Børn',
-                'Social og sundhed']
+        orgs = [('Borgmesterens Afdeling', 'b6c11152-0645-4712-a207-ba2c53b391ab'),
+                ('Teknik og Miljø', '23a2ace2-52ca-458d-bead-d1a42080579f'),
+                ('Skole og Børn', '7a8e45f7-4de0-44c8-990f-43c0565ee505'),
+                ('Social og sundhed', 'a6773531-6c0a-4c7b-b0e2-77992412b610')]
         self._create_org_level(orgs, parent=self.nodes[self.root_name])
 
         keys = sorted(self.nodes.keys())  # Sort the keys to ensure test-cosistency
@@ -432,26 +446,33 @@ class CreateDummyOrg(object):
             org = self.nodes[node].name
             if not org_size == Size.Small:
                 if org == 'Teknik og Miljø':
-                    orgs = ['Kloakering',
-                            'Park og vej',
-                            'Renovation',
-                            'Belysning',
-                            'IT-Support']
+                    orgs = [('Kloakering', 'cf4daae1-4812-41f1-8c47-63a99e26aadf'),
+                            ('Park og vej', '1a477478-41b4-4806-ac3a-e220760a0c89'),
+                            ('Renovation', 'dac3b1ef-3d36-4464-9839-f611a4215cb5'),
+                            ('Belysning', 'fe2d2ff4-45f8-4b19-8e1b-72d1c4914360'),
+                            ('IT-Support', '8bf0c4ce-816e-41f9-99fe-057e0592d86d')]
                     uuids = self._create_org_level(orgs, self.nodes[node])
                     for uuid in uuids:
                         if random.random() > 0.5:
                             self._create_org_level(['Kantine'], self.nodes[uuid])
 
                 if org == 'Borgmesterens Afdeling':
-                    orgs = ['Budget og Planlægning',
-                            'HR og organisation',
-                            'Erhverv',
-                            'Byudvikling',
-                            'IT-Support']
+                    orgs = [
+                        ('Budget og Planlægning',
+                         '1f06ed67-aa6e-4bbc-96d9-2f262b9202b5'),
+                        ('HR og organisation',
+                         '96a4715c-f4df-422f-a4b0-9dcc686753f7'),
+                        ('Erhverv', 'e054559b-bc15-4203-bced-44375aed1555'),
+                        ('Byudvikling', 'f1c20ee2-ecbb-4b74-b91c-66ef9831c5cd'),
+                        ('IT-Support', '25e39a21-caef-4e96-ac90-7cc27173082e')
+                    ]
                     self._create_org_level(orgs, self.nodes[node])
 
             if org == 'Skole og Børn':
-                orgs = ['Social Indsats', 'IT-Support']
+                orgs = [
+                    ('Social Indsats', '535ba446-d618-4e51-8dae-821d63e26560'),
+                    ('IT-Support', '9b7b3dde-16c9-4f88-87cc-e03aa5b4e709')
+                ]
                 self._create_org_level(orgs, self.nodes[node])
 
                 org = ['Skoler og børnehaver']
