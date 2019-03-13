@@ -315,7 +315,6 @@ def main(mox_base, mora_base, municipality, scale, org_size, extra_root):
         })
 
         if not r or not r.json():
-<<<<<<< 7448123374ee1d7426cb40d890e3d4836e9887a6
             raise Abort('no such municipality: ' + municipality)
 
         municipality_number = r.json()[0]['kode']
@@ -336,6 +335,7 @@ def main(mox_base, mora_base, municipality, scale, org_size, extra_root):
                    extra_root=True)
 
     importer.import_all()
+
 
 if __name__ == '__main__':
     main()
