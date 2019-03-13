@@ -511,7 +511,7 @@ class ImportHelper(object):
         :param list facet_defaults: Default list of Facet types
         """
 
-        for user_key in facet_defaults:
+        for user_key in sorted(facet_defaults):
 
             self.add_facet(
                 identifier=user_key,
@@ -573,27 +573,27 @@ class ImportHelper(object):
 
         # Insert Facet
         print('Will now import facet')
-        for identifier, facet in self.facet_objects.items():
+        for identifier, facet in sorted(self.facet_objects.items()):
             self.store.import_facet(identifier, facet)
 
         # Insert Klasse
         print('Will now import klasse')
-        for identifier, klasse in self.klasse_objects.items():
+        for identifier, klasse in sorted(self.klasse_objects.items()):
             self.store.import_klasse(identifier, klasse)
 
         # Insert Itsystem
         print('Will now import IT-systems')
-        for identifier, itsystem in self.itsystems.items():
+        for identifier, itsystem in sorted(self.itsystems.items()):
             self.store.import_itsystem(identifier, itsystem)
 
         # Insert Organisation Units
         print('Will now import org units')
-        for identifier, org_unit in self.organisation_units.items():
+        for identifier, org_unit in sorted(self.organisation_units.items()):
             self.import_organisation_units_recursively(identifier, org_unit)
 
         # Insert Employees
         print('Will now import employees')
-        for identifier, employee in self.employees.items():
+        for identifier, employee in sorted(self.employees.items()):
 
             details = self.employee_details.get(identifier)
             self.store.import_employee(
