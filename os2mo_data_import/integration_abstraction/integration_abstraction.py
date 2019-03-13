@@ -15,6 +15,7 @@ class IntegrationAbstraction(object):
     def _get_complete_object(self, resource, uuid):
         """ Return a complete LoRa object """
         response = self.session.get(url=self.mox_base + resource + '/' + uuid)
+        response.raise_for_status()
         return response.json()
 
     def _get_attributes(self, resource, uuid):
@@ -70,6 +71,7 @@ class IntegrationAbstraction(object):
             return None
         response = self.session.patch(url=self.mox_base + resource +
                                       '/' + uuid, json=properties)
+        response.raise_for_status()
         return response.json()
 
     def read_integration_data(self, resource, uuid):
@@ -147,6 +149,7 @@ class IntegrationAbstraction(object):
         search_string = search_val.replace('\\', '\\\\')
 
         response = self.session.get(url=url.format(search_string))
+        response.raise_for_status()
         results = response.json()['results'][0]
         if len(results) == 0:
             return_val = None

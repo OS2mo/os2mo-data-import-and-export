@@ -9,6 +9,11 @@ setup(
     author="Magenta ApS",
     author_email="info@magenta.dk",
     license="MPL 2.0",
+    entry_points={
+        'console_scripts': [
+            'mo-populate = fixture_generator.populate_mo:main',
+        ],
+    },
     packages=[
         "os2mo_data_import",
         "integration_abstraction",
@@ -22,6 +27,7 @@ setup(
     install_requires=[
         "certifi",
         "chardet",
+        "click",
         "idna",
         "requests",
         "urllib3",

@@ -1,9 +1,31 @@
 import sys
 from fixture_generator import dummy_data_creator
 from datetime import datetime
+from click import command, option, Abort
+from requests import Session
 from anytree import PreOrderIter
 from os2mo_data_import import ImportHelper
 from fixture_generator.dummy_data_creator import Size
+
+
+"""
+This tools needs either 2 or 7 arguments:
+First two arguments
+* Municipality number.
+* Municipality name.
+
+Five further arguments (either all or none of these should be supplied):
+* Scale: Scales the number of employees (default 4).
+* Org size: Small, Normal, Large. If large, multiple employmens will be
+made for each employee.  If small, only very few units will be created.
+* Extra root: Add an extra root unit (default True).
+* mox_base: Default http://localhost:5000
+* mora_base: Default http://localhost:80
+
+Example:
+python3 populate_mo.py 825 "Læsø Kommune" 2 Small True
+http://localhost:5000 http://localhost:80
+"""
 
 
 class CreateDummyOrg(object):
@@ -271,55 +293,30 @@ class CreateDummyOrg(object):
                 )
 
 
-if __name__ == '__main__':
-    if len(sys.argv) == 3:
-        municipality_number = int(sys.argv[1])
-        municipality_name = sys.argv[2]
-        scale = 4
-        mox_base = 'http://localhost:5000'
-        mora_base = 'http://localhost:80'
-        org_size = Size.Normal
-        extra_root = True
+@command(help=__doc__, context_settings=dict(
+    auto_envvar_prefix='MO',
+    help_option_names=['-h', '--help'],
+))
+@option('--mox-base', metavar='URL', default='http://localhost:5000')
+@option('--mora-base', metavar='URL', default='http://localhost')
+@option('--municipality', metavar='NAME', default='København')
+@option('--scale', type=int, default=4)
+@option('--extra-root/--no-extra-root', is_flag=True)
+@option('--small', 'org_size', flag_value=Size.Small)
+@option('--normal', 'org_size', flag_value=Size.Normal, default=True)
+@option('--large', 'org_size', flag_value=Size.Large)
+def main(mox_base, mora_base, municipality, scale, org_size, extra_root):
+    with Session() as sess:
+        r = sess.get('http://dawa.aws.dk/kommuner', params={
+            'navn': municipality,
+            'struktur': 'flad',
+        })
 
-    elif len(sys.argv) == 8:
-        municipality_number = sys.argv[1]
-        municipality_name = sys.argv[2]
-        scale = int(sys.argv[3])
-        org_size_param = sys.argv[4]
-        if org_size_param.lower() == 'small':
-            org_size = Size.Small
-        elif org_size_param.lower() == 'normal':
-            org_size = Size.Normal
-        elif org_size_param.lower() == 'large':
-            org_size = Size.Large
-        else:
-            print('Invalid org size')
-            exit()
-        extra_root = sys.argv[5] == 'True'
-        mox_base = sys.argv[6]
-        mora_base = sys.argv[7]
-    else:
-        print(
-            """
-            This tools needs either 2 or 7 arguments:
-            First two arguments
-            * Municipality number.
-            * Municipality name.
+        if not r or not r.json():
+            raise Abort('no such municipality: ' + name)
 
-            Five further arguments (either all or none of these should be supplied):
-            * Scale: Scales the number of employees (default 4).
-            * Org size: Small, Normal, Large. If large, multiple employmens will be
-            made for each employee.  If small, only very few units will be created.
-            * Extra root: Add an extra root unit (default True).
-            * mox_base: Default http://localhost:5000
-            * mora_base: Default http://localhost:80
-
-            Example:
-            python3 populate_mo.py 825 "Læsø Kommune" 2 Small True
-            http://localhost:5000 http://localhost:80
-            """
-        )
-        exit()
+        municipality_number = r.json()[0]['kode']
+        municipality_name = r.json()[0]['navn'] + ' Kommune'
 
     importer = ImportHelper(create_defaults=True,
                             mox_base=mox_base,
@@ -334,4 +331,7 @@ if __name__ == '__main__':
                              org_size=org_size,
                              extra_root=True)
 
-    # importer.import_all()
+    importer.import_all()
+
+if __name__ == '__main__':
+    main()
