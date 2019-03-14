@@ -23,7 +23,7 @@ CLASSES = {
     ],
     'org_unit_type': [
         'Afdeling', 'Institutionsafsnit', 'Institution', 'Fagligt center',
-        'Direktør område'
+        'Direktørområde'
     ],
     'responsibility': [
         'Personale: ansættelse/afskedigelse',
@@ -66,12 +66,12 @@ CLASSES = {
         ('EmailUnit', 'Email', 'EMAIL'),
         ('PhoneUnit', 'Telefon', 'PHONE'),
         ('FaxUnit', 'Fax', 'PHONE'),
-        ('EAN', 'EAN Nummer', 'EAN'),
+        ('EAN', 'EAN-nummer', 'EAN'),
         ('WebUnit', 'Webadresse', 'WWW'),
         ('p-nummer', 'P-nummer', 'PNUMBER')
     ],
     'manager_level': ['Niveau 1', 'Niveau 2', 'Niveau 3', 'Niveau 4'],
-    'time_planning': ['Arbejdstidsplanner', 'Dannes ikke', 'Tjenestestid'],
+    'time_planning': ['Arbejdstidsplaner', 'Dannes ikke', 'Tjenestetid'],
     'engagement_type': ['Ansat'],
     'visibility': [
         ('Ekstern', 'Må vises eksternt', 'PUBLIC'),
@@ -80,7 +80,7 @@ CLASSES = {
     ]
 }
 
-IT_SYSTEMS = ['Active Directory', 'SAP', 'Office 365', 'Plone', 'Open Desk']
+IT_SYSTEMS = ['Active Directory', 'SAP', 'Office365', 'Plone', 'OpenDesk']
 
 START_DATE = '1960-01-01'
 
