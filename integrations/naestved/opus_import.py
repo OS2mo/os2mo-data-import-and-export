@@ -95,6 +95,7 @@ class OpusImport(object):
         :return: DAWA UUID for the address, or None if it is not found
         """
         dar_uuid = None
+        print(street_name)
         dar_data = _dawa_request(street_name, postal_code)
         print(len(dar_data))
         if len(dar_data) == 0:
@@ -222,24 +223,18 @@ class OpusImport(object):
                 date_to=date_to
             )
 
-        """
-        address_string = item["street"]
-        zip_code = item["zipCode"]
-        city = item["city"]
-        address_uuid = fuzzy_address(
-            address_string=address_string,
-            zip_code=zip_code,
-            city=city
-        )
-
-        if address_uuid:
-            os2mo.add_address_type(
-                organisation_unit=identifier,
-                value=address_uuid,
-                type_ref="AddressMailUnit",
-                date_from=date_from
-            )
-        """
+        address_string = unit['street']
+        zip_code = unit['zipCode']
+        if address_string and zip_code:
+            address_uuid = self._dawa_lookup(address_string, zip_code)
+            if address_uuid:
+                self.importer.add_address_type(
+                    organisation_unit=identifier,
+                    value=address_uuid,
+                    type_ref='AddressPostUnit',
+                    date_from=date_from,
+                    date_to=date_to
+                )
 
     def add_addresses_to_employees(self):
         for cpr, employee_addresses in self.employee_addresses.items():
@@ -254,11 +249,7 @@ class OpusImport(object):
 
     def _import_employee(self, employee):
         # UNUSED KEYS:
-        # 'city', 'subordinateLevel', 'postalCode', '@lastChanged',
-        # 'userId', 'country', 'address'
-
-        # if data_as_dict.get("@action"):
-        #    return
+        # 'subordinateLevel','@lastChanged', 'userId'
 
         if 'userId' in employee:
             # What is this?
@@ -297,6 +288,12 @@ class OpusImport(object):
         if employee['workPhone'] is not None:
             phone = _parse_phone(employee['workPhone'])
             self.employee_addresses[cpr]['PhoneEmployee'] = phone
+        if 'postalCode' in employee and employee['address']:
+            address_string = employee['address']
+            zip_code = employee["postalCode"]
+            address_uuid = self._dawa_lookup(address_string, zip_code)
+            if address_uuid:
+                self.employee_addresses[cpr]['AdressePostEmployee'] = address_uuid
 
         job = employee["position"]
         contract = employee['workContract']
@@ -362,21 +359,3 @@ class OpusImport(object):
                     date_from=date_from,
                     date_to=date_to
                 )
-
-        if 'postalCode' in employee:
-            address_string = employee["address"]
-            zip_code = employee["postalCode"]
-            # city = employee["city"]
-
-            print(self._dawa_lookup(address_string, zip_code))
-            print()
-
-        """
-        if address_uuid:
-            os2mo.add_address_type(
-                employee=name,
-                value=address_uuid,
-                type_ref='AdressePostEmployee',
-                date_from=date_from
-            )
-        """
