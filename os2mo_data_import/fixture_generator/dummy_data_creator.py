@@ -418,7 +418,7 @@ class CreateDummyOrg(object):
             delta = timedelta(days=30 * random.randrange(0, 240))
             time_from = self.global_start_date + delta
             cpr = _cpr(time_from)
-            for i in range(0, random.randrange(1, 15)):
+            for i in range(1, random.randrange(1, 15)):
                 delta = timedelta(days=30 * random.randrange(0, 150))
                 time_to = time_from + delta
                 user.append(self._create_user(name, user_key,
