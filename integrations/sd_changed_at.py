@@ -1,8 +1,8 @@
 import os
 import pickle
+import datetime
 import requests
 import xmltodict
-import datetime
 
 INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
 SD_USER = os.environ.get('SD_USER', None)
@@ -32,9 +32,10 @@ def _sd_lookup(url, from_date=None, to_date=None, params = {}):
     payload.update(params)
 
     full_url = BASE_URL + url
+
     url_id = url
-    url_id += 'ActivationDate' + payload['ActivationDate']
-    url_id += 'DeactivationDate' + payload['DeactivationDate']
+    # url_id += 'ActivationDate' + payload['ActivationDate']
+    # url_id += 'DeactivationDate' + payload['DeactivationDate']
 
     try:
         with open(url_id + '.p', 'rb') as f:
@@ -53,17 +54,29 @@ def _sd_lookup(url, from_date=None, to_date=None, params = {}):
     return xml_response
 
 
+def read_employments_for_user(cpr, date=None):
+    if not date:
+        from_date = datetime.datetime.now()
+    url = 'GetEmploymentDate20111201'
+    params = {
+        'EffectiveDate': from_date.strftime('%d.%m.%Y'),
+         # 'DeactivationDate': to_date.strftime('%d.%m.%Y'),
+        'StatusActiveIndicator': 'true',
+        'DepartmentIndicator': 'true',
+        'EmploymentStatusIndicator': 'true',
+        'ProfessionIndicator': 'true',
+        'WorkingTimeIndicator': 'true',
+        'UUIDIndicator': 'true',
+        'StatusPassiveIndicator': 'false',
+        'SalaryAgreementIndicator': 'false',
+        'SalaryCodeGroupIndicator': 'false'
+    }
+    response = _sd_lookup(url, from_date, to_date, params=params)
+    return response['Person']
+
+
 def read_employment_changed():
     url = 'GetEmploymentChangedAtDate20111201'
-    #params = {
-    #    'ActivationDate': from_date.strftime('%d.%m.%Y'),
-    #    'DeactivationDate': to_date.strftime('%d.%m.%Y'),
-    #    'DepartmentIndicator': 'true',
-    #    'EmploymentStatusIndicator': 'true',
-    #    'ProfessionIndicator': 'true',
-    #    'WorkingTimeIndicator': 'true',
-    #    'UUIDIndicator': 'true'
-    #}
     params = {
         'ActivationDate': from_date.strftime('%d.%m.%Y'),
         'DeactivationDate': to_date.strftime('%d.%m.%Y'),
@@ -78,26 +91,6 @@ def read_employment_changed():
         'SalaryCodeGroupIndicator': 'false'
     }
     response = _sd_lookup(url, from_date, to_date, params=params)
-
-    #print(response.keys())
-    #print(response['Person'][0])
-    #print()
-    #print(response['Person'][1])
-    #print()
-    #print(response['Person'][2])
-    #print()
-    #print(response['Person'][3])
-    #print()
-    #print(response['Person'][4])
-    #print()
-    #print(response['Person'][4].keys())
-    #print()
-    #print(response['Person'][4]['Employment'][0].keys())
-    #print()
-    #print(response['Person'][4]['Employment'][1].keys())
-    #for person in response['Person']:
-    #    print(person)
-    #    print()
     return response['Person']
 
 
@@ -135,8 +128,10 @@ if __name__ == '__main__':
         print(found_eng)
     """
     for person in person_changed:
+        print('--------')
         cpr = person['PersonCivilRegistrationIdentifier']
         print(person)
+        """
         for employment in employments_changed:
             if employment['PersonCivilRegistrationIdentifier'] == cpr:
                 if not isinstance(employment['Employment'], list):
@@ -144,6 +139,27 @@ if __name__ == '__main__':
                 else:
                     emp_list = employment['Employment']
                 for emp in emp_list:
+                    print('All key-values:')
                     for key, value in emp.items():
+                        # pass
                         print('{}: {}'.format(key, value))
+                        print()
+
+                    print('Employment status:')
+                    if not isinstance(emp['EmploymentStatus'], list):
+                        staus_list = [emp['EmploymentStatus']]
+                    else:
+                        status_list = emp['EmploymentStatus']
+
+                    for status in status_list:
+                        print('EmploymenyStatus: {}'.format(status))
+                        # employment_info = read_employments_for_user(cpr, date)
+                        # print(employment_info)
                 print()
+                print()
+                # print()
+                # print()
+        """
+        employment_info = read_employments_for_user(cpr)
+        print(employment_info)
+        1/0
