@@ -15,9 +15,6 @@ import xmltodict
 from anytree import Node
 
 
-# ORIGIN FOR TESTS WIH ACTUAL API
-GLOBAL_GET_DATE = datetime.datetime(2014, 2, 15, 0, 0) # CACHED
-# GLOBAL_GET_DATE = datetime.datetime(2019, 2, 15, 0, 0) # CACHED
 INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
 SD_USER = os.environ.get('SD_USER', None)
 SD_PASSWORD = os.environ.get('SD_PASSWORD', None)
@@ -61,7 +58,7 @@ def _dawa_request(address, adgangsadresse=False,
 
 class SdImport(object):
     def __init__(self, importer, org_name, municipality_code,
-                 forced_uuids={}):
+                 import_date_from, import_date_to=None, forced_uuids={}):
         self.base_url = 'https://service.sd.dk/sdws/'
 
         self.double_employment = []
@@ -73,6 +70,16 @@ class SdImport(object):
             user_key=org_name,
             municipality_code=municipality_code
         )
+
+        if import_date_to:
+            self.import_date = import_date_to.strftime('%d.%m.%Y')
+            self.import_date_from = import_date_from.strftime('%d.%m.%Y')
+            self.import_date_to = import_date_to.strftime('%d.%m.%Y')
+        else:
+            self.import_date = import_date_from.strftime('%d.%m.%Y')
+            self.import_date_from = import_date_from.strftime('%d.%m.%Y')
+            self.import_date_to = None
+            
         self.employee_forced_uuids = forced_uuids
 
         self.nodes = {}  # Will be populated when org-tree is created
@@ -103,6 +110,8 @@ class SdImport(object):
         self._add_klasse('EmailEmployee', 'Email',
                          'employee_address_type', 'EMAIL')
 
+        self._add_klasse('Orlov', 'Orlov', 'leave_type')
+
         self._add_klasse('Orphan', 'Virtuel Enhed', 'org_unit_type')
 
         self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
@@ -125,7 +134,7 @@ class SdImport(object):
         }
         payload.update(params)
         m = hashlib.sha256()
-        m.update(str(payload).encode())
+        m.update(str(sorted(payload)).encode())
         m.update(full_url.encode())
         lookup_id = m.hexdigest()
 
@@ -150,8 +159,10 @@ class SdImport(object):
         department_info = {}
 
         params = {
-            'ActivationDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
-            'DeactivationDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
+            # 'ActivationDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
+            # 'DeactivationDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
+            'ActivationDate': self.import_date,
+            'DeactivationDate': self.import_date,
             'ContactInformationIndicator': 'true',
             'DepartmentNameIndicator': 'true',
             'PostalAddressIndicator': 'true',
@@ -302,7 +313,7 @@ class SdImport(object):
                 new_ous.append(ou)
 
         while len(new_ous) > 0:
-            print(len(new_ous))
+            print('Number of new ous: {}'.format(len(new_ous)))
             all_ous = new_ous
             new_ous = []
             for ou in all_ous:
@@ -318,18 +329,25 @@ class SdImport(object):
     def add_people(self):
         """ Load all person details and store for later user """
         params = {
-            'EffectiveDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
             'StatusActiveIndicator': 'true',
             'StatusPassiveIndicator': 'false',
             'ContactInformationIndicator': 'false',
             'PostalAddressIndicator': 'false'
         }
-        people = self._sd_lookup('GetPerson20111201', params)
+        if self.import_date_to:
+            params['ActivationDate'] = self.import_date_from
+            params['DeactivationDate'] = self.import_date_to
+            people = self._sd_lookup('GetPersonChangedAtDate20111201', params)
+        else:
+            params['EffectiveDate'] = self.import_date
+            people = self._sd_lookup('GetPerson20111201', params)
 
         for person in people['Person']:
+            # TODO: How can a name be missing?!?
             cpr = person['PersonCivilRegistrationIdentifier']
-            name = (person['PersonGivenName'] + ' ' +
-                    person['PersonSurnameName'])
+            given_name = person.get('PersonGivenName', '')
+            sur_name = person.get('SurName', '')
+            name = '{} {}'.format(given_name, sur_name)
             uuid = self.employee_forced_uuids.get(cpr, None)
             self.importer.add_employee(
                 name=name,
@@ -350,8 +368,8 @@ class SdImport(object):
                 date_to=None,
                 parent_ref=None)
         params = {
-            'ActivationDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
-            'DeactivationDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
+            'ActivationDate': self.import_date,
+            'DeactivationDate': self.import_date,
             'UUIDIndicator': 'true'
         }
         organisation = self._sd_lookup('GetOrganization20111201', params)
@@ -361,9 +379,8 @@ class SdImport(object):
             self._add_sd_department(department)
         self.nodes = self._create_org_tree_structure()
 
-    def create_employees(self):
+    def create_employees(self, differential_update_date=None):
         params = {
-            'EffectiveDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
             'StatusActiveIndicator': 'true',
             'DepartmentIndicator': 'true',
             'EmploymentStatusIndicator': 'true',
@@ -374,7 +391,13 @@ class SdImport(object):
             'SalaryAgreementIndicator': 'false',
             'SalaryCodeGroupIndicator': 'false'
         }
-        persons = self._sd_lookup('GetEmployment20111201', params)
+        if self.import_date_to:
+            params['ActivationDate'] = self.import_date_from
+            params['DeactivationDate'] = self.import_date_to
+            persons = self._sd_lookup('GetEmploymentChangedAtDate20111201', params)
+        else:
+            params['EffectiveDate'] = self.import_date
+            persons = self._sd_lookup('GetEmployment20111201', params)
 
         for person in persons['Person']:
             cpr = person['PersonCivilRegistrationIdentifier']
@@ -385,9 +408,30 @@ class SdImport(object):
             max_rate = 0
             min_id = 999999
             for employment in employments:
+                print()
+                print()
+                print('--')
+                print(type(employment))
+                print(employment.keys())
+                print()
+                print(type(employment['EmploymentStatus']))
+                if isinstance(employment['EmploymentStatus'], list):
+                    for status in employment['EmploymentStatus']:
+                        print(status)
+                
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
+                print(status)
                 if (int(status) == 0):
                     continue
+                if int(status) == 3:
+                    # Orlov
+                    pass
+                if int(status) == 8:
+                    # Fratrædt
+                    continue
+
+                # TODO: Could we somehow make use of this employent_id if
+                # it was stored in integration data?
                 employment_id = int(employment['EmploymentIdentifier'])
                 occupation_rate = float(employment['WorkingTime']
                                         ['OccupationRate'])
@@ -406,8 +450,13 @@ class SdImport(object):
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
                 if int(status) == 0:
                     continue
+                if int(status) == 8:
+                    # Fratrådt
+                    continue
+                
                 occupation_rate = float(employment['WorkingTime']
                                         ['OccupationRate'])
+
                 employment_id = int(employment['EmploymentIdentifier'])
 
                 if occupation_rate == max_rate and employment_id == min_id:
@@ -428,8 +477,8 @@ class SdImport(object):
                 emp_dep = employment['EmploymentDepartment']
                 unit = emp_dep['DepartmentUUIDIdentifier']
 
-                date_from = emp_dep['ActivationDate']
-                date_to = emp_dep['DeactivationDate']
+                date_from = employment['EmploymentStatus']['ActivationDate']
+                date_to = employment['EmploymentStatus']['DeactivationDate']
                 if date_to == '9999-12-31':
                     date_to = None
 
@@ -455,8 +504,16 @@ class SdImport(object):
                         employee=cpr,
                         organisation_unit=original_unit,
                         association_type_ref='SD-medarbejder',
-                        date_from=date_from
+                        date_from=date_from,
+                        date_to=date_to
                     )
+                    if int(status) == 3:
+                        self.importer.add_leave(
+                            employee=cpr,
+                            leave_type_ref='Orlov',
+                            date_from=date_from,
+                            date_to=date_to
+                        )
 
                 except AssertionError:
                     self.double_employment.append(cpr)
@@ -479,5 +536,6 @@ class SdImport(object):
             # This assertment really should hold...
             # assert(exactly_one_primary is True)
             if exactly_one_primary is not True:
-                print()
-                print(employments)
+                pass
+                # print()
+                # print('More than one primary: {}'.format(employments))
