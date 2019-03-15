@@ -1,6 +1,6 @@
 # -- coding: utf-8 --
 import xmltodict
-import dawa
+import dawa_helper
 
 
 def _parse_phone(phone_number):
@@ -22,9 +22,8 @@ class OpusImport(object):
         self.organisation_id = None
         self.units = None
         self.employees = None
-        # Update values
+        # Update the above values
         municipality_code = self.parser(xml_data)
-        # We should also be able to take the name from here
 
         self.importer.add_organisation(
             identifier=org_name,
@@ -59,7 +58,6 @@ class OpusImport(object):
 
     def _add_klasse(self, klasse_id, klasse, facet, scope='TEXT'):
         if not self.importer.check_if_exists('klasse', klasse_id):
-            # print(klasse_id)
             self.importer.add_klasse(identifier=klasse_id,
                                      facet_type_ref=facet,
                                      user_key=klasse,
@@ -86,7 +84,7 @@ class OpusImport(object):
 
     def _import_org_unit(self, unit):
         # UNUSED KEYS:
-        # costCenter, zipCode, city, @lastChanged, street
+        # costCenter, @lastChanged
 
         org_type = unit['orgType']
         self._add_klasse(org_type, unit['orgTypeTxt'], 'org_unit_type')
@@ -160,7 +158,7 @@ class OpusImport(object):
         address_string = unit['street']
         zip_code = unit['zipCode']
         if address_string and zip_code:
-            address_uuid = dawa.dawa_lookup(address_string, zip_code)
+            address_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
             if address_uuid:
                 self.importer.add_address_type(
                     organisation_unit=identifier,
@@ -225,7 +223,7 @@ class OpusImport(object):
         if 'postalCode' in employee and employee['address']:
             address_string = employee['address']
             zip_code = employee["postalCode"]
-            address_uuid = self._dawa_lookup(address_string, zip_code)
+            address_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
             if address_uuid:
                 self.employee_addresses[cpr]['AdressePostEmployee'] = address_uuid
 
@@ -240,7 +238,7 @@ class OpusImport(object):
         self.importer.add_engagement(
             employee=cpr,
             organisation_unit=org_unit,
-            # user_key=job_id, # Will be added soon!!!
+            user_key=job_id, # Will be added soon!!!
             job_function_ref=job,
             engagement_type_ref=contract,
             date_from=date_from,

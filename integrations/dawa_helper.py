@@ -37,7 +37,7 @@ def _dawa_request(street_name, postal_code, adgangsadresse=False,
     return dar_data
 
 
-def dawa_lookup(self, street_name, postal_code):
+def dawa_lookup(street_name, postal_code):
     """
     Lookup an address object in DAWA and try to find an UUID for the address. Various
     attempts will be be done to find the address, first as an address, and if this
