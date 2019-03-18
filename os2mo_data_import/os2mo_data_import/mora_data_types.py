@@ -142,15 +142,12 @@ class AddressType(MoType):
     :param str date_to: End date e.g. "1982-01-01"
     """
 
-    def __init__(self, value, type_ref, date_from, user_key=None,
+    def __init__(self, value, type_ref, date_from,
                  date_to=None, uuid=None, visibility=None):
         super().__init__()
 
         self.type_id = "address"
-
         self.uuid = uuid
-
-        self.user_key = user_key
 
         self.value = value
         self.type_ref = type_ref
@@ -188,8 +185,7 @@ class AddressType(MoType):
                 "uuid": self.type_ref_uuid
             }
         }
-        if self.user_key:
-            self.payload['user_key'] = self.user_key
+
         if self.visibility_ref:
             self.payload['visibility'] = {'uuid': self.visibility_ref_uuid}
         return self._build_payload()
@@ -215,12 +211,13 @@ class EngagementType(MoType):
     """
 
     def __init__(self, org_unit_ref, job_function_ref, engagement_type_ref,
-                 date_from, date_to=None, uuid=None):
+                 date_from, date_to=None, uuid=None, user_key=None):
         super().__init__()
 
         self.type_id = "engagement"
-
         self.uuid = uuid
+        self.user_key = user_key
+
         self.org_unit_ref = org_unit_ref
         self.org_unit_uuid = None
 
@@ -270,6 +267,8 @@ class EngagementType(MoType):
         self.payload["engagement_type"] = {
             "uuid": self.type_ref_uuid
         }
+        if self.user_key:
+            self.payload['user_key'] = self.user_key
 
         return self._build_payload()
 

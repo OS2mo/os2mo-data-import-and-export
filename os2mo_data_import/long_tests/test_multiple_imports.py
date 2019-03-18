@@ -400,6 +400,7 @@ class IntegrationDataTests(unittest.TestCase):
             employee='Test user',
             organisation_unit='Root',
             job_function_ref='Kok',
+            user_key='108',
             engagement_type_ref="Ansat",
             date_from='1992-01-23',
             date_to='2022-07-16'
@@ -409,11 +410,15 @@ class IntegrationDataTests(unittest.TestCase):
             employee='Test user',
             organisation_unit='Sub unit 1',
             job_function_ref='Vagt',
+            user_key='109',
             engagement_type_ref="Ansat",
             date_from='1990-01-23',
             date_to=None
         )
         self.importer.import_all()
+
+        # Test the user_key is correctly written
+
         count = _count(self.mox_base, at='1980-01-01')
         self.assertTrue(count['person_count'] == 1)
         self.assertTrue(count['engagement_count'] == 0)
@@ -461,6 +466,8 @@ class IntegrationDataTests(unittest.TestCase):
             date_to='2020-07-16'
         )
         self.importer.import_all()
+        # Test the user_key is still in place
+
         count = _count(self.mox_base, at='1980-01-01')
         self.assertTrue(count['person_count'] == 1)
         self.assertTrue(count['engagement_count'] == 0)
