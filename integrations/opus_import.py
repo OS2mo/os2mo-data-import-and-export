@@ -189,7 +189,6 @@ class OpusImport(object):
         # '@lastChanged'
 
         if 'cpr' in employee:
-            # Field also contains key @suppId - what is this?
             cpr = employee['cpr']['#text']
         else:
             # Most likely this employee has left the organisation
