@@ -77,7 +77,7 @@ class IntegrationDataTests(unittest.TestCase):
 
         self.importer.add_address_type(
             organisation_unit='Root',
-            value='11111111',
+            value='1234567890123',
             type_ref='EAN',
             date_from='1970-01-01',
         )
@@ -107,7 +107,7 @@ class IntegrationDataTests(unittest.TestCase):
 
         self.importer.add_address_type(
             organisation_unit='Sub unit 2',
-            value='33333333',
+            value='1234567890124',
             type_ref='EAN',
             date_from='1970-01-01',
         )
@@ -571,7 +571,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(count['leave_count'] == 0)
 
     @freeze_time("2019-01-05")
-    def test_024_integration_supported_association_and_role(self):
+    def ttest_024_integration_supported_association_and_role(self):
         """
         Add a role and and association to employees without adding the  units to the
         importer map.
@@ -607,6 +607,22 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(count['association_count'] == 0)
         count = _count(self.mox_base, at='2019-01-10')
         self.assertTrue(count['association_count'] == 2)
+
+    def test_025_terminate_employee(self):
+        """
+        Teriminate an employee
+        """
+        self.importer.add_employee(
+            name='Test user',
+            identifier='Test user',
+            cpr_no='1111111118',
+        )
+        self.importer.terminate_employee(
+            employee='Test user',
+            date_from='2019-06-01',
+        )
+
+        self.importer.import_all()
 
 
 if __name__ == '__main__':

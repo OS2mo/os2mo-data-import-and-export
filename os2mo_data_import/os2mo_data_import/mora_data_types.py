@@ -464,6 +464,11 @@ class LeaveType(MoType):
         return self._build_payload()
 
 
+class TerminationType(MoType):
+    def __init__(self, date_from):
+        self.date_from = date_from
+
+
 class RoleType(MoType):
     """
     Role type detail describes a which role an employee holds

@@ -20,7 +20,8 @@ from os2mo_data_import.mora_data_types import (
     LeaveType,
     ItsystemType,
     OrganisationUnitType,
-    EmployeeType
+    EmployeeType,
+    TerminationType
 )
 
 from os2mo_data_import.mox_data_types import (
@@ -426,6 +427,17 @@ class ImportHelper(object):
         association = AssociationType(org_unit_ref=organisation_unit, **kwargs)
 
         self.employee_details[employee].append(association)
+
+    def terminate_employee(self, employee, **kwargs):
+        """
+        Terminate employee
+
+        :param str employee: Reference to the employee
+        :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.TerminationType`
+        """
+        termination = TerminationType(kwargs['date_from'])
+
+        self.employee_details[employee].append(termination)
 
     def add_role(self, employee, organisation_unit, **kwargs):
         """

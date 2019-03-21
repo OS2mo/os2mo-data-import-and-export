@@ -16,6 +16,7 @@ from integration_abstraction.integration_abstraction import IntegrationAbstracti
 
 from os2mo_data_import.mora_data_types import (
     OrganisationUnitType,
+    TerminationType,
     EmployeeType
 )
 
@@ -468,9 +469,17 @@ class ImportUtility(object):
         data['engagement'] = self._get_detail(uuid, 'engagement')
         data['association'] = self._get_detail(uuid, 'association')
 
+        # In case of en explicit termination, we terminate the employee and return
+        # imidiately.
+        for detail in details:
+            if isinstance(detail, TerminationType):
+                self._terminate_employee(uuid, date_from=detail.date_from)
+                return uuid
+
         if details:
             additional_payload = []
             for detail in details:
+
                 if not detail.date_from:
                     detail.date_from = self.date_from
 
@@ -756,13 +765,18 @@ class ImportUtility(object):
             all_data += data
         return all_data
 
-    def _terminate_employee(self, uuid):
+    def _terminate_employee(self, uuid, date_from=None):
         endpoint = 'service/e/{}/terminate'
         yesterday = datetime.now() - timedelta(days=1)
+        if date_from:
+            to = date_from
+        else:
+            to = yesterday.strftime('%Y-%m-%d')
+
         payload = {
             'terminate_all': True,
             'validity': {
-                'to': yesterday.strftime('%Y-%m-%d')
+                'to': to
             }
         }
         resource = endpoint.format(uuid)
