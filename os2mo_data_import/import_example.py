@@ -435,6 +435,12 @@ def example_import():
         date_from="1987-10-01"
     )
 
+    # Terminate an employee
+    os2mo.terminate_employee(
+            employee="Susanne Chæf",
+            date_from="2019-06-01",
+    )
+
     os2mo.import_all()
 
 
