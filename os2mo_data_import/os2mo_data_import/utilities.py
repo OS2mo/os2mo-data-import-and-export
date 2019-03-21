@@ -7,8 +7,7 @@
 #
 
 import json
-import copy
-from uuid import uuid4
+from uuid import uuid4, UUID
 from urllib.parse import urljoin
 from requests import Session, HTTPError
 from datetime import datetime, timedelta
@@ -310,9 +309,9 @@ class ImportUtility(object):
         if not isinstance(organisation_unit, OrganisationUnitType):
             raise TypeError("Not of type OrganisationUnitType")
 
-        if reference in self.inserted_org_unit_map:
-            print("The organisation unit has already been inserted")
-            return False
+        # if reference in self.inserted_org_unit_map:
+        #     print("The organisation unit has already been inserted")
+        #     return False
 
         resource = 'organisation/organisationenhed'
 
@@ -332,33 +331,53 @@ class ImportUtility(object):
         organisation_unit.type_ref_uuid = type_ref_uuid
 
         payload = organisation_unit.build()
-
-        integration_data = self._integration_data(
+        payload = self._integration_data(
             resource=resource,
             reference=reference,
             payload=payload,
             encode_integration=False
         )
 
+        if 'uuid' in payload:
+            if payload['uuid'] in self.existing_uuids:
+                print('Re-import org-unit')
+                re_import = 'NO'
+                resource = 'service/details/edit'
+                payload_keys = list(payload.keys())
+                payload['data'] = {}
+                for key in payload_keys:
+                    payload['data'][key] = payload[key]
+                    del payload[key]
+                payload['type'] = 'org_unit'
+            else:
+                re_import = 'NEW'
+                print('New unit - Forced uuid')
+                resource = 'service/ou/create'
+        else:
+            re_import = 'NEW'
+            print('New unit')
+            resource = 'service/ou/create'
+
         uuid = self.insert_mora_data(
-            resource="service/ou/create",
-            data=integration_data
+            resource=resource,
+            data=payload
         )
 
-        if 'uuid' in integration_data:
-            assert (uuid == integration_data['uuid'])
+        if 'uuid' in payload:
+            assert (uuid == payload['uuid'])
         if not uuid:
             raise ConnectionError("Something went wrong")
 
         # Add to the inserted map
         self.inserted_org_unit_map[reference] = uuid
 
-        # Details
+        data = {}
+        data['address'] = self._get_detail(uuid, 'address', object_type='ou')
+
         # Build details (if any)
         details_payload = []
 
         for detail in details:
-
             detail.org_unit_uuid = uuid
 
             date_from = detail.date_from
@@ -373,12 +392,27 @@ class ImportUtility(object):
             if not build_detail:
                 continue
 
+            found_hit = self._payload_compare(build_detail, data)
+            # print('Found hit for {}: {}'.format(uuid, found_hit))
+            if not found_hit and re_import == 'NO':
+                re_import = 'YES'
+
+            # TODO: SHOLD WE UPDATE FROM TO TODAY IN CASE OF RE-IMPORT?
             details_payload.append(build_detail)
 
-        self.insert_mora_data(
-            resource="service/details/create",
-            data=details_payload
-        )
+        print('Re-import: {}'.format(re_import))
+
+        if re_import == 'YES':
+            print('Terminating details for {}'.format(uuid))
+            for item in data['address']:
+                print()
+                print(item)
+                self._terminate_details(item['uuid'], 'address')
+        if re_import in ('YES', 'NEW'):
+            self.insert_mora_data(
+                resource="service/details/create",
+                data=details_payload
+            )
 
         return uuid
 
@@ -436,7 +470,6 @@ class ImportUtility(object):
         data['association'] = self._get_detail(uuid, 'association')
 
         if details:
-            complete_additional_payload = []
             additional_payload = []
             for detail in details:
                 if not detail.date_from:
@@ -455,64 +488,31 @@ class ImportUtility(object):
                     found_hit = self._payload_compare(detail_payload, data)
                     if not found_hit:
                         re_import = 'YES'
+                additional_payload.append(detail_payload)
 
-                new_item_payload = copy.deepcopy(detail_payload)
-
-                valid_from = new_item_payload['validity']['from']
-                if datetime.strptime(valid_from, '%Y-%m-%d') < datetime.now():
-                    valid_from = datetime.now().strftime('%Y-%m-%d')  # today
-                valid_to = new_item_payload['validity']['to']
-
-                """
-                if valid_to:
-                    future = datetime.strptime(valid_to, '%Y-%m-%d') > datetime.now()
+            for item in additional_payload:
+                valid_from = item['validity']['from']
+                valid_to = item['validity']['to']
+                now = datetime.now()
+                py_from = datetime.strptime(valid_from, '%Y-%m-%d')
+                if valid_to is not None:
+                    py_to = datetime.strptime(valid_to, '%Y-%m-%d')
                 else:
-                    future = False
+                    py_to = datetime.strptime('2200-01-01', '%Y-%m-%d')
 
-                if not valid_to or future:
-                    new_item_payload['validity']['from'] = valid_from
-                    # new_item_payload['validity']['from'] = today
-                    complete_additional_payload.append(new_item_payload)
-                    # Clean this up. We do not need a long and a short list
-                    # of payloads, we need to know if something changes and thus
-                    # if we need to terminate and re-hire the employee
-                    # if not found_hit. This awaits fixing the current issues in MO.
-                additional_payload.append(detail_payload)
-                """
-                complete_additional_payload.append(new_item_payload)
-                additional_payload.append(detail_payload)
+                print('Py-from: {}, Py-to: {}, Now: {}'.format(py_from, py_to, now))
+                if re_import == 'YES' and py_from < now and py_to > now:
+                    print('Updating valid_from')
+                    valid_from = datetime.now().strftime('%Y-%m-%d')  # today
+                    item['validity']['from'] = valid_from
 
             print('Re-import: {}'.format(re_import))
-            # Hvad sker der, hvis man fyrer en person og ansætter igen samme dag...?
 
-            """
-            if uuid in self.existing_uuids and len(additional_payload) > 0:
-                print('Terminate: {}'.format(uuid))
-                self._terminate_employee(uuid)
-
-                self.insert_mora_data(
-                    resource="service/details/create",
-                    data=complete_additional_payload
-                )
-            else:
-                self.insert_mora_data(
-                    resource="service/details/create",
-                    data=additional_payload
-                )
-            """
             if re_import == 'YES':
                 print('Terminate: {}'.format(uuid))
                 self._terminate_employee(uuid)
 
-                #self.insert_mora_data(
-                #    resource="service/details/create",
-                #    data=complete_additional_payload
-                #)
-                self.insert_mora_data(
-                    resource="service/details/create",
-                    data=additional_payload
-                )
-            elif re_import == 'NEW':
+            if re_import in ('YES', 'NEW'):
                 self.insert_mora_data(
                     resource="service/details/create",
                     data=additional_payload
@@ -622,6 +622,7 @@ class ImportUtility(object):
         """
         # TODO: We need to have a list of all objects with integration data to
         # be able to make a list of objects that has disappeared
+
         if self.store_integration_data:
             uuid = self.ia.find_object(resource, reference)
             if uuid:
@@ -709,10 +710,19 @@ class ImportUtility(object):
             params=params
         )
 
-        response_data = response.json()
-
-        if response.status_code not in (200, 201):
-
+        if response.status_code == 400:
+            error = response.json()['description']
+            if error.find('does not give raise to a new registration') > 0:
+                uuid_start = error.find('with id [')
+                uuid = error[uuid_start+9:uuid_start+45]
+                try:
+                    UUID(uuid, version=4)
+                    print('Validtated uuid: {}'.format(uuid))
+                except ValueError:
+                    raise Exception('Unable to read uuid')
+            else:
+                raise HTTPError("Inserting mora data failed")
+        elif response.status_code not in (200, 201):
             # DEBUG
             # TODO: Implement logging
             print("============ ERROR ===========")
@@ -720,25 +730,21 @@ class ImportUtility(object):
             print(
                 json.dumps(data, indent=2)
             )
-
             raise HTTPError("Inserting mora data failed")
+        else:
+            uuid = response.json()
+        return uuid
 
-        response_data = response.json()
-
-        # Returns a string rather than a json object
-        # Example: "0fd6a479-8569-42dd-9614-4aacb611306e"
-        return response_data
-
-    def _get_detail(self, uuid, field_type):
-        """ Get information from /detail for an employee
-        :param uuid: uuid for the employee
+    def _get_detail(self, uuid, field_type, object_type='e'):
+        """ Get information from /detail for an employee or unit
+        :param uuid: uuid for the object
         :param field_type: detail field type
         :return: dict with the relevant information
         """
         all_data = []
         for validity in ['past', 'present', 'future']:
-            service = urljoin(self.mora_base, 'service/e/{}/details/{}?validity={}')
-            url = service.format(uuid, field_type, validity)
+            service = urljoin(self.mora_base, 'service/{}/{}/details/{}?validity={}')
+            url = service.format(object_type, uuid, field_type, validity)
             data = self.session.get(url)
             data = data.json()
             all_data += data
@@ -757,6 +763,23 @@ class ImportUtility(object):
 
         self.insert_mora_data(
             resource=resource,
+            data=payload
+        )
+        return uuid
+
+    def _terminate_details(self, uuid, detail_type):
+        print('Terminate {}:  {}'.format(uuid, detail_type))
+        yesterday = datetime.now() - timedelta(days=1)
+        payload = {
+            'type': detail_type,
+            'uuid': uuid,
+            'validity': {
+                'to': yesterday.strftime('%Y-%m-%d')
+            }
+        }
+        print(payload)
+        self.insert_mora_data(
+            resource='service/details/terminate',
             data=payload
         )
         return uuid
@@ -793,6 +816,11 @@ class ImportUtility(object):
         """
         data_type = item_payload['type']
 
+        # print('item_payload: {}'.format(item_payload))
+        # print()
+        # print('Data: {}'.format(data))
+        # print()
+
         found_hit = False
         if data_type == 'engagement':
             for data_item in data[data_type]:
@@ -820,6 +848,8 @@ class ImportUtility(object):
 
         elif data_type == 'address':
             for data_item in data[data_type]:
+                # print(data_item)
+                # print('-')
                 if (
                     (data_item['validity']['from'] ==
                      item_payload['validity']['from']) and
@@ -827,10 +857,9 @@ class ImportUtility(object):
                     (data_item['validity']['to'] ==
                      item_payload['validity']['to']) and
 
-                    (data_item['href'] == item_payload['value'])
+                    (data_item['value'] == item_payload['value'])
                 ):
                     found_hit = True
-            found_hit = True
 
         elif data_type == 'manager':
             for data_item in data[data_type]:

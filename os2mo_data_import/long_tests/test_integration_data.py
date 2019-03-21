@@ -5,13 +5,14 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-from freezegun import freeze_time
-import sys
 import random
 import requests
 import unittest
 from datetime import datetime
 from urllib.parse import urljoin
+from freezegun import freeze_time
+
+from . integration_test_helpers import _count
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from os2mo_data_import import ImportHelper
@@ -23,7 +24,7 @@ class IntegrationDataTests(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         random.seed(1)
-        self.morah = MoraHelper()
+        self.morah = MoraHelper(use_cache=False)
         self.mox_base = 'http://localhost:5000'
         self.mora_base = 'http://localhost:80'
         self.system_name = 'Test Dummy Import'
@@ -32,8 +33,7 @@ class IntegrationDataTests(unittest.TestCase):
                                      mora_base='http://localhost:80',
                                      system_name=self.system_name,
                                      end_marker="STOP",
-                                     store_integration_data=True
-        )
+                                     store_integration_data=True)
         self.dummy_org = CreateDummyOrg(self.importer, 825, 'Læsø Kommune',
                                         scale=1, org_size=Size.Small,
                                         extra_root=False)
@@ -55,49 +55,17 @@ class IntegrationDataTests(unittest.TestCase):
                 uuid = unit['uuid']
         return uuid
 
-    def _count(self):
-        counts = {}
-        orgfunc = ('/organisation/organisationfunktion' +
-                   '?gyldighed=Aktiv&funktionsnavn={}')
-        unit = '/organisation/organisationenhed?gyldighed=Aktiv'
-        user = '/organisation/bruger?bvn=%'
-
-        url = urljoin(self.mox_base, orgfunc.format('Engagement'))
-        response = requests.get(url)
-        counts['engagement_count'] = len(response.json()['results'][0])
-
-        url = urljoin(self.mox_base, orgfunc.format('Rolle'))
-        response = requests.get(url)
-        counts['role_count'] = len(response.json()['results'][0])
-
-        url = urljoin(self.mox_base, orgfunc.format('Leder'))
-        response = requests.get(url)
-        counts['manager_count'] = len(response.json()['results'][0])
-
-        url = urljoin(self.mox_base, orgfunc.format('Tilknytning'))
-        response = requests.get(url)
-        counts['association_count'] = len(response.json()['results'][0])
-
-        url = urljoin(self.mox_base, unit)
-        response = requests.get(url)
-        counts['unit_count'] = len(response.json()['results'][0])
-
-        url = urljoin(self.mox_base, user)
-        response = requests.get(url)
-        counts['person_count'] = len(response.json()['results'][0])
-        return counts
-
-    def _run_import_and_test_org_sanity(self, extra=0):
-        counts = self._count()
+    def _run_import_and_test_org_sanity(self, extra_unit=0, extra_employee=0,
+                                        extra_engagement=0):
         self.importer.import_all()
-        counts = self._count()
+        counts = _count(self.mox_base)
         test_values = [
             ('role_count', 5),
             ('association_count', 4),
-            ('engagement_count', 15),
-            ('unit_count', 9 + extra),
+            ('engagement_count', 15 + extra_engagement),
+            ('unit_count', 9 + extra_unit),
             ('manager_count', 5),
-            ('person_count', 20 + extra)
+            ('person_count', 20 + extra_employee)
         ]
         for key, value in test_values:
             with self.subTest(key=key, value=value):
@@ -136,43 +104,16 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(len(classes['data']['items']) == 18)
 
     @freeze_time("2018-12-02")
+    def test_014_test_engagement_from_date(self):
+        """ Write a test that verifies that engagements of a certain age exists """
+        self.assertTrue(True)
+
+    @freeze_time("2018-12-02")
     def test_020_re_import(self):
-        """ Run the import again. This should result in an organisation of
-        the same size. We also at the same time move a single user between
-        two units. The success of this move is checked in a later test."""
-
-        # TODO: We need to check that we can change the name of a person
-
-        # TODO: This needs to work:
         """
-        new_uuid = self._find_top_unit()
-        print(new_uuid)
-        karen = self.dummy_org.org.Employee.storage_map['KarenN']
-        karen['optional_data'] = [
-            [('type', 'engagement'),
-             ('org_unit', new_uuid),
-             ('job_function', 'Udviklingskonsulent'),
-             ('engagement_type', 'Ansat'),
-             ('validity', {'to': None, 'from': '1997-01-16'})],
-            [('type', 'address'),
-             ('address_type', 'AdressePost'),
-             ('validity', {'to': None, 'from': '1997-01-16'}),
-             ('uuid', '919eb449-41e0-4290-b3c7-98cb83a652f9')],
-            [('type', 'address'), ('address_type', 'Telefon'),
-             ('validity', {'to': None, 'from': '1997-01-16'}),
-             ('value', '46571200')],
-            [('type', 'address'),
-             ('address_type', 'Email'),
-             ('validity', {'to': None, 'from': '1997-01-16'}),
-             ('value', 'karenn@laeso.dk ')],
-            [('type', 'it'), ('user_key', 'KarenN'),
-             ('itsystem', 'Office 365'),
-             ('validity', {'to': None, 'from': '1997-01-16'})],
-            [('type', 'it'), ('user_key', 'KarenN'),
-             ('itsystem', 'Active Directory'),
-             ('validity', {'to': None, 'from': '1997-01-16'})]
-        ]
-        self.dummy_org.org.Employee.storage_map['KarenN'] = karen
+        Run the import again. This should result in an organisation of the same size.
+        We also at the same time move a single user between two units. The success of
+        this move is checked in a later test.
         """
         self._run_import_and_test_org_sanity()
 
@@ -192,6 +133,16 @@ class IntegrationDataTests(unittest.TestCase):
         response = response.json()
         self.assertTrue(len(response['results'][0]) == 5)
 
+    def test_23_test_engagement_from_date(self):
+        """
+        Verifies that engagements of a certain age and length exists, this ensures
+        that we did not accidentially cut off all engagements"""
+        count = _count(self.mox_base, at='1969-01-01')
+        self.assertTrue(count['engagement_count'] > 0)
+
+        count = _count(self.mox_base, at='2220-01-01')
+        self.assertTrue(count['engagement_count'] > 0)
+
     @freeze_time("2018-12-03")
     def test_030_add_forced_uuids(self):
         """ Add a unit, employees and classes with forced uuid, and re-import """
@@ -204,13 +155,57 @@ class IntegrationDataTests(unittest.TestCase):
             date_from=datetime.strftime(self.dummy_org.data.global_start_date,
                                         '%Y-%m-%d')
         )
+
+        self.importer.add_organisation_unit(
+            identifier='Test underenhed 1',
+            name='Test underenhed 1',
+            parent_ref='Test enhed',
+            type_ref='Afdeling',
+            uuid='00000000-0000-0000-0000-000000000011',
+            date_from=datetime.strftime(self.dummy_org.data.global_start_date,
+                                        '%Y-%m-%d')
+        )
+
+        self.importer.add_organisation_unit(
+            identifier='Test underenhed 2',
+            name='Test underenhed 2',
+            parent_ref='Test enhed',
+            type_ref='Afdeling',
+            uuid='00000000-0000-0000-0000-000000000021',
+            date_from=datetime.strftime(self.dummy_org.data.global_start_date,
+                                        '%Y-%m-%d')
+        )
+
         self.importer.add_employee(
             name='Test user',
             identifier='Test user',
             cpr_no='1111111118',
             uuid='00000000-0000-0000-0000-000000000002'
         )
-        self._run_import_and_test_org_sanity(extra=1)
+
+        self.importer.add_engagement(
+            employee='Test user',
+            organisation_unit='Test enhed',
+            job_function_ref='Udvikler',
+            engagement_type_ref="Ansat",
+            date_from='1990-01-23',
+            date_to='2022-07-16'
+        )
+
+        self.importer.add_engagement(
+            employee='Test user',
+            organisation_unit='Test underenhed 2',
+            job_function_ref='Ergoterapeut',
+            engagement_type_ref="Ansat",
+            date_from='1990-01-23',
+            date_to=None
+        )
+
+        self._run_import_and_test_org_sanity(
+            extra_unit=3,
+            extra_employee=1,
+            extra_engagement=2
+        )
 
     @freeze_time("2018-12-03")
     def test_031_test_forced_uuid(self):
@@ -222,12 +217,7 @@ class IntegrationDataTests(unittest.TestCase):
     def test_032_test_forced_employee_uuid(self):
         person = self.morah._mo_lookup('00000000-0000-0000-0000-000000000002',
                                        'e/{}/integration-data', use_cache=False)
-
-    # TODO!!! HERE WE NEED TO MOVE SOMEBODY TO CHECK RE-IMPORT WORKS AS EXPECTED
-    @freeze_time("2018-12-04")
-    def test_040_correct_initial_import(self):
-        """ Import and test that the org is as expected """
-        self._run_import_and_test_org_sanity(extra=1)
+        self.assertTrue('name' in person)
 
 
 if __name__ == '__main__':
