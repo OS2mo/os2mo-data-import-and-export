@@ -565,7 +565,6 @@ class ImportHelper(object):
         )
 
     def _import_unit_from_integration_data(self, reference):
-        print(reference)
         ou_res = 'organisation/organisationenhed'
         klasse_res = 'klassifikation/klasse'
         uuid = self.ia.find_object(ou_res, reference)
@@ -594,6 +593,14 @@ class ImportHelper(object):
         )
 
     def test_org_unit_refs(self, reference, org_unit):
+        """
+        Test if the parent ref to an org unit is already added to the importer map.
+        If it is not, the parent will be imported to make the map self-consistent.
+        :param reference: importer reference to the org unit to be tested.
+        :param org_unit: Actual org unit object - used to identify the parent.
+        :return: True if the parent was not found, indicating that the imporer
+        map is not yet complete. False if the parent was already in place.
+        """
         parent_unit = self.organisation_units.get(org_unit.parent_ref)
 
         if org_unit.parent_ref and (not parent_unit):
@@ -651,6 +658,10 @@ class ImportHelper(object):
             identifiers = list(self.organisation_units.keys())
             for identifier in identifiers:
                 org_unit = self.organisation_units[identifier]
+                # Test if the parent unit is in the map, if it is not, perform
+                # an integration data based import from MO.
+                # If the parent was not there, run once more to check if higher
+                # levels of parents also needs to be imported.
                 if self.test_org_unit_refs(identifier, org_unit):
                     re_run = True
 
