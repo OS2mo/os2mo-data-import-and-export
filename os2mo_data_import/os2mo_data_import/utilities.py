@@ -16,6 +16,7 @@ from integration_abstraction.integration_abstraction import IntegrationAbstracti
 
 from os2mo_data_import.mora_data_types import (
     OrganisationUnitType,
+    TerminationType,
     EmployeeType
 )
 
@@ -405,8 +406,6 @@ class ImportUtility(object):
         if re_import == 'YES':
             print('Terminating details for {}'.format(uuid))
             for item in data['address']:
-                print()
-                print(item)
                 self._terminate_details(item['uuid'], 'address')
         if re_import in ('YES', 'NEW'):
             self.insert_mora_data(
@@ -464,14 +463,23 @@ class ImportUtility(object):
         data = {}
         data['it'] = self._get_detail(uuid, 'it')
         data['role'] = self._get_detail(uuid, 'role')
+        data['leave'] = self._get_detail(uuid, 'leave')
         data['address'] = self._get_detail(uuid, 'address')
         data['manager'] = self._get_detail(uuid, 'manager')
         data['engagement'] = self._get_detail(uuid, 'engagement')
         data['association'] = self._get_detail(uuid, 'association')
 
+        # In case of en explicit termination, we terminate the employee and return
+        # imidiately.
+        for detail in details:
+            if isinstance(detail, TerminationType):
+                self._terminate_employee(uuid, date_from=detail.date_from)
+                return uuid
+
         if details:
             additional_payload = []
             for detail in details:
+
                 if not detail.date_from:
                     detail.date_from = self.date_from
 
@@ -484,7 +492,10 @@ class ImportUtility(object):
                 if not detail_payload:
                     continue
 
-                if data[detail_payload['type']]:
+                # If we do not have existing data, the new data should be imported
+                if len(data[detail_payload['type']]) == 0 and re_import == 'NO':
+                    re_import = 'UPDATE'
+                elif data[detail_payload['type']]:
                     found_hit = self._payload_compare(detail_payload, data)
                     if not found_hit:
                         re_import = 'YES'
@@ -500,7 +511,7 @@ class ImportUtility(object):
                 else:
                     py_to = datetime.strptime('2200-01-01', '%Y-%m-%d')
 
-                print('Py-from: {}, Py-to: {}, Now: {}'.format(py_from, py_to, now))
+                # print('Py-from:{}, Py-to:{}, Now:{}'.format(py_from, py_to, now))
                 if re_import == 'YES' and py_from < now and py_to > now:
                     print('Updating valid_from')
                     valid_from = datetime.now().strftime('%Y-%m-%d')  # today
@@ -512,7 +523,7 @@ class ImportUtility(object):
                 print('Terminate: {}'.format(uuid))
                 self._terminate_employee(uuid)
 
-            if re_import in ('YES', 'NEW'):
+            if re_import in ('YES', 'NEW', 'UPDATE'):
                 self.insert_mora_data(
                     resource="service/details/create",
                     data=additional_payload
@@ -561,6 +572,10 @@ class ImportUtility(object):
             uuid = self.inserted_klasse_map.get(
                 getattr(detail, check_value)
             )
+
+            if not uuid:
+                klasse_res = 'klassifikation/klasse'
+                uuid = self.ia.find_object(klasse_res, getattr(detail, check_value))
 
             setattr(detail, set_value, uuid)
 
@@ -750,13 +765,18 @@ class ImportUtility(object):
             all_data += data
         return all_data
 
-    def _terminate_employee(self, uuid):
+    def _terminate_employee(self, uuid, date_from=None):
         endpoint = 'service/e/{}/terminate'
         yesterday = datetime.now() - timedelta(days=1)
+        if date_from:
+            to = date_from
+        else:
+            to = yesterday.strftime('%Y-%m-%d')
+
         payload = {
             'terminate_all': True,
             'validity': {
-                'to': yesterday.strftime('%Y-%m-%d')
+                'to': to
             }
         }
         resource = endpoint.format(uuid)
@@ -830,6 +850,15 @@ class ImportUtility(object):
         elif data_type == 'role':
             for data_item in data[data_type]:
                 if self._std_compare(item_payload, data_item, 'role_type'):
+                    found_hit = True
+
+        elif data_type == 'leave':
+            for data_item in data[data_type]:
+                if ((data_item['validity']['from'] ==
+                     item_payload['validity']['from']) and
+
+                    (data_item['validity']['to'] ==
+                     item_payload['validity']['to'])):
                     found_hit = True
 
         elif data_type == 'it':

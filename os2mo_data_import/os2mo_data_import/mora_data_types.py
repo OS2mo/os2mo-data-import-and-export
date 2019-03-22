@@ -5,6 +5,14 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+from integration_abstraction.integration_abstraction import IntegrationAbstraction
+
+
+# TODO: This should be in some sort of global config
+def mora_type_config(mox_base, system_name, end_marker):
+    MoType.mox_base = mox_base
+    MoType.system_name = system_name
+    MoType.end_marker = end_marker
 
 
 class MoType():
@@ -15,9 +23,9 @@ class MoType():
 
     .. note::
         This can be set to import the object with its current uuid.
-        On a lower level this means that the current registration
-        will be set to end now
-        and a new registration of the same object is created with from date set to now.
+        On a lower level this means that the current registration will be set to end
+        now and a new registration of the same object is created with from date
+        set to now.
 
     :param str type_id: Reference to the detail type
 
@@ -38,6 +46,10 @@ class MoType():
     """
 
     def __init__(self):
+        self.ia = IntegrationAbstraction(self.mox_base,
+                                         self.system_name,
+                                         self.end_marker)
+
         self.type_id = None
 
         self.payload = {}
@@ -135,7 +147,6 @@ class AddressType(MoType):
         super().__init__()
 
         self.type_id = "address"
-
         self.uuid = uuid
 
         self.value = value
@@ -174,6 +185,7 @@ class AddressType(MoType):
                 "uuid": self.type_ref_uuid
             }
         }
+
         if self.visibility_ref:
             self.payload['visibility'] = {'uuid': self.visibility_ref_uuid}
         return self._build_payload()
@@ -199,12 +211,13 @@ class EngagementType(MoType):
     """
 
     def __init__(self, org_unit_ref, job_function_ref, engagement_type_ref,
-                 date_from, date_to=None, uuid=None):
+                 date_from, date_to=None, uuid=None, user_key=None):
         super().__init__()
 
         self.type_id = "engagement"
-
         self.uuid = uuid
+        self.user_key = user_key
+
         self.org_unit_ref = org_unit_ref
         self.org_unit_uuid = None
 
@@ -228,7 +241,12 @@ class EngagementType(MoType):
 
         # Reference the parent org unit uuid
         if not self.org_unit_uuid:
-            raise ReferenceError("Reference to parent org unit is missing")
+            ou_res = 'organisation/organisationenhed'
+            uuid = self.ia.find_object(ou_res, self.org_unit_ref)
+            if uuid:
+                self.org_unit_uuid = uuid
+            else:
+                raise ReferenceError("Reference to parent org unit is missing")
 
         self.payload["org_unit"] = {
               "uuid": self.org_unit_uuid
@@ -249,6 +267,8 @@ class EngagementType(MoType):
         self.payload["engagement_type"] = {
             "uuid": self.type_ref_uuid
         }
+        if self.user_key:
+            self.payload['user_key'] = self.user_key
 
         return self._build_payload()
 
@@ -325,10 +345,12 @@ class AssociationType(MoType):
         """
 
         if not self.org_unit_uuid:
-            raise ReferenceError("Reference to org_unit_uuid is missing")
-
-        if not self.type_ref_uuid:
-            raise ReferenceError("Reference to association_type_uuid is missing")
+            ou_res = 'organisation/organisationenhed'
+            uuid = self.ia.find_object(ou_res, self.org_unit_ref)
+            if uuid:
+                self.org_unit_uuid = uuid
+            else:
+                raise ReferenceError("Reference to org_unit_uuid is missing")
 
         self.payload = {
             "org_unit": {
@@ -339,6 +361,7 @@ class AssociationType(MoType):
             }
         }
 
+        # TODO: We removed addresses from associations, right?
         if self.address_uuid:
             self.payload["address"] = {
                 "uuid": self.address_uuid,
@@ -439,6 +462,11 @@ class LeaveType(MoType):
         }
 
         return self._build_payload()
+
+
+class TerminationType(MoType):
+    def __init__(self, date_from):
+        self.date_from = date_from
 
 
 class RoleType(MoType):
@@ -639,7 +667,12 @@ class OrganisationUnitType(MoType):
             raise ReferenceError("UUID of the parent organisation is missing")
 
         if not self.type_ref_uuid:
-            raise ReferenceError("UUID of the unit type is missing")
+            klasse_res = 'klassifikation/klasse'
+            uuid = self.ia.find_object(klasse_res, self.type_ref)
+            if uuid:
+                self.type_ref_uuid = uuid
+            else:
+                raise ReferenceError("UUID of the unit type is missing")
 
         self.payload = {
             "user_key": self.user_key,

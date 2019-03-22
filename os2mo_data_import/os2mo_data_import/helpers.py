@@ -5,10 +5,13 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+from os2mo_helpers.mora_helpers import MoraHelper
+from integration_abstraction.integration_abstraction import IntegrationAbstraction
 
 from os2mo_data_import.utilities import ImportUtility
 from os2mo_data_import.defaults import facet_defaults
 from os2mo_data_import.mora_data_types import (
+    mora_type_config,
     AddressType,
     EngagementType,
     AssociationType,
@@ -17,7 +20,8 @@ from os2mo_data_import.mora_data_types import (
     LeaveType,
     ItsystemType,
     OrganisationUnitType,
-    EmployeeType
+    EmployeeType,
+    TerminationType
 )
 
 from os2mo_data_import.mox_data_types import (
@@ -102,6 +106,10 @@ class ImportHelper(object):
                  store_integration_data=False, create_defaults=True,
                  ImportUtility=ImportUtility):
 
+        mora_type_config(mox_base=mox_base,
+                         system_name=system_name,
+                         end_marker=end_marker)
+        self.mox_base = mox_base
         # Import Utility
         self.store = ImportUtility(
             mox_base=mox_base,
@@ -110,6 +118,11 @@ class ImportHelper(object):
             end_marker=end_marker,
             store_integration_data=store_integration_data
         )
+        # TODO: store_integration_data could be passed to ImportUtility by passing
+        # the actual self.ia object
+        if store_integration_data:
+            self.morah = MoraHelper(use_cache=False)
+            self.ia = IntegrationAbstraction(mox_base, system_name, end_marker)
 
         self.organisation = None
         self.klassifikation = None
@@ -398,12 +411,6 @@ class ImportHelper(object):
         :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.EngagementType`
         """
 
-        if employee not in self.employees:
-            raise ReferenceError("Employee does not exist")
-
-        if organisation_unit not in self.organisation_units:
-            raise ReferenceError("Organisation unit does not exist")
-
         engagement = EngagementType(org_unit_ref=organisation_unit, **kwargs)
 
         self.employee_details[employee].append(engagement)
@@ -420,6 +427,17 @@ class ImportHelper(object):
         association = AssociationType(org_unit_ref=organisation_unit, **kwargs)
 
         self.employee_details[employee].append(association)
+
+    def terminate_employee(self, employee, **kwargs):
+        """
+        Terminate employee
+
+        :param str employee: Reference to the employee
+        :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.TerminationType`
+        """
+        termination = TerminationType(kwargs['date_from'])
+
+        self.employee_details[employee].append(termination)
 
     def add_role(self, employee, organisation_unit, **kwargs):
         """
@@ -528,7 +546,6 @@ class ImportHelper(object):
         :param str reference: Reference to organisation_unit
         :param object org_unit: The OrganisationUnitType object
         """
-
         # Insert parents first!
         parent_ref = org_unit.parent_ref
 
@@ -546,6 +563,53 @@ class ImportHelper(object):
             organisation_unit=org_unit,
             details=details
         )
+
+    def _import_unit_from_integration_data(self, reference):
+        ou_res = 'organisation/organisationenhed'
+        klasse_res = 'klassifikation/klasse'
+        uuid = self.ia.find_object(ou_res, reference)
+        # TODO: Should this include more than just present time?
+        unit = self.morah.read_ou(uuid)
+
+        type_uuid = unit['org_unit_type']['uuid']
+        parent = unit['parent']
+        date_from = unit['validity']['from']
+        date_to = unit['validity']['to']
+        type_ref = self.ia.read_integration_data(klasse_res, type_uuid)
+
+        if parent:
+            parent_uuid = parent['uuid']
+            parent_ref = self.ia.read_integration_data(ou_res, parent_uuid)
+        else:
+            parent_ref = None
+
+        self.add_organisation_unit(
+            identifier=reference,
+            parent_ref=parent_ref,
+            type_ref=type_ref,
+            uuid=unit['uuid'],
+            date_from=date_from,
+            date_to=date_to
+        )
+
+    def test_org_unit_refs(self, reference, org_unit):
+        """
+        Test if the parent ref to an org unit is already added to the importer map.
+        If it is not, the parent will be imported to make the map self-consistent.
+        :param reference: importer reference to the org unit to be tested.
+        :param org_unit: Actual org unit object - used to identify the parent.
+        :return: True if the parent was not found, indicating that the imporer
+        map is not yet complete. False if the parent was already in place.
+        """
+        parent_unit = self.organisation_units.get(org_unit.parent_ref)
+
+        if org_unit.parent_ref and (not parent_unit):
+            re_run = True
+            self._import_unit_from_integration_data(org_unit.parent_ref)
+            print('Importing {} from integration data'.format(org_unit.parent_ref))
+        else:
+            re_run = False
+        return re_run
 
     def import_all(self):
         """
@@ -588,6 +652,19 @@ class ImportHelper(object):
 
         # Insert Organisation Units
         print('Will now import org units')
+        re_run = True
+        while re_run:
+            re_run = False
+            identifiers = list(self.organisation_units.keys())
+            for identifier in identifiers:
+                org_unit = self.organisation_units[identifier]
+                # Test if the parent unit is in the map, if it is not, perform
+                # an integration data based import from MO.
+                # If the parent was not there, run once more to check if higher
+                # levels of parents also needs to be imported.
+                if self.test_org_unit_refs(identifier, org_unit):
+                    re_run = True
+
         for identifier, org_unit in self.organisation_units.items():
             self.import_organisation_units_recursively(identifier, org_unit)
 

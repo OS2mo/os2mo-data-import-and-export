@@ -18,6 +18,10 @@ def _count(mox_base, at=None):
     response = requests.get(url)
     counts['engagement_count'] = len(response.json()['results'][0])
 
+    url = urljoin(mox_base, orgfunc.format('Orlov'))
+    response = requests.get(url)
+    counts['leave_count'] = len(response.json()['results'][0])
+
     url = urljoin(mox_base, orgfunc.format('Rolle'))
     response = requests.get(url)
     counts['role_count'] = len(response.json()['results'][0])
