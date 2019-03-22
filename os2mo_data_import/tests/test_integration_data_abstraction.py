@@ -1,8 +1,11 @@
+import os
 import json
 import random
 import unittest
 import requests
 from integration_abstraction import IntegrationAbstraction
+
+MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:5000')
 
 
 class IntegratioAbstractionTests(unittest.TestCase):
