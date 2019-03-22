@@ -5,6 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+import os
 import unittest
 
 from . integration_test_helpers import _count
@@ -13,12 +14,15 @@ from freezegun import freeze_time
 from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 
+MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:5000')
+MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
+
 
 class IntegrationDataTests(unittest.TestCase):
     @classmethod
     def setUpClass(self):
-        self.mox_base = 'http://localhost:5000'
-        self.mora_base = 'http://localhost:80'
+        self.mox_base = MOX_BASE
+        self.mora_base = MORA_BASE
         self.system_name = 'Test Dummy Import'
 
         importer = ImportHelper(create_defaults=True,
@@ -47,8 +51,8 @@ class IntegrationDataTests(unittest.TestCase):
     def setUp(self):
         self.morah = MoraHelper(use_cache=False)
         self.importer = ImportHelper(create_defaults=True,
-                                     mox_base='http://localhost:5000',
-                                     mora_base='http://localhost:80',
+                                     mox_base=MOX_BASE,
+                                     mora_base=MORA_BASE,
                                      system_name=self.system_name,
                                      end_marker="STOP",
                                      store_integration_data=True)
