@@ -253,7 +253,6 @@ class EngagementType(MoType):
               "uuid": self.org_unit_uuid
         }
 
-
         # We are not yet at a level, where we are ready to force uuid's on
         # engagements. Similarly, we do no attempts of sharing engagement objects
         # between application, currently the integration data support is limiited
@@ -270,9 +269,9 @@ class EngagementType(MoType):
 
         self.payload['integration_data'] = self.ia.integration_data_payload(
             resource,
-            hash_value.hexdigest()
+            hash_value.hexdigest(),
+            encode=False
         )
-
         
         # Reference the job function uuid
         if not self.job_function_uuid:
