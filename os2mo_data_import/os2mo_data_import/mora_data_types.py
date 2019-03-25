@@ -266,6 +266,10 @@ class EngagementType(MoType):
         hash_value.update(self.org_unit_ref.encode('ascii'))
         hash_value.update(self.type_ref.encode('ascii'))
         hash_value.update(self.job_function_ref.encode('ascii'))
+        if self.date_from:
+            hash_value.update(self.date_from.encode('ascii'))
+        if self.date_to:
+            hash_value.update(self.date_to.encode('ascii'))
 
         self.payload['integration_data'] = self.ia.integration_data_payload(
             resource,
