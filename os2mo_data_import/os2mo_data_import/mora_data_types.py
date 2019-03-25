@@ -5,6 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+import hashlib
 from integration_abstraction.integration_abstraction import IntegrationAbstraction
 
 
@@ -252,6 +253,27 @@ class EngagementType(MoType):
               "uuid": self.org_unit_uuid
         }
 
+
+        # We are not yet at a level, where we are ready to force uuid's on
+        # engagements. Similarly, we do no attempts of sharing engagement objects
+        # between application, currently the integration data support is limiited
+        # to writng a unique key in the identifier for the engagement. For the
+        # same reason, we do not actually bother to obey the store_integrationn_data
+        # setting, the value is just always written.
+        # The unique key is calculated as hash over the individual parts of the
+        # engagement
+        resource = 'organisation/organisationfunktion'
+        hash_value = hashlib.sha256()
+        hash_value.update(self.org_unit_ref.encode('ascii'))
+        hash_value.update(self.type_ref.encode('ascii'))
+        hash_value.update(self.job_function_ref.encode('ascii'))
+
+        self.payload['integration_data'] = self.ia.integration_data_payload(
+            resource,
+            hash_value.hexdigest()
+        )
+
+        
         # Reference the job function uuid
         if not self.job_function_uuid:
             raise ReferenceError("Reference to job function is missing")
