@@ -26,8 +26,8 @@ class IntegrationDataTests(unittest.TestCase):
         self.system_name = 'Test Dummy Import'
 
         importer = ImportHelper(create_defaults=True,
-                                mox_base='http://localhost:5000',
-                                mora_base='http://localhost:80',
+                                mox_base=MOX_BASE,
+                                mora_base=MORA_BASE,
                                 system_name=self.system_name,
                                 end_marker="STOP",
                                 store_integration_data=True)
