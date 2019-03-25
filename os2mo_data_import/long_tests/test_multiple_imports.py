@@ -447,11 +447,11 @@ class IntegrationDataTests(unittest.TestCase):
             '00000000-0000-0000-1000-000000000000',
             at='2000-01-01'
         )
-
+        
         job_ids = {'108', '109'}
         integration_data = {
-            'e36bd68172e5346c63ffcac5f98300a1f857613a8bc801dd72c7ede6d5de65a2',
-            'ed20aff117c10e4e664cde63215d2eb516a8b7bf5ff9cdd3e31895ddc996fb3d'
+            '5579606a75a36c085affcb6bebb1032ed628ee32a0a60ef5d4649bb63d68f9cd',
+            '2adb36c907c188300808dedb0220fec7217cf901a64492eb0cfbd6ee86964534'
         }
 
         resource = 'organisation/organisationfunktion'
