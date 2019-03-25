@@ -79,7 +79,7 @@ class SdImport(object):
             self.import_date = import_date_from.strftime('%d.%m.%Y')
             self.import_date_from = import_date_from.strftime('%d.%m.%Y')
             self.import_date_to = None
-            
+
         self.employee_forced_uuids = forced_uuids
 
         self.nodes = {}  # Will be populated when org-tree is created
@@ -408,20 +408,22 @@ class SdImport(object):
             max_rate = 0
             min_id = 999999
             for employment in employments:
+                """
                 print()
                 print()
                 print('--')
                 print(type(employment))
                 print(employment.keys())
+                print(employment['Profession'])
                 print()
                 print(type(employment['EmploymentStatus']))
                 if isinstance(employment['EmploymentStatus'], list):
                     for status in employment['EmploymentStatus']:
                         print(status)
-                
+                """
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
-                print(status)
-                if (int(status) == 0):
+                # print(status)
+                if int(status) == 0:
                     continue
                 if int(status) == 3:
                     # Orlov
@@ -453,7 +455,7 @@ class SdImport(object):
                 if int(status) == 8:
                     # Fratrådt
                     continue
-                
+
                 occupation_rate = float(employment['WorkingTime']
                                         ['OccupationRate'])
 
@@ -492,6 +494,7 @@ class SdImport(object):
                 try:
                     self.importer.add_engagement(
                         employee=cpr,
+                        user_key=str(employment_id),
                         organisation_unit=unit,
                         job_function_ref=job_func_ref,
                         engagement_type_ref=engagement_type_ref,
