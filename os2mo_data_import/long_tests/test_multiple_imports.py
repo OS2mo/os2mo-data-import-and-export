@@ -13,6 +13,7 @@ from . integration_test_helpers import _count
 from freezegun import freeze_time
 from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
+from integration_abstraction.integration_abstraction import IntegrationAbstraction
 
 MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:5000')
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
@@ -50,6 +51,7 @@ class IntegrationDataTests(unittest.TestCase):
     @classmethod
     def setUp(self):
         self.morah = MoraHelper(use_cache=False)
+        self.ia = IntegrationAbstraction(MOX_BASE, self.system_name, "STOP")
         self.importer = ImportHelper(create_defaults=True,
                                      mox_base=MOX_BASE,
                                      mora_base=MORA_BASE,
@@ -421,8 +423,6 @@ class IntegrationDataTests(unittest.TestCase):
         )
         self.importer.import_all()
 
-        # Test the user_key is correctly written
-
         count = _count(self.mox_base, at='1980-01-01')
         self.assertTrue(count['person_count'] == 1)
         self.assertTrue(count['engagement_count'] == 0)
@@ -439,8 +439,33 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(count['person_count'] == 1)
         self.assertTrue(count['engagement_count'] == 1)
 
+    def test_021_test_user_key_and_integration_data(self):
+        """
+        Test the user_key is correctly written.
+        """
+        engagement_list = self.morah.read_user_engagement(
+            '00000000-0000-0000-1000-000000000000',
+            at='2000-01-01'
+        )
+        
+        job_ids = {'108', '109'}
+        integration_data = {
+            '5579606a75a36c085affcb6bebb1032ed628ee32a0a60ef5d4649bb63d68f9cd',
+            '2adb36c907c188300808dedb0220fec7217cf901a64492eb0cfbd6ee86964534'
+        }
+
+        resource = 'organisation/organisationfunktion'
+        for engagement in engagement_list:
+            job_ids.remove(engagement['user_key'])
+            uuid = engagement['uuid']
+            integration = self.ia.read_integration_data(resource, uuid)
+            integration_data.remove(integration)
+
+        self.assertTrue(len(job_ids) == 0)
+        self.assertTrue(len(integration_data) == 0)
+
     @freeze_time("2018-12-12")
-    def test_021_test_length_of_double_engagements(self):
+    def test_022_test_length_of_double_engagements(self):
         """
         Check change of double engagement, length of one should be independent of
         change of the other
@@ -493,7 +518,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(count['engagement_count'] == 0)
 
     @freeze_time("2018-12-25")
-    def test_022_add_leave_to_user(self):
+    def test_023_add_leave_to_user(self):
         """
         Add a leave to a user.
         Check that the engagement is not stopped when the leave stops.
@@ -525,7 +550,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(count['leave_count'] == 0)
 
     @freeze_time("2019-01-05")
-    def test_023_change_leave(self):
+    def test_024_change_leave(self):
         """
         Add a leave to a user.
         Check that the engagement is not stopped when the leave stops.
@@ -575,7 +600,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(count['leave_count'] == 0)
 
     @freeze_time("2019-01-05")
-    def ttest_024_integration_supported_association_and_role(self):
+    def test_025_integration_supported_association_and_role(self):
         """
         Add a role and and association to employees without adding the  units to the
         importer map.
@@ -612,7 +637,7 @@ class IntegrationDataTests(unittest.TestCase):
         count = _count(self.mox_base, at='2019-01-10')
         self.assertTrue(count['association_count'] == 2)
 
-    def test_025_terminate_employee(self):
+    def test_026_terminate_employee(self):
         """
         Teriminate an employee
         """

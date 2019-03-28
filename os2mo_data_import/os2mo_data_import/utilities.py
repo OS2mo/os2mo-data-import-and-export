@@ -843,10 +843,11 @@ class ImportUtility(object):
 
         found_hit = False
         if data_type == 'engagement':
+            # In priciple, we should be able to re-calculate the hash stored in
+            # integration data and compare directly from that.
             for data_item in data[data_type]:
                 if self._std_compare(item_payload, data_item, 'job_function'):
                     found_hit = True
-
         elif data_type == 'role':
             for data_item in data[data_type]:
                 if self._std_compare(item_payload, data_item, 'role_type'):

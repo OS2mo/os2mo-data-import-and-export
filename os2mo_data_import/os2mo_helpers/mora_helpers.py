@@ -164,6 +164,15 @@ class MoraHelper(object):
                 return_address['Adresse'] = address['name']
         return return_address
 
+    def read_user_engagement(self, user, at=None, use_cache=None):
+        """
+        Read engagements for a user.
+        :param user: UUID of the wanted user.
+        :return: List of the users engagements.
+        """
+        engagement = self._mo_lookup(user, 'e/{}/details/engagement', at, use_cache)
+        return engagement
+
     def read_user_address(self, user, username=False, cpr=False,
                           at=None, use_cache=None):
         """ Read phone number and email from user
