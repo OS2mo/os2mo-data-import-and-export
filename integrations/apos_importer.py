@@ -40,8 +40,7 @@ def _format_time(gyldighed):
         to_time = to_time.strftime('%Y-%m-%d')
 
     if from_time is None and to_time is None:
-        print(gyldighed)
-        1/0
+        raise Exception('Invalid validity: {}'.format(gyldighed))
     return from_time, to_time
 
 
