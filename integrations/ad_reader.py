@@ -30,7 +30,7 @@ class ADParameterReader(object):
         r = self.session.run_ps(ps_script)
         if r.status_code == 0:
             if r.std_out:
-                response = json.loads(r.std_out.decode('windows-1252'))
+                response = json.loads(r.std_out.decode('Latin-1'))
             else:
                 response = {}
         else:
@@ -68,7 +68,6 @@ class ADParameterReader(object):
         :param cpr: cpr number of the user to retrive.
         :return: All properties listed in AD for the user.
         """
-        print(cpr)
         if (not cpr) and (not user):
             return
         if user:
@@ -77,8 +76,16 @@ class ADParameterReader(object):
         if cpr:
             ps_template = "get-aduser -Filter 'xAttrCPR -like \"{}\"'"
             get_command = ps_template.format(cpr)
-        command_end = ' -Properties * -Credential $usercredential | ConvertTo-Json'
-        ps_script = self._build_user_credential() + get_command + command_end
+        # command_end = ' -Properties * -Credential $usercredential | ConvertTo-Json'
+        properties = (' -Properties ' +
+                      'xAttrCPR,ObjectGuid,SamAccountName,Title,Initials')
+        command_end = ' -Credential $usercredential | ConvertTo-Json'
+
+        ps_script = (self._build_user_credential() +
+                     get_command +
+                     properties +
+                     command_end)
+
         response = self._run_ps_script(ps_script)
         return response
 
