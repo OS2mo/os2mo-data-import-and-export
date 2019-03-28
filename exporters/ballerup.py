@@ -24,7 +24,7 @@ def export_udvalg(mh, nodes, filename, fieldnames, org_types):
     :param org_types: Org types belong to this kind of 'udvalg'
     """
     fieldnames = fieldnames + ['Fornavn', 'Efternavn', 'Brugernavn', 'Post',
-                               'Leder', 'Tillidrepræsentant']
+                               'Leder', 'Tillidrepræsentant', 'E-mail', 'Telefon']
     rows = []
     for node in PreOrderIter(nodes['root']):
         path_dict = mh._create_path_dict(fieldnames, node, org_types)
@@ -56,6 +56,7 @@ if __name__ == '__main__':
 
     org = mh.read_organisation()
     roots = mh.read_top_units(org)
+    print(roots)
     for root in roots:
         if root['name'] == 'Ballerup Kommune':
             ballerup = root['uuid']
@@ -100,11 +101,11 @@ if __name__ == '__main__':
     filename = 'AMR-udvalgsmedlemer_i_hieraki.csv'
     fieldnames = ['Hoved-MED', 'Center-MED', 'Lokal-MED', 'AMR-Gruppe']
     org_types = ['AMR']
-    cq.export_udvalg(mh, nodes, filename, fieldnames, org_types)
+    export_udvalg(mh, nodes, filename, fieldnames, org_types)
     print('AMR: {}'.format(time.time() - t))
 
     filename = 'MED-udvalgsmedlemer_i_hieraki.csv'
     fieldnames = ['Hoved-MED', 'Center-MED', 'Lokal-MED', 'AMR-Gruppe']
     org_types = ['H-MED', 'C-MED', 'L-MED']
-    cq.export_udvalg(mh, nodes, filename, fieldnames, org_types)
+    export_udvalg(mh, nodes, filename, fieldnames, org_types)
     print('MED: {}'.format(time.time() - t))

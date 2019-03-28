@@ -12,12 +12,11 @@ import pickle
 import requests
 import xmltodict
 import collections
-# from datetime import datetime
+from datetime import datetime
 from uuid import UUID
 
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
-GLOBAL_DATE = os.environ.get('GLOBAL_DATE', '1977-01-01')
 BASE_APOS_URL = os.environ.get('BASE_APOS_URL', 'http://localhost:8080/apos2-')
 
 # Phone names will become a list once we have more examples of naming of
@@ -31,18 +30,17 @@ MAIN_PHONE_NAME = os.environ.get('MAIN_PHONE_NAME', 'Telefon')
 
 
 def _format_time(gyldighed):
-    from_time = GLOBAL_DATE
+    from_time = '1900-01-01'
     to_time = None
-    # NOTICE: DATES ARE INCONSISTENT, CURRENTLY, WE RETURN A
-    # FIXED DATE!!!!!!!!
-    """
     if not gyldighed['@fra'] == '-INFINITY':
         from_time = datetime.strptime(gyldighed['@fra'], '%d/%m/%Y')
         from_time = from_time.strftime('%Y-%m-%d')
     if not gyldighed['@til'] == 'INFINITY':
         to_time = datetime.strptime(gyldighed['@til'], '%d/%m/%Y')
         to_time = to_time.strftime('%Y-%m-%d')
-    """
+
+    if from_time is None and to_time is None:
+        raise Exception('Invalid validity: {}'.format(gyldighed))
     return from_time, to_time
 
 
@@ -265,35 +263,102 @@ class AposImport(object):
 
         if CREATE_UDVALGS_CLASSES:
             specific_klasser = [
-                {'titel': 'AMR', 'facet': 'org_unit_type', 'scope': 'TEXT'},
-                {'titel': 'H-MED', 'facet': 'org_unit_type', 'scope': 'TEXT'},
-                {'titel': 'C-MED', 'facet': 'org_unit_type', 'scope': 'TEXT'},
-                {'titel': 'L-MED', 'facet': 'org_unit_type', 'scope': 'TEXT'}
+                {'id': 'AMR', 'titel': 'AMR',
+                 'facet': 'org_unit_type', 'scope': 'TEXT'},
+                {'id': 'H-MED', 'titel': 'H-MED',
+                 'facet': 'org_unit_type', 'scope': 'TEXT'},
+                {'id': 'C-MED', 'titel': 'C-MED',
+                 'facet': 'org_unit_type', 'scope': 'TEXT'},
+                {'id': 'L-MED', 'titel': 'L-MED',
+                 'facet': 'org_unit_type', 'scope': 'TEXT'}
             ]
         else:
             specific_klasser = []
         standard_klasser = [
-            {'titel': 'Lederniveau',
+            {'id': 'Lederniveau',
+             'titel': 'Lederniveau',
              'facet': 'manager_level',
              'scope': 'TEXT'},
-            {'titel': 'Email',
+            {'id': 'EmailEmployee',
+             'titel': 'Email',
              'facet': 'employee_address_type',
              'scope': 'EMAIL'},
-            {'titel': 'Telefon',
+            {'id': 'PhoneEmployee',
+             'titel': 'Telefon',
              'facet': 'employee_address_type',
              'scope': 'PHONE'},
-            {'titel': 'p-nummer',
+            {'id': 'p-nummer',
+             'titel': 'p-nummer',
              'facet': 'org_unit_address_type',
              'scope': 'PNUMBER'},
-            {'titel': 'AdressePost',
+            {'id': 'AddressMailUnit',
+             'titel': 'Adresse',
              'facet': 'org_unit_address_type',
-             'scope': 'DAR'}
+             'scope': 'DAR'},
+            {'id': 'PhoneUnit',
+             'titel': 'Telefon',
+             'facet': 'org_unit_address_type',
+             'scope': 'PHONE'},
+            {'id': 'Ekstern',
+             'titel': 'Må vises eksternt',
+             'facet': 'visibility',
+             'scope': 'PUBLIC'},
+            {'id': 'Intern',
+             'titel': 'Må vises internt',
+             'facet': 'visibility',
+             'scope': 'INTERNAL'},
+            {'id': 'Hemmelig',
+             'titel': 'Hemmelig',
+             'facet': 'visibility',
+             'scope': 'SECRET'},
+            # {'id': 'Formand',
+            # 'titel': 'Formand',
+            # 'facet': 'association_type',
+            # 'scope': 'TEXT'}
+            # {'id': 'Leder',
+            # 'titel': 'Leder',
+            # 'facet': 'association_type',
+            # 'scope': 'TEXT'}
+            {'id': 'Teammedarbejder',
+             'titel': 'Teammedarbejder',
+             'facet': 'association_type',
+             'scope': 'TEXT'},
+            # {'id': 'Medarbejder',
+            # 'titel': 'Medarbejder',
+            # 'facet': 'association_type',
+            # 'scope': 'TEXT'},
+            # {'id': 'Næstformand',
+            # 'titel': 'Næstformand',
+            # 'facet': 'association_type',
+            # 'scope': 'TEXT'}
+            {'id': 'Projektleder',
+             'titel': 'Projektleder',
+             'facet': 'association_type',
+             'scope': 'TEXT'},
+            {'id': 'Projektgruppemedlem',
+             'titel': 'Projektgruppemedlem',
+             'facet': 'association_type',
+             'scope': 'TEXT'},
+            # Last three possbily not general to all APOS imports
+            {'id': 'Afdelingskode',
+             'titel': 'Afdelingskode',
+             'facet': 'org_unit_address_type',
+             'scope': 'TEXT'},
+            {'id': 'Formaalskode',
+             'titel': 'Formålskode',
+             'facet': 'org_unit_address_type',
+             'scope': 'TEXT'},
+            {'id': 'Skolekode',
+             'titel': 'Skolekode',
+             'facet': 'org_unit_address_type',
+             'scope': 'TEXT'}
+
         ]
 
         for klasse in specific_klasser + standard_klasser:
-            self.importer.add_klasse(identifier=klasse['titel'],
+            self.importer.add_klasse(identifier=klasse['id'],
                                      title=klasse['titel'],
-                                     user_key=klasse['titel'],
+                                     user_key=klasse['id'],
                                      scope=klasse['scope'],
                                      facet_type_ref=klasse['facet'])
 
@@ -308,7 +373,14 @@ class AposImport(object):
         includes looking up address information """
         url = "app-organisation/GetUnitDetails?uuid={}"
         r = self._apos_lookup(url.format(apos_unit['@uuid']))
+
         details = r['enhed']
+
+        """ This might turn out to be specfic for Ballerup in the current
+        implementation. Once other imports also needs these values, we should
+        make a parameter list """
+
+        unit_id = int(apos_unit['@objectid'])
         if 'overordnet' in details:
             gyldighed = {'@fra': details['overordnet']['@fra'],
                          '@til': details['overordnet']['@til']
@@ -316,7 +388,6 @@ class AposImport(object):
             fra, til = _format_time(gyldighed)
         else:
             fra, til = _format_time(details['gyldighed'])
-        unit_id = int(apos_unit['@objectid'])
 
         # If enhedstype is not hard-coded, we take it from APOS
         if not enhedstype:
@@ -332,8 +403,26 @@ class AposImport(object):
             date_to=til,
             parent_ref=parent)
 
-        locations = self.read_locations(apos_unit)
+        if 'integrationAttributter' in details:
+            if details['integrationAttributter'] is not None:
+                attributter = details['integrationAttributter']['attribut']
+                if not isinstance(attributter, list):
+                    attributter = [attributter]
 
+                for attribut in attributter:
+                    if isinstance(attribut, str):
+                        continue
+                    if len(attribut['@vaerdi']) > 0:
+                        self.importer.add_address_type(
+                            organisation_unit=unit_id,
+                            type_ref=attribut['@navn'],
+                            value=attribut['@vaerdi'],
+                            date_from=fra)
+
+        # This is most likely the orgunit relation information
+        # print(details['tilknyttedeEnheder']))
+
+        locations = self.read_locations(apos_unit)
         for location in locations:
             if location['pnummer']:
                 try:
@@ -341,16 +430,16 @@ class AposImport(object):
                         organisation_unit=unit_id,
                         type_ref='p-nummer',
                         value=location['pnummer'],
-                        date_from=GLOBAL_DATE)
+                        date_from=fra)
                 except AssertionError:  # pnumber added multiple times
                     pass
             if location['dawa_uuid']:
                 try:
                     self.importer.add_address_type(
                         organisation_unit=unit_id,
-                        type_ref='AdressePost',
+                        type_ref='AddressMailUnit',
                         value=location['dawa_uuid'],
-                        date_from=GLOBAL_DATE)
+                        date_from=fra)
                 except AssertionError:  # Address already added
                     pass
         return unit
@@ -383,15 +472,11 @@ class AposImport(object):
                                                         owner_ref=p,
                                                         type_id="engagement")
                     from_date = details[0].date_from
-                    job_function = details[0].job_function_ref
-
-                    ansat = ANSAT_UUID
 
                     self.importer.add_association(
                         employee=p,
                         organisation_unit=unit,
-                        job_function_ref=job_function,
-                        association_type_ref=ansat,
+                        association_type_ref=ANSAT_UUID,
                         date_from=from_date
                     )
 
@@ -411,21 +496,25 @@ class AposImport(object):
                 employee_identifier = employee['person']['@uuid']
 
                 if klasse.title == EMAIL_NAME:
-                    klasse_ref = 'Email'
+                    klasse_ref = 'EmailEmployee'
                 elif klasse.title == MAIN_PHONE_NAME:
-                    klasse_ref = 'Telefon'
+                    klasse_ref = 'PhoneEmployee'
                 elif klasse.title in PHONE_NAMES:
                     klasse_ref = apos_type
                 else:  # This should never happen
                     print(klasse.title)
                     raise Exception('Ukendt kontaktmulighed')
                 try:
+                    fra, til = _format_time(employee['gyldighed'])
+
                     self.importer.add_address_type(
                         employee=employee_identifier,
                         value=value,
                         type_ref=klasse_ref,
-                        date_from=GLOBAL_DATE,
-                        date_to=None
+                        # date_from=GLOBAL_DATE,
+                        # date_to=None
+                        date_from=fra,
+                        date_to=til
                     )
                 except AssertionError:
                     pass  # Already inserted

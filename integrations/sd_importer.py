@@ -16,7 +16,6 @@ from os2mo_data_import import ImportHelper
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
 MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_CODE', 0)
-GLOBAL_DATE = os.environ.get('GLOBAL_DATE', '1977-01-01')
 MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
 
@@ -169,11 +168,8 @@ class SdImport(object):
         if not contains_subunits and parent_uuid is None:
             parent_uuid = 'OrphanUnits'
 
-        # date_from = info['ActivationDate']
-        # Activation dates are not consistent
-        date_from = GLOBAL_DATE
+        date_from = info['ActivationDate']
         # No units have termination dates: date_to is None
-        # if not self.org.OrganisationUnit.check_if_exists(unit_id):
         if not self.importer.check_if_exists('organisation_unit', unit_id):
             self.importer.add_organisation_unit(
                 identifier=unit_id,
