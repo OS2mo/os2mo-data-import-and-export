@@ -1,15 +1,20 @@
 # -- coding: utf-8 --
+import os
 from os2mo_data_import import ImportHelper
 
+MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:5000')
+MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
 
-def example_import():
+
+def example_import(mox_base, mora_base):
     """
     Run the example to import the fictional organisation Magenta.
 
     """
 
     # Init
-    os2mo = ImportHelper(create_defaults=True, store_integration_data=True)
+    os2mo = ImportHelper(create_defaults=True, store_integration_data=True,
+                         mox_base=mox_base, mora_base=mora_base)
 
     # The Organisation class is the main entry point,
     # It exposes the related sub classes such as:
@@ -60,9 +65,6 @@ def example_import():
         date_from="1986-01-01",
     )
 
-    # HOTFIX: nested units are failing
-    # This will 'really' be fixed in the refactoring state
-
     # Adding sub units to the example
     os2mo.add_organisation_unit(
         identifier="Sysadmins",
@@ -100,12 +102,12 @@ def example_import():
         user_key="C8EC85B4-A088-434A-B034-CA08A9FD655A",
         title="EAN-nr.",
         scope="EAN",
-        example="00112233"
+        example="1234567890123"
     )
 
     os2mo.add_address_type(
         organisation_unit="Magenta",
-        value="00112233",
+        value="5264144870223",
         type_ref="EAN",
         date_from="1986-01-01",
     )
@@ -445,4 +447,4 @@ def example_import():
 
 
 if __name__ == "__main__":
-    example_import()
+    example_import(MOX_BASE, MORA_BASE)

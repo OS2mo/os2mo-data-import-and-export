@@ -5,6 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+import os
 import random
 import requests
 import unittest
@@ -19,18 +20,21 @@ from os2mo_data_import import ImportHelper
 from fixture_generator.populate_mo import CreateDummyOrg
 from fixture_generator.populate_mo import Size
 
+MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:5000')
+MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
+
 
 class IntegrationDataTests(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         random.seed(1)
         self.morah = MoraHelper(use_cache=False)
-        self.mox_base = 'http://localhost:5000'
-        self.mora_base = 'http://localhost:80'
+        self.mox_base = MOX_BASE
+        self.mora_base = MORA_BASE
         self.system_name = 'Test Dummy Import'
         self.importer = ImportHelper(create_defaults=True,
-                                     mox_base='http://localhost:5000',
-                                     mora_base='http://localhost:80',
+                                     mox_base=self.mox_base,
+                                     mora_base=self.mora_base,
                                      system_name=self.system_name,
                                      end_marker="STOP",
                                      store_integration_data=True)
@@ -62,9 +66,9 @@ class IntegrationDataTests(unittest.TestCase):
         test_values = [
             ('role_count', 5),
             ('association_count', 4),
-            ('engagement_count', 15 + extra_engagement),
+            ('engagement_count', 14 + extra_engagement),
             ('unit_count', 9 + extra_unit),
-            ('manager_count', 5),
+            ('manager_count', 4),
             ('person_count', 20 + extra_employee)
         ]
         for key, value in test_values:
