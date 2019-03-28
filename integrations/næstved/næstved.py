@@ -33,4 +33,4 @@ opus.insert_org_units()
 opus.insert_employees()
 opus.add_addresses_to_employees()
 
-# importer.import_all()
+importer.import_all()
