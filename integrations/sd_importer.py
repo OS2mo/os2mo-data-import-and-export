@@ -8,16 +8,18 @@
 #
 import os
 import pickle
+import hashlib
 import requests
+import datetime
 import xmltodict
 from anytree import Node
-from os2mo_data_import import ImportHelper
 
 
-MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
-MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_CODE', 0)
-MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
+INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
+SD_USER = os.environ.get('SD_USER', None)
+SD_PASSWORD = os.environ.get('SD_PASSWORD', None)
+if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
+    raise Exception('Credentials missing')
 
 
 def _dawa_request(address, adgangsadresse=False,
@@ -55,7 +57,10 @@ def _dawa_request(address, adgangsadresse=False,
 
 
 class SdImport(object):
-    def __init__(self, importer, org_name, municipality_code):
+    def __init__(self, importer, org_name, municipality_code,
+                 import_date_from, import_date_to=None, forced_uuids={}):
+        self.base_url = 'https://service.sd.dk/sdws/'
+
         self.double_employment = []
         self.address_errors = {}
 
@@ -66,6 +71,17 @@ class SdImport(object):
             municipality_code=municipality_code
         )
 
+        if import_date_to:
+            self.import_date = import_date_to.strftime('%d.%m.%Y')
+            self.import_date_from = import_date_from.strftime('%d.%m.%Y')
+            self.import_date_to = import_date_to.strftime('%d.%m.%Y')
+        else:
+            self.import_date = import_date_from.strftime('%d.%m.%Y')
+            self.import_date_from = import_date_from.strftime('%d.%m.%Y')
+            self.import_date_to = None
+
+        self.employee_forced_uuids = forced_uuids
+
         self.nodes = {}  # Will be populated when org-tree is created
         self.add_people()
         self.info = self._read_department_info()
@@ -74,31 +90,88 @@ class SdImport(object):
 
         self._add_klasse('Pnummer', 'Pnummer',
                          'org_unit_address_type', 'PNUMBER')
-        self._add_klasse('AdressePost', 'AdressePost',
+        self._add_klasse('AddressMailUnit', 'Postdresse',
                          'org_unit_address_type', 'DAR')
-        self._add_klasse('Email', 'Email', 'org_unit_address_type', 'EMAIL')
+        self._add_klasse('AdresseReturUnit', 'Returadresse',
+                         'org_unit_address_type', 'DAR')
+        self._add_klasse('AdresseHenvendelseUnit', 'Henvendelsessted',
+                         'org_unit_address_type', 'DAR')
+        self._add_klasse('PhoneUnit', 'Telefon',
+                         'org_unit_address_type', 'PHONE')
+        self._add_klasse('EmailUnit', 'Email',
+                         'org_unit_address_type', 'EMAIL')
 
-        self._add_klasse('Enhed', 'Enhed', 'org_unit_type')
+        self._add_klasse('AdressePostEmployee', 'Postadresse',
+                         'employee_address_type', 'DAR')
+        self._add_klasse('PhoneEmployee', 'Telefon',
+                         'employee_address_type', 'PHONE')
+        self._add_klasse('LocationEmployee', 'Lokation',
+                         'employee_address_type', 'TEXT')
+        self._add_klasse('EmailEmployee', 'Email',
+                         'employee_address_type', 'EMAIL')
+
+        self._add_klasse('Orlov', 'Orlov', 'leave_type')
+
+        self._add_klasse('Orphan', 'Virtuel Enhed', 'org_unit_type')
+
         self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
-        self._add_klasse('Ansat',
-                         'Ansat',
-                         'engagement_type')
-        self._add_klasse('non-primary',
-                         'Ikke-primær ansættelse',
-                         'engagement_type')
 
-    def _sd_lookup(self, filename):
-        with open(filename, 'r') as f:
-            data = f.read()
-        xml_response = xmltodict.parse(data)
-        outer_key = list(xml_response.keys())[0]
-        return xml_response[outer_key]
+        self._add_klasse('Ansat', 'Ansat', 'engagement_type')
+
+        self._add_klasse('non-primary', 'Ikke-primær ansættelse', 'engagement_type')
+
+        self._add_klasse('SD-medarbejder', 'SD-medarbejder', 'association_type')
+
+        self._add_klasse('Ekstern', 'Må vises eksternt', 'visibility', 'PUBLIC')
+        self._add_klasse('Intern', 'Må vises internt', 'visibility', 'INTERNAL')
+        self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
+
+    def _sd_lookup(self, url, params={}):
+        full_url = self.base_url + url
+
+        payload = {
+            'InstitutionIdentifier': INSTITUTION_IDENTIFIER,
+        }
+        payload.update(params)
+        m = hashlib.sha256()
+        m.update(str(sorted(payload)).encode())
+        m.update(full_url.encode())
+        lookup_id = m.hexdigest()
+
+        try:
+            with open(lookup_id + '.p', 'rb') as f:
+                response = pickle.load(f)
+            print('CACHED')
+        except FileNotFoundError:
+            response = requests.get(
+                full_url,
+                params=payload,
+                auth=(SD_USER, SD_PASSWORD)
+            )
+            with open(lookup_id + '.p', 'wb') as f:
+                pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
+
+        xml_response = xmltodict.parse(response.text)[url]
+        return xml_response
 
     def _read_department_info(self):
         """ Load all deparment details and store for later user """
         department_info = {}
 
-        departments = self._sd_lookup('GetDepartment20111201.xml')
+        params = {
+            # 'ActivationDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
+            # 'DeactivationDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
+            'ActivationDate': self.import_date,
+            'DeactivationDate': self.import_date,
+            'ContactInformationIndicator': 'true',
+            'DepartmentNameIndicator': 'true',
+            'PostalAddressIndicator': 'true',
+            'ProductionUnitIndicator': 'true',
+            'UUIDIndicator': 'true',
+            'EmploymentDepartmentIndicator': 'false'
+        }
+        departments = self._sd_lookup('GetDepartment20111201', params)
+
         for department in departments['Department']:
             uuid = department['DepartmentUUIDIdentifier']
             department_info[uuid] = department
@@ -117,7 +190,7 @@ class SdImport(object):
         if not self.importer.check_if_exists('klasse', klasse_id):
             self.importer.add_klasse(identifier=klasse_id,
                                      facet_type_ref=facet,
-                                     user_key=klasse,
+                                     user_key=str(klasse_id),
                                      scope=scope,
                                      title=klasse)
         return klasse_id
@@ -187,7 +260,7 @@ class SdImport(object):
                 if email.find('Empty') == -1:
                     self.importer.add_address_type(
                         organisation_unit=unit_id,
-                        type_ref='Email',
+                        type_ref='EmailUnit',
                         value=email,
                         date_from=date_from
                     )
@@ -211,7 +284,7 @@ class SdImport(object):
                 if dar_uuid is not None:
                     self.importer.add_address_type(
                         organisation_unit=unit_id,
-                        type_ref='AdressePost',
+                        type_ref='AddressMailUnit',
                         value=dar_uuid,
                         date_from=date_from
                     )
@@ -240,7 +313,7 @@ class SdImport(object):
                 new_ous.append(ou)
 
         while len(new_ous) > 0:
-            print(len(new_ous))
+            print('Number of new ous: {}'.format(len(new_ous)))
             all_ous = new_ous
             new_ous = []
             for ou in all_ous:
@@ -255,15 +328,34 @@ class SdImport(object):
 
     def add_people(self):
         """ Load all person details and store for later user """
-        people = self._sd_lookup('GetPerson20111201.xml')
+        params = {
+            'StatusActiveIndicator': 'true',
+            'StatusPassiveIndicator': 'false',
+            'ContactInformationIndicator': 'false',
+            'PostalAddressIndicator': 'false'
+        }
+        if self.import_date_to:
+            params['ActivationDate'] = self.import_date_from
+            params['DeactivationDate'] = self.import_date_to
+            people = self._sd_lookup('GetPersonChangedAtDate20111201', params)
+        else:
+            params['EffectiveDate'] = self.import_date
+            people = self._sd_lookup('GetPerson20111201', params)
+
         for person in people['Person']:
+            # TODO: How can a name be missing?!?
             cpr = person['PersonCivilRegistrationIdentifier']
-            name = (person['PersonGivenName'] + ' ' +
-                    person['PersonSurnameName'])
-            self.importer.add_employee(name=name,
-                                       identifier=cpr,
-                                       cpr_no=cpr,
-                                       user_key=name)
+            given_name = person.get('PersonGivenName', '')
+            sur_name = person.get('SurName', '')
+            name = '{} {}'.format(given_name, sur_name)
+            uuid = self.employee_forced_uuids.get(cpr, None)
+            self.importer.add_employee(
+                name=name,
+                identifier=cpr,
+                cpr_no=cpr,
+                user_key=name,
+                uuid=uuid
+            )
 
     def create_ou_tree(self):
         """ Read all department levels from SD """
@@ -271,19 +363,42 @@ class SdImport(object):
                 identifier='OrphanUnits',
                 name='Forældreløse enheder',
                 user_key='OrphanUnits',
-                type_ref='Enhed',
+                type_ref='Orphan',
                 date_from='1900-01-01',
                 date_to=None,
                 parent_ref=None)
+        params = {
+            'ActivationDate': self.import_date,
+            'DeactivationDate': self.import_date,
+            'UUIDIndicator': 'true'
+        }
+        organisation = self._sd_lookup('GetOrganization20111201', params)
 
-        organisation = sd._sd_lookup('GetOrganization20111201.xml')
         departments = organisation['Organization']['DepartmentReference']
         for department in departments:
             self._add_sd_department(department)
         self.nodes = self._create_org_tree_structure()
 
-    def create_employees(self):
-        persons = sd._sd_lookup('GetEmployment20111201.xml')
+    def create_employees(self, differential_update_date=None):
+        params = {
+            'StatusActiveIndicator': 'true',
+            'DepartmentIndicator': 'true',
+            'EmploymentStatusIndicator': 'true',
+            'ProfessionIndicator': 'true',
+            'WorkingTimeIndicator': 'true',
+            'UUIDIndicator': 'true',
+            'StatusPassiveIndicator': 'false',
+            'SalaryAgreementIndicator': 'false',
+            'SalaryCodeGroupIndicator': 'false'
+        }
+        if self.import_date_to:
+            params['ActivationDate'] = self.import_date_from
+            params['DeactivationDate'] = self.import_date_to
+            persons = self._sd_lookup('GetEmploymentChangedAtDate20111201', params)
+        else:
+            params['EffectiveDate'] = self.import_date
+            persons = self._sd_lookup('GetEmployment20111201', params)
+
         for person in persons['Person']:
             cpr = person['PersonCivilRegistrationIdentifier']
             employments = person['Employment']
@@ -293,9 +408,32 @@ class SdImport(object):
             max_rate = 0
             min_id = 999999
             for employment in employments:
+                """
+                print()
+                print()
+                print('--')
+                print(type(employment))
+                print(employment.keys())
+                print(employment['Profession'])
+                print()
+                print(type(employment['EmploymentStatus']))
+                if isinstance(employment['EmploymentStatus'], list):
+                    for status in employment['EmploymentStatus']:
+                        print(status)
+                """
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
-                if (int(status) == 0):
+                # print(status)
+                if int(status) == 0:
                     continue
+                if int(status) == 3:
+                    # Orlov
+                    pass
+                if int(status) == 8:
+                    # Fratrædt
+                    continue
+
+                # TODO: Could we somehow make use of this employent_id if
+                # it was stored in integration data?
                 employment_id = int(employment['EmploymentIdentifier'])
                 occupation_rate = float(employment['WorkingTime']
                                         ['OccupationRate'])
@@ -314,8 +452,13 @@ class SdImport(object):
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
                 if int(status) == 0:
                     continue
+                if int(status) == 8:
+                    # Fratrådt
+                    continue
+
                 occupation_rate = float(employment['WorkingTime']
                                         ['OccupationRate'])
+
                 employment_id = int(employment['EmploymentIdentifier'])
 
                 if occupation_rate == max_rate and employment_id == min_id:
@@ -326,16 +469,18 @@ class SdImport(object):
                     engagement_type_ref = 'non-primary'
 
                 job_id = int(employment['Profession']['JobPositionIdentifier'])
-                job_func = employment['Profession']['EmploymentName']
+                try:
+                    job_func = employment['Profession']['EmploymentName']
+                except KeyError:
+                    job_func = employment['Profession']['JobPositionIdentifier']
                 job_func_ref = self._add_klasse(job_func,
                                                 job_func,
                                                 'engagement_job_function')
-
                 emp_dep = employment['EmploymentDepartment']
                 unit = emp_dep['DepartmentUUIDIdentifier']
 
-                date_from = emp_dep['ActivationDate']
-                date_to = emp_dep['DeactivationDate']
+                date_from = employment['EmploymentStatus']['ActivationDate']
+                date_to = employment['EmploymentStatus']['DeactivationDate']
                 if date_to == '9999-12-31':
                     date_to = None
 
@@ -349,6 +494,7 @@ class SdImport(object):
                 try:
                     self.importer.add_engagement(
                         employee=cpr,
+                        user_key=str(employment_id),
                         organisation_unit=unit,
                         job_function_ref=job_func_ref,
                         engagement_type_ref=engagement_type_ref,
@@ -360,10 +506,17 @@ class SdImport(object):
                     self.importer.add_association(
                         employee=cpr,
                         organisation_unit=original_unit,
-                        job_function_ref=job_func_ref,
-                        association_type_ref=engagement_type_ref,
-                        date_from=date_from
+                        association_type_ref='SD-medarbejder',
+                        date_from=date_from,
+                        date_to=date_to
                     )
+                    if int(status) == 3:
+                        self.importer.add_leave(
+                            employee=cpr,
+                            leave_type_ref='Orlov',
+                            date_from=date_from,
+                            date_to=date_to
+                        )
 
                 except AssertionError:
                     self.double_employment.append(cpr)
@@ -386,31 +539,6 @@ class SdImport(object):
             # This assertment really should hold...
             # assert(exactly_one_primary is True)
             if exactly_one_primary is not True:
-                print()
-                print(employments)
-
-
-if __name__ == '__main__':
-
-    importer = ImportHelper(create_defaults=True,
-                            mox_base=MOX_BASE,
-                            mora_base=MORA_BASE,
-                            system_name='SD-Import',
-                            end_marker='SDSTOP',
-                            store_integration_data=True)
-
-    sd = SdImport(importer, MUNICIPALTY_NAME, MUNICIPALTY_CODE)
-    sd.create_ou_tree()
-    sd.create_employees()
-
-    importer.import_all()
-
-    for info in sd.address_errors.values():
-        print(info['DepartmentName'])
-        print(info['DepartmentIdentifier'])
-        print(info['PostalAddress']['StandardAddressIdentifier'])
-        print(info['PostalAddress']['PostalCode'] + ' ' +
-              info['PostalAddress']['DistrictName'])
-        print()
-        print()
-    print(len(sd.address_errors))
+                pass
+                # print()
+                # print('More than one primary: {}'.format(employments))
