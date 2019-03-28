@@ -29,7 +29,10 @@ class ADParameterReader(object):
         """
         r = self.session.run_ps(ps_script)
         if r.status_code == 0:
-            response = json.loads(r.std_out.decode('windows-1252'))
+            if r.std_out:
+                response = json.loads(r.std_out.decode('windows-1252'))
+            else:
+                response = {}
         else:
             response = r.std_err
         return response
@@ -65,15 +68,15 @@ class ADParameterReader(object):
         :param cpr: cpr number of the user to retrive.
         :return: All properties listed in AD for the user.
         """
+        print(cpr)
         if (not cpr) and (not user):
             return
         if user:
             ps_template = "get-aduser {}"
             get_command = ps_template.format(user)
         if cpr:
-            ps_template = "get-aduser -Filter 'xAttrCPR -like {}'"
+            ps_template = "get-aduser -Filter 'xAttrCPR -like \"{}\"'"
             get_command = ps_template.format(cpr)
-
         command_end = ' -Properties * -Credential $usercredential | ConvertTo-Json'
         ps_script = self._build_user_credential() + get_command + command_end
         response = self._run_ps_script(ps_script)
@@ -83,6 +86,7 @@ if __name__ == '__main__':
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())
     user = ad_reader.read_user(user='konroje')
+    print(sorted(user.keys()))
     print(user['xAttrCPR'])
     print(user['ObjectGuid'])
     print(user['SamAccountName'])
