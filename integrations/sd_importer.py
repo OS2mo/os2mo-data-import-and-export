@@ -10,10 +10,9 @@ import os
 import pickle
 import hashlib
 import requests
-import datetime
 import xmltodict
 from anytree import Node
-
+import ad_reader
 
 INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
 SD_USER = os.environ.get('SD_USER', None)
@@ -58,7 +57,7 @@ def _dawa_request(address, adgangsadresse=False,
 
 class SdImport(object):
     def __init__(self, importer, org_name, municipality_code,
-                 import_date_from, import_date_to=None, forced_uuids={}):
+                 import_date_from, import_date_to=None, ad_info=None):
         self.base_url = 'https://service.sd.dk/sdws/'
 
         self.double_employment = []
@@ -80,7 +79,20 @@ class SdImport(object):
             self.import_date_from = import_date_from.strftime('%d.%m.%Y')
             self.import_date_to = None
 
-        self.employee_forced_uuids = forced_uuids
+        # If a list of hard-coded uuids from AD is provided, use this. If
+        # a true AD-reader is provided, save it so we can use it to
+        # get all the info we need
+        self.ad_people = {}
+        self.ad_reader = None
+        self.employee_forced_uuids = None
+        if isinstance(ad_info, dict):
+            self.employee_forced_uuids = ad_info
+        if isinstance(ad_info, ad_reader.ADParameterReader):
+            self.ad_reader = ad_info
+            self.importer.new_itsystem(
+                identifier='AD',
+                system_name='Active Directory'
+            )
 
         self.nodes = {}  # Will be populated when org-tree is created
         self.add_people()
@@ -125,6 +137,25 @@ class SdImport(object):
         self._add_klasse('Ekstern', 'Må vises eksternt', 'visibility', 'PUBLIC')
         self._add_klasse('Intern', 'Må vises internt', 'visibility', 'INTERNAL')
         self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
+
+    def _update_ad_map(self, cpr):
+        print(cpr)
+        if self.ad_reader:
+            m = hashlib.sha256()
+            m.update(cpr.encode())
+            path_url = m.hexdigest()
+            print(path_url)
+            try:
+                with open(path_url + '.p', 'rb') as f:
+                    print('ad-cached')
+                    response = pickle.load(f)
+            except FileNotFoundError:
+                response = self.ad_reader.read_user(cpr=cpr)
+                with open(path_url + '.p', 'wb') as f:
+                    pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
+            self.ad_people[cpr] = response
+        else:
+            self.ad_people[cpr] = {}
 
     def _sd_lookup(self, url, params={}):
         full_url = self.base_url + url
@@ -343,19 +374,57 @@ class SdImport(object):
             people = self._sd_lookup('GetPerson20111201', params)
 
         for person in people['Person']:
-            # TODO: How can a name be missing?!?
             cpr = person['PersonCivilRegistrationIdentifier']
+            self._update_ad_map(cpr)
+
             given_name = person.get('PersonGivenName', '')
             sur_name = person.get('SurName', '')
             name = '{} {}'.format(given_name, sur_name)
-            uuid = self.employee_forced_uuids.get(cpr, None)
+
+            if 'ObjectGuid' in self.ad_people[cpr]:
+                uuid = self.ad_people[cpr]['ObjectGuid']
+            elif self.employee_forced_uuids:  # Should be wrapped in update_ad_map
+                uuid = self.employee_forced_uuids.get(cpr, None)
+            else:
+                uuid = None
+
+            ad_titel = self.ad_people[cpr].get('Title', None)
+            print('{}: {}, {}, {}'.format(cpr,
+                                          uuid,
+                                          self.ad_people[cpr].get('Name', None),
+                                          ad_titel))
+
+            # Name is placeholder for initals, do not know which field to extract
+            if 'Name' in self.ad_people[cpr]:
+                user_key = self.ad_people[cpr]['Name']
+            else:
+                user_key = name
+
             self.importer.add_employee(
                 name=name,
                 identifier=cpr,
                 cpr_no=cpr,
-                user_key=name,
+                user_key=user_key,
                 uuid=uuid
             )
+
+            if 'SamAccountName' in self.ad_people[cpr]:
+                self.importer.join_itsystem(
+                    employee=cpr,
+                    user_key=self.ad_people[cpr]['SamAccountName'],
+                    itsystem_ref='AD',
+                    date_from=None
+                )
+
+            # This is just an example of an address, final mapping awaits
+            # further information, including visibility mapping
+            if 'MobilePhone' in self.ad_people[cpr]:
+                self.importer.add_address_type(
+                    employee=cpr,
+                    value=self.ad_people[cpr]['MobilePhone'],
+                    type_ref='PhoneEmployee',
+                    date_from=None
+                )
 
     def create_ou_tree(self):
         """ Read all department levels from SD """
@@ -408,21 +477,7 @@ class SdImport(object):
             max_rate = 0
             min_id = 999999
             for employment in employments:
-                """
-                print()
-                print()
-                print('--')
-                print(type(employment))
-                print(employment.keys())
-                print(employment['Profession'])
-                print()
-                print(type(employment['EmploymentStatus']))
-                if isinstance(employment['EmploymentStatus'], list):
-                    for status in employment['EmploymentStatus']:
-                        print(status)
-                """
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
-                # print(status)
                 if int(status) == 0:
                     continue
                 if int(status) == 3:
@@ -454,6 +509,14 @@ class SdImport(object):
                     # Fratrådt
                     continue
 
+                # Find a valid job_function name, this might be overwritten from
+                # AD, if an AD value is available for this employment
+                job_id = int(employment['Profession']['JobPositionIdentifier'])
+                try:
+                    job_func = employment['Profession']['EmploymentName']
+                except KeyError:
+                    job_func = employment['Profession']['JobPositionIdentifier']
+
                 occupation_rate = float(employment['WorkingTime']
                                         ['OccupationRate'])
                 employment_id = int(employment['EmploymentIdentifier'])
@@ -462,14 +525,13 @@ class SdImport(object):
                     assert(exactly_one_primary is False)
                     engagement_type_ref = 'Ansat'
                     exactly_one_primary = True
+
+                    ad_titel = self.ad_people[cpr].get(['Title'], None)
+                    if ad_titel:  # Title exists in AD, this is primary engagement
+                        job_func = ad_titel
                 else:
                     engagement_type_ref = 'non-primary'
 
-                job_id = int(employment['Profession']['JobPositionIdentifier'])
-                try:
-                    job_func = employment['Profession']['EmploymentName']
-                except KeyError:
-                    job_func = employment['Profession']['JobPositionIdentifier']
                 job_func_ref = self._add_klasse(job_func,
                                                 job_func,
                                                 'engagement_job_function')
