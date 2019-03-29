@@ -32,7 +32,12 @@ importer = ImportHelper(
     store_integration_data=True
 )
 
-ad_reader = ad_reader.ADParameterReader()
+ad_usernames, ad_uuids = viborg_uuids.read_ad_and_uuids()
+
+importer.new_itsystem(
+    identifier='AD',
+    system_name='Active Directory'
+)
 
 sd = sd_importer.SdImport(
     importer,
@@ -40,8 +45,20 @@ sd = sd_importer.SdImport(
     MUNICIPALTY_CODE,
     import_date_from=GLOBAL_GET_DATE,
     import_date_to = GLOBAL_TO,
-    ad_info=ad_reader
+    ad_info=ad_uuids
 )
+
+for cpr, username in ad_usernames.items():
+    if importer.check_if_exists('employee', cpr):
+        importer.join_itsystem(
+            employee=cpr,
+            user_key=username,
+            itsystem_ref='AD',
+            date_from=None
+        )
+
+sd.employee_forced_uuids = ad_uuids
+sd.employee_ad_usernames = ad_usernames
 
 sd.create_ou_tree()
 sd.create_employees()
