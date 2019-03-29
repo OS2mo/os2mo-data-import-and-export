@@ -76,9 +76,9 @@ class ADParameterReader(object):
         if cpr:
             ps_template = "get-aduser -Filter 'xAttrCPR -like \"{}\"'"
             get_command = ps_template.format(cpr)
-        # command_end = ' -Properties * -Credential $usercredential | ConvertTo-Json'
+        # properties = ' -Properties *'
         properties = (' -Properties ' +
-                      'xAttrCPR,ObjectGuid,SamAccountName,Title,Initials')
+                       'xAttrCPR,ObjectGuid,SamAccountName,Title,Name,xBrugertype')
         command_end = ' -Credential $usercredential | ConvertTo-Json'
 
         ps_script = (self._build_user_credential() +
@@ -87,13 +87,26 @@ class ADParameterReader(object):
                      command_end)
 
         response = self._run_ps_script(ps_script)
-        return response
+        if isinstance(response, list):
+            unique = False
+            for current_user in response:
+                if current_user['xBrugertype'] == 'Medarbejder':
+                    user = current_user
+                    assert(not unique)
+                    unique = True
+            assert(unique)
+        else:
+            user = response
+        return user
 
 if __name__ == '__main__':
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())
     user = ad_reader.read_user(user='konroje')
+
+    print()
     print(sorted(user.keys()))
+    print(user['xBrugertype'])
     print(user['xAttrCPR'])
     print(user['ObjectGuid'])
     print(user['SamAccountName'])
