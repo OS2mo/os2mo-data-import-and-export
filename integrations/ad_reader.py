@@ -5,6 +5,9 @@ from winrm import Session
 WINRM_HOST = os.environ.get('WINRM_HOST', None)
 AD_SYSTEM_USER = os.environ.get('AD_SYSTEM_USER', None)
 AD_PASSWORD = os.environ.get('AD_PASSWORD', None)
+# SEARCH_BASE
+# PROPERTIES
+# SKIP_BRUGERTYPE
 
 
 class ADParameterReader(object):
@@ -77,19 +80,21 @@ class ADParameterReader(object):
             ps_template = "get-aduser -Filter 'xAttrCPR -like \"{}\"'"
             get_command = ps_template.format(cpr)
         # properties = ' -Properties *'
-        properties = (' -Properties ' +
-                       'xAttrCPR,ObjectGuid,SamAccountName,Title,Name,xBrugertype')
+        properties = (' -SearchBase "OU=Kommune,DC=viborg,DC=local" -Properties ' +
+                      ' xAttrCPR,ObjectGuid,SamAccountName,Title,Name,xBrugertype')
         command_end = ' -Credential $usercredential | ConvertTo-Json'
 
         ps_script = (self._build_user_credential() +
                      get_command +
                      properties +
                      command_end)
-
         response = self._run_ps_script(ps_script)
+
         if isinstance(response, list):
             unique = False
             for current_user in response:
+                if current_user.get('Title').find('FRATR') == 0:
+                    continue
                 if current_user['xBrugertype'] == 'Medarbejder':
                     user = current_user
                     assert(not unique)
@@ -103,11 +108,7 @@ if __name__ == '__main__':
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())
     user = ad_reader.read_user(user='konroje')
-
     print()
     print(sorted(user.keys()))
     print(user['xBrugertype'])
-    print(user['xAttrCPR'])
     print(user['ObjectGuid'])
-    print(user['SamAccountName'])
-    print(user['Title'])
