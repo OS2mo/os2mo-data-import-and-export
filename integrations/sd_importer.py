@@ -464,7 +464,7 @@ class SdImport(object):
                     engagement_type_ref = 'Ansat'
                     exactly_one_primary = True
 
-                    ad_titel = self.ad_people[cpr].get(['Title'], None)
+                    ad_titel = self.ad_people[cpr].get('Title', None)
                     if ad_titel:  # Title exists in AD, this is primary engagement
                         job_func = ad_titel
                 else:
