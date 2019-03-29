@@ -13,46 +13,13 @@ import requests
 import xmltodict
 from anytree import Node
 import ad_reader
+import dawa_helper
 
 INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
 SD_USER = os.environ.get('SD_USER', None)
 SD_PASSWORD = os.environ.get('SD_PASSWORD', None)
 if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
     raise Exception('Credentials missing')
-
-
-def _dawa_request(address, adgangsadresse=False,
-                  skip_letters=False, add_letter=False):
-    """ Perform a request to DAWA and return the json object
-    :param address: An address object as returned by APOS
-    :param adgangsadresse: If true, search for adgangsadresser
-    :param skip_letters: If true, remove letters from the house number
-    :return: The DAWA json object as a dictionary
-    """
-    if adgangsadresse:
-        base = 'https://dawa.aws.dk/adgangsadresser?'
-    else:
-        base = 'https://dawa.aws.dk/adresser?strukur=mini'
-    params = '&postnr={}&q={}'
-
-    street_name = address['StandardAddressIdentifier']
-    last_is_letter = (street_name[-1].isalpha() and
-                      (not street_name[-2].isalpha()))
-    if (skip_letters and last_is_letter):
-        street_name = address['StandardAddressIdentifier'][:-1]
-    full_url = base + params.format(address['PostalCode'], street_name)
-
-    path_url = full_url.replace('/', '_')
-    try:
-        with open(path_url + '.p', 'rb') as f:
-            response = pickle.load(f)
-    except FileNotFoundError:
-        response = requests.get(full_url)
-        with open(path_url + '.p', 'wb') as f:
-            pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
-
-    dar_data = response.json()
-    return dar_data
 
 
 class SdImport(object):
@@ -139,12 +106,10 @@ class SdImport(object):
         self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
 
     def _update_ad_map(self, cpr):
-        print(cpr)
         if self.ad_reader:
             m = hashlib.sha256()
             m.update(cpr.encode())
             path_url = m.hexdigest()
-            print(path_url)
             try:
                 with open(path_url + '.p', 'rb') as f:
                     print('ad-cached')
@@ -190,8 +155,6 @@ class SdImport(object):
         department_info = {}
 
         params = {
-            # 'ActivationDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
-            # 'DeactivationDate': GLOBAL_GET_DATE.strftime('%d.%m.%Y'),
             'ActivationDate': self.import_date,
             'DeactivationDate': self.import_date,
             'ContactInformationIndicator': 'true',
@@ -225,31 +188,6 @@ class SdImport(object):
                                      scope=scope,
                                      title=klasse)
         return klasse_id
-
-    def _dawa_lookup(self, address):
-        """ Lookup an APOS address object in DAWA and find a UUID
-        for the address.
-        :param address: APOS address object
-        :return: DAWA UUID for the address, or None if it is not found
-        """
-        dar_uuid = None
-        dar_data = _dawa_request(address)
-        if len(dar_data) == 0:
-            # Found no hits, first attempt is to remove the letter
-            # from the address
-            dar_data = _dawa_request(address, skip_letters=True,
-                                     adgangsadresse=True)
-            if len(dar_data) == 1:
-                dar_uuid = dar_data[0]['id']
-        elif len(dar_data) == 1:
-            dar_uuid = dar_data[0]['id']
-        else:
-            # Multiple results typically means we have found an
-            # adgangsadresse
-            dar_data = _dawa_request(address, adgangsadresse=True)
-            if len(dar_data) == 1:
-                dar_uuid = dar_data[0]['id']
-        return dar_uuid
 
     def _add_sd_department(self, department, contains_subunits=False):
         """
@@ -311,7 +249,11 @@ class SdImport(object):
         if 'PostalAddress' in info:
             needed = ['StandardAddressIdentifier', 'PostalCode']
             if all(element in info['PostalAddress'] for element in needed):
-                dar_uuid = self._dawa_lookup(info['PostalAddress'])
+                address_string = info['PostalAddress']['StandardAddressIdentifier']
+                zip_code = info['PostalAddress']['PostalCode']
+                dar_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+                print('DAR: {}'.format(dar_uuid))
+
                 if dar_uuid is not None:
                     self.importer.add_address_type(
                         organisation_unit=unit_id,
@@ -389,10 +331,6 @@ class SdImport(object):
                 uuid = None
 
             ad_titel = self.ad_people[cpr].get('Title', None)
-            print('{}: {}, {}, {}'.format(cpr,
-                                          uuid,
-                                          self.ad_people[cpr].get('Name', None),
-                                          ad_titel))
 
             # Name is placeholder for initals, do not know which field to extract
             if 'Name' in self.ad_people[cpr]:
