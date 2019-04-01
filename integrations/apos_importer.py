@@ -25,7 +25,7 @@ BASE_APOS_URL = os.environ.get('BASE_APOS_URL', 'http://localhost:8080/apos2-')
 PHONE_NAMES = os.environ.get('PHONE_NAMES', 'Telefon').split(':')
 
 ANSAT_UUID = os.environ.get('ANSAT_UUID', '00000000-0000-0000-0000-000000000000')
-CREATE_UDVALGS_CLASSES = os.environ.get('CREATE_UDVALGS_CLASSES', 'No') == 'yes'
+CREATE_UDVALGS_CLASSES = os.environ.get('CREATE_UDVALGS_CLASSES', 'no') == 'yes'
 EMAIL_NAME = os.environ.get('EMAIL_NAME', 'Email')
 MAIN_PHONE_NAME = os.environ.get('MAIN_PHONE_NAME', 'Telefon')
 
@@ -57,10 +57,10 @@ class AposImport(object):
             municipality_code=municipality_code
         )
 
-        self.object_to_uuid = {}  # Mapping of Opus object ID to Opus UUID
-        self.address_challenges = {}
+        self.object_to_uuid = {}  # Mapping of Apos object ID to Apos UUID
+        self.address_challenges = {}  # Needs support in dawa helper
         self.duplicate_persons = {}
-        self.address_errors = {}
+        self.address_errors = {}  # Needs support in dawa helper
         self.klassifikation_errors = {}
 
     def _apos_lookup(self, url):
@@ -80,7 +80,7 @@ class AposImport(object):
         return xml_response[outer_key]
 
     def read_locations(self, unit):
-        url = 'app-organisation/GetLocations?uuid={}'
+        url = 'app-organisation/GetLocations?uuid{}'
         locations = self._apos_lookup(url.format(unit['@uuid']))
         mo_locations = []
         if int(locations['total']) == 0:
@@ -292,8 +292,7 @@ class AposImport(object):
             {'id': 'Skolekode',
              'titel': 'Skolekode',
              'facet': 'org_unit_address_type',
-             'scope': 'TEXT'}
-
+             'scope': 'TEXT'},
         ]
 
         for klasse in specific_klasser + standard_klasser:
@@ -488,9 +487,11 @@ class AposImport(object):
             1/0
 
         engagement_ref = '56e1214a-330f-4592-89f3-ae3ee8d5b2e6'  # Ansat
+
         self.importer.add_engagement(
             employee=employee['person']['@uuid'],
             uuid=employee['@uuid'],
+            user_key=employee['@uuid'],
             organisation_unit=unit,
             job_function_ref=stilling,
             engagement_type_ref=engagement_ref,
