@@ -7,13 +7,14 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import os
-import re
 import pickle
 import requests
 import xmltodict
 import collections
 from datetime import datetime
 from uuid import UUID
+
+import dawa_helper
 
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
@@ -44,38 +45,6 @@ def _format_time(gyldighed):
     return from_time, to_time
 
 
-def _dawa_request(address, adgangsadresse=False, skip_letters=False):
-    """ Perform a request to DAWA and return the json object
-    :param address: An address object as returned by APOS
-    :param adgangsadresse: If true, search for adgangsadresser
-    :param skip_letters: If true, remove letters from the house number
-    :return: The DAWA json object as a dictionary
-    """
-    if adgangsadresse:
-        base = 'https://dawa.aws.dk/adgangsadresser?'
-    else:
-        base = 'https://dawa.aws.dk/adresser?'
-    params = 'kommunekode={}&postnr={}&vejkode={}&husnr={}'
-    if skip_letters:
-        husnr = re.sub(r'\D', '', address['@husnummer'])
-    else:
-        husnr = address['@husnummer'].upper()
-    full_url = base + params.format(address['@kommunekode'],
-                                    address['@postnummer'],
-                                    address['@vejkode'],
-                                    husnr)
-    path_url = full_url.replace('/', '_')
-    try:
-        with open(path_url + '.p', 'rb') as f:
-            response = pickle.load(f)
-    except FileNotFoundError:
-        response = requests.get(full_url)
-        with open(path_url + '.p', 'wb') as f:
-            pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
-    dar_data = response.json()
-    return dar_data
-
-
 class AposImport(object):
 
     def __init__(self, importer, org_name, municipality_code):
@@ -100,7 +69,7 @@ class AposImport(object):
             with open(path_url + '.p', 'rb') as f:
                 response = pickle.load(f)
         except FileNotFoundError:
-            print(self.base_url + url)
+            # print(self.base_url + url)
             response = requests.get(self.base_url + url)
             with open(path_url + '.p', 'wb') as f:
                 pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
@@ -109,37 +78,6 @@ class AposImport(object):
         # Response is always hidden one level down
         outer_key = list(xml_response.keys())[0]
         return xml_response[outer_key]
-
-    def dawa_lookup(self, address):
-        """ Lookup an APOS address object in DAWA and find a UUID
-        for the address.
-        :param address: APOS address object
-        :return: DAWA UUID for the address, or None if it is not found
-        """
-        dar_uuid = None
-        dar_data = _dawa_request(address)
-        if len(dar_data) == 0:
-            # Found no hits, first attempt is to remove the letter
-            # from the address and note it for manual verifikation
-            self.address_challenges[address['@uuid']] = address
-            dar_data = _dawa_request(address, skip_letters=True)
-            if len(dar_data) == 1:
-                dar_uuid = dar_data[0]['id']
-            else:
-                self.address_errors[address['@uuid']] = address
-        elif len(dar_data) == 1:
-            # Everyting is as expected
-            dar_uuid = dar_data[0]['id']
-        else:
-            # Multiple results typically means we have found an
-            # adgangsadresse
-            dar_data = _dawa_request(address, adgangsadresse=True)
-            if len(dar_data) == 1:
-                dar_uuid = dar_data[0]['id']
-            else:
-                del self.address_challenges[address['@uuid']]
-                self.address_errors[address['@uuid']] = address
-        return dar_uuid
 
     def read_locations(self, unit):
         url = 'app-organisation/GetLocations?uuid={}'
@@ -159,7 +97,10 @@ class AposImport(object):
             uuid = location['@adresse']
             url = 'app-part/GetAdresseList?uuid={}'
             apos_address = self._apos_lookup(url.format(uuid))
-            dawa_uuid = self.dawa_lookup(apos_address['adresse'])
+            address_string = apos_address['adresse']['@vejadresseringsnavn']
+            zip_code = apos_address['adresse']['@postnummer']
+            dawa_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+
             pnummer = location.get('@pnummer', None)
             primary = (location.get('@primary', None) == 'JA')
             mo_location = {'pnummer': pnummer,
