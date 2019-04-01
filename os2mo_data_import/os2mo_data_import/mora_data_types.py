@@ -263,9 +263,9 @@ class EngagementType(MoType):
         # engagement
         resource = 'organisation/organisationfunktion'
         hash_value = hashlib.sha256()
-        hash_value.update(self.org_unit_ref.encode('ascii'))
-        hash_value.update(self.type_ref.encode('ascii'))
-        hash_value.update(self.job_function_ref.encode('ascii'))
+        hash_value.update(str(self.org_unit_ref).encode('ascii'))
+        hash_value.update(str(self.type_ref).encode('ascii'))
+        hash_value.update(str(self.job_function_ref).encode('ascii'))
         if self.date_from:
             hash_value.update(self.date_from.encode('ascii'))
         if self.date_to:
