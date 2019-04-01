@@ -732,7 +732,6 @@ class ImportUtility(object):
                 uuid = error[uuid_start+9:uuid_start+45]
                 try:
                     UUID(uuid, version=4)
-                    print('Validtated uuid: {}'.format(uuid))
                 except ValueError:
                     raise Exception('Unable to read uuid')
             else:
@@ -846,8 +845,12 @@ class ImportUtility(object):
             # In priciple, we should be able to re-calculate the hash stored in
             # integration data and compare directly from that.
             for data_item in data[data_type]:
-                if self._std_compare(item_payload, data_item, 'job_function'):
+                print('New user key: {}'.format(item_payload['user_key']))
+                print('Old user key: {}'.format(data_item['user_key']))
+                if (self._std_compare(item_payload, data_item, 'job_function') and
+                    item_payload['user_key'] == data_item['user_key']):
                     found_hit = True
+
         elif data_type == 'role':
             for data_item in data[data_type]:
                 if self._std_compare(item_payload, data_item, 'role_type'):
