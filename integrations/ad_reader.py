@@ -93,8 +93,9 @@ class ADParameterReader(object):
         if isinstance(response, list):
             unique = False
             for current_user in response:
-                if current_user.get('Title').find('FRATR') == 0:
-                    continue
+                job_title = current_user.get('Title')
+                if job_title and job_title.find('FRATR') == 0:
+                    continue # These are users that has left
                 if current_user['xBrugertype'] == 'Medarbejder':
                     user = current_user
                     assert(not unique)
