@@ -41,12 +41,26 @@ def example_import(mox_base, mora_base):
         title="Afdeling"
     )
 
+    os2mo.add_klasse(
+        identifier="Arbejdstidsplaner",
+        facet_type_ref="time_planning",
+        user_key="Arbejdstidsplaner",
+        title="Arbejdstidsplaner"
+    )
+    os2mo.add_klasse(
+        identifier="Tjenestetid",
+        facet_type_ref="time_planning",
+        user_key="Tjenestetid",
+        title="Tjenestetid"
+    )
+    
     # Root unit: Magenta
     # Belongs to unit type: "Hovedenhed"
     os2mo.add_organisation_unit(
         identifier="Magenta",
         name="Magenta Aps",
         type_ref="Hovedenhed",  # Reference to the unit type
+        time_planning_ref="Arbejdstidsplaner",
         date_from="1986-01-01"
     )
 
@@ -55,6 +69,7 @@ def example_import(mox_base, mora_base):
         identifier="Pilestræde",
         type_ref="Afdeling",  # This unit is of type: Afdeling
         parent_ref="Magenta",  # Sub unit of/Belongs to Magenta
+        time_planning_ref="Tjenestetid",
         date_from="1986-01-01"
     )
 
