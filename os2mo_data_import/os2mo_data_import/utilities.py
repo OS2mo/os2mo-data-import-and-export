@@ -404,9 +404,9 @@ class ImportUtility(object):
                 re_import = 'YES'
 
             # TODO: SHOLD WE UPDATE FROM TO TODAY IN CASE OF RE-IMPORT?
-            print(build_detail)
-            # valid_from = datetime.now().strftime('%Y-%m-%d')  # today
-            # item['validity']['from'] = valid_from
+            if re_import == 'YES':
+                valid_from = datetime.now().strftime('%Y-%m-%d')  # today
+                build_detail['validity']['from'] = valid_from
             details_payload.append(build_detail)
 
         print('Re-import: {}'.format(re_import))
@@ -853,8 +853,6 @@ class ImportUtility(object):
             # In priciple, we should be able to re-calculate the hash stored in
             # integration data and compare directly from that.
             for data_item in data[data_type]:
-                print('New user key: {}'.format(item_payload['user_key']))
-                print('Old user key: {}'.format(data_item['user_key']))
                 if (self._std_compare(item_payload, data_item, 'job_function') and
                     item_payload['user_key'] == data_item['user_key']):
                     found_hit = True
