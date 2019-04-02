@@ -1,137 +1,59 @@
-import os
-import pickle
+# import os
 import datetime
-import requests
-import xmltodict
+from sd_common import sd_lookup
+from os2mo_helpers.mora_helpers import MoraHelper
 
-INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
-SD_USER = os.environ.get('SD_USER', None)
-SD_PASSWORD = os.environ.get('SD_PASSWORD', None)
-if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
-    raise Exception('Credentials missing')
-
-BASE_URL = 'https://service.sd.dk/sdws/'
-
-from_date = datetime.datetime(2019, 2, 15, 0, 0)
-to_date = datetime.datetime(2019, 2, 25, 0, 0)
-
-#from_date = datetime.datetime(2019, 2, 26, 0, 0)
-#to_date = datetime.datetime(2019, 2, 27, 0, 0)
-
-#from_date = datetime.datetime(2019, 2, 27, 0, 0)
-#to_date = datetime.datetime(2019, 2, 29, 0, 0)
-
-#from_date = datetime.datetime(2019, 2, 29, 0, 0)
-#to_date = datetime.datetime(2019, 3, 15, 0, 0)
+# SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
 
 
-def _sd_lookup(url, from_date=None, to_date=None, params = {}):
-    payload = {
-        'InstitutionIdentifier': INSTITUTION_IDENTIFIER,
-    }
-    payload.update(params)
+class ChangeAtSD(object):
 
-    full_url = BASE_URL + url
+    def __init__(self, from_date, to_date):
+        self.helper = MoraHelper()
+        self.from_date = from_date
+        self.to_date = to_date
+        # print(self.helper.read_organisation())
 
-    url_id = url
-    # url_id += 'ActivationDate' + payload['ActivationDate']
-    # url_id += 'DeactivationDate' + payload['DeactivationDate']
+    def read_employment_changed(self):
+        url = 'GetEmploymentChangedAtDate20111201'
+        params = {
+            'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
+            'DeactivationDate': self.to_date.strftime('%d.%m.%Y'),
+            'StatusActiveIndicator': 'true',
+            'DepartmentIndicator': 'true',
+            'EmploymentStatusIndicator': 'true',
+            'ProfessionIndicator': 'true',
+            'WorkingTimeIndicator': 'true',
+            'UUIDIndicator': 'true',
+            'StatusPassiveIndicator': 'false',
+            'SalaryAgreementIndicator': 'false',
+            'SalaryCodeGroupIndicator': 'false'
+        }
+        response = sd_lookup(url, params=params)
+        return response['Person']
 
-    try:
-        with open(url_id + '.p', 'rb') as f:
-            response = pickle.load(f)
-        print('CACHED')
-    except FileNotFoundError:
-        response = requests.get(
-            full_url,
-            params=payload,
-            auth=(SD_USER, SD_PASSWORD)
-        )
-        with open(url_id + '.p', 'wb') as f:
-            pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
+    def read_person_changed(self):
+        params = {
+            'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
+            'DeactivationDate': self.to_date.strftime('%d.%m.%Y'),
+            'StatusActiveIndicator': 'true',
+            'StatusPassiveIndicator': 'false',
+            'ContactInformationIndicator': 'false',
+            'PostalAddressIndicator': 'false'
+        }
+        url = 'GetPersonChangedAtDate20111201'
+        response = sd_lookup(url, params=params)
+        return response['Person']
 
-    xml_response = xmltodict.parse(response.text)[url]
-    return xml_response
+    def update_changed_persons(self):
+        person_changed = self.read_person_changed()
+        for person in person_changed:
+            print('--------')
+            cpr = person['PersonCivilRegistrationIdentifier']
+            print(person)
 
-
-def read_employments_for_user(cpr, date=None):
-    if not date:
-        from_date = datetime.datetime.now()
-    url = 'GetEmploymentDate20111201'
-    params = {
-        'EffectiveDate': from_date.strftime('%d.%m.%Y'),
-         # 'DeactivationDate': to_date.strftime('%d.%m.%Y'),
-        'StatusActiveIndicator': 'true',
-        'DepartmentIndicator': 'true',
-        'EmploymentStatusIndicator': 'true',
-        'ProfessionIndicator': 'true',
-        'WorkingTimeIndicator': 'true',
-        'UUIDIndicator': 'true',
-        'StatusPassiveIndicator': 'false',
-        'SalaryAgreementIndicator': 'false',
-        'SalaryCodeGroupIndicator': 'false'
-    }
-    response = _sd_lookup(url, from_date, to_date, params=params)
-    return response['Person']
-
-
-def read_employment_changed():
-    url = 'GetEmploymentChangedAtDate20111201'
-    params = {
-        'ActivationDate': from_date.strftime('%d.%m.%Y'),
-        'DeactivationDate': to_date.strftime('%d.%m.%Y'),
-        'StatusActiveIndicator': 'true',
-        'DepartmentIndicator': 'true',
-        'EmploymentStatusIndicator': 'true',
-        'ProfessionIndicator': 'true',
-        'WorkingTimeIndicator': 'true',
-        'UUIDIndicator': 'true',
-        'StatusPassiveIndicator': 'false',
-        'SalaryAgreementIndicator': 'false',
-        'SalaryCodeGroupIndicator': 'false'
-    }
-    response = _sd_lookup(url, from_date, to_date, params=params)
-    return response['Person']
-
-
-def read_person_changed():
-    params = {
-        'ActivationDate': from_date.strftime('%d.%m.%Y'),
-        'DeactivationDate': to_date.strftime('%d.%m.%Y'),
-        'StatusActiveIndicator': 'true',
-        'StatusPassiveIndicator': 'false',
-        'ContactInformationIndicator': 'false',
-        'PostalAddressIndicator': 'false'
-    }
-
-    url = 'GetPersonChangedAtDate20111201'
-    response = _sd_lookup(url, params=params)
-    return response['Person']
-
-
-
-if __name__ == '__main__':
-    person_changed = read_person_changed()
-    #print()
-    employments_changed = read_employment_changed()
-
-    print(len(person_changed))
-    print(len(employments_changed))
-
-    """
-    for person in person_changed:
-        cpr = person['PersonCivilRegistrationIdentifier']
-        found_eng = False
-        for eng in employments_changed:
-            if cpr in eng['PersonCivilRegistrationIdentifier']:
-                found_eng = True
-        print(found_eng)
-    """
-    for person in person_changed:
-        print('--------')
-        cpr = person['PersonCivilRegistrationIdentifier']
-        print(person)
-        """
+    def update_employments(self):
+        employments_changed = self.read_employment_changed()
         for employment in employments_changed:
             if employment['PersonCivilRegistrationIdentifier'] == cpr:
                 if not isinstance(employment['Employment'], list):
@@ -156,10 +78,15 @@ if __name__ == '__main__':
                         # employment_info = read_employments_for_user(cpr, date)
                         # print(employment_info)
                 print()
-                print()
-                # print()
-                # print()
-        """
-        employment_info = read_employments_for_user(cpr)
-        print(employment_info)
-        1/0
+
+
+if __name__ == '__main__':
+    from_date = datetime.datetime(2019, 2, 15, 0, 0)
+    to_date = datetime.datetime(2019, 2, 25, 0, 0)
+
+    # from_date = datetime.datetime(2019, 2, 26, 0, 0)
+    # to_date = datetime.datetime(2019, 2, 27, 0, 0)
+
+    sd_updater = ChangeAtSD(from_date, to_date)
+    sd_updater.update_changed_persons()
+    # sd_updater.update_employments()
