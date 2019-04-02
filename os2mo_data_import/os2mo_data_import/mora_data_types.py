@@ -217,7 +217,10 @@ class EngagementType(MoType):
 
         self.type_id = "engagement"
         self.uuid = uuid
-        self.user_key = user_key
+        if user_key:
+            self.user_key = user_key
+        else:
+            self.user_key = '-'
 
         self.org_unit_ref = org_unit_ref
         self.org_unit_uuid = None
@@ -263,9 +266,9 @@ class EngagementType(MoType):
         # engagement
         resource = 'organisation/organisationfunktion'
         hash_value = hashlib.sha256()
-        hash_value.update(str(self.org_unit_ref).encode('ascii'))
-        hash_value.update(str(self.type_ref).encode('ascii'))
-        hash_value.update(str(self.job_function_ref).encode('ascii'))
+        hash_value.update(str(self.org_unit_ref).encode('utf-8'))
+        hash_value.update(str(self.type_ref).encode('utf-8'))
+        hash_value.update(str(self.job_function_ref).encode('utf-8'))
         if self.date_from:
             hash_value.update(self.date_from.encode('ascii'))
         if self.date_to:
@@ -731,7 +734,10 @@ class EmployeeType(MoType):
         self.cpr_no = cpr_no
 
         self.uuid = uuid
-        self.user_key = user_key
+        if user_key:
+            self.user_key = user_key
+        else:
+            self.user_key = name
 
         self.org = org
         self.org_uuid = None
