@@ -329,6 +329,11 @@ class ImportUtility(object):
             organisation_unit.type_ref
         )
 
+        if hasattr(organisation_unit, "time_planning_ref"):
+            organisation_unit.time_planning_ref_uuid = self.inserted_klasse_map.get(
+                organisation_unit.time_planning_ref
+            )
+
         organisation_unit.type_ref_uuid = type_ref_uuid
 
         payload = organisation_unit.build()
@@ -399,6 +404,9 @@ class ImportUtility(object):
                 re_import = 'YES'
 
             # TODO: SHOLD WE UPDATE FROM TO TODAY IN CASE OF RE-IMPORT?
+            print(build_detail)
+            # valid_from = datetime.now().strftime('%Y-%m-%d')  # today
+            # item['validity']['from'] = valid_from
             details_payload.append(build_detail)
 
         print('Re-import: {}'.format(re_import))
