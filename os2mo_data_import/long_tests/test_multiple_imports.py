@@ -292,13 +292,13 @@ class IntegrationDataTests(unittest.TestCase):
             organisation_unit="Sub unit 2",
             value='33333334',
             type_ref='PhoneUnit',
-            date_from='2018-12-09',
+            date_from='2017-12-09',
         )
 
         self.importer.import_all()
         address = self.morah._mo_lookup('00000000-0000-0000-0000-000000000021',
                                         'ou/{}/details/address',
-                                        at='2018-12-08')
+                                        at='2016-12-08')
         self.assertTrue(len(address) == 2)
 
         address = self.morah._mo_lookup('00000000-0000-0000-0000-000000000021',
@@ -481,6 +481,7 @@ class IntegrationDataTests(unittest.TestCase):
             employee='Test user',
             organisation_unit='Root',
             job_function_ref='Kok',
+            user_key='108',
             engagement_type_ref="Ansat",
             date_from='1992-01-23',
             date_to='2022-07-16'
@@ -490,6 +491,7 @@ class IntegrationDataTests(unittest.TestCase):
             employee='Test user',
             organisation_unit='Sub unit 1',
             job_function_ref='Vagt',
+            user_key='109',
             engagement_type_ref="Ansat",
             date_from='1990-01-23',
             date_to='2020-07-16'
