@@ -39,6 +39,7 @@ apos_import.create_managers_and_associatins()
 
 importer.import_all()
 
+"""
 print('********************************')
 print('Address challenges:')
 for challenge in apos_import.address_challenges:
@@ -58,3 +59,4 @@ print()
 print('Duplicate people:')
 for uuid, person in apos_import.duplicate_persons.items():
     print(person['@adresseringsnavn'])
+"""
