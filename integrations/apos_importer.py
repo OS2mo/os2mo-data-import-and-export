@@ -196,6 +196,10 @@ class AposImport(object):
                 self.create_typer(k['@uuid'], {'org_unit_type':
                                                ['sd_loen_enhedstyper']})
 
+            if k['@kaldenavn'] == 'SD løn enhedstyper':
+                self.create_typer(k['@uuid'], {'time_planning':
+                                               ['Tidsregistrering']})
+
             if k['@kaldenavn'] == 'Kontaktkanaler':
                 self.create_typer(k['@uuid'], {'employee_address_type':
                                                ['Lokation typer',
@@ -316,9 +320,25 @@ class AposImport(object):
 
         details = r['enhed']
 
-        """ This might turn out to be specfic for Ballerup in the current
-        implementation. Once other imports also needs these values, we should
-        make a parameter list """
+        """
+        The handling of apos integration-data might turn out to be specfic for
+        Ballerup in the current  implementation. Once other imports also needs these
+        values, we should make a parameter list.
+        """
+
+        # Default i Ballerup:
+        time_planning = '41504f53-0203-0028-4158-41504f494e54'
+        if details['opgaver']:
+            print(details['opgaver']['opgave'])
+            opgaver = details['opgaver']['opgave']
+            if not isinstance(opgaver, list):
+                opgaver = [opgaver]
+
+            for opgave in opgaver:
+                if opgave['@uuid'] in ('41504f53-0203-0028-4158-41504f494e54',
+                                       '41504f53-0203-0029-4158-41504f494e54',
+                                       '41504f53-0203-0030-4158-41504f494e54'):
+                    time_planning = opgave['@uuid']
 
         unit_id = int(apos_unit['@objectid'])
         if 'overordnet' in details:
@@ -332,12 +352,12 @@ class AposImport(object):
         # If enhedstype is not hard-coded, we take it from APOS
         if not enhedstype:
             enhedstype = details['@enhedstype']
-
         unit = self.importer.add_organisation_unit(
             identifier=unit_id,
             uuid=apos_unit['@uuid'],
             name=apos_unit['@navn'],
             user_key=apos_unit['@brugervendtNoegle'],
+            time_planning_ref=time_planning,
             type_ref=enhedstype,
             date_from=fra,
             date_to=til,
