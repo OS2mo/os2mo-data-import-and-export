@@ -320,7 +320,7 @@ class SdImport(object):
             self._update_ad_map(cpr)
 
             given_name = person.get('PersonGivenName', '')
-            sur_name = person.get('SurName', '')
+            sur_name = person.get('PersonSurnameName', '')
             name = '{} {}'.format(given_name, sur_name)
 
             if 'ObjectGuid' in self.ad_people[cpr]:
