@@ -118,7 +118,6 @@ class MoraHelper(object):
 
         full_url = self.host + url.format(uuid)
         if (full_url in self.cache) and use_cache:
-            print('AAAARRRGGHHH')
             return_dict = self.cache[full_url]
         else:
             if SAML_TOKEN is None:
@@ -163,6 +162,30 @@ class MoraHelper(object):
             if address['address_type']['scope'] == 'DAR':
                 return_address['Adresse'] = address['name']
         return return_address
+
+    def read_user(self, user_uuid=None, user_cpr=None, at=None, use_cache=None,
+                  org_uuid=None):
+        """
+        Read basic info for a user. Either uuid or cpr must be given.
+        :param user_uuid: UUID of the wanted user.
+        :param user_cpr: cpr of the wanted user.
+        :return: Basic user info
+        """
+        if user_uuid:
+            user_info = self._mo_lookup(user_uuid, 'e/{}', at, use_cache)
+        if user_cpr:
+            if not org_uuid:
+                org_uuid = self.read_organisation()
+            user = self._mo_lookup(user_cpr, 'o/' + org_uuid + '/e?query={}',
+                                   at, use_cache)
+            assert user['total'] < 2  # Only a single person can be found from cpr
+
+            if user['total'] == 1:
+                user_info = self._mo_lookup(user['items'][0]['uuid'], 'e/{}',
+                                            at, use_cache)
+            else:
+                user_info = None
+        return user_info
 
     def read_user_engagement(self, user, at=None, use_cache=None):
         """
