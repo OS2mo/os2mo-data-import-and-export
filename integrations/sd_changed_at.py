@@ -3,7 +3,9 @@ import datetime
 from sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
 
-# SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
+import os
+import requests
+SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
 
 
 class ChangeAtSD(object):
@@ -75,6 +77,24 @@ class ChangeAtSD(object):
     def update_employments(self):
         employments_changed = self.read_employment_changed()
         for employment in employments_changed:
+            print()
+            print(employment.keys())
+            cpr = employment['PersonCivilRegistrationIdentifier']
+            sd_engagement = employment['Employment']
+            mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
+            mo_engagement = self.helper.read_user_engagement(
+                mo_person['uuid'],
+                at=self.from_date.strftime('%Y-%m-%d'),
+                use_cache=False
+            )
+            for engagement in mo_engagement:
+                if engagement['EmploymentStatusCode'] == '8':
+                    employment = engagement['employment']
+                    assert(len(employment) == 1)
+                    print(employment[0])
+                    print('Find engagement {} in MO'.format(employment[0]['EmploymentIdentifier']))
+                    1/0
+            """
             if employment['PersonCivilRegistrationIdentifier'] == cpr:
                 if not isinstance(employment['Employment'], list):
                     emp_list = [employment['Employment']]
@@ -98,7 +118,7 @@ class ChangeAtSD(object):
                         # employment_info = read_employments_for_user(cpr, date)
                         # print(employment_info)
                 print()
-
+            """
 
 if __name__ == '__main__':
     from_date = datetime.datetime(2019, 2, 15, 0, 0)
@@ -108,5 +128,5 @@ if __name__ == '__main__':
     # to_date = datetime.datetime(2019, 2, 27, 0, 0)
 
     sd_updater = ChangeAtSD(from_date, to_date)
-    sd_updater.update_changed_persons()
+    # sd_updater.update_changed_persons()
     sd_updater.update_employments()
