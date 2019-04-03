@@ -132,6 +132,28 @@ class MoraHelper(object):
             self.cache[full_url] = return_dict
         return return_dict
 
+    def _mo_post(self, url, payload, force=True):
+        if force:
+            params = {'force': 1}
+        else:
+            params = None
+
+        if SAML_TOKEN:
+            header = {"SESSION": SAML_TOKEN}
+        else:
+            header = None
+
+        full_url = self.host + url
+        requests.post(
+            full_url,
+            headers=header,
+            params=params,
+            json=payload
+        )
+
+        return return_dict
+
+    
     def read_organisation(self):
         """ Read the main Organisation, all OU's will have this as root.
         Currently reads only one, theroretically more than root org can exist.
@@ -186,6 +208,23 @@ class MoraHelper(object):
             else:
                 user_info = None
         return user_info
+
+    def terminate_detail(self, mo_type, uuid, from_date):
+        """ Terminate a specific MO detail.
+        :param mo_type: The MO type to terminate (association, role, engagement, etc)
+        :param uuid: Object to terminate.
+        :param from_date: Date to terminate from.
+        """
+        payload = {
+            'type': mo_type,
+            'uuid': uuid,
+            'validity': {
+                'to': '2018-01-01'
+            }
+        }
+        print('TERMINATE')
+        print(payload)
+        # self._mo_post('details/terminate', payload):
 
     def read_user_engagement(self, user, at=None, use_cache=None):
         """
