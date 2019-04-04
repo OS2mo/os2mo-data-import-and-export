@@ -224,14 +224,11 @@ class ChangeAtSD(object):
 
                         if status['EmploymentStatusCode'] == '1':
                             print('Create or edit MO engagement {}'.format(job_id))
-                            found_job = False
-                            for mo_eng in mo_engagement:
-                                if mo_eng['user_key'] == job_id:
-                                    found_job = True
+                            mo_eng = self._find_engagement(mo_engagement, job_id)
 
-                            if found_job:
+                            if mo_eng:
                                 print('EDIT THIS JOB')
-                                1/0
+
                             else:
                                 # Here we create an all new job
                                 org_unit = department['DepartmentUUIDIdentifier']
@@ -282,14 +279,25 @@ class ChangeAtSD(object):
 
                 if working_time:
                     # TODO: Here we need to re-calculate primary engagement
-                    print(mo_engagement)
-                    print(working_time)
+                    # print(working_time)
+                    mo_eng = self._find_engagement(mo_engagement, job_id)
+                    assert mo_eng # In this case, None would be plain wrong
+
+                    # Here we should update working time and re-calculate primary
                     print('Change in working time')
 
                 if employment_date:
                     # This seems to be redundant information
                     pass
             1/0
+            
+    def _find_engagement(self, mo_engagement, job_id):
+        relevant_engagement = None
+        user_key = str(int(job_id))
+        for mo_eng in mo_engagement:
+            if mo_eng['user_key'] == user_key:
+                relevant_engagement = mo_eng
+        return relevant_engagement
 
     def _update_professions(self, professions):
         # If the profession has changed, this will be a list
