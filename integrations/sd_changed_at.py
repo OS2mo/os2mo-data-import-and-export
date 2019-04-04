@@ -170,6 +170,19 @@ class ChangeAtSD(object):
                             print('Success: {}'.format(department_uuid))
         return all_ok
 
+    def _compare_dates(self, first_date, second_date, expected_diff=1):
+        first = datetime.datetime.strptime(first_date, '%Y-%m-%d')
+        second = datetime.datetime.strptime(second_date, '%Y-%m-%d')
+        compare = first + datetime.timedelta(days=expected_diff)
+        return second == compare
+
+
+    def _calculate_primary(self):
+        # Not quite done...
+        non_primary = '2194e621-7c74-4914-a500-85d9237931f6'
+        primary = '514d491a-160f-4ac8-8a59-02da04b89049'
+        return primary
+    
     def update_employments(self):
         employments_changed = self.read_employment_changed()
         for employment in employments_changed:
@@ -180,9 +193,7 @@ class ChangeAtSD(object):
                 sd_engagement = [sd_engagement]
 
             mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
-            if mo_person:
-                print(mo_person)
-                1/0
+
             mo_engagement = self.helper.read_user_engagement(
                 mo_person['uuid'],
                 at=self.from_date.strftime('%Y-%m-%d'),
@@ -203,53 +214,101 @@ class ChangeAtSD(object):
                         status_list = [status_list]
                     for status in status_list:
                         code = status['EmploymentStatusCode']
+
                         if code not in ('0', '1', '3', '8', '9', 'S'):
                             print(status)
                             1/0
+
                         if status['EmploymentStatusCode'] == '0':
                             print('What to do? Cpr: {}, job: {}'.format(cpr, job_id))
+
                         if status['EmploymentStatusCode'] == '1':
                             print('Create or edit MO engagement {}'.format(job_id))
+                            found_job = False
+                            for mo_eng in mo_engagement:
+                                if mo_eng['user_key'] == job_id:
+                                    found_job = True
+
+                            if found_job:
+                                print('EDIT THIS JOB')
+                                1/0
+                            else:
+                                # Here we create an all new job
+                                org_unit = department['DepartmentUUIDIdentifier']
+                                assert isinstance(professions, dict)
+                                self._update_professions(professions)
+                                emp_name = professions['EmploymentName']
+                                job_function = self.job_functions.get(emp_name)
+                                validity = {
+                                    'from': status['ActivationDate'],
+                                    'to': status['DeactivationDate']
+                                }
+                                
+                                payload = {
+                                    'type': 'engagement',
+                                    'org_unit': {'uuid': org_unit},
+                                    'person': {'uuid': mo_person['uuid']},
+                                    'job_function': {'uuid': job_function},
+                                    'user_key': job_id,
+                                    'validity': validity
+                                }
+                                # INSERT HERE
+                                # print(payload)
+                                continue
+
                         if status['EmploymentStatusCode'] == '3':
                             print('Create a leave for {} '.format(cpr))
-                        if status['EmploymentStatusCode'] == ('8', 'S', '9'):
-                            print('Ensure MO engagement {} ends'.format(job_id))
+
+                        if status['EmploymentStatusCode'] in ('8', 'S', '9'):
+                            for mo_eng in mo_engagement:
+                                if mo_eng['user_key'] == job_id:
+                                    consistent = self._compare_dates(
+                                        mo_eng['validity']['to'],
+                                        status['ActivationDate']
+                                    )
+                                    print('Consistent')
+                                    assert(consistent)
 
                 if department:
                     # This field is typically used along with a status change
                     # Jobid 23531 has a department entry with no status change
                     department_uuid = department['DepartmentUUIDIdentifier']
-                    print(self.helper.read_ou(department_uuid))
+                    # print(self.helper.read_ou(department_uuid))
                     print('Change in department')
-                    1/0
                     pass
 
                 if professions:
-                    # If the profession has changed, this will be a list
-                    if not isinstance(professions, list):
-                        professions = [professions]
-                    for profession in professions:
-                        emp_name = profession['EmploymentName']
-                        job_uuid = self.job_functions.get(emp_name)
-                        #if not job_uuid:
-                        #    print('New job function: {}'.format(emp_name))
-                        #    # uuid = self._add_profession_to_lora(emp_name)
-                        #    uuid = self._add_profession_to_lora('KLAF')
-                        #    self.job_functions[emp_name] = uuid
-
-                        # Now we are ready to update the employment
-                    print('Change in profession')
-                    pass
+                    self._update_professions(professions)
 
                 if working_time:
-                    # Here we need to re-calculate primary engagement
-                    # print(working_time)
+                    # TODO: Here we need to re-calculate primary engagement
+                    print(mo_engagement)
+                    print(working_time)
                     print('Change in working time')
 
                 if employment_date:
                     # This seems to be redundant information
                     pass
+            1/0
 
+    def _update_professions(self, professions):
+        # If the profession has changed, this will be a list
+        if not isinstance(professions, list):
+            professions = [professions]
+        for profession in professions:
+            emp_name = profession['EmploymentName']
+            job_uuid = self.job_functions.get(emp_name)
+            #if not job_uuid:
+            #    print('New job function: {}'.format(emp_name))
+            #    # uuid = self._add_profession_to_lora(emp_name)
+            #    uuid = self._add_profession_to_lora('KLAF')
+            #    self.job_functions[emp_name] = uuid
+
+            # Now, if we need to act on a profession change
+            # This is the time:
+        if len(professions) > 1:
+            print('Change in profession')
+            pass
 
 if __name__ == '__main__':
     from_date = datetime.datetime(2019, 2, 15, 0, 0)
