@@ -217,7 +217,10 @@ class EngagementType(MoType):
 
         self.type_id = "engagement"
         self.uuid = uuid
-        self.user_key = user_key
+        if user_key:
+            self.user_key = user_key
+        else:
+            self.user_key = '-'
 
         self.org_unit_ref = org_unit_ref
         self.org_unit_uuid = None
@@ -263,9 +266,9 @@ class EngagementType(MoType):
         # engagement
         resource = 'organisation/organisationfunktion'
         hash_value = hashlib.sha256()
-        hash_value.update(self.org_unit_ref.encode('ascii'))
-        hash_value.update(self.type_ref.encode('ascii'))
-        hash_value.update(self.job_function_ref.encode('ascii'))
+        hash_value.update(str(self.org_unit_ref).encode('utf-8'))
+        hash_value.update(str(self.type_ref).encode('utf-8'))
+        hash_value.update(str(self.job_function_ref).encode('utf-8'))
         if self.date_from:
             hash_value.update(self.date_from.encode('ascii'))
         if self.date_to:
@@ -661,7 +664,7 @@ class OrganisationUnitType(MoType):
     """
 
     def __init__(self, name, type_ref, date_from, date_to=None,
-                 user_key=None, parent_ref=None, uuid=None):
+                 user_key=None, time_planning_ref=None, parent_ref=None, uuid=None):
         super().__init__()
 
         self.uuid = uuid
@@ -673,6 +676,9 @@ class OrganisationUnitType(MoType):
 
         self.type_ref = type_ref
         self.type_ref_uuid = None
+
+        self.time_planning_ref = time_planning_ref
+        self.time_planning_ref_uuid = None
 
         self.details = []
 
@@ -709,6 +715,10 @@ class OrganisationUnitType(MoType):
                 "uuid": self.type_ref_uuid
             }
         }
+        if self.time_planning_ref:
+            self.payload["time_planning"] = {
+                "uuid": self.time_planning_ref_uuid
+            }
 
         return self._build_payload()
 
@@ -731,7 +741,10 @@ class EmployeeType(MoType):
         self.cpr_no = cpr_no
 
         self.uuid = uuid
-        self.user_key = user_key
+        if user_key:
+            self.user_key = user_key
+        else:
+            self.user_key = name
 
         self.org = org
         self.org_uuid = None
