@@ -185,6 +185,18 @@ class MoraHelper(object):
                 return_address['Adresse'] = address['name']
         return return_address
 
+    def read_classes_in_facet(self, facet, use_cache=False):
+        """ Return all classes belong to a given facet.
+        :param facet: The facet to be returned.
+        :return: List of classes in the facet and the uuid of the facet.
+        """
+        org_uuid = self.read_organisation()
+        url = 'o/' + org_uuid + '/f/{}/'
+        class_list = self._mo_lookup(facet, url, use_cache=False)
+        classes = class_list['data']['items']
+        facet_uuid = class_list['uuid']
+        return (classes, facet_uuid)
+
     def read_user(self, user_uuid=None, user_cpr=None, at=None, use_cache=None,
                   org_uuid=None):
         """
