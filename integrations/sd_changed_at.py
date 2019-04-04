@@ -77,48 +77,63 @@ class ChangeAtSD(object):
     def update_employments(self):
         employments_changed = self.read_employment_changed()
         for employment in employments_changed:
-            print()
-            print(employment.keys())
             cpr = employment['PersonCivilRegistrationIdentifier']
+            
             sd_engagement = employment['Employment']
-            mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
-            mo_engagement = self.helper.read_user_engagement(
-                mo_person['uuid'],
-                at=self.from_date.strftime('%Y-%m-%d'),
-                use_cache=False
-            )
-            for engagement in mo_engagement:
-                if engagement['EmploymentStatusCode'] == '8':
-                    employment = engagement['employment']
-                    assert(len(employment) == 1)
-                    print(employment[0])
-                    print('Find engagement {} in MO'.format(employment[0]['EmploymentIdentifier']))
-                    1/0
-            """
-            if employment['PersonCivilRegistrationIdentifier'] == cpr:
-                if not isinstance(employment['Employment'], list):
-                    emp_list = [employment['Employment']]
-                else:
-                    emp_list = employment['Employment']
-                for emp in emp_list:
-                    print('All key-values:')
-                    for key, value in emp.items():
-                        # pass
-                        print('{}: {}'.format(key, value))
-                        print()
+            if not isinstance(sd_engagement, list):
+                sd_engagement = [sd_engagement]
 
-                    print('Employment status:')
-                    if not isinstance(emp['EmploymentStatus'], list):
-                        staus_list = [emp['EmploymentStatus']]
-                    else:
-                        status_list = emp['EmploymentStatus']
-
+            #mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
+            #mo_engagement = self.helper.read_user_engagement(
+            #    mo_person['uuid'],
+            #    at=self.from_date.strftime('%Y-%m-%d'),
+            #    use_cache=False
+            #)
+            print()
+            print('----')
+            for engagement in sd_engagement:
+                #print()
+                #print(engagement.keys())
+                job_id = engagement['EmploymentIdentifier']
+                print(job_id)
+                status_list = engagement.get('EmploymentStatus', None)
+                department = engagement.get('EmploymentDepartment', None)
+                profession = engagement.get('Profession', None)
+                working_time = engagement.get('WorkingTime', None)
+                employment_date = engagement.get('EmploymentDate', None)
+                if status_list:
+                    if not isinstance(status_list, list):
+                        status_list = [status_list]
                     for status in status_list:
-                        print('EmploymenyStatus: {}'.format(status))
-                        # employment_info = read_employments_for_user(cpr, date)
-                        # print(employment_info)
-                print()
-            """
+                        code = status['EmploymentStatusCode'] 
+                        if not code in ('0', '1', '3', '8', '9', 'S'):
+                            print(status)
+                            1/0
+                        if status['EmploymentStatusCode'] == '0':
+                            print('What to do? Cpr: {}, job: {}'.format(cpr, job_id))
+                        if status['EmploymentStatusCode'] == '1':
+                            print('Create or edit MO engagement {}'.format(job_id))
+                        if status['EmploymentStatusCode'] == '3':
+                            print('Create a leave for {} '.format(cpr))
+                        if status['EmploymentStatusCode'] == ('8', 'S', '9'):
+                            print('Ensure MO engagement {} ends'.format(job_id))
+
+                if department:
+                    # This field is typically used along with a status change
+                    # Jobid 23531 has a department entry with no status change
+                    # print(department)
+                    print('Change in department')
+                    pass
+
+                if profession:
+                    # print(profession)
+                    print('Change in profession')
+                    pass
+
+                if working_time:
+                    # Here we need to re-calculate primary engagement
+                    print('Change in working time')
+                    print(working_time)
 
 if __name__ == '__main__':
     from_date = datetime.datetime(2019, 2, 15, 0, 0)
@@ -128,5 +143,5 @@ if __name__ == '__main__':
     # to_date = datetime.datetime(2019, 2, 27, 0, 0)
 
     sd_updater = ChangeAtSD(from_date, to_date)
-    # sd_updater.update_changed_persons()
+    #sd_updater.update_changed_persons()
     sd_updater.update_employments()
