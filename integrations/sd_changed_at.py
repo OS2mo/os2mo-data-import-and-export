@@ -6,9 +6,6 @@ from os2mo_helpers.mora_helpers import MoraHelper
 MOX_BASE = os.environ.get('MOX_BASE', None)
 
 
-#SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
-
-
 class ChangeAtSD(object):
 
     def __init__(self, from_date, to_date):
@@ -37,9 +34,9 @@ class ChangeAtSD(object):
             'to': 'infinity'
         }
 
+        # "integrationsdata":  # TODO: Check this
         properties = {
             'brugervendtnoegle': profession,
-             # "integrationsdata":  # TODO: Check this
             'titel':  profession,
             'omfang': 'TEXT',
             "virkning": validity
@@ -143,6 +140,7 @@ class ChangeAtSD(object):
                 }
             }
             print(payload)
+            print(self.helper._mo_post('e/create', payload))
 
     def check_non_existent_departments(self):
         """
@@ -176,43 +174,149 @@ class ChangeAtSD(object):
         compare = first + datetime.timedelta(days=expected_diff)
         return second == compare
 
-
     def _calculate_primary(self):
         # Not quite done...
         non_primary = '2194e621-7c74-4914-a500-85d9237931f6'
         primary = '514d491a-160f-4ac8-8a59-02da04b89049'
         return primary
-    
+
+    def engagement_components(self, engagement_info):
+        job_id = engagement_info['EmploymentIdentifier']
+
+        components = {}
+        status_list = engagement_info.get('EmploymentStatus')
+        if status_list:
+            if not isinstance(status_list, list):
+                status_list = [status_list]
+        components['status_list'] = status_list
+
+        professions = engagement_info.get('Profession')
+        if professions:
+            if not isinstance(professions, list):
+                professions = [professions]
+        components['professions'] = professions
+
+        components['department'] = engagement_info.get('EmploymentDepartment')
+        components['working_time'] = engagement_info.get('WorkingTime')
+        # Employment date is not used for anyting
+        components['employment_date'] = engagement_info.get('EmploymentDate')
+        return job_id, components
+
+    def create_new_engagement(self, engagement, status, mo_person):
+        """
+        Create a new engagement
+        """
+        # Most likly, status is consistently first in status-value of
+        # engagement, but we cannot be quite sure at this point.
+
+        # Consider to make a global 'self.current_mo_person'
+
+        job_id, engagement_info = self.engagement_components(engagement)
+
+        # TODO: uuid must integrate to AD
+        org_unit = engagement_info['department']['DepartmentUUIDIdentifier']
+        assert len(engagement_info['professions']) == 1
+        self._update_professions(engagement_info['professions'])
+        emp_name = engagement_info['professions'][0]['EmploymentName']
+        # TODO: Job function must integrate to AD
+        job_function = self.job_functions.get(emp_name)
+        validity = {
+            'from': status['ActivationDate'],
+            'to': status['DeactivationDate']
+        }
+
+        # Working time!
+        # Re-calculate primary
+        # if engagement_info['working_time']:
+
+        payload = {
+            'type': 'engagement',
+            'org_unit': {'uuid': org_unit},
+            'person': {'uuid': mo_person['uuid']},
+            'job_function': {'uuid': job_function},
+            'user_key': job_id,
+            'validity': validity
+        }
+        # INSERT HERE
+        # print(payload)
+        print('Simulated engagement creation')
+
+    def edit_engagement(self, engagement, status, mo_engagements):
+        """
+        Edit an engagement
+        """
+        # Most likly, status is consistently first in status-value of
+        # engagement, but we cannot be quite sure at this point.
+
+        # Consider to make a global 'self.current_mo_person'
+
+        job_id, engagement_info = self.engagement_components(engagement)
+        mo_engagement = self._find_engagement(mo_engagements, job_id)
+
+        data = {}
+        if engagement_info['department']:
+            org_unit = engagement_info['department']['DepartmentUUIDIdentifier']
+            data['org_unit'] = {'uuid': org_unit}
+            # Validity?
+
+        if engagement_info['professions']:
+            # AD integration
+            print(engagement_info['professions'])
+            1/0
+
+        if engagement_info['working_time']:
+            # Update primary engagement
+            # print(engagement_info['working_time'])
+            # 1/0
+            pass  # No support for working time in MO yet
+
+        payload = {
+            'type': 'engagement',
+            'uuid': mo_engagement['uuid'],
+            'data': data
+        }
+        # print(payload)
+        print('Simulated edit engagement')
+
     def update_employments(self):
         employments_changed = self.read_employment_changed()
         for employment in employments_changed:
+            print()
+            print('----')
             cpr = employment['PersonCivilRegistrationIdentifier']
+            print(cpr)
 
             sd_engagement = employment['Employment']
             if not isinstance(sd_engagement, list):
                 sd_engagement = [sd_engagement]
 
+            # Consider to move these into globals that can be updated in a function
             mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
+            if not mo_person:
+                assert (employment['Employment']['EmploymentStatus']
+                        ['EmploymentStatusCode']) == 'S'
+                print('Employment deleted')
+                continue
 
             mo_engagement = self.helper.read_user_engagement(
                 mo_person['uuid'],
                 at=self.from_date.strftime('%Y-%m-%d'),
                 use_cache=False
             )
-            print()
-            print('----')
+
             for engagement in sd_engagement:
-                job_id = engagement['EmploymentIdentifier']
+                job_id, eng = self.engagement_components(engagement)
+
+                keep_running = False
+                if job_id in ('93548', '22216', '23666', '00824', '22378', '23852',
+                              '20417', '80866', '80566', '08862', '23480'):
+                    keep_running = True
+
                 print('Job id: {}'.format(job_id))
-                status_list = engagement.get('EmploymentStatus')
-                department = engagement.get('EmploymentDepartment')
-                professions = engagement.get('Profession')
-                working_time = engagement.get('WorkingTime')
-                employment_date = engagement.get('EmploymentDate')
-                if status_list:
-                    if not isinstance(status_list, list):
-                        status_list = [status_list]
-                    for status in status_list:
+
+                skip = False
+                if eng['status_list']:
+                    for status in eng['status_list']:
                         code = status['EmploymentStatusCode']
 
                         if code not in ('0', '1', '3', '8', '9', 'S'):
@@ -223,36 +327,15 @@ class ChangeAtSD(object):
                             print('What to do? Cpr: {}, job: {}'.format(cpr, job_id))
 
                         if status['EmploymentStatusCode'] == '1':
-                            print('Create or edit MO engagement {}'.format(job_id))
                             mo_eng = self._find_engagement(mo_engagement, job_id)
-
                             if mo_eng:
-                                print('EDIT THIS JOB')
-
+                                self.edit_engagement(engagement, status,
+                                                     mo_engagement)
+                                skip = True
                             else:
-                                # Here we create an all new job
-                                org_unit = department['DepartmentUUIDIdentifier']
-                                assert isinstance(professions, dict)
-                                self._update_professions(professions)
-                                emp_name = professions['EmploymentName']
-                                job_function = self.job_functions.get(emp_name)
-                                validity = {
-                                    'from': status['ActivationDate'],
-                                    'to': status['DeactivationDate']
-                                }
-                                
-                                payload = {
-                                    'type': 'engagement',
-                                    'org_unit': {'uuid': org_unit},
-                                    'person': {'uuid': mo_person['uuid']},
-                                    'job_function': {'uuid': job_function},
-                                    'user_key': job_id,
-                                    'validity': validity
-                                }
-                                # INSERT HERE
-                                # print(payload)
-                                continue
-
+                                self.create_new_engagement(engagement, status,
+                                                           mo_person)
+                                skip = True
                         if status['EmploymentStatusCode'] == '3':
                             print('Create a leave for {} '.format(cpr))
 
@@ -265,32 +348,45 @@ class ChangeAtSD(object):
                                     )
                                     print('Consistent')
                                     assert(consistent)
+                                    skip = True
+                                else:
+                                    # User was never actually hired
+                                    print('Engagement deleted: {}'.format(
+                                        status['EmploymentStatusCode']
+                                    ))
 
-                if department:
+                if skip:
+                    continue
+
+                if eng['department']:
                     # This field is typically used along with a status change
                     # Jobid 23531 has a department entry with no status change
-                    department_uuid = department['DepartmentUUIDIdentifier']
+                    department_uuid = eng['department']['DepartmentUUIDIdentifier']
                     # print(self.helper.read_ou(department_uuid))
                     print('Change in department')
                     pass
 
-                if professions:
-                    self._update_professions(professions)
+                if eng['professions']:
+                    print('Update professions')
+                    print(eng['professions'])
+                    assert len(eng['professions']) in (1, 2)
+                    self._update_professions(eng['professions'])
 
-                if working_time:
-                    # TODO: Here we need to re-calculate primary engagement
-                    # print(working_time)
+                if eng['working_time']:
+                    #  TODO: Here we need to re-calculate primary engagement
                     mo_eng = self._find_engagement(mo_engagement, job_id)
-                    assert mo_eng # In this case, None would be plain wrong
+                    #  print(mo_eng)
+                    assert mo_eng  # In this case, None would be plain wrong
 
                     # Here we should update working time and re-calculate primary
                     print('Change in working time')
 
-                if employment_date:
+                if eng['employment_date']:
                     # This seems to be redundant information
                     pass
-            1/0
-            
+            if not keep_running:
+                1/0
+
     def _find_engagement(self, mo_engagement, job_id):
         relevant_engagement = None
         user_key = str(int(job_id))
@@ -300,13 +396,12 @@ class ChangeAtSD(object):
         return relevant_engagement
 
     def _update_professions(self, professions):
-        # If the profession has changed, this will be a list
-        if not isinstance(professions, list):
-            professions = [professions]
+        # Add new profssions to LoRa
         for profession in professions:
+            # print(profession)
             emp_name = profession['EmploymentName']
             job_uuid = self.job_functions.get(emp_name)
-            #if not job_uuid:
+            # if not job_uuid:
             #    print('New job function: {}'.format(emp_name))
             #    # uuid = self._add_profession_to_lora(emp_name)
             #    uuid = self._add_profession_to_lora('KLAF')
@@ -318,6 +413,7 @@ class ChangeAtSD(object):
             print('Change in profession')
             pass
 
+
 if __name__ == '__main__':
     from_date = datetime.datetime(2019, 2, 15, 0, 0)
     to_date = datetime.datetime(2019, 2, 25, 0, 0)
@@ -326,5 +422,5 @@ if __name__ == '__main__':
     # to_date = datetime.datetime(2019, 2, 27, 0, 0)
 
     sd_updater = ChangeAtSD(from_date, to_date)
-    #sd_updater.update_changed_persons()
+    # sd_updater.update_changed_persons()
     sd_updater.update_employments()
