@@ -144,13 +144,12 @@ class MoraHelper(object):
             header = None
 
         full_url = self.host + url
-        requests.post(
+        return_dict = requests.post(
             full_url,
             headers=header,
             params=params,
             json=payload
         )
-
         return return_dict
 
     
