@@ -18,3 +18,4 @@ snowballstemmer==1.2.1
 Sphinx==1.8.4
 sphinxcontrib-websupport==1.1.0
 urllib3==1.24.1
+sphinx_rtd_theme
