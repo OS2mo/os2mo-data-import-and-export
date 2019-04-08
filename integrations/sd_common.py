@@ -20,7 +20,10 @@ def sd_lookup(url, params={}):
     }
     payload.update(params)
     m = hashlib.sha256()
-    m.update(str(sorted(payload)).encode())
+
+    keys = sorted(payload.keys())
+    for key in keys:
+        m.update((str(key) + str(payload[key])).encode())
     m.update(full_url.encode())
     lookup_id = m.hexdigest()
 
