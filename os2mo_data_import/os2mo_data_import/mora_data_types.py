@@ -212,7 +212,7 @@ class EngagementType(MoType):
     """
 
     def __init__(self, org_unit_ref, job_function_ref, engagement_type_ref,
-                 date_from, date_to=None, uuid=None, user_key=None):
+                 date_from, date_to=None, uuid=None, user_key=None, fraction=None):
         super().__init__()
 
         self.type_id = "engagement"
@@ -221,6 +221,11 @@ class EngagementType(MoType):
             self.user_key = user_key
         else:
             self.user_key = '-'
+
+        if fraction:
+            self.fraction = fraction
+        else:
+            self.fraction = None
 
         self.org_unit_ref = org_unit_ref
         self.org_unit_uuid = None
@@ -279,7 +284,7 @@ class EngagementType(MoType):
             hash_value.hexdigest(),
             encode=False
         )
-        
+
         # Reference the job function uuid
         if not self.job_function_uuid:
             raise ReferenceError("Reference to job function is missing")
@@ -297,6 +302,7 @@ class EngagementType(MoType):
         }
         if self.user_key:
             self.payload['user_key'] = self.user_key
+        self.payload['fraction'] = self.fraction
 
         return self._build_payload()
 
