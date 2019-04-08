@@ -144,13 +144,13 @@ class MoraHelper(object):
             header = None
 
         full_url = self.host + url
-        return_dict = requests.post(
+        response = requests.post(
             full_url,
             headers=header,
             params=params,
             json=payload
         )
-        return return_dict
+        return response
 
     
     def read_organisation(self):
