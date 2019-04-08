@@ -63,7 +63,7 @@ sd.employee_ad_usernames = ad_usernames
 sd.create_ou_tree()
 sd.create_employees()
 
-# importer.import_all()
+importer.import_all()
 
 """
 for info in sd.address_errors.values():
