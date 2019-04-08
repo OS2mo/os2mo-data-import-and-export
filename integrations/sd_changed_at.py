@@ -180,6 +180,15 @@ class ChangeAtSD(object):
         primary = '514d491a-160f-4ac8-8a59-02da04b89049'
         return primary
 
+    def _validity(self, from_date, to_date):
+        if to_date == '9999-12-31':
+            to_date = None
+        validity = {
+            'from': from_date,
+            'to': to_date
+        }
+        return validity
+    
     def engagement_components(self, engagement_info):
         job_id = engagement_info['EmploymentIdentifier']
 
@@ -206,8 +215,10 @@ class ChangeAtSD(object):
         """
         Create a new engagement
         """
-        # Most likly, status is consistently first in status-value of
-        # engagement, but we cannot be quite sure at this point.
+        # Most likly, status is consistently first in status-value of engagement,
+        # but we cannot be quite sure at this point, therefore we send the current
+        # status as a seperate parameter even though it is also available in
+        # engagement
 
         # Consider to make a global 'self.current_mo_person'
 
@@ -220,13 +231,14 @@ class ChangeAtSD(object):
         emp_name = engagement_info['professions'][0]['EmploymentName']
         # TODO: Job function must integrate to AD
         job_function = self.job_functions.get(emp_name)
-        validity = {
-            'from': status['ActivationDate'],
-            'to': status['DeactivationDate']
-        }
+        validity = self._validity(
+            engagement_info['department']['ActivationDate'],
+            engagement_info['department']['DeactivationDate']
+        )
 
         # Working time!
         # Re-calculate primary
+        engagement_type = self._calculate_primary()
         # if engagement_info['working_time']:
 
         payload = {
@@ -234,20 +246,19 @@ class ChangeAtSD(object):
             'org_unit': {'uuid': org_unit},
             'person': {'uuid': mo_person['uuid']},
             'job_function': {'uuid': job_function},
+            'engagement_type': {'uuid': engagement_type},
             'user_key': job_id,
             'validity': validity
         }
-        # INSERT HERE
-        # print(payload)
-        print('Simulated engagement creation')
 
-    def edit_engagement(self, engagement, status, mo_engagements):
+        response = self.helper._mo_post('details/create', payload)
+        assert response.status_code == 201
+        print('Engagement {} created'.format(job_id))
+
+    def edit_engagement(self, engagement, mo_engagements):
         """
         Edit an engagement
         """
-        # Most likly, status is consistently first in status-value of
-        # engagement, but we cannot be quite sure at this point.
-
         # Consider to make a global 'self.current_mo_person'
 
         job_id, engagement_info = self.engagement_components(engagement)
@@ -256,27 +267,68 @@ class ChangeAtSD(object):
         data = {}
         if engagement_info['department']:
             org_unit = engagement_info['department']['DepartmentUUIDIdentifier']
-            data['org_unit'] = {'uuid': org_unit}
-            # Validity?
+            validity = self._validity(
+                engagement_info['department']['ActivationDate'],
+                engagement_info['department']['DeactivationDate']
+            )
+            data = {'org_unit': {'uuid': org_unit},
+                    'validity': validity}
+            payload = {
+                'type': 'engagement',
+                'uuid': mo_engagement['uuid'],
+                'data': data
+            }
+
+            response = self.helper._mo_post('details/edit', payload)
+            # TODO!!! Assertion needs to check the content of the 400-reply
+            assert response.status_code in (200, 400)
+            print('Changed deparment of engagement {}'.format(job_id))
 
         if engagement_info['professions']:
-            # AD integration
-            print(engagement_info['professions'])
+            if not len(engagement_info['professions']) == 2:
+                print(engagement)
+                1/0 # We have not handled this yet
+                
+            # AD integration                
+            emp_name = engagement_info['professions'][1]['EmploymentName']
+            job_function = self.job_functions.get(emp_name)
+            print(job_function)
+            validity = self._validity(
+                engagement_info['professions'][1]['ActivationDate'],
+                engagement_info['professions'][1]['DeactivationDate']
+            )
+            data = {'job_function': {'uuid': job_function},
+                    'validity': validity}
+            payload = {
+                'type': 'engagement',
+                'uuid': mo_engagement['uuid'],
+                'data': data
+            }
+            print(payload)
+            response = self.helper._mo_post('details/edit', payload)
+            print(response.status_code)
+            print(response.text)
+            # TODO!!! Assertion needs to check the content of the 400-reply
+            assert response.status_code in (200, 400)
+            print('Changed profession of engagement {}'.format(job_id))
             1/0
-
+            
         if engagement_info['working_time']:
             # Update primary engagement
             # print(engagement_info['working_time'])
             # 1/0
             pass  # No support for working time in MO yet
+            # Validity?
 
         payload = {
             'type': 'engagement',
             'uuid': mo_engagement['uuid'],
             'data': data
         }
-        # print(payload)
-        print('Simulated edit engagement')
+        #print(engagement)
+        #print()
+        #print(payload)
+
 
     def update_employments(self):
         employments_changed = self.read_employment_changed()
@@ -307,14 +359,10 @@ class ChangeAtSD(object):
             for engagement in sd_engagement:
                 job_id, eng = self.engagement_components(engagement)
 
-                keep_running = False
-                if job_id in ('93548', '22216', '23666', '00824', '22378', '23852',
-                              '20417', '80866', '80566', '08862', '23480'):
-                    keep_running = True
-
                 print('Job id: {}'.format(job_id))
 
                 skip = False
+                # If status is present, we have a potential creation
                 if eng['status_list']:
                     for status in eng['status_list']:
                         code = status['EmploymentStatusCode']
@@ -329,7 +377,7 @@ class ChangeAtSD(object):
                         if status['EmploymentStatusCode'] == '1':
                             mo_eng = self._find_engagement(mo_engagement, job_id)
                             if mo_eng:
-                                self.edit_engagement(engagement, status,
+                                self.edit_engagement(engagement,
                                                      mo_engagement)
                                 skip = True
                             else:
@@ -357,35 +405,40 @@ class ChangeAtSD(object):
 
                 if skip:
                     continue
-
+                # If status is not present, we should edit existing employment
                 if eng['department']:
                     # This field is typically used along with a status change
                     # Jobid 23531 has a department entry with no status change
                     department_uuid = eng['department']['DepartmentUUIDIdentifier']
                     # print(self.helper.read_ou(department_uuid))
                     print('Change in department')
+                    1/0
                     pass
 
                 if eng['professions']:
-                    print('Update professions')
-                    print(eng['professions'])
-                    assert len(eng['professions']) in (1, 2)
                     self._update_professions(eng['professions'])
+                    mo_eng = self._find_engagement(mo_engagement, job_id)
+                    if mo_eng:
+                        self.edit_engagement(engagement,
+                                             mo_engagement)
+                    else:
+                        print('Problem with profession update!')
+                        print(engagement)
+                    continue
 
+                    
                 if eng['working_time']:
                     #  TODO: Here we need to re-calculate primary engagement
                     mo_eng = self._find_engagement(mo_engagement, job_id)
                     #  print(mo_eng)
                     assert mo_eng  # In this case, None would be plain wrong
-
                     # Here we should update working time and re-calculate primary
-                    print('Change in working time')
+                    print('Change in working time - not supported')
 
                 if eng['employment_date']:
                     # This seems to be redundant information
                     pass
-            if not keep_running:
-                1/0
+
 
     def _find_engagement(self, mo_engagement, job_id):
         relevant_engagement = None
@@ -401,22 +454,16 @@ class ChangeAtSD(object):
             # print(profession)
             emp_name = profession['EmploymentName']
             job_uuid = self.job_functions.get(emp_name)
-            # if not job_uuid:
-            #    print('New job function: {}'.format(emp_name))
-            #    # uuid = self._add_profession_to_lora(emp_name)
-            #    uuid = self._add_profession_to_lora('KLAF')
-            #    self.job_functions[emp_name] = uuid
-
-            # Now, if we need to act on a profession change
-            # This is the time:
-        if len(professions) > 1:
-            print('Change in profession')
-            pass
+            if not job_uuid:
+                print('New job function: {}'.format(emp_name))
+                response = self._add_profession_to_lora(emp_name)
+                uuid = response['uuid']
+                self.job_functions[emp_name] = uuid
 
 
 if __name__ == '__main__':
     from_date = datetime.datetime(2019, 2, 15, 0, 0)
-    to_date = datetime.datetime(2019, 2, 25, 0, 0)
+    to_date = datetime.datetime(2019, 2, 16, 0, 0)
 
     # from_date = datetime.datetime(2019, 2, 26, 0, 0)
     # to_date = datetime.datetime(2019, 2, 27, 0, 0)
