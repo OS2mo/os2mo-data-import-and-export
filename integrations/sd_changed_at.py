@@ -17,6 +17,9 @@ class ChangeAtSD(object):
 
         self.employment_response = None
 
+        self.mo_person = None      # Updated continously with the person currently
+        self.mo_engagement = None  # being processed.
+
         facet_info = self.helper.read_classes_in_facet('engagement_job_function')
         job_functions = facet_info[0]
         self.job_function_facet = facet_info[1]
@@ -188,7 +191,7 @@ class ChangeAtSD(object):
             'to': to_date
         }
         return validity
-    
+
     def engagement_components(self, engagement_info):
         job_id = engagement_info['EmploymentIdentifier']
 
@@ -211,7 +214,7 @@ class ChangeAtSD(object):
         components['employment_date'] = engagement_info.get('EmploymentDate')
         return job_id, components
 
-    def create_new_engagement(self, engagement, status, mo_person):
+    def create_new_engagement(self, engagement, status):
         """
         Create a new engagement
         """
@@ -244,7 +247,7 @@ class ChangeAtSD(object):
         payload = {
             'type': 'engagement',
             'org_unit': {'uuid': org_unit},
-            'person': {'uuid': mo_person['uuid']},
+            'person': {'uuid': self.mo_person['uuid']},
             'job_function': {'uuid': job_function},
             'engagement_type': {'uuid': engagement_type},
             'user_key': job_id,
@@ -255,14 +258,14 @@ class ChangeAtSD(object):
         assert response.status_code == 201
         print('Engagement {} created'.format(job_id))
 
-    def edit_engagement(self, engagement, mo_engagements):
+    def edit_engagement(self, engagement):
         """
         Edit an engagement
         """
         # Consider to make a global 'self.current_mo_person'
 
         job_id, engagement_info = self.engagement_components(engagement)
-        mo_engagement = self._find_engagement(mo_engagements, job_id)
+        mo_engagement = self._find_engagement(job_id)
 
         data = {}
         if engagement_info['department']:
@@ -287,9 +290,9 @@ class ChangeAtSD(object):
         if engagement_info['professions']:
             if not len(engagement_info['professions']) == 2:
                 print(engagement)
-                1/0 # We have not handled this yet
-                
-            # AD integration                
+                1/0  # We have not handled this yet
+
+            # AD integration
             emp_name = engagement_info['professions'][1]['EmploymentName']
             job_function = self.job_functions.get(emp_name)
             print(job_function)
@@ -304,146 +307,171 @@ class ChangeAtSD(object):
                 'uuid': mo_engagement['uuid'],
                 'data': data
             }
-            print(payload)
+            #print(payload)
             response = self.helper._mo_post('details/edit', payload)
-            print(response.status_code)
-            print(response.text)
+            #print(response.status_code)
+            #print(response.text)
             # TODO!!! Assertion needs to check the content of the 400-reply
             assert response.status_code in (200, 400)
             print('Changed profession of engagement {}'.format(job_id))
-            1/0
-            
+
         if engagement_info['working_time']:
-            # Update primary engagement
-            # print(engagement_info['working_time'])
-            # 1/0
-            pass  # No support for working time in MO yet
-            # Validity?
+            if isinstance(engagement_info['working_time'], dict):
+                work_times = [engagement_info['working_time']]
+            else:
+                work_times = engagement_info['working_time']
+
+            for worktime_info in work_times:
+                working_time = float(worktime_info['OccupationRate'])
+                validity = self._validity(
+                    worktime_info['ActivationDate'],
+                    worktime_info['DeactivationDate']
+                )
+                data = {'fraction': int(working_time * 1000000),
+                        'validity': validity}
+            payload = {
+                'type': 'engagement',
+                'uuid': mo_engagement['uuid'],
+                'data': data
+            }
+            #print(payload)
+            #response = self.helper._mo_post('details/edit', payload)
+            #print(response.status_code)
+            #print(response.text)
+            #TODO!!! Assertion needs to check the content of the 400-reply
+            #assert response.status_code in (200, 400)
+            #print('Changed working time of engagement {}'.format(job_id))
 
         payload = {
             'type': 'engagement',
             'uuid': mo_engagement['uuid'],
             'data': data
         }
-        #print(engagement)
-        #print()
-        #print(payload)
+        # print(engagement)
+        # print()
+        # print(payload)
 
+    def _update_user_employments(self, cpr, sd_engagement):
+        for engagement in sd_engagement:
+            job_id, eng = self.engagement_components(engagement)
 
-    def update_employments(self):
+            print('Job id: {}'.format(job_id))
+
+            skip = False
+            # If status is present, we have a potential creation
+            if eng['status_list']:
+                for status in eng['status_list']:
+                    code = status['EmploymentStatusCode']
+
+                    if code not in ('0', '1', '3', '8', '9', 'S'):
+                        print(status)
+                        1/0
+
+                    if status['EmploymentStatusCode'] == '0':
+                        print('What to do? Cpr: {}, job: {}'.format(cpr, job_id))
+
+                    if status['EmploymentStatusCode'] == '1':
+                        mo_eng = self._find_engagement(job_id)
+                        if mo_eng:
+                            self.edit_engagement(engagement)
+                            skip = True
+                        else:
+                            self.create_new_engagement(engagement, status)
+                            skip = True
+                    if status['EmploymentStatusCode'] == '3':
+                        print('Create a leave for {} '.format(cpr))
+
+                    if status['EmploymentStatusCode'] in ('8', 'S', '9'):
+                        for mo_eng in self.mo_engagement:
+                            if mo_eng['user_key'] == job_id:
+                                consistent = self._compare_dates(
+                                    mo_eng['validity']['to'],
+                                    status['ActivationDate']
+                                )
+                                print('Consistent')
+                                assert(consistent)
+                                skip = True
+                            else:
+                                # User was never actually hired
+                                print('Engagement deleted: {}'.format(
+                                    status['EmploymentStatusCode']
+                                ))
+
+            if skip:
+                continue
+            # If status is not present, we should edit existing employment
+            if eng['department']:
+                # This field is typically used along with a status change
+                # Jobid 23531 has a department entry with no status change
+                department_uuid = eng['department']['DepartmentUUIDIdentifier']
+                # print(self.helper.read_ou(department_uuid))
+                print('Change in department')
+                1/0
+                pass
+
+            if eng['professions']:
+                self._update_professions(eng['professions'])
+                mo_eng = self._find_engagement(job_id)
+                if mo_eng:
+                    self.edit_engagement(engagement)
+                else:
+                    print('Problem with profession update!')
+                    print(engagement)
+                continue
+
+            if eng['working_time']:
+                mo_eng = self._find_engagement(job_id)
+                assert mo_eng  # In this case, None would be plain wrong
+
+                # Here we should update working time and re-calculate primary
+                self.edit_engagement(engagement)
+                print('Change in working time')
+
+            if eng['employment_date']:
+                # This seems to be redundant information
+                pass
+
+    def update_all_employments(self):
+        print()
+        print('----')
         employments_changed = self.read_employment_changed()
         for employment in employments_changed:
-            print()
-            print('----')
             cpr = employment['PersonCivilRegistrationIdentifier']
             print(cpr)
 
-            sd_engagement = employment['Employment']
-            if not isinstance(sd_engagement, list):
-                sd_engagement = [sd_engagement]
-
-            # Consider to move these into globals that can be updated in a function
-            mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
-            if not mo_person:
+            self.mo_person = self.helper.read_user(user_cpr=cpr,
+                                                   org_uuid=self.org_uuid)
+            if not self.mo_person:
                 assert (employment['Employment']['EmploymentStatus']
                         ['EmploymentStatusCode']) == 'S'
                 print('Employment deleted')
                 continue
 
-            mo_engagement = self.helper.read_user_engagement(
-                mo_person['uuid'],
+            self.mo_engagement = self.helper.read_user_engagement(
+                self.mo_person['uuid'],
                 at=self.from_date.strftime('%Y-%m-%d'),
                 use_cache=False
             )
 
-            for engagement in sd_engagement:
-                job_id, eng = self.engagement_components(engagement)
+            sd_engagement = employment['Employment']
+            if not isinstance(sd_engagement, list):
+                sd_engagement = [sd_engagement]
 
-                print('Job id: {}'.format(job_id))
+            update_dates = self._update_user_employments(cpr, sd_engagement)
+            # Re-calculate primary
+            """
+            for dates in updated_dates:
+            engagements =  self.helper.read_user_engagement(
+            mo_person['uuid'],
+            at=dates.strftime('%Y-%m-%d'),
+            use_cache=False
+            )
+            """
 
-                skip = False
-                # If status is present, we have a potential creation
-                if eng['status_list']:
-                    for status in eng['status_list']:
-                        code = status['EmploymentStatusCode']
-
-                        if code not in ('0', '1', '3', '8', '9', 'S'):
-                            print(status)
-                            1/0
-
-                        if status['EmploymentStatusCode'] == '0':
-                            print('What to do? Cpr: {}, job: {}'.format(cpr, job_id))
-
-                        if status['EmploymentStatusCode'] == '1':
-                            mo_eng = self._find_engagement(mo_engagement, job_id)
-                            if mo_eng:
-                                self.edit_engagement(engagement,
-                                                     mo_engagement)
-                                skip = True
-                            else:
-                                self.create_new_engagement(engagement, status,
-                                                           mo_person)
-                                skip = True
-                        if status['EmploymentStatusCode'] == '3':
-                            print('Create a leave for {} '.format(cpr))
-
-                        if status['EmploymentStatusCode'] in ('8', 'S', '9'):
-                            for mo_eng in mo_engagement:
-                                if mo_eng['user_key'] == job_id:
-                                    consistent = self._compare_dates(
-                                        mo_eng['validity']['to'],
-                                        status['ActivationDate']
-                                    )
-                                    print('Consistent')
-                                    assert(consistent)
-                                    skip = True
-                                else:
-                                    # User was never actually hired
-                                    print('Engagement deleted: {}'.format(
-                                        status['EmploymentStatusCode']
-                                    ))
-
-                if skip:
-                    continue
-                # If status is not present, we should edit existing employment
-                if eng['department']:
-                    # This field is typically used along with a status change
-                    # Jobid 23531 has a department entry with no status change
-                    department_uuid = eng['department']['DepartmentUUIDIdentifier']
-                    # print(self.helper.read_ou(department_uuid))
-                    print('Change in department')
-                    1/0
-                    pass
-
-                if eng['professions']:
-                    self._update_professions(eng['professions'])
-                    mo_eng = self._find_engagement(mo_engagement, job_id)
-                    if mo_eng:
-                        self.edit_engagement(engagement,
-                                             mo_engagement)
-                    else:
-                        print('Problem with profession update!')
-                        print(engagement)
-                    continue
-
-                    
-                if eng['working_time']:
-                    #  TODO: Here we need to re-calculate primary engagement
-                    mo_eng = self._find_engagement(mo_engagement, job_id)
-                    #  print(mo_eng)
-                    assert mo_eng  # In this case, None would be plain wrong
-                    # Here we should update working time and re-calculate primary
-                    print('Change in working time - not supported')
-
-                if eng['employment_date']:
-                    # This seems to be redundant information
-                    pass
-
-
-    def _find_engagement(self, mo_engagement, job_id):
+    def _find_engagement(self, job_id):
         relevant_engagement = None
         user_key = str(int(job_id))
-        for mo_eng in mo_engagement:
+        for mo_eng in self.mo_engagement:
             if mo_eng['user_key'] == user_key:
                 relevant_engagement = mo_eng
         return relevant_engagement
@@ -470,4 +498,4 @@ if __name__ == '__main__':
 
     sd_updater = ChangeAtSD(from_date, to_date)
     # sd_updater.update_changed_persons()
-    sd_updater.update_employments()
+    sd_updater.update_all_employments()
