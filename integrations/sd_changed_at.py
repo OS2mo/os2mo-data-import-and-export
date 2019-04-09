@@ -183,7 +183,9 @@ class ChangeAtSD(object):
         primary = '514d491a-160f-4ac8-8a59-02da04b89049'
         return primary
 
-    def _validity(self, from_date, to_date):
+    def _validity(self, engagement_info):
+        from_date = engagement_info['ActivationDate']
+        to_date = engagement_info['DeactivationDate']
         if to_date == '9999-12-31':
             to_date = None
         validity = {
@@ -223,8 +225,6 @@ class ChangeAtSD(object):
         # status as a seperate parameter even though it is also available in
         # engagement
 
-        # Consider to make a global 'self.current_mo_person'
-
         job_id, engagement_info = self.engagement_components(engagement)
 
         # TODO: uuid must integrate to AD
@@ -234,15 +234,8 @@ class ChangeAtSD(object):
         emp_name = engagement_info['professions'][0]['EmploymentName']
         # TODO: Job function must integrate to AD
         job_function = self.job_functions.get(emp_name)
-        validity = self._validity(
-            engagement_info['department']['ActivationDate'],
-            engagement_info['department']['DeactivationDate']
-        )
-
-        # Working time!
-        # Re-calculate primary
+        validity = self._validity(engagement_info['department'])
         engagement_type = self._calculate_primary()
-        # if engagement_info['working_time']:
 
         payload = {
             'type': 'engagement',
@@ -258,30 +251,29 @@ class ChangeAtSD(object):
         assert response.status_code == 201
         print('Engagement {} created'.format(job_id))
 
+    def _engagement_payload(self, data, mo_engagement):
+        # Consider to find the mo_engagement localy
+        payload = {
+            'type': 'engagement',
+            'uuid': mo_engagement['uuid'],
+            'data': data
+        }
+        return payload
+
     def edit_engagement(self, engagement):
         """
         Edit an engagement
         """
-        # Consider to make a global 'self.current_mo_person'
-
         job_id, engagement_info = self.engagement_components(engagement)
         mo_engagement = self._find_engagement(job_id)
 
         data = {}
         if engagement_info['department']:
             org_unit = engagement_info['department']['DepartmentUUIDIdentifier']
-            validity = self._validity(
-                engagement_info['department']['ActivationDate'],
-                engagement_info['department']['DeactivationDate']
-            )
+            validity = self._validity(engagement_info['department'])
             data = {'org_unit': {'uuid': org_unit},
                     'validity': validity}
-            payload = {
-                'type': 'engagement',
-                'uuid': mo_engagement['uuid'],
-                'data': data
-            }
-
+            payload = self._engagement_payload(data, mo_engagement)
             response = self.helper._mo_post('details/edit', payload)
             # TODO!!! Assertion needs to check the content of the 400-reply
             assert response.status_code in (200, 400)
@@ -296,21 +288,11 @@ class ChangeAtSD(object):
             emp_name = engagement_info['professions'][1]['EmploymentName']
             job_function = self.job_functions.get(emp_name)
             print(job_function)
-            validity = self._validity(
-                engagement_info['professions'][1]['ActivationDate'],
-                engagement_info['professions'][1]['DeactivationDate']
-            )
+            validity = self._validity(engagement_info['professions'][1])
             data = {'job_function': {'uuid': job_function},
                     'validity': validity}
-            payload = {
-                'type': 'engagement',
-                'uuid': mo_engagement['uuid'],
-                'data': data
-            }
-            #print(payload)
+            payload = self._engagement_payload(data, mo_engagement)
             response = self.helper._mo_post('details/edit', payload)
-            #print(response.status_code)
-            #print(response.text)
             # TODO!!! Assertion needs to check the content of the 400-reply
             assert response.status_code in (200, 400)
             print('Changed profession of engagement {}'.format(job_id))
@@ -323,33 +305,14 @@ class ChangeAtSD(object):
 
             for worktime_info in work_times:
                 working_time = float(worktime_info['OccupationRate'])
-                validity = self._validity(
-                    worktime_info['ActivationDate'],
-                    worktime_info['DeactivationDate']
-                )
+                validity = self._validity(worktime_info)
                 data = {'fraction': int(working_time * 1000000),
                         'validity': validity}
-            payload = {
-                'type': 'engagement',
-                'uuid': mo_engagement['uuid'],
-                'data': data
-            }
-            #print(payload)
-            #response = self.helper._mo_post('details/edit', payload)
-            #print(response.status_code)
-            #print(response.text)
-            #TODO!!! Assertion needs to check the content of the 400-reply
-            #assert response.status_code in (200, 400)
-            #print('Changed working time of engagement {}'.format(job_id))
-
-        payload = {
-            'type': 'engagement',
-            'uuid': mo_engagement['uuid'],
-            'data': data
-        }
-        # print(engagement)
-        # print()
-        # print(payload)
+                payload = self._engagement_payload(data, mo_engagement)
+                response = self.helper._mo_post('details/edit', payload)
+                # TODO!!! Assertion needs to check the content of the 400-reply
+                assert response.status_code in (200, 400)
+                print('Changed working time of engagement {}'.format(job_id))
 
     def _update_user_employments(self, cpr, sd_engagement):
         for engagement in sd_engagement:
@@ -422,20 +385,17 @@ class ChangeAtSD(object):
             if eng['working_time']:
                 mo_eng = self._find_engagement(job_id)
                 assert mo_eng  # In this case, None would be plain wrong
-
-                # Here we should update working time and re-calculate primary
                 self.edit_engagement(engagement)
-                print('Change in working time')
 
             if eng['employment_date']:
                 # This seems to be redundant information
                 pass
 
     def update_all_employments(self):
-        print()
-        print('----')
         employments_changed = self.read_employment_changed()
         for employment in employments_changed:
+            print()
+            print('----')
             cpr = employment['PersonCivilRegistrationIdentifier']
             print(cpr)
 
@@ -458,7 +418,7 @@ class ChangeAtSD(object):
                 sd_engagement = [sd_engagement]
 
             update_dates = self._update_user_employments(cpr, sd_engagement)
-            # Re-calculate primary
+            # Re-calculate primary after all updates for user has been performed.
             """
             for dates in updated_dates:
             engagements =  self.helper.read_user_engagement(
