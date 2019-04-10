@@ -14,6 +14,7 @@ import xmltodict
 from anytree import Node
 import ad_reader
 import dawa_helper
+from sd_common import sd_lookup
 
 INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
 SD_USER = os.environ.get('SD_USER', None)
@@ -122,7 +123,8 @@ class SdImport(object):
         else:
             self.ad_people[cpr] = {}
 
-    def _sd_lookup(self, url, params={}):
+    """
+    def sd_lookup(self, url, params={}):
         full_url = self.base_url + url
 
         payload = {
@@ -149,6 +151,7 @@ class SdImport(object):
 
         xml_response = xmltodict.parse(response.text)[url]
         return xml_response
+    """
 
     def _read_department_info(self):
         """ Load all deparment details and store for later user """
@@ -164,7 +167,7 @@ class SdImport(object):
             'UUIDIndicator': 'true',
             'EmploymentDepartmentIndicator': 'false'
         }
-        departments = self._sd_lookup('GetDepartment20111201', params)
+        departments = sd_lookup('GetDepartment20111201', params)
 
         for department in departments['Department']:
             uuid = department['DepartmentUUIDIdentifier']
@@ -198,6 +201,10 @@ class SdImport(object):
         """
         ou_level = department['DepartmentLevelIdentifier']
         unit_id = department['DepartmentUUIDIdentifier']
+        #if unit_id == 'dbf65949-36d1-4400-8400-000006100002':
+        #    1/0
+        if unit_id == '11cfe282-e4b4-4500-8600-0000060c0002':
+            1/0
         user_key = department['DepartmentIdentifier']
         parent_uuid = None
         if 'DepartmentReference' in department:
@@ -307,13 +314,8 @@ class SdImport(object):
             'ContactInformationIndicator': 'false',
             'PostalAddressIndicator': 'false'
         }
-        if self.import_date_to:
-            params['ActivationDate'] = self.import_date_from
-            params['DeactivationDate'] = self.import_date_to
-            people = self._sd_lookup('GetPersonChangedAtDate20111201', params)
-        else:
-            params['EffectiveDate'] = self.import_date
-            people = self._sd_lookup('GetPerson20111201', params)
+        params['EffectiveDate'] = self.import_date
+        people = sd_lookup('GetPerson20111201', params)
 
         for person in people['Person']:
             cpr = person['PersonCivilRegistrationIdentifier']
@@ -379,7 +381,8 @@ class SdImport(object):
             'DeactivationDate': self.import_date,
             'UUIDIndicator': 'true'
         }
-        organisation = self._sd_lookup('GetOrganization20111201', params)
+
+        organisation = sd_lookup('GetOrganization20111201', params)
 
         departments = organisation['Organization']['DepartmentReference']
         for department in departments:
@@ -396,15 +399,10 @@ class SdImport(object):
             'UUIDIndicator': 'true',
             'StatusPassiveIndicator': 'false',
             'SalaryAgreementIndicator': 'false',
-            'SalaryCodeGroupIndicator': 'false'
+            'SalaryCodeGroupIndicator': 'false',
+            'EffectiveDate': self.import_date
         }
-        if self.import_date_to:
-            params['ActivationDate'] = self.import_date_from
-            params['DeactivationDate'] = self.import_date_to
-            persons = self._sd_lookup('GetEmploymentChangedAtDate20111201', params)
-        else:
-            params['EffectiveDate'] = self.import_date
-            persons = self._sd_lookup('GetEmployment20111201', params)
+        persons = sd_lookup('GetEmployment20111201', params)
 
         for person in persons['Person']:
             cpr = person['PersonCivilRegistrationIdentifier']
