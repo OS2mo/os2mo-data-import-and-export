@@ -105,14 +105,15 @@ class MoraHelper(object):
             i += 1
         return path_dict
 
-    def _mo_lookup(self, uuid, url, at=None, use_cache=None):
+    def _mo_lookup(self, uuid, url, at=None, validity=None, use_cache=None):
         # TODO: at-value is currently not part of cache key
-        if not use_cache:
+        if use_cache is None:
             use_cache = self.default_cache
+
         if at:
-            params = {
-                "at": at
-            }
+            params = {'at': at}
+        elif validity:
+            params = {'validity': validity}
         else:
             params = None
 
@@ -237,14 +238,22 @@ class MoraHelper(object):
         print(payload)
         # self._mo_post('details/terminate', payload):
 
-    def read_user_engagement(self, user, at=None, use_cache=None):
+    def read_user_engagement(self, user, at=None, read_all=False, use_cache=None):
         """
         Read engagements for a user.
         :param user: UUID of the wanted user.
         :return: List of the users engagements.
         """
-        engagement = self._mo_lookup(user, 'e/{}/details/engagement', at, use_cache)
-        return engagement
+        if not read_all:
+            engagements = self._mo_lookup(user, 'e/{}/details/engagement',
+                                         at, use_cache)
+        else:
+            engagements = []
+            for validity in ['past', 'present', 'future']:
+                engagement = self._mo_lookup(user, 'e/{}/details/engagement',
+                                             validity=validity, use_cache=False)
+                engagements = engagements + engagement
+        return engagements
 
     def read_user_address(self, user, username=False, cpr=False,
                           at=None, use_cache=None):
