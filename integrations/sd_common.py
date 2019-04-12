@@ -42,3 +42,17 @@ def sd_lookup(url, params={}):
 
     xml_response = xmltodict.parse(response.text)[url]
     return xml_response
+
+
+def calc_employment_id(employment):
+    employment_id = employment['EmploymentIdentifier']
+    try:
+        employment_number = int(employment_id)
+    except ValueError:  # Job id is not a number?
+        employment_number = 999999
+
+    employment_id = {
+        'id': employment_id,
+        'value': employment_number
+    }
+    return employment_id

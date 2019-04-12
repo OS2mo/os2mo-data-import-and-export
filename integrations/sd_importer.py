@@ -9,12 +9,10 @@
 import os
 import pickle
 import hashlib
-import requests
-import xmltodict
 from anytree import Node
 import ad_reader
 import dawa_helper
-from sd_common import sd_lookup
+from sd_common import sd_lookup, calc_employment_id
 
 INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
 SD_USER = os.environ.get('SD_USER', None)
@@ -410,8 +408,6 @@ class SdImport(object):
             min_id = 999999
             for employment in employments:
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
-                if int(status) == 0:
-                    continue
                 if int(status) == 3:
                     # Orlov
                     pass
@@ -419,24 +415,22 @@ class SdImport(object):
                     # Fratrædt
                     continue
 
-                employment_id = int(employment['EmploymentIdentifier'])
+                employment_id = calc_employment_id(employment)
                 occupation_rate = float(employment['WorkingTime']
                                         ['OccupationRate'])
                 if occupation_rate == 0:
                     continue
 
                 if occupation_rate == max_rate:
-                    if employment_id < min_id:
-                        min_id = employment_id
+                    if employment_id['value'] < min_id:
+                        min_id = employment_id['value']
                 if occupation_rate > max_rate:
                     max_rate = occupation_rate
-                    min_id = employment_id
+                    min_id = employment_id['value']
 
             exactly_one_primary = False
             for employment in employments:
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
-                if int(status) == 0:
-                    continue
                 if int(status) == 8:
                     # Fratrådt
                     continue
@@ -451,9 +445,10 @@ class SdImport(object):
 
                 occupation_rate = float(employment['WorkingTime']
                                         ['OccupationRate'])
-                employment_id = int(employment['EmploymentIdentifier'])
 
-                if occupation_rate == max_rate and employment_id == min_id:
+                employment_id = calc_employment_id(employment)
+
+                if occupation_rate == max_rate and employment_id['value'] == min_id:
                     assert(exactly_one_primary is False)
                     engagement_type_ref = 'Ansat'
                     exactly_one_primary = True
@@ -485,7 +480,7 @@ class SdImport(object):
                 try:
                     self.importer.add_engagement(
                         employee=cpr,
-                        user_key=str(employment_id),
+                        user_key=employment_id['id'],
                         organisation_unit=unit,
                         job_function_ref=job_func_ref,
                         fraction=int(occupation_rate * 1000000),
