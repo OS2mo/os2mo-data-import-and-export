@@ -5,6 +5,7 @@ from sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
 MOX_BASE = os.environ.get('MOX_BASE', None)
 
+NO_SALLERY = 'status0'
 NON_PRIMARY = 'non-primary'
 PRIMARY = 'Ansat'
 
@@ -28,6 +29,8 @@ class ChangeAtSD(object):
                 self.primary = engagement_type['uuid']
             if engagement_type['user_key'] == NON_PRIMARY:
                 self.non_primary = engagement_type['uuid']
+            if engagement_type['user_key'] == NO_SALLERY:
+                self.no_sallery = engagement_type['uuid']
 
         ut = self.helper.read_classes_in_facet('org_unit_type')
         for unit_type in ut[0]:
@@ -43,8 +46,7 @@ class ChangeAtSD(object):
 
         # If this assertment fails, we will need to re-run the organisation
         # stucture through the normal importer.
-        print('Remember to re-insert this check')
-        # assert self.check_non_existent_departments()
+        assert self.check_non_existent_departments()
 
     def _add_profession_to_lora(self, profession):
         validity = {
@@ -207,6 +209,7 @@ class ChangeAtSD(object):
                             )
                         else:
                             print('Success: {}'.format(department_uuid))
+        # Consider to return a status that show we need to re-run organisation.
         return True
 
     def _compare_dates(self, first_date, second_date, expected_diff=1):
@@ -229,9 +232,12 @@ class ChangeAtSD(object):
     def _find_engagement(self, job_id):
         # print('Find engagement, from date: {}'.format(from_date))
         relevant_engagement = None
-        user_key = str(int(job_id))
-        # Write an assertion that verifies that all engagements with same user_key
-        # also shares uuid
+        try:
+            job_id_number = int(job_id)
+            user_key = str(int(job_id)).zfill(5)
+        except ValueError:
+            user_key = job_id
+
         for mo_eng in self.mo_engagement:
             if mo_eng['user_key'] == user_key:
                 relevant_engagement = mo_eng
@@ -323,7 +329,7 @@ class ChangeAtSD(object):
             self.edit_engagement(engagement)
 
     def _terminate_engagement(self, from_date, job_id):
-        mo_engagement = self._find_engagement(job_id, from_date)
+        mo_engagement = self._find_engagement(job_id)
 
         if not mo_engagement:
             print('MAJOR PROBLEM: TERMINATING NON-EXISTING JOB!!!!')
@@ -395,8 +401,6 @@ class ChangeAtSD(object):
                 data = {'job_function': {'uuid': job_function},
                         'validity': validity}
                 payload = self._engagement_payload(data, mo_engagement)
-                print(emp_name)
-                print(payload)
                 response = self.helper._mo_post('details/edit', payload)
                 # TODO!!! Assertion needs to check the content of the 400-reply
                 assert response.status_code in (200, 400)
@@ -430,7 +434,7 @@ class ChangeAtSD(object):
     def _update_user_employments(self, cpr, sd_engagement):
         for engagement in sd_engagement:
             job_id, eng = self.engagement_components(engagement)
-
+           
             print('Job id: {}'.format(job_id))
             if job_id == '23878':
                 print('ERROR! This job is new and has no department!!!!!')
@@ -449,6 +453,8 @@ class ChangeAtSD(object):
 
                     if status['EmploymentStatusCode'] == '0':
                         print('What to do? Cpr: {}, job: {}'.format(cpr, job_id))
+                        print(engagement)
+                        1/0
                         skip = True
 
                     if status['EmploymentStatusCode'] == '1':
@@ -542,7 +548,8 @@ class ChangeAtSD(object):
             )
             self._update_user_employments(cpr, sd_engagement)
             # Re-calculate primary after all updates for user has been performed.
-            self.recalculate_primary()
+            print('Calculate primary:')
+            # self.recalculate_primary()
 
     def _calculate_rate_and_ids(self, mo_engagement):
         max_rate = 0
@@ -550,6 +557,10 @@ class ChangeAtSD(object):
         for eng in mo_engagement:
             if 'user_key' not in eng:
                 print('CANNOT CALCULATE PRIMARY!!!')
+                print(eng)
+                print()
+                print(mo_engagement)
+                1/0
                 return None, None
             employment_id = eng['user_key']
             print('Employment_id {}'.format(employment_id))
@@ -592,8 +603,6 @@ class ChangeAtSD(object):
         print()
 
         for i in range(0, len(date_list) - 1):
-            print()
-            print('---')
             date = date_list[i]
 
             mo_engagement = self.helper.read_user_engagement(
@@ -655,6 +664,7 @@ if __name__ == '__main__':
     to_date = datetime.datetime(2019, 2, 19, 0, 0)
 
     sd_updater = ChangeAtSD(from_date, to_date)
-    sd_updater.recalculate_primary()
-    # sd_updater.update_changed_persons()
-    # sd_updater.update_all_employments()
+    #sd_updater.recalculate_primary()
+    
+    sd_updater.update_changed_persons()
+    sd_updater.update_all_employments()
