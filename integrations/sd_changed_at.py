@@ -5,6 +5,8 @@ from sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
 MOX_BASE = os.environ.get('MOX_BASE', None)
 
+NON_PRIMARY = 'non-primary'
+PRIMARY = 'Ansat'
 
 class ChangeAtSD(object):
 
@@ -20,6 +22,13 @@ class ChangeAtSD(object):
         self.mo_person = None      # Updated continously with the person currently
         self.mo_engagement = None  # being processed.
 
+        engagement_types = self.helper.read_classes_in_facet('engagement_type')
+        for engagement_type in engagement_types[0]:
+            if engagement_type['user_key'] == PRIMARY:
+                self.primary = engagement_type['uuid']
+            if engagement_type['user_key'] == NON_PRIMARY:
+                self.non_primary = engagement_type['uuid']
+        
         facet_info = self.helper.read_classes_in_facet('engagement_job_function')
         job_functions = facet_info[0]
         self.job_function_facet = facet_info[1]
@@ -29,7 +38,8 @@ class ChangeAtSD(object):
 
         # If this assertment fails, we will need to re-run the organisation
         # stucture through the normal importer.
-        assert self.check_non_existent_departments()
+        print('Remember to re-insert this check')
+        # assert self.check_non_existent_departments()
 
     def _add_profession_to_lora(self, profession):
         validity = {
@@ -208,12 +218,6 @@ class ChangeAtSD(object):
         compare = first + datetime.timedelta(days=expected_diff)
         return second == compare
 
-    def _calculate_primary(self):
-        # Not quite done...
-        non_primary = '2194e621-7c74-4914-a500-85d9237931f6'
-        primary = '514d491a-160f-4ac8-8a59-02da04b89049'
-        return primary
-
     def _validity(self, engagement_info):
         from_date = engagement_info['ActivationDate']
         to_date = engagement_info['DeactivationDate']
@@ -225,6 +229,26 @@ class ChangeAtSD(object):
         }
         return validity
 
+    def _find_engagement(self, job_id):
+        # print('Find engagement, from date: {}'.format(from_date))
+        relevant_engagement = None
+        user_key = str(int(job_id))
+        # Write an assertion that verifies that all engagements with same user_key
+        # also shares uuid
+        for mo_eng in self.mo_engagement:
+            if mo_eng['user_key'] == user_key:
+                relevant_engagement = mo_eng
+        return relevant_engagement
+
+    def _update_professions(self, emp_name):
+        # Add new profssions to LoRa
+        job_uuid = self.job_functions.get(emp_name)
+        if not job_uuid:
+            print('New job function: {}'.format(emp_name))
+            response = self._add_profession_to_lora(emp_name)
+            uuid = response['uuid']
+            self.job_functions[emp_name] = uuid
+    
     def engagement_components(self, engagement_info):
         job_id = engagement_info['EmploymentIdentifier']
 
@@ -265,6 +289,8 @@ class ChangeAtSD(object):
         if len(engagement_info['departments']) > 1:
             also_edit = True
         org_unit = engagement_info['departments'][0]['DepartmentUUIDIdentifier']
+        # Here we need to look into the NY-logic
+        # we should move users and make associations
         
         if len(engagement_info['professions']) > 1:
             also_edit = True
@@ -337,6 +363,8 @@ class ChangeAtSD(object):
 
         data = {}
         if engagement_info['departments']:
+            # Here we need to look into the NY-logic
+            # we should move users and make associations
             for department in engagement_info['departments']:
                 org_unit = department['DepartmentUUIDIdentifier']
                 validity = self._validity(department)
@@ -408,7 +436,7 @@ class ChangeAtSD(object):
 
             print('Job id: {}'.format(job_id))
             if job_id == '23878':
-                print('This job is new and has no department!!!!!')
+                print('ERROR! This job is new and has no department!!!!!')
                 continue
 
             skip = False
@@ -516,59 +544,115 @@ class ChangeAtSD(object):
                 use_cache=False
             )
 
-            update_dates = self._update_user_employments(cpr, sd_engagement)
+            self._update_user_employments(cpr, sd_engagement)
+
             # Re-calculate primary after all updates for user has been performed.
-            """
-            for dates in updated_dates:
-            engagements =  self.helper.read_user_engagement(
-            mo_person['uuid'],
-            at=dates.strftime('%Y-%m-%d'),
-            use_cache=False
-            )
-            """
+            self.recalculate_primary(cpr)
 
-    def _find_engagement(self, job_id, from_date=None):
-        # print('Find engagement, from date: {}'.format(from_date))
-        relevant_engagement = None
-        user_key = str(int(job_id))
+    def _calculate_rate_and_ids(self, mo_engagement):
+        max_rate = 0
+        min_id = 9999999
+        for eng in mo_engagement:
+            if not 'user_key' in eng:
+                print('CANNOT CALCULATE PRIMARY!!!')
+                return None, None
+            employment_id = eng['user_key']
+            print('Employment_id {}'.format(employment_id))
+            if not eng['fraction']:
+                eng['fraction'] = 0
+                continue
 
-        """
-        # Possibly this should be the genral case.
-        if from_date:
-            mo_engagement = self.helper.read_user_engagement(
-                self.mo_person['uuid'],
+            occupation_rate = eng['fraction']
+            if eng['fraction'] == max_rate:
+                if employment_id < min_id:
+                    min_id = employment_id
+            if occupation_rate > max_rate:
+                max_rate = occupation_rate
+                min_id = employment_id
+        print(min_id, max_rate)
+        return (min_id, max_rate)
+
+    def recalculate_primary(self):
+        # uuid = self.mo_person['uuid']
+        # uuid = '136fc505-7f54-4c59-97bc-83f3b54db55e'
+        # uuid = '7f3d4555-89ef-4d83-a912-91b202998b1b'
+        uuid = '806c990b-0f2b-4957-a673-7b7ffe7de601'
+        mo_engagement = self.helper.read_user_engagement(
+                user=uuid,
                 read_all=True,
+        )
+        dates = set()
+        for eng in mo_engagement:
+            dates.add(eng['validity']['from'])
+            if eng['validity']['to']:
+                to = datetime.datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
+                day_after = to + datetime.timedelta(days=1)
+                day_after = datetime.datetime.strftime(day_after, "%Y-%m-%d")
+                dates.add(day_after)
+            else:
+                dates.add('9999-12-30')
+
+        print(dates)
+        date_list = sorted(list(dates))
+        print()
+        
+        for i in range(0, len(date_list) - 1):
+            print()
+            print('---')
+            date = date_list[i]
+            
+            mo_engagement = self.helper.read_user_engagement(
+                user=uuid,
+                at=date,
                 use_cache=False
             )
-        else:
-            mo_engagement = self.mo_engagement
-        """
-        # Write an assertion that verifies that all engagements with same user_key
-        # also shares uuid
-        for mo_eng in self.mo_engagement:
-            if mo_eng['user_key'] == user_key:
-                relevant_engagement = mo_eng
-        return relevant_engagement
+            (min_id, max_rate) = self._calculate_rate_and_ids(mo_engagement)
+            if (min_id is None) or (max_rate is None):
+                continue
+            
+            exactly_one_primary = False
+            for eng in mo_engagement:
+                if date_list[i + 1] == '9999-12-30':
+                    to = None
+                else:
+                    to = date_list[i + 1]
+                validity = {'from': date, 'to': to}
+                
+                if not 'user_key' in eng:
+                    break
+                employment_id = eng['user_key']
+                occupation_rate = eng['fraction']
+    
+                employment_id = eng['user_key']
+                if occupation_rate == max_rate and employment_id == min_id:
+                    assert(exactly_one_primary is False)
+                    print('Primary is: {}'.format(employment_id))
+                    exactly_one_primary = True
+                    data = {
+                        'primary': True,
+                        'engagement_type': {'uuid': self.primary},
+                        'validity': validity
+                    }
+                else:
+                    print('{} is not primary'.format(employment_id))
+                    data = {
+                        'primary': False,
+                        'engagement_type': {'uuid': self.non_primary},
+                        'validity': validity
+                    }
+                payload = self._engagement_payload(data, eng)
+                print(payload)
+                response = self.helper._mo_post('details/edit', payload)
+                # assert response.status_code in (200, 400)
 
-    def _update_professions(self, emp_name):
-        # Add new profssions to LoRa
-        job_uuid = self.job_functions.get(emp_name)
-        if not job_uuid:
-            print('New job function: {}'.format(emp_name))
-            response = self._add_profession_to_lora(emp_name)
-            uuid = response['uuid']
-            self.job_functions[emp_name] = uuid
-        """
-        for profession in professions:
-            emp_name = profession['EmploymentName']
-            job_uuid = self.job_functions.get(emp_name)
-            if not job_uuid:
-                print('New job function: {}'.format(emp_name))
-                response = self._add_profession_to_lora(emp_name)
-                uuid = response['uuid']
-                self.job_functions[emp_name] = uuid
-        """
+    def _calculate_primary(self):
+        # Not quite done...
+        non_primary = '2194e621-7c74-4914-a500-85d9237931f6'
+        primary = '514d491a-160f-4ac8-8a59-02da04b89049'
+        return primary
 
+
+            
 if __name__ == '__main__':
     # from_date = datetime.datetime(2019, 2, 15, 0, 0)
     # to_date = datetime.datetime(2019, 2, 16, 0, 0)
@@ -583,5 +667,6 @@ if __name__ == '__main__':
     to_date = datetime.datetime(2019, 2, 19, 0, 0)
 
     sd_updater = ChangeAtSD(from_date, to_date)
-    sd_updater.update_changed_persons()
-    sd_updater.update_all_employments()
+    sd_updater.recalculate_primary()
+    # sd_updater.update_changed_persons()
+    # sd_updater.update_all_employments()
