@@ -125,11 +125,12 @@ class MoraHelper(object):
                 return_dict = requests.get(full_url, params=params).json()
             else:
                 header = {"SESSION": SAML_TOKEN}
-                return_dict = requests.get(
+                response = requests.get(
                     full_url,
                     headers=header,
                     params=params
-                ).json()
+                )
+                return_dict = response.json()
             self.cache[full_url] = return_dict
         return return_dict
 
@@ -153,7 +154,6 @@ class MoraHelper(object):
         )
         return response
 
-    
     def read_organisation(self):
         """ Read the main Organisation, all OU's will have this as root.
         Currently reads only one, theroretically more than root org can exist.
@@ -246,7 +246,7 @@ class MoraHelper(object):
         """
         if not read_all:
             engagements = self._mo_lookup(user, 'e/{}/details/engagement',
-                                         at, use_cache)
+                                          at, use_cache)
         else:
             engagements = []
             for validity in ['past', 'present', 'future']:
