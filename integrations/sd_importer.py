@@ -201,10 +201,6 @@ class SdImport(object):
         """
         ou_level = department['DepartmentLevelIdentifier']
         unit_id = department['DepartmentUUIDIdentifier']
-        #if unit_id == 'dbf65949-36d1-4400-8400-000006100002':
-        #    1/0
-        if unit_id == '11cfe282-e4b4-4500-8600-0000060c0002':
-            1/0
         user_key = department['DepartmentIdentifier']
         parent_uuid = None
         if 'DepartmentReference' in department:
