@@ -83,6 +83,8 @@ class SdImport(object):
                          'employee_address_type', 'DAR')
         self._add_klasse('PhoneEmployee', 'Telefon',
                          'employee_address_type', 'PHONE')
+        self._add_klasse('MobilePhoneEmployee', 'Mobiltelefon',
+                         'employee_address_type', 'PHONE')
         self._add_klasse('LocationEmployee', 'Lokation',
                          'employee_address_type', 'TEXT')
         self._add_klasse('EmailEmployee', 'Email',
@@ -95,7 +97,7 @@ class SdImport(object):
         self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
 
         self._add_klasse('Ansat', 'Ansat', 'engagement_type')
-
+        self._add_klasse('status0', 'Ansat - Ikke i løn', 'engagement_type')
         self._add_klasse('non-primary', 'Ikke-primær ansættelse', 'engagement_type')
 
         self._add_klasse('SD-medarbejder', 'SD-medarbejder', 'association_type')
@@ -458,6 +460,9 @@ class SdImport(object):
                         job_func = ad_titel
                 else:
                     engagement_type_ref = 'non-primary'
+
+                if int(status) == 0:  # If status 0, uncondtionally override
+                    engagement_type_ref = 'status0'
 
                 job_func_ref = self._add_klasse(job_func,
                                                 job_func,
