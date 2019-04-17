@@ -45,7 +45,7 @@ class MoraHelper(object):
         """
         path = []
         for sub_node in node.path:
-            ou = self.read_organisationsenhed(sub_node.name)
+            ou = self.read_ou(sub_node.name)
             path += [ou['name']]
         return path
 
@@ -91,7 +91,7 @@ class MoraHelper(object):
         :node: The node to find the path for.
         :return: A dict with headlines as keys and nodes as values.
         """
-        ou = self.read_organisationsenhed(node.name)
+        ou = self.read_ou(node.name)
         ou_type = ou['org_unit_type']['name']
 
         if org_types and (ou_type not in org_types):
@@ -149,7 +149,7 @@ class MoraHelper(object):
         org_enhed = self._mo_lookup(uuid, 'ou/{}', at, use_cache)
         return org_enhed
 
-    def read_ou_address(self, uuid, at=None, use_cache=None):
+    def read_ou_address(self, uuid, at=None, use_cache=None, scope="DAR"):
         """ Return a dict with the data available about an OU
         :param uuid: The UUID of the OU
         :return: Dict with the information about the OU
@@ -158,10 +158,9 @@ class MoraHelper(object):
         addresses = self._mo_lookup(uuid, 'ou/{}/details/address', at, use_cache)
 
         for address in addresses:
-            if address['address_type']['scope'] == 'DAR':
+            if address['address_type']['scope'] == scope:
                 return_address['Adresse'] = address['name']
-            if address['address_type']['scope'] == 'DAR':
-                return_address['Adresse'] = address['name']
+                return_address['value'] = address['value']
         return return_address
 
     def read_user_engagement(self, user, at=None, use_cache=None):
