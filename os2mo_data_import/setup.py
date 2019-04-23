@@ -30,7 +30,6 @@ setup(
         "click",
         "idna",
         "requests",
-        "urllib3",
         "anytree",
         "freezegun",
     ]
