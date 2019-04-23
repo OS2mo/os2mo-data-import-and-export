@@ -118,7 +118,7 @@ class MoraHelper(object):
 
         full_url = self.host + url.format(uuid)
         if (full_url in self.cache) and use_cache:
-            print('AAAARRRGGHHH')
+            print('AAAARRRGGHHH', full_url)
             return_dict = self.cache[full_url]
         else:
             if SAML_TOKEN is None:
