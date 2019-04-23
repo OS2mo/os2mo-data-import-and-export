@@ -14,6 +14,7 @@ These are specfic for Viborg
 import time
 from os2mo_helpers.mora_helpers import MoraHelper
 import common_queries as cq
+import datetime
 import requests
 import uuid
 
@@ -54,12 +55,12 @@ def export_ou_emus(mh, nodes, emus_file):
         ou = mh.read_ou(node.name)
         manager = mh.read_organisation_managers(node.name)
         manager_uuid = manager["uuid"] if manager else ''
-        import pdb; pdb.set_trace()
         address = get_emus_address(node.name)
         fra = ou['validity']['from'] if ou['validity']['from'] else ''
         til = ou['validity']['to'] if ou['validity']['to'] else ''
         over_uuid = ou['parent']['uuid'] if ou['parent'] else ''
-        phone='',
+        phone= mh.read_ou_address(ou["uuid"], scope="PHONE").get("Adresse","")
+
         row = {
             'uuid': ou['uuid'],
             'startDate': fra,
@@ -74,10 +75,11 @@ def export_ou_emus(mh, nodes, emus_file):
         }
         rows.append(row)
 
-    last_changed = datetime.datetime.strftime("%Y-%m-%d")
+    last_changed = datetime.datetime.now().strftime("%Y-%m-%d")
     for r in rows:
         emus_file.write("<orgUnit id=\"%s\" client=\"1\" lastChanged=\"%s\">\n" %(
-            r["uuid"]
+            r["uuid"],
+            last_changed,
         ))
         for fn in fieldnames:
             emus_file.write("<%s>%s</%s>\n"%(fn, r.get(fn,''), fn))
