@@ -53,51 +53,8 @@ class ChangeAtSD(object):
         assert self.check_non_existent_departments()
 
     def _add_profession_to_lora(self, profession):
-        validity = {
-            'from': '1900-01-01',
-            'to': 'infinity'
-        }
-
-        # "integrationsdata":  # TODO: Check this
-        properties = {
-            'brugervendtnoegle': profession,
-            'titel':  profession,
-            'omfang': 'TEXT',
-            "virkning": validity
-        }
-        attributter = {
-            'klasseegenskaber': [properties]
-        }
-        relationer = {
-            'ansvarlig': [
-                {
-                    'objekttype': 'organisation',
-                    'uuid': self.org_uuid,
-                    'virkning': validity
-                }
-            ],
-            'facet': [
-                {
-                    'objekttype': 'facet',
-                    'uuid': self.job_function_facet,
-                    'virkning': validity
-                }
-            ]
-        }
-        tilstande = {
-            'klassepubliceret': [
-                {
-                    'publiceret': 'Publiceret',
-                    'virkning': validity
-                }
-            ]
-        }
-
-        payload = {
-            "attributter": attributter,
-            "relationer": relationer,
-            "tilstande": tilstande
-        }
+        payload = sd_payloads.profession(profession, self.org_uuid,
+                                         self.job_function_facet)
         response = requests.post(
             url=self.mox_base + '/klassifikation/klasse',
             json=payload
@@ -108,7 +65,6 @@ class ChangeAtSD(object):
     def _assert(self, response):
         """ Check response is as expected """
         assert response.status_code in (200, 400, 404)
-
         if response.status_code == 400:
             # Check actual response
             assert response.text.find('not give raise to a new registration') > 0
@@ -290,20 +246,11 @@ class ChangeAtSD(object):
         """ Create a leave for a user """
         print('Create leave')
         # TODO: This code potentially creates duplicated leaves.
-
         print('Status: {}'.format(status))
         mo_eng = self._find_engagement(job_id)
-        org_unit = mo_eng['org_unit']['uuid']
-        validity = self._validity(status)
-        # TODO: Move payload away from the function itself
-        payload = {
-            'type': 'leave',
-            'org_unit': {'uuid': org_unit},
-            'person': {'uuid': self.mo_person['uuid']},
-            'leave_type': {'uuid': self.leave_uuid},
-            'user_key': job_id,
-            'validity': validity
-        }
+        payload = sd_payloads.create_leave(mo_eng, self.mo_person, self.leave_uuid,
+                                           job_id, self._validity(status))
+
         response = self.helper._mo_post('details/create', payload)
         assert response.status_code == 201
 
