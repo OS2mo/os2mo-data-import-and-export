@@ -854,7 +854,8 @@ class ImportUtility(object):
             # integration data and compare directly from that.
             for data_item in data[data_type]:
                 if (self._std_compare(item_payload, data_item, 'job_function') and
-                    item_payload['user_key'] == data_item['user_key']):
+                    item_payload['user_key'] == data_item['user_key'] and
+                    item_payload['fraction'] == data_item['fraction']):
                     found_hit = True
 
         elif data_type == 'role':

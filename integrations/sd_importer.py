@@ -432,8 +432,6 @@ class SdImport(object):
                     # Fratrædt
                     continue
 
-                # TODO: Could we somehow make use of this employent_id if
-                # it was stored in integration data?
                 employment_id = int(employment['EmploymentIdentifier'])
                 occupation_rate = float(employment['WorkingTime']
                                         ['OccupationRate'])
@@ -458,7 +456,6 @@ class SdImport(object):
 
                 occupation_rate = float(employment['WorkingTime']
                                         ['OccupationRate'])
-
                 employment_id = int(employment['EmploymentIdentifier'])
 
                 if occupation_rate == max_rate and employment_id == min_id:
@@ -497,6 +494,7 @@ class SdImport(object):
                         user_key=str(employment_id),
                         organisation_unit=unit,
                         job_function_ref=job_func_ref,
+                        fraction=int(occupation_rate * 1000000),
                         engagement_type_ref=engagement_type_ref,
                         date_from=date_from,
                         date_to=date_to

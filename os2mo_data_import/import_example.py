@@ -214,6 +214,7 @@ def example_import(mox_base, mora_base):
     os2mo.add_engagement(
         employee="Susanne Chæf",
         organisation_unit="Magenta",
+        fraction=7,
         job_function_ref="Direktør",
         engagement_type_ref="Ansat",
         date_from="1986-01-01"
@@ -224,6 +225,7 @@ def example_import(mox_base, mora_base):
         organisation_unit="Pilestræde",
         job_function_ref="Projektleder",
         engagement_type_ref="Ansat",
+        fraction=8,
         date_from="1986-02-01"
     )
 
@@ -240,6 +242,7 @@ def example_import(mox_base, mora_base):
         organisation_unit="Pilestræde",
         job_function_ref="Udvikler",
         engagement_type_ref="Ansat",
+        fraction=2,
         date_from="1986-04-01"
     )
 
@@ -248,6 +251,7 @@ def example_import(mox_base, mora_base):
         organisation_unit="SJA2",
         job_function_ref="Udvikler",
         engagement_type_ref="Ansat",
+        fraction=1,
         date_from="1986-05-01"
     )
 
@@ -256,6 +260,7 @@ def example_import(mox_base, mora_base):
         organisation_unit="Pilestræde",
         job_function_ref="Projektmedarbejder",
         engagement_type_ref="Ansat",
+        fraction=4,
         date_from="1986-06-01"
     )
 
