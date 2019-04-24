@@ -1,6 +1,7 @@
 import os
 import requests
 import datetime
+import sd_payloads
 from sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
 MOX_BASE = os.environ.get('MOX_BASE', None)
@@ -104,6 +105,16 @@ class ChangeAtSD(object):
         assert response.status_code == 201
         return response.json()
 
+    def _assert(self, response):
+        """ Check response is as expected """
+        assert response.status_code in (200, 400, 404)
+
+        if response.status_code == 400:
+            # Check actual response
+            assert response.text.find('not give raise to a new registration') > 0
+            print('No effect')
+        return None
+
     def read_employment_changed(self):
         if not self.employment_response:  # Caching mechanism, we need to get of this
             url = 'GetEmploymentChangedAtDate20111201'
@@ -186,33 +197,23 @@ class ChangeAtSD(object):
                 sd_engagement = [sd_engagement]
             for engagement in sd_engagement:
                 departments = engagement.get('EmploymentDepartment')
-                if departments:
-                    if not isinstance(departments, list):
-                        departments = [departments]
-                    for department in departments:
-                        department_uuid = department['DepartmentUUIDIdentifier']
-                        ou = self.helper.read_ou(department_uuid)
-                        if 'status' in ou:  # Unit does not exist
-                            print('Error, missing unit: {}'.format(department_uuid))
-                            payload = {
-                                'uuid': department['DepartmentUUIDIdentifier'],
-                                'user_key': department['DepartmentIdentifier'],
-                                'name': 'Unnamed department',
-                                'parent': {'uuid': self.org_uuid},
-                                'org_unit_type': {'uuid': self.orphan_uuid},
-                                'validity': {
-                                    'from': '1900-01-01',
-                                    'to': None
-                                }
-                            }
-                            response = self.helper._mo_post('ou/create', payload)
-                            assert response.status_code == 201
-                            print('Created unit {}'.format(
-                                department['DepartmentIdentifier'])
-                            )
-                        else:
-                            print('Success: {}'.format(department_uuid))
-        # Consider to return a status that show we need to re-run organisation.
+                if not departments:
+                    continue
+                if not isinstance(departments, list):
+                    departments = [departments]
+                for department in departments:
+                    ou = self.helper.read_ou(department['DepartmentUUIDIdentifier'])
+                    if 'status' not in ou:  # Unit does exist
+                        continue
+                    payload = sd_payloads.new_department(
+                        department, self.org_uuid, self.orphan_uuid
+                    )
+                    response = self.helper._mo_post('ou/create', payload)
+                    assert response.status_code == 201
+                    print('Created unit {}'.format(
+                        department['DepartmentIdentifier'])
+                    )
+        # Consider to return a status that show if we need to re-run organisation.
         return True
 
     def _compare_dates(self, first_date, second_date, expected_diff=1):
@@ -245,7 +246,7 @@ class ChangeAtSD(object):
 
         for mo_eng in self.mo_engagement:
             if mo_eng['user_key'] == user_key:
-                relevant_engagement = mo_eng        
+                relevant_engagement = mo_eng
         return relevant_engagement
 
     def _update_professions(self, emp_name):
@@ -289,7 +290,7 @@ class ChangeAtSD(object):
         """ Create a leave for a user """
         print('Create leave')
         # TODO: This code potentially creates duplicated leaves.
-        
+
         print('Status: {}'.format(status))
         mo_eng = self._find_engagement(job_id)
         org_unit = mo_eng['org_unit']['uuid']
@@ -311,9 +312,7 @@ class ChangeAtSD(object):
         Create a new engagement
         """
         job_id, engagement_info = self.engagement_components(engagement)
-
         # AD integration handled in check for primary engagement.
-        print(engagement_info['departments'])
 
         also_edit = False
         if len(engagement_info['departments']) > 1:
@@ -369,11 +368,7 @@ class ChangeAtSD(object):
             'validity': {'to': from_date}
         }
         response = self.helper._mo_post('details/terminate', payload)
-        # TODO!!! Assertion needs to check the content of the 400-reply
-        # 404 means that the engagement is no longer active. SD has a strange habbit
-        # of sometimes making an explicit termination of an already ended engagement
-        # and thus these can be safely ignored.
-        assert response.status_code in (200, 400, 404)
+        self._assert(response)
         return True
 
     def _engagement_payload(self, data, mo_engagement):
@@ -397,51 +392,41 @@ class ChangeAtSD(object):
         # we should move users and make associations
         print('Department')
         for department in engagement_info['departments']:
+            print('Change department of engagement {}:'.format(job_id))
             org_unit = department['DepartmentUUIDIdentifier']
             validity = self._validity(department)
             data = {'org_unit': {'uuid': org_unit},
                     'validity': validity}
             payload = self._engagement_payload(data, mo_engagement)
             response = self.helper._mo_post('details/edit', payload)
-            # TODO!!! Assertion needs to check the content of the 400-reply
-            assert response.status_code in (200, 400)
-            if response.status_code == 400:
-                print('Department change had no effect')
-            print('Changed department of engagement {}'.format(job_id))
+            self._assert(response)
 
         print('Profession')
         for profession_info in engagement_info['professions']:
+            print('Change profession of engagement {}'.format(job_id))
             # We load the name from SD and handles the AD-integration
             # when calculating the primary engagement.
             emp_name = profession_info['EmploymentName']
-
             self._update_professions('emp_name')
-
             job_function = self.job_functions.get(emp_name)
             validity = self._validity(profession_info)
+
             data = {'job_function': {'uuid': job_function},
                     'validity': validity}
             payload = self._engagement_payload(data, mo_engagement)
             response = self.helper._mo_post('details/edit', payload)
-            # TODO!!! Assertion needs to check the content of the 400-reply
-            assert response.status_code in (200, 400)
-            if response.status_code == 400:
-                print('Profession change had no effect')
-            print('Changed profession of engagement {}'.format(job_id))
+            self._assert(response)
 
         print('Working time')
         for worktime_info in engagement_info['working_time']:
+            print('Change working time of engagement {}'.format(job_id))
             working_time = float(worktime_info['OccupationRate'])
             validity = self._validity(worktime_info)
             data = {'fraction': int(working_time * 1000000),
                     'validity': validity}
             payload = self._engagement_payload(data, mo_engagement)
             response = self.helper._mo_post('details/edit', payload)
-            # TODO!!! Assertion needs to check the content of the 400-reply
-            assert response.status_code in (200, 400)
-            if response.status_code == 400:
-                print('Work time effect change had no effect')
-            print('Changed working time of engagement {}'.format(job_id))
+            self._assert(response)
 
     def _update_user_employments(self, cpr, sd_engagement):
         for engagement in sd_engagement:
@@ -449,10 +434,11 @@ class ChangeAtSD(object):
 
             print('Job id: {}'.format(job_id))
 
+            """
             if job_id == '23878':
                 print('ERROR! This job is new and has no department!!!!!')
                 continue
-
+            """
             skip = False
             # If status is present, we have a potential creation
             if eng['status_list']:
@@ -493,7 +479,7 @@ class ChangeAtSD(object):
                         from_date = status['ActivationDate']
                         print('Terminate user {}, job_id {} '.format(cpr, job_id))
                         success = self._terminate_engagement(from_date, job_id)
-                        if not succes:
+                        if not success:
                             print('Problem wit job-id: {}'.format(job_id))
                             skip = True
 
@@ -516,29 +502,6 @@ class ChangeAtSD(object):
             if skip:
                 continue
             self.edit_engagement(engagement)
-
-            # TODO: Some of these assertsmens should go to edit, all othe
-            # lins should disappear.
-
-            # If status is not present, we should edit existing employment
-            # if eng['departments']:
-            #    print('Change in department')
-            #    self.edit_engagement(engagement)
-
-            # if eng['professions']:
-            #    # self._update_professions(eng['professions'])
-            #    mo_eng = self._find_engagement(job_id)
-            #    if mo_eng:
-            #        self.edit_engagement(engagement)
-            #    else:
-            #        print('Problem with profession update!')
-            #        print(engagement)
-            #    continue
-
-            # if eng['working_time']:
-            #    mo_eng = self._find_engagement(job_id)
-            #    assert mo_eng  # In this case, None would be plain wrong
-            #    self.edit_engagement(engagement)
 
     def update_all_employments(self):
         employments_changed = self.read_employment_changed()
@@ -680,14 +643,14 @@ if __name__ == '__main__':
     # from_date = datetime.datetime(2019, 2, 17, 0, 0)
     # to_date = datetime.datetime(2019, 2, 18, 0, 0)
 
-    # from_date = datetime.datetime(2019, 2, 18, 0, 0)
-    # to_date = datetime.datetime(2019, 2, 19, 0, 0)
+    from_date = datetime.datetime(2019, 2, 18, 0, 0)
+    to_date = datetime.datetime(2019, 2, 19, 0, 0)
 
     # from_date = datetime.datetime(2019, 2, 19, 0, 0)
     # to_date = datetime.datetime(2019, 2, 20, 0, 0)
 
-    from_date = datetime.datetime(2019, 2, 20, 0, 0)
-    to_date = datetime.datetime(2019, 2, 21, 0, 0)
+    # from_date = datetime.datetime(2019, 2, 20, 0, 0)
+    # to_date = datetime.datetime(2019, 2, 21, 0, 0)
 
     sd_updater = ChangeAtSD(from_date, to_date)
     # sd_updater.recalculate_primary()
