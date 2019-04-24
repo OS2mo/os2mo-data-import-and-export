@@ -19,3 +19,6 @@ venv
 
 # Workspace
 overflow
+
+#default output filenames
+emus_filename.xml
