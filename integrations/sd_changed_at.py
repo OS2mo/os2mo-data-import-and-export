@@ -44,6 +44,9 @@ class ChangeAtSD(object):
         for job in job_functions:
             self.job_functions[job['name']] = job['uuid']
 
+        facet_info = self.helper.read_classes_in_facet('leave_type')
+        self.leave_uuid = facet_info[0][0]['uuid']
+
         # If this assertment fails, we will need to re-run the organisation
         # stucture through the normal importer.
         assert self.check_non_existent_departments()
@@ -238,9 +241,11 @@ class ChangeAtSD(object):
         except ValueError:
             user_key = job_id
 
+        print('Find: {}'.format(user_key))
+
         for mo_eng in self.mo_engagement:
             if mo_eng['user_key'] == user_key:
-                relevant_engagement = mo_eng
+                relevant_engagement = mo_eng        
         return relevant_engagement
 
     def _update_professions(self, emp_name):
@@ -256,28 +261,50 @@ class ChangeAtSD(object):
         job_id = engagement_info['EmploymentIdentifier']
 
         components = {}
-        status_list = engagement_info.get('EmploymentStatus')
-        if status_list:
-            if not isinstance(status_list, list):
-                status_list = [status_list]
+        status_list = engagement_info.get('EmploymentStatus', [])
+        if not isinstance(status_list, list):
+            status_list = [status_list]
         components['status_list'] = status_list
 
-        professions = engagement_info.get('Profession')
-        if professions:
-            if not isinstance(professions, list):
-                professions = [professions]
+        professions = engagement_info.get('Profession', [])
+        if not isinstance(professions, list):
+            professions = [professions]
         components['professions'] = professions
 
-        departments = engagement_info.get('EmploymentDepartment')
-        if departments:
-            if not isinstance(departments, list):
-                departments = [departments]
+        departments = engagement_info.get('EmploymentDepartment', [])
+        if not isinstance(departments, list):
+            departments = [departments]
         components['departments'] = departments
 
-        components['working_time'] = engagement_info.get('WorkingTime')
+        working_time = engagement_info.get('WorkingTime', [])
+        if not isinstance(working_time, list):
+            working_time = [working_time]
+        components['working_time'] = working_time
+
         # Employment date is not used for anyting
         components['employment_date'] = engagement_info.get('EmploymentDate')
         return job_id, components
+
+    def create_leave(self, status, job_id):
+        """ Create a leave for a user """
+        print('Create leave')
+        # TODO: This code potentially creates duplicated leaves.
+        
+        print('Status: {}'.format(status))
+        mo_eng = self._find_engagement(job_id)
+        org_unit = mo_eng['org_unit']['uuid']
+        validity = self._validity(status)
+        # TODO: Move payload away from the function itself
+        payload = {
+            'type': 'leave',
+            'org_unit': {'uuid': org_unit},
+            'person': {'uuid': self.mo_person['uuid']},
+            'leave_type': {'uuid': self.leave_uuid},
+            'user_key': job_id,
+            'validity': validity
+        }
+        response = self.helper._mo_post('details/create', payload)
+        assert response.status_code == 201
 
     def create_new_engagement(self, engagement, status):
         """
@@ -304,6 +331,7 @@ class ChangeAtSD(object):
         validity = self._validity(status)
         engagement_type = self.non_primary
         print('Create engagement validity: {}'.format(validity))
+        # TODO: Move payload away from the function itself
         payload = {
             'type': 'engagement',
             'org_unit': {'uuid': org_unit},
@@ -333,7 +361,7 @@ class ChangeAtSD(object):
 
         if not mo_engagement:
             print('MAJOR PROBLEM: TERMINATING NON-EXISTING JOB!!!!')
-            return
+            return False
 
         payload = {
             'type': 'engagement',
@@ -346,7 +374,7 @@ class ChangeAtSD(object):
         # of sometimes making an explicit termination of an already ended engagement
         # and thus these can be safely ignored.
         assert response.status_code in (200, 400, 404)
-        return response
+        return True
 
     def _engagement_payload(self, data, mo_engagement):
         # Consider to find the mo_engagement localy
@@ -365,77 +393,62 @@ class ChangeAtSD(object):
         mo_engagement = self._find_engagement(job_id)
 
         data = {}
-        if engagement_info['departments']:
-            # Here we need to look into the NY-logic
-            # we should move users and make associations
-            for department in engagement_info['departments']:
-                org_unit = department['DepartmentUUIDIdentifier']
-                validity = self._validity(department)
-                data = {'org_unit': {'uuid': org_unit},
-                        'validity': validity}
-                payload = self._engagement_payload(data, mo_engagement)
-                response = self.helper._mo_post('details/edit', payload)
-                # TODO!!! Assertion needs to check the content of the 400-reply
-                assert response.status_code in (200, 400)
-                if response.status_code == 400:
-                        print('Department change had no effect')
-                print('Changed department of engagement {}'.format(job_id))
-        else:
-            print('No change en department')
+        # Here we need to look into the NY-logic
+        # we should move users and make associations
+        print('Department')
+        for department in engagement_info['departments']:
+            org_unit = department['DepartmentUUIDIdentifier']
+            validity = self._validity(department)
+            data = {'org_unit': {'uuid': org_unit},
+                    'validity': validity}
+            payload = self._engagement_payload(data, mo_engagement)
+            response = self.helper._mo_post('details/edit', payload)
+            # TODO!!! Assertion needs to check the content of the 400-reply
+            assert response.status_code in (200, 400)
+            if response.status_code == 400:
+                print('Department change had no effect')
+            print('Changed department of engagement {}'.format(job_id))
 
-        if engagement_info['professions']:
-            if isinstance(engagement_info['professions'], dict):
-                professions = [engagement_info['professions']]
-            else:
-                professions = engagement_info['professions']
+        print('Profession')
+        for profession_info in engagement_info['professions']:
+            # We load the name from SD and handles the AD-integration
+            # when calculating the primary engagement.
+            emp_name = profession_info['EmploymentName']
 
-            for profession_info in professions:
-                # We load the name from SD and handles the AD-integration
-                # when calculating the primary engagement.
-                emp_name = profession_info['EmploymentName']
+            self._update_professions('emp_name')
 
-                self._update_professions('emp_name')
+            job_function = self.job_functions.get(emp_name)
+            validity = self._validity(profession_info)
+            data = {'job_function': {'uuid': job_function},
+                    'validity': validity}
+            payload = self._engagement_payload(data, mo_engagement)
+            response = self.helper._mo_post('details/edit', payload)
+            # TODO!!! Assertion needs to check the content of the 400-reply
+            assert response.status_code in (200, 400)
+            if response.status_code == 400:
+                print('Profession change had no effect')
+            print('Changed profession of engagement {}'.format(job_id))
 
-                job_function = self.job_functions.get(emp_name)
-                validity = self._validity(profession_info)
-                data = {'job_function': {'uuid': job_function},
-                        'validity': validity}
-                payload = self._engagement_payload(data, mo_engagement)
-                response = self.helper._mo_post('details/edit', payload)
-                # TODO!!! Assertion needs to check the content of the 400-reply
-                assert response.status_code in (200, 400)
-                if response.status_code == 400:
-                    print('Profession change had no effect')
-                print('Changed profession of engagement {}'.format(job_id))
-        else:
-            print('No change in profession')
-
-        if engagement_info['working_time']:
-            if isinstance(engagement_info['working_time'], dict):
-                work_times = [engagement_info['working_time']]
-            else:
-                work_times = engagement_info['working_time']
-
-            for worktime_info in work_times:
-                working_time = float(worktime_info['OccupationRate'])
-                validity = self._validity(worktime_info)
-                data = {'fraction': int(working_time * 1000000),
-                        'validity': validity}
-                payload = self._engagement_payload(data, mo_engagement)
-                response = self.helper._mo_post('details/edit', payload)
-                # TODO!!! Assertion needs to check the content of the 400-reply
-                assert response.status_code in (200, 400)
-                if response.status_code == 400:
-                    print('Work time effect change had no effect')
-                print('Changed working time of engagement {}'.format(job_id))
-        else:
-            print('No change in working time')
+        print('Working time')
+        for worktime_info in engagement_info['working_time']:
+            working_time = float(worktime_info['OccupationRate'])
+            validity = self._validity(worktime_info)
+            data = {'fraction': int(working_time * 1000000),
+                    'validity': validity}
+            payload = self._engagement_payload(data, mo_engagement)
+            response = self.helper._mo_post('details/edit', payload)
+            # TODO!!! Assertion needs to check the content of the 400-reply
+            assert response.status_code in (200, 400)
+            if response.status_code == 400:
+                print('Work time effect change had no effect')
+            print('Changed working time of engagement {}'.format(job_id))
 
     def _update_user_employments(self, cpr, sd_engagement):
         for engagement in sd_engagement:
             job_id, eng = self.engagement_components(engagement)
-           
+
             print('Job id: {}'.format(job_id))
+
             if job_id == '23878':
                 print('ERROR! This job is new and has no department!!!!!')
                 continue
@@ -452,9 +465,14 @@ class ChangeAtSD(object):
                         1/0
 
                     if status['EmploymentStatusCode'] == '0':
-                        print('What to do? Cpr: {}, job: {}'.format(cpr, job_id))
-                        print(engagement)
-                        1/0
+                        print('Status 0? Cpr: {}, job: {}'.format(cpr, job_id))
+                        mo_eng = self._find_engagement(job_id)
+                        if mo_eng:
+                            print('Edit engagegement {}'.format(mo_eng['uuid']))
+                            self.edit_engagement(engagement)
+                        else:
+                            print('Create new engagement')
+                            self.create_new_engagement(engagement, status)
                         skip = True
 
                     if status['EmploymentStatusCode'] == '1':
@@ -468,15 +486,16 @@ class ChangeAtSD(object):
                         skip = True
 
                     if status['EmploymentStatusCode'] == '3':
-                        print(engagement)
                         print('Create a leave for {} '.format(cpr))
-                        skip = True
-                        1/0
+                        self.create_leave(status, job_id)
 
                     if status['EmploymentStatusCode'] == '8':
                         from_date = status['ActivationDate']
                         print('Terminate user {}, job_id {} '.format(cpr, job_id))
-                        self._terminate_engagement(from_date, job_id)
+                        success = self._terminate_engagement(from_date, job_id)
+                        if not succes:
+                            print('Problem wit job-id: {}'.format(job_id))
+                            skip = True
 
                     if status['EmploymentStatusCode'] in ('S', '9'):
                         for mo_eng in self.mo_engagement:
@@ -496,29 +515,30 @@ class ChangeAtSD(object):
 
             if skip:
                 continue
+            self.edit_engagement(engagement)
+
+            # TODO: Some of these assertsmens should go to edit, all othe
+            # lins should disappear.
+
             # If status is not present, we should edit existing employment
-            if eng['departments']:
-                print('Change in department')
-                self.edit_engagement(engagement)
+            # if eng['departments']:
+            #    print('Change in department')
+            #    self.edit_engagement(engagement)
 
-            if eng['professions']:
-                # self._update_professions(eng['professions'])
-                mo_eng = self._find_engagement(job_id)
-                if mo_eng:
-                    self.edit_engagement(engagement)
-                else:
-                    print('Problem with profession update!')
-                    print(engagement)
-                continue
+            # if eng['professions']:
+            #    # self._update_professions(eng['professions'])
+            #    mo_eng = self._find_engagement(job_id)
+            #    if mo_eng:
+            #        self.edit_engagement(engagement)
+            #    else:
+            #        print('Problem with profession update!')
+            #        print(engagement)
+            #    continue
 
-            if eng['working_time']:
-                mo_eng = self._find_engagement(job_id)
-                assert mo_eng  # In this case, None would be plain wrong
-                self.edit_engagement(engagement)
-
-            if eng['employment_date']:
-                # This seems to be redundant information
-                pass
+            # if eng['working_time']:
+            #    mo_eng = self._find_engagement(job_id)
+            #    assert mo_eng  # In this case, None would be plain wrong
+            #    self.edit_engagement(engagement)
 
     def update_all_employments(self):
         employments_changed = self.read_employment_changed()
@@ -660,11 +680,17 @@ if __name__ == '__main__':
     # from_date = datetime.datetime(2019, 2, 17, 0, 0)
     # to_date = datetime.datetime(2019, 2, 18, 0, 0)
 
-    from_date = datetime.datetime(2019, 2, 18, 0, 0)
-    to_date = datetime.datetime(2019, 2, 19, 0, 0)
+    # from_date = datetime.datetime(2019, 2, 18, 0, 0)
+    # to_date = datetime.datetime(2019, 2, 19, 0, 0)
+
+    # from_date = datetime.datetime(2019, 2, 19, 0, 0)
+    # to_date = datetime.datetime(2019, 2, 20, 0, 0)
+
+    from_date = datetime.datetime(2019, 2, 20, 0, 0)
+    to_date = datetime.datetime(2019, 2, 21, 0, 0)
 
     sd_updater = ChangeAtSD(from_date, to_date)
-    #sd_updater.recalculate_primary()
-    
+    # sd_updater.recalculate_primary()
+
     sd_updater.update_changed_persons()
     sd_updater.update_all_employments()
