@@ -47,10 +47,11 @@ class ChangeAtSD(object):
 
         facet_info = self.helper.read_classes_in_facet('leave_type')
         self.leave_uuid = facet_info[0][0]['uuid']
+        facet_info = self.helper.read_classes_in_facet('association_type')
+        self.association_uuid = facet_info[0][0]['uuid']
 
-        # If this assertment fails, we will need to re-run the organisation
-        # stucture through the normal importer.
-        assert self.check_non_existent_departments()
+        # Create non-existent departments
+        self.check_non_existent_departments()
 
     def _add_profession_to_lora(self, profession):
         payload = sd_payloads.profession(profession, self.org_uuid,
@@ -159,7 +160,7 @@ class ChangeAtSD(object):
                     departments = [departments]
                 for department in departments:
                     ou = self.helper.read_ou(department['DepartmentUUIDIdentifier'])
-                    if 'status' not in ou:  # Unit does exist
+                    if 'status' not in ou:  # Unit already exist
                         continue
                     payload = sd_payloads.new_department(
                         department, self.org_uuid, self.orphan_uuid
@@ -246,6 +247,7 @@ class ChangeAtSD(object):
         """ Create a leave for a user """
         print('Create leave')
         # TODO: This code potentially creates duplicated leaves.
+        # Implment solution like the one for associations.
         print('Status: {}'.format(status))
         mo_eng = self._find_engagement(job_id)
         payload = sd_payloads.create_leave(mo_eng, self.mo_person, self.leave_uuid,
@@ -254,28 +256,70 @@ class ChangeAtSD(object):
         response = self.helper._mo_post('details/create', payload)
         assert response.status_code == 201
 
+    def create_association(self, department, person, job_id, validity):
+        """ Create a association for a user """
+        print('Create association')
+        associations = self.helper.read_user_association(person['uuid'],
+                                                         read_all=True)
+
+        hit = False
+        for association in associations:
+            if (association['validity'] == validity and
+                association['org_unit']['uuid'] == department):
+                hit = True
+
+        if not hit:
+            payload = sd_payloads.create_association(department, person,
+                                                     self.association_uuid,
+                                                     job_id, validity)
+            response = self.helper._mo_post('details/create', payload)
+            assert response.status_code == 201
+
     def create_new_engagement(self, engagement, status):
         """
         Create a new engagement
+        AD integration handled in check for primary engagement.
         """
         job_id, engagement_info = self.engagement_components(engagement)
-        # AD integration handled in check for primary engagement.
+        validity = self._validity(status)
+
+        print('----')
+        for key, value in engagement_info.items():
+            print()
+            print('{}: {}'.format(key, value))
 
         also_edit = False
         if len(engagement_info['departments']) > 1:
             also_edit = True
         org_unit = engagement_info['departments'][0]['DepartmentUUIDIdentifier']
-        # Here we need to look into the NY-logic
-        # we should move users and make associations
+        print('Org unit for new engagement: {}'.format(org_unit))
+
+        # Move users and make associations according to NY logic
+
+        # This must go to sd_common, or some kind of conf
+        too_deep = ['Afdelings-niveau', 'NY1-niveau', 'NY2-niveau']
+
+        ou_info = self.helper.read_ou(org_unit)
+        if ou_info['org_unit_type']['name'] in too_deep:
+            self.create_association(org_unit, self.mo_person,
+                                    job_id, validity)
+
+        while ou_info['org_unit_type']['name'] in too_deep:
+            ou_info = ou_info['parent']
+        org_unit = ou_info['uuid']
 
         if len(engagement_info['professions']) > 1:
             also_edit = True
         emp_name = engagement_info['professions'][0]['EmploymentName']
 
+        if len(engagement_info['working_time']) > 1:
+            also_edit = True
+        working_time = float(engagement_info['working_time'][0]['OccupationRate'])
+
         self._update_professions(emp_name)
         job_function = self.job_functions.get(emp_name)
-        validity = self._validity(status)
         engagement_type = self.non_primary
+
         print('Create engagement validity: {}'.format(validity))
         # TODO: Move payload away from the function itself
         payload = {
@@ -285,6 +329,7 @@ class ChangeAtSD(object):
             'job_function': {'uuid': job_function},
             'engagement_type': {'uuid': engagement_type},
             'user_key': job_id,
+            'fraction': int(working_time * 1000000),
             'validity': validity
         }
 
@@ -318,15 +363,6 @@ class ChangeAtSD(object):
         self._assert(response)
         return True
 
-    def _engagement_payload(self, data, mo_engagement):
-        # Consider to find the mo_engagement localy
-        payload = {
-            'type': 'engagement',
-            'uuid': mo_engagement['uuid'],
-            'data': data
-        }
-        return payload
-
     def edit_engagement(self, engagement):
         """
         Edit an engagement
@@ -341,10 +377,11 @@ class ChangeAtSD(object):
         for department in engagement_info['departments']:
             print('Change department of engagement {}:'.format(job_id))
             org_unit = department['DepartmentUUIDIdentifier']
+            print('Org unit for edited engagement: {}'.format(org_unit))
             validity = self._validity(department)
             data = {'org_unit': {'uuid': org_unit},
                     'validity': validity}
-            payload = self._engagement_payload(data, mo_engagement)
+            payload = sd_payloads.engagement(data, mo_engagement)
             response = self.helper._mo_post('details/edit', payload)
             self._assert(response)
 
@@ -360,7 +397,7 @@ class ChangeAtSD(object):
 
             data = {'job_function': {'uuid': job_function},
                     'validity': validity}
-            payload = self._engagement_payload(data, mo_engagement)
+            payload = sd_payloads.engagement(data, mo_engagement)
             response = self.helper._mo_post('details/edit', payload)
             self._assert(response)
 
@@ -371,7 +408,7 @@ class ChangeAtSD(object):
             validity = self._validity(worktime_info)
             data = {'fraction': int(working_time * 1000000),
                     'validity': validity}
-            payload = self._engagement_payload(data, mo_engagement)
+            payload = sd_payloads.engagement(data, mo_engagement)
             response = self.helper._mo_post('details/edit', payload)
             self._assert(response)
 
@@ -581,8 +618,8 @@ class ChangeAtSD(object):
 
 
 if __name__ == '__main__':
-    # from_date = datetime.datetime(2019, 2, 15, 0, 0)
-    # to_date = datetime.datetime(2019, 2, 16, 0, 0)
+    from_date = datetime.datetime(2019, 2, 15, 0, 0)
+    to_date = datetime.datetime(2019, 2, 16, 0, 0)
 
     # from_date = datetime.datetime(2019, 2, 16, 0, 0)
     # to_date = datetime.datetime(2019, 2, 17, 0, 0)
@@ -590,8 +627,8 @@ if __name__ == '__main__':
     # from_date = datetime.datetime(2019, 2, 17, 0, 0)
     # to_date = datetime.datetime(2019, 2, 18, 0, 0)
 
-    from_date = datetime.datetime(2019, 2, 18, 0, 0)
-    to_date = datetime.datetime(2019, 2, 19, 0, 0)
+    # from_date = datetime.datetime(2019, 2, 18, 0, 0)
+    # to_date = datetime.datetime(2019, 2, 19, 0, 0)
 
     # from_date = datetime.datetime(2019, 2, 19, 0, 0)
     # to_date = datetime.datetime(2019, 2, 20, 0, 0)
