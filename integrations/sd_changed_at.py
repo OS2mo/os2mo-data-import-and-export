@@ -282,23 +282,19 @@ class ChangeAtSD(object):
         """
         job_id, engagement_info = self.engagement_components(engagement)
         validity = self._validity(status)
-
-        print('----')
-        for key, value in engagement_info.items():
-            print()
-            print('{}: {}'.format(key, value))
-
         also_edit = False
-        if len(engagement_info['departments']) > 1:
+        if (len(engagement_info['professions']) > 1 or
+            len(engagement_info['working_time']) > 1 or
+            len(engagement_info['departments']) > 1):
             also_edit = True
+
         org_unit = engagement_info['departments'][0]['DepartmentUUIDIdentifier']
         print('Org unit for new engagement: {}'.format(org_unit))
-
-        # Move users and make associations according to NY logic
 
         # This must go to sd_common, or some kind of conf
         too_deep = ['Afdelings-niveau', 'NY1-niveau', 'NY2-niveau']
 
+        # Move users and make associations according to NY logic
         ou_info = self.helper.read_ou(org_unit)
         if ou_info['org_unit_type']['name'] in too_deep:
             self.create_association(org_unit, self.mo_person,
@@ -308,30 +304,12 @@ class ChangeAtSD(object):
             ou_info = ou_info['parent']
         org_unit = ou_info['uuid']
 
-        if len(engagement_info['professions']) > 1:
-            also_edit = True
         emp_name = engagement_info['professions'][0]['EmploymentName']
-
-        if len(engagement_info['working_time']) > 1:
-            also_edit = True
-        working_time = float(engagement_info['working_time'][0]['OccupationRate'])
-
         self._update_professions(emp_name)
-        job_function = self.job_functions.get(emp_name)
-        engagement_type = self.non_primary
-
-        print('Create engagement validity: {}'.format(validity))
-        # TODO: Move payload away from the function itself
-        payload = {
-            'type': 'engagement',
-            'org_unit': {'uuid': org_unit},
-            'person': {'uuid': self.mo_person['uuid']},
-            'job_function': {'uuid': job_function},
-            'engagement_type': {'uuid': engagement_type},
-            'user_key': job_id,
-            'fraction': int(working_time * 1000000),
-            'validity': validity
-        }
+        payload = sd_payloads.create_engagement(org_unit, self.mo_person,
+                                                self.job_functions.get(emp_name),
+                                                self.non_primary, job_id,
+                                                engagement_info, validity)
 
         response = self.helper._mo_post('details/create', payload)
         assert response.status_code == 201
