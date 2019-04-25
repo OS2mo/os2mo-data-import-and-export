@@ -261,7 +261,6 @@ class ChangeAtSD(object):
         print('Create association')
         associations = self.helper.read_user_association(person['uuid'],
                                                          read_all=True)
-
         hit = False
         for association in associations:
             if (association['validity'] == validity and
@@ -274,6 +273,21 @@ class ChangeAtSD(object):
                                                      job_id, validity)
             response = self.helper._mo_post('details/create', payload)
             assert response.status_code == 201
+
+    def apply_NY_logic(self, org_unit, job_id, validity):
+        # This must go to sd_common, or some kind of conf
+        too_deep = ['Afdelings-niveau', 'NY1-niveau', 'NY2-niveau']
+
+        # Move users and make associations according to NY logic
+        ou_info = self.helper.read_ou(org_unit)
+        if ou_info['org_unit_type']['name'] in too_deep:
+            self.create_association(org_unit, self.mo_person,
+                                    job_id, validity)
+
+        while ou_info['org_unit_type']['name'] in too_deep:
+            ou_info = ou_info['parent']
+        org_unit = ou_info['uuid']
+        return org_unit
 
     def create_new_engagement(self, engagement, status):
         """
@@ -290,19 +304,7 @@ class ChangeAtSD(object):
 
         org_unit = engagement_info['departments'][0]['DepartmentUUIDIdentifier']
         print('Org unit for new engagement: {}'.format(org_unit))
-
-        # This must go to sd_common, or some kind of conf
-        too_deep = ['Afdelings-niveau', 'NY1-niveau', 'NY2-niveau']
-
-        # Move users and make associations according to NY logic
-        ou_info = self.helper.read_ou(org_unit)
-        if ou_info['org_unit_type']['name'] in too_deep:
-            self.create_association(org_unit, self.mo_person,
-                                    job_id, validity)
-
-        while ou_info['org_unit_type']['name'] in too_deep:
-            ou_info = ou_info['parent']
-        org_unit = ou_info['uuid']
+        org_unit = self.apply_NY_logic(org_unit, job_id, validity)
 
         emp_name = engagement_info['professions'][0]['EmploymentName']
         self._update_professions(emp_name)
@@ -355,6 +357,17 @@ class ChangeAtSD(object):
         for department in engagement_info['departments']:
             print('Change department of engagement {}:'.format(job_id))
             org_unit = department['DepartmentUUIDIdentifier']
+            print(self.mo_person)
+            associations = self.helper.read_user_association(self.mo_person['uuid'],
+                                                             read_all=True)
+            current_association = None
+            for association in associations:
+                if association['user_key'] == job_id:
+                    current_association = association['uuid']
+            print('We need to move {}'.format(current_association))
+                
+            org_unit = self.apply_NY_logic(org_unit, job_id, validity)
+            
             print('Org unit for edited engagement: {}'.format(org_unit))
             validity = self._validity(department)
             data = {'org_unit': {'uuid': org_unit},
