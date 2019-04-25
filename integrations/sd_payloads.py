@@ -12,6 +12,15 @@ def new_department(department, org, unit_type):
     }
     return payload
 
+def engagement(data, mo_engagement):
+    payload = {
+        'type': 'engagement',
+        'uuid': mo_engagement['uuid'],
+        'data': data
+    }
+    return payload
+
+
 
 def create_leave(mo_eng, mo_person, leave_uuid, job_id, validity):
     payload = {
@@ -19,6 +28,18 @@ def create_leave(mo_eng, mo_person, leave_uuid, job_id, validity):
         'org_unit': {'uuid': mo_eng['org_unit']['uuid']},
         'person': {'uuid': mo_person['uuid']},
         'leave_type': {'uuid': leave_uuid},
+        'user_key': job_id,
+        'validity': validity
+    }
+    return payload
+
+
+def create_association(org_unit, mo_person, association_uuid, job_id, validity):
+    payload = {
+        'type': 'association',
+        'org_unit': {'uuid': org_unit},
+        'person': {'uuid': mo_person['uuid']},
+        'association_type': {'uuid': association_uuid},
         'user_key': job_id,
         'validity': validity
     }

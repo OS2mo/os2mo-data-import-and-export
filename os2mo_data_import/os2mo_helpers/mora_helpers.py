@@ -255,6 +255,23 @@ class MoraHelper(object):
                 engagements = engagements + engagement
         return engagements
 
+    def read_user_association(self, user, at=None, read_all=False, use_cache=None):
+        """
+        Read associations for a user.
+        :param user: UUID of the wanted user.
+        :return: List of the users associations.
+        """
+        if not read_all:
+            associations = self._mo_lookup(user, 'e/{}/details/association',
+                                          at, use_cache)
+        else:
+            associations = []
+            for validity in ['past', 'present', 'future']:
+                association = self._mo_lookup(user, 'e/{}/details/association',
+                                              validity=validity, use_cache=False)
+                associations = associations + association
+        return associations
+
     def read_user_address(self, user, username=False, cpr=False,
                           at=None, use_cache=None):
         """ Read phone number and email from user
