@@ -208,8 +208,10 @@ class ChangeAtSD(object):
 
     def _update_professions(self, emp_name):
         # Add new profssions to LoRa
+        print('  Update professions: {}'.format(emp_name))
         job_uuid = self.job_functions.get(emp_name)
-        if not job_uuid:
+        print('  Update professions uuid: {}'.format(job_uuid))
+        if job_uuid is None:
             print('New job function: {}'.format(emp_name))
             response = self._add_profession_to_lora(emp_name)
             uuid = response['uuid']
@@ -357,19 +359,30 @@ class ChangeAtSD(object):
         for department in engagement_info['departments']:
             print('Change department of engagement {}:'.format(job_id))
             org_unit = department['DepartmentUUIDIdentifier']
-            print(self.mo_person)
+
+            mo_eng = self._find_engagement(job_id)
+            print('MO ENGAGEMENT VALIDITY: {}'.format(mo_eng['validity']))
+            validity = mo_eng['validity']
+            # This is the validity of the department, not the engagement
+            # validity = self._validity(department)
+
             associations = self.helper.read_user_association(self.mo_person['uuid'],
                                                              read_all=True)
             current_association = None
             for association in associations:
                 if association['user_key'] == job_id:
                     current_association = association['uuid']
-            print('We need to move {}'.format(current_association))
-                
+            if current_association:
+                print('We need to move {}'.format(current_association))
+                data = {'org_unit': {'uuid': org_unit},
+                        'validity': validity}
+                payload = sd_payloads.association(data, current_association)
+                response = self.helper._mo_post('details/edit', payload)
+                self._assert(response)
+
             org_unit = self.apply_NY_logic(org_unit, job_id, validity)
-            
+
             print('Org unit for edited engagement: {}'.format(org_unit))
-            validity = self._validity(department)
             data = {'org_unit': {'uuid': org_unit},
                     'validity': validity}
             payload = sd_payloads.engagement(data, mo_engagement)
@@ -382,13 +395,16 @@ class ChangeAtSD(object):
             # We load the name from SD and handles the AD-integration
             # when calculating the primary engagement.
             emp_name = profession_info['EmploymentName']
-            self._update_professions('emp_name')
+            print('Employment name: {}'.format(emp_name))
+            self._update_professions(emp_name)
             job_function = self.job_functions.get(emp_name)
             validity = self._validity(profession_info)
 
             data = {'job_function': {'uuid': job_function},
                     'validity': validity}
             payload = sd_payloads.engagement(data, mo_engagement)
+            print('Profession payload')
+            print(payload)
             response = self.helper._mo_post('details/edit', payload)
             self._assert(response)
 
@@ -400,6 +416,8 @@ class ChangeAtSD(object):
             data = {'fraction': int(working_time * 1000000),
                     'validity': validity}
             payload = sd_payloads.engagement(data, mo_engagement)
+            # print('Worktime payolad:')
+            # print(payload)
             response = self.helper._mo_post('details/edit', payload)
             self._assert(response)
 
@@ -409,11 +427,6 @@ class ChangeAtSD(object):
 
             print('Job id: {}'.format(job_id))
 
-            """
-            if job_id == '23878':
-                print('ERROR! This job is new and has no department!!!!!')
-                continue
-            """
             skip = False
             # If status is present, we have a potential creation
             if eng['status_list']:
@@ -461,6 +474,7 @@ class ChangeAtSD(object):
                     if status['EmploymentStatusCode'] in ('S', '9'):
                         for mo_eng in self.mo_engagement:
                             if mo_eng['user_key'] == job_id:
+                                print(status)
                                 consistent = self._compare_dates(
                                     mo_eng['validity']['to'],
                                     status['ActivationDate']
@@ -609,8 +623,8 @@ class ChangeAtSD(object):
 
 
 if __name__ == '__main__':
-    from_date = datetime.datetime(2019, 2, 15, 0, 0)
-    to_date = datetime.datetime(2019, 2, 16, 0, 0)
+    # from_date = datetime.datetime(2019, 2, 15, 0, 0)
+    # to_date = datetime.datetime(2019, 2, 16, 0, 0)
 
     # from_date = datetime.datetime(2019, 2, 16, 0, 0)
     # to_date = datetime.datetime(2019, 2, 17, 0, 0)
@@ -624,8 +638,8 @@ if __name__ == '__main__':
     # from_date = datetime.datetime(2019, 2, 19, 0, 0)
     # to_date = datetime.datetime(2019, 2, 20, 0, 0)
 
-    # from_date = datetime.datetime(2019, 2, 20, 0, 0)
-    # to_date = datetime.datetime(2019, 2, 21, 0, 0)
+    from_date = datetime.datetime(2019, 2, 20, 0, 0)
+    to_date = datetime.datetime(2019, 2, 21, 0, 0)
 
     sd_updater = ChangeAtSD(from_date, to_date)
     # sd_updater.recalculate_primary()
