@@ -413,7 +413,7 @@ class SdImport(object):
                 if int(status) == 3:
                     # Orlov
                     pass
-                if int(status) == 8:
+                if int(status) in (8, 9):
                     # Fratrædt
                     continue
 
@@ -433,7 +433,7 @@ class SdImport(object):
             exactly_one_primary = False
             for employment in employments:
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
-                if int(status) == 8:
+                if int(status) in (8, 9):
                     # Fratrådt
                     continue
 
