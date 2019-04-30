@@ -259,7 +259,8 @@ class ChangeAtSD(object):
         """ Create a association for a user """
         print('Create association')
         associations = self.helper.read_user_association(person['uuid'],
-                                                         read_all=True)
+                                                         read_all=True,
+                                                         only_primary=True)
         hit = False
         for association in associations:
             if (
@@ -322,6 +323,7 @@ class ChangeAtSD(object):
         self.mo_engagement = self.helper.read_user_engagement(
             self.mo_person['uuid'],
             read_all=True,
+            only_primary=True,
             use_cache=False
         )
         print('Engagement {} created'.format(job_id))
@@ -517,6 +519,7 @@ class ChangeAtSD(object):
             self.mo_engagement = self.helper.read_user_engagement(
                 self.mo_person['uuid'],
                 read_all=True,
+                only_primary=True,
                 use_cache=False
             )
             self._update_user_employments(cpr, sd_engagement)
@@ -555,6 +558,7 @@ class ChangeAtSD(object):
         uuid = self.mo_person['uuid']
         mo_engagement = self.helper.read_user_engagement(
             user=uuid,
+            only_primary=True,
             read_all=True,
         )
         dates = set()
@@ -576,6 +580,7 @@ class ChangeAtSD(object):
             mo_engagement = self.helper.read_user_engagement(
                 user=uuid,
                 at=date,
+                only_primary=True,
                 use_cache=False
             )
             (min_id, max_rate) = self._calculate_rate_and_ids(mo_engagement)
@@ -635,7 +640,7 @@ if __name__ == '__main__':
 
     from_date = datetime.datetime(2019, 2, 15, 0, 0)
     for i in range(0, 30):
-        to_date = datetime.timedelta(days=1)
+        to_date = from_date + datetime.timedelta(days=1)
         sd_updater = ChangeAtSD(from_date, to_date)
         sd_updater.update_changed_persons()
         sd_updater.update_all_employments()
