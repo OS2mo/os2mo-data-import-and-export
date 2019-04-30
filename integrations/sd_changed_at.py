@@ -474,9 +474,6 @@ class ChangeAtSD(object):
 
                     if status['EmploymentStatusCode'] in ('S', '9'):
                         for mo_eng in self.mo_engagement:
-                            print('MO eng:')
-                            print(mo_eng)
-                            print()
                             if mo_eng['user_key'] == job_id:
                                 print(status)
                                 consistent = self._compare_dates(
@@ -539,6 +536,7 @@ class ChangeAtSD(object):
                 1/0
                 return None, None
             employment_id = eng['user_key']
+
             if not eng['fraction']:
                 eng['fraction'] = 0
                 continue
