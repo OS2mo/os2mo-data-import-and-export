@@ -194,7 +194,7 @@ class ChangeAtSD(object):
         # print('Find engagement, from date: {}'.format(from_date))
         relevant_engagement = None
         try:
-            job_id_number = int(job_id)
+            int(job_id)
             user_key = str(int(job_id)).zfill(5)
         except ValueError:
             user_key = job_id
@@ -208,11 +208,8 @@ class ChangeAtSD(object):
 
     def _update_professions(self, emp_name):
         # Add new profssions to LoRa
-        print('  Update professions: {}'.format(emp_name))
         job_uuid = self.job_functions.get(emp_name)
-        print('  Update professions uuid: {}'.format(job_uuid))
         if job_uuid is None:
-            print('New job function: {}'.format(emp_name))
             response = self._add_profession_to_lora(emp_name)
             uuid = response['uuid']
             self.job_functions[emp_name] = uuid
@@ -265,8 +262,10 @@ class ChangeAtSD(object):
                                                          read_all=True)
         hit = False
         for association in associations:
-            if (association['validity'] == validity and
-                association['org_unit']['uuid'] == department):
+            if (
+                    association['validity'] == validity and
+                    association['org_unit']['uuid'] == department
+            ):
                 hit = True
 
         if not hit:
@@ -299,9 +298,11 @@ class ChangeAtSD(object):
         job_id, engagement_info = self.engagement_components(engagement)
         validity = self._validity(status)
         also_edit = False
-        if (len(engagement_info['professions']) > 1 or
-            len(engagement_info['working_time']) > 1 or
-            len(engagement_info['departments']) > 1):
+        if (
+                len(engagement_info['professions']) > 1 or
+                len(engagement_info['working_time']) > 1 or
+                len(engagement_info['departments']) > 1
+        ):
             also_edit = True
 
         org_unit = engagement_info['departments'][0]['DepartmentUUIDIdentifier']
@@ -398,13 +399,13 @@ class ChangeAtSD(object):
             print('Employment name: {}'.format(emp_name))
             self._update_professions(emp_name)
             job_function = self.job_functions.get(emp_name)
-            validity = self._validity(profession_info)
+
+            mo_eng = self._find_engagement(job_id)
+            validity = mo_eng['validity']
 
             data = {'job_function': {'uuid': job_function},
                     'validity': validity}
             payload = sd_payloads.engagement(data, mo_engagement)
-            print('Profession payload')
-            print(payload)
             response = self.helper._mo_post('details/edit', payload)
             self._assert(response)
 
@@ -412,19 +413,19 @@ class ChangeAtSD(object):
         for worktime_info in engagement_info['working_time']:
             print('Change working time of engagement {}'.format(job_id))
             working_time = float(worktime_info['OccupationRate'])
-            validity = self._validity(worktime_info)
+
+            mo_eng = self._find_engagement(job_id)
+            validity = mo_eng['validity']
+
             data = {'fraction': int(working_time * 1000000),
                     'validity': validity}
             payload = sd_payloads.engagement(data, mo_engagement)
-            # print('Worktime payolad:')
-            # print(payload)
             response = self.helper._mo_post('details/edit', payload)
             self._assert(response)
 
     def _update_user_employments(self, cpr, sd_engagement):
         for engagement in sd_engagement:
             job_id, eng = self.engagement_components(engagement)
-
             print('Job id: {}'.format(job_id))
 
             skip = False
@@ -473,6 +474,9 @@ class ChangeAtSD(object):
 
                     if status['EmploymentStatusCode'] in ('S', '9'):
                         for mo_eng in self.mo_engagement:
+                            print('MO eng:')
+                            print(mo_eng)
+                            print()
                             if mo_eng['user_key'] == job_id:
                                 print(status)
                                 consistent = self._compare_dates(
@@ -521,7 +525,7 @@ class ChangeAtSD(object):
             self._update_user_employments(cpr, sd_engagement)
             # Re-calculate primary after all updates for user has been performed.
             print('Calculate primary:')
-            # self.recalculate_primary()
+            self.recalculate_primary()
 
     def _calculate_rate_and_ids(self, mo_engagement):
         max_rate = 0
@@ -535,7 +539,6 @@ class ChangeAtSD(object):
                 1/0
                 return None, None
             employment_id = eng['user_key']
-            print('Employment_id {}'.format(employment_id))
             if not eng['fraction']:
                 eng['fraction'] = 0
                 continue
@@ -552,27 +555,22 @@ class ChangeAtSD(object):
 
     def recalculate_primary(self):
         uuid = self.mo_person['uuid']
-        # uuid = '136fc505-7f54-4c59-97bc-83f3b54db55e'
-        # uuid = '7f3d4555-89ef-4d83-a912-91b202998b1b'
-        # uuid = '806c990b-0f2b-4957-a673-7b7ffe7de601'
         mo_engagement = self.helper.read_user_engagement(
             user=uuid,
             read_all=True,
         )
         dates = set()
         for eng in mo_engagement:
-            dates.add(eng['validity']['from'])
+            dates.add(datetime.datetime.strptime(eng['validity']['from'],
+                                                 '%Y-%m-%d'))
             if eng['validity']['to']:
                 to = datetime.datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
                 day_after = to + datetime.timedelta(days=1)
-                day_after = datetime.datetime.strftime(day_after, "%Y-%m-%d")
                 dates.add(day_after)
             else:
-                dates.add('9999-12-30')
+                dates.add(datetime.datetime(9999, 12, 30, 0, 0))
 
-        print(dates)
         date_list = sorted(list(dates))
-        print()
 
         for i in range(0, len(date_list) - 1):
             date = date_list[i]
@@ -588,11 +586,16 @@ class ChangeAtSD(object):
 
             exactly_one_primary = False
             for eng in mo_engagement:
-                if date_list[i + 1] == '9999-12-30':
+                if date_list[i + 1] == datetime.datetime(9999, 12, 30, 0, 0):
                     to = None
                 else:
-                    to = date_list[i + 1]
-                validity = {'from': date, 'to': to}
+                    to = datetime.datetime.strftime(
+                        date_list[i + 1] - datetime.timedelta(days=1), "%Y-%m-%d"
+                    )
+                validity = {
+                    'from': datetime.datetime.strftime(date, "%Y-%m-%d"),
+                    'to': to
+                }
 
                 if 'user_key' not in eng:
                     break
@@ -616,33 +619,27 @@ class ChangeAtSD(object):
                         'engagement_type': {'uuid': self.non_primary},
                         'validity': validity
                     }
-                payload = self._engagement_payload(data, eng)
-                print(payload)
+                payload = sd_payloads.engagement(data, eng)
                 response = self.helper._mo_post('details/edit', payload)
                 assert response.status_code in (200, 400)
 
 
 if __name__ == '__main__':
-    # from_date = datetime.datetime(2019, 2, 15, 0, 0)
-    # to_date = datetime.datetime(2019, 2, 16, 0, 0)
-
-    # from_date = datetime.datetime(2019, 2, 16, 0, 0)
-    # to_date = datetime.datetime(2019, 2, 17, 0, 0)
-
-    # from_date = datetime.datetime(2019, 2, 17, 0, 0)
-    # to_date = datetime.datetime(2019, 2, 18, 0, 0)
-
-    # from_date = datetime.datetime(2019, 2, 18, 0, 0)
-    # to_date = datetime.datetime(2019, 2, 19, 0, 0)
-
-    # from_date = datetime.datetime(2019, 2, 19, 0, 0)
-    # to_date = datetime.datetime(2019, 2, 20, 0, 0)
-
-    from_date = datetime.datetime(2019, 2, 20, 0, 0)
-    to_date = datetime.datetime(2019, 2, 21, 0, 0)
-
-    sd_updater = ChangeAtSD(from_date, to_date)
     # sd_updater.recalculate_primary()
-
+    """
+    from_date = datetime.datetime(2019, 2, 15, 0, 0)
+    to_date = datetime.datetime(2019, 2, 16, 0, 0)
+    sd_updater = ChangeAtSD(from_date, to_date)
     sd_updater.update_changed_persons()
     sd_updater.update_all_employments()
+    del(sd_updater)
+    """
+
+    from_date = datetime.datetime(2019, 2, 15, 0, 0)
+    for i in range(0, 30):
+        to_date = datetime.timedelta(days=1)
+        sd_updater = ChangeAtSD(from_date, to_date)
+        sd_updater.update_changed_persons()
+        sd_updater.update_all_employments()
+        del(sd_updater)
+        from_date = to_date
