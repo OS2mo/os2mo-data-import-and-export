@@ -737,7 +737,11 @@ class OrganisationUnitType(MoType):
 
 class EmployeeType(MoType):
     """
-    :param str name: Full name of the employee
+    A MO employee. Either name OR givenname and surname should be supplied.
+    :param str name: Full name of the employee, if type is a tupe with two elements,
+    they will be considered as givenname and surname.
+    :param str givenname: Given name of the employee
+    :param str surname: Surname of the employee
     :param str cpr_no: 10 digit CPR identifier code
     :param str user_key: (Optional) user key for internal reference
     :param str org: Reference to the organisation to which the employee belongs
@@ -749,7 +753,13 @@ class EmployeeType(MoType):
     def __init__(self, name, cpr_no, org=None, uuid=None, user_key=None):
         super().__init__()
 
-        self.name = name
+        if isinstance(name, tuple):
+            self.givenname = name[0]
+            self.surname = name[1]
+        else:
+            self.givenname = name.rsplit(" ", maxsplit=1)[0]
+            self.surname = name[len(self.givenname):].strip()
+            
         self.cpr_no = cpr_no
 
         self.uuid = uuid
@@ -774,11 +784,11 @@ class EmployeeType(MoType):
             raise ReferenceError("UUID of the organisation is missing")
 
         self.payload = {
-            "name": self.name,
+            "givenname": self.givenname,
+            "surname": self.surname,
             "cpr_no": self.cpr_no,
             "org": {
                 "uuid": self.org_uuid
             }
         }
-
         return self._build_payload()
