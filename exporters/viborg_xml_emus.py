@@ -19,7 +19,7 @@ import requests
 import uuid
 import os
 
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
+MORA_BASE = os.environ.get('MORA_BASE', 'localhost:80')
 MORA_ROOT_ORG_UNIT_NAME = os.environ.get('MORA_ROOT_ORG_UNIT_NAME', 'Viborg Kommune')
 USERID_ITSYSTEM = os.environ.get('USERID_ITSYSTEM', 'Active Directory')
 EMUS_FILENAME = os.environ.get('EMUS_FILENAME', 'emus_filename.xml')
