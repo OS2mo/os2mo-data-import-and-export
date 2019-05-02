@@ -9,6 +9,7 @@
 import os
 import pickle
 import hashlib
+import datetime
 from anytree import Node
 import ad_reader
 import dawa_helper
@@ -385,7 +386,7 @@ class SdImport(object):
             self._add_sd_department(department)
         self.nodes = self._create_org_tree_structure()
 
-    def create_employees(self, differential_update_date=None):
+    def create_employees(self):
         params = {
             'StatusActiveIndicator': 'true',
             'DepartmentIndicator': 'true',
@@ -393,7 +394,7 @@ class SdImport(object):
             'ProfessionIndicator': 'true',
             'WorkingTimeIndicator': 'true',
             'UUIDIndicator': 'true',
-            'StatusPassiveIndicator': 'false',
+            'StatusPassiveIndicator': 'true',
             'SalaryAgreementIndicator': 'false',
             'SalaryCodeGroupIndicator': 'false',
             'EffectiveDate': self.import_date
@@ -472,14 +473,32 @@ class SdImport(object):
                 emp_dep = employment['EmploymentDepartment']
                 unit = emp_dep['DepartmentUUIDIdentifier']
 
-                date_from = employment['EmploymentDate']
+                date_from = datetime.datetime.strptime(
+                    employment['EmploymentDate'],
+                    '%Y-%m-%d'
+                )
                 if int(status) in (8, 9):
-                    # TODO: Subtract one day from this.
-                    date_to = employment['EmploymentStatus']['ActivationDate']
+                    date_to = datetime.datetime.strptime(
+                        employment['EmploymentStatus']['ActivationDate'],
+                        '%Y-%m-%d'
+                    )
+                    date_to = date_to - datetime.timedelta(days=1)
                 else:
-                    date_to = employment['EmploymentStatus']['DeactivationDate']
-                if date_to == '9999-12-31':
+                    date_to = datetime.datetime.strptime(
+                        employment['EmploymentStatus']['DeactivationDate'],
+                        '%Y-%m-%d'
+                    )
+                print('-')
+                print(date_from)
+                print(date_to)
+                if date_from > date_to:
+                    date_from = date_to
+
+                date_from = datetime.datetime.strftime(date_from, "%Y-%m-%d")
+                if date_to == datetime.datetime(9999, 12, 31, 0, 0):
                     date_to = None
+                else:
+                    date_to = datetime.datetime.strftime(date_to, "%Y-%m-%d")
 
                 # Employees are not allowed to be in these units (allthough
                 # we do make an association). We must instead find the lowest
