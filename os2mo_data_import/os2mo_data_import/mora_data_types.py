@@ -312,16 +312,16 @@ class AssociationType(MoType):
     Engagement type detail.
     This detail describes the current employment.
 
-    :param str org_unit_ref: Reference to the parent organisation unit
-    :param str engagement_type_ref: Reference to the type of employment
+    :param str org_unit_ref: Reference to the parent organisation unit.
+    :param str engagement_type_ref: Reference to the type of employment.
 
     Examples: "Full time", "Part time", "External", "Internal" etc.
 
-    :param str job_function_ref: Reference to the "job title"
+    :param str job_function_ref: Reference to the "job title".
 
     Examples: "Bridge officer", "Science assistant", "Space dock cleaner" etc.
 
-    :param str association_type_ref: Reference to the type of association
+    :param str association_type_ref: Reference to the type of association.
 
     .. note::
         There are several ways to define an association,
@@ -333,26 +333,31 @@ class AssociationType(MoType):
          - Engagement: Jedi/Rebel scum
          - Association: Affairs on the moon of Endor
 
-    :param str/uuid address_uuid: Reference to a DAR address object
+    :param str/uuid address_uuid: Reference to a DAR address object.
 
-    :param str address_type_ref: Reference to the address type
+    :param str address_type_ref: Reference to the address type.
 
     .. important::
         This can only be a reference to a Klasse object with the scope: DAR.
 
-    :param str/uuid uuid: The object uuid
-    :param str date_from: Start date e.g. "1982-01-01"
-    :param str date_to: End date e.g. "1982-01-01"
+    :param str user_key: User key for the association.
+    :param str/uuid uuid: The object uuid.
+    :param str date_from: Start date e.g. "1982-01-01".
+    :param str date_to: End date e.g. "1982-01-01".
     """
 
     def __init__(self, association_type_ref, org_unit_ref, date_from,
                  date_to=None, address_uuid=None, address_type_ref=None,
-                 uuid=None):
+                 uuid=None, user_key=None):
         super().__init__()
 
         self.type_id = "association"
 
         self.uuid = uuid
+        if user_key:
+            self.user_key = user_key
+        else:
+            self.user_key = '-'
 
         self.org_unit_ref = org_unit_ref
         self.org_unit_uuid = None
@@ -401,7 +406,8 @@ class AssociationType(MoType):
                 "uuid": self.address_uuid,
                 "address_type": {
                     "uuid": self.address_type_uuid
-                }
+                },
+                'user_key': self.user_key
             }
         return self._build_payload()
 
