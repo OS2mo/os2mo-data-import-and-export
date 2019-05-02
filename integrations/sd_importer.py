@@ -306,7 +306,7 @@ class SdImport(object):
         """ Load all person details and store for later user """
         params = {
             'StatusActiveIndicator': 'true',
-            'StatusPassiveIndicator': 'false',
+            'StatusPassiveIndicator': 'true',
             'ContactInformationIndicator': 'false',
             'PostalAddressIndicator': 'false'
         }
@@ -433,9 +433,11 @@ class SdImport(object):
             exactly_one_primary = False
             for employment in employments:
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
+                """
                 if int(status) in (8, 9):
                     # Fratrådt
                     continue
+                """
 
                 # Find a valid job_function name, this might be overwritten from
                 # AD, if an AD value is available for this employment
@@ -470,8 +472,12 @@ class SdImport(object):
                 emp_dep = employment['EmploymentDepartment']
                 unit = emp_dep['DepartmentUUIDIdentifier']
 
-                date_from = employment['EmploymentStatus']['ActivationDate']
-                date_to = employment['EmploymentStatus']['DeactivationDate']
+                date_from = employment['EmploymentDate']
+                if int(status) in (8, 9):
+                    # TODO: Subtract one day from this.
+                    date_to = employment['EmploymentStatus']['ActivationDate']
+                else:
+                    date_to = employment['EmploymentStatus']['DeactivationDate']
                 if date_to == '9999-12-31':
                     date_to = None
 
