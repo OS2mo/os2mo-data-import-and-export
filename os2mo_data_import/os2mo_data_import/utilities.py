@@ -28,6 +28,9 @@ from os2mo_data_import.mox_data_types import (
     Itsystem
 )
 
+import os
+SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
+print(SAML_TOKEN)
 
 class ImportUtility(object):
     """
@@ -726,9 +729,16 @@ class ImportUtility(object):
             base=self.mora_base,
             url=resource
         )
+        
+        if SAML_TOKEN:
+            header = {"SESSION": SAML_TOKEN}
+            print(header)
+        else:
+            header = None
 
         response = self.session.post(
             url=service_url,
+            headers=header,
             json=data,
             params=params
         )
