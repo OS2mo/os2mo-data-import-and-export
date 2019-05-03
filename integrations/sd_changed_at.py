@@ -84,7 +84,7 @@ class ChangeAtSD(object):
                 'ProfessionIndicator': 'true',
                 'WorkingTimeIndicator': 'true',
                 'UUIDIndicator': 'true',
-                'StatusPassiveIndicator': 'false',
+                'StatusPassiveIndicator': 'true',
                 'SalaryAgreementIndicator': 'false',
                 'SalaryCodeGroupIndicator': 'false'
             }
@@ -97,7 +97,7 @@ class ChangeAtSD(object):
             'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
             'DeactivationDate': self.to_date.strftime('%d.%m.%Y'),
             'StatusActiveIndicator': 'true',
-            'StatusPassiveIndicator': 'false',
+            'StatusPassiveIndicator': 'true',
             'ContactInformationIndicator': 'false',
             'PostalAddressIndicator': 'false'
             # TODO: Er der kunder, som vil udlæse adresse-information?
@@ -506,7 +506,9 @@ class ChangeAtSD(object):
             print('----')
             cpr = employment['PersonCivilRegistrationIdentifier']
             print(cpr)
-
+            print(self.from_date)
+            print(self.to_date)
+            
             sd_engagement = employment['Employment']
             if not isinstance(sd_engagement, list):
                 sd_engagement = [sd_engagement]
