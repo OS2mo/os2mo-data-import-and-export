@@ -306,9 +306,13 @@ class ChangeAtSD(object):
         ):
             also_edit = True
 
-        org_unit = engagement_info['departments'][0]['DepartmentUUIDIdentifier']
-        print('Org unit for new engagement: {}'.format(org_unit))
-        org_unit = self.apply_NY_logic(org_unit, job_id, validity)
+        try:
+            org_unit = engagement_info['departments'][0]['DepartmentUUIDIdentifier']
+            print('Org unit for new engagement: {}'.format(org_unit))
+            org_unit = self.apply_NY_logic(org_unit, job_id, validity)
+        except IndexError:
+            org_unit = self.orphan_uuid
+            print('WARNING!!! NO UNIT FOR THIS ENGAGEMENT')
 
         emp_name = engagement_info['professions'][0]['EmploymentName']
         self._update_professions(emp_name)
