@@ -44,7 +44,10 @@ def create_leave(mo_eng, mo_person, leave_uuid, job_id, validity):
 
 def create_engagement(org_unit, mo_person, job_function, engagement_type,
                       job_id, engagement_info, validity):
-    working_time = float(engagement_info['working_time'][0]['OccupationRate'])
+    try:
+        working_time = float(engagement_info['working_time'][0]['OccupationRate'])
+    except IndexError:
+        working_time = 0
     payload = {
         'type': 'engagement',
         'org_unit': {'uuid': org_unit},
