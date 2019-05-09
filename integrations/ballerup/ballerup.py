@@ -31,10 +31,12 @@ apos_import = apos_importer.AposImport(importer,
                                        MUNICIPALTY_CODE)
 apos_import.create_facetter_and_klasser()
 
+# Org træ
 apos_import.create_ou_tree('b78993bb-d67f-405f-acc0-27653bd8c116')
-sd_enhedstype = '324b8c95-5ff9-439b-a49c-1a6a6bba4651'
-apos_import.create_ou_tree('945bb286-9753-4f77-9082-a67a5d7bdbaf',
-                           enhedstype=sd_enhedstype)
+
+# SD træ
+apos_import.create_ou_tree('945bb286-9753-4f77-9082-a67a5d7bdbaf')
+
 apos_import.create_managers_and_associatins()
 
 importer.import_all()

@@ -28,6 +28,7 @@ ANSAT_UUID = os.environ.get('ANSAT_UUID', '00000000-0000-0000-0000-000000000000'
 CREATE_UDVALGS_CLASSES = os.environ.get('CREATE_UDVALGS_CLASSES', 'no') == 'yes'
 EMAIL_NAME = os.environ.get('EMAIL_NAME', 'Email')
 MAIN_PHONE_NAME = os.environ.get('MAIN_PHONE_NAME', 'Telefon')
+ALT_PHONE_NAME = os.environ.get('ALT_PHONE_NAME', None)
 
 
 def _format_time(gyldighed):
@@ -69,7 +70,6 @@ class AposImport(object):
             with open(path_url + '.p', 'rb') as f:
                 response = pickle.load(f)
         except FileNotFoundError:
-            # print(self.base_url + url)
             response = requests.get(self.base_url + url)
             with open(path_url + '.p', 'wb') as f:
                 pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
@@ -80,8 +80,9 @@ class AposImport(object):
         return xml_response[outer_key]
 
     def read_locations(self, unit):
-        url = 'app-organisation/GetLocations?uuid{}'
+        url = 'app-organisation/GetLocations?uuid={}'
         locations = self._apos_lookup(url.format(unit['@uuid']))
+
         mo_locations = []
         if int(locations['total']) == 0:
             # Return imidiately if no locations are found
@@ -145,8 +146,16 @@ class AposImport(object):
                 for klasse in klasser:
                     print(klasse['@uuid'] + ': ' + klasse['@title'])
                     # Add more here if necessary
+                    """
                     if klasse['@title'] in PHONE_NAMES:
                         scope = 'PHONE'
+                    else:
+                        scope = 'TEXT'
+                    """
+                    if klasse['@uuid'] in PHONE_NAMES:
+                        scope = 'PHONE'
+                    elif klasse['@uuid'] == EMAIL_NAME:
+                        scope = 'EMAIL'
                     else:
                         scope = 'TEXT'
                     try:
@@ -200,11 +209,19 @@ class AposImport(object):
                 self.create_typer(k['@uuid'], {'time_planning':
                                                ['Tidsregistrering']})
 
+            """
             if k['@kaldenavn'] == 'Kontaktkanaler':
                 self.create_typer(k['@uuid'], {'employee_address_type':
                                                ['Lokation typer',
                                                 'Egenskaber',
                                                 'Engagement typer']})
+            if k['@kaldenavn'] == 'Kontaktkanaler':
+                self.create_typer(k['@uuid'], {'org_unit_address_type':
+                                               ['Lokation typer']})
+            if k['@kaldenavn'] == 'Kontaktkanaler':
+                self.create_typer(k['@uuid'], {'employee_address_type':
+                                               ['Engagement typer']})
+            """
 
         if CREATE_UDVALGS_CLASSES:
             specific_klasser = [
@@ -232,10 +249,18 @@ class AposImport(object):
              'titel': 'Telefon',
              'facet': 'employee_address_type',
              'scope': 'PHONE'},
+            {'id': 'AltPhoneEmployee',
+             'titel': 'Alt Tlf',
+             'facet': 'employee_address_type',
+             'scope': 'PHONE'},
             {'id': 'p-nummer',
              'titel': 'p-nummer',
              'facet': 'org_unit_address_type',
              'scope': 'PNUMBER'},
+            {'id': 'EmailUnit',
+             'titel': 'Email',
+             'facet': 'org_unit_address_type',
+             'scope': 'EMAIL'},
             {'id': 'AddressMailUnit',
              'titel': 'Adresse',
              'facet': 'org_unit_address_type',
@@ -244,6 +269,14 @@ class AposImport(object):
              'titel': 'Telefon',
              'facet': 'org_unit_address_type',
              'scope': 'PHONE'},
+            {'id': 'EAN',
+             'titel': 'EAN',
+             'facet': 'org_unit_address_type',
+             'scope': 'EAN'},
+            {'id': 'WebUnit',
+             'titel': 'Webadresse',
+             'facet': 'org_unit_address_type',
+             'scope': 'WWW'},
             {'id': 'Ekstern',
              'titel': 'Må vises eksternt',
              'facet': 'visibility',
@@ -256,26 +289,10 @@ class AposImport(object):
              'titel': 'Hemmelig',
              'facet': 'visibility',
              'scope': 'SECRET'},
-            # {'id': 'Formand',
-            # 'titel': 'Formand',
-            # 'facet': 'association_type',
-            # 'scope': 'TEXT'}
-            # {'id': 'Leder',
-            # 'titel': 'Leder',
-            # 'facet': 'association_type',
-            # 'scope': 'TEXT'}
             {'id': 'Teammedarbejder',
              'titel': 'Teammedarbejder',
              'facet': 'association_type',
              'scope': 'TEXT'},
-            # {'id': 'Medarbejder',
-            # 'titel': 'Medarbejder',
-            # 'facet': 'association_type',
-            # 'scope': 'TEXT'},
-            # {'id': 'Næstformand',
-            # 'titel': 'Næstformand',
-            # 'facet': 'association_type',
-            # 'scope': 'TEXT'}
             {'id': 'Projektleder',
              'titel': 'Projektleder',
              'facet': 'association_type',
@@ -329,7 +346,6 @@ class AposImport(object):
         # Default i Ballerup:
         time_planning = '41504f53-0203-0028-4158-41504f494e54'
         if details['opgaver']:
-            print(details['opgaver']['opgave'])
             opgaver = details['opgaver']['opgave']
             if not isinstance(opgaver, list):
                 opgaver = [opgaver]
@@ -349,9 +365,41 @@ class AposImport(object):
         else:
             fra, til = _format_time(details['gyldighed'])
 
-        # If enhedstype is not hard-coded, we take it from APOS
-        if not enhedstype:
-            enhedstype = details['@enhedstype']
+        enhedstype = details['@enhedstype']
+
+        # NY7
+        if enhedstype == '58380fd3-b3fb-4f84-a56f-15c9716972c1':
+            enhedstype = '42b9042f-5f20-4998-b0e5-c4deb6c5f42e'
+
+        # NY6
+        if enhedstype == '25eebd5c-d774-469c-97af-f8d9ca2780c9':
+            enhedstype = '414a035e-9c22-42eb-b035-daa7d7f2ade8'
+
+        # NY5
+        if enhedstype == 'b4bd5908-c724-4544-bff3-324832156ff3':
+            enhedstype = '819ae28e-04e0-4030-880e-7b699faeaff9'
+
+        # NY4
+        if enhedstype == 'f16e9d0c-2692-43d3-8def-62c0c7a75fdf':
+            enhedstype = 'ff8c3f53-85ec-44d7-a9d6-07c619ac50df'
+
+        # NY3
+        if enhedstype == '2c73e9b0-785d-48a4-b14b-656c596be759':
+            enhedstype = '70c69826-4ba1-4e1e-82f0-4c47c89a7ecc'
+
+        # NY2
+        if enhedstype == '68fea789-87ce-451c-8ad7-8b7525c26978':
+            enhedstype = 'ec882c49-3cc2-4bc9-994f-a6f29136401b'
+
+        # NY1
+        if enhedstype == '5cbde7bf-7632-4b6a-ae51-691a89d8df7a':
+            enhedstype = 'd9bd186b-3c11-4dbf-92d1-4e3b61140302'
+
+        # Afdelingsniveau
+        if enhedstype in ('81fc2195-d782-4ae0-8ab7-56a1f7ad92e2',
+                          '58380fd3-b3fb-4f84-a56f-15c9716972c1'):
+            enhedstype = '345a8893-eb1f-4e20-b76d-63b95b5809f6'
+
         unit = self.importer.add_organisation_unit(
             identifier=unit_id,
             uuid=apos_unit['@uuid'],
@@ -452,17 +500,40 @@ class AposImport(object):
             if value:
                 apos_type = kontaktmulighed['@type']
 
-                klasse = self.importer.get('klasse', apos_type)
+                # klasse = self.importer.get('klasse', apos_type)
                 employee_identifier = employee['person']['@uuid']
 
-                if klasse.title == EMAIL_NAME:
+                """
+                {'id': 'EmailEmployee',
+                'titel': 'Email',
+                'facet': 'employee_address_type',
+                'scope': 'EMAIL'},
+                {'id': 'PhoneEmployee',
+                'titel': 'Telefon',
+                'facet': 'employee_address_type',
+                'scope': 'PHONE'},
+                {'id': 'AltPhoneEmployee',
+                'titel': 'Alt Tlf',
+                'facet': 'employee_address_type',
+                'scope': 'PHONE'},
+                """
+                
+                #if klasse.title == EMAIL_NAME:
+                print()
+                print('Apos type')
+                print(apos_type)
+                print(apos_type == EMAIL_NAME)
+                print()
+                print(kontaktmulighed)
+
+                if apos_type == EMAIL_NAME:
                     klasse_ref = 'EmailEmployee'
-                elif klasse.title == MAIN_PHONE_NAME:
+                elif apos_type == MAIN_PHONE_NAME:
                     klasse_ref = 'PhoneEmployee'
-                elif klasse.title in PHONE_NAMES:
-                    klasse_ref = apos_type
+                elif apos_type == ALT_PHONE_NAME:
+                    klasse_ref = 'AltPhoneEmployee'
                 else:  # This should never happen
-                    print(klasse.title)
+                    print(kontaktmulighed)
                     raise Exception('Ukendt kontaktmulighed')
                 try:
                     fra, til = _format_time(employee['gyldighed'])
