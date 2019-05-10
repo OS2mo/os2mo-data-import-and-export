@@ -12,7 +12,7 @@ PRIMARY = 'Ansat'
 
 
 class ChangeAtSD(object):
-    def __init__(self, from_date, to_date):
+    def __init__(self, from_date, to_date=None):
         self.mox_base = MOX_BASE
         self.helper = MoraHelper(use_cache=False)
         self.from_date = from_date
@@ -73,29 +73,48 @@ class ChangeAtSD(object):
         return None
 
     def read_employment_changed(self):
-        if not self.employment_response:  # Caching mechanism, we need to get of this
-            url = 'GetEmploymentChangedAtDate20111201'
-            params = {
-                'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
-                'DeactivationDate': self.to_date.strftime('%d.%m.%Y'),
-                'StatusActiveIndicator': 'true',
-                'DepartmentIndicator': 'true',
-                'EmploymentStatusIndicator': 'true',
-                'ProfessionIndicator': 'true',
-                'WorkingTimeIndicator': 'true',
-                'UUIDIndicator': 'true',
-                'StatusPassiveIndicator': 'true',
-                'SalaryAgreementIndicator': 'false',
-                'SalaryCodeGroupIndicator': 'false'
-            }
-            response = sd_lookup(url, params=params)
+        if not self.employment_response:  # Caching, we need to get of this
+            if self.to_date is not None:
+                url = 'GetEmploymentChangedAtDate20111201'
+                params = {
+                    'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
+                    'DeactivationDate': self.to_date.strftime('%d.%m.%Y'),
+                    'StatusActiveIndicator': 'true',
+                    'DepartmentIndicator': 'true',
+                    'EmploymentStatusIndicator': 'true',
+                    'ProfessionIndicator': 'true',
+                    'WorkingTimeIndicator': 'true',
+                    'UUIDIndicator': 'true',
+                    'StatusPassiveIndicator': 'true',
+                    'SalaryAgreementIndicator': 'false',
+                    'SalaryCodeGroupIndicator': 'false'
+                }
+                response = sd_lookup(url, params=params)
+            else:
+                url = 'GetEmploymentChanged20111201'
+                params = {
+                    'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
+                    'DeactivationDate': '31.12.9999',
+                    'DepartmentIndicator': 'true',
+                    'EmploymentStatusIndicator': 'true',
+                    'ProfessionIndicator': 'true',
+                    'WorkingTimeIndicator': 'true',
+                    'UUIDIndicator': 'true',
+                    'SalaryAgreementIndicator': 'false',
+                    'SalaryCodeGroupIndicator': 'false'
+                }
+            response = sd_lookup(url, params)
             self.employment_response = response.get('Person', [])
         return self.employment_response
-
+    
     def read_person_changed(self):
+        if self.to_date is None:
+            deactivate_date = '31.12.9999'
+        else:
+            deactivate_date = self.to_date.strftime('%d.%m.%Y')
         params = {
             'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
-            'DeactivationDate': self.to_date.strftime('%d.%m.%Y'),
+            'DeactivationDate': deactivate_date,
             'StatusActiveIndicator': 'true',
             'StatusPassiveIndicator': 'true',
             'ContactInformationIndicator': 'false',
@@ -111,6 +130,7 @@ class ChangeAtSD(object):
         # Ansættelser håndteres af update_employment, så vi tjekker for ændringer i
         # navn og opdaterer disse poster. Nye personer oprettes.
         person_changed = self.read_person_changed()
+        print(len(person_changed))
         for person in person_changed:
             # TODO: Shold this go in sd_common?
             given_name = person.get('PersonGivenName', '')
@@ -120,9 +140,10 @@ class ChangeAtSD(object):
 
             uuid = None
             mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
+            
             if mo_person:
                 if mo_person['name'] == sd_name:
-                    return
+                    continue
                 uuid = mo_person['uuid']
 
             payload = {
@@ -132,6 +153,7 @@ class ChangeAtSD(object):
                     "uuid": self.org_uuid
                 }
             }
+
             if uuid:
                 payload['uuid'] = uuid
 
@@ -311,10 +333,13 @@ class ChangeAtSD(object):
             print('Org unit for new engagement: {}'.format(org_unit))
             org_unit = self.apply_NY_logic(org_unit, job_id, validity)
         except IndexError:
-            org_unit = self.orphan_uuid
+            org_unit = '4f79e266-4080-4300-a800-000006180002' # CONF!!!!
             print('WARNING!!! NO UNIT FOR THIS ENGAGEMENT')
 
-        emp_name = engagement_info['professions'][0]['EmploymentName']
+        try:
+            emp_name = engagement_info['professions'][0]['EmploymentName']
+        except KeyError:
+            emp_name = 'Ukendt'
         self._update_professions(emp_name)
         payload = sd_payloads.create_engagement(org_unit, self.mo_person,
                                                 self.job_functions.get(emp_name),
@@ -434,6 +459,10 @@ class ChangeAtSD(object):
             job_id, eng = self.engagement_components(engagement)
             print('Job id: {}'.format(job_id))
 
+            print()
+            print(engagement)
+            print()
+            
             skip = False
             # If status is present, we have a potential creation
             if eng['status_list']:
@@ -508,7 +537,8 @@ class ChangeAtSD(object):
             print(cpr)
             print(self.from_date)
             print(self.to_date)
-            
+
+            print(employment)
             sd_engagement = employment['Employment']
             if not isinstance(sd_engagement, list):
                 sd_engagement = [sd_engagement]
@@ -634,17 +664,13 @@ class ChangeAtSD(object):
 
 
 if __name__ == '__main__':
-    # sd_updater.recalculate_primary()
-    """
     from_date = datetime.datetime(2019, 2, 15, 0, 0)
-    to_date = datetime.datetime(2019, 2, 16, 0, 0)
-    sd_updater = ChangeAtSD(from_date, to_date)
+    sd_updater = ChangeAtSD(from_date)
     sd_updater.update_changed_persons()
     sd_updater.update_all_employments()
     del(sd_updater)
-    """
 
-    from_date = datetime.datetime(2019, 2, 15, 0, 0)
+    """
     for i in range(0, 30):
         to_date = from_date + datetime.timedelta(days=1)
         sd_updater = ChangeAtSD(from_date, to_date)
@@ -652,3 +678,4 @@ if __name__ == '__main__':
         sd_updater.update_all_employments()
         del(sd_updater)
         from_date = to_date
+    """
