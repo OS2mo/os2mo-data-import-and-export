@@ -14,27 +14,11 @@ MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
 
 # ORIGIN FOR TESTS WIH ACTUAL API
-# GLOBAL_GET_DATE = datetime.datetime(2006, 1, 1, 0, 0) # CACHED - will not work
-# GLOBAL_GET_DATE = datetime.datetime(2009, 1, 1, 0, 0) # CACHED
-# GLOBAL_GET_DATE = datetime.datetime(2011, 1, 1, 0, 0) # CACHED
-# GLOBAL_GET_DATE = datetime.datetime(2014, 2, 15, 0, 0) # CACHED
-
-#GLOBAL_GET_DATE = datetime.datetime(2019, 2, 15, 0, 0) # CACHED
-#GLOBAL_GET_DATE = datetime.datetime(2019, 2, 18, 0, 0) # CACHED
-
-#GLOBAL_GET_DATE = datetime.datetime(2019, 2, 25, 0, 0) # CACHED
-
-GLOBAL_GET_DATE = datetime.datetime(2019, 2, 28, 0, 0) # CACHED
-GLOBAL_GET_DATE = datetime.datetime(2019, 3, 1, 0, 0) # CACHED
-
-#GLOBAL_GET_DATE = datetime.datetime(2019, 3, 15, 0, 0) # CACHED
-#GLOBAL_GET_DATE = datetime.datetime(2019, 3, 31, 0, 0) # CACHED
-#GLOBAL_GET_DATE = datetime.datetime(2019, 4, 1, 0, 0) # CACHED
-
-
-
-# GLOBAL_TO = GLOBAL_GET_DATE + datetime.timedelta(days=10)
-GLOBAL_TO = None
+# GLOBAL_GET_DATE = datetime.datetime(2006, 1, 1, 0, 0) # will not work
+# GLOBAL_GET_DATE = datetime.datetime(2009, 1, 1, 0, 0)
+# GLOBAL_GET_DATE = datetime.datetime(2011, 1, 1, 0, 0)
+# GLOBAL_GET_DATE = datetime.datetime(2014, 2, 15, 0, 0)
+GLOBAL_GET_DATE = datetime.datetime(2019, 2, 15, 0, 0)
 
 importer = ImportHelper(
     create_defaults=True,
@@ -57,7 +41,6 @@ sd = sd_importer.SdImport(
     MUNICIPALTY_NAME,
     MUNICIPALTY_CODE,
     import_date_from=GLOBAL_GET_DATE,
-    import_date_to = GLOBAL_TO,
     ad_info=ad_uuids
 )
 
@@ -76,7 +59,8 @@ sd.employee_ad_usernames = ad_usernames
 sd.create_ou_tree()
 sd.create_employees()
 
-# importer.import_all()
+importer.import_all()
+
 
 """
 for info in sd.address_errors.values():

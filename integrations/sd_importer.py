@@ -24,7 +24,7 @@ if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
 
 class SdImport(object):
     def __init__(self, importer, org_name, municipality_code,
-                 import_date_from, import_date_to=None, ad_info=None):
+                 import_date_from, ad_info=None):
         self.base_url = 'https://service.sd.dk/sdws/'
 
         self.double_employment = []
@@ -37,14 +37,8 @@ class SdImport(object):
             municipality_code=municipality_code
         )
 
-        if import_date_to:
-            self.import_date = import_date_to.strftime('%d.%m.%Y')
-            self.import_date_from = import_date_from.strftime('%d.%m.%Y')
-            self.import_date_to = import_date_to.strftime('%d.%m.%Y')
-        else:
-            self.import_date = import_date_from.strftime('%d.%m.%Y')
-            self.import_date_from = import_date_from.strftime('%d.%m.%Y')
-            self.import_date_to = None
+        self.import_date = import_date_from.strftime('%d.%m.%Y')
+        # self.import_date_from = import_date_from.strftime('%d.%m.%Y')
 
         # If a list of hard-coded uuids from AD is provided, use this. If
         # a true AD-reader is provided, save it so we can use it to
@@ -123,36 +117,6 @@ class SdImport(object):
             self.ad_people[cpr] = response
         else:
             self.ad_people[cpr] = {}
-
-    """
-    def sd_lookup(self, url, params={}):
-        full_url = self.base_url + url
-
-        payload = {
-            'InstitutionIdentifier': INSTITUTION_IDENTIFIER,
-        }
-        payload.update(params)
-        m = hashlib.sha256()
-        m.update(str(sorted(payload)).encode())
-        m.update(full_url.encode())
-        lookup_id = m.hexdigest()
-
-        try:
-            with open(lookup_id + '.p', 'rb') as f:
-                response = pickle.load(f)
-            print('CACHED')
-        except FileNotFoundError:
-            response = requests.get(
-                full_url,
-                params=payload,
-                auth=(SD_USER, SD_PASSWORD)
-            )
-            with open(lookup_id + '.p', 'wb') as f:
-                pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
-
-        xml_response = xmltodict.parse(response.text)[url]
-        return xml_response
-    """
 
     def _read_department_info(self):
         """ Load all deparment details and store for later user """
@@ -400,7 +364,9 @@ class SdImport(object):
             'EffectiveDate': self.import_date
         }
         persons = sd_lookup('GetEmployment20111201', params)
+        self._create_employees(persons)
 
+    def _create_employees(self, persons):
         for person in persons['Person']:
             cpr = person['PersonCivilRegistrationIdentifier']
             employments = person['Employment']
@@ -477,6 +443,7 @@ class SdImport(object):
                     employment['EmploymentDate'],
                     '%Y-%m-%d'
                 )
+
                 if int(status) in (8, 9):
                     date_to = datetime.datetime.strptime(
                         employment['EmploymentStatus']['ActivationDate'],
@@ -488,9 +455,9 @@ class SdImport(object):
                         employment['EmploymentStatus']['DeactivationDate'],
                         '%Y-%m-%d'
                     )
-                print('-')
-                print(date_from)
-                print(date_to)
+                # print('-')
+                # print(date_from)
+                # print(date_to)
                 if date_from > date_to:
                     date_from = date_to
 
