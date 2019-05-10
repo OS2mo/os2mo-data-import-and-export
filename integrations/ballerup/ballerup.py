@@ -29,6 +29,7 @@ importer = ImportHelper(create_defaults=True,
 apos_import = apos_importer.AposImport(importer,
                                        MUNICIPALTY_NAME,
                                        MUNICIPALTY_CODE)
+
 apos_import.create_facetter_and_klasser()
 
 # Org træ

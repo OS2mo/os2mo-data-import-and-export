@@ -15,3 +15,4 @@ export MAIN_PHONE_NAME="41504f53-0203-001f-4158-41504f494e54"
 export ALT_PHONE_NAME="7e118f76-2150-4fec-b09f-6428cd05802b"
 
 python3 ballerup.py
+python3 udvalg_import.py
