@@ -470,7 +470,7 @@ class ChangeAtSD(object):
                 for status in eng['status_list']:
                     code = status['EmploymentStatusCode']
 
-                    if code not in ('0', '1', '3', '8', '9', 'S'):
+                    if code not in ('0', '1', '3', '7', '8', '9', 'S'):
                         print(status)
                         1/0
 
@@ -499,6 +499,7 @@ class ChangeAtSD(object):
                         print('Create a leave for {} '.format(cpr))
                         self.create_leave(status, job_id)
 
+                    # Should 7 gore here?
                     if status['EmploymentStatusCode'] == '8':
                         from_date = status['ActivationDate']
                         print('Terminate user {}, job_id {} '.format(cpr, job_id))
@@ -507,7 +508,7 @@ class ChangeAtSD(object):
                             print('Problem wit job-id: {}'.format(job_id))
                             skip = True
 
-                    if status['EmploymentStatusCode'] in ('S', '9'):
+                    if status['EmploymentStatusCode'] in ('S', '7', '9'):
                         for mo_eng in self.mo_engagement:
                             if mo_eng['user_key'] == job_id:
                                 print(status)
