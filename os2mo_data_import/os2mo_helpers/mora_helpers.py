@@ -328,4 +328,3 @@ class MoraHelper(object):
             if address['address_type']['scope'] == scope:
                 return address
         return {}
-
