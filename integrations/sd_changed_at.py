@@ -500,7 +500,7 @@ class ChangeAtSD(object):
                         self.create_leave(status, job_id)
 
                     # Should 7 gore here?
-                    if status['EmploymentStatusCode'] == '8':
+                    if status['EmploymentStatusCode'] in ('7', '8'):
                         from_date = status['ActivationDate']
                         print('Terminate user {}, job_id {} '.format(cpr, job_id))
                         success = self._terminate_engagement(from_date, job_id)
@@ -508,7 +508,7 @@ class ChangeAtSD(object):
                             print('Problem wit job-id: {}'.format(job_id))
                             skip = True
 
-                    if status['EmploymentStatusCode'] in ('S', '7', '9'):
+                    if status['EmploymentStatusCode'] in ('S', '9'):
                         for mo_eng in self.mo_engagement:
                             if mo_eng['user_key'] == job_id:
                                 print(status)
