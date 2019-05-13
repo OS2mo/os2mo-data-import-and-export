@@ -24,11 +24,12 @@ if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
 
 class SdImport(object):
     def __init__(self, importer, org_name, municipality_code,
-                 import_date_from, ad_info=None):
+                 import_date_from, ad_info=None, manager_rows=[]):
         self.base_url = 'https://service.sd.dk/sdws/'
 
         self.double_employment = []
         self.address_errors = {}
+        self.manager_rows = manager_rows
 
         self.importer = importer
         self.importer.add_organisation(
@@ -61,6 +62,19 @@ class SdImport(object):
         for level in [(1040, 'Leder'), (1035, 'Chef'), (1030, 'Direktør')]:
             self._add_klasse(level[0], level[1], 'manager_level')
 
+        if self.manager_rows is None:
+            self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
+        else:
+            for row in self.manager_rows:
+                resp = row.get('Lederansvar "Leder 1"')
+                if resp:
+                    self._add_klasse(resp, resp, 'responsibility')
+                resp = row.get('Lederansvar "Leder 2"')
+                if resp:
+                    self._add_klasse(resp, resp, 'responsibility')
+
+        self._add_klasse('leder_type', 'Leder', 'manager_type')
+
         self._add_klasse('Pnummer', 'Pnummer',
                          'org_unit_address_type', 'PNUMBER')
         self._add_klasse('AddressMailUnit', 'Postdresse',
@@ -88,8 +102,6 @@ class SdImport(object):
         self._add_klasse('Orlov', 'Orlov', 'leave_type')
 
         self._add_klasse('Orphan', 'Virtuel Enhed', 'org_unit_type')
-
-        self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
 
         self._add_klasse('Ansat', 'Ansat', 'engagement_type')
         self._add_klasse('status0', 'Ansat - Ikke i løn', 'engagement_type')
@@ -191,6 +203,10 @@ class SdImport(object):
                 date_to=None,
                 parent_ref=parent_uuid)
 
+            for row in self.manager_rows:
+                if row['afdeling'] == user_key:
+                    row['uuid'] = unit_id
+
         if 'ContactInformation' in info:
             emails = info['ContactInformation']['EmailAddressIdentifier']
             for email in emails:
@@ -244,10 +260,7 @@ class SdImport(object):
         for key, ou in all_ous.items():
             parent = ou.parent_ref
             if parent is None:
-                print(ou)
                 uuid = key
-                print(uuid)
-                print('----')
                 niveau = ou.type_ref
                 nodes[uuid] = Node(niveau, uuid=uuid)
             else:
@@ -377,10 +390,10 @@ class SdImport(object):
             min_id = 999999
             for employment in employments:
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
-                if int(status) == 3:
+                if status == '3':
                     # Orlov
                     pass
-                if int(status) in (8, 9):
+                if status in ('8', '9'):
                     # Fratrædt
                     continue
 
@@ -430,7 +443,7 @@ class SdImport(object):
                 else:
                     engagement_type_ref = 'non-primary'
 
-                if int(status) == 0:  # If status 0, uncondtionally override
+                if status == '0':  # If status 0, uncondtionally override
                     engagement_type_ref = 'status0'
 
                 job_func_ref = self._add_klasse(job_func,
@@ -444,7 +457,7 @@ class SdImport(object):
                     '%Y-%m-%d'
                 )
 
-                if int(status) in (8, 9):
+                if status in ('8', '9'):
                     date_to = datetime.datetime.strptime(
                         employment['EmploymentStatus']['ActivationDate'],
                         '%Y-%m-%d'
@@ -494,32 +507,53 @@ class SdImport(object):
                         date_from=date_from,
                         date_to=date_to
                     )
-                    if int(status) == 3:
+                    if status == '3':
                         self.importer.add_leave(
                             employee=cpr,
                             leave_type_ref='Orlov',
                             date_from=date_from,
                             date_to=date_to
                         )
-
                 except AssertionError:
                     self.double_employment.append(cpr)
-                if job_id in [1040, 1035, 1030]:
-                    manager_type_ref = 'manager_type_' + job_func
-                    manager_type_ref = self._add_klasse(manager_type_ref,
-                                                        job_func,
-                                                        'manager_type')
 
-                    self.importer.add_manager(
-                        employee=cpr,
-                        organisation_unit=unit,
-                        manager_level_ref=job_id,
-                        address_uuid=None,  # TODO?
-                        manager_type_ref=manager_type_ref,
-                        responsibility_list=['Lederansvar'],
-                        date_from=date_from,
-                        date_to=date_to
-                    )
+                # If we do not have a list of managers, we take the manager,
+                # information fro the job_function_code.
+                if not self.manager_rows:
+                    if job_id in [1040, 1035, 1030]:
+                        self.importer.add_manager(
+                            employee=cpr,
+                            organisation_unit=unit,
+                            manager_level_ref=job_id,
+                            address_uuid=None,  # Manager address is not used
+                            manager_type_ref='leder_type',
+                            responsibility_list=['Lederansvar'],
+                            date_from=date_from,
+                            date_to=date_to
+                        )
+            if self.manager_rows:
+                # This may fail to get correct manager_level if manager has more
+                # than one engagement.
+                for row in self.manager_rows:
+                    if row['cpr'] == cpr:
+                        if 'uuid' not in row:
+                            print('NO UNIT: {}'.format(row['afdeling']))
+                            continue
+                        if job_id in [1040, 1035, 1030]:
+                            manager_level = job_id
+                        else:
+                            manager_level = 1030
+
+                        self.importer.add_manager(
+                            employee=cpr,
+                            organisation_unit=row['uuid'],
+                            manager_level_ref=manager_level,
+                            manager_type_ref='leder_type',
+                            responsibility_list=[row['ansvar']],
+                            date_from=date_from,
+                            date_to=date_to
+                        )
+
             # This assertment really should hold...
             # assert(exactly_one_primary is True)
             if exactly_one_primary is not True:
