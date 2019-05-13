@@ -66,12 +66,8 @@ class SdImport(object):
             self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
         else:
             for row in self.manager_rows:
-                resp = row.get('Lederansvar "Leder 1"')
-                if resp:
-                    self._add_klasse(resp, resp, 'responsibility')
-                resp = row.get('Lederansvar "Leder 2"')
-                if resp:
-                    self._add_klasse(resp, resp, 'responsibility')
+                resp = row.get('ansvar')
+                self._add_klasse(resp, resp, 'responsibility')
 
         self._add_klasse('leder_type', 'Leder', 'manager_type')
 
@@ -186,13 +182,15 @@ class SdImport(object):
 
         info = self.info[unit_id]
         assert(info['DepartmentLevelIdentifier'] == ou_level)
-
+        print(unit_id)
         if not contains_subunits and parent_uuid is None:
             parent_uuid = 'OrphanUnits'
 
         date_from = info['ActivationDate']
         # No units have termination dates: date_to is None
-        if not self.importer.check_if_exists('organisation_unit', unit_id):
+        if self.importer.check_if_exists('organisation_unit', unit_id):
+            return
+        else:
             self.importer.add_organisation_unit(
                 identifier=unit_id,
                 name=info['DepartmentName'],
@@ -539,20 +537,22 @@ class SdImport(object):
                         if 'uuid' not in row:
                             print('NO UNIT: {}'.format(row['afdeling']))
                             continue
-                        if job_id in [1040, 1035, 1030]:
-                            manager_level = job_id
-                        else:
-                            manager_level = 1030
+                        if row['uuid'] == unit:
+                            if job_id in [1040, 1035, 1030]:
+                                manager_level = job_id
+                            else:
+                                manager_level = 1030
 
-                        self.importer.add_manager(
-                            employee=cpr,
-                            organisation_unit=row['uuid'],
-                            manager_level_ref=manager_level,
-                            manager_type_ref='leder_type',
-                            responsibility_list=[row['ansvar']],
-                            date_from=date_from,
-                            date_to=date_to
-                        )
+                            print('Manager {} to {}'.format(cpr, row['afdeling']))
+                            self.importer.add_manager(
+                                employee=cpr,
+                                organisation_unit=row['uuid'],
+                                manager_level_ref=manager_level,
+                                manager_type_ref='leder_type',
+                                responsibility_list=[row['ansvar']],
+                                date_from=date_from,
+                                date_to=date_to
+                            )
 
             # This assertment really should hold...
             # assert(exactly_one_primary is True)
