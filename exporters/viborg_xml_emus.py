@@ -18,11 +18,28 @@ import datetime
 import requests
 import uuid
 import os
+import logging
 
 MORA_BASE = os.environ.get('MORA_BASE', 'localhost:80')
 MORA_ROOT_ORG_UNIT_NAME = os.environ.get('MORA_ROOT_ORG_UNIT_NAME', 'Viborg Kommune')
 USERID_ITSYSTEM = os.environ.get('USERID_ITSYSTEM', 'Active Directory')
 EMUS_FILENAME = os.environ.get('EMUS_FILENAME', 'emus_filename.xml')
+LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
+
+
+# set warning-level for all loggers
+[
+    logging.getLogger(i).setLevel(logging.WARNING)
+    for i in logging.root.manager.loggerDict
+]
+
+logging.basicConfig(
+    format='%(levelname)s %(asctime)s %(name)s %(message)s',
+    level=LOG_LEVEL,
+)
+logger = logging.getLogger("xml-export-emus")
+logger.setLevel(LOG_LEVEL)
+
 
 
 def get_emus_address(ou_uuid):
@@ -61,6 +78,13 @@ def export_ou_emus(mh, nodes, emus_file):
     rows = []
     for node in cq.PreOrderIter(nodes['root']):
         ou = mh.read_ou(node.name)
+        # tomme afdelinger frasorteres
+        engagements =  mh._mo_lookup(ou["uuid"], 'ou/{}/details/engagement')
+        if not engagements:
+            logger.info("skipping ou: %s with %d engagements", ou["uuid"], len(engagements))
+            continue
+        else:
+            logger.info("ou %s has %d engagements", ou["uuid"], len(engagements))
         manager = mh.read_organisation_managers(node.name)
         manager_uuid = manager["uuid"] if manager else ''
         address = get_emus_address(node.name)
@@ -120,6 +144,7 @@ def export_e_emus(mh, nodes, emus_file):
                   'positionId', 'position', "orgUnit", 'email', "username"]
     rows = []
 
+
     for node in cq.PreOrderIter(nodes['root']):
         ou = mh.read_ou(node.name)
         for engagement in mh._mo_lookup(
@@ -135,13 +160,12 @@ def export_e_emus(mh, nodes, emus_file):
             firstname, lastname = engagement["person"]["name"].rsplit(
                 " ", maxsplit=1
             )
-            username = get_e_username(
+            username = mh.get_e_username(
                 engagement["person"]["uuid"],
-                'Active Directory',
-                mh
+                'Active Directory'
             )
-            _phone = get_e_address(engagement["person"]["uuid"], "PHONE", mh)
-            _email = get_e_address(engagement["person"]["uuid"], "EMAIL", mh)
+            _phone = mh.get_e_address(engagement["person"]["uuid"], "PHONE")
+            _email = mh.get_e_address(engagement["person"]["uuid"], "EMAIL")
 
             row = {
                 'tjenestenr': engagement.get("user_key", ''),
@@ -207,5 +231,7 @@ def main(
 
 
 if __name__ == '__main__':
+    logger.warning("starting export - this involves caching all,"
+                   " so program may seem unresponsive temporarily")
     mh = MoraHelper(MORA_BASE)
     main(mh=mh)
