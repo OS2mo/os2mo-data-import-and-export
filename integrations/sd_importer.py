@@ -113,7 +113,7 @@ class SdImport(object):
         if self.ad_reader:
             m = hashlib.sha256()
             m.update(cpr.encode())
-            path_url = m.hexdigest()
+            path_url = 'ad_' + m.hexdigest()
             try:
                 with open(path_url + '.p', 'rb') as f:
                     print('ad-cached')
@@ -328,13 +328,19 @@ class SdImport(object):
                     date_from=None
                 )
 
-            # This is just an example of an address, final mapping awaits
-            # further information, including visibility mapping
             if 'MobilePhone' in self.ad_people[cpr]:
                 self.importer.add_address_type(
                     employee=cpr,
                     value=self.ad_people[cpr]['MobilePhone'],
                     type_ref='PhoneEmployee',
+                    date_from=None
+                )
+
+            if 'EmailAddress' in self.ad_people[cpr]:
+                self.importer.add_address_type(
+                    employee=cpr,
+                    value=self.ad_people[cpr]['EmailAddress'],
+                    type_ref='EmailEmployee',
                     date_from=None
                 )
 
