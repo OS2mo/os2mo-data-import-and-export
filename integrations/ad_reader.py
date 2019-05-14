@@ -5,6 +5,7 @@ from winrm import Session
 WINRM_HOST = os.environ.get('WINRM_HOST', None)
 AD_SYSTEM_USER = os.environ.get('AD_SYSTEM_USER', None)
 AD_PASSWORD = os.environ.get('AD_PASSWORD', None)
+SCHOOL_AD_SYSTEM_USER = os.environ.get('SCHOOL_AD_SYSTEM_USER', None)
 SCHOOL_AD_PASSWORD = os.environ.get('SCHOOL_AD_PASSWORD', None)
 # SEARCH_BASE
 # PROPERTIES
@@ -14,12 +15,8 @@ SCHOOL_AD_PASSWORD = os.environ.get('SCHOOL_AD_PASSWORD', None)
 class ADParameterReader(object):
 
     def __init__(self):
-        self.ad_system_user = AD_SYSTEM_USER
-        self.ad_password = AD_PASSWORD
-        self.winrm_host = WINRM_HOST
-
         self.session = Session(
-            'http://' + self.winrm_host + ':5985/wsman',
+            'http://' + WINRM_HOST + ':5985/wsman',
             transport='kerberos',
             auth=(None, None)
         )
@@ -56,7 +53,7 @@ class ADParameterReader(object):
         if not school:
             user_credential = credential_template.format(AD_SYSTEM_USER, AD_PASSWORD)
         else:
-            user_credential = credential_template.format(AD_SYSTEM_USER,
+            user_credential = credential_template.format(SCHOOL_AD_SYSTEM_USER,
                                                          SCHOOL_AD_PASSWORD)
         return user_credential
 
@@ -88,7 +85,7 @@ class ADParameterReader(object):
         if not school:
             search_base = ' -SearchBase "OU=Kommune,DC=viborg,DC=local" '
         else:
-            search_base = ' -SearchBase "DC=UV-VIBORG,DC=local" '
+            search_base = ' -SearchBase "DC=uv-viborg,DC=local" '
 
         # properties = ' -Properties *'
         properties = ('-Properties xAttrCPR,ObjectGuid,SamAccountName,Title,Name,' +
@@ -122,7 +119,7 @@ class ADParameterReader(object):
 if __name__ == '__main__':
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())
-    user = ad_reader.read_user(user='konroje')
+    user = ad_reader.read_user(user='konroje', school=False)
 
     print()
     print(sorted(user.keys()))
