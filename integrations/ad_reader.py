@@ -81,7 +81,9 @@ class ADParameterReader(object):
             get_command = ps_template.format(cpr)
         # properties = ' -Properties *'
         properties = (' -SearchBase "OU=Kommune,DC=viborg,DC=local" -Properties ' +
-                      ' xAttrCPR,ObjectGuid,SamAccountName,Title,Name,xBrugertype')
+                      ' xAttrCPR,ObjectGuid,SamAccountName,Title,Name,xBrugertype,' +
+                      ' EmailAddress, MobilePhone')
+
         command_end = ' -Credential $usercredential | ConvertTo-Json'
 
         ps_script = (self._build_user_credential() +
@@ -95,7 +97,7 @@ class ADParameterReader(object):
             for current_user in response:
                 job_title = current_user.get('Title')
                 if job_title and job_title.find('FRATR') == 0:
-                    continue # These are users that has left
+                    continue  # These are users that has left
                 if current_user['xBrugertype'] == 'Medarbejder':
                     user = current_user
                     assert(not unique)
@@ -113,3 +115,5 @@ if __name__ == '__main__':
     print(sorted(user.keys()))
     print(user['xBrugertype'])
     print(user['ObjectGuid'])
+    print(user['EmailAddress'])
+    print(user['MobilePhone'])
