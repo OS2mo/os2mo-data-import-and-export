@@ -5,6 +5,7 @@ from winrm import Session
 WINRM_HOST = os.environ.get('WINRM_HOST', None)
 AD_SYSTEM_USER = os.environ.get('AD_SYSTEM_USER', None)
 AD_PASSWORD = os.environ.get('AD_PASSWORD', None)
+SCHOOL_AD_PASSWORD = os.environ.get('SCHOOL_AD_PASSWORD', None)
 # SEARCH_BASE
 # PROPERTIES
 # SKIP_BRUGERTYPE
@@ -40,7 +41,7 @@ class ADParameterReader(object):
             response = r.std_err
         return response
 
-    def _build_user_credential(self):
+    def _build_user_credential(self, school=False):
         """
         Build the commonn set of Power Shell commands that is needed to
         run the AD commands.
@@ -52,7 +53,11 @@ class ADParameterReader(object):
         $TypeName = "System.Management.Automation.PSCredential"
         $UserCredential = New-Object –TypeName $TypeName –ArgumentList $User, $PWord
         """
-        user_credential = credential_template.format(AD_SYSTEM_USER, AD_PASSWORD)
+        if not school:
+            user_credential = credential_template.format(AD_SYSTEM_USER, AD_PASSWORD)
+        else:
+            user_credential = credential_template.format(AD_SYSTEM_USER,
+                                                         SCHOOL_AD_PASSWORD)
         return user_credential
 
     def read_encoding(self):
@@ -63,7 +68,7 @@ class ADParameterReader(object):
         response = self._run_ps_script(ps_script)
         return response
 
-    def read_user(self, user=None, cpr=None):
+    def read_user(self, user=None, cpr=None, school=False):
         """
         Read all properties of an AD user. The user can be retrived either by cpr
         or by AD user name.
@@ -79,17 +84,24 @@ class ADParameterReader(object):
         if cpr:
             ps_template = "get-aduser -Filter 'xAttrCPR -like \"{}\"'"
             get_command = ps_template.format(cpr)
+
+        if not school:
+            search_base = ' -SearchBase "OU=Kommune,DC=viborg,DC=local" '
+        else:
+            search_base = ' -SearchBase "DC=UV-VIBORG,DC=local" '
+
         # properties = ' -Properties *'
-        properties = (' -SearchBase "OU=Kommune,DC=viborg,DC=local" -Properties ' +
-                      ' xAttrCPR,ObjectGuid,SamAccountName,Title,Name,xBrugertype,' +
-                      ' EmailAddress, MobilePhone')
+        properties = ('-Properties xAttrCPR,ObjectGuid,SamAccountName,Title,Name,' +
+                      'xBrugertype, EmailAddress, MobilePhone')
 
         command_end = ' -Credential $usercredential | ConvertTo-Json'
 
-        ps_script = (self._build_user_credential() +
+        ps_script = (self._build_user_credential(school) +
                      get_command +
+                     search_base +
                      properties +
                      command_end)
+
         response = self._run_ps_script(ps_script)
 
         if isinstance(response, list):
@@ -111,6 +123,7 @@ if __name__ == '__main__':
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())
     user = ad_reader.read_user(user='konroje')
+
     print()
     print(sorted(user.keys()))
     print(user['xBrugertype'])
