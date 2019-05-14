@@ -315,3 +315,16 @@ class MoraHelper(object):
             if unit['child_count'] > 0:
                 nodes = self.read_ou_tree(uuid, nodes, nodes[uuid])
         return nodes
+
+    def get_e_username(self, e_uuid, id_it_system):
+        for its in self._mo_lookup(e_uuid, 'e/{}/details/it'):
+            if its['itsystem']["user_key"] == id_it_system:
+                return its['user_key']
+        return ''
+
+
+    def get_e_address(self, e_uuid, scope):
+        for address in self._mo_lookup(e_uuid, 'e/{}/details/address'):
+            if address['address_type']['scope'] == scope:
+                return address
+        return {}
