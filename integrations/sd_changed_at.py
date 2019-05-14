@@ -426,7 +426,10 @@ class ChangeAtSD(object):
             print('Change profession of engagement {}'.format(job_id))
             # We load the name from SD and handles the AD-integration
             # when calculating the primary engagement.
-            emp_name = profession_info['EmploymentName']
+            if 'EmploymentName' in profession_info:
+                emp_name = profession_info['EmploymentName']
+            else:
+                emp_name = profession_info['JobPositionIdentifier']
             print('Employment name: {}'.format(emp_name))
             self._update_professions(emp_name)
             job_function = self.job_functions.get(emp_name)
