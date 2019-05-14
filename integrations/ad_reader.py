@@ -20,6 +20,7 @@ class ADParameterReader(object):
             transport='kerberos',
             auth=(None, None)
         )
+        self.results = {}
 
     def _run_ps_script(self, ps_script):
         """
@@ -65,7 +66,62 @@ class ADParameterReader(object):
         response = self._run_ps_script(ps_script)
         return response
 
-    def read_user(self, user=None, cpr=None, school=False):
+    def _get_from_ad(self, user=None, cpr=None, school=False):
+        """
+        Read all properties of an AD user. The user can be retrived either by cpr
+        or by AD user name.
+        :param user: The AD username to retrive.
+        :param cpr: cpr number of the user to retrive.
+        :return: All properties listed in AD for the user.
+        """
+        if user:
+            dict_key = user
+            ps_template = "get-aduser {}"
+            get_command = ps_template.format(user)
+
+        if cpr:
+            dict_key = cpr
+            # Here we should strongly consider to strip part of the cpr to
+            # get more users at the same time to increase performance.
+            # Lookup time is only very slightly dependant on the number
+            # of results.
+            ps_template = "get-aduser -Filter 'xAttrCPR -like \"{}\"'"
+
+        get_command = ps_template.format(dict_key)
+
+        if school:
+            search_base = ('-Server uv-viborg.local ' +
+                           '-SearchBase "DC=uv-viborg,DC=local" ')
+        else:
+            search_base = ' -SearchBase "OU=Kommune,DC=viborg,DC=local" '
+
+        credentials = ' -Credential $usercredential'
+        if school:
+            properties = (' | Get-ADObject -Properties xAttrCPR,ObjectGuid,' +
+                          'SamAccountName,Title,Name,mail')
+        else:
+            # properties = ' -Properties *'
+            properties = (' -Properties xAttrCPR,ObjectGuid,SamAccountName,Title,' +
+                          'Name,xBrugertype,EmailAddress, MobilePhone')
+        command_end = ' | ConvertTo-Json'
+
+        ps_script = (self._build_user_credential(school) +
+                     get_command +
+                     search_base +
+                     credentials +
+                     properties +
+                     command_end)
+
+        response = self._run_ps_script(ps_script)
+
+        if not response:
+            return_val = []
+        else:
+            if not isinstance(response, list):
+                return_val = [response]
+        return return_val
+
+    def read_user(self, user=None, cpr=None):
         """
         Read all properties of an AD user. The user can be retrived either by cpr
         or by AD user name.
@@ -75,55 +131,73 @@ class ADParameterReader(object):
         """
         if (not cpr) and (not user):
             return
+
         if user:
-            ps_template = "get-aduser {}"
-            get_command = ps_template.format(user)
+            dict_key = user
+            if user in self.results:
+                print('Found user')
+                return
+
         if cpr:
-            ps_template = "get-aduser -Filter 'xAttrCPR -like \"{}\"'"
-            get_command = ps_template.format(cpr)
+            dict_key = cpr
+            if cpr in self.results:
+                print('Found user')
+                return
 
-        if not school:
-            search_base = ' -SearchBase "OU=Kommune,DC=viborg,DC=local" '
-        else:
-            search_base = ' -SearchBase "DC=uv-viborg,DC=local" '
+        response = self._get_from_ad(user=user, cpr=cpr, school=False)
 
-        # properties = ' -Properties *'
-        properties = ('-Properties xAttrCPR,ObjectGuid,SamAccountName,Title,Name,' +
-                      'xBrugertype, EmailAddress, MobilePhone')
+        if len(response) == 0:
+            response = self._get_from_ad(user=user, cpr=cpr, school=True)
+            if len(response) == 0:
+                self.results[dict_key] = None
 
-        command_end = ' -Credential $usercredential | ConvertTo-Json'
+        for current_user in response:
+            # print(current_user['Name'])
+            job_title = current_user.get('Title')
+            if job_title and job_title.find('FRATR') == 0:
+                continue  # These are users that has left
 
-        ps_script = (self._build_user_credential(school) +
-                     get_command +
-                     search_base +
-                     properties +
-                     command_end)
+            brugertype = current_user.get('xBrugertype')
+            if brugertype and brugertype.find('Medarbejder') == -1:
+                continue
 
-        response = self._run_ps_script(ps_script)
+            if 'mail' in current_user:
+                current_user['EmailAddress'] = current_user['mail']
+                del current_user['mail']
 
+            if cpr:
+                self.results[current_user['xAttrCPR']] = current_user
+            if user:
+                self.results[current_user['SamAccountName']] = current_user
+
+        """
         if isinstance(response, list):
             unique = False
             for current_user in response:
                 job_title = current_user.get('Title')
                 if job_title and job_title.find('FRATR') == 0:
                     continue  # These are users that has left
-                if current_user['xBrugertype'] == 'Medarbejder':
-                    user = current_user
-                    assert(not unique)
-                    unique = True
-            assert(unique)
+                #if current_user['xBrugertype'] == 'Medarbejder':
+                #    user = current_user
+                #    assert(not unique)
+                #    unique = True
+            # assert(unique)
+            user = current_user
         else:
             user = response
-        return user
+        """
+        return self.results[dict_key]
 
 if __name__ == '__main__':
+    import time
+
+    t = time.time()
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())
-    user = ad_reader.read_user(user='konroje', school=False)
-
-    print()
+    user = ad_reader.read_user(user='konroje')
     print(sorted(user.keys()))
     print(user['xBrugertype'])
     print(user['ObjectGuid'])
     print(user['EmailAddress'])
     print(user['MobilePhone'])
+
