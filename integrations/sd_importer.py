@@ -110,6 +110,7 @@ class SdImport(object):
         self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
 
     def _update_ad_map(self, cpr):
+        print('Update {}'.format(cpr))
         if self.ad_reader:
             m = hashlib.sha256()
             m.update(cpr.encode())
@@ -122,6 +123,9 @@ class SdImport(object):
                 response = self.ad_reader.read_user(cpr=cpr)
                 with open(path_url + '.p', 'wb') as f:
                     pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
+            if response == None:
+                response = {}
+
             self.ad_people[cpr] = response
         else:
             self.ad_people[cpr] = {}
