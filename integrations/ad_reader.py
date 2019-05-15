@@ -46,7 +46,7 @@ class ADParameterReader(object):
         :return: A suitable string to prepend to AD commands.
         """
         credential_template = """
-        $User = " {} "
+        $User = "{}"
         $PWord = ConvertTo-SecureString –String "{}" –AsPlainText -Force
         $TypeName = "System.Management.Automation.PSCredential"
         $UserCredential = New-Object –TypeName $TypeName –ArgumentList $User, $PWord
@@ -119,6 +119,8 @@ class ADParameterReader(object):
         else:
             if not isinstance(response, list):
                 return_val = [response]
+            else:
+                return_val = response
         return return_val
 
     def read_user(self, user=None, cpr=None):
@@ -143,7 +145,6 @@ class ADParameterReader(object):
                 return self.results[cpr]
 
         response = self._get_from_ad(user=user, cpr=cpr, school=True)
-        print(response)
         for current_user in response:
             job_title = current_user.get('Title')
             if job_title and job_title.find('FRATR') == 0:
@@ -157,7 +158,6 @@ class ADParameterReader(object):
             self.results[current_user['SamAccountName']] = current_user
 
         response = self._get_from_ad(user=user, cpr=cpr, school=False)
-        print(response)
         for current_user in response:
             job_title = current_user.get('Title')
             if job_title and job_title.find('FRATR') == 0:
@@ -166,7 +166,6 @@ class ADParameterReader(object):
             brugertype = current_user.get('xBrugertype')
             if brugertype and brugertype.find('Medarbejder') == -1:
                 continue
-
             self.results[current_user['xAttrCPR']] = current_user
             self.results[current_user['SamAccountName']] = current_user
 
@@ -179,4 +178,3 @@ if __name__ == '__main__':
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())
     user = ad_reader.read_user(user='konroje')
-    print(user)
