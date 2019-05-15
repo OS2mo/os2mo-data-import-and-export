@@ -92,15 +92,28 @@ class AposImport(object):
             locations = [locations]
 
         for location in locations:
+            address_string = None
             if '@adresse' not in location:
-                continue  # This entry is broken and should be ignored
-            # TODO: What to do with information regarding primary?
-            uuid = location['@adresse']
-            url = 'app-part/GetAdresseList?uuid={}'
-            apos_address = self._apos_lookup(url.format(uuid))
-            address_string = apos_address['adresse']['@vejadresseringsnavn']
-            zip_code = apos_address['adresse']['@postnummer']
-            dawa_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+                if len(location['@navn']) > 0:
+                    address = location['@navn'].split(' ')
+                    if len(address) == 1:
+                        continue
+                    zip_code = address[-2][:4]
+                    address_string = ''
+                    for i in range(0, len(address) - 2):
+                        address_string += address[i] + ' '
+                    address_string = address_string[:-2]
+            else:
+                uuid = location['@adresse']
+                url = 'app-part/GetAdresseList?uuid={}'
+                apos_address = self._apos_lookup(url.format(uuid))
+                address_string = apos_address['adresse']['@vejadresseringsnavn']
+                zip_code = apos_address['adresse']['@postnummer']
+
+            if address_string:
+                dawa_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+            else:
+                dawa_uuid = None
 
             pnummer = location.get('@pnummer', None)
             primary = (location.get('@primary', None) == 'JA')
@@ -400,17 +413,7 @@ class AposImport(object):
                           '58380fd3-b3fb-4f84-a56f-15c9716972c1'):
             enhedstype = '345a8893-eb1f-4e20-b76d-63b95b5809f6'
 
-        unit = self.importer.add_organisation_unit(
-            identifier=unit_id,
-            uuid=apos_unit['@uuid'],
-            name=apos_unit['@navn'],
-            user_key=apos_unit['@brugervendtNoegle'],
-            time_planning_ref=time_planning,
-            type_ref=enhedstype,
-            date_from=fra,
-            date_to=til,
-            parent_ref=parent)
-
+        apos_int = {}
         if 'integrationAttributter' in details:
             if details['integrationAttributter'] is not None:
                 attributter = details['integrationAttributter']['attribut']
@@ -420,12 +423,35 @@ class AposImport(object):
                 for attribut in attributter:
                     if isinstance(attribut, str):
                         continue
+
                     if len(attribut['@vaerdi']) > 0:
-                        self.importer.add_address_type(
-                            organisation_unit=unit_id,
-                            type_ref=attribut['@navn'],
-                            value=attribut['@vaerdi'],
-                            date_from=fra)
+                        apos_int[attribut['@navn']] = attribut['@vaerdi']
+
+        if 'Afdelingskode' in apos_int:
+            user_key = apos_int['Afdelingskode']
+            apos_int['Afdelingskode'] = apos_unit['@brugervendtNoegle']
+        else:
+            user_key = apos_unit['@brugervendtNoegle']
+
+        unit = self.importer.add_organisation_unit(
+            identifier=unit_id,
+            uuid=apos_unit['@uuid'],
+            name=apos_unit['@navn'],
+            user_key=user_key,
+            time_planning_ref=time_planning,
+            type_ref=enhedstype,
+            date_from=fra,
+            date_to=til,
+            parent_ref=parent)
+
+        for key, value in apos_int.items():
+            print('{}: {}'.format(key, value))
+            self.importer.add_address_type(
+                organisation_unit=unit_id,
+                type_ref=key,
+                value=value,
+                date_from=fra
+            )
 
         # This is most likely the orgunit relation information
         # print(details['tilknyttedeEnheder']))
@@ -502,30 +528,6 @@ class AposImport(object):
 
                 # klasse = self.importer.get('klasse', apos_type)
                 employee_identifier = employee['person']['@uuid']
-
-                """
-                {'id': 'EmailEmployee',
-                'titel': 'Email',
-                'facet': 'employee_address_type',
-                'scope': 'EMAIL'},
-                {'id': 'PhoneEmployee',
-                'titel': 'Telefon',
-                'facet': 'employee_address_type',
-                'scope': 'PHONE'},
-                {'id': 'AltPhoneEmployee',
-                'titel': 'Alt Tlf',
-                'facet': 'employee_address_type',
-                'scope': 'PHONE'},
-                """
-                
-                #if klasse.title == EMAIL_NAME:
-                print()
-                print('Apos type')
-                print(apos_type)
-                print(apos_type == EMAIL_NAME)
-                print()
-                print(kontaktmulighed)
-
                 if apos_type == EMAIL_NAME:
                     klasse_ref = 'EmailEmployee'
                 elif apos_type == MAIN_PHONE_NAME:
@@ -742,7 +744,7 @@ class AposImport(object):
                     self.create_employees_for_ou(unit['@uuid'])
                 else:
                     remaining_org_units.append(unit)
-            print(len(remaining_org_units))
+            print('Remaining org units: {}'.format(len(remaining_org_units)))
             org_units = remaining_org_units
             nodes.update(new)
 
