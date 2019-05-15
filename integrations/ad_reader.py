@@ -46,7 +46,7 @@ class ADParameterReader(object):
         :return: A suitable string to prepend to AD commands.
         """
         credential_template = """
-        $User = "{}"
+        $User = " {} "
         $PWord = ConvertTo-SecureString –String "{}" –AsPlainText -Force
         $TypeName = "System.Management.Automation.PSCredential"
         $UserCredential = New-Object –TypeName $TypeName –ArgumentList $User, $PWord
@@ -76,7 +76,7 @@ class ADParameterReader(object):
         """
         if user:
             dict_key = user
-            ps_template = "get-aduser {}"
+            ps_template = "get-aduser {} "
             get_command = ps_template.format(user)
 
         if cpr:
@@ -111,7 +111,7 @@ class ADParameterReader(object):
                      credentials +
                      properties +
                      command_end)
-
+        print(ps_script)
         response = self._run_ps_script(ps_script)
 
         if not response:
@@ -135,24 +135,30 @@ class ADParameterReader(object):
         if user:
             dict_key = user
             if user in self.results:
-                print('Found user')
-                return
+                return self.results[user]
 
         if cpr:
             dict_key = cpr
             if cpr in self.results:
-                print('Found user')
-                return
+                return self.results[cpr]
+
+        response = self._get_from_ad(user=user, cpr=cpr, school=True)
+        print(response)
+        for current_user in response:
+            job_title = current_user.get('Title')
+            if job_title and job_title.find('FRATR') == 0:
+                continue  # These are users that has left
+
+            if 'mail' in current_user:
+                current_user['EmailAddress'] = current_user['mail']
+                del current_user['mail']
+
+            self.results[current_user['xAttrCPR']] = current_user
+            self.results[current_user['SamAccountName']] = current_user
 
         response = self._get_from_ad(user=user, cpr=cpr, school=False)
-
-        if len(response) == 0:
-            response = self._get_from_ad(user=user, cpr=cpr, school=True)
-            if len(response) == 0:
-                self.results[dict_key] = None
-
+        print(response)
         for current_user in response:
-            # print(current_user['Name'])
             job_title = current_user.get('Title')
             if job_title and job_title.find('FRATR') == 0:
                 continue  # These are users that has left
@@ -161,32 +167,10 @@ class ADParameterReader(object):
             if brugertype and brugertype.find('Medarbejder') == -1:
                 continue
 
-            if 'mail' in current_user:
-                current_user['EmailAddress'] = current_user['mail']
-                del current_user['mail']
+            self.results[current_user['xAttrCPR']] = current_user
+            self.results[current_user['SamAccountName']] = current_user
 
-            if cpr:
-                self.results[current_user['xAttrCPR']] = current_user
-            if user:
-                self.results[current_user['SamAccountName']] = current_user
-
-        """
-        if isinstance(response, list):
-            unique = False
-            for current_user in response:
-                job_title = current_user.get('Title')
-                if job_title and job_title.find('FRATR') == 0:
-                    continue  # These are users that has left
-                #if current_user['xBrugertype'] == 'Medarbejder':
-                #    user = current_user
-                #    assert(not unique)
-                #    unique = True
-            # assert(unique)
-            user = current_user
-        else:
-            user = response
-        """
-        return self.results[dict_key]
+        return self.results.get(dict_key)
 
 if __name__ == '__main__':
     import time
@@ -195,9 +179,4 @@ if __name__ == '__main__':
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())
     user = ad_reader.read_user(user='konroje')
-    print(sorted(user.keys()))
-    print(user['xBrugertype'])
-    print(user['ObjectGuid'])
-    print(user['EmailAddress'])
-    print(user['MobilePhone'])
-
+    print(user)
