@@ -45,7 +45,7 @@ class MoraHelper(object):
         """
         path = []
         for sub_node in node.path:
-            ou = self.read_organisationsenhed(sub_node.name)
+            ou = self.read_ou(sub_node.name)
             path += [ou['name']]
         return path
 
@@ -91,7 +91,7 @@ class MoraHelper(object):
         :node: The node to find the path for.
         :return: A dict with headlines as keys and nodes as values.
         """
-        ou = self.read_organisationsenhed(node.name)
+        ou = self.read_ou(node.name)
         ou_type = ou['org_unit_type']['name']
 
         if org_types and (ou_type not in org_types):
@@ -123,6 +123,7 @@ class MoraHelper(object):
 
         full_url = self.host + url.format(uuid)
         if (full_url in self.cache) and use_cache:
+            print('AAAARRRGGHHH', full_url)
             return_dict = self.cache[full_url]
         else:
             if SAML_TOKEN is None:
@@ -174,7 +175,7 @@ class MoraHelper(object):
         org_enhed = self._mo_lookup(uuid, 'ou/{}', at, use_cache)
         return org_enhed
 
-    def read_ou_address(self, uuid, at=None, use_cache=None):
+    def read_ou_address(self, uuid, at=None, use_cache=None, scope="DAR"):
         """ Return a dict with the data available about an OU
         :param uuid: The UUID of the OU
         :return: Dict with the information about the OU
@@ -183,10 +184,9 @@ class MoraHelper(object):
         addresses = self._mo_lookup(uuid, 'ou/{}/details/address', at, use_cache)
 
         for address in addresses:
-            if address['address_type']['scope'] == 'DAR':
+            if address['address_type']['scope'] == scope:
                 return_address['Adresse'] = address['name']
-            if address['address_type']['scope'] == 'DAR':
-                return_address['Adresse'] = address['name']
+                return_address['value'] = address['value']
         return return_address
 
     def read_classes_in_facet(self, facet, use_cache=False):
@@ -427,3 +427,16 @@ class MoraHelper(object):
             if unit['child_count'] > 0:
                 nodes = self.read_ou_tree(uuid, nodes, nodes[uuid])
         return nodes
+
+    def get_e_username(self, e_uuid, id_it_system):
+        for its in self._mo_lookup(e_uuid, 'e/{}/details/it'):
+            if its['itsystem']["user_key"] == id_it_system:
+                return its['user_key']
+        return ''
+
+
+    def get_e_address(self, e_uuid, scope):
+        for address in self._mo_lookup(e_uuid, 'e/{}/details/address'):
+            if address['address_type']['scope'] == scope:
+                return address
+        return {}

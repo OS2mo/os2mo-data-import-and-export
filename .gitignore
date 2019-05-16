@@ -11,9 +11,14 @@
 # Python
 __pychache__
 *.pyc
+*.egg-info
 
 # Virtual environment
 venv-*
+venv
 
 # Workspace
 overflow
+
+#default output filenames
+emus_filename.xml
