@@ -332,18 +332,20 @@ class SdImport(object):
                     date_from=None
                 )
 
-            if 'MobilePhone' in self.ad_people[cpr]:
+            phone = self.ad_people[cpr].get('MobilePhone')
+            if phone:
                 self.importer.add_address_type(
                     employee=cpr,
-                    value=self.ad_people[cpr]['MobilePhone'],
+                    value=phone,
                     type_ref='PhoneEmployee',
                     date_from=None
                 )
 
-            if 'EmailAddress' in self.ad_people[cpr]:
+            email = self.ad_people[cpr].get('EmailAddress')
+            if email:
                 self.importer.add_address_type(
                     employee=cpr,
-                    value=self.ad_people[cpr]['EmailAddress'],
+                    value=email,
                     type_ref='EmailEmployee',
                     date_from=None
                 )
@@ -402,12 +404,13 @@ class SdImport(object):
                     # Orlov
                     pass
                 if status in ('8', '9'):
-                    # Fratrædt
+                    # Fratrådt eller pensioneret.
                     continue
 
                 employment_id = calc_employment_id(employment)
                 occupation_rate = float(employment['WorkingTime']
                                         ['OccupationRate'])
+
                 if occupation_rate == 0:
                     continue
 

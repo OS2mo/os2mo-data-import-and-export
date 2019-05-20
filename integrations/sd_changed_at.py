@@ -216,9 +216,8 @@ class ChangeAtSD(object):
         # print('Find engagement, from date: {}'.format(from_date))
         relevant_engagement = None
         try:
-            int(job_id)
             user_key = str(int(job_id)).zfill(5)
-        except ValueError:
+        except ValueError: # We will end here, if int(job_id) fails
             user_key = job_id
 
         print('Find: {}'.format(user_key))
@@ -470,6 +469,8 @@ class ChangeAtSD(object):
             # If status is present, we have a potential creation
             if eng['status_list']:
 
+                # The EmploymentStatusCode can take a number of magial values
+                # that must be handled seperately.
                 for status in eng['status_list']:
                     code = status['EmploymentStatusCode']
 
