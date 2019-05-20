@@ -2,6 +2,7 @@ import os
 import csv
 import sys
 import datetime
+from pathlib import Path
 from chardet.universaldetector import UniversalDetector
 
 from os2mo_data_import import ImportHelper
@@ -18,12 +19,11 @@ MANAGER_FILE = os.environ.get('MANAGER_FILE', 'Organisationsdata.csv')
 
 # ORIGIN FOR TESTS WIH ACTUAL API
 # GLOBAL_GET_DATE = datetime.datetime(2006, 1, 1, 0, 0) # will not work
-# GLOBAL_GET_DATE = datetime.datetime(2009, 1, 1, 0, 0) 
-# GLOBAL_GET_DATE = datetime.datetime(2011, 1, 1, 0, 0) 
+# GLOBAL_GET_DATE = datetime.datetime(2009, 1, 1, 0, 0)
+# GLOBAL_GET_DATE = datetime.datetime(2011, 1, 1, 0, 0)
 # GLOBAL_GET_DATE = datetime.datetime(2014, 2, 15, 0, 0)
 # GLOBAL_GET_DATE = datetime.datetime(2019, 2, 15, 0, 0)
 GLOBAL_GET_DATE = datetime.datetime(2019, 5, 10, 0, 0)
-
 
 importer = ImportHelper(
     create_defaults=True,
@@ -34,7 +34,7 @@ importer = ImportHelper(
     store_integration_data=True
 )
 
-ad_reader = ad_reader.ADParameterReader()
+ad_usernames, ad_uuids = viborg_uuids.read_ad_and_uuids()
 
 detector = UniversalDetector()
 with open(MANAGER_FILE, 'rb') as csvfile:
@@ -65,20 +65,37 @@ with open(MANAGER_FILE, encoding=encoding) as csvfile:
             }
             manager_rows.append(new_row)
 
+importer.new_itsystem(
+    identifier='AD',
+    system_name='Active Directory'
+)
 
 sd = sd_importer.SdImport(
     importer,
     MUNICIPALTY_NAME,
     MUNICIPALTY_CODE,
     import_date_from=GLOBAL_GET_DATE,
-    ad_info=ad_reader,
+    ad_info=ad_uuids,
     manager_rows=manager_rows
 )
+
+for cpr, username in ad_usernames.items():
+    if importer.check_if_exists('employee', cpr):
+        importer.join_itsystem(
+            employee=cpr,
+            user_key=username,
+            itsystem_ref='AD',
+            date_from=None
+        )
+
+sd.employee_forced_uuids = ad_uuids
+sd.employee_ad_usernames = ad_usernames
 
 sd.create_ou_tree()
 sd.create_employees()
 
 importer.import_all()
+
 
 """
 for info in sd.address_errors.values():

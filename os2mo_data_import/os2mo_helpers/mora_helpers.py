@@ -105,14 +105,19 @@ class MoraHelper(object):
             i += 1
         return path_dict
 
-    def _mo_lookup(self, uuid, url, at=None, use_cache=None):
+    def _mo_lookup(self, uuid, url, at=None, validity=None, only_primary=False,
+                   use_cache=None):
         # TODO: at-value is currently not part of cache key
-        if not use_cache:
+        if use_cache is None:
             use_cache = self.default_cache
+
+        params = {}
+        if only_primary:
+            params['only_primary_uuid'] = 1
         if at:
-            params = {
-                "at": at
-            }
+            params['at'] = at
+        elif validity:
+            params['validity'] = validity
         else:
             params = None
 
@@ -125,13 +130,34 @@ class MoraHelper(object):
                 return_dict = requests.get(full_url, params=params).json()
             else:
                 header = {"SESSION": SAML_TOKEN}
-                return_dict = requests.get(
+                response = requests.get(
                     full_url,
                     headers=header,
                     params=params
-                ).json()
+                )
+                return_dict = response.json()
             self.cache[full_url] = return_dict
         return return_dict
+
+    def _mo_post(self, url, payload, force=True):
+        if force:
+            params = {'force': 1}
+        else:
+            params = None
+
+        if SAML_TOKEN:
+            header = {"SESSION": SAML_TOKEN}
+        else:
+            header = None
+
+        full_url = self.host + url
+        response = requests.post(
+            full_url,
+            headers=header,
+            params=params,
+            json=payload
+        )
+        return response
 
     def read_organisation(self):
         """ Read the main Organisation, all OU's will have this as root.
@@ -163,14 +189,100 @@ class MoraHelper(object):
                 return_address['value'] = address['value']
         return return_address
 
-    def read_user_engagement(self, user, at=None, use_cache=None):
+    def read_classes_in_facet(self, facet, use_cache=False):
+        """ Return all classes belong to a given facet.
+        :param facet: The facet to be returned.
+        :return: List of classes in the facet and the uuid of the facet.
+        """
+        org_uuid = self.read_organisation()
+        url = 'o/' + org_uuid + '/f/{}/'
+        class_list = self._mo_lookup(facet, url, use_cache=False)
+        classes = class_list['data']['items']
+        facet_uuid = class_list['uuid']
+        return (classes, facet_uuid)
+
+    def read_user(self, user_uuid=None, user_cpr=None, at=None, use_cache=None,
+                  org_uuid=None):
+        """
+        Read basic info for a user. Either uuid or cpr must be given.
+        :param user_uuid: UUID of the wanted user.
+        :param user_cpr: cpr of the wanted user.
+        :return: Basic user info
+        """
+        if user_uuid:
+            user_info = self._mo_lookup(user_uuid, 'e/{}', at, use_cache)
+        if user_cpr:
+            if not org_uuid:
+                org_uuid = self.read_organisation()
+            user = self._mo_lookup(user_cpr, 'o/' + org_uuid + '/e?query={}',
+                                   at, use_cache)
+            assert user['total'] < 2  # Only a single person can be found from cpr
+
+            if user['total'] == 1:
+                user_info = self._mo_lookup(user['items'][0]['uuid'], 'e/{}',
+                                            at, use_cache)
+            else:
+                user_info = None
+        return user_info
+
+    def terminate_detail(self, mo_type, uuid, from_date):
+        """ Terminate a specific MO detail.
+        :param mo_type: The MO type to terminate (association, role, engagement, etc)
+        :param uuid: Object to terminate.
+        :param from_date: Date to terminate from.
+        """
+        payload = {
+            'type': mo_type,
+            'uuid': uuid,
+            'validity': {
+                'to': '2018-01-01'
+            }
+        }
+        print('TERMINATE')
+        print(payload)
+        # self._mo_post('details/terminate', payload):
+
+    def read_user_engagement(self, user, at=None, read_all=False,
+                             only_primary=False, use_cache=None):
         """
         Read engagements for a user.
         :param user: UUID of the wanted user.
         :return: List of the users engagements.
         """
-        engagement = self._mo_lookup(user, 'e/{}/details/engagement', at, use_cache)
-        return engagement
+        if not read_all:
+            engagements = self._mo_lookup(user, 'e/{}/details/engagement',
+                                          at, only_primary=only_primary,
+                                          use_cache=use_cache)
+        else:
+            engagements = []
+            for validity in ['past', 'present', 'future']:
+                engagement = self._mo_lookup(user, 'e/{}/details/engagement',
+                                             validity=validity,
+                                             only_primary=only_primary,
+                                             use_cache=False)
+                engagements = engagements + engagement
+        return engagements
+
+    def read_user_association(self, user, at=None, read_all=False,
+                              only_primary=False, use_cache=None):
+        """
+        Read associations for a user.
+        :param user: UUID of the wanted user.
+        :return: List of the users associations.
+        """
+        if not read_all:
+            associations = self._mo_lookup(user, 'e/{}/details/association',
+                                           at, only_primary=only_primary,
+                                           use_cach=use_cache)
+        else:
+            associations = []
+            for validity in ['past', 'present', 'future']:
+                association = self._mo_lookup(user, 'e/{}/details/association',
+                                              validity=validity,
+                                              only_primary=only_primary,
+                                              use_cache=False)
+                associations = associations + association
+        return associations
 
     def read_user_address(self, user, username=False, cpr=False,
                           at=None, use_cache=None):
