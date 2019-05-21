@@ -91,8 +91,12 @@ class OpusImport(object):
         # UNUSED KEYS:
         # costCenter, @lastChanged
 
-        org_type = unit['orgType']
-        self._add_klasse(org_type, unit['orgTypeTxt'], 'org_unit_type')
+        try:
+            org_type = unit['orgType']
+            self._add_klasse(org_type, unit['orgTypeTxt'], 'org_unit_type')
+        except KeyError:
+            org_type = 'Enhed'
+            self._add_klasse(org_type, 'Enhed', 'org_unit_type')
 
         identifier = unit['@id']
         user_key = unit['shortName']
@@ -117,23 +121,25 @@ class OpusImport(object):
             date_to=date_to
         )
 
-        self.importer.add_address_type(
-            organisation_unit=identifier,
-            value=unit['seNr'],
-            type_ref='SE',
-            date_from=date_from,
-            date_to=date_to
-        )
+        if 'seNr' in unit:
+            self.importer.add_address_type(
+                organisation_unit=identifier,
+                value=unit['seNr'],
+                type_ref='SE',
+                date_from=date_from,
+                date_to=date_to
+            )
 
-        self.importer.add_address_type(
-            organisation_unit=identifier,
-            value=unit['cvrNr'],
-            type_ref='CVR',
-            date_from=date_from,
-            date_to=date_to
-        )
+        if 'cvrNr' in unit:
+            self.importer.add_address_type(
+                organisation_unit=identifier,
+                value=unit['cvrNr'],
+                type_ref='CVR',
+                date_from=date_from,
+                date_to=date_to
+            )
 
-        if not unit['eanNr'] == '9999999999999':
+        if 'eanNr' in unit and (not unit['eanNr'] == '9999999999999'):
             self.importer.add_address_type(
                 organisation_unit=identifier,
                 value=unit['eanNr'],
@@ -142,7 +148,7 @@ class OpusImport(object):
                 date_to=date_to
             )
 
-        if not unit['pNr'] == '0000000000':
+        if 'pNr' in unit and (not unit['pNr'] == '0000000000'):
             self.importer.add_address_type(
                 organisation_unit=identifier,
                 value=unit['pNr'],
@@ -176,13 +182,15 @@ class OpusImport(object):
     def add_addresses_to_employees(self):
         for cpr, employee_addresses in self.employee_addresses.items():
             for facet, address in employee_addresses.items():
-                self.importer.add_address_type(
-                    employee=cpr,
-                    value=address,
-                    type_ref=facet,
-                    date_from='1900-01-01',
-                    date_to=None
-                )
+                print(address)
+                if address:
+                    self.importer.add_address_type(
+                        employee=cpr,
+                        value=address,
+                        type_ref=facet,
+                        date_from='1900-01-01',
+                        date_to=None
+                    )
 
     def _import_employee(self, employee):
         # UNUSED KEYS:
@@ -228,12 +236,18 @@ class OpusImport(object):
         if employee['workPhone'] is not None:
             phone = _parse_phone(employee['workPhone'])
             self.employee_addresses[cpr]['PhoneEmployee'] = phone
+
         if 'postalCode' in employee and employee['address']:
-            address_string = employee['address']
-            zip_code = employee["postalCode"]
-            address_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
-            if address_uuid:
-                self.employee_addresses[cpr]['AdressePostEmployee'] = address_uuid
+            if isinstance(employee['address'], dict):
+                # TODO: This is a protected address
+                # We currenly only support visibility for phones
+                pass
+            else:
+                address_string = employee['address']
+                zip_code = employee["postalCode"]
+                addr_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+                if addr_uuid:
+                    self.employee_addresses[cpr]['AdressePostEmployee'] = addr_uuid
 
         job = employee["position"]
         contract = employee['workContract']
