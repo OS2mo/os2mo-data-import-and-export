@@ -746,11 +746,10 @@ class EmployeeType(MoType):
     :param str user_key: (Optional) user key for internal reference
     :param str org: Reference to the organisation to which the employee belongs
     :param str/uuid uuid: The object uuid
-    :param str date_from: Start date e.g. "1982-01-01"
-    :param str date_to: End date e.g. "1982-01-01"
     """
 
-    def __init__(self, name, cpr_no, org=None, uuid=None, user_key=None):
+    def __init__(self, name, cpr_no, org=None, uuid=None, user_key=None,
+                 seperate_names=False):
         super().__init__()
 
         if isinstance(name, tuple):
@@ -759,7 +758,8 @@ class EmployeeType(MoType):
         else:
             self.givenname = name.rsplit(" ", maxsplit=1)[0]
             self.surname = name[len(self.givenname):].strip()
-            
+        self.seperate_names = seperate_names
+
         self.cpr_no = cpr_no
 
         self.uuid = uuid
@@ -783,12 +783,21 @@ class EmployeeType(MoType):
         if not self.org_uuid:
             raise ReferenceError("UUID of the organisation is missing")
 
-        self.payload = {
-            "givenname": self.givenname,
-            "surname": self.surname,
-            "cpr_no": self.cpr_no,
-            "org": {
-                "uuid": self.org_uuid
+        if self.seperate_names:
+            self.payload = {
+                "givenname": self.givenname,
+                "surname": self.surname,
+                "cpr_no": self.cpr_no,
+                "org": {
+                    "uuid": self.org_uuid
+                }
             }
-        }
+        else:
+            self.payload = {
+                "name": self.givenname + ' ' + self.surname,
+                "cpr_no": self.cpr_no,
+                "org": {
+                    "uuid": self.org_uuid
+                }
+            }
         return self._build_payload()
