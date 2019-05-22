@@ -17,11 +17,12 @@ class DummyTest(unittest.TestCase):
         for i in range(0, 10):
             names.append(self.ddc.create_name(return_user_key=False))
         expected_names = [
-            'Kristine Serup Jørgensen', 'Arne Larsen',
-            'Christian Heldgaard Frederiksen', 'Flemming Lindgaard Skorstengaard',
-            'Maria Ahmednor Brøsted', 'Anders Maagaard Pedersen',
-            'Anne Balsgaard Barløse', 'Margit Hesselbjerg', 'Tina Petersen',
-            'Christen Bødker Weinell'
+            ('Kristine Serup', 'Jørgensen'), ('Arne', 'Larsen'),
+            ('Christian Heldgaard', 'Frederiksen'),
+            ('Flemming Lindgaard', 'Skorstengaard'),
+            ('Maria Ahmednor', 'Brøsted'), ('Anders Maagaard', 'Pedersen'),
+            ('Anne Balsgaard', 'Barløse'), ('Margit', 'Hesselbjerg'),
+            ('Tina', 'Petersen'), ('Christen Bødker', 'Weinell')
         ]
         self.assertEqual(names, expected_names)
 
