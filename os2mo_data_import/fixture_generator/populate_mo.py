@@ -76,7 +76,6 @@ class CreateDummyOrg(object):
                                                  predictable_uuids=predictable_uuids)
 
         data.create_org_func_tree(org_size=org_size)
-
         data.add_users_to_tree(scale,
                                multiple_employments=org_size == Size.Large)
         return data
@@ -195,7 +194,7 @@ class CreateDummyOrg(object):
 
     def create_user(self, user_node):
         self.importer.add_employee(
-            name=user_node.name,
+            name=(user_node.user[0]['givenname'], user_node.user[0]['surname']),
             user_key=user_node.user[0]['brugervendtnoegle'],
             identifier=user_node.user[0]['brugervendtnoegle'],
             cpr_no=user_node.user[0]['cpr']
@@ -325,7 +324,8 @@ def main(mox_base, mora_base, municipality, scale, org_size, extra_root):
                             mora_base=mora_base,
                             system_name="Artificial import",
                             end_marker="STOP_DUMMY",
-                            store_integration_data=True)
+                            store_integration_data=True,
+                            seperate_names=False)
 
     CreateDummyOrg(importer,
                    municipality_code=municipality_number,

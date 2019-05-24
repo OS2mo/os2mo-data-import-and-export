@@ -340,7 +340,7 @@ class CreateDummyOrg(object):
             middle = middle + ' ' + self._pick_name_from_list('middle')
 
         last = self._pick_name_from_list('last')
-        name = first + middle + ' ' + last
+        name = (first + middle, last)
         user_key = first + last[0]
         i = 0
         while user_key in self.used_user_keys:
@@ -383,7 +383,8 @@ class CreateDummyOrg(object):
         user = {'fra': time_from,
                 'til': time_to,
                 'brugervendtnoegle': user_key,
-                'brugernavn': name,
+                'givenname': name[0],
+                'surname': name[1],
                 'email': user_key.lower() + '@' + host,
                 'secret_phone': secret_phone[0],
                 'location': location,
@@ -548,20 +549,30 @@ class CreateDummyOrg(object):
                     eng['role'] = self.add_user_func('role_type', node)
 
                 uuid = uuid5(NAMESPACE_DNS, str(random.random()))
-                new_nodes[uuid] = {'name': user[0]['brugernavn'], 'user': user,
-                                   'parent': node}
+                new_nodes[uuid] = {
+                    'givenname': user[0]['givenname'],
+                    'surname': user[0]['surname'],
+                    'user': user,
+                    'parent': node
+                }
 
             # In version one we always add a single manager to a OU
             # This should be randomized and also sometimes be a vacant
             # position
             user = self.create_manager()
             uuid = uuid5(NAMESPACE_DNS, str(random.random()))
-            new_nodes[uuid] = {'name': user[0]['brugernavn'], 'user': user,
-                               'parent': node}
+            new_nodes[uuid] = {
+                'givenname': user[0]['givenname'],
+                'surname': user[0]['surname'],
+                'user': user,
+                'parent': node
+            }
         keys = sorted(new_nodes.keys())
         for key in list(keys):
             user_info = new_nodes[key]
-            user_node = Node(user_info['user'][0]['brugernavn'],
+            user_node = Node(name=user_info['user'][0]['givenname'],
+                             givenname=user_info['user'][0]['givenname'],
+                             surname=user_info['user'][0]['surname'],
                              user=user_info['user'], type='user',
                              parent=user_info['parent'])
             self.nodes[key] = user_node
@@ -586,7 +597,10 @@ if __name__ == '__main__':
         if node.type == 'user':
             print()
             print('---')
-            print(node.name)  # Name of the employee
+            print('Given name: {}, Surname: {}'.format(
+                node.givenname,
+                node.surname
+            ))
             print(node.parent.key)  # Key for parent unit
             user = node.user  # All user information is here
             for engagement in user:

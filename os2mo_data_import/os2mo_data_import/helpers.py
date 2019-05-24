@@ -104,7 +104,9 @@ class ImportHelper(object):
     def __init__(self, system_name="Import", end_marker="_|-STOP",
                  mox_base="http://localhost:8080", mora_base="http://localhost:5000",
                  store_integration_data=False, create_defaults=True,
-                 ImportUtility=ImportUtility):
+                 seperate_names=False, ImportUtility=ImportUtility):
+
+        self.seperate_names = seperate_names
 
         mora_type_config(mox_base=mox_base,
                          system_name=system_name,
@@ -359,8 +361,7 @@ class ImportHelper(object):
         if identifier in self.employees:
             raise ReferenceError("Identifier exists")
 
-        if "name" not in kwargs:
-            kwargs["name"] = identifier
+        kwargs['seperate_names'] = self.seperate_names
 
         self.employees[identifier] = EmployeeType(**kwargs)
         self.employee_details[identifier] = []
