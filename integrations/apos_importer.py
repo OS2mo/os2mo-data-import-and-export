@@ -608,10 +608,10 @@ class AposImport(object):
         for medarbejder in medarbejdere:
             objectid = int(medarbejder['pathToRoot']['enhed'][-1]['@objectid'])
             person = medarbejder['person']
-            name = person['@fornavn'] + ' '
+            given_name = person['@fornavn'] + ' '
             if person['@mellemnavn']:
-                name += person['@mellemnavn']
-            name += person['@efternavn']
+                given_name += person['@mellemnavn']
+            sur_name = person['@efternavn']
             fra, til = _format_time(medarbejder['gyldighed'])
             bvn = medarbejder['@brugervendtNoegle']
 
@@ -630,7 +630,7 @@ class AposImport(object):
                 # Some employees are duplicated, skip them and remember them.
                 continue
 
-            self.importer.add_employee(name=name,
+            self.importer.add_employee(name=(given_name, sur_name),
                                        uuid=person['@uuid'],
                                        identifier=person['@uuid'],
                                        cpr_no=person['@personnummer'],
