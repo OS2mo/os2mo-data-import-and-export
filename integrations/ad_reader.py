@@ -1,5 +1,7 @@
 import os
 import json
+import pickle
+import hashlib
 from winrm import Session
 
 WINRM_HOST = os.environ.get('WINRM_HOST', None)
@@ -111,7 +113,7 @@ class ADParameterReader(object):
                      credentials +
                      properties +
                      command_end)
-        print(ps_script)
+
         response = self._run_ps_script(ps_script)
 
         if not response:
@@ -123,27 +125,7 @@ class ADParameterReader(object):
                 return_val = response
         return return_val
 
-    def read_user(self, user=None, cpr=None):
-        """
-        Read all properties of an AD user. The user can be retrived either by cpr
-        or by AD user name.
-        :param user: The AD username to retrive.
-        :param cpr: cpr number of the user to retrive.
-        :return: All properties listed in AD for the user.
-        """
-        if (not cpr) and (not user):
-            return
-
-        if user:
-            dict_key = user
-            if user in self.results:
-                return self.results[user]
-
-        if cpr:
-            dict_key = cpr
-            if cpr in self.results:
-                return self.results[cpr]
-
+    def uncached_read_user(self, user=None, cpr=None):
         response = self._get_from_ad(user=user, cpr=cpr, school=True)
         for current_user in response:
             job_title = current_user.get('Title')
@@ -168,12 +150,48 @@ class ADParameterReader(object):
                 continue
             self.results[current_user['xAttrCPR']] = current_user
             self.results[current_user['SamAccountName']] = current_user
+        return current_user
 
+    def read_user(self, user=None, cpr=None):
+        """
+        Read all properties of an AD user. The user can be retrived either by cpr
+        or by AD user name.
+        :param user: The AD username to retrive.
+        :param cpr: cpr number of the user to retrive.
+        :return: All properties listed in AD for the user.
+        """
+        if (not cpr) and (not user):
+            return
+
+        if user:
+            dict_key = user
+            if user in self.results:
+                return self.results[user]
+
+        if cpr:
+            dict_key = cpr
+            if cpr in self.results:
+                return self.results[cpr]
+
+        m = hashlib.sha256()
+        m.update(dict_key.encode())
+        path_url = 'ad_' + m.hexdigest()
+
+        try:
+            with open(path_url + '.p', 'rb') as f:
+                print('ad-cached')
+                response = pickle.load(f)
+                self.results[dict_key] = response
+
+        except FileNotFoundError:
+            response = self.uncached_read_user(user=user, cpr=cpr)
+            with open(path_url + '.p', 'wb') as f:
+                pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
         return self.results.get(dict_key)
+
 
 if __name__ == '__main__':
     import time
-
     t = time.time()
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())
