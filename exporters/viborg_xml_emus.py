@@ -23,7 +23,7 @@ import logging
 MORA_BASE = os.environ.get('MORA_BASE', 'localhost:80')
 MORA_ROOT_ORG_UNIT_NAME = os.environ.get('MORA_ROOT_ORG_UNIT_NAME', 'Viborg Kommune')
 USERID_ITSYSTEM = os.environ.get('USERID_ITSYSTEM', 'Active Directory')
-EMUS_MANAGER_FACET_ID = os.environ['EMUS_MANAGER_FACET_ID']  # no default, must exist
+EMUS_RESPONSIBILITY_CLASS = os.environ['EMUS_RESPONSIBILITY_CLASS']  # no default, must exist
 EMUS_FILENAME = os.environ.get('EMUS_FILENAME', 'emus_filename.xml')
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
 
@@ -214,7 +214,7 @@ def build_manager_rows(mh, ou, manager):
     # and manpulate from and to
 
     for responsibility in manager["responsibility"]:
-        if not responsibility["uuid"] == EMUS_MANAGER_FACET_ID:
+        if not responsibility["uuid"] == EMUS_RESPONSIBILITY_CLASS:
             logger.debug("skipping man. resp. %s", responsibility["name"])
             continue
         logger.info("adding manager %s", manager["uuid"])
