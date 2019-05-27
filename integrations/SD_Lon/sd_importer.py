@@ -7,10 +7,11 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import os
-import pickle
-import hashlib
+import sys
 import datetime
 from anytree import Node
+
+sys.path.append('../')
 import ad_reader
 import dawa_helper
 from sd_common import sd_lookup, calc_employment_id
@@ -111,24 +112,11 @@ class SdImport(object):
 
     def _update_ad_map(self, cpr):
         print('Update {}'.format(cpr))
+        self.ad_people[cpr] = {}
         if self.ad_reader:
-            m = hashlib.sha256()
-            m.update(cpr.encode())
-            path_url = 'ad_' + m.hexdigest()
-            try:
-                with open(path_url + '.p', 'rb') as f:
-                    print('ad-cached')
-                    response = pickle.load(f)
-            except FileNotFoundError:
-                response = self.ad_reader.read_user(cpr=cpr)
-                with open(path_url + '.p', 'wb') as f:
-                    pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
-            if response == None:
-                response = {}
-
-            self.ad_people[cpr] = response
-        else:
-            self.ad_people[cpr] = {}
+            response = self.ad_reader.read_user(cpr=cpr)
+            if response:
+                self.ad_people[cpr] = response
 
     def _read_department_info(self):
         """ Load all deparment details and store for later user """
@@ -308,8 +296,6 @@ class SdImport(object):
             else:
                 uuid = None
 
-            ad_titel = self.ad_people[cpr].get('Title', None)
-
             # Name is placeholder for initals, do not know which field to extract
             if 'Name' in self.ad_people[cpr]:
                 user_key = self.ad_people[cpr]['Name']
@@ -479,9 +465,7 @@ class SdImport(object):
                         employment['EmploymentStatus']['DeactivationDate'],
                         '%Y-%m-%d'
                     )
-                # print('-')
-                # print(date_from)
-                # print(date_to)
+
                 if date_from > date_to:
                     date_from = date_to
 
