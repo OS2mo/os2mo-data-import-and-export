@@ -204,11 +204,6 @@ class OpusImport(object):
             # print(employee['@action'])
             return
 
-        name = "{first} {last}".format(
-            first=employee['firstName'],
-            last=employee['lastName']
-        )
-
         date_from = employee['entryDate']
         date_to = employee['leaveDate']
 
@@ -218,7 +213,7 @@ class OpusImport(object):
             self.employee_addresses[cpr] = {}
             self.importer.add_employee(
                 identifier=cpr,
-                name=name,
+                name=(employee['firstName'], employee['lastName']),
                 cpr_no=cpr
             )
 
