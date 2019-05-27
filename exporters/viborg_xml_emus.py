@@ -211,7 +211,7 @@ def build_manager_rows(mh, ou, manager):
 
     # manipulate row into a manager row
     # empty a couple of fields, change client and employee_id
-    # and manpulate from and to
+    # and manipulate from and to
 
     for responsibility in manager["responsibility"]:
         if not responsibility["uuid"] == EMUS_RESPONSIBILITY_CLASS:
@@ -262,7 +262,8 @@ def export_e_emus(mh, nodes, emus_file):
                 manager_rows.extend(build_manager_rows(mh, ou, manager))
 
     if not len(manager_rows):
-        logger.error("no managers found - did You forget")
+        logger.error("no managers found - did You forget to"
+                     " specify correct EMUS_RESPONSIBILITY_CLASS")
     rows = engagement_rows + manager_rows
     logger.info("writing %d engagement rows and %d manager rows to file",
                 len(engagement_rows), len(manager_rows))
