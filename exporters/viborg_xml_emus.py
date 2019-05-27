@@ -199,6 +199,24 @@ def build_engagement_row(mh, ou, engagement):
     }
     return row
 
+def get_manager_dates(mh, person):
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    startdate = ''
+    enddate = ''
+    for engagement in mh.read_user_engagement(person["uuid"], read_all=True):
+        if engagement["validity"].get("to"):
+            if not enddate or engagement["validity"]["to"] > enddate:
+                enddate = engagement["validity"]["to"] 
+
+            # don't take startdate from expired employment
+            if engagement["validity"]["to"] < today:
+                continue
+
+        if not startdate or engagement["validity"]["from"] < startdate:
+            startdate = engagement["validity"]["from"]
+
+    return startdate, enddate
+
 
 def build_manager_rows(mh, ou, manager):
     # render manager returns a list as a manager will typically have more
@@ -206,8 +224,24 @@ def build_manager_rows(mh, ou, manager):
 
     rows = []
     person = manager["person"]
-    manager_engagement = mh.read_user_engagement(person["uuid"], read_all=False)
-    engagement_row = build_engagement_row(mh, ou, manager_engagement[0])
+
+    employee = mh._mo_lookup(
+        person["uuid"],
+        'e/{}'
+    )
+    entrydate, leavedate = get_manager_dates(mh, person)
+
+    firstname, lastname = person["name"].rsplit(
+        " ", maxsplit=1
+    )
+
+    username = mh.get_e_username(
+        person["uuid"],
+        'Active Directory'
+    )
+
+    _phone = mh.get_e_address(person["uuid"], "PHONE")
+    _email = mh.get_e_address(person["uuid"], "EMAIL")
 
     # manipulate row into a manager row
     # empty a couple of fields, change client and employee_id
@@ -217,16 +251,28 @@ def build_manager_rows(mh, ou, manager):
         if not responsibility["uuid"] == EMUS_RESPONSIBILITY_CLASS:
             logger.debug("skipping man. resp. %s", responsibility["name"])
             continue
-        logger.info("adding manager %s", manager["uuid"])
-        row = dict(engagement_row)
-        row["leaveDate"] = ""
-        row["employee_id"] = person["uuid"]
-        row["client"] = "540"
-        row['workContract'] = ""
-        row['workContractText'] = ""
-        row['positionId'] = ""
-        row['orgUnit'] = ""
-        row['position'] = responsibility["name"]
+        logger.info("adding manager %s with man. resp. %s", manager["uuid"], responsibility["name"] )
+        row = {
+            'employee_id': person["uuid"],
+            'client': "540",
+            'entryDate': entrydate,
+            'leaveDate': leavedate,
+            'cpr': employee['cpr_no'],
+            'firstName': firstname,
+            'lastName': lastname,
+            'workPhone': _phone.get("name", '') if _phone.get(
+                "visibility", {}
+            ).get("scope", "") != "SECRET" else 'hemmelig',
+            'workContract': '',
+            'workContractText': '',
+            'positionId': '',
+            'position': responsibility["name"],
+            'orgUnit': '',
+            'email': _email.get("name", "") if _email.get(
+                "visibility", {}
+            ).get("scope", "") != "SECRET" else 'hemmelig',
+            'username': username,
+        }
         rows.append(row)
     return rows
 
@@ -258,7 +304,7 @@ def export_e_emus(mh, nodes, emus_file):
                 logger.info("skipping vacant manager %s", manager["uuid"])
                 continue  # vacant manager
             else:
-                # extend, as there can be more than one responsibility
+                # extend, as there can be zero or one
                 manager_rows.extend(build_manager_rows(mh, ou, manager))
 
     if not len(manager_rows):
