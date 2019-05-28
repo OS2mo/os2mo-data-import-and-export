@@ -25,7 +25,7 @@ activity_log_handler = RotatingFileHandler(
     maxBytes=1000000
 )
 activity_log_handler.setFormatter(log_format)
-activity_log_handler.setLevel(INFO_LEVEL)
+activity_log_handler.setLevel(DEBUG_LEVEL)
 logger.addHandler(activity_log_handler)
 
 MOX_BASE = os.environ.get('MOX_BASE', None)
@@ -606,6 +606,7 @@ class ChangeAtSD(object):
             i = i + 1
 
             cpr = employment['PersonCivilRegistrationIdentifier']
+            logger.info('---------------------')
             logger.info('We are now updating {}'.format(cpr))
             logger.debug('From date: {}'.format(self.from_date))
             logger.debug('To date: {}'.format(self.to_date))
@@ -756,7 +757,7 @@ class ChangeAtSD(object):
                 assert response.status_code in (200, 400)
 
 if __name__ == '__main__':
-    logging.info('---------------')
+    logging.info('***************')
     logging.info('Program started')
     from_date = datetime.datetime(2019, 5, 19, 0, 0)
     sd_updater = ChangeAtSD(from_date)
@@ -773,4 +774,4 @@ if __name__ == '__main__':
         del(sd_updater)
         from_date = to_date
     """
-    logging.info('Program started')
+    logging.info('Program stopped.')
