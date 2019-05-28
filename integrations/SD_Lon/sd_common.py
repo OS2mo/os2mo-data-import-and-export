@@ -1,8 +1,11 @@
 import os
 import pickle
+import logging
 import hashlib
 import requests
 import xmltodict
+
+logger = logging.getLogger("sdCommon")
 
 INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
 SD_USER = os.environ.get('SD_USER', None)
@@ -12,6 +15,9 @@ if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
 
 
 def sd_lookup(url, params={}):
+    logger.info('Retrive: {}'.format(url))
+    logger.debug('Params: {}'.format(params))
+
     BASE_URL = 'https://service.sd.dk/sdws/'
     full_url = BASE_URL + url
 
@@ -41,6 +47,7 @@ def sd_lookup(url, params={}):
             pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
 
     xml_response = xmltodict.parse(response.text)[url]
+    logger.debug('Done with {}'.format(url))
     return xml_response
 
 

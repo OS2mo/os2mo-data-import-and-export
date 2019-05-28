@@ -20,10 +20,10 @@ import dawa_helper
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'
 
-logger = logging.getLogger("sdImport")
+logger = logging.getLogger('sdImport')
 
 for name in logging.root.manager.loggerDict:
-    if name in ('sdImport'):
+    if name in ('sdImport', 'sdCommon'):
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
         logging.getLogger(name).setLevel(logging.WARNING)
@@ -244,6 +244,7 @@ class SdImport(object):
             if all(element in info['PostalAddress'] for element in needed):
                 address_string = info['PostalAddress']['StandardAddressIdentifier']
                 zip_code = info['PostalAddress']['PostalCode']
+                logger.debug('Look in Dawa: {}'.format(address_string))
                 dar_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
                 logger.debug('DAR: {}'.format(dar_uuid))
 
@@ -375,7 +376,6 @@ class SdImport(object):
             'DeactivationDate': self.import_date,
             'UUIDIndicator': 'true'
         }
-
         organisation = sd_lookup('GetOrganization20111201', params)
 
         departments = organisation['Organization']['DepartmentReference']
