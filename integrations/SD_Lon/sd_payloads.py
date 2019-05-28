@@ -42,6 +42,7 @@ def create_leave(mo_eng, mo_person, leave_uuid, job_id, validity):
     }
     return payload
 
+
 def create_engagement(org_unit, mo_person, job_function, engagement_type,
                       job_id, engagement_info, validity):
     try:
@@ -60,6 +61,7 @@ def create_engagement(org_unit, mo_person, job_function, engagement_type,
     }
     return payload
 
+
 def create_association(org_unit, mo_person, association_uuid, job_id, validity):
     payload = {
         'type': 'association',
@@ -68,6 +70,20 @@ def create_association(org_unit, mo_person, association_uuid, job_id, validity):
         'association_type': {'uuid': association_uuid},
         'user_key': job_id,
         'validity': validity
+    }
+    return payload
+
+
+def connect_it_system_to_user(username, it_system, person_uuid):
+    payload = {
+        'type': 'it',
+        'user_key': username,
+        'it-system': {'uuid': it_system},
+        'person': {'uuid': person_uuid},
+        'validity': {
+            'from': None,
+            'to': None
+        }
     }
     return payload
 
