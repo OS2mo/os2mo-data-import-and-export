@@ -1,8 +1,28 @@
 import os
 import json
 import pickle
+import logging
 import hashlib
 from winrm import Session
+from logging.handlers import RotatingFileHandler
+
+INFO_LEVEL = 20
+DEBUG_LEVEL = 10
+ACTIVITY_LOG = "activity.log"
+
+logger = logging.getLogger()
+log_format = logging.Formatter(
+    '%(asctime)s | %(name)s |  %(levelname)s: %(message)s'
+)
+logger.setLevel(logging.DEBUG)
+activity_log_handler = RotatingFileHandler(
+    filename=ACTIVITY_LOG,
+    maxBytes=1000000
+)
+activity_log_handler.setFormatter(log_format)
+activity_log_handler.setLevel(INFO_LEVEL)
+logger.addHandler(activity_log_handler)
+
 
 WINRM_HOST = os.environ.get('WINRM_HOST', None)
 AD_SYSTEM_USER = os.environ.get('AD_SYSTEM_USER', None)
@@ -182,7 +202,7 @@ class ADParameterReader(object):
 
         try:
             with open(path_url + '.p', 'rb') as f:
-                print('ad-cached')
+                logger.debug('{} was found in cache'.format(dict_key))
                 response = pickle.load(f)
                 if not response:
                     response = {}
@@ -192,6 +212,9 @@ class ADParameterReader(object):
             response = self.uncached_read_user(user=user, cpr=cpr)
             with open(path_url + '.p', 'wb') as f:
                 pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
+
+        logging.debug('Returned info for {}'.format(dict_key))
+        logging.debug(results.get(dict_key, {}))
         return self.results.get(dict_key, {})
 
 
