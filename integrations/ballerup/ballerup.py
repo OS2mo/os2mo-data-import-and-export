@@ -23,7 +23,8 @@ importer = ImportHelper(create_defaults=True,
                         mora_base=MORA_BASE,
                         system_name='APOS-Import',
                         end_marker='APOSSTOP',
-                        store_integration_data=True)
+                        store_integration_data=True,
+                        seperate_names=True)
 
 
 apos_import = apos_importer.AposImport(importer,

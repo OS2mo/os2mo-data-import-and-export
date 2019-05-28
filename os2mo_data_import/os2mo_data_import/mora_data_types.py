@@ -783,21 +783,18 @@ class EmployeeType(MoType):
         if not self.org_uuid:
             raise ReferenceError("UUID of the organisation is missing")
 
+        self.payload = {
+            "user_key": self.user_key,
+            "cpr_no": self.cpr_no,
+            "org": {
+                "uuid": self.org_uuid
+            }
+        }
+
         if self.seperate_names:
-            self.payload = {
-                "givenname": self.givenname,
-                "surname": self.surname,
-                "cpr_no": self.cpr_no,
-                "org": {
-                    "uuid": self.org_uuid
-                }
-            }
+            self.payload['givenname'] = self.givenname
+            self.payload['surname'] = self.surname
         else:
-            self.payload = {
-                "name": self.givenname + ' ' + self.surname,
-                "cpr_no": self.cpr_no,
-                "org": {
-                    "uuid": self.org_uuid
-                }
-            }
+            self.payload['name'] = self.givenname + ' ' + self.surname
+
         return self._build_payload()
