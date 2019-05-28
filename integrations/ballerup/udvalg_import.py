@@ -1,13 +1,27 @@
 import csv
+import logging
 import pickle
 import requests
 import datetime
 from anytree import Node
+from logging.handlers import RotatingFileHandler
 from chardet.universaldetector import UniversalDetector
 
+INFO_LEVEL = 20
+LOG_FILE = 'udvalg.log'
 BASE_URL = 'http://localhost/service/'
 CACHE = {}
 
+logger = logging.getLogger()
+log_format = logging.Formatter('%(asctime)s | %(name)s |  %(levelname)s: %(message)s')
+logger.setLevel(logging.DEBUG)
+activity_log_handler = RotatingFileHandler(
+    filename=LOG_FILE,
+    maxBytes=1000000
+)
+activity_log_handler.setFormatter(log_format)
+activity_log_handler.setLevel(INFO_LEVEL)
+logger.addHandler(activity_log_handler)
 
 def _find_class(find_facet, find_class):
     if find_class in CACHE:
@@ -174,9 +188,10 @@ def create_udvalg(nodes, file_name):
                 _create_mo_role(uuid, nodes[org_id].uuid, role_type, from_string)
 
         else:
-            print('Error: {} {}, bvn: {}'.format(row['Fornavn'],
-                                                 row['Efternavn'],
-                                                 row['BrugerID']))
+            logger.warning('Error: {} {}, bvn: {}'.format(row['Fornavn'],
+                                                          row['Efternavn'],
+                                                          row['BrugerID'])
+            )
     return nodes
 
 
@@ -210,6 +225,7 @@ def create_tree(file_name):
 
 
 if __name__ == '__main__':
+    logger.info('Program started')
     ROOT = _find_org()
 
     if True:
@@ -220,9 +236,12 @@ if __name__ == '__main__':
     with open('nodes.p', 'rb') as f:
         nodes = pickle.load(f)
 
+    logger.info('Create AMR')
     nodes = create_udvalg(nodes, 'AMR-medlemmer.csv')
+    logger.info('Create MED')
     nodes = create_udvalg(nodes, 'MED-medlemmer.csv')
 
     # root = min(nodes.keys())
     # from anytree import RenderTree
     # print(RenderTree(nodes[root]))
+    logger.info('Program completed.')
