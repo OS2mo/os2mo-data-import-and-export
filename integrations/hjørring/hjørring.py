@@ -3,7 +3,7 @@ import sys
 import datetime
 from os2mo_data_import import ImportHelper
 
-sys.path.append('..')
+sys.path.append('../SD_Lon')
 import sd_importer
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
@@ -12,7 +12,7 @@ MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
 MANAGER_FILE = os.environ.get('MANAGER_FILE', 'Organisationsdata.csv')
 
-GLOBAL_GET_DATE = datetime.datetime(2019, 5, 21, 0, 0)
+GLOBAL_GET_DATE = datetime.datetime(2019, 5, 28, 0, 0)
 
 
 importer = ImportHelper(
@@ -35,4 +35,4 @@ sd = sd_importer.SdImport(
 sd.create_ou_tree()
 sd.create_employees()
 
-importer.import_all()
+# importer.import_all()
