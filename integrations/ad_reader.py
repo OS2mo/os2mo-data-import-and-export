@@ -140,6 +140,7 @@ class ADParameterReader(object):
             self.results[current_user['SamAccountName']] = current_user
 
         response = self._get_from_ad(user=user, cpr=cpr, school=False)
+        current_user = None
         for current_user in response:
             job_title = current_user.get('Title')
             if job_title and job_title.find('FRATR') == 0:
@@ -148,6 +149,8 @@ class ADParameterReader(object):
             brugertype = current_user.get('xBrugertype')
             if brugertype and brugertype.find('Medarbejder') == -1:
                 continue
+            if not current_user:
+                current_user = {}
             self.results[current_user['xAttrCPR']] = current_user
             self.results[current_user['SamAccountName']] = current_user
         return current_user
@@ -181,13 +184,15 @@ class ADParameterReader(object):
             with open(path_url + '.p', 'rb') as f:
                 print('ad-cached')
                 response = pickle.load(f)
+                if not response:
+                    response = {}
                 self.results[dict_key] = response
 
         except FileNotFoundError:
             response = self.uncached_read_user(user=user, cpr=cpr)
             with open(path_url + '.p', 'wb') as f:
                 pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
-        return self.results.get(dict_key)
+        return self.results.get(dict_key, {})
 
 
 if __name__ == '__main__':
