@@ -785,6 +785,7 @@ class EmployeeType(MoType):
 
         if self.seperate_names:
             self.payload = {
+                "user_key": self.user_key,
                 "givenname": self.givenname,
                 "surname": self.surname,
                 "cpr_no": self.cpr_no,
@@ -794,6 +795,7 @@ class EmployeeType(MoType):
             }
         else:
             self.payload = {
+                "user_key": self.user_key,
                 "name": self.givenname + ' ' + self.surname,
                 "cpr_no": self.cpr_no,
                 "org": {
