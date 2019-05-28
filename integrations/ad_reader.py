@@ -4,25 +4,8 @@ import pickle
 import logging
 import hashlib
 from winrm import Session
-from logging.handlers import RotatingFileHandler
 
-INFO_LEVEL = 20
-DEBUG_LEVEL = 10
-ACTIVITY_LOG = "activity.log"
-
-logger = logging.getLogger()
-log_format = logging.Formatter(
-    '%(asctime)s | %(name)s |  %(levelname)s: %(message)s'
-)
-logger.setLevel(logging.DEBUG)
-activity_log_handler = RotatingFileHandler(
-    filename=ACTIVITY_LOG,
-    maxBytes=1000000
-)
-activity_log_handler.setFormatter(log_format)
-activity_log_handler.setLevel(INFO_LEVEL)
-logger.addHandler(activity_log_handler)
-
+logger = logging.getLogger("AdReader")
 
 WINRM_HOST = os.environ.get('WINRM_HOST', None)
 AD_SYSTEM_USER = os.environ.get('AD_SYSTEM_USER', None)
@@ -32,7 +15,6 @@ SCHOOL_AD_PASSWORD = os.environ.get('SCHOOL_AD_PASSWORD', None)
 # SEARCH_BASE
 # PROPERTIES
 # SKIP_BRUGERTYPE
-
 
 class ADParameterReader(object):
 
@@ -214,7 +196,7 @@ class ADParameterReader(object):
                 pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
 
         logging.debug('Returned info for {}'.format(dict_key))
-        logging.debug(results.get(dict_key, {}))
+        logging.debug(self.results.get(dict_key, {}))
         return self.results.get(dict_key, {})
 
 

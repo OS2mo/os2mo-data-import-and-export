@@ -5,28 +5,27 @@ import requests
 import datetime
 import sd_payloads
 
-from logging.handlers import RotatingFileHandler
 from sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
 sys.path.append('../')
 import ad_reader
 
-INFO_LEVEL = 20
-DEBUG_LEVEL = 10
-ACTIVITY_LOG = "activity.log"
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'mo_integrations.log'
 
-logger = logging.getLogger()
-log_format = logging.Formatter(
-    '%(asctime)s | %(name)s |  %(levelname)s: %(message)s'
+logger = logging.getLogger("sdChangedAt")
+
+for name in logging.root.manager.loggerDict:
+    if name in ('AdReader', 'sdChangedAt'):
+        logging.getLogger(name).setLevel(LOG_LEVEL)
+    else:
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+logging.basicConfig(
+    format='%(levelname)s %(asctime)s %(name)s %(message)s',
+    level=LOG_LEVEL,
+    filename=LOG_FILE
 )
-logger.setLevel(logging.DEBUG)
-activity_log_handler = RotatingFileHandler(
-    filename=ACTIVITY_LOG,
-    maxBytes=1000000
-)
-activity_log_handler.setFormatter(log_format)
-activity_log_handler.setLevel(DEBUG_LEVEL)
-logger.addHandler(activity_log_handler)
 
 MOX_BASE = os.environ.get('MOX_BASE', None)
 
@@ -757,8 +756,8 @@ class ChangeAtSD(object):
                 assert response.status_code in (200, 400)
 
 if __name__ == '__main__':
-    logging.info('***************')
-    logging.info('Program started')
+    logger.info('***************')
+    logger.info('Program started')
     from_date = datetime.datetime(2019, 5, 19, 0, 0)
     sd_updater = ChangeAtSD(from_date)
     sd_updater.update_changed_persons()
@@ -774,4 +773,4 @@ if __name__ == '__main__':
         del(sd_updater)
         from_date = to_date
     """
-    logging.info('Program stopped.')
+    logger.info('Program stopped.')
