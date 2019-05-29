@@ -23,6 +23,7 @@ import logging
 MORA_BASE = os.environ.get('MORA_BASE', 'localhost:80')
 MORA_ROOT_ORG_UNIT_NAME = os.environ.get('MORA_ROOT_ORG_UNIT_NAME', 'Viborg Kommune')
 USERID_ITSYSTEM = os.environ.get('USERID_ITSYSTEM', 'Active Directory')
+EMUS_RESPONSIBILITY_CLASS = os.environ['EMUS_RESPONSIBILITY_CLASS']  # no default, must exist
 EMUS_FILENAME = os.environ.get('EMUS_FILENAME', 'emus_filename.xml')
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
 
@@ -39,7 +40,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger("xml-export-emus")
 logger.setLevel(LOG_LEVEL)
-
 
 
 def get_emus_address(ou_uuid):
@@ -78,10 +78,13 @@ def export_ou_emus(mh, nodes, emus_file):
     rows = []
     for node in cq.PreOrderIter(nodes['root']):
         ou = mh.read_ou(node.name)
+
         # tomme afdelinger frasorteres
+
         engagements =  mh._mo_lookup(ou["uuid"], 'ou/{}/details/engagement')
         if not engagements:
-            logger.info("skipping ou: %s with %d engagements", ou["uuid"], len(engagements))
+            logger.info("skipping ou: %s with %d engagements",
+                        ou["uuid"], len(engagements))
             continue
         else:
             logger.info("ou %s has %d engagements", ou["uuid"], len(engagements))
@@ -107,9 +110,11 @@ def export_ou_emus(mh, nodes, emus_file):
             'city': address.get("city", ''),
             'phoneNumber': phone,
         }
+        logger.info("adding ou %s", ou["uuid"])
         rows.append(row)
 
     last_changed = datetime.datetime.now().strftime("%Y-%m-%d")
+    logger.info("writing %d ou rows to file", len(rows))
     for r in rows:
         emus_file.write(
             "<orgUnit id=\"%s\" client=\"1\" lastChanged=\"%s\">\n" % (
@@ -138,66 +143,181 @@ def get_e_address(e_uuid, scope, mh):
     return {}
 
 
+"""
+musskema adaptation
+musskema, the application receiving this export, did not have a manager
+object for import therefore the employee has been used for that too -
+and a few fields in the exported employee object are changed accordingly.
+Render_engagement will be used to render both types as an engagement,
+and then, for managers, the resulting row wil be adapted
+"""
+
+
+def build_engagement_row(mh, ou, engagement):
+    entrydate = engagement.get("validity", {}).get("from")
+    leavedate = engagement.get("validity", {}).get("to")
+    employee = mh._mo_lookup(
+        engagement["person"]["uuid"],
+        'e/{}'
+    )
+    firstname, lastname = engagement["person"]["name"].rsplit(
+        " ", maxsplit=1
+    )
+    username = mh.get_e_username(
+        engagement["person"]["uuid"],
+        'Active Directory'
+    )
+    _phone = mh.get_e_address(engagement["person"]["uuid"], "PHONE")
+    _email = mh.get_e_address(engagement["person"]["uuid"], "EMAIL")
+
+    row = {
+        # employee_id is tjenestenr by default
+        'employee_id': engagement.get("user_key", ''),
+        # client is 1 by default
+        'client': "1",
+        'entryDate': entrydate if entrydate else '',
+        'leaveDate': leavedate if leavedate else '',
+        'cpr': employee['cpr_no'],
+        'firstName': firstname,
+        'lastName': lastname,
+        'workPhone': _phone.get("name", '') if _phone.get(
+            "visibility", {}
+        ).get("scope", "") != "SECRET" else 'hemmelig',
+        'workContract': engagement.get(
+            "engagement_type", {}
+        ).get("uuid", ""),
+        'workContractText': engagement.get(
+            "engagement_type", {}
+        ).get("name", ""),
+        'positionId': engagement.get("job_function", {}).get("uuid", ""),
+        'position': engagement.get("job_function", {}).get("name", ""),
+        'orgUnit': ou["uuid"],
+        'email': _email.get("name", "") if _email.get(
+            "visibility", {}
+        ).get("scope", "") != "SECRET" else 'hemmelig',
+        'username': username,
+    }
+    return row
+
+def get_manager_dates(mh, person):
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    startdate = ''
+    enddate = ''
+    for engagement in mh.read_user_engagement(person["uuid"], read_all=True):
+        if engagement["validity"].get("to"):
+            if not enddate or engagement["validity"]["to"] > enddate:
+                enddate = engagement["validity"]["to"] 
+
+            # don't take startdate from expired employment
+            if engagement["validity"]["to"] < today:
+                continue
+
+        if not startdate or engagement["validity"]["from"] < startdate:
+            startdate = engagement["validity"]["from"]
+
+    return startdate, enddate
+
+
+def build_manager_rows(mh, ou, manager):
+    # render manager returns a list as a manager will typically have more
+    # responsibility areas and musskema requires one for each
+
+    rows = []
+    person = manager["person"]
+
+    employee = mh._mo_lookup(
+        person["uuid"],
+        'e/{}'
+    )
+    entrydate, leavedate = get_manager_dates(mh, person)
+
+    firstname, lastname = person["name"].rsplit(
+        " ", maxsplit=1
+    )
+
+    username = mh.get_e_username(
+        person["uuid"],
+        'Active Directory'
+    )
+
+    _phone = mh.get_e_address(person["uuid"], "PHONE")
+    _email = mh.get_e_address(person["uuid"], "EMAIL")
+
+    # manipulate row into a manager row
+    # empty a couple of fields, change client and employee_id
+    # and manipulate from and to
+
+    for responsibility in manager["responsibility"]:
+        if not responsibility["uuid"] == EMUS_RESPONSIBILITY_CLASS:
+            logger.debug("skipping man. resp. %s", responsibility["name"])
+            continue
+        logger.info("adding manager %s with man. resp. %s", manager["uuid"], responsibility["name"] )
+        row = {
+            'employee_id': person["uuid"],
+            'client': "540",
+            'entryDate': entrydate,
+            'leaveDate': leavedate,
+            'cpr': employee['cpr_no'],
+            'firstName': firstname,
+            'lastName': lastname,
+            'workPhone': _phone.get("name", '') if _phone.get(
+                "visibility", {}
+            ).get("scope", "") != "SECRET" else 'hemmelig',
+            'workContract': '',
+            'workContractText': '',
+            'positionId': '',
+            'position': responsibility["name"],
+            'orgUnit': '',
+            'email': _email.get("name", "") if _email.get(
+                "visibility", {}
+            ).get("scope", "") != "SECRET" else 'hemmelig',
+            'username': username,
+        }
+        rows.append(row)
+    return rows
+
+
 def export_e_emus(mh, nodes, emus_file):
     fieldnames = ['entryDate', 'leaveDate', 'cpr', 'firstName',
                   'lastName', 'workPhone', 'workContract', 'workContractText',
                   'positionId', 'position', "orgUnit", 'email', "username"]
-    rows = []
-
+    manager_rows = []
+    engagement_rows = []
 
     for node in cq.PreOrderIter(nodes['root']):
         ou = mh.read_ou(node.name)
+
+        # normal engagements - original export
         for engagement in mh._mo_lookup(
                 ou["uuid"],
                 'ou/{}/details/engagement'
         ):
-            entrydate = engagement.get("validity", {}).get("from")
-            leavedate = engagement.get("validity", {}).get("to")
-            employee = mh._mo_lookup(
-                engagement["person"]["uuid"],
-                'e/{}'
-            )
-            firstname, lastname = engagement["person"]["name"].rsplit(
-                " ", maxsplit=1
-            )
-            username = mh.get_e_username(
-                engagement["person"]["uuid"],
-                'Active Directory'
-            )
-            _phone = mh.get_e_address(engagement["person"]["uuid"], "PHONE")
-            _email = mh.get_e_address(engagement["person"]["uuid"], "EMAIL")
+            logger.info("adding engagement %s", engagement["uuid"])
+            engagement_rows.append(build_engagement_row(mh, ou, engagement))
 
-            row = {
-                'tjenestenr': engagement.get("user_key", ''),
-                'entryDate': entrydate if entrydate else '',
-                'leaveDate': leavedate if leavedate else '',
-                'cpr': employee['cpr_no'],
-                'firstName': firstname,
-                'lastName': lastname,
-                'workPhone': _phone.get("name", '') if _phone.get(
-                    "visibility", {}
-                ).get("scope", "") != "SECRET" else 'hemmelig',
-                'workContract': engagement.get(
-                    "engagement_type", {}
-                ).get("uuid", ""),
-                'workContractText': engagement.get(
-                    "engagement_type", {}
-                ).get("name", ""),
-                'positionId': engagement.get("job_function", {}).get("uuid", ""),
-                'position': engagement.get("job_function", {}).get("name", ""),
-                'orgUnit': ou["uuid"],
-                'email': _email.get("name", "") if _email.get(
-                    "visibility", {}
-                ).get("scope", "") != "SECRET" else 'hemmelig',
-                'username': username,
-            }
+        # manager engagements - above mentioned musskema adaptation
+        for manager in mh._mo_lookup(
+                ou["uuid"],
+                'ou/{}/details/manager'
+        ):
+            if not manager.get("person"):
+                logger.info("skipping vacant manager %s", manager["uuid"])
+                continue  # vacant manager
+            else:
+                # extend, as there can be zero or one
+                manager_rows.extend(build_manager_rows(mh, ou, manager))
 
-            rows.append(row)
-
+    if not len(manager_rows):
+        logger.error("no managers found - did You forget to"
+                     " specify correct EMUS_RESPONSIBILITY_CLASS")
+    rows = engagement_rows + manager_rows
+    logger.info("writing %d engagement rows and %d manager rows to file",
+                len(engagement_rows), len(manager_rows))
     last_changed = datetime.datetime.now().strftime("%Y-%m-%d")
     for r in rows:
-        emus_file.write("<employee id=\"%s\" client=\"1\" lastChanged=\"%s\">\n" % (
-            r["tjenestenr"],
+        emus_file.write("<employee id=\"%s\" client=\"%s\" lastChanged=\"%s\">\n" % (
+            r["employee_id"],
+            r["client"],
             last_changed,
         ))
         for fn in fieldnames:
@@ -211,12 +331,21 @@ def main(
     t=time.time(),
     emus_filename=EMUS_FILENAME
 ):
+    root_org_unit_uuid = None
     org = mh.read_organisation()
     roots = mh.read_top_units(org)
     for root in roots:
+        logger.debug("checking if %s is %s", root["name"], root_org_unit_name)
         if root['name'] == root_org_unit_name:
             root_org_unit_uuid = root['uuid']
+            break
 
+    if not root_org_unit_uuid:
+        logger.error("%s not found in root-ous", root_org_unit_name)
+        exit(1)
+
+    logger.warning("caching all ou's,"
+                   " so program may seem unresponsive temporarily")
     nodes = mh.read_ou_tree(root_org_unit_uuid)
 
     with open(emus_filename, "w", encoding="utf-8") as emus_xml:
@@ -231,7 +360,5 @@ def main(
 
 
 if __name__ == '__main__':
-    logger.warning("starting export - this involves caching all,"
-                   " so program may seem unresponsive temporarily")
     mh = MoraHelper(MORA_BASE)
     main(mh=mh)
