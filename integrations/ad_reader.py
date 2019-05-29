@@ -1,6 +1,11 @@
 import os
 import json
+import pickle
+import logging
+import hashlib
 from winrm import Session
+
+logger = logging.getLogger("AdReader")
 
 WINRM_HOST = os.environ.get('WINRM_HOST', None)
 AD_SYSTEM_USER = os.environ.get('AD_SYSTEM_USER', None)
@@ -10,7 +15,6 @@ SCHOOL_AD_PASSWORD = os.environ.get('SCHOOL_AD_PASSWORD', None)
 # SEARCH_BASE
 # PROPERTIES
 # SKIP_BRUGERTYPE
-
 
 class ADParameterReader(object):
 
@@ -111,7 +115,7 @@ class ADParameterReader(object):
                      credentials +
                      properties +
                      command_end)
-        print(ps_script)
+
         response = self._run_ps_script(ps_script)
 
         if not response:
@@ -123,27 +127,8 @@ class ADParameterReader(object):
                 return_val = response
         return return_val
 
-    def read_user(self, user=None, cpr=None):
-        """
-        Read all properties of an AD user. The user can be retrived either by cpr
-        or by AD user name.
-        :param user: The AD username to retrive.
-        :param cpr: cpr number of the user to retrive.
-        :return: All properties listed in AD for the user.
-        """
-        if (not cpr) and (not user):
-            return
-
-        if user:
-            dict_key = user
-            if user in self.results:
-                return self.results[user]
-
-        if cpr:
-            dict_key = cpr
-            if cpr in self.results:
-                return self.results[cpr]
-
+    def uncached_read_user(self, user=None, cpr=None):
+        logger.debug('Uncached AD read, user {}, cpr {}'.format(user, cpr))
         response = self._get_from_ad(user=user, cpr=cpr, school=True)
         for current_user in response:
             job_title = current_user.get('Title')
@@ -158,6 +143,7 @@ class ADParameterReader(object):
             self.results[current_user['SamAccountName']] = current_user
 
         response = self._get_from_ad(user=user, cpr=cpr, school=False)
+        current_user = {}
         for current_user in response:
             job_title = current_user.get('Title')
             if job_title and job_title.find('FRATR') == 0:
@@ -166,14 +152,58 @@ class ADParameterReader(object):
             brugertype = current_user.get('xBrugertype')
             if brugertype and brugertype.find('Medarbejder') == -1:
                 continue
+            if not current_user:
+                current_user = {}
             self.results[current_user['xAttrCPR']] = current_user
             self.results[current_user['SamAccountName']] = current_user
+        return current_user
 
-        return self.results.get(dict_key)
+    def read_user(self, user=None, cpr=None):
+        """
+        Read all properties of an AD user. The user can be retrived either by cpr
+        or by AD user name.
+        :param user: The AD username to retrive.
+        :param cpr: cpr number of the user to retrive.
+        :return: All properties listed in AD for the user.
+        """
+        logger.debug('Cached AD read, user {}, cpr {}'.format(user, cpr))
+        if (not cpr) and (not user):
+            return
+
+        if user:
+            dict_key = user
+            if user in self.results:
+                return self.results[user]
+
+        if cpr:
+            dict_key = cpr
+            if cpr in self.results:
+                return self.results[cpr]
+
+        m = hashlib.sha256()
+        m.update(dict_key.encode())
+        path_url = 'ad_' + m.hexdigest()
+
+        try:
+            with open(path_url + '.p', 'rb') as f:
+                logger.debug('{} was found in cache'.format(dict_key))
+                response = pickle.load(f)
+                if not response:
+                    response = {}
+                self.results[dict_key] = response
+
+        except FileNotFoundError:
+            response = self.uncached_read_user(user=user, cpr=cpr)
+            with open(path_url + '.p', 'wb') as f:
+                pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
+
+        logger.debug('Returned info for {}'.format(dict_key))
+        logger.debug(self.results.get(dict_key, {}))
+        return self.results.get(dict_key, {})
+
 
 if __name__ == '__main__':
     import time
-
     t = time.time()
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())

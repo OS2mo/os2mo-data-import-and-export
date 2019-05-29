@@ -167,6 +167,15 @@ class MoraHelper(object):
         org_id = self._mo_lookup(uuid=None, url='o')
         return org_id[0]['uuid']
 
+    def read_it_systems(self):
+        """ Read the main Organisation, all OU's will have this as root.
+        Currently reads only one, theroretically more than root org can exist.
+        :return: UUID of root organisation
+        """
+        org_id = self.read_organisation()
+        it_systems = self._mo_lookup(org_id, url= 'o/{}/it/')
+        return it_systems
+    
     def read_ou(self, uuid, at=None, use_cache=None):
         """ Return a dict with the data available about an OU
         :param uuid: The UUID of the OU
