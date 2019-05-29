@@ -19,11 +19,14 @@ SCHOOL_AD_PASSWORD = os.environ.get('SCHOOL_AD_PASSWORD', None)
 class ADParameterReader(object):
 
     def __init__(self):
-        self.session = Session(
-            'http://' + WINRM_HOST + ':5985/wsman',
-            transport='kerberos',
-            auth=(None, None)
-        )
+        if WINRM_HOST:
+            self.session = Session(
+                'http://{}:5985/wsman'.format(WINRM_HOST),
+                transport='kerberos',
+                auth=(None, None)
+            )
+        else:
+            self.session = None
         self.results = {}
 
     def _run_ps_script(self, ps_script):
@@ -33,12 +36,13 @@ class ADParameterReader(object):
         :param ps_script: The power shell script to run.
         :return: A dictionary with the returned parameters.
         """
+        response = {}
+        if not self.session:
+            return response
         r = self.session.run_ps(ps_script)
         if r.status_code == 0:
             if r.std_out:
                 response = json.loads(r.std_out.decode('Latin-1'))
-            else:
-                response = {}
         else:
             response = r.std_err
         return response
