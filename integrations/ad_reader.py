@@ -128,6 +128,7 @@ class ADParameterReader(object):
         return return_val
 
     def uncached_read_user(self, user=None, cpr=None):
+        logger.debug('Uncached AD read, user {}, cpr {}'.format(user, cpr))
         response = self._get_from_ad(user=user, cpr=cpr, school=True)
         for current_user in response:
             job_title = current_user.get('Title')
@@ -142,7 +143,7 @@ class ADParameterReader(object):
             self.results[current_user['SamAccountName']] = current_user
 
         response = self._get_from_ad(user=user, cpr=cpr, school=False)
-        current_user = None
+        current_user = {}
         for current_user in response:
             job_title = current_user.get('Title')
             if job_title and job_title.find('FRATR') == 0:
@@ -165,6 +166,7 @@ class ADParameterReader(object):
         :param cpr: cpr number of the user to retrive.
         :return: All properties listed in AD for the user.
         """
+        logger.debug('Cached AD read, user {}, cpr {}'.format(user, cpr))
         if (not cpr) and (not user):
             return
 
@@ -195,8 +197,8 @@ class ADParameterReader(object):
             with open(path_url + '.p', 'wb') as f:
                 pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
 
-        logging.debug('Returned info for {}'.format(dict_key))
-        logging.debug(self.results.get(dict_key, {}))
+        logger.debug('Returned info for {}'.format(dict_key))
+        logger.debug(self.results.get(dict_key, {}))
         return self.results.get(dict_key, {})
 
 
