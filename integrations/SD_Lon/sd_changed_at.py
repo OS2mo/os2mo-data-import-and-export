@@ -589,7 +589,7 @@ class ChangeAtSD(object):
                                         'Status S, 9: Terminate {}'.format(job_id)
                                     )
                                     self._terminate_engagement(end_date, job_id)
-                                skip = True
+                            skip = True
 
             if skip:
                 continue
