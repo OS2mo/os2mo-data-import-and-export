@@ -583,7 +583,8 @@ class ChangeAtSD(object):
                                 if to_date is not None:
                                     consistent = self._compare_dates(
                                         mo_eng['validity']['to'],
-                                        status['ActivationDate']
+                                        status['ActivationDate'],
+                                        expected_diff=0
                                     )
                                     logger.info(
                                         'Consistent: mo: {}, status: {}, consistent: {}'.format(
