@@ -255,6 +255,11 @@ class ChangeAtSD(object):
         first = datetime.datetime.strptime(first_date, '%Y-%m-%d')
         second = datetime.datetime.strptime(second_date, '%Y-%m-%d')
         compare = first + datetime.timedelta(days=expected_diff)
+        logger.debug(
+            'Compare. First: {}, second: {}, comparare: {}'.format(
+                first, second, compare
+            )
+        )
         return second == compare
 
     def _validity(self, engagement_info):
@@ -581,7 +586,13 @@ class ChangeAtSD(object):
                                         mo_eng['validity']['to'],
                                         status['ActivationDate']
                                     )
-                                    logger.info('Consistent')
+                                    logger.info(
+                                        'Consistent: mo: {}, status: {}, consistent: {}'.format(
+                                            mo_eng['validity']['to'],
+                                            status['ActivationDate'],
+                                            consistent
+                                        )
+                                    )
                                     assert(consistent)
                                 else:
                                     end_date = status['ActivationDate']
