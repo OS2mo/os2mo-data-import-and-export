@@ -8,13 +8,32 @@
 #
 import os
 import sys
+import logging
 import datetime
 from anytree import Node
 
+from sd_common import sd_lookup, calc_employment_id
 sys.path.append('../')
 import ad_reader
 import dawa_helper
-from sd_common import sd_lookup, calc_employment_id
+
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'mo_integrations.log'
+
+logger = logging.getLogger('sdImport')
+
+for name in logging.root.manager.loggerDict:
+    if name in ('sdImport', 'sdCommon'):
+        logging.getLogger(name).setLevel(LOG_LEVEL)
+    else:
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+logging.basicConfig(
+    format='%(levelname)s %(asctime)s %(name)s %(message)s',
+    level=LOG_LEVEL,
+    filename=LOG_FILE
+)
+
 
 INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
 SD_USER = os.environ.get('SD_USER', None)
@@ -111,7 +130,7 @@ class SdImport(object):
         self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
 
     def _update_ad_map(self, cpr):
-        print('Update {}'.format(cpr))
+        logger.debug('Update cpr{}'.format(cpr))
         self.ad_people[cpr] = {}
         if self.ad_reader:
             response = self.ad_reader.read_user(cpr=cpr)
@@ -174,7 +193,7 @@ class SdImport(object):
 
         info = self.info[unit_id]
         assert(info['DepartmentLevelIdentifier'] == ou_level)
-        print(unit_id)
+        logger.debug('Add unit: {}'.format(unit_id))
         if not contains_subunits and parent_uuid is None:
             parent_uuid = 'OrphanUnits'
 
@@ -225,8 +244,9 @@ class SdImport(object):
             if all(element in info['PostalAddress'] for element in needed):
                 address_string = info['PostalAddress']['StandardAddressIdentifier']
                 zip_code = info['PostalAddress']['PostalCode']
+                logger.debug('Look in Dawa: {}'.format(address_string))
                 dar_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
-                print('DAR: {}'.format(dar_uuid))
+                logger.debug('DAR: {}'.format(dar_uuid))
 
                 if dar_uuid is not None:
                     self.importer.add_address_type(
@@ -257,7 +277,7 @@ class SdImport(object):
                 new_ous.append(ou)
 
         while len(new_ous) > 0:
-            print('Number of new ous: {}'.format(len(new_ous)))
+            logger.info('Number of new ous: {}'.format(len(new_ous)))
             all_ous = new_ous
             new_ous = []
             for ou in all_ous:
@@ -283,6 +303,11 @@ class SdImport(object):
 
         for person in people['Person']:
             cpr = person['PersonCivilRegistrationIdentifier']
+            logger.info('Importing {}'.format(cpr))
+            if cpr[-4:] == '0000':
+                logger.warning('Skipping fictional user: {}'.format(cpr))
+                continue
+
             self._update_ad_map(cpr)
 
             given_name = person.get('PersonGivenName', '')
@@ -351,7 +376,6 @@ class SdImport(object):
             'DeactivationDate': self.import_date,
             'UUIDIndicator': 'true'
         }
-
         organisation = sd_lookup('GetOrganization20111201', params)
 
         departments = organisation['Organization']['DepartmentReference']
@@ -372,12 +396,17 @@ class SdImport(object):
             'SalaryCodeGroupIndicator': 'false',
             'EffectiveDate': self.import_date
         }
+        logger.info('Create emplyoees')
         persons = sd_lookup('GetEmployment20111201', params)
         self._create_employees(persons)
 
     def _create_employees(self, persons):
         for person in persons['Person']:
             cpr = person['PersonCivilRegistrationIdentifier']
+            if cpr[-4:] == '0000':
+                logger.warning('Skipping fictional user: {}'.format(cpr))
+                continue
+
             employments = person['Employment']
             if not isinstance(employments, list):
                 employments = [employments]
@@ -532,7 +561,7 @@ class SdImport(object):
                 for row in self.manager_rows:
                     if row['cpr'] == cpr:
                         if 'uuid' not in row:
-                            print('NO UNIT: {}'.format(row['afdeling']))
+                            logger.warning('NO UNIT: {}'.format(row['afdeling']))
                             continue
                         if row['uuid'] == unit:
                             if job_id in [1040, 1035, 1030]:
@@ -540,7 +569,9 @@ class SdImport(object):
                             else:
                                 manager_level = 1030
 
-                            print('Manager {} to {}'.format(cpr, row['afdeling']))
+                            logger.info(
+                                'Manager {} to {}'.format(cpr, row['afdeling'])
+                            )
                             self.importer.add_manager(
                                 employee=cpr,
                                 organisation_unit=row['uuid'],

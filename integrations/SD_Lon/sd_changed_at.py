@@ -168,11 +168,15 @@ class ChangeAtSD(object):
         person_changed = self.read_person_changed()
         logger.info('Number of changed persons: {}'.format(len(person_changed)))
         for person in person_changed:
+            cpr = person['PersonCivilRegistrationIdentifier']
+            if cpr[-4:] == '0000':
+                logger.warning('Skipping fictional user: {}'.format(cpr))
+                continue
+
             # TODO: Shold this go in sd_common?
             given_name = person.get('PersonGivenName', '')
             sur_name = person.get('PersonSurnameName', '')
             sd_name = '{} {}'.format(given_name, sur_name)
-            cpr = person['PersonCivilRegistrationIdentifier']
 
             uuid = None
             mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
@@ -240,7 +244,7 @@ class ChangeAtSD(object):
                     )
                     response = self.helper._mo_post('ou/create', payload)
                     assert response.status_code == 201
-                    logging.info('Created unit {}'.format(
+                    logger.info('Created unit {}'.format(
                         department['DepartmentIdentifier'])
                     )
         # Consider to return a status that show if we need to re-run organisation.
@@ -605,6 +609,10 @@ class ChangeAtSD(object):
             i = i + 1
 
             cpr = employment['PersonCivilRegistrationIdentifier']
+            if cpr[-4:] == '0000':
+                logger.warning('Skipping fictional user: {}'.format(cpr))
+                continue
+
             logger.info('---------------------')
             logger.info('We are now updating {}'.format(cpr))
             logger.debug('From date: {}'.format(self.from_date))
@@ -754,6 +762,7 @@ class ChangeAtSD(object):
                 payload = sd_payloads.engagement(data, eng)
                 response = self.helper._mo_post('details/edit', payload)
                 assert response.status_code in (200, 400)
+
 
 if __name__ == '__main__':
     logger.info('***************')
