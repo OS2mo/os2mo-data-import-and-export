@@ -28,6 +28,7 @@ logging.basicConfig(
 )
 
 MOX_BASE = os.environ.get('MOX_BASE', None)
+MORA_BASE = os.environ.get('MORA_BASE', None)
 
 NO_SALLERY = 'status0'
 NON_PRIMARY = 'non-primary'
@@ -38,7 +39,7 @@ class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):
         logger.info('Start ChangedAt: From: {}, To: {}'.format(from_date, to_date))
         self.mox_base = MOX_BASE
-        self.helper = MoraHelper(hostname='localhost:5000', use_cache=False)
+        self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
         self.ad_reader = ad_reader.ADParameterReader()
         self.from_date = from_date
         self.to_date = to_date
@@ -193,7 +194,8 @@ class ChangeAtSD(object):
             # are not generally available in AD at this point?
 
             payload = {
-                "name": sd_name,
+                "givenname": given_name,
+                "surname": sur_name,
                 "cpr_no": cpr,
                 "org": {
                     "uuid": self.org_uuid

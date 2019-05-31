@@ -312,7 +312,6 @@ class SdImport(object):
 
             given_name = person.get('PersonGivenName', '')
             sur_name = person.get('PersonSurnameName', '')
-            name = '{} {}'.format(given_name, sur_name)
 
             if 'ObjectGuid' in self.ad_people[cpr]:
                 uuid = self.ad_people[cpr]['ObjectGuid']
@@ -325,10 +324,10 @@ class SdImport(object):
             if 'Name' in self.ad_people[cpr]:
                 user_key = self.ad_people[cpr]['Name']
             else:
-                user_key = name
+                user_key = '{} {}'.format(given_name, sur_name)
 
             self.importer.add_employee(
-                name=name,
+                name=(given_name, sur_name),
                 identifier=cpr,
                 cpr_no=cpr,
                 user_key=user_key,
