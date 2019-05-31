@@ -253,15 +253,21 @@ class ChangeAtSD(object):
         return True
 
     def _compare_dates(self, first_date, second_date, expected_diff=1):
+        """
+        Return true if the amount of days between second and first is smaller
+        than  expected_diff.
+        """
         first = datetime.datetime.strptime(first_date, '%Y-%m-%d')
         second = datetime.datetime.strptime(second_date, '%Y-%m-%d')
-        compare = first + datetime.timedelta(days=expected_diff)
+        delta = second - first
+        # compare = first + datetime.timedelta(days=expected_diff)
+        compare = abs(delta.days) <= expected_diff
         logger.debug(
-            'Compare. First: {}, second: {}, comparare: {}'.format(
-                first, second, compare
+            'Compare. First: {}, second: {}, expected: {}, compare: {}'.format(
+                first, second, expected_diff, compare
             )
         )
-        return second == compare
+        return compare
 
     def _validity(self, engagement_info):
         from_date = engagement_info['ActivationDate']
@@ -586,7 +592,7 @@ class ChangeAtSD(object):
                                     consistent = self._compare_dates(
                                         mo_eng['validity']['to'],
                                         status['ActivationDate'],
-                                        expected_diff=0
+                                        expected_diff=2
                                     )
                                     logger.info(
                                         'Consistent: mo: {}, status: {}, consistent: {}'.format(
@@ -781,7 +787,7 @@ class ChangeAtSD(object):
 if __name__ == '__main__':
     logger.info('***************')
     logger.info('Program started')
-    from_date = datetime.datetime(2019, 5, 19, 0, 0)
+    from_date = datetime.datetime(2019, 5, 31, 0, 0)
     sd_updater = ChangeAtSD(from_date)
     sd_updater.update_changed_persons()
     sd_updater.update_all_employments()
