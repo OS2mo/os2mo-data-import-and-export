@@ -194,7 +194,8 @@ class ChangeAtSD(object):
             # are not generally available in AD at this point?
 
             payload = {
-                "name": sd_name,
+                "givenname": given_name,
+                "surname": sur_name,
                 "cpr_no": cpr,
                 "org": {
                     "uuid": self.org_uuid

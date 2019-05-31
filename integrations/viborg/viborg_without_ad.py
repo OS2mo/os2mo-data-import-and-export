@@ -22,8 +22,8 @@ MANAGER_FILE = os.environ.get('MANAGER_FILE', 'Organisationsdata.csv')
 # GLOBAL_GET_DATE = datetime.datetime(2009, 1, 1, 0, 0)
 # GLOBAL_GET_DATE = datetime.datetime(2011, 1, 1, 0, 0)
 # GLOBAL_GET_DATE = datetime.datetime(2014, 2, 15, 0, 0)
-# GLOBAL_GET_DATE = datetime.datetime(2019, 2, 15, 0, 0)
-GLOBAL_GET_DATE = datetime.datetime(2019, 5, 10, 0, 0)
+GLOBAL_GET_DATE = datetime.datetime(2019, 2, 15, 0, 0)
+# GLOBAL_GET_DATE = datetime.datetime(2019, 5, 10, 0, 0)
 
 importer = ImportHelper(
     create_defaults=True,
@@ -31,7 +31,8 @@ importer = ImportHelper(
     mora_base=MORA_BASE,
     system_name='SD-Import',
     end_marker='SDSTOP',
-    store_integration_data=True
+    store_integration_data=True,
+    seperate_names=True
 )
 
 ad_usernames, ad_uuids = viborg_uuids.read_ad_and_uuids()
@@ -76,7 +77,7 @@ sd = sd_importer.SdImport(
     MUNICIPALTY_CODE,
     import_date_from=GLOBAL_GET_DATE,
     ad_info=ad_uuids,
-    manager_rows=manager_rows
+    manager_rows=manager_rows,
 )
 
 for cpr, username in ad_usernames.items():
