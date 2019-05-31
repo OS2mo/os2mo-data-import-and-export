@@ -22,7 +22,7 @@ LOG_FILE = 'mo_integrations.log'
 logger = logging.getLogger("aposImport")
 
 for name in logging.root.manager.loggerDict:
-    if name in ('aposImport'):
+    if name in ('aposImport', 'moImporterMoraTypes', 'moImporterUtilities'):
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
         logging.getLogger(name).setLevel(logging.WARNING)
