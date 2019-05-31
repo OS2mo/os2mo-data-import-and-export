@@ -7,6 +7,7 @@
 #
 
 import json
+import logging
 from uuid import uuid4, UUID
 from urllib.parse import urljoin
 from requests import Session, HTTPError
@@ -30,7 +31,9 @@ from os2mo_data_import.mox_data_types import (
 
 import os
 SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
-print(SAML_TOKEN)
+
+logger = logging.getLogger("moImporterUtilities")
+
 
 class ImportUtility(object):
     """
@@ -212,9 +215,10 @@ class ImportUtility(object):
 
         if not facet_uuid:
             print(klasse)
-            error_message = "Facet ref: {ref} does not exist".format(
-                ref=facet_ref
+            error_message = "Facet ref: {} does not exist for {}".format(
+                facet_ref, klasse
             )
+            logger.error(error_message)
             raise KeyError(error_message)
 
         resource = "klassifikation/klasse"
@@ -349,7 +353,7 @@ class ImportUtility(object):
 
         if 'uuid' in payload:
             if payload['uuid'] in self.existing_uuids:
-                print('Re-import org-unit')
+                logger.info('Re-import org-unit: {}'.format(payload['uuid']))
                 re_import = 'NO'
                 resource = 'service/details/edit'
                 payload_keys = list(payload.keys())
@@ -360,12 +364,14 @@ class ImportUtility(object):
                 payload['type'] = 'org_unit'
             else:
                 re_import = 'NEW'
-                print('New unit - Forced uuid')
+                logger.info('New unit - Forced uuid: {}'.format(payload['uuid']))
                 resource = 'service/ou/create'
         else:
             re_import = 'NEW'
-            print('New unit')
+            logger.info('New unit, random uuid')
             resource = 'service/ou/create'
+
+        logger.debug('Unit payload: {}'.format(payload))
 
         uuid = self.insert_mora_data(
             resource=resource,
@@ -729,10 +735,9 @@ class ImportUtility(object):
             base=self.mora_base,
             url=resource
         )
-        
+
         if SAML_TOKEN:
             header = {"SESSION": SAML_TOKEN}
-            print(header)
         else:
             header = None
 
