@@ -6,7 +6,6 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 
-import json
 import logging
 from uuid import uuid4, UUID
 from urllib.parse import urljoin
@@ -214,7 +213,6 @@ class ImportUtility(object):
         facet_uuid = self.inserted_facet_map.get(facet_ref)
 
         if not facet_uuid:
-            print(klasse)
             error_message = "Facet ref: {} does not exist for {}".format(
                 facet_ref, klasse
             )
@@ -408,7 +406,7 @@ class ImportUtility(object):
                 continue
 
             found_hit = self._payload_compare(build_detail, data)
-            # print('Found hit for {}: {}'.format(uuid, found_hit))
+            logger.debug('Found hit for {}: {}'.format(uuid, found_hit))
             if not found_hit and re_import == 'NO':
                 re_import = 'YES'
 
@@ -418,13 +416,12 @@ class ImportUtility(object):
                 build_detail['validity']['from'] = valid_from
             details_payload.append(build_detail)
 
-        print('Re-import: {}'.format(re_import))
-
         if re_import == 'YES':
-            print('Terminating details for {}'.format(uuid))
+            logger.info('Terminating details for unit {}'.format(uuid))
             for item in data['address']:
                 self._terminate_details(item['uuid'], 'address')
         if re_import in ('YES', 'NEW'):
+            logger.info('Re-import unit: {}'.format(re_import))
             self.insert_mora_data(
                 resource="service/details/create",
                 data=details_payload
@@ -457,11 +454,11 @@ class ImportUtility(object):
         )
 
         if 'uuid' in payload and payload['uuid'] in self.existing_uuids:
-            print('Re-import employee')
+            logger.info('Re-import employee {}'.format(payload['uuid']))
             re_import = 'NO'
         else:
             re_import = 'NEW'
-            print("NEW EMPLOYEEE")
+            logger.info('New employee, uuid {}'.format(payload.get('uuid')))
 
         # We unconditionally create or update the user, this should
         # ensure that we are always updated with correct current information.
@@ -490,6 +487,11 @@ class ImportUtility(object):
         # imidiately.
         for detail in details:
             if isinstance(detail, TerminationType):
+                logger.info(
+                    'Explicit termination of eng {} from {}'.format(
+                        uuid, detail.date_from
+                    )
+                )
                 self._terminate_employee(uuid, date_from=detail.date_from)
                 return uuid
 
@@ -528,16 +530,18 @@ class ImportUtility(object):
                 else:
                     py_to = datetime.strptime('2200-01-01', '%Y-%m-%d')
 
-                # print('Py-from:{}, Py-to:{}, Now:{}'.format(py_from, py_to, now))
+                logger.debug(
+                    'Py-from:{}, Py-to:{}, Now:{}'.format(py_from, py_to, now)
+                )
                 if re_import == 'YES' and py_from < now and py_to > now:
-                    print('Updating valid_from')
+                    logger.debug('Updating valid_from')
                     valid_from = datetime.now().strftime('%Y-%m-%d')  # today
                     item['validity']['from'] = valid_from
 
-            print('Re-import: {}'.format(re_import))
+            logger.info('Re-import: {}'.format(re_import))
 
             if re_import == 'YES':
-                print('Terminate: {}'.format(uuid))
+                logger.info('Non-explicit termination: {}'.format(uuid))
                 self._terminate_employee(uuid)
 
             if re_import in ('YES', 'NEW', 'UPDATE'):
@@ -690,14 +694,9 @@ class ImportUtility(object):
             )
 
             if response.status_code != 200:
-                # DEBUG
-                # TODO: Implement logging
-                print("============ ERROR ===========")
-                print(resource)
-                print(
-                    json.dumps(data, indent=2)
+                logger.error(
+                    'Mox put. Response: {}, data'.format(response.text, data)
                 )
-
                 raise HTTPError("Inserting mox data failed")
 
         else:
@@ -707,12 +706,8 @@ class ImportUtility(object):
             )
 
             if response.status_code != 201:
-                # DEBUG
-                # TODO: Implement logging
-                print("============ ERROR ===========")
-                print(resource)
-                print(
-                    json.dumps(data, indent=2)
+                logger.error(
+                    'Mox post. Response: {}, data'.format(response.text, data)
                 )
 
                 raise HTTPError("Inserting mox data failed")
@@ -760,12 +755,8 @@ class ImportUtility(object):
             else:
                 raise HTTPError("Inserting mora data failed")
         elif response.status_code not in (200, 201):
-            # DEBUG
-            # TODO: Implement logging
-            print("============ ERROR ===========")
-            print(resource)
-            print(
-                json.dumps(data, indent=2)
+            logger.error(
+                'MO post. Response: {}, data'.format(response.text, data)
             )
             raise HTTPError("Inserting mora data failed")
         else:
@@ -810,7 +801,7 @@ class ImportUtility(object):
         return uuid
 
     def _terminate_details(self, uuid, detail_type):
-        print('Terminate {}:  {}'.format(uuid, detail_type))
+        logger.info('Terminate detail {}:  {}'.format(uuid, detail_type))
         yesterday = datetime.now() - timedelta(days=1)
         payload = {
             'type': detail_type,
@@ -819,7 +810,7 @@ class ImportUtility(object):
                 'to': yesterday.strftime('%Y-%m-%d')
             }
         }
-        print(payload)
+        logger.debug('Terminate detail payload: {}'.format(payload))
         self.insert_mora_data(
             resource='service/details/terminate',
             data=payload
@@ -858,10 +849,9 @@ class ImportUtility(object):
         """
         data_type = item_payload['type']
 
-        # print('item_payload: {}'.format(item_payload))
-        # print()
-        # print('Data: {}'.format(data))
-        # print()
+        logger.debug(
+            'Payload compare. item_payload: {}, data: {}'.format(item_payload, data)
+        )
 
         found_hit = False
         if data_type == 'engagement':
@@ -903,8 +893,6 @@ class ImportUtility(object):
 
         elif data_type == 'address':
             for data_item in data[data_type]:
-                # print(data_item)
-                # print('-')
                 if (
                     (data_item['validity']['from'] ==
                      item_payload['validity']['from']) and
