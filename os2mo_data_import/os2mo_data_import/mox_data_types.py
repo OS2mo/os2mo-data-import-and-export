@@ -5,6 +5,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+import logging
+
+logger = logging.getLogger("moImporterMoxTypes")
 
 
 class Base(object):
@@ -297,11 +300,13 @@ class Klasse(Base):
             ]
         }
 
-        return {
+        payload = {
             "attributter": attributter,
             "relationer": relationer,
             "tilstande": tilstande
         }
+        logger.debug('Klasse payload: {}'.format(payload))
+        return payload
 
 
 class Itsystem(Base):
@@ -310,7 +315,7 @@ class Itsystem(Base):
     Employees can be tied to an it system with a user name.
 
     :param str system_name: Name of the it system
-    
+
     Examples: "Main computer", "Employee database" etc.
 
     :param str user_key: Username or user reference
