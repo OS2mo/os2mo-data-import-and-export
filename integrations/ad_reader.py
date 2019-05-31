@@ -3,6 +3,7 @@ import json
 import pickle
 import logging
 import hashlib
+from pathlib import Path
 from winrm import Session
 
 logger = logging.getLogger("AdReader")
@@ -15,6 +16,7 @@ SCHOOL_AD_PASSWORD = os.environ.get('SCHOOL_AD_PASSWORD', None)
 # SEARCH_BASE
 # PROPERTIES
 # SKIP_BRUGERTYPE
+
 
 class ADParameterReader(object):
 
@@ -186,19 +188,19 @@ class ADParameterReader(object):
 
         m = hashlib.sha256()
         m.update(dict_key.encode())
-        path_url = 'ad_' + m.hexdigest()
+        cache_file = Path('ad_' + m.hexdigest() + '.p')
 
-        try:
-            with open(path_url + '.p', 'rb') as f:
-                logger.debug('{} was found in cache'.format(dict_key))
+        if cache_file.is_file():
+            with open(str(cache_file), 'rb') as f:
+                logger.debug('{} was found in AD cache'.format(dict_key))
                 response = pickle.load(f)
                 if not response:
                     response = {}
                 self.results[dict_key] = response
-
-        except FileNotFoundError:
+        else:
+            logger.debug('{} was not found in AD cache'.format(dict_key))
             response = self.uncached_read_user(user=user, cpr=cpr)
-            with open(path_url + '.p', 'wb') as f:
+            with open(str(cache_file), 'wb') as f:
                 pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
 
         logger.debug('Returned info for {}'.format(dict_key))
@@ -212,3 +214,4 @@ if __name__ == '__main__':
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())
     user = ad_reader.read_user(user='konroje')
+    print(user)
