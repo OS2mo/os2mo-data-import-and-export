@@ -400,9 +400,16 @@ class MoraHelper(object):
                     }
             if 'association_type' in person:
                 data['Post'] = person['association_type']['name']
+
             # Finally, add name
             if split_name:
-                data.update(self._split_name(person['person']['name']))
+                # If a split name i wanted, we prefer to get i directly from MO
+                # rather than an algorithmic split.
+                if person['person'].get('givenname'):
+                    data['Fornavn'] = person['person'].get('givenname')
+                    data['Efternavn'] = person['person'].get('surname')
+                else:
+                    data.update(self._split_name(person['person']['name']))
             else:
                 data['Navn'] = person['person']['name']
             person_list[uuid] = data
