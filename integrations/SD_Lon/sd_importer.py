@@ -26,7 +26,7 @@ for name in logging.root.manager.loggerDict:
     if name in ('sdImport', 'sdCommon'):
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
-        logging.getLogger(name).setLevel(logging.WARNING)
+        logging.getLogger(name).setLevel(logging.ERROR)
 
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(name)s %(message)s',
