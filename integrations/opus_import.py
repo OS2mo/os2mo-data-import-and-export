@@ -1,6 +1,25 @@
 # -- coding: utf-8 --
+import logging
 import xmltodict
 import dawa_helper
+
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'mo_integrations.log'
+
+logger = logging.getLogger("opusImport")
+
+for name in logging.root.manager.loggerDict:
+    if name in ('opusImport', 'moImporterMoraTypes', 'moImporterMoxTypes',
+                'moImporterUtilities', 'moImporterHelpers'):
+        logging.getLogger(name).setLevel(LOG_LEVEL)
+    else:
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+logging.basicConfig(
+    format='%(levelname)s %(asctime)s %(name)s %(message)s',
+    level=LOG_LEVEL,
+    filename=LOG_FILE
+)
 
 
 def _parse_phone(phone_number):
@@ -16,8 +35,10 @@ def _parse_phone(phone_number):
 
 class OpusImport(object):
 
-    def __init__(self, importer, org_name, xml_data):
+    def __init__(self, importer, org_name, xml_data, import_first=False):
+        """ If import first is False, the first unit will be skipped """
         self.importer = importer
+        self.import_first = import_first
 
         self.organisation_id = None
         self.units = None
@@ -82,7 +103,11 @@ class OpusImport(object):
 
         self.organisation_id = data['orgUnit'][0]['@id']
 
-        self.units = data['orgUnit'][1:]
+        if self.import_first:
+            self.units = data['orgUnit']
+        else:
+            self.units = data['orgUnit'][1:]
+
         self.employees = data['employee']
         municipality_code = int(data['orgUnit'][0]['@client'])
         return municipality_code
