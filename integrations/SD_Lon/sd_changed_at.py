@@ -1,10 +1,12 @@
 import os
 import sys
 import logging
+import sqlite3
 import requests
 import datetime
 import sd_payloads
 
+from pathlib import Path
 from sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
 sys.path.append('../')
@@ -29,6 +31,7 @@ logging.basicConfig(
 
 MOX_BASE = os.environ.get('MOX_BASE', None)
 MORA_BASE = os.environ.get('MORA_BASE', None)
+RUN_DB = os.environ.get('RUN_DB', None)
 
 NO_SALLERY = 'status0'
 NON_PRIMARY = 'non-primary'
@@ -595,7 +598,7 @@ class ChangeAtSD(object):
                                         expected_diff=2
                                     )
                                     logger.info(
-                                        'Consistent: mo: {}, status: {}, consistent: {}'.format(
+                                        'mo: {}, status: {}, consistent: {}'.format(
                                             mo_eng['validity']['to'],
                                             status['ActivationDate'],
                                             consistent
@@ -784,22 +787,83 @@ class ChangeAtSD(object):
                 assert response.status_code in (200, 400)
 
 
-if __name__ == '__main__':
-    logger.info('***************')
-    logger.info('Program started')
-    from_date = datetime.datetime(2019, 5, 31, 0, 0)
+def _local_db_insert(insert_tuple):
+    conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
+    c = conn.cursor()
+    query = 'insert into runs (from_date, to_date, status) values (?, ?, ?)'
+    final_tuple = (
+        insert_tuple[0],
+        insert_tuple[1],
+        insert_tuple[2].format(datetime.datetime.now())
+    )
+    c.execute(query, final_tuple)
+    conn.commit()
+    conn.close()
+
+
+def initialize_changed_at(from_date, run_db, force=False):
+    if not run_db.is_file():
+        logger.error('Local base not correctly initialized')
+        if not force:
+            raise Exception('Local base not correctly initialized')
+        else:
+            logger.info('Force is true, create new db')
+            conn = sqlite3.connect(str(run_db))
+            c = conn.cursor()
+            c.execute("""
+              CREATE TABLE runs (id INTEGER PRIMARY KEY,
+                from_date timestamp, to_date timestamp, status text)
+            """)
+            conn.commit()
+            conn.close()
+
+    _local_db_insert((from_date, from_date, 'Running since {}'))
+
+    logger.info('Start initial ChangedAt')
     sd_updater = ChangeAtSD(from_date)
     sd_updater.update_changed_persons()
     sd_updater.update_all_employments()
-    del(sd_updater)
+    logger.info('Ended initial ChangedAt')
 
-    """
-    for i in range(0, 30):
-        to_date = from_date + datetime.timedelta(days=1)
-        sd_updater = ChangeAtSD(from_date, to_date)
-        sd_updater.update_changed_persons()
-        sd_updater.update_all_employments()
-        del(sd_updater)
-        from_date = to_date
-    """
+    _local_db_insert((from_date, from_date, 'Initial import: {}'))
+
+
+if __name__ == '__main__':
+    logger.info('***************')
+    logger.info('Program started')
+    init = False
+
+    if init:
+        from_date = datetime.datetime(2019, 6, 2, 0, 0)
+        run_db = Path(RUN_DB)
+        initialize_changed_at(from_date, run_db)
+        exit()
+
+    conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
+    c = conn.cursor()
+
+    query = 'select * from runs order by id desc limit 1'
+    c.execute(query)
+    row = c.fetchone()
+
+    if 'Running' in row[3]:
+        print('Critical error')
+        logging.error('Previous ChangedAt run did not return!')
+        raise Exception('Previous ChangedAt run did not return!')
+
+    # Row[2] contains end_date of last run, this will be the from_date for this run.
+    from_date = row[2]
+    to_date = from_date + datetime.timedelta(days=1)
+    _local_db_insert((from_date, to_date, 'Running since {}'))
+
+    logger.info('Start ChangedAt module')
+    sd_updater = ChangeAtSD(from_date, to_date)
+
+    logger.info('Update changed persons')
+    sd_updater.update_changed_persons()
+
+    logger.info('Update all emploments')
+    sd_updater.update_all_employments()
+
+    _local_db_insert((from_date, to_date, 'Update finished: {}'))
     logger.info('Program stopped.')
