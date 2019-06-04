@@ -766,7 +766,7 @@ class EmployeeType(MoType):
         if user_key:
             self.user_key = user_key
         else:
-            self.user_key = name
+            self.user_key = str(name)
 
         self.org = org
         self.org_uuid = None
