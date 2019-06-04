@@ -207,7 +207,7 @@ class OpusImport(object):
     def add_addresses_to_employees(self):
         for cpr, employee_addresses in self.employee_addresses.items():
             for facet, address in employee_addresses.items():
-                print(address)
+                logger.debug('Add address {}'.format(address))
                 if address:
                     self.importer.add_address_type(
                         employee=cpr,
@@ -221,6 +221,7 @@ class OpusImport(object):
         # UNUSED KEYS:
         # '@lastChanged'
 
+        logger.debug('Employee object: {}'.format(employee))
         if 'cpr' in employee:
             cpr = employee['cpr']['#text']
         else:
@@ -276,7 +277,7 @@ class OpusImport(object):
 
         org_unit = employee['orgUnit']
         job_id = employee['@id']  # To be used soon
-
+        logger.info('Add engagement: {} to {}'.format(job_id, cpr))
         self.importer.add_engagement(
             employee=cpr,
             organisation_unit=org_unit,
@@ -296,7 +297,7 @@ class OpusImport(object):
             manager_level = '{}.{}'.format(employee['superiorLevel'],
                                            employee['subordinateLevel'])
             self._add_klasse(manager_level, manager_level, 'manager_level')
-
+            logger.info('{} is manager {}'.format(cpr, manager_level))
             self.importer.add_manager(
                 employee=cpr,
                 organisation_unit=org_unit,
@@ -314,6 +315,7 @@ class OpusImport(object):
                 roles = employee['function']
 
             for role in roles:
+                logger.debug('{} has role {}'.format(cpr, role))
                 # We have only a single class for roles, must combine the information
                 if 'roleText' in role:
                     combined_role = '{} - {}'.format(role['artText'],
