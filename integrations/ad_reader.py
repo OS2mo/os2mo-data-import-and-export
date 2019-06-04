@@ -1,4 +1,5 @@
 import os
+import time
 import json
 import pickle
 import logging
@@ -164,7 +165,16 @@ class ADParameterReader(object):
             self.results[current_user['SamAccountName']] = current_user
         return current_user
 
-    def read_user(self, user=None, cpr=None):
+    def cache_all(self):
+        logger.info('Caching all users')
+        t = time.time()
+        for i in range(1, 32):
+            day = str(i).zfill(2)
+            self.uncached_read_user(cpr='{}*'.format(day))
+            logger.debug(len(self.results))
+            logger.debug('Read time: {}'.format(time.time() - t))
+
+    def read_user(self, user=None, cpr=None, cache_only=False):
         """
         Read all properties of an AD user. The user can be retrived either by cpr
         or by AD user name.
@@ -185,6 +195,9 @@ class ADParameterReader(object):
             dict_key = cpr
             if cpr in self.results:
                 return self.results[cpr]
+
+        if cache_only:
+            return {}
 
         m = hashlib.sha256()
         m.update(dict_key.encode())
@@ -209,8 +222,6 @@ class ADParameterReader(object):
 
 
 if __name__ == '__main__':
-    import time
-    t = time.time()
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())
     user = ad_reader.read_user(user='konroje')

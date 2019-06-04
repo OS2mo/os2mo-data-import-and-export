@@ -23,7 +23,7 @@ LOG_FILE = 'mo_integrations.log'
 logger = logging.getLogger('sdImport')
 
 for name in logging.root.manager.loggerDict:
-    if name in ('sdImport', 'sdCommon'):
+    if name in ('sdImport', 'sdCommon', 'AdReader'):
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
         logging.getLogger(name).setLevel(logging.ERROR)
@@ -75,6 +75,7 @@ class SdImport(object):
                 identifier='AD',
                 system_name='Active Directory'
             )
+            self.ad_reader.cache_all()
 
         self.nodes = {}  # Will be populated when org-tree is created
         self.add_people()
@@ -133,7 +134,7 @@ class SdImport(object):
         logger.debug('Update cpr{}'.format(cpr))
         self.ad_people[cpr] = {}
         if self.ad_reader:
-            response = self.ad_reader.read_user(cpr=cpr)
+            response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
             if response:
                 self.ad_people[cpr] = response
 
