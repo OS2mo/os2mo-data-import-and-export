@@ -36,7 +36,7 @@ def sd_lookup(url, params={}):
     try:
         with open(lookup_id, 'rb') as f:
             response = pickle.load(f)
-        print('CACHED')
+        logger.info('This SD lookup was found in cache: {}'.format(lookup_id))
     except FileNotFoundError:
         response = requests.get(
             full_url,
