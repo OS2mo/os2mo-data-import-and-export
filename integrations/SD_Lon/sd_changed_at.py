@@ -182,6 +182,7 @@ class ChangeAtSD(object):
         logger.info('Number of changed persons: {}'.format(len(person_changed)))
         for person in person_changed:
             cpr = person['PersonCivilRegistrationIdentifier']
+            logger.debug('Updating: {}'.format(cpr))
             if cpr[-4:] == '0000':
                 logger.warning('Skipping fictional user: {}'.format(cpr))
                 continue
@@ -422,9 +423,15 @@ class ChangeAtSD(object):
         except (KeyError, IndexError):
             emp_name = 'Ukendt'
         self._update_professions(emp_name)
+
+        if status['EmploymentStatusCode'] == '0':
+            engagement_type = self.no_sallery
+        else:
+            engagement_type = self.non_primary
+
         payload = sd_payloads.create_engagement(org_unit, self.mo_person,
                                                 self.job_functions.get(emp_name),
-                                                self.non_primary, job_id,
+                                                engagement_type, job_id,
                                                 engagement_info, validity)
 
         response = self.helper._mo_post('details/create', payload)
@@ -460,7 +467,7 @@ class ChangeAtSD(object):
         self._assert(response)
         return True
 
-    def edit_engagement(self, engagement, validity=None):
+    def edit_engagement(self, engagement, validity=None, status0=False):
         """
         Edit an engagement
         """
@@ -473,6 +480,15 @@ class ChangeAtSD(object):
             validity = mo_eng['validity']
 
         data = {}
+        if status0:
+            logger.info('Setting {} to status0'.format(job_id))
+            data = {'engagement_type': {'uuid': self.no_sallery},
+                    'validity': validity}
+            payload = sd_payloads.engagement(data, mo_engagement)
+            logger.debug('Status0 payload: {}'.format(payload))
+            response = self.helper._mo_post('details/edit', payload)
+            self._assert(response)
+
         for department in engagement_info['departments']:
             logger.info('Change department of engagement {}:'.format(job_id))
             org_unit = department['DepartmentUUIDIdentifier']
@@ -554,7 +570,7 @@ class ChangeAtSD(object):
                             logger.info(
                                 'Status 0, edit eng {}'.format(mo_eng['uuid'])
                             )
-                            self.edit_engagement(engagement)
+                            self.edit_engagement(engagement, status0=True)
                         else:
                             logger.info('Status 0, create new engagement')
                             self.create_new_engagement(engagement, status)
@@ -748,6 +764,10 @@ class ChangeAtSD(object):
 
             exactly_one_primary = False
             for eng in mo_engagement:
+                if eng['engagement_type']['uuid'] == self.no_sallery:
+                    logger.info('Status 0, no update of primary')
+                    continue
+
                 if date_list[i + 1] == datetime.datetime(9999, 12, 30, 0, 0):
                     to = None
                 else:
