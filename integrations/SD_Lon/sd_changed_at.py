@@ -17,11 +17,13 @@ LOG_FILE = 'mo_integrations.log'
 
 logger = logging.getLogger("sdChangedAt")
 
+# detail_logging = ('AdReader', 'sdCommon', 'sdChangedAt')
+detail_logging = ('sdCommon', 'sdChangedAt')
 for name in logging.root.manager.loggerDict:
-    if name in ('AdReader', 'sdChangedAt'):
+    if name in detail_logging:
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
-        logging.getLogger(name).setLevel(logging.WARNING)
+        logging.getLogger(name).setLevel(logging.ERROR)
 
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(name)s %(message)s',
@@ -144,7 +146,11 @@ class ChangeAtSD(object):
                     'SalaryCodeGroupIndicator': 'false'
                 }
             response = sd_lookup(url, params)
-            self.employment_response = response.get('Person', [])
+            employment_response = response.get('Person', [])
+            if not isinstance(employment_response, list):
+                employment_response = [employment_response]
+
+            self.employment_response = employment_response
         return self.employment_response
 
     def read_person_changed(self):
@@ -163,7 +169,10 @@ class ChangeAtSD(object):
         }
         url = 'GetPersonChangedAtDate20111201'
         response = sd_lookup(url, params=params)
-        return response.get('Person', [])
+        person_changed = response.get('Person', [])
+        if not isinstance(person_changed, list):
+            person_changed = [person_changed]
+        return person_changed
 
     def update_changed_persons(self):
         # Så vidt vi ved, består person_changed af navn, cpr nummer og ansættelser.
@@ -197,8 +206,9 @@ class ChangeAtSD(object):
             # are not generally available in AD at this point?
 
             payload = {
-                "givenname": given_name,
-                "surname": sur_name,
+                # "givenname": given_name,
+                # "surname": sur_name,
+                'name': sd_name,
                 "cpr_no": cpr,
                 "org": {
                     "uuid": self.org_uuid
@@ -409,7 +419,7 @@ class ChangeAtSD(object):
 
         try:
             emp_name = engagement_info['professions'][0]['EmploymentName']
-        except KeyError:
+        except (KeyError, IndexError):
             emp_name = 'Ukendt'
         self._update_professions(emp_name)
         payload = sd_payloads.create_engagement(org_unit, self.mo_person,
@@ -582,6 +592,7 @@ class ChangeAtSD(object):
                             skip = True
 
                     if status['EmploymentStatusCode'] in ('S', '9'):
+                        skip = True
                         for mo_eng in self.mo_engagement:
                             if not mo_eng['user_key'] == job_id:
                                 # User was never actually hired
@@ -611,7 +622,6 @@ class ChangeAtSD(object):
                                         'Status S, 9: Terminate {}'.format(job_id)
                                     )
                                     self._terminate_engagement(end_date, job_id)
-                            skip = True
 
             if skip:
                 continue
@@ -836,7 +846,7 @@ if __name__ == '__main__':
     if init:
         from_date = datetime.datetime(2019, 6, 2, 0, 0)
         run_db = Path(RUN_DB)
-        initialize_changed_at(from_date, run_db)
+        initialize_changed_at(from_date, run_db, force=True)
         exit()
 
     conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -850,6 +860,12 @@ if __name__ == '__main__':
         print('Critical error')
         logging.error('Previous ChangedAt run did not return!')
         raise Exception('Previous ChangedAt run did not return!')
+    else:
+        time_diff = datetime.datetime.now() - row[2]
+        if time_diff < datetime.timedelta(days=1):
+            print('Critical error')
+            logging.error('Re-running ChangedAt too early!')
+            raise Exception('Re-running ChangedAt too early!')
 
     # Row[2] contains end_date of last run, this will be the from_date for this run.
     from_date = row[2]
