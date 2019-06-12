@@ -19,6 +19,7 @@ import requests
 import uuid
 import os
 import logging
+import collections
 
 MORA_BASE = os.environ.get('MORA_BASE', 'localhost:80')
 MORA_ROOT_ORG_UNIT_NAME = os.environ.get('MORA_ROOT_ORG_UNIT_NAME', 'Viborg Kommune')
@@ -28,18 +29,18 @@ EMUS_FILENAME = os.environ.get('EMUS_FILENAME', 'emus_filename.xml')
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
 
 
-# set warning-level for all loggers
-[
-    logging.getLogger(i).setLevel(logging.WARNING)
-    for i in logging.root.manager.loggerDict
-]
-
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(name)s %(message)s',
     level=LOG_LEVEL,
 )
+
 logger = logging.getLogger("xml-export-emus")
-logger.setLevel(LOG_LEVEL)
+for i in logging.root.manager.loggerDict:
+    if i in ["mora-helper", "xml-export-emus"]:
+        logging.getLogger(i).setLevel(LOG_LEVEL)
+    else:
+        logging.getLogger(i).setLevel(logging.WARNING)
+
 
 
 def get_emus_address(ou_uuid):
@@ -72,22 +73,22 @@ def get_emus_address(ou_uuid):
 
 
 def export_ou_emus(mh, nodes, emus_file):
+    engagement_counter = collections.Counter()
     fieldnames = ['startDate', 'endDate', 'parentOrgUnit', 'manager',
                   'longName', 'street', 'zipCode', 'city', 'phoneNumber']
 
     rows = []
     for node in cq.PreOrderIter(nodes['root']):
-        ou = mh.read_ou(node.name)
-
-        # tomme afdelinger frasorteres
+        ou = parent = mh.read_ou(node.name)
 
         engagements =  mh._mo_lookup(ou["uuid"], 'ou/{}/details/engagement')
-        if not engagements:
-            logger.info("skipping ou: %s with %d engagements",
-                        ou["uuid"], len(engagements))
-            continue
-        else:
-            logger.info("ou %s has %d engagements", ou["uuid"], len(engagements))
+        # make engagements count all the way up
+        if len(engagements):
+            engagement_counter[ou["uuid"]] += len(engagements)
+            while parent and parent.get("uuid") and parent.get("parent"):
+                parent = mh.read_ou(parent["parent"]["uuid"])
+                engagement_counter[parent["uuid"]] += len(engagements)
+
         manager = mh.read_organisation_managers(node.name)
         manager_uuid = manager["uuid"] if manager else ''
         address = get_emus_address(node.name)
@@ -114,8 +115,15 @@ def export_ou_emus(mh, nodes, emus_file):
         rows.append(row)
 
     last_changed = datetime.datetime.now().strftime("%Y-%m-%d")
-    logger.info("writing %d ou rows to file", len(rows))
+    logger.info("writing %d ou rows to file", len(engagement_counter))
     for r in rows:
+        empls = engagement_counter[r["uuid"]]
+        if empls == 0:
+            logger.debug("afdeling frasorteret, rekursivt tom: %s (%s)", r["longName"], r["uuid"])
+            continue # rekursivt tomme afdelinger frasorteres
+        else:
+            logger.debug("afdeling %s (%s) har %s engagementer incl. underafdl.", r["longName"], r["uuid"], empls)
+
         emus_file.write(
             "<orgUnit id=\"%s\" client=\"1\" lastChanged=\"%s\">\n" % (
                 r["uuid"],
@@ -206,7 +214,7 @@ def get_manager_dates(mh, person):
     for engagement in mh.read_user_engagement(person["uuid"], read_all=True):
         if engagement["validity"].get("to"):
             if not enddate or engagement["validity"]["to"] > enddate:
-                enddate = engagement["validity"]["to"] 
+                enddate = engagement["validity"]["to"]
 
             # don't take startdate from expired employment
             if engagement["validity"]["to"] < today:
