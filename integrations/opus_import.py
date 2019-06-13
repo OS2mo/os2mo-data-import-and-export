@@ -1,6 +1,25 @@
 # -- coding: utf-8 --
+import logging
 import xmltodict
 import dawa_helper
+
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'mo_integrations.log'
+
+logger = logging.getLogger("opusImport")
+
+for name in logging.root.manager.loggerDict:
+    if name in ('opusImport', 'moImporterMoraTypes', 'moImporterMoxTypes',
+                'moImporterUtilities', 'moImporterHelpers'):
+        logging.getLogger(name).setLevel(LOG_LEVEL)
+    else:
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+logging.basicConfig(
+    format='%(levelname)s %(asctime)s %(name)s %(message)s',
+    level=LOG_LEVEL,
+    filename=LOG_FILE
+)
 
 
 def _parse_phone(phone_number):
@@ -16,8 +35,10 @@ def _parse_phone(phone_number):
 
 class OpusImport(object):
 
-    def __init__(self, importer, org_name, xml_data):
+    def __init__(self, importer, org_name, xml_data, import_first=False):
+        """ If import first is False, the first unit will be skipped """
         self.importer = importer
+        self.import_first = import_first
 
         self.organisation_id = None
         self.units = None
@@ -82,7 +103,11 @@ class OpusImport(object):
 
         self.organisation_id = data['orgUnit'][0]['@id']
 
-        self.units = data['orgUnit'][1:]
+        if self.import_first:
+            self.units = data['orgUnit']
+        else:
+            self.units = data['orgUnit'][1:]
+
         self.employees = data['employee']
         municipality_code = int(data['orgUnit'][0]['@client'])
         return municipality_code
@@ -182,7 +207,7 @@ class OpusImport(object):
     def add_addresses_to_employees(self):
         for cpr, employee_addresses in self.employee_addresses.items():
             for facet, address in employee_addresses.items():
-                print(address)
+                logger.debug('Add address {}'.format(address))
                 if address:
                     self.importer.add_address_type(
                         employee=cpr,
@@ -196,6 +221,7 @@ class OpusImport(object):
         # UNUSED KEYS:
         # '@lastChanged'
 
+        logger.debug('Employee object: {}'.format(employee))
         if 'cpr' in employee:
             cpr = employee['cpr']['#text']
         else:
@@ -251,7 +277,7 @@ class OpusImport(object):
 
         org_unit = employee['orgUnit']
         job_id = employee['@id']  # To be used soon
-
+        logger.info('Add engagement: {} to {}'.format(job_id, cpr))
         self.importer.add_engagement(
             employee=cpr,
             organisation_unit=org_unit,
@@ -271,7 +297,7 @@ class OpusImport(object):
             manager_level = '{}.{}'.format(employee['superiorLevel'],
                                            employee['subordinateLevel'])
             self._add_klasse(manager_level, manager_level, 'manager_level')
-
+            logger.info('{} is manager {}'.format(cpr, manager_level))
             self.importer.add_manager(
                 employee=cpr,
                 organisation_unit=org_unit,
@@ -289,6 +315,7 @@ class OpusImport(object):
                 roles = employee['function']
 
             for role in roles:
+                logger.debug('{} has role {}'.format(cpr, role))
                 # We have only a single class for roles, must combine the information
                 if 'roleText' in role:
                     combined_role = '{} - {}'.format(role['artText'],
