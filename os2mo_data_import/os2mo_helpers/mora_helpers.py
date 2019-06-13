@@ -15,10 +15,12 @@ import csv
 import codecs
 import requests
 from anytree import Node
+import logging
 
 SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
 PRIMARY_RESPONSIBILITY = 'Personale: ansættelse/afskedigelse'
 
+logger = logging.getLogger("mora-helper")
 
 class MoraHelper(object):
     def __init__(self, hostname='localhost', export_ansi=True, use_cache=True):
@@ -123,7 +125,7 @@ class MoraHelper(object):
 
         full_url = self.host + url.format(uuid)
         if (full_url in self.cache) and use_cache:
-            print('AAAARRRGGHHH', full_url)
+            logger.debug("cache hit: %s", full_url)
             return_dict = self.cache[full_url]
         else:
             if SAML_TOKEN is None:
@@ -175,7 +177,7 @@ class MoraHelper(object):
         org_id = self.read_organisation()
         it_systems = self._mo_lookup(org_id, url= 'o/{}/it/')
         return it_systems
-    
+
     def read_ou(self, uuid, at=None, use_cache=None):
         """ Return a dict with the data available about an OU
         :param uuid: The UUID of the OU
@@ -247,8 +249,7 @@ class MoraHelper(object):
                 'to': '2018-01-01'
             }
         }
-        print('TERMINATE')
-        print(payload)
+        logger.info("Terminate detail %s", payload)
         # self._mo_post('details/terminate', payload):
 
     def read_user_engagement(self, user, at=None, read_all=False,
@@ -373,7 +374,7 @@ class MoraHelper(object):
             manager = manager_list[uuid]
         elif len(manager_list) > 1:
             # Currently we do not support multiple managers
-            print(org_uuid)
+            logger.warning("multiple managers not supported for %s",org_uuid)
             manager = manager_list[uuid]
             # TODO: Fix this...
             # raise Exception('Too many managers')
