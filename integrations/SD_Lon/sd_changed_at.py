@@ -616,6 +616,16 @@ class ChangeAtSD(object):
                                     status['EmploymentStatusCode']
                                 ))
                             else:
+                                # Earlier, we checked this for consistency with
+                                # existing engagements (see the disaled code below).
+                                # However, it seems we should just unconditionally
+                                # terminate.
+                                end_date = status['ActivationDate']
+                                logger.info(
+                                    'Status S, 9: Terminate {}'.format(job_id)
+                                )
+                                self._terminate_engagement(end_date, job_id)
+                                """
                                 logger.info('Checking consistent end-dates')
                                 to_date = mo_eng['validity']['to']
                                 if to_date is not None:
@@ -638,7 +648,7 @@ class ChangeAtSD(object):
                                         'Status S, 9: Terminate {}'.format(job_id)
                                     )
                                     self._terminate_engagement(end_date, job_id)
-
+                                """
             if skip:
                 continue
             self.edit_engagement(engagement)
