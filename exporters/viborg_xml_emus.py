@@ -119,17 +119,17 @@ def export_ou_emus(mh, nodes, emus_file):
     for r in rows:
         empls = engagement_counter[r["uuid"]]
         if empls == 0:
-            logger.debug("empty department skipped: %s (%s)", r["longName"], r["uuid"])
-            continue # rekursivt tomme afdelinger frasorteres
+            logger.debug("empty department skipped: %s (%s)",
+                         r["longName"], r["uuid"])
         else:
-            logger.debug("department %s (%s) has %s engagements incl. subdepts.", r["longName"], r["uuid"], empls)
-
-        emus_file.write(
-            "<orgUnit id=\"%s\" client=\"1\" lastChanged=\"%s\">\n" % (
-                r["uuid"],
-                last_changed,
+            logger.debug("department %s (%s) has %s engagements incl. subdepts.",
+                         r["longName"], r["uuid"], empls)
+            emus_file.write(
+                "<orgUnit id=\"%s\" client=\"1\" lastChanged=\"%s\">\n" % (
+                    r["uuid"],
+                    last_changed,
+                )
             )
-        )
 
         for fn in fieldnames:
             emus_file.write("<%s>%s</%s>\n" % (fn, r.get(fn, ''), fn))
