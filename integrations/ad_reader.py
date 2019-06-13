@@ -6,6 +6,7 @@ import logging
 import hashlib
 from pathlib import Path
 from winrm import Session
+from winrm.exceptions import WinRMTransportError
 
 logger = logging.getLogger("AdReader")
 
@@ -42,7 +43,21 @@ class ADParameterReader(object):
         response = {}
         if not self.session:
             return response
-        r = self.session.run_ps(ps_script)
+
+        retries = 0
+        try_again = True
+        while try_again and retries < 10:
+            try:
+                r = self.session.run_ps(ps_script)
+                try_again = False
+            except WinRMTransportError:
+                logger.error('AD read error: {}'.format(retries))
+                time.sleep(1)
+                retries += 1
+
+        # TODO: We will need better error handlinger than this.
+        assert(retries < 10)
+
         if r.status_code == 0:
             if r.std_out:
                 response = json.loads(r.std_out.decode('Latin-1'))
