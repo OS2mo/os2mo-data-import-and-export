@@ -1,5 +1,7 @@
 import os
 import time
+import pika
+import uuid
 import datetime
 import xmltodict
 import sd_mox_payloads
@@ -12,14 +14,12 @@ VIRTUAL_HOST = os.environ.get('VIRTUAL_HOST', None)
 if not (AMQP_USER and AMQP_PASSWORD and VIRTUAL_HOST):
     raise Exception('Credentials missing')
 
-import pika
-import uuid
 
 class sdMox(object):
     def __init__(self):
-        
+
         self.exchange_name = 'org-struktur-changes-topic'
-        credentials =  pika.PlainCredentials(AMQP_USER, AMQP_PASSWORD)
+        credentials = pika.PlainCredentials(AMQP_USER, AMQP_PASSWORD)
         parameters = pika.ConnectionParameters(host='msg-amqp.silkeborgdata.dk',
                                                port=5672,
                                                virtual_host=VIRTUAL_HOST,
@@ -32,9 +32,9 @@ class sdMox(object):
 
         self.from_date = datetime.datetime(2010, 5, 1, 0, 0)
         to_date = datetime.datetime(2040, 6, 1, 0, 0)
-        self.virkning = sd_mox_payloads.sd_virkning(self.from_date, to_date)        
+        self.virkning = sd_mox_payloads.sd_virkning(self.from_date, to_date)
         self.xml = None
-        
+
         result = self.channel.queue_declare('', exclusive=True)
         self.callback_queue = result.method.queue
         self.channel.basic_consume(
@@ -42,11 +42,10 @@ class sdMox(object):
             on_message_callback=self.on_response,
             auto_ack=True
         )
-        
 
     def create_registrering(self, registry_type):
         assert registry_type in ('Rettet', 'Opstaaet')
-        now =  datetime.datetime.strftime(
+        now = datetime.datetime.strftime(
             datetime.datetime.now(),
             '%Y-%m-%dT%H:%M:%S.00'
         )
@@ -168,7 +167,7 @@ class sdMox(object):
             edit_dict['RegistreringBesked']['Registrering'] = self.create_registrering(registry_type='Rettet')
         edit_dict['RegistreringBesked']['ObjektID'] = self.create_objekt_id(unit)
         self.xml = xmltodict.unparse(edit_dict)
-    
+
     def on_response(self, ch, method, props, body):
         print('Response:')
         print('Body: {}'.format(body))
@@ -180,7 +179,7 @@ class sdMox(object):
     def call(self):
         self.response = None
         self.corr_id = str(uuid.uuid4())
-            
+
         self.channel.basic_publish(
             exchange=self.exchange_name,
             routing_key='#',
