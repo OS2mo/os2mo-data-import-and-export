@@ -24,7 +24,7 @@ import collections
 MORA_BASE = os.environ.get('MORA_BASE', 'localhost:80')
 MORA_ROOT_ORG_UNIT_NAME = os.environ.get('MORA_ROOT_ORG_UNIT_NAME', 'Viborg Kommune')
 USERID_ITSYSTEM = os.environ.get('USERID_ITSYSTEM', 'Active Directory')
-EMUS_RESPONSIBILITY_CLASS = os.environ['EMUS_RESPONSIBILITY_CLASS']  # no default, must exist
+EMUS_RESPONSIBILITY_CLASS = os.environ['EMUS_RESPONSIBILITY_CLASS']
 EMUS_FILENAME = os.environ.get('EMUS_FILENAME', 'emus_filename.xml')
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
 
@@ -42,8 +42,7 @@ for i in logging.root.manager.loggerDict:
         logging.getLogger(i).setLevel(logging.WARNING)
 
 
-
-def get_emus_address(ou_uuid):
+def get_emus_address(mh, ou_uuid):
     """ try both adresse and adgangsadresse
     return {} if not found or uuid is falsy
     """
@@ -81,7 +80,7 @@ def export_ou_emus(mh, nodes, emus_file):
     for node in cq.PreOrderIter(nodes['root']):
         ou = parent = mh.read_ou(node.name)
 
-        engagements =  mh._mo_lookup(ou["uuid"], 'ou/{}/details/engagement')
+        engagements = mh._mo_lookup(ou["uuid"], 'ou/{}/details/engagement')
         # make engagements count all the way up
         if len(engagements):
             engagement_counter[ou["uuid"]] += len(engagements)
@@ -91,7 +90,7 @@ def export_ou_emus(mh, nodes, emus_file):
 
         manager = mh.read_organisation_managers(node.name)
         manager_uuid = manager["uuid"] if manager else ''
-        address = get_emus_address(node.name)
+        address = get_emus_address(mh, node.name)
         fra = ou['validity']['from'] if ou['validity']['from'] else ''
         til = ou['validity']['to'] if ou['validity']['to'] else ''
         over_uuid = ou['parent']['uuid'] if ou['parent'] else ''
@@ -207,6 +206,7 @@ def build_engagement_row(mh, ou, engagement):
     }
     return row
 
+
 def get_manager_dates(mh, person):
     today = datetime.datetime.now().strftime("%Y-%m-%d")
     startdate = ''
@@ -259,7 +259,11 @@ def build_manager_rows(mh, ou, manager):
         if not responsibility["uuid"] == EMUS_RESPONSIBILITY_CLASS:
             logger.debug("skipping man. resp. %s", responsibility["name"])
             continue
-        logger.info("adding manager %s with man. resp. %s", manager["uuid"], responsibility["name"] )
+        logger.info(
+            "adding manager %s with man. resp. %s",
+            manager["uuid"],
+            responsibility["name"]
+        )
         row = {
             'employee_id': person["uuid"],
             'client': "540",
@@ -334,10 +338,10 @@ def export_e_emus(mh, nodes, emus_file):
 
 
 def main(
+    emus_xml_file,
     root_org_unit_name=MORA_ROOT_ORG_UNIT_NAME,
     mh=MoraHelper(),
     t=time.time(),
-    emus_filename=EMUS_FILENAME
 ):
     root_org_unit_uuid = None
     org = mh.read_organisation()
@@ -356,17 +360,17 @@ def main(
                    " so program may seem unresponsive temporarily")
     nodes = mh.read_ou_tree(root_org_unit_uuid)
 
-    with open(emus_filename, "w", encoding="utf-8") as emus_xml:
+    # Write the xml file
+    emus_xml_file.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
+    emus_xml_file.write("<OS2MO>\n")
 
-        emus_xml.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
-        emus_xml.write("<OS2MO>\n")
+    export_ou_emus(mh, nodes, emus_xml_file)
+    export_e_emus(mh, nodes, emus_xml_file)
 
-        export_ou_emus(mh, nodes, emus_xml)
-        export_e_emus(mh, nodes, emus_xml)
-
-        emus_xml.write("</OS2MO>")
+    emus_xml_file.write("</OS2MO>")
 
 
 if __name__ == '__main__':
-    mh = MoraHelper(MORA_BASE)
-    main(mh=mh)
+    morah = MoraHelper(MORA_BASE)
+    with open(EMUS_FILENAME, "w", encoding="utf-8") as emus_f:
+        main(emus_xml_file=emus_f, mh=morah)
