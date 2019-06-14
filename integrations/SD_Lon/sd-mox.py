@@ -30,8 +30,8 @@ class sdMox(object):
 
         self.mh = MoraHelper(hostname='localhost:5000')
 
-        self.from_date = datetime.datetime(2020, 5, 1, 0, 0)
-        to_date = datetime.datetime(2020, 6, 1, 0, 0)
+        self.from_date = datetime.datetime(2010, 5, 1, 0, 0)
+        to_date = datetime.datetime(2040, 6, 1, 0, 0)
         self.virkning = sd_mox_payloads.sd_virkning(self.from_date, to_date)        
         self.xml = None
         
@@ -44,7 +44,8 @@ class sdMox(object):
         )
         
 
-    def create_registrering(self):
+    def create_registrering(self, registry_type):
+        assert registry_type in ('Rettet', 'Opstaaet')
         now =  datetime.datetime.strftime(
             datetime.datetime.now(),
             '%Y-%m-%dT%H:%M:%S.00'
@@ -53,8 +54,8 @@ class sdMox(object):
             "sd:FraTidspunkt": {
                 "sd:TidsstempelDatoTid": now
             },
-            "sd:LivscyklusKode": "Rettet",
-            "TilstandListe": {
+            'sd:LivscyklusKode': registry_type,
+            'TilstandListe': {
                 "orgfaelles:Gyldighed": {
                     "sd:Virkning": self.virkning,
                     "orgfaelles:GyldighedStatusKode": "Aktiv"
@@ -84,37 +85,62 @@ class sdMox(object):
                 "silkdata:Integration": [
                     {
                         "sd:Virkning": self.virkning,
-                        "silkdata:AttributNavn": "FunktionKode",
-                        "silkdata:AttributVaerdi": "32201"
+                        "silkdata:AttributNavn": 'EnhedKode',
+                        "silkdata:AttributVaerdi": "KLAF"
                     },
                     {
                         "sd:Virkning": self.virkning,
-                        "silkdata:AttributNavn": "SkoleKode",
-                        "silkdata:AttributVaerdi": "12346"
-                    },
-                    {
-                        "sd:Virkning": self.virkning,
-                        "silkdata:AttributNavn": "Tidsregistrering",
-                        "silkdata:AttributVaerdi": "Arbejdstidsplaner"
-                    }
+                        "silkdata:AttributNavn": 'Niveau',
+                        "silkdata:AttributVaerdi": "Afdelings-niveau"
+                    }#,
+                    #{
+                    #    "sd:Virkning": self.virkning,
+                    #    "silkdata:AttributNavn": "FunktionKode",
+                    #    "silkdata:AttributVaerdi": "32201"
+                    #},
+                    #{
+                    #    "sd:Virkning": self.virkning,
+                    #    "silkdata:AttributNavn": "SkoleKode",
+                    #    "silkdata:AttributVaerdi": "12346"
+                    #},
+                    #{
+                    #    "sd:Virkning": self.virkning,
+                    #    "silkdata:AttributNavn": "Tidsregistrering",
+                    #    "silkdata:AttributVaerdi": "Arbejdstidsplaner"
+                    #}
                 ]
             }
         }
         return attribut_liste
 
     def create_relations_liste(self, pnummer=None, tlf=None, parent=None):
+        """
         relations_liste = {
             'sd:LokalUdvidelse': {
                 'silkdata:Lokation': {
-                    #"silkdata:DanskAdresse": {
-                    #    "sd:Virkning": self.virkning,
-                    #    "silkdata:AdresseNavn": "Arnegaardsvej 5",
-                    #    "silkdata:PostKodeIdentifikator": "8600",
-                    #    "silkdata:ByNavn": "Silkeborg"
-                    #}
+                    "silkdata:DanskAdresse": {
+                        "sd:Virkning": self.virkning,
+                        "silkdata:AdresseNavn": "Arnegaardsvej 5",
+                        "silkdata:PostKodeIdentifikator": "8600",
+                        "silkdata:ByNavn": "Silkeborg"
+                    }
                 }
             }
         }
+        """
+        relations_liste = {
+            'sd:Overordnet': {
+                'sd:Virkning': self.virkning,
+                'sd:ReferenceID': {
+                    'sd:UUIDIdentifikator': parent
+                }
+            },
+            'sd:ReferenceID': {
+                'sd:UUIDIdentifikator': '2235de61-1e61-4c23-847d-b9ed71829ec9'
+            },
+            'sd:LokalUdvidelse': {}
+        }
+
         if pnummer is not None:
             relations_liste['sd:LokalUdvidelse']['silkdata:Lokation'] = {
                 'silkdata:ProduktionEnhed': {
@@ -136,7 +162,10 @@ class sdMox(object):
         edit_dict['RegistreringBesked'].update(sd_mox_payloads.boilerplate)
         edit_dict['RegistreringBesked']['RelationListe'] = self.create_relations_liste(parent=parent)
         edit_dict['RegistreringBesked']['AttributListe'] = self.create_attribut_liste(unit)
-        edit_dict['RegistreringBesked']['Registrering'] = self.create_registrering()
+        if create:
+            edit_dict['RegistreringBesked']['Registrering'] = self.create_registrering(registry_type='Opstaaet')
+        else:
+            edit_dict['RegistreringBesked']['Registrering'] = self.create_registrering(registry_type='Rettet')
         edit_dict['RegistreringBesked']['ObjektID'] = self.create_objekt_id(unit)
         self.xml = xmltodict.unparse(edit_dict)
     
@@ -177,7 +206,7 @@ print('Send request')
 
 mox.create_xml(
     # unit='89ad7a4c-61c0-4900-9200-000001550002'
-    unit='00000000-61c0-4900-9200-000001550002',
+    unit='00000000-00c0-4900-9200-000001550002',
     create=True,
     parent='fd47d033-61c0-4900-b000-000001520002'
 )
