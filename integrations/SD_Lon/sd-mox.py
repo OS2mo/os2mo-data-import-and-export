@@ -1,7 +1,5 @@
 import os
-import time
 import pika
-import uuid
 import datetime
 import xmltodict
 import sd_mox_payloads
@@ -30,8 +28,8 @@ class sdMox(object):
 
         self.mh = MoraHelper(hostname='localhost:5000')
 
-        self.from_date = datetime.datetime(2019, 5, 1, 0, 0)
-        to_date = datetime.datetime(2040, 6, 1, 0, 0)
+        self.from_date = datetime.datetime(2019, 9, 1, 0, 0)
+        to_date = datetime.datetime(2019, 10, 1, 0, 0)
         self.virkning = sd_mox_payloads.sd_virkning(self.from_date, to_date)
         self.xml = None
 
@@ -71,7 +69,8 @@ class sdMox(object):
         }
         return objekt_id
 
-    def create_attribut_liste(self, unit_uuid=None, unit_name='Klaf', unit_code=None):
+    def create_attribut_liste(self, unit_uuid=None, unit_name='Klaf',
+                              unit_code=None):
         # print(self.mh.read_ou(unit_uuid)) #This will not work for test-data
         attribut_liste = {
             "sd:LokalUdvidelse": {
@@ -109,7 +108,6 @@ class sdMox(object):
                 "sd:EnhedNavn": unit_name,
                 "sd:Virkning": self.virkning
             }
-            
         return attribut_liste
 
     def create_relations_liste_import(self, parent=None):
@@ -124,8 +122,7 @@ class sdMox(object):
         }
         return relations_liste
 
-    def create_relations_liste_ret(self, pnummer=None, tlf=None):
-        """
+    def create_relations_liste_ret(self, pnummer=None, phone=None):
         relations_liste = {
             'sd:LokalUdvidelse': {
                 'silkdata:Lokation': {
@@ -138,20 +135,6 @@ class sdMox(object):
                 }
             }
         }
-        """
-        relations_liste = {
-            'sd:Overordnet': {
-                'sd:Virkning': self.virkning,
-                'sd:ReferenceID': {
-                    'sd:UUIDIdentifikator': parent
-                }
-            },
-            'sd:ReferenceID': {
-                'sd:UUIDIdentifikator': '2235de61-1e61-4c23-847d-b9ed71829ec9'
-            },
-            'sd:LokalUdvidelse': {}
-        }
-
         if pnummer is not None:
             relations_liste['sd:LokalUdvidelse']['silkdata:Lokation'] = {
                 'silkdata:ProduktionEnhed': {
@@ -159,11 +142,11 @@ class sdMox(object):
                     'silkdata:ProduktionEnhedIdentifikator': pnummer
                 }
             }
-        if tlf is not None:
+        if phone is not None:
             relations_liste['sd:LokalUdvidelse']['silkdata:Lokation'] = {
                 'silkdata:Kontakt': {
                     'sd:Virkning': self.virkning,
-                    'silkdata:LokalTelefonnummerIdentifikator': tlf
+                    'silkdata:LokalTelefonnummerIdentifikator': phone
                 }
             }
         return relations_liste
@@ -179,25 +162,24 @@ class sdMox(object):
         edit_dict['RegistreringBesked'].update(sd_mox_payloads.boilerplate)
         self.xml = xmltodict.unparse(edit_dict)
 
-    def create_xml_ret(self):
-        pass
-    
-    def create_xml(self, unit, create=False, parent=None):
-        edit_dict = {'RegistreringBesked': {}}
+    def create_xml_ret(self, uuid, name):
+        value_dict = {
+            'RelationListe': self.create_relations_liste_ret(
+                pnummer='1003259972',
+                phone='12345678'
+            ),
+            'AttributListe': self.create_attribut_liste(unit_name=name),
+            'Registrering': self.create_registrering(registry_type='Rettet'),
+            'ObjektID': self.create_objekt_id(uuid)
+        }
+        edit_dict = {'RegistreringBesked': value_dict}
         edit_dict['RegistreringBesked'].update(sd_mox_payloads.boilerplate)
-        edit_dict['RegistreringBesked']['RelationListe'] = self.create_relations_liste(parent=parent)
-        edit_dict['RegistreringBesked']['AttributListe'] = self.create_attribut_liste(unit)
-        if create:
-            edit_dict['RegistreringBesked']['Registrering'] = self.create_registrering(registry_type='Opstaaet')
-        else:
-            edit_dict['RegistreringBesked']['Registrering'] = self.create_registrering(registry_type='Rettet')
-        edit_dict['RegistreringBesked']['ObjektID'] = self.create_objekt_id(unit)
         self.xml = xmltodict.unparse(edit_dict)
 
     def on_response(self, ch, method, props, body):
         print('Response?!??!?!')
         print(body)
-    
+
     def call(self):
         self.response = None
         self.channel.basic_publish(
@@ -213,14 +195,21 @@ class sdMox(object):
         # matches the expected result
         return True
 
+
 mox = sdMox()
 print('Send request')
 
+"""
 mox.create_xml_import(
-    # unit='89ad7a4c-61c0-4900-9200-000001550002'
     uuid='07782000-0000-4900-9200-000001550002',
     unit_code='LLAK',
     parent='fd47d033-61c0-4900-b000-000001520002'
+)
+"""
+
+mox.create_xml_ret(
+    uuid='07782000-0000-4900-9200-000001550002',
+    name='Test 2'
 )
 
 response = mox.call()
