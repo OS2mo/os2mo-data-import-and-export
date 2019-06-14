@@ -8,14 +8,31 @@
 #
 import os
 import pickle
+import logging
 import requests
 import xmltodict
 import collections
+import dawa_helper
 from datetime import datetime
 from uuid import UUID
 
-import dawa_helper
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'mo_integrations.log'
 
+logger = logging.getLogger("aposImport")
+
+for name in logging.root.manager.loggerDict:
+    if name in ('aposImport', 'moImporterMoraTypes', 'moImporterMoxTypes',
+                'moImporterUtilities', 'moImporterHelpers'):
+        logging.getLogger(name).setLevel(LOG_LEVEL)
+    else:
+        logging.getLogger(name).setLevel(logging.WARNING)
+
+logging.basicConfig(
+    format='%(levelname)s %(asctime)s %(name)s %(message)s',
+    level=LOG_LEVEL,
+    filename=LOG_FILE
+)
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
 BASE_APOS_URL = os.environ.get('BASE_APOS_URL', 'http://localhost:8080/apos2-')
@@ -157,14 +174,7 @@ class AposImport(object):
                 if not isinstance(klasser, list):
                     klasser = [klasser]
                 for klasse in klasser:
-                    print(klasse['@uuid'] + ': ' + klasse['@title'])
-                    # Add more here if necessary
-                    """
-                    if klasse['@title'] in PHONE_NAMES:
-                        scope = 'PHONE'
-                    else:
-                        scope = 'TEXT'
-                    """
+                    logger.debug('{}: {}'.format(klasse['@uuid'], klasse['@title']))
                     if klasse['@uuid'] in PHONE_NAMES:
                         scope = 'PHONE'
                     elif klasse['@uuid'] == EMAIL_NAME:
@@ -445,7 +455,7 @@ class AposImport(object):
             parent_ref=parent)
 
         for key, value in apos_int.items():
-            print('{}: {}'.format(key, value))
+            logger.debug('Add address type {}: value {}'.format(key, value))
             self.importer.add_address_type(
                 organisation_unit=unit_id,
                 type_ref=key,
@@ -499,7 +509,7 @@ class AposImport(object):
                     else:
                         added_persons.append(p)
                     if not self.importer.check_if_exists('employee', p):
-                        print('Association error: {}'.format(p))
+                        logger.warning('Association error: {}'.format(p))
                         break
 
                     details = self.importer.get_details(owner_type="employee",
@@ -535,7 +545,7 @@ class AposImport(object):
                 elif apos_type == ALT_PHONE_NAME:
                     klasse_ref = 'AltPhoneEmployee'
                 else:  # This should never happen
-                    print(kontaktmulighed)
+                    logger.error('Ukendt kontaktmulighed: {}'.format(apos_type))
                     raise Exception('Ukendt kontaktmulighed')
                 try:
                     fra, til = _format_time(employee['gyldighed'])
@@ -575,12 +585,15 @@ class AposImport(object):
                 self.importer.check_if_exists('employee',
                                               employee['person']['@uuid'])
         ):
-            print(employee)
-            print('Medarbejder ukendt')
+            logger.error('Medarbejder ukendt: {}'.format(employee))
             1/0
 
         engagement_ref = '56e1214a-330f-4592-89f3-ae3ee8d5b2e6'  # Ansat
-
+        logger.debug(
+            'Add engagement, person: {}, from: {}, to: {}'.format(
+                employee['person']['@uuid'], fra, til
+            )
+        )
         self.importer.add_engagement(
             employee=employee['person']['@uuid'],
             uuid=employee['@uuid'],
@@ -588,7 +601,8 @@ class AposImport(object):
             organisation_unit=unit,
             job_function_ref=stilling,
             engagement_type_ref=engagement_ref,
-            date_from=fra)
+            date_from=fra,
+            date_to=til)
 
     def create_employees_for_ou(self, unit):
         url = 'composite-services/GetEngagementDetailed?unitUuid={}'
@@ -626,11 +640,15 @@ class AposImport(object):
             """
             # TODO: VERIFY THAT THIS IS THE SAME AS THE ABOVE
             if self.importer.check_if_exists('employee', person['@uuid']):
-                self.duplicate_persons[person['@uuid']] = person
+                # TODO: We should be able to remove self.duplicated_persons
+                # self.duplicate_persons[person['@uuid']] = person
+                logger.info('Duplicated person: {}'.format(person))
                 # Some employees are duplicated, skip them and remember them.
                 continue
 
-            self.importer.add_employee(name=(given_name, sur_name),
+            name = (given_name, sur_name)
+            logger.info('Add employee: {}, user_key: {}'.format(name, bvn))
+            self.importer.add_employee(name=name,
                                        uuid=person['@uuid'],
                                        identifier=person['@uuid'],
                                        cpr_no=person['@personnummer'],
@@ -701,10 +719,11 @@ class AposImport(object):
                     elif facet in ('engagement_job_function', 'engagement_type'):
                         pass
                     else:
-                        print('WARNING')
+                        logger.error('Unkown facet: {}'.format(facet))
 
                 if manager_type:
                     try:
+                        logger.debug('Add manager: {}'.format(person['@uuid']))
                         self.importer.add_manager(
                             employee=person['@uuid'],
                             organisation_unit=unit,
@@ -717,8 +736,9 @@ class AposImport(object):
                             date_to=til
                         )
                     except ReferenceError:
-                        print('Problem adding manager:')
-                        print(person['@uuid'])
+                        logger.warning(
+                            'Problem adding manager: {}'.format(person['@uuid'])
+                        )
 
     def create_ou_tree(self, org_uuid, enhedstype=None):
         org_units = self._read_ous_from_apos(org_uuid)
@@ -744,7 +764,7 @@ class AposImport(object):
                     self.create_employees_for_ou(unit['@uuid'])
                 else:
                     remaining_org_units.append(unit)
-            print('Remaining org units: {}'.format(len(remaining_org_units)))
+            logger.debug('Remaining org units: {}'.format(len(remaining_org_units)))
             org_units = remaining_org_units
             nodes.update(new)
 

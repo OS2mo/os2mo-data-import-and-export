@@ -6,7 +6,10 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import hashlib
+import logging
 from integration_abstraction.integration_abstraction import IntegrationAbstraction
+
+logger = logging.getLogger("moImporterMoraTypes")
 
 
 # TODO: This should be in some sort of global config
@@ -108,7 +111,7 @@ class MoType():
             "from": self.date_from,
             "to": self.date_to
         }
-
+        logger.debug('Mo payload: {}'.format(self.payload))
         return self.payload
 
     def __repr__(self):

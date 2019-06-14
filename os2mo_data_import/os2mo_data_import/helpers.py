@@ -5,6 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+import logging
 from os2mo_helpers.mora_helpers import MoraHelper
 from integration_abstraction.integration_abstraction import IntegrationAbstraction
 
@@ -31,6 +32,8 @@ from os2mo_data_import.mox_data_types import (
     Klasse,
     Itsystem
 )
+
+logger = logging.getLogger("moImporterHelpers")
 
 
 class ImportHelper(object):
@@ -607,7 +610,7 @@ class ImportHelper(object):
         if org_unit.parent_ref and (not parent_unit):
             re_run = True
             self._import_unit_from_integration_data(org_unit.parent_ref)
-            print('Importing {} from integration data'.format(org_unit.parent_ref))
+            logger.info('Importing {} from integration data'.format(org_unit.parent_ref))
         else:
             re_run = False
         return re_run
@@ -624,35 +627,33 @@ class ImportHelper(object):
 
             #. OrganisationUnit objects
             #. Employees objects
-
-        :TODO: Implement logging rather than print statements
         """
 
         # Insert Organisation
-        print('Will now import organisation')
+        logger.info('Will now import organisation')
         self.store.import_organisation(*self.organisation)
 
         # Insert Klassifikation
-        print('Will now import klassifikation')
+        logger.info('Will now import klassifikation')
         self.store.import_klassifikation(*self.klassifikation)
 
         # Insert Facet
-        print('Will now import facet')
+        logger.info('Will now import facet')
         for identifier, facet in self.facet_objects.items():
             self.store.import_facet(identifier, facet)
 
         # Insert Klasse
-        print('Will now import klasse')
+        logger.info('Will now import klasse')
         for identifier, klasse in self.klasse_objects.items():
             self.store.import_klasse(identifier, klasse)
 
         # Insert Itsystem
-        print('Will now import IT-systems')
+        logger.info('Will now import IT-systems')
         for identifier, itsystem in self.itsystems.items():
             self.store.import_itsystem(identifier, itsystem)
 
         # Insert Organisation Units
-        print('Will now import org units')
+        logger.info('Will now import org units')
         re_run = True
         while re_run:
             re_run = False
@@ -670,7 +671,7 @@ class ImportHelper(object):
             self.import_organisation_units_recursively(identifier, org_unit)
 
         # Insert Employees
-        print('Will now import employees')
+        logger.info('Will now import employees')
         for identifier, employee in self.employees.items():
 
             details = self.employee_details.get(identifier)
