@@ -28,8 +28,8 @@ class sdMox(object):
 
         self.mh = MoraHelper(hostname='localhost:5000')
 
-        self.from_date = datetime.datetime(2020, 2, 1, 0, 0)
-        to_date = datetime.datetime(2020, 3, 1, 0, 0)
+        self.from_date = datetime.datetime(2020, 4, 1, 0, 0)
+        to_date = datetime.datetime(2020, 5, 1, 0, 0)
         self.virkning = sd_mox_payloads.sd_virkning(self.from_date, to_date)
         self.xml = None
 
@@ -141,72 +141,36 @@ class sdMox(object):
         }
         return relations_liste
 
-    def create_relations_liste_ret(self, pnummer=None, phone=None):
+    def create_relations_liste_ret(self, pnummer=None, phone=None, adresse=None):
+        adresse = {
+            'sd:Virkning': self.virkning,
+            'silkdata:AdresseNavn': 'Arnegaard 99',
+            'silkdata:PostKodeIdentifikator': '2000',
+            'silkdata:ByNavn': 'Fr'
+        }
+        
         relations_liste = {
             'sd:LokalUdvidelse': {
-                #'silkdata:Lokation': {
-                #    "silkdata:DanskAdresse": {
-                #        "sd:Virkning": self.virkning,
-                #        "silkdata:AdresseNavn": "Arnegaardsvej 5",
-                #        "silkdata:PostKodeIdentifikator": "8600",
-                #        "silkdata:ByNavn": "Silkeborg"
-                #    }
-                #}
+                'silkdata:Lokation': {
+                        "silkdata:DanskAdresse": adresse
+                }
             }
         }
+        
         if pnummer is not None:
-            relations_liste['sd:LokalUdvidelse']['silkdata:Lokation'] = {
-                'silkdata:ProduktionEnhed': {
+            relations_liste['sd:LokalUdvidelse']['silkdata:Lokation']['silkdata:ProduktionEnhed'] = {
                     'sd:Virkning': self.virkning,
                     'silkdata:ProduktionEnhedIdentifikator': pnummer
-                },
-                'silkdata:Kontakt': {
+                }
+        if phone is not None:
+            relations_liste['sd:LokalUdvidelse']['silkdata:Lokation']['silkdata:Kontakt'] = {
                     'sd:Virkning': self.virkning,
                     'silkdata:LokalTelefonnummerIdentifikator': phone
                 }
 
-            }
-        #if phone is not None:
-        #    relations_liste['sd:LokalUdvidelse']['silkdata:Lokation'] = {
-        #        'silkdata:Kontakt': {
-        #            'sd:Virkning': self.virkning,
-        #            'silkdata:LokalTelefonnummerIdentifikator': phone
-        #        }
-        #    }
-        """
-        relations = {}
-        relations_liste = {
-            'sd:LokalUdvidelse': {
-                'silkdata:Lokation': {}
-            }
-        }
-        if phone is not None:
-            relations['silkdata:Kontakt'] = {
-                'sd:Virkning': self.virkning,
-                'silkdata:LokalTelefonnummerIdentifikator': phone
-            }
-
-        if pnummer is not None:
-            relations['silkdata:ProduktionEnhed'] = {
-                'sd:Virkning': self.virkning,
-                'silkdata:ProduktionEnhedIdentifikator': pnummer
-            }
-
-                      
-        relations['silkdata:DanskAdresse'] = {
-            "sd:Virkning": self.virkning,
-            "silkdata:AdresseNavn": "Arnegaardsvej 5",
-            "silkdata:PostKodeIdentifikator": "8600",
-            "silkdata:ByNavn": "Silkeborg"
-        }
-
-        relations_liste = {
-            'sd:LokalUdvidelse': {
-                'silkdata:Lokation': relations
-            }
-        }
-        """
-        print(relations_liste)
+        import pprint
+        pp = pprint.PrettyPrinter(indent=1)
+        pp.pprint(relations_liste)
         # 1/0
         return relations_liste
 
@@ -228,8 +192,8 @@ class sdMox(object):
     def create_xml_ret(self, uuid, name):
         value_dict = {
             'RelationListe': self.create_relations_liste_ret(
-                pnummer='1111111111',
-                phone='55554444'
+                pnummer='1003407739',
+                phone='55666655'
             ),
             'AttributListe': self.create_attribut_liste_ret(unit_name=name),
             'Registrering': self.create_registrering(registry_type='Rettet'),
@@ -244,6 +208,8 @@ class sdMox(object):
         print(body)
 
     def call(self):
+        print(self.xml)
+        
         self.response = None
         self.channel.basic_publish(
             exchange=self.exchange_name,
