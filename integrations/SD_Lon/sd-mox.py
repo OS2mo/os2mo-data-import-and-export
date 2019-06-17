@@ -69,8 +69,8 @@ class sdMox(object):
         }
         return objekt_id
 
-    def create_attribut_liste(self, unit_uuid=None, unit_name='Klaf',
-                              unit_code=None):
+    def create_attribut_liste_ret(self, unit_uuid=None, unit_name='Klaf',
+                                  unit_code=None):
         # print(self.mh.read_ou(unit_uuid)) #This will not work for test-data
         attribut_liste = {
             "sd:LokalUdvidelse": {
@@ -108,6 +108,34 @@ class sdMox(object):
                 "sd:EnhedNavn": unit_name,
                 "sd:Virkning": self.virkning
             }
+        return attribut_liste
+
+    def _create_attribut_items(self, attributes):
+        attribute_items = []
+        for key, value in attributes.items():
+            attribute_items.append(
+                {
+                    'sd:Virkning': self.virkning,
+                    'silkdata:AttributNavn': key,
+                    'silkdata:AttributVaerdi': value
+                }
+            )
+        return attribute_items
+
+    def create_attribut_liste_import(self, unit_name, unit_code, niveau):
+        attributes = {'EnhedKode': unit_code, 'Niveau': 'Afdelings-niveau'}
+        integration_items = self._create_attribut_items(attributes)
+        attribut_liste = {
+            "sd:LokalUdvidelse": {
+                "silkdata:Integration": integration_items
+            },
+            'Egenskab': {
+                "sd:EnhedNavn": unit_name,
+                "sd:Virkning": self.virkning
+            }
+        }
+
+        print(attribut_liste)
         return attribut_liste
 
     def create_relations_liste_import(self, parent=None):
@@ -154,7 +182,11 @@ class sdMox(object):
     def create_xml_import(self, uuid, unit_code, parent):
         value_dict = {
             'RelationListe': self.create_relations_liste_import(parent),
-            'AttributListe': self.create_attribut_liste(unit_code=unit_code),
+            'AttributListe': self.create_attribut_liste_import(
+                unit_code=unit_code,
+                unit_name='Klaf',
+                niveau='TODO'
+            ),
             'Registrering': self.create_registrering(registry_type='Opstaaet'),
             'ObjektID': self.create_objekt_id(unit_uuid=uuid)
         }
@@ -199,19 +231,18 @@ class sdMox(object):
 mox = sdMox()
 print('Send request')
 
-"""
 mox.create_xml_import(
-    uuid='07782000-0000-4900-9200-000001550002',
-    unit_code='LLAK',
+    uuid='07783000-0000-4900-9200-000001550002',
+    unit_code='LLAL',
     parent='fd47d033-61c0-4900-b000-000001520002'
 )
-"""
 
+"""
 mox.create_xml_ret(
     uuid='07782000-0000-4900-9200-000001550002',
     name='Test 2'
 )
-
+"""
 response = mox.call()
 print('-----------------------')
 print(response)
