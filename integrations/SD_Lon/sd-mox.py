@@ -28,8 +28,8 @@ class sdMox(object):
 
         self.mh = MoraHelper(hostname='localhost:5000')
 
-        self.from_date = datetime.datetime(2019, 9, 1, 0, 0)
-        to_date = datetime.datetime(2019, 10, 1, 0, 0)
+        self.from_date = datetime.datetime(2019, 11, 1, 0, 0)
+        to_date = datetime.datetime(2019, 12, 1, 0, 0)
         self.virkning = sd_mox_payloads.sd_virkning(self.from_date, to_date)
         self.xml = None
 
@@ -61,13 +61,6 @@ class sdMox(object):
             },
         }
         return registrering
-
-    def create_objekt_id(self, unit_uuid):
-        objekt_id = {
-            'sd:UUIDIdentifikator': unit_uuid,
-            'sd:IdentifikatorType': 'OrganisationEnhed'
-        }
-        return objekt_id
 
     def create_attribut_liste_ret(self, unit_uuid=None, unit_name='Klaf',
                                   unit_code=None):
@@ -134,8 +127,6 @@ class sdMox(object):
                 "sd:Virkning": self.virkning
             }
         }
-
-        print(attribut_liste)
         return attribut_liste
 
     def create_relations_liste_import(self, parent=None):
@@ -151,6 +142,7 @@ class sdMox(object):
         return relations_liste
 
     def create_relations_liste_ret(self, pnummer=None, phone=None):
+        """
         relations_liste = {
             'sd:LokalUdvidelse': {
                 'silkdata:Lokation': {
@@ -177,6 +169,43 @@ class sdMox(object):
                     'silkdata:LokalTelefonnummerIdentifikator': phone
                 }
             }
+        """
+        relations = []
+        if phone is not None:
+            relations.append(
+                {
+                    'silkdata:Kontakt': {
+                        'sd:Virkning': self.virkning,
+                        'silkdata:LokalTelefonnummerIdentifikator': phone
+                    }
+                }
+            )
+        if pnummer is not None:
+            relations.append(
+                {
+                    'silkdata:ProduktionEnhed': {
+                        'sd:Virkning': self.virkning,
+                        'silkdata:ProduktionEnhedIdentifikator': pnummer
+                    }
+                }
+            )
+
+        relations.append(
+            {
+                "silkdata:DanskAdresse": {
+                    "sd:Virkning": self.virkning,
+                    "silkdata:AdresseNavn": "Arnegaardsvej 5",
+                    "silkdata:PostKodeIdentifikator": "8600",
+                    "silkdata:ByNavn": "Silkeborg"
+                }
+            }
+        )
+
+        relations_liste = {
+            'sd:LokalUdvidelse': {
+                'silkdata:Lokation': relations
+            }
+        }
         return relations_liste
 
     def create_xml_import(self, uuid, unit_code, parent):
@@ -188,7 +217,7 @@ class sdMox(object):
                 niveau='TODO'
             ),
             'Registrering': self.create_registrering(registry_type='Opstaaet'),
-            'ObjektID': self.create_objekt_id(unit_uuid=uuid)
+            'ObjektID': sd_mox_payloads.create_objekt_id(uuid)
         }
         edit_dict = {'RegistreringBesked': value_dict}
         edit_dict['RegistreringBesked'].update(sd_mox_payloads.boilerplate)
@@ -197,12 +226,12 @@ class sdMox(object):
     def create_xml_ret(self, uuid, name):
         value_dict = {
             'RelationListe': self.create_relations_liste_ret(
-                pnummer='1003259972',
-                phone='12345678'
+                pnummer='1234567890',
+                phone='88884444'
             ),
-            'AttributListe': self.create_attribut_liste(unit_name=name),
+            'AttributListe': self.create_attribut_liste_ret(unit_name=name),
             'Registrering': self.create_registrering(registry_type='Rettet'),
-            'ObjektID': self.create_objekt_id(uuid)
+            'ObjektID': sd_mox_payloads.create_objekt_id(uuid)
         }
         edit_dict = {'RegistreringBesked': value_dict}
         edit_dict['RegistreringBesked'].update(sd_mox_payloads.boilerplate)
@@ -231,18 +260,19 @@ class sdMox(object):
 mox = sdMox()
 print('Send request')
 
-mox.create_xml_import(
-    uuid='07783000-0000-4900-9200-000001550002',
-    unit_code='LLAL',
-    parent='fd47d033-61c0-4900-b000-000001520002'
-)
+if False:
+    mox.create_xml_import(
+        uuid='07783070-0000-4900-9200-000001550002',
+        unit_code='LLBB',
+        parent='fd47d033-61c0-4900-b000-000001520002'
+    )
 
-"""
-mox.create_xml_ret(
-    uuid='07782000-0000-4900-9200-000001550002',
-    name='Test 2'
-)
-"""
+if True:
+    mox.create_xml_ret(
+        uuid='07783070-0000-4900-9200-000001550002',
+        name='Test 2'
+    )
+
 response = mox.call()
 print('-----------------------')
 print(response)

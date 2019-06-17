@@ -36,3 +36,12 @@ def sd_virkning(from_time, to_time=None):
         }
 
     return validity
+
+
+def create_objekt_id(unit_uuid):
+    objekt_id = {
+        'sd:UUIDIdentifikator': unit_uuid,
+        'sd:IdentifikatorType': 'OrganisationEnhed'
+    }
+    return objekt_id
+
