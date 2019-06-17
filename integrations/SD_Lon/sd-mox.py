@@ -28,8 +28,8 @@ class sdMox(object):
 
         self.mh = MoraHelper(hostname='localhost:5000')
 
-        self.from_date = datetime.datetime(2019, 11, 1, 0, 0)
-        to_date = datetime.datetime(2019, 12, 1, 0, 0)
+        self.from_date = datetime.datetime(2020, 2, 1, 0, 0)
+        to_date = datetime.datetime(2020, 3, 1, 0, 0)
         self.virkning = sd_mox_payloads.sd_virkning(self.from_date, to_date)
         self.xml = None
 
@@ -142,17 +142,16 @@ class sdMox(object):
         return relations_liste
 
     def create_relations_liste_ret(self, pnummer=None, phone=None):
-        """
         relations_liste = {
             'sd:LokalUdvidelse': {
-                'silkdata:Lokation': {
-                    "silkdata:DanskAdresse": {
-                        "sd:Virkning": self.virkning,
-                        "silkdata:AdresseNavn": "Arnegaardsvej 5",
-                        "silkdata:PostKodeIdentifikator": "8600",
-                        "silkdata:ByNavn": "Silkeborg"
-                    }
-                }
+                #'silkdata:Lokation': {
+                #    "silkdata:DanskAdresse": {
+                #        "sd:Virkning": self.virkning,
+                #        "silkdata:AdresseNavn": "Arnegaardsvej 5",
+                #        "silkdata:PostKodeIdentifikator": "8600",
+                #        "silkdata:ByNavn": "Silkeborg"
+                #    }
+                #}
             }
         }
         if pnummer is not None:
@@ -160,52 +159,55 @@ class sdMox(object):
                 'silkdata:ProduktionEnhed': {
                     'sd:Virkning': self.virkning,
                     'silkdata:ProduktionEnhedIdentifikator': pnummer
-                }
-            }
-        if phone is not None:
-            relations_liste['sd:LokalUdvidelse']['silkdata:Lokation'] = {
+                },
                 'silkdata:Kontakt': {
                     'sd:Virkning': self.virkning,
                     'silkdata:LokalTelefonnummerIdentifikator': phone
                 }
-            }
-        """
-        relations = []
-        if phone is not None:
-            relations.append(
-                {
-                    'silkdata:Kontakt': {
-                        'sd:Virkning': self.virkning,
-                        'silkdata:LokalTelefonnummerIdentifikator': phone
-                    }
-                }
-            )
-        if pnummer is not None:
-            relations.append(
-                {
-                    'silkdata:ProduktionEnhed': {
-                        'sd:Virkning': self.virkning,
-                        'silkdata:ProduktionEnhedIdentifikator': pnummer
-                    }
-                }
-            )
 
-        relations.append(
-            {
-                "silkdata:DanskAdresse": {
-                    "sd:Virkning": self.virkning,
-                    "silkdata:AdresseNavn": "Arnegaardsvej 5",
-                    "silkdata:PostKodeIdentifikator": "8600",
-                    "silkdata:ByNavn": "Silkeborg"
-                }
             }
-        )
+        #if phone is not None:
+        #    relations_liste['sd:LokalUdvidelse']['silkdata:Lokation'] = {
+        #        'silkdata:Kontakt': {
+        #            'sd:Virkning': self.virkning,
+        #            'silkdata:LokalTelefonnummerIdentifikator': phone
+        #        }
+        #    }
+        """
+        relations = {}
+        relations_liste = {
+            'sd:LokalUdvidelse': {
+                'silkdata:Lokation': {}
+            }
+        }
+        if phone is not None:
+            relations['silkdata:Kontakt'] = {
+                'sd:Virkning': self.virkning,
+                'silkdata:LokalTelefonnummerIdentifikator': phone
+            }
+
+        if pnummer is not None:
+            relations['silkdata:ProduktionEnhed'] = {
+                'sd:Virkning': self.virkning,
+                'silkdata:ProduktionEnhedIdentifikator': pnummer
+            }
+
+                      
+        relations['silkdata:DanskAdresse'] = {
+            "sd:Virkning": self.virkning,
+            "silkdata:AdresseNavn": "Arnegaardsvej 5",
+            "silkdata:PostKodeIdentifikator": "8600",
+            "silkdata:ByNavn": "Silkeborg"
+        }
 
         relations_liste = {
             'sd:LokalUdvidelse': {
                 'silkdata:Lokation': relations
             }
         }
+        """
+        print(relations_liste)
+        # 1/0
         return relations_liste
 
     def create_xml_import(self, uuid, unit_code, parent):
@@ -226,8 +228,8 @@ class sdMox(object):
     def create_xml_ret(self, uuid, name):
         value_dict = {
             'RelationListe': self.create_relations_liste_ret(
-                pnummer='1234567890',
-                phone='88884444'
+                pnummer='1111111111',
+                phone='55554444'
             ),
             'AttributListe': self.create_attribut_liste_ret(unit_name=name),
             'Registrering': self.create_registrering(registry_type='Rettet'),
@@ -260,16 +262,18 @@ class sdMox(object):
 mox = sdMox()
 print('Send request')
 
+uuid='07783071-0000-4900-9200-000001550002',
+
 if False:
     mox.create_xml_import(
-        uuid='07783070-0000-4900-9200-000001550002',
-        unit_code='LLBB',
+        uuid=uuid,
+        unit_code='LLBD',
         parent='fd47d033-61c0-4900-b000-000001520002'
     )
 
 if True:
     mox.create_xml_ret(
-        uuid='07783070-0000-4900-9200-000001550002',
+        uuid=uuid,
         name='Test 2'
     )
 
