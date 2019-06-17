@@ -142,36 +142,28 @@ class sdMox(object):
         return relations_liste
 
     def create_relations_liste_ret(self, pnummer=None, phone=None, adresse=None):
-        adresse = {
-            'sd:Virkning': self.virkning,
-            'silkdata:AdresseNavn': 'Arnegaard 99',
-            'silkdata:PostKodeIdentifikator': '2000',
-            'silkdata:ByNavn': 'Fr'
-        }
-        
-        relations_liste = {
-            'sd:LokalUdvidelse': {
-                'silkdata:Lokation': {
-                        "silkdata:DanskAdresse": adresse
-                }
-            }
-        }
+        # TODO: Handle the difference between not updating and blaking a value.       
+        locations = {}       
+        if adresse is not None:
+            adresse['sd:Virkning'] = self.virkning,
+            locations['silkdata:DanskAdresse'] = adresse
         
         if pnummer is not None:
-            relations_liste['sd:LokalUdvidelse']['silkdata:Lokation']['silkdata:ProduktionEnhed'] = {
-                    'sd:Virkning': self.virkning,
-                    'silkdata:ProduktionEnhedIdentifikator': pnummer
-                }
+            locations['silkdata:ProduktionEnhed'] = {
+                'sd:Virkning': self.virkning,
+                'silkdata:ProduktionEnhedIdentifikator': pnummer
+            }
         if phone is not None:
-            relations_liste['sd:LokalUdvidelse']['silkdata:Lokation']['silkdata:Kontakt'] = {
-                    'sd:Virkning': self.virkning,
-                    'silkdata:LokalTelefonnummerIdentifikator': phone
-                }
+            locations['silkdata:Kontakt'] = {
+                'sd:Virkning': self.virkning,
+                'silkdata:LokalTelefonnummerIdentifikator': phone
+            }
 
-        import pprint
-        pp = pprint.PrettyPrinter(indent=1)
-        pp.pprint(relations_liste)
-        # 1/0
+        relations_liste = {
+            'sd:LokalUdvidelse': {
+                'silkdata:Lokation': locations
+            }
+        }
         return relations_liste
 
     def create_xml_import(self, uuid, unit_code, parent):
@@ -193,7 +185,12 @@ class sdMox(object):
         value_dict = {
             'RelationListe': self.create_relations_liste_ret(
                 pnummer='1003407739',
-                phone='55666655'
+                phone='445666655',
+                adresse={
+                    'silkdata:AdresseNavn': 'Arnegaard 699',
+                    'silkdata:PostKodeIdentifikator': '2100',
+                    'silkdata:ByNavn': 'Fc'
+                }
             ),
             'AttributListe': self.create_attribut_liste_ret(unit_name=name),
             'Registrering': self.create_registrering(registry_type='Rettet'),
