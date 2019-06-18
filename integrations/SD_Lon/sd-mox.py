@@ -14,7 +14,7 @@ if not (AMQP_USER and AMQP_PASSWORD and VIRTUAL_HOST):
 
 
 class sdMox(object):
-    def __init__(self):
+    def __init__(self, from_date, to_date=None):
 
         self.exchange_name = 'org-struktur-changes-topic'
         credentials = pika.PlainCredentials(AMQP_USER, AMQP_PASSWORD)
@@ -28,8 +28,7 @@ class sdMox(object):
 
         self.mh = MoraHelper(hostname='localhost:5000')
 
-        self.from_date = datetime.datetime(2020, 5, 1, 0, 0)
-        to_date = datetime.datetime(2020, 6, 1, 0, 0)
+        self.from_date = from_date
         self.virkning = smp.sd_virkning(self.from_date, to_date)
         self.xml = None
 
@@ -43,23 +42,18 @@ class sdMox(object):
 
     def create_registrering(self, registry_type):
         assert registry_type in ('Rettet', 'Opstaaet')
-        now = datetime.datetime.strftime(
-            datetime.datetime.now(),
-            '%Y-%m-%dT%H:%M:%S.00'
-        )
         registrering = {
-            "sd:FraTidspunkt": {
-                "sd:TidsstempelDatoTid": now
-            },
             'sd:LivscyklusKode': registry_type,
             'TilstandListe': {
                 "orgfaelles:Gyldighed": {
                     "sd:Virkning": self.virkning,
                     "orgfaelles:GyldighedStatusKode": "Aktiv"
-                },
-                "sd:LokalUdvidelse": None
-            },
+                }
+            }
         }
+        registrering.update(smp.sd_virkning(datetime.datetime.now()))
+        print(registrering)
+
         return registrering
 
     def create_xml_import(self, uuid, unit_code, parent):
@@ -120,16 +114,18 @@ class sdMox(object):
         # matches the expected result
         return True
 
+from_date = datetime.datetime(2020, 5, 1, 0, 0)
+# to_date = datetime.datetime(2020, 6, 1, 0, 0)
 
-mox = sdMox()
+mox = sdMox(from_date)
 print('Send request')
 
-uuid = '07783071-0000-0007-9200-000001550002',
+uuid = '07783071-0000-0910-0014-000001550002',
 
 if True:
     mox.create_xml_import(
         uuid=uuid,
-        unit_code='LLBI',
+        unit_code='LLDD',
         parent='fd47d033-61c0-4900-b000-000001520002'
     )
 
