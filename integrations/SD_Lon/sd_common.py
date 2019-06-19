@@ -32,18 +32,18 @@ def sd_lookup(url, params={}):
         m.update((str(key) + str(payload[key])).encode())
     m.update(full_url.encode())
     lookup_id = m.hexdigest()
-
+    lookup_id = 'sd_' + lookup_id + '.p'
     try:
-        with open(lookup_id + '.p', 'rb') as f:
+        with open(lookup_id, 'rb') as f:
             response = pickle.load(f)
-        print('CACHED')
+        logger.info('This SD lookup was found in cache: {}'.format(lookup_id))
     except FileNotFoundError:
         response = requests.get(
             full_url,
             params=payload,
             auth=(SD_USER, SD_PASSWORD)
         )
-        with open(lookup_id + '.p', 'wb') as f:
+        with open(lookup_id, 'wb') as f:
             pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
 
     xml_response = xmltodict.parse(response.text)[url]

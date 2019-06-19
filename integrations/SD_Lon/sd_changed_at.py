@@ -1,10 +1,12 @@
 import os
 import sys
 import logging
+import sqlite3
 import requests
 import datetime
 import sd_payloads
 
+from pathlib import Path
 from sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
 sys.path.append('../')
@@ -15,11 +17,13 @@ LOG_FILE = 'mo_integrations.log'
 
 logger = logging.getLogger("sdChangedAt")
 
+# detail_logging = ('AdReader', 'sdCommon', 'sdChangedAt')
+detail_logging = ('sdCommon', 'sdChangedAt')
 for name in logging.root.manager.loggerDict:
-    if name in ('AdReader', 'sdChangedAt'):
+    if name in detail_logging:
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
-        logging.getLogger(name).setLevel(logging.WARNING)
+        logging.getLogger(name).setLevel(logging.ERROR)
 
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(name)s %(message)s',
@@ -28,6 +32,8 @@ logging.basicConfig(
 )
 
 MOX_BASE = os.environ.get('MOX_BASE', None)
+MORA_BASE = os.environ.get('MORA_BASE', None)
+RUN_DB = os.environ.get('RUN_DB', None)
 
 NO_SALLERY = 'status0'
 NON_PRIMARY = 'non-primary'
@@ -38,7 +44,7 @@ class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):
         logger.info('Start ChangedAt: From: {}, To: {}'.format(from_date, to_date))
         self.mox_base = MOX_BASE
-        self.helper = MoraHelper(hostname='localhost:5000', use_cache=False)
+        self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
         self.ad_reader = ad_reader.ADParameterReader()
         self.from_date = from_date
         self.to_date = to_date
@@ -140,7 +146,11 @@ class ChangeAtSD(object):
                     'SalaryCodeGroupIndicator': 'false'
                 }
             response = sd_lookup(url, params)
-            self.employment_response = response.get('Person', [])
+            employment_response = response.get('Person', [])
+            if not isinstance(employment_response, list):
+                employment_response = [employment_response]
+
+            self.employment_response = employment_response
         return self.employment_response
 
     def read_person_changed(self):
@@ -159,7 +169,10 @@ class ChangeAtSD(object):
         }
         url = 'GetPersonChangedAtDate20111201'
         response = sd_lookup(url, params=params)
-        return response.get('Person', [])
+        person_changed = response.get('Person', [])
+        if not isinstance(person_changed, list):
+            person_changed = [person_changed]
+        return person_changed
 
     def update_changed_persons(self):
         # Så vidt vi ved, består person_changed af navn, cpr nummer og ansættelser.
@@ -169,6 +182,7 @@ class ChangeAtSD(object):
         logger.info('Number of changed persons: {}'.format(len(person_changed)))
         for person in person_changed:
             cpr = person['PersonCivilRegistrationIdentifier']
+            logger.debug('Updating: {}'.format(cpr))
             if cpr[-4:] == '0000':
                 logger.warning('Skipping fictional user: {}'.format(cpr))
                 continue
@@ -193,7 +207,9 @@ class ChangeAtSD(object):
             # are not generally available in AD at this point?
 
             payload = {
-                "name": sd_name,
+                # "givenname": given_name,
+                # "surname": sur_name,
+                'name': sd_name,
                 "cpr_no": cpr,
                 "org": {
                     "uuid": self.org_uuid
@@ -251,10 +267,21 @@ class ChangeAtSD(object):
         return True
 
     def _compare_dates(self, first_date, second_date, expected_diff=1):
+        """
+        Return true if the amount of days between second and first is smaller
+        than  expected_diff.
+        """
         first = datetime.datetime.strptime(first_date, '%Y-%m-%d')
         second = datetime.datetime.strptime(second_date, '%Y-%m-%d')
-        compare = first + datetime.timedelta(days=expected_diff)
-        return second == compare
+        delta = second - first
+        # compare = first + datetime.timedelta(days=expected_diff)
+        compare = abs(delta.days) <= expected_diff
+        logger.debug(
+            'Compare. First: {}, second: {}, expected: {}, compare: {}'.format(
+                first, second, expected_diff, compare
+            )
+        )
+        return compare
 
     def _validity(self, engagement_info):
         from_date = engagement_info['ActivationDate']
@@ -393,12 +420,18 @@ class ChangeAtSD(object):
 
         try:
             emp_name = engagement_info['professions'][0]['EmploymentName']
-        except KeyError:
+        except (KeyError, IndexError):
             emp_name = 'Ukendt'
         self._update_professions(emp_name)
+
+        if status['EmploymentStatusCode'] == '0':
+            engagement_type = self.no_sallery
+        else:
+            engagement_type = self.non_primary
+
         payload = sd_payloads.create_engagement(org_unit, self.mo_person,
                                                 self.job_functions.get(emp_name),
-                                                self.non_primary, job_id,
+                                                engagement_type, job_id,
                                                 engagement_info, validity)
 
         response = self.helper._mo_post('details/create', payload)
@@ -434,7 +467,7 @@ class ChangeAtSD(object):
         self._assert(response)
         return True
 
-    def edit_engagement(self, engagement, validity=None):
+    def edit_engagement(self, engagement, validity=None, status0=False):
         """
         Edit an engagement
         """
@@ -447,6 +480,15 @@ class ChangeAtSD(object):
             validity = mo_eng['validity']
 
         data = {}
+        if status0:
+            logger.info('Setting {} to status0'.format(job_id))
+            data = {'engagement_type': {'uuid': self.no_sallery},
+                    'validity': validity}
+            payload = sd_payloads.engagement(data, mo_engagement)
+            logger.debug('Status0 payload: {}'.format(payload))
+            response = self.helper._mo_post('details/edit', payload)
+            self._assert(response)
+
         for department in engagement_info['departments']:
             logger.info('Change department of engagement {}:'.format(job_id))
             org_unit = department['DepartmentUUIDIdentifier']
@@ -528,7 +570,7 @@ class ChangeAtSD(object):
                             logger.info(
                                 'Status 0, edit eng {}'.format(mo_eng['uuid'])
                             )
-                            self.edit_engagement(engagement)
+                            self.edit_engagement(engagement, status0=True)
                         else:
                             logger.info('Status 0, create new engagement')
                             self.create_new_engagement(engagement, status)
@@ -566,6 +608,7 @@ class ChangeAtSD(object):
                             skip = True
 
                     if status['EmploymentStatusCode'] in ('S', '9'):
+                        skip = True
                         for mo_eng in self.mo_engagement:
                             if not mo_eng['user_key'] == job_id:
                                 # User was never actually hired
@@ -573,14 +616,31 @@ class ChangeAtSD(object):
                                     status['EmploymentStatusCode']
                                 ))
                             else:
+                                # Earlier, we checked this for consistency with
+                                # existing engagements (see the disaled code below).
+                                # However, it seems we should just unconditionally
+                                # terminate.
+                                end_date = status['ActivationDate']
+                                logger.info(
+                                    'Status S, 9: Terminate {}'.format(job_id)
+                                )
+                                self._terminate_engagement(end_date, job_id)
+                                """
                                 logger.info('Checking consistent end-dates')
                                 to_date = mo_eng['validity']['to']
                                 if to_date is not None:
                                     consistent = self._compare_dates(
                                         mo_eng['validity']['to'],
-                                        status['ActivationDate']
+                                        status['ActivationDate'],
+                                        expected_diff=2
                                     )
-                                    logger.info('Consistent')
+                                    logger.info(
+                                        'mo: {}, status: {}, consistent: {}'.format(
+                                            mo_eng['validity']['to'],
+                                            status['ActivationDate'],
+                                            consistent
+                                        )
+                                    )
                                     assert(consistent)
                                 else:
                                     end_date = status['ActivationDate']
@@ -588,8 +648,7 @@ class ChangeAtSD(object):
                                         'Status S, 9: Terminate {}'.format(job_id)
                                     )
                                     self._terminate_engagement(end_date, job_id)
-                                skip = True
-
+                                """
             if skip:
                 continue
             self.edit_engagement(engagement)
@@ -715,6 +774,10 @@ class ChangeAtSD(object):
 
             exactly_one_primary = False
             for eng in mo_engagement:
+                if eng['engagement_type']['uuid'] == self.no_sallery:
+                    logger.info('Status 0, no update of primary')
+                    continue
+
                 if date_list[i + 1] == datetime.datetime(9999, 12, 30, 0, 0):
                     to = None
                 else:
@@ -764,22 +827,89 @@ class ChangeAtSD(object):
                 assert response.status_code in (200, 400)
 
 
-if __name__ == '__main__':
-    logger.info('***************')
-    logger.info('Program started')
-    from_date = datetime.datetime(2019, 5, 19, 0, 0)
+def _local_db_insert(insert_tuple):
+    conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
+    c = conn.cursor()
+    query = 'insert into runs (from_date, to_date, status) values (?, ?, ?)'
+    final_tuple = (
+        insert_tuple[0],
+        insert_tuple[1],
+        insert_tuple[2].format(datetime.datetime.now())
+    )
+    c.execute(query, final_tuple)
+    conn.commit()
+    conn.close()
+
+
+def initialize_changed_at(from_date, run_db, force=False):
+    if not run_db.is_file():
+        logger.error('Local base not correctly initialized')
+        if not force:
+            raise Exception('Local base not correctly initialized')
+        else:
+            logger.info('Force is true, create new db')
+            conn = sqlite3.connect(str(run_db))
+            c = conn.cursor()
+            c.execute("""
+              CREATE TABLE runs (id INTEGER PRIMARY KEY,
+                from_date timestamp, to_date timestamp, status text)
+            """)
+            conn.commit()
+            conn.close()
+
+    _local_db_insert((from_date, from_date, 'Running since {}'))
+
+    logger.info('Start initial ChangedAt')
     sd_updater = ChangeAtSD(from_date)
     sd_updater.update_changed_persons()
     sd_updater.update_all_employments()
-    del(sd_updater)
+    logger.info('Ended initial ChangedAt')
 
-    """
-    for i in range(0, 30):
-        to_date = from_date + datetime.timedelta(days=1)
-        sd_updater = ChangeAtSD(from_date, to_date)
-        sd_updater.update_changed_persons()
-        sd_updater.update_all_employments()
-        del(sd_updater)
-        from_date = to_date
-    """
+    _local_db_insert((from_date, from_date, 'Initial import: {}'))
+
+
+if __name__ == '__main__':
+    logger.info('***************')
+    logger.info('Program started')
+    init = False
+
+    if init:
+        from_date = datetime.datetime(2019, 6, 2, 0, 0)
+        run_db = Path(RUN_DB)
+        initialize_changed_at(from_date, run_db, force=True)
+        exit()
+
+    conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
+    c = conn.cursor()
+
+    query = 'select * from runs order by id desc limit 1'
+    c.execute(query)
+    row = c.fetchone()
+
+    if 'Running' in row[3]:
+        print('Critical error')
+        logging.error('Previous ChangedAt run did not return!')
+        raise Exception('Previous ChangedAt run did not return!')
+    else:
+        time_diff = datetime.datetime.now() - row[2]
+        if time_diff < datetime.timedelta(days=1):
+            print('Critical error')
+            logging.error('Re-running ChangedAt too early!')
+            raise Exception('Re-running ChangedAt too early!')
+
+    # Row[2] contains end_date of last run, this will be the from_date for this run.
+    from_date = row[2]
+    to_date = from_date + datetime.timedelta(days=1)
+    _local_db_insert((from_date, to_date, 'Running since {}'))
+
+    logger.info('Start ChangedAt module')
+    sd_updater = ChangeAtSD(from_date, to_date)
+
+    logger.info('Update changed persons')
+    sd_updater.update_changed_persons()
+
+    logger.info('Update all emploments')
+    sd_updater.update_all_employments()
+
+    _local_db_insert((from_date, to_date, 'Update finished: {}'))
     logger.info('Program stopped.')

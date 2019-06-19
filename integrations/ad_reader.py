@@ -1,9 +1,12 @@
 import os
+import time
 import json
 import pickle
 import logging
 import hashlib
+from pathlib import Path
 from winrm import Session
+from winrm.exceptions import WinRMTransportError
 
 logger = logging.getLogger("AdReader")
 
@@ -16,14 +19,18 @@ SCHOOL_AD_PASSWORD = os.environ.get('SCHOOL_AD_PASSWORD', None)
 # PROPERTIES
 # SKIP_BRUGERTYPE
 
+
 class ADParameterReader(object):
 
     def __init__(self):
-        self.session = Session(
-            'http://' + WINRM_HOST + ':5985/wsman',
-            transport='kerberos',
-            auth=(None, None)
-        )
+        if WINRM_HOST:
+            self.session = Session(
+                'http://{}:5985/wsman'.format(WINRM_HOST),
+                transport='kerberos',
+                auth=(None, None)
+            )
+        else:
+            self.session = None
         self.results = {}
 
     def _run_ps_script(self, ps_script):
@@ -33,12 +40,27 @@ class ADParameterReader(object):
         :param ps_script: The power shell script to run.
         :return: A dictionary with the returned parameters.
         """
-        r = self.session.run_ps(ps_script)
+        response = {}
+        if not self.session:
+            return response
+
+        retries = 0
+        try_again = True
+        while try_again and retries < 10:
+            try:
+                r = self.session.run_ps(ps_script)
+                try_again = False
+            except WinRMTransportError:
+                logger.error('AD read error: {}'.format(retries))
+                time.sleep(1)
+                retries += 1
+
+        # TODO: We will need better error handlinger than this.
+        assert(retries < 10)
+
         if r.status_code == 0:
             if r.std_out:
                 response = json.loads(r.std_out.decode('Latin-1'))
-            else:
-                response = {}
         else:
             response = r.std_err
         return response
@@ -158,7 +180,16 @@ class ADParameterReader(object):
             self.results[current_user['SamAccountName']] = current_user
         return current_user
 
-    def read_user(self, user=None, cpr=None):
+    def cache_all(self):
+        logger.info('Caching all users')
+        t = time.time()
+        for i in range(1, 32):
+            day = str(i).zfill(2)
+            self.uncached_read_user(cpr='{}*'.format(day))
+            logger.debug(len(self.results))
+            logger.debug('Read time: {}'.format(time.time() - t))
+
+    def read_user(self, user=None, cpr=None, cache_only=False):
         """
         Read all properties of an AD user. The user can be retrived either by cpr
         or by AD user name.
@@ -180,21 +211,24 @@ class ADParameterReader(object):
             if cpr in self.results:
                 return self.results[cpr]
 
+        if cache_only:
+            return {}
+
         m = hashlib.sha256()
         m.update(dict_key.encode())
-        path_url = 'ad_' + m.hexdigest()
+        cache_file = Path('ad_' + m.hexdigest() + '.p')
 
-        try:
-            with open(path_url + '.p', 'rb') as f:
-                logger.debug('{} was found in cache'.format(dict_key))
+        if cache_file.is_file():
+            with open(str(cache_file), 'rb') as f:
+                logger.debug('{} was found in AD cache'.format(dict_key))
                 response = pickle.load(f)
                 if not response:
                     response = {}
                 self.results[dict_key] = response
-
-        except FileNotFoundError:
+        else:
+            logger.debug('{} was not found in AD cache'.format(dict_key))
             response = self.uncached_read_user(user=user, cpr=cpr)
-            with open(path_url + '.p', 'wb') as f:
+            with open(str(cache_file), 'wb') as f:
                 pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
 
         logger.debug('Returned info for {}'.format(dict_key))
@@ -203,8 +237,7 @@ class ADParameterReader(object):
 
 
 if __name__ == '__main__':
-    import time
-    t = time.time()
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())
     user = ad_reader.read_user(user='konroje')
+    print(user)

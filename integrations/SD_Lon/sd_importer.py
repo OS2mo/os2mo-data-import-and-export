@@ -23,10 +23,10 @@ LOG_FILE = 'mo_integrations.log'
 logger = logging.getLogger('sdImport')
 
 for name in logging.root.manager.loggerDict:
-    if name in ('sdImport', 'sdCommon'):
+    if name in ('sdImport', 'sdCommon', 'AdReader'):
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
-        logging.getLogger(name).setLevel(logging.WARNING)
+        logging.getLogger(name).setLevel(logging.ERROR)
 
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(name)s %(message)s',
@@ -75,6 +75,7 @@ class SdImport(object):
                 identifier='AD',
                 system_name='Active Directory'
             )
+            self.ad_reader.cache_all()
 
         self.nodes = {}  # Will be populated when org-tree is created
         self.add_people()
@@ -133,7 +134,7 @@ class SdImport(object):
         logger.debug('Update cpr{}'.format(cpr))
         self.ad_people[cpr] = {}
         if self.ad_reader:
-            response = self.ad_reader.read_user(cpr=cpr)
+            response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
             if response:
                 self.ad_people[cpr] = response
 
@@ -312,7 +313,6 @@ class SdImport(object):
 
             given_name = person.get('PersonGivenName', '')
             sur_name = person.get('PersonSurnameName', '')
-            name = '{} {}'.format(given_name, sur_name)
 
             if 'ObjectGuid' in self.ad_people[cpr]:
                 uuid = self.ad_people[cpr]['ObjectGuid']
@@ -325,10 +325,10 @@ class SdImport(object):
             if 'Name' in self.ad_people[cpr]:
                 user_key = self.ad_people[cpr]['Name']
             else:
-                user_key = name
+                user_key = '{} {}'.format(given_name, sur_name)
 
             self.importer.add_employee(
-                name=name,
+                name=(given_name, sur_name),
                 identifier=cpr,
                 cpr_no=cpr,
                 user_key=user_key,

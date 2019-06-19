@@ -23,8 +23,8 @@ PRIMARY_RESPONSIBILITY = 'Personale: ansættelse/afskedigelse'
 logger = logging.getLogger("mora-helper")
 
 class MoraHelper(object):
-    def __init__(self, hostname='localhost', export_ansi=True, use_cache=True):
-        self.host = 'http://' + hostname + '/service/'
+    def __init__(self, hostname='http://localhost', export_ansi=True, use_cache=True):
+        self.host = hostname + '/service/'
         self.cache = {}
         self.default_cache = use_cache
         self.export_ansi = export_ansi
