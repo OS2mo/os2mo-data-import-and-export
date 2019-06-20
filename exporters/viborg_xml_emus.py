@@ -167,9 +167,15 @@ def build_engagement_row(mh, ou, engagement):
         engagement["person"]["uuid"],
         'e/{}'
     )
-    firstname, lastname = engagement["person"]["name"].rsplit(
-        " ", maxsplit=1
-    )
+
+    if "surname" in engagement["person"]:
+        firstname = engagement["person"]["givenname"]
+        lastname = engagement["person"]["surname"]
+    else:
+        firstname, lastname = engagement["person"]["name"].rsplit(
+            " ", maxsplit=1
+        )
+
     username = mh.get_e_username(
         engagement["person"]["uuid"],
         'Active Directory'
@@ -239,9 +245,13 @@ def build_manager_rows(mh, ou, manager):
     )
     entrydate, leavedate = get_manager_dates(mh, person)
 
-    firstname, lastname = person["name"].rsplit(
-        " ", maxsplit=1
-    )
+    if "surname" in person:
+        firstname = person["givenname"]
+        lastname = person["surname"]
+    else:
+        firstname, lastname = person["name"].rsplit(
+            " ", maxsplit=1
+        )
 
     username = mh.get_e_username(
         person["uuid"],
