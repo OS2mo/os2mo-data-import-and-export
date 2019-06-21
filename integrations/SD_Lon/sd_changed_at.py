@@ -48,8 +48,13 @@ class ChangeAtSD(object):
         self.ad_reader = ad_reader.ADParameterReader()
         self.from_date = from_date
         self.to_date = to_date
-        self.org_uuid = self.helper.read_organisation()
 
+        try:
+            self.org_uuid = self.helper.read_organisation()
+        except requests.exceptions.RequestException as e:
+            logger.error(e)
+            print(e)
+            exit()
         self.employment_response = None
 
         self.mo_person = None      # Updated continously with the person currently
