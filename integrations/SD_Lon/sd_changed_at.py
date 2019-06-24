@@ -240,6 +240,23 @@ class ChangeAtSD(object):
                 )
                 logger.info('Added AD account info to {}'.format(cpr))
 
+    def _create_department_if_needed(self, department):
+        ou = self.helper.read_ou(department['DepartmentUUIDIdentifier'])
+        logger.debug('Check for {}'.format(department['DepartmentUUIDIdentifier']))
+        if 'status' not in ou:  # Unit already exist
+            return_status = False
+        else:
+            payload = sd_payloads.new_department(
+                department, self.org_uuid, self.orphan_uuid
+            )
+            response = self.helper._mo_post('ou/create', payload)
+            assert response.status_code == 201
+            logger.info('Created unit {}'.format(
+                department['DepartmentIdentifier'])
+            )
+            return_status = True
+        return return_status
+
     def check_non_existent_departments(self):
         """
         Runs through all changes and checks if all org units exists in MO.
@@ -258,17 +275,7 @@ class ChangeAtSD(object):
                 if not isinstance(departments, list):
                     departments = [departments]
                 for department in departments:
-                    ou = self.helper.read_ou(department['DepartmentUUIDIdentifier'])
-                    if 'status' not in ou:  # Unit already exist
-                        continue
-                    payload = sd_payloads.new_department(
-                        department, self.org_uuid, self.orphan_uuid
-                    )
-                    response = self.helper._mo_post('ou/create', payload)
-                    assert response.status_code == 201
-                    logger.info('Created unit {}'.format(
-                        department['DepartmentIdentifier'])
-                    )
+                    self._create_department_if_needed(department)
         # Consider to return a status that show if we need to re-run organisation.
         return True
 
@@ -284,26 +291,30 @@ class ChangeAtSD(object):
             department_lists = [department_lists]
 
         # These will include all unnamed departments
-        top_units = self.helper.read_top_units(self.org_uuid)
+        top_units = self.helper.read_top_units(self.org_uuid, use_cache=False)
 
         for department_list in department_lists:
             departments = department_list['DepartmentReference']
             for department in departments:
                 sd_uuid = department['DepartmentUUIDIdentifier']
-
+                sd_parent_uuid = department['DepartmentUUIDIdentifier']
+                    
                 current_unit = None
                 for unit in top_units:
-                    if unit['uuid'] == sd_uuid and unit['name'] == 'Unnamed department':
+                    if (
+                            unit['uuid'] == sd_uuid and
+                            unit['name'] == 'Unnamed department'
+                    ):
                         current_unit = unit
                         top_units.remove(unit)
                         break
+
                 if not current_unit:
                     continue
-                
+
                 ou_level = department['DepartmentLevelIdentifier']
                 unit_uuid = department['DepartmentUUIDIdentifier']
                 enhedskode = department['DepartmentIdentifier']
-                print(enhedskode)
                 for unit_type in self.unit_types:
                     if unit_type['user_key'] == ou_level:
                         unit_type_uuid = unit_type['uuid']
@@ -311,6 +322,12 @@ class ChangeAtSD(object):
                 if 'DepartmentReference' in department:
                     parent_uuid = (department['DepartmentReference']
                                    ['DepartmentUUIDIdentifier'])
+                    missing_tree = True
+                    while missing_tree:
+                        department = department['DepartmentReference']
+                        missing_tree = self._create_department_if_needed(
+                            department
+                        )
 
                 activation_date = department_list['ActivationDate']
                 params = {
@@ -334,12 +351,9 @@ class ChangeAtSD(object):
                     ou_level=unit_type_uuid,
                     from_date=activation_date
                 )
-                print(payload)
-                print()
-                break
+                response = self.helper._mo_post('details/edit', payload)
         1/0
 
-    
     def _compare_dates(self, first_date, second_date, expected_diff=1):
         """
         Return true if the amount of days between second and first is smaller

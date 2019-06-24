@@ -16,8 +16,8 @@ def new_department(department, org, unit_type):
 def edit_org_unit(user_key, name, unit_uuid, parent, ou_level, from_date):
     payload = {
         'type': 'org_unit',
-        'uuid': unit_uuid,
         'data': {
+            'uuid': unit_uuid,
             'user_key': user_key,
             'name': name,
             'parent': {
