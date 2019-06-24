@@ -77,8 +77,8 @@ class ChangeAtSD(object):
                 self.ad_uuid = system['uuid']  # This could also be a conf-option.
 
         logger.info('Read org_unit types')
-        ut = self.helper.read_classes_in_facet('org_unit_type')
-        for unit_type in ut[0]:
+        self.unit_types = self.helper.read_classes_in_facet('org_unit_type')[0]
+        for unit_type in self.unit_types:
             if unit_type['user_key'] == 'Orphan':  # CONF!!!!!
                 self.orphan_uuid = unit_type['uuid']
 
@@ -99,6 +99,7 @@ class ChangeAtSD(object):
         # Create non-existent departments
         logger.info('Check for new departments')
         self.check_non_existent_departments()
+        self.fix_departments()
 
     def _add_profession_to_lora(self, profession):
         payload = sd_payloads.profession(profession, self.org_uuid,
@@ -271,6 +272,74 @@ class ChangeAtSD(object):
         # Consider to return a status that show if we need to re-run organisation.
         return True
 
+    def fix_departments(self):
+        params = {
+            'ActivationDate': '2019-02-01',
+            'DeactivationDate': '9999-12-31',
+            'UUIDIndicator': 'true'
+        }
+        organisation = sd_lookup('GetOrganization20111201', params)
+        department_lists = organisation['Organization']
+        if not isinstance(department_lists, list):
+            department_lists = [department_lists]
+
+        # These will include all unnamed departments
+        top_units = self.helper.read_top_units(self.org_uuid)
+
+        for department_list in department_lists:
+            departments = department_list['DepartmentReference']
+            for department in departments:
+                sd_uuid = department['DepartmentUUIDIdentifier']
+
+                current_unit = None
+                for unit in top_units:
+                    if unit['uuid'] == sd_uuid and unit['name'] == 'Unnamed department':
+                        current_unit = unit
+                        top_units.remove(unit)
+                        break
+                if not current_unit:
+                    continue
+                
+                ou_level = department['DepartmentLevelIdentifier']
+                unit_uuid = department['DepartmentUUIDIdentifier']
+                enhedskode = department['DepartmentIdentifier']
+                print(enhedskode)
+                for unit_type in self.unit_types:
+                    if unit_type['user_key'] == ou_level:
+                        unit_type_uuid = unit_type['uuid']
+
+                if 'DepartmentReference' in department:
+                    parent_uuid = (department['DepartmentReference']
+                                   ['DepartmentUUIDIdentifier'])
+
+                activation_date = department_list['ActivationDate']
+                params = {
+                    'ActivationDate': activation_date,
+                    'DeactivationDate': activation_date,
+                    'DepartmentIdentifier': enhedskode,
+                    'ContactInformationIndicator': 'true',
+                    'DepartmentNameIndicator': 'true',
+                    'PostalAddressIndicator': 'false',
+                    'ProductionUnitIndicator': 'false',
+                    'UUIDIndicator': 'true',
+                    'EmploymentDepartmentIndicator': 'false'
+                }
+                department_info = sd_lookup('GetDepartment20111201', params)
+                unit_name = department_info['Department']['DepartmentName']
+                payload = sd_payloads.edit_org_unit(
+                    unit_uuid=unit_uuid,
+                    user_key=enhedskode,
+                    name=unit_name,
+                    parent=parent_uuid,
+                    ou_level=unit_type_uuid,
+                    from_date=activation_date
+                )
+                print(payload)
+                print()
+                break
+        1/0
+
+    
     def _compare_dates(self, first_date, second_date, expected_diff=1):
         """
         Return true if the amount of days between second and first is smaller
@@ -878,6 +947,24 @@ if __name__ == '__main__':
     logger.info('Program started')
     init = False
 
+    # helper = MoraHelper(hostname=MORA_BASE, use_cache=False) # From __init__
+    # unit_types = helper.read_classes_in_facet('org_unit_type')[0]
+
+    """
+        ou_level = department['DepartmentLevelIdentifier']
+        unit_id = department['DepartmentUUIDIdentifier']
+        user_key = department['DepartmentIdentifier']
+        parent_uuid = None
+        if 'DepartmentReference' in department:
+            parent_uuid = (department['DepartmentReference']
+                           ['DepartmentUUIDIdentifier'])
+
+        info = self.info[unit_id]
+        assert(info['DepartmentLevelIdentifier'] == ou_level)
+        logger.debug('Add unit: {}'.format(unit_id))
+        if not contains_subunits and parent_uuid is None:
+            parent_uuid = 'OrphanUnits'
+    """
     if init:
         from_date = datetime.datetime(2019, 6, 2, 0, 0)
         run_db = Path(RUN_DB)
