@@ -292,7 +292,7 @@ class ChangeAtSD(object):
 
         # These will include all unnamed departments
         top_units = self.helper.read_top_units(self.org_uuid, use_cache=False)
-
+        logger.debug('Top units before fix: {}'.format(top_units))
         for department_list in department_lists:
             departments = department_list['DepartmentReference']
             for department in departments:
@@ -310,26 +310,22 @@ class ChangeAtSD(object):
                             unit['uuid'] in uuids and
                             unit['name'] == 'Unnamed department'
                     ):
-                        #print('-')
-                        #print(department)
-
-                        #print(unit)
+                        logger.debug('Current unit: {}'.format(current_unit))
                         current_unit = unit
                         top_units.remove(unit)
                         current_department = department
-                        while not current_department['DepartmentUUIDIdentifier'] == current_unit['uuid']:
-                            current_department = current_department['DepartmentReference']
-
-                        print('*')
-                        print(current_department)
-                        print('*')
+                        while not (current_department['DepartmentUUIDIdentifier'] ==
+                                   current_unit['uuid']):
+                            current_department = current_department[
+                                'DepartmentReference'
+                            ]
+                        logger.debug('Current department: {}'.format(
+                            current_department
+                        ))
                         break
 
                 if not current_unit:
                     continue
-                print(unit['uuid'])
-                print(current_unit['uuid'])                
-                print(current_department)
                 ou_level = current_department['DepartmentLevelIdentifier']
                 unit_uuid = current_department['DepartmentUUIDIdentifier']
                 enhedskode = current_department['DepartmentIdentifier']
@@ -342,7 +338,9 @@ class ChangeAtSD(object):
                                    ['DepartmentUUIDIdentifier'])
                     missing_tree = True
                     while missing_tree:
-                        missing_department = current_department['DepartmentReference']
+                        missing_department = current_department[
+                            'DepartmentReference'
+                        ]
                         missing_tree = self._create_department_if_needed(
                             missing_department
                         )
@@ -369,10 +367,9 @@ class ChangeAtSD(object):
                     ou_level=unit_type_uuid,
                     from_date=activation_date
                 )
-                print(payload)
+                logger.debug('Edit payload: {}'.format(payload))
                 response = self.helper._mo_post('details/edit', payload)
-                print(response.text)
-        1/0
+                logger.debug('Response: {}'.format(response.text))
 
     def _compare_dates(self, first_date, second_date, expected_diff=1):
         """
