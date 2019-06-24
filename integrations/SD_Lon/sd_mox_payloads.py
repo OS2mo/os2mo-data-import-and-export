@@ -31,11 +31,9 @@ def sd_virkning(from_time, to_time=None):
         to_string = datetime.datetime.strftime(
             to_time, '%Y-%m-%dT%H:%M:%S.00'
         )
-
         validity['sd:TilTidspunkt'] = {
             "sd:TidsstempelDatoTid": to_string
         }
-
     return validity
 
 
@@ -47,7 +45,7 @@ def create_objekt_id(unit_uuid):
     return objekt_id
 
 
-def create_relations_ret(virkning, pnummer=None, phone=None, adresse=None):
+def relations_ret(virkning, pnummer=None, phone=None, adresse=None):
     # TODO: Handle the difference between not updating and blanking a value.
 
     locations = {}
@@ -74,7 +72,7 @@ def create_relations_ret(virkning, pnummer=None, phone=None, adresse=None):
     return relations_liste
 
 
-def create_relations_import(virkning, parent):
+def relations_import(virkning, parent):
     relations_liste = {
         'sd:Overordnet': {
             'sd:Virkning': virkning,
@@ -99,10 +97,11 @@ def _create_attribut_items(virkning, attributes):
     return attribute_items
 
 
-def create_attribut_liste_ret(virkning, unit_uuid=None, unit_name='Klaf',
-                              unit_code=None):
-    attributes = {'EnhedKode': unit_code, 'Niveau': 'Afdelings-niveau',
-                  'FunktionKode': '32201', 'SkoleKode': '12347',
+def attributes_ret(virkning, unit_code, funktionskode=None,
+                   skolekode=None, tidsregistrering=None, unit_name=None):
+    attributes = {}
+    
+    attributes = {'FunktionKode': '32201', 'SkoleKode': '12347',
                   'Tidsregistrering': 'Arbejdstidsplaner'}
     integration_items = _create_attribut_items(virkning, attributes)
     attribut_liste = {
@@ -118,7 +117,7 @@ def create_attribut_liste_ret(virkning, unit_uuid=None, unit_name='Klaf',
     return attribut_liste
 
 
-def create_attribut_liste_import(virkning, unit_name, unit_code, niveau):
+def attributes_import(virkning, unit_name, unit_code, niveau):
     attributes = {'EnhedKode': unit_code, 'Niveau': 'Afdelings-niveau'}
     integration_items = _create_attribut_items(virkning, attributes)
     attribut_liste = {
@@ -131,3 +130,18 @@ def create_attribut_liste_import(virkning, unit_name, unit_code, niveau):
         }
     }
     return attribut_liste
+
+
+def create_registrering(virkning, registry_type):
+    assert registry_type in ('Rettet', 'Opstaaet')
+    registrering = {
+        'sd:LivscyklusKode': registry_type,
+        'TilstandListe': {
+            "orgfaelles:Gyldighed": {
+                "sd:Virkning": virkning,
+                "orgfaelles:GyldighedStatusKode": "Aktiv"
+            }
+        }
+    }
+    registrering.update(sd_virkning(datetime.datetime.now()))
+    return registrering
