@@ -37,21 +37,25 @@ class sdMox(object):
         self.mh = MoraHelper(hostname='localhost:5000')
 
         sd_levels = [
-            ('NY7-niveau', None),
-            ('NY6-niveau', None),
-            ('NY5-niveau', None),
-            ('NY4-niveau', None),
-            ('NY2-niveau', None),
-            ('NY2-niveau', None),
-            ('NY1-niveau', None),
-            ('Afdelings-niveau', None)
+            ('Top', '324b8c95-5ff9-439b-a49c-1a6a6bba4651'),
+            ('NY7-niveau', '42b9042f-5f20-4998-b0e5-c4deb6c5f42e'),
+            ('NY6-niveau', '414a035e-9c22-42eb-b035-daa7d7f2ade8'),
+            ('NY5-niveau', '819ae28e-04e0-4030-880e-7b699faeaff9'),
+            ('NY4-niveau', 'ff8c3f53-85ec-44d7-a9d6-07c619ac50df'),
+            ('NY4-niveau', '70c69826-4ba1-4e1e-82f0-4c47c89a7ecc'),
+            ('NY2-niveau', 'ec882c49-3cc2-4bc9-994f-a6f29136401b'),
+            ('NY1-niveau', 'd9bd186b-3c11-4dbf-92d1-4e3b61140302'),
+            ('Afdelings-niveau', '345a8893-eb1f-4e20-b76d-63b95b5809f6')
         ]
-        sd_levels = collections.OrderedDict(sd_levels)
-        
-        ut = self.mh.read_classes_in_facet('org_unit_type')
-        for unit_type in ut[0]:
-            if unit_type['user_key']
-        1/0
+        self.sd_levels = OrderedDict(sd_levels)
+
+        # ut = self.mh.read_classes_in_facet('org_unit_type')
+        # for unit_type in ut[0]:
+        #    print(unit_type)
+        #    if unit_type['user_key'] in sd_levels:
+        #        print(unit_type)
+        #        sd_levels[unit_type['user_key']] = unit_type['uuid']
+
         if not from_date.day == 1:
             raise Exception('Day of month must be 1')
 
@@ -82,13 +86,12 @@ class sdMox(object):
         if unit_uuid:
             params['DepartmentUUIDIdentifier'] = unit_uuid
 
-        print(params)
-            
         try:
             department = sd_lookup('GetDepartment20111201', params)
             department_info = department.get('Department', None)
-        except KeyError:  # Bug in SD soap-interface
-            department_info = None
+        except KeyError:
+            # Bug in SD soap-interface most likely these units actually do exist
+            department_info = 'Unknown department'
         return department_info
 
     def _check_department(self, department, name, unit_code, unit_uuid):
@@ -176,9 +179,8 @@ class sdMox(object):
         return uuid_errors
 
     def _mo_to_sd_address(self, unit_uuid):
-        mo_unit_address = mox.mh.read_ou_address('5aafa2f4-9a8b-46dd-82fa-56138e495a2e')
+        mo_unit_address = self.mh.read_ou_address(unit_uuid)
         address = mo_unit_address['Adresse']
-        print(address)
         split_address = address.rsplit(' ', maxsplit=1)
         city = split_address[1].strip()
         street = split_address[0].split(',')[0].strip()
@@ -189,15 +191,16 @@ class sdMox(object):
             'silkdata:ByNavn': city
         }
         return sd_address
-        
-    def create_unit(self, name, unit_code, parent, unit_uuid=None):
+
+    def create_unit(self, name, unit_code, parent, unit_level, unit_uuid=None):
+        # TODO: Address and the three integration attributes.
         if not unit_uuid:
             unit_uuid = str(uuid.uuid4())
             uuid_errors = []
         else:
             uuid_errors = self._validate_unit_uuid(unit_uuid)
         code_errors = self._validate_unit_code(unit_code)
-        
+
         if code_errors or uuid_errors:
             raise Exception(str(code_errors + uuid_errors))
 
@@ -205,19 +208,63 @@ class sdMox(object):
         if not parent_department:
             raise Exception('Forældrenheden finds ikke')
 
+        unit_index = list(self.sd_levels.keys()).index(unit_level)
+        parent_index = list(self.sd_levels.keys()).index(
+            parent_department['DepartmentLevelIdentifier'])
+        if not unit_index > parent_index:
+            raise Exception('Enhedstypen passer ikke til forældreenheden')
+
         xml = self.create_xml_import(
             name=name,
             unit_uuid=unit_uuid,
             unit_code=unit_code,
+            unit_level=unit_level,
             parent=parent
         )
-        # self.call(xml)
-
-        # run an edit to include all information
+        self.call(xml)
         return unit_uuid
 
+    def edit_unit(self, unit_uuid, phone=None, pnummer=None, address=None,
+                  integration_values=None):
+        pass
+
+    def create_unit_from_mo(self, unit_uuid):
+        unit_info = mox.mh.read_ou(unit_uuid)
+
+        self.create_unit(
+            name=unit_info['name'],
+            parent=unit_info.get('parent'),
+            unit_code=unit_info['user_key'],
+            unit_level=unit_info['org_unit_type']['user_key'],
+            unit_uuid=unit_uuid
+        )
+
+        integration_values = {
+            'time_planning': unit_info.get('time_planning', None),
+            'formaalskode': None,
+            'skolekode': None
+        }
+        integration_addresses = self.mh._mo_lookup(unit_uuid,
+                                                   'ou/{}/details/address')
+        for integration_address in integration_addresses:
+            if integration_address['address_type']['user_key'] == 'Formaalskode':
+                integration_values['formaalskode'] = integration_address['value']
+            if integration_address['address_type']['user_key'] == 'Skolekode':
+                integration_values['skolekode'] = integration_address['value']
+
+        pnummer = self.mh.read_ou_address(unit_uuid, scope='PNUMBER').get('value')
+        phone = self.mh.read_ou_address(unit_uuid, scope='PHONE').get('value')
+
+        address = mox._mo_to_sd_address(unit_uuid)
+        self.edit_unit(
+            phone=phone,
+            pnummer=pnummer,
+            address=address,
+            integration_value=integration_values
+        )
+
     def on_response(self, ch, method, props, body):
-        print('Response?!??!?!')
+        print('Unexpected response!')
         print(body)
 
     def call(self, xml):
@@ -229,40 +276,39 @@ class sdMox(object):
             ),
             body=xml
         )
-
         # Todo: We should to a lookup at verify actual unit
         # matches the expected result
         return True
+
 
 if __name__ == '__main__':
     from_date = datetime.datetime(2020, 5, 1, 0, 0)
     # to_date = datetime.datetime(2020, 6, 1, 0, 0)
 
-    parent_uuid = 'fd47d033-61c0-4900-b000-000001520002'
-    unit_uuid = '5aafa2f4-9a8b-46dd-82fa-56138e495a2e'
-  
+    parent_uuid = '67e614ad-fcb9-43b9-a1c5-8328fe1c2fb2'
+    unit_uuid = '1dacd587-c511-4f65-8944-6c9011eb96aa'
+    # unit_uuid = 'c6db4a52-8ddf-4062-9f08-c1ec387968c2'
+
     mox = sdMox(from_date)
-    mox._mo_to_sd_address(unit_uuid)
- 
-    unit_info = mox.mh.read_ou(unit_uuid)['org_unit_type']['name']
-    print(unit_info)
-    name = unit_info['name']
-    unit_code = unit_info['user_key'][0:4]
-    1/0
-   
+
     if True:
+        mox.create_unit_from_mo(unit_uuid)
+
+    if False:
+        unit_code = 'TST0'
         unit_uuid = mox.create_unit(
             unit_uuid=unit_uuid,
-            name=name,
+            name='Dav',
             unit_code=unit_code,
+            unit_level='Afdelings-niveau',
             parent=parent_uuid
         )
         1/0
         department = mox.read_department(unit_code)
-        errors = mox._check_department(department, name, unit_code, unit_uuid)
-        print(errors)
-        
-    if True:
+        # errors = mox._check_department(department, name, unit_code, unit_uuid)
+        # print(errors)
+
+    if False:
         xml = mox.edit_unit(
             uuid=uuid,
             name='Test 2'
