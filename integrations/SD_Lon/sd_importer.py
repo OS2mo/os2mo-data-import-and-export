@@ -10,6 +10,7 @@ import os
 import sys
 import logging
 import datetime
+from uuid import UUID
 from anytree import Node
 
 from sd_common import sd_lookup, calc_employment_id
@@ -191,6 +192,13 @@ class SdImport(object):
         """
         ou_level = department['DepartmentLevelIdentifier']
         unit_id = department['DepartmentUUIDIdentifier']
+        try:
+            UUID(unit_id, version=4)
+            unit_id = unit_id
+        except ValueError:
+            logger.error('Illegal uuid imported: {}'.format(unit_id))
+            return None
+
         user_key = department['DepartmentIdentifier']
         parent_uuid = None
         if 'DepartmentReference' in department:
@@ -223,15 +231,16 @@ class SdImport(object):
                     row['uuid'] = unit_id
 
         if 'ContactInformation' in info:
-            emails = info['ContactInformation']['EmailAddressIdentifier']
-            for email in emails:
-                if email.find('Empty') == -1:
-                    self.importer.add_address_type(
-                        organisation_unit=unit_id,
-                        type_ref='EmailUnit',
-                        value=email,
-                        date_from=date_from
-                    )
+            if 'EmailAddressIdentifier' in info['ContactInformation']:
+                emails = info['ContactInformation']['EmailAddressIdentifier']
+                for email in emails:
+                    if email.find('Empty') == -1:
+                        self.importer.add_address_type(
+                            organisation_unit=unit_id,
+                            type_ref='EmailUnit',
+                            value=email,
+                            date_from=date_from
+                        )
             if 'TelephoneNumberIdentifier' in info['ContactInformation']:
                 # We only a sinlge phnone number, this is most likely
                 # no a real number
