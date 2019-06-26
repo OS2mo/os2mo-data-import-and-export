@@ -14,7 +14,7 @@ try:
     SFTP_USER = os.environ["SFTP_USER"]
     SFTP_HOST = os.environ["SFTP_HOST"]
     SFTP_KEY_PATH = os.environ["SFTP_KEY_PATH"]
-    SFTP_KEY_PASSPHRASE = os.environ["SFTP_KEY_PATH"]
+    SFTP_KEY_PASSPHRASE = os.environ["SFTP_KEY_PASSPHRASE"]
     MUSSKEMA_RECIPIENT = os.environ["MUSSKEMA_RECIPIENT"]
 except Exception as e:
     logger.error(e)
