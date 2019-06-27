@@ -13,6 +13,7 @@ MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
 
 GLOBAL_GET_DATE = datetime.datetime(2019, 6, 26, 0, 0)
 
+
 importer = ImportHelper(
     create_defaults=True,
     mox_base=MOX_BASE,
