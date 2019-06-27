@@ -22,8 +22,10 @@ PRIMARY_RESPONSIBILITY = 'Personale: ansættelse/afskedigelse'
 
 logger = logging.getLogger("mora-helper")
 
+
 class MoraHelper(object):
-    def __init__(self, hostname='http://localhost', export_ansi=True, use_cache=True):
+    def __init__(self, hostname='http://localhost', export_ansi=True,
+                 use_cache=True):
         self.host = hostname + '/service/'
         self.cache = {}
         self.default_cache = use_cache
@@ -129,7 +131,12 @@ class MoraHelper(object):
             return_dict = self.cache[full_url]
         else:
             if SAML_TOKEN is None:
-                return_dict = requests.get(full_url, params=params).json()
+                response = requests.get(full_url, params=params)
+                if response.status_code == 401:
+                    msg = 'Missing SAML token'
+                    logger.error(msg)
+                    raise requests.exceptions.RequestException(msg)
+                return_dict = response.json()
             else:
                 header = {"SESSION": SAML_TOKEN}
                 response = requests.get(
@@ -137,6 +144,10 @@ class MoraHelper(object):
                     headers=header,
                     params=params
                 )
+                if response.status_code == 401:
+                    msg = 'SAML token not accepted'
+                    logger.error(msg)
+                    raise requests.exceptions.RequestException(msg)
                 return_dict = response.json()
             self.cache[full_url] = return_dict
         return return_dict
@@ -175,7 +186,7 @@ class MoraHelper(object):
         :return: UUID of root organisation
         """
         org_id = self.read_organisation()
-        it_systems = self._mo_lookup(org_id, url= 'o/{}/it/')
+        it_systems = self._mo_lookup(org_id, url='o/{}/it/')
         return it_systems
 
     def read_ou(self, uuid, at=None, use_cache=None):
@@ -374,7 +385,7 @@ class MoraHelper(object):
             manager = manager_list[uuid]
         elif len(manager_list) > 1:
             # Currently we do not support multiple managers
-            logger.warning("multiple managers not supported for %s",org_uuid)
+            logger.warning("multiple managers not supported for %s", org_uuid)
             manager = manager_list[uuid]
             # TODO: Fix this...
             # raise Exception('Too many managers')
@@ -450,7 +461,6 @@ class MoraHelper(object):
             if its['itsystem']["user_key"] == id_it_system:
                 return its['user_key']
         return ''
-
 
     def get_e_address(self, e_uuid, scope):
         for address in self._mo_lookup(e_uuid, 'e/{}/details/address'):

@@ -13,6 +13,28 @@ def new_department(department, org, unit_type):
     return payload
 
 
+def edit_org_unit(user_key, name, unit_uuid, parent, ou_level, from_date):
+    payload = {
+        'type': 'org_unit',
+        'data': {
+            'uuid': unit_uuid,
+            'user_key': user_key,
+            'name': name,
+            'parent': {
+                'uuid': parent
+            },
+            'org_unit_type': {
+                'uuid': ou_level
+            },
+            'validity': {
+                'from': from_date,
+                'to': None
+            }
+
+        }
+    }
+    return payload
+
 def engagement(data, mo_engagement):
     payload = {
         'type': 'engagement',
