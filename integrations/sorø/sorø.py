@@ -15,7 +15,8 @@ importer = ImportHelper(
     mora_base=MORA_BASE,
     system_name='Opus-Import',
     end_marker='OPUS_STOP!',
-    store_integration_data=True
+    store_integration_data=True,
+    seperate_names=True
 )
 
 # importer.new_itsystem(
