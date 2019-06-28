@@ -23,7 +23,8 @@ LOG_FILE = 'mo_integrations.log'
 logger = logging.getLogger('sdImport')
 
 for name in logging.root.manager.loggerDict:
-    if name in ('sdImport', 'sdCommon', 'AdReader'):
+    if name in ('sdImport', 'sdCommon', 'AdReader', 'moImporterMoraTypes',
+                'moImporterMoxTypes', 'moImporterUtilities', 'moImporterHelpers'):
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
         logging.getLogger(name).setLevel(logging.ERROR)
