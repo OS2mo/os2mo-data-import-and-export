@@ -213,12 +213,11 @@ class ChangeAtSD(object):
             # are not generally available in AD at this point?
 
             payload = {
-                # "givenname": given_name,
-                # "surname": sur_name,
-                'name': sd_name,
-                "cpr_no": cpr,
-                "org": {
-                    "uuid": self.org_uuid
+                'givenname': given_name,
+                'surname': sur_name,
+                'cpr_no': cpr,
+                'org': {
+                    'uuid': self.org_uuid
                 }
             }
 
@@ -997,7 +996,7 @@ if __name__ == '__main__':
             parent_uuid = 'OrphanUnits'
     """
     if init:
-        from_date = datetime.datetime(2019, 6, 2, 0, 0)
+        from_date = datetime.datetime(2019, 6, 27, 0, 0)
         run_db = Path(RUN_DB)
         initialize_changed_at(from_date, run_db, force=True)
         exit()
