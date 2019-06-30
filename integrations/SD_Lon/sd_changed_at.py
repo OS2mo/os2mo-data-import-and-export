@@ -977,24 +977,6 @@ if __name__ == '__main__':
     logger.info('Program started')
     init = False
 
-    # helper = MoraHelper(hostname=MORA_BASE, use_cache=False) # From __init__
-    # unit_types = helper.read_classes_in_facet('org_unit_type')[0]
-
-    """
-        ou_level = department['DepartmentLevelIdentifier']
-        unit_id = department['DepartmentUUIDIdentifier']
-        user_key = department['DepartmentIdentifier']
-        parent_uuid = None
-        if 'DepartmentReference' in department:
-            parent_uuid = (department['DepartmentReference']
-                           ['DepartmentUUIDIdentifier'])
-
-        info = self.info[unit_id]
-        assert(info['DepartmentLevelIdentifier'] == ou_level)
-        logger.debug('Add unit: {}'.format(unit_id))
-        if not contains_subunits and parent_uuid is None:
-            parent_uuid = 'OrphanUnits'
-    """
     if init:
         from_date = datetime.datetime(2019, 6, 27, 0, 0)
         run_db = Path(RUN_DB)
