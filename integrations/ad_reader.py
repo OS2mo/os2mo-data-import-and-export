@@ -52,8 +52,14 @@ class ADParameterReader(object):
                 try_again = False
             except WinRMTransportError:
                 logger.error('AD read error: {}'.format(retries))
-                time.sleep(1)
+                time.sleep(5)
                 retries += 1
+                # The existing session is now dead, create a new.
+                self.session = Session(
+                    'http://{}:5985/wsman'.format(WINRM_HOST),
+                    transport='kerberos',
+                    auth=(None, None)
+                )
 
         # TODO: We will need better error handlinger than this.
         assert(retries < 10)
