@@ -130,10 +130,10 @@ def export_ou_emus(mh, nodes, emus_file):
                 )
             )
 
-        for fn in fieldnames:
-            emus_file.write("<%s>%s</%s>\n" % (fn, r.get(fn, ''), fn))
+            for fn in fieldnames:
+                emus_file.write("<%s>%s</%s>\n" % (fn, r.get(fn, ''), fn))
 
-        emus_file.write("</orgUnit>\n")
+            emus_file.write("</orgUnit>\n")
 
 
 def get_e_username(e_uuid, id_it_system, mh):
