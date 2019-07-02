@@ -9,11 +9,13 @@ from chardet.universaldetector import UniversalDetector
 
 INFO_LEVEL = 20
 LOG_FILE = 'udvalg.log'
-BASE_URL = 'http://localhost/service/'
+BASE_URL = 'http://localhost:5000/service/'
 CACHE = {}
 
 logger = logging.getLogger()
-log_format = logging.Formatter('%(asctime)s | %(name)s |  %(levelname)s: %(message)s')
+log_format = logging.Formatter(
+    '%(asctime)s | %(name)s |  %(levelname)s: %(message)s'
+)
 logger.setLevel(logging.DEBUG)
 activity_log_handler = RotatingFileHandler(
     filename=LOG_FILE,
@@ -22,6 +24,7 @@ activity_log_handler = RotatingFileHandler(
 activity_log_handler.setFormatter(log_format)
 activity_log_handler.setLevel(INFO_LEVEL)
 logger.addHandler(activity_log_handler)
+
 
 def _find_class(find_facet, find_class):
     if find_class in CACHE:
@@ -91,7 +94,7 @@ def _load_csv(file_name):
 
 def _create_mo_ou(name, parent, org_type):
     ou_type = _find_class(find_facet='org_unit_type', find_class=org_type)
-    if parent is 'root':
+    if parent == 'root':
         parent = ROOT
     payload = {'name': '{} {}'.format(org_type, name),
                'brugervendtnoegle': name,
@@ -107,46 +110,54 @@ def _create_mo_ou(name, parent, org_type):
 
 def _create_mo_association(user, org_unit, association_type, from_string):
     response = _mo_lookup(user, details='engagement')
-    job_function = response[0]['job_function']['uuid']
-    payload = [
-        {
-            'type': 'association',
-            'org_unit': {'uuid': org_unit},
-            'person': {'uuid': user},
-            'association_type': {'uuid': association_type},
-            'job_function': {'uuid': job_function},
-            'validity': {
-                'from': from_string,
-                'to': None
+    if response:
+        job_function = response[0]['job_function']['uuid']
+        payload = [
+            {
+                'type': 'association',
+                'org_unit': {'uuid': org_unit},
+                'person': {'uuid': user},
+                'association_type': {'uuid': association_type},
+                'job_function': {'uuid': job_function},
+                'validity': {
+                    'from': from_string,
+                    'to': None
+                }
             }
-        }
-    ]
-    url = BASE_URL + 'details/create'
-    response = requests.post(url, json=payload)
-    uuid = response.json()
-    return uuid
+        ]
+        url = BASE_URL + 'details/create'
+        response = requests.post(url, json=payload)
+        uuid = response.json()
+        return uuid
+    else:
+        logger.warning('User {} has no engagements'.format(user))
+        return None
 
 
 def _create_mo_role(user, org_unit, role_type, from_string):
     response = _mo_lookup(user, details='engagement')
-    job_function = response[0]['job_function']['uuid']
-    payload = [
-        {
-            'type': 'role',
-            'org_unit': {'uuid': org_unit},
-            'person': {'uuid': user},
-            'role_type': {'uuid': role_type},
-            'job_function': {'uuid': job_function},
-            'validity': {
-                'from': from_string,
-                'to': None
+    if response:
+        job_function = response[0]['job_function']['uuid']
+        payload = [
+            {
+                'type': 'role',
+                'org_unit': {'uuid': org_unit},
+                'person': {'uuid': user},
+                'role_type': {'uuid': role_type},
+                'job_function': {'uuid': job_function},
+                'validity': {
+                    'from': from_string,
+                    'to': None
+                }
             }
-        }
-    ]
-    url = BASE_URL + 'details/create'
-    response = requests.post(url, json=payload)
-    uuid = response.json()
-    return uuid
+        ]
+        url = BASE_URL + 'details/create'
+        response = requests.post(url, json=payload)
+        uuid = response.json()
+        return uuid
+    else:
+        logger.warning('User {} has no engagements'.format(user))
+        return None
 
 
 def create_udvalg(nodes, file_name):
@@ -188,9 +199,10 @@ def create_udvalg(nodes, file_name):
                 _create_mo_role(uuid, nodes[org_id].uuid, role_type, from_string)
 
         else:
-            logger.warning('Error: {} {}, bvn: {}'.format(row['Fornavn'],
-                                                          row['Efternavn'],
-                                                          row['BrugerID'])
+            logger.warning(
+                'Error: {} {}, bvn: {}'.format(row['Fornavn'],
+                                               row['Efternavn'],
+                                               row['BrugerID'])
             )
     return nodes
 
