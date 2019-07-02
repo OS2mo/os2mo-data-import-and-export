@@ -594,6 +594,7 @@ class AposImport(object):
                 employee['person']['@uuid'], fra, til
             )
         )
+
         self.importer.add_engagement(
             employee=employee['person']['@uuid'],
             uuid=employee['@uuid'],
@@ -629,30 +630,17 @@ class AposImport(object):
             fra, til = _format_time(medarbejder['gyldighed'])
             bvn = medarbejder['@brugervendtNoegle']
 
-            """
-            try:
-                self.org.Employee.get(person['@uuid'])
-                self.duplicate_persons[person['@uuid']] = person
-                # Some employees are duplicated, skip them and remember them.
-                continue
-            except KeyError:
-                pass
-            """
-            # TODO: VERIFY THAT THIS IS THE SAME AS THE ABOVE
-            if self.importer.check_if_exists('employee', person['@uuid']):
-                # TODO: We should be able to remove self.duplicated_persons
-                # self.duplicate_persons[person['@uuid']] = person
-                logger.info('Duplicated person: {}'.format(person))
-                # Some employees are duplicated, skip them and remember them.
-                continue
+            if not self.importer.check_if_exists('employee', person['@uuid']):
+                logger.info('New employee: {}'.format(person))
 
-            name = (given_name, sur_name)
-            logger.info('Add employee: {}, user_key: {}'.format(name, bvn))
-            self.importer.add_employee(name=name,
-                                       uuid=person['@uuid'],
-                                       identifier=person['@uuid'],
-                                       cpr_no=person['@personnummer'],
-                                       user_key=bvn)
+                name = (given_name, sur_name)
+                logger.info('Add employee: {}, user_key: {}'.format(name, bvn))
+                self.importer.add_employee(name=name,
+                                           uuid=person['@uuid'],
+                                           identifier=person['@uuid'],
+                                           cpr_no=person['@personnummer'],
+                                           user_key=bvn)
+
             self.update_contact_information(medarbejder)
             self.update_tasks(medarbejder, objectid)
 
