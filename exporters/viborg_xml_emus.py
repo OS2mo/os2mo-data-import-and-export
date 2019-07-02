@@ -20,6 +20,7 @@ import uuid
 import os
 import logging
 import collections
+from xml.sax.saxutils import escape
 
 MORA_BASE = os.environ.get('MORA_BASE', 'localhost:80')
 MORA_ROOT_ORG_UNIT_NAME = os.environ.get('MORA_ROOT_ORG_UNIT_NAME', 'Viborg Kommune')
@@ -131,7 +132,7 @@ def export_ou_emus(mh, nodes, emus_file):
             )
 
             for fn in fieldnames:
-                emus_file.write("<%s>%s</%s>\n" % (fn, r.get(fn, ''), fn))
+                emus_file.write("<%s>%s</%s>\n" % (fn, escape(r.get(fn, '')), fn))
 
             emus_file.write("</orgUnit>\n")
 
@@ -343,7 +344,7 @@ def export_e_emus(mh, nodes, emus_file):
             last_changed,
         ))
         for fn in fieldnames:
-            emus_file.write("<%s>%s</%s>\n" % (fn, r.get(fn, ''), fn))
+            emus_file.write("<%s>%s</%s>\n" % (fn, escape(r.get(fn, '')), fn))
         emus_file.write("</employee>\n")
 
 
