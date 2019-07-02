@@ -1,4 +1,6 @@
 import os
+# from kerberos import GSSError
+import requests_kerberos
 from winrm import Session
 
 
@@ -13,12 +15,19 @@ def test_basic_connectivity():
         transport='kerberos',
         auth=(None, None)
     )
-    r = session.run_cmd('ipconfig', ['/all'])
-    if r.status_code == 0:
+    try:
+        r = session.run_cmd('ipconfig', ['/all'])
+        error = None
+    except requests_kerberos.exceptions.KerberosExchangeError as e:
+        error = str(e)
+    if error is None and r.status_code == 0:
         return True
     else:
         print('Error')
-        print(r.std_err)
+        if error is None:
+            print(r.std_err)
+        else:
+            print(error)
         return False
 
 
