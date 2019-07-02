@@ -15,7 +15,20 @@ AD_SYSTEM_USER = os.environ.get('AD_SYSTEM_USER', None)
 AD_PASSWORD = os.environ.get('AD_PASSWORD', None)
 SCHOOL_AD_SYSTEM_USER = os.environ.get('SCHOOL_AD_SYSTEM_USER', None)
 SCHOOL_AD_PASSWORD = os.environ.get('SCHOOL_AD_PASSWORD', None)
-# SEARCH_BASE
+
+
+SEARCH_BASE = os.environ.get('AD_SEARCH_BASE', "OU=Kommune,DC=viborg,DC=local")
+AD_CPR_FIELD = os.environ.get('AD_CPR_FIELD', "xAttrCPR")
+AD_CPR_FIELD = 'extensionAttribute1'
+# SEARCH_BASE_SCHOOL = os.environ.get('SEARCH_BASE_SCHOOL', "OU=Kommune,DC=viborg,DC=local")
+
+PROPERTIES = {'xAttrCPR' ,'ObjectGuid', 'SamAccountName', 'Title,' 'Name',
+              'xBrugertype', 'EmailAddress', 'MobilePhone'}
+PROPERTIES = {'extensionAttribute1', 'ObjectGuid', 'SamAccountName', 'hkstsuuid'}
+
+
+ALSO_READ_SCHOOL = False
+
 # PROPERTIES
 # SKIP_BRUGERTYPE
 
@@ -117,7 +130,8 @@ class ADParameterReader(object):
             # get more users at the same time to increase performance.
             # Lookup time is only very slightly dependant on the number
             # of results.
-            ps_template = "get-aduser -Filter 'xAttrCPR -like \"{}\"'"
+            ps_template = "get-aduser -Filter '" + AD_CPR_FIELD + " -like \"{}\"'"
+
 
         get_command = ps_template.format(dict_key)
 
@@ -125,16 +139,21 @@ class ADParameterReader(object):
             search_base = ('-Server uv-viborg.local ' +
                            '-SearchBase "DC=uv-viborg,DC=local" ')
         else:
-            search_base = ' -SearchBase "OU=Kommune,DC=viborg,DC=local" '
+            search_base = ' -SearchBase "{}" '.format(SEARCH_BASE)
 
         credentials = ' -Credential $usercredential'
         if school:
             properties = (' | Get-ADObject -Properties xAttrCPR,ObjectGuid,' +
                           'SamAccountName,Title,Name,mail')
         else:
-            # properties = ' -Properties *'
-            properties = (' -Properties xAttrCPR,ObjectGuid,SamAccountName,Title,' +
-                          'Name,xBrugertype,EmailAddress, MobilePhone')
+            properties = ' -Properties *'
+            #properties = (' -Properties xAttrCPR,ObjectGuid,SamAccountName,Title,' +
+            #              'Name,xBrugertype,EmailAddress, MobilePhone')
+            properties = ' -Properties '
+            for item in PROPERTIES:
+                properties += item + ','
+            properties = properties[:-1] + ' ' # Remove trailing comma, add space
+
         command_end = ' | ConvertTo-Json'
 
         ps_script = (self._build_user_credential(school) +
@@ -157,18 +176,20 @@ class ADParameterReader(object):
 
     def uncached_read_user(self, user=None, cpr=None):
         logger.debug('Uncached AD read, user {}, cpr {}'.format(user, cpr))
-        response = self._get_from_ad(user=user, cpr=cpr, school=True)
-        for current_user in response:
-            job_title = current_user.get('Title')
-            if job_title and job_title.find('FRATR') == 0:
-                continue  # These are users that has left
 
-            if 'mail' in current_user:
-                current_user['EmailAddress'] = current_user['mail']
-                del current_user['mail']
+        if ALSO_READ_SCHOOL:
+            response = self._get_from_ad(user=user, cpr=cpr, school=True)
+            for current_user in response:
+                job_title = current_user.get('Title')
+                if job_title and job_title.find('FRATR') == 0:
+                    continue  # These are users that has left
 
-            self.results[current_user['xAttrCPR']] = current_user
-            self.results[current_user['SamAccountName']] = current_user
+                if 'mail' in current_user:
+                    current_user['EmailAddress'] = current_user['mail']
+                    del current_user['mail']
+
+                self.results[current_user[AD_CPR_FIELD]] = current_user
+                self.results[current_user['SamAccountName']] = current_user
 
         response = self._get_from_ad(user=user, cpr=cpr, school=False)
         current_user = {}
@@ -182,7 +203,7 @@ class ADParameterReader(object):
                 continue
             if not current_user:
                 current_user = {}
-            self.results[current_user['xAttrCPR']] = current_user
+            self.results[current_user[AD_CPR_FIELD]] = current_user
             self.results[current_user['SamAccountName']] = current_user
         return current_user
 
@@ -245,5 +266,9 @@ class ADParameterReader(object):
 if __name__ == '__main__':
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())
-    user = ad_reader.read_user(user='konroje')
-    print(user)
+    ad_reader.uncached_read_user(cpr='19*')
+    for person in ad_reader.results:
+        print(ad_reader.results[person])
+        print()
+    # user = ad_reader.read_user(user='konroje')
+    # print(user)
