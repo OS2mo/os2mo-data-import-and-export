@@ -16,7 +16,7 @@ importer = ImportHelper(
     system_name='Opus-Import',
     end_marker='OPUS_STOP!',
     store_integration_data=True,
-    seperate_names=False
+    seperate_names=True
 )
 
 # importer.new_itsystem(

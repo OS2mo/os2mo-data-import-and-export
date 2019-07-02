@@ -427,13 +427,13 @@ class MoraHelper(object):
             person_list[uuid] = data
         return person_list
 
-    def read_top_units(self, organisation):
+    def read_top_units(self, organisation, use_cache=False):
         """ Read the ous tha refers directoly to the organisation
         :param organisation: UUID of the organisation
         :return: List of UUIDs of the root OUs in the organisation
         """
         url = 'o/{}/children'
-        units = self._mo_lookup(organisation, url)
+        units = self._mo_lookup(organisation, url, use_cache=use_cache)
         return units
 
     def read_ou_tree(self, org, nodes={}, parent=None):

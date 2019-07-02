@@ -325,7 +325,7 @@ def main(mox_base, mora_base, municipality, scale, org_size, extra_root):
                             system_name="Artificial import",
                             end_marker="STOP_DUMMY",
                             store_integration_data=True,
-                            seperate_names=False)
+                            seperate_names=True)
 
     CreateDummyOrg(importer,
                    municipality_code=municipality_number,
