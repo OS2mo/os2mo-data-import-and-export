@@ -1,44 +1,28 @@
-import os
 import time
 import json
 import pickle
 import logging
 import hashlib
+import read_ad_conf_settings
 from pathlib import Path
 from winrm import Session
 from winrm.exceptions import WinRMTransportError
 
 logger = logging.getLogger("AdReader")
 
-WINRM_HOST = os.environ.get('WINRM_HOST', None)
-AD_SYSTEM_USER = os.environ.get('AD_SYSTEM_USER', None)
-AD_PASSWORD = os.environ.get('AD_PASSWORD', None)
-SCHOOL_AD_SYSTEM_USER = os.environ.get('SCHOOL_AD_SYSTEM_USER', None)
-SCHOOL_AD_PASSWORD = os.environ.get('SCHOOL_AD_PASSWORD', None)
 
-
-SEARCH_BASE = os.environ.get('AD_SEARCH_BASE', "OU=Kommune,DC=viborg,DC=local")
-AD_CPR_FIELD = os.environ.get('AD_CPR_FIELD', "xAttrCPR")
-AD_CPR_FIELD = 'extensionAttribute1'
-# SEARCH_BASE_SCHOOL = os.environ.get('SEARCH_BASE_SCHOOL', "OU=Kommune,DC=viborg,DC=local")
-
-PROPERTIES = {'xAttrCPR' ,'ObjectGuid', 'SamAccountName', 'Title,' 'Name',
-              'xBrugertype', 'EmailAddress', 'MobilePhone'}
-PROPERTIES = {'extensionAttribute1', 'ObjectGuid', 'SamAccountName', 'hkstsuuid'}
-
-
-ALSO_READ_SCHOOL = False
-
-# PROPERTIES
 # SKIP_BRUGERTYPE
 
 
 class ADParameterReader(object):
 
     def __init__(self):
-        if WINRM_HOST:
+        self.all_settings = read_ad_conf_settings.read_settings_from_env()
+        if self.all_settings['global']['winrm_host']:
             self.session = Session(
-                'http://{}:5985/wsman'.format(WINRM_HOST),
+                'http://{}:5985/wsman'.format(
+                    self.all_settings['global']['winrm_host']
+                ),
                 transport='kerberos',
                 auth=(None, None)
             )
@@ -69,12 +53,14 @@ class ADParameterReader(object):
                 retries += 1
                 # The existing session is now dead, create a new.
                 self.session = Session(
-                    'http://{}:5985/wsman'.format(WINRM_HOST),
+                    'http://{}:5985/wsman'.format(
+                        self.all_settings['global']['winrm_host']
+                    ),
                     transport='kerberos',
                     auth=(None, None)
                 )
 
-        # TODO: We will need better error handlinger than this.
+        # TODO: We will need better error handling than this.
         assert(retries < 10)
 
         if r.status_code == 0:
@@ -84,23 +70,33 @@ class ADParameterReader(object):
             response = r.std_err
         return response
 
+    def _get_setting(self, school):
+        if school and not self.all_settings['school']['read_school']:
+            msg = 'Trying to access school without credentials'
+            logger.error(msg)
+            raise Exception(msg)
+        if school:
+            setting = 'school'
+        else:
+            setting = 'primary'
+        return self.all_settings[setting]
+
     def _build_user_credential(self, school=False):
         """
         Build the commonn set of Power Shell commands that is needed to
         run the AD commands.
         :return: A suitable string to prepend to AD commands.
         """
+
         credential_template = """
         $User = "{}"
         $PWord = ConvertTo-SecureString –String "{}" –AsPlainText -Force
         $TypeName = "System.Management.Automation.PSCredential"
         $UserCredential = New-Object –TypeName $TypeName –ArgumentList $User, $PWord
         """
-        if not school:
-            user_credential = credential_template.format(AD_SYSTEM_USER, AD_PASSWORD)
-        else:
-            user_credential = credential_template.format(SCHOOL_AD_SYSTEM_USER,
-                                                         SCHOOL_AD_PASSWORD)
+        settings = self._get_setting(school)
+        user_credential = credential_template.format(settings['system_user'],
+                                                     settings['password'])
         return user_credential
 
     def read_encoding(self):
@@ -119,6 +115,8 @@ class ADParameterReader(object):
         :param cpr: cpr number of the user to retrive.
         :return: All properties listed in AD for the user.
         """
+        settings = self._get_setting(school)
+
         if user:
             dict_key = user
             ps_template = "get-aduser {} "
@@ -130,29 +128,29 @@ class ADParameterReader(object):
             # get more users at the same time to increase performance.
             # Lookup time is only very slightly dependant on the number
             # of results.
-            ps_template = "get-aduser -Filter '" + AD_CPR_FIELD + " -like \"{}\"'"
-
+            field = settings['cpr_field']
+            ps_template = "get-aduser -Filter '" + field + " -like \"{}\"'"
 
         get_command = ps_template.format(dict_key)
 
         if school:
+            # TODO!
             search_base = ('-Server uv-viborg.local ' +
-                           '-SearchBase "DC=uv-viborg,DC=local" ')
+                           '-SearchBase "{}" '.format(settings['search_base']))
         else:
-            search_base = ' -SearchBase "{}" '.format(SEARCH_BASE)
+            search_base = ' -SearchBase "{}" '.format(settings['search_base'])
 
         credentials = ' -Credential $usercredential'
         if school:
+            # TODO!
             properties = (' | Get-ADObject -Properties xAttrCPR,ObjectGuid,' +
                           'SamAccountName,Title,Name,mail')
         else:
-            properties = ' -Properties *'
-            #properties = (' -Properties xAttrCPR,ObjectGuid,SamAccountName,Title,' +
-            #              'Name,xBrugertype,EmailAddress, MobilePhone')
+            # properties = ' -Properties *'
             properties = ' -Properties '
-            for item in PROPERTIES:
+            for item in settings['properties']:
                 properties += item + ','
-            properties = properties[:-1] + ' ' # Remove trailing comma, add space
+            properties = properties[:-1] + ' '  # Remove trailing comma, add space
 
         command_end = ' | ConvertTo-Json'
 
@@ -177,7 +175,8 @@ class ADParameterReader(object):
     def uncached_read_user(self, user=None, cpr=None):
         logger.debug('Uncached AD read, user {}, cpr {}'.format(user, cpr))
 
-        if ALSO_READ_SCHOOL:
+        if self.all_settings['school']['read_school']:
+            settings = self._get_setting(school=True)
             response = self._get_from_ad(user=user, cpr=cpr, school=True)
             for current_user in response:
                 job_title = current_user.get('Title')
@@ -187,13 +186,13 @@ class ADParameterReader(object):
                 if 'mail' in current_user:
                     current_user['EmailAddress'] = current_user['mail']
                     del current_user['mail']
-
-                self.results[current_user[AD_CPR_FIELD]] = current_user
+                self.results[current_user[settings['cpr_field']]] = current_user
                 self.results[current_user['SamAccountName']] = current_user
 
         response = self._get_from_ad(user=user, cpr=cpr, school=False)
         current_user = {}
         for current_user in response:
+            settings = self._get_setting(school=False)
             job_title = current_user.get('Title')
             if job_title and job_title.find('FRATR') == 0:
                 continue  # These are users that has left
@@ -203,7 +202,7 @@ class ADParameterReader(object):
                 continue
             if not current_user:
                 current_user = {}
-            self.results[current_user[AD_CPR_FIELD]] = current_user
+            self.results[current_user[settings['cpr_field']]] = current_user
             self.results[current_user['SamAccountName']] = current_user
         return current_user
 
@@ -266,7 +265,7 @@ class ADParameterReader(object):
 if __name__ == '__main__':
     ad_reader = ADParameterReader()
     # print(ad_reader.read_encoding())
-    ad_reader.uncached_read_user(cpr='19*')
+    ad_reader.uncached_read_user(cpr='1911*')
     for person in ad_reader.results:
         print(ad_reader.results[person])
         print()
