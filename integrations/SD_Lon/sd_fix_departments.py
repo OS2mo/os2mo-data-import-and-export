@@ -30,6 +30,7 @@ MORA_BASE = os.environ.get('MORA_BASE', None)
 
 class FixDepartmentsSD(object):
     def __init__(self, from_date):
+        logger.info('Start program')
         self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
         self.from_date = from_date
 
@@ -61,6 +62,9 @@ class FixDepartmentsSD(object):
             if unit_type['user_key'] == department['DepartmentLevelIdentifier']:
                 unit_type_uuid = unit_type['uuid']
 
+        # TODO: MO currently fails when creating future sub-units
+        activation_date = '2019-07-01'  # Temporary!!!!
+
         payload = sd_payloads.create_org_unit(
             department=department,
             org=self.org_uuid,
@@ -88,12 +92,21 @@ class FixDepartmentsSD(object):
         if not isinstance(department_lists, list):
             department_lists = [department_lists]
 
+        total = 0
+        checked = 0
+        for department_list in department_lists:
+            departments = department_list['DepartmentReference']
+            total += len(departments)
+
+        logger.info('Checking {} departments'.format(total))
         for department_list in department_lists:
             # All units in this list has same activation date
             activation_date = department_list['ActivationDate']
 
             departments = department_list['DepartmentReference']
             for department in departments:
+                checked += 1
+                print('{}/{} {:.2f}%'.format(checked, total, 100.0 * checked/total))
                 departments = []
                 uuid = department['DepartmentUUIDIdentifier']
                 ou = self.helper.read_ou(uuid)
