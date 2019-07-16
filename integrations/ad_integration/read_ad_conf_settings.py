@@ -17,9 +17,6 @@ def _read_global_settings():
 
 def _read_primary_ad_settings():
     primary_settings = {}
-    # So far false in all known cases, default to false
-    get_ad_object = os.environ.get('AD_GET_AD_OBJECT', 'False')
-    primary_settings['get_ad_object'] = get_ad_object.lower() == 'true'
 
     primary_settings['search_base'] = os.environ.get('AD_SEARCH_BASE')
     primary_settings['cpr_field'] = os.environ.get('AD_CPR_FIELD')
@@ -40,17 +37,18 @@ def _read_primary_ad_settings():
         logger.error(msg)
         raise Exception(msg)
 
-    # Settings that do not need to be set
+    # Settings that do not need to be set, or have defaults
     primary_settings['server'] = os.environ.get('AD_SERVER')
+
+    # So far false in all known cases, default to false
+    get_ad_object = os.environ.get('AD_GET_AD_OBJECT', 'False')
+    primary_settings['get_ad_object'] = get_ad_object.lower() == 'true'
+
     return primary_settings
 
 
 def _read_school_ad_settings():
     school_settings = {}
-
-    # So far true in all known cases, default to true
-    get_ad_object = os.environ.get('AD_SCHOOL_GET_AD_OBJECT', 'True')
-    school_settings['get_ad_object'] = get_ad_object.lower() == 'true'
 
     school_settings['search_base'] = os.environ.get('AD_SCHOOL_SEARCH_BASE')
     school_settings['cpr_field'] = os.environ.get('AD_SCHOOL_CPR_FIELD')
@@ -75,6 +73,11 @@ def _read_school_ad_settings():
 
     # Settings that do not need to be set
     school_settings['server'] = os.environ.get('AD_SCHOOL_SERVER')
+
+    # So far true in all known cases, default to true
+    get_ad_object = os.environ.get('AD_SCHOOL_GET_AD_OBJECT', 'True')
+    school_settings['get_ad_object'] = get_ad_object.lower() == 'true'
+
     return school_settings
 
 
