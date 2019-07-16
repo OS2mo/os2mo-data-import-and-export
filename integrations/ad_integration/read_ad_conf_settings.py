@@ -35,6 +35,9 @@ def _read_primary_ad_settings():
         msg = 'Missing values for {}'.format(missing)
         logger.error(msg)
         raise Exception(msg)
+
+    # Settings that do not need to be set
+    primary_settings['server'] = os.environ.get('AD_SERVER')
     return primary_settings
 
 
@@ -59,6 +62,9 @@ def _read_school_ad_settings():
         msg = 'Missing values for {}, skiping school AD'.format(missing)
         logger.info(msg)
         school_settings['read_school'] = False
+
+    # Settings that do not need to be set
+    school_settings['server'] = os.environ.get('AD_SCHOOL_SERVER')
     return school_settings
 
 
