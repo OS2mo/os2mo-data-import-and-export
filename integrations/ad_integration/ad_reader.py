@@ -133,33 +133,35 @@ class ADParameterReader(object):
 
         get_command = ps_template.format(dict_key)
 
-        if school:
-            # TODO!
-            search_base = ('-Server uv-viborg.local ' +
-                           '-SearchBase "{}" '.format(settings['search_base']))
-        else:
-            search_base = ' -SearchBase "{}" '.format(settings['search_base'])
+        server = ''
+        if 'server' in settings:
+            server = '-Server {} '.format(settings['server'])
 
+        search_base = ' -SearchBase "{}" '.format(settings['search_base'])
         credentials = ' -Credential $usercredential'
-        if school:
-            # TODO!
-            properties = (' | Get-ADObject -Properties xAttrCPR,ObjectGuid,' +
-                          'SamAccountName,Title,Name,mail')
-        else:
-            # properties = ' -Properties *'
-            properties = ' -Properties '
-            for item in settings['properties']:
-                properties += item + ','
-            properties = properties[:-1] + ' '  # Remove trailing comma, add space
+
+        get_ad_object = ''
+        if settings['get_ad_object']:
+            get_ad_object = ' | Get-ADObject'
+
+        # properties = ' -Properties *'
+        properties = ' -Properties '
+        for item in settings['properties']:
+            properties += item + ','
+        properties = properties[:-1] + ' '  # Remove trailing comma, add space
 
         command_end = ' | ConvertTo-Json'
 
-        ps_script = (self._build_user_credential(school) +
-                     get_command +
-                     search_base +
-                     credentials +
-                     properties +
-                     command_end)
+        ps_script = (
+            self._build_user_credential(school) +
+            get_command +
+            server +
+            search_base +
+            credentials +
+            get_ad_object +
+            properties +
+            command_end
+        )
 
         response = self._run_ps_script(ps_script)
 
