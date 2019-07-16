@@ -134,8 +134,8 @@ class ADParameterReader(object):
         get_command = ps_template.format(dict_key)
 
         server = ''
-        if 'server' in settings:
-            server = '-Server {} '.format(settings['server'])
+        if settings['server']:
+            server = ' -Server {} '.format(settings['server'])
 
         search_base = ' -SearchBase "{}" '.format(settings['search_base'])
         credentials = ' -Credential $usercredential'
@@ -192,6 +192,7 @@ class ADParameterReader(object):
                 self.results[current_user['SamAccountName']] = current_user
 
         response = self._get_from_ad(user=user, cpr=cpr, school=False)
+
         current_user = {}
         for current_user in response:
             settings = self._get_setting(school=False)
