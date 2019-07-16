@@ -1,6 +1,7 @@
 import os
 import uuid
 import pika
+import logging
 import datetime
 import xmltodict
 import sd_mox_payloads as smp
@@ -8,6 +9,9 @@ import sd_mox_payloads as smp
 from collections import OrderedDict
 from sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
+
+logger = logging.getLogger('sdMox')
+
 
 INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
 SD_USER = os.environ.get('SD_USER', None)
@@ -21,20 +25,17 @@ VIRTUAL_HOST = os.environ.get('VIRTUAL_HOST', None)
 if not (AMQP_USER and AMQP_PASSWORD and VIRTUAL_HOST):
     raise Exception('SD AMQP credentials missing')
 
+class sdMoxException(Exception):
+    pass
 
 class sdMox(object):
-    def __init__(self, from_date, to_date=None):
+    def __init__(self, from_date=None, to_date=None):
+        self._init_amqp_comm()
+        if from_date:
+            self._update_virkning(from_date)
 
-        self.exchange_name = 'org-struktur-changes-topic'
-        credentials = pika.PlainCredentials(AMQP_USER, AMQP_PASSWORD)
-        parameters = pika.ConnectionParameters(host='msg-amqp.silkeborgdata.dk',
-                                               port=5672,
-                                               virtual_host=VIRTUAL_HOST,
-                                               credentials=credentials)
-        self.connection = pika.BlockingConnection(parameters)
-        self.channel = self.connection.channel()
-
-        self.mh = MoraHelper(hostname='localhost:5000')
+        # TODO: This url is hard-codet
+        self.mh = MoraHelper(hostname='http://localhost:5000')
 
         sd_levels = [
             ('Top', '324b8c95-5ff9-439b-a49c-1a6a6bba4651'),
@@ -49,18 +50,15 @@ class sdMox(object):
         ]
         self.sd_levels = OrderedDict(sd_levels)
 
-        # ut = self.mh.read_classes_in_facet('org_unit_type')
-        # for unit_type in ut[0]:
-        #    print(unit_type)
-        #    if unit_type['user_key'] in sd_levels:
-        #        print(unit_type)
-        #        sd_levels[unit_type['user_key']] = unit_type['uuid']
-
-        if not from_date.day == 1:
-            raise Exception('Day of month must be 1')
-
-        self.virkning = smp.sd_virkning(from_date, to_date)
-
+    def _init_amqp_comm(self):
+        self.exchange_name = 'org-struktur-changes-topic'
+        credentials = pika.PlainCredentials(AMQP_USER, AMQP_PASSWORD)
+        parameters = pika.ConnectionParameters(host='msg-amqp.silkeborgdata.dk',
+                                               port=5672,
+                                               virtual_host=VIRTUAL_HOST,
+                                               credentials=credentials)
+        self.connection = pika.BlockingConnection(parameters)
+        self.channel = self.connection.channel()
         result = self.channel.queue_declare('', exclusive=True)
         self.callback_queue = result.method.queue
         self.channel.basic_consume(
@@ -68,6 +66,29 @@ class sdMox(object):
             on_message_callback=self.on_response,
             auto_ack=True
         )
+
+    def on_response(self, ch, method, props, body):
+        logger.error('Unexpected response!')
+        logger.error(body)
+        raise sdMoxException('Unexpected amqp response')
+
+    def call(self, xml):
+        self.channel.basic_publish(
+            exchange=self.exchange_name,
+            routing_key='#',
+            properties=pika.BasicProperties(
+                reply_to=self.callback_queue
+            ),
+            body=xml
+        )
+        # Todo: We should to a lookup at verify actual unit
+        # matches the expected result
+        return True
+
+    def _update_virkning(self, from_date, to_date=None):
+        self.virkning = smp.sd_virkning(from_date, to_date)
+        if not from_date.day == 1:
+            raise sdMoxException('Day of month must be 1')
 
     def read_department(self, unit_code=None, unit_uuid=None):
         from_date = self.virkning['sd:FraTidspunkt']['sd:TidsstempelDatoTid'][0:10]
@@ -90,13 +111,29 @@ class sdMox(object):
             department = sd_lookup('GetDepartment20111201', params)
             department_info = department.get('Department', None)
         except KeyError:
-            # Bug in SD soap-interface most likely these units actually do exist
-            department_info = 'Unknown department'
+            # Bug in SD soap-interface, most likely these units actually do exist
+            # department_info = 'Unknown department'
+            department_info = None
+
+        if isinstance(department_info, list):
+            msg = 'Unit not unique. Code {}, uuid {}'.format(unit_code, unit_uuid)
+            logger.error(msg)
+            logger.error('Number units: {}'.format(len(department_info)))
+            raise sdMoxException(msg)
         return department_info
 
     def _check_department(self, department, name, unit_code, unit_uuid):
+        """
+        Verify that an SD department contain what think it should contain.
+        Besides the supplied parameters, the activation date is also checked
+        agains the global from_date.
+        :param department: An SD department as returned by read_department().
+        :param name: Expected name.
+        :param unit_code: Expexted unit code.
+        :param unit_uuid: Exptected uunit.
+        :return: Returns list errors, empty list if no errors.
+        """
         from_date = self.virkning['sd:FraTidspunkt']['sd:TidsstempelDatoTid'][0:10]
-        print(department)
         errors = []
         if not department['DepartmentName'] == name:
             errors.append('Name')
@@ -109,14 +146,22 @@ class sdMox(object):
         # print(department['PostalAddress'])
         return errors
 
-    def create_xml_import(self, name, unit_code, parent, unit_uuid):
+    def _create_xml_import(self, name, unit_code, parent, unit_level, unit_uuid):
+        """
+        Create suitable xml-payload to create a unit. This is a helper function, it
+        is expected that the values are allredy validated to be legal and consistent.
+        :param name: Name of the new unit.
+        :param unit_code: Short unique code (enhedskode) for the unit.
+        :param parent: Parent unit for the unit.
+        :param uuid: uuid for the unit.
+        """
         value_dict = {
             'RelationListe': smp.relations_import(self.virkning, parent),
             'AttributListe': smp.attributes_import(
                 self.virkning,
                 unit_code=unit_code,
                 unit_name=name,
-                niveau='TODO'
+                unit_type=unit_level
             ),
             'Registrering': smp.create_registrering(self.virkning,
                                                     registry_type='Opstaaet'),
@@ -127,7 +172,7 @@ class sdMox(object):
         xml = xmltodict.unparse(edit_dict)
         return xml
 
-    def create_xml_ret(self, unit_uuid, name):
+    def _create_xml_ret(self, unit_uuid, name):
         value_dict = {
             'RelationListe': smp.relations_ret(
                 self.virkning,
@@ -151,6 +196,7 @@ class sdMox(object):
         return xml
 
     def _validate_unit_code(self, unit_code):
+        logger.info('Validating unit code {}'.format(unit_code))
         code_errors = []
         if len(unit_code) < 2:
             code_errors.append('Enhedskode for kort')
@@ -175,7 +221,7 @@ class sdMox(object):
         if not uuid_errors:
             department = self.read_department(unit_uuid=unit_uuid)
             if department is not None:
-                uuid_errors.append('Enhedskode er i brug')
+                uuid_errors.append('uuid er i brug')
         return uuid_errors
 
     def _mo_to_sd_address(self, unit_uuid):
@@ -192,8 +238,23 @@ class sdMox(object):
         }
         return sd_address
 
-    def create_unit(self, name, unit_code, parent, unit_level, unit_uuid=None):
-        # TODO: Address and the three integration attributes.
+    def create_unit(self, name, unit_code, parent, unit_level,
+                    unit_uuid=None, test_run=True):
+        """
+        Create a new unit in SD.
+        :param name: Unit name.
+        :param unit_code: Short (3-4 chars) unique name (enhedskode).
+        :param parent: Unit code of parent unit.
+        :param unit_level: In SD the unit_type is tied to its level.
+        :param uuid: uuid for unit, a random uuid will be generated if not provided.
+        :param test_run: If true, all validations will be performed, but the
+        amqp-call will not be executed, this allows for a pre-check that will
+        confirm that the call will most likely succeed.
+        :return: The uuid for the new unit. For test-runs with no provided uuid, this
+        will not be the same random uuid as for the actual run, unless the returned
+        uuid is stored and given as parameter for the actual run.
+        """
+        # Verify that uuid and unit_code is valid and unused.
         if not unit_uuid:
             unit_uuid = str(uuid.uuid4())
             uuid_errors = []
@@ -202,42 +263,77 @@ class sdMox(object):
         code_errors = self._validate_unit_code(unit_code)
 
         if code_errors or uuid_errors:
-            raise Exception(str(code_errors + uuid_errors))
+            raise sdMoxException(str(code_errors + uuid_errors))
 
-        parent_department = self.read_department(unit_uuid=parent)
+        # Verify the parent department actually exist
+        print('Reading parent department')
+        parent_department = self.read_department(unit_code=parent)
+        print(parent)
+        print(type(parent_department))
+        print(len(parent_department))
+        
         if not parent_department:
-            raise Exception('Forældrenheden finds ikke')
+            raise sdMoxException('Forældrenheden finds ikke')
 
         unit_index = list(self.sd_levels.keys()).index(unit_level)
+        print(parent_department)
         parent_index = list(self.sd_levels.keys()).index(
-            parent_department['DepartmentLevelIdentifier'])
+            parent_department['DepartmentLevelIdentifier']
+        )
+        print('Stopping')
+        1/0
         if not unit_index > parent_index:
-            raise Exception('Enhedstypen passer ikke til forældreenheden')
+            raise sdMoxException('Enhedstypen passer ikke til forældreenheden')
 
-        xml = self.create_xml_import(
+        xml = self._create_xml_import(
             name=name,
             unit_uuid=unit_uuid,
             unit_code=unit_code,
             unit_level=unit_level,
             parent=parent
         )
-        self.call(xml)
+        print(xml)
+        if not test_run:
+            self.call(xml)
         return unit_uuid
 
     def edit_unit(self, unit_uuid, phone=None, pnummer=None, address=None,
                   integration_values=None):
         pass
 
-    def create_unit_from_mo(self, unit_uuid):
+    def create_unit_from_mo(self, unit_uuid, test_run=True):
+        logger.info('Create {} from MO, test run: {}'.format(unit_uuid, test_run))
         unit_info = mox.mh.read_ou(unit_uuid)
+        logger.debug('Unit info: {}'.format(unit_info))
 
-        self.create_unit(
-            name=unit_info['name'],
-            parent=unit_info.get('parent'),
-            unit_code=unit_info['user_key'],
-            unit_level=unit_info['org_unit_type']['user_key'],
-            unit_uuid=unit_uuid
+        from_date = datetime.datetime.strptime(
+            unit_info['validity']['from'], '%Y-%m-%d'
         )
+
+        self._update_virkning(from_date)
+
+        parent_unit_code = unit_info['parent']['user_key']
+        # Temperary fix for frontend being unable to set user_key
+        unit_code = unit_info['user_key'][0:4]
+
+        try:
+            uuid = self.create_unit(
+                name=unit_info['name'],
+                parent=parent_unit_code,
+                unit_code=unit_code,
+                unit_level=unit_info['org_unit_type']['user_key'],
+                unit_uuid=unit_uuid,
+                test_run=test_run
+            )
+            print(uuid)
+        except sdMoxException as e:
+            print('Error: {}'.format(e))
+            msg = 'Test for unit {} failed: {}'.format(unit_uuid, e)
+            if test_run:
+                logger.info(msg)
+            else:
+                logger.error(msg)
+            return False
 
         integration_values = {
             'time_planning': unit_info.get('time_planning', None),
@@ -256,63 +352,46 @@ class sdMox(object):
         phone = self.mh.read_ou_address(unit_uuid, scope='PHONE').get('value')
 
         address = mox._mo_to_sd_address(unit_uuid)
-        self.edit_unit(
-            phone=phone,
-            pnummer=pnummer,
-            address=address,
-            integration_value=integration_values
-        )
 
-    def on_response(self, ch, method, props, body):
-        print('Unexpected response!')
-        print(body)
-
-    def call(self, xml):
-        self.channel.basic_publish(
-            exchange=self.exchange_name,
-            routing_key='#',
-            properties=pika.BasicProperties(
-                reply_to=self.callback_queue
-            ),
-            body=xml
-        )
-        # Todo: We should to a lookup at verify actual unit
-        # matches the expected result
-        return True
+        if not test_run:
+            # Running test-run for this edit is a bit more tricky
+            self.edit_unit(
+                phone=phone,
+                pnummer=pnummer,
+                address=address,
+                integration_value=integration_values
+            )
 
 
 if __name__ == '__main__':
-    from_date = datetime.datetime(2020, 5, 1, 0, 0)
+    # from_date = datetime.datetime(2020, 5, 1, 0, 0)
     # to_date = datetime.datetime(2020, 6, 1, 0, 0)
 
-    parent_uuid = '67e614ad-fcb9-43b9-a1c5-8328fe1c2fb2'
-    unit_uuid = '1dacd587-c511-4f65-8944-6c9011eb96aa'
-    # unit_uuid = 'c6db4a52-8ddf-4062-9f08-c1ec387968c2'
+    unit_uuid = '9d6c8041-61c0-4900-a600-000001550002'
 
-    mox = sdMox(from_date)
+    mox = sdMox()
 
-    if True:
-        mox.create_unit_from_mo(unit_uuid)
+    mox.create_unit_from_mo(unit_uuid, test_run=True)
 
-    if False:
-        unit_code = 'TST0'
-        unit_uuid = mox.create_unit(
-            unit_uuid=unit_uuid,
-            name='Dav',
-            unit_code=unit_code,
-            unit_level='Afdelings-niveau',
-            parent=parent_uuid
-        )
-        1/0
-        department = mox.read_department(unit_code)
-        # errors = mox._check_department(department, name, unit_code, unit_uuid)
-        # print(errors)
+    # if False:
+    #     unit_code = 'TST0'
+    #     unit_uuid = mox.create_unit(
+    #         unit_uuid=unit_uuid,
+    #         name='Dav',
+    #         unit_code=unit_code,
+    #         unit_level='Afdelings-niveau',
+    #         parent=parent_uuid
+    #     )
+    #     1/0
+    #     department = mox.read_department(unit_code)
+    #     # errors = mox._check_department(department, name, unit_code, unit_uuid)
+    #     # print(errors)
 
-    if False:
-        xml = mox.edit_unit(
-            uuid=uuid,
-            name='Test 2'
-        )
+    # if False:
+    #     xml = mox.edit_unit(
+    #         uuid=uuid,
+    #         name='Test 2'
+    #     )
 
 
 # TODO: Soon we are ready to write small tests to verify expected output
