@@ -364,14 +364,14 @@ class SdImport(object):
 
     def create_ou_tree(self):
         """ Read all department levels from SD """
-        self.importer.add_organisation_unit(
-                identifier='OrphanUnits',
-                name='Forældreløse enheder',
-                user_key='OrphanUnits',
-                type_ref='Orphan',
-                date_from='1900-01-01',
-                date_to=None,
-                parent_ref=None)
+        # self.importer.add_organisation_unit(
+        #         identifier='OrphanUnits',
+        #         name='Forældreløse enheder',
+        #         user_key='OrphanUnits',
+        #         type_ref='Orphan',
+        #         date_from='1900-01-01',
+        #         date_to=None,
+        #         parent_ref=None)
         params = {
             'ActivationDate': self.import_date,
             'DeactivationDate': self.import_date,
@@ -419,7 +419,7 @@ class SdImport(object):
                 if status == '3':
                     # Orlov
                     pass
-                if status in ('8', '9'):
+                if status in ('7', '8', '9'):
                     # Fratrådt eller pensioneret.
                     continue
 
@@ -484,7 +484,7 @@ class SdImport(object):
                     '%Y-%m-%d'
                 )
 
-                if status in ('8', '9'):
+                if status in ('7', '8', '9'):
                     date_to = datetime.datetime.strptime(
                         employment['EmploymentStatus']['ActivationDate'],
                         '%Y-%m-%d'
