@@ -6,8 +6,10 @@ from chardet.universaldetector import UniversalDetector
 
 from os2mo_data_import import ImportHelper
 import viborg_uuids
-sys.path.append('..')
+sys.path.append('../SD_Lon')
 import sd_importer
+
+sys.path.append('../')
 import ad_reader
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
@@ -19,10 +21,7 @@ MANAGER_FILE = os.environ.get('MANAGER_FILE', 'Organisationsdata.csv')
 # ORIGIN FOR TESTS WIH ACTUAL API
 # GLOBAL_GET_DATE = datetime.datetime(2006, 1, 1, 0, 0) # will not work
 # GLOBAL_GET_DATE = datetime.datetime(2009, 1, 1, 0, 0) 
-# GLOBAL_GET_DATE = datetime.datetime(2011, 1, 1, 0, 0) 
-# GLOBAL_GET_DATE = datetime.datetime(2014, 2, 15, 0, 0)
-# GLOBAL_GET_DATE = datetime.datetime(2019, 2, 15, 0, 0)
-GLOBAL_GET_DATE = datetime.datetime(2019, 5, 10, 0, 0)
+GLOBAL_GET_DATE = datetime.datetime(2019, 6, 27, 0, 0)
 
 
 importer = ImportHelper(
@@ -31,7 +30,8 @@ importer = ImportHelper(
     mora_base=MORA_BASE,
     system_name='SD-Import',
     end_marker='SDSTOP',
-    store_integration_data=True
+    store_integration_data=True,
+    seperate_names=True
 )
 
 ad_reader = ad_reader.ADParameterReader()
