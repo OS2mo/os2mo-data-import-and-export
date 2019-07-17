@@ -5,7 +5,6 @@ import datetime
 from chardet.universaldetector import UniversalDetector
 
 from os2mo_data_import import ImportHelper
-import viborg_uuids
 sys.path.append('../SD_Lon')
 import sd_importer
 
@@ -20,7 +19,7 @@ MANAGER_FILE = os.environ.get('MANAGER_FILE', 'Organisationsdata.csv')
 
 # ORIGIN FOR TESTS WIH ACTUAL API
 # GLOBAL_GET_DATE = datetime.datetime(2006, 1, 1, 0, 0) # will not work
-# GLOBAL_GET_DATE = datetime.datetime(2009, 1, 1, 0, 0) 
+# GLOBAL_GET_DATE = datetime.datetime(2009, 1, 1, 0, 0)
 GLOBAL_GET_DATE = datetime.datetime(2019, 6, 27, 0, 0)
 
 
@@ -52,7 +51,7 @@ with open(MANAGER_FILE, encoding=encoding) as csvfile:
         if row['Leder 1 (cpr-nummer)']:
             new_row = {
                 'cpr': row['Leder 1 (cpr-nummer)'].replace('-', ''),
-                'ansvar' : row['Lederansvar "Leder 1"'],
+                'ansvar': row['Lederansvar "Leder 1"'],
                 'afdeling': row['SD kort navn (afd.kode)']
             }
             manager_rows.append(new_row)
@@ -60,7 +59,7 @@ with open(MANAGER_FILE, encoding=encoding) as csvfile:
         if row['Leder 2 (cpr-nummer)'].strip():
             new_row = {
                 'cpr': row['Leder 2 (cpr-nummer)'].replace('-', ''),
-                'ansvar' : row['Lederansvar "Leder 2"'],
+                'ansvar': row['Lederansvar "Leder 2"'],
                 'afdeling': row['SD kort navn (afd.kode)']
             }
             manager_rows.append(new_row)
@@ -75,7 +74,7 @@ sd = sd_importer.SdImport(
     manager_rows=manager_rows
 )
 
-sd.create_ou_tree()
+sd.create_ou_tree(create_orphan_container=False)
 sd.create_employees()
 
 importer.import_all()

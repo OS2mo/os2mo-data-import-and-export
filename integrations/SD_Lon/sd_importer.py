@@ -119,8 +119,6 @@ class SdImport(object):
 
         self._add_klasse('Orlov', 'Orlov', 'leave_type')
 
-        self._add_klasse('Orphan', 'Virtuel Enhed', 'org_unit_type')
-
         self._add_klasse('Ansat', 'Ansat', 'engagement_type')
         self._add_klasse('status0', 'Ansat - Ikke i løn', 'engagement_type')
         self._add_klasse('non-primary', 'Ikke-primær ansættelse', 'engagement_type')
@@ -362,16 +360,19 @@ class SdImport(object):
                     date_from=None
                 )
 
-    def create_ou_tree(self):
+    def create_ou_tree(self, create_orphan_container):
         """ Read all department levels from SD """
-        # self.importer.add_organisation_unit(
-        #         identifier='OrphanUnits',
-        #         name='Forældreløse enheder',
-        #         user_key='OrphanUnits',
-        #         type_ref='Orphan',
-        #         date_from='1900-01-01',
-        #         date_to=None,
-        #         parent_ref=None)
+        if create_orphan_container:
+            self._add_klasse('Orphan', 'Virtuel Enhed', 'org_unit_type')
+            self.importer.add_organisation_unit(
+                identifier='OrphanUnits',
+                name='Forældreløse enheder',
+                user_key='OrphanUnits',
+                type_ref='Orphan',
+                date_from='1900-01-01',
+                date_to=None,
+                parent_ref=None
+            )
         params = {
             'ActivationDate': self.import_date,
             'DeactivationDate': self.import_date,
