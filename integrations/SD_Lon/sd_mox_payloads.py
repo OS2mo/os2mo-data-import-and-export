@@ -100,7 +100,7 @@ def _create_attribut_items(virkning, attributes):
 def attributes_ret(virkning, unit_code, funktionskode=None,
                    skolekode=None, tidsregistrering=None, unit_name=None):
     attributes = {}
-    
+
     attributes = {'FunktionKode': '32201', 'SkoleKode': '12347',
                   'Tidsregistrering': 'Arbejdstidsplaner'}
     integration_items = _create_attribut_items(virkning, attributes)
@@ -117,8 +117,11 @@ def attributes_ret(virkning, unit_code, funktionskode=None,
     return attribut_liste
 
 
-def attributes_import(virkning, unit_name, unit_code, niveau):
-    attributes = {'EnhedKode': unit_code, 'Niveau': 'Afdelings-niveau'}
+def attributes_import(virkning, unit_name, unit_code, unit_type):
+    attributes = {
+        'EnhedKode': unit_code,
+        'Niveau': unit_type
+    }
     integration_items = _create_attribut_items(virkning, attributes)
     attribut_liste = {
         "sd:LokalUdvidelse": {

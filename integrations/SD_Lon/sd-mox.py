@@ -25,8 +25,10 @@ VIRTUAL_HOST = os.environ.get('VIRTUAL_HOST', None)
 if not (AMQP_USER and AMQP_PASSWORD and VIRTUAL_HOST):
     raise Exception('SD AMQP credentials missing')
 
+
 class sdMoxException(Exception):
     pass
+
 
 class sdMox(object):
     def __init__(self, from_date=None, to_date=None):
@@ -38,15 +40,13 @@ class sdMox(object):
         self.mh = MoraHelper(hostname='http://localhost:5000')
 
         sd_levels = [
-            ('Top', '324b8c95-5ff9-439b-a49c-1a6a6bba4651'),
-            ('NY7-niveau', '42b9042f-5f20-4998-b0e5-c4deb6c5f42e'),
-            ('NY6-niveau', '414a035e-9c22-42eb-b035-daa7d7f2ade8'),
-            ('NY5-niveau', '819ae28e-04e0-4030-880e-7b699faeaff9'),
-            ('NY4-niveau', 'ff8c3f53-85ec-44d7-a9d6-07c619ac50df'),
-            ('NY4-niveau', '70c69826-4ba1-4e1e-82f0-4c47c89a7ecc'),
-            ('NY2-niveau', 'ec882c49-3cc2-4bc9-994f-a6f29136401b'),
-            ('NY1-niveau', 'd9bd186b-3c11-4dbf-92d1-4e3b61140302'),
-            ('Afdelings-niveau', '345a8893-eb1f-4e20-b76d-63b95b5809f6')
+            ('NY6-niveau', '39c301c8-fce9-42f3-b320-4d60c3bec545'),
+            ('NY5-niveau', '9effa27b-0af9-4e13-a460-0b23532c6e69'),
+            ('NY4-niveau', '430c5227-950c-4fa0-af14-4008da5d9ce1'),
+            ('NY3-niveau', '9298bd66-c07d-4b85-81d1-d48bbae6d1b2'),
+            ('NY2-niveau', '9b824adb-d6ea-46ff-9f06-b364eb0c4ea7'),
+            ('NY1-niveau', '6cb64de7-77f3-4e4b-98e8-b0bbf5488a24'),
+            ('Afdelings-niveau', '6dfe39d6-dc0d-45a1-abf7-34ad8ab6cb5c')
         ]
         self.sd_levels = OrderedDict(sd_levels)
 
@@ -90,7 +90,7 @@ class sdMox(object):
         if not from_date.day == 1:
             raise sdMoxException('Day of month must be 1')
 
-    def read_department(self, unit_code=None, unit_uuid=None):
+    def read_department(self, unit_code=None, unit_uuid=None, unit_level=None):
         from_date = self.virkning['sd:FraTidspunkt']['sd:TidsstempelDatoTid'][0:10]
         params = {
             'ActivationDate': from_date,
@@ -103,9 +103,12 @@ class sdMox(object):
             'EmploymentDepartmentIndicator': 'false'
         }
         if unit_code:
-            params['DepartmentIdentifier'] = unit_code,
+            params['DepartmentIdentifier'] = unit_code
         if unit_uuid:
             params['DepartmentUUIDIdentifier'] = unit_uuid
+        if unit_level:
+            params['DepartmentLevelIdentifier'] = unit_level
+        logger.debug('Read department, params: {}'.format(params))
 
         try:
             department = sd_lookup('GetDepartment20111201', params)
@@ -116,7 +119,9 @@ class sdMox(object):
             department_info = None
 
         if isinstance(department_info, list):
-            msg = 'Unit not unique. Code {}, uuid {}'.format(unit_code, unit_uuid)
+            msg = 'Unit not unique. Code {}, uuid {}, level {}'.format(
+                unit_code, unit_uuid, unit_level
+            )
             logger.error(msg)
             logger.error('Number units: {}'.format(len(department_info)))
             raise sdMoxException(msg)
@@ -152,7 +157,7 @@ class sdMox(object):
         is expected that the values are allredy validated to be legal and consistent.
         :param name: Name of the new unit.
         :param unit_code: Short unique code (enhedskode) for the unit.
-        :param parent: Parent unit for the unit.
+        :param parent: uuid for parent unit.
         :param uuid: uuid for the unit.
         """
         value_dict = {
@@ -195,7 +200,7 @@ class sdMox(object):
         xml = xmltodict.unparse(edit_dict)
         return xml
 
-    def _validate_unit_code(self, unit_code):
+    def _validate_unit_code(self, unit_code, unit_level=None):
         logger.info('Validating unit code {}'.format(unit_code))
         code_errors = []
         if len(unit_code) < 2:
@@ -205,8 +210,9 @@ class sdMox(object):
         if not unit_code.isalnum():
             code_errors.append('Ugyldigt tegn i enhedskode')
 
-        if not code_errors:
-            department = self.read_department(unit_code=unit_code)
+        if unit_level and not code_errors:
+            department = self.read_department(unit_code=unit_code,
+                                              unit_level=unit_level)
             if department is not None:
                 code_errors.append('Enhedskode er i brug')
         return code_errors
@@ -238,8 +244,9 @@ class sdMox(object):
         }
         return sd_address
 
-    def create_unit(self, name, unit_code, parent, unit_level,
-                    unit_uuid=None, test_run=True):
+    # TODO: Consider to also fold unit into a dict.
+    def create_unit(self, name, unit_code, parent, unit_level, unit_uuid=None,
+                    test_run=True):
         """
         Create a new unit in SD.
         :param name: Unit name.
@@ -266,22 +273,16 @@ class sdMox(object):
             raise sdMoxException(str(code_errors + uuid_errors))
 
         # Verify the parent department actually exist
-        print('Reading parent department')
-        parent_department = self.read_department(unit_code=parent)
-        print(parent)
-        print(type(parent_department))
-        print(len(parent_department))
-        
+        parent_department = self.read_department(unit_code=parent['unit_code'],
+                                                 unit_level=parent['level'])
         if not parent_department:
             raise sdMoxException('Forældrenheden finds ikke')
 
         unit_index = list(self.sd_levels.keys()).index(unit_level)
-        print(parent_department)
         parent_index = list(self.sd_levels.keys()).index(
             parent_department['DepartmentLevelIdentifier']
         )
-        print('Stopping')
-        1/0
+
         if not unit_index > parent_index:
             raise sdMoxException('Enhedstypen passer ikke til forældreenheden')
 
@@ -290,10 +291,12 @@ class sdMox(object):
             unit_uuid=unit_uuid,
             unit_code=unit_code,
             unit_level=unit_level,
-            parent=parent
+            parent=parent['uuid']
         )
-        print(xml)
+        logger.debug('Create unit xml: {}'.format(xml))
         if not test_run:
+            print('Calling amqp')
+            logger.info('Create unit {}, {}, {}'.format(name, unit_code, unit_uuid))
             self.call(xml)
         return unit_uuid
 
@@ -312,20 +315,29 @@ class sdMox(object):
 
         self._update_virkning(from_date)
 
-        parent_unit_code = unit_info['parent']['user_key']
+        parent = {
+            'unit_code': unit_info['parent']['user_key'],
+            'uuid': unit_info['parent']['uuid'],
+            'level': unit_info['parent']['org_unit_type']['user_key']
+        }
+
         # Temperary fix for frontend being unable to set user_key
         unit_code = unit_info['user_key'][0:4]
+        parent['unit_code'] =  unit_info['parent']['user_key'][0:4]
 
         try:
             uuid = self.create_unit(
                 name=unit_info['name'],
-                parent=parent_unit_code,
+                parent=parent,
                 unit_code=unit_code,
                 unit_level=unit_info['org_unit_type']['user_key'],
                 unit_uuid=unit_uuid,
                 test_run=test_run
             )
-            print(uuid)
+            if test_run:
+                logger.info('dry-run succeeded: {}'.format(uuid))
+            else:
+                logger.info('amqp-call succeeded: {}'.format(uuid))
         except sdMoxException as e:
             print('Error: {}'.format(e))
             msg = 'Test for unit {} failed: {}'.format(unit_uuid, e)
@@ -335,6 +347,9 @@ class sdMox(object):
                 logger.error(msg)
             return False
 
+        # TODO!!
+        return True
+        
         integration_values = {
             'time_planning': unit_info.get('time_planning', None),
             'formaalskode': None,
@@ -361,17 +376,19 @@ class sdMox(object):
                 address=address,
                 integration_value=integration_values
             )
+        return True
 
 
 if __name__ == '__main__':
     # from_date = datetime.datetime(2020, 5, 1, 0, 0)
     # to_date = datetime.datetime(2020, 6, 1, 0, 0)
 
-    unit_uuid = '9d6c8041-61c0-4900-a600-000001550002'
+    # ONSDAG: LAV EN NY ENHED OG INSÆT HER
+    unit_uuid = '563c6dd7-713c-4cae-b182-77cf7aed0952'
 
     mox = sdMox()
 
-    mox.create_unit_from_mo(unit_uuid, test_run=True)
+    print(mox.create_unit_from_mo(unit_uuid, test_run=False))
 
     # if False:
     #     unit_code = 'TST0'
