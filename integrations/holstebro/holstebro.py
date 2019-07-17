@@ -11,10 +11,10 @@ import ad_reader
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
 MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_CODE', 0)
-MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
+MOX_BASE = os.environ.get('MOX_BASE')
+MORA_BASE = os.environ.get('MORA_BASE')
 
-GLOBAL_GET_DATE = datetime.datetime(2019, 6, 26, 0, 0)
+GLOBAL_GET_DATE = datetime.datetime(2019, 7, 15, 0, 0)
 
 
 importer = ImportHelper(
