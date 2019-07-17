@@ -8,7 +8,7 @@ from os2mo_data_import import ImportHelper
 sys.path.append('../SD_Lon')
 import sd_importer
 
-sys.path.append('../')
+sys.path.append('../ad_integration')
 import ad_reader
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
@@ -77,7 +77,7 @@ sd = sd_importer.SdImport(
 sd.create_ou_tree(create_orphan_container=False)
 sd.create_employees()
 
-importer.import_all()
+# importer.import_all()
 
 """
 for info in sd.address_errors.values():

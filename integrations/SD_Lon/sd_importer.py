@@ -13,8 +13,9 @@ import datetime
 from anytree import Node
 
 from sd_common import sd_lookup, calc_employment_id
-sys.path.append('../')
+sys.path.append('../ad_integration')
 import ad_reader
+sys.path.append('../')
 import dawa_helper
 
 LOG_LEVEL = logging.DEBUG
