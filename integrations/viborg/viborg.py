@@ -15,12 +15,12 @@ MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
 MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_CODE', 0)
 MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
-MANAGER_FILE = os.environ.get('MANAGER_FILE', 'Organisationsdata.csv')
+MANAGER_FILE = os.environ.get('MANAGER_FILE')
 
 # ORIGIN FOR TESTS WIH ACTUAL API
 # GLOBAL_GET_DATE = datetime.datetime(2006, 1, 1, 0, 0) # will not work
 # GLOBAL_GET_DATE = datetime.datetime(2009, 1, 1, 0, 0)
-GLOBAL_GET_DATE = datetime.datetime(2019, 6, 27, 0, 0)
+GLOBAL_GET_DATE = datetime.datetime(2019, 7, 15, 0, 0)
 
 
 importer = ImportHelper(
@@ -77,7 +77,7 @@ sd = sd_importer.SdImport(
 sd.create_ou_tree(create_orphan_container=False)
 sd.create_employees()
 
-# importer.import_all()
+importer.import_all()
 
 """
 for info in sd.address_errors.values():
