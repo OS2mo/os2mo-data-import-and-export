@@ -188,7 +188,8 @@ class ADParameterReader(object):
                 if 'mail' in current_user:
                     current_user['EmailAddress'] = current_user['mail']
                     del current_user['mail']
-                self.results[current_user[settings['cpr_field']]] = current_user
+                cpr = current_user[settings['cpr_field']].replace('-', '')
+                self.results[cpr] = current_user
                 self.results[current_user['SamAccountName']] = current_user
 
         response = self._get_from_ad(user=user, cpr=cpr, school=False)
@@ -205,7 +206,9 @@ class ADParameterReader(object):
                 continue
             if not current_user:
                 current_user = {}
-            self.results[current_user[settings['cpr_field']]] = current_user
+
+            cpr = current_user[settings['cpr_field']].replace('-', '')
+            self.results[cpr] = current_user
             self.results[current_user['SamAccountName']] = current_user
         return current_user
 
