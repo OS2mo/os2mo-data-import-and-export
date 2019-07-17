@@ -141,8 +141,7 @@ class ChangeAtSD(object):
                     'SalaryCodeGroupIndicator': 'false'
                 }
             response = sd_lookup(url, params)
-            print(response)
-            1/0
+
             employment_response = response.get('Person', [])
             if not isinstance(employment_response, list):
                 employment_response = [employment_response]
@@ -835,10 +834,8 @@ def initialize_changed_at(from_date, run_db, force=False):
 if __name__ == '__main__':
     logger.info('***************')
     logger.info('Program started')
-    init = False
+    init = True
     from_date = datetime.datetime(2019, 6, 27, 0, 0)
-
-    sd_updater = ChangeAtSD(from_date)
 
     if init:
         run_db = Path(RUN_DB)
