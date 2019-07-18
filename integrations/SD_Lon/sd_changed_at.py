@@ -9,7 +9,7 @@ import sd_payloads
 from pathlib import Path
 from sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
-sys.path.append('../')
+sys.path.append('../ad_integtration')
 import ad_reader
 
 LOG_LEVEL = logging.DEBUG
@@ -835,7 +835,7 @@ if __name__ == '__main__':
     logger.info('***************')
     logger.info('Program started')
     init = True
-    from_date = datetime.datetime(2019, 6, 27, 0, 0)
+    from_date = datetime.datetime(2019, 5, 15, 0, 0)
 
     if init:
         run_db = Path(RUN_DB)
