@@ -9,7 +9,7 @@ import sd_payloads
 from pathlib import Path
 from sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
-sys.path.append('../ad_integtration')
+sys.path.append('../ad_integration')
 import ad_reader
 
 LOG_LEVEL = logging.DEBUG
