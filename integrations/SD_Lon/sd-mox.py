@@ -1,6 +1,7 @@
 import os
 import uuid
 import pika
+import time
 import logging
 import datetime
 import xmltodict
@@ -308,7 +309,6 @@ class sdMox(object):
             unit_level=unit_level,
             parent=parent['uuid']
         )
-        print(xml)
         logger.debug('Create unit xml: {}'.format(xml))
         if not test_run:
             print('Calling amqp')
@@ -399,35 +399,44 @@ class sdMox(object):
 
 
 if __name__ == '__main__':
-    # from_date = datetime.datetime(2020, 5, 1, 0, 0)
+    from_date = datetime.datetime(2019, 7, 1, 0, 0)
     # to_date = datetime.datetime(2020, 6, 1, 0, 0)
 
-    mox = sdMox()
+    mox = sdMox(from_date)
 
     # unit_uuid = '32d9b4ed-eff2-4fa9-a372-c697eed2a597'
     # print(mox.create_unit_from_mo(unit_uuid, test_run=False))
 
+    unit_code = '06GÅ'
+    unit_level = 'Afdelings-niveau'
     parent = {
         'unit_code': '32D9',
         'uuid': '32d9b4ed-eff2-4fa9-a372-c697eed2a597',
         'level': 'NY2-niveau'
     }
 
-    unit_code = '01GÅ'
+    # unit_uuid = mox.create_unit(
+    #     # unit_uuid=unit_uuid,
+    #     name='Daw dav',
+    #     unit_code=unit_code,
+    #     unit_level=unit_level,
+    #     parent=parent,
+    #     test_run=False
+    # )
+    # print(unit_uuid)
 
-    unit_uuid = mox.create_unit(
-        # unit_uuid=unit_uuid,
-        name='Dav',
-        unit_code=unit_code,
-        unit_level='Afdelings-niveau',
-        parent=parent,
-        test_run=True
-    )
-    print(unit_uuid)
-    #     1/0
-    #     department = mox.read_department(unit_code)
-    #     # errors = mox._check_department(department, name, unit_code, unit_uuid)
-    #     # print(errors)
+    # time.sleep(2)
+
+    # Der er noget galt, vi finder ikke enheder som helt sikkert findes.
+    department = mox.read_department(unit_code=unit_code, unit_level=unit_level)
+
+    unit_uuid = '31b43f5d-d8e8-4bd2-8420-a41148ca229f'
+    unit_name = 'Daw dav'
+    if department:
+        errors = mox._check_department(department, unit_name, unit_code, unit_uuid)
+        print(errors)
+    else:
+        print('Department does not exist')
 
     # if False:
     #     xml = mox.edit_unit(
