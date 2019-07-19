@@ -293,6 +293,7 @@ class sdMox(object):
             unit_level=unit_level,
             parent=parent['uuid']
         )
+        print(xml)
         logger.debug('Create unit xml: {}'.format(xml))
         if not test_run:
             print('Calling amqp')
@@ -302,7 +303,14 @@ class sdMox(object):
 
     def edit_unit(self, unit_uuid, phone=None, pnummer=None, address=None,
                   integration_values=None):
-        pass
+        print('I want to edit:')
+        print('Phone: {}'.format(phone))
+        print('pnummer: {}'.format(pnummer))
+        print()
+        print('address: {}'.format(adress))
+        print()
+        print('Integration values: {}'.format(integration_values))
+        
 
     def create_unit_from_mo(self, unit_uuid, test_run=True):
         logger.info('Create {} from MO, test run: {}'.format(unit_uuid, test_run))
@@ -345,10 +353,7 @@ class sdMox(object):
                 logger.info(msg)
             else:
                 logger.error(msg)
-            return False
-
-        # TODO!!
-        return True
+            return False        
         
         integration_values = {
             'time_planning': unit_info.get('time_planning', None),
@@ -383,22 +388,28 @@ if __name__ == '__main__':
     # from_date = datetime.datetime(2020, 5, 1, 0, 0)
     # to_date = datetime.datetime(2020, 6, 1, 0, 0)
 
-    # ONSDAG: LAV EN NY ENHED OG INSÆT HER
-    unit_uuid = '563c6dd7-713c-4cae-b182-77cf7aed0952'
-
     mox = sdMox()
 
-    print(mox.create_unit_from_mo(unit_uuid, test_run=False))
+    # unit_uuid = '32d9b4ed-eff2-4fa9-a372-c697eed2a597'
+    #print(mox.create_unit_from_mo(unit_uuid, test_run=False))
 
-    # if False:
-    #     unit_code = 'TST0'
-    #     unit_uuid = mox.create_unit(
-    #         unit_uuid=unit_uuid,
-    #         name='Dav',
-    #         unit_code=unit_code,
-    #         unit_level='Afdelings-niveau',
-    #         parent=parent_uuid
-    #     )
+    parent = {
+        'unit_code': 32D9,
+        'uuid': 32d9b4ed-eff2-4fa9-a372-c697eed2a597,
+        'level': 'NY2-niveau'
+    }
+
+    unit_code = '01GÅ'
+
+    unit_uuid = mox.create_unit(
+        unit_uuid=unit_uuid,
+        name='Dav',
+        unit_code=unit_code,
+        unit_level='Afdelings-niveau',
+        parent=parent
+        test_run=True
+    )
+    print(unit_uuid)
     #     1/0
     #     department = mox.read_department(unit_code)
     #     # errors = mox._check_department(department, name, unit_code, unit_uuid)
