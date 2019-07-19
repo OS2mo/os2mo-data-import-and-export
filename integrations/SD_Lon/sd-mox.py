@@ -10,7 +10,22 @@ from collections import OrderedDict
 from sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
 
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'sd_mox.log'
+
 logger = logging.getLogger('sdMox')
+
+for name in logging.root.manager.loggerDict:
+    if name in ('sdMox'):
+        logging.getLogger(name).setLevel(LOG_LEVEL)
+    else:
+        logging.getLogger(name).setLevel(logging.ERROR)
+
+logging.basicConfig(
+    format='%(levelname)s %(asctime)s %(name)s %(message)s',
+    level=LOG_LEVEL,
+    filename=LOG_FILE
+)
 
 
 INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
@@ -307,10 +322,9 @@ class sdMox(object):
         print('Phone: {}'.format(phone))
         print('pnummer: {}'.format(pnummer))
         print()
-        print('address: {}'.format(adress))
+        print('address: {}'.format(address))
         print()
         print('Integration values: {}'.format(integration_values))
-        
 
     def create_unit_from_mo(self, unit_uuid, test_run=True):
         logger.info('Create {} from MO, test run: {}'.format(unit_uuid, test_run))
@@ -331,7 +345,7 @@ class sdMox(object):
 
         # Temperary fix for frontend being unable to set user_key
         unit_code = unit_info['user_key'][0:4]
-        parent['unit_code'] =  unit_info['parent']['user_key'][0:4]
+        parent['unit_code'] = unit_info['parent']['user_key'][0:4]
 
         try:
             uuid = self.create_unit(
@@ -353,8 +367,8 @@ class sdMox(object):
                 logger.info(msg)
             else:
                 logger.error(msg)
-            return False        
-        
+            return False
+
         integration_values = {
             'time_planning': unit_info.get('time_planning', None),
             'formaalskode': None,
@@ -391,22 +405,22 @@ if __name__ == '__main__':
     mox = sdMox()
 
     # unit_uuid = '32d9b4ed-eff2-4fa9-a372-c697eed2a597'
-    #print(mox.create_unit_from_mo(unit_uuid, test_run=False))
+    # print(mox.create_unit_from_mo(unit_uuid, test_run=False))
 
     parent = {
-        'unit_code': 32D9,
-        'uuid': 32d9b4ed-eff2-4fa9-a372-c697eed2a597,
+        'unit_code': '32D9',
+        'uuid': '32d9b4ed-eff2-4fa9-a372-c697eed2a597',
         'level': 'NY2-niveau'
     }
 
     unit_code = '01GÅ'
 
     unit_uuid = mox.create_unit(
-        unit_uuid=unit_uuid,
+        # unit_uuid=unit_uuid,
         name='Dav',
         unit_code=unit_code,
         unit_level='Afdelings-niveau',
-        parent=parent
+        parent=parent,
         test_run=True
     )
     print(unit_uuid)
