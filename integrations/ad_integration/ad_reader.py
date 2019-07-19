@@ -188,12 +188,11 @@ class ADParameterReader(object):
                 if 'mail' in current_user:
                     current_user['EmailAddress'] = current_user['mail']
                     del current_user['mail']
-                cpr = current_user[settings['cpr_field']].replace('-', '')
-                self.results[cpr] = current_user
+                school_cpr = current_user[settings['cpr_field']].replace('-', '')
+                self.results[school_cpr] = current_user
                 self.results[current_user['SamAccountName']] = current_user
 
         response = self._get_from_ad(user=user, cpr=cpr, school=False)
-
         current_user = {}
         for current_user in response:
             settings = self._get_setting(school=False)
