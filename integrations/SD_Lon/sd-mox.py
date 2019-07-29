@@ -126,13 +126,15 @@ class sdMox(object):
             params['DepartmentLevelIdentifier'] = unit_level
         logger.debug('Read department, params: {}'.format(params))
 
-        try:
-            department = sd_lookup('GetDepartment20111201', params)
-            department_info = department.get('Department', None)
-        except KeyError:
-            # Bug in SD soap-interface, most likely these units actually do exist
-            # department_info = 'Unknown department'
-            department_info = None
+        department = sd_lookup('GetDepartment20111201', params)
+        department_info = department.get('Department', None)
+        # try:
+        #     department = sd_lookup('GetDepartment20111201', params)
+        #     department_info = department.get('Department', None)
+        # except KeyError:
+        #     # Bug in SD soap-interface, most likely these units actually do exist
+        #     # department_info = 'Unknown department'
+        #     department_info = None
 
         if isinstance(department_info, list):
             msg = 'Unit not unique. Code {}, uuid {}, level {}'.format(
