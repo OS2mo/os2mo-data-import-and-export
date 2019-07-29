@@ -127,6 +127,7 @@ def _create_mo_association(user, org_unit, association_type, from_string):
         ]
         url = BASE_URL + 'details/create'
         response = requests.post(url, json=payload)
+        response.raise_for_status()
         uuid = response.json()
         return uuid
     else:
@@ -153,6 +154,7 @@ def _create_mo_role(user, org_unit, role_type, from_string):
         ]
         url = BASE_URL + 'details/create'
         response = requests.post(url, json=payload)
+        response.raise_for_status()
         uuid = response.json()
         return uuid
     else:
