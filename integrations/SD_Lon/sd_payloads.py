@@ -1,12 +1,18 @@
-def new_department(department, org, unit_type):
+def create_org_unit(department, name, org, unit_type, from_date):
+    # TODO: MO currently fails when creating future sub-units
+    activation_date = '2019-07-01'
+
+
     payload = {
         'uuid': department['DepartmentUUIDIdentifier'],
         'user_key': department['DepartmentIdentifier'],
-        'name': 'Unnamed department',
-        'parent': {'uuid': org},
+        'name': name,
+        'parent': {
+            'uuid': department['DepartmentReference']['DepartmentUUIDIdentifier']
+        },
         'org_unit_type': {'uuid': unit_type},
         'validity': {
-            'from': '1900-01-01',
+            'from': from_date,
             'to': None
         }
     }
