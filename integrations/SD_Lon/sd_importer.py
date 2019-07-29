@@ -13,8 +13,9 @@ import datetime
 from anytree import Node
 
 from sd_common import sd_lookup, calc_employment_id
-sys.path.append('../')
+sys.path.append('../ad_integration')
 import ad_reader
+sys.path.append('../')
 import dawa_helper
 
 LOG_LEVEL = logging.DEBUG
@@ -213,7 +214,7 @@ class SdImport(object):
                 parent_ref=parent_uuid)
 
             for row in self.manager_rows:
-                if row['afdeling'] == user_key:
+                if row['afdeling'].upper() == user_key.upper():
                     row['uuid'] = unit_id
 
         if 'ContactInformation' in info:

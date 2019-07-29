@@ -9,7 +9,7 @@ import sd_payloads
 from pathlib import Path
 from sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
-sys.path.append('../')
+sys.path.append('../ad_integration')
 import ad_reader
 
 LOG_LEVEL = logging.DEBUG
@@ -516,7 +516,7 @@ class ChangeAtSD(object):
             skip = False
             # If status is present, we have a potential creation
             if eng['status_list']:
-                # The EmploymentStatusCode can take a number of magial values
+                # The EmploymentStatusCode can take a number of magical values.
                 # that must be handled seperately.
                 for status in eng['status_list']:
                     logger.info('Status is: {}'.format(status))
@@ -650,9 +650,9 @@ class ChangeAtSD(object):
             if not self.mo_person:
                 for employment_info in sd_engagement:
                     assert (employment_info['EmploymentStatus']
-                            ['EmploymentStatusCode']) in ('S', '8')
+                            ['EmploymentStatusCode']) in ('S', '7', '8')
                 logger.warning(
-                    'Employment deleted (S) or ended before initial import (8)'
+                    'Employment deleted or ended before initial import.'
                 )
                 continue
 
@@ -835,7 +835,7 @@ if __name__ == '__main__':
     logger.info('***************')
     logger.info('Program started')
     init = True
-    from_date = datetime.datetime(2019, 6, 27, 0, 0)
+    from_date = datetime.datetime(2019, 7, 15, 0, 0)
 
     if init:
         run_db = Path(RUN_DB)
