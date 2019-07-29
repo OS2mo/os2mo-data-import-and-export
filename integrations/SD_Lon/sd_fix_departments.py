@@ -75,7 +75,7 @@ class FixDepartmentsSD(object):
         logger.debug('Create department payload: {}'.format(payload))
 
         response = self.helper._mo_post('ou/create', payload)
-        assert response.status_code == 201
+        response.raise_for_status()
         logger.info('Created unit {}'.format(
             department['DepartmentIdentifier'])
         )
