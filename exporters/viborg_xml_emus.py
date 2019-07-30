@@ -45,6 +45,7 @@ for i in logging.root.manager.loggerDict:
 
 engagement_counter = collections.Counter()
 
+
 def get_emus_address(mh, ou_uuid):
     """ try both adresse and adgangsadresse
     return {} if not found or uuid is falsy
@@ -80,7 +81,7 @@ def export_ou_emus(mh, nodes, emus_file):
 
     rows = []
     for node in cq.PreOrderIter(nodes['root']):
-        ou = parent = mh.read_ou(node.name)
+        ou = mh.read_ou(node.name)
         if not engagement_counter[ou["uuid"]]:
             logger.info("skipping dept %s with no non-hourly-paid employees", ou["uuid"])
             continue
@@ -295,12 +296,15 @@ def build_manager_rows(mh, ou, manager):
         rows.append(row)
     return rows
 
+
 def hourly_paid(engagement):
     "workers hourly paid are determined by user_key prefix"
-    hp = engagement["user_key"][0] in ["8","9"]
+    hp = engagement["user_key"][0] in ["8", "9"]
     if hp:
-        logger.info("engagement %s with user_key %s considered hourly paid", engagement["uuid"], engagement["user_key"])
+        logger.info("engagement %s with user_key %s considered hourly paid",
+                    engagement["uuid"], engagement["user_key"])
     return hp
+
 
 def engagement_count(mh, ou):
     engagement_counter[ou["uuid"]] += 1
@@ -318,7 +322,7 @@ def export_e_emus(mh, nodes, emus_file):
     engagement_rows = []
 
     for node in cq.PreOrderIter(nodes['root']):
-        ou = parent = mh.read_ou(node.name)
+        ou = mh.read_ou(node.name)
 
         # normal engagements - original export
         for engagement in mh._mo_lookup(
@@ -387,7 +391,6 @@ def main(
     # Write the xml file
     emus_xml_file.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
     emus_xml_file.write("<OS2MO>\n")
-
 
     # had to switch the sequence - write e to tmp before append after ou
     temp_file = io.StringIO()
