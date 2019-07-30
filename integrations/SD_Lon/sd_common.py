@@ -4,7 +4,7 @@ import logging
 import hashlib
 import requests
 import xmltodict
-
+from pathlib import Path
 logger = logging.getLogger("sdCommon")
 
 INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
@@ -32,12 +32,13 @@ def sd_lookup(url, params={}):
         m.update((str(key) + str(payload[key])).encode())
     m.update(full_url.encode())
     lookup_id = m.hexdigest()
-    lookup_id = 'sd_' + lookup_id + '.p'
-    try:
-        with open(lookup_id, 'rb') as f:
+    cache_file = Path('sd_' + lookup_id + '.p')
+
+    if cache_file.is_file():
+        with open(str(cache_file), 'rb') as f:
             response = pickle.load(f)
         logger.info('This SD lookup was found in cache: {}'.format(lookup_id))
-    except FileNotFoundError:
+    else:
         response = requests.get(
             full_url,
             params=payload,
@@ -46,7 +47,12 @@ def sd_lookup(url, params={}):
         with open(lookup_id, 'wb') as f:
             pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
 
-    xml_response = xmltodict.parse(response.text)[url]
+    dict_response = xmltodict.parse(response.text)
+    if url in dict_response:
+        xml_response = dict_response[url]
+    else:
+        logger.error('Envelope: {}'.format(dict_response['Envelope']))
+        xml_response = {}
     logger.debug('Done with {}'.format(url))
     return xml_response
 
