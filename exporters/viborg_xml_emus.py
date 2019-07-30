@@ -18,6 +18,7 @@ import datetime
 import requests
 import uuid
 import os
+import io
 import logging
 import collections
 from xml.sax.saxutils import escape
@@ -41,6 +42,8 @@ for i in logging.root.manager.loggerDict:
         logging.getLogger(i).setLevel(LOG_LEVEL)
     else:
         logging.getLogger(i).setLevel(logging.WARNING)
+
+engagement_counter = collections.Counter()
 
 
 def get_emus_address(mh, ou_uuid):
@@ -73,21 +76,15 @@ def get_emus_address(mh, ou_uuid):
 
 
 def export_ou_emus(mh, nodes, emus_file):
-    engagement_counter = collections.Counter()
     fieldnames = ['startDate', 'endDate', 'parentOrgUnit', 'manager',
                   'longName', 'street', 'zipCode', 'city', 'phoneNumber']
 
     rows = []
     for node in cq.PreOrderIter(nodes['root']):
-        ou = parent = mh.read_ou(node.name)
-
-        engagements = mh._mo_lookup(ou["uuid"], 'ou/{}/details/engagement')
-        # make engagements count all the way up
-        if len(engagements):
-            engagement_counter[ou["uuid"]] += len(engagements)
-            while parent and parent.get("uuid") and parent.get("parent"):
-                parent = mh.read_ou(parent["parent"]["uuid"])
-                engagement_counter[parent["uuid"]] += len(engagements)
+        ou = mh.read_ou(node.name)
+        if not engagement_counter[ou["uuid"]]:
+            logger.info("skipping dept %s with no non-hourly-paid employees", ou["uuid"])
+            continue
 
         manager = mh.read_organisation_managers(node.name)
         manager_uuid = manager["uuid"] if manager else ''
@@ -300,6 +297,23 @@ def build_manager_rows(mh, ou, manager):
     return rows
 
 
+def hourly_paid(engagement):
+    "workers hourly paid are determined by user_key prefix"
+    hp = engagement["user_key"][0] in ["8", "9"]
+    if hp:
+        logger.info("engagement %s with user_key %s considered hourly paid",
+                    engagement["uuid"], engagement["user_key"])
+    return hp
+
+
+def engagement_count(mh, ou):
+    engagement_counter[ou["uuid"]] += 1
+    parent = ou
+    while parent and parent.get("uuid") and parent.get("parent"):
+        parent = mh.read_ou(parent["parent"]["uuid"])
+        engagement_counter[parent["uuid"]] += 1
+
+
 def export_e_emus(mh, nodes, emus_file):
     fieldnames = ['entryDate', 'leaveDate', 'cpr', 'firstName',
                   'lastName', 'workPhone', 'workContract', 'workContractText',
@@ -315,8 +329,11 @@ def export_e_emus(mh, nodes, emus_file):
                 ou["uuid"],
                 'ou/{}/details/engagement'
         ):
+            if hourly_paid(engagement):
+                continue
             logger.info("adding engagement %s", engagement["uuid"])
             engagement_rows.append(build_engagement_row(mh, ou, engagement))
+            engagement_count(mh, ou)
 
         # manager engagements - above mentioned musskema adaptation
         for manager in mh._mo_lookup(
@@ -375,8 +392,12 @@ def main(
     emus_xml_file.write("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
     emus_xml_file.write("<OS2MO>\n")
 
+    # had to switch the sequence - write e to tmp before append after ou
+    temp_file = io.StringIO()
+    export_e_emus(mh, nodes, temp_file)
     export_ou_emus(mh, nodes, emus_xml_file)
-    export_e_emus(mh, nodes, emus_xml_file)
+
+    emus_xml_file.write(temp_file.getvalue())
 
     emus_xml_file.write("</OS2MO>")
 
