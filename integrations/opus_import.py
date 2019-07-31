@@ -10,10 +10,10 @@ logger = logging.getLogger("opusImport")
 
 for name in logging.root.manager.loggerDict:
     if name in ('opusImport', 'moImporterMoraTypes', 'moImporterMoxTypes',
-                'moImporterUtilities', 'moImporterHelpers'):
+                'moImporterUtilities', 'moImporterHelpers', 'ADReader'):
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
-        logging.getLogger(name).setLevel(logging.WARNING)
+        logging.getLogger(name).setLevel(logging.ERROR)
 
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(name)s %(message)s',
@@ -35,7 +35,8 @@ def _parse_phone(phone_number):
 
 class OpusImport(object):
 
-    def __init__(self, importer, org_name, xml_data, import_first=False):
+    def __init__(self, importer, org_name, xml_data, ad_reader=None,
+                 import_first=False):
         """ If import first is False, the first unit will be skipped """
         self.importer = importer
         self.import_first = import_first
@@ -57,6 +58,15 @@ class OpusImport(object):
             system_name='Opus'
         )
 
+        self.ad_people = {}
+        if ad_reader:
+            self.ad_reader = ad_reader
+            self.importer.new_itsystem(
+                identifier='AD',
+                system_name='Active Directory'
+            )
+            self.ad_reader.cache_all()
+
         self.employee_addresses = {}
         self._add_klasse('AddressPostUnit', 'Postadresse',
                          'org_unit_address_type', 'DAR')
@@ -73,6 +83,17 @@ class OpusImport(object):
         self._add_klasse('AdressePostEmployee', 'Postadresse',
                          'employee_address_type', 'DAR')
         self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
+
+    def _update_ad_map(self, cpr):
+        logger.debug('Update cpr {}'.format(cpr))
+        self.ad_people[cpr] = {}
+        if self.ad_reader:
+            response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
+            if response:
+                logger.debug('AD response: {}'.format(response))
+                self.ad_people[cpr] = response
+            else:
+                logger.debug('Not found in AD')
 
     def insert_org_units(self):
         for unit in self.units:
@@ -230,6 +251,13 @@ class OpusImport(object):
             # print(employee['@action'])
             return
 
+        self._update_ad_map(cpr)
+
+        if 'ObjectGuid' in self.ad_people[cpr]:
+            uuid = self.ad_people[cpr]['ObjectGuid']
+        else:
+            uuid = None
+
         date_from = employee['entryDate']
         date_to = employee['leaveDate']
 
@@ -240,7 +268,16 @@ class OpusImport(object):
             self.importer.add_employee(
                 identifier=cpr,
                 name=(employee['firstName'], employee['lastName']),
-                cpr_no=cpr
+                cpr_no=cpr,
+                uuid=uuid
+            )
+
+        if 'SamAccountName' in self.ad_people[cpr]:
+            self.importer.join_itsystem(
+                employee=cpr,
+                user_key=self.ad_people[cpr]['SamAccountName'],
+                itsystem_ref='AD',
+                date_from=None
             )
 
         if 'userId' in employee:
