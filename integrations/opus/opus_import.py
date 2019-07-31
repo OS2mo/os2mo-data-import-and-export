@@ -1,6 +1,9 @@
 # -- coding: utf-8 --
+import sys
 import logging
 import xmltodict
+
+sys.path.append('../')
 import dawa_helper
 
 LOG_LEVEL = logging.DEBUG
