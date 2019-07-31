@@ -6,6 +6,8 @@ from pathlib import Path
 
 import opus_import
 from opus_exceptions import RunDBInitException
+from opus_exceptions import NoNewerDumpAvailable
+from opus_exceptions import RedundantForceException
 
 RUN_DB = os.environ.get('RUN_DB', None)
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'Opus Import')
@@ -29,7 +31,6 @@ def _read_available_dumps():
     return dumps
 
 
-
 def _local_db_insert(insert_tuple):
     conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
@@ -41,6 +42,36 @@ def _local_db_insert(insert_tuple):
     c.execute(query, final_tuple)
     conn.commit()
     conn.close()
+
+
+def _initialize_db(run_db):
+    logger.info('Force is true, create new db')
+    conn = sqlite3.connect(str(run_db))
+    c = conn.cursor()
+    c.execute("""
+    CREATE TABLE runs (id INTEGER PRIMARY KEY,
+    dump_date timestamp, status text)
+    """)
+    conn.commit()
+    conn.close()
+
+
+def _next_xml_file(run_db, dumps):
+    conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
+    c = conn.cursor()
+    query = 'select * from runs order by id desc limit 1'
+    c.execute(query)
+    row = c.fetchone()
+    latest_date = row[1]
+    next_date = None
+
+    for date in sorted(dumps.keys()):
+        if date > latest_date:
+            next_date = date
+            break
+    if next_date is None:
+        raise NoNewerDumpAvailable('No newer XML dump is available')
+    return next_date
 
 
 def start_opus_import(importer, ad_reader=None, force=False):
@@ -56,26 +87,14 @@ def start_opus_import(importer, ad_reader=None, force=False):
         if not force:
             raise RunDBInitException('Local base not correctly initialized')
         else:
-            logger.info('Force is true, create new db')
-            conn = sqlite3.connect(str(run_db))
-            c = conn.cursor()
-            c.execute("""
-              CREATE TABLE runs (id INTEGER PRIMARY KEY,
-                dump_date timestamp, status text)
-            """)
-            conn.commit()
-            conn.close()
+            _initialize_db(run_db)
         xml_date = sorted(dumps.keys())[0]
     else:
-        conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
-        c = conn.cursor()
-        query = 'select * from runs order by id desc limit 1'
-        c.execute(query)
-        row = c.fetchone()
-        xml_date = row[0]
+        if force:
+            raise RedundantForceException('Used force on existing db')
+        xml_date = _next_xml_file(run_db, dumps)
 
     xml_file = dumps[xml_date]
-
     _local_db_insert((xml_date, 'Running since {}'))
 
     opus_importer = opus_import.OpusImport(
@@ -86,7 +105,6 @@ def start_opus_import(importer, ad_reader=None, force=False):
         import_first=True
     )
 
-    
     logger.info('Start import')
     opus_importer.insert_org_units()
     opus_importer.insert_employees()
