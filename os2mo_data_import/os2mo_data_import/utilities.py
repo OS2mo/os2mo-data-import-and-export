@@ -17,6 +17,7 @@ from integration_abstraction.integration_abstraction import IntegrationAbstracti
 from os2mo_data_import.mora_data_types import (
     OrganisationUnitType,
     TerminationType,
+    EngagementTerminationType,
     EmployeeType
 )
 
@@ -483,8 +484,8 @@ class ImportUtility(object):
         data['engagement'] = self._get_detail(uuid, 'engagement')
         data['association'] = self._get_detail(uuid, 'association')
 
-        # In case of en explicit termination, we terminate the employee and return
-        # imidiately.
+        # In case of en explicit termination, we terminate the employee or
+        # employment and return imidiately.
         for detail in details:
             if isinstance(detail, TerminationType):
                 logger.info(
@@ -493,6 +494,14 @@ class ImportUtility(object):
                     )
                 )
                 self._terminate_employee(uuid, date_from=detail.date_from)
+                return uuid
+            if isinstance(detail, EngagementTerminationType):
+                logger.info(
+                    'Explicit termination of eng {}'.format(
+                        detail.engagement_uuid
+                    )
+                )
+                self._terminate_details(detail.engagement_uuid, 'engagement')
                 return uuid
 
         if details:

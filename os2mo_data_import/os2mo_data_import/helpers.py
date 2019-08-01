@@ -22,7 +22,8 @@ from os2mo_data_import.mora_data_types import (
     ItsystemType,
     OrganisationUnitType,
     EmployeeType,
-    TerminationType
+    TerminationType,
+    EngagementTerminationType
 )
 
 from os2mo_data_import.mox_data_types import (
@@ -440,6 +441,18 @@ class ImportHelper(object):
         :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.TerminationType`
         """
         termination = TerminationType(kwargs['date_from'])
+
+        self.employee_details[employee].append(termination)
+
+    def terminate_engagement(self, employee, **kwargs):
+        """
+        Terminate an engagement. Unfortunately it is only possibly to use
+        a valdity of today.
+
+        :param str employee: Reference to the employee
+        :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.EngagementTerminationType`
+        """
+        termination = EngagementTerminationType(kwargs['engagement_uuid'])
 
         self.employee_details[employee].append(termination)
 
