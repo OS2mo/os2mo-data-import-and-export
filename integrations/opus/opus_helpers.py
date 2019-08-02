@@ -3,12 +3,13 @@ import logging
 import sqlite3
 import datetime
 from pathlib import Path
+from freezegun import freeze_time
 
 import opus_import
 from opus_exceptions import RunDBInitException
 from opus_exceptions import NoNewerDumpAvailable
 from opus_exceptions import RedundantForceException
-
+from opus_exceptions import ImporterrunNotCompleted
 RUN_DB = os.environ.get('RUN_DB', None)
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'Opus Import')
 
@@ -64,6 +65,10 @@ def _next_xml_file(run_db, dumps):
     row = c.fetchone()
     latest_date = row[1]
     next_date = None
+    if 'Running' in row[2]:
+        print('Critical error')
+        logging.error('Previous run did not return!')
+        raise ImporterrunNotCompleted('Previous run did not return!')
 
     for date in sorted(dumps.keys()):
         if date > latest_date:
@@ -97,19 +102,21 @@ def start_opus_import(importer, ad_reader=None, force=False):
     xml_file = dumps[xml_date]
     _local_db_insert((xml_date, 'Running since {}'))
 
-    opus_importer = opus_import.OpusImport(
-        importer,
-        org_name=MUNICIPALTY_NAME,
-        xml_data=str(xml_file),
-        ad_reader=ad_reader,
-        import_first=True
-    )
+    with freeze_time(xml_date):
 
-    logger.info('Start import')
-    opus_importer.insert_org_units()
-    opus_importer.insert_employees()
-    opus_importer.add_addresses_to_employees()
-    opus_importer.importer.import_all()
-    logger.info('Ended initial import')
+        opus_importer = opus_import.OpusImport(
+            importer,
+            org_name=MUNICIPALTY_NAME,
+            xml_data=str(xml_file),
+            ad_reader=ad_reader,
+            import_first=True
+        )
 
-    _local_db_insert((xml_date, 'Import ended: {}'))
+        logger.info('Start import')
+        opus_importer.insert_org_units()
+        opus_importer.insert_employees()
+        opus_importer.add_addresses_to_employees()
+        opus_importer.importer.import_all()
+        logger.info('Ended import')
+
+        _local_db_insert((xml_date, 'Import ended: {}'))
