@@ -20,6 +20,33 @@ START_DATE = datetime.datetime(2019, 7, 15, 0, 0)
 # Maybe we should do the logging configuration here!
 logger = logging.getLogger("opusImport")
 
+def compare_files():
+    import difflib
+    dumps = _read_available_dumps()
+    names = sorted(dumps.keys())
+    
+    # with .open(mode='r') as xmldump:
+    #     file0 = xmldump.read()
+    # with open(str(dumps[names[1]])) as xmldump:
+    #     file1 = xmldump.read()
+
+    # print(file0)
+
+    #    print(dumps[names[0]].read_text().split('\n'))
+    
+    diff = difflib.ndiff(
+        dumps[names[0]].read_text().split('\n'),
+        dumps[names[1]].read_text().split('\n')
+    )
+
+    line_number = 0
+    for d in diff:
+        line_number += 1
+        # if d[0] in ('+', '-'):
+        if d[0] == '+':
+            msg = 'Line: {}: {}'.format(str(line_number).zfill(7), d)
+            print(msg)
+    # print(list(diff)[0])
 
 def _read_available_dumps():
     dumps = {}
@@ -102,21 +129,22 @@ def start_opus_import(importer, ad_reader=None, force=False):
     xml_file = dumps[xml_date]
     _local_db_insert((xml_date, 'Running since {}'))
 
-    with freeze_time(xml_date):
+    opus_importer = opus_import.OpusImport(
+        importer,
+        org_name=MUNICIPALTY_NAME,
+        xml_data=str(xml_file),
+        ad_reader=ad_reader,
+        import_first=True
+    )
+    logger.info('Start import')
+    opus_importer.insert_org_units()
+    opus_importer.insert_employees()
+    opus_importer.add_addresses_to_employees()
+    opus_importer.importer.import_all()
+    logger.info('Ended import')
 
-        opus_importer = opus_import.OpusImport(
-            importer,
-            org_name=MUNICIPALTY_NAME,
-            xml_data=str(xml_file),
-            ad_reader=ad_reader,
-            import_first=True
-        )
+    _local_db_insert((xml_date, 'Import ended: {}'))
 
-        logger.info('Start import')
-        opus_importer.insert_org_units()
-        opus_importer.insert_employees()
-        opus_importer.add_addresses_to_employees()
-        opus_importer.importer.import_all()
-        logger.info('Ended import')
 
-        _local_db_insert((xml_date, 'Import ended: {}'))
+if __name__ == '__main__':
+    compare_files()
