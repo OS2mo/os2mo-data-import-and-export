@@ -120,9 +120,18 @@ class OpusImport(object):
             response = self.session.get(url=self.mox_base + resource)
             response.raise_for_status()
             data = response.json()
+            logger.debug('Organisationsfunktionsinfo: {}'.format(data))
+
             data = data[engagement_info['uuid']][0]['registreringer'][0]
             user_uuid = data['relationer']['tilknyttedebrugere'][0]['uuid']
 
+            valid = data['tilstande']['organisationfunktiongyldighed']
+            valid = valid[0]['gyldighed']
+            if valid == 'Inaktiv':
+                logger.debug('Inactive user, skip')
+                return {}
+
+            logger.debug('Active user, terminate')
             # Now, get user_key for user:
             if self.org_uuid is None:
                 # We will get a hit unless this is a re-import, and in this case we
