@@ -46,7 +46,8 @@ if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
 
 class SdImport(object):
     def __init__(self, importer, org_name, municipality_code,
-                 import_date_from, ad_info=None, manager_rows=[]):
+                 import_date_from, ad_info=None, org_only=False,
+                 manager_rows=[]):
         self.base_url = 'https://service.sd.dk/sdws/'
 
         self.double_employment = []
@@ -80,7 +81,11 @@ class SdImport(object):
             self.ad_reader.cache_all()
 
         self.nodes = {}  # Will be populated when org-tree is created
-        self.add_people()
+
+        self.org_only = org_only
+        if not org_only:
+            self.add_people()
+
         self.info = self._read_department_info()
         for level in [(1040, 'Leder'), (1035, 'Chef'), (1030, 'Direktør')]:
             self._add_klasse(level[0], level[1], 'manager_level')
