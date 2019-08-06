@@ -30,7 +30,7 @@ sd = sd_importer.SdImport(
     org_only=True
 )
 
-sd.create_ou_tree()
+sd.create_ou_tree(create_orphan_container=True)
 
 importer.import_all()
 
