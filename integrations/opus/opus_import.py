@@ -1,6 +1,8 @@
 # -- coding: utf-8 --
 import os
 import sys
+import uuid
+import hashlib
 import logging
 import datetime
 import xmltodict
@@ -62,6 +64,7 @@ class OpusImport(object):
         # Update the above values
         municipality_code = self.parser(xml_data)
 
+        self.org_name = org_name
         self.importer.add_organisation(
             identifier=org_name,
             user_key=org_name,
@@ -98,6 +101,21 @@ class OpusImport(object):
         self._add_klasse('AdressePostEmployee', 'Postadresse',
                          'employee_address_type', 'DAR')
         self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
+
+    def _generate_uuid(self, value):
+        """
+        Generate a semi-random, predictable uuid based on org name
+        and a unique value.
+        """
+        base_hash = hashlib.md5(self.org_name.encode())
+        base_digest = base_hash.hexdigest()
+        base_uuid = uuid.UUID(base_digest)
+
+        combined_value = (str(base_uuid) + str(value)).encode()
+        value_hash = hashlib.md5(combined_value)
+        value_digest = value_hash.hexdigest()
+        value_uuid = uuid.UUID(value_digest)
+        return value_uuid
 
     def _find_engagement(self, bvn):
         engagement_info = {}
@@ -205,6 +223,9 @@ class OpusImport(object):
             self._add_klasse(org_type, 'Enhed', 'org_unit_type')
 
         identifier = unit['@id']
+        uuid = self._generate_uuid(identifier)
+        logger.debug('Generated uuid for {}: {}'.format(unit['@id'], uuid))
+
         user_key = unit['shortName']
         date_from = unit['startDate']
         if unit['endDate'] == '9999-12-31':
@@ -220,6 +241,7 @@ class OpusImport(object):
         self.importer.add_organisation_unit(
             identifier=identifier,
             name=name,
+            uuid=str(uuid),
             user_key=user_key,
             parent_ref=parent_org,
             type_ref=org_type,
