@@ -876,7 +876,7 @@ class ImportUtility(object):
             for data_item in data[data_type]:
                 if self._std_compare(item_payload, data_item, 'role_type'):
                     found_hit = True
-
+                    logger.debug('Found hit in role')
         elif data_type == 'leave':
             for data_item in data[data_type]:
                 if ((data_item['validity']['from'] ==
@@ -885,7 +885,7 @@ class ImportUtility(object):
                     (data_item['validity']['to'] ==
                      item_payload['validity']['to'])):
                     found_hit = True
-
+                    logger.debug('Found hit in leave')
         elif data_type == 'it':
             for data_item in data[data_type]:
                 if (
@@ -899,7 +899,7 @@ class ImportUtility(object):
                      item_payload['itsystem']['uuid'])
                 ):
                     found_hit = True
-
+                    logger.debug('Found hit in it')
         elif data_type == 'address':
             for data_item in data[data_type]:
                 if (
@@ -912,7 +912,7 @@ class ImportUtility(object):
                     (data_item['value'] == item_payload['value'])
                 ):
                     found_hit = True
-
+                    logger.debug('Found hit in adress')
         elif data_type == 'manager':
             for data_item in data[data_type]:
                 identical = self._std_compare(item_payload, data_item,
@@ -926,11 +926,13 @@ class ImportUtility(object):
                              (len(data_item['responsibility']) == len(uuids)))
                 if identical:
                     found_hit = True
-
+                    logger.debug('Found  hit in manager')
         elif data_type == 'association':
             for data_item in data[data_type]:
                 if self._std_compare(item_payload, data_item, 'association_type'):
                     found_hit = True
+                    logger.debug('Found hit in association')
         else:
             raise Exception('Uknown detail!')
+        logger.info('Found hit: {}'.format(found_hit))
         return found_hit
