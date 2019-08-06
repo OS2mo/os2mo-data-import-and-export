@@ -8,6 +8,8 @@
 #
 import os
 import sys
+import uuid
+import hashlib
 import logging
 import datetime
 from anytree import Node
@@ -47,7 +49,7 @@ if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
 class SdImport(object):
     def __init__(self, importer, org_name, municipality_code,
                  import_date_from, ad_info=None, org_only=False,
-                 manager_rows=[]):
+                 org_id_prefix=None, manager_rows=[]):
         self.base_url = 'https://service.sd.dk/sdws/'
 
         self.double_employment = []
@@ -61,6 +63,7 @@ class SdImport(object):
             municipality_code=municipality_code
         )
 
+        self.org_id_prefix = org_id_prefix
         self.import_date = import_date_from.strftime('%d.%m.%Y')
         # self.import_date_from = import_date_from.strftime('%d.%m.%Y')
 
@@ -135,6 +138,22 @@ class SdImport(object):
         self._add_klasse('Intern', 'Må vises internt', 'visibility', 'INTERNAL')
         self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
 
+    def _generate_uuid(self, value):
+        """
+        Code almost identical to this also lives in the Opus importer.
+        """
+        if not self.org_id_prefix:
+            return value
+        base_hash = hashlib.md5(self.org_id_prefix.encode())
+        base_digest = base_hash.hexdigest()
+        base_uuid = uuid.UUID(base_digest)
+
+        combined_value = (str(base_uuid) + str(value)).encode()
+        value_hash = hashlib.md5(combined_value)
+        value_digest = value_hash.hexdigest()
+        value_uuid = str(uuid.UUID(value_digest))
+        return value_uuid
+
     def _update_ad_map(self, cpr):
         logger.debug('Update cpr{}'.format(cpr))
         self.ad_people[cpr] = {}
@@ -160,7 +179,7 @@ class SdImport(object):
         departments = sd_lookup('GetDepartment20111201', params)
 
         for department in departments['Department']:
-            uuid = department['DepartmentUUIDIdentifier']
+            uuid = self._generate_uuid(department['DepartmentUUIDIdentifier'])
             department_info[uuid] = department
             unit_type = department['DepartmentLevelIdentifier']
             if not self.importer.check_if_exists('klasse', unit_type):
@@ -187,7 +206,7 @@ class SdImport(object):
         in_sub_tree = False
         while 'DepartmentReference' in department:
             department = department['DepartmentReference']
-            if department['DepartmentUUIDIdentifier'] == sub_tree:
+            if self._generate_uuid(department['DepartmentUUIDIdentifier']) == sub_tree:
                 in_sub_tree = True
         return in_sub_tree
 
@@ -200,8 +219,12 @@ class SdImport(object):
         :param contains_subunits: True if the unit has sub-units.
         """
         ou_level = department['DepartmentLevelIdentifier']
-        unit_id = department['DepartmentUUIDIdentifier']
-        user_key = department['DepartmentIdentifier']
+        if not self.org_id_prefix:
+            unit_id = department['DepartmentUUIDIdentifier']
+            user_key = department['DepartmentIdentifier']
+        else:
+            unit_id = self._generate_uuid(department['DepartmentUUIDIdentifier'])
+            user_key = self.org_id_prefix + '_' + department['DepartmentIdentifier']
         parent_uuid = None
 
         # If contain_subunits is true, this sub tree is a valid member
@@ -210,8 +233,9 @@ class SdImport(object):
             if self._check_subtree(department, sub_tree):
                 import_unit = True
 
-            parent_uuid = (department['DepartmentReference']
-                           ['DepartmentUUIDIdentifier'])
+            parent_uuid = self._generate_uuid(
+                department['DepartmentReference']['DepartmentUUIDIdentifier']
+            )
         else:
             import_unit = unit_id == sub_tree
 
@@ -306,6 +330,7 @@ class SdImport(object):
 
         while len(new_ous) > 0:
             logger.info('Number of new ous: {}'.format(len(new_ous)))
+            print('Number of new ous: {}'.format(len(new_ous)))
             all_ous = new_ous
             new_ous = []
             for ou in all_ous:
