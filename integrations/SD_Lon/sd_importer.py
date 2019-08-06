@@ -529,6 +529,7 @@ class SdImport(object):
                     # lowest levels of the org
                     self.importer.add_association(
                         employee=cpr,
+                        user_key=employment_id['id'],
                         organisation_unit=original_unit,
                         association_type_ref='SD-medarbejder',
                         date_from=date_from,
