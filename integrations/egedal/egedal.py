@@ -26,11 +26,11 @@ sd = sd_importer.SdImport(
     importer,
     MUNICIPALTY_NAME,
     MUNICIPALTY_CODE,
-    import_date_from=GLOBAL_GET_DATE
+    import_date_from=GLOBAL_GET_DATE,
+    org_only=True
 )
 
 sd.create_ou_tree()
-# sd.create_employees()
 
 importer.import_all()
 
