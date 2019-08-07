@@ -10,7 +10,6 @@ import os
 import logging
 from anytree import PostOrderIter, PreOrderIter
 from os2mo_helpers.mora_helpers import MoraHelper
-from pdb import set_trace as breakpoint
 
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
 MORA_ROOT_ORG_UNIT_NAME = os.environ.get('MORA_ROOT_ORG_UNIT_NAME', 'Viborg Kommune')
@@ -39,6 +38,7 @@ def hourly_paid(engagement):
                     engagement["uuid"], engagement["user_key"])
     return hp
 
+
 def find_people(mh, nodes):
 
     """ forberedelser. der laves et rapport-dictionary på hver node
@@ -48,12 +48,12 @@ def find_people(mh, nodes):
     for node in PostOrderIter(nodes['root']):
         node.report = {
             "department": {},
-            "m_dir_salary":{},
-            "m_tot_salary":{},
-            "e_dir_salary":{},
-            "e_dir_hourly":{},
-            "e_tot_salary":{},
-            "e_tot_hourly":{},
+            "m_dir_salary": {},
+            "m_tot_salary": {},
+            "e_dir_salary": {},
+            "e_dir_hourly": {},
+            "e_tot_salary": {},
+            "e_tot_hourly": {},
         }
 
     for node in PostOrderIter(nodes['root']):
@@ -80,13 +80,13 @@ def find_people(mh, nodes):
             for engagement in mh._mo_lookup(
                     mana,
                     'e/{}/details/engagement'
-                )[:1]:
+            )[:1]:
                 # gem begge dele for senere brug
-                payload={
-                    "manager":manager,
-                    "engagement":engagement
+                payload = {
+                    "manager": manager,
+                    "engagement": engagement
                 }
-                report["m_dir_salary"].setdefault(mana,payload)
+                report["m_dir_salary"].setdefault(mana, payload)
 
         """ find alle engagementer i denne afdeling og opbevar
         medarbejdernes uuider som nøgler i dicts for henholdsvis
@@ -131,6 +131,7 @@ def find_people(mh, nodes):
                 node.parent.report["e_dir_salary"].update(report["e_dir_salary"])
                 node.parent.report["e_dir_hourly"].update(report["e_dir_hourly"])
 
+
 def output_report(mh, nodes, report_outfile):
     fieldnames = ["Leder", "Egen afd", "Email", "Direkte funktionær",
                   "Heraf ledere", "Direkte timeløn", "Direkte ialt",
@@ -142,27 +143,26 @@ def output_report(mh, nodes, report_outfile):
         'payload' contains his manager and engagement-objects
         """
 
-        for manager, payload  in node.report["m_dir_salary"].items():
+        for manager, payload in node.report["m_dir_salary"].items():
             _email = mh.get_e_address(manager, "EMAIL")
 
-
-            row={
+            row = {
                 "Leder": payload["manager"]["person"]["name"],
                 "Egen afd": payload["manager"]["org_unit"]["name"],
-                "Email": ( _email.get("name", "") if _email.get(
+                "Email": (_email.get("name", "") if _email.get(
                           "visibility", {}
-                         ).get("scope", "") != "SECRET" else 'hemmelig'),
+                          ).get("scope", "") != "SECRET" else 'hemmelig'),
                 "Direkte funktionær": len([
-                    (k,v) for k, v in node.report["e_dir_salary"].items()
+                    (k, v) for k, v in node.report["e_dir_salary"].items()
                     if k != payload["manager"]["person"]["uuid"]
                 ]),
                 "Heraf ledere": len([
-                    (k,v) for k, v in node.report["m_tot_salary"].items()
+                    (k, v) for k, v in node.report["m_tot_salary"].items()
                     if k != payload["manager"]["person"]["uuid"]
                 ]),
                 "Direkte timeløn": len(node.report["e_dir_hourly"]),
                 "Samlet funktionær": len([
-                    (k,v) for k, v in node.report["e_tot_salary"].items()
+                    (k, v) for k, v in node.report["e_tot_salary"].items()
                     if k != payload["manager"]["person"]["uuid"]
                 ]),
                 "Samlet timeløn": len(node.report["e_tot_hourly"]),
@@ -198,7 +198,6 @@ def main(
     nodes = mh.read_ou_tree(root_org_unit_uuid)
     find_people(mh, nodes)
     output_report(mh, nodes, report_outfile)
-
 
 
 if __name__ == '__main__':
