@@ -10,7 +10,6 @@ import os
 import logging
 from anytree import PostOrderIter, PreOrderIter
 from os2mo_helpers.mora_helpers import MoraHelper
-from xml.sax.saxutils import escape
 from pdb import set_trace as breakpoint
 
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
@@ -41,7 +40,11 @@ def hourly_paid(engagement):
     return hp
 
 def find_people(mh, nodes):
-    empl_all = {}
+
+    """ forberedelser. der laves et rapport-dictionary på hver node
+    det er dictionaries, da det ikke er tal vi opbevarer,
+    men medarbejder-uuid-nøgler
+    """
     for node in PostOrderIter(nodes['root']):
         node.report = {
             "department": {},
@@ -52,10 +55,17 @@ def find_people(mh, nodes):
             "e_tot_salary":{},
             "e_tot_hourly":{},
         }
+
     for node in PostOrderIter(nodes['root']):
         report = node.report
         ou = mh.read_ou(node.name)
         report["department"] = ou["uuid"]
+
+        """ find denne afdelings managere og registrer dem hver især
+        med person-uuid - som nøgle
+        gør også det nødvendige for at finde deres egen afdeling
+        """
+        mana = False
         for manager in mh._mo_lookup(
                 ou["uuid"],
                 'ou/{}/details/manager'
@@ -78,21 +88,34 @@ def find_people(mh, nodes):
                 }
                 report["m_dir_salary"].setdefault(mana,payload)
 
+        """ find alle engagementer i denne afdeling og opbevar
+        medarbejdernes uuider som nøgler i dicts for henholdsvis
+        timelønnede og funktionærer
+        """
+
         for engagement in mh._mo_lookup(
                 ou["uuid"],
                 'ou/{}/details/engagement'
         ):
             empl_e = engagement["person"]["uuid"]
             empl_ou = engagement["org_unit"]
-            empl_all[empl_e] = empl_ou  # own department lookup
             if hourly_paid(engagement):
                 report["e_dir_hourly"].setdefault(empl_e, empl_ou)
             else:
                 report["e_dir_salary"].setdefault(empl_e, empl_ou)
 
+        """ overfør de, som er ansat direkte i denne afdeling til
+        afdelingens total- og tæl managers med i denne sammentælling
+        """
+
         node.report["e_tot_salary"].update(report["m_dir_salary"])
         node.report["e_tot_salary"].update(report["e_dir_salary"])
         node.report["e_tot_hourly"].update(report["e_dir_hourly"])
+
+        """ overfør nu alle medarbejderuuider, så de også indgår i parentens
+            dict. PostOrderIter sikrer at alle tal propagerer hele vejen op
+        """
+
         if node.parent:
             # all employees must go to total above
             node.parent.report["e_tot_salary"].update(report["e_tot_salary"])
@@ -102,16 +125,33 @@ def find_people(mh, nodes):
             node.parent.report["m_tot_salary"].update(report["m_dir_salary"])
             node.parent.report["e_dir_salary"].update(report["m_dir_salary"])
 
+            # no managers here ? all are are direct empls of next above manager
+            if not mana:
+                node.parent.report["m_dir_salary"].update(report["m_dir_salary"])
+                node.parent.report["e_dir_salary"].update(report["e_dir_salary"])
+                node.parent.report["e_dir_hourly"].update(report["e_dir_hourly"])
+
 def output_report(mh, nodes, report_outfile):
-    fieldnames = ["Leder", "Egen afd", "Direkte funktionær",
-                  "Heraf ledere", "Direkte timeløn",
-                  "Samlet funktionær", "Samlet timeløn"]
+    fieldnames = ["Leder", "Egen afd", "Email", "Direkte funktionær",
+                  "Heraf ledere", "Direkte timeløn", "Direkte ialt",
+                  "Samlet funktionær", "Samlet timeløn", "Samlet ialt"]
     rows = []
     for node in PreOrderIter(nodes['root']):
+
+        """ 'manager' is the person-uuid of the person who is manager in this dept
+        'payload' contains his manager and engagement-objects
+        """
+
         for manager, payload  in node.report["m_dir_salary"].items():
+            _email = mh.get_e_address(manager, "EMAIL")
+
+
             row={
                 "Leder": payload["manager"]["person"]["name"],
                 "Egen afd": payload["manager"]["org_unit"]["name"],
+                "Email": ( _email.get("name", "") if _email.get(
+                          "visibility", {}
+                         ).get("scope", "") != "SECRET" else 'hemmelig'),
                 "Direkte funktionær": len([
                     (k,v) for k, v in node.report["e_dir_salary"].items()
                     if k != payload["manager"]["person"]["uuid"]
@@ -127,6 +167,10 @@ def output_report(mh, nodes, report_outfile):
                 ]),
                 "Samlet timeløn": len(node.report["e_tot_hourly"]),
             }
+            row.update({
+                "Direkte ialt": row["Direkte funktionær"] + row["Direkte timeløn"],
+                "Samlet ialt": row["Samlet funktionær"] + row["Samlet timeløn"],
+            })
             rows.append(row)
     mh._write_csv(fieldnames, rows, report_outfile)
 
