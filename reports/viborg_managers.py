@@ -11,6 +11,19 @@ import logging
 from anytree import PostOrderIter, PreOrderIter
 from os2mo_helpers.mora_helpers import MoraHelper
 
+"""
+Rapportens opdrag: Tæl lederes medarbejdere, og den har udviklet sig lidt:
+
+* En chef kan aldrig være chef for sig selv, defor tælles chefen ikke med
+  iblandt sine egne ansatte
+* Totalt fastlønnede akkumuleres på alle niveauer
+* Totalt timelønnede akkumuleres på alle niveauer
+* Direkte antal fastlønnede akkumuleres hos først opadfundne chef
+* Direkte antal timelønnede akkumuleres hos først opadfundne chef
+* Ledere akkumuleres som underordnede hos først opadfundne chef
+* Medarbejdere tælles kun en gang i samme træ, men kan godt tælles med i 2 undertræer
+"""
+
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
 MORA_ROOT_ORG_UNIT_NAME = os.environ.get('MORA_ROOT_ORG_UNIT_NAME', 'Viborg Kommune')
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
@@ -49,7 +62,7 @@ def find_people(mh, nodes):
         node.report = {
             "department": {},
             "m_dir_salary": {},
-            "m_tot_salary": {},
+            "m_dir_subord": {},
             "e_dir_salary": {},
             "e_dir_hourly": {},
             "e_tot_salary": {},
@@ -117,17 +130,31 @@ def find_people(mh, nodes):
         """
 
         if node.parent:
-            # all employees must go to total above
+
+            """ totale antal employees skal altid med hele vejen op
+            både timelønnede og fastlønnede.
+            """
+
             node.parent.report["e_tot_salary"].update(report["e_tot_salary"])
             node.parent.report["e_tot_hourly"].update(report["e_tot_hourly"])
 
-            # all managers must be direct employees above
-            node.parent.report["m_tot_salary"].update(report["m_dir_salary"])
+            """ managers her tilføjes som underordnede ledere i overordnet afd.
+            ligesom de figurerer som direkte ansatte i overordn. afdeling
+            """
+
+            node.parent.report["m_dir_subord"].update(report["m_dir_salary"])
             node.parent.report["e_dir_salary"].update(report["m_dir_salary"])
 
-            # no managers here ? all are are direct empls of next above manager
             if not mana:
-                node.parent.report["m_dir_salary"].update(report["m_dir_salary"])
+
+                """ Hvis denne afdeling ikke har nogen leder skal ansatte og ledere
+                skubbes opad til næste overordnede afdeling:
+                    * underordn. ledere overføres som direkte underordn. ledere
+                    * fastlønnede overføres som dir. fastlønnede
+                    * timelønneede overføres som dir. timelønnede
+                """
+
+                node.parent.report["m_dir_subord"].update(report["m_dir_subord"])
                 node.parent.report["e_dir_salary"].update(report["e_dir_salary"])
                 node.parent.report["e_dir_hourly"].update(report["e_dir_hourly"])
 
@@ -157,7 +184,7 @@ def output_report(mh, nodes, report_outfile):
                     if k != payload["manager"]["person"]["uuid"]
                 ]),
                 "Heraf ledere": len([
-                    (k, v) for k, v in node.report["m_tot_salary"].items()
+                    (k, v) for k, v in node.report["m_dir_subord"].items()
                     if k != payload["manager"]["person"]["uuid"]
                 ]),
                 "Direkte timeløn": len(node.report["e_dir_hourly"]),
