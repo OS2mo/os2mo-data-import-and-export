@@ -560,31 +560,28 @@ class SdImport(object):
                             date_to=date_to
                         )
             if self.manager_rows:
-                # This may fail to get correct manager_level if manager has more
-                # than one engagement.
                 for row in self.manager_rows:
                     if row['cpr'] == cpr:
                         if 'uuid' not in row:
                             logger.warning('NO UNIT: {}'.format(row['afdeling']))
                             continue
-                        if row['uuid'] == unit:
-                            if job_id in [1040, 1035, 1030]:
-                                manager_level = job_id
-                            else:
-                                manager_level = 1030
+                        if job_id in [1040, 1035, 1030]:
+                            manager_level = job_id
+                        else:
+                            manager_level = 1030
 
-                            logger.info(
-                                'Manager {} to {}'.format(cpr, row['afdeling'])
-                            )
-                            self.importer.add_manager(
-                                employee=cpr,
-                                organisation_unit=row['uuid'],
-                                manager_level_ref=manager_level,
-                                manager_type_ref='leder_type',
-                                responsibility_list=[row['ansvar']],
-                                date_from=date_from,
-                                date_to=date_to
-                            )
+                        logger.info(
+                            'Manager {} to {}'.format(cpr, row['afdeling'])
+                        )
+                        self.importer.add_manager(
+                            employee=cpr,
+                            organisation_unit=row['uuid'],
+                            manager_level_ref=manager_level,
+                            manager_type_ref='leder_type',
+                            responsibility_list=[row['ansvar']],
+                            date_from=date_from,
+                            date_to=date_to
+                        )
 
             # This assertment really should hold...
             # assert(exactly_one_primary is True)
