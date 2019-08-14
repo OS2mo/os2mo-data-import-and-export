@@ -103,7 +103,8 @@ def _create_mo_ou(name, parent, org_type):
                'validity': {'from': '1900-01-01',
                             'to':  None}}
     url = BASE_URL + 'ou/create'
-    response = requests.post(url, json=payload)
+    params = {'force': 1}
+    response = requests.post(url, json=payload, params=params)
     uuid = response.json()
     return uuid
 
@@ -126,7 +127,8 @@ def _create_mo_association(user, org_unit, association_type, from_string):
             }
         ]
         url = BASE_URL + 'details/create'
-        response = requests.post(url, json=payload)
+        params = {'force': 1}
+        response = requests.post(url, json=payload, params=params)
         response.raise_for_status()
         uuid = response.json()
         return uuid
@@ -153,7 +155,8 @@ def _create_mo_role(user, org_unit, role_type, from_string):
             }
         ]
         url = BASE_URL + 'details/create'
-        response = requests.post(url, json=payload)
+        params = {'force': 1}
+        response = requests.post(url, json=payload, params=params)
         response.raise_for_status()
         uuid = response.json()
         return uuid
