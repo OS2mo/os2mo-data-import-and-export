@@ -4,7 +4,7 @@ import datetime
 import logging
 from spsftp import SpSftp
 from os2mo_helpers.mora_helpers import MoraHelper
-from viborg_xml_emus import main as generate_file
+from viborg_xml_emus import main as generate_file, EMUS_FILENAME
 
 logger = logging.getLogger("emus-sftp")
 
@@ -16,6 +16,7 @@ try:
     SFTP_KEY_PATH = os.environ["SFTP_KEY_PATH"]
     SFTP_KEY_PASSPHRASE = os.environ["SFTP_KEY_PASSPHRASE"]
     MUSSKEMA_RECIPIENT = os.environ["MUSSKEMA_RECIPIENT"]
+    QUERY_EXPORT_DIR = os.environ.get("QUERY_EXPORT_DIR")
 except Exception as e:
     logger.error(e)
     raise EnvironmentError(str(e))
@@ -45,6 +46,12 @@ def main():
     logger.info("sending %s to %s", filename, MUSSKEMA_RECIPIENT)
     sp.send(filetosend, filename, MUSSKEMA_RECIPIENT)
     sp.disconnect()
+
+    # write the file that is sent into query export dir too
+    if QUERY_EXPORT_DIR and EMUS_FILENAME:
+        filepath = os.path.join(QUERY_EXPORT_DIR, os.path.basename(EMUS_FILENAME))
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(generated_file.getvalue())
 
 
 if __name__ == '__main__':

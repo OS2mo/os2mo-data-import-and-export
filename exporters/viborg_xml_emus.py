@@ -83,7 +83,8 @@ def export_ou_emus(mh, nodes, emus_file):
     for node in cq.PreOrderIter(nodes['root']):
         ou = mh.read_ou(node.name)
         if not engagement_counter[ou["uuid"]]:
-            logger.info("skipping dept %s with no non-hourly-paid employees", ou["uuid"])
+            logger.info("skipping dept %s with no non-hourly-paid employees",
+                        ou["uuid"])
             continue
 
         manager = mh.read_organisation_managers(node.name)
