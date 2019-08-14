@@ -325,7 +325,7 @@ class ChangeAtSD(object):
 
     def create_association(self, department, person, job_id, validity):
         """ Create a association for a user """
-        logger.info('Create association')
+        logger.info('Consider to create an association')
         associations = self.helper.read_user_association(person['uuid'],
                                                          read_all=True,
                                                          only_primary=True)
@@ -337,11 +337,14 @@ class ChangeAtSD(object):
             ):
                 hit = True
         if not hit:
+            logger.info('Association needs to be created')
             payload = sd_payloads.create_association(department, person,
                                                      self.association_uuid,
                                                      job_id, validity)
             response = self.helper._mo_post('details/create', payload)
             assert response.status_code == 201
+        else:
+            logger.info('No new Association is needed')
 
     def apply_NY_logic(self, org_unit, job_id, validity):
         # This must go to sd_common, or some kind of conf
@@ -454,24 +457,38 @@ class ChangeAtSD(object):
 
         for department in engagement_info['departments']:
             logger.info('Change department of engagement {}:'.format(job_id))
+            logger.debug('Department object: {}'.format(department))
+            # TODO: Should we do this for all edits?
+            print()
+            print('Vaidity: {}'.format(validity))
+            # This seems to be the correct thing to do, but trigs a bug in MO.
+            # validity = self._validity(department)
+            print('Vaidity: {}'.format(validity))
+            logger.debug('Validity of this department change: {}'.format(validity))
             org_unit = department['DepartmentUUIDIdentifier']
             associations = self.helper.read_user_association(self.mo_person['uuid'],
                                                              read_all=True)
+            print('User associations: {}'.format(associations))
             current_association = None
             for association in associations:
                 if association['user_key'] == job_id:
                     current_association = association['uuid']
+
+            print('Current association: {}'.format(current_association))
+
             if current_association:
                 logger.debug('We need to move {}'.format(current_association))
                 data = {'org_unit': {'uuid': org_unit},
                         'validity': validity}
                 payload = sd_payloads.association(data, current_association)
+                print('Edit payload: {}'.format(payload))
                 response = self.helper._mo_post('details/edit', payload)
                 self._assert(response)
-
+            print()
+            print('Now apply NY logic')
             org_unit = self.apply_NY_logic(org_unit, job_id, validity)
 
-            logger.debug('Org unit for edited engagement: {}'.format(org_unit))
+            logger.debug('New org unit for edited engagement: {}'.format(org_unit))
             data = {'org_unit': {'uuid': org_unit},
                     'validity': validity}
             payload = sd_payloads.engagement(data, mo_engagement)
@@ -835,7 +852,7 @@ if __name__ == '__main__':
     logger.info('***************')
     logger.info('Program started')
     init = True
-    from_date = datetime.datetime(2019, 7, 15, 0, 0)
+    from_date = datetime.datetime(2019, 8, 1, 0, 0)
 
     if init:
         run_db = Path(RUN_DB)
