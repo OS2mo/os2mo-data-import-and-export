@@ -20,27 +20,13 @@ importer = ImportHelper(
     system_name='Opus-Import',
     end_marker='OPUS_STOP!',
     store_integration_data=True,
-    seperate_names=True
+    seperate_names=True,
+    demand_consistent_uuids=False
 )
 
 ad_reader = ad_reader.ADParameterReader()
 
 try:
-    opus_helpers.start_opus_import(importer, ad_reader=ad_reader, force=True)
+    opus_helpers.start_opus_import(importer, ad_reader=ad_reader, force=False)
 except RunDBInitException:
     print('RunDB not initialized')
-    exit()
-
-# opus = opus_import.OpusImport(
-#     importer,
-#     MUNICIPALTY_NAME,
-#     XML_FILE_PATH,
-#     ad_reader=ad_reader,
-#     import_first=True
-# )
-
-# opus.insert_org_units()
-# opus.insert_employees()
-# opus.add_addresses_to_employees()
-
-# importer.import_all()
