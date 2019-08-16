@@ -49,8 +49,7 @@ if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
 class SdImport(object):
     def __init__(self, importer, org_name, municipality_code,
                  import_date_from, ad_info=None, org_only=False,
-                 org_id_prefix=None, manager_rows=[], super_unit=None,
-    ):
+                 org_id_prefix=None, manager_rows=[], super_unit=None):
         self.base_url = 'https://service.sd.dk/sdws/'
 
         self.double_employment = []
@@ -185,12 +184,6 @@ class SdImport(object):
             if not self.importer.check_if_exists('klasse', unit_type):
                 self._add_klasse(unit_type, unit_type,
                                  'org_unit_type', scope='TEXT')
-
-                # self.importer.add_klasse(identifier=unit_type,
-                #                          facet_type_ref='org_unit_type',
-                #                          user_key=unit_type,
-                #                          title=unit_type,
-                #                          scope='TEXT')
         return department_info
 
     def _add_klasse(self, klasse_id, klasse, facet, scope='TEXT'):
@@ -211,7 +204,8 @@ class SdImport(object):
         in_sub_tree = False
         while 'DepartmentReference' in department:
             department = department['DepartmentReference']
-            if self._generate_uuid(department['DepartmentUUIDIdentifier']) == sub_tree:
+            dep_uuid = self._generate_uuid(department['DepartmentUUIDIdentifier'])
+            if dep_uuid == sub_tree:
                 in_sub_tree = True
         return in_sub_tree
 
@@ -252,7 +246,11 @@ class SdImport(object):
         info = self.info[unit_id]
         assert(info['DepartmentLevelIdentifier'] == ou_level)
         logger.debug('Add unit: {}'.format(unit_id))
-        if not contains_subunits and parent_uuid is super_unit:
+        if (
+                (not contains_subunits) and
+                (parent_uuid is super_unit) and
+                self.importer.check_if_exists('organisation_unit', 'OrphanUnits')
+        ):
             parent_uuid = 'OrphanUnits'
 
         date_from = info['ActivationDate']
