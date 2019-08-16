@@ -87,6 +87,7 @@ class FixDepartmentsSD(object):
             'DeactivationDate': '9999-12-31',
             'UUIDIndicator': 'true'
         }
+        #TODO: We need to read this without caching!
         organisation = sd_lookup('GetOrganization20111201', params)
         department_lists = organisation['Organization']
         if not isinstance(department_lists, list):
@@ -131,7 +132,7 @@ class FixDepartmentsSD(object):
 
 
 if __name__ == '__main__':
-    from_date = datetime.datetime(2019, 6, 27, 0, 0)
+    from_date = datetime.datetime(2019, 8, 1, 0, 0)
 
     unit_fixer = FixDepartmentsSD(from_date)
     unit_fixer.fix_departments()

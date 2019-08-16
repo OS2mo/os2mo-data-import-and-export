@@ -44,7 +44,7 @@ def sd_lookup(url, params={}):
             params=payload,
             auth=(SD_USER, SD_PASSWORD)
         )
-        with open(lookup_id, 'wb') as f:
+        with open(str(cache_file), 'wb') as f:
             pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
 
     dict_response = xmltodict.parse(response.text)

@@ -395,6 +395,7 @@ class AssociationType(MoType):
                 raise ReferenceError("Reference to org_unit_uuid is missing")
 
         self.payload = {
+            "user_key": self.user_key,
             "org_unit": {
                 "uuid": self.org_unit_uuid
             },
