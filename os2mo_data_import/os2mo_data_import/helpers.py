@@ -108,10 +108,10 @@ class ImportHelper(object):
     def __init__(self, system_name="Import", end_marker="_|-STOP",
                  mox_base="http://localhost:8080", mora_base="http://localhost:5000",
                  store_integration_data=False, create_defaults=True,
-                 seperate_names=False, ImportUtility=ImportUtility):
+                 seperate_names=False, demand_consistent_uuids=True,
+                 ImportUtility=ImportUtility):
 
         self.seperate_names = seperate_names
-
         mora_type_config(mox_base=mox_base,
                          system_name=system_name,
                          end_marker=end_marker)
@@ -122,6 +122,7 @@ class ImportHelper(object):
             mora_base=mora_base,
             system_name=system_name,
             end_marker=end_marker,
+            demand_consistent_uuids=demand_consistent_uuids,
             store_integration_data=store_integration_data
         )
         # TODO: store_integration_data could be passed to ImportUtility by passing

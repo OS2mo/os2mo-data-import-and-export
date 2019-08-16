@@ -38,12 +38,17 @@ logger = logging.getLogger("moImporterUtilities")
 class ImportUtility(object):
     """
     ImportUtility
+    TODO: This class relies heavily on asserts, which are gennerally not wanted in
+    this context. We should create meaningfull exceptions and raise these when
+    needed.
     """
 
     def __init__(self, system_name, end_marker, mox_base, mora_base,
-                 store_integration_data=False, dry_run=False):
+                 demand_consistent_uuids, store_integration_data=False,
+                 dry_run=False):
 
         # Import Params
+        self.demand_consistent_uuids = demand_consistent_uuids
         self.store_integration_data = store_integration_data
         if store_integration_data:
             self.ia = IntegrationAbstraction(mox_base, system_name, end_marker)
@@ -672,7 +677,10 @@ class ImportUtility(object):
             uuid = self.ia.find_object(resource, reference)
             if uuid:
                 if 'uuid' in payload:
-                    assert(payload['uuid'] == uuid)
+                    if self.demand_consistent_uuids:
+                        assert(payload['uuid'] == uuid)
+                    else:
+                        payload['uuid'] = uuid
                 payload['uuid'] = uuid
                 self.existing_uuids.append(uuid)
 
