@@ -3,7 +3,6 @@ import logging
 import sqlite3
 import datetime
 from pathlib import Path
-from freezegun import freeze_time
 
 import opus_import
 from opus_exceptions import RunDBInitException
@@ -14,7 +13,7 @@ RUN_DB = os.environ.get('RUN_DB', None)
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'Opus Import')
 
 DUMP_PATH = Path('/opt/magenta/dataimport/opus')
-START_DATE = datetime.datetime(2019, 7, 15, 0, 0)
+START_DATE = datetime.datetime(2019, 8, 2, 0, 0)
 
 # Check this!!!!!!!!!!
 # Maybe we should do the logging configuration here!
