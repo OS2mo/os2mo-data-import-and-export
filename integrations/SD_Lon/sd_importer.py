@@ -548,6 +548,8 @@ class SdImport(object):
                 # If we do not have a list of managers, we take the manager,
                 # information fro the job_function_code.
                 if not self.manager_rows:
+                    # These job functions will normally (but necessarily)
+                    #  correlate to a manager position
                     if job_id in [1040, 1035, 1030]:
                         self.importer.add_manager(
                             employee=cpr,
