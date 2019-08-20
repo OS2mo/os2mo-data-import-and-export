@@ -9,11 +9,13 @@
 """
 Helper class to make a number of pre-defined queries into MO
 """
-
+import os
 import time
 from anytree import PreOrderIter
 from os2mo_helpers.mora_helpers import MoraHelper
 import common_queries as cq
+
+MORA_BASE = os.environ.get('MORA_BASE')
 
 
 def export_udvalg(mh, nodes, filename, fieldnames, org_types):
@@ -52,7 +54,7 @@ if __name__ == '__main__':
     threaded_speedup = False
     t = time.time()
 
-    mh = MoraHelper(export_ansi=True)
+    mh = MoraHelper(hostname=MORA_BASE, export_ansi=True)
 
     org = mh.read_organisation()
     roots = mh.read_top_units(org)
