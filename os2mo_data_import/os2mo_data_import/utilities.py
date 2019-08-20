@@ -321,9 +321,8 @@ class ImportUtility(object):
         if not isinstance(organisation_unit, OrganisationUnitType):
             raise TypeError("Not of type OrganisationUnitType")
 
-        # if reference in self.inserted_org_unit_map:
-        #     print("The organisation unit has already been inserted")
-        #     return False
+        if reference in self.inserted_org_unit_map:
+            return False
 
         resource = 'organisation/organisationenhed'
 
