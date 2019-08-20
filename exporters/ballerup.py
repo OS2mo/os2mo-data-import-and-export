@@ -64,7 +64,7 @@ if __name__ == '__main__':
             ballerup = root['uuid']
         if root['name'] == '9B':
             sd = root['uuid']
-        if root['name'] == 'Hoved-MED':
+        if root['name'] == 'H-MED Hoved-MED':
             udvalg = root['uuid']
 
     if threaded_speedup:
@@ -111,3 +111,5 @@ if __name__ == '__main__':
     org_types = ['H-MED', 'C-MED', 'L-MED']
     export_udvalg(mh, nodes, filename, fieldnames, org_types)
     print('MED: {}'.format(time.time() - t))
+
+    print('Export completed')
