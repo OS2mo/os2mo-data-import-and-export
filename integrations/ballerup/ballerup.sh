@@ -1,3 +1,8 @@
+source /home/lev_magenta_robert/os2mo-data-import-and-export/venv/bin/activate
+
+cd /home/lev_magenta_robert/os2mo-data-import-and-export/integrations/ballerup
+
+rm *.p
 
 export MOX_BASE=http://localhost:8080
 export MORA_BASE=http://localhost:5000
