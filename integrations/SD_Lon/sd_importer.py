@@ -586,8 +586,8 @@ class SdImport(object):
                             manager_level_ref=manager_level,
                             manager_type_ref='leder_type',
                             responsibility_list=[row['ansvar']],
-                            date_from=date_from,
-                            date_to=date_to
+                            date_from='1900-01-01',
+                            date_to=None
                         )
 
             # This assertment really should hold...
