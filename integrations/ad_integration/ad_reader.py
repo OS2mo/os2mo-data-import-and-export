@@ -107,19 +107,58 @@ class ADParameterReader(object):
         response = self._run_ps_script(ps_script)
         return response
 
+    def read_it_all(self, school=False):
+        # TODO: Contains duplicated code
+        settings = self._get_setting(school)
+        get_command = "get-aduser -Filter '*'"
+        
+        server = ''
+        if settings['server']:
+            server = ' -Server {} '.format(settings['server'])
+
+        search_base = ' -SearchBase "{}" '.format(settings['search_base'])
+        credentials = ' -Credential $usercredential'
+        get_ad_object = ''
+        if settings['get_ad_object']:
+            get_ad_object = ' | Get-ADObject'
+
+        # properties = ' -Properties *'
+
+        properties = ' -Properties '
+        for item in settings['properties']:
+            properties += item + ','
+        properties = properties[:-1] + ' '  # Remove trailing comma, add space
+
+        
+        command_end = ' | ConvertTo-Json'
+        ps_script = (
+            self._build_user_credential(school) +
+            get_command +
+            server +
+            search_base +
+            credentials +
+            get_ad_object +
+            properties +
+            command_end
+        )
+        print(ps_script)
+        response = self._run_ps_script(ps_script)
+        return response
+
+    # This is now part of common
     def _get_from_ad(self, user=None, cpr=None, school=False):
         """
         Read all properties of an AD user. The user can be retrived either by cpr
         or by AD user name.
-        :param user: The AD username to retrive.
+        :param user: The SamAccountName to retrive.
         :param cpr: cpr number of the user to retrive.
         :return: All properties listed in AD for the user.
         """
         settings = self._get_setting(school)
-
+        
         if user:
             dict_key = user
-            ps_template = "get-aduser {} "
+            ps_template = "get-aduser -Filter 'SamAccountName -eq \"{}\"' "
             get_command = ps_template.format(user)
 
         if cpr:
@@ -162,7 +201,6 @@ class ADParameterReader(object):
             properties +
             command_end
         )
-
         response = self._run_ps_script(ps_script)
 
         if not response:
@@ -269,10 +307,12 @@ class ADParameterReader(object):
 
 if __name__ == '__main__':
     ad_reader = ADParameterReader()
-    # print(ad_reader.read_encoding())
-    ad_reader.uncached_read_user(cpr='1911*')
-    for person in ad_reader.results:
-        print(ad_reader.results[person])
+
+    everything = ad_reader.read_it_all()
+
+    for user in everything:
         print()
-    # user = ad_reader.read_user(user='konroje')
-    # print(user)
+        print()
+        for key in sorted(user.keys()):
+            print('{}: {}'.format(key, user[key]))
+
