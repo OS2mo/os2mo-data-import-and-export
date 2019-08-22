@@ -93,3 +93,69 @@ class AD(object):
         user_credential = credential_template.format(settings['system_user'],
                                                      settings['password'])
         return user_credential
+
+    def get_from_ad(self, user=None, cpr=None, school=False):
+        """
+        Read all properties of an AD user. The user can be retrived either by cpr
+        or by AD user name.
+        :param user: The SamAccountName to retrive.
+        :param cpr: cpr number of the user to retrive.
+        :return: All properties listed in AD for the user.
+        """
+        settings = self._get_setting(school)
+
+        if user:
+            dict_key = user
+            ps_template = "get-aduser -Filter 'SamAccountName -eq \"{}\"' "
+            get_command = ps_template.format(user)
+
+        if cpr:
+            dict_key = cpr
+            # Here we should strongly consider to strip part of the cpr to
+            # get more users at the same time to increase performance.
+            # Lookup time is only very slightly dependant on the number
+            # of results.
+            field = settings['cpr_field']
+            ps_template = "get-aduser -Filter '" + field + " -like \"{}\"'"
+
+        get_command = ps_template.format(dict_key)
+
+        server = ''
+        if settings['server']:
+            server = ' -Server {} '.format(settings['server'])
+
+        search_base = ' -SearchBase "{}" '.format(settings['search_base'])
+        credentials = ' -Credential $usercredential'
+
+        get_ad_object = ''
+        if settings['get_ad_object']:
+            get_ad_object = ' | Get-ADObject'
+
+        # properties = ' -Properties *'
+        properties = ' -Properties '
+        for item in settings['properties']:
+            properties += item + ','
+        properties = properties[:-1] + ' '  # Remove trailing comma, add space
+
+        command_end = ' | ConvertTo-Json'
+
+        ps_script = (
+            self._build_user_credential(school) +
+            get_command +
+            server +
+            search_base +
+            credentials +
+            get_ad_object +
+            properties +
+            command_end
+        )
+        response = self._run_ps_script(ps_script)
+
+        if not response:
+            return_val = []
+        else:
+            if not isinstance(response, list):
+                return_val = [response]
+            else:
+                return_val = response
+        return return_val
