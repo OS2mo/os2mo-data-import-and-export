@@ -137,12 +137,45 @@ class CreateUserNames(object):
                     break
         return final_user_name, quality
 
+    def stats(self, init_size=None, sample=None, find_quality=None):
+        from tests.name_simulator import create_name
+        if init_size is not None:
+            for i in range(0, init_size):
+                name = create_name()
+                self.create_username(name)
+
+            for i in range(0, sample):
+                name = create_name()
+                user_name = self.create_username(name)
+                print('{}: {}'.format(name, user_name))
+
+        if find_quality is not None:
+            user_count=1
+            hits = 0
+            name = create_name()
+            user_name = self.create_username(name)
+            while hits < find_quality[1]:
+                if user_name[1][0] >= find_quality[0]:
+                    hits += 1
+                if user_name[1][0] == 0:
+                    hits = 100000000
+                name = create_name()
+                user_name = self.create_username(name)
+                print('Count: {}, User name {}, hits: {}'.format(user_count,
+                                                                 user_name,
+                                                                 hits))
+                user_count += 1
+            print('------')
+            print(user_count)
 
 if __name__ == '__main__':
-    name = ['Pia', 'Munk', 'Jensen']
+    name_creator = CreateUserNames(occupied_names=set())
+
+    # name = ['Pia', 'Munk', 'Jensen']
     # name = ['Karina', 'Jensen']
     # name = ['Karina', 'Munk', 'Jensen']
     # name = ['Anders', 'Kristian', 'Jens', 'Peter', 'Andersen']
-    name_creator = CreateUserNames(occupied_names=set())
+    # print(name_creator.create_username(name))
 
-    print(name_creator.create_username(name))
+    # name_creator.stats(init_size=2000, sample=10)
+    name_creator.stats(find_quality=(4, 100))
