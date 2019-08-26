@@ -20,8 +20,7 @@ MANAGER_FILE = os.environ.get('MANAGER_FILE')
 # ORIGIN FOR TESTS WIH ACTUAL API
 # GLOBAL_GET_DATE = datetime.datetime(2006, 1, 1, 0, 0) # will not work
 # GLOBAL_GET_DATE = datetime.datetime(2009, 1, 1, 0, 0)
-GLOBAL_GET_DATE = datetime.datetime(2019, 7, 15, 0, 0)
-
+GLOBAL_GET_DATE = datetime.datetime(2019, 8, 22, 0, 0)
 
 importer = ImportHelper(
     create_defaults=True,
