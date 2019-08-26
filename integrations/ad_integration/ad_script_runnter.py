@@ -36,15 +36,10 @@ class ADScriptRunner(object):
 
         user_info = {}
         # From the specification, we need to read these parameters:
-        # Fornavn
-        # Efternavn
-        # cpr nummer
-        # SamAccountName
-        # orgenhed på primær ansættelse
-        # uuid på orgenhed for primær ansættelse
+        # Fornavn, Efternavn, cpr nummer, SamAccountName,
+        # navn og uuid på orgenhed for primær ansættelse
 
-        # Leders email
-        # Leders navn
+        # Leders email, Leders navn
         mo_person = self.helper.read_user(user_uuid=uuid)
 
         # Primary user information
@@ -71,8 +66,8 @@ class ADScriptRunner(object):
         user_info['manager_name'] = None
         user_info['manager_email'] = None
 
-        pass  # No managers in current dataset
-
+        # No managers in current dataset
+        return user_info
 
 if __name__ == '__main__':
     runner = ADScriptRunner()
