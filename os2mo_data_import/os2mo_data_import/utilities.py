@@ -17,6 +17,7 @@ from integration_abstraction.integration_abstraction import IntegrationAbstracti
 from os2mo_data_import.mora_data_types import (
     OrganisationUnitType,
     TerminationType,
+    EngagementTerminationType,
     EmployeeType
 )
 
@@ -37,12 +38,17 @@ logger = logging.getLogger("moImporterUtilities")
 class ImportUtility(object):
     """
     ImportUtility
+    TODO: This class relies heavily on asserts, which are gennerally not wanted in
+    this context. We should create meaningfull exceptions and raise these when
+    needed.
     """
 
     def __init__(self, system_name, end_marker, mox_base, mora_base,
-                 store_integration_data=False, dry_run=False):
+                 demand_consistent_uuids, store_integration_data=False,
+                 dry_run=False):
 
         # Import Params
+        self.demand_consistent_uuids = demand_consistent_uuids
         self.store_integration_data = store_integration_data
         if store_integration_data:
             self.ia = IntegrationAbstraction(mox_base, system_name, end_marker)
@@ -483,8 +489,8 @@ class ImportUtility(object):
         data['engagement'] = self._get_detail(uuid, 'engagement')
         data['association'] = self._get_detail(uuid, 'association')
 
-        # In case of en explicit termination, we terminate the employee and return
-        # imidiately.
+        # In case of en explicit termination, we terminate the employee or
+        # employment and return imidiately.
         for detail in details:
             if isinstance(detail, TerminationType):
                 logger.info(
@@ -493,6 +499,14 @@ class ImportUtility(object):
                     )
                 )
                 self._terminate_employee(uuid, date_from=detail.date_from)
+                return uuid
+            if isinstance(detail, EngagementTerminationType):
+                logger.info(
+                    'Explicit termination of eng {}'.format(
+                        detail.engagement_uuid
+                    )
+                )
+                self._terminate_details(detail.engagement_uuid, 'engagement')
                 return uuid
 
         if details:
@@ -663,7 +677,10 @@ class ImportUtility(object):
             uuid = self.ia.find_object(resource, reference)
             if uuid:
                 if 'uuid' in payload:
-                    assert(payload['uuid'] == uuid)
+                    if self.demand_consistent_uuids:
+                        assert(payload['uuid'] == uuid)
+                    else:
+                        payload['uuid'] = uuid
                 payload['uuid'] = uuid
                 self.existing_uuids.append(uuid)
 
@@ -867,7 +884,7 @@ class ImportUtility(object):
             for data_item in data[data_type]:
                 if self._std_compare(item_payload, data_item, 'role_type'):
                     found_hit = True
-
+                    logger.debug('Found hit in role')
         elif data_type == 'leave':
             for data_item in data[data_type]:
                 if ((data_item['validity']['from'] ==
@@ -876,7 +893,7 @@ class ImportUtility(object):
                     (data_item['validity']['to'] ==
                      item_payload['validity']['to'])):
                     found_hit = True
-
+                    logger.debug('Found hit in leave')
         elif data_type == 'it':
             for data_item in data[data_type]:
                 if (
@@ -890,7 +907,7 @@ class ImportUtility(object):
                      item_payload['itsystem']['uuid'])
                 ):
                     found_hit = True
-
+                    logger.debug('Found hit in it')
         elif data_type == 'address':
             for data_item in data[data_type]:
                 if (
@@ -903,7 +920,7 @@ class ImportUtility(object):
                     (data_item['value'] == item_payload['value'])
                 ):
                     found_hit = True
-
+                    logger.debug('Found hit in adress')
         elif data_type == 'manager':
             for data_item in data[data_type]:
                 identical = self._std_compare(item_payload, data_item,
@@ -917,11 +934,13 @@ class ImportUtility(object):
                              (len(data_item['responsibility']) == len(uuids)))
                 if identical:
                     found_hit = True
-
+                    logger.debug('Found  hit in manager')
         elif data_type == 'association':
             for data_item in data[data_type]:
                 if self._std_compare(item_payload, data_item, 'association_type'):
                     found_hit = True
+                    logger.debug('Found hit in association')
         else:
             raise Exception('Uknown detail!')
+        logger.info('Found hit: {}'.format(found_hit))
         return found_hit

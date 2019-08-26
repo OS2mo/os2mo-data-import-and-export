@@ -513,6 +513,11 @@ class TerminationType(MoType):
         self.date_from = date_from
 
 
+class EngagementTerminationType(MoType):
+    def __init__(self, engagement_uuid):
+        self.engagement_uuid = engagement_uuid
+
+
 class RoleType(MoType):
     """
     Role type detail describes a which role an employee holds
