@@ -123,8 +123,6 @@ class MoraHelper(object):
             params['at'] = at
         elif validity:
             params['validity'] = validity
-        else:
-            params = None
 
         full_url = self.host + url.format(uuid)
         if (full_url in self.cache) and use_cache:
