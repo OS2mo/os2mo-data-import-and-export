@@ -402,14 +402,17 @@ class MoraHelper(object):
         persons = self._mo_lookup(org_uuid, 'ou/{}/details/' + person_type)
         for person in persons:
             uuid = person['person']['uuid']
-            data = {'Ansættelse gyldig fra': person['validity']['from'],
-                    'Ansættelse gyldig til': person['validity']['to'],
-                    'Person UUID': uuid,
-                    'Org-enhed': person['org_unit']['name'],
-                    'Org-enhed UUID': person['org_unit']['uuid'],
-                    'Stillingsbetegnelse': person['job_function']['name'],
-                    'Engagement UUID': person['uuid']
-                    }
+            data = {
+                'Ansættelse gyldig fra': person['validity']['from'],
+                'Ansættelse gyldig til': person['validity']['to'],
+                'Person UUID': uuid,
+                'Org-enhed': person['org_unit']['name'],
+                'Org-enhed UUID': person['org_unit']['uuid'],
+                'Engagement UUID': person['uuid']
+            }
+            if 'job_function' in person:
+                data['Stillingsbetegnelse'] = person['job_function']['name'],
+
             if 'association_type' in person:
                 data['Post'] = person['association_type']['name']
 
