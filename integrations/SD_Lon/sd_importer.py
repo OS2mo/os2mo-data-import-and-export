@@ -8,6 +8,8 @@
 #
 import os
 import sys
+import uuid
+import hashlib
 import logging
 import datetime
 from anytree import Node
@@ -47,7 +49,7 @@ if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
 class SdImport(object):
     def __init__(self, importer, org_name, municipality_code,
                  import_date_from, ad_info=None, org_only=False,
-                 manager_rows=[]):
+                 org_id_prefix=None, manager_rows=[], super_unit=None):
         self.base_url = 'https://service.sd.dk/sdws/'
 
         self.double_employment = []
@@ -55,12 +57,14 @@ class SdImport(object):
         self.manager_rows = manager_rows
 
         self.importer = importer
+        self.org_name = org_name
         self.importer.add_organisation(
             identifier=org_name,
             user_key=org_name,
             municipality_code=municipality_code
         )
 
+        self.org_id_prefix = org_id_prefix
         self.import_date = import_date_from.strftime('%d.%m.%Y')
         # self.import_date_from = import_date_from.strftime('%d.%m.%Y')
 
@@ -122,7 +126,6 @@ class SdImport(object):
                          'employee_address_type', 'TEXT')
         self._add_klasse('EmailEmployee', 'Email',
                          'employee_address_type', 'EMAIL')
-
         self._add_klasse('Orlov', 'Orlov', 'leave_type')
 
         self._add_klasse('Ansat', 'Ansat', 'engagement_type')
@@ -134,6 +137,24 @@ class SdImport(object):
         self._add_klasse('Ekstern', 'Må vises eksternt', 'visibility', 'PUBLIC')
         self._add_klasse('Intern', 'Må vises internt', 'visibility', 'INTERNAL')
         self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
+
+    def _generate_uuid(self, value):
+        """
+        Code almost identical to this also lives in the Opus importer.
+        """
+        if self.org_id_prefix:
+            base_hash = hashlib.md5(self.org_id_prefix.encode())
+        else:
+            base_hash = hashlib.md5(self.org_name.encode())
+
+        base_digest = base_hash.hexdigest()
+        base_uuid = uuid.UUID(base_digest)
+
+        combined_value = (str(base_uuid) + str(value)).encode()
+        value_hash = hashlib.md5(combined_value)
+        value_digest = value_hash.hexdigest()
+        value_uuid = str(uuid.UUID(value_digest))
+        return value_uuid
 
     def _update_ad_map(self, cpr):
         logger.debug('Update cpr{}'.format(cpr))
@@ -161,28 +182,43 @@ class SdImport(object):
 
         for department in departments['Department']:
             uuid = department['DepartmentUUIDIdentifier']
+            if self.org_id_prefix:
+                uuid = self._generate_uuid(uuid)
+
             department_info[uuid] = department
             unit_type = department['DepartmentLevelIdentifier']
             if not self.importer.check_if_exists('klasse', unit_type):
-                self.importer.add_klasse(identifier=unit_type,
-                                         facet_type_ref='org_unit_type',
-                                         user_key=unit_type,
-                                         title=unit_type,
-                                         scope='TEXT')
+                self._add_klasse(unit_type, unit_type,
+                                 'org_unit_type', scope='TEXT')
         return department_info
 
     def _add_klasse(self, klasse_id, klasse, facet, scope='TEXT'):
         if isinstance(klasse_id, str):
             klasse_id = klasse_id.replace('&', '_')
         if not self.importer.check_if_exists('klasse', klasse_id):
+            klasse_uuid = self._generate_uuid(klasse_id)
             self.importer.add_klasse(identifier=klasse_id,
+                                     uuid=klasse_uuid,
                                      facet_type_ref=facet,
                                      user_key=str(klasse_id),
                                      scope=scope,
                                      title=klasse)
         return klasse_id
 
-    def _add_sd_department(self, department, contains_subunits=False):
+    def _check_subtree(self, department, sub_tree):
+        """ Check if a department is member of given sub-tree """
+        in_sub_tree = False
+        while 'DepartmentReference' in department:
+            department = department['DepartmentReference']
+            dep_uuid = department['DepartmentUUIDIdentifier']
+            if self.org_id_prefix:
+                dep_uuid = self._generate_uuid(dep_uuid)
+            if dep_uuid == sub_tree:
+                in_sub_tree = True
+        return in_sub_tree
+
+    def _add_sd_department(self, department, contains_subunits=False,
+                           sub_tree=None, super_unit=None):
         """
         Add add a deparment to MO. If the unit has parents, these will
         also be added
@@ -190,17 +226,39 @@ class SdImport(object):
         :param contains_subunits: True if the unit has sub-units.
         """
         ou_level = department['DepartmentLevelIdentifier']
-        unit_id = department['DepartmentUUIDIdentifier']
-        user_key = department['DepartmentIdentifier']
-        parent_uuid = None
+        if not self.org_id_prefix:
+            unit_id = department['DepartmentUUIDIdentifier']
+            user_key = department['DepartmentIdentifier']
+        else:
+            unit_id = self._generate_uuid(department['DepartmentUUIDIdentifier'])
+            user_key = self.org_id_prefix + '_' + department['DepartmentIdentifier']
+
+        # parent_uuid = None
+        parent_uuid = super_unit
+
+        # If contain_subunits is true, this sub tree is a valid member
+        import_unit = contains_subunits
         if 'DepartmentReference' in department:
-            parent_uuid = (department['DepartmentReference']
-                           ['DepartmentUUIDIdentifier'])
+            if self._check_subtree(department, sub_tree):
+                import_unit = True
+
+            parent_uuid = department['DepartmentReference']['DepartmentUUIDIdentifier']
+            if self.org_id_prefix:
+                parent_uuid = self._generate_uuid(parent_uuid)
+        else:
+            import_unit = unit_id == sub_tree
+
+        if not import_unit and sub_tree is not None:
+            return
 
         info = self.info[unit_id]
         assert(info['DepartmentLevelIdentifier'] == ou_level)
         logger.debug('Add unit: {}'.format(unit_id))
-        if not contains_subunits and parent_uuid is None:
+        if (
+                (not contains_subunits) and
+                (parent_uuid is super_unit) and
+                self.importer.check_if_exists('organisation_unit', 'OrphanUnits')
+        ):
             parent_uuid = 'OrphanUnits'
 
         date_from = info['ActivationDate']
@@ -267,7 +325,9 @@ class SdImport(object):
         # Include higher level OUs, these do not have their own entry in SD
         if 'DepartmentReference' in department:
             self._add_sd_department(department['DepartmentReference'],
-                                    contains_subunits=True)
+                                    contains_subunits=True,
+                                    sub_tree=sub_tree,
+                                    super_unit=super_unit)
 
     def _create_org_tree_structure(self):
         nodes = {}
@@ -284,6 +344,7 @@ class SdImport(object):
 
         while len(new_ous) > 0:
             logger.info('Number of new ous: {}'.format(len(new_ous)))
+            print('Number of new ous: {}'.format(len(new_ous)))
             all_ous = new_ous
             new_ous = []
             for ou in all_ous:
@@ -366,12 +427,15 @@ class SdImport(object):
                     date_from=None
                 )
 
-    def create_ou_tree(self, create_orphan_container):
+    def create_ou_tree(self, create_orphan_container, sub_tree=None,
+                       super_unit=None):
         """ Read all department levels from SD """
+        # TODO: Currently we can only read a top sub-tree
         if create_orphan_container:
             self._add_klasse('Orphan', 'Virtuel Enhed', 'org_unit_type')
             self.importer.add_organisation_unit(
                 identifier='OrphanUnits',
+                uuid='11111111-0000-0000-0000-111111111111',
                 name='Forældreløse enheder',
                 user_key='OrphanUnits',
                 type_ref='Orphan',
@@ -385,10 +449,11 @@ class SdImport(object):
             'UUIDIndicator': 'true'
         }
         organisation = sd_lookup('GetOrganization20111201', params)
-
         departments = organisation['Organization']['DepartmentReference']
+
         for department in departments:
-            self._add_sd_department(department)
+            self._add_sd_department(department, sub_tree=sub_tree,
+                                    super_unit=super_unit)
         self.nodes = self._create_org_tree_structure()
 
     def create_employees(self):
