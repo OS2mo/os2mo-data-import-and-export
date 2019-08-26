@@ -98,7 +98,7 @@ class CreateUserNames(object):
         reader = ADParameterReader()
         all_users = reader.read_it_all()
         for user in all_users:
-            self.occupied_names.add(username)
+            self.occupied_names.add(user['SamAccountName'])
         del reader
         return len(all_users)
 
