@@ -131,10 +131,8 @@ class OpusImport(object):
             logger.info('bvn: {}, uuid: {}'.format(bvn, uuids))
             engagement_info['uuid'] = uuids[0]
 
-            now = datetime.datetime.now()
-            reg_time = datetime.datetime.strftime(now, '%Y-%m-%d')
             resource = '/organisation/organisationfunktion/{}'
-            resource = resource.format(engagement_info['uuid'], reg_time)
+            resource = resource.format(engagement_info['uuid'])
             response = self.session.get(url=self.mox_base + resource)
             response.raise_for_status()
             data = response.json()
