@@ -8,6 +8,7 @@
 
 import os
 import logging
+import datetime
 from anytree import PostOrderIter, PreOrderIter
 from os2mo_helpers.mora_helpers import MoraHelper
 
@@ -22,6 +23,8 @@ Rapportens opdrag: Tæl lederes medarbejdere, og den har udviklet sig lidt:
 * Direkte antal timelønnede akkumuleres hos først opadfundne chef
 * Ledere akkumuleres som underordnede hos først opadfundne chef
 * Medarbejdere tælles kun en gang i samme træ, men kan godt tælles med i 2 undertræer
+
+Rapportens output er en csv-fil, som placeres i os2mo's rapport-directory ${QUERY_EXPORT_DIR}
 """
 
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
@@ -159,17 +162,17 @@ def find_people(mh, nodes):
                 node.parent.report["e_dir_hourly"].update(report["e_dir_hourly"])
 
 
-def output_report(mh, nodes, report_outfile):
+def prepare_report(mh, nodes):
     fieldnames = ["Leder", "Egen afd", "Email", "Direkte funktionær",
                   "Heraf ledere", "Direkte timeløn", "Direkte ialt",
-                  "Samlet funktionær", "Samlet timeløn", "Samlet ialt"]
+                  "Samlet funktionær", "Samlet timeløn", "Samlet ialt", "Opgjort pr"]
     rows = []
+    opgjort_pr = datetime.datetime.now().strftime("%d/%m/%Y")
     for node in PreOrderIter(nodes['root']):
 
         """ 'manager' is the person-uuid of the person who is manager in this dept
         'payload' contains his manager and engagement-objects
         """
-
         for manager, payload in node.report["m_dir_salary"].items():
             _email = mh.get_e_address(manager, "EMAIL")
 
@@ -193,20 +196,16 @@ def output_report(mh, nodes, report_outfile):
                     if k != payload["manager"]["person"]["uuid"]
                 ]),
                 "Samlet timeløn": len(node.report["e_tot_hourly"]),
+                "Opgjort pr": opgjort_pr,
             }
             row.update({
                 "Direkte ialt": row["Direkte funktionær"] + row["Direkte timeløn"],
                 "Samlet ialt": row["Samlet funktionær"] + row["Samlet timeløn"],
             })
             rows.append(row)
-    mh._write_csv(fieldnames, rows, report_outfile)
+    return fieldnames, rows
 
-
-def main(
-    report_outfile,
-    root_org_unit_name=MORA_ROOT_ORG_UNIT_NAME,
-    mh=MoraHelper(),
-):
+def get_root_org_unit_uuid(mh, root_org_unit_name):
     root_org_unit_uuid = None
     org = mh.read_organisation()
     roots = mh.read_top_units(org)
@@ -215,6 +214,15 @@ def main(
         if root['name'] == root_org_unit_name:
             root_org_unit_uuid = root['uuid']
             break
+    return root_org_unit_uuid
+
+
+def main(
+    report_outfile,
+    root_org_unit_name=MORA_ROOT_ORG_UNIT_NAME,
+    mh=MoraHelper(),
+):
+    root_org_unit_uuid = get_root_org_unit_uuid(mh, root_org_unit_name)
 
     if not root_org_unit_uuid:
         logger.error("%s not found in root-ous", root_org_unit_name)
@@ -224,7 +232,8 @@ def main(
                    " so program may seem unresponsive temporarily")
     nodes = mh.read_ou_tree(root_org_unit_uuid)
     find_people(mh, nodes)
-    output_report(mh, nodes, report_outfile)
+    fieldnames, rows = prepare_report(mh, nodes)
+    mh._write_csv(fieldnames, rows, report_outfile)
 
 
 if __name__ == '__main__':
