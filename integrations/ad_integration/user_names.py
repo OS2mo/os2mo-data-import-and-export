@@ -1,3 +1,5 @@
+from ad_reader import ADParameterReader
+
 FIRST = [
     'F123L', 'F122L', 'F111L', 'F112L', 'F113L', 'F133L', 'F223L', 'F233L', 'F333L',
     'F11LL', 'F12LL', 'F13LL', 'F22LL', 'F23LL', 'F33LL', 'FLLLL', 'FF13L', 'FF12L',
@@ -91,8 +93,14 @@ class CreateUserNames(object):
     def populate_occupied_names(self):
         """
         Read all usernames from AD and add them to the list of reserved names.
+        :return: The amount of added users.
         """
-        pass
+        reader = ADParameterReader()
+        all_users = reader.read_it_all()
+        for user in all_users:
+            self.occupied_names.add(username)
+        del reader
+        return len(all_users)
 
     def disqualify_unwanted_names(self, banned_words_list):
         """
@@ -170,7 +178,7 @@ class CreateUserNames(object):
 
 if __name__ == '__main__':
     name_creator = CreateUserNames(occupied_names=set())
-
+    name_creator.populate_occupied_names()
     # name = ['Pia', 'Munk', 'Jensen']
     # name = ['Karina', 'Jensen']
     # name = ['Karina', 'Munk', 'Jensen']
@@ -178,4 +186,4 @@ if __name__ == '__main__':
     # print(name_creator.create_username(name))
 
     # name_creator.stats(init_size=2000, sample=10)
-    name_creator.stats(find_quality=(4, 100))
+    # name_creator.stats(find_quality=(4, 100))
