@@ -50,11 +50,6 @@ Løns JobPositionIdentifier til at vurdere at en medarbejder skal regnes som led
 
 Medarbejdere i statuskode 3 regnes for at være på orlov.
 
-En medarbejders primære ansættelse regnes som den ansættelse som har den største
-arbejdstidsprocent, hvis flere har den samme, vælges ansættelsen med det laveste
-ansættelsenummer. Hvis ingen ansættelse har en arbejdstidsprocent større end nul,
-regnes ingen engagementer som primær.
-
 Der importeres ingen adresser på medarbejdere. På sigt vil disse kunne hentes fra
 ad-integrationen.
 
@@ -73,11 +68,36 @@ Vi importerer UUID'er på enheder fra SD til MO så enheder i MO og SD har samme
 Medarbejdere har ikke en UUID i SD, så her benyttes cpr som nøgle på personen og
 ansættelsesnummeret som nøgle på engagementer
 
+Primær ansættelse
+-----------------
+En medarbejders primære ansættelse regnes som den ansættelse som har den største
+arbejdstidsprocent, hvis flere har den samme, vælges ansættelsen med det laveste
+ansættelsenummer. Hvis ingen ansættelse har en arbejdstidsprocent større end nul,
+regnes ingen engagementer som primær.
+
+MOs felt til primær ansættelse bliver i øjeblikket ikke sat af den indledende
+import, men bliver dog korrekt opdateret ved ændringer. Det er altså nødvendigt at
+se på ansættelsestypen for at afgøre om en ansættelse er primær.
+
+
+Håndtering af SD Løns statuskoder
+---------------------------------
+En medarbejder der importers fra SD, kan have en af tre forskelllige ansættelsestyper:
+ * Ansat: Angiver en medarbejders primære ansættelse.
+ * Ikke-primær ansat: Angiver alle andre ansættelser for en medarbejder.
+ * Ansat - Ikke i løn: Angiver SD Løns statuskode 0
+
+En medarbejder skifter ikke ansættelsestype selvom vedkommende fratræder sit
+engagement. En ansættelses aktuelle status angives i stedet via MOs start- og
+slutdato. Er slutdato'en i fortiden, er vedkommende ikke længere ansat og vil
+i MOs gui fremgå i fanen fortid. Er en medarbejers startdato i fremtiden, er
+personen endnu ikke tiltrådt, og fremtgår i fanen fremtid i MOs gui.
+
 
 Tjekliste for fuldt import
 --------------------------
 
-1. Kør importværktøjet med fuld historik (dette er stanard opførsel).
+1. Kør importværktøjet med fuld historik (dette er standard opførsel).
 2. Kør sd_fix_organisation.py for at sikre synkronisering af alle enheder
 3. Kør en inledende ChangedAt for at hente alle kendte fremtidige ændringer og intitialisere den lokale database over kørseler.
 4. Kør sd_changed_at.py periodisk (eksempelvis dagligt). Hvis enhederne har ændret sig, er det nødvendigt først at køre sd_fix_organisation.py før hver kørsel.
