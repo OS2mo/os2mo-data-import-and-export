@@ -1,0 +1,1 @@
+../../os2mo_data_import/README.rst
