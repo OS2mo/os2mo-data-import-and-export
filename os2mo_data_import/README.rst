@@ -1,5 +1,9 @@
+Import Tool
+===========
+
+
 Installing
-==========
+----------
 
 Install the os2mo_data_import package as follows:
 
@@ -16,7 +20,7 @@ Install the os2mo_data_import package as follows:
 
 
 Getting started
-===============
+---------------
 The main entry point (for most use cases) is the Organisation class,
 which functions as a wrapper for all the sub classes.
 
@@ -37,7 +41,7 @@ which functions as a wrapper for all the sub classes.
 
 
 Organisation Units
-------------------
+++++++++++++++++++
 Before organisation units can be created,
 a type for the unit must be added:
 
@@ -160,7 +164,7 @@ Optional data or "details" can be associated with an organisation unit.
     )
 
 Employees
----------
++++++++++
 Employees are not directly attached to an organisation unit,
 but can have a job function which is linked to a unit.
 
@@ -179,7 +183,7 @@ Create employees first:
     )
 
 Job function
-------------
+++++++++++++
 Add the job function types:
 
 .. code-block:: python
@@ -226,7 +230,7 @@ with the "add_type_engagement" method:
 
 
 Association
------------
++++++++++++
 In this example the employee "Odin Perskov" is an external consultant,
 and to reflect this an association type can be assigned:
 
@@ -275,7 +279,7 @@ from the "Danish registry of addresses" (DAR):
 
 
 Roles
------
++++++
 To add a role type:
 
 .. code-block:: python
@@ -297,7 +301,7 @@ To add a role type:
     )
 
 It systems
-----------
+++++++++++
 Generic IT systems can be created and assigned to employees with a specified "user_key",
 which functions as a reference to a username, pin code etc.:
 
@@ -320,7 +324,7 @@ which functions as a reference to a username, pin code etc.:
 
 
 Manager type, level and responsibilities
-----------------------------------------
+++++++++++++++++++++++++++++++++++++++++
 In order to assign employees as managers to an organisation unit,
 the following types must be created:
 
@@ -391,7 +395,7 @@ Assign the manager position of Magenta to "Susanne Chæf":
 
 
 Preservation of UUIDs
-=====================
+---------------------
 If the system to be imported into MO contains UUIDs that should be preserved in MO,
 it is possible to import the UUIDs for employees, organisational units, classes and
 classifications. This is achieved by adding an extra uuid argument when creating the
@@ -409,7 +413,7 @@ object, eg:
 
 
 Continuous integration
-======================
+----------------------
 It is possible to run the importer in a mode where the internal identifiers will
 be stored in the special field 'integration_data' in LoRa. This identifier will
 be recognized upon the next import and the object will be re-imported in contrast to
@@ -418,7 +422,7 @@ of the imported system.
 
 
 Example
-=======
+-------
 If a "real" os2mo application is available,
 a practial example is provided with contains similar import data
 as the given examples above.
@@ -436,7 +440,7 @@ Run example:
 
 
 Reference
-=========
+---------
 For more information on the os2mo project,
 please refer to the official documentation.
 
@@ -444,7 +448,7 @@ Read the docs: https://os2mo.readthedocs.io
 
 
 Known Issues
-============
+------------
 Current it is not possible to assign "Leave" (e.g. various types of leave of absence).
 
 This issue is related to the validation of type assignments.
