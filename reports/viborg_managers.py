@@ -24,7 +24,8 @@ Rapportens opdrag: Tæl lederes medarbejdere, og den har udviklet sig lidt:
 * Ledere akkumuleres som underordnede hos først opadfundne chef
 * Medarbejdere tælles kun en gang i samme træ, men kan godt tælles med i 2 undertræer
 
-Rapportens output er en csv-fil, som placeres i os2mo's rapport-directory ${QUERY_EXPORT_DIR}
+Rapportens output er en csv-fil, som placeres i os2mo's rapport-directory
+  ${QUERY_EXPORT_DIR}
 """
 
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
@@ -87,22 +88,15 @@ def find_people(mh, nodes):
                 'ou/{}/details/manager'
         ):
             if not manager.get("person"):
-                logger.info("skipping vacant manager %s", mana)
+                logger.info("skipping vacant manager %s", manager)
                 continue  # vacant manager
             else:
                 mana = manager["person"]["uuid"]
 
-            # se på et engagement for at finde egen afd
-            for engagement in mh._mo_lookup(
-                    mana,
-                    'e/{}/details/engagement'
-            )[:1]:
-                # gem begge dele for senere brug
-                payload = {
-                    "manager": manager,
-                    "engagement": engagement
-                }
-                report["m_dir_salary"].setdefault(mana, payload)
+            payload = {
+                "manager": manager,
+            }
+            report["m_dir_salary"].setdefault(mana, payload)
 
         """ find alle engagementer i denne afdeling og opbevar
         medarbejdernes uuider som nøgler i dicts for henholdsvis
@@ -168,7 +162,9 @@ def prepare_report(mh, nodes):
                   "Samlet funktionær", "Samlet timeløn", "Samlet ialt", "Opgjort pr"]
     rows = []
     opgjort_pr = datetime.datetime.now().strftime("%d/%m/%Y")
+    sort_order = 0
     for node in PreOrderIter(nodes['root']):
+        sort_order = sort_order + 1
 
         """ 'manager' is the person-uuid of the person who is manager in this dept
         'payload' contains his manager and engagement-objects
@@ -177,6 +173,8 @@ def prepare_report(mh, nodes):
             _email = mh.get_e_address(manager, "EMAIL")
 
             row = {
+                "sort_order": sort_order,
+                "manager_uuid": payload["manager"]["person"]["uuid"],
                 "Leder": payload["manager"]["person"]["name"],
                 "Egen afd": payload["manager"]["org_unit"]["name"],
                 "Email": (_email.get("name", "") if _email.get(
@@ -203,7 +201,27 @@ def prepare_report(mh, nodes):
                 "Samlet ialt": row["Samlet funktionær"] + row["Samlet timeløn"],
             })
             rows.append(row)
+
     return fieldnames, rows
+
+
+def collapse_same_manager_more_departments(rows):
+    # sort on manager_uuid, but remain sorted in preorder thereafter
+    rows.sort(key=lambda x: (x["manager_uuid"], x["sort_order"]))
+    returnrows = {}
+    for row in rows:
+        retrow = returnrows.setdefault(row["manager_uuid"], row)
+        # same manager, different department?
+        if row != retrow:
+            retrow["Direkte funktionær"] += row["Direkte funktionær"]
+            retrow["Heraf ledere"] += row["Heraf ledere"]
+            retrow["Direkte timeløn"] += row["Direkte timeløn"]
+            retrow["Samlet funktionær"] += row["Samlet funktionær"]
+            retrow["Samlet timeløn"] += row["Samlet timeløn"]
+            retrow["Direkte ialt"] += row["Direkte ialt"]
+            retrow["Samlet ialt"] += row["Samlet ialt"]
+    return sorted(returnrows.values(), key=lambda x: x["sort_order"])
+
 
 def get_root_org_unit_uuid(mh, root_org_unit_name):
     root_org_unit_uuid = None
@@ -233,6 +251,7 @@ def main(
     nodes = mh.read_ou_tree(root_org_unit_uuid)
     find_people(mh, nodes)
     fieldnames, rows = prepare_report(mh, nodes)
+    rows = collapse_same_manager_more_departments(rows)
     mh._write_csv(fieldnames, rows, report_outfile)
 
 
