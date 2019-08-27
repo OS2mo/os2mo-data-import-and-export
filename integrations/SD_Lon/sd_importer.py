@@ -580,7 +580,7 @@ class SdImport(object):
                 # Employees are not allowed to be in these units (allthough
                 # we do make an association). We must instead find the lowest
                 # higher level to put she or he.
-                too_deep = ['Afdelings-niveau', 'NY1-niveau', 'NY2-niveau']
+                too_deep = ['Afdelings-niveau', 'NY1-niveau']
                 original_unit = unit
                 while self.nodes[unit].name in too_deep:
                     unit = self.nodes[unit].parent.uuid
@@ -640,7 +640,7 @@ class SdImport(object):
                         if job_id in [1040, 1035, 1030]:
                             manager_level = job_id
                         else:
-                            manager_level = 1030
+                            manager_level = 1040
 
                         logger.info(
                             'Manager {} to {}'.format(cpr, row['afdeling'])
