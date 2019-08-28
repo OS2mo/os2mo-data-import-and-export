@@ -13,7 +13,7 @@ have all os2mo-requirements and os2mo it self installed.
 Furthermore You must define the path to the os2mo source directory
 
 in order to record a test result use this temporarily in a test,
-adapted to Your test: self.cache_new_result(x=1, y=2)
+adapted to Your test: self.cache_new_result("file contents")
 """
 
 import sys
