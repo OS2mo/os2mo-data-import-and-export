@@ -1,13 +1,14 @@
+**********************
 Integration til SD Løn
-======================
+**********************
 
 Indledning
-----------
+==========
 Denne integration gør det muligt at hente og opdatere organisations- og
 medarbejderoplysninger fra SD Løn til OS2MO. 
 
 Opsætning
----------
+==========
 
 For at kunne afvikle integrationen, kræves loginoplysninger til SD-Løn, som angives
 via miljøvariable i den terminal integrationen afvikles fra. Disse miljøvariable er:
@@ -18,7 +19,7 @@ via miljøvariable i den terminal integrationen afvikles fra. Disse miljøvariab
 
 
 Detaljer om importen
---------------------
+====================
 Udtræk fra SD Løn foregår som udgangspunkt via disse webservices:
 
  * ``GetOrganization20111201``
@@ -69,7 +70,7 @@ Medarbejdere har ikke en UUID i SD, så her benyttes cpr som nøgle på personen
 ansættelsesnummeret som nøgle på engagementer
 
 Primær ansættelse
------------------
+=================
 En medarbejders primære ansættelse regnes som den ansættelse som har den største
 arbejdstidsprocent, hvis flere har den samme, vælges ansættelsen med det laveste
 ansættelsenummer. Hvis ingen ansættelse har en arbejdstidsprocent større end nul,
@@ -81,8 +82,9 @@ se på ansættelsestypen for at afgøre om en ansættelse er primær.
 
 
 Håndtering af SD Løns statuskoder
----------------------------------
+=================================
 En medarbejder der importers fra SD, kan have en af tre forskelllige ansættelsestyper:
+
  * Ansat: Angiver en medarbejders primære ansættelse.
  * Ikke-primær ansat: Angiver alle andre ansættelser for en medarbejder.
  * Ansat - Ikke i løn: Angiver SD Løns statuskode 0
@@ -95,9 +97,116 @@ personen endnu ikke tiltrådt, og fremtgår i fanen fremtid i MOs gui.
 
 
 Tjekliste for fuldt import
---------------------------
+==========================
+Overordnet foregår opstart af en ny SD import efter dette mønster:
 
 1. Kør importværktøjet med fuld historik (dette er standard opførsel).
-2. Kør sd_fix_organisation.py for at sikre synkronisering af alle enheder
-3. Kør en inledende ChangedAt for at hente alle kendte fremtidige ændringer og intitialisere den lokale database over kørseler.
-4. Kør sd_changed_at.py periodisk (eksempelvis dagligt). Hvis enhederne har ændret sig, er det nødvendigt først at køre sd_fix_organisation.py før hver kørsel.
+2. Kør `sd_fix_organisation.py` for at sikre synkronisering af alle enheder
+3. Kør en inledende ChangedAt for at hente alle kendte fremtidige ændringer og
+   intitialisere den lokale database over kørseler.
+4. Kør sd_changed_at.py periodisk (eksempelvis dagligt). Hvis enhederne har ændret
+   sig, er det nødvendigt først at køre sd_fix_organisation.py før hver kørsel.
+
+1. Kør importværktøjet
+----------------------
+En indledende import køres ved at oprette en instans af ImportHelper_ ImportHelper
+
+.. code-block:: python
+
+   importer = ImportHelper(
+       create_defaults=True,
+       mox_base=MOX_BASE,
+       mora_base=MORA_BASE,
+       system_name='SD-Import',
+       end_marker='SDSTOP',
+       store_integration_data=True,
+       seperate_names=True
+   )
+			       
+Hverken importen eller efterfølgende synkronisering med ChangedAt anvender
+integrationsdata, og det er derfor valgfrit om vil anvende dette.
+
+Importen kan derefter køres med disse trin:
+
+.. code-block:: python
+
+    sd = sd_importer.SdImport(
+	importer,
+        MUNICIPALTY_NAME,
+	MUNICIPALTY_CODE,
+        import_date_from=GLOBAL_GET_DATE,
+        ad_info=None,
+	manager_rows=None
+   )
+
+   sd.create_ou_tree(
+       create_orphan_container=False,
+       sub_tree=None,
+       super_unit=None
+   )
+   sd.create_employees()
+
+   importer.import_all()
+
+Hvor der i dette tilfælde ikke angives ledere eller en AD integration. Disse to
+punkter diskuteres under punkterne `Ledere i SD Løn`_ og
+`AD Integration til SD Import`_.
+
+Parametren `sub_tree` kan angives med en uuid og det vil så fald kun blive
+undertræet med den pågældende uuid i SD som vil blive importeret. Det er i
+øjeblikket et krav, at dette træ er på rod-niveau i SD.
+
+Importen vil nu blive afviklet og nogle timer senere vil MO være populeret med
+værdierne fra SD Løn som de ser ud dags dato.
+
+2. `sd_fix_organisation.py`
+-------------------------------
+Den indledende import henter kun enhedssrukturen for den virkningsdato importen
+foretages fra, hvis der er fremtidige ændringer skal disse efterfølgende hentes.
+Til det formål findes værktøjet `sd_fix_organisation.py` som henter alle fremtidige
+ændringer til organisationen:
+
+python3 sd_fix_organisation.py
+
+::
+
+   Der er i øjeblikket en bug i MO som forhindrer oprettelse af enheder med en
+   fremtidig virkningstid. Værktøjet vil derfor i øjeblikket kunstigt sætte
+   virkingstiden på alle fremtidige afdelinger til 1. august 2019. Denne fejl vil
+   blive rettet i den næste release af MO.
+
+3. Kør en inledende ChangedAt
+-----------------------------
+I SD Løn importeres i udgangspunktet kun nuværende og forhenværende medarbejdere og
+engagementer, fremtidige ændringer skal hentes i en seperat process. Denne process
+håndteres af programmet `sd_changed_at.py` (som også anvendes til efterfølgende
+daglige synkroniseringer). Programmet tager i øjeblikket desværre ikke mod parametre
+fra kommandolinjen, men har brug for at blive rettet direkte i koden, hvor parametren
+`init` i `__main__` delen af programmet skal sættes til `True`. Desuden skal
+`from_date` sætte til samme dato som importen blev foretaget med.
+
+Programet kan nu afvikles direkte fra kommandolinjen
+
+python3 sd_changed_at.py
+
+Herefter vil alle kendte fremtidige virkninger blive indlæst til MO. Desuden vil der
+blive oprettet en sqlite database med en oversigt over kørsler af changed_at (se
+ChangedAt.db_) .
+
+4. Kør sd_changed_at.py periodisk
+---------------------------------
+   
+.. _Ledere i SD Løn:
+
+Ledere
+======
+
+.. _AD Integration til SD import:
+
+AD Integration til SD import
+============================
+
+.. _ChangedAt.db:
+
+ChangedAt.db
+============
