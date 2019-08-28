@@ -1,13 +1,15 @@
+************************
 Integration til OPUS Løn
-========================
+************************
+
 
 Indledning
-----------
+==========
 Denne integration gør det muligt at hente og opdatere organisations- og
 medarbejderoplysninger fra XML dumps fra OPUS Løn til OS2MO
 
 Opsætning
----------
+=========
 
 For at kunne afvikle integrationen, kræves loginoplysninger adgang til en
 mappe med xml dums fra OPUS. Disse oplysinger er dog i øjeblikket skrevet
@@ -16,7 +18,7 @@ direkte i importkoden kan ikke ændres i runtime.
 
 
 Nuværende implementeringslogik for import fra Opus:
----------------------------------------------------
+===================================================
 
  * Data indlæses i form at et xml-dump.
  * Hvis data indeholder information om enhedstyper, oprettes disse enhedstyper som klasser, hvis ikke, får alle enheder typen ``Enhed``.
