@@ -67,8 +67,9 @@ class Tests(util.LoRATestCase):
         super().setUp()
         util.amqp.publish_message = lambda a, b, c, d, e: None
         self.mh = MoraHelper()
-        requests._orgget = requests.get
-        requests.get = self.get
+        if not getattr(requests,"_orgget",False):
+            requests._orgget = requests.get
+            requests.get = self.get
         self._test_data_result = str(
             testdata / (
                 pathlib.Path(__file__).stem +
@@ -77,6 +78,11 @@ class Tests(util.LoRATestCase):
                 "_result.json"
             )
         )
+
+    def tearDown(self):
+        if getattr(requests,"_orgget",False):
+            requests.get = requests._orgget
+            del requests._orgget
 
     def run_report(self):
         self.mh.read_organisation()
