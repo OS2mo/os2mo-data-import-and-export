@@ -10,9 +10,11 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+sys.path.insert(0, os.path.abspath('../../'))
+# sys.path.insert(0, os.path.abspath('../../os2mo_data_import'))
+sys.path.insert(0, os.path.abspath('../../os2mo_data_import/os2mo_helpers'))
 
 # At top on conf.py (with other import statements)
 import recommonmark
@@ -30,8 +32,7 @@ author = 'Magenta'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-# for Sphinx-1.4 or newer
-extensions = ['recommonmark']
+extensions = ['recommonmark', 'sphinx.ext.autodoc', 'sphinx.ext.napoleon']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
