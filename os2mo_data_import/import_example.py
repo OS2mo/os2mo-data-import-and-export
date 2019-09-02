@@ -53,7 +53,7 @@ def example_import(mox_base, mora_base):
         user_key="Tjenestetid",
         title="Tjenestetid"
     )
-    
+
     # Root unit: Magenta
     # Belongs to unit type: "Hovedenhed"
     os2mo.add_organisation_unit(
@@ -175,31 +175,37 @@ def example_import(mox_base, mora_base):
 
     os2mo.add_employee(
         identifier="Susanne Chæf",
+        name=('Susanne', 'Chæf'),
         cpr_no="0101862233"
     )
 
     os2mo.add_employee(
         identifier="Odin Perskov",
+        name=('Odin', 'Perskov'),
         cpr_no="0102862234"
     )
 
     os2mo.add_employee(
         identifier="Ronja Rwander",
+        name=('Ronja', 'Rwander'),
         cpr_no="0103862234"
     )
 
     os2mo.add_employee(
         identifier="Jens Mortensen",
+        name=('Jens', 'Mortensen'),
         cpr_no="0104862235"
     )
 
     os2mo.add_employee(
         identifier="Bolette Buhl",
+        name=('Bolette', 'Buhl'),
         cpr_no="0105862235"
     )
 
     os2mo.add_employee(
         identifier="Carl Sand Holth",
+        name=('Carl Sand', 'Holth'),
         cpr_no="0106862235"
     )
 
@@ -457,11 +463,11 @@ def example_import(mox_base, mora_base):
         date_from="1987-10-01"
     )
 
-    # Terminate an employee
-    os2mo.terminate_employee(
-            employee="Susanne Chæf",
-            date_from="2019-06-01",
-    )
+    # Terminate an employee (only relevant for multiple imports)
+    # os2mo.terminate_employee(
+    #    employee="Susanne Chæf",
+    #    date_from="2019-06-01",
+    # )
 
     os2mo.import_all()
 
