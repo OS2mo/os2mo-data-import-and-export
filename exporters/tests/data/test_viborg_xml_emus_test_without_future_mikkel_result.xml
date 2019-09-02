@@ -1,0 +1,2661 @@
+<?xml version="1.0" encoding="utf-8"?>
+<OS2MO>
+<orgUnit id="f06ee470-9f17-566f-acbe-e938112d46d9" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit></parentOrgUnit>
+<manager>7d5cdeec-8333-46e9-8a69-b4a2351f4d01</manager>
+<longName>Hjørring Kommune</longName>
+<street>Højskolebakken 2E, 1.</street>
+<zipCode>9760</zipCode>
+<city>Vrå</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="b6c11152-0645-4712-a207-ba2c53b391ab" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f06ee470-9f17-566f-acbe-e938112d46d9</parentOrgUnit>
+<manager>1cd7d465-e525-402f-b93e-e60a20a6e494</manager>
+<longName>Borgmesterens Afdeling</longName>
+<street>Søndergade 93F</street>
+<zipCode>9480</zipCode>
+<city>Løkken</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="1f06ed67-aa6e-4bbc-96d9-2f262b9202b5" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>b6c11152-0645-4712-a207-ba2c53b391ab</parentOrgUnit>
+<manager>61ad64f3-cda4-4517-b9e6-a375e7e2cb20</manager>
+<longName>Budget og Planlægning</longName>
+<street>Nygade 12</street>
+<zipCode>9870</zipCode>
+<city>Sindal</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="f1c20ee2-ecbb-4b74-b91c-66ef9831c5cd" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>b6c11152-0645-4712-a207-ba2c53b391ab</parentOrgUnit>
+<manager>2f8cb17d-1f17-4c7f-b421-680f2be9e902</manager>
+<longName>Byudvikling</longName>
+<street>Øksenbækvej 15, Tornby</street>
+<zipCode>9850</zipCode>
+<city>Hirtshals</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="e054559b-bc15-4203-bced-44375aed1555" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>b6c11152-0645-4712-a207-ba2c53b391ab</parentOrgUnit>
+<manager></manager>
+<longName>Erhverv</longName>
+<street>Nythåbsvej 8, Tranget</street>
+<zipCode>9830</zipCode>
+<city>Tårs</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="96a4715c-f4df-422f-a4b0-9dcc686753f7" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>b6c11152-0645-4712-a207-ba2c53b391ab</parentOrgUnit>
+<manager>243e8005-93cc-49e9-953a-28e3a9a868f0</manager>
+<longName>HR og organisation</longName>
+<street>Frederikshavnsvej 2B, Hjørring</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="25e39a21-caef-4e96-ac90-7cc27173082e" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>b6c11152-0645-4712-a207-ba2c53b391ab</parentOrgUnit>
+<manager>60aabd5b-0a67-4953-b5e1-860917288006</manager>
+<longName>IT-Support</longName>
+<street>Vendelbogade 39B, 1. 2</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="7a8e45f7-4de0-44c8-990f-43c0565ee505" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f06ee470-9f17-566f-acbe-e938112d46d9</parentOrgUnit>
+<manager>835bba05-6ea3-4848-8d05-bba35e9e55a5</manager>
+<longName>Skole og Børn</longName>
+<street>Bjarkesvej 10</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="9b7b3dde-16c9-4f88-87cc-e03aa5b4e709" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>7a8e45f7-4de0-44c8-990f-43c0565ee505</parentOrgUnit>
+<manager>cf9c347b-9fa8-49fb-aa0c-7f383bf213c1</manager>
+<longName>IT-Support</longName>
+<street>Hindbærvej 73, Horne</street>
+<zipCode>9850</zipCode>
+<city>Hirtshals</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="f44d8dd6-c85b-5c20-95e5-3b697d24bc46" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>7a8e45f7-4de0-44c8-990f-43c0565ee505</parentOrgUnit>
+<manager></manager>
+<longName>Skoler og børnehaver</longName>
+<street>Nordens Alle 25, 3. 307</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="a2aa9408-88bf-5592-a082-bb6a2a7faa04" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>69db8855-3d25-4cf7-9184-a5a60077a851</manager>
+<longName>Bindslev børnehus</longName>
+<street>Finhvalvej 1, Lyngby</street>
+<zipCode>9480</zipCode>
+<city>Løkken</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="b6d40233-3aad-5db9-b7e6-bd8c2ac0cb39" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>a2aa9408-88bf-5592-a082-bb6a2a7faa04</parentOrgUnit>
+<manager>ce3b9f2f-aea6-4320-b02d-eae82b33afff</manager>
+<longName>Administration</longName>
+<street>Hovedvejen 96, Tornby</street>
+<zipCode>9850</zipCode>
+<city>Hirtshals</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="43dd19e9-b717-55dc-9835-596a8b935b6a" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>13db2f94-0150-42f6-85f0-36d8add2d18d</manager>
+<longName>Bindslev skole</longName>
+<street>Vitskølklostervej 87C</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="cb983667-6920-596d-9e6f-1d61918c841f" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>059b45b4-7e92-4450-b7ae-dff989d66ad2</manager>
+<longName>Frederikshavn børnehus</longName>
+<street>Kærholm 3</street>
+<zipCode>9850</zipCode>
+<city>Hirtshals</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="6bd7f0c5-2e51-54cc-ac29-169d53c0b9fc" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>0e6ca28a-e15b-46b9-97ae-23bbd15fb53c</manager>
+<longName>Frederikshavn skole</longName>
+<street>Dybet 11</street>
+<zipCode>9480</zipCode>
+<city>Løkken</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="1557d877-5925-5e18-a12c-9e89fd7759ec" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>d36fe4ed-729b-4be2-b542-d32fe935c8b7</manager>
+<longName>Hirtshals børnehus</longName>
+<street>Markedsvej 3, Tversted</street>
+<zipCode>9881</zipCode>
+<city>Bindslev</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="ebbedc48-1819-5d29-9437-997b8d520642" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>1557d877-5925-5e18-a12c-9e89fd7759ec</parentOrgUnit>
+<manager>9960bd8e-55ab-4a18-a386-b12c07b5e06b</manager>
+<longName>Administration</longName>
+<street>Høngårdsvej 15, Lønstrup</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="96ae7911-52f2-5533-9dc7-0e20d93caa07" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager></manager>
+<longName>Hirtshals skole</longName>
+<street>Sønder Romvej 120</street>
+<zipCode>9830</zipCode>
+<city>Tårs</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="391cf990-31a0-5104-8944-6bdc4c934b7a" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>73abfa5e-d2c9-49c6-af7c-9f2311ba9bde</manager>
+<longName>Hjørring børnehus</longName>
+<street>Ærenprisvej 5</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="5d28aeda-f727-5d18-856a-d0d0cbc8178e" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>391cf990-31a0-5104-8944-6bdc4c934b7a</parentOrgUnit>
+<manager>2417ee89-42a4-49c6-9e03-9d30841a09bb</manager>
+<longName>Administration</longName>
+<street>Allingdamvej 100, Asdal</street>
+<zipCode>9850</zipCode>
+<city>Hirtshals</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="450e8f12-f5d6-53e3-a2bc-1104aa9a5187" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>391cf990-31a0-5104-8944-6bdc4c934b7a</parentOrgUnit>
+<manager>7e99797d-2b20-493a-a47b-2344aa45605d</manager>
+<longName>Teknisk Support</longName>
+<street>Søndervang 3, Tornby</street>
+<zipCode>9850</zipCode>
+<city>Hirtshals</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="6d9fcaa1-25cc-587f-acf2-dc02d8e30d76" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>ae8205bc-1bb1-4bbe-b9c1-88efbe9f19db</manager>
+<longName>Hjørring skole</longName>
+<street>Fjelstedvej 200</street>
+<zipCode>9870</zipCode>
+<city>Sindal</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="f7c4b3f4-2252-5b86-a38f-4ce2afce70e3" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>05bf309e-f483-4ccc-8f45-65d2d33b6b59</manager>
+<longName>Jerslev J børnehus</longName>
+<street>Gaden 56</street>
+<zipCode>9870</zipCode>
+<city>Sindal</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="a59c614e-08cc-564c-ada4-3d8bd0739df0" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>4d40a117-22c6-45ea-b5f6-0f43b3256b6d</manager>
+<longName>Jerslev J skole</longName>
+<street>Skallerupvej 437, Sønderlev</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="c87a0485-5b27-5bd9-a49a-b74d426da6cd" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>a27513ae-86db-4685-9386-31a7994a8717</manager>
+<longName>Løkken børnehus</longName>
+<street>Kristiansandsvej 11, st. th</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="7fe08e7c-837f-5eff-a01d-655fdd67dc9f" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>c7d809ff-d00f-4d76-a74c-6b2bfeb1131d</manager>
+<longName>Løkken skole</longName>
+<street>Åstrupvej 10, 8.</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="26394d81-25b4-5650-baa1-793edaeafff9" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>faf257b9-51cf-4e5c-9ea2-83e84e3fbcd8</manager>
+<longName>Sindal børnehus</longName>
+<street>Stejlbjergvej 18, Asdal Uggerb</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="c670a922-b6f6-5468-9116-397956f325bf" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>9616de08-ee1d-4c34-9432-6b2580dc8096</manager>
+<longName>Sindal skole</longName>
+<street>Øresundvej 22, Lønstrup</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="ae43fd72-e24d-5d99-9b84-74df227d6224" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>40d4b26b-f77c-4517-97bc-b84992b9f5ff</manager>
+<longName>Tårs børnehus</longName>
+<street>Baldersvej 3</street>
+<zipCode>9870</zipCode>
+<city>Sindal</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="cca9988b-3900-5901-8a85-cf206b53b3c0" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>ae43fd72-e24d-5d99-9b84-74df227d6224</parentOrgUnit>
+<manager>f4816cd2-d040-489f-9ded-d9f748652b99</manager>
+<longName>Administration</longName>
+<street>Gaden 21A, st. th</street>
+<zipCode>9870</zipCode>
+<city>Sindal</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="ba5b8eee-101f-5bd2-a318-7256cbda4d29" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager></manager>
+<longName>Tårs skole</longName>
+<street>Gaden 60</street>
+<zipCode>9870</zipCode>
+<city>Sindal</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="bc40235b-47c2-5b29-ae37-7f09ef6ca57a" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>84eb5e76-6127-4902-90c2-b871b857b0dc</manager>
+<longName>Vrå børnehus</longName>
+<street>Møllevej 31</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="ada3f4ca-3eb7-5cf6-a98c-a52e6aa2e833" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>c93c3b48-a2ad-4d87-aa9a-3cb4c69c36b9</manager>
+<longName>Vrå skole</longName>
+<street>Kærparken 17</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="1ae7111e-cea3-57eb-8093-73b9ac89721e" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>6b6e1dcf-45b8-481d-a170-bb3bf5a13651</manager>
+<longName>Ålbæk børnehus</longName>
+<street>Decembervej 2, Skal Klit</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="83480ca9-4e80-5e68-b194-c38a83009483" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>1ae7111e-cea3-57eb-8093-73b9ac89721e</parentOrgUnit>
+<manager>dab601c5-2cda-4b58-bf71-22982f015637</manager>
+<longName>Administration</longName>
+<street>Silkehalevej 3</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="d75cd4dd-e461-5edb-ab1b-5b36f7a3431a" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>d3597877-6f12-4a4d-9cf0-b83f35d98fdc</manager>
+<longName>Ålbæk skole</longName>
+<street>Sindalvej 42</street>
+<zipCode>9850</zipCode>
+<city>Hirtshals</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="666b6c21-f09d-55aa-bba2-49cd9aac3067" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>25218ace-b60d-4e82-8c9b-996bb7e34432</manager>
+<longName>Østervrå børnehus</longName>
+<street>Klokagervej 22B, 1. tv</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="88ce65d2-afb8-57a2-8fcf-05bf5b555d81" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>666b6c21-f09d-55aa-bba2-49cd9aac3067</parentOrgUnit>
+<manager>f1dea57b-2e60-4903-b39f-35fa83a938a0</manager>
+<longName>Administration</longName>
+<street>Østergade 38F</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="9d36317c-5a76-5329-af08-28c64780d08f" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</parentOrgUnit>
+<manager>ca4d8c2c-f6a0-44ab-9202-285e7fbadd7a</manager>
+<longName>Østervrå skole</longName>
+<street>Vendelbogade 65A</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="535ba446-d618-4e51-8dae-821d63e26560" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>7a8e45f7-4de0-44c8-990f-43c0565ee505</parentOrgUnit>
+<manager>d51f53ef-50bb-4df4-bdac-ba40589b409f</manager>
+<longName>Social Indsats</longName>
+<street>Ålborgvej 233</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="a6773531-6c0a-4c7b-b0e2-77992412b610" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f06ee470-9f17-566f-acbe-e938112d46d9</parentOrgUnit>
+<manager>74894be9-2476-48e2-8b3a-ba1db926bb0b</manager>
+<longName>Social og sundhed</longName>
+<street>Dronningensgade 2B, 2.</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="23a2ace2-52ca-458d-bead-d1a42080579f" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>f06ee470-9f17-566f-acbe-e938112d46d9</parentOrgUnit>
+<manager></manager>
+<longName>Teknik og Miljø</longName>
+<street>Svinget 1C</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="fe2d2ff4-45f8-4b19-8e1b-72d1c4914360" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>23a2ace2-52ca-458d-bead-d1a42080579f</parentOrgUnit>
+<manager>83b47a3f-dc23-467b-8f5c-40c0d0e97e5b</manager>
+<longName>Belysning</longName>
+<street>Lunøesvej 18</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="edbd7860-6d44-5e2b-b442-c74119f4d540" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>fe2d2ff4-45f8-4b19-8e1b-72d1c4914360</parentOrgUnit>
+<manager>c9eaffad-971e-4c0c-8516-44c5d29ca092</manager>
+<longName>Kantine</longName>
+<street>Glimsholtvej 226</street>
+<zipCode>9870</zipCode>
+<city>Sindal</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="8bf0c4ce-816e-41f9-99fe-057e0592d86d" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>23a2ace2-52ca-458d-bead-d1a42080579f</parentOrgUnit>
+<manager>d53a3cce-2054-4002-9099-980ea5bd6129</manager>
+<longName>IT-Support</longName>
+<street>Hestkærvej 9B</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="cf4daae1-4812-41f1-8c47-63a99e26aadf" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>23a2ace2-52ca-458d-bead-d1a42080579f</parentOrgUnit>
+<manager></manager>
+<longName>Kloakering</longName>
+<street>Thomas A Müllers Vej 4</street>
+<zipCode>9800</zipCode>
+<city>Hjørring</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="1a477478-41b4-4806-ac3a-e220760a0c89" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>23a2ace2-52ca-458d-bead-d1a42080579f</parentOrgUnit>
+<manager>213cab99-d139-4ace-b16d-f9b4c1a85c13</manager>
+<longName>Park og vej</longName>
+<street>Jørgen Fibigersgade 3, st. tv</street>
+<zipCode>9850</zipCode>
+<city>Hirtshals</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<orgUnit id="dac3b1ef-3d36-4464-9839-f611a4215cb5" client="1" lastChanged="2019-08-26">
+<startDate>1960-01-01</startDate>
+<endDate></endDate>
+<parentOrgUnit>23a2ace2-52ca-458d-bead-d1a42080579f</parentOrgUnit>
+<manager>6982c278-67d4-4272-ba55-259b2fba11a3</manager>
+<longName>Renovation</longName>
+<street>M Christensens Vej 97, Åsendrup</street>
+<zipCode>9480</zipCode>
+<city>Løkken</city>
+<phoneNumber></phoneNumber>
+</orgUnit>
+<employee id="2368360a-c860-458c-9725-d678c5efbf79" client="1" lastChanged="2019-08-26">
+<entryDate>1997-04-16</entryDate>
+<leaveDate></leaveDate>
+<cpr>1601470507</cpr>
+<firstName>Martin Fèvre</firstName>
+<lastName>Laustsen</lastName>
+<workPhone>+4530654002</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>c5d76586-32fe-41e8-b702-27636265d696</positionId>
+<position>Personalekonsulent</position>
+<orgUnit>f06ee470-9f17-566f-acbe-e938112d46d9</orgUnit>
+<email>martinl@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="1af61e9e-287c-4909-8654-c62914101184" client="1" lastChanged="2019-08-26">
+<entryDate>2010-04-08</entryDate>
+<leaveDate></leaveDate>
+<cpr>2101412116</cpr>
+<firstName>Elisabeth Bøgholm</firstName>
+<lastName>Meilsøe</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>15c6e536-adb9-4453-b495-70da72a1541c</positionId>
+<position>Timelønnet lærer</position>
+<orgUnit>b6c11152-0645-4712-a207-ba2c53b391ab</orgUnit>
+<email>elisabethm@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="7b4d2e8e-0c78-40f4-ad85-1b080383b7cc" client="1" lastChanged="2019-08-26">
+<entryDate>2016-03-07</entryDate>
+<leaveDate></leaveDate>
+<cpr>2701573660</cpr>
+<firstName>Ingelise</firstName>
+<lastName>Andersen</lastName>
+<workPhone>+4520135157</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4f9bc0bf-5a25-4f79-bcc0-b64afb0255c0</positionId>
+<position>Pædagoisk vejleder</position>
+<orgUnit>1f06ed67-aa6e-4bbc-96d9-2f262b9202b5</orgUnit>
+<email>ingelisea@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="582937cc-74d8-4268-8e6f-cab63135ad6c" client="1" lastChanged="2019-08-26">
+<entryDate>2016-06-05</entryDate>
+<leaveDate></leaveDate>
+<cpr>0506822513</cpr>
+<firstName>Arnold Daugbjerg</firstName>
+<lastName>Nielsson</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>e09d8934-9a18-4ccc-98b2-54ba417f8969</positionId>
+<position>Teknisk Servicemedarb.</position>
+<orgUnit>1f06ed67-aa6e-4bbc-96d9-2f262b9202b5</orgUnit>
+<email>arnoldn@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="419b090c-2f3a-454e-8bf3-de822638c59e" client="1" lastChanged="2019-08-26">
+<entryDate>1991-04-18</entryDate>
+<leaveDate></leaveDate>
+<cpr>1806472723</cpr>
+<firstName>Gunner Hollegaard</firstName>
+<lastName>Hammou</lastName>
+<workPhone>+4550181184</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2180cbef-b2f0-4016-9155-2db50da81e73</positionId>
+<position>Specialkonsulent</position>
+<orgUnit>f1c20ee2-ecbb-4b74-b91c-66ef9831c5cd</orgUnit>
+<email>gunnerh@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="d2292b91-dbbc-416f-a5f2-ac60609f5b7d" client="1" lastChanged="2019-08-26">
+<entryDate>1992-08-10</entryDate>
+<leaveDate></leaveDate>
+<cpr>2401453620</cpr>
+<firstName>Laurits Hessing</firstName>
+<lastName>Bech</lastName>
+<workPhone>+4561160483</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>15c6e536-adb9-4453-b495-70da72a1541c</positionId>
+<position>Timelønnet lærer</position>
+<orgUnit>f1c20ee2-ecbb-4b74-b91c-66ef9831c5cd</orgUnit>
+<email>lauritsb@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="05cf2e46-8d74-446b-bebb-00f58f91bf09" client="1" lastChanged="2019-08-26">
+<entryDate>2002-11-16</entryDate>
+<leaveDate>2022-12-31</leaveDate>
+<cpr>0905803433</cpr>
+<firstName>Holger Rytter Gavlshøj</firstName>
+<lastName>Sørensen</lastName>
+<workPhone>+4538200653</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>96d983a4-edc7-4fc2-b1d9-f910c9e7176a</positionId>
+<position>Lærer/Overlærer</position>
+<orgUnit>f1c20ee2-ecbb-4b74-b91c-66ef9831c5cd</orgUnit>
+<email>holgers@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="1be1c2e7-d023-4c13-a205-0af9b41af221" client="1" lastChanged="2019-08-26">
+<entryDate>1996-04-21</entryDate>
+<leaveDate></leaveDate>
+<cpr>0502692844</cpr>
+<firstName>Jørgen Siig</firstName>
+<lastName>Jørgensen</lastName>
+<workPhone>+4544662842</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>b6fb3c33-d718-46a4-b817-cc5021713689</positionId>
+<position>Udvikler</position>
+<orgUnit>e054559b-bc15-4203-bced-44375aed1555</orgUnit>
+<email>jørgenj@hjorring.dk</email>
+<username>JørgenJ</username>
+</employee>
+<employee id="50335f6f-f309-412a-beee-5ef012b27282" client="1" lastChanged="2019-08-26">
+<entryDate>1981-03-11</entryDate>
+<leaveDate></leaveDate>
+<cpr>2503533890</cpr>
+<firstName>Jürgen Haahr</firstName>
+<lastName>Nielsen</lastName>
+<workPhone>+4571107440</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2180cbef-b2f0-4016-9155-2db50da81e73</positionId>
+<position>Specialkonsulent</position>
+<orgUnit>96a4715c-f4df-422f-a4b0-9dcc686753f7</orgUnit>
+<email>jürgenn@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="e53b0ac4-7b15-41a1-988c-8424eb550e99" client="1" lastChanged="2019-08-26">
+<entryDate>2001-10-22</entryDate>
+<leaveDate></leaveDate>
+<cpr>2706602464</cpr>
+<firstName>Lorenz Castberg</firstName>
+<lastName>Lindgård</lastName>
+<workPhone>+4527745060</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>45c19d33-b65c-4e1e-a890-51bd3bf26e2b</positionId>
+<position>Jurist</position>
+<orgUnit>96a4715c-f4df-422f-a4b0-9dcc686753f7</orgUnit>
+<email>lorenzl@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="5ec0a92e-5863-45dc-8a42-6a0bc1a4e866" client="1" lastChanged="2019-08-26">
+<entryDate>1982-04-05</entryDate>
+<leaveDate></leaveDate>
+<cpr>1408632788</cpr>
+<firstName>Poul Fredsø</firstName>
+<lastName>Kruuse</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>e09d8934-9a18-4ccc-98b2-54ba417f8969</positionId>
+<position>Teknisk Servicemedarb.</position>
+<orgUnit>25e39a21-caef-4e96-ac90-7cc27173082e</orgUnit>
+<email>poulk@hjorring.dk</email>
+<username>PoulK</username>
+</employee>
+<employee id="ba5350df-addf-45a6-8577-8ef319bd5015" client="1" lastChanged="2019-08-26">
+<entryDate>1992-01-13</entryDate>
+<leaveDate></leaveDate>
+<cpr>1102642658</cpr>
+<firstName>Daniella Dahl</firstName>
+<lastName>Andersen</lastName>
+<workPhone>+4578883672</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>45c19d33-b65c-4e1e-a890-51bd3bf26e2b</positionId>
+<position>Jurist</position>
+<orgUnit>25e39a21-caef-4e96-ac90-7cc27173082e</orgUnit>
+<email>daniellaa@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="e209df24-5e38-4e94-a75c-0842670efc51" client="1" lastChanged="2019-08-26">
+<entryDate>2003-03-16</entryDate>
+<leaveDate></leaveDate>
+<cpr>1801412382</cpr>
+<firstName>Simone Nyhus</firstName>
+<lastName>Salvesen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2f84f505-05c2-4853-8a57-f82ae2d1beea</positionId>
+<position>Pædagogmedhjælper</position>
+<orgUnit>25e39a21-caef-4e96-ac90-7cc27173082e</orgUnit>
+<email>simones@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="29bb35e6-b86e-421a-ba74-799bb795c101" client="1" lastChanged="2019-08-26">
+<entryDate>1994-12-28</entryDate>
+<leaveDate>2023-06-29</leaveDate>
+<cpr>0711663770</cpr>
+<firstName>Elsa Reiner</firstName>
+<lastName>Jensen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>d3541878-130e-44c5-a43e-cf036932305c</positionId>
+<position>Udviklingskonsulent</position>
+<orgUnit>7a8e45f7-4de0-44c8-990f-43c0565ee505</orgUnit>
+<email>elsaj@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="a87f2f75-81c3-4b7b-bab6-4f33192fe984" client="1" lastChanged="2019-08-26">
+<entryDate>1987-04-09</entryDate>
+<leaveDate></leaveDate>
+<cpr>0509513864</cpr>
+<firstName>Kirstine Lindbo Lipinski</firstName>
+<lastName>Madsen</lastName>
+<workPhone>+4553653801</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>96d983a4-edc7-4fc2-b1d9-f910c9e7176a</positionId>
+<position>Lærer/Overlærer</position>
+<orgUnit>9b7b3dde-16c9-4f88-87cc-e03aa5b4e709</orgUnit>
+<email>kirstinem@hjorring.dk</email>
+<username>KirstineM</username>
+</employee>
+<employee id="f7288a8b-e129-4bc6-9caa-8746412fcfa8" client="1" lastChanged="2019-08-26">
+<entryDate>2015-12-08</entryDate>
+<leaveDate></leaveDate>
+<cpr>2607480632</cpr>
+<firstName>Rickard Dam</firstName>
+<lastName>Jensen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>bcd8306d-d76f-4b56-9d72-3495bb9e7c12</positionId>
+<position>Specialist</position>
+<orgUnit>9b7b3dde-16c9-4f88-87cc-e03aa5b4e709</orgUnit>
+<email>rickardj@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="5018f59d-70d3-4b96-93b6-590dabbd6d0d" client="1" lastChanged="2019-08-26">
+<entryDate>1986-02-13</entryDate>
+<leaveDate></leaveDate>
+<cpr>0810402504</cpr>
+<firstName>Niels Rosendal</firstName>
+<lastName>Jensen</lastName>
+<workPhone>+4562504742</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>15c6e536-adb9-4453-b495-70da72a1541c</positionId>
+<position>Timelønnet lærer</position>
+<orgUnit>f44d8dd6-c85b-5c20-95e5-3b697d24bc46</orgUnit>
+<email>nielsj@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="4f195dd7-d6c4-46fe-a47b-02b5dff53b15" client="1" lastChanged="2019-08-26">
+<entryDate>1976-12-02</entryDate>
+<leaveDate></leaveDate>
+<cpr>1302472943</cpr>
+<firstName>Annie Pilgård</firstName>
+<lastName>Østby</lastName>
+<workPhone>+4580544748</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>e09d8934-9a18-4ccc-98b2-54ba417f8969</positionId>
+<position>Teknisk Servicemedarb.</position>
+<orgUnit>a2aa9408-88bf-5592-a082-bb6a2a7faa04</orgUnit>
+<email>annieø@hjorring.dk</email>
+<username>AnnieØ</username>
+</employee>
+<employee id="aaf479fa-8569-4211-9fac-1b29536e9a29" client="1" lastChanged="2019-08-26">
+<entryDate>1980-03-16</entryDate>
+<leaveDate></leaveDate>
+<cpr>2508610559</cpr>
+<firstName>Mogens Holst</firstName>
+<lastName>Slott</lastName>
+<workPhone>+4528833116</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>45c19d33-b65c-4e1e-a890-51bd3bf26e2b</positionId>
+<position>Jurist</position>
+<orgUnit>a2aa9408-88bf-5592-a082-bb6a2a7faa04</orgUnit>
+<email>mogs@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="ae831350-61c0-4e4e-ad86-bbf085c553d7" client="1" lastChanged="2019-08-26">
+<entryDate>2019-08-19</entryDate>
+<leaveDate></leaveDate>
+<cpr>1606730884</cpr>
+<firstName>Lissy Foldager</firstName>
+<lastName>Heide</lastName>
+<workPhone>+4525733743</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>c5d76586-32fe-41e8-b702-27636265d696</positionId>
+<position>Personalekonsulent</position>
+<orgUnit>a2aa9408-88bf-5592-a082-bb6a2a7faa04</orgUnit>
+<email>lissyh@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="c4226c9f-44d4-45da-a1fc-89e8667d8b55" client="1" lastChanged="2019-08-26">
+<entryDate>1990-06-22</entryDate>
+<leaveDate></leaveDate>
+<cpr>2209493376</cpr>
+<firstName>Finn</firstName>
+<lastName>Martinsen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>e09d8934-9a18-4ccc-98b2-54ba417f8969</positionId>
+<position>Teknisk Servicemedarb.</position>
+<orgUnit>b6d40233-3aad-5db9-b7e6-bd8c2ac0cb39</orgUnit>
+<email>finnm@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="4091f7fc-72a3-4496-bfec-0d5dff4e71ba" client="1" lastChanged="2019-08-26">
+<entryDate>1992-11-08</entryDate>
+<leaveDate></leaveDate>
+<cpr>0503583852</cpr>
+<firstName>Sonja Franke</firstName>
+<lastName>Pihl</lastName>
+<workPhone>+4515610322</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>96d983a4-edc7-4fc2-b1d9-f910c9e7176a</positionId>
+<position>Lærer/Overlærer</position>
+<orgUnit>b6d40233-3aad-5db9-b7e6-bd8c2ac0cb39</orgUnit>
+<email>sonjap@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="d1c3d09a-7cf8-4762-b1c9-14a1f4f11974" client="1" lastChanged="2019-08-26">
+<entryDate>1999-10-03</entryDate>
+<leaveDate>2032-09-09</leaveDate>
+<cpr>1702573684</cpr>
+<firstName>Carl</firstName>
+<lastName>Andresen</lastName>
+<workPhone>+4536164236</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2180cbef-b2f0-4016-9155-2db50da81e73</positionId>
+<position>Specialkonsulent</position>
+<orgUnit>43dd19e9-b717-55dc-9835-596a8b935b6a</orgUnit>
+<email>carla@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="7f69e3e9-a658-4707-9f94-733255add8bd" client="1" lastChanged="2019-08-26">
+<entryDate>2000-10-27</entryDate>
+<leaveDate></leaveDate>
+<cpr>2302431348</cpr>
+<firstName>Mette</firstName>
+<lastName>Jensen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2f84f505-05c2-4853-8a57-f82ae2d1beea</positionId>
+<position>Pædagogmedhjælper</position>
+<orgUnit>43dd19e9-b717-55dc-9835-596a8b935b6a</orgUnit>
+<email>mettej@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="793b2e2c-01bc-42bf-bd2f-1526c46e3325" client="1" lastChanged="2019-08-26">
+<entryDate>2007-02-23</entryDate>
+<leaveDate></leaveDate>
+<cpr>2408623645</cpr>
+<firstName>Ingefred Segelcke</firstName>
+<lastName>Topholm</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>fc0439c9-cac8-4525-8ff9-63a4bcd7e893</positionId>
+<position>Ressourcepædagog</position>
+<orgUnit>43dd19e9-b717-55dc-9835-596a8b935b6a</orgUnit>
+<email>ingefredt@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="06083373-7f77-43b2-b756-00a6f5016796" client="1" lastChanged="2019-08-26">
+<entryDate>1967-06-23</entryDate>
+<leaveDate></leaveDate>
+<cpr>1010482441</cpr>
+<firstName>Hjalmar Kael</firstName>
+<lastName>Madsen</lastName>
+<workPhone>+4581460570</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>f69d308b-689f-4de5-85fb-986937bb2443</positionId>
+<position>Lønkonsulent</position>
+<orgUnit>cb983667-6920-596d-9e6f-1d61918c841f</orgUnit>
+<email>hjalmarm@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="70d7cc0a-5681-4869-8ca3-7eb61d528407" client="1" lastChanged="2019-08-26">
+<entryDate>2008-03-19</entryDate>
+<leaveDate>2026-02-13</leaveDate>
+<cpr>1110820344</cpr>
+<firstName>Knud Sølvtoft</firstName>
+<lastName>Pedersen</lastName>
+<workPhone>+4512865272</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>c5d76586-32fe-41e8-b702-27636265d696</positionId>
+<position>Personalekonsulent</position>
+<orgUnit>cb983667-6920-596d-9e6f-1d61918c841f</orgUnit>
+<email>knudp@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="6983da40-f083-4167-a140-dc59f90440c4" client="1" lastChanged="2019-08-26">
+<entryDate>2015-01-12</entryDate>
+<leaveDate></leaveDate>
+<cpr>0812713892</cpr>
+<firstName>Sofie Værum Rath</firstName>
+<lastName>Rasmussen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>96d983a4-edc7-4fc2-b1d9-f910c9e7176a</positionId>
+<position>Lærer/Overlærer</position>
+<orgUnit>cb983667-6920-596d-9e6f-1d61918c841f</orgUnit>
+<email>sofier@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="35e9e5ed-bde7-4232-be9f-414ed4f4803f" client="1" lastChanged="2019-08-26">
+<entryDate>1964-02-09</entryDate>
+<leaveDate></leaveDate>
+<cpr>1502433268</cpr>
+<firstName>Gert Støjberg</firstName>
+<lastName>Olsen</lastName>
+<workPhone>+4527866084</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>3637906e-f4f3-455e-8dc3-c703b70f7062</positionId>
+<position>Støttepædagog</position>
+<orgUnit>6bd7f0c5-2e51-54cc-ac29-169d53c0b9fc</orgUnit>
+<email>gerto@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="23b9f581-723b-4ebb-ada5-ea60ab752298" client="1" lastChanged="2019-08-26">
+<entryDate>1987-10-06</entryDate>
+<leaveDate></leaveDate>
+<cpr>0108472626</cpr>
+<firstName>Dilek Halkjær</firstName>
+<lastName>Petersen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>bcd8306d-d76f-4b56-9d72-3495bb9e7c12</positionId>
+<position>Specialist</position>
+<orgUnit>6bd7f0c5-2e51-54cc-ac29-169d53c0b9fc</orgUnit>
+<email>dilekp@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="0fdbbd78-e45c-48df-bc49-4493be8f6b6d" client="1" lastChanged="2019-08-26">
+<entryDate>1985-09-16</entryDate>
+<leaveDate></leaveDate>
+<cpr>0411401480</cpr>
+<firstName>Leif Hjerrild</firstName>
+<lastName>Sørensen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2180cbef-b2f0-4016-9155-2db50da81e73</positionId>
+<position>Specialkonsulent</position>
+<orgUnit>1557d877-5925-5e18-a12c-9e89fd7759ec</orgUnit>
+<email>leifs@hjorring.dk</email>
+<username>LeifS</username>
+</employee>
+<employee id="6a587e2a-0c9e-4b71-866c-422b4df2b126" client="1" lastChanged="2019-08-26">
+<entryDate>1991-12-14</entryDate>
+<leaveDate></leaveDate>
+<cpr>0609691395</cpr>
+<firstName>Michael</firstName>
+<lastName>Holm</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4f9bc0bf-5a25-4f79-bcc0-b64afb0255c0</positionId>
+<position>Pædagoisk vejleder</position>
+<orgUnit>1557d877-5925-5e18-a12c-9e89fd7759ec</orgUnit>
+<email>michaelh@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="f9a7c20c-e811-4cb1-9b99-c34214167d10" client="1" lastChanged="2019-08-26">
+<entryDate>1973-09-19</entryDate>
+<leaveDate></leaveDate>
+<cpr>2703451430</cpr>
+<firstName>Vang Overgaard</firstName>
+<lastName>Pedersen</lastName>
+<workPhone>+4534108862</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>fc0439c9-cac8-4525-8ff9-63a4bcd7e893</positionId>
+<position>Ressourcepædagog</position>
+<orgUnit>ebbedc48-1819-5d29-9437-997b8d520642</orgUnit>
+<email>vangp@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="b08fd33c-ef26-461d-8e31-b169d8a423fc" client="1" lastChanged="2019-08-26">
+<entryDate>1996-05-21</entryDate>
+<leaveDate>2023-09-27</leaveDate>
+<cpr>2003573454</cpr>
+<firstName>Erik Skyggedal</firstName>
+<lastName>Bruun</lastName>
+<workPhone>+4578837523</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2f84f505-05c2-4853-8a57-f82ae2d1beea</positionId>
+<position>Pædagogmedhjælper</position>
+<orgUnit>ebbedc48-1819-5d29-9437-997b8d520642</orgUnit>
+<email>erikb@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="03132695-6a6d-4c73-b291-bc2e6914174a" client="1" lastChanged="2019-08-26">
+<entryDate>2005-06-03</entryDate>
+<leaveDate></leaveDate>
+<cpr>3010793385</cpr>
+<firstName>Ingrid Baungaard</firstName>
+<lastName>Petersen</lastName>
+<workPhone>+4510850362</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4f9bc0bf-5a25-4f79-bcc0-b64afb0255c0</positionId>
+<position>Pædagoisk vejleder</position>
+<orgUnit>ebbedc48-1819-5d29-9437-997b8d520642</orgUnit>
+<email>ingridp@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="7b235b2e-29c5-4c80-9c24-d173c85c23b0" client="1" lastChanged="2019-08-26">
+<entryDate>2011-04-03</entryDate>
+<leaveDate></leaveDate>
+<cpr>2407602431</cpr>
+<firstName>Preben</firstName>
+<lastName>Nielsen</lastName>
+<workPhone>+4544510446</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>96d983a4-edc7-4fc2-b1d9-f910c9e7176a</positionId>
+<position>Lærer/Overlærer</position>
+<orgUnit>ebbedc48-1819-5d29-9437-997b8d520642</orgUnit>
+<email>prebenn@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="23b3428d-fe96-4e4b-b586-bb826dd5a61c" client="1" lastChanged="2019-08-26">
+<entryDate>2004-06-08</entryDate>
+<leaveDate></leaveDate>
+<cpr>1902702896</cpr>
+<firstName>Valgerda Martensen</firstName>
+<lastName>George</lastName>
+<workPhone>+4545608367</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2f84f505-05c2-4853-8a57-f82ae2d1beea</positionId>
+<position>Pædagogmedhjælper</position>
+<orgUnit>96ae7911-52f2-5533-9dc7-0e20d93caa07</orgUnit>
+<email>valgerdag@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="ccc2f027-dd47-4772-9fcb-4e3d9fd7c6c9" client="1" lastChanged="2019-08-26">
+<entryDate>1975-01-12</entryDate>
+<leaveDate></leaveDate>
+<cpr>3012430247</cpr>
+<firstName>Jan Langvang</firstName>
+<lastName>Poulsen</lastName>
+<workPhone>+4533073225</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>15c6e536-adb9-4453-b495-70da72a1541c</positionId>
+<position>Timelønnet lærer</position>
+<orgUnit>391cf990-31a0-5104-8944-6bdc4c934b7a</orgUnit>
+<email>janp@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="7c4081f7-4d2f-4bc1-a9b1-8b6caf4314f8" client="1" lastChanged="2019-08-26">
+<entryDate>1979-08-19</entryDate>
+<leaveDate></leaveDate>
+<cpr>2911430935</cpr>
+<firstName>Kenneth Kogi</firstName>
+<lastName>Olesen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>f9bec721-8c54-4d4d-8eac-18eeff0a3231</positionId>
+<position>Bogopsætter</position>
+<orgUnit>391cf990-31a0-5104-8944-6bdc4c934b7a</orgUnit>
+<email>kennetho@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="acf1663d-8301-4a58-8e37-ab6d36624d05" client="1" lastChanged="2019-08-26">
+<entryDate>1989-10-25</entryDate>
+<leaveDate>2020-02-15</leaveDate>
+<cpr>0602471985</cpr>
+<firstName>Lis Klessen Kristensen</firstName>
+<lastName>Jensen</lastName>
+<workPhone>+4586082527</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>d3541878-130e-44c5-a43e-cf036932305c</positionId>
+<position>Udviklingskonsulent</position>
+<orgUnit>391cf990-31a0-5104-8944-6bdc4c934b7a</orgUnit>
+<email>lisj@hjorring.dk</email>
+<username>LisJ</username>
+</employee>
+<employee id="b4d97e6a-cf1d-4a0c-8909-137333f94e3b" client="1" lastChanged="2019-08-26">
+<entryDate>1980-03-16</entryDate>
+<leaveDate></leaveDate>
+<cpr>2503613495</cpr>
+<firstName>Baltzer Lind</firstName>
+<lastName>Toft</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>3637906e-f4f3-455e-8dc3-c703b70f7062</positionId>
+<position>Støttepædagog</position>
+<orgUnit>5d28aeda-f727-5d18-856a-d0d0cbc8178e</orgUnit>
+<email>baltzert@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="ad12b0e2-1f8e-411e-b127-ee4b3f2596ca" client="1" lastChanged="2019-08-26">
+<entryDate>2004-04-09</entryDate>
+<leaveDate></leaveDate>
+<cpr>0707600454</cpr>
+<firstName>Ulrik Mørch</firstName>
+<lastName>Hansen</lastName>
+<workPhone>+4583004877</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>a1daa7d0-af52-4d1c-b8c6-9bca63ade31e</positionId>
+<position>Kontorelev</position>
+<orgUnit>5d28aeda-f727-5d18-856a-d0d0cbc8178e</orgUnit>
+<email>ulrikh@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="1a8a4717-d5f3-411d-a911-4437448aea08" client="1" lastChanged="2019-08-26">
+<entryDate>1975-12-08</entryDate>
+<leaveDate></leaveDate>
+<cpr>1102540782</cpr>
+<firstName>Harry Sander</firstName>
+<lastName>Hertz</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>f9bec721-8c54-4d4d-8eac-18eeff0a3231</positionId>
+<position>Bogopsætter</position>
+<orgUnit>450e8f12-f5d6-53e3-a2bc-1104aa9a5187</orgUnit>
+<email>harryh@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="ea1b53ce-3ef4-4c12-9d7b-af91bdf51e8a" client="1" lastChanged="2019-08-26">
+<entryDate>1999-07-05</entryDate>
+<leaveDate></leaveDate>
+<cpr>1111522681</cpr>
+<firstName>Finn Corell</firstName>
+<lastName>Jensen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>3637906e-f4f3-455e-8dc3-c703b70f7062</positionId>
+<position>Støttepædagog</position>
+<orgUnit>450e8f12-f5d6-53e3-a2bc-1104aa9a5187</orgUnit>
+<email>finnj@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="377c781e-5233-441f-af67-2d561f5d1495" client="1" lastChanged="2019-08-26">
+<entryDate>1999-10-03</entryDate>
+<leaveDate></leaveDate>
+<cpr>2810712131</cpr>
+<firstName>Frederik Wille</firstName>
+<lastName>Hovgaard</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>45c19d33-b65c-4e1e-a890-51bd3bf26e2b</positionId>
+<position>Jurist</position>
+<orgUnit>450e8f12-f5d6-53e3-a2bc-1104aa9a5187</orgUnit>
+<email>frederikh@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="2eb26821-f94e-453c-8f70-ba0bb3bdad08" client="1" lastChanged="2019-08-26">
+<entryDate>2001-08-23</entryDate>
+<leaveDate></leaveDate>
+<cpr>1910573930</cpr>
+<firstName>Anna Fletcher</firstName>
+<lastName>Sørensen</lastName>
+<workPhone>+4580746814</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>a1daa7d0-af52-4d1c-b8c6-9bca63ade31e</positionId>
+<position>Kontorelev</position>
+<orgUnit>450e8f12-f5d6-53e3-a2bc-1104aa9a5187</orgUnit>
+<email>annas@hjorring.dk</email>
+<username>AnnaS</username>
+</employee>
+<employee id="42817ff5-8646-4315-92cd-916491f9ef0b" client="1" lastChanged="2019-08-26">
+<entryDate>2008-01-19</entryDate>
+<leaveDate></leaveDate>
+<cpr>2807523441</cpr>
+<firstName>Knud-Erik Overgaard</firstName>
+<lastName>Svendsen</lastName>
+<workPhone>+4516086664</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>d3541878-130e-44c5-a43e-cf036932305c</positionId>
+<position>Udviklingskonsulent</position>
+<orgUnit>450e8f12-f5d6-53e3-a2bc-1104aa9a5187</orgUnit>
+<email>knud-eriks@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="ba9100eb-6550-4cf4-a2fc-dfb4d3ae35b8" client="1" lastChanged="2019-08-26">
+<entryDate>1970-08-06</entryDate>
+<leaveDate></leaveDate>
+<cpr>1306460362</cpr>
+<firstName>Margrethe Werther</firstName>
+<lastName>Høstrup</lastName>
+<workPhone>+4521478415</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>bcd8306d-d76f-4b56-9d72-3495bb9e7c12</positionId>
+<position>Specialist</position>
+<orgUnit>6d9fcaa1-25cc-587f-acf2-dc02d8e30d76</orgUnit>
+<email>margretheh@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="fc0fa61a-cc0d-4ef4-ac05-953eb9c22eaa" client="1" lastChanged="2019-08-26">
+<entryDate>1998-07-10</entryDate>
+<leaveDate></leaveDate>
+<cpr>2702673456</cpr>
+<firstName>Ivar</firstName>
+<lastName>Hansen</lastName>
+<workPhone>+4537142558</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>96d983a4-edc7-4fc2-b1d9-f910c9e7176a</positionId>
+<position>Lærer/Overlærer</position>
+<orgUnit>6d9fcaa1-25cc-587f-acf2-dc02d8e30d76</orgUnit>
+<email>ivarh@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="0db39bd2-9d3f-479d-828d-f43d25d6469d" client="1" lastChanged="2019-08-26">
+<entryDate>1999-07-05</entryDate>
+<leaveDate>2037-02-15</leaveDate>
+<cpr>1404641685</cpr>
+<firstName>Arne Bruun</firstName>
+<lastName>Olsen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>3637906e-f4f3-455e-8dc3-c703b70f7062</positionId>
+<position>Støttepædagog</position>
+<orgUnit>6d9fcaa1-25cc-587f-acf2-dc02d8e30d76</orgUnit>
+<email>arneo@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="b0988737-222e-4f60-a3b2-b72f42acfba5" client="1" lastChanged="2019-08-26">
+<entryDate>1966-11-25</entryDate>
+<leaveDate></leaveDate>
+<cpr>2912432141</cpr>
+<firstName>Jens Lillienthal</firstName>
+<lastName>Wriedt</lastName>
+<workPhone>+4518331646</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>bcd8306d-d76f-4b56-9d72-3495bb9e7c12</positionId>
+<position>Specialist</position>
+<orgUnit>f7c4b3f4-2252-5b86-a38f-4ce2afce70e3</orgUnit>
+<email>jensw@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="ecd64230-0de3-4398-a52e-29006406c118" client="1" lastChanged="2019-08-26">
+<entryDate>1984-09-21</entryDate>
+<leaveDate></leaveDate>
+<cpr>1404630861</cpr>
+<firstName>Charles</firstName>
+<lastName>Jørgensen</lastName>
+<workPhone>+4516008305</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>c5d76586-32fe-41e8-b702-27636265d696</positionId>
+<position>Personalekonsulent</position>
+<orgUnit>a59c614e-08cc-564c-ada4-3d8bd0739df0</orgUnit>
+<email>charlesj@hjorring.dk</email>
+<username>CharlesJ</username>
+</employee>
+<employee id="13381fa5-6f42-40fc-89c6-38be11bff41e" client="1" lastChanged="2019-08-26">
+<entryDate>2002-04-20</entryDate>
+<leaveDate></leaveDate>
+<cpr>0410432269</cpr>
+<firstName>Erik Busk</firstName>
+<lastName>Skov-Petersen</lastName>
+<workPhone>+4543867171</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>e09d8934-9a18-4ccc-98b2-54ba417f8969</positionId>
+<position>Teknisk Servicemedarb.</position>
+<orgUnit>a59c614e-08cc-564c-ada4-3d8bd0739df0</orgUnit>
+<email>eriks@hjorring.dk</email>
+<username>ErikS</username>
+</employee>
+<employee id="6b6c336f-4e52-463d-b3df-100ce4c7b4c7" client="1" lastChanged="2019-08-26">
+<entryDate>2018-05-26</entryDate>
+<leaveDate></leaveDate>
+<cpr>2910530324</cpr>
+<firstName>Kjeld Lindholt</firstName>
+<lastName>Hansen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2180cbef-b2f0-4016-9155-2db50da81e73</positionId>
+<position>Specialkonsulent</position>
+<orgUnit>a59c614e-08cc-564c-ada4-3d8bd0739df0</orgUnit>
+<email>kjeldh@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="714f02f1-f7ce-48b1-a5ac-32772bfe02f1" client="1" lastChanged="2019-08-26">
+<entryDate>1988-01-04</entryDate>
+<leaveDate></leaveDate>
+<cpr>2302532756</cpr>
+<firstName>Nina Jeznach Sandager</firstName>
+<lastName>Braun</lastName>
+<workPhone>+4525838148</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>b6fb3c33-d718-46a4-b817-cc5021713689</positionId>
+<position>Udvikler</position>
+<orgUnit>c87a0485-5b27-5bd9-a49a-b74d426da6cd</orgUnit>
+<email>ninab@hjorring.dk</email>
+<username>NinaB</username>
+</employee>
+<employee id="161c20ff-a366-40ea-96f3-0017bdd6b95a" client="1" lastChanged="2019-08-26">
+<entryDate>1995-08-25</entryDate>
+<leaveDate></leaveDate>
+<cpr>0503743825</cpr>
+<firstName>Torben Højrup</firstName>
+<lastName>Andersen</lastName>
+<workPhone>+4531755543</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4b8a0ab0-c4d6-4b84-ad14-03c35a5c5567</positionId>
+<position>Skolepsykolog</position>
+<orgUnit>c87a0485-5b27-5bd9-a49a-b74d426da6cd</orgUnit>
+<email>torbena@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="dc6fbf58-c2c4-4abd-bbcd-30b7ada84c3e" client="1" lastChanged="2019-08-26">
+<entryDate>1984-03-25</entryDate>
+<leaveDate>2022-10-02</leaveDate>
+<cpr>0207502553</cpr>
+<firstName>Ditte</firstName>
+<lastName>Mortensen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4b8a0ab0-c4d6-4b84-ad14-03c35a5c5567</positionId>
+<position>Skolepsykolog</position>
+<orgUnit>7fe08e7c-837f-5eff-a01d-655fdd67dc9f</orgUnit>
+<email>dittem@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="5b5f7889-386b-4304-aab9-d6bd071bca59" client="1" lastChanged="2019-08-26">
+<entryDate>1969-06-12</entryDate>
+<leaveDate></leaveDate>
+<cpr>2308410423</cpr>
+<firstName>Anders</firstName>
+<lastName>Antonsen</lastName>
+<workPhone>+4562215665</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>96d983a4-edc7-4fc2-b1d9-f910c9e7176a</positionId>
+<position>Lærer/Overlærer</position>
+<orgUnit>26394d81-25b4-5650-baa1-793edaeafff9</orgUnit>
+<email>andersa@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="47e43e99-0730-410b-9f7a-c573964f38a1" client="1" lastChanged="2019-08-26">
+<entryDate>2016-01-07</entryDate>
+<leaveDate>2052-05-27</leaveDate>
+<cpr>1307641417</cpr>
+<firstName>Petrine Lajer</firstName>
+<lastName>Kirkegaard</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4b8a0ab0-c4d6-4b84-ad14-03c35a5c5567</positionId>
+<position>Skolepsykolog</position>
+<orgUnit>26394d81-25b4-5650-baa1-793edaeafff9</orgUnit>
+<email>petrinek@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="fb023b38-518a-4d27-92b3-3c83b5789ab0" client="1" lastChanged="2019-08-26">
+<entryDate>1969-05-13</entryDate>
+<leaveDate></leaveDate>
+<cpr>1207503246</cpr>
+<firstName>Edith</firstName>
+<lastName>Ovesen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>a3da0732-e1a2-43e5-b509-69fd29f5ba17</positionId>
+<position>Ergoterapeut</position>
+<orgUnit>c670a922-b6f6-5468-9116-397956f325bf</orgUnit>
+<email>editho@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="0152282c-3940-4b87-82c8-c88a6b4ec0cc" client="1" lastChanged="2019-08-26">
+<entryDate>1992-09-09</entryDate>
+<leaveDate></leaveDate>
+<cpr>1802722709</cpr>
+<firstName>Hedvig</firstName>
+<lastName>Roed</lastName>
+<workPhone>+4527636210</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4f9bc0bf-5a25-4f79-bcc0-b64afb0255c0</positionId>
+<position>Pædagoisk vejleder</position>
+<orgUnit>c670a922-b6f6-5468-9116-397956f325bf</orgUnit>
+<email>hedvigr@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="4e94254b-5756-4dc5-be6f-12d5d3bffbcc" client="1" lastChanged="2019-08-26">
+<entryDate>1968-05-18</entryDate>
+<leaveDate></leaveDate>
+<cpr>0811402427</cpr>
+<firstName>Aage Dahl</firstName>
+<lastName>Salminen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4f9bc0bf-5a25-4f79-bcc0-b64afb0255c0</positionId>
+<position>Pædagoisk vejleder</position>
+<orgUnit>ae43fd72-e24d-5d99-9b84-74df227d6224</orgUnit>
+<email>aages@hjorring.dk</email>
+<username>AageS</username>
+</employee>
+<employee id="5dcc9b76-6f0a-4bba-ac99-94ef2587b024" client="1" lastChanged="2019-08-26">
+<entryDate>1976-09-03</entryDate>
+<leaveDate></leaveDate>
+<cpr>1003472635</cpr>
+<firstName>Thomine Bayer</firstName>
+<lastName>Haslund</lastName>
+<workPhone>+4525725286</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2f84f505-05c2-4853-8a57-f82ae2d1beea</positionId>
+<position>Pædagogmedhjælper</position>
+<orgUnit>ae43fd72-e24d-5d99-9b84-74df227d6224</orgUnit>
+<email>thomineh@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="5df53f44-37c1-4fc5-a5fd-714ef8bef25e" client="1" lastChanged="2019-08-26">
+<entryDate>1988-02-03</entryDate>
+<leaveDate></leaveDate>
+<cpr>2809583743</cpr>
+<firstName>Kaj Junge Raaballe</firstName>
+<lastName>Schou</lastName>
+<workPhone>+4516437425</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4f9bc0bf-5a25-4f79-bcc0-b64afb0255c0</positionId>
+<position>Pædagoisk vejleder</position>
+<orgUnit>ae43fd72-e24d-5d99-9b84-74df227d6224</orgUnit>
+<email>kajs@hjorring.dk</email>
+<username>KajS</username>
+</employee>
+<employee id="f41a5134-c5ad-493b-990a-8d386151d35c" client="1" lastChanged="2019-08-26">
+<entryDate>1993-10-04</entryDate>
+<leaveDate></leaveDate>
+<cpr>0309640896</cpr>
+<firstName>Svend Gertman</firstName>
+<lastName>Lynge-Madsen</lastName>
+<workPhone>+4541267304</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>96d983a4-edc7-4fc2-b1d9-f910c9e7176a</positionId>
+<position>Lærer/Overlærer</position>
+<orgUnit>ae43fd72-e24d-5d99-9b84-74df227d6224</orgUnit>
+<email>svendl@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="6dd117a0-2e22-4f6f-8a69-9d4b05604d84" client="1" lastChanged="2019-08-26">
+<entryDate>2015-10-09</entryDate>
+<leaveDate></leaveDate>
+<cpr>2703822463</cpr>
+<firstName>Inga</firstName>
+<lastName>Byrgesen</lastName>
+<workPhone>+4524864461</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>c5d76586-32fe-41e8-b702-27636265d696</positionId>
+<position>Personalekonsulent</position>
+<orgUnit>cca9988b-3900-5901-8a85-cf206b53b3c0</orgUnit>
+<email>ingab@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="c1efc547-19ba-442e-b34a-84ea6cde7ec8" client="1" lastChanged="2019-08-26">
+<entryDate>2017-11-27</entryDate>
+<leaveDate></leaveDate>
+<cpr>2705593941</cpr>
+<firstName>Agnieszka</firstName>
+<lastName>Jensen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>bcd8306d-d76f-4b56-9d72-3495bb9e7c12</positionId>
+<position>Specialist</position>
+<orgUnit>cca9988b-3900-5901-8a85-cf206b53b3c0</orgUnit>
+<email>agnieszkaj@hjorring.dk</email>
+<username>AgnieszkaJ</username>
+</employee>
+<employee id="f8638f0d-d5b5-4657-9f13-66eb2dbf6271" client="1" lastChanged="2019-08-26">
+<entryDate>2014-12-13</entryDate>
+<leaveDate></leaveDate>
+<cpr>2401463235</cpr>
+<firstName>Alexander Søndergaard</firstName>
+<lastName>Bonne</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>c5d76586-32fe-41e8-b702-27636265d696</positionId>
+<position>Personalekonsulent</position>
+<orgUnit>ba5b8eee-101f-5bd2-a318-7256cbda4d29</orgUnit>
+<email>alexanderb@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="27d43245-6f2a-4053-b529-e1992cc52315" client="1" lastChanged="2019-08-26">
+<entryDate>1989-10-25</entryDate>
+<leaveDate></leaveDate>
+<cpr>0909401860</cpr>
+<firstName>Christine Lindegaard</firstName>
+<lastName>Sommer</lastName>
+<workPhone>+4541053472</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4b8a0ab0-c4d6-4b84-ad14-03c35a5c5567</positionId>
+<position>Skolepsykolog</position>
+<orgUnit>bc40235b-47c2-5b29-ae37-7f09ef6ca57a</orgUnit>
+<email>christines@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="64ee4f91-7597-4858-b5eb-5e636355bb4d" client="1" lastChanged="2019-08-26">
+<entryDate>2012-08-25</entryDate>
+<leaveDate>2052-11-23</leaveDate>
+<cpr>2507762932</cpr>
+<firstName>Jane</firstName>
+<lastName>Schamaitat</lastName>
+<workPhone>+4520051164</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2180cbef-b2f0-4016-9155-2db50da81e73</positionId>
+<position>Specialkonsulent</position>
+<orgUnit>bc40235b-47c2-5b29-ae37-7f09ef6ca57a</orgUnit>
+<email>janes@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="56b12400-686e-4ca1-aad6-d5698ff77b00" client="1" lastChanged="2019-08-26">
+<entryDate>2013-09-19</entryDate>
+<leaveDate>2023-03-01</leaveDate>
+<cpr>0110631359</cpr>
+<firstName>Knud Lauesen</firstName>
+<lastName>Møller</lastName>
+<workPhone>+4544183243</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4b8a0ab0-c4d6-4b84-ad14-03c35a5c5567</positionId>
+<position>Skolepsykolog</position>
+<orgUnit>bc40235b-47c2-5b29-ae37-7f09ef6ca57a</orgUnit>
+<email>knudm@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="6bbb3b69-c2b9-4330-96cf-d0047f63abdd" client="1" lastChanged="2019-08-26">
+<entryDate>2015-02-11</entryDate>
+<leaveDate>2056-02-06</leaveDate>
+<cpr>1204793715</cpr>
+<firstName>C Krogh</firstName>
+<lastName>Dalgaard</lastName>
+<workPhone>+4541866363</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>bcd8306d-d76f-4b56-9d72-3495bb9e7c12</positionId>
+<position>Specialist</position>
+<orgUnit>bc40235b-47c2-5b29-ae37-7f09ef6ca57a</orgUnit>
+<email>cd@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="42fc5353-55dc-4e4a-a46f-861bd439cada" client="1" lastChanged="2019-08-26">
+<entryDate>1968-08-16</entryDate>
+<leaveDate></leaveDate>
+<cpr>0804403892</cpr>
+<firstName>Karl Vilh</firstName>
+<lastName>Christiansen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>f9bec721-8c54-4d4d-8eac-18eeff0a3231</positionId>
+<position>Bogopsætter</position>
+<orgUnit>ada3f4ca-3eb7-5cf6-a98c-a52e6aa2e833</orgUnit>
+<email>karlc@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="6c773e49-f5fa-48e9-abe7-ac098177bb49" client="1" lastChanged="2019-08-26">
+<entryDate>1998-11-07</entryDate>
+<leaveDate></leaveDate>
+<cpr>1302743742</cpr>
+<firstName>Susanne Nybo</firstName>
+<lastName>Pedersen</lastName>
+<workPhone>+4558310033</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>f9bec721-8c54-4d4d-8eac-18eeff0a3231</positionId>
+<position>Bogopsætter</position>
+<orgUnit>ada3f4ca-3eb7-5cf6-a98c-a52e6aa2e833</orgUnit>
+<email>susannep@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="5358c0e9-fcaa-43dd-9ca0-4adc0d307b6a" client="1" lastChanged="2019-08-26">
+<entryDate>2001-10-22</entryDate>
+<leaveDate></leaveDate>
+<cpr>0106641641</cpr>
+<firstName>Naguleswary Axelsen</firstName>
+<lastName>Kold</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4b8a0ab0-c4d6-4b84-ad14-03c35a5c5567</positionId>
+<position>Skolepsykolog</position>
+<orgUnit>ada3f4ca-3eb7-5cf6-a98c-a52e6aa2e833</orgUnit>
+<email>naguleswaryk@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="09ea2d3f-620d-4497-9204-a320c6ee6e6a" client="1" lastChanged="2019-08-26">
+<entryDate>1961-07-24</entryDate>
+<leaveDate></leaveDate>
+<cpr>0711422331</cpr>
+<firstName>Kristen Aare</firstName>
+<lastName>Uggerhøj</lastName>
+<workPhone>+4575647454</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>a3da0732-e1a2-43e5-b509-69fd29f5ba17</positionId>
+<position>Ergoterapeut</position>
+<orgUnit>1ae7111e-cea3-57eb-8093-73b9ac89721e</orgUnit>
+<email>kristenu@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="f966ea05-6b1e-4003-a97d-8bd37bf9dcfe" client="1" lastChanged="2019-08-26">
+<entryDate>1962-04-20</entryDate>
+<leaveDate></leaveDate>
+<cpr>2305402403</cpr>
+<firstName>Elina Gjelstrup</firstName>
+<lastName>Olesen</lastName>
+<workPhone>+4516411537</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>f69d308b-689f-4de5-85fb-986937bb2443</positionId>
+<position>Lønkonsulent</position>
+<orgUnit>1ae7111e-cea3-57eb-8093-73b9ac89721e</orgUnit>
+<email>elinao@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="f52f85db-d9dc-45a5-b0a6-fd5188841a62" client="1" lastChanged="2019-08-26">
+<entryDate>2005-11-30</entryDate>
+<leaveDate></leaveDate>
+<cpr>0706633243</cpr>
+<firstName>Signe Drachmann</firstName>
+<lastName>Carlsen</lastName>
+<workPhone>+4538207513</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2f84f505-05c2-4853-8a57-f82ae2d1beea</positionId>
+<position>Pædagogmedhjælper</position>
+<orgUnit>1ae7111e-cea3-57eb-8093-73b9ac89721e</orgUnit>
+<email>signec@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="7fda773d-70f3-4dcc-a6a4-73957921a181" client="1" lastChanged="2019-08-26">
+<entryDate>1980-07-14</entryDate>
+<leaveDate></leaveDate>
+<cpr>2706561105</cpr>
+<firstName>Dorthe Schou</firstName>
+<lastName>Heinsøe</lastName>
+<workPhone>+4563572662</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4b8a0ab0-c4d6-4b84-ad14-03c35a5c5567</positionId>
+<position>Skolepsykolog</position>
+<orgUnit>83480ca9-4e80-5e68-b194-c38a83009483</orgUnit>
+<email>dortheh@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="772b079f-acab-41ab-b28c-0e36714e1097" client="1" lastChanged="2019-08-26">
+<entryDate>1995-10-24</entryDate>
+<leaveDate>2027-04-09</leaveDate>
+<cpr>0105620489</cpr>
+<firstName>Tove Præstgaard</firstName>
+<lastName>Fries</lastName>
+<workPhone>+4515163848</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>c5d76586-32fe-41e8-b702-27636265d696</positionId>
+<position>Personalekonsulent</position>
+<orgUnit>83480ca9-4e80-5e68-b194-c38a83009483</orgUnit>
+<email>tovef@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="f9ecb1cc-f84d-4e45-aabb-bc90c42211b1" client="1" lastChanged="2019-08-26">
+<entryDate>1962-11-16</entryDate>
+<leaveDate></leaveDate>
+<cpr>2610420691</cpr>
+<firstName>Julius</firstName>
+<lastName>Jensen</lastName>
+<workPhone>+4581360448</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>f9bec721-8c54-4d4d-8eac-18eeff0a3231</positionId>
+<position>Bogopsætter</position>
+<orgUnit>d75cd4dd-e461-5edb-ab1b-5b36f7a3431a</orgUnit>
+<email>juliusj@hjorring.dk</email>
+<username>JuliusJ</username>
+</employee>
+<employee id="5ee681f0-488f-41d4-b01a-18b8be5416d8" client="1" lastChanged="2019-08-26">
+<entryDate>2003-03-16</entryDate>
+<leaveDate></leaveDate>
+<cpr>1705821328</cpr>
+<firstName>Christence</firstName>
+<lastName>Lauritsen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>15c6e536-adb9-4453-b495-70da72a1541c</positionId>
+<position>Timelønnet lærer</position>
+<orgUnit>666b6c21-f09d-55aa-bba2-49cd9aac3067</orgUnit>
+<email>christencel@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="e7f86f50-7f94-4f7d-a7d4-c371656dbfb4" client="1" lastChanged="2019-08-26">
+<entryDate>2018-08-24</entryDate>
+<leaveDate></leaveDate>
+<cpr>0205973583</cpr>
+<firstName>Einar</firstName>
+<lastName>Olsen</lastName>
+<workPhone>+4534107161</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>fc0439c9-cac8-4525-8ff9-63a4bcd7e893</positionId>
+<position>Ressourcepædagog</position>
+<orgUnit>666b6c21-f09d-55aa-bba2-49cd9aac3067</orgUnit>
+<email>einaro@hjorring.dk</email>
+<username>EinarO</username>
+</employee>
+<employee id="5c955f2a-c4b3-4b98-9329-4f5b27df6a85" client="1" lastChanged="2019-08-26">
+<entryDate>1969-11-09</entryDate>
+<leaveDate></leaveDate>
+<cpr>2101452568</cpr>
+<firstName>Elfrida</firstName>
+<lastName>Hansen</lastName>
+<workPhone>+4524724410</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>bcd8306d-d76f-4b56-9d72-3495bb9e7c12</positionId>
+<position>Specialist</position>
+<orgUnit>88ce65d2-afb8-57a2-8fcf-05bf5b555d81</orgUnit>
+<email>elfridah@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="16f71dbc-def4-4cdb-8c50-d6db58e20247" client="1" lastChanged="2019-08-26">
+<entryDate>1977-07-30</entryDate>
+<leaveDate></leaveDate>
+<cpr>0608402292</cpr>
+<firstName>Claus Irfan</firstName>
+<lastName>Ayach</lastName>
+<workPhone>+4563635080</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>f9bec721-8c54-4d4d-8eac-18eeff0a3231</positionId>
+<position>Bogopsætter</position>
+<orgUnit>88ce65d2-afb8-57a2-8fcf-05bf5b555d81</orgUnit>
+<email>clausa@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="77def1b8-44ac-4b4e-80c6-8cea90d37166" client="1" lastChanged="2019-08-26">
+<entryDate>1998-07-10</entryDate>
+<leaveDate></leaveDate>
+<cpr>2310443630</cpr>
+<firstName>Peter</firstName>
+<lastName>Christensen</lastName>
+<workPhone>+4527737615</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>f9bec721-8c54-4d4d-8eac-18eeff0a3231</positionId>
+<position>Bogopsætter</position>
+<orgUnit>88ce65d2-afb8-57a2-8fcf-05bf5b555d81</orgUnit>
+<email>petc@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="e8efeb3e-d1a3-49e9-9816-a576aaf6c26b" client="1" lastChanged="2019-08-26">
+<entryDate>2003-08-13</entryDate>
+<leaveDate></leaveDate>
+<cpr>1111723687</cpr>
+<firstName>Ole</firstName>
+<lastName>Jørgensen</lastName>
+<workPhone>+4526124504</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>e09d8934-9a18-4ccc-98b2-54ba417f8969</positionId>
+<position>Teknisk Servicemedarb.</position>
+<orgUnit>9d36317c-5a76-5329-af08-28c64780d08f</orgUnit>
+<email>olej@hjorring.dk</email>
+<username>OleJ</username>
+</employee>
+<employee id="3ea87800-48f1-4eeb-84e4-8c6eb6ae1bac" client="1" lastChanged="2019-08-26">
+<entryDate>2000-11-26</entryDate>
+<leaveDate></leaveDate>
+<cpr>0501551562</cpr>
+<firstName>Jeanette Borg</firstName>
+<lastName>Kristensen</lastName>
+<workPhone>+4538301152</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>d3541878-130e-44c5-a43e-cf036932305c</positionId>
+<position>Udviklingskonsulent</position>
+<orgUnit>535ba446-d618-4e51-8dae-821d63e26560</orgUnit>
+<email>jeanettek@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="2339e461-b781-4809-bdda-4a95b4887275" client="1" lastChanged="2019-08-26">
+<entryDate>2004-08-07</entryDate>
+<leaveDate></leaveDate>
+<cpr>1601542656</cpr>
+<firstName>Hanna Hede</firstName>
+<lastName>Pedersen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4b8a0ab0-c4d6-4b84-ad14-03c35a5c5567</positionId>
+<position>Skolepsykolog</position>
+<orgUnit>a6773531-6c0a-4c7b-b0e2-77992412b610</orgUnit>
+<email>hannap@hjorring.dk</email>
+<username>HannaP</username>
+</employee>
+<employee id="023e617a-3450-4bf1-a484-ef4fec80b176" client="1" lastChanged="2019-08-26">
+<entryDate>1986-09-11</entryDate>
+<leaveDate></leaveDate>
+<cpr>0510431790</cpr>
+<firstName>Gertrud Fjelsted</firstName>
+<lastName>Mujacic</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2f84f505-05c2-4853-8a57-f82ae2d1beea</positionId>
+<position>Pædagogmedhjælper</position>
+<orgUnit>fe2d2ff4-45f8-4b19-8e1b-72d1c4914360</orgUnit>
+<email>gertrudm@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="3a8d8468-2681-408c-80dd-24a7a2535286" client="1" lastChanged="2019-08-26">
+<entryDate>1978-12-22</entryDate>
+<leaveDate></leaveDate>
+<cpr>0708522600</cpr>
+<firstName>Bente</firstName>
+<lastName>Pedersen</lastName>
+<workPhone>+4581555577</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>c5d76586-32fe-41e8-b702-27636265d696</positionId>
+<position>Personalekonsulent</position>
+<orgUnit>edbd7860-6d44-5e2b-b442-c74119f4d540</orgUnit>
+<email>bentep@hjorring.dk</email>
+<username>BenteP</username>
+</employee>
+<employee id="77a78036-6a04-44f8-a3df-728261510824" client="1" lastChanged="2019-08-26">
+<entryDate>1972-09-24</entryDate>
+<leaveDate></leaveDate>
+<cpr>0708533971</cpr>
+<firstName>Axel Krumbæk</firstName>
+<lastName>Dam</lastName>
+<workPhone>+4536546517</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>4b8a0ab0-c4d6-4b84-ad14-03c35a5c5567</positionId>
+<position>Skolepsykolog</position>
+<orgUnit>8bf0c4ce-816e-41f9-99fe-057e0592d86d</orgUnit>
+<email>axeld@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="fd4eb29b-594a-454d-b8d3-0dfa8fafb1bc" client="1" lastChanged="2019-08-26">
+<entryDate>1999-10-03</entryDate>
+<leaveDate></leaveDate>
+<cpr>1902763933</cpr>
+<firstName>Margrethe</firstName>
+<lastName>Mortensen</lastName>
+<workPhone>+4537631374</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>96d983a4-edc7-4fc2-b1d9-f910c9e7176a</positionId>
+<position>Lærer/Overlærer</position>
+<orgUnit>8bf0c4ce-816e-41f9-99fe-057e0592d86d</orgUnit>
+<email>margrethem@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="30db4a6e-f53d-4b08-b708-108746120d5f" client="1" lastChanged="2019-08-26">
+<entryDate>2017-07-30</entryDate>
+<leaveDate></leaveDate>
+<cpr>1505910520</cpr>
+<firstName>Carl Lund</firstName>
+<lastName>Rasmussen</lastName>
+<workPhone>+4540007622</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>fc0439c9-cac8-4525-8ff9-63a4bcd7e893</positionId>
+<position>Ressourcepædagog</position>
+<orgUnit>8bf0c4ce-816e-41f9-99fe-057e0592d86d</orgUnit>
+<email>carlr@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="31912279-9b35-4eaa-95fe-b1727e91544a" client="1" lastChanged="2019-08-26">
+<entryDate>1985-08-17</entryDate>
+<leaveDate></leaveDate>
+<cpr>1508431275</cpr>
+<firstName>Jørgen Brejnholdt</firstName>
+<lastName>Petersen</lastName>
+<workPhone>+4512503104</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>bcd8306d-d76f-4b56-9d72-3495bb9e7c12</positionId>
+<position>Specialist</position>
+<orgUnit>cf4daae1-4812-41f1-8c47-63a99e26aadf</orgUnit>
+<email>jørgenp@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="e3ea3dff-50d6-49e5-b2e1-f99a17873e35" client="1" lastChanged="2019-08-26">
+<entryDate>2001-11-21</entryDate>
+<leaveDate></leaveDate>
+<cpr>1809643111</cpr>
+<firstName>Mogens Andersen</firstName>
+<lastName>Schlegel</lastName>
+<workPhone>+4577622205</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>e09d8934-9a18-4ccc-98b2-54ba417f8969</positionId>
+<position>Teknisk Servicemedarb.</position>
+<orgUnit>cf4daae1-4812-41f1-8c47-63a99e26aadf</orgUnit>
+<email>mogenss@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="a0840a96-0d03-4325-96bd-b4c8bd43c897" client="1" lastChanged="2019-08-26">
+<entryDate>1963-05-15</entryDate>
+<leaveDate></leaveDate>
+<cpr>1112402671</cpr>
+<firstName>Kai Juul</firstName>
+<lastName>Svendsen</lastName>
+<workPhone>+4585312760</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>a1daa7d0-af52-4d1c-b8c6-9bca63ade31e</positionId>
+<position>Kontorelev</position>
+<orgUnit>1a477478-41b4-4806-ac3a-e220760a0c89</orgUnit>
+<email>kais@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="c101a31c-a3cd-47ec-bbc9-312515b841b3" client="1" lastChanged="2019-08-26">
+<entryDate>1976-12-02</entryDate>
+<leaveDate></leaveDate>
+<cpr>1205472246</cpr>
+<firstName>Georg Jensen</firstName>
+<lastName>Schiøtt</lastName>
+<workPhone>+4527218738</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>45c19d33-b65c-4e1e-a890-51bd3bf26e2b</positionId>
+<position>Jurist</position>
+<orgUnit>1a477478-41b4-4806-ac3a-e220760a0c89</orgUnit>
+<email>georgs@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="548cbd9c-18fb-49d1-a235-6773b9504db8" client="1" lastChanged="2019-08-26">
+<entryDate>2011-08-01</entryDate>
+<leaveDate></leaveDate>
+<cpr>2210811160</cpr>
+<firstName>Kristian</firstName>
+<lastName>Olsen</lastName>
+<workPhone>+4558378013</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2f84f505-05c2-4853-8a57-f82ae2d1beea</positionId>
+<position>Pædagogmedhjælper</position>
+<orgUnit>1a477478-41b4-4806-ac3a-e220760a0c89</orgUnit>
+<email>kristiano@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="eaa40714-903d-45f4-86de-df8e968c16c3" client="1" lastChanged="2019-08-26">
+<entryDate>1965-08-02</entryDate>
+<leaveDate></leaveDate>
+<cpr>0909432723</cpr>
+<firstName>Edith Højlund</firstName>
+<lastName>Rasmussen</lastName>
+<workPhone>+4515243245</workPhone>
+<workContract>60315fce-995c-4874-ad7b-48b27aaafb25</workContract>
+<workContractText>Ansat</workContractText>
+<positionId>2f84f505-05c2-4853-8a57-f82ae2d1beea</positionId>
+<position>Pædagogmedhjælper</position>
+<orgUnit>dac3b1ef-3d36-4464-9839-f611a4215cb5</orgUnit>
+<email>edithr@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="7d5cdeec-8333-46e9-8a69-b4a2351f4d01" client="540" lastChanged="2019-08-26">
+<entryDate>1997-04-16</entryDate>
+<leaveDate></leaveDate>
+<cpr>1601470507</cpr>
+<firstName>Martin Fèvre</firstName>
+<lastName>Laustsen</lastName>
+<workPhone>+4530654002</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>martinl@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="1cd7d465-e525-402f-b93e-e60a20a6e494" client="540" lastChanged="2019-08-26">
+<entryDate>2010-04-08</entryDate>
+<leaveDate></leaveDate>
+<cpr>2101412116</cpr>
+<firstName>Elisabeth Bøgholm</firstName>
+<lastName>Meilsøe</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>elisabethm@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="61ad64f3-cda4-4517-b9e6-a375e7e2cb20" client="540" lastChanged="2019-08-26">
+<entryDate>2016-06-05</entryDate>
+<leaveDate></leaveDate>
+<cpr>0506822513</cpr>
+<firstName>Arnold Daugbjerg</firstName>
+<lastName>Nielsson</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>arnoldn@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="2f8cb17d-1f17-4c7f-b421-680f2be9e902" client="540" lastChanged="2019-08-26">
+<entryDate>2002-11-16</entryDate>
+<leaveDate>2022-12-31</leaveDate>
+<cpr>0905803433</cpr>
+<firstName>Holger Rytter Gavlshøj</firstName>
+<lastName>Sørensen</lastName>
+<workPhone>+4538200653</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>holgers@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="243e8005-93cc-49e9-953a-28e3a9a868f0" client="540" lastChanged="2019-08-26">
+<entryDate>2001-10-22</entryDate>
+<leaveDate></leaveDate>
+<cpr>2706602464</cpr>
+<firstName>Lorenz Castberg</firstName>
+<lastName>Lindgård</lastName>
+<workPhone>+4527745060</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>lorenzl@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="60aabd5b-0a67-4953-b5e1-860917288006" client="540" lastChanged="2019-08-26">
+<entryDate>1992-01-13</entryDate>
+<leaveDate></leaveDate>
+<cpr>1102642658</cpr>
+<firstName>Daniella Dahl</firstName>
+<lastName>Andersen</lastName>
+<workPhone>+4578883672</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>daniellaa@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="835bba05-6ea3-4848-8d05-bba35e9e55a5" client="540" lastChanged="2019-08-26">
+<entryDate>1994-12-28</entryDate>
+<leaveDate>2023-06-29</leaveDate>
+<cpr>0711663770</cpr>
+<firstName>Elsa Reiner</firstName>
+<lastName>Jensen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>elsaj@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="cf9c347b-9fa8-49fb-aa0c-7f383bf213c1" client="540" lastChanged="2019-08-26">
+<entryDate>2015-12-08</entryDate>
+<leaveDate></leaveDate>
+<cpr>2607480632</cpr>
+<firstName>Rickard Dam</firstName>
+<lastName>Jensen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>rickardj@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="69db8855-3d25-4cf7-9184-a5a60077a851" client="540" lastChanged="2019-08-26">
+<entryDate>2019-08-19</entryDate>
+<leaveDate></leaveDate>
+<cpr>1606730884</cpr>
+<firstName>Lissy Foldager</firstName>
+<lastName>Heide</lastName>
+<workPhone>+4525733743</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>lissyh@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="ce3b9f2f-aea6-4320-b02d-eae82b33afff" client="540" lastChanged="2019-08-26">
+<entryDate>1990-06-22</entryDate>
+<leaveDate></leaveDate>
+<cpr>2209493376</cpr>
+<firstName>Finn</firstName>
+<lastName>Martinsen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>finnm@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="13db2f94-0150-42f6-85f0-36d8add2d18d" client="540" lastChanged="2019-08-26">
+<entryDate>2000-10-27</entryDate>
+<leaveDate></leaveDate>
+<cpr>2302431348</cpr>
+<firstName>Mette</firstName>
+<lastName>Jensen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>mettej@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="059b45b4-7e92-4450-b7ae-dff989d66ad2" client="540" lastChanged="2019-08-26">
+<entryDate>2008-03-19</entryDate>
+<leaveDate>2026-02-13</leaveDate>
+<cpr>1110820344</cpr>
+<firstName>Knud Sølvtoft</firstName>
+<lastName>Pedersen</lastName>
+<workPhone>+4512865272</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>knudp@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="0e6ca28a-e15b-46b9-97ae-23bbd15fb53c" client="540" lastChanged="2019-08-26">
+<entryDate>1964-02-09</entryDate>
+<leaveDate></leaveDate>
+<cpr>1502433268</cpr>
+<firstName>Gert Støjberg</firstName>
+<lastName>Olsen</lastName>
+<workPhone>+4527866084</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>gerto@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="d36fe4ed-729b-4be2-b542-d32fe935c8b7" client="540" lastChanged="2019-08-26">
+<entryDate>1985-09-16</entryDate>
+<leaveDate></leaveDate>
+<cpr>0411401480</cpr>
+<firstName>Leif Hjerrild</firstName>
+<lastName>Sørensen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>leifs@hjorring.dk</email>
+<username>LeifS</username>
+</employee>
+<employee id="9960bd8e-55ab-4a18-a386-b12c07b5e06b" client="540" lastChanged="2019-08-26">
+<entryDate>2011-04-03</entryDate>
+<leaveDate></leaveDate>
+<cpr>2407602431</cpr>
+<firstName>Preben</firstName>
+<lastName>Nielsen</lastName>
+<workPhone>+4544510446</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>prebenn@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="73abfa5e-d2c9-49c6-af7c-9f2311ba9bde" client="540" lastChanged="2019-08-26">
+<entryDate>1975-01-12</entryDate>
+<leaveDate></leaveDate>
+<cpr>3012430247</cpr>
+<firstName>Jan Langvang</firstName>
+<lastName>Poulsen</lastName>
+<workPhone>+4533073225</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>janp@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="2417ee89-42a4-49c6-9e03-9d30841a09bb" client="540" lastChanged="2019-08-26">
+<entryDate>1980-03-16</entryDate>
+<leaveDate></leaveDate>
+<cpr>2503613495</cpr>
+<firstName>Baltzer Lind</firstName>
+<lastName>Toft</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>baltzert@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="7e99797d-2b20-493a-a47b-2344aa45605d" client="540" lastChanged="2019-08-26">
+<entryDate>1999-07-05</entryDate>
+<leaveDate></leaveDate>
+<cpr>1111522681</cpr>
+<firstName>Finn Corell</firstName>
+<lastName>Jensen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>finnj@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="ae8205bc-1bb1-4bbe-b9c1-88efbe9f19db" client="540" lastChanged="2019-08-26">
+<entryDate>1970-08-06</entryDate>
+<leaveDate></leaveDate>
+<cpr>1306460362</cpr>
+<firstName>Margrethe Werther</firstName>
+<lastName>Høstrup</lastName>
+<workPhone>+4521478415</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>margretheh@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="05bf309e-f483-4ccc-8f45-65d2d33b6b59" client="540" lastChanged="2019-08-26">
+<entryDate>1966-11-25</entryDate>
+<leaveDate></leaveDate>
+<cpr>2912432141</cpr>
+<firstName>Jens Lillienthal</firstName>
+<lastName>Wriedt</lastName>
+<workPhone>+4518331646</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>jensw@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="4d40a117-22c6-45ea-b5f6-0f43b3256b6d" client="540" lastChanged="2019-08-26">
+<entryDate>1984-09-21</entryDate>
+<leaveDate></leaveDate>
+<cpr>1404630861</cpr>
+<firstName>Charles</firstName>
+<lastName>Jørgensen</lastName>
+<workPhone>+4516008305</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>charlesj@hjorring.dk</email>
+<username>CharlesJ</username>
+</employee>
+<employee id="a27513ae-86db-4685-9386-31a7994a8717" client="540" lastChanged="2019-08-26">
+<entryDate>1995-08-25</entryDate>
+<leaveDate></leaveDate>
+<cpr>0503743825</cpr>
+<firstName>Torben Højrup</firstName>
+<lastName>Andersen</lastName>
+<workPhone>+4531755543</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>torbena@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="c7d809ff-d00f-4d76-a74c-6b2bfeb1131d" client="540" lastChanged="2019-08-26">
+<entryDate>1984-03-25</entryDate>
+<leaveDate>2022-10-02</leaveDate>
+<cpr>0207502553</cpr>
+<firstName>Ditte</firstName>
+<lastName>Mortensen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>dittem@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="faf257b9-51cf-4e5c-9ea2-83e84e3fbcd8" client="540" lastChanged="2019-08-26">
+<entryDate>1969-06-12</entryDate>
+<leaveDate></leaveDate>
+<cpr>2308410423</cpr>
+<firstName>Anders</firstName>
+<lastName>Antonsen</lastName>
+<workPhone>+4562215665</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>andersa@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="9616de08-ee1d-4c34-9432-6b2580dc8096" client="540" lastChanged="2019-08-26">
+<entryDate>1969-05-13</entryDate>
+<leaveDate></leaveDate>
+<cpr>1207503246</cpr>
+<firstName>Edith</firstName>
+<lastName>Ovesen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>editho@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="40d4b26b-f77c-4517-97bc-b84992b9f5ff" client="540" lastChanged="2019-08-26">
+<entryDate>1968-05-18</entryDate>
+<leaveDate></leaveDate>
+<cpr>0811402427</cpr>
+<firstName>Aage Dahl</firstName>
+<lastName>Salminen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>aages@hjorring.dk</email>
+<username>AageS</username>
+</employee>
+<employee id="f4816cd2-d040-489f-9ded-d9f748652b99" client="540" lastChanged="2019-08-26">
+<entryDate>1999-11-02</entryDate>
+<leaveDate></leaveDate>
+<cpr>0212581879</cpr>
+<firstName>Bent Kildegaard</firstName>
+<lastName>Lydiksen</lastName>
+<workPhone>+4581838346</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>bentl@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="84eb5e76-6127-4902-90c2-b871b857b0dc" client="540" lastChanged="2019-08-26">
+<entryDate>2015-02-11</entryDate>
+<leaveDate>2056-02-06</leaveDate>
+<cpr>1204793715</cpr>
+<firstName>C Krogh</firstName>
+<lastName>Dalgaard</lastName>
+<workPhone>+4541866363</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>cd@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="c93c3b48-a2ad-4d87-aa9a-3cb4c69c36b9" client="540" lastChanged="2019-08-26">
+<entryDate>1980-02-15</entryDate>
+<leaveDate></leaveDate>
+<cpr>1912533456</cpr>
+<firstName>Abdul</firstName>
+<lastName>Damgaard</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>abduld@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="6b6e1dcf-45b8-481d-a170-bb3bf5a13651" client="540" lastChanged="2019-08-26">
+<entryDate>1961-07-24</entryDate>
+<leaveDate></leaveDate>
+<cpr>0711422331</cpr>
+<firstName>Kristen Aare</firstName>
+<lastName>Uggerhøj</lastName>
+<workPhone>+4575647454</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>kristenu@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="dab601c5-2cda-4b58-bf71-22982f015637" client="540" lastChanged="2019-08-26">
+<entryDate>1992-04-12</entryDate>
+<leaveDate></leaveDate>
+<cpr>2501583149</cpr>
+<firstName>Gitte Risager</firstName>
+<lastName>Axelsen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>gittea@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="d3597877-6f12-4a4d-9cf0-b83f35d98fdc" client="540" lastChanged="2019-08-26">
+<entryDate>1962-11-16</entryDate>
+<leaveDate></leaveDate>
+<cpr>2610420691</cpr>
+<firstName>Julius</firstName>
+<lastName>Jensen</lastName>
+<workPhone>+4581360448</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>juliusj@hjorring.dk</email>
+<username>JuliusJ</username>
+</employee>
+<employee id="25218ace-b60d-4e82-8c9b-996bb7e34432" client="540" lastChanged="2019-08-26">
+<entryDate>2003-03-16</entryDate>
+<leaveDate></leaveDate>
+<cpr>1705821328</cpr>
+<firstName>Christence</firstName>
+<lastName>Lauritsen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>christencel@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="f1dea57b-2e60-4903-b39f-35fa83a938a0" client="540" lastChanged="2019-08-26">
+<entryDate>1977-07-30</entryDate>
+<leaveDate></leaveDate>
+<cpr>0608402292</cpr>
+<firstName>Claus Irfan</firstName>
+<lastName>Ayach</lastName>
+<workPhone>+4563635080</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>clausa@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="ca4d8c2c-f6a0-44ab-9202-285e7fbadd7a" client="540" lastChanged="2019-08-26">
+<entryDate>2017-05-01</entryDate>
+<leaveDate></leaveDate>
+<cpr>1608951543</cpr>
+<firstName>Marie</firstName>
+<lastName>Kristensen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>mariek@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="d51f53ef-50bb-4df4-bdac-ba40589b409f" client="540" lastChanged="2019-08-26">
+<entryDate>2000-11-26</entryDate>
+<leaveDate></leaveDate>
+<cpr>0501551562</cpr>
+<firstName>Jeanette Borg</firstName>
+<lastName>Kristensen</lastName>
+<workPhone>+4538301152</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>jeanettek@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="74894be9-2476-48e2-8b3a-ba1db926bb0b" client="540" lastChanged="2019-08-26">
+<entryDate>2004-08-07</entryDate>
+<leaveDate></leaveDate>
+<cpr>1601542656</cpr>
+<firstName>Hanna Hede</firstName>
+<lastName>Pedersen</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>hannap@hjorring.dk</email>
+<username>HannaP</username>
+</employee>
+<employee id="83b47a3f-dc23-467b-8f5c-40c0d0e97e5b" client="540" lastChanged="2019-08-26">
+<entryDate>1986-09-11</entryDate>
+<leaveDate></leaveDate>
+<cpr>0510431790</cpr>
+<firstName>Gertrud Fjelsted</firstName>
+<lastName>Mujacic</lastName>
+<workPhone>hemmelig</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>gertrudm@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="c9eaffad-971e-4c0c-8516-44c5d29ca092" client="540" lastChanged="2019-08-26">
+<entryDate>1978-12-22</entryDate>
+<leaveDate></leaveDate>
+<cpr>0708522600</cpr>
+<firstName>Bente</firstName>
+<lastName>Pedersen</lastName>
+<workPhone>+4581555577</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>bentep@hjorring.dk</email>
+<username>BenteP</username>
+</employee>
+<employee id="d53a3cce-2054-4002-9099-980ea5bd6129" client="540" lastChanged="2019-08-26">
+<entryDate>1972-09-24</entryDate>
+<leaveDate></leaveDate>
+<cpr>0708533971</cpr>
+<firstName>Axel Krumbæk</firstName>
+<lastName>Dam</lastName>
+<workPhone>+4536546517</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>axeld@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="213cab99-d139-4ace-b16d-f9b4c1a85c13" client="540" lastChanged="2019-08-26">
+<entryDate>1963-05-15</entryDate>
+<leaveDate></leaveDate>
+<cpr>1112402671</cpr>
+<firstName>Kai Juul</firstName>
+<lastName>Svendsen</lastName>
+<workPhone>+4585312760</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>kais@hjorring.dk</email>
+<username></username>
+</employee>
+<employee id="6982c278-67d4-4272-ba55-259b2fba11a3" client="540" lastChanged="2019-08-26">
+<entryDate>1965-08-02</entryDate>
+<leaveDate></leaveDate>
+<cpr>0909432723</cpr>
+<firstName>Edith Højlund</firstName>
+<lastName>Rasmussen</lastName>
+<workPhone>+4515243245</workPhone>
+<workContract></workContract>
+<workContractText></workContractText>
+<positionId></positionId>
+<position>Personale: ansættelse/afskedigelse</position>
+<orgUnit></orgUnit>
+<email>edithr@hjorring.dk</email>
+<username></username>
+</employee>
+</OS2MO>
