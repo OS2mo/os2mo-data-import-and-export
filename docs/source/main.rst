@@ -5,6 +5,7 @@ Integrationer
 #############
 .. include:: ../../integrations/SD_Lon/README.rst
 .. include:: ../../integrations/opus/README.rst
+.. include:: ../../integrations/ad_integration/README.rst
 
 #########
 Exporters
