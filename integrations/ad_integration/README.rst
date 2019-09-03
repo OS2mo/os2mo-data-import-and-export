@@ -1,11 +1,13 @@
+.. _Integration til Active Directory:
+
 ********************************
 Integration til Active Directory
 ********************************
 
 Indledning
 ==========
-Denne integration gør det muligt at læse informaition fra en lokal AD installation
-med henblik på at anvende disse informationer ved import til MO.
+Denne integration gør det muligt at læse information fra en lokal AD installation med
+henblik på at anvende disse informationer ved import til MO.
 
 Opsætning
 =========
@@ -16,14 +18,14 @@ Integrationen går via i alt tre maskiner:
 
  1. Den lokale server, som afvikler integrationen (typisk MO serveren selv).
 
- 2. En remote management server, som den lokale server kan kommunikere med via
+ 2. En remote management server som den lokale server kan kommunikere med via
     Windows Remote Management (WinRM). Denne kommunikation autentificeres via
-    Kerberos. Der findes en vejledning til opsætning af denne kommunikation her
-    (LINK).
+    Kerberos. Der findes en vejledning til opsætning:
+    https://os2mo.readthedocs.io/en/latest/_static/AD%20-%20OS2MO%20ops%C3%A6tnings%20guide.pdf
 
  3. AD serveren.
 
-Når integratioen er i drift, genererer den PowerShell kommandoer som sendes til
+Når integrationen er i drift, genererer den PowerShell kommandoer som sendes til
 remote management serveren som afvikler dem mod AD serveren. Denne omvej hænger
 sammen med, at MO afvikles fra et Linux miljø, hvorimod PowerShell kommunikation
 med AD bedst afvikles fra et Windows miljø. 
@@ -46,7 +48,7 @@ Standard AD
  * ``AD_SYSTEM_USER``: Navnet på den systembruger som har rettighed til at læse fra
    AD.
  * ``AD_PASSWORD``: Password til samme systembruger.
- * ``AD_PROPERTIES``: Liste over feler som skal læses fra AD, angives som en streng
+ * ``AD_PROPERTIES``: Liste over felter som skal læses fra AD. Angives som en streng
    med mellemrum, eks: "xAttrCPR ObjectGuid SamAccountName Title EmailAddress
    MobilePhone"
 
@@ -67,17 +69,17 @@ Test af opsætningen
 -------------------
 
 Der følger med AD integrationen et lille program, ``test_connectivity.py`` som tester
-om der oprettet de nødvendige Kerberos tokens og miljøvariable.
+om der er oprettet de nødvendige Kerberos tokens og miljøvariable.
 
 
 Brug af integrationen
 =====================
 
-Integrationen anvendes ved at slå brugere op via cpr nummer. Det er muligt at slå
+Integrationen anvendes ved at slå brugere op via cpr nummer. Det er muligt at slå op
 på enten et specifikt cpr-nummer, på en søgning med wild card, eller man kan lave
 et opslag på alle brugere, som derved caches i integrationen hvorefter opsalg på
-enkelte cpr-numre herefter vil skre næsten instantant. Den indledende cache skabes i
-praksis ved at itererere over alle cpr-numre ved hjælp af kald til 01*, 02* etc.
+enkelte cpr-numre vil ske næsten instantant. Den indledende cache skabes i praksis
+ved at itererere over alle cpr-numre ved hjælp af kald til 01*, 02* etc.
 
 Ved anvendelse af både administrativt AD og skole AD vil brugere først blive slået op
 i skole AD og dernæst i administrativt AD, hvis medarbejderen findes begge steder vil
