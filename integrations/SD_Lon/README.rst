@@ -211,10 +211,51 @@ enheder.
 Ledere
 ======
 
+SD Løn indeholder som udgangspunkt ikke information om, om en ansat er leder. Det er
+derfor ikke muligt importere informaion om ledere direke fra dataudtrækket. Der er
+dog implementeret to metoder til at angive lederinformation:
+
+ 1. Inddirekte via `JobPositionIdentifier`
+
+    Det er muligt at angive et antal værdier for `JobPositionIdentifier` som anses
+    for at være ledere. Disse er i øjeblikket hårdkodet til værdierne 1030, 1040 og
+    1050. Hvis intet andet angives vil disse medarbejdere anses for at være ledere i
+    de afdelinger de er ansat i.
+
+ 2. Via eksternt leveret csv-fil.
+
+    Integrationen understøtter at blive leveret en liste af ledere som kan importeres
+    fra en anden kilde. Denne liste angives med parameren ``manager_rows`` ved
+    opstart af importeren. Formatet for denne anivelse er
+
+    .. code-block:: python
+
+        manager_rows = [
+
+	    {'cpr': leders_cpr_nummer,
+	     'ansvar': 'Lederansvar'
+	     'afdeling': sd_enhedskode
+	    }
+	    ...
+        ]
+
+    Hvor lederansvar er en fritekststreng, alle unikke værdier vil blive oprettet
+    under facetten ``responsibility`` i Klassifikation. Det er i den nuværende
+    udgave ikke muligt at importere mere end et lederansvar pr leder.
+
 .. _AD Integration til SD import:
 
 AD Integration til SD import
 ============================
+SD Importen understøtter at anvende komponenten
+`Integration til Active Directory`_ til at berige objekterne fra SD Løn med
+information fra Active Directory. I de fleste tilfælde drejer dette sig som minimum
+om felterne ``ObjectGuid`` og  ``SamAccountName`` men det er også muligt at hente
+eksempelvis telefonnumre eller stillingsbetegnelser.
+
+Feltet ``ObjectGuid`` vil i MO blive anvendt til uuid for det tilhørende
+medarbejderobjekt. ``SamAccountName`` vil blive tilføjet som et brugernavn til
+IT systemet Active Direkctory for den pågældende bruger.
 
 .. _ChangedAt.db:
 
