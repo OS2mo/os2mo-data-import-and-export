@@ -225,7 +225,7 @@ dog implementeret to metoder til at angive lederinformation:
  2. Via eksternt leveret csv-fil.
 
     Integrationen understøtter at blive leveret en liste af ledere som kan importeres
-    fra en anden kilde. Denne liste angives med parameren ``manager_rows`` ved
+    fra en anden kilde. Denne liste angives med parametren ``manager_rows`` ved
     opstart af importeren. Formatet for denne anivelse er
 
     .. code-block:: python
