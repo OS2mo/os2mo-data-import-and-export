@@ -195,6 +195,16 @@ ChangedAt.db_) .
 
 4. Kør sd_changed_at.py periodisk
 ---------------------------------
+
+Daglige indlæsninger foregår som nævnt også med programmet `sd_changed_at.py`,
+hvilket foregår ved at sætte `init` til `False` og køre programmet uden yderligere
+parametre. Programmet vil så spørge ChangedAt.db_ om hvorår der sidst blev
+synkroniseret, og vil herefter synkronisere yderligere en dag frem i tiden.
+
+Programmet gør ikke noget forsøg på at opdatere organisationen, og vil fejle hvis
+en medarbejder modtager en ansættelse i en ukendt enhed. For at undgå dette skal
+man før `sd_changed_at` afvikle `sd_fix_organisation.py` hvis der er oprettet nye
+enheder.
    
 .. _Ledere i SD Løn:
 
