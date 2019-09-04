@@ -100,3 +100,47 @@ returneret.
 
 Objektet ``user`` vil nu indeholde de felter der er angivet i miljøvariablen
 ``AD_PROPERTIES``.
+
+
+Skrivning til AD
+================
+
+Der udvikles i øjeblikket en udvidesle til AD integrationen som skal muliggøre at
+oprette AD bruere og skrive information fra MO til relevante felter.
+
+Hvis denne funktionalitet skal benyttes, er der brug for yderligere parametre som
+skal være sat når programmet afvikles:
+
+ * ``AD_WRITE_UUID``: Navnet på det felt i AD, hvor MOs bruger-uuid skrives.
+ * ``AD_WRITE_UNIT``: Navnet på det felt i AD, hvor MO skriver navnet på den hvor
+   medarbejderen har sin primære ansættelse.
+ * ``AD_WRITE_ORG``: Navnet på det felt i AD, hvor MO skriver enhedshierakiet for
+   den enhed, hvor medarbejderen har sin primære ansættelse.
+
+
+Skabelse af brugernavne
+-----------------------
+
+For at kunne oprette brugere i AD, er det nødvendigt at kunne tildele et
+SamAccountName til de nye brugere. Til dette formål findes i modulet ``user_names``
+klassen ``CreateUserNames``. Programmet startes ved at instantiere klassen med en
+liste over allerede reserverede eller forbudte navne som parametre, og det er
+herefter muligt at forespørge AD om en liste over alle brugenavne som er i brug, og
+herefter er programet klar til at lave brugernavne.
+
+.. code-block:: python
+
+    from user_names import CreateUserName
+    
+    name_creator = CreateUserNames(occupied_names=set())
+    name_creator.populate_occupied_names()
+
+    name = ['Karina', 'Munk', 'Jensen']
+    print(name_creator.create_username(name))
+    
+    name = ['Anders', 'Kristian', 'Jens', 'Peter', 'Andersen']
+    print(name_creator.create_username(name))
+
+    
+Brugernavne konstrureres efter en forholdsvis specifik algoritme som fremgår af
+koden.
