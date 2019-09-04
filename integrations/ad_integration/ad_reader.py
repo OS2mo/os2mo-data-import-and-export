@@ -141,7 +141,6 @@ class ADParameterReader(object):
             properties +
             command_end
         )
-        print(ps_script)
         response = self._run_ps_script(ps_script)
         return response
 
@@ -311,8 +310,10 @@ if __name__ == '__main__':
     everything = ad_reader.read_it_all()
 
     for user in everything:
-        print()
+        print('{}, {}'.format(user['DistinguishedName'], user['SamAccountName']))
+    print()
+    for user in everything:
         print()
         for key in sorted(user.keys()):
             print('{}: {}'.format(key, user[key]))
-
+        break
