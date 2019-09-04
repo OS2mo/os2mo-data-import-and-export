@@ -1,3 +1,4 @@
+import random
 import logging
 from ad_common import AD
 from user_names import CreateUserNames
@@ -11,6 +12,13 @@ def remove_redundant(text):
     while text.find('  ') > -1:
         text = text.replace('  ', ' ')
     return text
+
+
+def _random_password(length=12):
+    password = ''
+    for _ in range(0, length):
+        password += chr(random.randrange(33, 127))
+    return password
 
 
 class ADWriter(AD):
@@ -34,12 +42,14 @@ class ADWriter(AD):
         # SAML not working
         mo_values = {
             'name': ('Martin Lee', 'Gore'),
+            'employment_number': '101',
             'uuid': '7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0',
             'cpr': '1122334455',
             'title': 'Musiker',
             'location': 'Viborg Kommune/Beskæftigelse, Økonomi & Personale/It og Digitalisering',
             'unit': 'It-strategisk team',
-            'manager': 'Daniel Miller'
+            # 'manager': 'Daniel Miller'
+            'managerSAM': 'Magenta1'
         }
         return mo_values
 
@@ -49,6 +59,7 @@ class ADWriter(AD):
         :param name: Tuple with (givenname, surname)
         """
         school = False  # TODO
+        # TODO: Implement dry_run
 
         write_settings = self._get_write_setting(school)
         read_settings = self._get_setting(school)
@@ -62,14 +73,19 @@ class ADWriter(AD):
         # TODO: Create SamAccountName is available
 
         mo_values = self.read_ad_informaion_from_mo('uuid')
-        
+        all_names = mo_values['name'][0].split(' ') + [mo_values['name'][1]]
+        sam_account_name = self.name_creator.create_username(all_names)[0]
+
         create_user_template = """
         New-ADUser
-        -Name "{} {}"
+        -Name "{}"
+        -Displayname "{}"
         -GivenName "{}"
-        -Surname "{}"
-        -SamAccountName "AseAsesen9"
+        -sn "{}
+        -SamAccountName "{}"
+        -EmploymentNumber "{}"
         """
+
         # -OtherAttributes @{{"extensionattribute1"="{}";"hkstsuuid"="{}"}}"""
 
         other_attributes = ' -OtherAttributes @{'
@@ -82,11 +98,15 @@ class ADWriter(AD):
         for field in other_attributes_fields:
             other_attributes += '"{}"="{}";'.format(field[0], field[1])
         other_attributes += '}'
+
+        full_name = '{} {}'.format(mo_values['name'][0], mo_values['name'][1])
         create_user_string = create_user_template.format(
+            full_name,
+            full_name,
             mo_values['name'][0],
             mo_values['name'][1],
-            mo_values['name'][0],
-            mo_values['name'][1]
+            sam_account_name,
+            mo_values['employment_number']
         )
         create_user_string = remove_redundant(create_user_string)
         create_user_string += other_attributes
@@ -94,7 +114,7 @@ class ADWriter(AD):
         print(create_user_string)
         exit()
         1/0
-        
+
         ps_script = (
             self._build_user_credential(school) +
             create_user_string +
@@ -104,11 +124,16 @@ class ADWriter(AD):
         )
         print(ps_script)
         # response = self._run_ps_script(ps_script)
+
+        # TODO:
+        # Efter oprettelsen af brugeren, skal vi efterfølgende lave endnu et kald
+        # til PowerShell for at oprette en relation til lederen.
+
         # TODO: Return the new SamAccoutName if succss
-        if response is {}:
-            return True
-        else:
-            return response
+        # if response is {}:
+        #    return True
+        # else:
+        #    return response
 
     def enable_user(self, username):
         """
@@ -141,7 +166,6 @@ class ADWriter(AD):
         print()
         response = self._run_ps_script(ps_script)
         print(response)
-
 
     def delete_user(self, username):
         """
@@ -177,7 +201,6 @@ class ADWriter(AD):
         response = self._run_ps_script(ps_script)
         print(response)
 
-    
     def create_user_test(self):
         """ Test function, only used for primitie write tests """
         school = False  # TODO
@@ -211,11 +234,11 @@ class ADWriter(AD):
 if __name__ == '__main__':
     # name_creator = CreateUserNames(occupied_names=set())
     # name_creator.populate_occupied_names()
-    
+
     ad_writer = ADWriter()
     print()
-    #    ad_writer.create_user('mo-uuid')
-    
+    ad_writer.create_user('mo-uuid')
+
     # user = ad_writer.get_from_ad(user='AseAsesen1')
     # print(user[0]['Enabled'])
 
@@ -224,7 +247,6 @@ if __name__ == '__main__':
 
     # This does not work for unkown reasons
     # ad_writer.delete_user('AseAsesen1')
-
 
     # print(ad_writer.delte_user('AseAsesen2'))
     # ad_writer.create_user_test()
