@@ -1,3 +1,18 @@
+.. _ImportHelper:
+
+**********************
+OS2MO data import tool
+**********************
+
+A small higher level utility for os2mo data import.
+
+The utility provides functionality to create organisation units
+and employees and to create all of the types to which these can be assigned.
+
+Additonally the utility can be used to insert data objects
+into a running instance of os2mo.
+
+
 Installing
 ==========
 
@@ -445,6 +460,6 @@ Read the docs: https://os2mo.readthedocs.io
 
 Known Issues
 ============
-Current it is not possible to assign "Leave" (e.g. various types of leave of absence).
+Currently it is not possible to assign "Leave" (e.g. various types of leave of absence).
 
 This issue is related to the validation of type assignments.
