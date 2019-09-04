@@ -25,7 +25,7 @@ from recommonmark.transform import AutoStructify
 project = 'os2mo-data-import-and-export'
 copyright = '2019, Magenta'
 author = 'Magenta'
-
+master_doc = 'index'
 
 # -- General configuration ---------------------------------------------------
 
@@ -64,5 +64,5 @@ def setup(app):
     app.add_config_value('recommonmark_config', {
             #'url_resolver': lambda url: github_doc_root + url,
             'auto_toc_tree_section': 'Contents',
-            }, True)
+            }, False)
     app.add_transform(AutoStructify)
