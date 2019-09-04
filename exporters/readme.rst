@@ -16,7 +16,7 @@ The general code can be run directly from the folder with no installation requir
 
 Requirements
 ============
-The modules depend on mora_helper wich can be install from the Helpers directory from
+The modules depend on mora_helper wich can be installed from the Helpers directory from
 the root of this repo:
 sudo pip3 install -e os2mo_helpers
 
@@ -36,7 +36,7 @@ The general exporter will produce the following data-files:
  * tilknytninger.csv
 
 Please note that these exports contain the same personal details as MO itself, and
-thus it is important to have a very strict handling of the exported files.
+thus it is important to secure appropriate handling of the exported files.
 
 Command line options
 ====================

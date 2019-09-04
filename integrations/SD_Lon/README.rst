@@ -14,7 +14,7 @@ For at kunne afvikle integrationen, kræves loginoplysninger til SD-Løn, som an
 via miljøvariable i den terminal integrationen afvikles fra. Disse miljøvariable er:
 
  * ``INSTITUTION_IDENTIFIER``: Institution Identifer i SD.
- * ``SD_USER``: Brugernavn (inklusiv foranstille SY) til SD.
+ * ``SD_USER``: Brugernavn (inklusiv foranstillet SY) til SD.
  * ``SD_PASSWORD``: Password til SD.
 
 Desuden er det nødvendigt at angive adressen på MO og LoRa i variablerne:
@@ -96,7 +96,7 @@ En medarbejder skifter ikke ansættelsestype selvom vedkommende fratræder sit
 engagement. En ansættelses aktuelle status angives i stedet via MOs start- og
 slutdato. Er slutdato'en i fortiden, er vedkommende ikke længere ansat og vil
 i MOs gui fremgå i fanen fortid. Er en medarbejers startdato i fremtiden, er
-personen endnu ikke tiltrådt, og fremtgår i fanen fremtid i MOs gui.
+personen endnu ikke tiltrådt, og fremgår i fanen fremtid i MOs gui.
 
 
 Tjekliste for fuldt import
@@ -106,7 +106,7 @@ Overordnet foregår opstart af en ny SD import efter dette mønster:
 1. Kør importværktøjet med fuld historik (dette er standard opførsel).
 2. Kør `sd_fix_organisation.py` for at sikre synkronisering af alle enheder
 3. Kør en inledende ChangedAt for at hente alle kendte fremtidige ændringer og
-   intitialisere den lokale database over kørseler.
+   intitialisere den lokale database over kørsler.
 4. Kør sd_changed_at.py periodisk (eksempelvis dagligt). Hvis enhederne har ændret
    sig, er det nødvendigt først at køre sd_fix_organisation.py før hver kørsel.
 
@@ -164,8 +164,8 @@ værdierne fra SD Løn som de ser ud dags dato.
 
 2. `sd_fix_organisation.py`
 -------------------------------
-Den indledende import henter kun enhedssrukturen for den virkningsdato importen
-foretages fra, hvis der er fremtidige ændringer skal disse efterfølgende hentes.
+Den indledende import henter kun enhedsstrukturen for den virkningsdato importen
+foretages fra, hvis der er fremtidige ændringer skal disse hentes efterfølgende.
 Til det formål findes værktøjet `sd_fix_organisation.py` som henter alle fremtidige
 ændringer til organisationen:
 
@@ -214,7 +214,7 @@ enheder.
 Ledere
 ======
 
-SD Løn indeholder som udgangspunkt ikke information om, om en ansat er leder. Det er
+SD Løn indeholder som udgangspunkt ikke information om, hvorvidt en ansat er leder. Det er
 derfor ikke muligt importere informaion om ledere direke fra dataudtrækket. Der er
 dog implementeret to metoder til at angive lederinformation:
 
@@ -225,7 +225,7 @@ dog implementeret to metoder til at angive lederinformation:
     1050. Hvis intet andet angives vil disse medarbejdere anses for at være ledere i
     de afdelinger de er ansat i.
 
- 2. Via eksternt leveret csv-fil.
+ 2. Via eksternt leveret fil.
 
     Integrationen understøtter at blive leveret en liste af ledere som kan importeres
     fra en anden kilde. Denne liste angives med parametren ``manager_rows`` ved

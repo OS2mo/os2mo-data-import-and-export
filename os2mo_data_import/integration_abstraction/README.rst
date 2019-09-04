@@ -1,4 +1,4 @@
-Intergation abstraction
+Integration abstraction
 =======================
 
 A small library to easy the use of the `integrationsdata` field in LoRa.

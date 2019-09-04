@@ -460,6 +460,6 @@ Read the docs: https://os2mo.readthedocs.io
 
 Known Issues
 ============
-Current it is not possible to assign "Leave" (e.g. various types of leave of absence).
+Currently it is not possible to assign "Leave" (e.g. various types of leave of absence).
 
 This issue is related to the validation of type assignments.
