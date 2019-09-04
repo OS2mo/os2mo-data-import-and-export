@@ -17,32 +17,51 @@ class ADWriter(AD):
     def __init__(self):
         super().__init__()
 
-        name_creator = CreateUserNames(occupied_names=set())
+        self.name_creator = CreateUserNames(occupied_names=set())
         logger.info('Reading occupied names')
-        name_creator.populate_occupied_names()
+        self.name_creator.populate_occupied_names()
         logger.info('Done reading occupied names')
-        
-    def create_user(self, name, mo_uuid, cpr, dry_run=False):
+
+    def _get_write_setting(self, school=False):
+        # TODO: Currently we ignore school
+        if not self.all_settings['primary_write']:
+            msg = 'Trying to enable write access with broken settings.'
+            logger.error(msg)
+            raise Exception(msg)
+        return self.all_settings['primary_write']
+
+    def read_ad_informaion_from_mo(self, uuid):
+        # SAML not working
+        mo_values = {
+            'name': ('Martin Lee', 'Gore'),
+            'uuid': '7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0',
+            'cpr': '1122334455',
+            'title': 'Musiker',
+            'location': 'Viborg Kommune/Beskæftigelse, Økonomi & Personale/It og Digitalisering',
+            'unit': 'It-strategisk team',
+            'manager': 'Daniel Miller'
+        }
+        return mo_values
+
+    def create_user(self, mo_uuid, dry_run=False):
         """
         Create an AD user
         :param name: Tuple with (givenname, surname)
         """
         school = False  # TODO
 
-        settings = self._get_setting(school)
+        write_settings = self._get_write_setting(school)
+        read_settings = self._get_setting(school)
         server = ''
-        if settings['server']:
-            server = ' -Server {} '.format(settings['server'])
+        if read_settings['server']:
+            server = ' -Server {} '.format(read_settings['server'])
 
-        path = ' -Path "{}" '.format(settings['search_base'])
-
+        path = ' -Path "{}" '.format(read_settings['search_base'])
         credentials = ' -Credential $usercredential'
 
-        # TODO: Create SamAccountName
-        print(name[0].split(' ') + name[1])
-        exit()
-        
-        # TODO: Double check that the SamAccountName is available
+        # TODO: Create SamAccountName is available
+
+        mo_values = self.read_ad_informaion_from_mo('uuid')
         
         create_user_template = """
         New-ADUser
@@ -50,17 +69,32 @@ class ADWriter(AD):
         -GivenName "{}"
         -Surname "{}"
         -SamAccountName "AseAsesen9"
-        -OtherAttributes @{{"extensionattribute1"="{}";"hkstsuuid"="{}"}}"""
+        """
+        # -OtherAttributes @{{"extensionattribute1"="{}";"hkstsuuid"="{}"}}"""
+
+        other_attributes = ' -OtherAttributes @{'
+        other_attributes_fields = [
+            (write_settings['uuid_field'], mo_values['uuid']),
+            (write_settings['cpr_field'], mo_values['cpr']),
+            (write_settings['unit_field'], mo_values['unit']),
+            (write_settings['org_field'], mo_values['location'])
+        ]
+        for field in other_attributes_fields:
+            other_attributes += '"{}"="{}";'.format(field[0], field[1])
+        other_attributes += '}'
         create_user_string = create_user_template.format(
-            name[0],
-            name[1],
-            name[0],
-            name[1],
-            cpr,
-            mo_uuid
+            mo_values['name'][0],
+            mo_values['name'][1],
+            mo_values['name'][0],
+            mo_values['name'][1]
         )
         create_user_string = remove_redundant(create_user_string)
+        create_user_string += other_attributes
 
+        print(create_user_string)
+        exit()
+        1/0
+        
         ps_script = (
             self._build_user_credential(school) +
             create_user_string +
@@ -68,7 +102,8 @@ class ADWriter(AD):
             path +
             credentials
         )
-        response = self._run_ps_script(ps_script)
+        print(ps_script)
+        # response = self._run_ps_script(ps_script)
         # TODO: Return the new SamAccoutName if succss
         if response is {}:
             return True
@@ -174,10 +209,13 @@ class ADWriter(AD):
 
 
 if __name__ == '__main__':
-    name_creator = CreateUserNames(occupied_names=set())
-    name_creator.populate_occupied_names()
+    # name_creator = CreateUserNames(occupied_names=set())
+    # name_creator.populate_occupied_names()
     
-    # ad_writer = ADWriter()
+    ad_writer = ADWriter()
+    print()
+    #    ad_writer.create_user('mo-uuid')
+    
     # user = ad_writer.get_from_ad(user='AseAsesen1')
     # print(user[0]['Enabled'])
 
