@@ -1,9 +1,20 @@
+import os
 import random
 import logging
+
 from ad_common import AD
 from user_names import CreateUserNames
+import ad_exceptions
+from os2mo_helpers.mora_helpers import MoraHelper
 
 logger = logging.getLogger("AdWriter")
+MORA_BASE = os.environ.get('MORA_BASE')
+PRIMARY_ENGAGEMENT_TYPE = os.environ.get('PRIMARY_ENGAGEMENT_TYPE')
+
+
+if MORA_BASE is None or PRIMARY_ENGAGEMENT_TYPE is None:
+    msg = 'Configuration error: MORA_BASE: {}, PRIMARY_ENGAGEMENT_TYPE: {}'
+    raise Exception(msg.format(MORA_BASE, PRIMARY_ENGAGEMENT_TYPE))
 
 
 def remove_redundant(text):
@@ -25,6 +36,7 @@ class ADWriter(AD):
     def __init__(self):
         super().__init__()
 
+        self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
         self.name_creator = CreateUserNames(occupied_names=set())
         logger.info('Reading occupied names')
         self.name_creator.populate_occupied_names()
@@ -39,17 +51,69 @@ class ADWriter(AD):
         return self.all_settings['primary_write']
 
     def read_ad_informaion_from_mo(self, uuid):
-        # SAML not working
+        """
+        Retrive the necessary information from MO to contruct a new AD user.
+        The final information object should of this type:
         mo_values = {
             'name': ('Martin Lee', 'Gore'),
             'employment_number': '101',
             'uuid': '7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0',
             'cpr': '1122334455',
             'title': 'Musiker',
-            'location': 'Viborg Kommune/Beskæftigelse, Økonomi & Personale/It og Digitalisering',
+            'location': 'Viborg Kommune/Beskæftigelse, Økonomi & Personale/',
             'unit': 'It-strategisk team',
             # 'manager': 'Daniel Miller'
             'managerSAM': 'Magenta1'
+        }
+        """
+        # TODO: We need some kind of error handling here
+        mo_user = self.helper.read_user(user_uuid=uuid)
+        if 'uuid' not in mo_user:
+            raise ad_exceptions.UserNotFoundException
+        else:
+            assert(mo_user['uuid'] == uuid)
+
+        engagements = self.helper.read_user_engagement(uuid)
+
+        found_primary = False
+        for engagement in engagements:
+            if engagement['engagement_type']['uuid'] == PRIMARY_ENGAGEMENT_TYPE:
+                found_primary = True
+                employment_number = engagement['user_key']
+                title = engagement['job_function']['name']
+
+        if not found_primary:
+            raise ad_exceptions.NoPrimaryEngagementException('User: {}'.format(uuid))
+
+        unit_info = self.helper.read_ou(engagement['org_unit']['uuid'])
+        unit = unit_info['name']
+        location = unit_info['location']
+        if location == '':
+            location = 'root'
+
+        manager = self.helper.read_engagement_manager(engagement['uuid'])
+        mo_manager_user = self.helper.read_user(user_uuid=manager['uuid'])
+        manager_cpr = mo_manager_user['cpr_no']
+
+        # Overrule manager cpr for test!
+        # manager_cpr = '1122334459'
+
+        manager_ad_info = self.get_from_ad(cpr=manager_cpr)
+        if len(manager_ad_info) == 1:
+            manager_sam = manager_ad_info[0]['SamAccountName']
+        else:
+            print(manager_ad_info)
+            raise ad_exceptions.ManagerNotUniqueFromCprException()
+
+        mo_values = {
+            'name': (mo_user['givenname'], mo_user['surname']),
+            'employment_number': employment_number,
+            'uuid': uuid,
+            'cpr': mo_user['cpr_no'],
+            'title': title,
+            'location': location,
+            'unit': unit,
+            'managerSAM': manager_sam
         }
         return mo_values
 
@@ -70,21 +134,20 @@ class ADWriter(AD):
         path = ' -Path "{}" '.format(read_settings['search_base'])
         credentials = ' -Credential $usercredential'
 
-        mo_values = self.read_ad_informaion_from_mo('uuid')
+        mo_values = self.read_ad_informaion_from_mo(mo_uuid)
         all_names = mo_values['name'][0].split(' ') + [mo_values['name'][1]]
-        sam_account_name = self.name_creator.create_username(all_names)[0]
+        sam_account_name = self.name_creator.create_username(all_names,
+                                                             dry_run=dry_run)[0]
 
         create_user_template = """
         New-ADUser
-        -Name "{}"
+        -Name "{} - {}"
         -Displayname "{}"
         -GivenName "{}"
         -SurName "{}"
         -SamAccountName "{}"
         -EmployeeNumber "{}"
         """
-
-        # -OtherAttributes @{{"extensionattribute1"="{}";"hkstsuuid"="{}"}}"""
 
         other_attributes = ' -OtherAttributes @{'
         other_attributes_fields = [
@@ -100,6 +163,7 @@ class ADWriter(AD):
         full_name = '{} {}'.format(mo_values['name'][0], mo_values['name'][1])
         create_user_string = create_user_template.format(
             full_name,
+            sam_account_name,
             full_name,
             mo_values['name'][0],
             mo_values['name'][1],
@@ -116,20 +180,18 @@ class ADWriter(AD):
             path +
             credentials
         )
-        print()
+        response = self._run_ps_script(ps_script)
         print(ps_script)
         print()
-        response = self._run_ps_script(ps_script)
         print(response)
         # TODO:
         # Efter oprettelsen af brugeren, skal vi efterfølgende lave endnu et kald
         # til PowerShell for at oprette en relation til lederen.
 
-        # TODO: Return the new SamAccoutName if succss
-        # if response is {}:
-        #    return True
-        # else:
-        #    return response
+        if response is {}:
+            return sam_account_name
+        else:
+            return response
 
     def enable_user(self, username):
         """
@@ -228,12 +290,12 @@ class ADWriter(AD):
 
 
 if __name__ == '__main__':
-    # name_creator = CreateUserNames(occupied_names=set())
-    # name_creator.populate_occupied_names()
-
     ad_writer = ADWriter()
-    print()
-    ad_writer.create_user('mo-uuid')
+
+    # ad_writer.read_ad_informaion_from_mo(uuid)
+    # print(ad_writer.read_ad_informaion_from_mo('7ccbd9aa-b163-4a5a-bf2f-0e6f41f6ebc0'))
+
+    ad_writer.create_user(uuid)
 
     # user = ad_writer.get_from_ad(user='AseAsesen1')
     # print(user[0]['Enabled'])
