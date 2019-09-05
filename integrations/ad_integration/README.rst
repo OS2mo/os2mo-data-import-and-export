@@ -106,14 +106,14 @@ Skrivning til AD
 ================
 
 Der udvikles i øjeblikket en udvidesle til AD integrationen som skal muliggøre at
-oprette AD bruere og skrive information fra MO til relevante felter.
+oprette AD brugere og skrive information fra MO til relevante felter.
 
 Hvis denne funktionalitet skal benyttes, er der brug for yderligere parametre som
 skal være sat når programmet afvikles:
 
  * ``AD_WRITE_UUID``: Navnet på det felt i AD, hvor MOs bruger-uuid skrives.
- * ``AD_WRITE_UNIT``: Navnet på det felt i AD, hvor MO skriver navnet på den hvor
-   medarbejderen har sin primære ansættelse.
+ * ``AD_WRITE_UNIT``: Navnet på det felt i AD, hvor MO skriver navnet på den enhed
+   hvor medarbejderen har sin primære ansættelse.
  * ``AD_WRITE_ORG``: Navnet på det felt i AD, hvor MO skriver enhedshierakiet for
    den enhed, hvor medarbejderen har sin primære ansættelse.
 
