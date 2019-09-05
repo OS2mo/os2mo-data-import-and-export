@@ -234,6 +234,10 @@ class ADWriter(AD):
         """
         school = False  # TODO
 
+        # ad_user = self.get_from_ad(cpr=manager_cpr)
+        ad_user = self.get_from_ad(user=username)[0]
+        dn = ad_user['DistinguishedName']
+
         settings = self._get_setting(school)
         server = ''
         if settings['server']:
@@ -242,10 +246,10 @@ class ADWriter(AD):
         path = ' -Path "{}" '.format(settings['search_base'])
 
         credentials = ' -Credential $usercredential'
-        # delete_user_template = """ Remove-ADUser  -Identity "{}"   """.format(username)
+        delete_user_template = """ Remove-ADUser  -Identity "{}"   """.format(dn)
 
-        delete_user_template = """ Get-ADUser -Filter 'SamAccountName -eq \"{}\"'  """.format(username)
-        delete_user_template += credentials + ' ' + server + ' | Remove-ADUser'
+        # delete_user_template = """ Get-ADUser -Filter 'SamAccountName -eq \"{}\"'  """.format(username)
+        # delete_user_template += credentials + ' ' + server + ' | Remove-ADUser'
         ps_script = (
             self._build_user_credential(school) +
             delete_user_template +
@@ -259,35 +263,6 @@ class ADWriter(AD):
         response = self._run_ps_script(ps_script)
         print(response)
 
-    def create_user_test(self):
-        """ Test function, only used for primitie write tests """
-        school = False  # TODO
-
-        create_user_template = (
-            'New-ADUser -Name "TestMO005" -SamAccountName "TestMO005" ' +
-            '-OtherAttributes @{"extensionattribute1"="1111110101";' +
-            '"hkstsuuid"="5826074e-66c3-4100-8a00-000001510001"} '
-        )
-        settings = self._get_setting(school)
-        server = ''
-        if settings['server']:
-            server = ' -Server {} '.format(settings['server'])
-
-        path = ' -Path "{}" '.format(settings['search_base'])
-
-        credentials = ' -Credential $usercredential'
-        ps_script = (
-            self._build_user_credential(school) +
-            create_user_template +
-            server +
-            path +
-            credentials
-        )
-        print(ps_script)
-        # response = self._run_ps_script(ps_script)
-        # print()
-        # print(response)
-
 
 if __name__ == '__main__':
     ad_writer = ADWriter()
@@ -295,7 +270,7 @@ if __name__ == '__main__':
     # ad_writer.read_ad_informaion_from_mo(uuid)
     # print(ad_writer.read_ad_informaion_from_mo('7ccbd9aa-b163-4a5a-bf2f-0e6f41f6ebc0'))
 
-    ad_writer.create_user(uuid)
+    # ad_writer.create_user(uuid)
 
     # user = ad_writer.get_from_ad(user='AseAsesen1')
     # print(user[0]['Enabled'])
@@ -303,8 +278,8 @@ if __name__ == '__main__':
     # This will not work until we make proper passwords
     # print(ad_writer.enable_user('AseAsesen1'))
 
-    # This does not work for unkown reasons
-    # ad_writer.delete_user('AseAsesen1')
+    # This does not work for unknown reasons
+    ad_writer.delete_user('MLEGO')
 
     # print(ad_writer.delte_user('AseAsesen2'))
     # ad_writer.create_user_test()
