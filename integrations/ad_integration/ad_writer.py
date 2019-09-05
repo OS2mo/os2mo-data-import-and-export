@@ -70,8 +70,6 @@ class ADWriter(AD):
         path = ' -Path "{}" '.format(read_settings['search_base'])
         credentials = ' -Credential $usercredential'
 
-        # TODO: Create SamAccountName is available
-
         mo_values = self.read_ad_informaion_from_mo('uuid')
         all_names = mo_values['name'][0].split(' ') + [mo_values['name'][1]]
         sam_account_name = self.name_creator.create_username(all_names)[0]
@@ -81,9 +79,9 @@ class ADWriter(AD):
         -Name "{}"
         -Displayname "{}"
         -GivenName "{}"
-        -sn "{}
+        -SurName "{}"
         -SamAccountName "{}"
-        -EmploymentNumber "{}"
+        -EmployeeNumber "{}"
         """
 
         # -OtherAttributes @{{"extensionattribute1"="{}";"hkstsuuid"="{}"}}"""
@@ -92,8 +90,8 @@ class ADWriter(AD):
         other_attributes_fields = [
             (write_settings['uuid_field'], mo_values['uuid']),
             (write_settings['cpr_field'], mo_values['cpr']),
-            (write_settings['unit_field'], mo_values['unit']),
-            (write_settings['org_field'], mo_values['location'])
+            (write_settings['unit_field'], mo_values['unit'].replace('&', 'og')),
+            (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
         ]
         for field in other_attributes_fields:
             other_attributes += '"{}"="{}";'.format(field[0], field[1])
@@ -111,10 +109,6 @@ class ADWriter(AD):
         create_user_string = remove_redundant(create_user_string)
         create_user_string += other_attributes
 
-        print(create_user_string)
-        exit()
-        1/0
-
         ps_script = (
             self._build_user_credential(school) +
             create_user_string +
@@ -122,9 +116,11 @@ class ADWriter(AD):
             path +
             credentials
         )
+        print()
         print(ps_script)
-        # response = self._run_ps_script(ps_script)
-
+        print()
+        response = self._run_ps_script(ps_script)
+        print(response)
         # TODO:
         # Efter oprettelsen af brugeren, skal vi efterfølgende lave endnu et kald
         # til PowerShell for at oprette en relation til lederen.
