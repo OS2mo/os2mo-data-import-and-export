@@ -1,27 +1,28 @@
 # TODO:
-# This template might need to also inlclude bp['server'],
+# All templates might need to also inlclude bp['server'],
 # no relevant test-case is currently available.
-set_password_template = """
 
-Get-ADUser -Filter 'SamAccountName -eq \"{username}\"' {credentials} |
+# Set password for account
+set_password_template = """
+Get-ADUser -Filter 'SamAccountName -eq \"{username}\"'
+           -Credential $usercredential |
 
 Set-ADAccountPassword
    -Reset
    -NewPassword (ConvertTo-SecureString
                  -AsPlainText "{password}" -Force)
-    {credentials}
+    -Credential $usercredential
 """
 
 
-# TODO:
-# This template might need to also inlclude bp['server'],
-# no relevant test-case is currently available.
+# Enable AD account
 enable_user_template = """
-Get-ADUser -Filter 'SamAccountName -eq \"{username}\"' {credentials} |
-Enable-ADAccount {credentials}
+Get-ADUser -Filter 'SamAccountName -eq \"{username}\"'
+            -Credential $usercredential |
+Enable-ADAccount -Credential $usercredential
 """
 
-
+# Create user
 create_user_template = """
 New-ADUser
 -Name "{} - {}"
@@ -30,4 +31,11 @@ New-ADUser
 -SurName "{}"
 -SamAccountName "{}"
 -EmployeeNumber "{}"
+"""
+
+
+# Delete user
+delete_user_template = """
+Get-ADUser -Filter 'SamAccountName -eq \"{username}\"' -Credential $usercredential |
+Remove-ADUser -Credential $usercredential -Confirm:$false
 """

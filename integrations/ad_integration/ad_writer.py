@@ -31,7 +31,7 @@ def remove_redundant(text):
 def _random_password(length=12):
     password = ''
     for _ in range(0, length):
-        password += chr(random.randrange(33, 127))
+        password += chr(random.randrange(48, 127))
     return password
 
 
@@ -230,9 +230,7 @@ class ADWriter(AD):
         """
         school = False  # TODO
 
-        bp = self._ps_boiler_plate(school)
-        format_rules = {'username': username, 'credentials': bp['credentials'],
-                        'password': password}
+        format_rules = {'username': username, 'password': password}
         ps_script = self._build_ps(ad_templates.set_password_template,
                                    school, format_rules)
         response = self._run_ps_script(ps_script)
@@ -249,8 +247,7 @@ class ADWriter(AD):
         """
         school = False  # TODO
 
-        bp = self._ps_boiler_plate(school)
-        format_rules = {'username': username, 'credentials': bp['credentials']}
+        format_rules = {'username': username}
         ps_script = self._build_ps(ad_templates.enable_user_template,
                                    school, format_rules)
         response = self._run_ps_script(ps_script)
@@ -267,36 +264,16 @@ class ADWriter(AD):
         deletetion.
         :param username: SamAccountName of the account to be deleted
         """
-        school = False  # TODO
-
-        # ad_user = self.get_from_ad(cpr=manager_cpr)
-        ad_user = self.get_from_ad(user=username)[0]
-        dn = ad_user['DistinguishedName']
-
-        settings = self._get_setting(school)
-        server = ''
-        if settings['server']:
-            server = ' -Server {} '.format(settings['server'])
-
-        path = ' -Path "{}" '.format(settings['search_base'])
-
-        credentials = ' -Credential $usercredential'
-        delete_user_template = """ Remove-ADUser  -Identity "{}"   """.format(dn)
-
-        # delete_user_template = """ Get-ADUser -Filter 'SamAccountName -eq \"{}\"'  """.format(username)
-        # delete_user_template += credentials + ' ' + server + ' | Remove-ADUser'
-        ps_script = (
-            self._build_user_credential(school) +
-            delete_user_template +
-            server +
-            # path +
-            credentials
-        )
-        print(ps_script)
-        # exit()
-        print()
+        format_rules = {'username': username}
+        ps_script = self._build_ps(ad_templates.delete_user_template,
+                                   school=False, format_rules=format_rules)
         response = self._run_ps_script(ps_script)
-        print(response)
+        # TODO: Should we make a read to confirm the user i gone?
+        if not response:
+            return True
+        else:
+            logger.error('Failed to delete account!: {}'.format(response))
+            return False
 
 
 if __name__ == '__main__':
@@ -310,20 +287,10 @@ if __name__ == '__main__':
     # user = ad_writer.get_from_ad(user='AseAsesen1')
     # print(user[0]['Enabled'])
 
-    # This will not work until we make proper passwords
-
     # print(ad_writer.get_from_ad(user='MLEEG')[0]['Enabled'])
 
-    ad_writer.set_user_password('MLEEG', _random_password())
-    # print(ad_writer.enable_user('MSLEG'))
+    # ad_writer.set_user_password('OBRAP', _random_password())
+    print(ad_writer.enable_user('OBRAP'))
 
     # This does not work for unknown reasons
-    # ad_writer.delete_user('MLEGO')
-
-    # print(ad_writer.delte_user('AseAsesen2'))
-    # ad_writer.create_user_test()
-    # ad_writer.create_user(
-    #     name=('Daaaw', 'Dawwwsen'),
-    #     mo_uuid='5826074e-66c3-4100-8a00-000001510001',
-    #     cpr='1111110101'
-    # )
+    ad_writer.delete_user('MSLEG')
