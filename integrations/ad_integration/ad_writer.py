@@ -2,10 +2,13 @@ import os
 import random
 import logging
 
+import ad_templates
+import ad_exceptions
+
 from ad_common import AD
 from user_names import CreateUserNames
-import ad_exceptions
 from os2mo_helpers.mora_helpers import MoraHelper
+
 
 logger = logging.getLogger("AdWriter")
 MORA_BASE = os.environ.get('MORA_BASE')
@@ -193,6 +196,55 @@ class ADWriter(AD):
         else:
             return response
 
+    def _ps_boiler_plate(self, school):
+        """
+        Boiler plate that needs to go into all PowerShell code.
+        """
+        settings = self._get_setting(school)
+        server = ''
+        if settings['server']:
+            server = ' -Server {} '.format(settings['server'])
+
+        path = ''
+        if settings['search_base']:
+            path = ' -Path "{}" '.format(settings['search_base'])
+        credentials = ' -Credential $usercredential'
+
+        boiler_plate = {
+            'server': server,
+            'path': path,
+            'credentials': credentials,
+            'complete': server + path + credentials
+        }
+        return boiler_plate
+
+    def set_user_password(self, username, password):
+        """
+        Set a password for a user.
+        :param username: SamAccountName for the user.
+        :param password: The password to assign to the user.
+        :return: True if success, otherwise False
+        """
+        school = False  # TODO
+
+        bp = self._ps_boiler_plate(school)
+        set_password_template = ad_templates.set_password_template.format(
+            username=username,
+            credentials=bp['credentials'],
+            password=password
+        )
+
+        ps_script = (
+            self._build_user_credential(school) +
+            remove_redundant(set_password_template)
+        )
+        response = self._run_ps_script(ps_script)
+        if not response:
+            return True
+        else:
+            logger.error('Failed to set password!: {}'.format(response))
+            return False
+
     def enable_user(self, username):
         """
         Disable an AD account.
@@ -208,10 +260,19 @@ class ADWriter(AD):
         path = ' -Path "{}" '.format(settings['search_base'])
 
         credentials = ' -Credential $usercredential'
-        # delete_user_template = """ Remove-ADUser  -Identity "{}"   """.format(username)
 
+        # enable_user_template = """ Get-ADUser -Filter 'SamAccountName -eq \"{}\"'  """.format(username)
+        # enable_user_template += credentials + ' ' + server + ' | Enable-ADAccount'
+        # ps_script = (
+        #     self._build_user_credential(school) +
+        #     enable_user_template +
+        #     server +
+        #     # path +
+        #     credentials
+        # )
+        
         enable_user_template = """ Get-ADUser -Filter 'SamAccountName -eq \"{}\"'  """.format(username)
-        enable_user_template += credentials + ' ' + server + ' | Enable-ADAccount'
+        enable_user_template += credentials +  ' ' + server + ' | Enable-ADAccount '
         ps_script = (
             self._build_user_credential(school) +
             enable_user_template +
@@ -219,6 +280,7 @@ class ADWriter(AD):
             # path +
             credentials
         )
+
         print(ps_script)
         # exit()
         print()
@@ -276,10 +338,14 @@ if __name__ == '__main__':
     # print(user[0]['Enabled'])
 
     # This will not work until we make proper passwords
-    # print(ad_writer.enable_user('AseAsesen1'))
+
+    # print(ad_writer.get_from_ad(user='MLEEG')[0]['Enabled'])
+
+    ad_writer.set_user_password('MLEEG', _random_password())
+    # print(ad_writer.enable_user('MSLEG'))
 
     # This does not work for unknown reasons
-    ad_writer.delete_user('MLEGO')
+    # ad_writer.delete_user('MLEGO')
 
     # print(ad_writer.delte_user('AseAsesen2'))
     # ad_writer.create_user_test()
