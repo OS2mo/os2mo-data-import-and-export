@@ -53,6 +53,40 @@ class ADWriter(AD):
             raise Exception(msg)
         return self.all_settings['primary_write']
 
+    def _ps_boiler_plate(self, school):
+        """
+        Boiler plate that needs to go into all PowerShell code.
+        """
+        settings = self._get_setting(school)
+        server = ''
+        if settings['server']:
+            server = ' -Server {} '.format(settings['server'])
+
+        path = ''
+        if settings['search_base']:
+            path = ' -Path "{}" '.format(settings['search_base'])
+        credentials = ' -Credential $usercredential'
+
+        boiler_plate = {
+            'server': server,
+            'path': path,
+            'credentials': credentials,
+            'complete': server + path + credentials
+        }
+        return boiler_plate
+
+    def _build_ps(self, ps_script, school, format_rules):
+        """
+        Return the standard code need to execute a power shell script from a
+        template.
+        """
+        formatted_script = ps_script.format(**format_rules)
+        finished_ps_script = (
+            self._build_user_credential(school) +
+            remove_redundant(formatted_script)
+        )
+        return finished_ps_script
+
     def read_ad_informaion_from_mo(self, uuid):
         """
         Retrive the necessary information from MO to contruct a new AD user.
@@ -65,8 +99,7 @@ class ADWriter(AD):
             'title': 'Musiker',
             'location': 'Viborg Kommune/Beskæftigelse, Økonomi & Personale/',
             'unit': 'It-strategisk team',
-            # 'manager': 'Daniel Miller'
-            'managerSAM': 'Magenta1'
+            'managerSAM': 'DMILL'
         }
         """
         # TODO: We need some kind of error handling here
@@ -142,15 +175,7 @@ class ADWriter(AD):
         sam_account_name = self.name_creator.create_username(all_names,
                                                              dry_run=dry_run)[0]
 
-        create_user_template = """
-        New-ADUser
-        -Name "{} - {}"
-        -Displayname "{}"
-        -GivenName "{}"
-        -SurName "{}"
-        -SamAccountName "{}"
-        -EmployeeNumber "{}"
-        """
+        create_user_template = ad_templates.create_user_template
 
         other_attributes = ' -OtherAttributes @{'
         other_attributes_fields = [
@@ -196,28 +221,6 @@ class ADWriter(AD):
         else:
             return response
 
-    def _ps_boiler_plate(self, school):
-        """
-        Boiler plate that needs to go into all PowerShell code.
-        """
-        settings = self._get_setting(school)
-        server = ''
-        if settings['server']:
-            server = ' -Server {} '.format(settings['server'])
-
-        path = ''
-        if settings['search_base']:
-            path = ' -Path "{}" '.format(settings['search_base'])
-        credentials = ' -Credential $usercredential'
-
-        boiler_plate = {
-            'server': server,
-            'path': path,
-            'credentials': credentials,
-            'complete': server + path + credentials
-        }
-        return boiler_plate
-
     def set_user_password(self, username, password):
         """
         Set a password for a user.
@@ -228,16 +231,10 @@ class ADWriter(AD):
         school = False  # TODO
 
         bp = self._ps_boiler_plate(school)
-        set_password_template = ad_templates.set_password_template.format(
-            username=username,
-            credentials=bp['credentials'],
-            password=password
-        )
-
-        ps_script = (
-            self._build_user_credential(school) +
-            remove_redundant(set_password_template)
-        )
+        format_rules = {'username': username, 'credentials': bp['credentials'],
+                        'password': password}
+        ps_script = self._build_ps(ad_templates.set_password_template,
+                                   school, format_rules)
         response = self._run_ps_script(ps_script)
         if not response:
             return True
@@ -252,40 +249,16 @@ class ADWriter(AD):
         """
         school = False  # TODO
 
-        settings = self._get_setting(school)
-        server = ''
-        if settings['server']:
-            server = ' -Server {} '.format(settings['server'])
-
-        path = ' -Path "{}" '.format(settings['search_base'])
-
-        credentials = ' -Credential $usercredential'
-
-        # enable_user_template = """ Get-ADUser -Filter 'SamAccountName -eq \"{}\"'  """.format(username)
-        # enable_user_template += credentials + ' ' + server + ' | Enable-ADAccount'
-        # ps_script = (
-        #     self._build_user_credential(school) +
-        #     enable_user_template +
-        #     server +
-        #     # path +
-        #     credentials
-        # )
-        
-        enable_user_template = """ Get-ADUser -Filter 'SamAccountName -eq \"{}\"'  """.format(username)
-        enable_user_template += credentials +  ' ' + server + ' | Enable-ADAccount '
-        ps_script = (
-            self._build_user_credential(school) +
-            enable_user_template +
-            server +
-            # path +
-            credentials
-        )
-
-        print(ps_script)
-        # exit()
-        print()
+        bp = self._ps_boiler_plate(school)
+        format_rules = {'username': username, 'credentials': bp['credentials']}
+        ps_script = self._build_ps(ad_templates.enable_user_template,
+                                   school, format_rules)
         response = self._run_ps_script(ps_script)
-        print(response)
+        if not response:
+            return True
+        else:
+            logger.error('Failed to set enable account!: {}'.format(response))
+            return False
 
     def delete_user(self, username):
         """
