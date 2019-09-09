@@ -348,7 +348,7 @@ class ChangeAtSD(object):
 
     def apply_NY_logic(self, org_unit, job_id, validity):
         # This must go to sd_common, or some kind of conf
-        too_deep = ['Afdelings-niveau', 'NY1-niveau', 'NY2-niveau']
+        too_deep = ['Afdelings-niveau', 'NY1-niveau']
 
         # Move users and make associations according to NY logic
         ou_info = self.helper.read_ou(org_unit)
