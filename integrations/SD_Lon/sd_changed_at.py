@@ -458,11 +458,8 @@ class ChangeAtSD(object):
         for department in engagement_info['departments']:
             logger.info('Change department of engagement {}:'.format(job_id))
             logger.debug('Department object: {}'.format(department))
-            # TODO: Should we do this for all edits?
-            print()
-            print('Vaidity: {}'.format(validity))
-            # This seems to be the correct thing to do, but trigs a bug in MO.
-            # validity = self._validity(department)
+
+            validity = self._validity(department)
             print('Vaidity: {}'.format(validity))
             logger.debug('Validity of this department change: {}'.format(validity))
             org_unit = department['DepartmentUUIDIdentifier']
@@ -504,6 +501,7 @@ class ChangeAtSD(object):
             else:
                 emp_name = profession_info['JobPositionIdentifier']
             logger.debug('Employment name: {}'.format(emp_name))
+            validity = self._validity(profession_info)
 
             self._update_professions(emp_name)
             job_function = self.job_functions.get(emp_name)
@@ -516,6 +514,7 @@ class ChangeAtSD(object):
 
         for worktime_info in engagement_info['working_time']:
             logger.info('Change working time of engagement {}'.format(job_id))
+            validity = self._validity(worktime_info)
             working_time = float(worktime_info['OccupationRate'])
 
             data = {'fraction': int(working_time * 1000000),
