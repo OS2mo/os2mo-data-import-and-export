@@ -37,6 +37,14 @@ sd = sd_importer.SdImport(
     ad_info=ad_info_reader
 )
 
+importer.add_klasse(identifier='IT-Org. Alias',
+                    uuid=None,
+                    facet_type_ref='org_unit_address_type',
+                    user_key='IT-Org. Alias',
+                    scope='TEXT',
+                    title='IT-Org. Alias')
+
+
 sd.create_ou_tree(create_orphan_container=True)
 sd.create_employees()
 
