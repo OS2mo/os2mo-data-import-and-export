@@ -105,12 +105,13 @@ class AdMoSync(object):
         for field, klasse in holstebro_mapping['user_addresses'].items():
             found_address = None
             for address in user_addresses:
-                if address['address_type']['uuid'] == klasse[0]:
-                    if klasse[1] is not None and 'visibility' in address:
-                        if klasse[1] == address['visibility']['uuid']:
-                            found_address = (address['uuid'], address['value'])
-                    else:
+                if not address['address_type']['uuid'] == klasse[0]:
+                    continue
+                if klasse[1] is not None and 'visibility' in address:
+                    if klasse[1] == address['visibility']['uuid']:
                         found_address = (address['uuid'], address['value'])
+                else:
+                    found_address = (address['uuid'], address['value'])
             if found_address is not None:
                 types_to_edit[field] = found_address
         logger.debug('Existing fields for {}: {}'.format(uuid, types_to_edit))
