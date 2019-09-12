@@ -1,15 +1,35 @@
 import os
+import logging
 from datetime import datetime
 
 import ad_reader
 from os2mo_helpers.mora_helpers import MoraHelper
 
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'ad_to_mo_sync.log'
 
-MORA_BASE = os.environ.get('MORA_BASE', None)
 
-# Specific to Holstebro - should go to conf
-VISIBLE = 'da56b8e1-9069-b530-511f-23f1624c83eb'
-SECRET = 'f0fa7f46-d8ce-d74b-4af6-ce989e6a034c'
+logger = logging.getLogger('AdSyncRead')
+detail_logging = ('AdSyncRead', 'AdReader', 'mora-helper')
+for name in logging.root.manager.loggerDict:
+    if name in detail_logging:
+        logging.getLogger(name).setLevel(LOG_LEVEL)
+    else:
+        logging.getLogger(name).setLevel(logging.ERROR)
+
+logging.basicConfig(
+    format='%(levelname)s %(asctime)s %(name)s %(message)s',
+    level=LOG_LEVEL,
+    filename=LOG_FILE
+)
+
+
+MORA_BASE = os.environ.get('MORA_BASE')
+VISIBLE = os.environ.get('VISIBLE_CLASS')
+SECRET = os.environ.get('SECRET_CLASS')
+
+if MORA_BASE is None:
+    raise Exception('No address to MO indicated')
 
 holstebro_mapping = {
     'user_addresses': {
@@ -34,9 +54,22 @@ ORG = {'uuid': '85c3f2fc-4af8-4fa0-b391-4cd54a244dcb'}
 
 class AdMoSync(object):
     def __init__(self):
+        logger.info('AD Sync Started')
         self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
+
+        found_visible = False
+        found_secret = False
+        for visibility in self.helper.read_classes_in_facet('visibility')[0]:
+            if visibility['uuid'] == VISIBLE:
+                found_visible = True
+            if visibility['uuid'] == SECRET:
+                found_secret = True
+        if not (found_visible and found_secret):
+            raise Exception('Error in visibility class configuration')
+
         self.ad_reader = ad_reader.ADParameterReader()
-        # self.ad_info_reader.cache_all()
+        self.ad_reader.cache_all()
+        logger.info('Done with AD caching')
 
     def _read_mo_classes(self):
         # This is not really needed, unless we want to make a consistency check.
@@ -45,9 +78,11 @@ class AdMoSync(object):
             print(emp_adr_class)
 
     def _read_all_mo_users(self):
+        logger.info('Read all MO users')
         org = self.helper.read_organisation()
-        employee_list = self.helper._mo_lookup(org, 'o/{}/e')
+        employee_list = self.helper._mo_lookup(org, 'o/{}/e?limit=1000000000')
         employees = employee_list['items']
+        logger.info('Done reading all MO users')
         return employees
 
     def _find_existing_ad_address_types(self, uuid):
@@ -59,13 +94,14 @@ class AdMoSync(object):
             found_address_type = None
             for address in user_addresses:
                 if address['address_type']['uuid'] == klasse[0]:
-                    if klasse[1] is not None:
+                    if klasse[1] is not None and 'visibility' in address:
                         if klasse[1] == address['visibility']['uuid']:
                             found_address_type = address['uuid']
                     else:
                         found_address_type = address['uuid']
             if found_address_type is not None:
                 types_to_edit[field] = found_address_type
+        logger.debug('Existing fields for {}: {}'.format(uuid, types_to_edit))
         return types_to_edit
 
     def _create_address(self, uuid, value, klasse):
@@ -79,11 +115,12 @@ class AdMoSync(object):
         }
         if klasse[1] is not None:
             payload['visibility'] = {'uuid': klasse[1]}
-        print(payload)
+        logger.debug('Create payload: {}'.format(payload))
         response = self.helper._mo_post('details/create', payload)
-        print(response)
+        logger.debug('Response: {}'.format(response))
 
     def _edit_address(self, address_uuid, value, klasse):
+        logger.debug
         payload = [
             {
                 'type': 'address',
@@ -95,9 +132,11 @@ class AdMoSync(object):
                 }
             }
         ]
-        print(payload)
+        if klasse[1] is not None:
+            payload[0]['data']['visibility'] = {'uuid': klasse[1]}
+        logger.debug('Edit payload: {}'.format(payload))
         response = self.helper._mo_post('details/edit', payload)
-        print(response)
+        logger.debug('Response: {}'.format(response))
 
     def _update_single_user(self, uuid, ad_object):
         # types_to_edit contains a dict pairing AD field with existing MO objects
@@ -114,20 +153,25 @@ class AdMoSync(object):
                 else:
                     self._create_address(uuid, ad_object[field], klasse)
             else:
-                print('No such AD field: {}'.format(field))
+                logger.debug('No such AD field: {}'.format(field))
 
     def update_all_users(self):
+        i = 0
         employees = self._read_all_mo_users()
 
         for employee in employees:
+            i = i + 1
+            print('Progress: {}/{}'.format(i, len(employees)))
+            logger.info('Start sync of {}'.format(employee['uuid']))
             user = self.helper.read_user(employee['uuid'])
-            cpr = user['cpr_no'][0:6] + '-' + user['cpr_no'][6:10]
-            response = self.ad_reader.uncached_read_user(cpr=cpr)
+            # cpr = user['cpr_no'][0:6] + '-' + user['cpr_no'][6:10]
+            cpr = user['cpr_no']
+            # response = self.ad_reader.uncached_read_user(cpr=cpr)
+            response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
+
             if response:
-                # print(employee['uuid'])
-                # for key, value in response.items():
-                #   print('{}: {}'.format(key, value))
                 self._update_single_user(employee['uuid'], response)
+            logger.info('End sync of {}'.format(employee['uuid']))
 
 
 if __name__ == '__main__':
