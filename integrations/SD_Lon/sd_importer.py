@@ -409,6 +409,9 @@ class SdImport(object):
                     date_from=None
                 )
 
+            # NOTICE: This will soon be removed and replaced with the
+            # AD-sync functionality which will sync all and just a few
+            # magic fields.
             phone = self.ad_people[cpr].get('MobilePhone')
             if phone:
                 self.importer.add_address_type(
@@ -551,18 +554,27 @@ class SdImport(object):
                 emp_dep = employment['EmploymentDepartment']
                 unit = emp_dep['DepartmentUUIDIdentifier']
 
-                date_from = datetime.datetime.strptime(
-                    employment['EmploymentDate'],
-                    '%Y-%m-%d'
-                )
+                # This can removed once we fully trust the new date logic
+                # date_from = datetime.datetime.strptime(
+                #     employment['EmploymentDate'],
+                #     '%Y-%m-%d'
+                # )
 
                 if status in ('7', '8', '9'):
+                    date_from = datetime.datetime.strptime(
+                        employment['EmploymentDate'],
+                        '%Y-%m-%d'
+                    )
                     date_to = datetime.datetime.strptime(
                         employment['EmploymentStatus']['ActivationDate'],
                         '%Y-%m-%d'
                     )
                     date_to = date_to - datetime.timedelta(days=1)
                 else:
+                    date_from = datetime.datetime.strptime(
+                        employment['EmploymentStatus']['ActivationDate'],
+                        '%Y-%m-%d'
+                    )
                     date_to = datetime.datetime.strptime(
                         employment['EmploymentStatus']['DeactivationDate'],
                         '%Y-%m-%d'
