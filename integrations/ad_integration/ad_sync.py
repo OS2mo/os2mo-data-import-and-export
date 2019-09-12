@@ -39,12 +39,12 @@ holstebro_mapping = {
         'telephoneNumber': ('0e5b0c70-0c71-a481-5712-7803d0b4cfa0', VISIBLE),
         'pager': ('f3abc4f2-c027-f514-a3ba-8cf11b53909a', SECRET)
     },
-    'it_systems': {
+    'it_systems': {  # This are not par of AD->MO and could be removed.
         'samAccountName': 'aa76fa0e-3cf5-466c-bdaa-60d11d92cf7d'
     }
 }
 
-# AD has  no concept of temporalty, validity is always from now to infinity.
+# AD has  no concept of temporality, validity is always from now to infinity.
 VALIDITY = {
     'from':  datetime.strftime(datetime.now(), "%Y-%m-%d"),
     'to': None
@@ -72,12 +72,19 @@ class AdMoSync(object):
         logger.info('Done with AD caching')
 
     def _read_mo_classes(self):
+        """
+        Read all address classes in MO. Mostly usefull for debugging.
+        """
         # This is not really needed, unless we want to make a consistency check.
         emp_adr_classes = self.helper.read_classes_in_facet('employee_address_type')
         for emp_adr_class in emp_adr_classes[0]:
             print(emp_adr_class)
 
     def _read_all_mo_users(self):
+        """
+        Return a list of all employees in MO.
+        :return: List af all employees.
+        """
         logger.info('Read all MO users')
         org = self.helper.read_organisation()
         employee_list = self.helper._mo_lookup(org, 'o/{}/e?limit=1000000000')
@@ -86,25 +93,36 @@ class AdMoSync(object):
         return employees
 
     def _find_existing_ad_address_types(self, uuid):
-        # user_addresses = self.helper.read_user_address(uuid)
+        """
+        Find the addresses that is already related to a user.
+        :param uuid: The uuid of the user in question.
+        :return: A dictionary with address classes as keys and tuples of adress
+        objects and values as values.
+        """
         # Unfortunately, mora-helper currently does not read all addresses
         types_to_edit = {}
         user_addresses = self.helper._mo_lookup(uuid, 'e/{}/details/address')
         for field, klasse in holstebro_mapping['user_addresses'].items():
-            found_address_type = None
+            found_address = None
             for address in user_addresses:
                 if address['address_type']['uuid'] == klasse[0]:
                     if klasse[1] is not None and 'visibility' in address:
                         if klasse[1] == address['visibility']['uuid']:
-                            found_address_type = address['uuid']
+                            found_address = (address['uuid'], address['value'])
                     else:
-                        found_address_type = address['uuid']
-            if found_address_type is not None:
-                types_to_edit[field] = found_address_type
+                        found_address = (address['uuid'], address['value'])
+            if found_address is not None:
+                types_to_edit[field] = found_address
         logger.debug('Existing fields for {}: {}'.format(uuid, types_to_edit))
         return types_to_edit
 
     def _create_address(self, uuid, value, klasse):
+        """
+        Create a new address for a user.
+        :param uuid: uuid of the user.
+        :param: value Value of of the adress.
+        :param: klasse: The address type and vissibility of the address.
+        """
         payload = {
             'value': value,
             'address_type': {'uuid': klasse[0]},
@@ -120,7 +138,12 @@ class AdMoSync(object):
         logger.debug('Response: {}'.format(response))
 
     def _edit_address(self, address_uuid, value, klasse):
-        logger.debug
+        """
+        Edit an exising address to a new value.
+        :param address_uuid: uuid of the address object.
+        :param value: The new value
+        :param: klasse: The address type and vissibility of the address.
+        """
         payload = [
             {
                 'type': 'address',
@@ -144,16 +167,23 @@ class AdMoSync(object):
 
         # Assume no existing adresses, we fix that later
         for field, klasse in holstebro_mapping['user_addresses'].items():
-            print()
-            if field in ad_object:
-                if field in fields_to_edit.keys():
-                    self._edit_address(fields_to_edit[field],
+            if field not in ad_object:
+                logger.debug('No such AD field: {}'.format(field))
+                continue
+
+            if field not in fields_to_edit.keys():
+                # This is a new address
+                self._create_address(uuid, ad_object[field], klasse)
+            else:
+                # This is an existing address
+                if not fields_to_edit[field][1] == ad_object[field]:
+                    self._edit_address(fields_to_edit[field][0],
                                        ad_object[field],
                                        klasse)
                 else:
-                    self._create_address(uuid, ad_object[field], klasse)
-            else:
-                logger.debug('No such AD field: {}'.format(field))
+                    msg = 'No value change: {}=={}'
+                    logger.debug(msg.format(fields_to_edit[field][1],
+                                            ad_object[field]))
 
     def update_all_users(self):
         i = 0
@@ -164,10 +194,7 @@ class AdMoSync(object):
             print('Progress: {}/{}'.format(i, len(employees)))
             logger.info('Start sync of {}'.format(employee['uuid']))
             user = self.helper.read_user(employee['uuid'])
-            # cpr = user['cpr_no'][0:6] + '-' + user['cpr_no'][6:10]
-            cpr = user['cpr_no']
-            # response = self.ad_reader.uncached_read_user(cpr=cpr)
-            response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
+            response = self.ad_reader.read_user(cpr=user['cpr_no'], cache_only=True)
 
             if response:
                 self._update_single_user(employee['uuid'], response)
@@ -176,6 +203,6 @@ class AdMoSync(object):
 
 if __name__ == '__main__':
     sync = AdMoSync()
-    # sync._read_mo_classes()
+    sync._read_mo_classes()
 
     sync.update_all_users()
