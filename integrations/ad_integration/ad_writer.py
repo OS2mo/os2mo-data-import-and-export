@@ -104,6 +104,7 @@ class ADWriter(AD):
         """
         # TODO: We need some kind of error handling here
         mo_user = self.helper.read_user(user_uuid=uuid)
+
         if 'uuid' not in mo_user:
             raise ad_exceptions.UserNotFoundException
         else:
@@ -117,6 +118,7 @@ class ADWriter(AD):
                 found_primary = True
                 employment_number = engagement['user_key']
                 title = engagement['job_function']['name']
+                break
 
         if not found_primary:
             raise ad_exceptions.NoPrimaryEngagementException('User: {}'.format(uuid))
@@ -156,21 +158,15 @@ class ADWriter(AD):
     def create_user(self, mo_uuid, dry_run=False):
         """
         Create an AD user
-        :param name: Tuple with (givenname, surname)
+        :param mo_uuid: uuid for the MO user we want to add to AD.
         """
         school = False  # TODO
         # TODO: Implement dry_run
 
         write_settings = self._get_write_setting(school)
-        read_settings = self._get_setting(school)
-        server = ''
-        if read_settings['server']:
-            server = ' -Server {} '.format(read_settings['server'])
-
-        path = ' -Path "{}" '.format(read_settings['search_base'])
-        credentials = ' -Credential $usercredential'
-
+        bp = self._ps_boiler_plate(school)
         mo_values = self.read_ad_informaion_from_mo(mo_uuid)
+
         all_names = mo_values['name'][0].split(' ') + [mo_values['name'][1]]
         sam_account_name = self.name_creator.create_username(all_names,
                                                              dry_run=dry_run)[0]
@@ -190,13 +186,10 @@ class ADWriter(AD):
 
         full_name = '{} {}'.format(mo_values['name'][0], mo_values['name'][1])
         create_user_string = create_user_template.format(
-            full_name,
-            sam_account_name,
-            full_name,
-            mo_values['name'][0],
-            mo_values['name'][1],
-            sam_account_name,
-            mo_values['employment_number']
+            givenname=mo_values['name'][0],
+            surname=mo_values['name'][1],
+            sam_account_name=sam_account_name,
+            employment_number=mo_values['employment_number']
         )
         create_user_string = remove_redundant(create_user_string)
         create_user_string += other_attributes
@@ -204,10 +197,12 @@ class ADWriter(AD):
         ps_script = (
             self._build_user_credential(school) +
             create_user_string +
-            server +
-            path +
-            credentials
+            bp['server'] +
+            bp['path']
         )
+        # TODO: Update to the new _build_ps method
+        print(ps_script)
+        print()
         response = self._run_ps_script(ps_script)
         print(ps_script)
         print()
@@ -279,18 +274,11 @@ class ADWriter(AD):
 if __name__ == '__main__':
     ad_writer = ADWriter()
 
-    # ad_writer.read_ad_informaion_from_mo(uuid)
-    # print(ad_writer.read_ad_informaion_from_mo('7ccbd9aa-b163-4a5a-bf2f-0e6f41f6ebc0'))
-
-    # ad_writer.create_user(uuid)
-
-    # user = ad_writer.get_from_ad(user='AseAsesen1')
-    # print(user[0]['Enabled'])
+    # uuid = None
+    ad_writer.create_user(uuid)
 
     # print(ad_writer.get_from_ad(user='MLEEG')[0]['Enabled'])
 
-    # ad_writer.set_user_password('OBRAP', _random_password())
-    print(ad_writer.enable_user('OBRAP'))
-
-    # This does not work for unknown reasons
-    ad_writer.delete_user('MSLEG')
+    # ad_writer.set_user_password('MSLEG', _random_password())
+    # ad_writer.enable_user('OBRAP')
+    # ad_writer.delete_user('MSLEG')
