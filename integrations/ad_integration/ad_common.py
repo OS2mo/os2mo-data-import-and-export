@@ -9,6 +9,9 @@ import read_ad_conf_settings
 # TODO: How should we name the loggers?!?
 logger = logging.getLogger("AdCommon")
 
+# Is this universal?
+ENCODING = 'cp850'
+
 
 class AD(object):
     def __init__(self):
@@ -60,7 +63,7 @@ class AD(object):
 
         if r.status_code == 0:
             if r.std_out:
-                response = json.loads(r.std_out.decode('Latin-1'))
+                response = json.loads(r.std_out.decode(ENCODING))
         else:
             response = r.std_err
         return response
