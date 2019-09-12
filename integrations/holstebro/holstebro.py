@@ -38,7 +38,7 @@ sd = sd_importer.SdImport(
 )
 
 importer.add_klasse(identifier='IT-Org. Alias',
-                    uuid=None,
+                    uuid='df948904-7ad3-49b0-92a0-e35c50a4bccf',
                     facet_type_ref='org_unit_address_type',
                     user_key='IT-Org. Alias',
                     scope='TEXT',
