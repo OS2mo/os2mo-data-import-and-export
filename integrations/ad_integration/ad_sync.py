@@ -162,7 +162,11 @@ class AdMoSync(object):
         logger.debug('Response: {}'.format(response))
 
     def _update_single_user(self, uuid, ad_object):
-        # types_to_edit contains a dict pairing AD field with existing MO objects
+        """
+        Update all fields for a single user.
+        :param uuid: uuid of the user.
+        :param ad_object: Dict with the AD information for the user.
+        """
         fields_to_edit = self._find_existing_ad_address_types(uuid)
 
         # Assume no existing adresses, we fix that later
@@ -186,6 +190,9 @@ class AdMoSync(object):
                                             ad_object[field]))
 
     def update_all_users(self):
+        """
+        Iterate over all users and sync AD informations to MO.
+        """
         i = 0
         employees = self._read_all_mo_users()
 
