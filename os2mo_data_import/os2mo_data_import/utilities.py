@@ -827,10 +827,13 @@ class ImportUtility(object):
             }
         }
         logger.debug('Terminate detail payload: {}'.format(payload))
-        self.insert_mora_data(
-            resource='service/details/terminate',
-            data=payload
-        )
+        try:
+            self.insert_mora_data(
+                resource='service/details/terminate',
+                data=payload
+            )
+        except HTTPError:
+            logger.info('Tried to terminate a non-existing uuid')
         return uuid
 
     def _std_compare(self, item_payload, data_item, extra_field=None):

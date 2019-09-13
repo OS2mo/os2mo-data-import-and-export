@@ -73,7 +73,8 @@ class MoraHelper(object):
         in dict will be matched to fieldnames.
         :param filename: The name of the exported file.
         """
-        with open(filename, 'w') as csvfile:
+        print('Encode ascii: {}'.format(self.export_ansi))
+        with open(filename, encoding='utf-8', mode='w') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
                                     extrasaction='ignore',
                                     delimiter=';',
@@ -362,6 +363,7 @@ class MoraHelper(object):
         # Iterate over all managers, use uuid as key, if more than one
         # distinct uuid shows up in list, rasie an error
         for manager in managers:
+            responsibility = {'name': 'Intet ansvar'}
             for responsibility in manager['responsibility']:
                 if responsibility['name'] == PRIMARY_RESPONSIBILITY:
                     break
