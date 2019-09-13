@@ -87,7 +87,7 @@ class AD(object):
         get_ad_object = ''
         if settings['get_ad_object']:
             get_ad_object = ' | Get-ADObject'
-            
+
         credentials = ' -Credential $usercredential'
 
         boiler_plate = {
@@ -100,6 +100,13 @@ class AD(object):
         }
         return boiler_plate
 
+    def remove_redundant(self, text):
+        text = text.replace('\n', '')
+        text = text.replace('\r', '')
+        while text.find('  ') > -1:
+            text = text.replace('  ', ' ')
+        return text
+
     def _build_ps(self, ps_script, school, format_rules):
         """
         Return the standard code need to execute a power shell script from a
@@ -108,7 +115,7 @@ class AD(object):
         formatted_script = ps_script.format(**format_rules)
         finished_ps_script = (
             self._build_user_credential(school) +
-            remove_redundant(formatted_script)
+            self.remove_redundant(formatted_script)
         )
         return finished_ps_script
 
