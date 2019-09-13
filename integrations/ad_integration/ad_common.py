@@ -63,7 +63,10 @@ class AD(object):
 
         if r.status_code == 0:
             if r.std_out:
-                response = json.loads(r.std_out.decode(ENCODING))
+                output = r.std_out.decode(ENCODING)
+                output = output.replace('&Oslash;', 'Ø')
+                output = output.replace('&oslash;', 'ø')
+                response = json.loads(output)
         else:
             response = r.std_err
         return response
@@ -85,8 +88,9 @@ class AD(object):
             search_base = ' -SearchBase "{}" '.format(settings['search_base'])
 
         get_ad_object = ''
-        if settings['get_ad_object']:
-            get_ad_object = ' | Get-ADObject'
+        # TODO: When do we need this?
+        # if settings['get_ad_object']:
+        #    get_ad_object = ' | Get-ADObject'
 
         credentials = ' -Credential $usercredential'
 
@@ -148,6 +152,15 @@ class AD(object):
                                                      settings['password'])
         return user_credential
 
+    def _properties(self, school):
+        settings = self._get_setting(school)
+        # properties = ' -Properties *'
+        properties = ' -Properties '
+        for item in settings['properties']:
+            properties += item + ','
+        properties = properties[:-1] + ' '  # Remove trailing comma, add space
+        return properties
+
     def get_from_ad(self, user=None, cpr=None, school=False):
         """
         Read all properties of an AD user. The user can be retrived either by cpr
@@ -157,6 +170,7 @@ class AD(object):
         :return: All properties listed in AD for the user.
         """
         settings = self._get_setting(school)
+        bp = self._ps_boiler_plate(school)
 
         if user:
             dict_key = user
@@ -165,42 +179,21 @@ class AD(object):
 
         if cpr:
             dict_key = cpr
-            # Here we should strongly consider to strip part of the cpr to
-            # get more users at the same time to increase performance.
-            # Lookup time is only very slightly dependant on the number
-            # of results.
             field = settings['cpr_field']
             ps_template = "get-aduser -Filter '" + field + " -like \"{}\"'"
 
         get_command = ps_template.format(dict_key)
 
-        server = ''
-        if settings['server']:
-            server = ' -Server {} '.format(settings['server'])
-
-        search_base = ' -SearchBase "{}" '.format(settings['search_base'])
-        credentials = ' -Credential $usercredential'
-
-        get_ad_object = ''
-        if settings['get_ad_object']:
-            get_ad_object = ' | Get-ADObject'
-
-        # properties = ' -Properties *'
-        properties = ' -Properties '
-        for item in settings['properties']:
-            properties += item + ','
-        properties = properties[:-1] + ' '  # Remove trailing comma, add space
-
-        command_end = ' | ConvertTo-Json'
+        command_end = (' | ConvertTo-Json  | ' +
+                       ' % {$_.replace("ø","&oslash;")} | ' +
+                       '% {$_.replace("Ø","&Oslash;")} ')
 
         ps_script = (
             self._build_user_credential(school) +
             get_command +
-            server +
-            search_base +
-            credentials +
-            get_ad_object +
-            properties +
+            bp['complete'] +
+            self._properties(school) +
+            # bp['get_ad_object'] +
             command_end
         )
         response = self._run_ps_script(ps_script)
