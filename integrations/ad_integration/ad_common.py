@@ -68,6 +68,50 @@ class AD(object):
             response = r.std_err
         return response
 
+    def _ps_boiler_plate(self, school):
+        """
+        Boiler plate that needs to go into all PowerShell code.
+        """
+        settings = self._get_setting(school)
+        server = ''
+        if settings['server']:
+            server = ' -Server {} '.format(settings['server'])
+
+        # TODO: Are these really different?
+        path = ''
+        search_base = ''
+        if settings['search_base']:
+            path = ' -Path "{}" '.format(settings['search_base'])
+            search_base = ' -SearchBase "{}" '.format(settings['search_base'])
+
+        get_ad_object = ''
+        if settings['get_ad_object']:
+            get_ad_object = ' | Get-ADObject'
+            
+        credentials = ' -Credential $usercredential'
+
+        boiler_plate = {
+            'server': server,
+            'path': path,
+            'get_ad_object': get_ad_object,
+            'search_base': search_base,
+            'credentials': credentials,
+            'complete': server + search_base + credentials
+        }
+        return boiler_plate
+
+    def _build_ps(self, ps_script, school, format_rules):
+        """
+        Return the standard code need to execute a power shell script from a
+        template.
+        """
+        formatted_script = ps_script.format(**format_rules)
+        finished_ps_script = (
+            self._build_user_credential(school) +
+            remove_redundant(formatted_script)
+        )
+        return finished_ps_script
+
     def _get_setting(self, school):
         if school and not self.all_settings['school']['read_school']:
             msg = 'Trying to access school without credentials'

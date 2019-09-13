@@ -20,14 +20,6 @@ if MORA_BASE is None or PRIMARY_ENGAGEMENT_TYPE is None:
     raise Exception(msg.format(MORA_BASE, PRIMARY_ENGAGEMENT_TYPE))
 
 
-def remove_redundant(text):
-    text = text.replace('\n', '')
-    text = text.replace('\r', '')
-    while text.find('  ') > -1:
-        text = text.replace('  ', ' ')
-    return text
-
-
 def _random_password(length=12):
     password = ''
     for _ in range(0, length):
@@ -52,40 +44,6 @@ class ADWriter(AD):
             logger.error(msg)
             raise Exception(msg)
         return self.all_settings['primary_write']
-
-    def _ps_boiler_plate(self, school):
-        """
-        Boiler plate that needs to go into all PowerShell code.
-        """
-        settings = self._get_setting(school)
-        server = ''
-        if settings['server']:
-            server = ' -Server {} '.format(settings['server'])
-
-        path = ''
-        if settings['search_base']:
-            path = ' -Path "{}" '.format(settings['search_base'])
-        credentials = ' -Credential $usercredential'
-
-        boiler_plate = {
-            'server': server,
-            'path': path,
-            'credentials': credentials,
-            'complete': server + path + credentials
-        }
-        return boiler_plate
-
-    def _build_ps(self, ps_script, school, format_rules):
-        """
-        Return the standard code need to execute a power shell script from a
-        template.
-        """
-        formatted_script = ps_script.format(**format_rules)
-        finished_ps_script = (
-            self._build_user_credential(school) +
-            remove_redundant(formatted_script)
-        )
-        return finished_ps_script
 
     def read_ad_informaion_from_mo(self, uuid):
         """
@@ -191,7 +149,7 @@ class ADWriter(AD):
             sam_account_name=sam_account_name,
             employment_number=mo_values['employment_number']
         )
-        create_user_string = remove_redundant(create_user_string)
+        create_user_string = self.remove_redundant(create_user_string)
         create_user_string += other_attributes
 
         ps_script = (
@@ -274,7 +232,6 @@ class ADWriter(AD):
 if __name__ == '__main__':
     ad_writer = ADWriter()
 
-    # uuid = None
     ad_writer.create_user(uuid)
 
     # print(ad_writer.get_from_ad(user='MLEEG')[0]['Enabled'])
