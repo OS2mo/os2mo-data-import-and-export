@@ -273,6 +273,11 @@ class ChangeAtSD(object):
         for mo_eng in self.mo_engagement:
             if mo_eng['user_key'] == user_key:
                 relevant_engagement = mo_eng
+
+        if relevant_engagement is None:
+            msg = 'Fruitlessly searched for {} in {}'.format(job_id,
+                                                             self.mo_engagement)
+            logger.info(msg)
         return relevant_engagement
 
     def _update_professions(self, emp_name):
@@ -686,20 +691,23 @@ class ChangeAtSD(object):
         max_rate = 0
         min_id = 9999999
         for eng in mo_engagement:
+            logger.debug('Calculate rate, engagement: {}'.format(eng))
             if 'user_key' not in eng:
                 logger.error('Cannot calculate primary!!! Eng: {}'.format(eng))
                 return None, None
             employment_id = eng['user_key']
 
             if not eng['fraction']:
-                eng['fraction'] = 0
-                continue
+                logger.error('No fraction in Engagement object')
+                raise Exception('No fraction in Engagement object')
+                # eng['fraction'] = 0
+                # continue
 
             occupation_rate = eng['fraction']
             if eng['fraction'] == max_rate:
                 if employment_id < min_id:
                     min_id = employment_id
-            if occupation_rate > max_rate:
+            if occupation_rate >= max_rate:
                 max_rate = occupation_rate
                 min_id = employment_id
         logger.debug('Min id: {}, Max rate: {}'.format(min_id, max_rate))
@@ -786,17 +794,19 @@ class ChangeAtSD(object):
                         'engagement_type': {'uuid': self.primary},
                         'validity': validity
                     }
-                    ad_info = self.ad_reader.read_user(cpr=self.mo_person['cpr_no'])
-                    logger.debug(
-                        'Ad info for {}: {}'.format(
-                            self.mo_person['cpr_no'], ad_info
-                        )
-                    )
+                    # This is a mess. The Title is handled by the sync-tool which will
+                    # respect the validity of the day the information is updated.
+                    # ad_info = self.ad_reader.read_user(cpr=self.mo_person['cpr_no'])
+                    # logger.debug(
+                    #     'Ad info for {}: {}'.format(
+                    #         self.mo_person['cpr_no'], ad_info
+                    #     )
+                    # )
 
-                    ad_title = ad_info.get('Title', None)
-                    if ad_title:
-                        self._update_professions(ad_title)
-                        data['job_funcion'] = self.job_functions.get(ad_title)
+                    # ad_title = ad_info.get('Title', None)
+                    # if ad_title:
+                    #     self._update_professions(ad_title)
+                    #     data['job_funcion'] = self.job_functions.get(ad_title)
                 else:
                     logger.debug('{} is not primary'.format(employment_id))
                     data = {
