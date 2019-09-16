@@ -773,13 +773,16 @@ class ChangeAtSD(object):
                 employment_id = eng['user_key']
                 occupation_rate = eng['fraction']
 
+                # We explicit do not set the MO primary field, since this
+                # would need to manually synchronized in case of manual
+                # changes from the front-end.
                 employment_id = eng['user_key']
                 if occupation_rate == max_rate and employment_id == min_id:
                     assert(exactly_one_primary is False)
                     logger.debug('Primary is: {}'.format(employment_id))
                     exactly_one_primary = True
                     data = {
-                        'primary': True,
+                        # 'primary': True,
                         'engagement_type': {'uuid': self.primary},
                         'validity': validity
                     }
@@ -797,7 +800,7 @@ class ChangeAtSD(object):
                 else:
                     logger.debug('{} is not primary'.format(employment_id))
                     data = {
-                        'primary': False,
+                        # 'primary': False,
                         'engagement_type': {'uuid': self.non_primary},
                         'validity': validity
                     }
