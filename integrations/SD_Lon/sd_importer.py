@@ -131,6 +131,7 @@ class SdImport(object):
         self._add_klasse('Ansat', 'Ansat', 'engagement_type')
         self._add_klasse('status0', 'Ansat - Ikke i løn', 'engagement_type')
         self._add_klasse('non-primary', 'Ikke-primær ansættelse', 'engagement_type')
+        self._add_klasse('explicitly-primary', 'Manuelt primær ansættelse', 'engagement_type')
 
         self._add_klasse('SD-medarbejder', 'SD-medarbejder', 'association_type')
 
@@ -487,7 +488,7 @@ class SdImport(object):
             if not isinstance(employments, list):
                 employments = [employments]
 
-            max_rate = 0
+            max_rate = -1
             min_id = 999999
             for employment in employments:
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
@@ -502,8 +503,8 @@ class SdImport(object):
                 occupation_rate = float(employment['WorkingTime']
                                         ['OccupationRate'])
 
-                if occupation_rate == 0:
-                    continue
+                # if occupation_rate == 0:
+                # continue
 
                 if occupation_rate == max_rate:
                     if employment_id['value'] < min_id:
