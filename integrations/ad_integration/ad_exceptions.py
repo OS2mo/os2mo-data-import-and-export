@@ -8,3 +8,15 @@ class UserNotFoundException(Exception):
 
 class ManagerNotUniqueFromCprException(Exception):
     pass
+
+
+class CprNotNotUnique(Exception):
+    pass
+
+
+class SamAccountNameNotUnique(Exception):
+    pass
+
+
+class SamAccountDoesNotExist(Exception):
+    pass
