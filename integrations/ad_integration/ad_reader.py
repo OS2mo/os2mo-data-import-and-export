@@ -20,6 +20,7 @@ class ADParameterReader(AD):
         super().__init__()
 
         self.all_settings = read_ad_conf_settings.read_settings_from_env()
+
         if self.all_settings['global']['winrm_host']:
             self.session = Session(
                 'http://{}:5985/wsman'.format(
@@ -40,22 +41,16 @@ class ADParameterReader(AD):
         response = self._run_ps_script(ps_script)
         return response
 
-    def _properties(self, school):
-        settings = self._get_setting(school)
-        # properties = ' -Properties *'
-        properties = ' -Properties '
-        for item in settings['properties']:
-            properties += item + ','
-        properties = properties[:-1] + ' '  # Remove trailing comma, add space
-        return properties
-    
     def read_it_all(self, school=False):
         # TODO: Contains duplicated code
         settings = self._get_setting(school)
         bp = self._ps_boiler_plate(school)
         get_command = "get-aduser -Filter '*'"
 
-        command_end = ' | ConvertTo-Json'
+        command_end = (' | ConvertTo-Json  | ' +
+                       ' % {$_.replace("ø","&oslash;")} | ' +
+                       '% {$_.replace("Ø","&Oslash;")} ')
+
         ps_script = (
             self._build_user_credential(school) +
             get_command +
@@ -64,65 +59,21 @@ class ADParameterReader(AD):
             bp['get_ad_object'] +
             command_end
         )
-        print(ps_script)
 
         response = self._run_ps_script(ps_script)
         return response
 
-    # This is now part of common
-    def _get_from_ad(self, user=None, cpr=None, school=False):
-        """
-        Read all properties of an AD user. The user can be retrived either by cpr
-        or by AD user name.
-        :param user: The SamAccountName to retrive.
-        :param cpr: cpr number of the user to retrive.
-        :return: All properties listed in AD for the user.
-        """
-        settings = self._get_setting(school)
-        bp = self._ps_boiler_plate(school)
-
-        if user:
-            dict_key = user
-            ps_template = "get-aduser -Filter 'SamAccountName -eq \"{}\"' "
-            get_command = ps_template.format(user)
-
-        if cpr:
-            dict_key = cpr
-            # Here we should strongly consider to strip part of the cpr to
-            # get more users at the same time to increase performance.
-            # Lookup time is only very slightly dependant on the number
-            # of results.
-            field = settings['cpr_field']
-            ps_template = "get-aduser -Filter '" + field + " -like \"{}\"'"
-
-        get_command = ps_template.format(dict_key)
-        command_end = ' | ConvertTo-Json  | % {$_.replace("ø","AAAA")} | % {$_.replace("Ø","BBBB")} '
-
-        ps_script = (
-            self._build_user_credential(school) +
-            get_command +
-            bp['complete'] +
-            self._properties(school) +
-            bp['get_ad_object'] +
-            command_end
-        )
-        response = self._run_ps_script(ps_script)
-        print(response)
-        if not response:
-            return_val = []
-        else:
-            if not isinstance(response, list):
-                return_val = [response]
-            else:
-                return_val = response
-        return return_val
-
     def uncached_read_user(self, user=None, cpr=None):
+        # Bug, currently this will not work directly with the school domain. Users
+        # will be cached (and can be read by read_user) but will not be returned
+        # directly by this function
         logger.debug('Uncached AD read, user {}, cpr {}'.format(user, cpr))
 
         if self.all_settings['school']['read_school']:
             settings = self._get_setting(school=True)
-            response = self._get_from_ad(user=user, cpr=cpr, school=True)
+            # response = self._get_from_ad(user=user, cpr=cpr, school=True)
+            response = self.get_from_ad(user=user, cpr=cpr, school=True)
+
             for current_user in response:
                 job_title = current_user.get('Title')
                 if job_title and job_title.find('FRATR') == 0:
@@ -135,7 +86,7 @@ class ADParameterReader(AD):
                 self.results[school_cpr] = current_user
                 self.results[current_user['SamAccountName']] = current_user
 
-        response = self._get_from_ad(user=user, cpr=cpr, school=False)
+        response = self.get_from_ad(user=user, cpr=cpr, school=False)
         current_user = {}
         for current_user in response:
             settings = self._get_setting(school=False)
@@ -213,14 +164,11 @@ class ADParameterReader(AD):
 if __name__ == '__main__':
     ad_reader = ADParameterReader()
 
-    # print(ad_reader.uncached_read_user(cpr='*'))
-    # exit()
     everything = ad_reader.read_it_all()
 
     for user in everything:
-        print('{}, {}'.format(user['DistinguishedName'], user['SamAccountName']))
-    print()
-    for user in everything:
-        print()
-        for key in sorted(user.keys()):
-            print('{}: {}'.format(key, user[key]))
+        print('Name: {}, Sam: {}, Manger: {}'.format(user['Name'], user['SamAccountName'], user['Manager']))
+        #if user['SamAccountName'] == 'JSTEH':
+        #    for key in sorted(user.keys()):
+        #        print('{}: {}'.format(key, user[key]))
+
