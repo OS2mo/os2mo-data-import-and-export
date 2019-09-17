@@ -40,3 +40,25 @@ delete_user_template = """
 Get-ADUser -Filter 'SamAccountName -eq \"{username}\"' -Credential $usercredential |
 Remove-ADUser -Credential $usercredential -Confirm:$false
 """
+
+
+# Add manager to user
+add_manager_template = """
+Get-ADUser -Filter 'SamAccountName -eq \"{user_sam}\"' -Credential $usercredential |
+Set-ADUser -Manager {manager_sam} -Credential $usercredential
+"""
+
+
+
+# Update informtion saved on a user
+# Notice: Name cannot be updated using Set-ADUser, this must be done
+# with Rename-AdObject
+edit_user_template = """
+Get-ADUser -Filter 'SamAccountName -eq \"{sam_account_name}\"'
+            -Credential $usercredential |
+Set-ADUser -Credential $usercredential
+ -Displayname "{givenname} {surname}"
+ -GivenName "{givenname}"
+ -SurName "{givenname} {surname}"
+ -EmployeeNumber "{employment_number}"
+"""
