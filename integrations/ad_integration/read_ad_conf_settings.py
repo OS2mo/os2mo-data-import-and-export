@@ -6,8 +6,14 @@ logger = logging.getLogger("AdReader")
 
 def _read_global_settings():
     global_settings = {}
-    global_settings['winrm_host'] = os.environ.get('WINRM_HOST')
 
+    ad_servers_raw = os.environ.get('AD_SERVERS')
+    if ad_servers_raw:
+        global_settings['servers'] = set(ad_servers_raw.split(' '))
+    else:
+        global_settings['servers'] = None
+    
+    global_settings['winrm_host'] = os.environ.get('WINRM_HOST')
     if not global_settings['winrm_host']:
         msg = 'Missing hostname for remote management server'
         logger.error(msg)
@@ -59,8 +65,8 @@ def _read_primary_write_information():
     # Field for writing the uuid of a user, used to sync to STS
     primary_write_settings['uuid_field'] = os.environ.get('AD_WRITE_UUID')
 
-    # Field for writing the name of the users unit
-    primary_write_settings['unit_field'] = os.environ.get('AD_WRITE_UNIT')
+    # Field for writing the name of the users 'forvaltning'
+    primary_write_settings['forvaltning_field'] = os.environ.get('AD_WRITE_FORVALTNING')
 
     # Field for the path to the users unit
     primary_write_settings['org_field'] = os.environ.get('AD_WRITE_ORG')
