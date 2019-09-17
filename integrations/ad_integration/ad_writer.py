@@ -1,4 +1,5 @@
 import os
+import time
 import random
 import logging
 
@@ -11,8 +12,10 @@ from os2mo_helpers.mora_helpers import MoraHelper
 
 
 logger = logging.getLogger("AdWriter")
+
 MORA_BASE = os.environ.get('MORA_BASE')
 PRIMARY_ENGAGEMENT_TYPE = os.environ.get('PRIMARY_ENGAGEMENT_TYPE')
+FORVALTNING_TYPE = os.environ.get('FORVALTNING_TYPE')
 
 
 if MORA_BASE is None or PRIMARY_ENGAGEMENT_TYPE is None:
@@ -45,6 +48,56 @@ class ADWriter(AD):
             raise Exception(msg)
         return self.all_settings['primary_write']
 
+    def _other_attributes(self, mo_values, new_user=False):
+        school = False  # TODO
+        write_settings = self._get_write_setting(school)
+        if new_user:
+            other_attributes = ' -OtherAttributes @{'
+        else:
+            other_attributes = ' -Replace @{'
+
+        other_attributes_fields = [
+            (write_settings['forvaltning_field'],
+             mo_values['forvaltning'].replace('&', 'og')),
+            (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
+        ]
+        # These two fields are NEVER updated.
+        if new_user:
+            other_attributes_fields.append(
+                (write_settings['uuid_field'], mo_values['uuid'])
+            )
+            other_attributes_fields.append(
+                (write_settings['cpr_field'], mo_values['cpr'])
+            )
+            
+        for field in other_attributes_fields:
+            other_attributes += '"{}"="{}";'.format(field[0], field[1])
+        other_attributes += '}'
+        return other_attributes
+
+    def _wait_for_replication(self, sam):
+        t_start = time.time()
+        logger.debug('Wait for replication of {}'.format(sam))
+        if not self.all_settings['global']['servers']:
+            logger.info('No server infomation, falling back to waiting')
+            time.sleep(15)
+        else:
+            # TODO, read from all AD servers and see when user is available
+            replication_finished = False
+            while not replication_finished:
+                for server in self.all_settings['global']['servers']:
+                    user = self.get_from_ad(user=sam)
+                    logger.debug('Testing {}, found: {}'.format(server, len(user)))
+                    if user:
+                        logger.debug('Found successfully')
+                        replication_finished = True
+                    else:
+                        logger.debug('Did not find')
+                        replication_finished = False
+                        time.sleep(0.25)
+                        break
+        logger.info('replication_finished: {}s'.format(time.time() - t_start))
+
     def read_ad_informaion_from_mo(self, uuid):
         """
         Retrive the necessary information from MO to contruct a new AD user.
@@ -55,12 +108,12 @@ class ADWriter(AD):
             'uuid': '7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0',
             'cpr': '1122334455',
             'title': 'Musiker',
-            'location': 'Viborg Kommune/Beskæftigelse, Økonomi & Personale/',
-            'unit': 'It-strategisk team',
+            'location': 'Viborg Kommune\Beskæftigelse, Økonomi & Personale\It-strategisk team\',
+            'forvaltning': 'Beskæftigelse, Økonomi & Personale',
             'managerSAM': 'DMILL'
         }
         """
-        # TODO: We need some kind of error handling here
+        logger.info('Read information for {}'.format(uuid))
         mo_user = self.helper.read_user(user_uuid=uuid)
 
         if 'uuid' not in mo_user:
@@ -72,6 +125,7 @@ class ADWriter(AD):
 
         found_primary = False
         for engagement in engagements:
+            # TODO: Very soon  PRIMARY_ENGAGEMENT_TYPE will be a list
             if engagement['engagement_type']['uuid'] == PRIMARY_ENGAGEMENT_TYPE:
                 found_primary = True
                 employment_number = engagement['user_key']
@@ -83,9 +137,16 @@ class ADWriter(AD):
 
         unit_info = self.helper.read_ou(engagement['org_unit']['uuid'])
         unit = unit_info['name']
-        location = unit_info['location']
-        if location == '':
-            location = 'root'
+
+        location = ''
+        current_unit = unit_info
+        forvaltning = None
+        while current_unit:
+            location = current_unit['name'] + '\\' +location
+            if current_unit['org_unit_type']['uuid'] == FORVALTNING_TYPE:
+                forvaltning = current_unit['name']
+            current_unit = current_unit['parent']
+        location = location[:-1]
 
         manager = self.helper.read_engagement_manager(engagement['uuid'])
         mo_manager_user = self.helper.read_user(user_uuid=manager['uuid'])
@@ -108,10 +169,73 @@ class ADWriter(AD):
             'cpr': mo_user['cpr_no'],
             'title': title,
             'location': location,
-            'unit': unit,
+            'forvaltning': forvaltning,
             'managerSAM': manager_sam
         }
         return mo_values
+
+    def add_manager_to_user(self, user_sam, manager_sam):
+        """
+        Mark an existing AD user as manager for an existing AD user.
+        :param user_sam: SamAccountName for the employee.
+        :param manager_sam: SamAccountName for the manager.
+        """
+        school = False  # TODO
+        bp = self._ps_boiler_plate(school)
+
+        format_rules = {'user_sam': user_sam, 'manager_sam': manager_sam,
+                        'ad_server': bp['server']}
+        ps_script = self._build_ps(ad_templates.add_manager_template,
+                                   school, format_rules)
+
+        response = self._run_ps_script(ps_script)
+        return response is {}
+
+    def sync_user(self, mo_uuid):
+        """
+        Sync MO information into AD
+        """
+        # TODO: Consider if this is sufficiently similar to create to refactor
+        # TODO: SamAccountShould be read from MO!
+
+        school = False  # TODO
+        write_settings = self._get_write_setting(school)
+        bp = self._ps_boiler_plate(school)
+
+        mo_values = self.read_ad_informaion_from_mo(mo_uuid)
+
+        user_ad_info = self.get_from_ad(cpr=mo_values['cpr'])
+        if len(user_ad_info) == 1:
+            user_sam = user_ad_info[0]['SamAccountName']
+        else:
+            msg = 'No SamAccount found for user, unable to sync'
+            logger.error(msg)
+            raise ad_exceptions.UserNotFoundException(msg)
+
+        edit_user_template = ad_templates.edit_user_template
+        replace_attributes = self._other_attributes(mo_values, new_user=False)
+
+        edit_user_string = edit_user_template.format(
+            givenname=mo_values['name'][0],
+            surname=mo_values['name'][1],
+            sam_account_name=user_sam,
+            employment_number=mo_values['employment_number']
+        )
+        edit_user_string = self.remove_redundant(edit_user_string)
+        edit_user_string += replace_attributes
+        print(edit_user_string)
+
+        ps_script = (
+            self._build_user_credential(school) +
+            edit_user_string +
+            bp['server']
+        )
+        response = self._run_ps_script(ps_script)
+        print(response)
+        
+        # Works for both create and edit
+        self.add_manager_to_user(user_sam=user_sam,
+                                 manager_sam=mo_values['managerSAM'])
 
     def create_user(self, mo_uuid, dry_run=False):
         """
@@ -129,20 +253,18 @@ class ADWriter(AD):
         sam_account_name = self.name_creator.create_username(all_names,
                                                              dry_run=dry_run)[0]
 
+        existing_sam = self.get_from_ad(user=sam_account_name)
+        existing_cpr = self.get_from_ad(cpr=mo_values['cpr'])
+        if existing_sam:
+            logger.error('SamAccount already in use: {}'.format(sam_account_name))
+            ad_exceptions.SamAccountNameNotUnique(sam_account_name)
+        if existing_cpr:
+            logger.error('cpr already in use: {}'.format(mo_values['cpr']))
+            raise ad_exceptions.CprNotNotUnique(mo_values['cpr'])
+
         create_user_template = ad_templates.create_user_template
+        other_attributes = self._other_attributes(mo_values, new_user=True)
 
-        other_attributes = ' -OtherAttributes @{'
-        other_attributes_fields = [
-            (write_settings['uuid_field'], mo_values['uuid']),
-            (write_settings['cpr_field'], mo_values['cpr']),
-            (write_settings['unit_field'], mo_values['unit'].replace('&', 'og')),
-            (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
-        ]
-        for field in other_attributes_fields:
-            other_attributes += '"{}"="{}";'.format(field[0], field[1])
-        other_attributes += '}'
-
-        full_name = '{} {}'.format(mo_values['name'][0], mo_values['name'][1])
         create_user_string = create_user_template.format(
             givenname=mo_values['name'][0],
             surname=mo_values['name'][1],
@@ -158,20 +280,20 @@ class ADWriter(AD):
             bp['server'] +
             bp['path']
         )
-        # TODO: Update to the new _build_ps method
-        print(ps_script)
-        print()
-        response = self._run_ps_script(ps_script)
-        print(ps_script)
-        print()
-        print(response)
-        # TODO:
-        # Efter oprettelsen af brugeren, skal vi efterfølgende lave endnu et kald
-        # til PowerShell for at oprette en relation til lederen.
 
-        if response is {}:
+        response = self._run_ps_script(ps_script)
+
+        if response == {}:
+            self._wait_for_replication(sam_account_name)
+            print('Add {} as manager for {}'.format(mo_values['managerSAM'],
+                                                    sam_account_name))
+            logger.info('Add {} as manager for {}'.format(mo_values['managerSAM'],
+                                                          sam_account_name))
+            self.add_manager_to_user(user_sam=sam_account_name,
+                                     manager_sam=mo_values['managerSAM'])
             return sam_account_name
         else:
+            logger.error('Error creating user: {}'.format(response))
             return response
 
     def set_user_password(self, username, password):
@@ -231,11 +353,17 @@ class ADWriter(AD):
 
 if __name__ == '__main__':
     ad_writer = ADWriter()
+    
+    # ad_writer.add_manager_to_user('CBAKT', 'OBRAP')
 
-    ad_writer.create_user(uuid)
+    # ad_writer.create_user(uuid)
+
+    # TODO: Test this by sync'ing other users into existing accounts.
+    # ad_writer.sync_user(uuid)
 
     # print(ad_writer.get_from_ad(user='MLEEG')[0]['Enabled'])
 
     # ad_writer.set_user_password('MSLEG', _random_password())
     # ad_writer.enable_user('OBRAP')
-    # ad_writer.delete_user('MSLEG')
+
+    ad_writer.delete_user('LSKÅJ')
