@@ -6,8 +6,23 @@ from winrm import Session
 from winrm.exceptions import WinRMTransportError
 import read_ad_conf_settings
 
-# TODO: How should we name the loggers?!?
-logger = logging.getLogger("AdCommon")
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'ad_integration.log'
+
+logger = logging.getLogger('AdCommon')
+detail_logging = ('AdWriter', 'AdReader', 'mora-helper')
+for name in logging.root.manager.loggerDict:
+    if name in detail_logging:
+        logging.getLogger(name).setLevel(LOG_LEVEL)
+    else:
+        logging.getLogger(name).setLevel(logging.ERROR)
+
+logging.basicConfig(
+    format='%(levelname)s %(asctime)s %(name)s %(message)s',
+    level=LOG_LEVEL,
+    filename=LOG_FILE
+)
+
 
 # Is this universal?
 ENCODING = 'cp850'
@@ -76,6 +91,8 @@ class AD(object):
         Boiler plate that needs to go into all PowerShell code.
         """
         settings = self._get_setting(school)
+
+        # This is most likely never neeed.
         server = ''
         if settings['server']:
             server = ' -Server {} '.format(settings['server'])
@@ -161,12 +178,14 @@ class AD(object):
         properties = properties[:-1] + ' '  # Remove trailing comma, add space
         return properties
 
-    def get_from_ad(self, user=None, cpr=None, school=False):
+    def get_from_ad(self, user=None, cpr=None, school=False, server=None):
         """
         Read all properties of an AD user. The user can be retrived either by cpr
         or by AD user name.
         :param user: The SamAccountName to retrive.
         :param cpr: cpr number of the user to retrive.
+        :param server: Add an explcit server to the query. Mostly needed to check
+        if replication is finished.
         :return: All properties listed in AD for the user.
         """
         settings = self._get_setting(school)
@@ -184,6 +203,10 @@ class AD(object):
 
         get_command = ps_template.format(dict_key)
 
+        server_string = ''
+        if server:
+            server_string = ' -Server {}'.format(server)
+        
         command_end = (' | ConvertTo-Json  | ' +
                        ' % {$_.replace("ø","&oslash;")} | ' +
                        '% {$_.replace("Ø","&Oslash;")} ')
@@ -191,6 +214,7 @@ class AD(object):
         ps_script = (
             self._build_user_credential(school) +
             get_command +
+            server_string + 
             bp['complete'] +
             self._properties(school) +
             # bp['get_ad_object'] +
