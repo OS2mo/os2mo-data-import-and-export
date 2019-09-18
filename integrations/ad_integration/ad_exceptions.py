@@ -20,3 +20,7 @@ class SamAccountNameNotUnique(Exception):
 
 class SamAccountDoesNotExist(Exception):
     pass
+
+
+class ReplicationFailedException(Exception):
+    pass
