@@ -2,6 +2,7 @@ import os
 import time
 import random
 import logging
+import argparse
 
 import ad_templates
 import ad_exceptions
@@ -85,6 +86,10 @@ class ADWriter(AD):
             # TODO, read from all AD servers and see when user is available
             replication_finished = False
             while not replication_finished:
+                if time.time() - t_start > 60:
+                    logger.error('Replication error')
+                    raise ad_exceptions.ReplicationFailedException()
+
                 for server in self.all_settings['global']['servers']:
                     user = self.get_from_ad(user=sam)
                     logger.debug('Testing {}, found: {}'.format(server, len(user)))
@@ -237,10 +242,15 @@ class ADWriter(AD):
         self.add_manager_to_user(user_sam=user_sam,
                                  manager_sam=mo_values['managerSAM'])
 
-    def create_user(self, mo_uuid, dry_run=False):
+    def create_user(self, mo_uuid, create_manager=False, dry_run=False):
         """
         Create an AD user
         :param mo_uuid: uuid for the MO user we want to add to AD.
+        :param create_manager: If True, an AD link will be added between the user
+        object and the AD object of the users manager.
+        :param dry_run: Not yet implemented. Should return whether the user is
+        expected to be able to be created in AD and the expected SamAccountName.
+        :return: The generated SamAccountName for the new user
         """
         school = False  # TODO
         # TODO: Implement dry_run
@@ -282,8 +292,11 @@ class ADWriter(AD):
         )
 
         response = self._run_ps_script(ps_script)
+        if not return == {}:
+            logger.error('Create user failed, message: {}'.format(response))
+            return None
 
-        if response == {}:
+        if create_manager:
             self._wait_for_replication(sam_account_name)
             print('Add {} as manager for {}'.format(mo_values['managerSAM'],
                                                     sam_account_name))
@@ -291,10 +304,8 @@ class ADWriter(AD):
                                                           sam_account_name))
             self.add_manager_to_user(user_sam=sam_account_name,
                                      manager_sam=mo_values['managerSAM'])
-            return sam_account_name
-        else:
-            logger.error('Error creating user: {}'.format(response))
-            return response
+
+        return sam_account_name
 
     def set_user_password(self, username, password):
         """
@@ -353,6 +364,27 @@ class ADWriter(AD):
 
 if __name__ == '__main__':
     ad_writer = ADWriter()
+
+    parser = argparse.ArgumentParser(description='AD Writer')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--create-user-with-manager', metavar='MO uuid', nargs=1)
+    group.add_argument('--create-user', metavar='MO uuid', nargs=1)
+    group.add_argument('--delete-user', metavar='User SAM', nargs=1)
+    group.add_argument('--add-manager-to-user', metavar=('ManagerSAM', 'UserSAM'),
+                       nargs=2)
+
+    args = vars(parser.parse_args())
+
+    if 'create-user-with-manager' in args:
+        print(args['create-user-with-manager'])
+
+    if 'create-user' in args:
+        print(args['create-user'])
+
+    if 'delete-user' in args:
+        print(args['delete-user'])
+
+    if 
     
     # ad_writer.add_manager_to_user('CBAKT', 'OBRAP')
 
@@ -366,4 +398,4 @@ if __name__ == '__main__':
     # ad_writer.set_user_password('MSLEG', _random_password())
     # ad_writer.enable_user('OBRAP')
 
-    ad_writer.delete_user('LSKÅJ')
+    # ad_writer.delete_user('LSKÅJ')
