@@ -447,7 +447,7 @@ class IntegrationDataTests(unittest.TestCase):
             '00000000-0000-0000-1000-000000000000',
             at='2000-01-01'
         )
-        
+
         job_ids = {'108', '109'}
         integration_data = {
             '5579606a75a36c085affcb6bebb1032ed628ee32a0a60ef5d4649bb63d68f9cd',
@@ -571,6 +571,7 @@ class IntegrationDataTests(unittest.TestCase):
         )
         self.importer.add_engagement(
             employee='Test user',
+            user_key='3',
             organisation_unit='Root',
             job_function_ref='Kok',
             engagement_type_ref="Ansat",
@@ -580,10 +581,22 @@ class IntegrationDataTests(unittest.TestCase):
 
         self.importer.add_engagement(
             employee='Test user',
+            user_key='4',
             organisation_unit='Sub unit 1',
             job_function_ref='Vagt',
             engagement_type_ref="Ansat",
             date_from='1990-01-23',
+            date_to=None
+        )
+
+        self.importer.add_engagement(
+            employee='Test user',
+            user_key='5',
+            uuid='00000000-aaaa-0000-0000-000000000021',
+            organisation_unit='Sub unit 2',
+            job_function_ref='Vagt',
+            engagement_type_ref="Ansat",
+            date_from='1998-01-23',
             date_to=None
         )
 
@@ -597,8 +610,7 @@ class IntegrationDataTests(unittest.TestCase):
         self.assertTrue(count['leave_count'] == 1)
 
         count = _count(self.mox_base, at='2021-01-02')
-        print(count)
-        self.assertTrue(count['engagement_count'] == 2)
+        self.assertTrue(count['engagement_count'] == 3)
         self.assertTrue(count['leave_count'] == 0)
 
     @freeze_time("2019-01-05")
@@ -639,7 +651,29 @@ class IntegrationDataTests(unittest.TestCase):
         count = _count(self.mox_base, at='2019-01-10')
         self.assertTrue(count['association_count'] == 2)
 
+    @freeze_time("2019-07-25")
     def test_026_terminate_employee(self):
+        """
+        Teriminate a specific engagement
+        """
+        self.importer.add_employee(
+            name='Test user',
+            identifier='Test user',
+            cpr_no='1111111118',
+        )
+        self.importer.terminate_engagement(
+            employee='Test user',
+            engagement_uuid='00000000-aaaa-0000-0000-000000000021',
+        )
+
+        self.importer.import_all()
+        count = _count(self.mox_base, at='2019-07-24')
+        self.assertTrue(count['engagement_count'] == 3)
+        count = _count(self.mox_base, at='2019-07-28')
+        self.assertTrue(count['engagement_count'] == 2)
+
+    @freeze_time("2019-07-29")
+    def test_027_terminate_employee(self):
         """
         Teriminate an employee
         """
@@ -654,6 +688,8 @@ class IntegrationDataTests(unittest.TestCase):
         )
 
         self.importer.import_all()
+        count = _count(self.mox_base, at='2019-08-01')
+        self.assertTrue(count['engagement_count'] == 0)
 
 
 if __name__ == '__main__':

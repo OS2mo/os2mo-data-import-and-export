@@ -42,7 +42,7 @@ def export_all_teams(mh, nodes, filename):
         people = mh.read_organisation_people(node.name, 'association',
                                              split_name=False)
         for uuid, person in people.items():
-            ou = mh.read_organisationsenhed(node.name)
+            ou = mh.read_ou(node.name)
             row = {}
             row['Org-UUID'] = ou['uuid']
             row['Overordnet UUID'] = ou['parent']['uuid']
@@ -58,7 +58,7 @@ def export_adm_org(mh, nodes, filename):
                   'Gyldig fra', 'Gyldig til', 'Enhedstype Titel']
     rows = []
     for node in PreOrderIter(nodes['root']):
-        ou = mh.read_organisationsenhed(node.name)
+        ou = mh.read_ou(node.name)
         fra = ou['validity']['from'] if ou['validity']['from'] else ''
         til = ou['validity']['to'] if ou['validity']['to'] else ''
         over_uuid = ou['parent']['uuid'] if ou['parent'] else ''

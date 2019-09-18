@@ -132,7 +132,7 @@ class FixDepartmentsSD(object):
 
 
 if __name__ == '__main__':
-    from_date = datetime.datetime(2019, 8, 1, 0, 0)
+    from_date = datetime.datetime(2019, 1, 1, 0, 0)
 
     unit_fixer = FixDepartmentsSD(from_date)
     unit_fixer.fix_departments()

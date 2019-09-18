@@ -1,4 +1,4 @@
-Intergation abstraction
+Integration abstraction
 =======================
 
 A small library to easy the use of the `integrationsdata` field in LoRa.
@@ -44,7 +44,7 @@ To write integration data to an object: ::
   ia = IntegrationAbstraction(mox_base, 'AD', 'STOP')
   ia.write_integration_data(resource, uuid, set_value)
 
-The data will be written to the objects `integrations_data' field while all
+The data will be written to the objects `integrations_data` field while all
 other keys will be left untouched.
 
 To read back he value: ::
