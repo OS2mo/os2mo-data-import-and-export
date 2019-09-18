@@ -50,6 +50,7 @@ class AD(object):
         :param ps_script: The power shell script to run.
         :return: A dictionary with the returned parameters.
         """
+        logger.debug('Attempting to run script: {}'.format(ps_script))
         response = {}
         if not self.session:
             return response
