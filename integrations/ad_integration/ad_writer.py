@@ -70,7 +70,7 @@ class ADWriter(AD):
             other_attributes_fields.append(
                 (write_settings['cpr_field'], mo_values['cpr'])
             )
-            
+
         for field in other_attributes_fields:
             other_attributes += '"{}"="{}";'.format(field[0], field[1])
         other_attributes += '}'
@@ -113,7 +113,7 @@ class ADWriter(AD):
             'uuid': '7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0',
             'cpr': '1122334455',
             'title': 'Musiker',
-            'location': 'Viborg Kommune\Beskæftigelse, Økonomi & Personale\It-strategisk team\',
+            'location': 'Viborg Kommune\Forvalting\Enhed\',
             'forvaltning': 'Beskæftigelse, Økonomi & Personale',
             'managerSAM': 'DMILL'
         }
@@ -141,13 +141,12 @@ class ADWriter(AD):
             raise ad_exceptions.NoPrimaryEngagementException('User: {}'.format(uuid))
 
         unit_info = self.helper.read_ou(engagement['org_unit']['uuid'])
-        unit = unit_info['name']
 
         location = ''
         current_unit = unit_info
         forvaltning = None
         while current_unit:
-            location = current_unit['name'] + '\\' +location
+            location = current_unit['name'] + '\\' + location
             if current_unit['org_unit_type']['uuid'] == FORVALTNING_TYPE:
                 forvaltning = current_unit['name']
             current_unit = current_unit['parent']
@@ -156,9 +155,6 @@ class ADWriter(AD):
         manager = self.helper.read_engagement_manager(engagement['uuid'])
         mo_manager_user = self.helper.read_user(user_uuid=manager['uuid'])
         manager_cpr = mo_manager_user['cpr_no']
-
-        # Overrule manager cpr for test!
-        # manager_cpr = '1122334459'
 
         manager_ad_info = self.get_from_ad(cpr=manager_cpr)
         if len(manager_ad_info) == 1:
@@ -201,10 +197,8 @@ class ADWriter(AD):
         Sync MO information into AD
         """
         # TODO: Consider if this is sufficiently similar to create to refactor
-        # TODO: SamAccountShould be read from MO!
 
         school = False  # TODO
-        write_settings = self._get_write_setting(school)
         bp = self._ps_boiler_plate(school)
 
         mo_values = self.read_ad_informaion_from_mo(mo_uuid)
@@ -237,12 +231,13 @@ class ADWriter(AD):
         )
         response = self._run_ps_script(ps_script)
         print(response)
-        
+
         # Works for both create and edit
         self.add_manager_to_user(user_sam=user_sam,
                                  manager_sam=mo_values['managerSAM'])
+        return (True, 'Sync completed')
 
-    def create_user(self, mo_uuid, create_manager=False, dry_run=False):
+    def create_user(self, mo_uuid, create_manager, dry_run=False):
         """
         Create an AD user
         :param mo_uuid: uuid for the MO user we want to add to AD.
@@ -255,7 +250,6 @@ class ADWriter(AD):
         school = False  # TODO
         # TODO: Implement dry_run
 
-        write_settings = self._get_write_setting(school)
         bp = self._ps_boiler_plate(school)
         mo_values = self.read_ad_informaion_from_mo(mo_uuid)
 
@@ -292,9 +286,10 @@ class ADWriter(AD):
         )
 
         response = self._run_ps_script(ps_script)
-        if not return == {}:
-            logger.error('Create user failed, message: {}'.format(response))
-            return None
+        if not response == {}:
+            msg = 'Create user failed, message: {}'.format(response)
+            logger.error(msg)
+            return (False, msg)
 
         if create_manager:
             self._wait_for_replication(sam_account_name)
@@ -305,7 +300,13 @@ class ADWriter(AD):
             self.add_manager_to_user(user_sam=sam_account_name,
                                      manager_sam=mo_values['managerSAM'])
 
-        return sam_account_name
+        return (True, sam_account_name)
+
+    def add_ad_to_user_it_systems(self, username):
+        # TODO: We need a function to write the SamAccount to the user's
+        # IT-systems. This is most likely most elegantly done by importing
+        # the AD->MO sync tool
+        pass
 
     def set_user_password(self, username, password):
         """
@@ -321,10 +322,11 @@ class ADWriter(AD):
                                    school, format_rules)
         response = self._run_ps_script(ps_script)
         if not response:
-            return True
+            return (True, 'Password updated')
         else:
-            logger.error('Failed to set password!: {}'.format(response))
-            return False
+            msg = 'Failed to set password!: {}'.format(response)
+            logger.error(msg)
+            return (False, msg)
 
     def enable_user(self, username):
         """
@@ -338,10 +340,11 @@ class ADWriter(AD):
                                    school, format_rules)
         response = self._run_ps_script(ps_script)
         if not response:
-            return True
+            return (True, 'Account enabled')
         else:
-            logger.error('Failed to set enable account!: {}'.format(response))
-            return False
+            msg = 'Failed to set enable account!: {}'.format(response)
+            logger.error(msg)
+            return (False, msg)
 
     def delete_user(self, username):
         """
@@ -353,49 +356,80 @@ class ADWriter(AD):
         format_rules = {'username': username}
         ps_script = self._build_ps(ad_templates.delete_user_template,
                                    school=False, format_rules=format_rules)
+
         response = self._run_ps_script(ps_script)
-        # TODO: Should we make a read to confirm the user i gone?
+        # TODO: Should we make a read to confirm the user is gone?
         if not response:
-            return True
+            return (True, 'User deleted')
         else:
             logger.error('Failed to delete account!: {}'.format(response))
-            return False
+            return (False, 'Failed to delete')
+
+    def _cli(self):
+        """
+        Command line interface for the AD writer class.
+        """
+        parser = argparse.ArgumentParser(description='AD Writer')
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument('--create-user-with-manager', nargs=1, metavar='MO uuid',
+                           help='Create a new user in AD, also assign a manager')
+        group.add_argument('--create-user', nargs=1, metavar='MO uuid',
+                           help='Create a new user in AD, do not assign a manager')
+        group.add_argument('--sync-user', nargs=1, metavar='MO uuid',
+                           help='Sync relevant fields from MO to AD')
+        group.add_argument('--delete-user', nargs=1, metavar='User SAM')
+        group.add_argument('--read-ad-information', nargs=1, metavar='User SAM')
+        group.add_argument('--add-manager-to-user',  nargs=2,
+                           metavar=('ManagerSAM', 'UserSAM'))
+
+        args = vars(parser.parse_args())
+
+        if args.get('create_user_with_manager'):
+            print('Create_user_with_manager:')
+            uuid = args.get('create_user_with_manager')[0]
+            status = self.create_user(uuid, create_manager=True)
+            print(status[1])
+
+        if args.get('create_user'):
+            print('Create user, no link to manager:')
+            uuid = args.get('create_user')[0]
+            status = self.create_user(uuid, create_manager=False)
+            print(status[1])
+
+        if args.get('sync_user'):
+            print('Sync MO fields to AD')
+            uuid = args.get('sync_user')[0]
+            status = self.sync_user(uuid)
+            print(status[1])
+
+        if args.get('delete_user'):
+            print('Deleting user:')
+            sam = args.get('delete_user')[0]
+            status = self.delete_user(sam)
+            print(status[1])
+
+        if args.get('read_ad_information'):
+            print('AD information on user:')
+            sam = args.get('read_ad_information')[0]
+            user = self.get_from_ad(user=sam)
+            for key, value in sorted(user[0].items()):
+                print('{}: {}'.format(key, value))
+
+        if args.get('add_manager_to_user'):
+            manager = args['add_manager_to_user'][0]
+            user = args['add_manager_to_user'][1]
+            print('{} is now set as manager for {}'.format(manager, user))
+            self.add_manager_to_user(manager_sam=manager, user_sam=user)
 
 
 if __name__ == '__main__':
     ad_writer = ADWriter()
 
-    parser = argparse.ArgumentParser(description='AD Writer')
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument('--create-user-with-manager', metavar='MO uuid', nargs=1)
-    group.add_argument('--create-user', metavar='MO uuid', nargs=1)
-    group.add_argument('--delete-user', metavar='User SAM', nargs=1)
-    group.add_argument('--add-manager-to-user', metavar=('ManagerSAM', 'UserSAM'),
-                       nargs=2)
-
-    args = vars(parser.parse_args())
-
-    if 'create-user-with-manager' in args:
-        print(args['create-user-with-manager'])
-
-    if 'create-user' in args:
-        print(args['create-user'])
-
-    if 'delete-user' in args:
-        print(args['delete-user'])
-
-    if 
-    
-    # ad_writer.add_manager_to_user('CBAKT', 'OBRAP')
-
-    # ad_writer.create_user(uuid)
+    ad_writer._cli()
 
     # TODO: Test this by sync'ing other users into existing accounts.
-    # ad_writer.sync_user(uuid)
 
     # print(ad_writer.get_from_ad(user='MLEEG')[0]['Enabled'])
 
     # ad_writer.set_user_password('MSLEG', _random_password())
     # ad_writer.enable_user('OBRAP')
-
-    # ad_writer.delete_user('LSKÅJ')
