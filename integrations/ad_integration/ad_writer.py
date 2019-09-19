@@ -2,6 +2,7 @@ import os
 import time
 import random
 import logging
+import datetime
 import argparse
 
 import ad_templates
@@ -103,14 +104,17 @@ class ADWriter(AD):
                         break
         logger.info('replication_finished: {}s'.format(time.time() - t_start))
 
-    def read_ad_informaion_from_mo(self, uuid):
+    def read_ad_informaion_from_mo(self, uuid, read_manager=True):
         """
         Retrive the necessary information from MO to contruct a new AD user.
-        The final information object should of this type:
+        The final information object should of this type, notice that end-date
+        is not necessarily for the current primary engagement, but the end-date
+        of the longest running currently known primary engagement:
         mo_values = {
             'name': ('Martin Lee', 'Gore'),
             'employment_number': '101',
             'uuid': '7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0',
+            'end_date': 2089-11-11,
             'cpr': '1122334455',
             'title': 'Musiker',
             'location': 'Viborg Kommune\Forvalting\Enhed\',
@@ -135,10 +139,26 @@ class ADWriter(AD):
                 found_primary = True
                 employment_number = engagement['user_key']
                 title = engagement['job_function']['name']
+                end_date = engagement['validity']['to']
+                if end_date is None:
+                    end_date = '9999-12-31'
                 break
 
         if not found_primary:
             raise ad_exceptions.NoPrimaryEngagementException('User: {}'.format(uuid))
+
+        future_engagements = self.helper.read_user_engagement(uuid, read_all=True)
+        for eng in future_engagements:
+            if engagement['engagement_type']['uuid'] == PRIMARY_ENGAGEMENT_TYPE:
+                current_end = eng['validity']['to']
+                if current_end is None:
+                    current_end = '9999-12-31'
+
+                if (
+                        datetime.datetime.strptime(current_end, '%Y-%m-%d') >
+                        datetime.datetime.strptime(end_date, '%Y-%m-%d')
+                ):
+                    end_date = current_end
 
         unit_info = self.helper.read_ou(engagement['org_unit']['uuid'])
 
@@ -152,20 +172,23 @@ class ADWriter(AD):
             current_unit = current_unit['parent']
         location = location[:-1]
 
-        manager = self.helper.read_engagement_manager(engagement['uuid'])
-        mo_manager_user = self.helper.read_user(user_uuid=manager['uuid'])
-        manager_cpr = mo_manager_user['cpr_no']
+        manager_sam = None
+        if read_manager:
+            manager = self.helper.read_engagement_manager(engagement['uuid'])
+            mo_manager_user = self.helper.read_user(user_uuid=manager['uuid'])
+            manager_cpr = mo_manager_user['cpr_no']
 
-        manager_ad_info = self.get_from_ad(cpr=manager_cpr)
-        if len(manager_ad_info) == 1:
-            manager_sam = manager_ad_info[0]['SamAccountName']
-        else:
-            print(manager_ad_info)
-            raise ad_exceptions.ManagerNotUniqueFromCprException()
+            manager_ad_info = self.get_from_ad(cpr=manager_cpr)
+            if len(manager_ad_info) == 1:
+                manager_sam = manager_ad_info[0]['SamAccountName']
+            else:
+                logger.debug('Managers in AD: {}'.format(manager_ad_info))
+                raise ad_exceptions.ManagerNotUniqueFromCprException()
 
         mo_values = {
             'name': (mo_user['givenname'], mo_user['surname']),
             'employment_number': employment_number,
+            'end_date': end_date,
             'uuid': uuid,
             'cpr': mo_user['cpr_no'],
             'title': title,
@@ -251,7 +274,7 @@ class ADWriter(AD):
         # TODO: Implement dry_run
 
         bp = self._ps_boiler_plate(school)
-        mo_values = self.read_ad_informaion_from_mo(mo_uuid)
+        mo_values = self.read_ad_informaion_from_mo(mo_uuid, create_manager)
 
         all_names = mo_values['name'][0].split(' ') + [mo_values['name'][1]]
         sam_account_name = self.name_creator.create_username(all_names,
@@ -421,15 +444,10 @@ class ADWriter(AD):
             print('{} is now set as manager for {}'.format(manager, user))
             self.add_manager_to_user(manager_sam=manager, user_sam=user)
 
+        # TODO: Enable a user, including setting a random password
+        # ad_writer.set_user_password('MSLEG', _random_password())
+        # ad_writer.enable_user('OBRAP')
 
 if __name__ == '__main__':
     ad_writer = ADWriter()
-
     ad_writer._cli()
-
-    # TODO: Test this by sync'ing other users into existing accounts.
-
-    # print(ad_writer.get_from_ad(user='MLEEG')[0]['Enabled'])
-
-    # ad_writer.set_user_password('MSLEG', _random_password())
-    # ad_writer.enable_user('OBRAP')
