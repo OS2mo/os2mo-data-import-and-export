@@ -199,7 +199,6 @@ class AD(object):
         if user:
             dict_key = user
             ps_template = "get-aduser -Filter 'SamAccountName -eq \"{}\"' "
-            get_command = ps_template.format(user)
 
         if cpr:
             dict_key = cpr
