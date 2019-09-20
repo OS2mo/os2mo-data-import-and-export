@@ -3,26 +3,11 @@ import logging
 from datetime import datetime
 
 import ad_reader
+import ad_logger
 from os2mo_helpers.mora_helpers import MoraHelper
-
-LOG_LEVEL = logging.DEBUG
-LOG_FILE = 'ad_to_mo_sync.log'
 
 
 logger = logging.getLogger('AdSyncRead')
-detail_logging = ('AdSyncRead', 'AdReader', 'mora-helper')
-for name in logging.root.manager.loggerDict:
-    if name in detail_logging:
-        logging.getLogger(name).setLevel(LOG_LEVEL)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
-
-logging.basicConfig(
-    format='%(levelname)s %(asctime)s %(name)s %(message)s',
-    level=LOG_LEVEL,
-    filename=LOG_FILE
-)
-
 
 MORA_BASE = os.environ.get('MORA_BASE')
 VISIBLE = os.environ.get('VISIBLE_CLASS')
@@ -210,7 +195,7 @@ class AdMoSync(object):
 
 
 if __name__ == '__main__':
-    sync = AdMoSync()
-    sync._read_mo_classes()
+    ad_logger.start_logging('ad_mo_sync.log')
 
+    sync = AdMoSync()
     sync.update_all_users()
