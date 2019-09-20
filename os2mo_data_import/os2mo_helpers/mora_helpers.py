@@ -123,8 +123,6 @@ class MoraHelper(object):
             params['at'] = at
         elif validity:
             params['validity'] = validity
-        else:
-            params = None
 
         full_url = self.host + url.format(uuid)
         if (full_url in self.cache) and use_cache:
@@ -351,15 +349,56 @@ class MoraHelper(object):
             role_types.append(role['role_type']['name'])
         return role_types
 
-    def read_organisation_managers(self, org_uuid):
-        """ Read the manager of an organisation.
+    def read_engagement_manager(self, engagement_uuid):
+        """
+        Read the manager corresponding to a given engagement.
+        If the engagement user is not a manager, the manager will be the (possibly
+        inhereted) manager of the unit. If the person is a manager, the manager will
+        be the manager of the nearest higer level department. If no higher level
+        managers exists, the person will be a self-manager (typically
+        'Kommunaldirektør').
+        """
+        user_manager = None
+
+        url = 'http://localhost:8080//organisation/organisationfunktion/{}'
+        response = requests.get(url.format(engagement_uuid))
+        data = response.json()
+        relationer = data[engagement_uuid][0]['registreringer'][0]['relationer']
+        user = relationer['tilknyttedebrugere'][0]
+        unit = relationer['tilknyttedeenheder'][0]
+
+        unit_manager = self.read_ou_manager(unit['uuid'], inherit=True)
+        if unit_manager['uuid'] != user['uuid']:
+            # In this case the engagement is not manager for itself
+            user_manager = unit_manager
+        else:
+            while unit_manager['uuid'] == user['uuid']:
+                mo_unit = self.read_ou(unit['uuid'])
+                if mo_unit['parent'] is None:
+                    # Self manager!
+                    break
+                parent_uuid = mo_unit['parent']['uuid']
+                unit_manager = self.read_ou_manager(parent_uuid, inherit=True)
+            user_manager = unit_manager
+
+        if user_manager is None:
+            raise Exception('Unable to find manager')
+        return user_manager
+
+    def read_ou_manager(self, unit_uuid, inherit=False):
+        """
+        Read the manager of an organisation.
         Currently an exception will be raised if an ou has more than
         one manager.
         :param org_uuid: UUID of the OU to find the manager of
         :return: Returns 0 or 1 manager of the OU.
         """
         manager_list = {}
-        managers = self._mo_lookup(org_uuid, 'ou/{}/details/manager')
+        if inherit:
+            managers = self._mo_lookup(unit_uuid,
+                                       'ou/{}/details/manager?inherit_manager=1')
+        else:
+            managers = self._mo_lookup(unit_uuid, 'ou/{}/details/manager')
         # Iterate over all managers, use uuid as key, if more than one
         # distinct uuid shows up in list, rasie an error
         for manager in managers:
@@ -387,7 +426,7 @@ class MoraHelper(object):
             manager = manager_list[uuid]
         elif len(manager_list) > 1:
             # Currently we do not support multiple managers
-            logger.warning("multiple managers not supported for %s", org_uuid)
+            logger.warning("multiple managers not supported for %s", unit_uuid)
             manager = manager_list[uuid]
             # TODO: Fix this...
             # raise Exception('Too many managers')

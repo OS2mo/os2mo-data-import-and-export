@@ -100,3 +100,86 @@ returneret.
 
 Objektet ``user`` vil nu indeholde de felter der er angivet i miljøvariablen
 ``AD_PROPERTIES``.
+
+
+Skrivning til AD
+================
+
+Der udvikles i øjeblikket en udvidesle til AD integrationen som skal muliggøre at
+oprette AD brugere og skrive information fra MO til relevante felter.
+
+Hvis denne funktionalitet skal benyttes, er der brug for yderligere parametre som
+skal være sat når programmet afvikles:
+
+* ``AD_SERVERS``: Liste med de DC'ere som findes i kommunens AD. Denne liste anvendes
+  til at sikre at replikering er færdiggjort før der skrives til en nyoprettet
+  bruger.
+ * ``AD_WRITE_UUID``: Navnet på det felt i AD, hvor MOs bruger-uuid skrives.
+ * ``AD_WRITE_FORVALTNING``: Navnet på det felt i AD, hvor MO skriver navnet på
+   den forvaltning hvor medarbejderen har sin primære ansættelse.
+ * ``AD_WRITE_ORG``: Navnet på det felt i AD, hvor MO skriver enhedshierakiet for
+   den enhed, hvor medarbejderen har sin primære ansættelse.
+ * ``PRIMARY_ENGAGEMENT_TYPE``: uuid på den ansættelsesklasse som markerer en
+   primær ansættelse. Denne parameter vil i løbet af udvilingen blive generaliseret
+   til en sorteret liste over forskellige engagementstyper som kan anses som
+   primære.
+ * ``FORVALTNING_TYPE``: uuid på den enhedstype som angiver at enheden er på
+   forvaltingsnieau og derfor skal skrives i feltet angivet i
+   ``AD_WRITE_FORVALTNING``.
+
+
+Skabelse af brugernavne
+-----------------------
+
+For at kunne oprette brugere i AD, er det nødvendigt at kunne tildele et
+SamAccountName til de nye brugere. Til dette formål findes i modulet ``user_names``
+klassen ``CreateUserNames``. Programmet startes ved at instantiere klassen med en
+liste over allerede reserverede eller forbudte navne som parametre, og det er
+herefter muligt at forespørge AD om en liste over alle brugenavne som er i brug, og
+herefter er programet klar til at lave brugernavne.
+
+.. code-block:: python
+
+    from user_names import CreateUserName
+    
+    name_creator = CreateUserNames(occupied_names=set())
+    name_creator.populate_occupied_names()
+
+    name = ['Karina', 'Munk', 'Jensen']
+    print(name_creator.create_username(name))
+    
+    name = ['Anders', 'Kristian', 'Jens', 'Peter', 'Andersen']
+    print(name_creator.create_username(name))
+
+    name = ['Olê', 'Østergård', 'Høst', 'Ærøe']
+    print(name_creator.create_username(name))
+
+Brugernavne konstrureres efter en forholdsvis specifik algoritme som fremgår af
+koden.
+
+
+Synkronisering
+--------------
+
+Der eksisterer (udvikles) to synkroniseringstjenester, en til at synkronisere felter
+fra AD til MO, og en til at synkronisere felter fra MO til AD.
+
+Synkronisering fra AD til MO foregår via programmet ``ad_sync.py``. Programmet er i
+vil (for nuværende) i udgangspunktet opdaterere alle relevante værdier i MO fra de
+tilsvarende i AD for alle medarbejdere.
+Dette foregår ved at programmet først udtrækker samtlige medarbejdere fra MO, der
+itereres hen over denne liste, og information fra AD'et slås op med cpr nummer som
+nøgle. Hvis brugeren findes i AD, udlæses alle parametre angivet i ``AD_PROPERTIES``
+og de relevante af dem synkroniseres til MO. Hvad der er relevant, angives i
+øjeblikket som en hårdkodet liste direkte i synkroniseringsværktøkjet, de nuværende
+eksempeler går alle på forskellige former for adresser.
+
+Da AD ikke understøtter gyldighstider, antages alle informationer uddraget fra AD
+at gælde fra 'i dag' og til evig tid.
+
+
+Synkronisering fra MO til AD foregår efter en algoritme hvor der itereres hen over
+alle AD brugere. Hver enkelt bruger slås op i MO via feltet `AD_WRITE_UUID` og
+informatione fra MO synkroniseres til AD.
+
+
