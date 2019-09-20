@@ -111,7 +111,7 @@ oprette AD brugere og skrive information fra MO til relevante felter.
 Hvis denne funktionalitet skal benyttes, er der brug for yderligere parametre som
 skal være sat når programmet afvikles:
 
-* ``AD_SERVERS``: Liste med de DC'ere som findes i kommunens AD. Denne liste anvendes
+ * ``AD_SERVERS``: Liste med de DC'ere som findes i kommunens AD. Denne liste anvendes
   til at sikre at replikering er færdiggjort før der skrives til en nyoprettet
   bruger.
  * ``AD_WRITE_UUID``: Navnet på det felt i AD, hvor MOs bruger-uuid skrives.
@@ -174,9 +174,8 @@ og de relevante af dem synkroniseres til MO. Hvad der er relevant, angives i
 øjeblikket som en hårdkodet liste direkte i synkroniseringsværktøkjet, de nuværende
 eksempeler går alle på forskellige former for adresser.
 
-Da AD ikke understøtter gyldighstider, antages alle informationer uddraget fra AD
+Da AD ikke understøtter gyldighedstider, antages alle informationer uddraget fra AD
 at gælde fra 'i dag' og til evig tid.
-
 
 Synkronisering fra MO til AD foregår efter en algoritme hvor der itereres hen over
 alle AD brugere. Hver enkelt bruger slås op i MO via feltet `AD_WRITE_UUID` og
