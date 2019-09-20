@@ -5,6 +5,7 @@ import logging
 import datetime
 import argparse
 
+import ad_logger
 import ad_templates
 import ad_exceptions
 
@@ -164,7 +165,7 @@ class ADWriter(AD):
 
         location = ''
         current_unit = unit_info
-        forvaltning = None
+        forvaltning = 'Ingen'
         while current_unit:
             location = current_unit['name'] + '\\' + location
             if current_unit['org_unit_type']['uuid'] == FORVALTNING_TYPE:
@@ -215,24 +216,20 @@ class ADWriter(AD):
         response = self._run_ps_script(ps_script)
         return response is {}
 
-    def sync_user(self, mo_uuid):
+    def sync_user(self, mo_uuid, user_ad_info=None):
         """
         Sync MO information into AD
         """
-        # TODO: Consider if this is sufficiently similar to create to refactor
-
         school = False  # TODO
         bp = self._ps_boiler_plate(school)
 
         mo_values = self.read_ad_informaion_from_mo(mo_uuid)
 
-        user_ad_info = self.get_from_ad(cpr=mo_values['cpr'])
-        if len(user_ad_info) == 1:
-            user_sam = user_ad_info[0]['SamAccountName']
+        if user_ad_info is None:
+            logger.debug('No AD information supplied, will look it up')
+            user_sam = self._find_unique_user(mo_values['cpr'])
         else:
-            msg = 'No SamAccount found for user, unable to sync'
-            logger.error(msg)
-            raise ad_exceptions.UserNotFoundException(msg)
+            user_sam = user_ad_info['SamAccountName']
 
         edit_user_template = ad_templates.edit_user_template
         replace_attributes = self._other_attributes(mo_values, new_user=False)
@@ -245,7 +242,6 @@ class ADWriter(AD):
         )
         edit_user_string = self.remove_redundant(edit_user_string)
         edit_user_string += replace_attributes
-        print(edit_user_string)
 
         ps_script = (
             self._build_user_credential(school) +
@@ -253,7 +249,7 @@ class ADWriter(AD):
             bp['server']
         )
         response = self._run_ps_script(ps_script)
-        print(response)
+        logger.debug('Response from sync: {}'.format(response))
 
         # Works for both create and edit
         self.add_manager_to_user(user_sam=user_sam,
@@ -448,6 +444,9 @@ class ADWriter(AD):
         # ad_writer.set_user_password('MSLEG', _random_password())
         # ad_writer.enable_user('OBRAP')
 
+
 if __name__ == '__main__':
+    ad_logger.start_logging('ad_writer.log')
+
     ad_writer = ADWriter()
     ad_writer._cli()
