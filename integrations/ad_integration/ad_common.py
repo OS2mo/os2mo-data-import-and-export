@@ -4,26 +4,11 @@ import logging
 
 from winrm import Session
 from winrm.exceptions import WinRMTransportError
+
+import ad_exceptions
 import read_ad_conf_settings
 
-LOG_LEVEL = logging.DEBUG
-LOG_FILE = 'ad_integration.log'
-
 logger = logging.getLogger('AdCommon')
-detail_logging = ('AdWriter', 'AdReader', 'mora-helper')
-for name in logging.root.manager.loggerDict:
-    if name in detail_logging:
-        logging.getLogger(name).setLevel(LOG_LEVEL)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
-
-logging.basicConfig(
-    format='%(levelname)s %(asctime)s %(name)s %(message)s',
-    level=LOG_LEVEL,
-    filename=LOG_FILE
-)
-
-
 # Is this universal?
 ENCODING = 'cp850'
 
@@ -179,6 +164,25 @@ class AD(object):
         properties = properties[:-1] + ' '  # Remove trailing comma, add space
         return properties
 
+    def _find_unique_user(self, cpr):
+        """
+        Find a unique AD account from cpr, otherwise raise an exception.
+        """
+        # TODO: Handle school
+        user_ad_info = self.get_from_ad(cpr=cpr)
+
+        if len(user_ad_info) == 1:
+            user_sam = user_ad_info[0]['SamAccountName']
+        elif len(user_ad_info) == 0:
+            msg = 'Found no account for {}'.format(cpr)
+            logger.error(msg)
+            raise ad_exceptions.UserNotFoundException(msg)
+        else:
+            msg = 'Too many SamAccounts for {}'.format(cpr)
+            logger.error(msg)
+            raise ad_exceptions.CprNotNotUnique(msg)
+        return user_sam
+
     def get_from_ad(self, user=None, cpr=None, school=False, server=None):
         """
         Read all properties of an AD user. The user can be retrived either by cpr
@@ -207,7 +211,7 @@ class AD(object):
         server_string = ''
         if server:
             server_string = ' -Server {}'.format(server)
-        
+
         command_end = (' | ConvertTo-Json  | ' +
                        ' % {$_.replace("ø","&oslash;")} | ' +
                        '% {$_.replace("Ø","&Oslash;")} ')
@@ -215,7 +219,7 @@ class AD(object):
         ps_script = (
             self._build_user_credential(school) +
             get_command +
-            server_string + 
+            server_string +
             bp['complete'] +
             self._properties(school) +
             # bp['get_ad_object'] +
