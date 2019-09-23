@@ -39,13 +39,6 @@ logging.basicConfig(
 )
 
 
-INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
-SD_USER = os.environ.get('SD_USER', None)
-SD_PASSWORD = os.environ.get('SD_PASSWORD', None)
-if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
-    raise Exception('Credentials missing')
-
-
 class SdImport(object):
     def __init__(self, importer, org_name, municipality_code,
                  import_date_from, ad_info=None, org_only=False,
@@ -540,9 +533,12 @@ class SdImport(object):
                     engagement_type_ref = 'Ansat'
                     exactly_one_primary = True
 
-                    ad_titel = self.ad_people[cpr].get('Title', None)
-                    if ad_titel:  # Title exists in AD, this is primary engagement
-                        job_func = ad_titel
+                    # TODO: This part of the AD integration most likely needs to go, it
+                    # does not obey temporality.
+
+                    # ad_titel = self.ad_people[cpr].get('Title', None)
+                    # if ad_titel:  # Title exists in AD, this is primary engagement
+                    #     job_func = ad_titel
                 else:
                     engagement_type_ref = 'non-primary'
 
