@@ -216,7 +216,7 @@ class ADWriter(AD):
         response = self._run_ps_script(ps_script)
         return response is {}
 
-    def sync_user(self, mo_uuid, user_ad_info=None):
+    def sync_user(self, mo_uuid, user_ad_info=None, sync_manager=True):
         """
         Sync MO information into AD
         """
@@ -251,9 +251,9 @@ class ADWriter(AD):
         response = self._run_ps_script(ps_script)
         logger.debug('Response from sync: {}'.format(response))
 
-        # Works for both create and edit
-        self.add_manager_to_user(user_sam=user_sam,
-                                 manager_sam=mo_values['managerSAM'])
+        if sync_manager:
+            self.add_manager_to_user(user_sam=user_sam,
+                                     manager_sam=mo_values['managerSAM'])
         return (True, 'Sync completed')
 
     def create_user(self, mo_uuid, create_manager, dry_run=False):
