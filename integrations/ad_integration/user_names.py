@@ -1,4 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import random
+import argparse
+
 from ad_reader import ADParameterReader
+
+METHOD = 'metode 2'
 
 FIRST = [
     'F123L', 'F122L', 'F111L', 'F112L', 'F113L', 'F133L', 'F223L', 'F233L', 'F333L',
@@ -156,6 +163,7 @@ class CreateUserNames(object):
     (Bilag: Tildeling af brugernavne).
     """
     def __init__(self, occupied_names: set):
+        self.method = METHOD
         self.occupied_names = occupied_names
         self.combinations = [FIRST, SECOND, THIRD, FOURTH, FITFTH, SIXTH]
 
@@ -212,7 +220,10 @@ class CreateUserNames(object):
         """
         pass
 
-    def create_username(self, name: list, dry_run=False) -> tuple:
+    def _metode_1(self, name: list, dry_run=False) -> tuple:
+        pass
+    
+    def _metode_2(self, name: list, dry_run=False) -> tuple:
         """
         Create a new username in accodance with the rules specified in this file.
         The username will be the highest quality available and the value will be
@@ -225,7 +236,7 @@ class CreateUserNames(object):
         the interal list of reserved names.
         :return: A tuple with first element being the username and the second
         element being a tuple describing the quality of the username, first
-        element is the prioritazion level (1-4) and second element being the actual
+        element is the prioritazion level (1-6) and second element being the actual
         rule that ended up suceeding. Lower numbers means better usernames.
         """
         final_user_name = ''
@@ -255,6 +266,33 @@ class CreateUserNames(object):
         # If we get to here, we completely failed to make a username
         raise RuntimeError('Failed to create user name')
 
+    def _metode_3(self, name=[], dry_run=False) -> tuple:
+        """
+        Create a new random user name
+        :param name: Not used in this algorithm.
+        :param dry_run: Return a random valid name, but do not
+        mark it as used.
+        :return: A tuple with first element being the username, and second
+        element being the tuple (0,0)
+        """
+        username = ''
+        while username == '':
+            for _ in range(0, 6):
+                username += chr(random.randrange(97, 123))
+            if username in self.occupied_names:
+                user_name = ''
+            else:
+                if not dry_run:
+                    self.occupied_names.add(username)
+        return (username, (0, 0))
+
+
+    def create_username(self, name: list, dry_run=False) -> tuple:
+        if self.method == 'metode 2':
+            return self._metode_2(name, dry_run)
+        if self.method == 'metode 3':
+            return self._metode_3(name, dry_run)
+    
     def stats(self, init_size=None, sample=None, find_quality=None):
         from tests.name_simulator import create_name
         if init_size is not None:
@@ -286,15 +324,31 @@ class CreateUserNames(object):
             print('------')
             print(user_count)
 
+    def _cli(self):
+        parser = argparse.ArgumentParser(description='User name creator')
+        parser.add_argument('--method', nargs=1, metavar='method',
+                           help='User name method (2 or 3)')
+        parser.add_argument('-N', nargs=1, type=int, help='Number of usernames')
+        parser.add_argument('--name', nargs=1, metavar='name', help='Name of user')
+
+        args = vars(parser.parse_args())
+
+        name = args.get('name')[0].split(' ')
+
+        if args.get('method')[0]=='2':
+            self.method = 'metode 2'
+        elif args.get('method')[0]=='3':
+            self.method = 'metode 3'
+        else:
+            exit('No valid method given')
+
+        for i in range(0, args.get('N')[0]):
+            print(self.create_username(name))
+
 
 if __name__ == '__main__':
     name_creator = CreateUserNames(occupied_names=set())
-    name_creator.populate_occupied_names()
-    # name = ['Pia', 'Munk', 'Jensen']
-    # name = ['Karina', 'Jensen']
-    # name = ['Karina', 'Munk', 'Jensen']
+    # name_creator.populate_occupied_names()
+    name_creator._cli()
     # name = ['Anders', 'Kristian', 'Jens', 'Peter', 'Andersen']
     # print(name_creator.create_username(name))
-
-    # name_creator.stats(init_size=2000, sample=10)
-    # name_creator.stats(find_quality=(4, 100))
