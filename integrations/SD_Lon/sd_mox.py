@@ -5,41 +5,17 @@ import time
 import logging
 import datetime
 import xmltodict
-import sd_mox_payloads as smp
+from integrations.SD_Lon.sd_logging import start_logging
+from integrations.SD_Lon import sd_mox_payloads as smp
+from integrations.SD_Lon.sd_common import SD
+
 
 from collections import OrderedDict
-from sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
-
-LOG_LEVEL = logging.DEBUG
-LOG_FILE = 'sd_mox.log'
 
 logger = logging.getLogger('sdMox')
 
-for name in logging.root.manager.loggerDict:
-    if name in ('sdMox'):
-        logging.getLogger(name).setLevel(LOG_LEVEL)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
-
-logging.basicConfig(
-    format='%(levelname)s %(asctime)s %(name)s %(message)s',
-    level=LOG_LEVEL,
-    filename=LOG_FILE
-)
-
-
-INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
-SD_USER = os.environ.get('SD_USER', None)
-SD_PASSWORD = os.environ.get('SD_PASSWORD', None)
-if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
-    raise Exception('SD Webservice credentials missing')
-
-AMQP_USER = os.environ.get('AMQP_USER')
-AMQP_PASSWORD = os.environ.get('AMQP_PASSWORD', None)
-VIRTUAL_HOST = os.environ.get('VIRTUAL_HOST', None)
-if not (AMQP_USER and AMQP_PASSWORD and VIRTUAL_HOST):
-    raise Exception('SD AMQP credentials missing')
+CFG_PREFIX = "integrations.SD_Lon.sd_mox."
 
 
 class sdMoxException(Exception):
@@ -47,31 +23,50 @@ class sdMoxException(Exception):
 
 
 class sdMox(object):
-    def __init__(self, from_date=None, to_date=None):
-        self._init_amqp_comm()
+    def __init__(self, from_date=None, to_date=None, **kwargs):
+        cfg = self.config = kwargs
+
+        sd_cfg = cfg["sd_common"]
+        self.sd = SD(**sd_cfg)
+
+        try:
+            self.amqp_user = cfg["AMQP_USER"]
+            self.amqp_password = cfg["AMQP_PASSWORD"]
+            self.virtual_host = cfg["VIRTUAL_HOST"]
+            self._init_amqp_comm()
+        except Exception as e:
+            logger.exception("SD AMQP credentials missing")
+            raise
+
+        try:
+            sd_levels = [
+                ('NY6-niveau', cfg["NY6_NIVEAU"]),
+                ('NY5-niveau', cfg["NY5_NIVEAU"]),
+                ('NY4-niveau', cfg["NY4_NIVEAU"]),
+                ('NY3-niveau', cfg["NY3_NIVEAU"]),
+                ('NY2-niveau', cfg["NY2_NIVEAU"]),
+                ('NY1-niveau', cfg["NY1_NIVEAU"]),
+                ('NY6-niveau', cfg["NY6_NIVEAU"]),
+                ('Afdelings-niveau', cfg["AFDELINGS_NIVEAU"])
+            ]
+            self.sd_levels = OrderedDict(sd_levels)
+        except Exception as e:
+            logger.exception("SD Levels are missing")
+            raise
+
         if from_date:
             self._update_virkning(from_date)
 
         # TODO: This url is hard-codet
         self.mh = MoraHelper(hostname='http://localhost:5000')
 
-        sd_levels = [
-            ('NY6-niveau', '39c301c8-fce9-42f3-b320-4d60c3bec545'),
-            ('NY5-niveau', '9effa27b-0af9-4e13-a460-0b23532c6e69'),
-            ('NY4-niveau', '430c5227-950c-4fa0-af14-4008da5d9ce1'),
-            ('NY3-niveau', '9298bd66-c07d-4b85-81d1-d48bbae6d1b2'),
-            ('NY2-niveau', '9b824adb-d6ea-46ff-9f06-b364eb0c4ea7'),
-            ('NY1-niveau', '6cb64de7-77f3-4e4b-98e8-b0bbf5488a24'),
-            ('Afdelings-niveau', '6dfe39d6-dc0d-45a1-abf7-34ad8ab6cb5c')
-        ]
-        self.sd_levels = OrderedDict(sd_levels)
 
     def _init_amqp_comm(self):
         self.exchange_name = 'org-struktur-changes-topic'
-        credentials = pika.PlainCredentials(AMQP_USER, AMQP_PASSWORD)
+        credentials = pika.PlainCredentials(self.amqp_user, self.amqp_password)
         parameters = pika.ConnectionParameters(host='msg-amqp.silkeborgdata.dk',
                                                port=5672,
-                                               virtual_host=VIRTUAL_HOST,
+                                               virtual_host=self.virtual_host,
                                                credentials=credentials)
         self.connection = pika.BlockingConnection(parameters)
         self.channel = self.connection.channel()
@@ -126,7 +121,7 @@ class sdMox(object):
             params['DepartmentLevelIdentifier'] = unit_level
         logger.debug('Read department, params: {}'.format(params))
 
-        department = sd_lookup('GetDepartment20111201', params)
+        department = self.sd.lookup('GetDepartment20111201', params)
         department_info = department.get('Department', None)
         # try:
         #     department = sd_lookup('GetDepartment20111201', params)

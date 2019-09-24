@@ -5,56 +5,83 @@ import hashlib
 import requests
 import xmltodict
 from pathlib import Path
+import json
 logger = logging.getLogger("sdCommon")
 
-INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
-SD_USER = os.environ.get('SD_USER', None)
-SD_PASSWORD = os.environ.get('SD_PASSWORD', None)
-if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
-    raise Exception('Credentials missing')
+CFG_PREFIX = "integrations.SD_Lon.sd_common."
 
-
-def sd_lookup(url, params={}):
-    logger.info('Retrive: {}'.format(url))
-    logger.debug('Params: {}'.format(params))
-
-    BASE_URL = 'https://service.sd.dk/sdws/'
-    full_url = BASE_URL + url
-
-    payload = {
-        'InstitutionIdentifier': INSTITUTION_IDENTIFIER,
+def get_prefixed_configuration(cfg, prefix):
+    return {
+        k.replace(prefix,"") : v
+        for k, v in cfg.items()
+        if k.startswith(prefix)
     }
-    payload.update(params)
-    m = hashlib.sha256()
 
-    keys = sorted(payload.keys())
-    for key in keys:
-        m.update((str(key) + str(payload[key])).encode())
-    m.update(full_url.encode())
-    lookup_id = m.hexdigest()
-    cache_file = Path('sd_' + lookup_id + '.p')
 
-    if cache_file.is_file():
-        with open(str(cache_file), 'rb') as f:
-            response = pickle.load(f)
-        logger.info('This SD lookup was found in cache: {}'.format(lookup_id))
-    else:
-        response = requests.get(
-            full_url,
-            params=payload,
-            auth=(SD_USER, SD_PASSWORD)
-        )
-        with open(str(cache_file), 'wb') as f:
-            pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
 
-    dict_response = xmltodict.parse(response.text)
-    if url in dict_response:
-        xml_response = dict_response[url]
-    else:
-        logger.error('Envelope: {}'.format(dict_response['Envelope']))
-        xml_response = {}
-    logger.debug('Done with {}'.format(url))
-    return xml_response
+class SD:
+
+    @classmethod
+    def create(cls, config_path):
+        "constructor with config path"
+        with open(config.path) as cfg:
+            config = json.load(cfg)
+            return cls(**{
+                k.replace(pfix,"") : v
+                for k, v in config.items()
+                if k.startswith(pfix)
+            })
+
+    def __init__(self, **kwargs):
+        cfg = self.config = kwargs
+        try:
+            self.institution_identifier = cfg["INSTITUTION_IDENTIFIER"]
+            self.sd_user = cfg["SD_USER"]
+            self.sd_password = cfg["SD_PASSWORD"]
+            self.base_url = cfg["BASE_URL"]
+        except:
+            raise Exception('Credentials missing')
+
+    def lookup(self, url, params={}):
+        logger.info('Retrive: {}'.format(url))
+        logger.debug('Params: {}'.format(params))
+
+        full_url = self.base_url + url
+
+        payload = {
+            'InstitutionIdentifier': self.institution_identifier,
+        }
+        payload.update(params)
+        m = hashlib.sha256()
+
+        keys = sorted(payload.keys())
+        for key in keys:
+            m.update((str(key) + str(payload[key])).encode())
+        m.update(full_url.encode())
+        lookup_id = m.hexdigest()
+        cache_file = Path('sd_' + lookup_id + '.p')
+
+        if cache_file.is_file():
+            with open(str(cache_file), 'rb') as f:
+                response = pickle.load(f)
+            logger.info('This SD lookup was found in cache: {}'.format(lookup_id))
+        else:
+            response = requests.get(
+                full_url,
+                params=payload,
+                auth=(self.sd_user, self.sd_password)
+            )
+            with open(str(cache_file), 'wb') as f:
+                pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
+
+        dict_response = xmltodict.parse(response.text)
+        if url in dict_response:
+            xml_response = dict_response[url]
+        else:
+            logger.error('Envelope: {}'.format(dict_response['Envelope']))
+            xml_response = {}
+        logger.debug('Done with {}'.format(url))
+        return xml_response
 
 
 def calc_employment_id(employment):
