@@ -68,12 +68,16 @@ CHAR_REPLACEMENT = {
 }
 
 
-
 def _name_fixer(name):
     for i in range(0, len(name)):
+        # Replace accoding to replacement list
         for char, replacement in CHAR_REPLACEMENT.items():
             name[i] = name[i].replace(char, replacement)
 
+        # Remove all remaining charecters outside a-z
+        for char in name[i].lower():
+            if ord(char) not in range(ord('a'), ord('z') + 1):
+                name[i] = name[i].replace(char, '')
     return name
 
 
@@ -280,8 +284,8 @@ if __name__ == '__main__':
     name_creator = CreateUserNames(occupied_names=set())
     # name_creator.populate_occupied_names()
     # name_creator._cli()
-    # name = ['Anders', 'Kristian', 'Jens', 'Peter', 'Andersen']
-    # print(name_creator.create_username(name))
+    name = ['Anders', 'Kristian', 'Jens', 'abzæ-{øå', 'Peter', 'Andersen']
+    print(name_creator.create_username(name))
 
     # import pickle
     # from pathlib import Path

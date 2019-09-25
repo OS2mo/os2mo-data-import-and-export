@@ -187,3 +187,13 @@ class TestUsernameCreattion(unittest.TestCase):
         for i in range(0, 2500):
             name = create_name()
             name_creator.create_username(name)
+
+    def test_name_fixer(self):
+        """
+        Test that the name fixer allows a-z and does not allow values outside this
+        range.
+        """
+        name = ['Anders', 'abzæ-{øå', 'Andersen']
+        fixed_name = user_names._name_fixer(name)
+        expected_name = ['Anders', 'abzaoa', 'Andersen']
+        self.assertTrue(fixed_name == expected_name)
