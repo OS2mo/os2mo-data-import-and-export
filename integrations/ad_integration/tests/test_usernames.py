@@ -8,12 +8,10 @@ pmj_first = ['pmunj', 'pmuje', 'pjens', 'pimuj', 'pimje', 'pijen', 'piamj', 'pia
 pmj_second = ['pmuj', 'pimj', 'pjen', 'pije', 'piaj', 'pmje']
 pmj_third = ['pmj', 'pje', 'pij', 'pim', 'pmu']
 pmj_fourth = ['pmu2j', 'pm2je', 'p2jen', 'p2muj', 'p2mje', 'pim2j', 'pi2je',
-              'pi2mj', 'pia2j', 'piam2', 'pimu2', 'pmun2', '2pmuj', '2pmun',
-              '2pjen', '2pimj', '2pije', '2pimu', '2piam', '2jens']
+              'pi2mj', 'pia2j', 'piam2', 'pimu2', 'pmun2']
 
 pmj_fifth = ['pmj2', 'pmu2', 'pij2', 'pim2', 'pia2', 'mun2', 'jen2', 'pm2j',
-             'pi2j', 'pi2m', 'p2mj', 'p2je', 'p2mu', '2pmj', '2pmu', '2pij',
-             '2pim', '2pia', '2muj', '2mje']
+             'pi2j', 'pi2m', 'p2mj', 'p2je', 'p2mu']
 pmj_sixth = ['pmunkj', 'pimunj', 'piamuj', 'pmunje', 'pmujen', 'pmjens', 'pjense',
              'pijens', 'piajen']
 pmj = [pmj_first, pmj_second, pmj_third, pmj_fourth, pmj_fifth, pmj_sixth]
@@ -40,20 +38,14 @@ akjpa_fourth = [
     'a2pan', 'ank2a', 'anj2a', 'anp2a', 'an2an', 'an2ka', 'an2ja', 'an2pa', 'and2a',
     'ande2', 'andk2', 'andj2', 'andp2', 'ankr2', 'ankj2', 'ankp2', 'anje2', 'anjp2',
     'anpe2', 'akjp2', 'akri2', 'akrj2', 'akrp2', 'akje2', 'akpe2', 'ajen2', 'ajep2',
-    'ajpe2', 'apet2', '2akja', '2akpa', '2akra', '2ajpa', '2ajea', '2akjp', '2akje',
-    '2akrj', '2akri', '2ajep', '2ajpe', '2apet', '2aand', '2anka', '2anja', '2anpa',
-    '2anan', '2ankj', '2ankp', '2ankr', '2anje', '2anjp', '2anpe', '2andk', '2andj',
-    '2andp', '2ande', '2kjpa', '2krja', '2krpa', '2kjea', '2kpea', '2jepa', '2jpea',
-    '2peta'
+    'ajpe2', 'apet2'
 ]
 akjpa_fifth = [
     'aka2', 'aja2', 'apa2', 'akj2', 'akp2', 'akr2', 'ajp2', 'aje2', 'ape2', 'ana2',
     'ank2', 'anj2', 'anp2', 'and2', 'kjp2', 'kje2', 'kri2', 'jep2', 'jpe2', 'pet2',
     'ak2a', 'aj2a', 'ap2a', 'an2a', 'ak2j', 'ak2p', 'aj2p', 'an2k', 'an2j',
     'an2p', 'a2ka', 'a2ja', 'a2pa', 'a2an', 'a2kj', 'a2kp', 'a2kr', 'a2jp', 'a2je',
-    'a2pe', '2aka', '2aja', '2apa', '2akj', '2akp', '2akr', '2ana', '2ank', '2anj',
-    '2anp', '2and', '2kjp', '2kje', '2kja', '2kpa', '2kra', '2kan', '2kpe', '2jpa',
-    '2jea', '2jan', '2jpe', '2pea', '2pan'
+    'a2pe'
 ]
 akjpa_sixth = [
     'akrisa', 'akrija', 'akripa', 'akrjea', 'akrjpa', 'akrpea', 'akjena', 'akjepa',
@@ -70,23 +62,20 @@ akjpa = [akjpa_first, akjpa_second, akjpa_third, akjpa_fourth, akjpa_fifth,
 kj_first = ['kjens', 'kajen', 'karje', 'karij', 'jense']
 kj_second = ['kjen', 'kaje', 'karj']
 kj_third = ['kje', 'kaj']
-kj_fourth = ['k2jen', 'ka2je', 'kar2j', 'kari2', '2kjen', '2kaje', '2kari', '2jens']
-kj_fifth = ['kaj2', 'kar2', 'jen2', 'ka2j', 'k2je', '2kaj', '2kar']
+kj_fourth = ['k2jen', 'ka2je', 'kar2j', 'kari2']
+kj_fifth = ['kaj2', 'kar2', 'jen2', 'ka2j', 'k2je']
 kj_sixth = ['kjense', 'kajens', 'karjen', 'karije', 'karinj']
 kj = [kj_first, kj_second, kj_third, kj_fourth, kj_fifth, kj_sixth]
 
-# KAMJE is missing in the specification document
 kmj_first = ['kmunj', 'kmuje', 'kjens', 'kamuj', 'kamje', 'kajen', 'karmj', 'karje',
              'karmu', 'karij', 'karim', 'kamun', 'kmunk', 'jense', 'mjens', 'mujen',
              'munje', 'munkj']
 kmj_second = ['kmuj', 'kamj', 'kjen', 'kaje', 'karj', 'kmje']
 kmj_third = ['kmj', 'kje', 'kaj', 'kam', 'kmu']
 kmj_fourth = ['kmu2j', 'km2je', 'k2jen', 'k2muj', 'k2mje', 'kam2j', 'ka2je', 'ka2mj',
-              'kar2j', 'kari2', 'karm2', 'kamu2', 'kmun2', '2kmuj', '2kmun', '2kjen',
-              '2kamj', '2kaje', '2kamu', '2karm', '2kari', '2jens']
+              'kar2j', 'kari2', 'karm2', 'kamu2', 'kmun2']
 kmj_fifth = ['kmj2', 'kmu2', 'kaj2', 'kam2', 'kar2', 'mun2', 'jen2', 'km2j', 'ka2j',
-             'ka2m', 'k2mj', 'k2je', 'k2mu', '2kmj', '2kmu', '2kaj', '2kam', '2kar',
-             '2muj', '2mje']
+             'ka2m', 'k2mj', 'k2je', 'k2mu']
 kmj_sixth = ['kmunkj', 'kamunj', 'karmuj', 'karimj', 'kmunje', 'kmujen', 'kmjens',
              'kjense', 'kajens', 'karjen', 'karije', 'karinj']
 kmj = [kmj_first, kmj_second, kmj_third, kmj_fourth, kmj_fifth, kmj_sixth]
@@ -103,15 +92,10 @@ ooha_third = ['ooa', 'oha', 'oar', 'ola', 'olo', 'olh', 'oos', 'ooh', 'oho']
 ooha_fourth = ['ooh2a', 'oos2a', 'oho2a', 'oo2ar', 'oh2ar', 'o2aro', 'o2oha',
                'o2osa', 'o2hoa', 'o2oar', 'o2har', 'olo2a', 'olh2a', 'ol2ar',
                'ol2oa', 'ol2ha', 'ole2a', 'oleo2', 'oleh2', 'olos2', 'oloh2',
-               'olho2', 'oost2', 'oosh2', 'ooho2', 'ohos2', '2ooha', '2oosa',
-               '2ohoa', '2ooho', '2oosh', '2oost', '2oaro', '2oloa', '2olha',
-               '2olar', '2oloh', '2olos', '2olho', '2oleo', '2oleh', '2osha',
-               '2aroe']
+               'olho2', 'oost2', 'oosh2', 'ooho2', 'ohos2']
 ooha_fifth = ['ooa2', 'oha2', 'ooh2', 'oos2', 'oho2', 'ola2', 'olo2', 'olh2', 'ole2',
               'ost2', 'aro2', 'oo2a', 'oh2a', 'ol2a', 'oo2h', 'ol2o', 'ol2h',
-              'o2oa', 'o2ha', 'o2ar', 'o2oh', 'o2os', 'o2ho', '2ooa', '2oha', '2ooh',
-              '2oos', '2ola', '2olo', '2olh', '2ole', '2oho', '2osa',
-              '2oar', '2hoa', '2har']
+              'o2oa', 'o2ha', 'o2ar', 'o2oh', 'o2os', 'o2ho']
 ooha_sixth = ['oostea', 'oostha', 'ooshoa', 'oohosa', 'ohosta', 'olosta', 'olosha',
               'olohoa', 'olhosa', 'oleosa', 'oleoha', 'olehoa', 'oostar', 'ooshar',
               'oohoar', 'ohosar', 'oosaro', 'ooharo', 'ohoaro', 'ooaroe', 'oharoe',
@@ -172,13 +156,15 @@ class TestUsernameCreattion(unittest.TestCase):
     def test_too_many_karina_jensens(self):
         """
         Tests behaviour of creating so many identical names, that
-        the algorithm runs out of options.
+        the algorithm runs out of options. For 'Karina Jensen' this
+        should happen after 89 attempts.
         """
         name = ['Karina', 'Jensen']
         name_creator = user_names.CreateUserNames(occupied_names=set())
+        for i in range(1, 88):
+            name_creator.create_username(name)
         with self.assertRaisesRegex(RuntimeError, 'Failed to create user name'):
-            for i in range(1, 137):
-                name_creator.create_username(name)
+            name_creator.create_username(name)
 
     def test_dry_run(self):
         """
@@ -187,7 +173,7 @@ class TestUsernameCreattion(unittest.TestCase):
         """
         name = ['Karina', 'Jensen']
         name_creator = user_names.CreateUserNames(occupied_names=set())
-        for i in range(1, 25):
+        for i in range(1, 100):
             user_name = name_creator.create_username(name, dry_run=True)
         self.assertFalse(user_name[0] is None)
 

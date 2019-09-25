@@ -36,11 +36,7 @@ FOURTH = [
     'FX3LL', 'FF1XL', 'FF2XL', 'FF3XL', 'FFXLL', 'FFX1L', 'FFX2L', 'FFX3L', 'FFFXL',
     'FFFFX', 'FFF1X', 'FFF2X', 'FFF3X', 'FF11X', 'FF12X', 'FF13X', 'FF22X', 'FF23X',
     'FF33X', 'F123X', 'F111X', 'F112X', 'F113X', 'F122X', 'F133X', 'F222X', 'F223X',
-    'F233X', 'F333X', 'XF12L', 'XF13L', 'XF11L', 'XF23L', 'XF22L', 'XF123', 'XF122',
-    'XF112', 'XF111', 'XF223', 'XF233', 'XF333', 'XFLLL', 'XFF1L', 'XFF2L', 'XFF3L',
-    'XFFLL', 'XFF12', 'XFF13', 'XFF11', 'XFF22', 'XFF23', 'XFF33', 'XFFF1', 'XFFF2',
-    'XFFF3', 'XFFFF', 'X123L', 'X112L', 'X113L', 'X122L', 'X133L', 'X223L', 'X233L',
-    'X333L', 'XLLLL'
+    'F233X', 'F333X'
 ]
 
 FITFTH = [
@@ -48,9 +44,7 @@ FITFTH = [
     'FF1X', 'FF2X', 'FF3X', 'FFFX', '123X', '122X', '111X', '223X', '233X', '333X',
     'LLLX', 'F1XL', 'F2XL', 'F3XL', 'FFXL', 'F1X2', 'F1X3', 'F2X3', 'FFX1', 'FFX2',
     'FFX3', 'FX1L', 'FX2L', 'FX3L', 'FXLL', 'FX12', 'FX13', 'FX11', 'FX23', 'FX22',
-    'FX33', 'XF1L', 'XF2L', 'XF3L', 'XF12', 'XF13', 'XF11', 'XFFL', 'XFF1', 'XFF2',
-    'XFF3', 'XFFF', 'X123', 'X122', 'X12L', 'X13L', 'X11L', 'X1LL', 'X133', 'X23L',
-    'X22L', 'X2LL', 'X233', 'X33L', 'X3LL'
+    'FX33'
 ]
 
 SIXTH = [
