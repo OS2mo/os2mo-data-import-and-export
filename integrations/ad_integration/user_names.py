@@ -216,7 +216,7 @@ class CreateUserNames(object):
 
     def _metode_1(self, name: list, dry_run=False) -> tuple:
         pass
-    
+
     def _metode_2(self, name: list, dry_run=False) -> tuple:
         """
         Create a new username in accodance with the rules specified in this file.
@@ -274,29 +274,33 @@ class CreateUserNames(object):
             for _ in range(0, 6):
                 username += chr(random.randrange(97, 123))
             if username in self.occupied_names:
-                user_name = ''
+                username = ''
             else:
                 if not dry_run:
                     self.occupied_names.add(username)
         return (username, (0, 0, 0))
-
 
     def create_username(self, name: list, dry_run=False) -> tuple:
         if self.method == 'metode 2':
             return self._metode_2(name, dry_run)
         if self.method == 'metode 3':
             return self._metode_3(name, dry_run)
-    
-    def stats(self, names,size=None, find_quality=None):
+
+    def stats(self, names, size=None, find_quality=None):
         if size is not None:
-            quality_dist = {2: 0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0}
+            difficult_names = set()
+            quality_dist = {2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0,
+                            'broken': 0}
             for i in range(0, size):
                 name = names[i]
-                quality = self.create_username(name)
-                quality_dist[quality[1][2]] += 1
-                if quality[1][2] == 9:
-                    print(name)
-            print(quality_dist)
+                try:
+                    quality = self.create_username(name)
+                    quality_dist[quality[1][2]] += 1
+                except RuntimeError:
+                    difficult_names.add(str(name))
+                    quality_dist['broken'] += 1
+            # print(difficult_names)
+            print('Size: {}, qualiy: {}'.format(size, quality_dist))
 
         if find_quality is not None:
             user_count = 1
@@ -314,13 +318,13 @@ class CreateUserNames(object):
                                                                  user_name,
                                                                  hits))
                 user_count += 1
-            print('------')
             print(user_count)
+            print('------')
 
     def _cli(self):
         parser = argparse.ArgumentParser(description='User name creator')
         parser.add_argument('--method', nargs=1, metavar='method',
-                           help='User name method (2 or 3)')
+                            help='User name method (2 or 3)')
         parser.add_argument('-N', nargs=1, type=int, help='Number of usernames')
         parser.add_argument('--name', nargs=1, metavar='name', help='Name of user')
 
@@ -328,9 +332,9 @@ class CreateUserNames(object):
 
         name = args.get('name')[0].split(' ')
 
-        if args.get('method')[0]=='2':
+        if args.get('method')[0] == '2':
             self.method = 'metode 2'
-        elif args.get('method')[0]=='3':
+        elif args.get('method')[0] == '3':
             self.method = 'metode 3'
         else:
             exit('No valid method given')
@@ -345,3 +349,42 @@ if __name__ == '__main__':
     # name_creator._cli()
     # name = ['Anders', 'Kristian', 'Jens', 'Peter', 'Andersen']
     # print(name_creator.create_username(name))
+
+    # import pickle
+    # from pathlib import Path
+
+    # names = []
+    # p = Path('.')
+    # name_files = p.glob('*.p')
+    # for name in name_files:
+    #     with open(str(name), 'rb') as f:
+    #         names = names + pickle.load(f)
+
+    # unrealistic_names = []
+    # for i in range(0, len(names)):
+    #     for name in names[i]:
+    #         if len(name) < 2:
+    #             unrealistic_names.append((names[i]))
+
+    # for bad_name in unrealistic_names:
+    #     names.remove(bad_name)
+
+    # for i in range(1, 50):
+    #     name_creator.occupied_names = set()
+    #     name_creator.stats(names, size=i*5000)
+
+    # print()
+    # print('3, 1')
+    # name_creator.stats(names, find_quality=(3, 1))
+
+    # from tests.name_simulator import create_name
+    # import time
+    # t = time.time()
+    # for i in range(19, 100):
+    #     print(time.time() - t)
+    #     name_list = []
+    #     for _ in range(0, 10000):
+    #         name = create_name()
+    #         name_list.append(name)
+    #     with open('name_list_{:04d}.p'.format(i), 'wb') as f:
+    #         pickle.dump(name_list, f, pickle.HIGHEST_PROTOCOL)
