@@ -227,9 +227,9 @@ class CreateUserNames(object):
         """
         Create a new username in accodance with the rules specified in this file.
         The username will be the highest quality available and the value will be
-        added to list of used name, so consequtive calles with the same name
+        added to list of used names, so consequtive calles with the same name
         will keep returning new names until the algorithm runs out of options
-        and the returned name will be None.
+        and a RuntimeException is raised.
 
         :param name: Name of the user given as a list with at least two elements.
         :param dry_run: If true the name will be returned, but will be added to
@@ -284,7 +284,7 @@ class CreateUserNames(object):
             else:
                 if not dry_run:
                     self.occupied_names.add(username)
-        return (username, (0, 0))
+        return (username, (0, 0, 0))
 
 
     def create_username(self, name: list, dry_run=False) -> tuple:
@@ -293,29 +293,28 @@ class CreateUserNames(object):
         if self.method == 'metode 3':
             return self._metode_3(name, dry_run)
     
-    def stats(self, init_size=None, sample=None, find_quality=None):
-        from tests.name_simulator import create_name
-        if init_size is not None:
-            for i in range(0, init_size):
-                name = create_name()
-                self.create_username(name)
-
-            for i in range(0, sample):
-                name = create_name()
-                user_name = self.create_username(name)
-                print('{}: {}'.format(name, user_name))
+    def stats(self, names,size=None, find_quality=None):
+        if size is not None:
+            quality_dist = {2: 0, 3:0, 4:0, 5:0, 6:0, 7:0, 8:0, 9:0}
+            for i in range(0, size):
+                name = names[i]
+                quality = self.create_username(name)
+                quality_dist[quality[1][2]] += 1
+                if quality[1][2] == 9:
+                    print(name)
+            print(quality_dist)
 
         if find_quality is not None:
             user_count = 1
             hits = 0
-            name = create_name()
+            name = names[user_count]
             user_name = self.create_username(name)
             while hits < find_quality[1]:
-                if user_name[1][0] >= find_quality[0]:
+                if user_name[1][2] >= find_quality[0]:
                     hits += 1
                 if user_name[1][0] == 0:
                     hits = 100000000
-                name = create_name()
+                name = names[user_count]
                 user_name = self.create_username(name)
                 print('Count: {}, User name {}, hits: {}'.format(user_count,
                                                                  user_name,
@@ -349,6 +348,6 @@ class CreateUserNames(object):
 if __name__ == '__main__':
     name_creator = CreateUserNames(occupied_names=set())
     # name_creator.populate_occupied_names()
-    name_creator._cli()
+    # name_creator._cli()
     # name = ['Anders', 'Kristian', 'Jens', 'Peter', 'Andersen']
     # print(name_creator.create_username(name))
