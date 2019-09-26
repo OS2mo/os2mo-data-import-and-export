@@ -162,6 +162,8 @@ class ADWriter(AD):
                     end_date = current_end
 
         unit_info = self.helper.read_ou(engagement['org_unit']['uuid'])
+        unit_name = unit_info['name']
+        unit_uuid = unit_info['uuid']
 
         location = ''
         current_unit = unit_info
@@ -200,6 +202,8 @@ class ADWriter(AD):
             'uuid': uuid,
             'cpr': mo_user['cpr_no'],
             'title': title,
+            'unit': unit_name,
+            'unit_uuid': unit_uuid,
             'location': location,
             'forvaltning': forvaltning,
             'manager_name': manager_name,

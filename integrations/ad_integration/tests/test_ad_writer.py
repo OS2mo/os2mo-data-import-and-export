@@ -14,6 +14,8 @@ def read_mo_info(uuid, read_manager=True):
         'end_date': '2089-11-11',
         'cpr': '1122334455',
         'title': 'Musiker',
+        'unit': 'Enhed',
+        'unit_uuid': '101bd9aa-0101-0101-0101-0e6f41f6ebc0',
         'location': 'Kommune\\Forvalting\\Enhed\\',
         'forvaltning': 'Beskæftigelse, Økonomi & Personale',
         'manager_name': None,
