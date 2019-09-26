@@ -173,10 +173,12 @@ class ADWriter(AD):
             current_unit = current_unit['parent']
         location = location[:-1]
 
+        manager_name = None
         manager_sam = None
         manager_mail = None
         if read_manager:
             manager = self.helper.read_engagement_manager(engagement['uuid'])
+            manager_name = manager['Navn']
             mo_manager_user = self.helper.read_user(user_uuid=manager['uuid'])
             manager_cpr = mo_manager_user['cpr_no']
             manager_mail_dict = self.helper.get_e_address(manager['uuid'],
@@ -200,6 +202,7 @@ class ADWriter(AD):
             'title': title,
             'location': location,
             'forvaltning': forvaltning,
+            'manager_name': manager_name,
             'manager_sam': manager_sam,
             'manager_mail': manager_mail
         }

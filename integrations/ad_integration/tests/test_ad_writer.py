@@ -16,10 +16,12 @@ def read_mo_info(uuid, read_manager=True):
         'title': 'Musiker',
         'location': 'Kommune\\Forvalting\\Enhed\\',
         'forvaltning': 'Beskæftigelse, Økonomi & Personale',
+        'manager_name': None,
         'manager_sam': None,
         'manager_email': None
     }
     if read_manager:
+        mo_values['manager_name'] = 'Daniel Miller'
         mo_values['manager_sam'] = 'DMILL'
         mo_values['manager_email'] = 'dmill@spirit.co.uk'
 
