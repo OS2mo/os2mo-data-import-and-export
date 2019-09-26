@@ -179,12 +179,10 @@ class ADWriter(AD):
             manager = self.helper.read_engagement_manager(engagement['uuid'])
             mo_manager_user = self.helper.read_user(user_uuid=manager['uuid'])
             manager_cpr = mo_manager_user['cpr_no']
-
-            print('Email:')
             manager_mail_dict = self.helper.get_e_address(manager['uuid'],
                                                           scope='EMAIL')
             if manager_mail_dict:
-                manager_mail = manager_mail['value']
+                manager_mail = manager_mail_dict['value']
 
             manager_ad_info = self.get_from_ad(cpr=manager_cpr)
             if len(manager_ad_info) == 1:
