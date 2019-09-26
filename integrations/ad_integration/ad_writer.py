@@ -120,7 +120,7 @@ class ADWriter(AD):
             'title': 'Musiker',
             'location': 'Viborg Kommune\Forvalting\Enhed\',
             'forvaltning': 'Beskæftigelse, Økonomi & Personale',
-            'managerSAM': 'DMILL'
+            'manager_sam': 'DMILL'
         }
         """
         logger.info('Read information for {}'.format(uuid))
@@ -162,6 +162,8 @@ class ADWriter(AD):
                     end_date = current_end
 
         unit_info = self.helper.read_ou(engagement['org_unit']['uuid'])
+        unit_name = unit_info['name']
+        unit_uuid = unit_info['uuid']
 
         location = ''
         current_unit = unit_info
@@ -173,11 +175,18 @@ class ADWriter(AD):
             current_unit = current_unit['parent']
         location = location[:-1]
 
+        manager_name = None
         manager_sam = None
+        manager_mail = None
         if read_manager:
             manager = self.helper.read_engagement_manager(engagement['uuid'])
+            manager_name = manager['Navn']
             mo_manager_user = self.helper.read_user(user_uuid=manager['uuid'])
             manager_cpr = mo_manager_user['cpr_no']
+            manager_mail_dict = self.helper.get_e_address(manager['uuid'],
+                                                          scope='EMAIL')
+            if manager_mail_dict:
+                manager_mail = manager_mail_dict['value']
 
             manager_ad_info = self.get_from_ad(cpr=manager_cpr)
             if len(manager_ad_info) == 1:
@@ -193,9 +202,13 @@ class ADWriter(AD):
             'uuid': uuid,
             'cpr': mo_user['cpr_no'],
             'title': title,
+            'unit': unit_name,
+            'unit_uuid': unit_uuid,
             'location': location,
             'forvaltning': forvaltning,
-            'managerSAM': manager_sam
+            'manager_name': manager_name,
+            'manager_sam': manager_sam,
+            'manager_mail': manager_mail
         }
         return mo_values
 
@@ -216,7 +229,7 @@ class ADWriter(AD):
         response = self._run_ps_script(ps_script)
         return response is {}
 
-    def sync_user(self, mo_uuid, user_ad_info=None):
+    def sync_user(self, mo_uuid, user_ad_info=None, sync_manager=True):
         """
         Sync MO information into AD
         """
@@ -251,9 +264,9 @@ class ADWriter(AD):
         response = self._run_ps_script(ps_script)
         logger.debug('Response from sync: {}'.format(response))
 
-        # Works for both create and edit
-        self.add_manager_to_user(user_sam=user_sam,
-                                 manager_sam=mo_values['managerSAM'])
+        if sync_manager:
+            self.add_manager_to_user(user_sam=user_sam,
+                                     manager_sam=mo_values['managerSAM'])
         return (True, 'Sync completed')
 
     def create_user(self, mo_uuid, create_manager, dry_run=False):
@@ -312,12 +325,12 @@ class ADWriter(AD):
 
         if create_manager:
             self._wait_for_replication(sam_account_name)
-            print('Add {} as manager for {}'.format(mo_values['managerSAM'],
+            print('Add {} as manager for {}'.format(mo_values['manager_sam'],
                                                     sam_account_name))
-            logger.info('Add {} as manager for {}'.format(mo_values['managerSAM'],
+            logger.info('Add {} as manager for {}'.format(mo_values['manager_sam'],
                                                           sam_account_name))
             self.add_manager_to_user(user_sam=sam_account_name,
-                                     manager_sam=mo_values['managerSAM'])
+                                     manager_sam=mo_values['manager_sam'])
 
         return (True, sam_account_name)
 

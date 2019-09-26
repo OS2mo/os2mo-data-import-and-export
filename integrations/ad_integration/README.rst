@@ -111,9 +111,9 @@ oprette AD brugere og skrive information fra MO til relevante felter.
 Hvis denne funktionalitet skal benyttes, er der brug for yderligere parametre som
 skal være sat når programmet afvikles:
 
-* ``AD_SERVERS``: Liste med de DC'ere som findes i kommunens AD. Denne liste anvendes
-  til at sikre at replikering er færdiggjort før der skrives til en nyoprettet
-  bruger.
+ * ``AD_SERVERS``: Liste med de DC'ere som findes i kommunens AD. Denne liste anvendes
+   til at sikre at replikering er færdiggjort før der skrives til en nyoprettet
+   bruger.
  * ``AD_WRITE_UUID``: Navnet på det felt i AD, hvor MOs bruger-uuid skrives.
  * ``AD_WRITE_FORVALTNING``: Navnet på det felt i AD, hvor MO skriver navnet på
    den forvaltning hvor medarbejderen har sin primære ansættelse.
@@ -164,19 +164,18 @@ Synkronisering
 Der eksisterer (udvikles) to synkroniseringstjenester, en til at synkronisere felter
 fra AD til MO, og en til at synkronisere felter fra MO til AD.
 
-Synkronisering fra AD til MO foregår via programmet ``ad_sync.py``. Programmet er i
-vil (for nuværende) i udgangspunktet opdaterere alle relevante værdier i MO fra de
+Synkronisering fra AD til MO foregår via programmet ``ad_sync.py``. Programmet vil
+(for nuværende) i udgangspunktet opdaterere alle relevante værdier i MO fra de
 tilsvarende i AD for alle medarbejdere.
 Dette foregår ved at programmet først udtrækker samtlige medarbejdere fra MO, der
 itereres hen over denne liste, og information fra AD'et slås op med cpr nummer som
 nøgle. Hvis brugeren findes i AD, udlæses alle parametre angivet i ``AD_PROPERTIES``
 og de relevante af dem synkroniseres til MO. Hvad der er relevant, angives i
 øjeblikket som en hårdkodet liste direkte i synkroniseringsværktøkjet, de nuværende
-eksempeler går alle på forskellige former for adresser.
+eksempler går alle på forskellige former for adresser.
 
-Da AD ikke understøtter gyldighstider, antages alle informationer uddraget fra AD
+Da AD ikke understøtter gyldighedstider, antages alle informationer uddraget fra AD
 at gælde fra 'i dag' og til evig tid.
-
 
 Synkronisering fra MO til AD foregår efter en algoritme hvor der itereres hen over
 alle AD brugere. Hver enkelt bruger slås op i MO via feltet `AD_WRITE_UUID` og
