@@ -580,7 +580,10 @@ class ChangeAtSD(object):
 
                             validity = self._validity(status)
                             logger.debug('Validity for edit: {}'.format(validity))
-                            data = {'validity': validity}
+                            data = {
+                                'validity': validity,
+                                'engagement_type': {'uuid':  self.non_primary},
+                            }
                             payload = sd_payloads.engagement(data, mo_eng)
                             response = self.helper._mo_post('details/edit', payload)
                             self._assert(response)
@@ -726,11 +729,15 @@ class ChangeAtSD(object):
             if not eng['fraction']:
                 eng['fraction'] = 0
 
+            stat = 'Cur max rate: {}, cur min_id: {}, this rate: {}, this id: {}'
+            logger.debug(stat.format(max_rate, min_id,
+                                     employment_id, eng['fraction']))
+
             occupation_rate = eng['fraction']
             if eng['fraction'] == max_rate:
                 if employment_id < min_id:
                     min_id = employment_id
-            if occupation_rate >= max_rate:
+            if occupation_rate > max_rate:
                 max_rate = occupation_rate
                 min_id = employment_id
         logger.debug('Min id: {}, Max rate: {}'.format(min_id, max_rate))
@@ -934,3 +941,12 @@ if __name__ == '__main__':
 
     _local_db_insert((from_date, to_date, 'Update finished: {}'))
     logger.info('Program stopped.')
+
+    # from_date = datetime.datetime(2019, 9, 26, 0, 0)
+    # to_date = datetime.datetime(2019, 9, 27, 0, 0)
+    # sd_updater = ChangeAtSD(from_date, to_date)
+
+    # cpr = ''
+    # sd_updater.mo_person = sd_updater.helper.read_user(user_cpr=cpr,
+    #                                                    org_uuid=sd_updater.org_uuid)
+    # sd_updater.recalculate_primary()
