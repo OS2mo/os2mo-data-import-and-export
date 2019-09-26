@@ -16,10 +16,12 @@ def read_mo_info(uuid, read_manager=True):
         'title': 'Musiker',
         'location': 'Kommune\\Forvalting\\Enhed\\',
         'forvaltning': 'Beskæftigelse, Økonomi & Personale',
-        'managerSAM': None
+        'manager_sam': None,
+        'manager_email': None
     }
     if read_manager:
-        mo_values['managerSAM'] = 'DMILL'
+        mo_values['manager_sam'] = 'DMILL'
+        mo_values['manager_email'] = 'dmill@spirit.co.uk'
 
     return mo_values
 
@@ -105,7 +107,7 @@ class TestAdWriter(unittest.TestCase):
     def test_add_manager(self):
         user = self.ad_writer.read_ad_informaion_from_mo(uuid='0', read_manager=True)
 
-        self.ad_writer.add_manager_to_user('MGORE', manager_sam=user['managerSAM'])
+        self.ad_writer.add_manager_to_user('MGORE', manager_sam=user['manager_sam'])
         manager_script = test_responses['ps_script']
         manager_script = manager_script.strip()
         lines = manager_script.split('\n')

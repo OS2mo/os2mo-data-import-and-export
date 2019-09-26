@@ -120,7 +120,7 @@ class ADWriter(AD):
             'title': 'Musiker',
             'location': 'Viborg Kommune\Forvalting\Enhed\',
             'forvaltning': 'Beskæftigelse, Økonomi & Personale',
-            'managerSAM': 'DMILL'
+            'manager_sam': 'DMILL'
         }
         """
         logger.info('Read information for {}'.format(uuid))
@@ -174,10 +174,17 @@ class ADWriter(AD):
         location = location[:-1]
 
         manager_sam = None
+        manager_mail = None
         if read_manager:
             manager = self.helper.read_engagement_manager(engagement['uuid'])
             mo_manager_user = self.helper.read_user(user_uuid=manager['uuid'])
             manager_cpr = mo_manager_user['cpr_no']
+
+            print('Email:')
+            manager_mail_dict = self.helper.get_e_address(manager['uuid'],
+                                                          scope='EMAIL')
+            if manager_mail_dict:
+                manager_mail = manager_mail['value']
 
             manager_ad_info = self.get_from_ad(cpr=manager_cpr)
             if len(manager_ad_info) == 1:
@@ -195,7 +202,8 @@ class ADWriter(AD):
             'title': title,
             'location': location,
             'forvaltning': forvaltning,
-            'managerSAM': manager_sam
+            'manager_sam': manager_sam,
+            'manager_mail': manager_mail
         }
         return mo_values
 
@@ -312,12 +320,12 @@ class ADWriter(AD):
 
         if create_manager:
             self._wait_for_replication(sam_account_name)
-            print('Add {} as manager for {}'.format(mo_values['managerSAM'],
+            print('Add {} as manager for {}'.format(mo_values['manager_sam'],
                                                     sam_account_name))
-            logger.info('Add {} as manager for {}'.format(mo_values['managerSAM'],
+            logger.info('Add {} as manager for {}'.format(mo_values['manager_sam'],
                                                           sam_account_name))
             self.add_manager_to_user(user_sam=sam_account_name,
-                                     manager_sam=mo_values['managerSAM'])
+                                     manager_sam=mo_values['manager_sam'])
 
         return (True, sam_account_name)
 
