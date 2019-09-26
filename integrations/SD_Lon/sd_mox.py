@@ -33,6 +33,8 @@ class sdMox(object):
             self.amqp_user = cfg["AMQP_USER"]
             self.amqp_password = cfg["AMQP_PASSWORD"]
             self.virtual_host = cfg["VIRTUAL_HOST"]
+            self.amqp_host = cfg["AMQP_HOST"]
+            self.amqp_port = cfg["AMQP_PORT"]
             self._init_amqp_comm()
         except Exception as e:
             logger.exception("SD AMQP credentials missing")
@@ -46,10 +48,19 @@ class sdMox(object):
                 ('NY3-niveau', cfg["NY3_NIVEAU"]),
                 ('NY2-niveau', cfg["NY2_NIVEAU"]),
                 ('NY1-niveau', cfg["NY1_NIVEAU"]),
-                ('NY6-niveau', cfg["NY6_NIVEAU"]),
                 ('Afdelings-niveau', cfg["AFDELINGS_NIVEAU"])
             ]
             self.sd_levels = OrderedDict(sd_levels)
+            self.level_by_uuid = {v: k for k, v in self.sd_levels.items()}
+
+            sd_arbtid = [
+                ('Dannes ikke', cfg["TR_DANNES_IKKE"]),
+                ('Arbejdstidsplaner', cfg["TR_ARBEJDSTIDSPLANER"]),
+                ('Tjenesetid', cfg["TR_TJENESTETID"]),
+            ]
+            self.sd_arbtid = OrderedDict(sd_arbtid)
+            self.arbtid_by_uuid = {v: k for k, v in self.sd_arbtid.items()}
+
         except Exception as e:
             logger.exception("SD Levels are missing")
             raise
@@ -64,8 +75,10 @@ class sdMox(object):
     def _init_amqp_comm(self):
         self.exchange_name = 'org-struktur-changes-topic'
         credentials = pika.PlainCredentials(self.amqp_user, self.amqp_password)
-        parameters = pika.ConnectionParameters(host='msg-amqp.silkeborgdata.dk',
-                                               port=5672,
+        # parameters = pika.ConnectionParameters(host='msg-amqp.silkeborgdata.dk',
+        #                                       port=5672,
+        parameters = pika.ConnectionParameters(host=self.amqp_host,
+                                               port=self.amqp_port,
                                                virtual_host=self.virtual_host,
                                                credentials=credentials)
         self.connection = pika.BlockingConnection(parameters)
@@ -243,17 +256,16 @@ class sdMox(object):
                 uuid_errors.append('uuid er i brug')
         return uuid_errors
 
-    def _mo_to_sd_address(self, unit_uuid):
-        mo_unit_address = self.mh.read_ou_address(unit_uuid)
-        address = mo_unit_address['Adresse']
-        split_address = address.rsplit(' ', maxsplit=1)
-        city = split_address[1].strip()
-        street = split_address[0].split(',')[0].strip()
-        zip_code = split_address[0].split(',')[1].strip()
+    def _mo_to_sd_address(self, address):
+        if address == None:
+            return None
+        street, zip_code, city = address.rsplit(' ', maxsplit=2)
+        if street.endswith(","):
+            street = street[:-1]
         sd_address = {
-            'silkdata:AdresseNavn': street,
-            'silkdata:PostKodeIdentifikator': zip_code,
-            'silkdata:ByNavn': city
+            'silkdata:AdresseNavn': street.strip(),
+            'silkdata:PostKodeIdentifikator': zip_code.strip(),
+            'silkdata:ByNavn': city.strip()
         }
         return sd_address
 
@@ -323,6 +335,54 @@ class sdMox(object):
         print()
         print('Integration values: {}'.format(integration_values))
 
+    def payload_create(self, unit_uuid, unit, parent):
+        unit_level = self.level_by_uuid.get(unit["org_unit_type"]["uuid"])
+        if not unit_level:
+            raise KeyError("Enhedstype er ikke et kendt NY-niveau")
+
+        parent_level = self.level_by_uuid.get(parent["org_unit_type"]["uuid"])
+        if not parent_level:
+            raise KeyError("Enhedstype er ikke et kendt NY-niveau")
+
+        return {
+            "name": unit["name"],
+            "parent":{
+                "unit_code": parent['user_key'],
+                "uuid": parent['uuid'],
+                "level": parent_level
+            },
+            "unit_code": unit['user_key'],
+            "unit_level": unit_level,
+            "unit_uuid": unit_uuid,
+        }
+
+    def grouped_addresses(self, details):
+        keyed, scoped = {}, {}
+        for d in details:
+            scope, key = d["address_type"]["scope"], d["address_type"]["user_key"]
+            if scope == "DAR":
+                scoped.setdefault(scope,[]).append(d["name"])
+            else:
+                scoped.setdefault(scope,[]).append(d["value"])
+            keyed.setdefault(key,[]).append(d["value"])
+        return scoped, keyed
+
+
+    def payload_edit(self, unit_uuid, unit, addresses):
+
+        scoped, keyed = self.grouped_addresses(addresses)
+        return {
+            "unit_uuid": unit_uuid,
+            "phone" : scoped.get("PHONE", [None])[0],
+            "pnummer": scoped.get("PNUMBER", [None])[0],
+            "address": self._mo_to_sd_address(scoped.get("DAR", [None])[0]),
+            "integration_values": {
+                'time_planning': unit.get('time_planning', None),
+                'formaalskode': keyed.get("Formålskode", [None])[0],
+                'skolekode': keyed.get("Skolekode", [None])[0],
+            }
+        }
+
     def create_unit_from_mo(self, unit_uuid, test_run=True):
         logger.info('Create {} from MO, test run: {}'.format(unit_uuid, test_run))
         unit_info = mox.mh.read_ou(unit_uuid)
@@ -331,28 +391,16 @@ class sdMox(object):
         from_date = datetime.datetime.strptime(
             unit_info['validity']['from'], '%Y-%m-%d'
         )
-
         self._update_virkning(from_date)
 
-        parent = {
-            'unit_code': unit_info['parent']['user_key'],
-            'uuid': unit_info['parent']['uuid'],
-            'level': unit_info['parent']['org_unit_type']['user_key']
-        }
-
-        # Temperary fix for frontend being unable to set user_key
-        unit_code = unit_info['user_key'][0:4]
-        parent['unit_code'] = unit_info['parent']['user_key'][0:4]
+        unit_create_payload = self.payload_create(
+            unit_uuid,
+            unit_info,
+            unit_info["parent"]
+        )
 
         try:
-            uuid = self.create_unit(
-                name=unit_info['name'],
-                parent=parent,
-                unit_code=unit_code,
-                unit_level=unit_info['org_unit_type']['user_key'],
-                unit_uuid=unit_uuid,
-                test_run=test_run
-            )
+            uuid = self.create_unit(test_run=test_run, **unit_create_payload)
             if test_run:
                 logger.info('dry-run succeeded: {}'.format(uuid))
             else:
@@ -366,32 +414,16 @@ class sdMox(object):
                 logger.error(msg)
             return False
 
-        integration_values = {
-            'time_planning': unit_info.get('time_planning', None),
-            'formaalskode': None,
-            'skolekode': None
-        }
-        integration_addresses = self.mh._mo_lookup(unit_uuid,
-                                                   'ou/{}/details/address')
-        for integration_address in integration_addresses:
-            if integration_address['address_type']['user_key'] == 'Formaalskode':
-                integration_values['formaalskode'] = integration_address['value']
-            if integration_address['address_type']['user_key'] == 'Skolekode':
-                integration_values['skolekode'] = integration_address['value']
-
-        pnummer = self.mh.read_ou_address(unit_uuid, scope='PNUMBER').get('value')
-        phone = self.mh.read_ou_address(unit_uuid, scope='PHONE').get('value')
-
-        address = mox._mo_to_sd_address(unit_uuid)
+        integration_addresses = self.mh._mo_lookup( unit_uuid, 'ou/{}/details/address')
+        unit_edit_payload = self.payload_edit(
+            unit_uuid,
+            unit_info,
+            integration_addresses
+        )
 
         if not test_run:
             # Running test-run for this edit is a bit more tricky
-            self.edit_unit(
-                phone=phone,
-                pnummer=pnummer,
-                address=address,
-                integration_value=integration_values
-            )
+            self.edit_unit(**unit_edit_payload)
         return True
 
 

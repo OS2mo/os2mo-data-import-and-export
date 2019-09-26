@@ -15,11 +15,10 @@ import pathlib
 import datetime
 import sys
 import json
+import requests
 
 # OS2MO imports
-from mora import mapping
 from mora.triggers import Trigger
-from mora.service.handlers import RequestType
 
 # os2mo-data-import-and-export imports
 import customer
@@ -33,7 +32,6 @@ from customer.integrations.SD_Lon import (
 )
 
 sdmox_config = {}
-sd_logging.start_logging("")
 
 def read_config(app):
     cfg_file = custpath / "settings" / app.config["CUSTOMER_CONFIG_FILE"]
@@ -49,44 +47,99 @@ def read_config(app):
         sd_common.CFG_PREFIX
     )
 
-    import pdb; pdb.set_trace()
-    sd_mox_work({})
 
-def sd_mox_work(data):
+def mo_request(service, method="get", **params):
+    method = getattr(requests, method)
+    # :5000/service/ + "ou/1234"
+    url = sdmox_config["OS2MO_SERVICE"] + service
+    try:
+        r = method(
+            url,
+            headers={"SESSION": sdmox_config["OS2MO_TOKEN"]},
+            params=params,
+            verify=sdmox_config["OS2MO_VERIFY"]
+        )
+        r.status_code == requests.codes.ok or r.raise_for_status()
+        return r
+    except Exception:
+        logger.exception(url)
+        raise
+
+
+
+def get_sdMox():
+    # instantiate integration object
     from_date = datetime.datetime(2019, 7, 1, 0, 0)
-    mox = sd_mox.sdMox(from_date, **sdmox_config)
+    return sd_mox.sdMox(from_date, **sdmox_config)
 
-    unit_code = '06GÅ'
-    unit_level = 'Afdelings-niveau'
-    parent = {
-        'unit_code': '32D9',
-        'uuid': '32d9b4ed-eff2-4fa9-a372-c697eed2a597',
-        'level': 'NY2-niveau'
-    }
+#def dummy(*args, **kwargs):
+#    return True
+#sd_mox.sdMox._init_amqp_comm = dummy
+#sd_mox.sdMox.call = dummy
 
-    department = mox.read_department(unit_code=unit_code, unit_level=unit_level)
-
-    unit_uuid = '31b43f5d-d8e8-4bd2-8420-a41148ca229f'
-    unit_name = 'Daw dav'
-    if department:
-        errors = mox._check_department(department, unit_name, unit_code, unit_uuid)
-        print(errors)
-    else:
-        print('Department does not exist')
-
-
-
-def sd_mox_pretrigger(data):
+def sd_mox_pretriggered(data):
     """ This is the function that is called with data from the handler module
     """
-    ErrorCodes.E_INTEGRATION_ERROR()
+    return
+
+    # see if some parent uuid demands the trigger be run
+    is_sd_triggered = False
+    p = parent = mo_request("ou/" + data["request"]["parent"]["uuid"]).json()
+    while p and p["uuid"]:
+        if p["uuid"] in sdmox_config.get("TRIGGERED_UUIDS"):
+            is_sd_triggered = True
+            break
+        p = p["parent"]
+
+    if not is_sd_triggered:
+        return
+
+    mox = get_sdMox()
+    from_date = datetime.datetime.strptime(
+        data["request"]['validity']['from'], '%Y-%m-%d'
+    )
+    mox._update_virkning(from_date)
+
+    payload = mox.payload_create(data["uuid"], data["request"], parent)
+    create_unit(test_run=False, **payload)
+
+
+def sd_mox_posttriggered(data):
+    is_sd_triggered = False
+    p = unit = mo_request("ou/" + data["uuid"]).json()
+    while p and p["uuid"]:
+        if p["uuid"] in sdmox_config.get("TRIGGERED_UUIDS"):
+            is_sd_triggered = True
+            break
+        p = p["parent"]
+
+    if not is_sd_triggered:
+        return
+
+    mox = get_sdMox()
+    from_date = datetime.datetime.strptime(
+        unit['validity']['from'], '%Y-%m-%d'
+    )
+    mox._update_virkning(from_date)
+
+    addresses = mo_request("ou/" + data["uuid"] + "/details/address").json()
+    import pdb; pdb.set_trace()
+    payload = mox.payload_edit(data["uuid"], unit, addresses)
+    mox.edit_unit(**payload)
 
 
 def register(app):
-    """ Here the function above is registered to get triggered
-        every time an org unit has been terminated
-    """
-    combi = (mapping.ORG_UNIT, RequestType.CREATE, Trigger.Event.ON_BEFORE)
-    Trigger.on(*combi)(sd_mox_pretrigger)
+    Trigger.on(
+        Trigger.ORG_UNIT,
+        Trigger.RequestType.CREATE,
+        Trigger.Event.ON_BEFORE
+    )(sd_mox_pretriggered)
+
+    Trigger.on(
+        Trigger.ORG_UNIT,
+        Trigger.RequestType.CREATE,
+        Trigger.Event.ON_AFTER
+    )(sd_mox_posttriggered)
+
     read_config(app)
 
