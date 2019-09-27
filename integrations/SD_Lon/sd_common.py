@@ -69,3 +69,45 @@ def calc_employment_id(employment):
         'value': employment_number
     }
     return employment_id
+
+
+def engagement_types(helper):
+    """
+    Read the engagement types from MO and match them up against the four
+    known types in the SD->MO import.
+    :param helper: An instance of mora-helpers.
+    :return: A dict matching up the engagement types with LoRa class uuids.
+    """
+    # These constants are global in all SD municipalities (because they are created
+    # by the SD->MO importer.
+    NO_SALLERY = 'status0'
+    NON_PRIMARY = 'non-primary'
+    PRIMARY = 'Ansat'
+    FIXED_PRIMARY = 'explicitly-primary'
+
+    logger.info('Read engagement types')
+    primary = None
+    non_primary = None
+    no_sallery = None
+    fixed_primary = None
+
+    engagement_types = helper.read_classes_in_facet('engagement_type')
+    for engagement_type in engagement_types[0]:
+        if engagement_type['user_key'] == PRIMARY:
+            primary = engagement_type['uuid']
+        if engagement_type['user_key'] == NON_PRIMARY:
+            non_primary = engagement_type['uuid']
+        if engagement_type['user_key'] == NO_SALLERY:
+            no_sallery = engagement_type['uuid']
+        if engagement_type['user_key'] == FIXED_PRIMARY:
+            fixed_primary = engagement_type['uuid']
+
+    type_uuids = {
+        'primary': primary,
+        'non_primary': non_primary,
+        'no_sallery': no_sallery,
+        'fixed_primary': fixed_primary
+    }
+    if None in type_uuids.values():
+        raise Exception('Missing engagements types: {}'.format(type_uuids))
+    return type_uuids
