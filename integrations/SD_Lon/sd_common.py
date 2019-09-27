@@ -71,8 +71,8 @@ class SD:
                 params=payload,
                 auth=(self.sd_user, self.sd_password)
             )
-            with open(str(cache_file), 'wb') as f:
-                pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
+#            with open(str(cache_file), 'wb') as f:
+#                pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
 
         dict_response = xmltodict.parse(response.text)
         if url in dict_response:
