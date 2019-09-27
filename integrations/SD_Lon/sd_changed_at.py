@@ -60,15 +60,11 @@ class ChangeAtSD(object):
         self.mo_person = None      # Updated continously with the person currently
         self.mo_engagement = None  # being processed.
 
+        # TODO: This is now in sd_common
+        self.eng_types = sd_common.engagement_types(self.helper)
+        
         logger.info('Read engagement types')
-        engagement_types = self.helper.read_classes_in_facet('engagement_type')
-        for engagement_type in engagement_types[0]:
-            if engagement_type['user_key'] == PRIMARY:
-                self.primary = engagement_type['uuid']
-            if engagement_type['user_key'] == NON_PRIMARY:
-                self.non_primary = engagement_type['uuid']
-            if engagement_type['user_key'] == NO_SALLERY:
-                self.no_sallery = engagement_type['uuid']
+        engagement_types  = self.helper.read_classes_in_facet('engagement_type')
 
         logger.info('Read it systems')
         it_systems = self.helper.read_it_systems()
@@ -405,9 +401,9 @@ class ChangeAtSD(object):
         self._update_professions(emp_name)
 
         if status['EmploymentStatusCode'] == '0':
-            engagement_type = self.no_sallery
+            engagement_type = self.eng_types['no_sallery']
         else:
-            engagement_type = self.non_primary
+            engagement_type = self.eng_types['non_primary']
 
         payload = sd_payloads.create_engagement(org_unit, self.mo_person,
                                                 self.job_functions.get(emp_name),
@@ -462,7 +458,7 @@ class ChangeAtSD(object):
         data = {}
         if status0:
             logger.info('Setting {} to status0'.format(job_id))
-            data = {'engagement_type': {'uuid': self.no_sallery},
+            data = {'engagement_type': {'uuid': self.eng_types['non_primary']},
                     'validity': validity}
             payload = sd_payloads.engagement(data, mo_eng)
             logger.debug('Status0 payload: {}'.format(payload))
@@ -582,7 +578,8 @@ class ChangeAtSD(object):
                             logger.debug('Validity for edit: {}'.format(validity))
                             data = {
                                 'validity': validity,
-                                'engagement_type': {'uuid':  self.non_primary},
+                                'engagement_type': {'uuid':
+                                                    self.eng_types['non_primary']},
                             }
                             payload = sd_payloads.engagement(data, mo_eng)
                             response = self.helper._mo_post('details/edit', payload)
@@ -710,149 +707,8 @@ class ChangeAtSD(object):
             )
             self._update_user_employments(cpr, sd_engagement)
             # Re-calculate primary after all updates for user has been performed.
+            # TODO: THIS WILL NOT WORK!!!!!!!!!!
             self.recalculate_primary()
-
-    def _calculate_rate_and_ids(self, mo_engagement):
-        max_rate = 0
-        min_id = 9999999
-        for eng in mo_engagement:
-            logger.debug('Calculate rate, engagement: {}'.format(eng))
-            if 'user_key' not in eng:
-                logger.error('Cannot calculate primary!!! Eng: {}'.format(eng))
-                return None, None
-
-            try:  # Code similar to this exists in common.
-                employment_id = int(eng['user_key'])
-            except ValueError:
-                employment_id = 999999
-
-            if not eng['fraction']:
-                eng['fraction'] = 0
-
-            stat = 'Cur max rate: {}, cur min_id: {}, this rate: {}, this id: {}'
-            logger.debug(stat.format(max_rate, min_id,
-                                     employment_id, eng['fraction']))
-
-            occupation_rate = eng['fraction']
-            if eng['fraction'] == max_rate:
-                if employment_id < min_id:
-                    min_id = employment_id
-            if occupation_rate > max_rate:
-                max_rate = occupation_rate
-                min_id = employment_id
-        logger.debug('Min id: {}, Max rate: {}'.format(min_id, max_rate))
-        return (min_id, max_rate)
-
-    def _find_cut_dates(self):
-        """
-        Run throgh entire history of current user and return a list of dates with
-        changes in the engagement.
-        """
-        uuid = self.mo_person['uuid']
-        mo_engagement = self.helper.read_user_engagement(
-            user=uuid,
-            only_primary=True,
-            read_all=True,
-        )
-        dates = set()
-        for eng in mo_engagement:
-            dates.add(datetime.datetime.strptime(eng['validity']['from'],
-                                                 '%Y-%m-%d'))
-            if eng['validity']['to']:
-                to = datetime.datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
-                day_after = to + datetime.timedelta(days=1)
-                dates.add(day_after)
-            else:
-                dates.add(datetime.datetime(9999, 12, 30, 0, 0))
-
-        date_list = sorted(list(dates))
-        logger.debug('List of cut-dates: {}'.format(date_list))
-        return date_list
-
-    def recalculate_primary(self):
-        """
-        Re-calculate primary engagement for the enire history of the current user.
-        """
-        logger.info('Calculate primary engagement')
-        date_list = self._find_cut_dates()
-
-        for i in range(0, len(date_list) - 1):
-            date = date_list[i]
-
-            mo_engagement = self.helper.read_user_engagement(
-                user=self.mo_person['uuid'],
-                at=date,
-                only_primary=True,  # Do not read extended info from MO.
-                use_cache=False
-            )
-            (min_id, max_rate) = self._calculate_rate_and_ids(mo_engagement)
-            if (min_id is None) or (max_rate is None):
-                continue
-
-            exactly_one_primary = False
-            for eng in mo_engagement:
-                if eng['engagement_type']['uuid'] == self.no_sallery:
-                    logger.info('Status 0, no update of primary')
-                    continue
-
-                if date_list[i + 1] == datetime.datetime(9999, 12, 30, 0, 0):
-                    to = None
-                else:
-                    to = datetime.datetime.strftime(
-                        date_list[i + 1] - datetime.timedelta(days=1), "%Y-%m-%d"
-                    )
-                validity = {
-                    'from': datetime.datetime.strftime(date, "%Y-%m-%d"),
-                    'to': to
-                }
-
-                if 'user_key' not in eng:
-                    break
-                # non-integer user keys are universially status0
-                employment_id = int(eng['user_key'])
-                occupation_rate = 0
-                if eng['fraction']:
-                    occupation_rate = eng['fraction']
-
-                logger.debug('Current rate and id: {}, {}'.format(occupation_rate,
-                                                                  employment_id))
-
-                # We explicit do not set the MO primary field, since this
-                # would need to be manually synchronized in case of manual
-                # changes from the front-end.
-                if occupation_rate == max_rate and employment_id == min_id:
-                    assert(exactly_one_primary is False)
-                    logger.debug('Primary is: {}'.format(employment_id))
-                    exactly_one_primary = True
-                    data = {
-                        # 'primary': True,
-                        'engagement_type': {'uuid': self.primary},
-                        'validity': validity
-                    }
-                    # This is a mess. The Title is handled by the sync-tool which
-                    # will respect the validity of the day the information is
-                    #  updated.
-                    # ad_info=self.ad_reader.read_user(cpr=self.mo_person['cpr_no'])
-                    # logger.debug(
-                    #     'Ad info for {}: {}'.format(
-                    #         self.mo_person['cpr_no'], ad_info
-                    #     )
-                    # )
-
-                    # ad_title = ad_info.get('Title', None)
-                    # if ad_title:
-                    #     self._update_professions(ad_title)
-                    #     data['job_funcion'] = self.job_functions.get(ad_title)
-                else:
-                    logger.debug('{} is not primary'.format(employment_id))
-                    data = {
-                        # 'primary': False,
-                        'engagement_type': {'uuid': self.non_primary},
-                        'validity': validity
-                    }
-                payload = sd_payloads.engagement(data, eng)
-                response = self.helper._mo_post('details/edit', payload)
-                assert response.status_code in (200, 400)
 
 
 def _local_db_insert(insert_tuple):
