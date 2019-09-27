@@ -80,7 +80,6 @@ def get_sdMox():
 def sd_mox_pretriggered(data):
     """ This is the function that is called with data from the handler module
     """
-    return
 
     # see if some parent uuid demands the trigger be run
     is_sd_triggered = False
@@ -94,6 +93,9 @@ def sd_mox_pretriggered(data):
     if not is_sd_triggered:
         return
 
+
+    # actual trigger code - create a unit in sd
+
     mox = get_sdMox()
     from_date = datetime.datetime.strptime(
         data["request"]['validity']['from'], '%Y-%m-%d'
@@ -101,10 +103,12 @@ def sd_mox_pretriggered(data):
     mox._update_virkning(from_date)
 
     payload = mox.payload_create(data["uuid"], data["request"], parent)
-    create_unit(test_run=False, **payload)
+    mox.create_unit(test_run=False, **payload)
 
 
 def sd_mox_posttriggered(data):
+
+    # see if some parent uuid demands the trigger be run
     is_sd_triggered = False
     p = unit = mo_request("ou/" + data["uuid"]).json()
     while p and p["uuid"]:
@@ -116,6 +120,8 @@ def sd_mox_posttriggered(data):
     if not is_sd_triggered:
         return
 
+    # actual trigger code - edit a unit in sd
+
     mox = get_sdMox()
     from_date = datetime.datetime.strptime(
         unit['validity']['from'], '%Y-%m-%d'
@@ -123,12 +129,13 @@ def sd_mox_posttriggered(data):
     mox._update_virkning(from_date)
 
     addresses = mo_request("ou/" + data["uuid"] + "/details/address").json()
-    import pdb; pdb.set_trace()
     payload = mox.payload_edit(data["uuid"], unit, addresses)
     mox.edit_unit(**payload)
 
 
 def register(app):
+    read_config(app)
+
     Trigger.on(
         Trigger.ORG_UNIT,
         Trigger.RequestType.CREATE,
@@ -141,5 +148,10 @@ def register(app):
         Trigger.Event.ON_AFTER
     )(sd_mox_posttriggered)
 
-    read_config(app)
+    Trigger.on(
+        Trigger.ORG_UNIT,
+        Trigger.RequestType.EDIT,
+        Trigger.Event.ON_AFTER
+    )(sd_mox_posttriggered)
+
 
