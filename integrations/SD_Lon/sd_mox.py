@@ -11,7 +11,6 @@ from integrations.SD_Lon.sd_common import SD
 
 
 from collections import OrderedDict
-from os2mo_helpers.mora_helpers import MoraHelper
 
 logger = logging.getLogger('sdMox')
 
@@ -68,8 +67,6 @@ class sdMox(object):
         if from_date:
             self._update_virkning(from_date)
 
-        # TODO: This url is hard-codet
-        self.mh = MoraHelper(hostname='http://localhost:5000')
 
 
     def _init_amqp_comm(self):
@@ -87,9 +84,9 @@ class sdMox(object):
         self.callback_queue = result.method.queue
         self.channel.basic_consume(
             queue=self.callback_queue,
-            on_message_callback=self.on_response,
-            auto_ack=True
+            consumer_callback=self.on_response,
         )
+            #auto_ack=True
 
     def on_response(self, ch, method, props, body):
         logger.error('Unexpected response!')
@@ -133,7 +130,6 @@ class sdMox(object):
         if unit_level:
             params['DepartmentLevelIdentifier'] = unit_level
         logger.debug('Read department, params: {}'.format(params))
-
         department = self.sd.lookup('GetDepartment20111201', params)
         department_info = department.get('Department', None)
         # try:
@@ -236,9 +232,9 @@ class sdMox(object):
         if not unit_code.isalnum():
             code_errors.append('Ugyldigt tegn i enhedskode')
 
-        if unit_level and not code_errors:
-            department = self.read_department(unit_code=unit_code,
-                                              unit_level=unit_level)
+        if not code_errors:
+            # customers expect unique unit_codes globally
+            department = self.read_department(unit_code=unit_code)
             if department is not None:
                 code_errors.append('Enhedskode er i brug')
         return code_errors
@@ -384,6 +380,11 @@ class sdMox(object):
         }
 
     def create_unit_from_mo(self, unit_uuid, test_run=True):
+
+        # TODO: This url is hard-codet
+        from os2mo_data_import.os2mo_helpers.mora_helpers import MoraHelper
+        self.mh = MoraHelper(hostname='http://localhost:5000')
+
         logger.info('Create {} from MO, test run: {}'.format(unit_uuid, test_run))
         unit_info = mox.mh.read_ou(unit_uuid)
         logger.debug('Unit info: {}'.format(unit_info))
