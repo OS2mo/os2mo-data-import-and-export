@@ -24,3 +24,11 @@ class SamAccountDoesNotExist(Exception):
 
 class ReplicationFailedException(Exception):
     pass
+
+
+class NoScriptToExecuteException(Exception):
+    pass
+
+
+class UnknownKeywordsInScriptException(Exception):
+    pass
