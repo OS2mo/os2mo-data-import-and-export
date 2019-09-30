@@ -8,6 +8,7 @@ import sd_payloads
 
 from pathlib import Path
 from sd_common import sd_lookup
+from calculate_primary import MOPrimaryEngagementUpdater
 from os2mo_helpers.mora_helpers import MoraHelper
 sys.path.append('../ad_integration')
 import ad_reader
@@ -46,6 +47,7 @@ class ChangeAtSD(object):
         self.mox_base = MOX_BASE
         self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
         self.ad_reader = ad_reader.ADParameterReader()
+        self.updater = MOPrimaryEngagementUpdater()
         self.from_date = from_date
         self.to_date = to_date
 
@@ -690,6 +692,8 @@ class ChangeAtSD(object):
 
             self.mo_person = self.helper.read_user(user_cpr=cpr,
                                                    org_uuid=self.org_uuid)
+            self.updater.set_current_person(mo_person=self.mo_person)
+
             if not self.mo_person:
                 for employment_info in sd_engagement:
                     assert (employment_info['EmploymentStatus']
@@ -707,8 +711,7 @@ class ChangeAtSD(object):
             )
             self._update_user_employments(cpr, sd_engagement)
             # Re-calculate primary after all updates for user has been performed.
-            # TODO: THIS WILL NOT WORK!!!!!!!!!!
-            self.recalculate_primary()
+            self.updater.recalculate_primary()
 
 
 def _local_db_insert(insert_tuple):
