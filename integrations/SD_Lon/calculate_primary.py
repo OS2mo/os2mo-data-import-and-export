@@ -1,5 +1,6 @@
 import os
 import logging
+import argparse
 import datetime
 
 import sd_common
@@ -10,6 +11,8 @@ from os2mo_helpers.mora_helpers import MoraHelper
 MORA_BASE = os.environ.get('MORA_BASE', None)
 
 logger = logging.getLogger("updatePrimaryEngagements")
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'calculate_primary.log'
 
 
 class MOPrimaryEngagementUpdater(object):
@@ -27,18 +30,21 @@ class MOPrimaryEngagementUpdater(object):
             self.eng_types['no_sallery']
         ]
 
-    def _set_current_person(self, cpr=None, uuid=None):
+    def set_current_person(self, cpr=None, uuid=None, mo_person=None):
         """
         Set a new person as the current user. Either a cpr-number or
         an uuid should be given, not both.
         :param cpr: cpr number of the person.
         :param uuid: MO uuid of the person.
+        :param mo_person: An already existing user object from mora_helper.
         :return: True if current user is valid, otherwise False.
         """
         if uuid:
             mo_person = self.helper.read_user(user_uuid=uuid)
         elif cpr:
             mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
+        elif mo_person:
+            pass
         else:
             mo_person = None
 
@@ -121,13 +127,10 @@ class MOPrimaryEngagementUpdater(object):
         Check all users for the existence of primary engagements.
         :return: TODO
         """
-
         # TODO: This is a seperate function in AD Sync! Change to mora_helpers!
-        # NOTICE: helper has been patched to return very few users.
-
-        all_users = self.helper.read_all_users(limit=2)
+        all_users = self.helper.read_all_users()
         for user in all_users:
-            self._set_current_person(uuid=user['uuid'])
+            self.set_current_person(uuid=user['uuid'])
             date_list = self._find_cut_dates()
             for i in range(0, len(date_list) - 1):
                 date = date_list[i]
@@ -139,7 +142,17 @@ class MOPrimaryEngagementUpdater(object):
             if primary_count == 0:
                 print('No primary for {} at {}'.format(user['uuid'], date))
             elif primary_count > 1:
-                print('Too many primaries for {} at {}'.format(user['uuid'], date))
+                # This will typically happen because of both a primary and a status0
+                logger.info('{} has more than one primary'.format(user['uuid']))
+                extra_primary_count = 0
+                for eng in mo_engagement:
+                    if eng['engagement_type']['uuid'] in self.primary[0:2]:
+                        extra_primary_count += 1
+                if extra_primary_count == 1:
+                    logger.info('Only one primary was different from status 0')
+                if extra_primary_count > 1:
+                    print('Too many primaries for {} at {}'.format(user['uuid'],
+                                                                   date))
             else:
                 # print('Correct')
                 pass
@@ -148,7 +161,7 @@ class MOPrimaryEngagementUpdater(object):
         """
         Re-calculate primary engagement for the enire history of the current user.
         """
-        logger.info('Calculate primary engagement')
+        logger.info('Calculate primary engagement: {}'.format(self.mo_person))
         date_list = self._find_cut_dates()
         number_of_edits = 0
 
@@ -156,6 +169,7 @@ class MOPrimaryEngagementUpdater(object):
             date = date_list[i]
 
             mo_engagement = self._read_engagement(date)
+            logger.debug('MO engagement: {}'.format(mo_engagement))
             (min_id, max_rate) = self._calculate_rate_and_ids(mo_engagement)
             if (min_id is None) or (max_rate is None):
                 continue
@@ -185,8 +199,14 @@ class MOPrimaryEngagementUpdater(object):
 
                 if 'user_key' not in eng:
                     break
-                # non-integer user keys are universially status0
-                employment_id = int(eng['user_key'])
+                try:
+                    # non-integer user keys should universially be status0
+                    employment_id = int(eng['user_key'])
+                except ValueError:
+                    logger.warning('Engagement type not status0?')
+                    employment_id = 9999999
+                    eng['fraction'] = 0
+
                 occupation_rate = 0
                 if eng['fraction']:
                     occupation_rate = eng['fraction']
@@ -207,9 +227,11 @@ class MOPrimaryEngagementUpdater(object):
                     current_type = self.eng_types['non_primary']
 
                 if fixed is not None and eng['uuid'] != fixed:
+                    # A fixed primary exits, but this is not it.
                     logger.debug('Manual override, this is not primary!')
                     current_type = self.eng_types['non_primary']
                 if eng['uuid'] == fixed:
+                    # This is a fixed primary.
                     current_type = self.eng_types['fixed_primary']
 
                 data = {
@@ -219,9 +241,12 @@ class MOPrimaryEngagementUpdater(object):
 
                 payload = sd_payloads.engagement(data, eng)
                 if not payload['data']['engagement_type'] == eng['engagement_type']:
+                    logger.debug('Edit payload: {}'.format(payload))
                     response = self.helper._mo_post('details/edit', payload)
                     assert response.status_code == 200
                     number_of_edits += 1
+                else:
+                    logger.debug('No edit, engagement type not changed.')
         return_dict = {self.mo_person['uuid']: number_of_edits}
         return return_dict
 
@@ -233,28 +258,59 @@ class MOPrimaryEngagementUpdater(object):
         all_users = self.helper.read_all_users()
         edit_status = {}
         for user in all_users:
-            self._set_current_person(uuid=user['uuid'])
+            self.set_current_person(uuid=user['uuid'])
             status = self.recalculate_primary()
             edit_status.update(status)
-        print(edit_status)
         print('Total edits: {}'.format(sum(edit_status.values())))
+
+    def _cli(self):
+        parser = argparse.ArgumentParser(description='Calculate Primary')
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument('--check_all_for_primary', nargs=1,
+                           help='Check all users for a primary engagement')
+        group.add_argument('--recalculate_all', nargs=1,
+                           help='Recalculate all all users')
+        group.add_argument('--recalculate_user', nargs=1, metavar='MO uuid',
+                           help='Recalculate primaries for a user')
+
+        args = vars(parser.parse_args())
+
+        if args.get('recalculate_user'):
+            print('Recalculate user')
+            uuid = args.get('recalculate_user')[0]
+            self.set_current_person(uuid=uuid)
+            self.recalculate_primary()
+
+        if args.get('check_all_for_primary'):
+            print('Check all for primary')
+            self.check_all_for_primary()
+
+        if args.get('recalculate_all'):
+            print('Check all for primary')
+            self.recalculate_all()
 
 
 if __name__ == '__main__':
+    detail_logging = ('mora-helper', 'updatePrimaryEngagements', 'sdCommon')
+    for name in logging.root.manager.loggerDict:
+        if name in detail_logging:
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
+
+    #  FINISH CHANGE_AT TO USE THIS MODULE
+
     updater = MOPrimaryEngagementUpdater()
-    # updater.check_all_for_primary()
+    updater._cli()
     # updater.recalculate_all()
 
-    # import time
-
-    cpr = ''
-    updater._set_current_person(cpr=cpr)
-    print(updater.recalculate_primary())
-
-    # t = time.time()
+    # cpr = ''
     # updater._set_current_person(cpr=cpr)
-    # print(time.time() - t)
-    # print('Recalculate')
-    # updater.recalculate_primary()
-    # print('Done')
-    # print(time.time() - t)
+    # print(updater.recalculate_primary())
+
