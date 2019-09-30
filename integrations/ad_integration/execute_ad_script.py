@@ -22,9 +22,6 @@ EXECUTION_REPLACEMENT_SCAFFOLD = {
 }
 
 
-# Dette ender forentlig med at være indlejret i AD writer, men koden for nu for
-# sig selv for at undgå potentielle mergekonflikter medn AD writer stadig er i
-# review.
 class ADExecute(ADWriter):
     def __init__(self):
         super().__init__()
