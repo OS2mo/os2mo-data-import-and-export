@@ -1,7 +1,8 @@
 import logging
+import argparse
 
 # import ad_logger
-# import ad_exceptions
+import ad_exceptions
 
 from pathlib import Path
 
@@ -27,12 +28,33 @@ class ADExecute(ADWriter):
         super().__init__()
         self.script = None
 
-    def _validate_script(self):
+    def _remove_block_comments(self):
+        search_index = 0
+        index = self.script.find('<#', search_index)
+        remove_ranges = []
+        while index > 0:
+            end_index = self.script.find('#>', index + 1) + 3
+            remove_ranges.append((index, end_index))
+            search_index = end_index
+            index = self.script.find('<%', search_index)
+
+        for remove_range in remove_ranges:
+            self.script = (self.script[:remove_range[0]] +
+                           self.script[remove_range[1]:])
+
+    def validate_script(self, pre_check=False):
+        """
+        Validate that the currently loaded script is valid for execution,
+        to be valid it must exist, it cannot contain unknown keywords.
+        :param pre_check: If true, the errors will be reported back as
+        a list, rather than as exceptions.
+        """
         if self.script is None:
             msg = 'No script loaded!'
+            if pre_check:
+                return (False, msg)
             logger.error(msg)
-            # TODO: Should we make an explicit exception for this?
-            raise Exception(msg)
+            raise ad_exceptions.NoScriptToExecuteException(msg)
 
         lines = self.script.split('\n')
 
@@ -54,23 +76,11 @@ class ADExecute(ADWriter):
                 keyword_errors.add(keyword)
         if keyword_errors:
             msg = 'Unknown keywords present in template: {}'.format(keyword_errors)
+            if pre_check:
+                return (False, msg)
             logger.error(msg)
-            # TODO: Should we make an explicit exception for this?
-            raise Exception(msg)
-
-    def _remove_block_comments(self):
-        search_index = 0
-        index = self.script.find('<#', search_index)
-        remove_ranges = []
-        while index > 0:
-            end_index = self.script.find('#>', index + 1) + 3
-            remove_ranges.append((index, end_index))
-            search_index = end_index
-            index = self.script.find('<%', search_index)
-
-        for remove_range in remove_ranges:
-            self.script = (self.script[:remove_range[0]] +
-                           self.script[remove_range[1]:])
+            raise ad_exceptions.UnknownKeywordsInScriptException(msg)
+        return (True, '')
 
     def fill_script_template(self, mo_user_uuid):
         mo_info = self.read_ad_informaion_from_mo(mo_user_uuid, read_manager=True)
@@ -108,35 +118,71 @@ class ADExecute(ADWriter):
         self.script = actual_script
         return True
 
-    def read_script_template(self, script_name):
+    def read_script_template(self, script_name, pre_check=False):
+        if not script_name.endswith('ps_template'):
+            script_name += '.ps_template'
         p = Path('scripts/{}'.format(script_name))
-        self.script = p.read_text()
-        self._validate_script()
+
+        if p.is_file():
+            self.script = p.read_text()
+        validation = self.validate_script(pre_check)
+        return validation
 
     def execute_script(self, script, user_uuid):
-        exe.read_script_template(script)
-        exe._remove_block_comments()
+        self.read_script_template(script)
 
-        success = exe.fill_script_template(user_uuid)
+        # Remove block comments before performing the validation.
+        self._remove_block_comments()
+
+        success = self.fill_script_template(user_uuid)
         if not success:
             msg = 'Failed to fill in template'
             logger.error(msg)
             raise Exception(msg)
 
-        response = exe._run_ps_script(exe.script)
-        if not response:
-            msg = 'Failed to execute this: {}'.format(exe.script)
+        response = self._run_ps_script(exe.script)
+        if not response == {}:
+            msg = 'Failed to execute this: {}'.format(self.script)
             logger.error(msg)
             msg = 'Power Shell error: {}'.format(response)
             logger.error(msg)
             raise Exception(msg)
+        return 'Script completed'
+
+    def _cli(self):
+        """
+        Command line interface for the script executor.
+        """
+        parser = argparse.ArgumentParser(description='Powershell Script Executer')
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument('--validate-script', nargs=1, metavar='Script name',
+                           help='Validate that a template can be parsed')
+
+        group.add_argument('--execute-script', nargs=2,
+                           metavar=('Script name', 'user_uuid'),
+                           help='Execute script with values from user')
+
+        args = vars(parser.parse_args())
+
+        if args.get('validate_script'):
+            script = args.get('validate_script')[0]
+            valid = self.read_script_template(script, pre_check=True)
+            if valid[0]:
+                print('Script is valid')
+            else:
+                print('Script validation failed:\n{}'.format(valid[1]))
+
+        if args.get('execute_script'):
+            script = args.get('execute_script')[0]
+            user = args.get('execute_script')[1]
+            print(self.execute_script(script, user))
 
 
 if __name__ == '__main__':
     exe = ADExecute()
+    exe._cli()
 
     # This is a fictious user, Noah Petersen, 111111-1111
-    mo_user = '4931ddb6-5084-45d6-9fb2-52ff33998005'
-    script = 'send_email.ps_template'
-
-    exe.execute(script, script, mo_user)
+    # mo_user = '4931ddb6-5084-45d6-9fb2-52ff33998005'
+    # script = 'send_email.ps_template'
+    # exe.execute_script(script, mo_user)
