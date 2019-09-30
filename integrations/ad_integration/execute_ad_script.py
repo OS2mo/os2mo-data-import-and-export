@@ -108,24 +108,38 @@ class ADExecute(ADWriter):
             if actual_line.strip():
                 actual_script += actual_line + '\n'
 
-        # self.script = self.script.replace(key, replacement)
+        self.script = actual_script
         return True
 
     def read_script_template(self, script_name):
         p = Path('scripts/{}'.format(script_name))
         self.script = p.read_text()
-
         self._validate_script()
+
+    def execute_script(self, script, user_uuid):
+        exe.read_script_template(script)
+        exe._remove_block_comments()
+
+        success = exe.fill_script_template(user_uuid)
+        if not success:
+            msg = 'Failed to fill in template'
+            logger.error(msg)
+            raise Exception(msg)
+
+        response = exe._run_ps_script(exe.script)
+        if not response:
+            msg = 'Failed to execute this: {}'.format(exe.script)
+            logger.error(msg)
+            msg = 'Power Shell error: {}'.format(response)
+            logger.error(msg)
+            raise Exception(msg)
 
 
 if __name__ == '__main__':
     exe = ADExecute()
 
-    script_name = 'send_email.ps_template'
-    mo_user_uuid = ''
-    exe.read_script_template(script_name)
+    # This is a fictious user, Noah Petersen, 111111-1111
+    mo_user = '4931ddb6-5084-45d6-9fb2-52ff33998005'
+    script = 'send_email.ps_template'
 
-    exe._remove_block_comments()
-
-    # exe.fill_script_template(mo_user_uuid)
-    # print(exe.script)
+    exe.execute(script, script, mo_user)
