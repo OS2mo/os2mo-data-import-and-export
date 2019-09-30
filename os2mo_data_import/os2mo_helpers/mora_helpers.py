@@ -190,7 +190,7 @@ class MoraHelper(object):
         org = self.read_organisation()
         if limit is None:
             limit = 100000000
-        employee_list = self._mo_lookup(org, 'o/{}/e?limit=' + limit)
+        employee_list = self._mo_lookup(org, 'o/{}/e?limit=' + str(limit))
         employees = employee_list['items']
         logger.info('Done reading all MO users')
         return employees
