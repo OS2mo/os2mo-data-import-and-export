@@ -264,7 +264,7 @@ Hvor betydniningen af de enkelte felter er angviet højere oppe i dokumentatione
 Felter som omhandler skolemdomænet er med vilje sat til blanke, da ingen af
 skriveintegrationerne på dette tidspunkter undestøtter dette.
 
-Når felterne er udfyldt kan den effektexures med kommandoen:
+Når felterne er udfyldt kan indstillingerne effektures med kommandoen:
 
 ::
 
@@ -317,4 +317,64 @@ Anvendelse af kommondolinjeværktøjer
 ------------------------------------
 
 Følgende funktionaliteter har deres eget kommandolinjeværktøj som gør det muligt at
-anvende dem uden at rette direkte i Python koden.
+anvende dem uden at rette direkte i Python koden:
+
+ * `ad_writer.py`
+ * `execute_ad_script.py`
+ * `user_names.py`
+
+For user names kræves der dog en del forudsætninger som gør at kommandolinjeværktøjet
+ikke praksis har brugbar funktionalitet endnu.
+
+ad_writer.py
+++++++++++++
+
+Dette værktøj har føljende muligheder:
+
+::
+
+usage: ad_writer.py [-h]
+                    [--create-user-with-manager MO uuid | --create-user MO uuid |
+		    --sync-user MO uuid | --delete-user User SAM | --read-ad-information User SAM |
+		    --add-manager-to-user ManagerSAM UserSAM]
+
+De forskellige muligheder gennemgås her en ad gangen:
+ * --create-user-with-manager MO uuid
+   Eksempel: python ad_writer-py --create-user-with-manager 4931ddb6-5084-45d6-9fb2-52ff33998005
+
+   Denne kommando vil oprette en ny AD bruger ved hjælp af de informationer der er
+   findes om brugeren i MO. De relevante felter i AD vil blive udfyld i henhold til
+   den lokale feltmapning, og der vil blive oprettet et link til AD kontoen for
+   lederen af medarbejderens primære ansættelse. Hvis det ikke er muligt at finde
+   en leder, vil integrationen standse med en `ManagerNotUniqueFromCprException`.
+
+ * --create-user MO uuid
+   Eksempel: python ad_writer-py --create-user 4931ddb6-5084-45d6-9fb2-52ff33998005
+
+   Som ovenfor men i dette tilfælde oprettes der ikke et link til lederens AD konto.
+
+ * --sync-user MO uuid
+   Eksempel: python ad_writer-py --sync-user 4931ddb6-5084-45d6-9fb2-52ff33998005
+
+   Synkroiser oplysninger fra MO til en allerede eksisterende AD konto.
+
+ * --delete-user Uer SAM
+   Eksempel: python ad_writer-py --delete-user MGORE
+
+   Slet den pågældende AD bruger. Denne funktion anvendes hovedsageligt til tests,
+   da et driftmiljø typisk vil have en mere kompliceret procedure for sletning af
+   brugere.
+
+ * --read-ad-information User SAM
+   Eksempel: python ad_writer-py --read-ad-information MGORE
+
+   Returnere de AD oplysninger fra AD som integrationen i øjeblikket er konfigureret
+   til at læse. Det er altså en delmængde af disse oplysninger som vil blive
+   skrevet til MO af synkroniseringsværktøjet. Funktionen er primært nyttig til
+   udvikling og fejlfinding.
+
+ * --add-manager-to-user ManagerSAM UserSAM
+   Eksempel: python ad_writer-py --add-manager-to-user DMILL MGORE
+
+   Udfylder brugerens `manager` felt med et link til AD kontoen der hører til
+   ManagerSAM.
