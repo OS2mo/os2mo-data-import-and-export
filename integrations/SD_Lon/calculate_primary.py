@@ -128,8 +128,13 @@ class MOPrimaryEngagementUpdater(object):
         :return: TODO
         """
         # TODO: This is a seperate function in AD Sync! Change to mora_helpers!
+        count = 0
         all_users = self.helper.read_all_users()
         for user in all_users:
+            if count % 250 == 0:
+                print('{}/{}'.format(count, len(all_users)))
+            count += 1
+
             self.set_current_person(uuid=user['uuid'])
             date_list = self._find_cut_dates()
             for i in range(0, len(date_list) - 1):
@@ -203,9 +208,16 @@ class MOPrimaryEngagementUpdater(object):
                     # non-integer user keys should universially be status0
                     employment_id = int(eng['user_key'])
                 except ValueError:
-                    logger.warning('Engagement type not status0?')
-                    employment_id = 9999999
-                    eng['fraction'] = 0
+                    logger.warning('Engagement type not status0. Will fix.')
+                    data = {
+                        'engagement_type': {'uuid': self.eng_types['no_sallery']},
+                        'validity': validity
+                    }
+                    payload = sd_payloads.engagement(data, eng)
+                    response = self.helper._mo_post('details/edit', payload)
+                    assert response.status_code == 200
+                    logger.info('Status0 fixed')
+                    continue
 
                 occupation_rate = 0
                 if eng['fraction']:
@@ -304,13 +316,6 @@ if __name__ == '__main__':
         filename=LOG_FILE
     )
 
-    #  FINISH CHANGE_AT TO USE THIS MODULE
-
     updater = MOPrimaryEngagementUpdater()
     updater._cli()
-    # updater.recalculate_all()
-
-    # cpr = ''
-    # updater._set_current_person(cpr=cpr)
-    # print(updater.recalculate_primary())
 
