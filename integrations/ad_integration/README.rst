@@ -182,8 +182,31 @@ alle AD brugere. Hver enkelt bruger slås op i MO via feltet `AD_WRITE_UUID` og
 informatione fra MO synkroniseres til AD.
 
 
+Afvikling af PoerShell templates
+---------------------------------
+
+Det er muligt at angive PowerShell kode hvor visse værdier angives med abstrakte
+refrencer til MO, som så på runtime vil bive udfyldt med de tilhørende værdier
+for det person det drejer sig om.
+
+for øjeblikket understøttes disse variable:
+
+ * `%OS2MO_AD_BRUGERNAVN%`
+ * `%OS2MO_BRUGER_FORNAVN%`
+ * `%OS2MO_BRUGER_EFTERNAVN%`
+ * `%OS2MO_BRUGER_CPR%`
+ * `%OS2MO_LEDER_EMAIL%`
+ * `%OS2MO_LEDER_NAVN%`
+ * `%OS2MO_BRUGER_ENHED%`
+ * `%OS2MO_BRUGER_ENHED_UUID%`
+
+Hvis et script indeholder andre nøgler på formen %OS2MO_ ... % vil der returneres
+en fejlmeddelelse (exception hvis det afvikles som en integration), med mindre
+disse variale er udkommenteret.
+
+
 Opsætning for lokal brug af integrationen
-=========================================
+-----------------------------------------
 
 Flere af værktøjerne i AD integrationen er udstyret med et kommandolinjeinterface,
 som kan anvendes til lokale tests. For at anvende dette er skal tre ting være på
@@ -268,6 +291,7 @@ Ret linjen:
 Til:
 
 ::
+
    rs.std_err = self._clean_error_msg(rs.std_err.decode('utf-8'))
 
 
@@ -279,3 +303,10 @@ For at bekræfte at alt er på plads, findes et værktøj til at teste kommunika
    python test_connectivity.py
 
 Hvis dette returnerer med ordet 'success' er integrationen klar til brug.
+
+
+Anvendelse af kommondolinjeværktøjer
+------------------------------------
+
+Følgende funktionaliteter har deres eget kommandolinjeværktøj som gør det muligt at
+anvende dem uden at rette direkte i Python koden.
