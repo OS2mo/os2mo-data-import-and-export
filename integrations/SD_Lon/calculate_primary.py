@@ -22,12 +22,12 @@ class MOPrimaryEngagementUpdater(object):
 
         self.mo_person = None
 
-        # Keys are; fixed_primary, primary no_sallery non-primary
+        # Keys are; fixed_primary, primary no_salary non-primary
         self.eng_types = sd_common.engagement_types(self.helper)
         self.primary = [
             self.eng_types['fixed_primary'],
             self.eng_types['primary'],
-            self.eng_types['no_sallery']
+            self.eng_types['no_salary']
         ]
 
     def set_current_person(self, cpr=None, uuid=None, mo_person=None):
@@ -187,7 +187,7 @@ class MOPrimaryEngagementUpdater(object):
 
             exactly_one_primary = False
             for eng in mo_engagement:
-                if eng['engagement_type']['uuid'] == self.eng_types['no_sallery']:
+                if eng['engagement_type']['uuid'] == self.eng_types['no_salary']:
                     logger.info('Status 0, no update of primary')
                     continue
 
@@ -210,7 +210,7 @@ class MOPrimaryEngagementUpdater(object):
                 except ValueError:
                     logger.warning('Engagement type not status0. Will fix.')
                     data = {
-                        'engagement_type': {'uuid': self.eng_types['no_sallery']},
+                        'engagement_type': {'uuid': self.eng_types['no_salary']},
                         'validity': validity
                     }
                     payload = sd_payloads.engagement(data, eng)

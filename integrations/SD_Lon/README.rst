@@ -123,7 +123,7 @@ hjælpeværktøjer:
  * `sd_fix_organisation.py`: Forsøger at synkronisere alle nye enheder fra SD Løn
    til MO. Der findes ikke nogen differentiel service fra SD som oplyser om
    ændringer i organisationen, så det er nødvendigt at sammenligne alle enheder
-   til alle tider for at opnå en komplet synkronisering. Værktøje er i øjeblikket
+   til alle tider for at opnå en komplet synkronisering. Værktøjet er i øjeblikket
    hårdkodet til at hente alle ændringer til organisatinen siden 1. januar 2019.
    På sigt vil dette værktøj formentlig blive erstattet af enten en service som
    opretter enheder efterhånden som der dukker ansatte om i enheder som ikke

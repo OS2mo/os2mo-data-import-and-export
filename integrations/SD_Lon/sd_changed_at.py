@@ -36,10 +36,6 @@ MOX_BASE = os.environ.get('MOX_BASE', None)
 MORA_BASE = os.environ.get('MORA_BASE', None)
 RUN_DB = os.environ.get('RUN_DB', None)
 
-NO_SALLERY = 'status0'
-NON_PRIMARY = 'non-primary'
-PRIMARY = 'Ansat'
-
 
 class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):

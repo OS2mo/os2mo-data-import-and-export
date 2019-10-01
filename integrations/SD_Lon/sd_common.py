@@ -80,15 +80,15 @@ def engagement_types(helper):
     """
     # These constants are global in all SD municipalities (because they are created
     # by the SD->MO importer.
-    NO_SALLERY = 'status0'
-    NON_PRIMARY = 'non-primary'
     PRIMARY = 'Ansat'
+    NO_SALARY = 'status0'
+    NON_PRIMARY = 'non-primary'
     FIXED_PRIMARY = 'explicitly-primary'
 
     logger.info('Read engagement types')
     primary = None
+    no_salary = None
     non_primary = None
-    no_sallery = None
     fixed_primary = None
 
     engagement_types = helper.read_classes_in_facet('engagement_type')
@@ -97,15 +97,15 @@ def engagement_types(helper):
             primary = engagement_type['uuid']
         if engagement_type['user_key'] == NON_PRIMARY:
             non_primary = engagement_type['uuid']
-        if engagement_type['user_key'] == NO_SALLERY:
-            no_sallery = engagement_type['uuid']
+        if engagement_type['user_key'] == NO_SALARY:
+            no_salary = engagement_type['uuid']
         if engagement_type['user_key'] == FIXED_PRIMARY:
             fixed_primary = engagement_type['uuid']
 
     type_uuids = {
         'primary': primary,
         'non_primary': non_primary,
-        'no_sallery': no_sallery,
+        'no_salary': no_salary,
         'fixed_primary': fixed_primary
     }
     if None in type_uuids.values():
