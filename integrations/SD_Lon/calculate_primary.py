@@ -226,7 +226,7 @@ class MOPrimaryEngagementUpdater(object):
                 logger.debug('Current rate and id: {}, {}'.format(occupation_rate,
                                                                   employment_id))
 
-                # We explicit do not set the MO primary field, since this
+                # We explicitly do not set the MO primary field, since this
                 # would need to be manually synchronized in case of manual
                 # changes from the front-end.
                 if occupation_rate == max_rate and employment_id == min_id:
