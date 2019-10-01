@@ -105,7 +105,7 @@ class ADWriter(AD):
                         break
         logger.info('replication_finished: {}s'.format(time.time() - t_start))
 
-    def read_ad_informaion_from_mo(self, uuid, read_manager=True):
+    def read_ad_information_from_mo(self, uuid, read_manager=True):
         """
         Retrive the necessary information from MO to contruct a new AD user.
         The final information object should of this type, notice that end-date
@@ -236,7 +236,7 @@ class ADWriter(AD):
         school = False  # TODO
         bp = self._ps_boiler_plate(school)
 
-        mo_values = self.read_ad_informaion_from_mo(mo_uuid)
+        mo_values = self.read_ad_information_from_mo(mo_uuid)
 
         if user_ad_info is None:
             logger.debug('No AD information supplied, will look it up')
@@ -283,7 +283,7 @@ class ADWriter(AD):
         # TODO: Implement dry_run
 
         bp = self._ps_boiler_plate(school)
-        mo_values = self.read_ad_informaion_from_mo(mo_uuid, create_manager)
+        mo_values = self.read_ad_information_from_mo(mo_uuid, create_manager)
 
         all_names = mo_values['name'][0].split(' ') + [mo_values['name'][1]]
         sam_account_name = self.name_creator.create_username(all_names,
