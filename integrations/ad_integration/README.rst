@@ -196,7 +196,7 @@ plads i det lokale miljø:
 
 Angående punkt 1 skal dette opsættes af den lokale IT organisation, hvis man
 har fulgt denne dokumentation så langt som til dette punkt, er der en god
-sandsynlighed for at befinder sig et miljø, hvor dette allerede er på plads.
+sandsynlighed for at man befinder sig i et miljø, hvor dette allerede er på plads.
 
 Punkt 2 gøres til lokale tests lettest ved at oprette en shell fil, som opretter de
 nøvdendige miljøvarible.
@@ -235,42 +235,42 @@ skriveintegrationerne på dette tidspunkter undestøtter dette.
 
 Når felterne er udfyldt kan den effektexures med kommandoen:
 
- ::
-    source <filnavn>
+::
+   source <filnavn>
 
 Det skal nu oprettes et lokalt afviklingsmiljø. Dette gøres ved at klone git
 projektet i en lokal mappe og oprette et lokal python miljø:
 
- ::
-    git clone https://github.com/OS2mo/os2mo-data-import-and-export
-    cd os2mo-data-import-and-export
-    python3 -m venv venv
-    source venv/bin/activate
-    pip install --upgrade pip
-    pip install os2mo_data_import
-    pip install pywinrm[kerberos]
+::
+   git clone https://github.com/OS2mo/os2mo-data-import-and-export
+   cd os2mo-data-import-and-export
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install --upgrade pip
+   pip install os2mo_data_import
+   pip install pywinrm[kerberos]
 
 Der findes desværre i den nuærende udgave af `pywinrm` en fejl som gør det nødvendigt
 at lave en rettelse direkte i en lokal installeret fil.
 
- ::
-    nano venv/lib/python3.5/site-packages/winrm/__init__.py
+::
+   nano venv/lib/python3.5/site-packages/winrm/__init__.py
 
 Ret linjen:
 
- ::
-    rs.std_err = self._clean_error_msg(rs.std_err)
+::
+   rs.std_err = self._clean_error_msg(rs.std_err)
 
 Til:
 
- ::
-    rs.std_err = self._clean_error_msg(rs.std_err.decode('utf-8'))
+::
+   rs.std_err = self._clean_error_msg(rs.std_err.decode('utf-8'))
 
 
 For at bekræfte at alt er på plads, findes et værktøj til at teste kommunikationen:
 
- ::
-    cd integrations/ad_integration
-    python test_connectivity.py
+::
+   cd integrations/ad_integration
+   python test_connectivity.py
 
 Hvis dette returnerer med ordet 'success' er integrationen klar til brug.
