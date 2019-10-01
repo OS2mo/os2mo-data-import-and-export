@@ -319,9 +319,9 @@ Anvendelse af kommondolinjeværktøjer
 Følgende funktionaliteter har deres eget kommandolinjeværktøj som gør det muligt at
 anvende dem uden at rette direkte i Python koden:
 
- * `ad_writer.py`
- * `execute_ad_script.py`
- * `user_names.py`
+ * ``ad_writer.py``
+ * ``execute_ad_script.py``
+ * ``user_names.py``
 
 For user names kræves der dog en del forudsætninger som gør at kommandolinjeværktøjet
 ikke praksis har brugbar funktionalitet endnu.
@@ -334,14 +334,16 @@ Dette værktøj har føljende muligheder:
 ::
 
    usage: ad_writer.py [-h]
-                    [--create-user-with-manager MO uuid | --create-user MO uuid |
-		    --sync-user MO uuid | --delete-user User SAM | --read-ad-information User SAM |
+                    [--create-user-with-manager MO uuid |
+		    --create-user MO uuid |
+		    --sync-user MO uuid | --delete-user User SAM |
+		    --read-ad-information User SAM |
 		    --add-manager-to-user ManagerSAM UserSAM]
 
 De forskellige muligheder gennemgås her en ad gangen:
  * --create-user-with-manager MO uuid
 
- Eksempel: python ad_writer-py --create-user-with-manager 4931ddb6-5084-45d6-9fb2-52ff33998005
+   Eksempel: python ad_writer-py --create-user-with-manager 4931ddb6-5084-45d6-9fb2-52ff33998005
 
    Denne kommando vil oprette en ny AD bruger ved hjælp af de informationer der er
    findes om brugeren i MO. De relevante felter i AD vil blive udfyld i henhold til
@@ -357,7 +359,7 @@ De forskellige muligheder gennemgås her en ad gangen:
 
  * --sync-user MO uuid
 
- Eksempel: python ad_writer-py --sync-user 4931ddb6-5084-45d6-9fb2-52ff33998005
+   Eksempel: python ad_writer-py --sync-user 4931ddb6-5084-45d6-9fb2-52ff33998005
 
    Synkroiser oplysninger fra MO til en allerede eksisterende AD konto.
 
@@ -382,5 +384,5 @@ De forskellige muligheder gennemgås her en ad gangen:
 
    Eksempel: python ad_writer-py --add-manager-to-user DMILL MGORE
 
-   Udfylder brugerens `manager` felt med et link til AD kontoen der hører til
+   Udfylder brugerens ``manager`` felt med et link til AD kontoen der hører til
    ManagerSAM.
