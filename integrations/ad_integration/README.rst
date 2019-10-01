@@ -236,12 +236,14 @@ skriveintegrationerne på dette tidspunkter undestøtter dette.
 Når felterne er udfyldt kan den effektexures med kommandoen:
 
 ::
+
    source <filnavn>
 
 Det skal nu oprettes et lokalt afviklingsmiljø. Dette gøres ved at klone git
 projektet i en lokal mappe og oprette et lokal python miljø:
 
 ::
+
    git clone https://github.com/OS2mo/os2mo-data-import-and-export
    cd os2mo-data-import-and-export
    python3 -m venv venv
@@ -254,11 +256,13 @@ Der findes desværre i den nuærende udgave af `pywinrm` en fejl som gør det n�
 at lave en rettelse direkte i en lokal installeret fil.
 
 ::
+
    nano venv/lib/python3.5/site-packages/winrm/__init__.py
 
 Ret linjen:
 
 ::
+
    rs.std_err = self._clean_error_msg(rs.std_err)
 
 Til:
@@ -270,6 +274,7 @@ Til:
 For at bekræfte at alt er på plads, findes et værktøj til at teste kommunikationen:
 
 ::
+
    cd integrations/ad_integration
    python test_connectivity.py
 
