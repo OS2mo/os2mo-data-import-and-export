@@ -386,3 +386,31 @@ De forskellige muligheder gennemgås her en ad gangen:
 
    Udfylder brugerens ``manager`` felt med et link til AD kontoen der hører til
    ManagerSAM.
+
+
+execute_ad_script.py
+++++++++++++++++++++
+
+Dette værktøj har føljende muligheder:
+
+::
+
+   usage: execute_ad_script.py [-h]
+                               [--validate-script Script name |
+			       --execute-script Script name user_uuid]
+
+De forskellige muligheder gennemgås her en ad gangen:
+ * --validate-script Script name
+
+   Eksempel: python ad_writer-py ----validate-script send_email
+
+   Denne kommando vil lede efter en skabelon i ``scripts/send_email.ps_template`` og
+   validere at skabelonen kun indeholder gyldige nøgleværdier. Hvis dette er
+   tilfældet returneres sætningen "Script is valid" og ellers returneres en
+   fejlbesked som beskriver hvilke ugyldige nøgler der er fundet i skabelonen.
+
+ * --execute-script Script name user_uuid
+   Eksempel: python execute_ad_script.py --execute-script send_email 4931ddb6-5084-45d6-9fb2-52ff33998005
+
+   Denne kommando vil finde en skabelon i ``scripts/send_email.ps_template` og først
+   validere og derefter afvikle de med værdier taget fra brugen med uuid som angivet.
