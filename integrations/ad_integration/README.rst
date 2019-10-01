@@ -191,14 +191,14 @@ for det person det drejer sig om.
 
 for øjeblikket understøttes disse variable:
 
- * `%OS2MO_AD_BRUGERNAVN%`
- * `%OS2MO_BRUGER_FORNAVN%`
- * `%OS2MO_BRUGER_EFTERNAVN%`
- * `%OS2MO_BRUGER_CPR%`
- * `%OS2MO_LEDER_EMAIL%`
- * `%OS2MO_LEDER_NAVN%`
- * `%OS2MO_BRUGER_ENHED%`
- * `%OS2MO_BRUGER_ENHED_UUID%`
+ * ``%OS2MO_AD_BRUGERNAVN%``
+ * ``%OS2MO_BRUGER_FORNAVN%``
+ * ``%OS2MO_BRUGER_EFTERNAVN%``
+ * ``%OS2MO_BRUGER_CPR%``
+ * ``%OS2MO_LEDER_EMAIL%``
+ * ``%OS2MO_LEDER_NAVN%``
+ * ``%OS2MO_BRUGER_ENHED%``
+ * ``%OS2MO_BRUGER_ENHED_UUID%``
 
 Hvis et script indeholder andre nøgler på formen %OS2MO_ ... % vil der returneres
 en fejlmeddelelse (exception hvis det afvikles som en integration), med mindre
@@ -340,7 +340,8 @@ Dette værktøj har føljende muligheder:
 
 De forskellige muligheder gennemgås her en ad gangen:
  * --create-user-with-manager MO uuid
-   Eksempel: python ad_writer-py --create-user-with-manager 4931ddb6-5084-45d6-9fb2-52ff33998005
+
+ Eksempel: python ad_writer-py --create-user-with-manager 4931ddb6-5084-45d6-9fb2-52ff33998005
 
    Denne kommando vil oprette en ny AD bruger ved hjælp af de informationer der er
    findes om brugeren i MO. De relevante felter i AD vil blive udfyld i henhold til
@@ -349,16 +350,19 @@ De forskellige muligheder gennemgås her en ad gangen:
    en leder, vil integrationen standse med en `ManagerNotUniqueFromCprException`.
 
  * --create-user MO uuid
+
    Eksempel: python ad_writer-py --create-user 4931ddb6-5084-45d6-9fb2-52ff33998005
 
    Som ovenfor men i dette tilfælde oprettes der ikke et link til lederens AD konto.
 
  * --sync-user MO uuid
-   Eksempel: python ad_writer-py --sync-user 4931ddb6-5084-45d6-9fb2-52ff33998005
+
+ Eksempel: python ad_writer-py --sync-user 4931ddb6-5084-45d6-9fb2-52ff33998005
 
    Synkroiser oplysninger fra MO til en allerede eksisterende AD konto.
 
  * --delete-user Uer SAM
+
    Eksempel: python ad_writer-py --delete-user MGORE
 
    Slet den pågældende AD bruger. Denne funktion anvendes hovedsageligt til tests,
@@ -366,6 +370,7 @@ De forskellige muligheder gennemgås her en ad gangen:
    brugere.
 
  * --read-ad-information User SAM
+
    Eksempel: python ad_writer-py --read-ad-information MGORE
 
    Returnere de AD oplysninger fra AD som integrationen i øjeblikket er konfigureret
@@ -374,6 +379,7 @@ De forskellige muligheder gennemgås her en ad gangen:
    udvikling og fejlfinding.
 
  * --add-manager-to-user ManagerSAM UserSAM
+
    Eksempel: python ad_writer-py --add-manager-to-user DMILL MGORE
 
    Udfylder brugerens `manager` felt med et link til AD kontoen der hører til
