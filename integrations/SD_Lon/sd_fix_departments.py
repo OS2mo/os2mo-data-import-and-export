@@ -62,15 +62,12 @@ class FixDepartmentsSD(object):
             if unit_type['user_key'] == department['DepartmentLevelIdentifier']:
                 unit_type_uuid = unit_type['uuid']
 
-        # TODO: MO currently fails when creating future sub-units
-        activation_date = '2019-07-01'  # Temporary!!!!
-
         payload = sd_payloads.create_org_unit(
             department=department,
             org=self.org_uuid,
             name=department_info['Department']['DepartmentName'],
             unit_type=unit_type_uuid,
-            from_date=activation_date
+            from_date=department_info['Department']['ActivationDate']
         )
         logger.debug('Create department payload: {}'.format(payload))
 
