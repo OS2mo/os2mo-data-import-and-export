@@ -4,10 +4,11 @@ import logging
 import sqlite3
 import requests
 import datetime
+import sd_common
 import sd_payloads
 
 from pathlib import Path
-from sd_common import sd_lookup
+
 from calculate_primary import MOPrimaryEngagementUpdater
 from os2mo_helpers.mora_helpers import MoraHelper
 sys.path.append('../ad_integration')
@@ -18,8 +19,7 @@ LOG_FILE = 'mo_integrations.log'
 
 logger = logging.getLogger("sdChangedAt")
 
-# detail_logging = ('AdReader', 'sdCommon', 'sdChangedAt')
-detail_logging = ('sdCommon', 'sdChangedAt')
+detail_logging = ('sdCommon', 'sdChangedAt', 'updatePrimaryEngagements')
 for name in logging.root.manager.loggerDict:
     if name in detail_logging:
         logging.getLogger(name).setLevel(LOG_LEVEL)
@@ -62,11 +62,7 @@ class ChangeAtSD(object):
         self.mo_person = None      # Updated continously with the person currently
         self.mo_engagement = None  # being processed.
 
-        # TODO: This is now in sd_common
         self.eng_types = sd_common.engagement_types(self.helper)
-        
-        logger.info('Read engagement types')
-        engagement_types  = self.helper.read_classes_in_facet('engagement_type')
 
         logger.info('Read it systems')
         it_systems = self.helper.read_it_systems()
@@ -124,7 +120,7 @@ class ChangeAtSD(object):
                     'SalaryAgreementIndicator': 'false',
                     'SalaryCodeGroupIndicator': 'false'
                 }
-                response = sd_lookup(url, params=params)
+                response = sd_common.sd_lookup(url, params=params)
             else:
                 url = 'GetEmploymentChanged20111201'
                 params = {
@@ -138,7 +134,7 @@ class ChangeAtSD(object):
                     'SalaryAgreementIndicator': 'false',
                     'SalaryCodeGroupIndicator': 'false'
                 }
-            response = sd_lookup(url, params)
+            response = sd_common.sd_lookup(url, params)
 
             employment_response = response.get('Person', [])
             if not isinstance(employment_response, list):
@@ -162,7 +158,7 @@ class ChangeAtSD(object):
             # TODO: Er der kunder, som vil udlæse adresse-information?
         }
         url = 'GetPersonChangedAtDate20111201'
-        response = sd_lookup(url, params=params)
+        response = sd_common.sd_lookup(url, params=params)
         person_changed = response.get('Person', [])
         if not isinstance(person_changed, list):
             person_changed = [person_changed]
