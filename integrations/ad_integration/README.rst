@@ -204,6 +204,14 @@ Hvis et script indeholder andre nøgler på formen %OS2MO_ ... % vil der returne
 en fejlmeddelelse (exception hvis det afvikles som en integration), med mindre
 disse variale er udkommenteret.
 
+Integrationen forventer at scripts befinder sig i mappen `scripts` i en undermappe
+til integrationen selv, og alle scripts skal have en `ps_template` som filendelse.
+Den tekniske platform for afvikling af scripts er den samme som for den øvrige AD
+integration; scriptet sendes til remote management serveren, som afvikler scriptet.
+Bemærk at scripts i denne kategori ikke nødvendigvis behøver have direkte kontakt
+med AD, men vil kunne anvends til alle formål hvor der er behov for at afvikle
+PowerShell med værdier fra MO.
+
 
 Opsætning for lokal brug af integrationen
 -----------------------------------------
