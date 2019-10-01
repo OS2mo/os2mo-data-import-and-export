@@ -182,8 +182,39 @@ alle AD brugere. Hver enkelt bruger slås op i MO via feltet `AD_WRITE_UUID` og
 informatione fra MO synkroniseres til AD.
 
 
+Afvikling af PoerShell templates
+---------------------------------
+
+Det er muligt at angive PowerShell kode hvor visse værdier angives med abstrakte
+refrencer til MO, som så på runtime vil bive udfyldt med de tilhørende værdier
+for det person det drejer sig om.
+
+for øjeblikket understøttes disse variable:
+
+ * ``%OS2MO_AD_BRUGERNAVN%``
+ * ``%OS2MO_BRUGER_FORNAVN%``
+ * ``%OS2MO_BRUGER_EFTERNAVN%``
+ * ``%OS2MO_BRUGER_CPR%``
+ * ``%OS2MO_LEDER_EMAIL%``
+ * ``%OS2MO_LEDER_NAVN%``
+ * ``%OS2MO_BRUGER_ENHED%``
+ * ``%OS2MO_BRUGER_ENHED_UUID%``
+
+Hvis et script indeholder andre nøgler på formen %OS2MO_ ... % vil der returneres
+en fejlmeddelelse (exception hvis det afvikles som en integration), med mindre
+disse variale er udkommenteret.
+
+Integrationen forventer at scripts befinder sig i mappen `scripts` i en undermappe
+til integrationen selv, og alle scripts skal have en `ps_template` som filendelse.
+Den tekniske platform for afvikling af scripts er den samme som for den øvrige AD
+integration; scriptet sendes til remote management serveren, som afvikler scriptet.
+Bemærk at scripts i denne kategori ikke nødvendigvis behøver have direkte kontakt
+med AD, men vil kunne anvends til alle formål hvor der er behov for at afvikle
+PowerShell med værdier fra MO.
+
+
 Opsætning for lokal brug af integrationen
-=========================================
+-----------------------------------------
 
 Flere af værktøjerne i AD integrationen er udstyret med et kommandolinjeinterface,
 som kan anvendes til lokale tests. For at anvende dette er skal tre ting være på
@@ -233,15 +264,17 @@ Hvor betydniningen af de enkelte felter er angviet højere oppe i dokumentatione
 Felter som omhandler skolemdomænet er med vilje sat til blanke, da ingen af
 skriveintegrationerne på dette tidspunkter undestøtter dette.
 
-Når felterne er udfyldt kan den effektexures med kommandoen:
+Når felterne er udfyldt kan indstillingerne effektures med kommandoen:
 
 ::
+
    source <filnavn>
 
 Det skal nu oprettes et lokalt afviklingsmiljø. Dette gøres ved at klone git
 projektet i en lokal mappe og oprette et lokal python miljø:
 
 ::
+
    git clone https://github.com/OS2mo/os2mo-data-import-and-export
    cd os2mo-data-import-and-export
    python3 -m venv venv
@@ -254,23 +287,130 @@ Der findes desværre i den nuærende udgave af `pywinrm` en fejl som gør det n�
 at lave en rettelse direkte i en lokal installeret fil.
 
 ::
+
    nano venv/lib/python3.5/site-packages/winrm/__init__.py
 
 Ret linjen:
 
 ::
+
    rs.std_err = self._clean_error_msg(rs.std_err)
 
 Til:
 
 ::
+
    rs.std_err = self._clean_error_msg(rs.std_err.decode('utf-8'))
 
 
 For at bekræfte at alt er på plads, findes et værktøj til at teste kommunikationen:
 
 ::
+
    cd integrations/ad_integration
    python test_connectivity.py
 
 Hvis dette returnerer med ordet 'success' er integrationen klar til brug.
+
+
+Anvendelse af kommondolinjeværktøjer
+------------------------------------
+
+Følgende funktionaliteter har deres eget kommandolinjeværktøj som gør det muligt at
+anvende dem uden at rette direkte i Python koden:
+
+ * ``ad_writer.py``
+ * ``execute_ad_script.py``
+ * ``user_names.py``
+
+For user names kræves der dog en del forudsætninger som gør at kommandolinjeværktøjet
+ikke praksis har brugbar funktionalitet endnu.
+
+ad_writer.py
+++++++++++++
+
+Dette værktøj har følgende muligheder:
+
+::
+
+   usage: ad_writer.py [-h]
+                    [--create-user-with-manager MO uuid |
+		    --create-user MO uuid |
+		    --sync-user MO uuid | --delete-user User SAM |
+		    --read-ad-information User SAM |
+		    --add-manager-to-user ManagerSAM UserSAM]
+
+De forskellige muligheder gennemgås her en ad gangen:
+ * --create-user-with-manager MO uuid
+
+   Eksempel: python ad_writer-py --create-user-with-manager 4931ddb6-5084-45d6-9fb2-52ff33998005
+
+   Denne kommando vil oprette en ny AD bruger ved hjælp af de informationer der er
+   findes om brugeren i MO. De relevante felter i AD vil blive udfyld i henhold til
+   den lokale feltmapning, og der vil blive oprettet et link til AD kontoen for
+   lederen af medarbejderens primære ansættelse. Hvis det ikke er muligt at finde
+   en leder, vil integrationen standse med en `ManagerNotUniqueFromCprException`.
+
+ * --create-user MO uuid
+
+   Eksempel: python ad_writer-py --create-user 4931ddb6-5084-45d6-9fb2-52ff33998005
+
+   Som ovenfor men i dette tilfælde oprettes der ikke et link til lederens AD konto.
+
+ * --sync-user MO uuid
+
+   Eksempel: python ad_writer-py --sync-user 4931ddb6-5084-45d6-9fb2-52ff33998005
+
+   Synkroiser oplysninger fra MO til en allerede eksisterende AD konto.
+
+ * --delete-user Uer SAM
+
+   Eksempel: python ad_writer-py --delete-user MGORE
+
+   Slet den pågældende AD bruger. Denne funktion anvendes hovedsageligt til tests,
+   da et driftmiljø typisk vil have en mere kompliceret procedure for sletning af
+   brugere.
+
+ * --read-ad-information User SAM
+
+   Eksempel: python ad_writer-py --read-ad-information MGORE
+
+   Returnere de AD oplysninger fra AD som integrationen i øjeblikket er konfigureret
+   til at læse. Det er altså en delmængde af disse oplysninger som vil blive
+   skrevet til MO af synkroniseringsværktøjet. Funktionen er primært nyttig til
+   udvikling og fejlfinding.
+
+ * --add-manager-to-user ManagerSAM UserSAM
+
+   Eksempel: python ad_writer-py --add-manager-to-user DMILL MGORE
+
+   Udfylder brugerens ``manager`` felt med et link til AD kontoen der hører til
+   ManagerSAM.
+
+
+execute_ad_script.py
+++++++++++++++++++++
+
+Dette værktøj har følgende muligheder:
+
+::
+
+   usage: execute_ad_script.py [-h]
+                               [--validate-script Script name |
+			       --execute-script Script name user_uuid]
+
+De forskellige muligheder gennemgås her en ad gangen:
+ * --validate-script Script name
+
+   Eksempel: python ad_writer-py --validate-script send_email
+
+   Denne kommando vil lede efter en skabelon i ``scripts/send_email.ps_template`` og
+   validere at skabelonen kun indeholder gyldige nøgleværdier. Hvis dette er
+   tilfældet returneres sætningen "Script is valid" og ellers returneres en
+   fejlbesked som beskriver hvilke ugyldige nøgler der er fundet i skabelonen.
+
+ * --execute-script Script name user_uuid
+   Eksempel: python execute_ad_script.py --execute-script send_email 4931ddb6-5084-45d6-9fb2-52ff33998005
+
+   Denne kommando vil finde en skabelon i ``scripts/send_email.ps_template`` og først
+   validere og derefter afvikle de med værdier taget fra brugen med uuid som angivet.
