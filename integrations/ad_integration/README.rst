@@ -333,7 +333,7 @@ Dette værktøj har føljende muligheder:
 
 ::
 
-usage: ad_writer.py [-h]
+   usage: ad_writer.py [-h]
                     [--create-user-with-manager MO uuid | --create-user MO uuid |
 		    --sync-user MO uuid | --delete-user User SAM | --read-ad-information User SAM |
 		    --add-manager-to-user ManagerSAM UserSAM]
