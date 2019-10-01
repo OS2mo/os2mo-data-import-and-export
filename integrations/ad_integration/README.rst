@@ -182,3 +182,95 @@ alle AD brugere. Hver enkelt bruger slås op i MO via feltet `AD_WRITE_UUID` og
 informatione fra MO synkroniseres til AD.
 
 
+Opsætning for lokal brug af integrationen
+=========================================
+
+Flere af værktøjerne i AD integrationen er udstyret med et kommandolinjeinterface,
+som kan anvendes til lokale tests. For at anvende dette er skal tre ting være på
+plads i det lokale miljø:
+
+ 1. En lokal bruger med passende opsætning af kerberos til at kunne tilgå remote
+    management serveren.
+ 2. De nødvendige miljøvariable med settings.
+ 3. Et lokalt pythonmiljø med passende afhængigheder
+
+Angående punkt 1 skal dette opsættes af den lokale IT organisation, hvis man
+har fulgt denne dokumentation så langt som til dette punkt, er der en god
+sandsynlighed for at befinder sig et miljø, hvor dette allerede er på plads.
+
+Punkt 2 gøres til lokale tests lettest ved at oprette en shell fil, som opretter de
+nøvdendige miljøvarible.
+
+::
+
+   export AD_SYSTEM_USER=
+   export AD_PASSWORD=
+   export AD_SERVERS=
+   export AD_SEARCH_BASE=
+
+   export AD_WRITE_UUID=
+   export AD_WRITE_FORVALTNING=
+   export AD_WRITE_ORG=
+   export AD_CPR_FIELD=
+   export AD_PROPERTIES=
+
+   export AD_SCHOOL_SYSTEM_USER=""
+   export AD_SCHOOL_PASSWORD=""
+   export AD_SCHOOL_PROPERTIES=""
+
+   export WINRM_HOST=
+
+   export MORA_BASE=http://localhost:5000
+   export MOX_BASE=http://localhost:8080
+   export SAML_TOKEN=
+
+   export VISIBLE_CLASS=''
+   export SECRET_CLASS=''
+   export PRIMARY_ENGAGEMENT_TYPE=
+   export FORVALTNING_TYPE=
+
+Hvor betydniningen af de enkelte felter er angviet højere oppe i dokumentationen.
+Felter som omhandler skolemdomænet er med vilje sat til blanke, da ingen af
+skriveintegrationerne på dette tidspunkter undestøtter dette.
+
+Når felterne er udfyldt kan den effektexures med kommandoen:
+
+ ::
+    source <filnavn>
+
+Det skal nu oprettes et lokalt afviklingsmiljø. Dette gøres ved at klone git
+projektet i en lokal mappe og oprette et lokal python miljø:
+
+ ::
+    git clone https://github.com/OS2mo/os2mo-data-import-and-export
+    cd os2mo-data-import-and-export
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install --upgrade pip
+    pip install os2mo_data_import
+    pip install pywinrm[kerberos]
+
+Der findes desværre i den nuærende udgave af `pywinrm` en fejl som gør det nødvendigt
+at lave en rettelse direkte i en lokal installeret fil.
+
+ ::
+    nano venv/lib/python3.5/site-packages/winrm/__init__.py
+
+Ret linjen:
+
+ ::
+    rs.std_err = self._clean_error_msg(rs.std_err)
+
+Til:
+
+ ::
+    rs.std_err = self._clean_error_msg(rs.std_err.decode('utf-8'))
+
+
+For at bekræfte at alt er på plads, findes et værktøj til at teste kommunikationen:
+
+ ::
+    cd integrations/ad_integration
+    python test_connectivity.py
+
+Hvis dette returnerer med ordet 'success' er integrationen klar til brug.
