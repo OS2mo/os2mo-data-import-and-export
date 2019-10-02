@@ -83,7 +83,7 @@ class ADExecute(ADWriter):
         return (True, '')
 
     def fill_script_template(self, mo_user_uuid):
-        mo_info = self.read_ad_informaion_from_mo(mo_user_uuid, read_manager=True)
+        mo_info = self.read_ad_information_from_mo(mo_user_uuid, read_manager=True)
         ad_user = self.get_from_ad(cpr=mo_info['cpr'])
         user_sam = ad_user[0]['SamAccountName']
 
