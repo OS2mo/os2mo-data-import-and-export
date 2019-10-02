@@ -160,11 +160,31 @@ class ChangeAtSD(object):
             person_changed = [person_changed]
         return person_changed
 
-    def update_changed_persons(self):
-        # Så vidt vi ved, består person_changed af navn, cpr nummer og ansættelser.
+    def read_person(self, cpr):
+        params = {
+            'EffectiveDate': self.from_date.strftime('%d.%m.%Y'),
+            'PersonCivilRegistrationIdentifier': cpr,
+            'StatusActiveIndicator': 'True',
+            'StatusPassiveIndicator': 'false',
+            'ContactInformationIndicator': 'false',
+            'PostalAddressIndicator': 'false'
+        }
+        url = 'GetPerson20111201'
+        response = sd_common.sd_lookup(url, params=params)
+        person = response.get('Person', [])
+
+        if not isinstance(person, list):
+            person = [person]
+        return person
+
+    def update_changed_persons(self, cpr=None):
         # Ansættelser håndteres af update_employment, så vi tjekker for ændringer i
         # navn og opdaterer disse poster. Nye personer oprettes.
-        person_changed = self.read_person_changed()
+        if cpr is not None:
+            person_changed = self.read_person(cpr)
+        else:
+            person_changed = self.read_person_changed()
+
         logger.info('Number of changed persons: {}'.format(len(person_changed)))
         for person in person_changed:
             cpr = person['PersonCivilRegistrationIdentifier']
@@ -688,12 +708,23 @@ class ChangeAtSD(object):
 
             if not self.mo_person:
                 for employment_info in sd_engagement:
-                    assert (employment_info['EmploymentStatus']
-                            ['EmploymentStatusCode']) in ('S', '7', '8')
-                logger.warning(
-                    'Employment deleted or ended before initial import.'
-                )
-                continue
+                    if (
+                            (employment_info['EmploymentStatus']
+                             ['EmploymentStatusCode'])
+                            in ('S', '7', '8')
+                    ):
+                        logger.warning(
+                            'Employment deleted or ended before initial import.'
+                        )
+                        continue
+                    else:
+                        logger.warning('This person should be in MO, but is not')
+                        self.update_changed_persons(cpr=cpr)
+                        self.mo_person = self.helper.read_user(
+                            user_cpr=cpr,
+                            org_uuid=self.org_uuid
+                        )
+                        self.updater.set_current_person(mo_person=self.mo_person)
 
             self.mo_engagement = self.helper.read_user_engagement(
                 self.mo_person['uuid'],
