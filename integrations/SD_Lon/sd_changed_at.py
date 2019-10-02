@@ -395,7 +395,7 @@ class ChangeAtSD(object):
         self._update_professions(emp_name)
 
         if status['EmploymentStatusCode'] == '0':
-            engagement_type = self.eng_types['no_sallery']
+            engagement_type = self.eng_types['no_salary']
         else:
             engagement_type = self.eng_types['non_primary']
 
