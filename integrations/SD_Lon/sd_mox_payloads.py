@@ -97,7 +97,7 @@ def _create_attribut_items(virkning, attributes):
     return attribute_items
 
 
-def attributes_ret(virkning, unit_code, funktionskode=None,
+def attributes_ret(virkning, funktionskode=None,
                    skolekode=None, tidsregistrering=None, unit_name=None):
     attributes = {}
 
