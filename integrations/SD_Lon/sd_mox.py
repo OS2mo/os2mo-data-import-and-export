@@ -7,7 +7,7 @@ import datetime
 import xmltodict
 from integrations.SD_Lon.sd_logging import start_logging
 from integrations.SD_Lon import sd_mox_payloads as smp
-from integrations.SD_Lon.sd_common import SD
+from integrations.SD_Lon.sd import SD
 
 
 from collections import OrderedDict
@@ -156,8 +156,8 @@ class sdMox(object):
         agains the global from_date.
         :param department: An SD department as returned by read_department().
         :param name: Expected name.
-        :param unit_code: Expexted unit code.
-        :param unit_uuid: Exptected uunit.
+        :param unit_code: Expected unit code.
+        :param unit_uuid: Expected uunit.
         :return: Returns list errors, empty list if no errors.
         """
         from_date = self.virkning['sd:FraTidspunkt']['sd:TidsstempelDatoTid'][0:10]
@@ -199,7 +199,7 @@ class sdMox(object):
         xml = xmltodict.unparse(edit_dict)
         return xml
 
-    def _create_xml_ret(self, unit_uuid, name):
+    def _model_create_xml_ret(self, unit_uuid, name):
         value_dict = {
             'RelationListe': smp.relations_ret(
                 self.virkning,
@@ -215,6 +215,33 @@ class sdMox(object):
                                                 unit_name=name),
             'Registrering': smp.create_registrering(self.virkning,
                                                     registry_type='Rettet'),
+            'ObjektID': smp.create_objekt_id(unit_uuid)
+        }
+        edit_dict = {'RegistreringBesked': value_dict}
+        edit_dict['RegistreringBesked'].update(smp.boilerplate)
+        xml = xmltodict.unparse(edit_dict)
+        return xml
+
+    def _create_xml_ret(self, unit_uuid, unit_code, name, pnummer=None,
+                        phone=None, adresse=None, integration_values=None):
+        value_dict = {
+            'RelationListe': smp.relations_ret(
+                self.virkning,
+                pnummer=pnummer,
+                phone=phone,
+                adresse=adresse,
+            ),
+            'AttributListe': smp.attributes_ret(
+                self.virkning,
+            #   funktionskode=integration_values["formaalskode"],
+            #   skolekode=integration_values["skolekode"],
+            #   tidsregistrering=integration_values["time_planning"],
+                unit_name=name,
+            ),
+            'Registrering': smp.create_registrering(
+                self.virkning,
+                registry_type='Rettet'
+            ),
             'ObjektID': smp.create_objekt_id(unit_uuid)
         }
         edit_dict = {'RegistreringBesked': value_dict}
@@ -321,15 +348,24 @@ class sdMox(object):
             self.call(xml)
         return unit_uuid
 
-    def edit_unit(self, unit_uuid, phone=None, pnummer=None, address=None,
-                  integration_values=None):
-        print('I want to edit:')
-        print('Phone: {}'.format(phone))
-        print('pnummer: {}'.format(pnummer))
-        print()
-        print('address: {}'.format(address))
-        print()
-        print('Integration values: {}'.format(integration_values))
+    def edit_unit(self, unit_uuid, unit_code, name, phone=None, pnummer=None, adresse=None,
+                  integration_values=None, test_run=True):
+
+        xml = self._create_xml_ret(
+            name=name,
+            unit_uuid=unit_uuid,
+            unit_code=unit_code,
+            phone=phone,
+            pnummer=pnummer,
+            adresse=adresse,
+            integration_values=integration_values
+        )
+        logger.debug('Edit unit xml: {}'.format(xml))
+        if not test_run:
+            print('Calling amqp')
+            logger.info('Edit unit {}, {}, {}'.format(name, unit_code, unit_uuid))
+            self.call(xml)
+        return unit_uuid
 
     def payload_create(self, unit_uuid, unit, parent):
         unit_level = self.level_by_uuid.get(unit["org_unit_type"]["uuid"])
@@ -365,13 +401,14 @@ class sdMox(object):
 
 
     def payload_edit(self, unit_uuid, unit, addresses):
-
         scoped, keyed = self.grouped_addresses(addresses)
         return {
+            "name": unit["name"],
+            "unit_code": unit['user_key'],
             "unit_uuid": unit_uuid,
             "phone" : scoped.get("PHONE", [None])[0],
             "pnummer": scoped.get("PNUMBER", [None])[0],
-            "address": self._mo_to_sd_address(scoped.get("DAR", [None])[0]),
+            "adresse": self._mo_to_sd_address(scoped.get("DAR", [None])[0]),
             "integration_values": {
                 'time_planning': unit.get('time_planning', None),
                 'formaalskode': keyed.get("Formålskode", [None])[0],
@@ -415,7 +452,7 @@ class sdMox(object):
                 logger.error(msg)
             return False
 
-        integration_addresses = self.mh._mo_lookup( unit_uuid, 'ou/{}/details/address')
+        integration_addresses = self.mh._mo_lookup(unit_uuid, 'ou/{}/details/address')
         unit_edit_payload = self.payload_edit(
             unit_uuid,
             unit_info,
