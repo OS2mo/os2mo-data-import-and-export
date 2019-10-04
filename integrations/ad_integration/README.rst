@@ -119,10 +119,9 @@ skal være sat når programmet afvikles:
    den forvaltning hvor medarbejderen har sin primære ansættelse.
  * ``AD_WRITE_ORG``: Navnet på det felt i AD, hvor MO skriver enhedshierakiet for
    den enhed, hvor medarbejderen har sin primære ansættelse.
- * ``PRIMARY_ENGAGEMENT_TYPE``: uuid på den ansættelsesklasse som markerer en
-   primær ansættelse. Denne parameter vil i løbet af udvilingen blive generaliseret
-   til en sorteret liste over forskellige engagementstyper som kan anses som
-   primære.
+ * ``PRIMARY_ENGAGEMENT_TYPES``: Sorteret lister over uuid'er på de ansættelsestyper
+   som markerer en primær ansættelse. Jo tidligere et engagement står i listen, jo
+   mere primært anses det for at være.
  * ``FORVALTNING_TYPE``: uuid på den enhedstype som angiver at enheden er på
    forvaltingsnieau og derfor skal skrives i feltet angivet i
    ``AD_WRITE_FORVALTNING``.
