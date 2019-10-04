@@ -446,11 +446,18 @@ class ChangeAtSD(object):
             logger.warning('Terminating non-existing job: {}!'.format(job_id))
             return False
 
+        # In MO, the termination date is the late day of work, this
+        # in SD it is the first day of non-work.
+        date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
+        terminate_datetime = date - datetime.timedelta(days=1)
+        terminate_date = terminate_datetime.strftime('%Y-%m-%d')
+
         payload = {
             'type': 'engagement',
             'uuid': mo_engagement['uuid'],
-            'validity': {'to': from_date}
+            'validity': {'to': terminate_date}
         }
+
         logger.debug('Terminate payload: {}'.format(payload))
         response = self.helper._mo_post('details/terminate', payload)
         logger.debug('Terminate response: {}'.format(response.text))
