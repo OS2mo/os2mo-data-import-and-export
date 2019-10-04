@@ -11,21 +11,21 @@ SD Mox trigger.module
 """
 
 import logging
-import pathlib
 import datetime
-import sys
 import json
 import requests
 
-# OS2MO imports
-from mora.triggers import Trigger
+try:
+    import customer
+    import pathlib
+    import sys
+    custpath = pathlib.Path(customer.__file__).parent
+    sys.path.append(str(custpath))
+except:
+    # we must be testing
+    pass
 
-# os2mo-data-import-and-export imports
-import customer
-custpath = pathlib.Path(customer.__file__).parent
-sys.path.append(str(custpath))
-
-from customer.integrations.SD_Lon import (
+from integrations.SD_Lon import (
     sd_mox,
     sd_logging,
     sd_common
@@ -80,7 +80,6 @@ def get_sdMox():
 def sd_mox_pretriggered(data):
     """ This is the function that is called with data from the handler module
     """
-
     # see if some parent uuid demands the trigger be run
     is_sd_triggered = False
     p = parent = mo_request("ou/" + data["request"]["parent"]["uuid"]).json()
@@ -103,7 +102,7 @@ def sd_mox_pretriggered(data):
     mox._update_virkning(from_date)
 
     payload = mox.payload_create(data["uuid"], data["request"], parent)
-    mox.create_unit(test_run=False, **payload)
+    mox.create_unit(**payload, test_run=False)
 
 
 def sd_mox_posttriggered(data):
@@ -130,11 +129,12 @@ def sd_mox_posttriggered(data):
 
     addresses = mo_request("ou/" + data["uuid"] + "/details/address").json()
     payload = mox.payload_edit(data["uuid"], unit, addresses)
-    mox.edit_unit(**payload)
+    mox.edit_unit(**payload, test_run=False)
 
 
 def register(app):
     read_config(app)
+    from mora.triggers import Trigger
 
     Trigger.on(
         Trigger.ORG_UNIT,
