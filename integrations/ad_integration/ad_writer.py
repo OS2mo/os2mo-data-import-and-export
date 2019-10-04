@@ -1,9 +1,12 @@
 import os
+import sys
 import time
 import random
 import logging
 import datetime
 import argparse
+
+from uuid import UUID
 
 import ad_logger
 import ad_templates
@@ -17,13 +20,26 @@ from os2mo_helpers.mora_helpers import MoraHelper
 logger = logging.getLogger("AdWriter")
 
 MORA_BASE = os.environ.get('MORA_BASE')
-PRIMARY_ENGAGEMENT_TYPE = os.environ.get('PRIMARY_ENGAGEMENT_TYPE')
 FORVALTNING_TYPE = os.environ.get('FORVALTNING_TYPE')
+PRIMARY_ENGAGEMENT_LIST = os.environ.get('PRIMARY_ENGAGEMENT_TYPES', '')
 
 
-if MORA_BASE is None or PRIMARY_ENGAGEMENT_TYPE is None:
+# These checks could in principle go to a common configuration checker
+if not PRIMARY_ENGAGEMENT_LIST == '':
+    PRIMARY_ENGAGEMENT_TYPES = PRIMARY_ENGAGEMENT_LIST.split(' ')
+else:
     msg = 'Configuration error: MORA_BASE: {}, PRIMARY_ENGAGEMENT_TYPE: {}'
-    raise Exception(msg.format(MORA_BASE, PRIMARY_ENGAGEMENT_TYPE))
+    raise Exception(msg.format(MORA_BASE, PRIMARY_ENGAGEMENT_LIST))
+
+for prim_eng in PRIMARY_ENGAGEMENT_TYPES:
+    try:
+        UUID(prim_eng, version=4)
+    except ValueError:
+        raise Exception('Illegal uuid in primary engagement list')
+
+if MORA_BASE is None:
+    msg = 'Configuration error: MORA_BASE: {}, PRIMARY_ENGAGEMENT_TYPE: {}'
+    raise Exception(msg.format(MORA_BASE, PRIMARY_ENGAGEMENT_TYPES))
 
 
 def _random_password(length=12):
@@ -37,6 +53,7 @@ class ADWriter(AD):
     def __init__(self):
         super().__init__()
 
+        self.pet = PRIMARY_ENGAGEMENT_TYPES
         self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
         self.name_creator = CreateUserNames(occupied_names=set())
         logger.info('Reading occupied names')
@@ -133,24 +150,25 @@ class ADWriter(AD):
 
         engagements = self.helper.read_user_engagement(uuid)
 
-        found_primary = False
+        primary_index = sys.maxsize
         for engagement in engagements:
-            # TODO: Very soon  PRIMARY_ENGAGEMENT_TYPE will be a list
-            if engagement['engagement_type']['uuid'] == PRIMARY_ENGAGEMENT_TYPE:
-                found_primary = True
+            # TODO: Do not pick any primary, we must choose the very most primary
+            uuid = engagement['engagement_type']['uuid']
+            if uuid in self.pet and self.pet.index(uuid) < primary_index:
+                primary_index = self.pet.index(uuid)
                 employment_number = engagement['user_key']
                 title = engagement['job_function']['name']
                 end_date = engagement['validity']['to']
                 if end_date is None:
                     end_date = '9999-12-31'
-                break
 
-        if not found_primary:
+        if not primary_index < sys.maxsize:
             raise ad_exceptions.NoPrimaryEngagementException('User: {}'.format(uuid))
 
+        # Now, calculate final end date for any primary engagement
         future_engagements = self.helper.read_user_engagement(uuid, read_all=True)
         for eng in future_engagements:
-            if engagement['engagement_type']['uuid'] == PRIMARY_ENGAGEMENT_TYPE:
+            if engagement['engagement_type']['uuid'] in PRIMARY_ENGAGEMENT_TYPES:
                 current_end = eng['validity']['to']
                 if current_end is None:
                     current_end = '9999-12-31'
