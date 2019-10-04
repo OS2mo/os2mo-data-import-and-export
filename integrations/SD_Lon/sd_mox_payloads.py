@@ -86,7 +86,7 @@ def relations_import(virkning, parent):
 
 def _create_attribut_items(virkning, attributes):
     attribute_items = []
-    for key, value in attributes.items():
+    for key, value in sorted(attributes.items()):
         attribute_items.append(
             {
                 'sd:Virkning': virkning,
