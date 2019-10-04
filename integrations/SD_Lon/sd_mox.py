@@ -34,7 +34,6 @@ class sdMox(object):
             self.virtual_host = cfg["VIRTUAL_HOST"]
             self.amqp_host = cfg["AMQP_HOST"]
             self.amqp_port = cfg["AMQP_PORT"]
-            self._init_amqp_comm()
         except Exception as e:
             logger.exception("SD AMQP credentials missing")
             raise
@@ -69,7 +68,7 @@ class sdMox(object):
 
 
 
-    def _init_amqp_comm(self):
+    def amqp_connect(self):
         self.exchange_name = 'org-struktur-changes-topic'
         credentials = pika.PlainCredentials(self.amqp_user, self.amqp_password)
         # parameters = pika.ConnectionParameters(host='msg-amqp.silkeborgdata.dk',
@@ -402,6 +401,12 @@ class sdMox(object):
 
     def payload_edit(self, unit_uuid, unit, addresses):
         scoped, keyed = self.grouped_addresses(addresses)
+
+        # if time planning exists, it must be in self.arbtitd
+        time_planning = unit.get('time_planning',None)
+        if time_planning:
+            time_planning = self.arbtid_by_uuid[time_planning]
+
         return {
             "name": unit["name"],
             "unit_code": unit['user_key'],
@@ -410,7 +415,7 @@ class sdMox(object):
             "pnummer": scoped.get("PNUMBER", [None])[0],
             "adresse": self._mo_to_sd_address(scoped.get("DAR", [None])[0]),
             "integration_values": {
-                'time_planning': unit.get('time_planning', None),
+                'time_planning': time_planning,
                 'formaalskode': keyed.get("Formålskode", [None])[0],
                 'skolekode': keyed.get("Skolekode", [None])[0],
             }
@@ -425,7 +430,6 @@ class sdMox(object):
         logger.info('Create {} from MO, test run: {}'.format(unit_uuid, test_run))
         unit_info = mox.mh.read_ou(unit_uuid)
         logger.debug('Unit info: {}'.format(unit_info))
-
         from_date = datetime.datetime.strptime(
             unit_info['validity']['from'], '%Y-%m-%d'
         )
