@@ -70,7 +70,9 @@ def mo_request(service, method="get", **params):
 def get_sdMox():
     # instantiate integration object
     from_date = datetime.datetime(2019, 7, 1, 0, 0)
-    return sd_mox.sdMox(from_date, **sdmox_config)
+    mox = sd_mox.sdMox(from_date, **sdmox_config)
+    mox.amqp_connect()
+    return mox
 
 #def dummy(*args, **kwargs):
 #    return True
@@ -94,7 +96,6 @@ def sd_mox_pretriggered(data):
 
 
     # actual trigger code - create a unit in sd
-
     mox = get_sdMox()
     from_date = datetime.datetime.strptime(
         data["request"]['validity']['from'], '%Y-%m-%d'
