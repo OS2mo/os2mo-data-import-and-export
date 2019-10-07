@@ -328,6 +328,8 @@ class ADWriter(AD):
         create_user_string = self.remove_redundant(create_user_string)
         create_user_string += other_attributes
 
+        # TODO: Should we add UPN here or in user_script?
+
         ps_script = (
             self._build_user_credential(school) +
             create_user_string +
