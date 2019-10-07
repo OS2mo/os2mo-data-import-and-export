@@ -333,11 +333,11 @@ Dette værktøj har følgende muligheder:
 ::
 
    usage: ad_writer.py [-h]
-                    [--create-user-with-manager MO uuid |
-		    --create-user MO uuid |
-		    --sync-user MO uuid | --delete-user User SAM |
-		    --read-ad-information User SAM |
-		    --add-manager-to-user ManagerSAM UserSAM]
+                    [--create-user-with-manager MO_uuid |
+		    --create-user MO_uuid |
+		    --sync-user MO_uuid | --delete-user User_SAM |
+		    --read-ad-information User_SAM |
+		    --add-manager-to-user Manager_SAM User_SAM]
 
 De forskellige muligheder gennemgås her en ad gangen:
  * --create-user-with-manager MO uuid
@@ -350,19 +350,19 @@ De forskellige muligheder gennemgås her en ad gangen:
    lederen af medarbejderens primære ansættelse. Hvis det ikke er muligt at finde
    en leder, vil integrationen standse med en `ManagerNotUniqueFromCprException`.
 
- * --create-user MO uuid
+ * --create-user MO_uuid
 
    Eksempel: python ad_writer-py --create-user 4931ddb6-5084-45d6-9fb2-52ff33998005
 
    Som ovenfor men i dette tilfælde oprettes der ikke et link til lederens AD konto.
 
- * --sync-user MO uuid
+ * --sync-user MO_uuid
 
    Eksempel: python ad_writer-py --sync-user 4931ddb6-5084-45d6-9fb2-52ff33998005
 
    Synkroiser oplysninger fra MO til en allerede eksisterende AD konto.
 
- * --delete-user Uer SAM
+ * --delete-user User_SAM
 
    Eksempel: python ad_writer-py --delete-user MGORE
 
@@ -370,7 +370,7 @@ De forskellige muligheder gennemgås her en ad gangen:
    da et driftmiljø typisk vil have en mere kompliceret procedure for sletning af
    brugere.
 
- * --read-ad-information User SAM
+ * --read-ad-information User_SAM
 
    Eksempel: python ad_writer-py --read-ad-information MGORE
 
@@ -379,7 +379,7 @@ De forskellige muligheder gennemgås her en ad gangen:
    skrevet til MO af synkroniseringsværktøjet. Funktionen er primært nyttig til
    udvikling og fejlfinding.
 
- * --add-manager-to-user ManagerSAM UserSAM
+ * --add-manager-to-user Manager_SAM User_SAM
 
    Eksempel: python ad_writer-py --add-manager-to-user DMILL MGORE
 
@@ -399,7 +399,7 @@ Dette værktøj har følgende muligheder:
 			       --execute-script Script name user_uuid]
 
 De forskellige muligheder gennemgås her en ad gangen:
- * --validate-script Script name
+ * --validate-script Script_name
 
    Eksempel: python ad_writer-py --validate-script send_email
 
