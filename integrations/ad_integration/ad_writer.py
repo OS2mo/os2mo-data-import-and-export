@@ -421,16 +421,16 @@ class ADWriter(AD):
         """
         parser = argparse.ArgumentParser(description='AD Writer')
         group = parser.add_mutually_exclusive_group()
-        group.add_argument('--create-user-with-manager', nargs=1, metavar='MO uuid',
+        group.add_argument('--create-user-with-manager', nargs=1, metavar='MO_uuid',
                            help='Create a new user in AD, also assign a manager')
-        group.add_argument('--create-user', nargs=1, metavar='MO uuid',
+        group.add_argument('--create-user', nargs=1, metavar='MO_uuid',
                            help='Create a new user in AD, do not assign a manager')
         group.add_argument('--sync-user', nargs=1, metavar='MO uuid',
                            help='Sync relevant fields from MO to AD')
-        group.add_argument('--delete-user', nargs=1, metavar='User SAM')
-        group.add_argument('--read-ad-information', nargs=1, metavar='User SAM')
+        group.add_argument('--delete-user', nargs=1, metavar='User_SAM')
+        group.add_argument('--read-ad-information', nargs=1, metavar='User_SAM')
         group.add_argument('--add-manager-to-user',  nargs=2,
-                           metavar=('ManagerSAM', 'UserSAM'))
+                           metavar=('Manager_SAM', 'User_SAM'))
 
         args = vars(parser.parse_args())
 
@@ -462,8 +462,11 @@ class ADWriter(AD):
             print('AD information on user:')
             sam = args.get('read_ad_information')[0]
             user = self.get_from_ad(user=sam)
-            for key, value in sorted(user[0].items()):
-                print('{}: {}'.format(key, value))
+            if not user:
+                print('User not found')
+            else:
+                for key, value in sorted(user[0].items()):
+                    print('{}: {}'.format(key, value))
 
         if args.get('add_manager_to_user'):
             manager = args['add_manager_to_user'][0]
