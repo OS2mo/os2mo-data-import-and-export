@@ -438,6 +438,8 @@ class ADWriter(AD):
             print('Create_user_with_manager:')
             uuid = args.get('create_user_with_manager')[0]
             status = self.create_user(uuid, create_manager=True)
+            # TODO: execute custom script? Or should this be done in
+            # two steps.
             print(status[1])
 
         if args.get('create_user'):
