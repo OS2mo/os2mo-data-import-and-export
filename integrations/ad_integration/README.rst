@@ -279,7 +279,7 @@ projektet i en lokal mappe og oprette et lokal python miljø:
    python3 -m venv venv
    source venv/bin/activate
    pip install --upgrade pip
-   pip install os2mo_data_import
+   pip install os2mo_data_import/
    pip install pywinrm[kerberos]
 
 Der findes desværre i den nuærende udgave af `pywinrm` en fejl som gør det nødvendigt
