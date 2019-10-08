@@ -181,6 +181,9 @@ class MOPrimaryEngagementUpdater(object):
 
             fixed = None
             for eng in mo_engagement:
+                if not eng['engagement_type']:
+                    eng['engagement_type'] = {'uuid': self.eng_types['non_primary']}
+
                 if eng['engagement_type']['uuid'] == self.eng_types['fixed_primary']:
                     logger.info('Engagment {} is fixed primary'.format(eng['uuid']))
                     fixed = eng['uuid']
@@ -282,7 +285,7 @@ class MOPrimaryEngagementUpdater(object):
                            help='Check all users for a primary engagement')
         group.add_argument('--recalculate_all', nargs=1,
                            help='Recalculate all all users')
-        group.add_argument('--recalculate_user', nargs=1, metavar='MO uuid',
+        group.add_argument('--recalculate_user', nargs=1, metavar='MO_uuid',
                            help='Recalculate primaries for a user')
 
         args = vars(parser.parse_args())
