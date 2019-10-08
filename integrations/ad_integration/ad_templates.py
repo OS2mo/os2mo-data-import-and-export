@@ -28,7 +28,7 @@ New-ADUser
  -Name "{givenname} {surname} - {sam_account_name}"
  -Displayname "{givenname} {surname}"
  -GivenName "{givenname}"
- -SurName "{givenname} {surname}"
+ -SurName "{surname}"
  -SamAccountName "{sam_account_name}"
  -EmployeeNumber "{employment_number}"
  -Credential $usercredential

@@ -119,10 +119,9 @@ skal være sat når programmet afvikles:
    den forvaltning hvor medarbejderen har sin primære ansættelse.
  * ``AD_WRITE_ORG``: Navnet på det felt i AD, hvor MO skriver enhedshierakiet for
    den enhed, hvor medarbejderen har sin primære ansættelse.
- * ``PRIMARY_ENGAGEMENT_TYPE``: uuid på den ansættelsesklasse som markerer en
-   primær ansættelse. Denne parameter vil i løbet af udvilingen blive generaliseret
-   til en sorteret liste over forskellige engagementstyper som kan anses som
-   primære.
+ * ``PRIMARY_ENGAGEMENT_TYPES``: Sorteret lister over uuid'er på de ansættelsestyper
+   som markerer en primær ansættelse. Jo tidligere et engagement står i listen, jo
+   mere primært anses det for at være.
  * ``FORVALTNING_TYPE``: uuid på den enhedstype som angiver at enheden er på
    forvaltingsnieau og derfor skal skrives i feltet angivet i
    ``AD_WRITE_FORVALTNING``.
@@ -280,7 +279,7 @@ projektet i en lokal mappe og oprette et lokal python miljø:
    python3 -m venv venv
    source venv/bin/activate
    pip install --upgrade pip
-   pip install os2mo_data_import
+   pip install os2mo_data_import/
    pip install pywinrm[kerberos]
 
 Der findes desværre i den nuærende udgave af `pywinrm` en fejl som gør det nødvendigt
@@ -334,11 +333,11 @@ Dette værktøj har følgende muligheder:
 ::
 
    usage: ad_writer.py [-h]
-                    [--create-user-with-manager MO uuid |
-		    --create-user MO uuid |
-		    --sync-user MO uuid | --delete-user User SAM |
-		    --read-ad-information User SAM |
-		    --add-manager-to-user ManagerSAM UserSAM]
+                    [--create-user-with-manager MO_uuid |
+		    --create-user MO_uuid |
+		    --sync-user MO_uuid | --delete-user User_SAM |
+		    --read-ad-information User_SAM |
+		    --add-manager-to-user Manager_SAM User_SAM]
 
 De forskellige muligheder gennemgås her en ad gangen:
  * --create-user-with-manager MO uuid
@@ -351,19 +350,19 @@ De forskellige muligheder gennemgås her en ad gangen:
    lederen af medarbejderens primære ansættelse. Hvis det ikke er muligt at finde
    en leder, vil integrationen standse med en `ManagerNotUniqueFromCprException`.
 
- * --create-user MO uuid
+ * --create-user MO_uuid
 
    Eksempel: python ad_writer-py --create-user 4931ddb6-5084-45d6-9fb2-52ff33998005
 
    Som ovenfor men i dette tilfælde oprettes der ikke et link til lederens AD konto.
 
- * --sync-user MO uuid
+ * --sync-user MO_uuid
 
    Eksempel: python ad_writer-py --sync-user 4931ddb6-5084-45d6-9fb2-52ff33998005
 
    Synkroiser oplysninger fra MO til en allerede eksisterende AD konto.
 
- * --delete-user Uer SAM
+ * --delete-user User_SAM
 
    Eksempel: python ad_writer-py --delete-user MGORE
 
@@ -371,7 +370,7 @@ De forskellige muligheder gennemgås her en ad gangen:
    da et driftmiljø typisk vil have en mere kompliceret procedure for sletning af
    brugere.
 
- * --read-ad-information User SAM
+ * --read-ad-information User_SAM
 
    Eksempel: python ad_writer-py --read-ad-information MGORE
 
@@ -380,7 +379,7 @@ De forskellige muligheder gennemgås her en ad gangen:
    skrevet til MO af synkroniseringsværktøjet. Funktionen er primært nyttig til
    udvikling og fejlfinding.
 
- * --add-manager-to-user ManagerSAM UserSAM
+ * --add-manager-to-user Manager_SAM User_SAM
 
    Eksempel: python ad_writer-py --add-manager-to-user DMILL MGORE
 
@@ -400,7 +399,7 @@ Dette værktøj har følgende muligheder:
 			       --execute-script Script name user_uuid]
 
 De forskellige muligheder gennemgås her en ad gangen:
- * --validate-script Script name
+ * --validate-script Script_name
 
    Eksempel: python ad_writer-py --validate-script send_email
 
