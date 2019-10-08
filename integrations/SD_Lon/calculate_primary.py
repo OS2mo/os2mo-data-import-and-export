@@ -182,6 +182,8 @@ class MOPrimaryEngagementUpdater(object):
             fixed = None
             for eng in mo_engagement:
                 if not eng['engagement_type']:
+                    # Todo: It would seems this happens for leaves, should we make
+                    # a special type for this?
                     eng['engagement_type'] = {'uuid': self.eng_types['non_primary']}
 
                 if eng['engagement_type']['uuid'] == self.eng_types['fixed_primary']:
