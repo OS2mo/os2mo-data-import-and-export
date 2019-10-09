@@ -361,6 +361,8 @@ class SdImport(object):
         }
         params['EffectiveDate'] = self.import_date
         people = sd_lookup('GetPerson20111201', params)
+        if not isinstance(people['Person'], list):
+            people['Person'] = [people['Person']]
 
         for person in people['Person']:
             cpr = person['PersonCivilRegistrationIdentifier']
@@ -468,10 +470,13 @@ class SdImport(object):
         }
         logger.info('Create emplyoees')
         persons = sd_lookup('GetEmployment20111201', params)
+        if not isinstance(persons['Person'], list):
+            persons['Person'] = [persons['Person']]
         self._create_employees(persons)
 
     def _create_employees(self, persons):
         for person in persons['Person']:
+            logger.debug('Person object to create: {}'.format(person))
             cpr = person['PersonCivilRegistrationIdentifier']
             if cpr[-4:] == '0000':
                 logger.warning('Skipping fictional user: {}'.format(cpr))
@@ -585,6 +590,12 @@ class SdImport(object):
                     date_to = None
                 else:
                     date_to = datetime.datetime.strftime(date_to, "%Y-%m-%d")
+
+                logger.info('Validty for {}: from: {}, to: {}'.format(
+                    employment_id['id'],
+                    date_from,
+                    date_to
+                ))
 
                 # Employees are not allowed to be in these units (allthough
                 # we do make an association). We must instead find the lowest
