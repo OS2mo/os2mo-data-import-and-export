@@ -723,7 +723,6 @@ class ChangeAtSD(object):
                         logger.warning(
                             'Employment deleted or ended before initial import.'
                         )
-                        continue
                     else:
                         logger.warning('This person should be in MO, but is not')
                         self.update_changed_persons(cpr=cpr)
@@ -733,15 +732,16 @@ class ChangeAtSD(object):
                         )
                         self.updater.set_current_person(mo_person=self.mo_person)
 
-            self.mo_engagement = self.helper.read_user_engagement(
-                self.mo_person['uuid'],
-                read_all=True,
-                only_primary=True,
-                use_cache=False
-            )
-            self._update_user_employments(cpr, sd_engagement)
-            # Re-calculate primary after all updates for user has been performed.
-            self.updater.recalculate_primary()
+            if self.mo_person:
+                self.mo_engagement = self.helper.read_user_engagement(
+                    self.mo_person['uuid'],
+                    read_all=True,
+                    only_primary=True,
+                    use_cache=False
+                )
+                self._update_user_employments(cpr, sd_engagement)
+                # Re-calculate primary after all updates for user has been performed.
+                self.updater.recalculate_primary()
 
 
 def _local_db_insert(insert_tuple):
