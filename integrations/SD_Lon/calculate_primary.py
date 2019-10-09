@@ -219,6 +219,7 @@ class MOPrimaryEngagementUpdater(object):
                         'validity': validity
                     }
                     payload = sd_payloads.engagement(data, eng)
+                    logger.debug('Status0 edit payload: {}'.format(payload))
                     response = self.helper._mo_post('details/edit', payload)
                     assert response.status_code == 200
                     logger.info('Status0 fixed')
