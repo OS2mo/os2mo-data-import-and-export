@@ -44,7 +44,7 @@ class TestAdWriter(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         self.ad_writer = ADWriter()
-        self.ad_writer.read_ad_informaion_from_mo = read_mo_info
+        self.ad_writer.read_ad_information_from_mo = read_mo_info
         self.ad_writer._run_ps_script = return_ps_script
         self.ad_writer.get_from_ad = get_from_ad
 
@@ -91,11 +91,11 @@ class TestAdWriter(unittest.TestCase):
 
         expected_content = [
             'New-ADUser',
-            '-Name "Martin Lee Gore - MLEGO"',
+            '-Name "Martin Lee Gore - mlego"',
             '-Displayname "Martin Lee Gore"',
             '-GivenName "Martin Lee"',
             '-SurName "Martin Lee Gore"',
-            '-SamAccountName "MLEGO"',
+            '-SamAccountName "mlego"',
             '-EmployeeNumber "101"',
             '-Credential $usercredential',
             '"xAutoritativForvaltning"="Beskæftigelse, Økonomi og Personale"',
@@ -109,7 +109,7 @@ class TestAdWriter(unittest.TestCase):
             self.assertTrue(line.find(content) > -1)
 
     def test_add_manager(self):
-        user = self.ad_writer.read_ad_informaion_from_mo(uuid='0', read_manager=True)
+        user = self.ad_writer.read_ad_information_from_mo(uuid='0', read_manager=True)
 
         self.ad_writer.add_manager_to_user('MGORE', manager_sam=user['manager_sam'])
         manager_script = test_responses['ps_script']

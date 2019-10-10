@@ -40,13 +40,6 @@ logging.basicConfig(
 )
 
 
-INSTITUTION_IDENTIFIER = os.environ.get('INSTITUTION_IDENTIFIER')
-SD_USER = os.environ.get('SD_USER', None)
-SD_PASSWORD = os.environ.get('SD_PASSWORD', None)
-if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
-    raise Exception('Credentials missing')
-
-
 class SdImport(object):
     def __init__(self, importer, org_name, municipality_code,
                  import_date_from, ad_info=None, org_only=False,
@@ -132,6 +125,7 @@ class SdImport(object):
         self._add_klasse('Ansat', 'Ansat', 'engagement_type')
         self._add_klasse('status0', 'Ansat - Ikke i løn', 'engagement_type')
         self._add_klasse('non-primary', 'Ikke-primær ansættelse', 'engagement_type')
+        self._add_klasse('explicitly-primary', 'Manuelt primær ansættelse', 'engagement_type')
 
         self._add_klasse('SD-medarbejder', 'SD-medarbejder', 'association_type')
 
@@ -411,6 +405,9 @@ class SdImport(object):
                     date_from=None
                 )
 
+            # NOTICE: This will soon be removed and replaced with the
+            # AD-sync functionality which will sync all and just a few
+            # magic fields.
             phone = self.ad_people[cpr].get('MobilePhone')
             if phone:
                 self.importer.add_address_type(
@@ -486,7 +483,7 @@ class SdImport(object):
             if not isinstance(employments, list):
                 employments = [employments]
 
-            max_rate = 0
+            max_rate = -1
             min_id = 999999
             for employment in employments:
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
@@ -501,8 +498,8 @@ class SdImport(object):
                 occupation_rate = float(employment['WorkingTime']
                                         ['OccupationRate'])
 
-                if occupation_rate == 0:
-                    continue
+                # if occupation_rate == 0:
+                # continue
 
                 if occupation_rate == max_rate:
                     if employment_id['value'] < min_id:
@@ -538,9 +535,12 @@ class SdImport(object):
                     engagement_type_ref = 'Ansat'
                     exactly_one_primary = True
 
-                    ad_titel = self.ad_people[cpr].get('Title', None)
-                    if ad_titel:  # Title exists in AD, this is primary engagement
-                        job_func = ad_titel
+                    # TODO: This part of the AD integration most likely needs to go, it
+                    # does not obey temporality.
+
+                    # ad_titel = self.ad_people[cpr].get('Title', None)
+                    # if ad_titel:  # Title exists in AD, this is primary engagement
+                    #     job_func = ad_titel
                 else:
                     engagement_type_ref = 'non-primary'
 
@@ -553,18 +553,27 @@ class SdImport(object):
                 emp_dep = employment['EmploymentDepartment']
                 unit = emp_dep['DepartmentUUIDIdentifier']
 
-                date_from = datetime.datetime.strptime(
-                    employment['EmploymentDate'],
-                    '%Y-%m-%d'
-                )
+                # This can removed once we fully trust the new date logic
+                # date_from = datetime.datetime.strptime(
+                #     employment['EmploymentDate'],
+                #     '%Y-%m-%d'
+                # )
 
                 if status in ('7', '8', '9'):
+                    date_from = datetime.datetime.strptime(
+                        employment['EmploymentDate'],
+                        '%Y-%m-%d'
+                    )
                     date_to = datetime.datetime.strptime(
                         employment['EmploymentStatus']['ActivationDate'],
                         '%Y-%m-%d'
                     )
                     date_to = date_to - datetime.timedelta(days=1)
                 else:
+                    date_from = datetime.datetime.strptime(
+                        employment['EmploymentStatus']['ActivationDate'],
+                        '%Y-%m-%d'
+                    )
                     date_to = datetime.datetime.strptime(
                         employment['EmploymentStatus']['DeactivationDate'],
                         '%Y-%m-%d'

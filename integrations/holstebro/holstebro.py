@@ -14,7 +14,7 @@ MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_CODE', 0)
 MOX_BASE = os.environ.get('MOX_BASE')
 MORA_BASE = os.environ.get('MORA_BASE')
 
-GLOBAL_GET_DATE = datetime.datetime(2019, 7, 15, 0, 0)
+GLOBAL_GET_DATE = datetime.datetime(2019, 9, 1, 0, 0)
 
 
 importer = ImportHelper(
@@ -23,7 +23,7 @@ importer = ImportHelper(
     mora_base=MORA_BASE,
     system_name='SD-Import',
     end_marker='SDSTOP',
-    store_integration_data=True,
+    store_integration_data=False,
     seperate_names=True
 )
 
@@ -36,6 +36,14 @@ sd = sd_importer.SdImport(
     import_date_from=GLOBAL_GET_DATE,
     ad_info=ad_info_reader
 )
+
+importer.add_klasse(identifier='IT-Org. Alias',
+                    uuid='df948904-7ad3-49b0-92a0-e35c50a4bccf',
+                    facet_type_ref='org_unit_address_type',
+                    user_key='IT-Org. Alias',
+                    scope='TEXT',
+                    title='IT-Org. Alias')
+
 
 sd.create_ou_tree(create_orphan_container=True)
 sd.create_employees()

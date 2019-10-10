@@ -74,23 +74,39 @@ ansættelsesnummeret som nøgle på engagementer
 
 Primær ansættelse
 =================
+
+SD Løn har ikke et koncept om primæransættelse, men da AD integrationen til MO
+har behov for at kunne genkende den primære ansættelse til synkronisering, bestemmes
+dette ud fra en beregning:
 En medarbejders primære ansættelse regnes som den ansættelse som har den største
 arbejdstidsprocent, hvis flere har den samme, vælges ansættelsen med det laveste
-ansættelsenummer. Hvis ingen ansættelse har en arbejdstidsprocent større end nul,
-regnes ingen engagementer som primær.
+ansættelsenummer. Hvis en ansættelse er manuelt angivet til at være primær, vil
+denne ansættelse altid regnes som primær.
 
-MOs felt til primær ansættelse bliver i øjeblikket ikke sat af den indledende
-import, men bliver dog korrekt opdateret ved ændringer. Det er altså nødvendigt at
-se på ansættelsestypen for at afgøre om en ansættelse er primær.
+Ansættelser i SDs status kode 0 kan anses som primære hvis ingen andre ansættelser
+er primære (altså, medarbejderen har udelukkende ansættelser i status kode 0).
+Hvis en medarbejder har ansættelser i både status 0 og status 1, vil en ansættelse
+i status 1 blive beregnet til primær og status 0 ansættelsen vil ikke blive
+betragtet som primær.
+
+MOs betegnelse 'Primær' anvedes ikke af SD integrationen, da dette felt ikke
+automatisk synkroniseres med ansættelsestypen, feltet bør derfor ikke benyttes.
+Hvis den aktuelle version af MO undestøtter at slå visningen af feltet fra, kan
+dette med fordel gøres.
 
 
 Håndtering af SD Løns statuskoder
 =================================
-En medarbejder der importers fra SD, kan have en af tre forskelllige ansættelsestyper:
+En medarbejder der importers fra SD, kan have en af fire forskelllige ansættelsestyper:
 
- * Ansat: Angiver en medarbejders primære ansættelse.
+ * Manuelt primær ansættelse: Dette felt angiver at en ansættelse manuelt er sat
+   til at være primær
+ * Ansat: Angiver en medarbejders beregnede primære ansættelse.
+ * Ansat - Ikke i løn: Angiver SD Løns statuskode 0. Hvis ingen andre primære
+   ansætelser findes vil denne type regnes som primær.
  * Ikke-primær ansat: Angiver alle andre ansættelser for en medarbejder.
- * Ansat - Ikke i løn: Angiver SD Løns statuskode 0
+
+Manuelt primær optræder ikke direkte i imports, men kan sættes manuelt fra MOs GUI.
 
 En medarbejder skifter ikke ansættelsestype selvom vedkommende fratræder sit
 engagement. En ansættelses aktuelle status angives i stedet via MOs start- og
@@ -98,6 +114,32 @@ slutdato. Er slutdato'en i fortiden, er vedkommende ikke længere ansat og vil
 i MOs gui fremgå i fanen fortid. Er en medarbejers startdato i fremtiden, er
 personen endnu ikke tiltrådt, og fremgår i fanen fremtid i MOs gui.
 
+
+Hjælpeværktøjer
+===============
+Udover de direkte værktøjer til import og løbende opdateringer, findes et antal
+hjælpeværktøjer:
+
+ * `sd_fix_organisation.py`: Forsøger at synkronisere alle nye enheder fra SD Løn
+   til MO. Der findes ikke nogen differentiel service fra SD som oplyser om
+   ændringer i organisationen, så det er nødvendigt at sammenligne alle enheder
+   til alle tider for at opnå en komplet synkronisering. Værktøjet er i øjeblikket
+   hårdkodet til at hente alle ændringer til organisatinen siden 1. januar 2019.
+   På sigt vil dette værktøj formentlig blive erstattet af enten en service som
+   opretter enheder efterhånden som der dukker ansatte om i enheder som ikke
+   findes i MO (kræver at SDs nye service GetDepartmentParent tages i brug),
+   eller af den SD-mox agent som er ved at blive udviklet.
+
+ * `calculate_primary.py`: Et værktøj som er i stand til at gennemløbe alle
+   ansættelser i MO og afgøre om der for alle medarbejdere til alle tider
+   findes et primærengagement. Værktøjet er også i stand til at reparere en
+   (eller alle) ansættelser hvor dette ikke skulle være tilfældet. Dette modul
+   importeres desuden af koden til løbende opdatering, hvor den bruges til at
+   genberegne primæransættelser når der skær ændringer i en medarbejders
+   ansættelsesforhold.
+   Værktøjet er udstyret med et kommandolinjeinterface, som kan udskrive en liste
+   over brugere uden primærengagement (eller med mere end et) samt opdatere
+   primære engagementer for en enkelt bruger eller for alle brugere.
 
 Tjekliste for fuldt import
 ==========================
@@ -171,12 +213,6 @@ Til det formål findes værktøjet `sd_fix_organisation.py` som henter alle frem
 
 python3 sd_fix_organisation.py
 
-::
-
-   Der er i øjeblikket en bug i MO som forhindrer oprettelse af enheder med en
-   fremtidig virkningstid. Værktøjet vil derfor i øjeblikket kunstigt sætte
-   virkingstiden på alle fremtidige afdelinger til 1. august 2019. Denne fejl vil
-   blive rettet i den næste release af MO.
 
 3. Kør en inledende ChangedAt
 -----------------------------

@@ -608,8 +608,11 @@ class ImportUtility(object):
             )
 
             if not uuid:
-                klasse_res = 'klassifikation/klasse'
-                uuid = self.ia.find_object(klasse_res, getattr(detail, check_value))
+                if self.store_integration_data:
+                    klasse_res = 'klassifikation/klasse'
+                    uuid = self.ia.find_object(klasse_res, getattr(detail, check_value))
+                else:
+                    print('Detail: {}, check_value: {}'.format(detail, check_value))
 
             setattr(detail, set_value, uuid)
 

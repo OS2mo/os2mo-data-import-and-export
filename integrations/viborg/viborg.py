@@ -28,7 +28,7 @@ importer = ImportHelper(
     mora_base=MORA_BASE,
     system_name='SD-Import',
     end_marker='SDSTOP',
-    store_integration_data=True,
+    store_integration_data=False,
     seperate_names=True
 )
 
