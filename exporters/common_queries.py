@@ -82,7 +82,7 @@ def export_managers(mh, nodes, filename):
     fieldnames += ['Ansvar', 'Navn', 'Telefon', 'E-mail']
     rows = []
     for node in PreOrderIter(nodes['root']):
-        manager = mh.read_ou_managers(node.name)
+        manager = mh.read_ou_manager(node.name)
         if manager:
             row = {}
             path_dict = mh._create_path_dict(fieldnames, node)
