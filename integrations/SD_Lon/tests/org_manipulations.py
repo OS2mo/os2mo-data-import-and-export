@@ -15,10 +15,10 @@ from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 
 sys.path.append('../SD_Lon')
-import sd_importer
+import sd_importer  # noqa
 
 sys.path.append('../../os2mo_data_import/long_tests')
-from integration_test_helpers import _count
+from integration_test_helpers import _count  # noqa
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME')
 MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_CODE')
