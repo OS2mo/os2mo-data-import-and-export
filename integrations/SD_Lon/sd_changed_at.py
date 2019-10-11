@@ -447,7 +447,7 @@ class ChangeAtSD(object):
             logger.warning('Terminating non-existing job: {}!'.format(job_id))
             return False
 
-        # In MO, the termination date is the late day of work, this
+        # In MO, the termination date is the last day of work,
         # in SD it is the first day of non-work.
         date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
         terminate_datetime = date - datetime.timedelta(days=1)
