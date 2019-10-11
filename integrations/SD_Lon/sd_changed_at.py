@@ -1,18 +1,17 @@
 import os
-import sys
+import json
 import logging
+import pathlib
 import sqlite3
 import requests
 import datetime
 import sd_common
 import sd_payloads
 
-from pathlib import Path
-
-from calculate_primary import MOPrimaryEngagementUpdater
+from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater
 from os2mo_helpers.mora_helpers import MoraHelper
-sys.path.append('../ad_integration')
-import ad_reader
+from integrations.ad_integration import ad_reader
+
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'
@@ -32,16 +31,19 @@ logging.basicConfig(
     filename=LOG_FILE
 )
 
-MOX_BASE = os.environ.get('MOX_BASE', None)
-MORA_BASE = os.environ.get('MORA_BASE', None)
 RUN_DB = os.environ.get('RUN_DB', None)
 
 
 class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):
         logger.info('Start ChangedAt: From: {}, To: {}'.format(from_date, to_date))
-        self.mox_base = MOX_BASE
-        self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
+        cfg_file = pathlib.Path.cwd() / 'settings' / 'kommune-holstebro.json'
+        if not cfg_file.is_file():
+            raise Exception('No setting file')
+        self.settings = json.loads(cfg_file.read_text())
+
+        self.helper = MoraHelper(hostname=self.settings['mora.base'],
+                                 use_cache=False)
         self.ad_reader = ad_reader.ADParameterReader()
         self.updater = MOPrimaryEngagementUpdater()
         self.from_date = from_date
@@ -84,7 +86,7 @@ class ChangeAtSD(object):
         payload = sd_payloads.profession(profession, self.org_uuid,
                                          self.job_function_facet)
         response = requests.post(
-            url=self.mox_base + '/klassifikation/klasse',
+            url=self.settings['mox.base'] + '/klassifikation/klasse',
             json=payload
         )
         assert response.status_code == 201
@@ -372,8 +374,7 @@ class ChangeAtSD(object):
 
     def apply_NY_logic(self, org_unit, job_id, validity):
         # This must go to sd_common, or some kind of conf
-        too_deep = ['Afdelings-niveau', 'NY1-niveau']
-
+        too_deep = self.settings['integrations.SD_Lon.import.too_deep']
         # Move users and make associations according to NY logic
         ou_info = self.helper.read_ou(org_unit)
         if ou_info['org_unit_type']['name'] in too_deep:
@@ -446,7 +447,7 @@ class ChangeAtSD(object):
             logger.warning('Terminating non-existing job: {}!'.format(job_id))
             return False
 
-        # In MO, the termination date is the late day of work, this
+        # In MO, the termination date is the last day of work,
         # in SD it is the first day of non-work.
         date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
         terminate_datetime = date - datetime.timedelta(days=1)
@@ -788,11 +789,11 @@ def initialize_changed_at(from_date, run_db, force=False):
 if __name__ == '__main__':
     logger.info('***************')
     logger.info('Program started')
-    init = False
-    from_date = datetime.datetime(2019, 9, 15, 0, 0)
+    init = True
+    from_date = datetime.datetime(2019, 10, 1, 0, 0)
 
     if init:
-        run_db = Path(RUN_DB)
+        run_db = pathlib.Path(RUN_DB)
         initialize_changed_at(from_date, run_db, force=True)
         exit()
 

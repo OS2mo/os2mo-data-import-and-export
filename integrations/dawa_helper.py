@@ -1,6 +1,6 @@
 import pickle
+import pathlib
 import requests
-
 
 def _dawa_request(street_name, postal_code, adgangsadresse=False,
                   skip_letters=False, add_letter=False):
@@ -25,8 +25,12 @@ def _dawa_request(street_name, postal_code, adgangsadresse=False,
     full_url = base + params.format(postal_code, street_name)
     path_url = full_url.replace('/', '_')
 
+    cache_dir = pathlib.Path('tmp/')
+    if not cache_dir.is_dir():
+        raise Exception('Folder for temporary files does not exist')
+    
     try:
-        with open(path_url + '.p', 'rb') as f:
+        with open('tmp/' + path_url + '.p', 'rb') as f:
             response = pickle.load(f)
     except FileNotFoundError:
         response = requests.get(full_url)

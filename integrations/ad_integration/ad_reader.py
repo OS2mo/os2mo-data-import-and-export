@@ -2,11 +2,12 @@ import time
 import pickle
 import logging
 import hashlib
-import read_ad_conf_settings
+
 from pathlib import Path
 from winrm import Session
 
-from ad_common import AD
+from integrations.ad_integration.ad_common import AD
+from integrations.ad_integration import read_ad_conf_settings
 
 logger = logging.getLogger("AdReader")
 
@@ -168,7 +169,6 @@ if __name__ == '__main__':
 
     for user in everything:
         print('Name: {}, Sam: {}, Manger: {}'.format(user['Name'], user['SamAccountName'], user['Manager']))
-        #if user['SamAccountName'] == 'JSTEH':
+        # if user['SamAccountName'] == 'JSTEH':
         #    for key in sorted(user.keys()):
         #        print('{}: {}'.format(key, user[key]))
-

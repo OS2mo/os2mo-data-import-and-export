@@ -5,8 +5,8 @@ import logging
 from winrm import Session
 from winrm.exceptions import WinRMTransportError
 
-import ad_exceptions
-import read_ad_conf_settings
+from integrations.ad_integration import ad_exceptions
+from integrations.ad_integration import read_ad_conf_settings
 
 logger = logging.getLogger('AdCommon')
 # Is this universal?

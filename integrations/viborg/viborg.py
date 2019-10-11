@@ -1,33 +1,28 @@
 import os
 import csv
-import sys
+import json
+import pathlib
 import datetime
 from chardet.universaldetector import UniversalDetector
 
 from os2mo_data_import import ImportHelper
-sys.path.append('../SD_Lon')
-import sd_importer
+from integrations.SD_Lon.sd_importer import  sd_importer
+from integrations.ad_integration import ad_reader
 
-sys.path.append('../ad_integration')
-import ad_reader
+cfg_file = pathlib.Path.cwd() / 'settings' / 'kommune-viborg.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+settings = json.loads(cfg_file.read_text())
 
-MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
-MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_CODE', 0)
-MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
 MANAGER_FILE = os.environ.get('MANAGER_FILE')
-
-# ORIGIN FOR TESTS WIH ACTUAL API
-# GLOBAL_GET_DATE = datetime.datetime(2006, 1, 1, 0, 0) # will not work
-# GLOBAL_GET_DATE = datetime.datetime(2009, 1, 1, 0, 0)
 GLOBAL_GET_DATE = datetime.datetime(2019, 9, 15, 0, 0)
 
 importer = ImportHelper(
     create_defaults=True,
-    mox_base=MOX_BASE,
-    mora_base=MORA_BASE,
-    system_name='SD-Import',
-    end_marker='SDSTOP',
+    mox_base=settings['mox.base'],
+    mora_base=settings['mora.base'],
+    # system_name='SD-Import',
+    # end_marker='SDSTOP',
     store_integration_data=False,
     seperate_names=True
 )
@@ -66,8 +61,7 @@ with open(MANAGER_FILE, encoding=encoding) as csvfile:
 
 sd = sd_importer.SdImport(
     importer,
-    MUNICIPALTY_NAME,
-    MUNICIPALTY_CODE,
+    settings=settings,
     import_date_from=GLOBAL_GET_DATE,
     ad_info=ad_reader,
     manager_rows=manager_rows

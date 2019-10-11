@@ -19,6 +19,9 @@ __pychache__
 venv-*
 venv
 
+#Logs and caches
+tmp
+
 # Workspace
 overflow
 
