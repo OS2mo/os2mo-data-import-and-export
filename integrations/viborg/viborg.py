@@ -6,10 +6,10 @@ import datetime
 from chardet.universaldetector import UniversalDetector
 
 from os2mo_data_import import ImportHelper
-import integrations.SD_Lon.sd_importer as sd_importer
-import integrations.ad_integration.ad_reader as ad_reader
+from integrations.SD_Lon.sd_importer import  sd_importer
+from integrations.ad_integration import ad_reader
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'kommune-holstebro.json'
+cfg_file = pathlib.Path.cwd() / 'settings' / 'kommune-viborg.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
 settings = json.loads(cfg_file.read_text())

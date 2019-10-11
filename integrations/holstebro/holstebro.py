@@ -3,8 +3,8 @@ import pathlib
 import datetime
 
 from os2mo_data_import import ImportHelper
-import integrations.SD_Lon.sd_importer as sd_importer
-import integrations.ad_integration.ad_reader as ad_reader
+from integrations.SD_Lon import sd_importer
+from integrations.ad_integrations import ad_reader
 
 cfg_file = pathlib.Path.cwd() / 'settings' / 'kommune-holstebro.json'
 if not cfg_file.is_file():
