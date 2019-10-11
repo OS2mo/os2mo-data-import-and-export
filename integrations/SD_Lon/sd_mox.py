@@ -405,7 +405,7 @@ class sdMox(object):
         # if time planning exists, it must be in self.arbtitd
         time_planning = unit.get('time_planning',None)
         if time_planning:
-            time_planning = self.arbtid_by_uuid[time_planning]
+            time_planning = self.arbtid_by_uuid[time_planning["uuid"]]
 
         return {
             "name": unit["name"],
