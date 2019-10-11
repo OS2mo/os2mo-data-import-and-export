@@ -32,7 +32,12 @@ def sd_lookup(url, params={}):
         m.update((str(key) + str(payload[key])).encode())
     m.update(full_url.encode())
     lookup_id = m.hexdigest()
-    cache_file = Path('sd_' + lookup_id + '.p')
+
+    cache_dir = Path('tmp/')
+    if not cache_dir.is_dir():
+        raise Exception('Folder for temporary files does not exist')
+
+    cache_file = Path('tmp/sd_' + lookup_id + '.p')
 
     if cache_file.is_file():
         with open(str(cache_file), 'rb') as f:
