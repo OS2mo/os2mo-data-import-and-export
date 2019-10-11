@@ -14,10 +14,11 @@ import logging
 import datetime
 import json
 import requests
+import pprint
+import pathlib
 
 try:
     import customer
-    import pathlib
     import sys
     custpath = pathlib.Path(customer.__file__).parent
     sys.path.append(str(custpath))
@@ -66,7 +67,6 @@ def mo_request(service, method="get", **params):
         raise
 
 
-
 def get_sdMox():
     # instantiate integration object
     from_date = datetime.datetime(2019, 7, 1, 0, 0)
@@ -74,85 +74,157 @@ def get_sdMox():
     mox.amqp_connect()
     return mox
 
-#def dummy(*args, **kwargs):
-#    return True
-#sd_mox.sdMox._init_amqp_comm = dummy
-#sd_mox.sdMox.call = dummy
+def dummy_init(self, *args, **kwargs):
+    pprint.pprint((args, kwargs))
 
-def sd_mox_pretriggered(data):
-    """ This is the function that is called with data from the handler module
-    """
-    # see if some parent uuid demands the trigger be run
-    is_sd_triggered = False
-    p = parent = mo_request("ou/" + data["request"]["parent"]["uuid"]).json()
+def dummy_call(self, xmlstr, *args):
+    import xml.dom.minidom
+    dom = xml.dom.minidom.parseString(xmlstr.encode("utf-8"))
+    pretty_xml_as_string = dom.toprettyxml()
+    print(pretty_xml_as_string, args)
+#sd_mox.sdMox._init_amqp_comm = dummy_init
+#sd_mox.sdMox.call = dummy_call
+
+
+def is_sd_triggered(p):
     while p and p["uuid"]:
         if p["uuid"] in sdmox_config.get("TRIGGERED_UUIDS"):
-            is_sd_triggered = True
-            break
+            return True
         p = p["parent"]
+    return False
 
-    if not is_sd_triggered:
+
+def ou_before_create(data):
+    """ An ou is about to be created
+    """
+    p = parent = mo_request("ou/" + data["request"]["parent"]["uuid"]).json()
+    if not is_sd_triggered(p):
         return
 
-
-    # actual trigger code - create a unit in sd
-    mox = get_sdMox()
+    # try to create a unit in sd
     from_date = datetime.datetime.strptime(
         data["request"]['validity']['from'], '%Y-%m-%d'
     )
+    mox = get_sdMox()
     mox._update_virkning(from_date)
 
     payload = mox.payload_create(data["uuid"], data["request"], parent)
+    pprint.pprint(payload)
     mox.create_unit(**payload, test_run=False)
 
 
-def sd_mox_posttriggered(data):
-
-    # see if some parent uuid demands the trigger be run
-    is_sd_triggered = False
-    p = unit = mo_request("ou/" + data["uuid"]).json()
-    while p and p["uuid"]:
-        if p["uuid"] in sdmox_config.get("TRIGGERED_UUIDS"):
-            is_sd_triggered = True
-            break
-        p = p["parent"]
-
-    if not is_sd_triggered:
+def ou_after_rename(data):
+    """ an ou has been renamed, transfer name and addresses
+    """
+    from_date = data["request"]["data"]["validity"]["from"]
+    p = unit = mo_request("ou/" + data["uuid"], at=from_date).json()
+    if not is_sd_triggered(p):
         return
 
-    # actual trigger code - edit a unit in sd
-
+    addresses = mo_request("ou/" + data["uuid"] + "/details/address", at=from_date).json()
+    from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
     mox = get_sdMox()
-    from_date = datetime.datetime.strptime(
-        unit['validity']['from'], '%Y-%m-%d'
-    )
     mox._update_virkning(from_date)
 
-    addresses = mo_request("ou/" + data["uuid"] + "/details/address").json()
     payload = mox.payload_edit(data["uuid"], unit, addresses)
+    pprint.pprint(payload)
     mox.edit_unit(**payload, test_run=False)
 
 
+def address_create_after(data):
+    """ an address has been created/changed - transfer it to sd if:
+        * the address is for an ou
+        * the ou is triggered/has a triggered parent
+    """
+    ou = data.get("org_unit_uuid")
+    if not ou:
+        return
+    from_date = data["request"]["validity"]["from"]
+    p = unit = mo_request("ou/" + data["org_unit_uuid"], at=from_date).json()
+    if not is_sd_triggered(p):
+        return
+
+    addresses = mo_request("ou/" + ou + "/details/address", at=from_date).json()
+    from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
+    mox = get_sdMox()
+    mox._update_virkning(from_date)
+
+    payload = mox.payload_edit(data["uuid"], unit, addresses)
+    pprint.pprint(payload)
+    mox.edit_unit(**payload, test_run=False)
+
+
+def address_edit_after(data):
+    """ an address has been created/changed - transfer it to sd if:
+        * the address is for an ou
+        * the ou is triggered/has a triggered parent
+    """
+    ou = data.get("org_unit_uuid")
+    if not ou:
+        return
+    from_date = data["request"]["data"]["validity"]["from"]
+    p = unit = mo_request("ou/" + data["org_unit_uuid"], at=from_date).json()
+    if not is_sd_triggered(p):
+        return
+
+    addresses = mo_request("ou/" + ou + "/details/address", at=from_date).json()
+    from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
+    mox = get_sdMox()
+    mox._update_virkning(from_date)
+
+    payload = mox.payload_edit(data["uuid"], unit, addresses)
+    mox.edit_unit(**payload, test_run=False)
+
+def ret_med_ivan(from_date, payload):
+    from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
+    mox = get_sdMox()
+    mox._update_virkning(from_date)
+    pprint.pprint(payload)
+    mox.edit_unit(**payload, test_run=False)
+
 def register(app):
-    read_config(app)
     from mora.triggers import Trigger
 
     Trigger.on(
         Trigger.ORG_UNIT,
         Trigger.RequestType.CREATE,
         Trigger.Event.ON_BEFORE
-    )(sd_mox_pretriggered)
-
-    Trigger.on(
-        Trigger.ORG_UNIT,
-        Trigger.RequestType.CREATE,
-        Trigger.Event.ON_AFTER
-    )(sd_mox_posttriggered)
+    )(ou_before_create)
 
     Trigger.on(
         Trigger.ORG_UNIT,
         Trigger.RequestType.EDIT,
         Trigger.Event.ON_AFTER
-    )(sd_mox_posttriggered)
+    )(ou_after_rename)
+
+    Trigger.on(
+        "address",
+        Trigger.RequestType.CREATE,
+        Trigger.Event.ON_AFTER
+    )(address_create_after)
+
+    Trigger.on(
+        "address",
+        Trigger.RequestType.EDIT,
+        Trigger.Event.ON_AFTER
+    )(address_edit_after)
 
 
+if __name__ == "__main__":
+    custpath = pathlib.Path(".")
+    class App:
+        config = {"CUSTOMER_CONFIG_FILE": "kommune-andeby.json"}
+
+    read_config(App)
+    ret_med_ivan("2019-11-01", {
+        'adresse': {'silkdata:AdresseNavn': 'Toftebjerghaven 6',
+             'silkdata:ByNavn': 'Ballerup',
+             'silkdata:PostKodeIdentifikator': '2750'},
+        'integration_values': {'formaalskode': '12345',
+                        'skolekode': '12347',
+                        'time_planning': 'Arbejdstidsplaner'},
+        'name': 'LU - OS2MO Hejsa',
+        'phone': '12222223',
+        'pnummer': '1011600936',
+        'unit_code': 'LU75',
+        'unit_uuid': '08c6254f-6b64-4500-8a00-00000671LU75'})
