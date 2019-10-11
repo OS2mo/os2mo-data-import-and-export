@@ -20,7 +20,7 @@ MANAGER_FILE = os.environ.get('MANAGER_FILE')
 # ORIGIN FOR TESTS WIH ACTUAL API
 # GLOBAL_GET_DATE = datetime.datetime(2006, 1, 1, 0, 0) # will not work
 # GLOBAL_GET_DATE = datetime.datetime(2009, 1, 1, 0, 0)
-GLOBAL_GET_DATE = datetime.datetime(2019, 8, 22, 0, 0)
+GLOBAL_GET_DATE = datetime.datetime(2019, 9, 15, 0, 0)
 
 importer = ImportHelper(
     create_defaults=True,
@@ -72,6 +72,13 @@ sd = sd_importer.SdImport(
     ad_info=ad_reader,
     manager_rows=manager_rows
 )
+
+importer.add_klasse(identifier='IT-Org. Alias',
+                    uuid='aa4b3520-4ee9-4ac2-9380-a0da852bb538',
+                    facet_type_ref='org_unit_address_type',
+                    user_key='IT-Org. Alias',
+                    scope='TEXT',
+                    title='IT-Org. Alias')
 
 sd.create_ou_tree(create_orphan_container=False)
 sd.create_employees()
