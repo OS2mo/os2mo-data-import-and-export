@@ -6,19 +6,15 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-import os
-import sys
 import uuid
 import hashlib
 import logging
 import datetime
 from anytree import Node
 
-from sd_common import sd_lookup, calc_employment_id
-sys.path.append('../ad_integration')
-import ad_reader
-sys.path.append('../')
-import dawa_helper
+from integrations import dawa_helper
+from integrations.SD_Lon.sd_common import sd_lookup, calc_employment_id
+from integrations.ad_integration import ad_reader
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'
@@ -40,26 +36,28 @@ logging.basicConfig(
 
 
 class SdImport(object):
-    def __init__(self, importer, org_name, municipality_code,
-                 import_date_from, ad_info=None, org_only=False,
-                 org_id_prefix=None, manager_rows=[], super_unit=None):
-        self.base_url = 'https://service.sd.dk/sdws/'
+    def __init__(self, importer, settings, import_date_from, ad_info=None,
+                 org_only=False, org_id_prefix=None, manager_rows=[],
+                 super_unit=None):
 
+        self.base_url = 'https://service.sd.dk/sdws/'
         self.double_employment = []
         self.address_errors = {}
         self.manager_rows = manager_rows
 
         self.importer = importer
-        self.org_name = org_name
+        self.settings = settings
+
+        self.org_name = settings['municipality.name']
+
         self.importer.add_organisation(
-            identifier=org_name,
-            user_key=org_name,
-            municipality_code=municipality_code
+            identifier=self.org_name,
+            user_key=self.org_name,
+            municipality_code=settings['municipality.code']
         )
 
         self.org_id_prefix = org_id_prefix
         self.import_date = import_date_from.strftime('%d.%m.%Y')
-        # self.import_date_from = import_date_from.strftime('%d.%m.%Y')
 
         # If a list of hard-coded uuids from AD is provided, use this. If
         # a true AD-reader is provided, save it so we can use it to
@@ -124,7 +122,8 @@ class SdImport(object):
         self._add_klasse('Ansat', 'Ansat', 'engagement_type')
         self._add_klasse('status0', 'Ansat - Ikke i løn', 'engagement_type')
         self._add_klasse('non-primary', 'Ikke-primær ansættelse', 'engagement_type')
-        self._add_klasse('explicitly-primary', 'Manuelt primær ansættelse', 'engagement_type')
+        self._add_klasse('explicitly-primary', 'Manuelt primær ansættelse',
+                         'engagement_type')
 
         self._add_klasse('SD-medarbejder', 'SD-medarbejder', 'association_type')
 
@@ -538,8 +537,8 @@ class SdImport(object):
                     engagement_type_ref = 'Ansat'
                     exactly_one_primary = True
 
-                    # TODO: This part of the AD integration most likely needs to go, it
-                    # does not obey temporality.
+                    # TODO: This part of the AD integration most likely needs to go,
+                    # it does not obey temporality.
 
                     # ad_titel = self.ad_people[cpr].get('Title', None)
                     # if ad_titel:  # Title exists in AD, this is primary engagement
@@ -600,7 +599,7 @@ class SdImport(object):
                 # Employees are not allowed to be in these units (allthough
                 # we do make an association). We must instead find the lowest
                 # higher level to put she or he.
-                too_deep = ['Afdelings-niveau', 'NY1-niveau']
+                too_deep = self.settings['integrations.SD_Lon.import.too_deep']
                 original_unit = unit
                 while self.nodes[unit].name in too_deep:
                     unit = self.nodes[unit].parent.uuid
