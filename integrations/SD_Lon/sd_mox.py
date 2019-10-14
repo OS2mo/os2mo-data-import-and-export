@@ -148,28 +148,48 @@ class sdMox(object):
             raise sdMoxException(msg)
         return department_info
 
-    def _check_department(self, department, name, unit_code, unit_uuid):
+    def _check_department(self, department, name=None, unit_code=None,
+                          unit_uuid=None, unit_level=None, phone=None,
+                          pnummer=None, adresse=None, parent=None,
+                          integration_values=None):
         """
-        Verify that an SD department contain what think it should contain.
+        Verify that an SD department contain what we think it should contain.
         Besides the supplied parameters, the activation date is also checked
         agains the global from_date.
         :param department: An SD department as returned by read_department().
-        :param name: Expected name.
-        :param unit_code: Expected unit code.
-        :param unit_uuid: Expected uunit.
+        :param name: Expected name or None.
+        :param unit_code: Expected unit code or None.
+        :param unit_uuid: Expected uunit or None.
+        :param phone: Expected phone or None.
+        :param pnummer: Expected pnummer or None.
+        :param adresse: Expected address or None.
+        :param parent: This is currently ignored, as it can't be checked
+        :param integration_values: This is currently ignored, as it can't be checked
         :return: Returns list errors, empty list if no errors.
         """
-        from_date = self.virkning['sd:FraTidspunkt']['sd:TidsstempelDatoTid'][0:10]
         errors = []
-        if not department['DepartmentName'] == name:
-            errors.append('Name')
-        if not department['DepartmentIdentifier'] == unit_code:
-            errors.append('Unit code')
-        if not department['ActivationDate'] == from_date:
-            errors.append('Activation Date')
-        if not department['DepartmentUUIDIdentifier'] == unit_uuid:
-            errors.append('UUID')
-        # print(department['PostalAddress'])
+        def compare(actual, expected, error):
+            if expected is not None and actual != expected:
+                errors.append(error)
+
+        from_date = self.virkning['sd:FraTidspunkt']['sd:TidsstempelDatoTid'][0:10]
+        compare(department['ActivationDate'], from_date, "Activation Date")
+        compare(department['DepartmentName'], name, "Name")
+        compare(department['DepartmentIdentifier'], unit_code, "Unit code")
+        compare(department['DepartmentUUIDIdentifier'], unit_uuid, "UUID")
+        compare(department['DepartmentLevelIdentifier'], unit_level, "Level")
+        compare(department.get( 'ContactInformation', {}).get(
+                "TelephoneNumberIdentifier",[None])[0], phone, "Phone")
+        compare(department['ProductionUnitIdentifier'], pnummer, "Pnummer")
+        if adresse:
+            actual=department["PostalAddress"]
+            compare(actual["StandardAddressIdentifier"],
+                    adresse["silkdata:AdresseNavn"], "Address")
+            compare(actual["PostalCode"],
+                    adresse["silkdata:PostKodeIdentifikator"], "Zip code")
+            compare(actual["DistrictName"],
+                    adresse["silkdata:ByNavn"], "Postal Area")
+
         return errors
 
     def _create_xml_import(self, name, unit_code, parent, unit_level, unit_uuid):
@@ -232,9 +252,9 @@ class sdMox(object):
             ),
             'AttributListe': smp.attributes_ret(
                 self.virkning,
-            #   funktionskode=integration_values["formaalskode"],
-            #   skolekode=integration_values["skolekode"],
-            #   tidsregistrering=integration_values["time_planning"],
+                funktionskode=integration_values["formaalskode"],
+                skolekode=integration_values["skolekode"],
+                tidsregistrering=integration_values["time_planning"],
                 unit_name=name,
             ),
             'Registrering': smp.create_registrering(
@@ -347,24 +367,21 @@ class sdMox(object):
             self.call(xml)
         return unit_uuid
 
-    def edit_unit(self, unit_uuid, unit_code, name, phone=None, pnummer=None, adresse=None,
-                  integration_values=None, test_run=True):
-
-        xml = self._create_xml_ret(
-            name=name,
-            unit_uuid=unit_uuid,
-            unit_code=unit_code,
-            phone=phone,
-            pnummer=pnummer,
-            adresse=adresse,
-            integration_values=integration_values
-        )
+    def edit_unit(self, test_run=True, **payload):
+        xml = self._create_xml_ret(**payload)
         logger.debug('Edit unit xml: {}'.format(xml))
         if not test_run:
             print('Calling amqp')
-            logger.info('Edit unit {}, {}, {}'.format(name, unit_code, unit_uuid))
+            logger.info('Edit unit {!r}'.format(payload))
             self.call(xml)
-        return unit_uuid
+        return payload["unit_uuid"]
+
+    def check_unit(self, **payload):
+        unit = self.read_department(unit_code=payload["unit_code"])
+        errors = self._check_department(unit, **payload)
+        if len(errors):
+            errstr = ", ".join(errors)
+            raise RuntimeError("Integrationsfejl imod SD-løn - følgende felter blev ikke opdateret: %s" % errstr)
 
     def payload_create(self, unit_uuid, unit, parent):
         unit_level = self.level_by_uuid.get(unit["org_unit_type"]["uuid"])
@@ -504,7 +521,11 @@ if __name__ == '__main__':
     unit_uuid = '31b43f5d-d8e8-4bd2-8420-a41148ca229f'
     unit_name = 'Daw dav'
     if department:
-        errors = mox._check_department(department, unit_name, unit_code, unit_uuid)
+        errors = mox._check_department(
+            department,
+            namd=unit_name,
+            unit_code=unit_code,
+            unit_uuid=unit_uuid)
         print(errors)
     else:
         print('Department does not exist')

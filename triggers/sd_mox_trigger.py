@@ -26,6 +26,7 @@ except:
     # we must be testing
     pass
 
+import integrations
 from integrations.SD_Lon import (
     sd_mox,
     sd_logging,
@@ -110,7 +111,8 @@ def ou_before_create(data):
 
     payload = mox.payload_create(data["uuid"], data["request"], parent)
     pprint.pprint(payload)
-    mox.create_unit(**payload, test_run=False)
+    mox.create_unit(test_run=False, **payload)
+    mox.check_unit(**payload)
 
 
 def ou_after_rename(data):
@@ -128,7 +130,8 @@ def ou_after_rename(data):
 
     payload = mox.payload_edit(data["uuid"], unit, addresses)
     pprint.pprint(payload)
-    mox.edit_unit(**payload, test_run=False)
+    mox.edit_unit(test_run=False, **payload)
+    mox.check_unit(**payload)
 
 
 def address_create_after(data):
@@ -151,7 +154,8 @@ def address_create_after(data):
 
     payload = mox.payload_edit(data["uuid"], unit, addresses)
     pprint.pprint(payload)
-    mox.edit_unit(**payload, test_run=False)
+    mox.edit_unit(test_run=False, **payload)
+    mox.check_unit(**payload)
 
 
 def address_edit_after(data):
@@ -173,7 +177,8 @@ def address_edit_after(data):
     mox._update_virkning(from_date)
 
     payload = mox.payload_edit(data["uuid"], unit, addresses)
-    mox.edit_unit(**payload, test_run=False)
+    mox.edit_unit(test_run=False, **payload)
+    mox.check_unit(**payload)
 
 def ret_med_ivan(from_date, payload):
     from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
@@ -181,8 +186,10 @@ def ret_med_ivan(from_date, payload):
     mox._update_virkning(from_date)
     pprint.pprint(payload)
     mox.edit_unit(**payload, test_run=False)
+    mox.check_unit(**payload)
 
 def register(app):
+    read_config(app)
     from mora.triggers import Trigger
 
     Trigger.on(
@@ -220,8 +227,8 @@ if __name__ == "__main__":
         'adresse': {'silkdata:AdresseNavn': 'Toftebjerghaven 6',
              'silkdata:ByNavn': 'Ballerup',
              'silkdata:PostKodeIdentifikator': '2750'},
-        'integration_values': {'formaalskode': '12345',
-                        'skolekode': '12347',
+        'integration_values': {'formaalskode': '3.22.01',
+                        'skolekode': '151001',
                         'time_planning': 'Arbejdstidsplaner'},
         'name': 'LU - OS2MO Hejsa',
         'phone': '12222223',
