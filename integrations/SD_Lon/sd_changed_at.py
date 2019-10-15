@@ -32,12 +32,13 @@ logging.basicConfig(
 )
 
 RUN_DB = os.environ.get('RUN_DB', None)
+SETTINGS_FILE = os.environ.get('SETTINGS_FILE')
 
 
 class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):
         logger.info('Start ChangedAt: From: {}, To: {}'.format(from_date, to_date))
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'kommune-holstebro.json'
+        cfg_file = pathlib.Path.cwd() / 'settings' / SETTINGS_FILE
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
@@ -795,7 +796,7 @@ def initialize_changed_at(from_date, run_db, force=False):
 if __name__ == '__main__':
     logger.info('***************')
     logger.info('Program started')
-    init = True
+    init = False
     from_date = datetime.datetime(2019, 10, 1, 0, 0)
 
     if init:
