@@ -106,6 +106,7 @@ class ChangeAtSD(object):
             if self.to_date is not None:
                 url = 'GetEmploymentChangedAtDate20111201'
                 params = {
+                    # 'EmploymentIdentifier': '', # DELETE!!!
                     'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
                     'DeactivationDate': self.to_date.strftime('%d.%m.%Y'),
                     'StatusActiveIndicator': 'true',
@@ -122,6 +123,7 @@ class ChangeAtSD(object):
             else:
                 url = 'GetEmploymentChanged20111201'
                 params = {
+                    # 'EmploymentIdentifier': '', # DELETE!!!
                     'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
                     'DeactivationDate': '31.12.9999',
                     'DepartmentIndicator': 'true',
@@ -400,6 +402,7 @@ class ChangeAtSD(object):
                 len(engagement_info['departments']) > 1
         ):
             also_edit = True
+        logger.debug('Create new engagement: also_edit: {}'.format(also_edit))
 
         try:
             org_unit = engagement_info['departments'][0]['DepartmentUUIDIdentifier']
@@ -471,8 +474,7 @@ class ChangeAtSD(object):
         """
         job_id, engagement_info = self.engagement_components(engagement)
 
-        # mo_engagement = self._find_engagement(job_id)  # DUPLICATE!!!!
-        mo_eng = self._find_engagement(job_id)  # DUPLICATE!!!!
+        mo_eng = self._find_engagement(job_id)
 
         if not validity:
             validity = mo_eng['validity']
@@ -491,7 +493,9 @@ class ChangeAtSD(object):
             logger.info('Change department of engagement {}:'.format(job_id))
             logger.debug('Department object: {}'.format(department))
 
-            validity = self._validity(department)
+            # This line most likely gave us a lot of bugs...
+            # validity = self._validity(department)
+
             logger.debug('Validity of this department change: {}'.format(validity))
             org_unit = department['DepartmentUUIDIdentifier']
             associations = self.helper.read_user_association(self.mo_person['uuid'],
@@ -741,6 +745,8 @@ class ChangeAtSD(object):
                     use_cache=False
                 )
                 self._update_user_employments(cpr, sd_engagement)
+                self.updater.set_current_person(uuid=self.mo_person['uuid'])
+
                 # Re-calculate primary after all updates for user has been performed.
                 self.updater.recalculate_primary()
 
@@ -779,7 +785,7 @@ def initialize_changed_at(from_date, run_db, force=False):
 
     logger.info('Start initial ChangedAt')
     sd_updater = ChangeAtSD(from_date)
-    sd_updater.update_changed_persons()
+    sd_updater.update_changed_persons() # REENABLE!!!!!
     sd_updater.update_all_employments()
     logger.info('Ended initial ChangedAt')
 
