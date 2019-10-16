@@ -8,11 +8,10 @@ import datetime
 import xmltodict
 
 from requests import Session
-from opus_exceptions import UnknownOpusAction
-from opus_exceptions import EmploymentIdentifierNotUnique
+from integrations.opus.opus_exceptions import UnknownOpusAction
+from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 from os2mo_helpers.mora_helpers import MoraHelper
-sys.path.append('../')
-import dawa_helper
+from integrations import dawa_helper
 
 MOX_BASE = os.environ.get('MOX_BASE')
 MORA_BASE = os.environ.get('MORA_BASE', None)
@@ -117,9 +116,11 @@ class OpusImport(object):
         value_uuid = uuid.UUID(value_digest)
         return value_uuid
 
-    def _find_engagement(self, bvn):
+    def _find_engagement(self, bvn, present=False):
         engagement_info = {}
         resource = '/organisation/organisationfunktion?bvn={}'.format(bvn)
+        if present:
+            resource += '&gyldighed=Aktiv'
         response = self.session.get(url=self.mox_base + resource)
         response.raise_for_status()
         uuids = response.json()['results'][0]
@@ -331,7 +332,7 @@ class OpusImport(object):
                 logger.error(msg)
                 raise UnknownOpusAction(msg)
 
-            engagement_info = self._find_engagement(employee['@id'])
+            engagement_info = self._find_engagement(employee['@id'], present=True)
             if engagement_info:  # We need to add the employee for the sake of
                 # the importers internal consistency
                 if not self.importer.check_if_exists('employee',
