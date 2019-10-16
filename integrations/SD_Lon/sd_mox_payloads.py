@@ -47,6 +47,7 @@ def create_objekt_id(unit_uuid):
 
 def relations_ret(virkning, pnummer=None, phone=None, adresse=None):
     # TODO: Handle the difference between not updating and blanking a value.
+    # DONE: Vi medsender altid alle felter, så mangler ingen, og blanke er blanke.
 
     locations = {}
     if adresse is not None:
@@ -100,9 +101,12 @@ def _create_attribut_items(virkning, attributes):
 def attributes_ret(virkning, funktionskode=None,
                    skolekode=None, tidsregistrering=None, unit_name=None):
     attributes = {}
-
-    attributes = {'FunktionKode': '32201', 'SkoleKode': '12347',
-                  'Tidsregistrering': 'Arbejdstidsplaner'}
+    if funktionskode is not None:
+        attributes["FunktionKode"] = funktionskode
+    if skolekode is not None:
+        attributes["SkoleKode"] = skolekode
+    if tidsregistrering is not None:
+        attributes["Tidsregistrering"] = tidsregistrering
     integration_items = _create_attribut_items(virkning, attributes)
     attribut_liste = {
         "sd:LokalUdvidelse": {
@@ -115,6 +119,40 @@ def attributes_ret(virkning, funktionskode=None,
             "sd:Virkning": virkning
         }
     return attribut_liste
+
+
+def attributes_flyt(virkning, name):
+    return {
+        "Egenskab":{
+            "sd:EnhedNavn": name,
+            "sd:Virkning": virkning
+        }
+    }
+
+def relations_flyt(virkning, parent):
+    return {
+        "Overordnet":{
+            "sd:ReferenceID":{
+                "sd:UUIDIdentifikator": parent
+            },
+            "sd:Virkning": virkning
+        }
+    }
+
+
+def create_flyt_registrering(virkning, attributliste, relationsliste ):
+    registrering = dict(virkning) 
+    registrering.update({
+        "sd:LivscyklusKode": "Flyttet",
+        "sd:BrugerRef": {
+            "sd:UUIDIdentifikator": "3bb66b0d-132d-4b98-a903-ea29f6552d53",
+            "sd:IdentifikatorType": "AD"
+        },
+        "AttributListe": attributliste,
+        "RelationsListe": relationsliste,
+    })
+    registrering.pop("sd:TilTidspunkt", None)
+    return registrering
 
 
 def attributes_import(virkning, unit_name, unit_code, unit_type):
@@ -135,8 +173,14 @@ def attributes_import(virkning, unit_name, unit_code, unit_type):
     return attribut_liste
 
 
+
 def create_registrering(virkning, registry_type):
-    assert registry_type in ('Rettet', 'Opstaaet')
+    if not registry_type in ('Rettet', 'Opstaaet'):
+        raise RuntimeError(
+            "Integration, SD-løn: ukendt registreringstype: %s" % (
+                registry_type,
+            )
+    )
     registrering = {
         'sd:LivscyklusKode': registry_type,
         'TilstandListe': {
