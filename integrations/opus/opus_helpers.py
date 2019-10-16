@@ -4,11 +4,12 @@ import sqlite3
 import datetime
 from pathlib import Path
 
-import opus_import
-from opus_exceptions import RunDBInitException
-from opus_exceptions import NoNewerDumpAvailable
-from opus_exceptions import RedundantForceException
-from opus_exceptions import ImporterrunNotCompleted
+from integrations.opus import opus_import
+from integrations.opus.opus_exceptions import RunDBInitException
+from integrations.opus.opus_exceptions import NoNewerDumpAvailable
+from integrations.opus.opus_exceptions import RedundantForceException
+from integrations.opus.opus_exceptions import ImporterrunNotCompleted
+
 RUN_DB = os.environ.get('RUN_DB', None)
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'Opus Import')
 
@@ -19,11 +20,12 @@ START_DATE = datetime.datetime(2019, 8, 2, 0, 0)
 # Maybe we should do the logging configuration here!
 logger = logging.getLogger("opusImport")
 
+
 def compare_files():
     import difflib
     dumps = _read_available_dumps()
     names = sorted(dumps.keys())
-    
+
     # with .open(mode='r') as xmldump:
     #     file0 = xmldump.read()
     # with open(str(dumps[names[1]])) as xmldump:
@@ -32,7 +34,7 @@ def compare_files():
     # print(file0)
 
     #    print(dumps[names[0]].read_text().split('\n'))
-    
+
     diff = difflib.ndiff(
         dumps[names[0]].read_text().split('\n'),
         dumps[names[1]].read_text().split('\n')
@@ -46,6 +48,7 @@ def compare_files():
             msg = 'Line: {}: {}'.format(str(line_number).zfill(7), d)
             print(msg)
     # print(list(diff)[0])
+
 
 def _read_available_dumps():
     dumps = {}
