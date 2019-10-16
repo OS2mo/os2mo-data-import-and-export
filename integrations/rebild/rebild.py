@@ -1,12 +1,9 @@
 import os
-import sys
 from os2mo_data_import import ImportHelper
-sys.path.append('../opus')
-import opus_helpers
-from opus_exceptions import RunDBInitException
 
-sys.path.append('../ad_integration')
-import ad_reader
+from integrations.ad_integration import ad_reader
+from integrations.opus.opus_helpers import start_opus_import
+from integrations.opus.opus_exceptions import RunDBInitException
 
 
 MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
@@ -27,6 +24,6 @@ importer = ImportHelper(
 ad_reader = ad_reader.ADParameterReader()
 
 try:
-    opus_helpers.start_opus_import(importer, ad_reader=ad_reader, force=False)
+    start_opus_import(importer, ad_reader=ad_reader, force=False)
 except RunDBInitException:
     print('RunDB not initialized')
