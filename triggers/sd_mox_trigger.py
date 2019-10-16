@@ -5,6 +5,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+# Adressernes rækkefølge har betydning.
+# Der skal findes en postadresse inden man opretter et Pnummer, ellers går dert i ged
+#
+#
 
 """
 SD Mox trigger.module
@@ -16,6 +20,7 @@ import json
 import requests
 import pprint
 import pathlib
+import sys
 
 try:
     import customer
@@ -115,26 +120,42 @@ def ou_before_create(data):
     mox.check_unit(**payload)
 
 
-def ou_after_rename(data):
-    """ an ou has been renamed, transfer name and addresses
+def ou_before_edit(data):
+    """ an ou has been renamed or moved
     """
-    from_date = data["request"]["data"]["validity"]["from"]
-    p = unit = mo_request("ou/" + data["uuid"], at=from_date).json()
+    from_date_str = data["request"]["data"]["validity"]["from"]
+    p = unit = mo_request("ou/" + data["uuid"], at=from_date_str).json()
     if not is_sd_triggered(p):
         return
 
-    addresses = mo_request("ou/" + data["uuid"] + "/details/address", at=from_date).json()
-    from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
+    from_date = datetime.datetime.strptime(from_date_str, '%Y-%m-%d')
     mox = get_sdMox()
     mox._update_virkning(from_date)
 
-    payload = mox.payload_edit(data["uuid"], unit, addresses)
+    # rename seems to work, move not so much
+    if "name" in data["request"]["data"]:
+        unit["name"]  = data["request"]["data"]["name"]
+        addresses = mo_request(
+            "ou/" + data["uuid"] + "/details/address",
+            at=from_date_str
+        ).json()
+        payload = mox.payload_edit(data["uuid"], unit, addresses)
+        mox.edit_unit(test_run=False, **payload)
+
+    elif "parent" in data["request"]["data"]:
+        mox._update_virkning(from_date, datetime.datetime(2099,12,31))
+        parent = mo_request(
+            "ou/" + data["request"]["data"]["parent"]["uuid"],
+            at=from_date_str
+        ).json()
+        payload = mox.payload_create(data["uuid"], unit, parent)
+        mox.move_unit(test_run=False, **payload)
+
     pprint.pprint(payload)
-    mox.edit_unit(test_run=False, **payload)
     mox.check_unit(**payload)
 
 
-def address_create_after(data):
+def address_before_create(data):
     """ an address has been created/changed - transfer it to sd if:
         * the address is for an ou
         * the ou is triggered/has a triggered parent
@@ -143,22 +164,26 @@ def address_create_after(data):
     if not ou:
         return
     from_date = data["request"]["validity"]["from"]
-    p = unit = mo_request("ou/" + data["org_unit_uuid"], at=from_date).json()
+    p = unit = mo_request("ou/" + ou, at=from_date).json()
     if not is_sd_triggered(p):
         return
 
-    addresses = mo_request("ou/" + ou + "/details/address", at=from_date).json()
+    # the new address is prepended to addresses and thereby given higher priority
+    # see scoped and keyed addresses in sd_mox.py
+    addresses = [data["request"]] + mo_request(
+        "ou/" + ou + "/details/address", at=from_date
+    ).json()
     from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
     mox = get_sdMox()
     mox._update_virkning(from_date)
 
-    payload = mox.payload_edit(data["uuid"], unit, addresses)
+    payload = mox.payload_edit(ou, unit, addresses)
     pprint.pprint(payload)
     mox.edit_unit(test_run=False, **payload)
     mox.check_unit(**payload)
 
 
-def address_edit_after(data):
+def address_before_edit(data):
     """ an address has been created/changed - transfer it to sd if:
         * the address is for an ou
         * the ou is triggered/has a triggered parent
@@ -167,16 +192,20 @@ def address_edit_after(data):
     if not ou:
         return
     from_date = data["request"]["data"]["validity"]["from"]
-    p = unit = mo_request("ou/" + data["org_unit_uuid"], at=from_date).json()
+    p = unit = mo_request("ou/" + ou, at=from_date).json()
     if not is_sd_triggered(p):
         return
 
-    addresses = mo_request("ou/" + ou + "/details/address", at=from_date).json()
+    # the edited address is prepended to addresses and thereby given higher priority
+    # see scoped and keyed addresses in sd_mox.py
+    addresses = [data["request"]["data"]] + mo_request(
+        "ou/" + ou + "/details/address", at=from_date
+    ).json()
     from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
     mox = get_sdMox()
     mox._update_virkning(from_date)
 
-    payload = mox.payload_edit(data["uuid"], unit, addresses)
+    payload = mox.payload_edit(ou, unit, addresses)
     mox.edit_unit(test_run=False, **payload)
     mox.check_unit(**payload)
 
@@ -186,7 +215,14 @@ def ret_med_ivan(from_date, payload):
     mox._update_virkning(from_date)
     pprint.pprint(payload)
     mox.edit_unit(**payload, test_run=False)
-    mox.check_unit(**payload)
+    pprint.pprint(mox.check_unit(**payload))
+
+def call_robert(from_date, uuid):
+    from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
+    mox = get_sdMox()
+    mox._update_virkning(from_date)
+    pprint.pprint(mox.read_parent(uuid))
+
 
 def register(app):
     read_config(app)
@@ -201,37 +237,38 @@ def register(app):
     Trigger.on(
         Trigger.ORG_UNIT,
         Trigger.RequestType.EDIT,
-        Trigger.Event.ON_AFTER
-    )(ou_after_rename)
+        Trigger.Event.ON_BEFORE
+    )(ou_before_edit)
 
     Trigger.on(
         "address",
         Trigger.RequestType.CREATE,
-        Trigger.Event.ON_AFTER
-    )(address_create_after)
+        Trigger.Event.ON_BEFORE
+    )(address_before_create)
 
     Trigger.on(
         "address",
         Trigger.RequestType.EDIT,
-        Trigger.Event.ON_AFTER
-    )(address_edit_after)
+        Trigger.Event.ON_BEFORE
+    )(address_before_edit)
 
 
 if __name__ == "__main__":
     custpath = pathlib.Path(".")
     class App:
-        config = {"CUSTOMER_CONFIG_FILE": "kommune-andeby.json"}
+        config = {"CUSTOMER_CONFIG_FILE": sys.argv[1]}
+    read_config(App) #3.22.01
+    call_robert("2019-11-01","ad3b28aa-2998-43d9-8840-264f35a0fd82")
 
-    read_config(App)
     ret_med_ivan("2019-11-01", {
-        'adresse': {'silkdata:AdresseNavn': 'Toftebjerghaven 6',
+        'adresse': {'silkdata:AdresseNavn': 'Toftebjerghaven 4',
              'silkdata:ByNavn': 'Ballerup',
              'silkdata:PostKodeIdentifikator': '2750'},
-        'integration_values': {'formaalskode': '3.22.01',
-                        'skolekode': '151001',
+        'integration_values': {'formaalskode': '',
+                        'skolekode': '',
                         'time_planning': 'Arbejdstidsplaner'},
         'name': 'LU - OS2MO Hejsa',
-        'phone': '12222223',
+        'phone': '12341234',
         'pnummer': '1011600936',
         'unit_code': 'LU75',
         'unit_uuid': '08c6254f-6b64-4500-8a00-00000671LU75'})
