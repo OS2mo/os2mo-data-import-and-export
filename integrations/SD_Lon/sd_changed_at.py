@@ -107,7 +107,7 @@ class ChangeAtSD(object):
             if self.to_date is not None:
                 url = 'GetEmploymentChangedAtDate20111201'
                 params = {
-                    # 'EmploymentIdentifier': '', # DELETE!!!
+                    # 'EmploymentIdentifier': '',
                     'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
                     'DeactivationDate': self.to_date.strftime('%d.%m.%Y'),
                     'StatusActiveIndicator': 'true',
@@ -124,7 +124,7 @@ class ChangeAtSD(object):
             else:
                 url = 'GetEmploymentChanged20111201'
                 params = {
-                    # 'EmploymentIdentifier': '', # DELETE!!!
+                    # 'EmploymentIdentifier': '',
                     'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
                     'DeactivationDate': '31.12.9999',
                     'DepartmentIndicator': 'true',
@@ -261,7 +261,19 @@ class ChangeAtSD(object):
         )
         return compare
 
-    def _validity(self, engagement_info, original_end=None):
+    def _validity(self, engagement_info, original_end=None, cut=False):
+        """
+        Extract a validity object from the supplied SD information.
+        If the validity extends outside the current engagment, the
+        change is either refused (by returning None) or cut to the
+        length of the current engagment.
+        :param engagement_info: The SD object to extract from.
+        :param orginal_end: The engagment end to compare with.
+        :param cut: If True the returned validity will cut to fit
+        rather than rejeted, if the validity is too long.
+        :return: A validity dict suitable for a MO payload. None if
+        the change is rejected.
+        """
         from_date = engagement_info['ActivationDate']
         to_date = engagement_info['DeactivationDate']
 
@@ -269,8 +281,11 @@ class ChangeAtSD(object):
             edit_end = datetime.datetime.strptime(to_date, '%Y-%m-%d')
             eng_end = datetime.datetime.strptime(original_end, '%Y-%m-%d')
             if (edit_end > eng_end):
-                logger.warning('This edit would have extended outside engagement')
-                return None
+                if cut:
+                    to_date = datetime.datetime.strftime(eng_end, '%Y-%m-%d')
+                else:
+                    logger.info('This edit would have extended outside engagement')
+                    return None
 
         if to_date == '9999-12-31':
             to_date = None
@@ -345,6 +360,9 @@ class ChangeAtSD(object):
         logger.info('Create leave, job_id: {}, status: {}'.format(job_id, status))
         # TODO: This code potentially creates duplicated leaves.
         # Implment solution like the one for associations.
+
+        # TODO: It seems we should find a way to create a matching engagment
+        # while the leave is running. Wait for final confirmation.
         mo_eng = self._find_engagement(job_id)
         payload = sd_payloads.create_leave(mo_eng, self.mo_person, self.leave_uuid,
                                            job_id, self._validity(status))
@@ -376,7 +394,6 @@ class ChangeAtSD(object):
             logger.info('No new Association is needed')
 
     def apply_NY_logic(self, org_unit, job_id, validity):
-        # This must go to sd_common, or some kind of conf
         too_deep = self.settings['integrations.SD_Lon.import.too_deep']
         # Move users and make associations according to NY logic
         ou_info = self.helper.read_ou(org_unit)
@@ -410,8 +427,11 @@ class ChangeAtSD(object):
             logger.info('Org unit for new engagement: {}'.format(org_unit))
             org_unit = self.apply_NY_logic(org_unit, job_id, validity)
         except IndexError:
-            org_unit = '4f79e266-4080-4300-a800-000006180002'  # CONF!!!!
-            logger.error('No unit for engagement {}'.format(job_id))
+            # This can be removed if we do not see the exception:
+            # org_unit = '4f79e266-4080-4300-a800-000006180002'  # CONF!!!!
+            msg = 'No unit for engagement {}'.format(job_id)
+            logger.error(msg)
+            raise Exception(msg)
 
         try:
             emp_name = engagement_info['professions'][0]['EmploymentName']
@@ -494,8 +514,9 @@ class ChangeAtSD(object):
             logger.info('Change department of engagement {}:'.format(job_id))
             logger.debug('Department object: {}'.format(department))
 
-            # This line most likely gave us a lot of bugs...
-            # validity = self._validity(department)
+            validity = self._validity(department,
+                                      mo_eng['validity']['to'],
+                                      cut =True)
 
             logger.debug('Validity of this department change: {}'.format(validity))
             org_unit = department['DepartmentUUIDIdentifier']
@@ -534,6 +555,9 @@ class ChangeAtSD(object):
             else:
                 emp_name = profession_info['JobPositionIdentifier']
             logger.debug('Employment name: {}'.format(emp_name))
+
+            # Should this have an end comparison and cut=True?
+            # Most likely not, but be aware of the option.
             validity = self._validity(profession_info)
 
             self._update_professions(emp_name)
@@ -548,6 +572,9 @@ class ChangeAtSD(object):
 
         for worktime_info in engagement_info['working_time']:
             logger.info('Change working time of engagement {}'.format(job_id))
+
+            # Should this have an end comparison and cut=True?
+            # Most likely not, but be aware of the option.
             validity = self._validity(worktime_info, mo_eng['validity']['to'])
             # As far as we know, this can only happen for work time
             if validity is None:
@@ -786,7 +813,7 @@ def initialize_changed_at(from_date, run_db, force=False):
 
     logger.info('Start initial ChangedAt')
     sd_updater = ChangeAtSD(from_date)
-    sd_updater.update_changed_persons() # REENABLE!!!!!
+    sd_updater.update_changed_persons()
     sd_updater.update_all_employments()
     logger.info('Ended initial ChangedAt')
 
@@ -796,8 +823,8 @@ def initialize_changed_at(from_date, run_db, force=False):
 if __name__ == '__main__':
     logger.info('***************')
     logger.info('Program started')
-    init = False
-    from_date = datetime.datetime(2019, 10, 1, 0, 0)
+    init = True
+    from_date = datetime.datetime(2019, 9, 15, 0, 0)
 
     if init:
         run_db = pathlib.Path(RUN_DB)
