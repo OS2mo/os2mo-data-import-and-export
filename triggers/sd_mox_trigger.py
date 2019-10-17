@@ -115,9 +115,9 @@ def ou_before_create(data):
     mox._update_virkning(from_date)
 
     payload = mox.payload_create(data["uuid"], data["request"], parent)
-    pprint.pprint(payload)
+    #pprint.pprint(payload)
     mox.create_unit(test_run=False, **payload)
-    mox.check_unit(**payload)
+    mox.check_unit(operation="import", **payload)
 
 
 def ou_before_edit(data):
@@ -140,6 +140,7 @@ def ou_before_edit(data):
             at=from_date_str
         ).json()
         payload = mox.payload_edit(data["uuid"], unit, addresses)
+        operation="ret"
         mox.edit_unit(test_run=False, **payload)
 
     elif "parent" in data["request"]["data"]:
@@ -149,10 +150,11 @@ def ou_before_edit(data):
             at=from_date_str
         ).json()
         payload = mox.payload_create(data["uuid"], unit, parent)
+        operation="flyt"
         mox.move_unit(test_run=False, **payload)
 
-    pprint.pprint(payload)
-    mox.check_unit(**payload)
+    #pprint.pprint(payload)
+    mox.check_unit(operation=operation, **payload)
 
 
 def address_before_create(data):
@@ -178,9 +180,9 @@ def address_before_create(data):
     mox._update_virkning(from_date)
 
     payload = mox.payload_edit(ou, unit, addresses)
-    pprint.pprint(payload)
+    #pprint.pprint(payload)
     mox.edit_unit(test_run=False, **payload)
-    mox.check_unit(**payload)
+    mox.check_unit(operation="ret", **payload)
 
 
 def address_before_edit(data):
@@ -207,7 +209,7 @@ def address_before_edit(data):
 
     payload = mox.payload_edit(ou, unit, addresses)
     mox.edit_unit(test_run=False, **payload)
-    mox.check_unit(**payload)
+    mox.check_unit(operation="ret", **payload)
 
 def ret_med_ivan(from_date, payload):
     from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
@@ -215,7 +217,7 @@ def ret_med_ivan(from_date, payload):
     mox._update_virkning(from_date)
     pprint.pprint(payload)
     mox.edit_unit(**payload, test_run=False)
-    pprint.pprint(mox.check_unit(**payload))
+    pprint.pprint(mox.check_unit(operation="", **payload))
 
 def call_robert(from_date, uuid):
     from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
