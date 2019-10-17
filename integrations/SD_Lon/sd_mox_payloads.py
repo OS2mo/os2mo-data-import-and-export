@@ -1,4 +1,9 @@
 import datetime
+import pathlib
+import collections
+
+#xmldir = pathlib.Path(__file__).parent.absolute()
+#flytxml = (xmldir / "flyt.xml").read_text()
 
 boilerplate = {
     "@xmlns": "urn:oio:sagdok:organisation:organisationenhed:2.0.0",
@@ -120,6 +125,62 @@ def attributes_ret(virkning, funktionskode=None,
         }
     return attribut_liste
 
+def flyt_xml_dict(unit_uuid=None, unit_name=None, virk_from=None, virk_to=None,
+                  parent_unit_uuid=None, **kwargs):
+    reg = {'RegistreringBesked': collections.OrderedDict({
+        '@xmlns': 'urn:oio:sagdok:organisation:organisationenhed:2.0.0',
+        '@xmlns:cvr': 'http://rep.oio.dk/cvr.dk/xml/schemas/2005/03/22/',
+        '@xmlns:dkcc1': 'http://rep.oio.dk/ebxml/xml/schemas/dkcc/2003/02/13/',
+        '@xmlns:dkcc2': 'http://rep.oio.dk/ebxml/xml/schemas/dkcc/2005/03/15/',
+        '@xmlns:itst1': 'http://rep.oio.dk/itst.dk/xml/schemas/2005/06/24/',
+        '@xmlns:oio': 'urn:oio:definitions:1.0.0',
+        '@xmlns:orgfaelles': 'urn:oio:sagdok:organisation:2.0.0',
+        '@xmlns:sd': 'urn:oio:sagdok:3.0.0',
+        '@xmlns:sd20070301': 'http://rep.oio.dk/sd.dk/xml.schema/20070301/',
+        '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+        '@xsi:schemaLocation': 'urn:oio:sagdok:organisation:organisationenhed:2.0.0 '
+        'OrganisationEnhedRegistrering.xsd',
+    })}
+
+    rb = reg['RegistreringBesked']
+    rb["ObjektID"] = {
+        'sd:IdentifikatorType': 'OrganisationEnhed',
+        'sd:UUIDIdentifikator': unit_uuid
+    }
+
+    rg = rb["Registrering"] = collections.OrderedDict()
+    rg['sd:FraTidspunkt'] = {'sd:TidsstempelDatoTid': virk_from},
+    rg['sd:LivscyklusKode'] = 'Flyttet'
+    rg['sd:BrugerRef']= {
+        'sd:IdentifikatorType': 'AD',
+        'sd:UUIDIdentifikator': '3bb66b0d-132d-4b98-a903-ea29f6552d53'
+    }
+
+    rg['AttributListe'] = {
+        'Egenskab': {
+            'sd:EnhedNavn': unit_name,
+            'sd:Virkning': {
+                'sd:FraTidspunkt': {'sd:TidsstempelDatoTid': virk_from},
+                'sd:TilTidspunkt': {'sd:TidsstempelDatoTid': virk_to}
+            }
+        },
+        'sd:LokalUdvidelse': None
+    }
+
+    rg['TilstandListe'] = None
+
+    rg['RelationListe'] = {
+        'sd:LokalUdvidelse': None,
+        'sd:Overordnet': {
+            'sd:ReferenceID': {'sd:UUIDIdentifikator': parent_unit_uuid},
+            'sd:Virkning': {
+                'sd:FraTidspunkt': {'sd:TidsstempelDatoTid': virk_from},
+                'sd:TilTidspunkt': {'sd:TidsstempelDatoTid': virk_to}
+            }
+        }
+    }
+
+    return reg
 
 def attributes_flyt(virkning, name):
     return {
@@ -138,6 +199,7 @@ def relations_flyt(virkning, parent):
             "sd:Virkning": virkning
         }
     }
+
 
 
 def create_flyt_registrering(virkning, attributliste, relationsliste ):
