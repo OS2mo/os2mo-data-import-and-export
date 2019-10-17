@@ -278,8 +278,13 @@ class ChangeAtSD(object):
         to_date = engagement_info['DeactivationDate']
 
         if original_end is not None:
+            edit_from = datetime.datetime.strptime(from_date, '%Y-%m-%d')
             edit_end = datetime.datetime.strptime(to_date, '%Y-%m-%d')
             eng_end = datetime.datetime.strptime(original_end, '%Y-%m-%d')
+            if edit_from >= eng_end:
+                logger.info('This edit starts after the end of the engagement')
+                return None
+
             if (edit_end > eng_end):
                 if cut:
                     to_date = datetime.datetime.strftime(eng_end, '%Y-%m-%d')
@@ -517,6 +522,8 @@ class ChangeAtSD(object):
             validity = self._validity(department,
                                       mo_eng['validity']['to'],
                                       cut =True)
+            if validity is None:
+                continue
 
             logger.debug('Validity of this department change: {}'.format(validity))
             org_unit = department['DepartmentUUIDIdentifier']
