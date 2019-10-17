@@ -55,9 +55,9 @@ class sdMox(object):
             self.level_by_uuid = {v: k for k, v in self.sd_levels.items()}
 
             sd_arbtid = [
-                ('Dannes ikke', cfg["TR_DANNES_IKKE"]),
+                ('Normaltjeneste dannes ikke', cfg["TR_DANNES_IKKE"]),
                 ('Arbejdstidsplaner', cfg["TR_ARBEJDSTIDSPLANER"]),
-                ('Tjenesetid', cfg["TR_TJENESTETID"]),
+                ('Tjenestetid', cfg["TR_TJENESTETID"]),
             ]
             self.sd_arbtid = OrderedDict(sd_arbtid)
             self.arbtid_by_uuid = {v: k for k, v in self.sd_arbtid.items()}
@@ -108,8 +108,14 @@ class sdMox(object):
 
     def _update_virkning(self, from_date, to_date=None):
         self.virkning = smp.sd_virkning(from_date, to_date)
+        if to_date == None:
+            to_date = datetime.date(2099,12,31)
         if not from_date.day == 1:
             raise sdMoxException('Day of month must be 1')
+        self._times = {
+            "virk_from" : from_date.strftime("%Y-%m-%dT00:00:00.00"),
+            "virk_to" : to_date.strftime("%Y-%m-%dT00:00:00.00"),
+        }
 
     def read_parent(self, unit_uuid=None):
         from_date = self.virkning['sd:FraTidspunkt']['sd:TidsstempelDatoTid'][0:10]
@@ -144,13 +150,6 @@ class sdMox(object):
         logger.debug('Read department, params: {}'.format(params))
         department = self.sd.lookup('GetDepartment20111201', params)
         department_info = department.get('Department', None)
-        # try:
-        #     department = sd_lookup('GetDepartment20111201', params)
-        #     department_info = department.get('Department', None)
-        # except KeyError:
-        #     # Bug in SD soap-interface, most likely these units actually do exist
-        #     # department_info = 'Unknown department'
-        #     department_info = None
 
         if isinstance(department_info, list):
             msg = 'Unit not unique. Code {}, uuid {}, level {}'.format(
@@ -161,14 +160,14 @@ class sdMox(object):
             raise sdMoxException(msg)
         return department_info
 
-    def _check_department(self, name=None, unit_code=None, unit_uuid=None,
+    def _check_department(self, unit_name=None, unit_code=None, unit_uuid=None,
                           unit_level=None, phone=None, pnummer=None, adresse=None,
-                          parent=None, integration_values=None):
+                          parent=None, integration_values=None, operation=None):
         """
         Verify that an SD department contain what we think it should contain.
         Besides the supplied parameters, the activation date is also checked
         agains the global from_date.
-        :param name: Expected name or None.
+        :param unit_name: Expected name or None.
         :param unit_code: Expected unit code or None.
         :param unit_uuid: Expected unit uuid or None. Also used to look up dept.
         :param unit_level: Expected unit level or None. Also used to look up dept.
@@ -177,6 +176,7 @@ class sdMox(object):
         :param adresse: Expected address or None.
         :param parent: Expected uuid of the parent or None,
         :param integration_values: This is currently ignored, as it can't be checked
+        :param operation: flyt, ret, import
         :return: Returns list errors, empty list if no errors.
         """
         errors = []
@@ -187,11 +187,11 @@ class sdMox(object):
         department = self.read_department(unit_code=unit_code, unit_level=unit_level)
         if department is None:
             return None, ["Unit"]
-        # pprint.pprint(department)
 
         from_date = self.virkning['sd:FraTidspunkt']['sd:TidsstempelDatoTid'][0:10]
-        compare(department.get('ActivationDate'), from_date, "Activation Date")
-        compare(department.get('DepartmentName'), name, "Name")
+        if operation in ("ret","import"):
+            compare(department.get('ActivationDate'), from_date, "Activation Date")
+        compare(department.get('DepartmentName'), unit_name, "Name")
         compare(department.get('DepartmentIdentifier'), unit_code, "Unit code")
         compare(department.get('DepartmentUUIDIdentifier'), unit_uuid, "UUID")
         compare(department.get('DepartmentLevelIdentifier'), unit_level, "Level")
@@ -215,18 +215,18 @@ class sdMox(object):
             else:
                 errors.append("Parent")
 
-        if errors or True:
-            print("Monitoring fetch vs payload:")
-            print("locals():")
-            print(pprint.pformat(locals()))
+        #if errors or True:
+        #    print("Monitoring fetch vs payload:")
+        #    print("locals():")
+        #    print(pprint.pformat(locals()))
 
         return department, errors
 
-    def _create_xml_import(self, name, unit_code, parent, unit_level, unit_uuid):
+    def _create_xml_import(self, unit_name, unit_code, parent, unit_level, unit_uuid):
         """
         Create suitable xml-payload to create a unit. This is a helper function, it
         is expected that the values are allredy validated to be legal and consistent.
-        :param name: Name of the new unit.
+        :param unit_name: Name of the new unit.
         :param unit_code: Short unique code (enhedskode) for the unit.
         :param parent: uuid for parent unit.
         :param uuid: uuid for the unit.
@@ -236,7 +236,7 @@ class sdMox(object):
             'AttributListe': smp.attributes_import(
                 self.virkning,
                 unit_code=unit_code,
-                unit_name=name,
+                unit_name=unit_name,
                 unit_type=unit_level
             ),
             'Registrering': smp.create_registrering(self.virkning,
@@ -245,11 +245,10 @@ class sdMox(object):
         }
         edit_dict = {'RegistreringBesked': value_dict}
         edit_dict['RegistreringBesked'].update(smp.boilerplate)
-        pprint.pprint(edit_dict)
         xml = xmltodict.unparse(edit_dict)
         return xml
 
-    def _create_xml_ret(self, unit_uuid, unit_code, name, pnummer=None,
+    def _create_xml_ret(self, unit_uuid, unit_code, unit_name, pnummer=None,
                         phone=None, adresse=None, integration_values=None):
         value_dict = {
             'RelationListe': smp.relations_ret(
@@ -263,7 +262,7 @@ class sdMox(object):
                 funktionskode=integration_values["formaalskode"],
                 skolekode=integration_values["skolekode"],
                 tidsregistrering=integration_values["time_planning"],
-                unit_name=name,
+                unit_name=unit_name,
             ),
             'Registrering': smp.create_registrering(
                 self.virkning,
@@ -274,26 +273,16 @@ class sdMox(object):
         edit_dict = {'RegistreringBesked': value_dict}
         edit_dict['RegistreringBesked'].update(smp.boilerplate)
         xml = xmltodict.unparse(edit_dict)
-        print("Monitoring xml-ret-edit-dict")
-        print("locals():")
-        print(pprint.pformat(edit_dict))
         return xml
 
-    def _create_xml_flyt(self, name, unit_code, parent, unit_level, unit_uuid):
-        "using same signature as create for validation purposes"
-        value_dict = {
-            'Registrering': smp.create_flyt_registrering(
-                self.virkning,
-                attributliste = smp.attributes_flyt(self.virkning, name),
-                relationsliste = smp.relations_flyt(self.virkning, parent),
-            ),
-            'ObjektID': smp.create_objekt_id(unit_uuid)
-        }
-        edit_dict = {'RegistreringBesked': value_dict}
-        edit_dict['RegistreringBesked'].update(smp.boilerplate)
-        xml = xmltodict.unparse(edit_dict)
-        pprint.pprint(edit_dict)
+
+    def _create_xml_flyt(self, **payload):
+        payload.update(self._times)
+        flyt_dict = smp.flyt_xml_dict(**payload)
+        xml = xmltodict.unparse(flyt_dict)
         return xml
+
+
 
     def _validate_unit_code(self, unit_code, unit_level=None):
         logger.info('Validating unit code {}'.format(unit_code))
@@ -314,19 +303,6 @@ class sdMox(object):
                 code_errors.append('Enhedskode er i brug')
         return code_errors
 
-    def _validate_unit_uuid(self, unit_uuid):
-        uuid_errors = []
-        try:
-            uuid.UUID(unit_uuid, version=4)
-        except ValueError:
-            uuid_errors.append('Ugyldig uuid')
-
-        if not uuid_errors:
-            department = self.read_department(unit_uuid=unit_uuid)
-            if department is not None:
-                uuid_errors.append('uuid er i brug')
-        return uuid_errors
-
     def _mo_to_sd_address(self, address):
         if address == None:
             return None
@@ -340,12 +316,11 @@ class sdMox(object):
         }
         return sd_address
 
-    # TODO: Consider to also fold unit into a dict.
-    def create_unit(self, name, unit_code, parent, unit_level, unit_uuid=None,
+    def create_unit(self, unit_name, unit_code, parent, unit_level, unit_uuid=None,
                     test_run=True):
         """
         Create a new unit in SD.
-        :param name: Unit name.
+        :param unit_name: Unit name.
         :param unit_code: Short (3-4 chars) unique name (enhedskode).
         :param parent: Unit code of parent unit.
         :param unit_level: In SD the unit_type is tied to its level.
@@ -357,16 +332,10 @@ class sdMox(object):
         will not be the same random uuid as for the actual run, unless the returned
         uuid is stored and given as parameter for the actual run.
         """
-        # Verify that uuid and unit_code is valid and unused.
-        if not unit_uuid:
-            unit_uuid = str(uuid.uuid4())
-            uuid_errors = []
-        else:
-            uuid_errors = self._validate_unit_uuid(unit_uuid)
         code_errors = self._validate_unit_code(unit_code)
 
-        if code_errors or uuid_errors:
-            raise sdMoxException(str(code_errors + uuid_errors))
+        if code_errors:
+            raise sdMoxException(str(code_errors))
 
         # Verify the parent department actually exist
         parent_department = self.read_department(unit_code=parent['unit_code'],
@@ -383,7 +352,7 @@ class sdMox(object):
             raise sdMoxException('Enhedstypen passer ikke til forældreenheden')
 
         xml = self._create_xml_import(
-            name=name,
+            unit_name=unit_name,
             unit_uuid=unit_uuid,
             unit_code=unit_code,
             unit_level=unit_level,
@@ -392,7 +361,7 @@ class sdMox(object):
         logger.debug('Create unit xml: {}'.format(xml))
         if not test_run:
             print('Calling amqp')
-            logger.info('Create unit {}, {}, {}'.format(name, unit_code, unit_uuid))
+            logger.info('Create unit {}, {}, {}'.format(unit_name, unit_code, unit_uuid))
             self.call(xml)
         return unit_uuid
 
@@ -405,7 +374,7 @@ class sdMox(object):
             self.call(xml)
         return payload["unit_uuid"]
 
-    def move_unit(self, name, unit_code, parent, unit_level, unit_uuid=None,
+    def move_unit(self, unit_name, unit_code, parent, unit_level, unit_uuid=None,
                   test_run=True):
         # Verify the parent department actually exist
         parent_department = self.read_department(unit_code=parent['unit_code'],
@@ -420,12 +389,13 @@ class sdMox(object):
         if not unit_index > parent_index:
             raise sdMoxException('Enhedstypen passer ikke til forældreenheden')
 
-        xml = self._create_xml_import(
-            name=name,
+        xml = self._create_xml_flyt(
+            unit_name=unit_name,
             unit_uuid=unit_uuid,
             unit_code=unit_code,
             unit_level=unit_level,
-            parent=parent["uuid"]
+            parent=parent["uuid"],
+            parent_unit_uuid=parent["uuid"]
         )
         logger.debug('Move unit xml: {}'.format(xml))
         if not test_run:
@@ -453,7 +423,7 @@ class sdMox(object):
             raise KeyError("Parents Enhedstype er ikke et kendt NY-niveau")
 
         return {
-            "name": unit["name"],
+            "unit_name": unit["name"],
             "parent":{
                 "unit_code": parent['user_key'],
                 "uuid": parent['uuid'],
@@ -511,7 +481,7 @@ class sdMox(object):
             time_planning = self.arbtid_by_uuid[time_planning["uuid"]]
 
         return {
-            "name": unit["name"],
+            "unit_name": unit["name"],
             "unit_code": unit['user_key'],
             "unit_uuid": unit_uuid,
             "phone" : scoped.get("PHONE", [None])[0],
@@ -606,7 +576,7 @@ if __name__ == '__main__':
     unit_uuid = '31b43f5d-d8e8-4bd2-8420-a41148ca229f'
     unit_name = 'Daw dav'
     errors = mox._check_department(
-        namd=unit_name,
+        unit_name=unit_name,
         unit_code=unit_code,
         unit_uuid=unit_uuid)
     print(errors)
