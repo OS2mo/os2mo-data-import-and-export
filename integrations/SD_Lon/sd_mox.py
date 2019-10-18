@@ -20,8 +20,10 @@ logger.setLevel(logging.DEBUG)
 CFG_PREFIX = "integrations.SD_Lon.sd_mox."
 
 
-class sdMoxException(Exception):
-    pass
+class SdMoxError(Exception):
+    def __init__(self, message):
+        logger.exception(str(message))
+        Exception.__init__(self, "SD-Mox: " + str(message))
 
 
 class sdMox(object):
@@ -38,8 +40,7 @@ class sdMox(object):
             self.amqp_host = cfg["AMQP_HOST"]
             self.amqp_port = cfg["AMQP_PORT"]
         except Exception as e:
-            logger.exception("SD AMQP credentials missing")
-            raise
+            raise SdMoxError("SD AMQP credentials mangler")
 
         try:
             sd_levels = [
@@ -63,8 +64,7 @@ class sdMox(object):
             self.arbtid_by_uuid = {v: k for k, v in self.sd_arbtid.items()}
 
         except Exception as e:
-            logger.exception("SD Levels are missing")
-            raise
+            raise SdMoxError("Klasse-uuider for conf af Ny-Niveauer eller Tidsregistreing mangler")
 
         if from_date:
             self._update_virkning(from_date)
@@ -89,11 +89,11 @@ class sdMox(object):
             #auto_ack=True
 
     def on_response(self, ch, method, props, body):
-        logger.error('Unexpected response!')
         logger.error(body)
-        raise sdMoxException('Unexpected amqp response')
+        raise SdMoxError('Uventet svar fra SD amqp')
 
     def call(self, xml):
+        logger.info('Calling SD-Mox amqp')
         self.channel.basic_publish(
             exchange=self.exchange_name,
             routing_key='#',
@@ -111,7 +111,7 @@ class sdMox(object):
         if to_date == None:
             to_date = datetime.date(2099,12,31)
         if not from_date.day == 1:
-            raise sdMoxException('Day of month must be 1')
+            raise SdMoxError('Startdato skal altid være den første i en måned')
         self._times = {
             "virk_from" : from_date.strftime("%Y-%m-%dT00:00:00.00"),
             "virk_to" : to_date.strftime("%Y-%m-%dT00:00:00.00"),
@@ -152,12 +152,12 @@ class sdMox(object):
         department_info = department.get('Department', None)
 
         if isinstance(department_info, list):
-            msg = 'Unit not unique. Code {}, uuid {}, level {}'.format(
+            msg = 'Afdeling ikke unik. Code {}, uuid {}, level {}'.format(
                 unit_code, unit_uuid, unit_level
             )
             logger.error(msg)
             logger.error('Number units: {}'.format(len(department_info)))
-            raise sdMoxException(msg)
+            raise SdMoxError(msg)
         return department_info
 
     def _check_department(self, unit_name=None, unit_code=None, unit_uuid=None,
@@ -288,19 +288,19 @@ class sdMox(object):
         logger.info('Validating unit code {}'.format(unit_code))
         code_errors = []
         if len(unit_code) < 2:
-            code_errors.append('Enhedskode for kort')
+            code_errors.append('Enhedsnummer for kort')
         if len(unit_code) > 4:
-            code_errors.append('Enhedskode for lang')
+            code_errors.append('Enhedsnummer for langt')
         if not unit_code.isalnum():
-            code_errors.append('Ugyldigt tegn i enhedskode')
+            code_errors.append('Ugyldigt tegn i enhedsnummer')
         if unit_code.upper() != unit_code:
-            code_errors.append('Enhedskode skal være store bogstaver')
+            code_errors.append('Enhedsnummer skal være store bogstaver')
 
         if not code_errors:
             # customers expect unique unit_codes globally
             department = self.read_department(unit_code=unit_code)
             if department is not None:
-                code_errors.append('Enhedskode er i brug')
+                code_errors.append('Enhedsnummer er i brug')
         return code_errors
 
     def _mo_to_sd_address(self, address):
@@ -335,13 +335,13 @@ class sdMox(object):
         code_errors = self._validate_unit_code(unit_code)
 
         if code_errors:
-            raise sdMoxException(str(code_errors))
+            raise SdMoxError(", ".join(code_errors))
 
         # Verify the parent department actually exist
         parent_department = self.read_department(unit_code=parent['unit_code'],
                                                  unit_level=parent['level'])
         if not parent_department:
-            raise sdMoxException('Forældrenheden finds ikke')
+            raise SdMoxError('Forældrenheden findes ikke')
 
         unit_index = list(self.sd_levels.keys()).index(unit_level)
         parent_index = list(self.sd_levels.keys()).index(
@@ -349,7 +349,7 @@ class sdMox(object):
         )
 
         if not unit_index > parent_index:
-            raise sdMoxException('Enhedstypen passer ikke til forældreenheden')
+            raise SdMoxError('Enhedstypen passer ikke til forældreenheden')
 
         xml = self._create_xml_import(
             unit_name=unit_name,
@@ -360,7 +360,6 @@ class sdMox(object):
         )
         logger.debug('Create unit xml: {}'.format(xml))
         if not test_run:
-            print('Calling amqp')
             logger.info('Create unit {}, {}, {}'.format(unit_name, unit_code, unit_uuid))
             self.call(xml)
         return unit_uuid
@@ -369,7 +368,6 @@ class sdMox(object):
         xml = self._create_xml_ret(**payload)
         logger.debug('Edit unit xml: {}'.format(xml))
         if not test_run:
-            print('Calling amqp')
             logger.info('Edit unit {!r}'.format(payload))
             self.call(xml)
         return payload["unit_uuid"]
@@ -380,14 +378,14 @@ class sdMox(object):
         parent_department = self.read_department(unit_code=parent['unit_code'],
                                                  unit_level=parent['level'])
         if not parent_department:
-            raise sdMoxException('Forældrenheden finds ikke')
+            raise SdMoxError('Forældrenheden findes ikke')
 
         unit_index = list(self.sd_levels.keys()).index(unit_level)
         parent_index = list(self.sd_levels.keys()).index(
             parent_department['DepartmentLevelIdentifier']
         )
         if not unit_index > parent_index:
-            raise sdMoxException('Enhedstypen passer ikke til forældreenheden')
+            raise SdMoxException('Enhedstypen passer ikke til forældreenheden')
 
         xml = self._create_xml_flyt(
             unit_name=unit_name,
@@ -399,7 +397,6 @@ class sdMox(object):
         )
         logger.debug('Move unit xml: {}'.format(xml))
         if not test_run:
-            print('Calling amqp')
             self.call(xml)
         return unit_uuid
 
@@ -407,20 +404,20 @@ class sdMox(object):
         time.sleep(8.5)
         unit, errors = self._check_department(**payload)
         if unit == None:
-            raise KeyError("Integrationsfejl, SD-løn - Unit ikke fundet: %s" % payload["unit_uuid"])
+            raise SdMoxError("Afdeling ikke fundet: %s" % payload["unit_uuid"])
         elif errors:
             errstr = ", ".join(errors)
-            raise RuntimeError("Integrationsfejl, SD-løn - følgende felter blev ikke opdateret: %s" % errstr)
+            raise SdMoxError("Følgende felter kunne ikke opdateres i SD: %s" % errstr)
         return unit
 
     def payload_create(self, unit_uuid, unit, parent):
         unit_level = self.level_by_uuid.get(unit["org_unit_type"]["uuid"])
         if not unit_level:
-            raise KeyError("Enhedstype er ikke et kendt NY-niveau")
+            raise SdMoxError("Enhedstype er ikke et kendt NY-niveau")
 
         parent_level = self.level_by_uuid.get(parent["org_unit_type"]["uuid"])
         if not parent_level:
-            raise KeyError("Parents Enhedstype er ikke et kendt NY-niveau")
+            raise SdMoxError("Forældreenhedens enhedstype er ikke et kendt NY-niveau")
 
         return {
             "unit_name": unit["name"],
@@ -453,9 +450,9 @@ class sdMox(object):
                     # found, escape loop!
                     break
             except Exception as e:
-                raise LookupError(str(e)) from e
+                raise SdMoxError("Fejlende opslag i DAR for "+ addrid) from e
         else:
-            raise LookupError('no such address {!r}'.format(addrid))
+            raise SdMoxError('Addresse ikke fundet i DAR: {!r}'.format(addrid))
 
         return addrobjs.pop()["betegnelse"]
 
@@ -520,7 +517,7 @@ class sdMox(object):
                 logger.info('dry-run succeeded: {}'.format(uuid))
             else:
                 logger.info('amqp-call succeeded: {}'.format(uuid))
-        except sdMoxException as e:
+        except Exception as e:
             print('Error: {}'.format(e))
             msg = 'Test for unit {} failed: {}'.format(unit_uuid, e)
             if test_run:
