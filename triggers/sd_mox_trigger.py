@@ -23,12 +23,13 @@ import pathlib
 import sys
 
 try:
+    # if integrated we have a symbolic link in site-packages
     import customer
     import sys
     custpath = pathlib.Path(customer.__file__).parent
     sys.path.append(str(custpath))
 except:
-    # we must be testing
+    # else we must be testing
     pass
 
 import integrations
@@ -88,8 +89,8 @@ def dummy_call(self, xmlstr, *args):
     dom = xml.dom.minidom.parseString(xmlstr.encode("utf-8"))
     pretty_xml_as_string = dom.toprettyxml()
     print(pretty_xml_as_string, args)
-#sd_mox.sdMox._init_amqp_comm = dummy_init
-#sd_mox.sdMox.call = dummy_call
+# sd_mox.sdMox._init_amqp_comm = dummy_init
+# sd_mox.sdMox.call = dummy_call
 
 
 def is_sd_triggered(p):
@@ -103,8 +104,8 @@ def is_sd_triggered(p):
 def ou_before_create(data):
     """ An ou is about to be created
     """
-    p = parent = mo_request("ou/" + data["request"]["parent"]["uuid"]).json()
-    if not is_sd_triggered(p):
+    parent = mo_request("ou/" + data["request"]["parent"]["uuid"]).json()
+    if not is_sd_triggered(parent):
         return
 
     # try to create a unit in sd
@@ -115,7 +116,7 @@ def ou_before_create(data):
     mox._update_virkning(from_date)
 
     payload = mox.payload_create(data["uuid"], data["request"], parent)
-    #pprint.pprint(payload)
+    # pprint.pprint(payload)
     mox.create_unit(test_run=False, **payload)
     mox.check_unit(operation="import", **payload)
 
@@ -124,16 +125,16 @@ def ou_before_edit(data):
     """ an ou has been renamed or moved
     """
     from_date_str = data["request"]["data"]["validity"]["from"]
-    p = unit = mo_request("ou/" + data["uuid"], at=from_date_str).json()
-    if not is_sd_triggered(p):
+    unit = mo_request("ou/" + data["uuid"], at=from_date_str).json()
+    if not is_sd_triggered(unit):
         return
 
     from_date = datetime.datetime.strptime(from_date_str, '%Y-%m-%d')
     mox = get_sdMox()
     mox._update_virkning(from_date)
 
-    # rename seems to work, move not so much
     if "name" in data["request"]["data"]:
+        # we are renaming a department
         unit["name"]  = data["request"]["data"]["name"]
         addresses = mo_request(
             "ou/" + data["uuid"] + "/details/address",
@@ -144,7 +145,7 @@ def ou_before_edit(data):
         mox.edit_unit(test_run=False, **payload)
 
     elif "parent" in data["request"]["data"]:
-        mox._update_virkning(from_date, datetime.datetime(2099,12,31))
+        # we are moving a department
         parent = mo_request(
             "ou/" + data["request"]["data"]["parent"]["uuid"],
             at=from_date_str
@@ -153,7 +154,7 @@ def ou_before_edit(data):
         operation="flyt"
         mox.move_unit(test_run=False, **payload)
 
-    #pprint.pprint(payload)
+    # pprint.pprint(payload)
     mox.check_unit(operation=operation, **payload)
 
 
@@ -166,8 +167,8 @@ def address_before_create(data):
     if not ou:
         return
     from_date = data["request"]["validity"]["from"]
-    p = unit = mo_request("ou/" + ou, at=from_date).json()
-    if not is_sd_triggered(p):
+    unit = mo_request("ou/" + ou, at=from_date).json()
+    if not is_sd_triggered(unit):
         return
 
     # the new address is prepended to addresses and thereby given higher priority
@@ -180,7 +181,7 @@ def address_before_create(data):
     mox._update_virkning(from_date)
 
     payload = mox.payload_edit(ou, unit, addresses)
-    #pprint.pprint(payload)
+    # pprint.pprint(payload)
     mox.edit_unit(test_run=False, **payload)
     mox.check_unit(operation="ret", **payload)
 
@@ -194,8 +195,8 @@ def address_before_edit(data):
     if not ou:
         return
     from_date = data["request"]["data"]["validity"]["from"]
-    p = unit = mo_request("ou/" + ou, at=from_date).json()
-    if not is_sd_triggered(p):
+    unit = mo_request("ou/" + ou, at=from_date).json()
+    if not is_sd_triggered(unit):
         return
 
     # the edited address is prepended to addresses and thereby given higher priority
