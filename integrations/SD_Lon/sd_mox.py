@@ -444,6 +444,9 @@ class sdMox(object):
 
     def payload_edit(self, unit_uuid, unit, addresses):
         scoped, keyed = self.grouped_addresses(addresses)
+        if "PNUMBER" in scoped and not "DAR" in scoped:
+            # it has proven difficult to deal with pnumber before postal address
+            raise SdMoxError("Opret postaddresse før pnummer")
 
         # if time planning exists, it must be in self.arbtitd
         time_planning = unit.get('time_planning',None)
