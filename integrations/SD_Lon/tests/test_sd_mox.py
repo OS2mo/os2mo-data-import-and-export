@@ -32,9 +32,6 @@ xml_move = """<?xml version="1.0" encoding="utf-8"?>
 <RegistreringBesked xsi:schemaLocation="urn:oio:sagdok:organisation:organisationenhed:2.0.0 OrganisationEnhedRegistrering.xsd" xmlns:dkcc2="http://rep.oio.dk/ebxml/xml/schemas/dkcc/2005/03/15/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:cvr="http://rep.oio.dk/cvr.dk/xml/schemas/2005/03/22/" xmlns:itst1="http://rep.oio.dk/itst.dk/xml/schemas/2005/06/24/" xmlns:orgfaelles="urn:oio:sagdok:organisation:2.0.0" xmlns:dkcc1="http://rep.oio.dk/ebxml/xml/schemas/dkcc/2003/02/13/" xmlns:sd="urn:oio:sagdok:3.0.0" xmlns="urn:oio:sagdok:organisation:organisationenhed:2.0.0" xmlns:sd20070301="http://rep.oio.dk/sd.dk/xml.schema/20070301/" xmlns:oio="urn:oio:definitions:1.0.0"><ObjektID><sd:IdentifikatorType>OrganisationEnhed</sd:IdentifikatorType><sd:UUIDIdentifikator>12345-22-22-22-12345</sd:UUIDIdentifikator></ObjektID><Registrering><sd:FraTidspunkt><sd:TidsstempelDatoTid>2019-07-01T00:00:00.00</sd:TidsstempelDatoTid></sd:FraTidspunkt><sd:LivscyklusKode>Flyttet</sd:LivscyklusKode><sd:BrugerRef><sd:IdentifikatorType>AD</sd:IdentifikatorType><sd:UUIDIdentifikator>3bb66b0d-132d-4b98-a903-ea29f6552d53</sd:UUIDIdentifikator></sd:BrugerRef><AttributListe><sd:LokalUdvidelse></sd:LokalUdvidelse><Egenskab><sd:Virkning><sd:TilTidspunkt><sd:TidsstempelDatoTid>2099-12-31T00:00:00.00</sd:TidsstempelDatoTid></sd:TilTidspunkt><sd:FraTidspunkt><sd:TidsstempelDatoTid>2019-07-01T00:00:00.00</sd:TidsstempelDatoTid></sd:FraTidspunkt></sd:Virkning><sd:EnhedNavn>A-sdm2</sd:EnhedNavn></Egenskab></AttributListe><TilstandListe></TilstandListe><RelationListe><sd:LokalUdvidelse></sd:LokalUdvidelse><sd:Overordnet><sd:Virkning><sd:TilTidspunkt><sd:TidsstempelDatoTid>2099-12-31T00:00:00.00</sd:TidsstempelDatoTid></sd:TilTidspunkt><sd:FraTidspunkt><sd:TidsstempelDatoTid>2019-07-01T00:00:00.00</sd:TidsstempelDatoTid></sd:FraTidspunkt></sd:Virkning><sd:ReferenceID><sd:UUIDIdentifikator>12345-11-11-11-12345</sd:UUIDIdentifikator></sd:ReferenceID></sd:Overordnet></RelationListe></Registrering></RegistreringBesked>"""  # noqa
 
 
-
-
-
 unit_parent = {
     "name": "A-sdm1",
     "uuid": "12345-11-11-11-12345",
@@ -75,7 +72,6 @@ class Tests(unittest.TestCase):
         from_date = datetime.datetime(2019, 7, 1, 0, 0)
         self.mox = sd_mox.sdMox(from_date, **mox_cfg)
 
-
     def test_grouped_adresses(self):
         addresses = [
             {"address_type": {"scope": "DAR", "user_key": "dar-key-1"},
@@ -101,7 +97,6 @@ class Tests(unittest.TestCase):
             'phn-key-1': ['12345678'],
             'pnum-key-1': ['0123456789']
         }, keyed)
-
 
     def test_payload_create(self):
         pc = self.mox.payload_create(
