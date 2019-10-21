@@ -5,8 +5,15 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+# Triggerkoden i dette modul har to funktioner:
+# 1) At oprette/rette/flytte en afdeling i SD, inden det sker i OS2mo
+# 2) At forhinde oprettelse/flytning/rettelse i OS2mo, hvis det ikke
+# lykkedes i SD
+#
 # Adressernes rækkefølge har betydning.
-# Der skal findes en postadresse inden man opretter et Pnummer, ellers går dert i ged
+#     Der skal findes en postadresse inden man opretter et Pnummer,
+#     ellers går tilbagemeldingen fra SD tilsyneladende i ged.
+#     Der er indført et check for det i sd_mox.py
 #
 #
 
@@ -75,25 +82,14 @@ def mo_request(service, method="get", **params):
 
 
 def get_sdMox():
-    # instantiate integration object
+    "instantiate integration object"
     from_date = datetime.datetime(2019, 7, 1, 0, 0)
     mox = sd_mox.sdMox(from_date, **sdmox_config)
     mox.amqp_connect()
     return mox
 
-def dummy_init(self, *args, **kwargs):
-    pprint.pprint((args, kwargs))
-
-def dummy_call(self, xmlstr, *args):
-    import xml.dom.minidom
-    dom = xml.dom.minidom.parseString(xmlstr.encode("utf-8"))
-    pretty_xml_as_string = dom.toprettyxml()
-    print(pretty_xml_as_string, args)
-# sd_mox.sdMox._init_amqp_comm = dummy_init
-# sd_mox.sdMox.call = dummy_call
-
-
 def is_sd_triggered(p):
+    "determine whether trigger code should run for unit p"
     while p and p["uuid"]:
         if p["uuid"] in sdmox_config.get("TRIGGERED_UUIDS"):
             return True
@@ -116,13 +112,12 @@ def ou_before_create(data):
     mox._update_virkning(from_date)
 
     payload = mox.payload_create(data["uuid"], data["request"], parent)
-    # pprint.pprint(payload)
     mox.create_unit(test_run=False, **payload)
     mox.check_unit(operation="import", **payload)
 
 
 def ou_before_edit(data):
-    """ an ou has been renamed or moved
+    """ An ou is about to be renamed or moved
     """
     from_date_str = data["request"]["data"]["validity"]["from"]
     unit = mo_request("ou/" + data["uuid"], at=from_date_str).json()
@@ -154,25 +149,25 @@ def ou_before_edit(data):
         operation="flyt"
         mox.move_unit(test_run=False, **payload)
 
-    # pprint.pprint(payload)
     mox.check_unit(operation=operation, **payload)
 
 
 def address_before_create(data):
-    """ an address has been created/changed - transfer it to sd if:
-        * the address is for an ou
-        * the ou is triggered/has a triggered parent
+    """ An address is about to be created
     """
+    # addresses for persons are skipped
     ou = data.get("org_unit_uuid")
     if not ou:
         return
+
     from_date = data["request"]["validity"]["from"]
     unit = mo_request("ou/" + ou, at=from_date).json()
     if not is_sd_triggered(unit):
         return
 
-    # the new address is prepended to addresses and thereby given higher priority
-    # see scoped and keyed addresses in sd_mox.py
+    # the new address is prepended to addresses and 
+    # thereby given higher priority in sd_mox.py
+    # see 'grouped_addresses'
     addresses = [data["request"]] + mo_request(
         "ou/" + ou + "/details/address", at=from_date
     ).json()
@@ -187,9 +182,7 @@ def address_before_create(data):
 
 
 def address_before_edit(data):
-    """ an address has been created/changed - transfer it to sd if:
-        * the address is for an ou
-        * the ou is triggered/has a triggered parent
+    """ An address is about to be changed
     """
     ou = data.get("org_unit_uuid")
     if not ou:
@@ -199,8 +192,9 @@ def address_before_edit(data):
     if not is_sd_triggered(unit):
         return
 
-    # the edited address is prepended to addresses and thereby given higher priority
-    # see scoped and keyed addresses in sd_mox.py
+    # the changed address is prepended to addresses and 
+    # thereby given higher priority in sd_mox.py
+    # see 'grouped_addresses'
     addresses = [data["request"]["data"]] + mo_request(
         "ou/" + ou + "/details/address", at=from_date
     ).json()
@@ -257,6 +251,8 @@ def register(app):
 
 
 if __name__ == "__main__":
+    # This is testcode, primarily for quick testing
+    # with Ivan at SD
     custpath = pathlib.Path(".")
     class App:
         config = {"CUSTOMER_CONFIG_FILE": sys.argv[1]}
