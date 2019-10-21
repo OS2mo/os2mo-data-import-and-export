@@ -1,15 +1,11 @@
-import os
-import uuid
 import pika
 import time
 import logging
 import datetime
 import xmltodict
-from integrations.SD_Lon.sd_logging import start_logging
 from integrations.SD_Lon import sd_mox_payloads as smp
 from integrations.SD_Lon.sd import SD
 import requests
-import pprint
 
 
 from collections import OrderedDict
@@ -39,7 +35,7 @@ class sdMox(object):
             self.virtual_host = cfg["VIRTUAL_HOST"]
             self.amqp_host = cfg["AMQP_HOST"]
             self.amqp_port = cfg["AMQP_PORT"]
-        except Exception as e:
+        except Exception:
             raise SdMoxError("SD AMQP credentials mangler")
 
         try:
@@ -63,8 +59,9 @@ class sdMox(object):
             self.sd_arbtid = OrderedDict(sd_arbtid)
             self.arbtid_by_uuid = {v: k for k, v in self.sd_arbtid.items()}
 
-        except Exception as e:
-            raise SdMoxError("Klasse-uuider for conf af Ny-Niveauer eller Tidsregistreing mangler")
+        except Exception:
+            raise SdMoxError("Klasse-uuider for conf af Ny-Niveauer "
+                             "eller Tidsregistreing mangler")
 
         if from_date:
             self._update_virkning(from_date)
@@ -86,7 +83,7 @@ class sdMox(object):
             queue=self.callback_queue,
             consumer_callback=self.on_response,
         )
-            #auto_ack=True
+        # auto_ack=True
 
     def on_response(self, ch, method, props, body):
         logger.error(body)
@@ -108,13 +105,13 @@ class sdMox(object):
 
     def _update_virkning(self, from_date, to_date=None):
         self.virkning = smp.sd_virkning(from_date, to_date)
-        if to_date == None:
-            to_date = datetime.date(2099,12,31)
+        if to_date is None:
+            to_date = datetime.date(2099, 12, 31)
         if not from_date.day == 1:
             raise SdMoxError('Startdato skal altid være den første i en måned')
         self._times = {
-            "virk_from" : from_date.strftime("%Y-%m-%dT00:00:00.00"),
-            "virk_to" : to_date.strftime("%Y-%m-%dT00:00:00.00"),
+            "virk_from": from_date.strftime("%Y-%m-%dT00:00:00.00"),
+            "virk_to": to_date.strftime("%Y-%m-%dT00:00:00.00"),
         }
 
     def read_parent(self, unit_uuid=None):
@@ -127,7 +124,6 @@ class sdMox(object):
         parent = self.sd.lookup('GetDepartmentParent20190701', params)
         parent_info = parent.get('DepartmentParent', None)
         return parent_info
-
 
     def read_department(self, unit_code=None, unit_uuid=None, unit_level=None):
         from_date = self.virkning['sd:FraTidspunkt']['sd:TidsstempelDatoTid'][0:10]
@@ -180,6 +176,7 @@ class sdMox(object):
         :return: Returns list errors, empty list if no errors.
         """
         errors = []
+
         def compare(actual, expected, error):
             if expected is not None and actual != expected:
                 errors.append(error)
@@ -189,17 +186,17 @@ class sdMox(object):
             return None, ["Unit"]
 
         from_date = self.virkning['sd:FraTidspunkt']['sd:TidsstempelDatoTid'][0:10]
-        if operation in ("ret","import"):
+        if operation in ("ret", "import"):
             compare(department.get('ActivationDate'), from_date, "Activation Date")
         compare(department.get('DepartmentName'), unit_name, "Name")
         compare(department.get('DepartmentIdentifier'), unit_code, "Unit code")
         compare(department.get('DepartmentUUIDIdentifier'), unit_uuid, "UUID")
         compare(department.get('DepartmentLevelIdentifier'), unit_level, "Level")
         compare(department.get('ContactInformation', {}).get(
-                "TelephoneNumberIdentifier",[None])[0], phone, "Phone")
+                "TelephoneNumberIdentifier", [None])[0], phone, "Phone")
         compare(department.get('ProductionUnitIdentifier'), pnummer, "Pnummer")
         if adresse:
-            actual=department.get("PostalAddress", {})
+            actual = department.get("PostalAddress", {})
             compare(actual.get("StandardAddressIdentifier"),
                     adresse.get("silkdata:AdresseNavn"), "Address")
             compare(actual.get("PostalCode"),
@@ -208,9 +205,10 @@ class sdMox(object):
                     adresse.get("silkdata:ByNavn"), "Postal Area")
         if parent is not None:
             parent_uuid = parent["uuid"]
-            actual=self.read_parent(unit_uuid)
+            actual = self.read_parent(unit_uuid)
             if actual is not None:
-                 compare(actual.get("DepartmentUUIDIdentifier"),parent_uuid, "Parent")
+                compare(actual.get("DepartmentUUIDIdentifier"),
+                        parent_uuid, "Parent")
             else:
                 errors.append("Parent")
         if not errors:
@@ -277,7 +275,7 @@ class sdMox(object):
         return code_errors
 
     def _mo_to_sd_address(self, address):
-        if address == None:
+        if address is None:
             return None
         street, zip_code, city = address.rsplit(' ', maxsplit=2)
         if street.endswith(","):
@@ -334,7 +332,8 @@ class sdMox(object):
 
         logger.debug('Create unit xml: {}'.format(xml))
         if not test_run:
-            logger.info('Create unit {}, {}, {}'.format(unit_name, unit_code, unit_uuid))
+            logger.info('Create unit {}, {}, {}'.format(
+                        unit_name, unit_code, unit_uuid))
             self.call(xml)
         return unit_uuid
 
@@ -359,7 +358,7 @@ class sdMox(object):
             parent_department['DepartmentLevelIdentifier']
         )
         if not unit_index > parent_index:
-            raise SdMoxException('Enhedstypen passer ikke til forældreenheden')
+            raise SdMoxError('Enhedstypen passer ikke til forældreenheden')
 
         xml = self._create_xml_flyt(
             unit_name=unit_name,
@@ -377,11 +376,12 @@ class sdMox(object):
     def check_unit(self, **payload):
         time.sleep(8.5)
         unit, errors = self._check_department(**payload)
-        if unit == None:
+        if unit is None:
             raise SdMoxError("Afdeling ikke fundet: %s" % payload["unit_uuid"])
         elif errors:
             errstr = ", ".join(errors)
-            raise SdMoxError("Følgende felter kunne ikke opdateres i SD: %s" % errstr)
+            raise SdMoxError("Følgende felter kunne "
+                             "ikke opdateres i SD: %s" % errstr)
         return unit
 
     def payload_create(self, unit_uuid, unit, parent):
@@ -391,11 +391,12 @@ class sdMox(object):
 
         parent_level = self.level_by_uuid.get(parent["org_unit_type"]["uuid"])
         if not parent_level:
-            raise SdMoxError("Forældreenhedens enhedstype er ikke et kendt NY-niveau")
+            raise SdMoxError("Forældreenhedens enhedstype er "
+                             "ikke et kendt NY-niveau")
 
         return {
             "unit_name": unit["name"],
-            "parent":{
+            "parent": {
                 "unit_code": parent['user_key'],
                 "uuid": parent['uuid'],
                 "level": parent_level
@@ -416,15 +417,14 @@ class sdMox(object):
                                     ('id', addrid),
                                     ('noformat', '1'),
                                     ('struktur', 'mini'),
-                                 ],
-                )
+                                 ])
                 addrobjs = r.json()
                 r.raise_for_status()
                 if addrobjs:
                     # found, escape loop!
                     break
             except Exception as e:
-                raise SdMoxError("Fejlende opslag i DAR for "+ addrid) from e
+                raise SdMoxError("Fejlende opslag i DAR for " + addrid) from e
         else:
             raise SdMoxError('Addresse ikke fundet i DAR: {!r}'.format(addrid))
 
@@ -435,21 +435,20 @@ class sdMox(object):
         for d in details:
             scope, key = d["address_type"]["scope"], d["address_type"]["user_key"]
             if scope == "DAR":
-                scoped.setdefault(scope,[]).append(self.get_dar_address(d["value"]))
+                scoped.setdefault(scope, []).append(self.get_dar_address(d["value"]))
             else:
-                scoped.setdefault(scope,[]).append(d["value"])
-            keyed.setdefault(key,[]).append(d["value"])
+                scoped.setdefault(scope, []).append(d["value"])
+            keyed.setdefault(key, []).append(d["value"])
         return scoped, keyed
-
 
     def payload_edit(self, unit_uuid, unit, addresses):
         scoped, keyed = self.grouped_addresses(addresses)
-        if "PNUMBER" in scoped and not "DAR" in scoped:
+        if "PNUMBER" in scoped and "DAR" not in scoped:
             # it has proven difficult to deal with pnumber before postal address
             raise SdMoxError("Opret postaddresse før pnummer")
 
         # if time planning exists, it must be in self.arbtitd
-        time_planning = unit.get('time_planning',None)
+        time_planning = unit.get('time_planning', None)
         if time_planning:
             time_planning = self.arbtid_by_uuid[time_planning["uuid"]]
 
@@ -457,7 +456,7 @@ class sdMox(object):
             "unit_name": unit["name"],
             "unit_code": unit['user_key'],
             "unit_uuid": unit_uuid,
-            "phone" : scoped.get("PHONE", [None])[0],
+            "phone": scoped.get("PHONE", [None])[0],
             "pnummer": scoped.get("PNUMBER", [None])[0],
             "adresse": self._mo_to_sd_address(scoped.get("DAR", [None])[0]),
             "integration_values": {
@@ -488,11 +487,11 @@ class sdMox(object):
         )
 
         try:
-            uuid = self.create_unit(test_run=test_run, **unit_create_payload)
+            ret_uuid = self.create_unit(test_run=test_run, **unit_create_payload)
             if test_run:
-                logger.info('dry-run succeeded: {}'.format(uuid))
+                logger.info('dry-run succeeded: {}'.format(ret_uuid))
             else:
-                logger.info('amqp-call succeeded: {}'.format(uuid))
+                logger.info('amqp-call succeeded: {}'.format(ret_uuid))
         except Exception as e:
             print('Error: {}'.format(e))
             msg = 'Test for unit {} failed: {}'.format(unit_uuid, e)
@@ -502,7 +501,8 @@ class sdMox(object):
                 logger.error(msg)
             return False
 
-        integration_addresses = self.mh._mo_lookup(unit_uuid, 'ou/{}/details/address')
+        integration_addresses = self.mh._mo_lookup(unit_uuid,
+                                                   'ou/{}/details/address')
         unit_edit_payload = self.payload_edit(
             unit_uuid,
             unit_info,
@@ -559,7 +559,3 @@ if __name__ == '__main__':
     #         uuid=uuid,
     #         name='Test 2'
     #     )
-
-
-# TODO: Soon we are ready to write small tests to verify expected output
-# from xml-producing functions.
