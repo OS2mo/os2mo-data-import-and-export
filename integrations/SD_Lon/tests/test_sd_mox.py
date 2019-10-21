@@ -75,6 +75,34 @@ class Tests(unittest.TestCase):
         from_date = datetime.datetime(2019, 7, 1, 0, 0)
         self.mox = sd_mox.sdMox(from_date, **mox_cfg)
 
+
+    def test_grouped_adresses(self):
+        addresses = [
+            {"address_type": {"scope": "DAR", "user_key": "dar-key-1"},
+             "value": "0a3f507b-6331-32b8-e044-0003ba298018"},
+            {"address_type": {"scope": "DAR", "user_key": "dar-key-2"},
+             "value": "0a3f507b-7750-32b8-e044-0003ba298018"},
+            {"address_type": {"scope": "PHONE", "user_key": "phn-key-1"},
+             "value": "12345678"},
+            {"address_type": {"scope": "PNUMBER", "user_key": "pnum-key-1"},
+             "value": "0123456789"}]
+        scoped, keyed = self.mox.grouped_addresses(addresses)
+
+        self.assertEqual({
+            'DAR': ['Banegårdspladsen 1, 2750 Ballerup',
+                    'Toftebjerghaven 4, 2750 Ballerup'],
+            'PHONE': ['12345678'],
+            'PNUMBER': ['0123456789']
+        }, scoped)
+
+        self.assertEqual({
+            'dar-key-1': ['0a3f507b-6331-32b8-e044-0003ba298018'],
+            'dar-key-2': ['0a3f507b-7750-32b8-e044-0003ba298018'],
+            'phn-key-1': ['12345678'],
+            'pnum-key-1': ['0123456789']
+        }, keyed)
+
+
     def test_payload_create(self):
         pc = self.mox.payload_create(
             unit_uuid="12345-22-22-22-12345",
