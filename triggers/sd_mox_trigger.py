@@ -1,4 +1,4 @@
-# 
+#
 # Copyright (c) 2017-2018, Magenta ApS
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
@@ -27,7 +27,8 @@ import json
 import requests
 import pprint
 import pathlib
-import sys
+
+logger = logging.getLogger("sd_mox_trigger")
 
 try:
     # if integrated we have a symbolic link in site-packages
@@ -35,18 +36,18 @@ try:
     import sys
     custpath = pathlib.Path(customer.__file__).parent
     sys.path.append(str(custpath))
-except:
+except Exception:
     # else we must be testing
     pass
 
-import integrations
+import integrations  # noqa
 from integrations.SD_Lon import (
     sd_mox,
-    sd_logging,
     sd_common
-)
+)  # noqa
 
 sdmox_config = {}
+
 
 def read_config(app):
     cfg_file = custpath / "settings" / app.config["CUSTOMER_CONFIG_FILE"]
@@ -87,6 +88,7 @@ def get_sdMox():
     mox = sd_mox.sdMox(from_date, **sdmox_config)
     mox.amqp_connect()
     return mox
+
 
 def is_sd_triggered(p):
     "determine whether trigger code should run for unit p"
@@ -130,13 +132,13 @@ def ou_before_edit(data):
 
     if "name" in data["request"]["data"]:
         # we are renaming a department
-        unit["name"]  = data["request"]["data"]["name"]
+        unit["name"] = data["request"]["data"]["name"]
         addresses = mo_request(
             "ou/" + data["uuid"] + "/details/address",
             at=from_date_str
         ).json()
         payload = mox.payload_edit(data["uuid"], unit, addresses)
-        operation="ret"
+        operation = "ret"
         mox.edit_unit(test_run=False, **payload)
 
     elif "parent" in data["request"]["data"]:
@@ -146,7 +148,7 @@ def ou_before_edit(data):
             at=from_date_str
         ).json()
         payload = mox.payload_create(data["uuid"], unit, parent)
-        operation="flyt"
+        operation = "flyt"
         mox.move_unit(test_run=False, **payload)
 
     mox.check_unit(operation=operation, **payload)
@@ -165,7 +167,7 @@ def address_before_create(data):
     if not is_sd_triggered(unit):
         return
 
-    # the new address is prepended to addresses and 
+    # the new address is prepended to addresses and
     # thereby given higher priority in sd_mox.py
     # see 'grouped_addresses'
     addresses = [data["request"]] + mo_request(
@@ -192,7 +194,7 @@ def address_before_edit(data):
     if not is_sd_triggered(unit):
         return
 
-    # the changed address is prepended to addresses and 
+    # the changed address is prepended to addresses and
     # thereby given higher priority in sd_mox.py
     # see 'grouped_addresses'
     addresses = [data["request"]["data"]] + mo_request(
@@ -206,6 +208,7 @@ def address_before_edit(data):
     mox.edit_unit(test_run=False, **payload)
     mox.check_unit(operation="ret", **payload)
 
+
 def ret_med_ivan(from_date, payload):
     from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
     mox = get_sdMox()
@@ -213,6 +216,7 @@ def ret_med_ivan(from_date, payload):
     pprint.pprint(payload)
     mox.edit_unit(**payload, test_run=False)
     pprint.pprint(mox.check_unit(operation="", **payload))
+
 
 def call_robert(from_date, uuid):
     from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
@@ -254,18 +258,20 @@ if __name__ == "__main__":
     # This is testcode, primarily for quick testing
     # with Ivan at SD
     custpath = pathlib.Path(".")
+
     class App:
         config = {"CUSTOMER_CONFIG_FILE": sys.argv[1]}
-    read_config(App) #3.22.01
-    call_robert("2019-11-01","ad3b28aa-2998-43d9-8840-264f35a0fd82")
+
+    read_config(App)  # 3.22.01
+    call_robert("2019-11-01", "ad3b28aa-2998-43d9-8840-264f35a0fd82")
 
     ret_med_ivan("2019-11-01", {
         'adresse': {'silkdata:AdresseNavn': 'Toftebjerghaven 4',
-             'silkdata:ByNavn': 'Ballerup',
-             'silkdata:PostKodeIdentifikator': '2750'},
+                    'silkdata:ByNavn': 'Ballerup',
+                    'silkdata:PostKodeIdentifikator': '2750'},
         'integration_values': {'formaalskode': '',
-                        'skolekode': '',
-                        'time_planning': 'Arbejdstidsplaner'},
+                               'skolekode': '',
+                               'time_planning': 'Arbejdstidsplaner'},
         'name': 'LU - OS2MO Hejsa',
         'phone': '12341234',
         'pnummer': '1011600936',
