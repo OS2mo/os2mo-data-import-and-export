@@ -1,9 +1,11 @@
 import datetime
 import pathlib
 import collections
+import pprint
 
-#xmldir = pathlib.Path(__file__).parent.absolute()
+xmldir = pathlib.Path(__file__).parent.absolute()
 #flytxml = (xmldir / "flyt.xml").read_text()
+#impxml = (xmldir / "import.xml.p").read_text()
 
 boilerplate = {
     "@xmlns": "urn:oio:sagdok:organisation:organisationenhed:2.0.0",
@@ -78,18 +80,6 @@ def relations_ret(virkning, pnummer=None, phone=None, adresse=None):
     return relations_liste
 
 
-def relations_import(virkning, parent):
-    relations_liste = {
-        'sd:Overordnet': {
-            'sd:Virkning': virkning,
-            'sd:ReferenceID': {
-                'sd:UUIDIdentifikator': parent
-            }
-        }
-    }
-    return relations_liste
-
-
 def _create_attribut_items(virkning, attributes):
     attribute_items = []
     for key, value in sorted(attributes.items()):
@@ -124,6 +114,7 @@ def attributes_ret(virkning, funktionskode=None,
             "sd:Virkning": virkning
         }
     return attribut_liste
+
 
 def flyt_xml_dict(unit_uuid=None, unit_name=None, virk_from=None, virk_to=None,
                   parent_unit_uuid=None, **kwargs):
@@ -182,6 +173,91 @@ def flyt_xml_dict(unit_uuid=None, unit_name=None, virk_from=None, virk_to=None,
 
     return reg
 
+
+def import_xml_dict(unit_uuid=None, unit_name=None, unit_code=None, unit_level=None,
+                    virk_from=None, virk_to=None, parent_unit_uuid=None, **kwargs):
+    reg = collections.OrderedDict({'RegistreringBesked': collections.OrderedDict({
+        '@xmlns': 'urn:oio:sagdok:organisation:organisationenhed:2.0.0',
+        '@xmlns:cvr': 'http://rep.oio.dk/cvr.dk/xml/schemas/2005/03/22/',
+        '@xmlns:dkcc1': 'http://rep.oio.dk/ebxml/xml/schemas/dkcc/2003/02/13/',
+        '@xmlns:dkcc2': 'http://rep.oio.dk/ebxml/xml/schemas/dkcc/2005/03/15/',
+        '@xmlns:itst1': 'http://rep.oio.dk/itst.dk/xml/schemas/2005/06/24/',
+        '@xmlns:oio': 'urn:oio:definitions:1.0.0',
+        '@xmlns:orgfaelles': 'urn:oio:sagdok:organisation:2.0.0',
+        '@xmlns:sd': 'urn:oio:sagdok:3.0.0',
+        '@xmlns:sd20070301': 'http://rep.oio.dk/sd.dk/xml.schema/20070301/',
+        '@xmlns:silkdata': 'urn:oio:silkdata:1.0.0',
+        '@xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+        '@xsi:schemaLocation': 'urn:oio:sagdok:organisation:organisationenhed:2.0.0 '
+                               'OrganisationEnhedRegistrering.xsd '
+                               'urn:oio:silkdata:1.0.0 '
+                               'SDObjekt.xsd'})})
+
+    rb = reg['RegistreringBesked']
+    rb["ObjektID"] = {
+        'sd:IdentifikatorType': 'OrganisationEnhed',
+        'sd:UUIDIdentifikator': unit_uuid
+    }
+
+    rg = rb["Registrering"] = collections.OrderedDict()
+
+    rg['sd:FraTidspunkt'] = {'sd:TidsstempelDatoTid': virk_from},
+    rg['sd:LivscyklusKode'] = 'Opstaaet'
+    rg['sd:BrugerRef']= {
+        'sd:IdentifikatorType': 'ILTEST',
+        'sd:UUIDIdentifikator': '3bb66b0d-132d-4b98-a903-ea29f6552mmm'
+    }
+
+    ra = rg['AttributListe'] = collections.OrderedDict()
+
+    ra['Egenskab'] = collections.OrderedDict({
+        'sd:EnhedNavn': unit_name,
+        'sd:Virkning': {
+            'sd:FraTidspunkt': {'sd:TidsstempelDatoTid': virk_from},
+            'sd:TilTidspunkt': {'sd:TidsstempelDatoTid': virk_to}
+        }
+    })
+    ra['sd:LokalUdvidelse'] = {
+        'silkdata:Integration': [{
+            'sd:Virkning': {
+                'sd:FraTidspunkt': {'sd:TidsstempelDatoTid': virk_from},
+                'sd:TilTidspunkt': {'sd:TidsstempelDatoTid': virk_to}
+            },
+            'silkdata:AttributNavn': 'EnhedKode',
+            'silkdata:AttributVaerdi': unit_code
+        }, {
+            'sd:Virkning': {
+                'sd:FraTidspunkt': {'sd:TidsstempelDatoTid': virk_from},
+                'sd:TilTidspunkt': {'sd:TidsstempelDatoTid': virk_to}
+            },
+            'silkdata:AttributNavn': 'Niveau',
+            'silkdata:AttributVaerdi': unit_level
+        }],
+    }
+
+    rg['TilstandListe'] = {
+        'orgfaelles:Gyldighed': {
+            'orgfaelles:GyldighedStatusKode': 'Aktiv',
+            'sd:Virkning': {
+                'sd:FraTidspunkt': {'sd:TidsstempelDatoTid': virk_from},
+                'sd:TilTidspunkt': {'sd:TidsstempelDatoTid': virk_to}
+            }
+        }
+    }
+
+    rg['RelationListe'] = {
+        'sd:LokalUdvidelse': None,
+        'sd:Overordnet': {
+            'sd:ReferenceID': {'sd:UUIDIdentifikator': parent_unit_uuid},
+            'sd:Virkning': {
+                'sd:FraTidspunkt': {'sd:TidsstempelDatoTid': virk_from},
+                'sd:TilTidspunkt': {'sd:TidsstempelDatoTid': virk_to}
+            }
+        }
+    }
+    return reg
+
+
 def attributes_flyt(virkning, name):
     return {
         "Egenskab":{
@@ -189,51 +265,6 @@ def attributes_flyt(virkning, name):
             "sd:Virkning": virkning
         }
     }
-
-def relations_flyt(virkning, parent):
-    return {
-        "Overordnet":{
-            "sd:ReferenceID":{
-                "sd:UUIDIdentifikator": parent
-            },
-            "sd:Virkning": virkning
-        }
-    }
-
-
-
-def create_flyt_registrering(virkning, attributliste, relationsliste ):
-    registrering = dict(virkning) 
-    registrering.update({
-        "sd:LivscyklusKode": "Flyttet",
-        "sd:BrugerRef": {
-            "sd:UUIDIdentifikator": "3bb66b0d-132d-4b98-a903-ea29f6552d53",
-            "sd:IdentifikatorType": "AD"
-        },
-        "AttributListe": attributliste,
-        "RelationsListe": relationsliste,
-    })
-    registrering.pop("sd:TilTidspunkt", None)
-    return registrering
-
-
-def attributes_import(virkning, unit_name, unit_code, unit_type):
-    attributes = {
-        'EnhedKode': unit_code,
-        'Niveau': unit_type
-    }
-    integration_items = _create_attribut_items(virkning, attributes)
-    attribut_liste = {
-        "sd:LokalUdvidelse": {
-            "silkdata:Integration": integration_items
-        },
-        'Egenskab': {
-            "sd:EnhedNavn": unit_name,
-            "sd:Virkning": virkning
-        }
-    }
-    return attribut_liste
-
 
 
 def create_registrering(virkning, registry_type):

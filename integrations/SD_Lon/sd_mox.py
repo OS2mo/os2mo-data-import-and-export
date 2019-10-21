@@ -209,44 +209,14 @@ class sdMox(object):
         if parent is not None:
             parent_uuid = parent["uuid"]
             actual=self.read_parent(unit_uuid)
-            # pprint.pprint(actual)
             if actual is not None:
                  compare(actual.get("DepartmentUUIDIdentifier"),parent_uuid, "Parent")
             else:
                 errors.append("Parent")
-
-        #if errors or True:
-        #    print("Monitoring fetch vs payload:")
-        #    print("locals():")
-        #    print(pprint.pformat(locals()))
+        if not errors:
+            logger.info("SD-Mox succeess on %s", unit_uuid)
 
         return department, errors
-
-    def _create_xml_import(self, unit_name, unit_code, parent, unit_level, unit_uuid):
-        """
-        Create suitable xml-payload to create a unit. This is a helper function, it
-        is expected that the values are allredy validated to be legal and consistent.
-        :param unit_name: Name of the new unit.
-        :param unit_code: Short unique code (enhedskode) for the unit.
-        :param parent: uuid for parent unit.
-        :param uuid: uuid for the unit.
-        """
-        value_dict = {
-            'RelationListe': smp.relations_import(self.virkning, parent),
-            'AttributListe': smp.attributes_import(
-                self.virkning,
-                unit_code=unit_code,
-                unit_name=unit_name,
-                unit_type=unit_level
-            ),
-            'Registrering': smp.create_registrering(self.virkning,
-                                                    registry_type='Opstaaet'),
-            'ObjektID': smp.create_objekt_id(unit_uuid)
-        }
-        edit_dict = {'RegistreringBesked': value_dict}
-        edit_dict['RegistreringBesked'].update(smp.boilerplate)
-        xml = xmltodict.unparse(edit_dict)
-        return xml
 
     def _create_xml_ret(self, unit_uuid, unit_code, unit_name, pnummer=None,
                         phone=None, adresse=None, integration_values=None):
@@ -275,14 +245,17 @@ class sdMox(object):
         xml = xmltodict.unparse(edit_dict)
         return xml
 
+    def _create_xml_import(self, **payload):
+        payload.update(self._times)
+        import_dict = smp.import_xml_dict(**payload)
+        xml = xmltodict.unparse(import_dict)
+        return xml
 
     def _create_xml_flyt(self, **payload):
         payload.update(self._times)
         flyt_dict = smp.flyt_xml_dict(**payload)
         xml = xmltodict.unparse(flyt_dict)
         return xml
-
-
 
     def _validate_unit_code(self, unit_code, unit_level=None):
         logger.info('Validating unit code {}'.format(unit_code))
@@ -356,8 +329,9 @@ class sdMox(object):
             unit_uuid=unit_uuid,
             unit_code=unit_code,
             unit_level=unit_level,
-            parent=parent["uuid"]
+            parent_unit_uuid=parent["uuid"]
         )
+
         logger.debug('Create unit xml: {}'.format(xml))
         if not test_run:
             logger.info('Create unit {}, {}, {}'.format(unit_name, unit_code, unit_uuid))
@@ -455,7 +429,6 @@ class sdMox(object):
             raise SdMoxError('Addresse ikke fundet i DAR: {!r}'.format(addrid))
 
         return addrobjs.pop()["betegnelse"]
-
 
     def grouped_addresses(self, details):
         keyed, scoped = {}, {}
