@@ -43,7 +43,7 @@ except Exception:
 import integrations  # noqa
 from integrations.SD_Lon import (
     sd_mox,
-    sd_common
+    sd
 )  # noqa
 
 sdmox_config = {}
@@ -53,14 +53,14 @@ def read_config(app):
     cfg_file = custpath / "settings" / app.config["CUSTOMER_CONFIG_FILE"]
     cfg = json.loads(cfg_file.read_text())
     sdmox_config.update(
-        sd_common.get_prefixed_configuration(
+        sd.get_prefixed_configuration(
             cfg,
             sd_mox.CFG_PREFIX
         )
     )
-    sdmox_config["sd_common"] = sd_common.get_prefixed_configuration(
+    sdmox_config["sd_common"] = sd.get_prefixed_configuration(
         cfg,
-        sd_common.CFG_PREFIX
+        sd.CFG_PREFIX
     )
 
 
