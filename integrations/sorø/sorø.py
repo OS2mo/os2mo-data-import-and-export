@@ -1,13 +1,13 @@
 import os
-import sys
 from os2mo_data_import import ImportHelper
-sys.path.append('..')
-import opus_import
 
-MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'Opus Import')
+from integrations.ad_integration import ad_reader
+from integrations.opus.opus_helpers import start_opus_import
+from integrations.opus.opus_exceptions import RunDBInitException
+
 MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
-XML_FILE_PATH = os.environ.get('XML_FILE_PATH', '')
+
 
 importer = ImportHelper(
     create_defaults=True,
@@ -16,22 +16,32 @@ importer = ImportHelper(
     system_name='Opus-Import',
     end_marker='OPUS_STOP!',
     store_integration_data=True,
-    seperate_names=True
+    seperate_names=True,
+    demand_consistent_uuids=False
 )
 
-# importer.new_itsystem(
-#     identifier='AD',
-#     system_name='Active Directory'
-# )
+ad_reader = ad_reader.ADParameterReader()
 
-opus = opus_import.OpusImport(
-    importer,
-    MUNICIPALTY_NAME,
-    XML_FILE_PATH
+med_name = 'MED Organisation'
+importer.add_klasse(
+    identifier=med_name,
+    facet_type_ref='org_unit_type',
+    user_key=med_name,
+    scope='TEXT',
+    title=med_name
 )
 
-opus.insert_org_units()
-opus.insert_employees()
-opus.add_addresses_to_employees()
+importer.add_organisation_unit(
+    identifier=med_name,
+    name=med_name,
+    user_key=med_name,
+    type_ref=med_name,
+    date_from='1900-01-01',
+    date_to=None,
+    parent_ref=None
+)
 
-importer.import_all()
+try:
+    start_opus_import(importer, ad_reader=ad_reader, force=True)
+except RunDBInitException:
+    print('RunDB not initialized')
