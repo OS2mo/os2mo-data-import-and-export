@@ -326,6 +326,11 @@ class OpusImport(object):
         logger.debug('Employee object: {}'.format(employee))
         if 'cpr' in employee:
             cpr = employee['cpr']['#text']
+            if employee['firstName'] is None and employee['lastName'] is None:
+                # Service user, skip
+                logger.info('Skipped {}, we think it is a serviceuser'.format(cpr))
+                return
+
         else:  # This employee has left the organisation
             if not employee['@action'] == 'leave':
                 msg = 'Unknown action: {}'.format(employee['@action'])
