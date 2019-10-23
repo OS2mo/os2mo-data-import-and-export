@@ -1,10 +1,8 @@
 # -- coding: utf-8 --
 import os
-import sys
 import uuid
 import hashlib
 import logging
-import datetime
 import xmltodict
 
 from requests import Session
@@ -83,6 +81,8 @@ class OpusImport(object):
                 system_name='Active Directory'
             )
             self.ad_reader.cache_all()
+        else:
+            self.ad_reader = None
 
         self.employee_addresses = {}
         self._add_klasse('AddressPostUnit', 'Postadresse',
@@ -406,9 +406,15 @@ class OpusImport(object):
                     self.employee_addresses[cpr]['AdressePostEmployee'] = addr_uuid
 
         job = employee["position"]
-        contract = employee['workContract']
         self._add_klasse(job, job, 'engagement_job_function')
-        self._add_klasse(contract, employee["workContractText"], 'engagement_type')
+
+        if 'workContractText' in employee:
+            contract = employee['workContract']
+            self._add_klasse(contract, employee['workContractText'],
+                             'engagement_type')
+        else:
+            contract = '1'
+            self._add_klasse(contract, 'Ansat', 'engagement_type')
 
         org_unit = employee['orgUnit']
         job_id = employee['@id']  # To be used soon
