@@ -1,7 +1,4 @@
-export MUNICIPALITY_NAME='Holstebro Kommune'
-export MUNICIPALITY_CODE=661
+export PYTHONPATH=$PWD:$PYTHONPATH
+script_dir=$(cd $(dirname $0); pwd)
 
-export MOX_BASE=http://localhost:8080
-export MORA_BASE=http://localhost:5000
-
-python3 holstebro.py
+python3 "$script_dir/holstebro.py"

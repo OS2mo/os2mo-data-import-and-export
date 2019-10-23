@@ -21,6 +21,9 @@ dist
 venv-*
 venv
 
+#Logs and caches
+tmp
+
 # Workspace
 overflow
 
