@@ -34,7 +34,7 @@ def _dawa_request(street_name, postal_code, adgangsadresse=False,
             response = pickle.load(f)
     except FileNotFoundError:
         response = requests.get(full_url)
-        with open(path_url + '.p', 'wb') as f:
+        with open('tmp/' + path_url + '.p', 'wb') as f:
             pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
 
     dar_data = response.json()
