@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2017-2018, Magenta ApS
+# Copyright (c) Magenta ApS
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -62,6 +62,8 @@ def read_config(app):
         cfg,
         sd.CFG_PREFIX
     )
+    # force no caching for sd
+    sdmox_config["sd_common"]["USE_PICKLE_CACHE"] = False
 
 
 def mo_request(service, method="get", **params):
@@ -83,7 +85,8 @@ def mo_request(service, method="get", **params):
 
 
 def get_sdMox():
-    "instantiate integration object"
+    """ instantiate integration object
+    """
     from_date = datetime.datetime(2019, 7, 1, 0, 0)
     mox = sd_mox.sdMox(from_date, **sdmox_config)
     mox.amqp_connect()
@@ -91,7 +94,8 @@ def get_sdMox():
 
 
 def is_sd_triggered(p):
-    "determine whether trigger code should run for unit p"
+    """ determine whether trigger code should run for unit p
+    """
     while p and p["uuid"]:
         if p["uuid"] in sdmox_config.get("TRIGGERED_UUIDS"):
             return True
@@ -277,3 +281,4 @@ if __name__ == "__main__":
         'pnummer': '1011600936',
         'unit_code': 'LU75',
         'unit_uuid': '08c6254f-6b64-4500-8a00-00000671LU75'})
+

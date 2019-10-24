@@ -1,4 +1,5 @@
-# Copyright (c) 2017-2018, Magenta ApS
+#
+# Copyright (c) Magenta ApS
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -6,14 +7,16 @@
 #
 
 import unittest
-import freezegun
 from integrations.SD_Lon.sd import SD, CFG_PREFIX
+
 
 class Tests(unittest.TestCase):
     maxDiff = None
 
     def test_create(self):
-        config={
+        """ prefix can be removed from config vars and cache can be disabled"""
+        config = {
+            CFG_PREFIX + "USE_PICKLE_CACHE": False,
             CFG_PREFIX + "INSTITUTION_IDENTIFIER": "x",
             CFG_PREFIX + "SD_USER": "y",
             CFG_PREFIX + "SD_PASSWORD": "1",
@@ -26,8 +29,11 @@ class Tests(unittest.TestCase):
         # but sd takes away the prefix
 
         self.assertEqual({
+            "USE_PICKLE_CACHE": False,
             "INSTITUTION_IDENTIFIER": "x",
             "SD_USER": "y",
             "SD_PASSWORD": "1",
             "BASE_URL": "2",
         }, sd.config)
+
+        self.assertEqual(sd.use_cache, False)

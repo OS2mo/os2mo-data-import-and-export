@@ -1,11 +1,6 @@
 import datetime
-import pathlib
 import collections
-import pprint
 
-xmldir = pathlib.Path(__file__).parent.absolute()
-#flytxml = (xmldir / "flyt.xml").read_text()
-#impxml = (xmldir / "import.xml.p").read_text()
 
 boilerplate = {
     "@xmlns": "urn:oio:sagdok:organisation:organisationenhed:2.0.0",
@@ -19,7 +14,7 @@ boilerplate = {
     "@xmlns:itst1": "http://rep.oio.dk/itst.dk/xml/schemas/2005/06/24/",
     "@xmlns:sd20070301": "http://rep.oio.dk/sd.dk/xml.schema/20070301/",
     "@xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
-    "@xsi:schemaLocation": "urn:oio:sagdok:organisation:organisationenhed:2.0.0 OrganisationEnhedRegistrering.xsd urn:oio:silkdata:1.0.0 SDObjekt.xsd"
+    "@xsi:schemaLocation": "urn:oio:sagdok:organisation:organisationenhed:2.0.0 OrganisationEnhedRegistrering.xsd urn:oio:silkdata:1.0.0 SDObjekt.xsd"  # noqa
 }
 
 
@@ -142,7 +137,7 @@ def flyt_xml_dict(unit_uuid=None, unit_name=None, virk_from=None, virk_to=None,
     rg = rb["Registrering"] = collections.OrderedDict()
     rg['sd:FraTidspunkt'] = {'sd:TidsstempelDatoTid': virk_from},
     rg['sd:LivscyklusKode'] = 'Flyttet'
-    rg['sd:BrugerRef']= {
+    rg['sd:BrugerRef'] = {
         'sd:IdentifikatorType': 'AD',
         'sd:UUIDIdentifikator': '3bb66b0d-132d-4b98-a903-ea29f6552d53'
     }
@@ -203,7 +198,7 @@ def import_xml_dict(unit_uuid=None, unit_name=None, unit_code=None, unit_level=N
 
     rg['sd:FraTidspunkt'] = {'sd:TidsstempelDatoTid': virk_from},
     rg['sd:LivscyklusKode'] = 'Opstaaet'
-    rg['sd:BrugerRef']= {
+    rg['sd:BrugerRef'] = {
         'sd:IdentifikatorType': 'ILTEST',
         'sd:UUIDIdentifikator': '3bb66b0d-132d-4b98-a903-ea29f6552mmm'
     }
@@ -260,7 +255,7 @@ def import_xml_dict(unit_uuid=None, unit_name=None, unit_code=None, unit_level=N
 
 def attributes_flyt(virkning, name):
     return {
-        "Egenskab":{
+        "Egenskab": {
             "sd:EnhedNavn": name,
             "sd:Virkning": virkning
         }
@@ -268,12 +263,12 @@ def attributes_flyt(virkning, name):
 
 
 def create_registrering(virkning, registry_type):
-    if not registry_type in ('Rettet', 'Opstaaet'):
+    if registry_type not in ('Rettet', 'Opstaaet'):
         raise RuntimeError(
             "Integration, SD-løn: ukendt registreringstype: %s" % (
                 registry_type,
             )
-    )
+        )
     registrering = {
         'sd:LivscyklusKode': registry_type,
         'TilstandListe': {

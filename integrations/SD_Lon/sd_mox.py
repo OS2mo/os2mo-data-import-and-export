@@ -1,3 +1,12 @@
+#
+# Copyright (c) Magenta ApS
+#
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#
+
+
 import pika
 import time
 import logging
@@ -160,9 +169,9 @@ class sdMox(object):
                           unit_level=None, phone=None, pnummer=None, adresse=None,
                           parent=None, integration_values=None, operation=None):
         """
-        Verify that an SD department contain what we think it should contain.
+        Verify that an SD department contains what we think it should contain.
         Besides the supplied parameters, the activation date is also checked
-        agains the global from_date.
+        against the global from_date.
         :param unit_name: Expected name or None.
         :param unit_code: Expected unit code or None.
         :param unit_uuid: Expected unit uuid or None. Also used to look up dept.

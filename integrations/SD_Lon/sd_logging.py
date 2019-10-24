@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2017-2018, Magenta ApS
+# Copyright (c) Magenta ApS
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,7 +13,8 @@ LOG_LEVEL = logging.DEBUG
 
 def start_logging(log_file, detail_logging=None):
     if detail_logging is None:
-        detail_logging = ('sdChangedAt', 'sdCommon', 'sdFixDepartments', 'sdImport', 'sdMox', 'mora-helper')
+        detail_logging = ('sdChangedAt', 'sdCommon', 'sdFixDepartments',
+                          'sdImport', 'sdMox', 'mora-helper')
 
     for name in logging.root.manager.loggerDict:
         if name in detail_logging:
