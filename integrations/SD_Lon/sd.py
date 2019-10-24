@@ -22,15 +22,20 @@ def get_prefixed_configuration(cfg, prefix):
 class SD:
 
     @classmethod
-    def create(cls, config_path):
-        "constructor with config path"
-        with open(config.path) as cfg:
-            config = json.load(cfg)
-            return cls(**{
-                k.replace(pfix,"") : v
-                for k, v in config.items()
-                if k.startswith(pfix)
-            })
+    def create(cls, config, pfix=CFG_PREFIX):
+        """constructor with config path or dictionary"""
+        if isinstance(config, dict):
+            pass
+        elif isinstance(config, str):
+            with open(config.path) as cfg:
+                config = json.load(cfg)
+        else:
+            raise ValueError("config must be a path or a dictionary")
+        return cls(**{
+            k.replace(pfix,"") : v
+            for k, v in config.items()
+            if k.startswith(pfix)
+        })
 
     def __init__(self, **kwargs):
         cfg = self.config = kwargs
