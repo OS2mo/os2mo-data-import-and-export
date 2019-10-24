@@ -10,6 +10,7 @@ import uuid
 import hashlib
 import logging
 import datetime
+from uuid import UUID
 from anytree import Node
 
 from integrations import dawa_helper
@@ -274,15 +275,16 @@ class SdImport(object):
                     row['uuid'] = unit_id
 
         if 'ContactInformation' in info:
-            emails = info['ContactInformation']['EmailAddressIdentifier']
-            for email in emails:
-                if email.find('Empty') == -1:
-                    self.importer.add_address_type(
-                        organisation_unit=unit_id,
-                        type_ref='EmailUnit',
-                        value=email,
-                        date_from=date_from
-                    )
+            if 'EmailAddressIdentifier' in info['ContactInformation']:
+                emails = info['ContactInformation']['EmailAddressIdentifier']
+                for email in emails:
+                    if email.find('Empty') == -1:
+                        self.importer.add_address_type(
+                            organisation_unit=unit_id,
+                            type_ref='EmailUnit',
+                            value=email,
+                            date_from=date_from
+                        )
             if 'TelephoneNumberIdentifier' in info['ContactInformation']:
                 # We only a sinlge phnone number, this is most likely
                 # no a real number

@@ -97,7 +97,9 @@ fi
 [ -n "${facet}" -a -n "${bvn}" -a -n "${titel}" -a -z "${dry_run}" ] && (
     facet_class_json "${facet}" "${bvn}" "${titel}" "${organisation}" | opret
 ) || (
-    echo DRY_RUN CHECK
+    echo DRY_RUN CHECK - facetlist
+    facet_list
+    echo DRY_RUN CHECK - postdata
     facet_class_json "${facet}" "${bvn}" "${titel}" "${organisation}"
     echo DRY_RUN CHECK
 )
