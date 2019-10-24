@@ -213,22 +213,6 @@ def address_before_edit(data):
     mox.check_unit(operation="ret", **payload)
 
 
-def ret_med_ivan(from_date, payload):
-    from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
-    mox = get_sdMox()
-    mox._update_virkning(from_date)
-    pprint.pprint(payload)
-    mox.edit_unit(**payload, test_run=False)
-    pprint.pprint(mox.check_unit(operation="", **payload))
-
-
-def call_robert(from_date, uuid):
-    from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
-    mox = get_sdMox()
-    mox._update_virkning(from_date)
-    pprint.pprint(mox.read_parent(uuid))
-
-
 def register(app):
     read_config(app)
     from mora.triggers import Trigger
@@ -256,29 +240,3 @@ def register(app):
         Trigger.RequestType.EDIT,
         Trigger.Event.ON_BEFORE
     )(address_before_edit)
-
-
-if __name__ == "__main__":
-    # This is testcode, primarily for quick testing
-    # with Ivan at SD
-    custpath = pathlib.Path(".")
-
-    class App:
-        config = {"CUSTOMER_CONFIG_FILE": sys.argv[1]}
-
-    read_config(App)  # 3.22.01
-    call_robert("2019-11-01", "ad3b28aa-2998-43d9-8840-264f35a0fd82")
-
-    ret_med_ivan("2019-11-01", {
-        'adresse': {'silkdata:AdresseNavn': 'Toftebjerghaven 4',
-                    'silkdata:ByNavn': 'Ballerup',
-                    'silkdata:PostKodeIdentifikator': '2750'},
-        'integration_values': {'formaalskode': '',
-                               'skolekode': '',
-                               'time_planning': 'Arbejdstidsplaner'},
-        'name': 'LU - OS2MO Hejsa',
-        'phone': '12341234',
-        'pnummer': '1011600936',
-        'unit_code': 'LU75',
-        'unit_uuid': '08c6254f-6b64-4500-8a00-00000671LU75'})
-
