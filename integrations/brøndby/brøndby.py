@@ -3,7 +3,7 @@ import pathlib
 import datetime
 
 from os2mo_data_import import ImportHelper
-from integrations.SD_Lon.sd_importer import sd_importer
+from integrations.SD_Lon.sd_importer import SdImport
 
 
 cfg_file = pathlib.Path.cwd() / 'settings' / 'kommune-brøndby.json'
@@ -21,15 +21,16 @@ importer = ImportHelper(
     seperate_names=True
 )
 
-sd = sd_importer.SdImport(
+sd = SdImport(
     importer,
     settings=settings,
     import_date_from=GLOBAL_GET_DATE,
     ad_info=None,
-    manager_rows=None
+    manager_rows=[],
+    org_only=True
 )
 
 sd.create_ou_tree(create_orphan_container=True)
-sd.create_employees()
+# sd.create_employees()
 
 importer.import_all()
