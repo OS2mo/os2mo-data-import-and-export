@@ -1,18 +1,15 @@
 # -- coding: utf-8 --
 import os
-import sys
 import uuid
 import hashlib
 import logging
-import datetime
 import xmltodict
 
 from requests import Session
-from opus_exceptions import UnknownOpusAction
-from opus_exceptions import EmploymentIdentifierNotUnique
+from integrations.opus.opus_exceptions import UnknownOpusAction
+from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 from os2mo_helpers.mora_helpers import MoraHelper
-sys.path.append('../')
-import dawa_helper
+from integrations import dawa_helper
 
 MOX_BASE = os.environ.get('MOX_BASE')
 MORA_BASE = os.environ.get('MORA_BASE', None)
@@ -84,6 +81,8 @@ class OpusImport(object):
                 system_name='Active Directory'
             )
             self.ad_reader.cache_all()
+        else:
+            self.ad_reader = None
 
         self.employee_addresses = {}
         self._add_klasse('AddressPostUnit', 'Postadresse',
@@ -117,9 +116,11 @@ class OpusImport(object):
         value_uuid = uuid.UUID(value_digest)
         return value_uuid
 
-    def _find_engagement(self, bvn):
+    def _find_engagement(self, bvn, present=False):
         engagement_info = {}
         resource = '/organisation/organisationfunktion?bvn={}'.format(bvn)
+        if present:
+            resource += '&gyldighed=Aktiv'
         response = self.session.get(url=self.mox_base + resource)
         response.raise_for_status()
         uuids = response.json()['results'][0]
@@ -325,13 +326,18 @@ class OpusImport(object):
         logger.debug('Employee object: {}'.format(employee))
         if 'cpr' in employee:
             cpr = employee['cpr']['#text']
+            if employee['firstName'] is None and employee['lastName'] is None:
+                # Service user, skip
+                logger.info('Skipped {}, we think it is a serviceuser'.format(cpr))
+                return
+
         else:  # This employee has left the organisation
             if not employee['@action'] == 'leave':
                 msg = 'Unknown action: {}'.format(employee['@action'])
                 logger.error(msg)
                 raise UnknownOpusAction(msg)
 
-            engagement_info = self._find_engagement(employee['@id'])
+            engagement_info = self._find_engagement(employee['@id'], present=True)
             if engagement_info:  # We need to add the employee for the sake of
                 # the importers internal consistency
                 if not self.importer.check_if_exists('employee',
@@ -405,9 +411,15 @@ class OpusImport(object):
                     self.employee_addresses[cpr]['AdressePostEmployee'] = addr_uuid
 
         job = employee["position"]
-        contract = employee['workContract']
         self._add_klasse(job, job, 'engagement_job_function')
-        self._add_klasse(contract, employee["workContractText"], 'engagement_type')
+
+        if 'workContractText' in employee:
+            contract = employee['workContract']
+            self._add_klasse(contract, employee['workContractText'],
+                             'engagement_type')
+        else:
+            contract = '1'
+            self._add_klasse(contract, 'Ansat', 'engagement_type')
 
         org_unit = employee['orgUnit']
         job_id = employee['@id']  # To be used soon
