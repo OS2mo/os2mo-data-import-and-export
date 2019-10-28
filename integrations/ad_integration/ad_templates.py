@@ -59,6 +59,6 @@ Get-ADUser -Filter 'SamAccountName -eq \"{sam_account_name}\"'
 Set-ADUser -Credential $usercredential
  -Displayname "{givenname} {surname}"
  -GivenName "{givenname}"
- -SurName "{givenname} {surname}"
+ -SurName "{surname}"
  -EmployeeNumber "{employment_number}"
 """
