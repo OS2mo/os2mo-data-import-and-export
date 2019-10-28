@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 #
-# Copyright (c) 2017-2018, Magenta ApS
-#
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -10,7 +8,6 @@ import uuid
 import hashlib
 import logging
 import datetime
-from uuid import UUID
 from anytree import Node
 
 from integrations import dawa_helper
@@ -39,7 +36,7 @@ logging.basicConfig(
 class SdImport(object):
     def __init__(self, importer, settings, import_date_from, ad_info=None,
                  org_only=False, org_id_prefix=None, manager_rows=[],
-                 super_unit=None):
+                 super_unit=None, employee_mapping={}):
 
         self.base_url = 'https://service.sd.dk/sdws/'
         self.double_employment = []
@@ -64,10 +61,8 @@ class SdImport(object):
         # a true AD-reader is provided, save it so we can use it to
         # get all the info we need
         self.ad_people = {}
+        self.employee_forced_uuids = employee_mapping
         self.ad_reader = None
-        self.employee_forced_uuids = None
-        if isinstance(ad_info, dict):
-            self.employee_forced_uuids = ad_info
         if isinstance(ad_info, ad_reader.ADParameterReader):
             self.ad_reader = ad_info
             self.importer.new_itsystem(
@@ -377,12 +372,10 @@ class SdImport(object):
             given_name = person.get('PersonGivenName', '')
             sur_name = person.get('PersonSurnameName', '')
 
-            if 'ObjectGuid' in self.ad_people[cpr]:
+            uuid = self.employee_forced_uuids.get(cpr)
+            logger.info('Employee in force list: {} {}'.format(cpr, uuid))
+            if uuid is None and 'ObjectGuid' in self.ad_people[cpr]:
                 uuid = self.ad_people[cpr]['ObjectGuid']
-            elif self.employee_forced_uuids:  # Should be wrapped in update_ad_map
-                uuid = self.employee_forced_uuids.get(cpr, None)
-            else:
-                uuid = None
 
             # Name is placeholder for initals, do not know which field to extract
             if 'Name' in self.ad_people[cpr]:
@@ -407,7 +400,7 @@ class SdImport(object):
                 )
 
             # NOTICE: This will soon be removed and replaced with the
-            # AD-sync functionality which will sync all and just a few
+            # AD-sync functionality which will sync all and not just a few
             # magic fields.
             phone = self.ad_people[cpr].get('MobilePhone')
             if phone:
