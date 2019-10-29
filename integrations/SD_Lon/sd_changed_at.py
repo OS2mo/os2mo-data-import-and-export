@@ -32,12 +32,13 @@ logging.basicConfig(
 )
 
 RUN_DB = os.environ.get('RUN_DB', None)
+SETTINGS_FILE = os.environ.get('SETTINGS_FILE')
 
 
 class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):
         logger.info('Start ChangedAt: From: {}, To: {}'.format(from_date, to_date))
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'kommune-holstebro.json'
+        cfg_file = pathlib.Path.cwd() / 'settings' / SETTINGS_FILE
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
@@ -106,6 +107,7 @@ class ChangeAtSD(object):
             if self.to_date is not None:
                 url = 'GetEmploymentChangedAtDate20111201'
                 params = {
+                    # 'EmploymentIdentifier': '',
                     'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
                     'DeactivationDate': self.to_date.strftime('%d.%m.%Y'),
                     'StatusActiveIndicator': 'true',
@@ -122,6 +124,7 @@ class ChangeAtSD(object):
             else:
                 url = 'GetEmploymentChanged20111201'
                 params = {
+                    # 'EmploymentIdentifier': '',
                     'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
                     'DeactivationDate': '31.12.9999',
                     'DepartmentIndicator': 'true',
@@ -258,16 +261,36 @@ class ChangeAtSD(object):
         )
         return compare
 
-    def _validity(self, engagement_info, original_end=None):
+    def _validity(self, engagement_info, original_end=None, cut=False):
+        """
+        Extract a validity object from the supplied SD information.
+        If the validity extends outside the current engagment, the
+        change is either refused (by returning None) or cut to the
+        length of the current engagment.
+        :param engagement_info: The SD object to extract from.
+        :param orginal_end: The engagment end to compare with.
+        :param cut: If True the returned validity will cut to fit
+        rather than rejeted, if the validity is too long.
+        :return: A validity dict suitable for a MO payload. None if
+        the change is rejected.
+        """
         from_date = engagement_info['ActivationDate']
         to_date = engagement_info['DeactivationDate']
 
         if original_end is not None:
+            edit_from = datetime.datetime.strptime(from_date, '%Y-%m-%d')
             edit_end = datetime.datetime.strptime(to_date, '%Y-%m-%d')
             eng_end = datetime.datetime.strptime(original_end, '%Y-%m-%d')
-            if (edit_end > eng_end):
-                logger.warning('This edit would have extended outside engagement')
+            if edit_from >= eng_end:
+                logger.info('This edit starts after the end of the engagement')
                 return None
+
+            if (edit_end > eng_end):
+                if cut:
+                    to_date = datetime.datetime.strftime(eng_end, '%Y-%m-%d')
+                else:
+                    logger.info('This edit would have extended outside engagement')
+                    return None
 
         if to_date == '9999-12-31':
             to_date = None
@@ -342,6 +365,9 @@ class ChangeAtSD(object):
         logger.info('Create leave, job_id: {}, status: {}'.format(job_id, status))
         # TODO: This code potentially creates duplicated leaves.
         # Implment solution like the one for associations.
+
+        # TODO: It seems we should find a way to create a matching engagment
+        # while the leave is running. Wait for final confirmation.
         mo_eng = self._find_engagement(job_id)
         payload = sd_payloads.create_leave(mo_eng, self.mo_person, self.leave_uuid,
                                            job_id, self._validity(status))
@@ -373,7 +399,6 @@ class ChangeAtSD(object):
             logger.info('No new Association is needed')
 
     def apply_NY_logic(self, org_unit, job_id, validity):
-        # This must go to sd_common, or some kind of conf
         too_deep = self.settings['integrations.SD_Lon.import.too_deep']
         # Move users and make associations according to NY logic
         ou_info = self.helper.read_ou(org_unit)
@@ -400,14 +425,18 @@ class ChangeAtSD(object):
                 len(engagement_info['departments']) > 1
         ):
             also_edit = True
+        logger.debug('Create new engagement: also_edit: {}'.format(also_edit))
 
         try:
             org_unit = engagement_info['departments'][0]['DepartmentUUIDIdentifier']
             logger.info('Org unit for new engagement: {}'.format(org_unit))
             org_unit = self.apply_NY_logic(org_unit, job_id, validity)
         except IndexError:
-            org_unit = '4f79e266-4080-4300-a800-000006180002'  # CONF!!!!
-            logger.error('No unit for engagement {}'.format(job_id))
+            # This can be removed if we do not see the exception:
+            # org_unit = '4f79e266-4080-4300-a800-000006180002'  # CONF!!!!
+            msg = 'No unit for engagement {}'.format(job_id)
+            logger.error(msg)
+            raise Exception(msg)
 
         try:
             emp_name = engagement_info['professions'][0]['EmploymentName']
@@ -471,8 +500,7 @@ class ChangeAtSD(object):
         """
         job_id, engagement_info = self.engagement_components(engagement)
 
-        # mo_engagement = self._find_engagement(job_id)  # DUPLICATE!!!!
-        mo_eng = self._find_engagement(job_id)  # DUPLICATE!!!!
+        mo_eng = self._find_engagement(job_id)
 
         if not validity:
             validity = mo_eng['validity']
@@ -491,7 +519,12 @@ class ChangeAtSD(object):
             logger.info('Change department of engagement {}:'.format(job_id))
             logger.debug('Department object: {}'.format(department))
 
-            validity = self._validity(department)
+            validity = self._validity(department,
+                                      mo_eng['validity']['to'],
+                                      cut =True)
+            if validity is None:
+                continue
+
             logger.debug('Validity of this department change: {}'.format(validity))
             org_unit = department['DepartmentUUIDIdentifier']
             associations = self.helper.read_user_association(self.mo_person['uuid'],
@@ -529,6 +562,9 @@ class ChangeAtSD(object):
             else:
                 emp_name = profession_info['JobPositionIdentifier']
             logger.debug('Employment name: {}'.format(emp_name))
+
+            # Should this have an end comparison and cut=True?
+            # Most likely not, but be aware of the option.
             validity = self._validity(profession_info)
 
             self._update_professions(emp_name)
@@ -543,6 +579,9 @@ class ChangeAtSD(object):
 
         for worktime_info in engagement_info['working_time']:
             logger.info('Change working time of engagement {}'.format(job_id))
+
+            # Should this have an end comparison and cut=True?
+            # Most likely not, but be aware of the option.
             validity = self._validity(worktime_info, mo_eng['validity']['to'])
             # As far as we know, this can only happen for work time
             if validity is None:
@@ -741,6 +780,8 @@ class ChangeAtSD(object):
                     use_cache=False
                 )
                 self._update_user_employments(cpr, sd_engagement)
+                self.updater.set_current_person(uuid=self.mo_person['uuid'])
+
                 # Re-calculate primary after all updates for user has been performed.
                 self.updater.recalculate_primary()
 
@@ -790,7 +831,7 @@ if __name__ == '__main__':
     logger.info('***************')
     logger.info('Program started')
     init = True
-    from_date = datetime.datetime(2019, 10, 1, 0, 0)
+    from_date = datetime.datetime(2019, 9, 15, 0, 0)
 
     if init:
         run_db = pathlib.Path(RUN_DB)
