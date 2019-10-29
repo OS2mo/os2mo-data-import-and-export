@@ -1,28 +1,31 @@
-import os
 import csv
 import json
 import pathlib
 import datetime
 from chardet.universaldetector import UniversalDetector
 
+from integrations import cpr_mapper
 from os2mo_data_import import ImportHelper
-from integrations.SD_Lon.sd_importer import  sd_importer
+from integrations.SD_Lon import sd_importer
 from integrations.ad_integration import ad_reader
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'kommune-viborg.json'
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
 settings = json.loads(cfg_file.read_text())
 
-MANAGER_FILE = os.environ.get('MANAGER_FILE')
+cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
+if not cpr_map.is_file():
+    raise Exception('No mapping file')
+employee_mapping = cpr_mapper.employee_mapper(str(cpr_map))
+
+# MANAGER_FILE = os.environ.get('MANAGER_FILE')
 GLOBAL_GET_DATE = datetime.datetime(2019, 9, 15, 0, 0)
 
 importer = ImportHelper(
     create_defaults=True,
     mox_base=settings['mox.base'],
     mora_base=settings['mora.base'],
-    # system_name='SD-Import',
-    # end_marker='SDSTOP',
     store_integration_data=False,
     seperate_names=True
 )
@@ -30,7 +33,8 @@ importer = ImportHelper(
 ad_reader = ad_reader.ADParameterReader()
 
 detector = UniversalDetector()
-with open(MANAGER_FILE, 'rb') as csvfile:
+manager_file = settings['integrations.SD_Lon.import.manager_file']
+with open(manager_file, 'rb') as csvfile:
     for row in csvfile:
         detector.feed(row)
         if detector.done:
@@ -39,7 +43,7 @@ detector.close()
 encoding = detector.result['encoding']
 
 manager_rows = []
-with open(MANAGER_FILE, encoding=encoding) as csvfile:
+with open(manager_file, encoding=encoding) as csvfile:
     reader = csv.DictReader(csvfile, delimiter=';')
     for row in reader:
         if row['Leder 1 (cpr-nummer)']:
@@ -64,7 +68,8 @@ sd = sd_importer.SdImport(
     settings=settings,
     import_date_from=GLOBAL_GET_DATE,
     ad_info=ad_reader,
-    manager_rows=manager_rows
+    manager_rows=manager_rows,
+    employee_mapping=employee_mapping
 )
 
 importer.add_klasse(identifier='IT-Org. Alias',
