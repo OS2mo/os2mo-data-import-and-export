@@ -70,7 +70,12 @@ Email adresser og p-numre importeres fra SD hvis disse findes for enheden.
 Vi importerer UUID'er på enheder fra SD til MO så enheder i MO og SD har samme UUID.
 
 Medarbejdere har ikke en UUID i SD, så her benyttes cpr som nøgle på personen og
-ansættelsesnummeret som nøgle på engagementer
+ansættelsesnummeret som nøgle på engagementer. Brugerens UUID i MO vil enten blive
+tilfældigt valgt, eller trukket fra eksternt givet liste som matcher cpr-numre med
+ønskede UUID'er i MO. Denne funktionalitet kan anvendes til at sikre, at brugere
+ikke skifter UUID hvis det bliver nødvendigt at genimporere fra SD. TIl hjælp til
+dette findes et script (``cpr_uuid.py``) under exports som kan lave en sådan liste
+fra en kørende instans af MO.
 
 Primær ansættelse
 =================
@@ -292,9 +297,10 @@ information fra Active Directory. I de fleste tilfælde drejer dette sig som min
 om felterne ``ObjectGuid`` og  ``SamAccountName`` men det er også muligt at hente
 eksempelvis telefonnumre eller stillingsbetegnelser.
 
-Feltet ``ObjectGuid`` vil i MO blive anvendt til uuid for det tilhørende
-medarbejderobjekt. ``SamAccountName`` vil blive tilføjet som et brugernavn til
-IT systemet Active Direkctory for den pågældende bruger.
+Feltet ``ObjectGuid`` vil i MO blive anvendt til UUID for det tilhørende
+medarbejderobjekt, hvis ikke UUID'en allerede er givet fra en ekstern kilde.
+``SamAccountName`` vil blive tilføjet som et brugernavn til IT systemet Active
+Direkctory for den pågældende bruger.
 
 .. _ChangedAt.db:
 
