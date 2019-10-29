@@ -1,4 +1,3 @@
-import os
 import json
 import logging
 import pathlib
@@ -34,19 +33,24 @@ logging.basicConfig(
     filename=LOG_FILE
 )
 
-RUN_DB = os.environ.get('RUN_DB', None)
-SETTINGS_FILE = os.environ.get('SETTINGS_FILE')
-
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+# TODO: This must be clean up, settings should be loaded by __init__
+# and no references should be needed in global scope.
+SETTINGS = json.loads(cfg_file.read_text())
+RUN_DB = SETTINGS['integrations.SD_Lon.import.run_db']
 
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
+
 
 class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):
         logger.info('Start ChangedAt: From: {}, To: {}'.format(from_date, to_date))
-        cfg_file = pathlib.Path.cwd() / 'settings' / SETTINGS_FILE
+        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = SETTINGS
 
         cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
         if cpr_map.is_file():
@@ -803,7 +807,8 @@ class ChangeAtSD(object):
 
 
 def _local_db_insert(insert_tuple):
-    conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
+    conn = sqlite3.connect(SETTINGS['integrations.SD_Lon.import.run_db'],
+                           detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
     query = 'insert into runs (from_date, to_date, status) values (?, ?, ?)'
     final_tuple = (
