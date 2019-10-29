@@ -12,12 +12,12 @@ if not cfg_file.is_file():
     raise Exception('No setting file')
 settings = json.loads(cfg_file.read_text())
 
-cpr_map = pathlib.Path.cwd() / 'integrations' / 'holstebro' / 'cpr_uuid_map.csv'
+cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
 if not cpr_map.is_file():
     raise Exception('No mapping file')
 employee_mapping = cpr_mapper.employee_mapper(str(cpr_map))
 
-GLOBAL_GET_DATE = datetime.datetime(2019, 10, 25, 0, 0)
+GLOBAL_GET_DATE = datetime.datetime(2019, 10, 15, 0, 0)
 
 importer = ImportHelper(
     create_defaults=True,
