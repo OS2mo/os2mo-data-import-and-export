@@ -1,12 +1,19 @@
 import os
 import time
+import json
+import pathlib
 import logging
 import argparse
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration.ad_reader import ADParameterReader
 
-MORA_BASE = os.environ.get('MORA_BASE')
+
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+settings = json.loads(cfg_file.read_text())
+MORA_BASE = settings['mora.base']
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'cpr_uuid_export.log'
