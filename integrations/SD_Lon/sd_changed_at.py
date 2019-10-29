@@ -5,12 +5,14 @@ import pathlib
 import sqlite3
 import requests
 import datetime
-import sd_common
 import sd_payloads
 
-from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration import ad_reader
+from integrations.SD_Lon.sd_common import sd_lookup
+from integrations.SD_Lon.sd_common import generate_uuid
+from integrations.SD_Lon.sd_common import engagement_types
+from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater
 
 
 LOG_LEVEL = logging.DEBUG
@@ -34,6 +36,9 @@ logging.basicConfig(
 RUN_DB = os.environ.get('RUN_DB', None)
 SETTINGS_FILE = os.environ.get('SETTINGS_FILE')
 
+
+# TODO: WE NEED TO IMPLEMENT SUPPORT FOR FORCED UUIDS AND PREDICTABLE
+# ENGAGEMENT UUIDS ALSO IN THIS CODE!!!!!!
 
 class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):
@@ -61,7 +66,7 @@ class ChangeAtSD(object):
         self.mo_person = None      # Updated continously with the person currently
         self.mo_engagement = None  # being processed.
 
-        self.eng_types = sd_common.engagement_types(self.helper)
+        self.eng_types = engagement_types(self.helper)
 
         logger.info('Read it systems')
         it_systems = self.helper.read_it_systems()
@@ -120,7 +125,7 @@ class ChangeAtSD(object):
                     'SalaryAgreementIndicator': 'false',
                     'SalaryCodeGroupIndicator': 'false'
                 }
-                response = sd_common.sd_lookup(url, params=params)
+                response = sd_lookup(url, params=params)
             else:
                 url = 'GetEmploymentChanged20111201'
                 params = {
@@ -135,7 +140,7 @@ class ChangeAtSD(object):
                     'SalaryAgreementIndicator': 'false',
                     'SalaryCodeGroupIndicator': 'false'
                 }
-            response = sd_common.sd_lookup(url, params)
+            response = sd_lookup(url, params)
 
             employment_response = response.get('Person', [])
             if not isinstance(employment_response, list):
@@ -159,7 +164,7 @@ class ChangeAtSD(object):
             # TODO: Er der kunder, som vil udlæse adresse-information?
         }
         url = 'GetPersonChangedAtDate20111201'
-        response = sd_common.sd_lookup(url, params=params)
+        response = sd_lookup(url, params=params)
         person_changed = response.get('Person', [])
         if not isinstance(person_changed, list):
             person_changed = [person_changed]
@@ -175,7 +180,7 @@ class ChangeAtSD(object):
             'PostalAddressIndicator': 'false'
         }
         url = 'GetPerson20111201'
-        response = sd_common.sd_lookup(url, params=params)
+        response = sd_lookup(url, params=params)
         person = response.get('Person', [])
 
         if not isinstance(person, list):
@@ -521,7 +526,7 @@ class ChangeAtSD(object):
 
             validity = self._validity(department,
                                       mo_eng['validity']['to'],
-                                      cut =True)
+                                      cut=True)
             if validity is None:
                 continue
 
