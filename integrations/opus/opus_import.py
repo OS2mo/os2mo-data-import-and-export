@@ -427,7 +427,7 @@ class OpusImport(object):
         logger.info('Add engagement: {} to {}'.format(job_id, cpr))
         self.importer.add_engagement(
             employee=cpr,
-            uuid=engagement_uuid,
+            uuid=str(engagement_uuid),
             organisation_unit=org_unit,
             user_key=job_id,
             job_function_ref=job,
