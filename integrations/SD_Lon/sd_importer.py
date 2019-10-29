@@ -4,15 +4,15 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-import uuid
-import hashlib
 import logging
 import datetime
 from anytree import Node
 
 from integrations import dawa_helper
-from integrations.SD_Lon.sd_common import sd_lookup, calc_employment_id
 from integrations.ad_integration import ad_reader
+from integrations.SD_Lon.sd_common import sd_lookup
+from integrations.SD_Lon.sd_common import generate_uuid
+from integrations.SD_Lon.sd_common import calc_employment_id
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'
@@ -57,9 +57,6 @@ class SdImport(object):
         self.org_id_prefix = org_id_prefix
         self.import_date = import_date_from.strftime('%d.%m.%Y')
 
-        # If a list of hard-coded uuids from AD is provided, use this. If
-        # a true AD-reader is provided, save it so we can use it to
-        # get all the info we need
         self.ad_people = {}
         self.employee_forced_uuids = employee_mapping
         self.ad_reader = None
@@ -127,24 +124,6 @@ class SdImport(object):
         self._add_klasse('Intern', 'Må vises internt', 'visibility', 'INTERNAL')
         self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
 
-    def _generate_uuid(self, value):
-        """
-        Code almost identical to this also lives in the Opus importer.
-        """
-        if self.org_id_prefix:
-            base_hash = hashlib.md5(self.org_id_prefix.encode())
-        else:
-            base_hash = hashlib.md5(self.org_name.encode())
-
-        base_digest = base_hash.hexdigest()
-        base_uuid = uuid.UUID(base_digest)
-
-        combined_value = (str(base_uuid) + str(value)).encode()
-        value_hash = hashlib.md5(combined_value)
-        value_digest = value_hash.hexdigest()
-        value_uuid = str(uuid.UUID(value_digest))
-        return value_uuid
-
     def _update_ad_map(self, cpr):
         logger.debug('Update cpr{}'.format(cpr))
         self.ad_people[cpr] = {}
@@ -172,7 +151,7 @@ class SdImport(object):
         for department in departments['Department']:
             uuid = department['DepartmentUUIDIdentifier']
             if self.org_id_prefix:
-                uuid = self._generate_uuid(uuid)
+                uuid = generate_uuid(uuid, self.org_id_prefix, self.org_name)
 
             department_info[uuid] = department
             unit_type = department['DepartmentLevelIdentifier']
@@ -185,7 +164,7 @@ class SdImport(object):
         if isinstance(klasse_id, str):
             klasse_id = klasse_id.replace('&', '_')
         if not self.importer.check_if_exists('klasse', klasse_id):
-            klasse_uuid = self._generate_uuid(klasse_id)
+            klasse_uuid = generate_uuid(klasse_id, self.org_id_prefix, self.org_name)
             self.importer.add_klasse(identifier=klasse_id,
                                      uuid=klasse_uuid,
                                      facet_type_ref=facet,
@@ -201,7 +180,7 @@ class SdImport(object):
             department = department['DepartmentReference']
             dep_uuid = department['DepartmentUUIDIdentifier']
             if self.org_id_prefix:
-                dep_uuid = self._generate_uuid(dep_uuid)
+                dep_uuid = generate_uuid(dep_uuid, self.org_id_prefix)
             if dep_uuid == sub_tree:
                 in_sub_tree = True
         return in_sub_tree
@@ -219,7 +198,8 @@ class SdImport(object):
             unit_id = department['DepartmentUUIDIdentifier']
             user_key = department['DepartmentIdentifier']
         else:
-            unit_id = self._generate_uuid(department['DepartmentUUIDIdentifier'])
+            unit_id = generate_uuid(department['DepartmentUUIDIdentifier'],
+                                    self.org_id_prefix)
             user_key = self.org_id_prefix + '_' + department['DepartmentIdentifier']
 
         # parent_uuid = None
@@ -233,7 +213,7 @@ class SdImport(object):
 
             parent_uuid = department['DepartmentReference']['DepartmentUUIDIdentifier']
             if self.org_id_prefix:
-                parent_uuid = self._generate_uuid(parent_uuid)
+                parent_uuid = self._generate_uuid(parent_uuid, self.org_id_prefix)
         else:
             import_unit = unit_id == sub_tree
 
@@ -599,8 +579,13 @@ class SdImport(object):
                 while self.nodes[unit].name in too_deep:
                     unit = self.nodes[unit].parent.uuid
                 try:
+                    engagement_uuid = generate_uuid(employment_id['id'],
+                                                    self.org_id_prefix,
+                                                    self.org_name)
+
                     self.importer.add_engagement(
                         employee=cpr,
+                        uuid=engagement_uuid,
                         user_key=employment_id['id'],
                         organisation_unit=unit,
                         job_function_ref=job_func_ref,
