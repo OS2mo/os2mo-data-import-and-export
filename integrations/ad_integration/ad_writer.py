@@ -1,11 +1,13 @@
 import os
+import re
 import sys
+import json
 import time
 import random
 import logging
+import pathlib
 import datetime
 import argparse
-
 from uuid import UUID
 
 import ad_logger
@@ -22,6 +24,10 @@ logger = logging.getLogger("AdWriter")
 MORA_BASE = os.environ.get('MORA_BASE')
 FORVALTNING_TYPE = os.environ.get('FORVALTNING_TYPE')
 PRIMARY_ENGAGEMENT_LIST = os.environ.get('PRIMARY_ENGAGEMENT_TYPES', '')
+
+SETTINGS_FILE = os.environ.get('SETTINGS_FILE')
+if not SETTINGS_FILE:
+    raise Exception('Settings file not set in enironment')
 
 
 # These checks could in principle go to a common configuration checker
@@ -53,6 +59,11 @@ class ADWriter(AD):
     def __init__(self):
         super().__init__()
 
+        cfg_file = pathlib.Path.cwd() / 'settings' / SETTINGS_FILE
+        if not cfg_file.is_file():
+            raise Exception('No setting file')
+        self.settings = json.loads(cfg_file.read_text())
+
         self.pet = PRIMARY_ENGAGEMENT_TYPES
         self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
         self.name_creator = CreateUserNames(occupied_names=set())
@@ -81,6 +92,16 @@ class ADWriter(AD):
              mo_values['forvaltning'].replace('&', 'og')),
             (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
         ]
+
+        # Local fields for MO->AD sync'ing
+        named_sync_fields = self.settings.get(
+            'integrations.ad_writer.mo_to_ad_fields', {})
+
+        for mo_field, ad_field in named_sync_fields.items():
+            other_attributes_fields.append(
+                (ad_field, mo_values[mo_field])
+            )
+
         # These two fields are NEVER updated.
         if new_user:
             other_attributes_fields.append(
@@ -182,6 +203,30 @@ class ADWriter(AD):
         unit_info = self.helper.read_ou(engagement['org_unit']['uuid'])
         unit_name = unit_info['name']
         unit_uuid = unit_info['uuid']
+        unit_user_key = unit_info['user_key']
+
+        # misc = self.helper.read_ou_address(unit_uuid, scope='TEXT',
+        # return_all=True)
+        # www = self.helper.read_ou_address(unit_uuid, scope='WWW', return_all=True)
+        # phone = self.helper.read_ou_address(unit_uuid, scope='PHONE',
+        # return_all=True)
+        email = self.helper.read_ou_address(unit_uuid, scope='EMAIL',
+                                            return_all=True)
+        postal = self.helper.read_ou_address(unit_uuid, scope='DAR',
+                                             return_all=False)
+
+        unit_secure_email = None
+        unit_public_email = None
+        for mail in email:
+            if mail['visibibility']['scope'] == 'PUBLIC':
+                unit_public_email = mail['value']
+            if mail['visibibility']['scope'] == 'SECRET':
+                unit_secure_email = mail['value']
+
+        postal_code = re.findall('[0-9]{4}', postal['Adresse'])[0]
+        city_pos = postal['Adresse'].find(postal_code) + 5
+        city = postal['Adresse'][city_pos:]
+        streetname = postal['Adresse'][:city_pos - 7]
 
         location = ''
         current_unit = unit_info
@@ -222,6 +267,14 @@ class ADWriter(AD):
             'title': title,
             'unit': unit_name,
             'unit_uuid': unit_uuid,
+            'unit_user_key': unit_user_key,
+            'unit_public_email': unit_public_email,
+            'unit_secure_email': unit_secure_email,
+            'unit_postal_code': postal_code,
+            'unit_city': city,
+            'unit_streetname': streetname,
+            # UNIT PHONE NUMBER
+            # UNIT WEB PAGE
             'location': location,
             'forvaltning': forvaltning,
             'manager_name': manager_name,
@@ -279,12 +332,14 @@ class ADWriter(AD):
             edit_user_string +
             bp['server']
         )
+        logger.debug('Sync user, ps_script: {}'.format(ps_script))
+
         response = self._run_ps_script(ps_script)
         logger.debug('Response from sync: {}'.format(response))
 
         if sync_manager:
             self.add_manager_to_user(user_sam=user_sam,
-                                     manager_sam=mo_values['managerSAM'])
+                                     manager_sam=mo_values['manager_sam'])
         return (True, 'Sync completed')
 
     def create_user(self, mo_uuid, create_manager, dry_run=False):
