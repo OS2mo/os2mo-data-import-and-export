@@ -14,7 +14,7 @@ RUN_DB = os.environ.get('RUN_DB', None)
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'Opus Import')
 
 DUMP_PATH = Path('/opt/magenta/dataimport/opus')
-START_DATE = datetime.datetime(2019, 8, 2, 0, 0)
+START_DATE = datetime.datetime(2019, 10, 25, 0, 0)
 
 # Check this!!!!!!!!!!
 # Maybe we should do the logging configuration here!
@@ -108,7 +108,7 @@ def _next_xml_file(run_db, dumps):
     return next_date
 
 
-def start_opus_import(importer, ad_reader=None, force=False):
+def start_opus_import(importer, ad_reader=None, force=False, employee_mapping={}):
     """
     Start an opus import, run the oldest available dump that
     has not already been imported.
@@ -136,7 +136,8 @@ def start_opus_import(importer, ad_reader=None, force=False):
         org_name=MUNICIPALTY_NAME,
         xml_data=str(xml_file),
         ad_reader=ad_reader,
-        import_first=True
+        import_first=True,
+        employee_mapping=employee_mapping
     )
     logger.info('Start import')
     opus_importer.insert_org_units()
