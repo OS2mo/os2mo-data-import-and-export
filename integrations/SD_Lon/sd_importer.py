@@ -579,6 +579,8 @@ class SdImport(object):
                 while self.nodes[unit].name in too_deep:
                     unit = self.nodes[unit].parent.uuid
                 try:
+                    # In a distant future, an employment id will be re-used and
+                    # then a more refinde version of this code will be needed.
                     engagement_uuid = generate_uuid(employment_id['id'],
                                                     self.org_id_prefix,
                                                     self.org_name)
