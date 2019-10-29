@@ -7,10 +7,11 @@ import requests
 import datetime
 import sd_payloads
 
+from integrations import cpr_mapper
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration import ad_reader
 from integrations.SD_Lon.sd_common import sd_lookup
-from integrations.SD_Lon.sd_common import generate_uuid
+# from integrations.SD_Lon.sd_common import generate_uuid
 from integrations.SD_Lon.sd_common import engagement_types
 from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater
 
@@ -37,8 +38,7 @@ RUN_DB = os.environ.get('RUN_DB', None)
 SETTINGS_FILE = os.environ.get('SETTINGS_FILE')
 
 
-# TODO: WE NEED TO IMPLEMENT SUPPORT FOR FORCED UUIDS AND PREDICTABLE
-# ENGAGEMENT UUIDS ALSO IN THIS CODE!!!!!!
+# TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
 
 class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):
@@ -47,6 +47,14 @@ class ChangeAtSD(object):
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
+
+        cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
+        if cpr_map.is_file():
+            logger.info('Found cpr mapping')
+            self.employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
+        else:
+            logger.warning('Did not find cpr mapping')
+            self.employee_forced_uuids = {}
 
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
@@ -217,10 +225,13 @@ class ChangeAtSD(object):
                     continue
                 uuid = mo_person['uuid']
             else:
-                uuid = ad_info.get('ObjectGuid', None)
-                logger.debug('{} not in MO or AD, assign random uuid'.format(cpr))
-            # Where do we get email and phone from, persumably these informations
-            # are not generally available in AD at this point?
+                uuid = self.employee_forced_uuids.get(cpr)
+                logger.info('Employee in force list: {} {}'.format(cpr, uuid))
+                if uuid is None and 'ObjectGuid' in self.ad_people[cpr]:
+                    uuid = self.ad_people[cpr]['ObjectGuid']
+                if uuid is None:
+                    msg = '{} not in MO, UUID list or AD, assign random uuid'
+                    logger.debug(msg.format(cpr))
 
             payload = {
                 'givenname': given_name,
