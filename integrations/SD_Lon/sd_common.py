@@ -1,4 +1,5 @@
 import os
+import uuid
 import pickle
 import logging
 import hashlib
@@ -74,6 +75,25 @@ def calc_employment_id(employment):
         'value': employment_number
     }
     return employment_id
+
+
+def generate_uuid(value, org_id_prefix, org_name=None):
+    """
+    Code almost identical to this also lives in the Opus importer.
+    """
+    if org_id_prefix:
+        base_hash = hashlib.md5(org_id_prefix.encode())
+    else:
+        base_hash = hashlib.md5(org_name.encode())
+
+    base_digest = base_hash.hexdigest()
+    base_uuid = uuid.UUID(base_digest)
+
+    combined_value = (str(base_uuid) + str(value)).encode()
+    value_hash = hashlib.md5(combined_value)
+    value_digest = value_hash.hexdigest()
+    value_uuid = str(uuid.UUID(value_digest))
+    return value_uuid
 
 
 def engagement_types(helper):
