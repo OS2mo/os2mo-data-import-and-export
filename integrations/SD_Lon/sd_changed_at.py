@@ -233,7 +233,7 @@ class ChangeAtSD(object):
             else:
                 uuid = self.employee_forced_uuids.get(cpr)
                 logger.info('Employee in force list: {} {}'.format(cpr, uuid))
-                if uuid is None and 'ObjectGuid' in ad_info[cpr]:
+                if uuid is None and cpr in ad_info:
                     uuid = ad_info[cpr]['ObjectGuid']
                 if uuid is None:
                     msg = '{} not in MO, UUID list or AD, assign random uuid'
