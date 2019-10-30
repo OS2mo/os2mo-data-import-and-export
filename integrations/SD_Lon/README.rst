@@ -11,15 +11,16 @@ Opsætning
 ==========
 
 For at kunne afvikle integrationen, kræves loginoplysninger til SD-Løn, som angives
-via miljøvariable i den terminal integrationen afvikles fra. Disse miljøvariable er:
+via``settings.json`` De påkrævede felter er:
 
- * ``INSTITUTION_IDENTIFIER``: Institution Identifer i SD.
- * ``SD_USER``: Brugernavn (inklusiv foranstillet SY) til SD.
- * ``SD_PASSWORD``: Password til SD.
-
+ * ``integrations.SD_Lon.institution_identifier``: Institution Identifer i SD.
+ * ``integrations.SD_Lon.sd_user``: Brugernavn (inklusiv foranstillet SY) til SD.
+ * ``integrations.SD_Lon.sd_password``: Password til SD.
+ * ``integrations.SD_Lon.global_from_date``: Virkningsdato for import på formen YYYY-MM-DD
+   
 Desuden er det nødvendigt at angive adressen på MO og LoRa i variablerne:
- * ``MOX_BASE``
- * ``MORA_BASE``
+ * ``mox.base``
+ * ``mora.base``
 
 Detaljer om importen
 ====================
@@ -226,8 +227,7 @@ engagementer, fremtidige ændringer skal hentes i en seperat process. Denne proc
 håndteres af programmet `sd_changed_at.py` (som også anvendes til efterfølgende
 daglige synkroniseringer). Programmet tager i øjeblikket desværre ikke mod parametre
 fra kommandolinjen, men har brug for at blive rettet direkte i koden, hvor parametren
-`init` i `__main__` delen af programmet skal sættes til `True`. Desuden skal
-`from_date` sætte til samme dato som importen blev foretaget med.
+`init` i `__main__` delen af programmet skal sættes til `True`.
 
 Programet kan nu afvikles direkte fra kommandolinjen
 
