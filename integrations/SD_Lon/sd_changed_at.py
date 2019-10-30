@@ -773,11 +773,12 @@ class ChangeAtSD(object):
 
             if not self.mo_person:
                 for employment_info in sd_engagement:
-                    if (
-                            (employment_info['EmploymentStatus']
-                             ['EmploymentStatusCode'])
-                            in ('S', '7', '8')
-                    ):
+                    emp_status = employment_info['EmploymentStatus']
+                    if isinstance(emp_status, list):
+                        code = emp_status[0]['EmploymentStatusCode']
+                    else:
+                        code = emp_status['EmploymentStatusCode']
+                    if code in ('S', '7', '8'):
                         logger.warning(
                             'Employment deleted or ended before initial import.'
                         )
