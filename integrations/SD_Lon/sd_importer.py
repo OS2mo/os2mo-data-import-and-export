@@ -4,7 +4,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+import json
 import logging
+import pathlib
 import datetime
 from anytree import Node
 
@@ -34,9 +36,15 @@ logging.basicConfig(
 
 
 class SdImport(object):
-    def __init__(self, importer, settings, import_date_from, ad_info=None,
-                 org_only=False, org_id_prefix=None, manager_rows=[],
-                 super_unit=None, employee_mapping={}):
+    def __init__(self, importer, ad_info=None, org_only=False, org_id_prefix=None,
+                 manager_rows=[], super_unit=None, employee_mapping={}):
+
+        # TODO: Soon we have done this 4 times. Should we make a small settings
+        # importer, that will also handle datatype for specicic keys?
+        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+        if not cfg_file.is_file():
+            raise Exception('No setting file')
+        self.settings = json.loads(cfg_file.read_text())
 
         self.base_url = 'https://service.sd.dk/sdws/'
         self.double_employment = []
@@ -44,7 +52,6 @@ class SdImport(object):
         self.manager_rows = manager_rows
 
         self.importer = importer
-        self.settings = settings
 
         self.org_name = settings['municipality.name']
 
@@ -55,6 +62,12 @@ class SdImport(object):
         )
 
         self.org_id_prefix = org_id_prefix
+
+        import_date_from = datetime.datetime.strptime(
+            self.settings['integrations.SD_Lon.global_from_date'],
+            '%Y-%m-%d'
+        )
+
         self.import_date = import_date_from.strftime('%d.%m.%Y')
 
         self.ad_people = {}
