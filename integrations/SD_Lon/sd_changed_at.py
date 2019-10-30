@@ -33,6 +33,8 @@ logging.basicConfig(
     filename=LOG_FILE
 )
 
+# TODO: Soon we have done this 4 times. Should we make a small settings
+# importer, that will also handle datatype for specicic keys?
 cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
@@ -852,7 +854,11 @@ if __name__ == '__main__':
     logger.info('***************')
     logger.info('Program started')
     init = True
-    from_date = datetime.datetime(2019, 9, 15, 0, 0)
+
+    from_date = datetime.datetime.strptime(
+        SETTINGS['integrations.SD_Lon.global_from_date'],
+        '%Y-%m-%d'
+    )
 
     if init:
         run_db = pathlib.Path(RUN_DB)
