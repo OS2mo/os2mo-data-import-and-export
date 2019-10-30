@@ -53,12 +53,12 @@ class SdImport(object):
 
         self.importer = importer
 
-        self.org_name = settings['municipality.name']
+        self.org_name = self.settings['municipality.name']
 
         self.importer.add_organisation(
             identifier=self.org_name,
             user_key=self.org_name,
-            municipality_code=settings['municipality.code']
+            municipality_code=self.settings['municipality.code']
         )
 
         self.org_id_prefix = org_id_prefix
@@ -598,9 +598,10 @@ class SdImport(object):
                                                     self.org_id_prefix,
                                                     self.org_name)
 
+                    # We explicitly do not want identical uuids for engagements
                     self.importer.add_engagement(
                         employee=cpr,
-                        uuid=engagement_uuid,
+                        # uuid=engagement_uuid, 
                         user_key=employment_id['id'],
                         organisation_unit=unit,
                         job_function_ref=job_func_ref,
