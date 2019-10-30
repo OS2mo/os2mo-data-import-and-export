@@ -48,10 +48,6 @@ RUN_DB = SETTINGS['integrations.SD_Lon.import.run_db']
 
 class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):
-        logger.info('Start ChangedAt: From: {}, To: {}'.format(from_date, to_date))
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
         self.settings = SETTINGS
 
         cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
