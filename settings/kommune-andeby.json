@@ -1,4 +1,8 @@
 {
+    "crontab.RUN_MOX_STSORGSYNC": true,
+    "crontab.RUN_SD_FIX_DEPARTMENTS": true,
+    "crontab.RUN_SD_CHANGED_AT": true,
+    "crontab.RUN_SD_DB_OVERVIEW": true,
     "integrations.SD_Lon.sd_common.SD_USER": "",
     "integrations.SD_Lon.sd_common.SD_PASSWORD": "",
     "integrations.SD_Lon.sd_common.BASE_URL": "",
