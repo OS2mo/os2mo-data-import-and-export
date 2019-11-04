@@ -419,7 +419,7 @@ class ChangeAtSD(object):
     def apply_NY_logic(self, org_unit, job_id, validity):
         too_deep = self.settings['integrations.SD_Lon.import.too_deep']
         # Move users and make associations according to NY logic
-        ou_info = self.helper.read_ou(org_unit)
+        ou_info = self.helper.read_ou(org_unit, at=validity['from'])
         if ou_info['org_unit_type']['name'] in too_deep:
             self.create_association(org_unit, self.mo_person,
                                     job_id, validity)
