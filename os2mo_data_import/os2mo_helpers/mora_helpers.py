@@ -212,19 +212,37 @@ class MoraHelper(object):
         org_enhed = self._mo_lookup(uuid, 'ou/{}', at, use_cache)
         return org_enhed
 
-    def read_ou_address(self, uuid, at=None, use_cache=None, scope="DAR"):
+    def read_ou_address(self, uuid, at=None, use_cache=None, scope="DAR",
+                        return_all=False):
         """ Return a dict with the data available about an OU
         :param uuid: The UUID of the OU
-        :return: Dict with the information about the OU
+        :param return_all: If True the response will be a list of dicts
+        rather than a dict, and all adresses will be returned.
+        :return: Dict (or list) with the information about the OU
         """
-        return_address = {}
+        return_list = []
         addresses = self._mo_lookup(uuid, 'ou/{}/details/address', at, use_cache)
 
+        # print(scope)
+        
         for address in addresses:
+            print()
+            print(address)
+            return_address = {}
             if address['address_type']['scope'] == scope:
+                return_address['visibibility'] = address.get('visibility')
                 return_address['Adresse'] = address['name']
                 return_address['value'] = address['value']
-        return return_address
+                return_list.append(return_address)
+
+        if return_all:
+            return_value = return_list
+        else:
+            if return_list:
+                return_value = return_list[0]
+            else:
+                return_value = {}
+        return return_value
 
     def read_classes_in_facet(self, facet, use_cache=False):
         """ Return all classes belong to a given facet.
