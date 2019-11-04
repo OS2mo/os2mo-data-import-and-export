@@ -1,4 +1,5 @@
 xmltodict
 anytree
 pika
+requests_kerberos
 
