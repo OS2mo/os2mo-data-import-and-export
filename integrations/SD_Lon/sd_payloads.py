@@ -18,6 +18,22 @@ def create_org_unit(department, name, org, unit_type, from_date):
     }
     return payload
 
+def create_single_org_unit(department, unit_type, parent):
+    payload = {
+        'uuid': department['DepartmentUUIDIdentifier'],
+        'user_key': department['DepartmentIdentifier'],
+        'name': department['DepartmentName'],
+        'parent': {
+            'uuid': parent
+        },
+        'org_unit_type': {'uuid': unit_type},
+        'validity': {
+            'from': department['ActivationDate'],
+            'to': None
+        }
+    }
+    return payload
+
 
 def edit_org_unit(user_key, name, unit_uuid, parent, ou_level, from_date):
     payload = {
