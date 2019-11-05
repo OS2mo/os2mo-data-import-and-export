@@ -519,6 +519,9 @@ class ChangeAtSD(object):
         job_id, engagement_info = self.engagement_components(engagement)
 
         mo_eng = self._find_engagement(job_id)
+        if not mo_eng:
+            logger.error('Engagement {} has never existed!'.format(job_id))
+            return
 
         if not validity:
             validity = mo_eng['validity']
@@ -583,7 +586,11 @@ class ChangeAtSD(object):
 
             # Should this have an end comparison and cut=True?
             # Most likely not, but be aware of the option.
-            validity = self._validity(profession_info)
+            validity = self._validity(profession_info, mo_eng['validity']['to'],
+                                      cut=True)
+
+            if validity is None:
+                continue
 
             self._update_professions(emp_name)
             job_function = self.job_functions.get(emp_name)
@@ -850,7 +857,7 @@ def initialize_changed_at(from_date, run_db, force=False):
 if __name__ == '__main__':
     logger.info('***************')
     logger.info('Program started')
-    init = True
+    init = False
 
     from_date = datetime.datetime.strptime(
         SETTINGS['integrations.SD_Lon.global_from_date'],
