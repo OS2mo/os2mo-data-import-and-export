@@ -11,6 +11,7 @@ from datetime import datetime
 
 from integrations.opus import payloads
 from integrations.opus import opus_helpers
+from integrations.ad_integration import ad_reader
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 
@@ -24,11 +25,16 @@ logger = logging.getLogger("opusDiff")
 
 
 class OpusImport(object):
-    def __init__(self):
+    def __init__(self, employee_mapping={}):
 
         self.session = Session()
         self.mox_base = MOX_BASE
         self.org_name = MUNICIPALTY_NAME
+
+        # TODO: Test with an actual employee mapping
+        self.employee_forced_uuids = employee_mapping
+        self.ad_reader = ad_reader.ADParameterReader()
+
         self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
         try:
             self.org_uuid = self.helper.read_organisation()
@@ -41,6 +47,12 @@ class OpusImport(object):
         self.engagement_types = {}
         for eng_type in eng_types[0]:
             self.engagement_types[eng_type['user_key']] = eng_type['uuid']
+
+        logger.info('Read it systems')
+        it_systems = self.helper.read_it_systems()
+        for system in it_systems:
+            if system['name'] == 'Active Directory':
+                self.ad_uuid = system['uuid']  # This could also be a conf-option.
 
         # THIS IS COMMON TO _next_xml_file!!!!
         conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -162,41 +174,69 @@ class OpusImport(object):
                 'org_unit': {'uuid': str(unit_uuid)},
                 'validity': validity}
         payload = payloads.edit_engagement(data, eng_uuid)
-        print(payload)
+        print('Update engagement payload: {}'.format(payload))
+
+    def create_user(self, employee):
+        cpr = employee['cpr']['#text']
+        ad_info = self.ad_reader.read_user(cpr=cpr)
+        uuid = self.employee_forced_uuids.get(cpr)
+        logger.info('Employee in force list: {} {}'.format(cpr, uuid))
+        if uuid is None and cpr in ad_info:
+            uuid = ad_info[cpr]['ObjectGuid']
+            if uuid is None:
+                msg = '{} not in MO, UUID list or AD, assign random uuid'
+                logger.debug(msg.format(cpr))
+        payload = payloads.create_user(employee, self.org_uuid, uuid)
+
+        print('Create user payload: {}'.format(payload))
+        # return_uuid = self.helper._mo_post('e/create', payload).json()
+        return_uuid = None
+        logger.info('Created employee {} {} with uuid {}'.format(
+            employee['firstName'],
+            employee['lastName'],
+            return_uuid
+        ))
+
+        sam_account = ad_info.get('SamAccountName', None)
+        if sam_account:
+            payload = payloads.connect_it_system_to_user(
+                sam_account,
+                self.ad_uuid,
+                return_uuid
+            )
+            print('AD account payload: {}'.format(payload))
+            logger.info('Added AD account info to {}'.format(cpr))
+        return return_uuid
 
     def update_employee(self, employee):
         cpr = employee['cpr']['#text']
         mo_user = self.helper.read_user(user_cpr=cpr)
         if mo_user is None:
-            print('Create user')
-            exit()
-            # create user
-            # employee_mo_uuid =
-            pass
+            employee_mo_uuid = self.create_user(employee)
         else:
             employee_mo_uuid = mo_user['uuid']
             # TODO: Here we should update the name of the user
 
-        # TODO: Here We should update user address
+            # TODO: Here We should update user address
 
-        # Now we have a MO uuid, update engagement:
-        mo_engagements = self.helper.read_user_engagement(employee_mo_uuid,
-                                                          read_all=True)
-        current_mo_eng = None
-        for eng in mo_engagements:
-            if eng['user_key'] == employee['@id']:
-                current_mo_eng = eng['uuid']
-                break
-        if current_mo_eng is None:
-            # Create engagement
-            pass
-        else:
-            self.update_engagement(current_mo_eng, employee)
+            # Now we have a MO uuid, update engagement:
+            mo_engagements = self.helper.read_user_engagement(employee_mo_uuid,
+                                                              read_all=True)
+            current_mo_eng = None
+            for eng in mo_engagements:
+                if eng['user_key'] == employee['@id']:
+                    current_mo_eng = eng['uuid']
+                    break
+            if current_mo_eng is None:
+                # Create engagement
+                pass
+            else:
+                self.update_engagement(current_mo_eng, employee)
 
         # TODO: Update manager information
 
     def terminate_engagement(self, uuid):
-        # print('Terminating {}'.format(uuid))
+        print('Terminating {}'.format(uuid))
         # TODO: Implement this
         pass
 
