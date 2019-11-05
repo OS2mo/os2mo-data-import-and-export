@@ -1,4 +1,5 @@
-import os
+import json
+import pathlib
 import logging
 import argparse
 import datetime
@@ -8,7 +9,13 @@ import sd_payloads
 
 from os2mo_helpers.mora_helpers import MoraHelper
 
-MORA_BASE = os.environ.get('MORA_BASE', None)
+# TODO: Soon we have done this 4 times. Should we make a small settings
+# importer, that will also handle datatype for specicic keys?
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+SETTINGS = json.loads(cfg_file.read_text())
+MORA_BASE = SETTINGS['mora.base']
 
 logger = logging.getLogger("updatePrimaryEngagements")
 LOG_LEVEL = logging.DEBUG
@@ -172,6 +179,7 @@ class MOPrimaryEngagementUpdater(object):
 
         for i in range(0, len(date_list) - 1):
             date = date_list[i]
+            logger.info('Recalculate primary, date: {}'.format(date))
 
             mo_engagement = self._read_engagement(date)
             logger.debug('MO engagement: {}'.format(mo_engagement))
@@ -324,4 +332,3 @@ if __name__ == '__main__':
 
     updater = MOPrimaryEngagementUpdater()
     updater._cli()
-
