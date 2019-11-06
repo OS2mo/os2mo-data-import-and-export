@@ -11,15 +11,16 @@ Opsætning
 ==========
 
 For at kunne afvikle integrationen, kræves loginoplysninger til SD-Løn, som angives
-via miljøvariable i den terminal integrationen afvikles fra. Disse miljøvariable er:
+via``settings.json`` De påkrævede felter er:
 
- * ``INSTITUTION_IDENTIFIER``: Institution Identifer i SD.
- * ``SD_USER``: Brugernavn (inklusiv foranstillet SY) til SD.
- * ``SD_PASSWORD``: Password til SD.
-
+ * ``integrations.SD_Lon.institution_identifier``: Institution Identifer i SD.
+ * ``integrations.SD_Lon.sd_user``: Brugernavn (inklusiv foranstillet SY) til SD.
+ * ``integrations.SD_Lon.sd_password``: Password til SD.
+ * ``integrations.SD_Lon.global_from_date``: Virkningsdato for import på formen YYYY-MM-DD
+   
 Desuden er det nødvendigt at angive adressen på MO og LoRa i variablerne:
- * ``MOX_BASE``
- * ``MORA_BASE``
+ * ``mox.base``
+ * ``mora.base``
 
 Detaljer om importen
 ====================
@@ -70,7 +71,12 @@ Email adresser og p-numre importeres fra SD hvis disse findes for enheden.
 Vi importerer UUID'er på enheder fra SD til MO så enheder i MO og SD har samme UUID.
 
 Medarbejdere har ikke en UUID i SD, så her benyttes cpr som nøgle på personen og
-ansættelsesnummeret som nøgle på engagementer
+ansættelsesnummeret som nøgle på engagementer. Brugerens UUID i MO vil enten blive
+tilfældigt valgt, eller trukket fra eksternt givet liste som matcher cpr-numre med
+ønskede UUID'er i MO. Denne funktionalitet kan anvendes til at sikre, at brugere
+ikke skifter UUID hvis det bliver nødvendigt at genimporere fra SD. TIl hjælp til
+dette findes et script (``cpr_uuid.py``) under exports som kan lave en sådan liste
+fra en kørende instans af MO.
 
 Primær ansættelse
 =================
@@ -221,8 +227,7 @@ engagementer, fremtidige ændringer skal hentes i en seperat process. Denne proc
 håndteres af programmet `sd_changed_at.py` (som også anvendes til efterfølgende
 daglige synkroniseringer). Programmet tager i øjeblikket desværre ikke mod parametre
 fra kommandolinjen, men har brug for at blive rettet direkte i koden, hvor parametren
-`init` i `__main__` delen af programmet skal sættes til `True`. Desuden skal
-`from_date` sætte til samme dato som importen blev foretaget med.
+`init` i `__main__` delen af programmet skal sættes til `True`.
 
 Programet kan nu afvikles direkte fra kommandolinjen
 
@@ -292,9 +297,10 @@ information fra Active Directory. I de fleste tilfælde drejer dette sig som min
 om felterne ``ObjectGuid`` og  ``SamAccountName`` men det er også muligt at hente
 eksempelvis telefonnumre eller stillingsbetegnelser.
 
-Feltet ``ObjectGuid`` vil i MO blive anvendt til uuid for det tilhørende
-medarbejderobjekt. ``SamAccountName`` vil blive tilføjet som et brugernavn til
-IT systemet Active Direkctory for den pågældende bruger.
+Feltet ``ObjectGuid`` vil i MO blive anvendt til UUID for det tilhørende
+medarbejderobjekt, hvis ikke UUID'en allerede er givet fra en ekstern kilde.
+``SamAccountName`` vil blive tilføjet som et brugernavn til IT systemet Active
+Direkctory for den pågældende bruger.
 
 .. _ChangedAt.db:
 

@@ -1,16 +1,18 @@
-import os
 import json
 import logging
 import pathlib
 import sqlite3
 import requests
 import datetime
-import sd_common
 import sd_payloads
 
-from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater
+from integrations import cpr_mapper
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration import ad_reader
+from integrations.SD_Lon.sd_common import sd_lookup
+# from integrations.SD_Lon.sd_common import generate_uuid
+from integrations.SD_Lon.sd_common import engagement_types
+from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater
 
 
 LOG_LEVEL = logging.DEBUG
@@ -31,17 +33,30 @@ logging.basicConfig(
     filename=LOG_FILE
 )
 
-RUN_DB = os.environ.get('RUN_DB', None)
-SETTINGS_FILE = os.environ.get('SETTINGS_FILE')
+# TODO: Soon we have done this 4 times. Should we make a small settings
+# importer, that will also handle datatype for specicic keys?
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+# TODO: This must be clean up, settings should be loaded by __init__
+# and no references should be needed in global scope.
+SETTINGS = json.loads(cfg_file.read_text())
+RUN_DB = SETTINGS['integrations.SD_Lon.import.run_db']
+
+# TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
 
 
 class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):
-        logger.info('Start ChangedAt: From: {}, To: {}'.format(from_date, to_date))
-        cfg_file = pathlib.Path.cwd() / 'settings' / SETTINGS_FILE
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = SETTINGS
+
+        cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
+        if not cpr_map.is_file():
+            logger.error('Did not find cpr mapping')
+            raise Exception('Did not find cpr mapping')
+
+        logger.info('Found cpr mapping')
+        self.employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
 
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
@@ -61,7 +76,7 @@ class ChangeAtSD(object):
         self.mo_person = None      # Updated continously with the person currently
         self.mo_engagement = None  # being processed.
 
-        self.eng_types = sd_common.engagement_types(self.helper)
+        self.eng_types = engagement_types(self.helper)
 
         logger.info('Read it systems')
         it_systems = self.helper.read_it_systems()
@@ -120,7 +135,7 @@ class ChangeAtSD(object):
                     'SalaryAgreementIndicator': 'false',
                     'SalaryCodeGroupIndicator': 'false'
                 }
-                response = sd_common.sd_lookup(url, params=params)
+                response = sd_lookup(url, params=params)
             else:
                 url = 'GetEmploymentChanged20111201'
                 params = {
@@ -135,7 +150,7 @@ class ChangeAtSD(object):
                     'SalaryAgreementIndicator': 'false',
                     'SalaryCodeGroupIndicator': 'false'
                 }
-            response = sd_common.sd_lookup(url, params)
+            response = sd_lookup(url, params)
 
             employment_response = response.get('Person', [])
             if not isinstance(employment_response, list):
@@ -159,7 +174,7 @@ class ChangeAtSD(object):
             # TODO: Er der kunder, som vil udlæse adresse-information?
         }
         url = 'GetPersonChangedAtDate20111201'
-        response = sd_common.sd_lookup(url, params=params)
+        response = sd_lookup(url, params=params)
         person_changed = response.get('Person', [])
         if not isinstance(person_changed, list):
             person_changed = [person_changed]
@@ -175,7 +190,7 @@ class ChangeAtSD(object):
             'PostalAddressIndicator': 'false'
         }
         url = 'GetPerson20111201'
-        response = sd_common.sd_lookup(url, params=params)
+        response = sd_lookup(url, params=params)
         person = response.get('Person', [])
 
         if not isinstance(person, list):
@@ -212,10 +227,13 @@ class ChangeAtSD(object):
                     continue
                 uuid = mo_person['uuid']
             else:
-                uuid = ad_info.get('ObjectGuid', None)
-                logger.debug('{} not in MO or AD, assign random uuid'.format(cpr))
-            # Where do we get email and phone from, persumably these informations
-            # are not generally available in AD at this point?
+                uuid = self.employee_forced_uuids.get(cpr)
+                logger.info('Employee in force list: {} {}'.format(cpr, uuid))
+                if uuid is None and cpr in ad_info:
+                    uuid = ad_info[cpr]['ObjectGuid']
+                if uuid is None:
+                    msg = '{} not in MO, UUID list or AD, assign random uuid'
+                    logger.debug(msg.format(cpr))
 
             payload = {
                 'givenname': given_name,
@@ -399,9 +417,11 @@ class ChangeAtSD(object):
             logger.info('No new Association is needed')
 
     def apply_NY_logic(self, org_unit, job_id, validity):
+        msg = 'Apply NY logic for job: {}, unit: {}, validity: {}'
+        logger.debug(msg.format(job_id, org_unit, validity))
         too_deep = self.settings['integrations.SD_Lon.import.too_deep']
         # Move users and make associations according to NY logic
-        ou_info = self.helper.read_ou(org_unit)
+        ou_info = self.helper.read_ou(org_unit, at=validity['from'])
         if ou_info['org_unit_type']['name'] in too_deep:
             self.create_association(org_unit, self.mo_person,
                                     job_id, validity)
@@ -501,6 +521,9 @@ class ChangeAtSD(object):
         job_id, engagement_info = self.engagement_components(engagement)
 
         mo_eng = self._find_engagement(job_id)
+        if not mo_eng:
+            logger.error('Engagement {} has never existed!'.format(job_id))
+            return
 
         if not validity:
             validity = mo_eng['validity']
@@ -521,7 +544,7 @@ class ChangeAtSD(object):
 
             validity = self._validity(department,
                                       mo_eng['validity']['to'],
-                                      cut =True)
+                                      cut=True)
             if validity is None:
                 continue
 
@@ -565,7 +588,11 @@ class ChangeAtSD(object):
 
             # Should this have an end comparison and cut=True?
             # Most likely not, but be aware of the option.
-            validity = self._validity(profession_info)
+            validity = self._validity(profession_info, mo_eng['validity']['to'],
+                                      cut=True)
+
+            if validity is None:
+                continue
 
             self._update_professions(emp_name)
             job_function = self.job_functions.get(emp_name)
@@ -755,11 +782,12 @@ class ChangeAtSD(object):
 
             if not self.mo_person:
                 for employment_info in sd_engagement:
-                    if (
-                            (employment_info['EmploymentStatus']
-                             ['EmploymentStatusCode'])
-                            in ('S', '7', '8')
-                    ):
+                    emp_status = employment_info['EmploymentStatus']
+                    if isinstance(emp_status, list):
+                        code = emp_status[0]['EmploymentStatusCode']
+                    else:
+                        code = emp_status['EmploymentStatusCode']
+                    if code in ('S', '7', '8'):
                         logger.warning(
                             'Employment deleted or ended before initial import.'
                         )
@@ -787,7 +815,8 @@ class ChangeAtSD(object):
 
 
 def _local_db_insert(insert_tuple):
-    conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
+    conn = sqlite3.connect(SETTINGS['integrations.SD_Lon.import.run_db'],
+                           detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
     query = 'insert into runs (from_date, to_date, status) values (?, ?, ?)'
     final_tuple = (
@@ -830,8 +859,12 @@ def initialize_changed_at(from_date, run_db, force=False):
 if __name__ == '__main__':
     logger.info('***************')
     logger.info('Program started')
-    init = True
-    from_date = datetime.datetime(2019, 9, 15, 0, 0)
+    init = False
+
+    from_date = datetime.datetime.strptime(
+        SETTINGS['integrations.SD_Lon.global_from_date'],
+        '%Y-%m-%d'
+    )
 
     if init:
         run_db = pathlib.Path(RUN_DB)

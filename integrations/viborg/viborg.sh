@@ -1,4 +1,3 @@
-export SETTINGS_FILE="kommune-viborg.json"
 export PYTHONPATH=$PWD:$PYTHONPATH
 script_dir=$(cd $(dirname $0); pwd)
 

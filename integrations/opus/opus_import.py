@@ -46,7 +46,7 @@ def _parse_phone(phone_number):
 class OpusImport(object):
 
     def __init__(self, importer, org_name, xml_data, ad_reader=None,
-                 import_first=False):
+                 import_first=False, employee_mapping={}):
         """ If import first is False, the first unit will be skipped """
         self.org_uuid = None
         self.importer = importer
@@ -74,6 +74,8 @@ class OpusImport(object):
         )
 
         self.ad_people = {}
+        self.employee_forced_uuids = employee_mapping
+        self.ad_reader = None
         if ad_reader:
             self.ad_reader = ad_reader
             self.importer.new_itsystem(
@@ -81,8 +83,6 @@ class OpusImport(object):
                 system_name='Active Directory'
             )
             self.ad_reader.cache_all()
-        else:
-            self.ad_reader = None
 
         self.employee_addresses = {}
         self._add_klasse('AddressPostUnit', 'Postadresse',
@@ -103,8 +103,7 @@ class OpusImport(object):
 
     def _generate_uuid(self, value):
         """
-        Generate a semi-random, predictable uuid based on org name
-        and a unique value.
+        Generate a predictable uuid based on org name and a unique value.
         """
         base_hash = hashlib.md5(self.org_name.encode())
         base_digest = base_hash.hexdigest()
@@ -356,10 +355,10 @@ class OpusImport(object):
 
         self._update_ad_map(cpr)
 
-        if 'ObjectGuid' in self.ad_people[cpr]:
+        uuid = self.employee_forced_uuids.get(cpr)
+        logger.info('Employee in force list: {} {}'.format(cpr, uuid))
+        if uuid is None and 'ObjectGuid' in self.ad_people[cpr]:
             uuid = self.ad_people[cpr]['ObjectGuid']
-        else:
-            uuid = None
 
         date_from = employee['entryDate']
         date_to = employee['leaveDate']
@@ -422,10 +421,13 @@ class OpusImport(object):
             self._add_klasse(contract, 'Ansat', 'engagement_type')
 
         org_unit = employee['orgUnit']
-        job_id = employee['@id']  # To be used soon
+        job_id = employee['@id']
+        engagement_uuid = self._generate_uuid(job_id)
+
         logger.info('Add engagement: {} to {}'.format(job_id, cpr))
         self.importer.add_engagement(
             employee=cpr,
+            uuid=str(engagement_uuid),
             organisation_unit=org_unit,
             user_key=job_id,
             job_function_ref=job,

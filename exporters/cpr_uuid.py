@@ -1,12 +1,19 @@
 import os
 import time
+import json
+import pathlib
 import logging
 import argparse
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration.ad_reader import ADParameterReader
 
-MORA_BASE = os.environ.get('MORA_BASE')
+
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+settings = json.loads(cfg_file.read_text())
+MORA_BASE = settings['mora.base']
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'cpr_uuid_export.log'
@@ -29,7 +36,7 @@ logging.basicConfig(
 )
 
 
-def create_mapping(helper, root_uuid, use_ad):
+def create_mapping(helper, use_ad):
     t0 = time.time()
     org = helper.read_organisation()
 
@@ -77,9 +84,9 @@ def create_mapping(helper, root_uuid, use_ad):
     return mapping
 
 
-def main(root_uuid, use_ad):
+def main(use_ad):
     mh = MoraHelper(hostname=MORA_BASE, export_ansi=True)
-    mapping = create_mapping(mh, root_uuid, use_ad)
+    mapping = create_mapping(mh, use_ad)
     fields = ['cpr', 'mo_uuid', 'ad_guid', 'sam_account_name']
     mh._write_csv(fields, mapping, 'cpr_mo_ad_map.csv')
 
@@ -89,15 +96,12 @@ def cli():
     Command line interface for the AD writer class.
     """
     parser = argparse.ArgumentParser(description='UUID exporter')
-    parser.add_argument('--root-uuid', nargs=1, metavar='root_uuid')
     parser.add_argument('--use-ad', action='store_true')
-
     args = vars(parser.parse_args())
     logger.info('CLI arguments: {}'.format(args))
 
     use_ad = args.get('use_ad')
-    if args.get('root_uuid'):
-        main(args.get('root_uuid')[0], use_ad)
+    main(use_ad)
 
 
 if __name__ == '__main__':
