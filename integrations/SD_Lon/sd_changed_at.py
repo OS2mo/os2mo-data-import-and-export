@@ -51,12 +51,12 @@ class ChangeAtSD(object):
         self.settings = SETTINGS
 
         cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
-        if cpr_map.is_file():
-            logger.info('Found cpr mapping')
-            self.employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
-        else:
-            logger.warning('Did not find cpr mapping')
-            self.employee_forced_uuids = {}
+        if not cpr_map.is_file():
+            logger.error('Did not find cpr mapping')
+            raise Exception('Did not find cpr mapping')
+
+        logger.info('Found cpr mapping')
+        self.employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
 
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
