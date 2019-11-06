@@ -417,6 +417,8 @@ class ChangeAtSD(object):
             logger.info('No new Association is needed')
 
     def apply_NY_logic(self, org_unit, job_id, validity):
+        msg = 'Apply NY logic for job: {}, unit: {}, validity: {}'
+        logger.debug(msg.format(job_id, org_unit, validity))
         too_deep = self.settings['integrations.SD_Lon.import.too_deep']
         # Move users and make associations according to NY logic
         ou_info = self.helper.read_ou(org_unit, at=validity['from'])
