@@ -1,4 +1,6 @@
 xmltodict
 anytree
 pika
+requests_kerberos
+pywinrm[kerberos]
 
