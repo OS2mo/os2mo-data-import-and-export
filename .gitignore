@@ -31,4 +31,4 @@ overflow
 emus_filename.xml
 
 # customer settings
-settings/*.json
+settings
