@@ -1,5 +1,5 @@
 #!/bin/bash
-export DIPEXAR=${DIPEXAR:=/home/holstebro.dk/svc_os2mo/CRON/os2mo-data-import-and-export}
+export DIPEXAR=${DIPEXAR:=$(cd $(dirname $0); pwd )/..}
 export CUSTOMER_SETTINGS=${CUSTOMER_SETTINGS:=${DIPEXAR}/settings/settings.json}
 export SETTINGS_FILE=$(basename ${CUSTOMER_SETTINGS})
 export VENV=${VENV:=${DIPEXAR}/venv}
