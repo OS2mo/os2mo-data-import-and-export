@@ -74,7 +74,6 @@ class ADParameterReader(AD):
             settings = self._get_setting(school=True)
             # response = self._get_from_ad(user=user, cpr=cpr, school=True)
             response = self.get_from_ad(user=user, cpr=cpr, school=True)
-
             for current_user in response:
                 job_title = current_user.get('Title')
                 if job_title and job_title.find('FRATR') == 0:
@@ -89,22 +88,26 @@ class ADParameterReader(AD):
 
         response = self.get_from_ad(user=user, cpr=cpr, school=False)
         current_user = {}
-        for current_user in response:
-            settings = self._get_setting(school=False)
-            job_title = current_user.get('Title')
-            if job_title and job_title.find('FRATR') == 0:
-                continue  # These are users that has left
+        try:
+            for current_user in response:
+                settings = self._get_setting(school=False)
+                job_title = current_user.get('Title')
+                if job_title and job_title.find('FRATR') == 0:
+                    continue  # These are users that has left
 
-            brugertype = current_user.get('xBrugertype')
-            if brugertype and brugertype.find('Medarbejder') == -1:
-                continue
-            if not current_user:
-                current_user = {}
+                brugertype = current_user.get('xBrugertype')
+                if brugertype and brugertype.find('Medarbejder') == -1:
+                    continue
+                if not current_user:
+                    current_user = {}
 
-            cpr = current_user[settings['cpr_field']].replace('-', '')
-            self.results[cpr] = current_user
-            self.results[current_user['SamAccountName']] = current_user
-        return current_user
+                cpr = current_user[settings['cpr_field']].replace('-', '')
+                self.results[cpr] = current_user
+                self.results[current_user['SamAccountName']] = current_user
+            return current_user
+        except Exception:
+            logger.error('Response from uncached_read_user: {}'.format(response))
+            raise
 
     def cache_all(self):
         logger.info('Caching all users')
