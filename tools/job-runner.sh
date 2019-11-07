@@ -149,14 +149,17 @@ post_backup(){
         echo ${run_db}
     )
     bupfile="${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar.gz"
-    tar -zcvf $bupfile\
-        /opt/magenta/snapshots/os2mo_database.sql\
-        ${DIPEXAR}/cpr_mo_ad_map.csv\
-        ${DIPEXAR}//settings/cpr_uuid_map.csv\
-        ${SD_IMPORT_RUN_DB}\
-        $(readlink ${CUSTOMER_SETTINGS})\
-        ${STS_ORG_CONFIG}
+    tar -zcf $bupfile\
+        /opt/magenta/snapshots/os2mo_database.sql \
+        ${DIPEXAR}/cpr_mo_ad_map.csv \
+        ${DIPEXAR}//settings/cpr_uuid_map.csv \
+        ${SD_IMPORT_RUN_DB} \
+        $(readlink ${CUSTOMER_SETTINGS}) \
+        ${STS_ORG_CONFIG} \
+        > /dev/null 2>&1
 
+    echo
+    echo listing preliminary backup archive
     echo ${bupfile}
     tar -tvf ${bupfile}
 }
