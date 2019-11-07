@@ -10,7 +10,7 @@ export LC_ALL="C.UTF-8"
 
 source ${DIPEXAR}/tools/prefixed_settings.sh
 
-set -Ex
+#set -x
 
 cd ${DIPEXAR}
 export PYTHONPATH=$PWD:$PYTHONPATH
@@ -36,6 +36,11 @@ if [ ! -f "${SVC_KEYTAB}" ]; then
 fi
 
 kinit ${SVC_USER} -k -t ${SVC_KEYTAB}
+
+show_git_commit(){
+    echo
+    echo CRON_GIT_COMMIT=$(git show -s --format=%H)
+}
 
 imports_test_ad_connectivity(){
     set -e
@@ -92,7 +97,7 @@ imports(){
 # exports may also be interdependent: -e
 exports(){
     [ "${IMPORTS_OK}" == "false" ] \
-        && echo imports are in error not running exports \
+        && echo imports are in error - skipping exports \
         && return 1 # exports depend on imports
 
     if [ "${RUN_MOX_STS_ORGSYNC}" == "true" ]; then
@@ -103,8 +108,8 @@ exports(){
 # reports are typically not interdependent
 reports(){
     #set -x # debug log
-    [ "${IMPORTS_OK}" = "false" ] \
-        && echo imports are in error not running reports \
+    [ "${IMPORTS_OK}" == "false" ] \
+        && echo imports are in error - skipping reports \
         && return 1 # reports depend on imports
 
     if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
@@ -113,7 +118,12 @@ reports(){
 }
 
 if [ "$#" == "0" ]; then
+    show_git_commit
     imports && IMPORTS_OK=true
     exports && EXPORTS_OK=true
-    reports
+    reports && REPORTS_OK=true
+    show_git_commit
+    echo IMPORTS_OK=${IMPORTS_OK}
+    echo EXPORTS_OK=${EXPORTS_OK}
+    echo REPORTS_OK=${REPORTS_OK}
 fi
