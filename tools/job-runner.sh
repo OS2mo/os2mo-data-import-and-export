@@ -1,4 +1,5 @@
 #!/bin/bash
+set +x
 export DIPEXAR=${DIPEXAR:=$(cd $(dirname $0); pwd )/..}
 export CUSTOMER_SETTINGS=${CUSTOMER_SETTINGS:=${DIPEXAR}/settings/settings.json}
 export SETTINGS_FILE=$(basename ${CUSTOMER_SETTINGS})
@@ -9,8 +10,6 @@ export REPORTS_OK=false
 export LC_ALL="C.UTF-8"
 
 source ${DIPEXAR}/tools/prefixed_settings.sh
-
-#set -x
 
 cd ${DIPEXAR}
 export PYTHONPATH=$PWD:$PYTHONPATH
@@ -32,6 +31,16 @@ fi
 
 if [ ! -f "${SVC_KEYTAB}" ]; then
     echo "Service keytab not found"
+    exit 2
+fi
+
+if [ ! -n "${CRON_BACKUP}" ]; then
+    echo "Backup directory not specified"
+    exit 2
+fi
+
+if [ ! -d "${CRON_BACKUP}" ]; then
+    echo "Backup directory non existing"
     exit 2
 fi
 
@@ -60,12 +69,6 @@ imports_sd_changed_at(){
     ${VENV}/bin/python3 integrations/SD_Lon/sd_changed_at.py
 }
 
-reports_sd_db_overview(){
-    set -e
-    echo running reports_sd_db_overview
-    ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py
-}
-
 exports_mox_stsorgsync(){
     echo running exports_mox_stsorgsync
     (
@@ -77,6 +80,18 @@ exports_mox_stsorgsync(){
         echo "last 10 Errors from OS2sync"
         grep ERROR /var/log/os2sync/service.log | tail -n 10
     )
+}
+
+reports_sd_db_overview(){
+    set -e
+    echo running reports_sd_db_overview
+    ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py
+}
+
+reports_cpr_uuid(){
+    set -e
+    echo running reports_cpr_uuid
+    ${VENV}/bin/python3 exporters/cpr_uuid.py
 }
 
 # imports are typically interdependent: -e
@@ -115,6 +130,35 @@ reports(){
     if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
         reports_sd_db_overview || echo "error in reports_sd_db_overview - continuing"
     fi
+
+    if [ "${RUN_CPR_UUID}" == "true" ]; then
+        # this particular report is not allowed to fail
+        reports_cpr_uuid || return 2
+    fi
+}
+
+post_backup(){
+    # some files are not parameterised yet, others are.
+    # primitive backup, I know - but until something better turns up...
+    STS_ORG_CONFIG=$(
+        SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
+        echo ${MOX_MO_CONFIG}
+    )
+    SD_IMPORT_RUN_DB=$(
+        SETTING_PREFIX="integrations.SD_Lon.import" source ${DIPEXAR}/tools/prefixed_settings.sh
+        echo ${run_db}
+    )
+    bupfile="${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar.gz"
+    tar -zcvf $bupfile\
+        /opt/magenta/snapshots/os2mo_database.sql\
+        ${DIPEXAR}/cpr_mo_ad_map.csv\
+        ${DIPEXAR}//settings/cpr_uuid_map.csv\
+        ${SD_IMPORT_RUN_DB}\
+        $(readlink ${CUSTOMER_SETTINGS})\
+        ${STS_ORG_CONFIG}
+
+    echo ${bupfile}
+    tar -tvf ${bupfile}
 }
 
 if [ "$#" == "0" ]; then
@@ -122,6 +166,7 @@ if [ "$#" == "0" ]; then
     imports && IMPORTS_OK=true
     exports && EXPORTS_OK=true
     reports && REPORTS_OK=true
+    post_backup
     show_git_commit
     echo IMPORTS_OK=${IMPORTS_OK}
     echo EXPORTS_OK=${EXPORTS_OK}
