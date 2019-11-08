@@ -10,6 +10,7 @@ from pathlib import Path
 from requests import Session
 from datetime import datetime
 
+from integrations import dawa_helper
 from integrations.opus import payloads
 from integrations.opus import opus_helpers
 from integrations.ad_integration import ad_reader
@@ -20,6 +21,15 @@ RUN_DB = os.environ.get('RUN_DB')
 MORA_BASE = os.environ.get('MORA_BASE')
 
 logger = logging.getLogger("opusDiff")
+
+ADDRESS_CHECKS = {
+    'seNr': 'opus.addresses.se',
+    'cvrNr': 'opus.addresses.cvr',
+    'eanNr': 'opus.addresses.ean',
+    'pNr': 'opus.addresses.pnr',
+    'phoneNumber': 'opus.addresses.phoneNumber',
+    'dar': 'opus.addresses.dar'  # DAR is a special case
+}
 
 
 class OpusImport(object):
@@ -44,15 +54,11 @@ class OpusImport(object):
             print(e)
             exit()
 
-        eng_types = self.helper.read_classes_in_facet('engagement_type')
-        self.engagement_types = {}
-        for eng_type in eng_types[0]:
-            self.engagement_types[eng_type['user_key']] = eng_type['uuid']
-
-        unit_types = self.helper.read_classes_in_facet('org_unit_type')
-        self.unit_types = {}
-        for unit_type in unit_types[0]:
-            self.unit_types[unit_type['user_key']] = unit_type['uuid']
+        self.engagement_types = self._find_classes('engagement_type')
+        self.unit_types = self._find_classes('org_unit_type')
+        self.manager_levels = self._find_classes('manager_level')
+        self.manager_types = self._find_classes('manager_type')
+        self.responsibilities = self._find_classes('responsibility')
 
         logger.info('Read job_functions')
         facet_info = self.helper.read_classes_in_facet('engagement_job_function')
@@ -61,12 +67,6 @@ class OpusImport(object):
         self.job_functions = {}
         for job in job_functions:
             self.job_functions[job['name']] = job['uuid']
-
-        logger.info('Read it systems')
-        it_systems = self.helper.read_it_systems()
-        for system in it_systems:
-            if system['name'] == 'Active Directory':
-                self.ad_uuid = system['uuid']  # This could also be a conf-option.
 
         # THIS IS COMMON TO _next_xml_file!!!!
         conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -79,6 +79,13 @@ class OpusImport(object):
 
         self.units = None
         self.employees = None
+
+    def _find_classes(self, facet):
+        class_types = self.helper.read_classes_in_facet(facet)
+        types_dict = {}
+        for class_type in class_types[0]:
+            types_dict[class_type['user_key']] = class_type['uuid']
+        return types_dict
 
     # This exact function also exists in sd_changed_at
     def _assert(self, response):
@@ -199,6 +206,66 @@ class OpusImport(object):
         }
         return validity
 
+    def _update_unit_addresses(self, unit):
+        calculated_uuid = self._generate_uuid(unit['@id'])
+        unit_addresses = self.helper.read_ou_address(
+            calculated_uuid, scope=None, return_all=True
+        )
+
+        address_dict = {}  # Condensate of all addresses in the unit
+        for address in unit_addresses:
+            if address_dict.get(address['type']) is not None:
+                # More than one of this type exist in MO, this is not allowed.
+                msg = 'Inconsistent addresses for unit: {}'
+                logger.error(msg.format(calculated_uuid))
+            if address['value'] not in ('9999999999999', '0000000000'):
+                address_dict[address['type']] = {
+                    'value': address['value'],
+                    'uuid': address['uuid']
+                }
+
+        if unit['street'] and unit['zipCode']:
+            address_uuid = dawa_helper.dawa_lookup(unit['street'], unit['zipCode'])
+            if address_uuid:
+                logger.debug('Found DAR uuid: {}'.format(address_uuid))
+                unit['dar'] = address_uuid
+            else:
+                logger.warning('Failed to lookup {}, {}'.format(unit['street'],
+                                                                unit['zipCode']))
+
+        for addr_type, setting in ADDRESS_CHECKS.items():
+            # addr_type is the opus name for the address, the MO uuid
+            # for the corresponding class is found in settings.
+            if unit.get(addr_type) is None:
+                continue
+
+            current_value = address_dict.get(self.settings[setting])
+            address_args = {
+                'address_type': {'uuid': self.settings[setting]},
+                'value': unit[addr_type],
+                'validity': {
+                    'from': self.latest_date.strftime('%Y-%m-%d'),
+                    'to': None
+                },
+                'unit_uuid': str(calculated_uuid)
+            }
+            if current_value is None:  # Create address
+                payload = payloads.create_address(**address_args)
+                logger.debug('Create {} address payload: {}'.format(addr_type,
+                                                                    payload))
+                response = self.helper._mo_post('details/create', payload)
+                assert response.status_code == 201
+            else:
+                if current_value['value'] == unit[addr_type]:  # Nothing changed
+                    logger.info('{} not updated'.format(addr_type))
+                else:  # Edit address
+                    payload = payloads.edit_address(address_args,
+                                                    current_value['uuid'])
+                    logger.debug('Edit {} address payload: {}'.format(addr_type,
+                                                                      payload))
+                    response = self.helper._mo_post('details/edit', payload)
+                    self._assert(response)
+
     def update_unit(self, unit):
         calculated_uuid = self._generate_uuid(unit['@id'])
         parent_uuid = self._generate_uuid(unit['parentOrgUnit'])
@@ -233,7 +300,7 @@ class OpusImport(object):
             logger.info('Created unit {}'.format(unit['@id']))
             logger.debug('Response: {}'.format(response.text))
 
-        # Update address!!
+        self._update_unit_addresses(unit)
 
     def _job_and_engagement_type(self, employee):
         # It is assumed no new engagement types are added during daily
@@ -297,11 +364,14 @@ class OpusImport(object):
             return_uuid
         ))
 
+        # TODO: CHECK IF USER IS OPUS USER, AD IT SYSTEM IF SO!
+        # self.settings['opus.it_systems.opus'],
+
         sam_account = ad_info.get('SamAccountName', None)
         if sam_account:
             payload = payloads.connect_it_system_to_user(
                 sam_account,
-                self.ad_uuid,
+                self.settings['opus.it_systems.ad'],
                 return_uuid
             )
             logger.debug('AD account payload: {}'.format(payload))
@@ -312,13 +382,19 @@ class OpusImport(object):
 
     def update_employee(self, employee):
         cpr = employee['cpr']['#text']
-        print(cpr)
+        logger.info('Now updating {}'.format(cpr))
         mo_user = self.helper.read_user(user_cpr=cpr)
         if mo_user is None:
             employee_mo_uuid = self.create_user(employee)
         else:
             employee_mo_uuid = mo_user['uuid']
-            # TODO: Here we should update the name of the user
+            if not ((employee['firstName'] == mo_user['givenname']) and
+                    (employee['lastName'] == mo_user['surname'])):
+                payload = payloads.create_user(employee, self.org_uuid,
+                                               employee_mo_uuid)
+                return_uuid = self.helper._mo_post('e/create', payload).json()
+                msg = 'Updated name of employee {} with uuid {}'
+                logger.info(msg.format(cpr, return_uuid))
 
             # TODO: Here We should update user address
 
@@ -336,7 +412,47 @@ class OpusImport(object):
         else:
             self.update_engagement(current_mo_eng, employee)
 
-        # TODO: Update manager information
+        # Update manager information:
+        manager_functions = self.helper._mo_lookup(employee_mo_uuid,
+                                                   'e/{}/details/manager')
+
+        if manager_functions and employee['isManager'] == 'false':
+            print('Terminate manager function')
+            # TODO
+
+        if not manager_functions and employee['isManager'] == 'false':
+            logger.debug('Correctly not a manager')
+
+        if not manager_functions and employee['isManager'] == 'true':
+            print('Turn this person into a manager')
+
+        if manager_functions and employee['isManager'] == 'true':
+            print('Still a manager - Check for potential edits')
+            print('Attempt manager update of {}:'.format(employee_mo_uuid))
+            # Currently Opus supports only a single manager object pr employee
+            assert len(manager_functions) == 1
+            mo_manager = manager_functions[0]
+            manager_level = '{}.{}'.format(employee['superiorLevel'],
+                                           employee['subordinateLevel'])
+            # This will fail if new manager levels or types are added...
+            manager_level_uuid = self.manager_levels.get(manager_level)
+            manager_type_uuid = self.manager_types.get(employee["position"])
+            responsibility_uuid = self.responsibilities.get('Lederansvar')
+
+            payload = payloads.edit_manager(
+                object_uuid=mo_manager['uuid'],
+                unit=str(self._generate_uuid(employee['orgUnit'])),
+                person=employee_mo_uuid,
+                manager_type=manager_type_uuid,
+                level=manager_level_uuid,
+                responsibility=responsibility_uuid,
+                validity=self.validity(employee, edit=True)
+            )
+            logger.debug('Update manager payload: {}'.format(payload))
+            response = self.helper._mo_post('details/edit', payload)
+            self._assert(response)
+
+        # TODO: Update Roller
 
     def terminate_engagement(self, uuid):
         print('Terminating {}'.format(uuid))
@@ -394,4 +510,4 @@ class OpusImport(object):
 
 if __name__ == '__main__':
     diff = OpusImport()
-    diff.start_re_import(include_terminations=True)
+    diff.start_re_import(include_terminations=False)
