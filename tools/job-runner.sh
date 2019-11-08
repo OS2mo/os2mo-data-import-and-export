@@ -14,37 +14,6 @@ source ${DIPEXAR}/tools/prefixed_settings.sh
 cd ${DIPEXAR}
 export PYTHONPATH=$PWD:$PYTHONPATH
 
-if [ ! -d "${VENV}" ]; then
-    echo "python env not found"
-    exit 2 # error
-fi
-
-if [ ! -n "${SVC_USER}" ]; then
-    echo "Service user not specified"
-    exit 2
-fi
-
-if [ ! -n "${SVC_KEYTAB}" ]; then
-    echo "Service keytab not specified"
-    exit 2
-fi
-
-if [ ! -f "${SVC_KEYTAB}" ]; then
-    echo "Service keytab not found"
-    exit 2
-fi
-
-if [ ! -n "${CRON_BACKUP}" ]; then
-    echo "Backup directory not specified"
-    exit 2
-fi
-
-if [ ! -d "${CRON_BACKUP}" ]; then
-    echo "Backup directory non existing"
-    exit 2
-fi
-
-kinit ${SVC_USER} -k -t ${SVC_KEYTAB}
 
 show_git_commit(){
     echo
@@ -60,7 +29,8 @@ imports_test_ad_connectivity(){
 imports_sd_fix_departments(){
     set -e
     echo running imports_sd_fix_departments
-    ${VENV}/bin/python3 integrations/SD_Lon/sd_fix_departments.py >/dev/null
+    SD_FIX_LOG="${SD_FIX_LOG:=/tmp/sd_fix_departments.log}"
+    ${VENV}/bin/python3 integrations/SD_Lon/sd_fix_departments.py > ${SD_FIX_LOG}
 }
 
 imports_sd_changed_at(){
@@ -155,6 +125,7 @@ post_backup(){
         ${DIPEXAR}//settings/cpr_uuid_map.csv \
         ${SD_IMPORT_RUN_DB} \
         $(readlink ${CUSTOMER_SETTINGS}) \
+        ${CRON_LOG_FILE} \
         ${STS_ORG_CONFIG} \
         > /dev/null 2>&1
 
@@ -165,6 +136,44 @@ post_backup(){
 }
 
 if [ "$#" == "0" ]; then
+    (
+    if [ ! -d "${VENV}" ]; then
+        echo "python env not found"
+        exit 2 # error
+    fi
+
+    if [ ! -n "${SVC_USER}" ]; then
+        echo "Service user not specified"
+        exit 2
+    fi
+
+    if [ ! -n "${SVC_KEYTAB}" ]; then
+        echo "Service keytab not specified"
+        exit 2
+    fi
+
+    if [ ! -f "${SVC_KEYTAB}" ]; then
+        echo "Service keytab not found"
+        exit 2
+    fi
+
+    if [ ! -n "${CRON_LOG_FILE}" ]; then
+        echo "Cron log file not specified"
+        exit 2
+    fi
+
+    if [ ! -n "${CRON_BACKUP}" ]; then
+        echo "Backup directory not specified"
+        exit 2
+    fi
+
+    if [ ! -d "${CRON_BACKUP}" ]; then
+        echo "Backup directory non existing"
+        exit 2
+    fi
+
+    kinit ${SVC_USER} -k -t ${SVC_KEYTAB}
+
     show_git_commit
     imports && IMPORTS_OK=true
     exports && EXPORTS_OK=true
@@ -174,4 +183,5 @@ if [ "$#" == "0" ]; then
     echo IMPORTS_OK=${IMPORTS_OK}
     echo EXPORTS_OK=${EXPORTS_OK}
     echo REPORTS_OK=${REPORTS_OK}
+    ) 2>&1 | tee ${CRON_LOG_FILE}
 fi
