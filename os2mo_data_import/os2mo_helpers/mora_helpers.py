@@ -223,16 +223,14 @@ class MoraHelper(object):
         return_list = []
         addresses = self._mo_lookup(uuid, 'ou/{}/details/address', at, use_cache)
 
-        # print(scope)
-        
         for address in addresses:
-            print()
-            print(address)
             return_address = {}
-            if address['address_type']['scope'] == scope:
+            if address['address_type']['scope'] == scope or scope is None:
+                return_address['type'] = address['address_type']['uuid']
                 return_address['visibibility'] = address.get('visibility')
                 return_address['Adresse'] = address['name']
                 return_address['value'] = address['value']
+                return_address['uuid'] = address['uuid']
                 return_list.append(return_address)
 
         if return_all:
