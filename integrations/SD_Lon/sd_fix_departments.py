@@ -168,10 +168,10 @@ class FixDepartmentsSD(object):
 
     def fix_departments(self):
         params = {
-            # 'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
-            # 'DeactivationDate': '31.12.9999',
-            'ActivationDate': '01.01.2018',
-            'DeactivationDate': '01.01.2018',
+            'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
+            'DeactivationDate': '31.12.9999',
+            #'ActivationDate': '01.01.2018',
+            #'DeactivationDate': '01.01.2018',
             'UUIDIndicator': 'true'
         }
         # TODO: We need to read this without caching!
@@ -194,8 +194,6 @@ class FixDepartmentsSD(object):
             departments = department_list['DepartmentReference']
             for department in departments:
                 # print(department)
-                if str(department).find('5SE') == -1:
-                    continue
                 checked += 1
                 print('{}/{} {:.2f}%'.format(checked, total, 100.0 * checked/total))
                 departments = []
@@ -227,7 +225,7 @@ if __name__ == '__main__':
 
     unit_fixer = FixDepartmentsSD(from_date)
 
-    unit_fixer.fix_specific_department('5SE')
+    #unit_fixer.fix_specific_department('5SE')
 
     # from_date = datetime.datetime(2019, 10, 1, 0, 0)
     # unit_fixer.create_single_department('5SE', from_date)
@@ -239,7 +237,7 @@ if __name__ == '__main__':
     # unit_fixer.fix_specific_department('9ØP')
     # unit_fixer.fix_specific_department('10V')
 
-    # unit_fixer.fix_departments()
+    unit_fixer.fix_departments()
 
     # params = {
     #     'ActivationDate': '01.08.2019',

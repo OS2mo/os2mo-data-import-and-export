@@ -1,6 +1,7 @@
 *.p
 *.sql
 *.log
+*.csv
 
 # Development
 .idea
