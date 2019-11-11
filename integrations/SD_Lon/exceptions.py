@@ -1,0 +1,2 @@
+class ValdityTooEarlyException(Exception):
+    pass
