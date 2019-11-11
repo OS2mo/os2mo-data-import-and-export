@@ -24,7 +24,7 @@ if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
     raise Exception('Credentials missing')
 
 
-def sd_lookup(url, params={}):
+def sd_lookup(url, params={}, use_cache=True):
     logger.info('Retrive: {}'.format(url))
     logger.debug('Params: {}'.format(params))
 
@@ -49,7 +49,7 @@ def sd_lookup(url, params={}):
 
     cache_file = Path('tmp/sd_' + lookup_id + '.p')
 
-    if cache_file.is_file():
+    if cache_file.is_file() and use_cache:
         with open(str(cache_file), 'rb') as f:
             response = pickle.load(f)
         logger.info('This SD lookup was found in cache: {}'.format(lookup_id))
