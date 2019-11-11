@@ -1,18 +1,17 @@
 ******************
 Tools
 ******************
-The tools directory holds tools primarily for runnning unattended jobs
-and restoring data after job failure.
+Tools indeholder scripts primært beregnet til at køre natlige jobs og restore af data efter fejlede jobs.
 
 Job runner
 ==========
-The Job runner script is meant to be the script that is called from crontab on 
-customer machines. It features:
-* reading configuration - from settings/settings.json, a symbolic link pointing to the settings file for the system
-* running the predefined parts of the cronjob if they are enabled in the configuration
-* backing up enough files to be able to reach a known state in the lora database after an error
+Job runner scriptet er ment til at blive kaldt fra crontab på kundens maskiner
+Dets arbejde er:
+* at læse konfigurationen  det gøres fra settings/settings.json, som er et symbolsk link til settings-filen for systemet.
+* at køre de prædefinerede dele af nattens cronjob forudsat at de er slået til i konfigurationen
+* at lave en backup af databasen og andre filer, der skal i spil for at få systemet tilbage til en veldefineret tilstand
 
-The configuration for the job runner is specified like this in the configuration file
+Konfigurationen kan se således ud:
 
 .. code-block:: json
 
@@ -33,16 +32,19 @@ The configuration for the job runner is specified like this in the configuration
         "crontab.SNAPSHOT_LORA":"/path/db-snapshot.sql"
     }
 
-The above configuration runs no jobs, makes a backup in ``/path/backup-dir`` and deletes old backups 
-when they are more than ``60`` days old. It uses the AD account ``USER@KOMMUNE.NET`` in order to connect to ad,
-and logs in via the ``/path/keytab-file`` when needed and logs progress to ``/path/cron-log-file``
+En konfiguration som ovenstående kører ingen jobs, laver en backup i 
+``/path/backup-dir`` og sletter gamle backupper, når de er mere end ``60`` dage gamle.
+Det bruger AD-kontoen ``USER@KOMMUNE.NET`` når den skal connecte til AD og logger ind 
+med ``/path/keytab-file``, når det behøves og logger progress til ``/path/cron-log-file``.
 
-In order to run the import from SD, set the ``crontab.RUN_SD_CHANGED_AT`` to ``true``
+For at enable importen fra SD sættes ``crontab.RUN_SD_CHANGED_AT`` til ``true``.
 
-In order to run the export to STS Organisation, set the ``crontab.RUN_MOX_STS_ORGSYNC`` to ``true``
+For at enable exporten til STS Organisation, sættes ``crontab.RUN_MOX_STS_ORGSYNC`` til ``true``.
 
-In order to run the export to Rollekataloget, set the ``crontab.RUN_MOX_ROLLE`` to ``true`` 
-and fill in the ``crontab.MOX_ROLLE_COMPOSE_YML`` with the path to the right docker-compose.yml file.
+For at enable exporten to Rollekataloget, sættes ``crontab.RUN_MOX_ROLLE`` til ``true``
+og ``crontab.MOX_ROLLE_COMPOSE_YML`` udfyldes med stien til den gældende docker-compose.yml 
+file for Rollekatalogseksporten.
 
-The idea is that this script is called from cron, finds it's own configuration, runs the programs and 
-finally backs up ``/path/db-snapshot.sql`` and other select files related to the jobs that have been run. 
+Ideen er at dette script kan kaldes fra cron, finder sin egen konfiguration, kører programmerne, hvorefter det
+laver en backup af ``/path/db-snapshot.sql`` og andre filer, der er nødvendige 
+for at komme tilbage til en veldefineret tilstand.
