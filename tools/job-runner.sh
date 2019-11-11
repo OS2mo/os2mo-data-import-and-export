@@ -39,6 +39,16 @@ imports_sd_changed_at(){
     ${VENV}/bin/python3 integrations/SD_Lon/sd_changed_at.py
 }
 
+exports_mox_rollekatalog(){
+    echo running exports_mox_rollekatalog
+    if [ -z "${MOX_ROLLE_COMPOSE_YML}" ]; then
+        echo ERROR: MOX_ROLLE_COMPOSE_YML not set in configuration, aborting
+        echo
+        return 2
+    fi
+    docker-compose -f "${MOX_ROLLE_COMPOSE_YML}" up
+}
+
 exports_mox_stsorgsync(){
     echo running exports_mox_stsorgsync
     (
@@ -82,8 +92,12 @@ imports(){
 # exports may also be interdependent: -e
 exports(){
     [ "${IMPORTS_OK}" == "false" ] \
-        && echo imports are in error - skipping exports \
+        && echo ERROR: imports are in error - skipping exports \
         && return 1 # exports depend on imports
+
+    if [ "${RUN_MOX_ROLLE}" == "true" ]; then
+        exports_mox_rollekatalog || return 2
+    fi
 
     if [ "${RUN_MOX_STS_ORGSYNC}" == "true" ]; then
         exports_mox_stsorgsync || return 2
@@ -94,7 +108,7 @@ exports(){
 reports(){
     #set -x # debug log
     [ "${IMPORTS_OK}" == "false" ] \
-        && echo imports are in error - skipping reports \
+        && echo ERROR: imports are in error - skipping reports \
         && return 1 # reports depend on imports
 
     if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
@@ -133,42 +147,53 @@ post_backup(){
     echo listing preliminary backup archive
     echo ${bupfile}
     tar -tvf ${bupfile}
+
+    echo
+    BACKUP_SAVE_DAYS=${BACKUP_SAVE_DAYS:=90}
+    echo deleting backups older than "${BACKUP_SAVE_DAYS}" days
+    bupsave=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S -d "-${BACKUP_SAVE_DAYS} days")-cron-backup.tar.gz
+    for oldbup in ${CRON_BACKUP}/????-??-??-??-??-??-cron-backup.tar.gz
+    do
+        [ "${oldbup}" \< "${bupsave}" ] && (
+            rm -v ${oldbup}
+        )
+    done
 }
 
 if [ "$#" == "0" ]; then
     (
     if [ ! -d "${VENV}" ]; then
-        echo "python env not found"
+        echo "FATAL: python env not found"
         exit 2 # error
     fi
 
     if [ ! -n "${SVC_USER}" ]; then
-        echo "Service user not specified"
+        echo "FATAL: Service user not specified"
         exit 2
     fi
 
     if [ ! -n "${SVC_KEYTAB}" ]; then
-        echo "Service keytab not specified"
+        echo "FATAL: Service keytab not specified"
         exit 2
     fi
 
     if [ ! -f "${SVC_KEYTAB}" ]; then
-        echo "Service keytab not found"
+        echo "FATAL: Service keytab not found"
         exit 2
     fi
 
     if [ ! -n "${CRON_LOG_FILE}" ]; then
-        echo "Cron log file not specified"
+        echo "FATAL: Cron log file not specified"
         exit 2
     fi
 
     if [ ! -n "${CRON_BACKUP}" ]; then
-        echo "Backup directory not specified"
+        echo "FATAL: Backup directory not specified"
         exit 2
     fi
 
     if [ ! -d "${CRON_BACKUP}" ]; then
-        echo "Backup directory non existing"
+        echo "FATAL: Backup directory non existing"
         exit 2
     fi
 
@@ -178,10 +203,10 @@ if [ "$#" == "0" ]; then
     imports && IMPORTS_OK=true
     exports && EXPORTS_OK=true
     reports && REPORTS_OK=true
-    post_backup
     show_git_commit
     echo IMPORTS_OK=${IMPORTS_OK}
     echo EXPORTS_OK=${EXPORTS_OK}
     echo REPORTS_OK=${REPORTS_OK}
+    post_backup
     ) 2>&1 | tee ${CRON_LOG_FILE}
 fi
