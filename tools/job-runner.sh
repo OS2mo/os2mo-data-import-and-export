@@ -134,7 +134,7 @@ post_backup(){
     )
     bupfile="${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar.gz"
     tar -zcf $bupfile\
-        /opt/magenta/snapshots/os2mo_database.sql \
+        ${SNAPSHOT_LORA} \
         ${DIPEXAR}/cpr_mo_ad_map.csv \
         ${DIPEXAR}//settings/cpr_uuid_map.csv \
         ${SD_IMPORT_RUN_DB} \
@@ -194,6 +194,11 @@ if [ "$#" == "0" ]; then
 
     if [ ! -d "${CRON_BACKUP}" ]; then
         echo "FATAL: Backup directory non existing"
+        exit 2
+    fi
+
+    if [ ! -f "${SNAPSHOT_LORA}" ]; then
+        echo "FATAL: Database snapshot does not exist"
         exit 2
     fi
 
