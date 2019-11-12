@@ -12,6 +12,7 @@ from integrations.ad_integration import ad_reader
 from integrations.SD_Lon.sd_common import sd_lookup
 # from integrations.SD_Lon.sd_common import generate_uuid
 from integrations.SD_Lon.sd_common import engagement_types
+from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater
 
 
@@ -20,7 +21,7 @@ LOG_FILE = 'mo_integrations.log'
 
 logger = logging.getLogger("sdChangedAt")
 
-detail_logging = ('sdCommon', 'sdChangedAt', 'updatePrimaryEngagements')
+detail_logging = ('sdCommon', 'sdChangedAt', 'updatePrimaryEngagements', 'fixDepartments')
 for name in logging.root.manager.loggerDict:
     if name in detail_logging:
         logging.getLogger(name).setLevel(LOG_LEVEL)
@@ -57,7 +58,7 @@ class ChangeAtSD(object):
 
         logger.info('Found cpr mapping')
         self.employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
-
+        self.department_fixer = FixDepartments()
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
         self.ad_reader = ad_reader.ADParameterReader()
@@ -399,6 +400,7 @@ class ChangeAtSD(object):
         associations = self.helper.read_user_association(person['uuid'],
                                                          read_all=True,
                                                          only_primary=True)
+        logger.debug('Associations read from MO: {}'.format(associations))
         hit = False
         for association in associations:
             if (
@@ -421,14 +423,23 @@ class ChangeAtSD(object):
         logger.debug(msg.format(job_id, org_unit, validity))
         too_deep = self.settings['integrations.SD_Lon.import.too_deep']
         # Move users and make associations according to NY logic
-        ou_info = self.helper.read_ou(org_unit, at=validity['from'])
+        today = datetime.datetime.today()
+        ou_info = self.helper.read_ou(org_unit, use_cache=False)
+        if 'status' in ou_info:
+            # This unit does not exist
+            self.department_fixer.fix_or_create_branch(org_unit, today)
+            ou_info = self.helper.read_ou(org_unit, use_cache=False)
+
         if ou_info['org_unit_type']['name'] in too_deep:
             self.create_association(org_unit, self.mo_person,
                                     job_id, validity)
 
+        logger.debug('OU info is currently: {}'.format(ou_info))
         while ou_info['org_unit_type']['name'] in too_deep:
             ou_info = ou_info['parent']
+            logger.debug('Parent unit: {}'.format(ou_info))
         org_unit = ou_info['uuid']
+
         return org_unit
 
     def create_new_engagement(self, engagement, status):
