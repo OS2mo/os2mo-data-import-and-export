@@ -1,21 +1,24 @@
-import os
+import json
+import pathlib
+
 from os2mo_data_import import ImportHelper
 
 from integrations.ad_integration import ad_reader
 from integrations.opus.opus_helpers import start_opus_import
 from integrations.opus.opus_exceptions import RunDBInitException
 
-MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
-
+# TODO: Soon we have done this 4 times. Should we make a small settings
+# importer, that will also handle datatype for specicic keys?
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+SETTINGS = json.loads(cfg_file.read_text())
 
 importer = ImportHelper(
     create_defaults=True,
-    mox_base=MOX_BASE,
-    mora_base=MORA_BASE,
-    system_name='Opus-Import',
-    end_marker='OPUS_STOP!',
-    store_integration_data=True,
+    mox_base=SETTINGS['mox.base'],
+    mora_base=SETTINGS['mora.base'],
+    store_integration_data=False,
     seperate_names=True,
     demand_consistent_uuids=False
 )

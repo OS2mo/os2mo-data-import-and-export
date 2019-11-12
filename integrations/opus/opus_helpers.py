@@ -1,4 +1,5 @@
-import os
+import json
+import pathlib
 import logging
 import sqlite3
 import datetime
@@ -10,8 +11,12 @@ from integrations.opus.opus_exceptions import NoNewerDumpAvailable
 from integrations.opus.opus_exceptions import RedundantForceException
 from integrations.opus.opus_exceptions import ImporterrunNotCompleted
 
-RUN_DB = os.environ.get('RUN_DB', None)
-MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'Opus Import')
+# TODO: Soon we have done this 4 times. Should we make a small settings
+# importer, that will also handle datatype for specicic keys?
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+SETTINGS = json.loads(cfg_file.read_text())
 
 DUMP_PATH = Path('/opt/magenta/dataimport/opus')
 START_DATE = datetime.datetime(2019, 10, 25, 0, 0)
@@ -62,7 +67,8 @@ def _read_available_dumps():
 
 
 def _local_db_insert(insert_tuple):
-    conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
+    conn = sqlite3.connect(SETTINGS['opus.import.run_db'],
+                           detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
     query = 'insert into runs (dump_date, status) values (?, ?)'
     final_tuple = (
@@ -87,7 +93,8 @@ def _initialize_db(run_db):
 
 
 def _next_xml_file(run_db, dumps):
-    conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
+    conn = sqlite3.connect(SETTINGS['opus.import.run_db'],
+                           detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
     query = 'select * from runs order by id desc limit 1'
     c.execute(query)
@@ -107,7 +114,6 @@ def _next_xml_file(run_db, dumps):
         raise NoNewerDumpAvailable('No newer XML dump is available')
     return next_date
 
-
 def start_opus_import(importer, ad_reader=None, force=False, employee_mapping={}):
     """
     Start an opus import, run the oldest available dump that
@@ -115,7 +121,7 @@ def start_opus_import(importer, ad_reader=None, force=False, employee_mapping={}
     """
     dumps = _read_available_dumps()
 
-    run_db = Path(RUN_DB)
+    run_db = Path(SETTINGS['opus.import.run_db'])
     if not run_db.is_file():
         logger.error('Local base not correctly initialized')
         if not force:
@@ -133,7 +139,7 @@ def start_opus_import(importer, ad_reader=None, force=False, employee_mapping={}
 
     opus_importer = opus_import.OpusImport(
         importer,
-        org_name=MUNICIPALTY_NAME,
+        org_name=SETTINGS['municipality.name'],
         xml_data=str(xml_file),
         ad_reader=ad_reader,
         import_first=True,
@@ -150,4 +156,5 @@ def start_opus_import(importer, ad_reader=None, force=False, employee_mapping={}
 
 
 if __name__ == '__main__':
-    compare_files()
+    # compare_files()
+    start_re_import()

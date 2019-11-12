@@ -1,6 +1,7 @@
 # -- coding: utf-8 --
-import os
 import uuid
+import json
+import pathlib
 import hashlib
 import logging
 import xmltodict
@@ -11,8 +12,6 @@ from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations import dawa_helper
 
-MOX_BASE = os.environ.get('MOX_BASE')
-MORA_BASE = os.environ.get('MORA_BASE', None)
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'
 
@@ -49,11 +48,17 @@ class OpusImport(object):
                  import_first=False, employee_mapping={}):
         """ If import first is False, the first unit will be skipped """
         self.org_uuid = None
+
+        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+        if not cfg_file.is_file():
+            raise Exception('No setting file')
+        self.settings = json.loads(cfg_file.read_text())
+
         self.importer = importer
         self.import_first = import_first
         self.session = Session()
-        self.mox_base = MOX_BASE
-        self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
+        self.helper = MoraHelper(hostname=self.settings['mora.base'],
+                                 use_cache=False)
 
         self.organisation_id = None
         self.units = None
@@ -120,7 +125,7 @@ class OpusImport(object):
         resource = '/organisation/organisationfunktion?bvn={}'.format(bvn)
         if present:
             resource += '&gyldighed=Aktiv'
-        response = self.session.get(url=self.mox_base + resource)
+        response = self.session.get(url=self.settings['mox.base'] + resource)
         response.raise_for_status()
         uuids = response.json()['results'][0]
         if uuids:
@@ -133,7 +138,7 @@ class OpusImport(object):
 
             resource = '/organisation/organisationfunktion/{}'
             resource = resource.format(engagement_info['uuid'])
-            response = self.session.get(url=self.mox_base + resource)
+            response = self.session.get(url=self.settings['mox.base'] + resource)
             response.raise_for_status()
             data = response.json()
             logger.debug('Organisationsfunktionsinfo: {}'.format(data))
