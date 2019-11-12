@@ -1,2 +1,2 @@
-class ValdityTooEarlyException(Exception):
+class NoCurrentValdityException(Exception):
     pass
