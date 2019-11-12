@@ -7,29 +7,29 @@ import sd_payloads
 
 from integrations.SD_Lon.sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
-from integrations.SD_Lon.exceptions import ValdityTooEarlyException
+from integrations.SD_Lon.exceptions import NoCurrentValdityException
 
-LOG_LEVEL = logging.DEBUG
-LOG_FILE = 'fix_sd_departments.log'
+# LOG_LEVEL = logging.DEBUG
+# LOG_FILE = 'fix_sd_departments.log'
 
-logger = logging.getLogger("sdFixDepartments")
+logger = logging.getLogger('fixDepartments')
 
-detail_logging = ('sdCommon', 'sdFixDepartments')
-for name in logging.root.manager.loggerDict:
-    if name in detail_logging:
-        logging.getLogger(name).setLevel(LOG_LEVEL)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
+# detail_logging = ('sdCommon', 'fixDepartments')
+# for name in logging.root.manager.loggerDict:
+#     if name in detail_logging:
+#         logging.getLogger(name).setLevel(LOG_LEVEL)
+#     else:
+#         logging.getLogger(name).setLevel(logging.ERROR)
 
-logging.basicConfig(
-    format='%(levelname)s %(asctime)s %(name)s %(message)s',
-    level=LOG_LEVEL,
-    filename=LOG_FILE
-)
+# logging.basicConfig(
+#     format='%(levelname)s %(asctime)s %(name)s %(message)s',
+#     level=LOG_LEVEL,
+#     filename=LOG_FILE
+# )
 
 
-class FixDepartmentsSD(object):
-    def __init__(self, from_date):
+class FixDepartments(object):
+    def __init__(self):
         logger.info('Start program')
         # TODO: Soon we have done this 4 times. Should we make a small settings
         # importer, that will also handle datatype for specicic keys?
@@ -41,7 +41,6 @@ class FixDepartmentsSD(object):
         self.institution_uuid = self.get_institution()
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
-        self.from_date = from_date
 
         try:
             self.org_uuid = self.helper.read_organisation()
@@ -149,23 +148,21 @@ class FixDepartmentsSD(object):
         institution_uuid = institution['InstitutionUUIDIdentifier']
         return institution_uuid
 
-    def create_single_department(self, shortname, date):
+    def create_single_department(self, unit_uuid, validity_date):
         """ Create a single department at a single snapshot in time """
-        activation_date = date.strftime('%d.%m.%Y')
-        params = {
-            'ActivationDate': activation_date,
-            'DeactivationDate': activation_date,
-            'DepartmentIdentifier': shortname,
-            'ContactInformationIndicator': 'true',
-            'DepartmentNameIndicator': 'true',
-            'PostalAddressIndicator': 'false',
-            'ProductionUnitIndicator': 'false',
-            'UUIDIndicator': 'true',
-            'EmploymentDepartmentIndicator': 'false'
+        logger.info('Create department: {}, at {}'.format(unit_uuid, validity_date))
+        validity = {
+            'from_date': validity_date.strftime('%d.%m.%Y'),
+            'to_date': validity_date.strftime('%d.%m.%Y')
         }
-        department_info = sd_lookup('GetDepartment20111201', params)
-        department = department_info['Department']
-        parent = self.get_parent(department['DepartmentUUIDIdentifier'], date)
+        # We ask for a single date, and will always get a single element
+        department = self.get_department(validity, uuid=unit_uuid)[0]
+        logger.debug('Department info to create from: {}'.format(department))
+        print('Department info to create from: {}'.format(department))
+        parent = self.get_parent(department['DepartmentUUIDIdentifier'],
+                                 validity_date)
+        if parent is None:
+            parent = self.org_uuid
 
         for unit_type in self.unit_types:
             if unit_type['user_key'] == department['DepartmentLevelIdentifier']:
@@ -195,7 +192,7 @@ class FixDepartmentsSD(object):
         logger.info('Fix import of department {}'.format(shortname))
 
         params = {
-            'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
+            'ActivationDate': from_date.strftime('%d.%m.%Y'),
             'DeactivationDate': '9999-12-31',
             'DepartmentIdentifier': shortname,
             'UUIDIndicator': 'true',
@@ -207,6 +204,7 @@ class FixDepartmentsSD(object):
         if isinstance(validities, dict):
             validities = [validities]
 
+        first_iteration = True
         for validity in validities:
             assert shortname == validity['DepartmentIdentifier']
             validity_date = datetime.datetime.strptime(validity['ActivationDate'],
@@ -219,15 +217,22 @@ class FixDepartmentsSD(object):
                 if unit_type['user_key'] == validity['DepartmentLevelIdentifier']:
                     unit_type_uuid = unit_type['uuid']
 
-            from_date = validity_date.strftime('%Y-%m-%d')
+            # SD has a challenge with the internal validity-consistency, extend first
+            # validity indefinitely
+            if first_iteration:
+                from_date = '1900-01-01'
+                first_iteration = False
+            else:
+                from_date = validity_date.strftime('%Y-%m-%d')
 
-            # SD has a challenge with the internal validity-consistency
             try:
-                parent = self.get_parent(unit_uuid, validity_date)
-                logger.info('Unit parent at {} is {}'.format(from_date, parent))
-            except ValdityTooEarlyException:
-                logger.error('Could not get unit at correct validity, use today')
                 parent = self.get_parent(unit_uuid, datetime.datetime.now())
+            except NoCurrentValdityException:
+                print('Error')
+                parent = self.settings[
+                    'integrations.SD_Lon.unknown_parent_container'
+                ]
+            print('Unit parent at {} is {}'.format(from_date, parent))
 
             payload = sd_payloads.edit_org_unit(user_key, name, unit_uuid, parent,
                                                 unit_type_uuid, from_date)
@@ -239,7 +244,57 @@ class FixDepartmentsSD(object):
                 response.raise_for_status()
             logger.debug('Response: {}'.format(response.text))
 
+    def fix_department_at_single_date(self, unit_uuid, validity_date):
+        logger.info('Set department {} to state as of today'.format(unit_uuid))
+        validity = {
+            'from_date': validity_date.strftime('%d.%m.%Y'),
+            'to_date': validity_date.strftime('%d.%m.%Y')
+        }
+        department = self.get_department(validity, uuid=unit_uuid)[0]
+
+        for unit_type in self.unit_types:
+            if unit_type['user_key'] == department['DepartmentLevelIdentifier']:
+                unit_type_uuid = unit_type['uuid']
+
+        try:
+            parent = self.get_parent(unit_uuid, validity_date)
+            department = self.get_department(validity, uuid=unit_uuid)[0]
+            name = department['DepartmentName']
+            shortname = department['DepartmentIdentifier']
+        except NoCurrentValdityException:
+            msg = 'Attempting to fix unit with no parent at {}!'
+            logger.error(msg.format(validity_date))
+            raise Exception(msg.format(validity_date))
+
+        # SD has a challenge with the internal validity-consistency, extend first
+        # validity indefinitely
+        from_date = '1900-01-01'
+        if parent is None:
+            parent = self.org_uuid
+        print('Unit parent at {} is {}'.format(from_date, parent))
+
+        payload = sd_payloads.edit_org_unit(shortname, name, unit_uuid, parent,
+                                            unit_type_uuid, from_date)
+        logger.debug('Edit payload to fix unit: {}'.format(payload))
+        response = self.helper._mo_post('details/edit', payload)
+        if response.status_code == 400:
+            assert(response.text.find('raise to a new registration') > 0)
+        else:
+            response.raise_for_status()
+        logger.debug('Response: {}'.format(response.text))
+
     def get_department(self, validity, shortname=None, uuid=None):
+        """
+        Read department information from SD.
+        NOTICE: Shortname is not universally unitque in SD, and even a request
+        spanning a single date might return more than one row if searched by
+        shortname.
+        :param validity: Validity dictionaty containing two datetime objects
+        with keys from_date and to_date.
+        :param shortname: Shortname for the unit(s).
+        :param uuid: uuid for the unit.
+        :return: A list of information about the unit(s).
+        """
         params = {
             'ActivationDate': validity['from_date'],
             'DeactivationDate': validity['to_date'],
@@ -259,7 +314,11 @@ class FixDepartmentsSD(object):
             raise Exception('Provide either uuid or shortname')
 
         department_info = sd_lookup('GetDepartment20111201', params)
-        department = department_info['Department']
+        department = department_info.get('Department')
+        if department is None:
+            raise NoCurrentValdityException()
+        if isinstance(department, dict):
+            department = [department]
         return department
 
     def get_parent(self, unit_uuid, validity_date):
@@ -269,64 +328,59 @@ class FixDepartmentsSD(object):
         }
         parent_response = sd_lookup('GetDepartmentParent20190701', params)
         if 'DepartmentParent' not in parent_response:
-            logger.error('No parent found at validity: {}'.format(validity_date))
-            raise ValdityTooEarlyException()
+            msg = 'No parent for {} found at validity: {}'
+            logger.error(msg.format(unit_uuid, validity_date))
+            raise NoCurrentValdityException()
         parent = parent_response['DepartmentParent']['DepartmentUUIDIdentifier']
         if parent == self.institution_uuid:
             parent = None
         return parent
 
-    def get_all_parents(self, shortname, validity_date):
+    def get_all_parents(self, leaf_uuid, validity_date):
         validity = {
             'from_date': validity_date.strftime('%d.%m.%Y'),
             'to_date': validity_date.strftime('%d.%m.%Y')
         }
+        department_branch = []
+        department = self.get_department(validity=validity, uuid=leaf_uuid)[0]
+        department_branch.append((department['DepartmentIdentifier'], leaf_uuid))
 
-        deparment_branch = []
-        department = self.get_department(validity=validity, shortname=shortname)
-        deparment_branch.append(department['DepartmentUUIDIdentifier'])
         current_uuid = self.get_parent(department['DepartmentUUIDIdentifier'],
                                        validity_date=validity_date)
 
         while current_uuid is not None:
-            department = self.get_department(validity=validity, uuid=current_uuid)
+            current_uuid = self.get_parent(department['DepartmentUUIDIdentifier'],
+                                           validity_date=validity_date)
+            department = self.get_department(validity=validity, uuid=current_uuid)[0]
             shortname = department['DepartmentIdentifier']
             level = department['DepartmentLevelIdentifier']
             uuid = department['DepartmentUUIDIdentifier']
+            department_branch.append((shortname, uuid))
             current_uuid = self.get_parent(current_uuid, validity_date=validity_date)
             msg = 'Department: {}, uuid: {}, level: {}'
             logger.debug(msg.format(shortname, uuid, level))
+        return department_branch
+
+    def fix_or_create_branch(self, leaf_uuid, date):
+        # This is a question to SD, units will not need to exist in MO
+        branch = self.get_all_parents(leaf_uuid, date)
+
+        for unit in branch:
+            mo_unit = self.helper.read_ou(unit[1])
+            if 'status' in mo_unit:  # Unit does not exist in MO
+                logger.warning('Unknown unit {}, will create'.format(unit))
+                self.create_single_department(unit[1], date)
+        for unit in reversed(branch):
+            self.fix_department_at_single_date(unit[1], date)
 
 
 if __name__ == '__main__':
-    # from_date = datetime.datetime(2019, 1, 1, 0, 0)
-    from_date = datetime.datetime(1900, 1, 1, 0, 0)
+    unit_fixer = FixDepartments()
+    uruk = 'cf9864bf-1ed8-4800-9600-000001290002'
 
-    unit_fixer = FixDepartmentsSD(from_date)
-    # print(unit_fixer.fix_specific_department('SUFB'))
+    # from_date = datetime.datetime(2008, 8, 1, 0, 0)
+    # print(unit_fixer.get_all_parents(uruk, from_date))
 
-    # print(unit_fixer.get_parent('1fe1b85a-66c3-4100-be00-000001540001',
-    #                             datetime.datetime.now()))
-    print(unit_fixer.get_all_parents('SUFB', from_date))
-
-    # from_date = datetime.datetime(2019, 10, 1, 0, 0)
-    # unit_fixer.create_single_department('5SE', from_date)
-
-    # unit_fixer.fix_specific_department('0P84')
-    # unit_fixer.fix_specific_department('4OS')
-    # unit_fixer.fix_specific_department('6JI')
-    # unit_fixer.fix_specific_department('8AR')
-    # unit_fixer.fix_specific_department('9ØP')
-    # unit_fixer.fix_specific_department('10V')
-
-    unit_fixer.fix_departments()
-
-    # params = {
-    #     'ActivationDate': '01.08.2019',
-    #     'DeactivationDate': '01.08.2019',
-    #     'DepartmentIdentifier': '5SE',
-    #     'UUIDIndicator': 'true',
-    #     'DepartmentNameIndicator': 'true'
-    # }
-    # department = sd_lookup('GetDepartment20111201', params)
-    # unit_fixer.create_department(department['Department'], '01.08.2019')
+    today = datetime.datetime.today()
+    # print(unit_fixer.get_all_parents(uruk, today))
+    unit_fixer.fix_or_create_branch(uruk, today)
