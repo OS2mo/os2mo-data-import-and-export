@@ -1,7 +1,15 @@
-import os
+import json
+import pathlib
 import sqlite3
 
-RUN_DB = os.environ.get('RUN_DB', None)
+# TODO: Soon we have done this 4 times. Should we make a small settings
+# importer, that will also handle datatype for specicic keys?
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+SETTINGS = json.loads(cfg_file.read_text())
+RUN_DB = SETTINGS['integrations.SD_Lon.import.run_db']
+
 
 class DBOverview(object):
     def __init__(self):
@@ -46,10 +54,13 @@ class DBOverview(object):
         c.execute(query, (row[0],))
         conn.commit()
         return 'Deleted last row'
-    
+
+
 if __name__ == '__main__':
     db_overview = DBOverview()
 
+    # print(db_overview.delete_last_row(force=True))
+    # print(db_overview.delete_last_row(force=True))
     db_overview.read_db_content()
     print(db_overview.read_current_status())
 
