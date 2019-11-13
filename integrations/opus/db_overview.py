@@ -1,7 +1,6 @@
-import os
+import json
+import pathlib
 import sqlite3
-
-RUN_DB = os.environ.get('RUN_DB', None)
 
 # TODO:
 # This file exists in two quite similar versions.
@@ -9,10 +8,16 @@ RUN_DB = os.environ.get('RUN_DB', None)
 
 class DBOverview(object):
     def __init__(self):
-        self.run_db = RUN_DB
+        # TODO: Soon we have done this 4 times. Should we make a small settings
+        # importer, that will also handle datatype for specicic keys?
+        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+        if not cfg_file.is_file():
+            raise Exception('No setting file')
+        self.settings = json.loads(cfg_file.read_text())
 
     def read_db_content(self):
-        conn = sqlite3.connect(self.run_db, detect_types=sqlite3.PARSE_DECLTYPES)
+        conn = sqlite3.connect(self.settings['opus.import.run_db'],
+                               detect_types=sqlite3.PARSE_DECLTYPES)
         c = conn.cursor()
 
         query = 'select * from runs order by id'
@@ -23,7 +28,8 @@ class DBOverview(object):
             print(status.format(row[0], row[1], row[2]))
 
     def read_current_status(self):
-        conn = sqlite3.connect(self.run_db, detect_types=sqlite3.PARSE_DECLTYPES)
+        conn = sqlite3.connect(self.settings['opus.import.run_db'],
+                               detect_types=sqlite3.PARSE_DECLTYPES)
         c = conn.cursor()
 
         query = 'select * from runs order by id desc limit 1'
@@ -50,7 +56,8 @@ class DBOverview(object):
         c.execute(query, (row[0],))
         conn.commit()
         return 'Deleted last row'
-    
+
+
 if __name__ == '__main__':
     db_overview = DBOverview()
 
