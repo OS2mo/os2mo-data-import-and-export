@@ -13,7 +13,6 @@ from datetime import datetime
 from integrations import dawa_helper
 from integrations.opus import payloads
 from integrations.opus import opus_helpers
-from integrations.ad_integration import ad_reader
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 
@@ -33,7 +32,7 @@ ADDRESS_CHECKS = {
 
 
 class OpusImport(object):
-    def __init__(self, employee_mapping={}):
+    def __init__(self, ad_reader, employee_mapping={}):
         # TODO: Soon we have done this 4 times. Should we make a small settings
         # importer, that will also handle datatype for specicic keys?
         cfg_file = Path.cwd() / 'settings' / 'settings.json'
@@ -44,7 +43,7 @@ class OpusImport(object):
         self.session = Session()
         # TODO: Test with an actual employee mapping
         self.employee_forced_uuids = employee_mapping
-        self.ad_reader = ad_reader.ADParameterReader()
+        self.ad_reader = ad_reader
 
         self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
         try:
