@@ -39,6 +39,13 @@ imports_sd_changed_at(){
     ${VENV}/bin/python3 integrations/SD_Lon/sd_changed_at.py
 }
 
+imports_ad_sync(){
+    echo running imports_ad_sync
+    # remove ad cache files for now - they will be disabled later
+    rm -v ad_*.p || :
+    ${VENV}/bin/python3  integrations/ad_integration/ad_sync.py
+}
+
 exports_mox_rollekatalog(){
     echo running exports_mox_rollekatalog
     if [ -z "${MOX_ROLLE_COMPOSE_YML}" ]; then
@@ -86,6 +93,10 @@ imports(){
 
     if [ "${RUN_SD_CHANGED_AT}" == "true" ]; then
         imports_sd_changed_at || return 2
+    fi
+
+    if [ "${RUN_AD_SYNC}" == "true" ]; then
+        imports_ad_sync || return 2
     fi
 }
 
