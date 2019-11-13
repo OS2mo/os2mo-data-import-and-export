@@ -12,6 +12,11 @@ export LC_ALL="C.UTF-8"
 source ${DIPEXAR}/tools/prefixed_settings.sh
 
 cd ${DIPEXAR}
+
+# FIXME: remove cache ad pickle files
+# Robert disables them in later ad
+rm -v ad_*.p || :
+
 export PYTHONPATH=$PWD:$PYTHONPATH
 
 
@@ -42,7 +47,6 @@ imports_sd_changed_at(){
 imports_ad_sync(){
     echo running imports_ad_sync
     # remove ad cache files for now - they will be disabled later
-    rm -v ad_*.p || :
     ${VENV}/bin/python3  integrations/ad_integration/ad_sync.py
 }
 
