@@ -16,6 +16,15 @@ SECRET = os.environ.get('SECRET_CLASS')
 if MORA_BASE is None:
     raise Exception('No address to MO indicated')
 
+# how to check these classes for noobs
+# look at :https://os2mo-test.holstebro.dk/service/o/ORGUUID/f/
+# It must be addresses, so we find the address thing for employees
+# https://os2mo-test.holstebro.dk/service/o/ORGUUID/f/employee_address_type/
+# There You have it - for example the mobile phone
+# Now You may wonder if the VISIBLE/SECRET are right:
+# Find them here https://os2mo-test.holstebro.dk/service/o/ORGUUID/f/visibility/
+# By the way - this configuration must move to the settings file
+
 holstebro_mapping = {
     'user_addresses': {
         'mail': ('49b05fde-cb7a-6fb1-fcf5-59dae4bc647c', None),
@@ -34,13 +43,13 @@ VALIDITY = {
     'from':  datetime.strftime(datetime.now(), "%Y-%m-%d"),
     'to': None
 }
-ORG = {'uuid': '85c3f2fc-4af8-4fa0-b391-4cd54a244dcb'}
 
 
 class AdMoSync(object):
     def __init__(self):
         logger.info('AD Sync Started')
         self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
+        self.org = self.helper.read_organisation()
 
         found_visible = False
         found_secret = False
@@ -71,8 +80,7 @@ class AdMoSync(object):
         :return: List af all employees.
         """
         logger.info('Read all MO users')
-        org = self.helper.read_organisation()
-        employee_list = self.helper._mo_lookup(org, 'o/{}/e?limit=1000000000')
+        employee_list = self.helper._mo_lookup(self.org, 'o/{}/e?limit=1000000000')
         employees = employee_list['items']
         logger.info('Done reading all MO users')
         return employees
@@ -115,7 +123,7 @@ class AdMoSync(object):
             'person': {'uuid': uuid},
             'type': 'address',
             'validity': VALIDITY,
-            'org': ORG  # Temporary, bug in MO.
+            'org': self.org
         }
         if klasse[1] is not None:
             payload['visibility'] = {'uuid': klasse[1]}

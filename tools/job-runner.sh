@@ -12,6 +12,11 @@ export LC_ALL="C.UTF-8"
 source ${DIPEXAR}/tools/prefixed_settings.sh
 
 cd ${DIPEXAR}
+
+# FIXME: remove cache ad pickle files
+# Robert disables them in later ad
+rm -v ad_*.p || :
+
 export PYTHONPATH=$PWD:$PYTHONPATH
 
 
@@ -37,6 +42,12 @@ imports_sd_changed_at(){
     set -e
     echo running imports_sd_changed_at
     ${VENV}/bin/python3 integrations/SD_Lon/sd_changed_at.py
+}
+
+imports_ad_sync(){
+    echo running imports_ad_sync
+    # remove ad cache files for now - they will be disabled later
+    ${VENV}/bin/python3  integrations/ad_integration/ad_sync.py
 }
 
 exports_mox_rollekatalog(){
@@ -87,6 +98,10 @@ imports(){
     if [ "${RUN_SD_CHANGED_AT}" == "true" ]; then
         imports_sd_changed_at || return 2
     fi
+
+    if [ "${RUN_AD_SYNC}" == "true" ]; then
+        imports_ad_sync || return 2
+    fi
 }
 
 # exports may also be interdependent: -e
@@ -134,7 +149,7 @@ post_backup(){
     )
     bupfile="${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar.gz"
     tar -zcf $bupfile\
-        /opt/magenta/snapshots/os2mo_database.sql \
+        ${SNAPSHOT_LORA} \
         ${DIPEXAR}/cpr_mo_ad_map.csv \
         ${DIPEXAR}//settings/cpr_uuid_map.csv \
         ${SD_IMPORT_RUN_DB} \
@@ -194,6 +209,11 @@ if [ "$#" == "0" ]; then
 
     if [ ! -d "${CRON_BACKUP}" ]; then
         echo "FATAL: Backup directory non existing"
+        exit 2
+    fi
+
+    if [ ! -f "${SNAPSHOT_LORA}" ]; then
+        echo "FATAL: Database snapshot does not exist"
         exit 2
     fi
 
