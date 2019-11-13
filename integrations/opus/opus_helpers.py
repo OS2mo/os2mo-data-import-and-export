@@ -6,6 +6,7 @@ import datetime
 from pathlib import Path
 
 from integrations.opus import opus_import
+from integrations.opus import opus_import
 from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_exceptions import NoNewerDumpAvailable
 from integrations.opus.opus_exceptions import RedundantForceException
@@ -24,35 +25,6 @@ START_DATE = datetime.datetime(2019, 10, 25, 0, 0)
 # Check this!!!!!!!!!!
 # Maybe we should do the logging configuration here!
 logger = logging.getLogger("opusImport")
-
-
-def compare_files():
-    import difflib
-    dumps = _read_available_dumps()
-    names = sorted(dumps.keys())
-
-    # with .open(mode='r') as xmldump:
-    #     file0 = xmldump.read()
-    # with open(str(dumps[names[1]])) as xmldump:
-    #     file1 = xmldump.read()
-
-    # print(file0)
-
-    #    print(dumps[names[0]].read_text().split('\n'))
-
-    diff = difflib.ndiff(
-        dumps[names[0]].read_text().split('\n'),
-        dumps[names[1]].read_text().split('\n')
-    )
-
-    line_number = 0
-    for d in diff:
-        line_number += 1
-        # if d[0] in ('+', '-'):
-        if d[0] == '+':
-            msg = 'Line: {}: {}'.format(str(line_number).zfill(7), d)
-            print(msg)
-    # print(list(diff)[0])
 
 
 def _read_available_dumps():
@@ -154,7 +126,24 @@ def start_opus_import(importer, ad_reader=None, force=False, employee_mapping={}
 
     _local_db_insert((xml_date, 'Import ended: {}'))
 
+# IMPORTANT, READ EMPLOYEE_MAPPING!!!!!
+def start_opus_diff(ad_reader=None):
+    """
+    Start an opus update, use the oldest available dump that has not
+    already been imported.
+    """
+    dumps = _read_available_dumps()
+    run_db = Path(SETTINGS['opus.import.run_db'])
+    if not run_db.is_file():
+        logger.error('Local base not correctly initialized')
+        raise RunDBInitException('Local base not correctly initialized')
+    xml_date = _next_xml_file(run_db, dumps)
+    xml_file = dumps[xml_date]
 
-if __name__ == '__main__':
-    # compare_files()
-    start_re_import()
+    _local_db_insert((xml_date, 'Running diff update since {}'))
+    logger.info('Start update')
+    diff = OpusImport()
+    # diff.start_re_import()
+    diff.start_re_import(include_terminations=False)
+    logger.info('Ended update')
+    _local_db_insert((xml_date, 'Diff update ended: {}'))
