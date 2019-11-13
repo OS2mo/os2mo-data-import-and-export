@@ -3,7 +3,6 @@ import uuid
 import json
 import logging
 import hashlib
-import sqlite3
 import requests
 
 from pathlib import Path
@@ -12,7 +11,6 @@ from datetime import datetime
 
 from integrations import dawa_helper
 from integrations.opus import payloads
-from integrations.opus import opus_helpers
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 
@@ -31,8 +29,8 @@ ADDRESS_CHECKS = {
 }
 
 
-class OpusImport(object):
-    def __init__(self, ad_reader, employee_mapping={}):
+class OpusDiffImport(object):
+    def __init__(self, latest_date, ad_reader, employee_mapping={}):
         # TODO: Soon we have done this 4 times. Should we make a small settings
         # importer, that will also handle datatype for specicic keys?
         cfg_file = Path.cwd() / 'settings' / 'settings.json'
@@ -67,15 +65,7 @@ class OpusImport(object):
         for job in job_functions:
             self.job_functions[job['name']] = job['uuid']
 
-        # THIS IS COMMON TO _next_xml_file!!!!
-        conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
-        c = conn.cursor()
-        query = 'select * from runs order by id desc limit 1'
-        c.execute(query)
-        row = c.fetchone()
-        self.latest_date = row[1]
-        # THIS IS COMMON TO _next_xml_file!!!!
-
+        self.latest_date = latest_date
         self.units = None
         self.employees = None
 
@@ -162,7 +152,7 @@ class OpusImport(object):
             response = self.session.get(url=self.settings['mox.base'] + resource)
             response.raise_for_status()
             data = response.json()
-            logger.debug('Organisationsfunktionsinfo: {}'.format(data))
+            # logger.debug('Organisationsfunktionsinfo: {}'.format(data))
 
             data = data[engagement_info['uuid']][0]['registreringer'][0]
             user_uuid = data['relationer']['tilknyttedebrugere'][0]['uuid']
@@ -185,6 +175,7 @@ class OpusImport(object):
             engagement_info['name'] = (mo_person['givenname'], mo_person['surname'])
         return engagement_info
 
+    # TODO: Why does this not cover units?
     def validity(self, employee, edit=False):
         """
         Calculates a validity object from en employee object.
@@ -195,7 +186,8 @@ class OpusImport(object):
         """
         to_date = employee['leaveDate']
         if edit:
-            from_date = self.latest_date.strftime('%Y-%m-%d')
+            # from_date = self.latest_date.strftime('%Y-%m-%d')
+            from_date = employee.get('@lastChanged')
         else:
             from_date = employee['entryDate']
 
@@ -239,6 +231,7 @@ class OpusImport(object):
                 continue
 
             current_value = address_dict.get(self.settings[setting])
+
             address_args = {
                 'address_type': {'uuid': self.settings[setting]},
                 'value': unit[addr_type],
@@ -269,7 +262,7 @@ class OpusImport(object):
         calculated_uuid = self._generate_uuid(unit['@id'])
         parent_uuid = self._generate_uuid(unit['parentOrgUnit'])
         mo_unit = self.helper.read_ou(calculated_uuid)
-
+        print(mo_unit)
         # It is assumed no new unit types are added during daily updates.
         # Default 'Enhed' is the default from the initial import
         org_type = unit.get('orgType', 'Enhed')
@@ -312,7 +305,16 @@ class OpusImport(object):
         eng_type = self.engagement_types[contract]
         return job_function, eng_type
 
-    def update_engagement(self, eng_uuid, employee):
+    def update_engagement(self, engagement, employee):
+        """
+        Update a MO engagement according to opus employee object.
+        It often happens that the change that provoked lastChanged to
+        be updated is not a MO field, and thus we check for relevant
+        differences before shipping the payload to MO.
+        :param engagement: Relevant MO engagement object.
+        :param employee: Relevent Opus employee object.
+        :return: True if update happended, False if not.
+        """
         job_function, eng_type = self._job_and_engagement_type(employee)
         unit_uuid = self._generate_uuid(employee['orgUnit'])
         validity = self.validity(employee, edit=True)
@@ -322,10 +324,18 @@ class OpusImport(object):
             'org_unit': {'uuid': str(unit_uuid)},
             'validity': validity
         }
-        payload = payloads.edit_engagement(data, eng_uuid)
-        logger.debug('Update engagement payload: {}'.format(payload))
-        response = self.helper._mo_post('details/edit', payload)
-        self._assert(response)
+        something_new = not (
+            (engagement['engagement_type']['uuid'] == eng_type) and
+            (engagement['job_function']['uuid'] == job_function) and
+            (engagement['org_unit']['uuid'] == str(unit_uuid))
+        )
+        logger.info('Something new? {}'.format(something_new))
+        if something_new:
+            payload = payloads.edit_engagement(data, engagement['uuid'])
+            logger.debug('Update engagement payload: {}'.format(payload))
+            response = self.helper._mo_post('details/edit', payload)
+            self._assert(response)
+        return something_new
 
     def create_engagement(self, mo_user_uuid, opus_employee):
         job_function, eng_type = self._job_and_engagement_type(opus_employee)
@@ -409,7 +419,8 @@ class OpusImport(object):
         if current_mo_eng is None:
             self.create_engagement(employee_mo_uuid, employee)
         else:
-            self.update_engagement(current_mo_eng, employee)
+            # self.update_engagement(current_mo_eng, employee)
+            self.update_engagement(eng, employee)
 
         # Update manager information:
         manager_functions = self.helper._mo_lookup(employee_mo_uuid,
@@ -424,6 +435,7 @@ class OpusImport(object):
 
         if not manager_functions and employee['isManager'] == 'true':
             print('Turn this person into a manager')
+            # TODO
 
         if manager_functions and employee['isManager'] == 'true':
             print('Still a manager - Check for potential edits')
@@ -463,18 +475,12 @@ class OpusImport(object):
         logger.debug('Terminate response: {}'.format(response.text))
         self._assert(response)
 
-    def start_re_import(self, include_terminations=False):
+    def start_re_import(self, xml_file, include_terminations=False):
         """
         Start an opus import, run the oldest available dump that
         has not already been imported.
         """
-        dumps = opus_helpers._read_available_dumps()
-
-        run_db = Path(RUN_DB)
-        if run_db.is_file():
-            xml_date = opus_helpers._next_xml_file(run_db, dumps)
-
-        xml_file = dumps[xml_date]
+        logger.info('Program started')
         self.parser(xml_file)
 
         for unit in self.units:
@@ -505,8 +511,4 @@ class OpusImport(object):
                 engagement = self._find_engagement(employee['@id'], present=True)
                 if engagement:
                     self.terminate_engagement(engagement['uuid'])
-
-
-if __name__ == '__main__':
-    diff = OpusImport()
-    diff.start_re_import(include_terminations=False)
+        logger.info('Program ended correctly')
