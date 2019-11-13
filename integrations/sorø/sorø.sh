@@ -1,7 +1,6 @@
-export MUNICIPALITY_NAME='Sorø Kommune'
+# Execute this script with either --import or --update
+export PYTHONPATH=$PWD:$PYTHONPATH
+script_dir=$(cd $(dirname $0); pwd)
 
-export MOX_BASE=http://localhost:5000
-export MORA_BASE=http://localhost:80
-export XML_FILE_PATH=82_20190508.080000_ZLPE20190506223018_delta.xml
+python3 "$script_dir/sorø.py" $1
 
-python3 sorø.py
