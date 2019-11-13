@@ -171,7 +171,7 @@ if __name__ == '__main__':
     everything = ad_reader.read_it_all()
 
     for user in everything:
-        print('Name: {}, Sam: {}, Manger: {}'.format(user['Name'], user['SamAccountName'], user['Manager']))
+        print('Name: {}, Sam: {}, Manager: {}'.format(user['Name'], user['SamAccountName'], user.get('Manager')))
         # if user['SamAccountName'] == 'JSTEH':
         #    for key in sorted(user.keys()):
         #        print('{}: {}'.format(key, user[key]))
