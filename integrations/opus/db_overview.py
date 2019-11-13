@@ -46,7 +46,8 @@ class DBOverview(object):
         if current_status[0] and not force:
             return 'Status ok, no delete'
 
-        conn = sqlite3.connect(self.run_db, detect_types=sqlite3.PARSE_DECLTYPES)
+        conn = sqlite3.connect(self.settings['opus.import.run_db'],
+                               detect_types=sqlite3.PARSE_DECLTYPES)
         c = conn.cursor()
         query = 'select id from runs order by id desc limit 1'
         c.execute(query)
@@ -61,7 +62,9 @@ class DBOverview(object):
 if __name__ == '__main__':
     db_overview = DBOverview()
 
+    print(db_overview.delete_last_row())
+    # print(db_overview.delete_last_row(force=True))
+    # print(db_overview.delete_last_row(force=True))
     db_overview.read_db_content()
     print(db_overview.read_current_status())
 
-    # print(db_overview.delete_last_row())
