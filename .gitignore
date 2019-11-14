@@ -2,11 +2,14 @@
 *.sql
 *.log
 *.csv
+*.xlsx
 
 # Development
 .idea
 *.gz
 *~
+.vscode
+.env
 
 # Mac
 .DS_Store
