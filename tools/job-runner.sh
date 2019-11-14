@@ -15,7 +15,7 @@ cd ${DIPEXAR}
 
 # FIXME: remove cache ad pickle files
 # Robert disables them in later ad
-rm -v ad_*.p || :
+rm -v ad_*.p 2>/dev/null || :
 
 export PYTHONPATH=$PWD:$PYTHONPATH
 
@@ -229,4 +229,8 @@ if [ "$#" == "0" ]; then
     echo REPORTS_OK=${REPORTS_OK}
     post_backup
     ) 2>&1 | tee ${CRON_LOG_FILE}
+
+elif [ -n "$(grep $1\(\) $0)" ]; then
+    echo running single job function
+    $1
 fi
