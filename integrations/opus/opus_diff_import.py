@@ -11,6 +11,7 @@ from datetime import datetime
 
 from integrations import dawa_helper
 from integrations.opus import payloads
+from integrations.opus import opus_import
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 
@@ -19,13 +20,19 @@ MORA_BASE = os.environ.get('MORA_BASE')
 
 logger = logging.getLogger("opusDiff")
 
-ADDRESS_CHECKS = {
+UNIT_ADDRESS_CHECKS = {
     'seNr': 'opus.addresses.se',
     'cvrNr': 'opus.addresses.cvr',
     'eanNr': 'opus.addresses.ean',
     'pNr': 'opus.addresses.pnr',
     'phoneNumber': 'opus.addresses.phoneNumber',
     'dar': 'opus.addresses.dar'  # DAR is a special case
+}
+
+EMPLOYEE_ADDRESS_CHECKS = {
+    'phone': 'opus.addresses.employee_phone',
+    'email': 'opus.addresses.employee_email',
+    'dar': 'opus.addresses.employee_dar' # DAR is a special case
 }
 
 
@@ -197,6 +204,95 @@ class OpusDiffImport(object):
         }
         return validity
 
+    # TODO: Could we merge handling of addresses for  employees and units?
+    def _update_employee_address(self, mo_uuid, employee):
+        # Unfortunately, mora-helper currently does not read all addresses
+        user_addresses = self.helper._mo_lookup(mo_uuid, 'e/{}/details/address')
+        address_dict = {}  # Condensate of all MO addresses for the employee
+        for address in user_addresses:
+            if address_dict.get(address['address_type']['uuid']) is not None:
+                # More than one of this type exist in MO, this is not allowed.
+                msg = 'Inconsistent addresses for unit: {}'
+                logger.error(msg.format(calculated_uuid))
+            address_dict[address['address_type']['uuid']] = {
+                'value': address['value'],
+                'uuid': address['uuid']
+            }
+
+        opus_addresses = {
+            'email': None,
+            'phone': None,
+            'dar': None
+        }
+
+        if 'email' in employee:
+            opus_addresses['email'] = employee['email']
+
+        opus_addresses['phone'] = None
+        if employee['workPhone'] is not None:
+            phone = opus_import._parse_phone(employee['workPhone'])
+            if phone is None:
+                logger.warning(
+                    'Could not parse phone {}'.format(employee['workPhone'])
+                )
+            else:
+                opus_addresses['phone'] = phone
+
+        if 'postalCode' in employee and employee['address']:
+            if isinstance(employee['address'], dict):
+                # TODO: This is a protected address
+                print('Protected address! Implement!')
+            else:
+                address_string = employee['address']
+                zip_code = employee["postalCode"]
+                addr_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+                if addr_uuid:
+                    opus_addresses['dar'] = addr_uuid
+                else:
+                    print('Could not find address in DAR')
+                    logger.warning('Could not find address in DAR')
+
+        logger.info('Addresses to be synced to MO: {}'.format(opus_addresses))
+
+        for addr_type, setting in EMPLOYEE_ADDRESS_CHECKS.items():
+            print(opus_addresses.get(addr_type))
+            if opus_addresses.get(addr_type) is None:
+                continue
+
+            current_value = opus_addresses.get(self.settings[setting])
+            address_args = {
+                'address_type': {'uuid': self.settings[setting]},
+                'value': opus_addresses[addr_type],
+                'validity': {
+                    'from': self.latest_date.strftime('%Y-%m-%d'),
+                    'to': None
+                },
+                'person_uuid': mo_uuid
+            }
+            if current_value is None:  # Create address
+                payload = payloads.create_address(**address_args)
+                logger.debug('Create {} address payload: {}'.format(addr_type,
+                                                                    payload))
+                print(payload)
+                1/0
+            #     response = self.helper._mo_post('details/create', payload)
+            #     assert response.status_code == 201
+            else:
+                if current_value['value'] == opus_addresses[addr_type]:  # Nothing changed
+                    print('Not updated')
+                    logger.info('{} not updated'.format(addr_type))
+                else:  # Edit address
+                    payload = payloads.edit_address(address_args,
+                                                    current_value['uuid'])
+                    print(payload)
+            #         logger.debug('Edit {} address payload: {}'.format(addr_type,
+            #                                                           payload))
+            #         response = self.helper._mo_post('details/edit', payload)
+            #         self._assert(response)
+
+
+        exit()
+    
     def _update_unit_addresses(self, unit):
         calculated_uuid = self._generate_uuid(unit['@id'])
         unit_addresses = self.helper.read_ou_address(
@@ -418,11 +514,13 @@ class OpusDiffImport(object):
                 msg = 'Updated name of employee {} with uuid {}'
                 logger.info(msg.format(cpr, return_uuid))
 
-            # TODO: Here We should update user address
+        self._update_employee_address(employee_mo_uuid, employee)
 
         # Now we have a MO uuid, update engagement:
         mo_engagements = self.helper.read_user_engagement(employee_mo_uuid,
                                                           read_all=True)
+
+        # TODO: Consider to wrap this code into update_engagement
         current_mo_eng = None
         for eng in mo_engagements:
             if eng['user_key'] == employee['@id']:
@@ -504,7 +602,6 @@ class OpusDiffImport(object):
         for unit in self.units:
             last_changed = datetime.strptime(unit['@lastChanged'], '%Y-%m-%d')
             if last_changed > self.latest_date:
-                # This code has been tested for at least 30 seconds and seems to work
                 self.update_unit(unit)
 
         for employee in self.employees:
@@ -525,7 +622,6 @@ class OpusDiffImport(object):
                     logger.error(msg)
                     raise Exception(msg)
 
-                # This code has been tested and seems to work.
                 engagement = self._find_engagement(employee['@id'], present=True)
                 if engagement:
                     self.terminate_engagement(engagement['uuid'])
