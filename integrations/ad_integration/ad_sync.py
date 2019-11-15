@@ -123,7 +123,7 @@ class AdMoSync(object):
             'person': {'uuid': uuid},
             'type': 'address',
             'validity': VALIDITY,
-            'org': self.org
+            'org': {'uuid': self.org}
         }
         if klasse[1] is not None:
             payload['visibility'] = {'uuid': klasse[1]}
