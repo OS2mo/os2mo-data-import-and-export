@@ -324,11 +324,24 @@ class OpusDiffImport(object):
             'org_unit': {'uuid': str(unit_uuid)},
             'validity': validity
         }
+
+        if engagement['validity']['to'] is None:
+            old_valid_to = datetime.strptime('9999-12-31', '%Y-%m-%d')
+        else:
+            old_valid_to = datetime.strptime(engagement['validity']['to'],
+                                             '%Y-%m-%d')
+        if validity['to'] is None:
+            new_valid_to = datetime.strptime('9999-12-31', '%Y-%m-%d')
+        else:
+            new_valid_to = datetime.strptime(validity['to'], '%Y-%m-%d')
+
         something_new = not (
             (engagement['engagement_type']['uuid'] == eng_type) and
             (engagement['job_function']['uuid'] == job_function) and
-            (engagement['org_unit']['uuid'] == str(unit_uuid))
+            (engagement['org_unit']['uuid'] == str(unit_uuid)) and
+            (old_valid_to == new_valid_to)
         )
+
         logger.info('Something new? {}'.format(something_new))
         if something_new:
             payload = payloads.edit_engagement(data, engagement['uuid'])
@@ -414,12 +427,17 @@ class OpusDiffImport(object):
         for eng in mo_engagements:
             if eng['user_key'] == employee['@id']:
                 current_mo_eng = eng['uuid']
-                break
+                val_from = datetime.strptime(eng['validity']['from'], '%Y-%m-%d')
+                val_to = datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
+                if val_from < self.latest_date < val_to:
+                    logger.info('Found current validty {}'.format(eng['validity']))
+                    break
 
         if current_mo_eng is None:
             self.create_engagement(employee_mo_uuid, employee)
         else:
-            # self.update_engagement(current_mo_eng, employee)
+            logger.info('Validity for {}: {}'.format(employee['@id'],
+                                                     eng['validity']))
             self.update_engagement(eng, employee)
 
         # Update manager information:
