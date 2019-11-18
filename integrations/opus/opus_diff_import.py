@@ -1,5 +1,4 @@
 # -- coding: utf-8 --
-import os
 import json
 import logging
 import requests
@@ -15,11 +14,7 @@ from integrations.opus import opus_helpers
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 
-RUN_DB = os.environ.get('RUN_DB')
-MORA_BASE = os.environ.get('MORA_BASE')
-
 logger = logging.getLogger("opusDiff")
-
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'
@@ -27,7 +22,7 @@ LOG_FILE = 'mo_integrations.log'
 logger = logging.getLogger("opusImport")
 
 for name in logging.root.manager.loggerDict:
-    if name in ('opusImport', 'opusHelper', 'moImporterMoraTypes',
+    if name in ('opusImport', 'opusHelper', 'opusDiff', 'moImporterMoraTypes',
                 'moImporterMoxTypes', 'moImporterUtilities', 'moImporterHelpers',
                 'ADReader'):
         logging.getLogger(name).setLevel(LOG_LEVEL)
