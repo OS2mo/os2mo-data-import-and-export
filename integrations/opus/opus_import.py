@@ -7,10 +7,11 @@ import logging
 import xmltodict
 
 from requests import Session
+from integrations import dawa_helper
+from integrations.opus import opus_helpers
+from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.opus.opus_exceptions import UnknownOpusAction
 from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
-from os2mo_helpers.mora_helpers import MoraHelper
-from integrations import dawa_helper
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'
@@ -18,8 +19,9 @@ LOG_FILE = 'mo_integrations.log'
 logger = logging.getLogger("opusImport")
 
 for name in logging.root.manager.loggerDict:
-    if name in ('opusImport', 'moImporterMoraTypes', 'moImporterMoxTypes',
-                'moImporterUtilities', 'moImporterHelpers', 'ADReader'):
+    if name in ('opusImport', 'opusHelper', 'moImporterMoraTypes',
+                'moImporterMoxTypes', 'moImporterUtilities', 'moImporterHelpers',
+                'ADReader'):
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
         logging.getLogger(name).setLevel(logging.ERROR)
@@ -29,17 +31,6 @@ logging.basicConfig(
     level=LOG_LEVEL,
     filename=LOG_FILE
 )
-
-
-def _parse_phone(phone_number):
-    validated_phone = None
-    if len(phone_number) == 8:
-        validated_phone = phone_number
-    elif len(phone_number) in (9, 11):
-        validated_phone = phone_number.replace(' ', '')
-    elif len(phone_number) in (4, 5):
-        validated_phone = '0000' + phone_number.replace(' ', '')
-    return validated_phone
 
 
 class OpusImport(object):
@@ -399,7 +390,7 @@ class OpusImport(object):
         if 'email' in employee:
             self.employee_addresses[cpr]['EmailEmployee'] = employee['email']
         if employee['workPhone'] is not None:
-            phone = _parse_phone(employee['workPhone'])
+            phone = opus_helpers.parse_phone(employee['workPhone'])
             self.employee_addresses[cpr]['PhoneEmployee'] = phone
 
         if 'postalCode' in employee and employee['address']:
