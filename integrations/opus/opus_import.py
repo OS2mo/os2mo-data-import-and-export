@@ -111,50 +111,6 @@ class OpusImport(object):
         value_uuid = uuid.UUID(value_digest)
         return value_uuid
 
-    def _find_engagement(self, bvn, present=False):
-        engagement_info = {}
-        resource = '/organisation/organisationfunktion?bvn={}'.format(bvn)
-        if present:
-            resource += '&gyldighed=Aktiv'
-        response = self.session.get(url=self.settings['mox.base'] + resource)
-        response.raise_for_status()
-        uuids = response.json()['results'][0]
-        if uuids:
-            if len(uuids) > 1:
-                msg = 'Employment ID {} not unique: {}'.format(bvn, uuids)
-                logger.error(msg)
-                raise EmploymentIdentifierNotUnique(msg)
-            logger.info('bvn: {}, uuid: {}'.format(bvn, uuids))
-            engagement_info['uuid'] = uuids[0]
-
-            resource = '/organisation/organisationfunktion/{}'
-            resource = resource.format(engagement_info['uuid'])
-            response = self.session.get(url=self.settings['mox.base'] + resource)
-            response.raise_for_status()
-            data = response.json()
-            logger.debug('Organisationsfunktionsinfo: {}'.format(data))
-
-            data = data[engagement_info['uuid']][0]['registreringer'][0]
-            user_uuid = data['relationer']['tilknyttedebrugere'][0]['uuid']
-
-            valid = data['tilstande']['organisationfunktiongyldighed']
-            valid = valid[0]['gyldighed']
-            if valid == 'Inaktiv':
-                logger.debug('Inactive user, skip')
-                return {}
-
-            logger.debug('Active user, terminate')
-            # Now, get user_key for user:
-            if self.org_uuid is None:
-                # We will get a hit unless this is a re-import, and in this case we
-                # will always be able to find an org uuid.
-                self.org_uuid = self.helper.read_organisation()
-            mo_person = self.helper.read_user(user_uuid=user_uuid,
-                                              org_uuid=self.org_uuid)
-            engagement_info['cpr'] = mo_person['cpr_no']
-            engagement_info['name'] = (mo_person['givenname'], mo_person['surname'])
-        return engagement_info
-
     def _update_ad_map(self, cpr):
         logger.debug('Update cpr {}'.format(cpr))
         self.ad_people[cpr] = {}
@@ -331,22 +287,6 @@ class OpusImport(object):
                 msg = 'Unknown action: {}'.format(employee['@action'])
                 logger.error(msg)
                 raise UnknownOpusAction(msg)
-
-            engagement_info = self._find_engagement(employee['@id'], present=True)
-            if engagement_info:  # We need to add the employee for the sake of
-                # the importers internal consistency
-                if not self.importer.check_if_exists('employee',
-                                                     engagement_info['cpr']):
-                    self.importer.add_employee(
-                        identifier=engagement_info['cpr'],
-                        name=(engagement_info['name']),
-                        cpr_no=engagement_info['cpr'],
-                    )
-                self.importer.terminate_engagement(
-                    employee=engagement_info['cpr'],
-                    engagement_uuid=engagement_info['uuid']
-                )
-
             return
 
         self._update_ad_map(cpr)
