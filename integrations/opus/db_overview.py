@@ -6,6 +6,7 @@ import sqlite3
 # This file exists in two quite similar versions.
 # Consider to merge into a common tool.
 
+
 class DBOverview(object):
     def __init__(self):
         # TODO: Soon we have done this 4 times. Should we make a small settings
@@ -67,4 +68,3 @@ if __name__ == '__main__':
     # print(db_overview.delete_last_row(force=True))
     db_overview.read_db_content()
     print(db_overview.read_current_status())
-
