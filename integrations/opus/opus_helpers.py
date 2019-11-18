@@ -7,6 +7,7 @@ import sqlite3
 import datetime
 from pathlib import Path
 
+from integrations import cpr_mapper
 from integrations.opus import opus_import
 from integrations.opus import opus_diff_import
 from integrations.opus.opus_exceptions import RunDBInitException
@@ -24,9 +25,18 @@ SETTINGS = json.loads(cfg_file.read_text())
 DUMP_PATH = Path('/opt/magenta/dataimport/opus')
 START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
 
-# Check this!!!!!!!!!!
-# Maybe we should do the logging configuration here!
 logger = logging.getLogger("opusHelper")
+
+
+def _read_cpr_mapping():
+    cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
+    if not cpr_map.is_file():
+        logger.error('Did not find cpr mapping')
+        raise Exception('Did not find cpr mapping')
+
+    logger.info('Found cpr mapping')
+    employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
+    return employee_forced_uuids
 
 
 def _read_available_dumps():
@@ -118,7 +128,7 @@ def generate_uuid(value):
     return value_uuid
 
 
-def start_opus_import(importer, ad_reader=None, force=False, employee_mapping={}):
+def start_opus_import(importer, ad_reader=None, force=False):
     """
     Start an opus import, run the oldest available dump that
     has not already been imported.
@@ -141,6 +151,8 @@ def start_opus_import(importer, ad_reader=None, force=False, employee_mapping={}
     xml_file = dumps[xml_date]
     _local_db_insert((xml_date, 'Running since {}'))
 
+    employee_mapping = _read_cpr_mapping()
+
     opus_importer = opus_import.OpusImport(
         importer,
         org_name=SETTINGS['municipality.name'],
@@ -159,7 +171,6 @@ def start_opus_import(importer, ad_reader=None, force=False, employee_mapping={}
     _local_db_insert((xml_date, 'Import ended: {}'))
 
 
-# IMPORTANT, READ EMPLOYEE_MAPPING!!!!!
 def start_opus_diff(ad_reader=None):
     """
     Start an opus update, use the oldest available dump that has not
@@ -167,6 +178,9 @@ def start_opus_diff(ad_reader=None):
     """
     dumps = _read_available_dumps()
     run_db = Path(SETTINGS['opus.import.run_db'])
+
+    employee_mapping = _read_cpr_mapping()
+
     if not run_db.is_file():
         logger.error('Local base not correctly initialized')
         raise RunDBInitException('Local base not correctly initialized')
@@ -178,8 +192,8 @@ def start_opus_diff(ad_reader=None):
     logger.info(msg.format(xml_file, latest_date))
     print(msg.format(xml_file, latest_date))
 
-    diff = opus_diff_import.OpusDiffImport(latest_date, ad_reader=ad_reader)
+    diff = opus_diff_import.OpusDiffImport(latest_date, ad_reader=ad_reader,
+                                           employee_mapping=employee_mapping)
     diff.start_re_import(xml_file, include_terminations=True)
-    # diff.start_re_import(xml_file, include_terminations=False)
     logger.info('Ended update')
     _local_db_insert((xml_date, 'Diff update ended: {}'))
