@@ -24,7 +24,7 @@ START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
 
 # Check this!!!!!!!!!!
 # Maybe we should do the logging configuration here!
-logger = logging.getLogger("opusImport")
+logger = logging.getLogger("opusHelper")
 
 
 def _read_available_dumps():
@@ -85,6 +85,20 @@ def _next_xml_file(run_db, dumps):
     if next_date is None:
         raise NoNewerDumpAvailable('No newer XML dump is available')
     return (next_date, latest_date)
+
+
+def parse_phone(phone_number):
+    validated_phone = None
+    if len(phone_number) == 8:
+        validated_phone = phone_number
+    elif len(phone_number) in (9, 11):
+        validated_phone = phone_number.replace(' ', '')
+    elif len(phone_number) in (4, 5):
+        validated_phone = '0000' + phone_number.replace(' ', '')
+
+    if validated_phone is None:
+        logger.warning('Could not parse phone {}'.format(phone_number))
+    return validated_phone
 
 
 def start_opus_import(importer, ad_reader=None, force=False, employee_mapping={}):
