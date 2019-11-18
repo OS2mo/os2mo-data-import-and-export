@@ -444,6 +444,7 @@ class OpusImport(object):
             logger.info('{} is manager {}'.format(cpr, manager_level))
             self.importer.add_manager(
                 employee=cpr,
+                user_key=job_id,
                 organisation_unit=org_unit,
                 manager_level_ref=manager_level,
                 manager_type_ref=manager_type_ref,
