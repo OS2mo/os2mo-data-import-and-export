@@ -1,10 +1,9 @@
 # -- coding: utf-8 --
 import os
-import uuid
 import json
 import logging
-import hashlib
 import requests
+import xmltodict
 
 from pathlib import Path
 from requests import Session
@@ -115,36 +114,19 @@ class OpusDiffImport(object):
             logger.debug('Requst had no effect')
         return None
 
-    # THIS IS A CRIPPLED COPY OF A FUNCTION IN OPUS_IMPORT!
     def parser(self, target_file):
-        import xmltodict
         data = xmltodict.parse(target_file.read_text())['kmd']
         self.units = data['orgUnit'][1:]
         self.employees = data['employee']
         return True
 
-    # COPY OF FUNCTIONIN OPUS_IMPORT!!!!!!!!!!
-    def _generate_uuid(self, value):
-        """
-        Generate a semi-random, predictable uuid based on org name
-        and a unique value.
-        """
-        base_hash = hashlib.md5(self.settings['municipality.name'].encode())
-        base_digest = base_hash.hexdigest()
-        base_uuid = uuid.UUID(base_digest)
-
-        combined_value = (str(base_uuid) + str(value)).encode()
-        value_hash = hashlib.md5(combined_value)
-        value_digest = value_hash.hexdigest()
-        value_uuid = uuid.UUID(value_digest)
-        return value_uuid
-
-    # This also exists in sd_changed_at
     def _add_profession_to_lora(self, profession):
+        klasse_uuid = opus_helpers.generate_uuid(profession)
+        logger.debug('Adding Klasse: {}, uuid: {}'.format(profession, klasse_uuid))
         payload = payloads.profession(profession, self.org_uuid,
                                       self.job_function_facet)
         response = requests.post(
-            url=self.settings['mox.base'] + '/klassifikation/klasse',
+            url=self.settings['mox.base'] + '/klassifikation/klasse' + klasse_uuid,
             json=payload
         )
         assert response.status_code == 201
@@ -152,14 +134,12 @@ class OpusDiffImport(object):
 
     # This also exists in sd_changed_at
     def _update_professions(self, emp_name):
-        # Add new profssions to LoRa
         job_uuid = self.job_functions.get(emp_name)
         if job_uuid is None:
             response = self._add_profession_to_lora(emp_name)
             uuid = response['uuid']
             self.job_functions[emp_name] = uuid
 
-    # This exists in opus_import. This is the correct position.
     def _find_engagement(self, bvn, present=False):
         engagement_info = {}
         resource = '/organisation/organisationfunktion?bvn={}'.format(bvn)
@@ -208,7 +188,6 @@ class OpusDiffImport(object):
             engagement_info['name'] = (mo_person['givenname'], mo_person['surname'])
         return engagement_info
 
-    # TODO: Why does this not cover units?
     def validity(self, employee, edit=False):
         """
         Calculates a validity object from en employee object.
@@ -261,9 +240,7 @@ class OpusDiffImport(object):
 
         if 'postalCode' in employee and employee['address']:
             if isinstance(employee['address'], dict):
-                # TODO: This is a protected address
-                print('Protected address! Implement!')
-                logger.error('Protected address! Implement!')
+                logger.info('Protected addres, cannont import')
             else:
                 address_string = employee['address']
                 zip_code = employee["postalCode"]
@@ -314,7 +291,7 @@ class OpusDiffImport(object):
             self._perform_address_update(address_args, current, mo_addresses)
 
     def _update_unit_addresses(self, unit):
-        calculated_uuid = self._generate_uuid(unit['@id'])
+        calculated_uuid = opus_helpers.generate_uuid(unit['@id'])
         unit_addresses = self.helper.read_ou_address(
             calculated_uuid, scope=None, return_all=True
         )
@@ -359,8 +336,8 @@ class OpusDiffImport(object):
             self._perform_address_update(args, current, address_dict)
 
     def update_unit(self, unit):
-        calculated_uuid = self._generate_uuid(unit['@id'])
-        parent_uuid = self._generate_uuid(unit['parentOrgUnit'])
+        calculated_uuid = opus_helpers.generate_uuid(unit['@id'])
+        parent_uuid = opus_helpers.generate_uuid(unit['parentOrgUnit'])
         mo_unit = self.helper.read_ou(calculated_uuid)
 
         # It is assumed no new unit types are added during daily updates.
@@ -416,7 +393,7 @@ class OpusDiffImport(object):
         :return: True if update happended, False if not.
         """
         job_function, eng_type = self._job_and_engagement_type(employee)
-        unit_uuid = self._generate_uuid(employee['orgUnit'])
+        unit_uuid = opus_helpers.generate_uuid(employee['orgUnit'])
         validity = self.validity(employee, edit=True)
         data = {
             'engagement_type': {'uuid': eng_type},
@@ -452,7 +429,7 @@ class OpusDiffImport(object):
 
     def create_engagement(self, mo_user_uuid, opus_employee):
         job_function, eng_type = self._job_and_engagement_type(opus_employee)
-        unit_uuid = self._generate_uuid(opus_employee['orgUnit'])
+        unit_uuid = opus_helpers.generate_uuid(opus_employee['orgUnit'])
         validity = self.validity(opus_employee, edit=False)
         payload = payloads.create_engagement(
             employee=opus_employee,
@@ -525,7 +502,7 @@ class OpusDiffImport(object):
             responsibility_uuid = self.responsibilities.get('Lederansvar')
 
             args = {
-                'unit': str(self._generate_uuid(employee['orgUnit'])),
+                'unit': str(opus_helpers.generate_uuid(employee['orgUnit'])),
                 'person': employee_mo_uuid,
                 'manager_type': manager_type_uuid,
                 'level': manager_level_uuid,
@@ -649,5 +626,6 @@ class OpusDiffImport(object):
 
                 engagement = self._find_engagement(employee['@id'], present=True)
                 if engagement:
-                    self.terminate_engagement(engagement['uuid'])
+                    self.terminate_detail(engagement['uuid'])
+                    # self.terminate_detail(, detail_type=manager)
         logger.info('Program ended correctly')
