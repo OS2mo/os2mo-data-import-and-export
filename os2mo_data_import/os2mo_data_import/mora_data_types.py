@@ -600,7 +600,7 @@ class ManagerType(MoType):
     :param str date_to: End date e.g. "1982-01-01"
     """
 
-    def __init__(self, org_unit, manager_type_ref, manager_level_ref,
+    def __init__(self, org_unit, user_key, manager_type_ref, manager_level_ref,
                  responsibility_list, date_from, date_to=None,
                  address_uuid=None, address_type_ref=None, uuid=None):
         super().__init__()
@@ -608,6 +608,11 @@ class ManagerType(MoType):
         self.type_id = "manager"
 
         self.uuid = uuid
+
+        if user_key:
+            self.user_key = user_key
+        else:
+            self.user_key = None
 
         self.org_unit_ref = org_unit
         self.org_unit_uuid = None
@@ -641,6 +646,7 @@ class ManagerType(MoType):
         """
 
         self.payload = {
+            'user_key': self.user_key,
             "org_unit": {
                 "uuid": self.org_unit_uuid
             },
