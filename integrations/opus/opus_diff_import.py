@@ -43,18 +43,18 @@ logging.basicConfig(
 
 
 UNIT_ADDRESS_CHECKS = {
-    'seNr': 'opus.addresses.se',
-    'cvrNr': 'opus.addresses.cvr',
-    'eanNr': 'opus.addresses.ean',
-    'pNr': 'opus.addresses.pnr',
-    'phoneNumber': 'opus.addresses.phoneNumber',
-    'dar': 'opus.addresses.dar'
+    'seNr': 'opus.addresses.unit.se',
+    'cvrNr': 'opus.addresses.unit.cvr',
+    'eanNr': 'opus.addresses.unit.ean',
+    'pNr': 'opus.addresses.unit.pnr',
+    'phoneNumber': 'opus.addresses.unit.phoneNumber',
+    'dar': 'opus.addresses.unit.dar'
 }
 
 EMPLOYEE_ADDRESS_CHECKS = {
-    'phone': 'opus.addresses.employee_phone',
-    'email': 'opus.addresses.employee_email',
-    'dar': 'opus.addresses.employee_dar'
+    'phone': 'opus.addresses.employee.phone',
+    'email': 'opus.addresses.employee.email',
+    'dar': 'opus.addresses.employee.dar'
 }
 
 
@@ -170,6 +170,10 @@ class OpusDiffImport(object):
         uuids = response.json()['results'][0]
         if uuids:
             if len(uuids) > 1:
+                # This will happen if an exising manager is implicitly terminated
+                # waiting for this to happen before handling the case.
+                print(uuids)
+                print(len(uuids))
                 msg = 'Employment ID {} not unique: {}'.format(bvn, uuids)
                 logger.error(msg)
                 raise EmploymentIdentifierNotUnique(msg)
@@ -246,12 +250,10 @@ class OpusDiffImport(object):
 
     def _condense_employee_opus_addresses(self, employee):
         opus_addresses = {}
-        # TODO: Check if we ever meet an email
         if 'email' in employee:
             opus_addresses['email'] = employee['email']
 
         opus_addresses['phone'] = None
-        # TODO: Check if we ever meet a phone
         if employee['workPhone'] is not None:
             phone = opus_helpers.parse_phone(employee['workPhone'])
             if phone is not None:
@@ -261,6 +263,7 @@ class OpusDiffImport(object):
             if isinstance(employee['address'], dict):
                 # TODO: This is a protected address
                 print('Protected address! Implement!')
+                logger.error('Protected address! Implement!')
             else:
                 address_string = employee['address']
                 zip_code = employee["postalCode"]
@@ -484,6 +487,7 @@ class OpusDiffImport(object):
         ))
 
         # TODO: CHECK IF USER IS OPUS USER, AD IT SYSTEM IF SO!
+        # if 'userId' in employee:
         # self.settings['opus.it_systems.opus'],
 
         sam_account = ad_info.get('SamAccountName', None)
@@ -499,9 +503,60 @@ class OpusDiffImport(object):
             logger.info('Added AD account info to {}'.format(cpr))
         return return_uuid
 
+    def update_manager_status(self, employee_mo_uuid, employee):
+        manager_functions = self.helper._mo_lookup(employee_mo_uuid,
+                                                   'e/{}/details/manager')
+        logger.debug('Manager functions to update: {}'.format(manager_functions))
+
+        if employee['isManager'] == 'false':
+            if manager_functions:
+                logger.info('Terminate manager function')
+                self.terminate_detail(manager_functions[0]['uuid'],
+                                      detail_type='manager')
+            else:
+                logger.debug('Correctly not a manager')
+
+        if employee['isManager'] == 'true':
+            manager_level = '{}.{}'.format(employee['superiorLevel'],
+                                           employee['subordinateLevel'])
+            manager_level_uuid = self.manager_levels.get(manager_level)
+            manager_type_uuid = self.manager_types.get(employee["position"])
+            # This will fail if new manager levels or types are added...
+            responsibility_uuid = self.responsibilities.get('Lederansvar')
+
+            args = {
+                'unit': str(self._generate_uuid(employee['orgUnit'])),
+                'person': employee_mo_uuid,
+                'manager_type': manager_type_uuid,
+                'level': manager_level_uuid,
+                'responsibility': responsibility_uuid,
+                'validity': self.validity(employee, edit=True)
+            }
+
+            if manager_functions:
+                logger.info('Attempt manager update of {}:'.format(employee_mo_uuid))
+                # Currently Opus supports only a single manager object pr employee
+                assert len(manager_functions) == 1
+                payload = payloads.edit_manager(
+                    object_uuid=manager_functions[0]['uuid'],
+                    **args
+                )
+                logger.debug('Update manager payload: {}'.format(payload))
+                response = self.helper._mo_post('details/edit', payload)
+                self._assert(response)
+            else:
+                logger.info('Turn this person into a manager')
+                # Validity is set to edit=True since the validiy should
+                # calculated as an edit to the engagement
+                payload = payloads.create_manager(user_key=employee['@id'], **args)
+                response = self.helper._mo_post('details/create', payload)
+                assert response.status_code == 201
+
     def update_employee(self, employee):
         cpr = employee['cpr']['#text']
+        logger.info('----')
         logger.info('Now updating {}'.format(cpr))
+        logger.debug('Available info: {}'.format(employee))
         mo_user = self.helper.read_user(user_cpr=cpr)
         if mo_user is None:
             employee_mo_uuid = self.create_user(employee)
@@ -520,8 +575,6 @@ class OpusDiffImport(object):
         # Now we have a MO uuid, update engagement:
         mo_engagements = self.helper.read_user_engagement(employee_mo_uuid,
                                                           read_all=True)
-
-        # TODO: Consider to wrap this code into update_engagement
         current_mo_eng = None
         for eng in mo_engagements:
             if eng['user_key'] == employee['@id']:
@@ -542,53 +595,21 @@ class OpusDiffImport(object):
                                                      eng['validity']))
             self.update_engagement(eng, employee)
 
-        # Update manager information:
-        manager_functions = self.helper._mo_lookup(employee_mo_uuid,
-                                                   'e/{}/details/manager')
-
-        if manager_functions and employee['isManager'] == 'false':
-            print('Terminate manager function')
-            # TODO
-
-        if not manager_functions and employee['isManager'] == 'false':
-            logger.debug('Correctly not a manager')
-
-        if not manager_functions and employee['isManager'] == 'true':
-            print('Turn this person into a manager')
-            # TODO
-
-        if manager_functions and employee['isManager'] == 'true':
-            print('Still a manager - Check for potential edits')
-            print('Attempt manager update of {}:'.format(employee_mo_uuid))
-            # Currently Opus supports only a single manager object pr employee
-            assert len(manager_functions) == 1
-            mo_manager = manager_functions[0]
-            manager_level = '{}.{}'.format(employee['superiorLevel'],
-                                           employee['subordinateLevel'])
-            # This will fail if new manager levels or types are added...
-            manager_level_uuid = self.manager_levels.get(manager_level)
-            manager_type_uuid = self.manager_types.get(employee["position"])
-            responsibility_uuid = self.responsibilities.get('Lederansvar')
-
-            payload = payloads.edit_manager(
-                object_uuid=mo_manager['uuid'],
-                unit=str(self._generate_uuid(employee['orgUnit'])),
-                person=employee_mo_uuid,
-                manager_type=manager_type_uuid,
-                level=manager_level_uuid,
-                responsibility=responsibility_uuid,
-                validity=self.validity(employee, edit=True)
-            )
-            logger.debug('Update manager payload: {}'.format(payload))
-            response = self.helper._mo_post('details/edit', payload)
-            self._assert(response)
+        self.update_manager_status(employee_mo_uuid, employee)
 
         # TODO: Update Roller
+        if 'function' in employee:
+            print()
+            print('Employee has a role')
+            print(cpr)
+            print(employee['function'])
+            print()
+            exit()
 
-    def terminate_engagement(self, uuid):
+    def terminate_detail(self, uuid, detail_type='engagement'):
         print('Terminating {}'.format(uuid))
-        payload = payloads.terminate_engagement(
-            uuid, self.latest_date.strftime('%Y-%m-%d')
+        payload = payloads.terminate_detail(
+            uuid, self.latest_date.strftime('%Y-%m-%d'), detail_type
         )
         logger.debug('Terminate payload: {}'.format(payload))
         response = self.helper._mo_post('details/terminate', payload)
