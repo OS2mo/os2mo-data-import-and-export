@@ -75,9 +75,9 @@ def edit_org_unit(unit, unit_uuid, parent, unit_type, from_date):
     return payload
 
 
-def terminate_engagement(uuid, terminate_date):
+def terminate_detail(uuid, terminate_date, detail_type):
     payload = {
-        'type': 'engagement',
+        'type': detail_type,
         'uuid': uuid,
         'validity': {'to': terminate_date}
     }
@@ -135,9 +135,11 @@ def edit_address(data, mo_address_uuid):
     return payload
 
 
-def create_manager(unit, person, manager_type, level, responsibility, validity):
+def create_manager(user_key, unit, person, manager_type, level, responsibility,
+                   validity):
     payload = {
         'type': 'manager',
+        'user_key': user_key,
         'org_unit': {
             'uuid': unit
         },
@@ -154,7 +156,8 @@ def create_manager(unit, person, manager_type, level, responsibility, validity):
             {
                 'uuid': responsibility
             }
-        ]
+        ],
+        'validity': validity
     }
     return payload
 
