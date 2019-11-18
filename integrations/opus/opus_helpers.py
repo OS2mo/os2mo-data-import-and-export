@@ -1,5 +1,7 @@
+import uuid
 import json
 import pathlib
+import hashlib
 import logging
 import sqlite3
 import datetime
@@ -101,6 +103,21 @@ def parse_phone(phone_number):
     return validated_phone
 
 
+def generate_uuid(value):
+    """
+    Generate a predictable uuid based on org name and a unique value.
+    """
+    base_hash = hashlib.md5(SETTINGS['municipality.name'].encode())
+    base_digest = base_hash.hexdigest()
+    base_uuid = uuid.UUID(base_digest)
+
+    combined_value = (str(base_uuid) + str(value)).encode()
+    value_hash = hashlib.md5(combined_value)
+    value_digest = value_hash.hexdigest()
+    value_uuid = uuid.UUID(value_digest)
+    return value_uuid
+
+
 def start_opus_import(importer, ad_reader=None, force=False, employee_mapping={}):
     """
     Start an opus import, run the oldest available dump that
@@ -163,5 +180,6 @@ def start_opus_diff(ad_reader=None):
 
     diff = opus_diff_import.OpusDiffImport(latest_date, ad_reader=ad_reader)
     diff.start_re_import(xml_file, include_terminations=True)
+    # diff.start_re_import(xml_file, include_terminations=False)
     logger.info('Ended update')
     _local_db_insert((xml_date, 'Diff update ended: {}'))
