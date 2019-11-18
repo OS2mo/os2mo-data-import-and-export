@@ -125,11 +125,12 @@ class OpusDiffImport(object):
         logger.debug('Adding Klasse: {}, uuid: {}'.format(profession, klasse_uuid))
         payload = payloads.profession(profession, self.org_uuid,
                                       self.job_function_facet)
-        response = requests.post(
-            url=self.settings['mox.base'] + '/klassifikation/klasse' + klasse_uuid,
+        url = '{}/klassifikation/klasse/{}'
+        response = requests.put(
+            url=url.format(self.settings['mox.base'], klasse_uuid),
             json=payload
         )
-        assert response.status_code == 201
+        assert response.status_code == 200
         return response.json()
 
     # This also exists in sd_changed_at
@@ -464,7 +465,10 @@ class OpusDiffImport(object):
         ))
 
         # TODO: CHECK IF USER IS OPUS USER, AD IT SYSTEM IF SO!
-        # if 'userId' in employee:
+        # No userIds in current dataset, this will have to wait.
+        if 'userId' in employee:
+            print(employee)
+            exit()
         # self.settings['opus.it_systems.opus'],
 
         sam_account = ad_info.get('SamAccountName', None)
@@ -584,7 +588,6 @@ class OpusDiffImport(object):
             exit()
 
     def terminate_detail(self, uuid, detail_type='engagement'):
-        print('Terminating {}'.format(uuid))
         payload = payloads.terminate_detail(
             uuid, self.latest_date.strftime('%Y-%m-%d'), detail_type
         )
