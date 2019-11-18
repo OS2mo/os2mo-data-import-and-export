@@ -11,7 +11,7 @@ from datetime import datetime
 
 from integrations import dawa_helper
 from integrations.opus import payloads
-from integrations.opus import opus_import
+from integrations.opus import opus_helpers
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 
@@ -20,19 +20,40 @@ MORA_BASE = os.environ.get('MORA_BASE')
 
 logger = logging.getLogger("opusDiff")
 
+
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'mo_integrations.log'
+
+logger = logging.getLogger("opusImport")
+
+for name in logging.root.manager.loggerDict:
+    if name in ('opusImport', 'opusHelper', 'moImporterMoraTypes',
+                'moImporterMoxTypes', 'moImporterUtilities', 'moImporterHelpers',
+                'ADReader'):
+        logging.getLogger(name).setLevel(LOG_LEVEL)
+    else:
+        logging.getLogger(name).setLevel(logging.ERROR)
+
+logging.basicConfig(
+    format='%(levelname)s %(asctime)s %(name)s %(message)s',
+    level=LOG_LEVEL,
+    filename=LOG_FILE
+)
+
+
 UNIT_ADDRESS_CHECKS = {
     'seNr': 'opus.addresses.se',
     'cvrNr': 'opus.addresses.cvr',
     'eanNr': 'opus.addresses.ean',
     'pNr': 'opus.addresses.pnr',
     'phoneNumber': 'opus.addresses.phoneNumber',
-    'dar': 'opus.addresses.dar'  # DAR is a special case
+    'dar': 'opus.addresses.dar'
 }
 
 EMPLOYEE_ADDRESS_CHECKS = {
     'phone': 'opus.addresses.employee_phone',
     'email': 'opus.addresses.employee_email',
-    'dar': 'opus.addresses.employee_dar' # DAR is a special case
+    'dar': 'opus.addresses.employee_dar'
 }
 
 
@@ -204,38 +225,35 @@ class OpusDiffImport(object):
         }
         return validity
 
-    # TODO: Could we merge handling of addresses for  employees and units?
-    def _update_employee_address(self, mo_uuid, employee):
+    def _condense_employee_mo_addresses(self, mo_uuid):
+        """
+        Read all addresses from MO an return as a simple dict
+        """
         # Unfortunately, mora-helper currently does not read all addresses
         user_addresses = self.helper._mo_lookup(mo_uuid, 'e/{}/details/address')
         address_dict = {}  # Condensate of all MO addresses for the employee
         for address in user_addresses:
             if address_dict.get(address['address_type']['uuid']) is not None:
                 # More than one of this type exist in MO, this is not allowed.
-                msg = 'Inconsistent addresses for unit: {}'
-                logger.error(msg.format(calculated_uuid))
+                msg = 'Inconsistent addresses for employee: {}'
+                logger.error(msg.format(mo_uuid))
             address_dict[address['address_type']['uuid']] = {
                 'value': address['value'],
                 'uuid': address['uuid']
             }
+        return address_dict
 
-        opus_addresses = {
-            'email': None,
-            'phone': None,
-            'dar': None
-        }
-
+    def _condense_employee_opus_addresses(self, employee):
+        opus_addresses = {}
+        # TODO: Check if we ever meet an email
         if 'email' in employee:
             opus_addresses['email'] = employee['email']
 
         opus_addresses['phone'] = None
+        # TODO: Check if we ever meet a phone
         if employee['workPhone'] is not None:
-            phone = opus_import._parse_phone(employee['workPhone'])
-            if phone is None:
-                logger.warning(
-                    'Could not parse phone {}'.format(employee['workPhone'])
-                )
-            else:
+            phone = opus_helpers.parse_phone(employee['workPhone'])
+            if phone is not None:
                 opus_addresses['phone'] = phone
 
         if 'postalCode' in employee and employee['address']:
@@ -249,17 +267,37 @@ class OpusDiffImport(object):
                 if addr_uuid:
                     opus_addresses['dar'] = addr_uuid
                 else:
-                    print('Could not find address in DAR')
                     logger.warning('Could not find address in DAR')
+        return opus_addresses
 
+    def _perform_address_update(self, args, current, mo_addresses):
+        addr_type = args['address_type']['uuid']
+        if current is None:  # Create address
+            payload = payloads.create_address(**args)
+            logger.debug('Create {} address payload: {}'.format(addr_type,
+                                                                payload))
+            response = self.helper._mo_post('details/create', payload)
+            assert response.status_code == 201
+        else:
+            if current == mo_addresses.get(addr_type):  # Nothing changed
+                logger.info('{} not updated'.format(addr_type))
+            else:  # Edit address
+                payload = payloads.edit_address(args, current['uuid'])
+                logger.debug('Edit address {}, payload: {}'.format(addr_type,
+                                                                   payload))
+                response = self.helper._mo_post('details/edit', payload)
+                self._assert(response)
+
+    def _update_employee_address(self, mo_uuid, employee):
+        opus_addresses = self._condense_employee_opus_addresses(employee)
+        mo_addresses = self._condense_employee_mo_addresses(mo_uuid)
         logger.info('Addresses to be synced to MO: {}'.format(opus_addresses))
 
         for addr_type, setting in EMPLOYEE_ADDRESS_CHECKS.items():
-            print(opus_addresses.get(addr_type))
             if opus_addresses.get(addr_type) is None:
                 continue
 
-            current_value = opus_addresses.get(self.settings[setting])
+            current = mo_addresses.get(self.settings[setting])
             address_args = {
                 'address_type': {'uuid': self.settings[setting]},
                 'value': opus_addresses[addr_type],
@@ -267,39 +305,17 @@ class OpusDiffImport(object):
                     'from': self.latest_date.strftime('%Y-%m-%d'),
                     'to': None
                 },
-                'person_uuid': mo_uuid
+                'user_uuid': mo_uuid
             }
-            if current_value is None:  # Create address
-                payload = payloads.create_address(**address_args)
-                logger.debug('Create {} address payload: {}'.format(addr_type,
-                                                                    payload))
-                print(payload)
-                1/0
-            #     response = self.helper._mo_post('details/create', payload)
-            #     assert response.status_code == 201
-            else:
-                if current_value['value'] == opus_addresses[addr_type]:  # Nothing changed
-                    print('Not updated')
-                    logger.info('{} not updated'.format(addr_type))
-                else:  # Edit address
-                    payload = payloads.edit_address(address_args,
-                                                    current_value['uuid'])
-                    print(payload)
-            #         logger.debug('Edit {} address payload: {}'.format(addr_type,
-            #                                                           payload))
-            #         response = self.helper._mo_post('details/edit', payload)
-            #         self._assert(response)
+            self._perform_address_update(address_args, current, mo_addresses)
 
-
-        exit()
-    
     def _update_unit_addresses(self, unit):
         calculated_uuid = self._generate_uuid(unit['@id'])
         unit_addresses = self.helper.read_ou_address(
             calculated_uuid, scope=None, return_all=True
         )
 
-        address_dict = {}  # Condensate of all addresses in the unit
+        address_dict = {}
         for address in unit_addresses:
             if address_dict.get(address['type']) is not None:
                 # More than one of this type exist in MO, this is not allowed.
@@ -320,15 +336,14 @@ class OpusDiffImport(object):
                 logger.warning('Failed to lookup {}, {}'.format(unit['street'],
                                                                 unit['zipCode']))
 
-        for addr_type, setting in ADDRESS_CHECKS.items():
+        for addr_type, setting in UNIT_ADDRESS_CHECKS.items():
             # addr_type is the opus name for the address, the MO uuid
             # for the corresponding class is found in settings.
             if unit.get(addr_type) is None:
                 continue
 
-            current_value = address_dict.get(self.settings[setting])
-
-            address_args = {
+            current = address_dict.get(self.settings[setting])
+            args = {
                 'address_type': {'uuid': self.settings[setting]},
                 'value': unit[addr_type],
                 'validity': {
@@ -337,28 +352,13 @@ class OpusDiffImport(object):
                 },
                 'unit_uuid': str(calculated_uuid)
             }
-            if current_value is None:  # Create address
-                payload = payloads.create_address(**address_args)
-                logger.debug('Create {} address payload: {}'.format(addr_type,
-                                                                    payload))
-                response = self.helper._mo_post('details/create', payload)
-                assert response.status_code == 201
-            else:
-                if current_value['value'] == unit[addr_type]:  # Nothing changed
-                    logger.info('{} not updated'.format(addr_type))
-                else:  # Edit address
-                    payload = payloads.edit_address(address_args,
-                                                    current_value['uuid'])
-                    logger.debug('Edit {} address payload: {}'.format(addr_type,
-                                                                      payload))
-                    response = self.helper._mo_post('details/edit', payload)
-                    self._assert(response)
+            self._perform_address_update(args, current, address_dict)
 
     def update_unit(self, unit):
         calculated_uuid = self._generate_uuid(unit['@id'])
         parent_uuid = self._generate_uuid(unit['parentOrgUnit'])
         mo_unit = self.helper.read_ou(calculated_uuid)
-        print(mo_unit)
+
         # It is assumed no new unit types are added during daily updates.
         # Default 'Enhed' is the default from the initial import
         org_type = unit.get('orgType', 'Enhed')
@@ -526,7 +526,10 @@ class OpusDiffImport(object):
             if eng['user_key'] == employee['@id']:
                 current_mo_eng = eng['uuid']
                 val_from = datetime.strptime(eng['validity']['from'], '%Y-%m-%d')
-                val_to = datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
+                if eng['validity']['to'] is None:
+                    val_to = datetime.strptime('9999-12-31', '%Y-%m-%d')
+                else:
+                    val_to = datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
                 if val_from < self.latest_date < val_to:
                     logger.info('Found current validty {}'.format(eng['validity']))
                     break
