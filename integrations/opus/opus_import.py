@@ -1,8 +1,6 @@
 # -- coding: utf-8 --
-import uuid
 import json
 import pathlib
-import hashlib
 import logging
 import xmltodict
 
@@ -11,7 +9,6 @@ from integrations import dawa_helper
 from integrations.opus import opus_helpers
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.opus.opus_exceptions import UnknownOpusAction
-from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'
@@ -96,20 +93,9 @@ class OpusImport(object):
         self._add_klasse('AdressePostEmployee', 'Postadresse',
                          'employee_address_type', 'DAR')
         self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
-
-    def _generate_uuid(self, value):
-        """
-        Generate a predictable uuid based on org name and a unique value.
-        """
-        base_hash = hashlib.md5(self.org_name.encode())
-        base_digest = base_hash.hexdigest()
-        base_uuid = uuid.UUID(base_digest)
-
-        combined_value = (str(base_uuid) + str(value)).encode()
-        value_hash = hashlib.md5(combined_value)
-        value_digest = value_hash.hexdigest()
-        value_uuid = uuid.UUID(value_digest)
-        return value_uuid
+        self._add_klasse('Ekstern', 'Må vises eksternt', 'visibility', 'PUBLIC')
+        self._add_klasse('Intern', 'Må vises internt', 'visibility', 'INTERNAL')
+        self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
 
     def _update_ad_map(self, cpr):
         logger.debug('Update cpr {}'.format(cpr))
@@ -132,11 +118,15 @@ class OpusImport(object):
 
     def _add_klasse(self, klasse_id, klasse, facet, scope='TEXT'):
         if not self.importer.check_if_exists('klasse', klasse_id):
-            self.importer.add_klasse(identifier=klasse_id,
-                                     facet_type_ref=facet,
-                                     user_key=klasse,
-                                     scope=scope,
-                                     title=klasse)
+            uuid = opus_helpers.generate_uuid(klasse_id)
+            self.importer.add_klasse(
+                identifier=klasse_id,
+                uuid=uuid,
+                facet_type_ref=facet,
+                user_key=klasse,
+                scope=scope,
+                title=klasse
+            )
         return klasse_id
 
     def parser(self, target_file):
@@ -162,9 +152,6 @@ class OpusImport(object):
         return municipality_code
 
     def _import_org_unit(self, unit):
-        # UNUSED KEYS:
-        # costCenter, @lastChanged
-
         try:
             org_type = unit['orgType']
             self._add_klasse(org_type, unit['orgTypeTxt'], 'org_unit_type')
@@ -173,7 +160,7 @@ class OpusImport(object):
             self._add_klasse(org_type, 'Enhed', 'org_unit_type')
 
         identifier = unit['@id']
-        uuid = self._generate_uuid(identifier)
+        uuid = opus_helpers.generate_uuid(identifier)
         logger.debug('Generated uuid for {}: {}'.format(unit['@id'], uuid))
 
         user_key = unit['shortName']
@@ -336,7 +323,8 @@ class OpusImport(object):
         if 'postalCode' in employee and employee['address']:
             if isinstance(employee['address'], dict):
                 # TODO: This is a protected address
-                # We currenly only support visibility for phones
+                print(employee['address'])
+                exit()
                 pass
             else:
                 address_string = employee['address']
@@ -358,7 +346,7 @@ class OpusImport(object):
 
         org_unit = employee['orgUnit']
         job_id = employee['@id']
-        engagement_uuid = self._generate_uuid(job_id)
+        engagement_uuid = opus_helpers.generate_uuid(job_id)
 
         logger.info('Add engagement: {} to {}'.format(job_id, cpr))
         self.importer.add_engagement(
