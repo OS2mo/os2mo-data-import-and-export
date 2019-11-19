@@ -136,8 +136,18 @@ class OpusDiffImport(object):
             uuid = response['uuid']
             self.job_functions[emp_name] = uuid
 
+    def _get_organisationfunktion(self, lora_uuid):
+        resource = '/organisation/organisationfunktion/{}'
+        resource = resource.format(lora_uuid)
+        response = self.session.get(url=self.settings['mox.base'] + resource)
+        response.raise_for_status()
+        data = response.json()
+        data = data[lora_uuid][0]['registreringer'][0]
+        # logger.debug('Organisationsfunktionsinfo: {}'.format(data))
+        return data
+
     def _find_engagement(self, bvn, present=False):
-        engagement_info = {}
+        info = {}
         resource = '/organisation/organisationfunktion?bvn={}'.format(bvn)
         if present:
             resource += '&gyldighed=Aktiv'
@@ -145,42 +155,31 @@ class OpusDiffImport(object):
         response.raise_for_status()
         uuids = response.json()['results'][0]
         if uuids:
-            if len(uuids) > 1:
+            if len(uuids) == 1:
+                logger.info('bvn: {}, uuid: {}'.format(bvn, uuids))
+                info['engagement'] = uuids[0]
+            elif len(uuids) == 2:
                 # This will happen if an exising manager is implicitly terminated
-                # waiting for this to happen before handling the case.
-                print(uuids)
-                print(len(uuids))
+                for uuid in uuids:
+                    org_funk = self._get_organisationfunktion(uuid)
+                    org_funk_type = (
+                        org_funk['attributter']
+                        ['organisationfunktionegenskaber'][0]['funktionsnavn']
+                    )
+                    if org_funk_type == 'Engagement':
+                        info['engagement'] = uuid
+                    if org_funk_type == 'Leder':
+                        info['manager'] = uuid
+
+                if not ('manager' in info and 'engagement' in info):
+                    msg = 'Found two uuids, but not of correct type'
+                    logger.error(msg)
+                    raise EmploymentIdentifierNotUnique(msg)
+            elif len(uuids) > 2:
                 msg = 'Employment ID {} not unique: {}'.format(bvn, uuids)
                 logger.error(msg)
                 raise EmploymentIdentifierNotUnique(msg)
-            logger.info('bvn: {}, uuid: {}'.format(bvn, uuids))
-            engagement_info['uuid'] = uuids[0]
-
-            resource = '/organisation/organisationfunktion/{}'
-            resource = resource.format(engagement_info['uuid'])
-            response = self.session.get(url=self.settings['mox.base'] + resource)
-            response.raise_for_status()
-            data = response.json()
-            # logger.debug('Organisationsfunktionsinfo: {}'.format(data))
-
-            data = data[engagement_info['uuid']][0]['registreringer'][0]
-            user_uuid = data['relationer']['tilknyttedebrugere'][0]['uuid']
-
-            valid = data['tilstande']['organisationfunktiongyldighed']
-            valid = valid[0]['gyldighed']
-            if valid == 'Inaktiv':
-                logger.debug('Inactive user, skip')
-                return {}
-
-            logger.debug('Active user, terminate')
-            # Now, get user_key for user:
-            if self.org_uuid is None:
-                self.org_uuid = self.helper.read_organisation()
-            mo_person = self.helper.read_user(user_uuid=user_uuid,
-                                              org_uuid=self.org_uuid)
-            engagement_info['cpr'] = mo_person['cpr_no']
-            engagement_info['name'] = (mo_person['givenname'], mo_person['surname'])
-        return engagement_info
+        return info
 
     def validity(self, employee, edit=False):
         """
@@ -511,6 +510,9 @@ class OpusDiffImport(object):
                 'validity': self.validity(employee, edit=True)
             }
 
+            # TODO: We do no attempt of detecting whether anything is changed, the
+            # manager is unconditionally updated and thus an extra row will appear
+            # in MO.
             if manager_functions:
                 logger.info('Attempt manager update of {}:'.format(employee_mo_uuid))
                 # Currently Opus supports only a single manager object pr employee
@@ -624,8 +626,11 @@ class OpusDiffImport(object):
                     logger.error(msg)
                     raise Exception(msg)
 
-                engagement = self._find_engagement(employee['@id'], present=True)
-                if engagement:
-                    self.terminate_detail(engagement['uuid'])
-                    # self.terminate_detail(, detail_type=manager)
+                org_funk_info = self._find_engagement(employee['@id'], present=True)
+                if org_funk_info:
+                    logger.info('Terminating: {}'.format(org_funk_info))
+                    self.terminate_detail(org_funk_info['engagement'])
+                    if 'manager' in org_funk_info:
+                        self.terminate_detail(org_funk_info['manager'],
+                                              detail_type='manager')
         logger.info('Program ended correctly')
