@@ -62,11 +62,11 @@ class OpusDiffImport(object):
         self.settings = json.loads(cfg_file.read_text())
 
         self.session = Session()
-        # TODO: Test with an actual employee mapping
         self.employee_forced_uuids = employee_mapping
         self.ad_reader = ad_reader
 
-        self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
+        self.helper = MoraHelper(hostname=self.settings['mora.base'],
+                                 use_cache=False)
         try:
             self.org_uuid = self.helper.read_organisation()
         except requests.exceptions.RequestException as e:
