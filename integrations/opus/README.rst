@@ -150,12 +150,16 @@ Værdien af org_uuid findes ved at tilgå:
 Nuværende begrænsninger omkring re-import
 ----------------------------------------
 
- * IT systemet Opus håndteres endnu ikke.
+ * IT systemer oprettes kun i forbindelse med oprettelsen af en medarbejder, de
+   tildeles uendelig virkning og nedlægges aldrig.
  * Ændringer i roller håndteres endnu ikke.
  * Koden kan fejle, hvis en leder afskediges mens vedkommende stadig er leder.
- * Der oprettes ikke automatisk nye enhedstyper, alle enheder forventes at have typen 'Enhed'
- * Der oprettes ikke automatisk nye engagementstyper.
- * Der oprettes ikke automatisk nye lederniveauer.
+ * Der oprettes ikke automatisk nye enhedstyper, alle enheder forventes at have
+   en type som blev ved oprettet ved førstegangsimporten.
+ * Der oprettes ikke automatisk nye engagementstyper, alle engagementer forventes
+   at have en type som blev ved oprettet ved førstegangsimporten.
+ * Der oprettes ikke automatisk nye lederniveauer, alle ledere forventes
+   at have et niveau som eksisterede ved førstegangsimporten.
 
 
 run_db.sqlite
