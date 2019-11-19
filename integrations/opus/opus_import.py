@@ -322,9 +322,7 @@ class OpusImport(object):
 
         if 'postalCode' in employee and employee['address']:
             if isinstance(employee['address'], dict):
-                # TODO: This is a protected address
-                print(employee['address'])
-                exit()
+                # This is a protected address, cannot import
                 pass
             else:
                 address_string = employee['address']
