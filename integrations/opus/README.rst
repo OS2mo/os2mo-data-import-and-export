@@ -164,9 +164,9 @@ Nuværende begrænsninger omkring re-import
    lederobjekter hvis en leder ændres. Den resulterende tilstand er korrekt, men
    indeholder en kunstig skæringsdato i sin historik.
  * Der oprettes ikke automatisk nye enhedstyper, alle enheder forventes at have
-   en type som blev ved oprettet ved førstegangsimporten.
+   en type som blev oprettet ved førstegangsimporten.
  * Der oprettes ikke automatisk nye engagementstyper, alle engagementer forventes
-   at have en type som blev ved oprettet ved førstegangsimporten.
+   at have en type som blev oprettet ved førstegangsimporten.
  * Der oprettes ikke automatisk nye lederniveauer, alle ledere forventes
    at have et niveau som eksisterede ved førstegangsimporten.
 
