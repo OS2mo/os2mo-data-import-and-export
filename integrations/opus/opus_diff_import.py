@@ -457,12 +457,16 @@ class OpusDiffImport(object):
             return_uuid
         ))
 
-        # TODO: CHECK IF USER IS OPUS USER, AD IT SYSTEM IF SO!
-        # No userIds in current dataset, this will have to wait.
         if 'userId' in employee:
-            print(employee)
-            exit()
-        # self.settings['opus.it_systems.opus'],
+            payload = payloads.connect_it_system_to_user(
+                employee['userId'],
+                self.settings['opus.it_systems.opus'],
+                return_uuid
+            )
+            logger.debug('Opus account payload: {}'.format(payload))
+            response = self.helper._mo_post('details/create', payload)
+            assert response.status_code == 201
+            logger.info('Added Opus account info to {}'.format(cpr))
 
         sam_account = ad_info.get('SamAccountName', None)
         if sam_account:
