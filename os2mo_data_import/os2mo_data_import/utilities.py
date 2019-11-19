@@ -255,8 +255,7 @@ class ImportUtility(object):
             data=payload,
             uuid=klasse_uuid
         )
-
-        assert(uuid is None or import_uuid == klasse_uuid)
+        assert(uuid is None or import_uuid == str(klasse_uuid))
         self.inserted_klasse_map[reference] = import_uuid
 
         return self.inserted_klasse_map[reference]
