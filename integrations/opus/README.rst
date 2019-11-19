@@ -12,7 +12,7 @@ Opsætning
 =========
 
 For at kunne afvikle integrationen, kræves adgang til en mappe med xml-dumps fra
-OPUS. Oplysninger om stien til denne mapper er øjeblikket skrevet direkte i
+OPUS. Oplysninger om stien til denne mappe er øjeblikket skrevet direkte i
 importkoden og kan ikke ændres i runtime.
 
 Den forventede sti for mappen med opus dumps er:
@@ -30,7 +30,7 @@ Nuværende implementeringslogik for import fra Opus:
  * Data indlæses i form at et xml-dump.
  * Hvis data indeholder information om enhedstyper, oprettes disse enhedstyper som
    klasser, hvis ikke, får alle enheder typen ``Enhed``.
- * SE-, CVR-, EAN-m p-numre og telefon indlæses på enheder, hvis disse oplysninger
+ * SE-, CVR-, EAN-, p-numre og telefon indlæses på enheder, hvis disse oplysninger
    tilgængelige.
  * Hvis data indeholder postadresser på enheder eller medarejdere, slås disse
    adresser op på DAR, og hvis det er muligt at få en entydigt match, gemmes
@@ -38,7 +38,8 @@ Nuværende implementeringslogik for import fra Opus:
    ikke.
  * Telefon og email importeres for medarbejdere, hvis de findes i data.
  * Ansættelsestyper og titler oprettes som klasser og sættes på de tilhørende
-   engagementer.
+   engagementer. Ansættelsestypen læses fra feltet ``workContractText``, hvis
+   dette eksisterer, får medarbejderen typen ``Ansat``.
  * Information om ledere importeres direkte fra data, de to informationer
    ``superiorLevel`` og ``subordinateLevel`` konkateneres til et lederniveau.
  * Information om roller importeres direkte fra data.
@@ -62,7 +63,7 @@ er det muligt at importere felterne ``ObjectGuid`` og ``SamAccountName``.
 Hvis AD integrationen er aktiv, vil importeren oprette IT-systemet 'Active Directory'
 og oprette alle brugere der findes i AD med bruernavnet fundet i ``SamAccountName``.
 Brugere med en AD konto vil blive oprettet med deres AD ``ObjectGuid`` som UUID på
-deres brugerobjekt.
+deres brugerobjekt, med mindre de er angivet i en cpr-mapning.
 
 cpr-mapning
 ===========
@@ -70,7 +71,7 @@ cpr-mapning
 For at kunne lave en frisk import uden at få nye UUID'er på medarbejderne, er det
 muligt at give importen adgang til et csv-udtræk som parrer cpr-numre med UUID'er.
 Disse UUID'er vil altid få forrang og garanterer derfor at en medarbejde får netop
-denne UUID, hvis vedkomendes cpr-nummer er i csv-udtrækket.
+denne UUID, hvis vedkommendes cpr-nummer er i csv-udtrækket.
 Udtrækket kan produceres fra en kørende instans af MO ved hjælp ved værktøkjet
 ``cpr_uuid.py``, som findes under ``exports``.
 
@@ -83,14 +84,14 @@ en gyldig konfiguration i ``settings.json``. De påkrævede nøgler er:
  * ``mox.base``: Adressen på LoRa.
  * ``mora.base``: Adressen på MO.
  * ``opus.import.run_db``: Stien til den database som gemmer informaion om kørsler
-   af integrationen. Hvis integrationen skal køre som mere end et engangsimport er
-   har denne fil en vigtig betydning.
+   af integrationen. Hvis integrationen skal køre som mere end et engangsimport har
+   denne fil en vigtig betydning.
  * ``municipality.name``: Navnet på kommunen.
 
 Til at hjælpe med afviklingen af selve importen, findes en hjælpefunktion i
-``opus_helpers.py`` som til at afvikle selve importen og initialisere databasen i
+``opus_helpers.py`` som afvikler selve importen og initialiserer databasen i
 ``opus.import.run_db`` korrekt. Dette modul forventer at finde en cpr-mapning og
-vil fejler hvis ikke filen ``settings/cpr_uuid_map.csv`` eksisterer. Hvis den
+vil fejle hvis ikke filen ``settings/cpr_uuid_map.csv`` eksisterer. Hvis den
 nuværende import er den første, findes der ikke nogen mapning, og der må oprettes
 en tom fil.
    
@@ -99,15 +100,15 @@ Løbende opdatering af Opus data i MO
 
 Der er skrevet et program som foretager løbende opdateringer til MO efterhåden som
 der sker ændringer i Opus data. Dette foregår ved, at integrationen hver gang den
-afvikles kigger efter det ældste xml-dump som endnu ikke er importeret og importerer
+afvikles, kigger efter det ældste xml-dump som endnu ikke er importeret og importerer
 alle ændringer i dette som er nyere end den seneste importering. Et objekt regnes som
 opdateret hvis parameteren ``lastChanged`` på objektet er nyere end tidspunktet for
 det senest importerede xml-dump. Alle andre objekter ignoreres.
 
 Hvis et objekt er nyt, foretages en sammenligning af de enkelte felter, og de som er
-ændret opdateres i MO med virkning fra ``lastChanged`` datoen. En undtagelse for
-dette er engagementer, som vil blive oprettet med virkign fra ``entryDate`` datoen,
-og alså således kan oprettes med virkning i fortiden.
+ændret, opdateres i MO med virkning fra ``lastChanged`` datoen. En undtagelse for
+dette er engagementer, som vil blive oprettet med virkning fra ``entryDate`` datoen,
+og altså således kan oprettes med virkning i fortiden.
 
 Også opdateringsmodulet forventer at finde en cpr-mapning, som vil blive anvendt til
 at knytte bestemte UUID'er på bestemte personer, hvis disse har været importeret
@@ -117,40 +118,46 @@ daglig brug vil mapningen ikke have nogen betydning, da oprettede brugere her al
 vil være nye.
 
 Opsætning af agenten til re-import
----------------------------------
+----------------------------------
 
 For at kunne sammenligne objekter mellem MO og Opus, har intgrationen brug for at
-kende de klasser som felterne mappes til MO. Det er derfor nødvendigt at oprette
+kende de klasser som felterne mappes til i MO. Det er derfor nødvendigt at oprette
 disse nøgler i ``settings.json``:
 
- * ``opus.addresses.employee.dar``: "69ec097c-d068-f3e2-c754-930f482a0d27",
- * ``opus.addresses.employee.phone``: "a8363c6c-903b-5d77-4f2d-4683318ba366",
- * ``opus.addresses.employee.email``: "ea236ff3-f314-d8ae-119c-a30bec6af7ff",
-    opus.addresses.unit.se``: "5a7323ee-9e14-e2c4-4af7-5361ce52a483",
-    ``opus.addresses.unit.cvr``: "f55e1d31-7190-5612-5076-4c16372fb9f3",
-    ``opus.addresses.unit.ean``: "5d98f945-66de-f0db-4e76-408991d74ad8",
-    ``opus.addresses.unit.pnr``: "5c110de0-297e-ad17-e9f6-1b55711c3fb7",
-    ``opus.addresses.unit.phoneNumber``: "7e700527-d442-9e26-c84f-16742cb2c1b4",
-    ``opus.addresses.unit.dar``: "fbc84274-81c5-6a5d-60e3-f6ebe0a77d56",
-    ``opus.it_systems.ad``: "2916e98c-941b-4abe-be79-9734ae42abd3",
-    ``opus.it_systems.opus``: "92ba091f-38ba-4950-a450-9b85b9e7b2e1"
+ * ``opus.addresses.employee.dar``:  UUID på postaddresse for medarbejdere.
+ * ``opus.addresses.employee.phone``: UUID på telefon for medarbejdere.
+ * ``opus.addresses.employee.email``: UUID på email for medarbejdere.
+ * ``opus.addresses.unit.se``: UUID på SE nummer for enheder.
+ * ``opus.addresses.unit.cvr``: UUID på CVR nummer for enheder.
+ * ``opus.addresses.unit.ean``: UUID på EAN nummer for enheder.
+ * ``opus.addresses.unit.pnr``: UUID på p-nummer for enheder.
+ * ``opus.addresses.unit.phoneNumber``:  UUID på telefonnummer for enheder.
+ * ``opus.addresses.unit.dar``: UUID på postaddresser for enheder.
+ * ``opus.it_systems.ad``:  UUID på IT-systemet 'Active Directory'
+ * ``opus.it_systems.opus``: UUID på IT-systemet 'Opus'
 
 Klasserne oprettes i forbindelse med førstegangsimporten, og UUID'erne kan findes ved
-hjæp af disse tre end-points i MO:
+hjælp af disse tre end-points i MO:
 
- * ``/service/o/<org_uuiud>/f/org_unit_address_type/``
- * ``/service/o/<org_uuiud>/f/employee_address_type/``
- * ``/service/o/<org_uuiud>/it/``
+ * ``/service/o/<org_uuid>/f/org_unit_address_type/``
+ * ``/service/o/<org_uuid>/f/employee_address_type/``
+ * ``/service/o/<org_uuid>/it/``
    
 Værdien af org_uuid findes ved at tilgå:
 
  * ``/service/o/``
 
+Det er vigtigt, at disse klasser ikke også anvendes fra front-end'en da dette vil
+skabe en konflikt med synkroniseringen fra Opus (som ikke længere kan vide hvilke
+værdier, der skal rettes). Det er muligt at oprette yderligere typer, som ikke
+anvendes af Opus-agenten, hvis der brug for felter som kan oprettes og rettes fra
+front-end'en.
+
 
 Nuværende begrænsninger omkring re-import
-----------------------------------------
+-----------------------------------------
 
- * IT systemer oprettes kun i forbindelse med oprettelsen af en medarbejder, de
+ * IT-systemer tilknyttes kun i forbindelse med oprettelsen af en medarbejder, de
    tildeles uendelig virkning og nedlægges aldrig.
  * Ændringer i roller håndteres endnu ikke.
  * Koden kan fejle, hvis en leder afskediges mens vedkommende stadig er leder.
