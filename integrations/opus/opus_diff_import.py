@@ -175,8 +175,6 @@ class OpusDiffImport(object):
             logger.debug('Active user, terminate')
             # Now, get user_key for user:
             if self.org_uuid is None:
-                # We will get a hit unless this is a re-import, and in this case we
-                # will always be able to find an org uuid.
                 self.org_uuid = self.helper.read_organisation()
             mo_person = self.helper.read_user(user_uuid=user_uuid,
                                               org_uuid=self.org_uuid)
