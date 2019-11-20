@@ -1,9 +1,5 @@
 import time
-import pickle
 import logging
-import hashlib
-
-from pathlib import Path
 from winrm import Session
 
 from integrations.ad_integration.ad_common import AD
@@ -143,25 +139,11 @@ class ADParameterReader(AD):
         if cache_only:
             return {}
 
-        m = hashlib.sha256()
-        m.update(dict_key.encode())
-        cache_file = Path('ad_' + m.hexdigest() + '.p')
+        # Poulate self.results:
+        self.uncached_read_user(user=user, cpr=cpr)
 
-        if cache_file.is_file():
-            with open(str(cache_file), 'rb') as f:
-                logger.debug('{} was found in AD cache'.format(dict_key))
-                response = pickle.load(f)
-                if not response:
-                    response = {}
-                self.results[dict_key] = response
-        else:
-            logger.debug('{} was not found in AD cache'.format(dict_key))
-            response = self.uncached_read_user(user=user, cpr=cpr)
-            with open(str(cache_file), 'wb') as f:
-                pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
-
-        logger.debug('Returned info for {}'.format(dict_key))
-        logger.debug(self.results.get(dict_key, {}))
+        logger.debug('Returned info for {}: {}'.format(
+            dict_key, self.results.get(dict_key, {})))
         return self.results.get(dict_key, {})
 
 
@@ -171,7 +153,8 @@ if __name__ == '__main__':
     everything = ad_reader.read_it_all()
 
     for user in everything:
-        print('Name: {}, Sam: {}, Manager: {}'.format(user['Name'], user['SamAccountName'], user.get('Manager')))
+        print('Name: {}, Sam: {}, Manager: {}'.format(
+            user['Name'], user['SamAccountName'], user.get('Manager')))
         # if user['SamAccountName'] == 'JSTEH':
         #    for key in sorted(user.keys()):
         #        print('{}: {}'.format(key, user[key]))
