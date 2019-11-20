@@ -69,7 +69,8 @@ class AdMoSync(object):
             if not found:
                 raise Exception('Error in visibility class configuration')
 
-        self.ad_reader = ad_reader.ADParameterReader()
+        # ad_sync currently does not support school domain.
+        self.ad_reader = ad_reader.ADParameterReader(skip_school=True)
         self.ad_reader.cache_all()
         logger.info('Done with AD caching')
 

@@ -13,10 +13,12 @@ logger = logging.getLogger("AdReader")
 
 class ADParameterReader(AD):
 
-    def __init__(self):
+    def __init__(self, skip_school=False):
         super().__init__()
 
         self.all_settings = read_ad_conf_settings.read_settings_from_env()
+        if skip_school:
+            self.all_settings['school']['read_school'] = False
 
         if self.all_settings['global']['winrm_host']:
             self.session = Session(
