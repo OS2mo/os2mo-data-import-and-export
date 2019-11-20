@@ -1,7 +1,19 @@
 import os
+import json
+import pathlib
 import logging
 
 logger = logging.getLogger("AdReader")
+
+
+# TODO: Soon we have done this 4 times. Should we make a small settings
+# importer, that will also handle datatype for specicic keys?
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+# TODO: This must be clean up, settings should be loaded by __init__
+# and no references should be needed in global scope.
+SETTINGS = json.loads(cfg_file.read_text())
 
 
 def _read_global_settings():
@@ -12,8 +24,8 @@ def _read_global_settings():
         global_settings['servers'] = set(ad_servers_raw.split(' '))
     else:
         global_settings['servers'] = None
-    
-    global_settings['winrm_host'] = os.environ.get('WINRM_HOST')
+
+    global_settings['winrm_host'] = SETTINGS.get('integrations.ad.winrm_host')
     if not global_settings['winrm_host']:
         msg = 'Missing hostname for remote management server'
         logger.error(msg)

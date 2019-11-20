@@ -1,10 +1,19 @@
-import os
+import json
+import pathlib
 # from kerberos import GSSError
 import requests_kerberos
 from winrm import Session
 
 
-WINRM_HOST = os.environ.get('WINRM_HOST', None)
+# TODO: Soon we have done this 4 times. Should we make a small settings
+# importer, that will also handle datatype for specicic keys?
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+# TODO: This must be clean up, settings should be loaded by __init__
+# and no references should be needed in global scope.
+SETTINGS = json.loads(cfg_file.read_text())
+WINRM_HOST = SETTINGS.get('integrations.ad.winrm_host')
 if not (WINRM_HOST):
     raise Exception('WINRM_HOST is missing')
 
