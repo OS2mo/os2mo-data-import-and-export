@@ -35,16 +35,11 @@ def _read_global_settings():
 
 def _read_primary_ad_settings():
     primary_settings = {}
-
-    primary_settings['search_base'] = os.environ.get('AD_SEARCH_BASE')
-    primary_settings['cpr_field'] = os.environ.get('AD_CPR_FIELD')
-    primary_settings['system_user'] = os.environ.get('AD_SYSTEM_USER')
-    primary_settings['password'] = os.environ.get('AD_PASSWORD')
-    ad_properties_raw = os.environ.get('AD_PROPERTIES')
-    if ad_properties_raw:
-        primary_settings['properties'] = set(ad_properties_raw.split(' '))
-    else:
-        primary_settings['properties'] = None
+    primary_settings['search_base'] = SETTINGS.get('integrations.ad.search_base')
+    primary_settings['cpr_field'] = SETTINGS.get('integrations.ad.cpr_field')
+    primary_settings['system_user'] = SETTINGS.get('integrations.ad.system_user')
+    primary_settings['password'] = SETTINGS.get('integrations.ad.password')
+    primary_settings['properties'] = SETTINGS.get('integrations.ad.properties')
 
     missing = []
     for key, val in primary_settings.items():
