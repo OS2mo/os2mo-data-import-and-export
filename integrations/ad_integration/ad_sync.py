@@ -1,4 +1,3 @@
-import os
 import json
 import pathlib
 import logging
@@ -11,12 +10,6 @@ from os2mo_helpers.mora_helpers import MoraHelper
 
 logger = logging.getLogger('AdSyncRead')
 
-MORA_BASE = os.environ.get('MORA_BASE')
-VISIBLE = os.environ.get('VISIBLE_CLASS')
-SECRET = os.environ.get('SECRET_CLASS')
-
-if MORA_BASE is None:
-    raise Exception('No address to MO indicated')
 
 # how to check these classes for noobs
 # look at :https://os2mo-test.holstebro.dk/service/o/ORGUUID/f/
@@ -52,14 +45,15 @@ VALIDITY = {
 class AdMoSync(object):
     def __init__(self):
         logger.info('AD Sync Started')
-        self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
-        self.org = self.helper.read_organisation()
-
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
         self.mapping = self.settings['integrations.ad.ad_mo_sync_mapping']
+
+        self.helper = MoraHelper(hostname=self.settings['mora.base'],
+                                 use_cache=False)
+        self.org = self.helper.read_organisation()
 
         mo_visibilities = self.helper.read_classes_in_facet('visibility')[0]
         self.visibility = {
