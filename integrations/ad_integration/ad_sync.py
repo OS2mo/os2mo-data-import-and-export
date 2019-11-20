@@ -1,4 +1,6 @@
 import os
+import json
+import pathlib
 import logging
 from datetime import datetime
 
@@ -25,18 +27,20 @@ if MORA_BASE is None:
 # Find them here https://os2mo-test.holstebro.dk/service/o/ORGUUID/f/visibility/
 # By the way - this configuration must move to the settings file
 
-holstebro_mapping = {
-    'user_addresses': {
-        'mail': ('49b05fde-cb7a-6fb1-fcf5-59dae4bc647c', None),
-        'mobile': ('f3abc4f2-c027-f514-a3ba-8cf11b53909a', VISIBLE),
-        'physicalDeliveryOfficeName': ('377a83ab-57d4-9583-50c8-09753133b8c3', None),
-        'telephoneNumber': ('0e5b0c70-0c71-a481-5712-7803d0b4cfa0', VISIBLE),
-        'pager': ('f3abc4f2-c027-f514-a3ba-8cf11b53909a', SECRET)
-    },
-    'it_systems': {  # This are not par of AD->MO and could be removed.
-        'samAccountName': 'aa76fa0e-3cf5-466c-bdaa-60d11d92cf7d'
-    }
-}
+# Holstebro
+# mapping = {
+#     'user_addresses': {
+#         'mail': ('49b05fde-cb7a-6fb1-fcf5-59dae4bc647c', None),
+#         'mobile': ('f3abc4f2-c027-f514-a3ba-8cf11b53909a', VISIBLE),
+#         'physicalDeliveryOfficeName': ('377a83ab-57d4-9583-50c8-09753133b8c3', None),
+#         'telephoneNumber': ('0e5b0c70-0c71-a481-5712-7803d0b4cfa0', VISIBLE),
+#         'pager': ('f3abc4f2-c027-f514-a3ba-8cf11b53909a', SECRET)
+#     },
+#     'it_systems': {  # This are not par of AD->MO and could be removed.
+#         'samAccountName': 'aa76fa0e-3cf5-466c-bdaa-60d11d92cf7d'
+#     }
+# }
+
 
 # AD has  no concept of temporality, validity is always from now to infinity.
 VALIDITY = {
@@ -51,15 +55,25 @@ class AdMoSync(object):
         self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
         self.org = self.helper.read_organisation()
 
-        found_visible = False
-        found_secret = False
-        for visibility in self.helper.read_classes_in_facet('visibility')[0]:
-            if visibility['uuid'] == VISIBLE:
-                found_visible = True
-            if visibility['uuid'] == SECRET:
-                found_secret = True
-        if not (found_visible and found_secret):
-            raise Exception('Error in visibility class configuration')
+        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+        if not cfg_file.is_file():
+            raise Exception('No setting file')
+        self.settings = json.loads(cfg_file.read_text())
+        self.mapping = self.settings['integrations.ad.ad_mo_sync_mapping']
+
+        mo_visibilities = self.helper.read_classes_in_facet('visibility')[0]
+        self.visibility = {
+            'PUBLIC': self.settings['address.visibility.public'],
+            'INTERNAL': self.settings['address.visibility.internal'],
+            'SECRET': self.settings['address.visibility.secret']
+        }
+        for sync_vis in self.visibility.values():
+            found = False
+            for mo_vis in mo_visibilities:
+                if sync_vis == mo_vis['uuid']:
+                    found = True
+            if not found:
+                raise Exception('Error in visibility class configuration')
 
         self.ad_reader = ad_reader.ADParameterReader()
         self.ad_reader.cache_all()
@@ -95,13 +109,13 @@ class AdMoSync(object):
         # Unfortunately, mora-helper currently does not read all addresses
         types_to_edit = {}
         user_addresses = self.helper._mo_lookup(uuid, 'e/{}/details/address')
-        for field, klasse in holstebro_mapping['user_addresses'].items():
+        for field, klasse in self.mapping['user_addresses'].items():
             found_address = None
             for address in user_addresses:
                 if not address['address_type']['uuid'] == klasse[0]:
                     continue
                 if klasse[1] is not None and 'visibility' in address:
-                    if klasse[1] == address['visibility']['uuid']:
+                    if self.visibility[klasse[1]] == address['visibility']['uuid']:
                         found_address = (address['uuid'], address['value'])
                 else:
                     found_address = (address['uuid'], address['value'])
@@ -126,7 +140,7 @@ class AdMoSync(object):
             'org': {'uuid': self.org}
         }
         if klasse[1] is not None:
-            payload['visibility'] = {'uuid': klasse[1]}
+            payload['visibility'] = {'uuid': self.visibility[klasse[1]]}
         logger.debug('Create payload: {}'.format(payload))
         response = self.helper._mo_post('details/create', payload)
         logger.debug('Response: {}'.format(response))
@@ -150,7 +164,7 @@ class AdMoSync(object):
             }
         ]
         if klasse[1] is not None:
-            payload[0]['data']['visibility'] = {'uuid': klasse[1]}
+            payload[0]['data']['visibility'] = {'uuid': self.visibility[klasse[1]]}
         logger.debug('Edit payload: {}'.format(payload))
         response = self.helper._mo_post('details/edit', payload)
         logger.debug('Response: {}'.format(response))
@@ -162,9 +176,8 @@ class AdMoSync(object):
         :param ad_object: Dict with the AD information for the user.
         """
         fields_to_edit = self._find_existing_ad_address_types(uuid)
-
         # Assume no existing adresses, we fix that later
-        for field, klasse in holstebro_mapping['user_addresses'].items():
+        for field, klasse in self.mapping['user_addresses'].items():
             if field not in ad_object:
                 logger.debug('No such AD field: {}'.format(field))
                 continue
@@ -196,7 +209,6 @@ class AdMoSync(object):
             logger.info('Start sync of {}'.format(employee['uuid']))
             user = self.helper.read_user(employee['uuid'])
             response = self.ad_reader.read_user(cpr=user['cpr_no'], cache_only=True)
-
             if response:
                 self._update_single_user(employee['uuid'], response)
             logger.info('End sync of {}'.format(employee['uuid']))
