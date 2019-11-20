@@ -136,7 +136,7 @@ reports(){
     fi
 }
 
-post_backup(){
+pre_backup(){
     # some files are not parameterised yet, others are.
     # primitive backup, I know - but until something better turns up...
     STS_ORG_CONFIG=$(
@@ -147,21 +147,29 @@ post_backup(){
         SETTING_PREFIX="integrations.SD_Lon.import" source ${DIPEXAR}/tools/prefixed_settings.sh
         echo ${run_db}
     )
-    bupfile="${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar.gz"
-    tar -zcf $bupfile\
+    tar -cf $BUPFILE\
         ${SNAPSHOT_LORA} \
-        ${DIPEXAR}/cpr_mo_ad_map.csv \
-        ${DIPEXAR}//settings/cpr_uuid_map.csv \
         ${SD_IMPORT_RUN_DB} \
         $(readlink ${CUSTOMER_SETTINGS}) \
-        ${CRON_LOG_FILE} \
         ${STS_ORG_CONFIG} \
+        > /dev/null 2>&1
+
+}
+
+post_backup(){
+    # some files are not parameterised yet, others are.
+    # primitive backup, I know - but until something better turns up...
+    tar -rf $BUPFILE\
+        ${DIPEXAR}/cpr_mo_ad_map.csv \
+        ${DIPEXAR}//settings/cpr_uuid_map.csv \
+        ${CRON_LOG_FILE} \
         > /dev/null 2>&1
 
     echo
     echo listing preliminary backup archive
-    echo ${bupfile}
-    tar -tvf ${bupfile}
+    echo ${BUPFILE}.gz
+    tar -tvf ${BUPFILE}
+    gzip  ${BUPFILE}
 
     echo
     BACKUP_SAVE_DAYS=${BACKUP_SAVE_DAYS:=90}
@@ -218,7 +226,9 @@ if [ "$#" == "0" ]; then
     fi
 
     kinit ${SVC_USER} -k -t ${SVC_KEYTAB}
+    export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
+    pre_backup
     show_git_commit
     imports && IMPORTS_OK=true
     exports && EXPORTS_OK=true
