@@ -52,19 +52,63 @@ def test_ad_contact():
         return False
 
 
+def test_full_ad_read():
+    """
+    Test that we can read actual users from AD. This ensures suitable rights
+    to access cpr-information in AD.
+    """
+    from ad_reader import ADParameterReader
+    ad_reader = ADParameterReader()
+
+    ad_reader.uncached_read_user(cpr='3111*')
+    if ad_reader.results:
+        print('Found users with bithday 31. November!')
+        return False
+
+    ad_reader.uncached_read_user(cpr='301*')
+    if not ad_reader.results:
+        print('No users found with bithday 30. October, November or December!')
+        return False
+
+    test_chars = {
+        'æ': False,
+        'ø': False,
+        'å': False,
+        '@': False
+    }
+    for user in ad_reader.results.values():
+        for value in user.values():
+            for char in test_chars.keys():
+                if str(value).find(char) > -1:
+                    test_chars[char] = True
+
+    for test_value in test_chars.values():
+        if not test_value:
+            print('Did find any occurances of special char: {}'.format(test_chars))
+            print('(all should be True for success)')
+            return False
+
+    return True
+
+
 def perform_test():
     basic_connection = test_basic_connectivity()
     if not basic_connection:
         print('Unable to connect to management server')
-        exit()
+        exit(1)
 
     ad_connection = test_ad_contact()
     if not ad_connection:
         print('Unable to connect to AD')
-        exit()
+        exit(1)
+
+    full_ad_read = test_full_ad_read()
+    if not full_ad_read:
+        print('Unable to read users from AD correctly')
+        exit(1)
 
     print('Success')
-
+    exit(0)
 
 if __name__ == '__main__':
     perform_test()
