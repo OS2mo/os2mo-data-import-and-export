@@ -65,9 +65,9 @@ def test_full_ad_read():
         print('Found users with bithday 31. November!')
         return False
 
-    ad_reader.uncached_read_user(cpr='301*')
+    ad_reader.uncached_read_user(cpr='30*')
     if not ad_reader.results:
-        print('No users found with bithday 30. October, November or December!')
+        print('No users found with bithday on the 30th of any month!')
         return False
 
     test_chars = {
@@ -135,21 +135,22 @@ def perform_write_test():
 
 
 def cli():
-        """
-        Command line interface for the AD writer class.
-        """
-        parser = argparse.ArgumentParser(description='AD Writer')
-        group = parser.add_mutually_exclusive_group()
-        group.add_argument('--test-read-settings', action='store_true')
-        group.add_argument('--test-write-settings', action='store_true')
+    """
+    Command line interface for the AD writer class.
+    """
+    parser = argparse.ArgumentParser(description='AD Writer')
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument('--test-read-settings', action='store_true')
+    group.add_argument('--test-write-settings', action='store_true')
 
-        args = vars(parser.parse_args())
+    args = vars(parser.parse_args())
 
-        if args.get('test_read_settings'):
-            perform_read_test()
+    if args.get('test_read_settings'):
+        perform_read_test()
 
-        if args.get('test_write_settings'):
-            perform_write_test()
+    if args.get('test_write_settings'):
+        perform_write_test()
+
 
 if __name__ == '__main__':
     # perform_read_test()
