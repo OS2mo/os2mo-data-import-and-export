@@ -155,5 +155,4 @@ def cli():
 
 
 if __name__ == '__main__':
-    # perform_read_test()
     cli()
