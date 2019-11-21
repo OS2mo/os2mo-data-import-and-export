@@ -18,21 +18,6 @@ logger = logging.getLogger('AdSyncRead')
 # There You have it - for example the mobile phone
 # Now You may wonder if the VISIBLE/SECRET are right:
 # Find them here https://os2mo-test.holstebro.dk/service/o/ORGUUID/f/visibility/
-# By the way - this configuration must move to the settings file
-
-# Holstebro
-# mapping = {
-#     'user_addresses': {
-#         'mail': ('49b05fde-cb7a-6fb1-fcf5-59dae4bc647c', None),
-#         'mobile': ('f3abc4f2-c027-f514-a3ba-8cf11b53909a', VISIBLE),
-#         'physicalDeliveryOfficeName': ('377a83ab-57d4-9583-50c8-09753133b8c3', None),
-#         'telephoneNumber': ('0e5b0c70-0c71-a481-5712-7803d0b4cfa0', VISIBLE),
-#         'pager': ('f3abc4f2-c027-f514-a3ba-8cf11b53909a', SECRET)
-#     },
-#     'it_systems': {  # This are not par of AD->MO and could be removed.
-#         'samAccountName': 'aa76fa0e-3cf5-466c-bdaa-60d11d92cf7d'
-#     }
-# }
 
 
 # AD has  no concept of temporality, validity is always from now to infinity.
