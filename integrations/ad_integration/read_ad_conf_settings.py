@@ -78,6 +78,21 @@ def _read_primary_write_information():
     # Field for the path to the users unit
     primary_write_settings['org_field'] = SETTINGS.get(
         'integrations.ad.write.org_unit_field')
+
+    # Ordered list of primary engagements
+    # This is technically speaking not used in this context, but it is needed for
+    # AD write and can benifit from the automated check.
+    # TODO: Some happy day, we could check for the actual validity of these
+    primary_write_settings['primary_types'] = SETTINGS.get(
+        'integrations.ad.write.primary_types')
+
+    # UUID for the unit type considered to be 'Forvaltning'
+    # This is technically speaking not used in this context, but it is needed for
+    # AD write and can benifit from the automated check.
+    # TODO: Some happy day, we could check for the actual validity of these
+    primary_write_settings['forvaltning_type'] = SETTINGS.get(
+        'integrations.ad.write.forvaltning_type')
+
     missing = []
 
     for key, val in primary_write_settings.items():
