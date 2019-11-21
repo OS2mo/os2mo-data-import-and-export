@@ -96,6 +96,8 @@ def test_ad_write_settings():
     all_settings = read_ad_conf_settings.read_settings()
     if not all_settings['primary_write']:
         return False
+    else:
+        return True
 
 
 def perform_read_test():
@@ -139,7 +141,7 @@ def cli():
     Command line interface for the AD writer class.
     """
     parser = argparse.ArgumentParser(description='AD Writer')
-    group = parser.add_mutually_exclusive_group()
+    group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--test-read-settings', action='store_true')
     group.add_argument('--test-write-settings', action='store_true')
 
