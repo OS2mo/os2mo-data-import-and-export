@@ -1,6 +1,6 @@
 import json
 import pathlib
-# from kerberos import GSSError
+import argparse
 import requests_kerberos
 from winrm import Session
 
@@ -91,17 +91,27 @@ def test_full_ad_read():
     return True
 
 
-def perform_test():
+def test_ad_write_settings():
+    from integrations.ad_integration import read_ad_conf_settings
+    all_settings = read_ad_conf_settings.read_settings()
+    if not all_settings['primary_write']:
+        return False
+
+
+def perform_read_test():
+    print('Test basic connectivity (Kerberos)')
     basic_connection = test_basic_connectivity()
     if not basic_connection:
         print('Unable to connect to management server')
         exit(1)
 
+    print('Test AD contact')
     ad_connection = test_ad_contact()
     if not ad_connection:
         print('Unable to connect to AD')
         exit(1)
 
+    print('Test ability to read from AD')
     full_ad_read = test_full_ad_read()
     if not full_ad_read:
         print('Unable to read users from AD correctly')
@@ -110,5 +120,37 @@ def perform_test():
     print('Success')
     exit(0)
 
+
+def perform_write_test():
+    print('Test that AD write settings are set up')
+    write_settings = test_ad_write_settings()
+    if not write_settings:
+        print('Write settings not correctly set up')
+        exit(1)
+
+    # TODO: If we could make a test write, it would be nice.
+
+    print('Success')
+    exit(0)
+
+
+def cli():
+        """
+        Command line interface for the AD writer class.
+        """
+        parser = argparse.ArgumentParser(description='AD Writer')
+        group = parser.add_mutually_exclusive_group()
+        group.add_argument('--test-read-settings', action='store_true')
+        group.add_argument('--test-write-settings', action='store_true')
+
+        args = vars(parser.parse_args())
+
+        if args.get('test_read_settings'):
+            perform_read_test()
+
+        if args.get('test_write_settings'):
+            perform_write_test()
+
 if __name__ == '__main__':
-    perform_test()
+    # perform_read_test()
+    cli()
