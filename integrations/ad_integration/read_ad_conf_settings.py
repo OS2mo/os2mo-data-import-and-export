@@ -83,7 +83,7 @@ def _read_primary_write_information():
             missing.append(key)
     if missing:
         msg = 'Missing values for AD write {}'.format(missing)
-        logger.error(msg)
+        logger.info(msg)
         primary_write_settings = {}
 
     return primary_write_settings
@@ -123,7 +123,7 @@ def _read_school_ad_settings():
     return school_settings
 
 
-def read_settings_from_env():
+def read_settings():
     settings = {}
     settings['global'] = _read_global_settings()
     settings['primary'] = _read_primary_ad_settings()

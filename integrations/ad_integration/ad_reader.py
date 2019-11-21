@@ -16,7 +16,7 @@ class ADParameterReader(AD):
     def __init__(self, skip_school=False):
         super().__init__()
 
-        self.all_settings = read_ad_conf_settings.read_settings_from_env()
+        self.all_settings = read_ad_conf_settings.read_settings()
         if skip_school:
             self.all_settings['school']['read_school'] = False
 

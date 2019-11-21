@@ -15,7 +15,7 @@ ENCODING = 'cp850'
 
 class AD(object):
     def __init__(self):
-        self.all_settings = read_ad_conf_settings.read_settings_from_env()
+        self.all_settings = read_ad_conf_settings.read_settings()
         if self.all_settings['global']['winrm_host']:
             self.session = Session(
                 'http://{}:5985/wsman'.format(
