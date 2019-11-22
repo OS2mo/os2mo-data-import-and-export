@@ -195,6 +195,7 @@ class ADWriter(AD):
             if mail['visibibility']['scope'] == 'SECRET':
                 unit_secure_email = mail['value']
 
+        # TODO: Fall-back if we do not find a dar-address
         postal_code = re.findall('[0-9]{4}', postal['Adresse'])[0]
         city_pos = postal['Adresse'].find(postal_code) + 5
         city = postal['Adresse'][city_pos:]
@@ -233,6 +234,7 @@ class ADWriter(AD):
 
         mo_values = {
             'name': (mo_user['givenname'], mo_user['surname']),
+            'full_name': '{} {}'.format(mo_user['givenname'], mo_user['surname']),
             'employment_number': employment_number,
             'end_date': end_date,
             'uuid': uuid,
