@@ -250,7 +250,8 @@ sandsynlighed for at man befinder sig i et miljø, hvor dette allerede er på pl
 Punkt 2 gøres ved at oprette filen ``settings.json`` under mappen ``settings`` Et
 anonymieret eksempel på sådan en fil kunne se sådan ud:
 
-::
+.. code-block:: json
+
    {
        "mox.base": "http://localhost:8080",
        "mora.base": "http://localhost:5000",
