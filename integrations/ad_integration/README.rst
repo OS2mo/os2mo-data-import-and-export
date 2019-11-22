@@ -330,7 +330,7 @@ anonymieret eksempel på sådan en fil kunne se sådan ud:
    }
 
 
-Hvor betydniningen af de enkelte felter er angviet højere oppe i dokumentationen.
+Hvor betydniningen af de enkelte felter er angivet højere oppe i dokumentationen.
 Felter som omhandler skolemdomænet er foreløbig sat via miljøvariable og er ikke
 inkluderet her, da ingen af skriveintegrationerne på dette tidspunkter undestøtter
 dette.
