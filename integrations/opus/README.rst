@@ -31,7 +31,7 @@ Nuværende implementeringslogik for import fra Opus:
  * Hvis data indeholder information om enhedstyper, oprettes disse enhedstyper som
    klasser, hvis ikke, får alle enheder typen ``Enhed``.
  * SE-, CVR-, EAN-, p-numre og telefon indlæses på enheder, hvis disse oplysninger
-   tilgængelige.
+   er tilgængelige.
  * Hvis data indeholder postadresser på enheder eller medarejdere, slås disse
    adresser op på DAR, og hvis det er muligt at få en entydigt match, gemmes
    DAR-uuid'en på enheden eller personen. Adresser med adressebeskyttelse importeres
@@ -39,7 +39,7 @@ Nuværende implementeringslogik for import fra Opus:
  * Telefon og email importeres for medarbejdere, hvis de findes i data.
  * Ansættelsestyper og titler oprettes som klasser og sættes på de tilhørende
    engagementer. Ansættelsestypen læses fra feltet ``workContractText``, hvis
-   dette eksisterer, får medarbejderen typen ``Ansat``.
+   dette eksisterer, hvis ikke får medarbejderen typen ``Ansat``.
  * Information om ledere importeres direkte fra data, de to informationer
    ``superiorLevel`` og ``subordinateLevel`` konkateneres til et lederniveau.
  * Information om roller importeres direkte fra data.
@@ -70,7 +70,7 @@ cpr-mapning
 
 For at kunne lave en frisk import uden at få nye UUID'er på medarbejderne, er det
 muligt at give importen adgang til et csv-udtræk som parrer cpr-numre med UUID'er.
-Disse UUID'er vil altid få forrang og garanterer derfor at en medarbejde får netop
+Disse UUID'er vil altid få forrang og garanterer derfor at en medarbejder får netop
 denne UUID, hvis vedkommendes cpr-nummer er i csv-udtrækket.
 Udtrækket kan produceres fra en kørende instans af MO ved hjælp ved værktøkjet
 ``cpr_uuid.py``, som findes under ``exports``.
@@ -78,17 +78,17 @@ Udtrækket kan produceres fra en kørende instans af MO ved hjælp ved værktøk
 Anendelse af integrationen
 ==========================
 
-For at anvende integrationen, kræves udover de nævnte xml-dumps, at der oprettes
+For at anvende integrationen kræves udover de nævnte xml-dumps, at der oprettes
 en gyldig konfiguration i ``settings.json``. De påkrævede nøgler er:
 
  * ``mox.base``: Adressen på LoRa.
  * ``mora.base``: Adressen på MO.
- * ``opus.import.run_db``: Stien til den database som gemmer informaion om kørsler
+ * ``opus.import.run_db``: Stien til den database som gemmer information om kørsler
    af integrationen. Hvis integrationen skal køre som mere end et engangsimport har
    denne fil en vigtig betydning.
  * ``municipality.name``: Navnet på kommunen.
 
-Til at hjælpe med afviklingen af selve importen, findes en hjælpefunktion i
+Til at hjælpe med afviklingen af importen, findes en hjælpefunktion i
 ``opus_helpers.py`` som afvikler selve importen og initialiserer databasen i
 ``opus.import.run_db`` korrekt. Dette modul forventer at finde en cpr-mapning og
 vil fejle hvis ikke filen ``settings/cpr_uuid_map.csv`` eksisterer. Hvis den
@@ -120,7 +120,7 @@ vil være nye.
 Opsætning af agenten til re-import
 ----------------------------------
 
-For at kunne sammenligne objekter mellem MO og Opus, har intgrationen brug for at
+For at kunne sammenligne objekter mellem MO og Opus, har integrationen brug for at
 kende de klasser som felterne mappes til i MO. Det er derfor nødvendigt at oprette
 disse nøgler i ``settings.json``:
 
