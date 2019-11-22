@@ -600,8 +600,8 @@ class ManagerType(MoType):
     :param str date_to: End date e.g. "1982-01-01"
     """
 
-    def __init__(self, org_unit, user_key, manager_type_ref, manager_level_ref,
-                 responsibility_list, date_from, date_to=None,
+    def __init__(self, org_unit, manager_type_ref, manager_level_ref,
+                 responsibility_list, date_from, date_to=None, user_key=None
                  address_uuid=None, address_type_ref=None, uuid=None):
         super().__init__()
 
