@@ -88,8 +88,7 @@ class MoraHelper(object):
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames, **my_options)
             writer.writeheader()
             for row in rows:
-                writer.writerow(row)
-
+                writer.write(row)
         if self.export_ansi:
             with codecs.open(filename, 'r', encoding='utf-8') as csvfile:
                 lines = csvfile.read()
