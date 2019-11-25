@@ -32,32 +32,34 @@ med AD bedst afvikles fra et Windows miljø.
 
 For at kunne afvikle integrationen kræves der udover den nævnte opsætning af Keberos,
 at AD er sat op med cpr-numre på medarbejdere samt en servicebruger som har
-rettigheder til at læse dette felt. Desuden skal et antal miljøvariable være sat i
-det miljø integrationen køres fra:
+rettigheder til at læse dette felt. Desuden skal et antal variable være sat i
+``settings.json``
 
 Fælles parametre
 ----------------
 
- * ``WINRM_HOST``: Hostname på remote mangagent server
+ * ``integrations.ad.winrm_host``: Hostname på remote mangagent server
 
 Standard AD
 -----------
 
- * ``AD_SEARCH_BASE``: Search base, eksempelvis 'OU=enheder,DC=kommune,DC=local'
- * ``AD_CPR_FIELD``: Navnet på feltet i AD som indeholder cpr nummer.
- * ``AD_SYSTEM_USER``: Navnet på den systembruger som har rettighed til at læse fra
-   AD.
- * ``AD_PASSWORD``: Password til samme systembruger.
- * ``AD_PROPERTIES``: Liste over felter som skal læses fra AD. Angives som en streng
-   med mellemrum, eks: "xAttrCPR ObjectGuid SamAccountName Title EmailAddress
-   MobilePhone"
+ * ``integrations.ad.search_base``: Search base, eksempelvis
+   'OU=enheder,DC=kommune,DC=local'
+ * ``integrations.ad.cpr_field``: Navnet på feltet i AD som indeholder cpr nummer.
+ * ``integrations.ad.system_user``: Navnet på den systembruger som har rettighed til
+   at læse fra AD.
+ * ``integrations.ad.password``: Password til samme systembruger.
+ * ``integrations.ad.properties``: Liste over felter som skal læses fra AD. Angives
+   som en liste i json-filen.
+
 
 Skole  AD
 ---------
 
 Hvis der ønskes integration til et AD til skoleområdet, udover det almindelige
-administrative AD, skal disse parametre desuden angives. Hvis de ikke er til stede
-ved afviklingen, vil integrationen ikke forsøge at tilgå et skole AD.
+administrative AD, skal disse parametre desuden angives som miljøvariable. Hvis de
+ikke er til stede ved afviklingen, vil integrationen ikke forsøge at tilgå et
+skole AD.
 
  * ``AD_SCHOOL_SEARCH_BASE``
  * ``AD_SCHOOL_CPR_FIELD``
@@ -69,9 +71,24 @@ Test af opsætningen
 -------------------
 
 Der følger med AD integrationen et lille program, ``test_connectivity.py`` som tester
-om der er oprettet de nødvendige Kerberos tokens og miljøvariable.
+om der er oprettet de nødvendige Kerberos tokens og miljøvariable. Programmet
+afvikles med en af to parametre:
 
+ * ``--test-read-settings``
+ * ``--test-write-settings``
 
+En test af læsning foregår i flere trin:
+ * Der testes for om Remote Managent serveren kan nås og autentificeres med et
+   kereros token.
+ * Der testes om det er muligt af afvikle en triviel kommando på AD serveren.
+ * Der testes for, at en søgning på alle cpr-numre fra 31. november returnerer
+   nul resultater.
+ * Der testes for, at en søging på cpr-numre fra den 30. i alle måneder returner
+   mindst et resultat. Hvis der ikke returneres nogen er fejlen efter sandsynligt
+   en manglende rettighed til at læse cpr-nummer feltet.
+ * Der tests om de returnerede svar indeholder mest et eksempel på disse tegn:
+   æ, ø, å, @ som en test af et tegnsættet er korrekt sat op.
+   
 Brug af integrationen
 =====================
 
@@ -98,8 +115,8 @@ returneret.
    # De enkelte opslag går nu direkte til cache og returnerer med det samme
    user = ad_reader.read_user(cpr=cpr, cache_only=True)
 
-Objektet ``user`` vil nu indeholde de felter der er angivet i miljøvariablen
-``AD_PROPERTIES``.
+Objektet ``user`` vil nu indeholde de felter der er angivet i ``settings.json``
+med nøglen ``integrations.ad.properties``.
 
 
 Skrivning til AD
@@ -111,20 +128,22 @@ oprette AD brugere og skrive information fra MO til relevante felter.
 Hvis denne funktionalitet skal benyttes, er der brug for yderligere parametre som
 skal være sat når programmet afvikles:
 
- * ``AD_SERVERS``: Liste med de DC'ere som findes i kommunens AD. Denne liste anvendes
-   til at sikre at replikering er færdiggjort før der skrives til en nyoprettet
-   bruger.
- * ``AD_WRITE_UUID``: Navnet på det felt i AD, hvor MOs bruger-uuid skrives.
- * ``AD_WRITE_FORVALTNING``: Navnet på det felt i AD, hvor MO skriver navnet på
-   den forvaltning hvor medarbejderen har sin primære ansættelse.
- * ``AD_WRITE_ORG``: Navnet på det felt i AD, hvor MO skriver enhedshierakiet for
-   den enhed, hvor medarbejderen har sin primære ansættelse.
- * ``PRIMARY_ENGAGEMENT_TYPES``: Sorteret lister over uuid'er på de ansættelsestyper
-   som markerer en primær ansættelse. Jo tidligere et engagement står i listen, jo
-   mere primært anses det for at være.
- * ``FORVALTNING_TYPE``: uuid på den enhedstype som angiver at enheden er på
-   forvaltingsnieau og derfor skal skrives i feltet angivet i
-   ``AD_WRITE_FORVALTNING``.
+ * ``integrations.ad.write.servers``: Liste med de DC'ere som findes i kommunens AD.
+   Denne liste anvendes til at sikre at replikering er færdiggjort før der skrives
+   til en nyoprettet bruger.
+ * ``integrations.ad.write.uuid_field``: Navnet på det felt i AD, hvor MOs
+   bruger-uuid skrives.
+ * ``integrations.ad.write.forvaltning_field``: Navnet på det felt i AD, hvor MO
+   skriver navnet på den forvaltning hvor medarbejderen har sin primære ansættelse.
+ * ``integrations.ad.write.org_unit_field``: Navnet på det felt i AD, hvor MO
+   skriver enhedshierakiet for den enhed, hvor medarbejderen har sin primære
+   ansættelse.
+ * ``integrations.ad.write.primary_types``: Sorteret lister over uuid'er på de
+   ansættelsestyper som markerer en primær ansættelse. Jo tidligere et engagement
+   står i listen, jo mere primært anses det for at være.
+ * ``integrations.ad.write.forvaltning_type``: uuid på den enhedstype som angiver at
+   enheden er på forvaltingsnieau og derfor skal skrives i feltet angivet i
+   ``integrations.ad.write.forvaltning_field``.
 
 
 Skabelse af brugernavne
@@ -221,53 +240,102 @@ plads i det lokale miljø:
 
  1. En lokal bruger med passende opsætning af kerberos til at kunne tilgå remote
     management serveren.
- 2. De nødvendige miljøvariable med settings.
+ 2. Den nødvendige konfiguration skal angives i ``settings.json``.
  3. Et lokalt pythonmiljø med passende afhængigheder
 
 Angående punkt 1 skal dette opsættes af den lokale IT organisation, hvis man
 har fulgt denne dokumentation så langt som til dette punkt, er der en god
 sandsynlighed for at man befinder sig i et miljø, hvor dette allerede er på plads.
 
-Punkt 2 gøres til lokale tests lettest ved at oprette en shell fil, som opretter de
-nøvdendige miljøvarible.
+Punkt 2 gøres ved at oprette filen ``settings.json`` under mappen ``settings`` Et
+anonymieret eksempel på sådan en fil kunne se sådan ud:
 
-::
+.. code-block:: json
 
-   export AD_SYSTEM_USER=
-   export AD_PASSWORD=
-   export AD_SERVERS=
-   export AD_SEARCH_BASE=
+   {
+       "mox.base": "http://localhost:8080",
+       "mora.base": "http://localhost:5000",
+       "municipality.name": "Kommune Kommune",
+       "municipality.code": 999,
+       "integrations.SD_Lon.import.too_deep": ["Afdelings-niveau"],
+       "integrations.SD_Lon.global_from_date": "2019-10-31",
+       "integrations.SD_Lon.sd_user": "SDUSER",
+       "integrations.SD_Lon.sd_password": "SDPASSWORD",
+       "integrations.SD_Lon.institution_identifier": "AA",
+       "integrations.SD_Lon.import.run_db": "/home/mo/os2mo-data-import-and-export/settings/change_at_runs.db",
+       "address.visibility.secret": "53e9bbec-dd7b-42bd-b7ee-acfbaf8ac28a",
+       "address.visibility.internal": "3fe99cdd-4ab3-4bd1-97ad-2cfb757f3cac",
+       "address.visibility.public": "c5ddc7d6-1cd2-46b0-96de-5bfd88db8d9b",
+       "integrations.ad.winrm_host": "rm_mangement_hostname",
+       "integrations.ad.search_base": "OU=KK,DC=kommune,DC=dk",
+       "integrations.ad.system_user": "serviceuser",
+       "integrations.ad.password": "sericeuser_password",
+       "integrations.ad.cpr_field": "ad_cpr_field",
+       "integrations.ad.write.servers": [
+	   "DC1",
+	   "DC2",
+	   "DC3",
+	   "DC4",
+	   "DC5"
+       ],
+       "integrations.ad.write.forvaltning_type": "cdd1305d-ee6a-45ec-9652-44b2b720395f",
+       "integrations.ad.write.primary_types": [
+	   "62e175e9-9173-4885-994b-9815a712bf42",
+	   "829ad880-c0b7-4f9e-8ef7-c682fb356077",
+	   "35c5804e-a9f8-496e-aa1d-4433cc38eb02"
+       ],
+       "integrations.ad.write.uuid_field": "sts_field",
+       "integrations.ad.write.forvaltning_field": "extensionAttribute1",
+       "integrations.ad.write.org_unit_field": "extensionAttribute2",
+       "integrations.ad.properties": [
+	   "manager",
+	   "ObjectGuid",
+	   "SamAccountName",
+	   "mail",
+	   "mobile",
+	   "pager",
+	   "givenName",
+	   "l",
+	   "sn",
+	   "st",
+	   "cn",
+	   "company",
+	   "title",
+	   "postalCode",
+	   "streetAddress",
+	   "telephoneNumber",
+	   "physicalDeliveryOfficeName",
+	   "extensionAttribute1",
+	   "extensionAttribute2",
+	   "extensionAttribute3",
+	   "extensionAttribute4",
+	   "extensionAttribute5",
+	   "extensionAttribute6",
+	   "extensionAttribute7",
+	   "extensionAttribute9",
+	   "ad_cpr_field"
+       ],
+       "integrations.ad.ad_mo_sync_mapping": {
+	   "user_addresses": {
+	       "telephoneNumber": ["51d4dbaa-cb59-4db0-b9b8-031001ae107d", "PUBLIC"],
+	       "pager": ["956712cd-5cde-4acc-ad0a-7d97c08a95ee", "SECRET"],
+	       "mail": ["c8a49f1b-fb39-4ce3-bdd0-b3b907262db3", null],
+	       "physicalDeliveryOfficeName": ["7ca6dfb1-5cc7-428c-b15f-a27056b90ae5", null],
+	       "mobile": ["43153f5d-e2d3-439f-b608-1afbae91ddf6", "PUBLIC"]
+	   },
+	   "it_systems": {
+	       "samAccountName": "fb2ac325-a1c4-4632-a254-3a7e2184eea7"
+	   }
+       }
+   }
 
-   export AD_WRITE_UUID=
-   export AD_WRITE_FORVALTNING=
-   export AD_WRITE_ORG=
-   export AD_CPR_FIELD=
-   export AD_PROPERTIES=
 
-   export AD_SCHOOL_SYSTEM_USER=""
-   export AD_SCHOOL_PASSWORD=""
-   export AD_SCHOOL_PROPERTIES=""
-
-   export WINRM_HOST=
-
-   export MORA_BASE=http://localhost:5000
-   export MOX_BASE=http://localhost:8080
-   export SAML_TOKEN=
-
-   export VISIBLE_CLASS=''
-   export SECRET_CLASS=''
-   export PRIMARY_ENGAGEMENT_TYPE=
-   export FORVALTNING_TYPE=
-
-Hvor betydniningen af de enkelte felter er angviet højere oppe i dokumentationen.
-Felter som omhandler skolemdomænet er med vilje sat til blanke, da ingen af
-skriveintegrationerne på dette tidspunkter undestøtter dette.
+Hvor betydniningen af de enkelte felter er angivet højere oppe i dokumentationen.
+Felter som omhandler skolemdomænet er foreløbig sat via miljøvariable og er ikke
+inkluderet her, da ingen af skriveintegrationerne på dette tidspunkter undestøtter
+dette.
 
 Når felterne er udfyldt kan indstillingerne effektures med kommandoen:
-
-::
-
-   source <filnavn>
 
 Det skal nu oprettes et lokalt afviklingsmiljø. Dette gøres ved at klone git
 projektet i en lokal mappe og oprette et lokal python miljø:
