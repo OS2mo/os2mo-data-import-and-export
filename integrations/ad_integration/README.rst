@@ -71,23 +71,23 @@ Test af opsætningen
 -------------------
 
 Der følger med AD integrationen et lille program, ``test_connectivity.py`` som tester
-om der er oprettet de nødvendige Kerberos tokens og miljøvariable. Programmet
+om der er oprettet de nødvendige Kerberos tokens og konfiguration. Programmet
 afvikles med en af to parametre:
 
  * ``--test-read-settings``
  * ``--test-write-settings``
 
 En test af læsning foregår i flere trin:
- * Der testes for om Remote Managent serveren kan nås og autentificeres med et
+ * Der testes for om Remote Management serveren kan nås og autentificeres med et
    kereros token.
  * Der testes om det er muligt af afvikle en triviel kommando på AD serveren.
  * Der testes for, at en søgning på alle cpr-numre fra 31. november returnerer
    nul resultater.
- * Der testes for, at en søging på cpr-numre fra den 30. i alle måneder returner
-   mindst et resultat. Hvis der ikke returneres nogen er fejlen efter sandsynligt
+ * Der testes for, at en søging på cpr-numre fra den 30. i alle måneder returnerer
+   mindst et resultat. Hvis der ikke returneres nogen, er fejlen efter sandsynligt
    en manglende rettighed til at læse cpr-nummer feltet.
- * Der tests om de returnerede svar indeholder mest et eksempel på disse tegn:
-   æ, ø, å, @ som en test af et tegnsættet er korrekt sat op.
+ * Der testes om de returnerede svar indeholder mindst et eksempel på disse tegn:
+   æ, ø, å, @ som en test af at tegnsættet er korrekt sat op.
    
 Brug af integrationen
 =====================
@@ -248,7 +248,7 @@ har fulgt denne dokumentation så langt som til dette punkt, er der en god
 sandsynlighed for at man befinder sig i et miljø, hvor dette allerede er på plads.
 
 Punkt 2 gøres ved at oprette filen ``settings.json`` under mappen ``settings`` Et
-anonymieret eksempel på sådan en fil kunne se sådan ud:
+eksempel på sådan en fil kunne se sådan ud:
 
 .. code-block:: json
 
@@ -284,6 +284,12 @@ anonymieret eksempel på sådan en fil kunne se sådan ud:
 	   "829ad880-c0b7-4f9e-8ef7-c682fb356077",
 	   "35c5804e-a9f8-496e-aa1d-4433cc38eb02"
        ],
+       "integrations.ad_writer.mo_to_ad_fields": {
+	   "unit_user_key": "department",
+	   "forvaltning": "company",
+	   "title": "Title",
+	   "unit": "extensionAttribute2"
+       },
        "integrations.ad.write.uuid_field": "sts_field",
        "integrations.ad.write.forvaltning_field": "extensionAttribute1",
        "integrations.ad.write.org_unit_field": "extensionAttribute2",
@@ -302,17 +308,9 @@ anonymieret eksempel på sådan en fil kunne se sådan ud:
 	   "company",
 	   "title",
 	   "postalCode",
-	   "streetAddress",
-	   "telephoneNumber",
 	   "physicalDeliveryOfficeName",
 	   "extensionAttribute1",
 	   "extensionAttribute2",
-	   "extensionAttribute3",
-	   "extensionAttribute4",
-	   "extensionAttribute5",
-	   "extensionAttribute6",
-	   "extensionAttribute7",
-	   "extensionAttribute9",
 	   "ad_cpr_field"
        ],
        "integrations.ad.ad_mo_sync_mapping": {
@@ -332,10 +330,8 @@ anonymieret eksempel på sådan en fil kunne se sådan ud:
 
 Hvor betydniningen af de enkelte felter er angivet højere oppe i dokumentationen.
 Felter som omhandler skolemdomænet er foreløbig sat via miljøvariable og er ikke
-inkluderet her, da ingen af skriveintegrationerne på dette tidspunkter undestøtter
+inkluderet her, da ingen af skriveintegrationerne på dette tidspunkt undestøtter
 dette.
-
-Når felterne er udfyldt kan indstillingerne effektures med kommandoen:
 
 Det skal nu oprettes et lokalt afviklingsmiljø. Dette gøres ved at klone git
 projektet i en lokal mappe og oprette et lokal python miljø:

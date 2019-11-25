@@ -1,6 +1,7 @@
 import json
 import pathlib
 import argparse
+import requests
 import requests_kerberos
 from winrm import Session
 
@@ -29,6 +30,9 @@ def test_basic_connectivity():
         error = None
     except requests_kerberos.exceptions.KerberosExchangeError as e:
         error = str(e)
+    except requests.exceptions.ConnectionError as e:
+        error = 'Unable to contact winrm_host {}, message: {}'
+        error = error.format(WINRM_HOST, e)
     if error is None and r.status_code == 0:
         return True
     else:
