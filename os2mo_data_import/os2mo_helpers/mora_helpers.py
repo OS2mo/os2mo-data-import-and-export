@@ -74,7 +74,7 @@ class MoraHelper(object):
         :param filename: The name of the exported file.
         """
         print('Encode ascii: {}'.format(self.export_ansi))
-        with open(filename, encoding='utf-8', mode='w') as csvfile:
+        with codecs.open(filename, 'w', encoding='utf-8') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
                                     extrasaction='ignore',
                                     delimiter=';',
@@ -483,7 +483,8 @@ class MoraHelper(object):
                 'Person UUID': uuid,
                 'Org-enhed': person['org_unit']['name'],
                 'Org-enhed UUID': person['org_unit']['uuid'],
-                'Engagement UUID': person['uuid']
+                'Engagement UUID': person['uuid'],
+                'User Key': person['user_key']
             }
             if 'job_function' in person:
                 data['Stillingsbetegnelse'] = person['job_function']['name'],
