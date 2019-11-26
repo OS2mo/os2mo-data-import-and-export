@@ -77,8 +77,14 @@ class ADWriter(AD):
                 (ad_field, mo_values[mo_field])
             )
 
-        # These two fields are NEVER updated.
+        # These fields are NEVER updated.
         if new_user:
+            # This needs extended permissions, do we need it?
+            # other_attributes_fields.append(('pwdLastSet', '0'))
+            other_attributes_fields.append(
+                ('UserPrincipalName',
+                 '{}@{}'.format(user_sam, write_settings['upn_end']))
+            )
             other_attributes_fields.append(
                 (write_settings['uuid_field'], mo_values['uuid'])
             )
@@ -364,8 +370,6 @@ class ADWriter(AD):
         )
         create_user_string = self.remove_redundant(create_user_string)
         create_user_string += other_attributes
-
-        # TODO: Should we add UPN here or in user_script?
 
         ps_script = (
             self._build_user_credential(school) +
