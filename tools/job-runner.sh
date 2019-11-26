@@ -28,7 +28,7 @@ show_git_commit(){
 imports_test_ad_connectivity(){
     set -e
     echo running imports_test_ad_connectivity
-    ${VENV}/bin/python3 integrations/ad_integration/test_connectivity.py
+    ${VENV}/bin/python3 integrations/ad_integration/test_connectivity.py  --test-read-settings
 }
 
 imports_sd_fix_departments(){
