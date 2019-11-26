@@ -601,7 +601,7 @@ class ManagerType(MoType):
     """
 
     def __init__(self, org_unit, manager_type_ref, manager_level_ref,
-                 responsibility_list, date_from, date_to=None, user_key=None
+                 responsibility_list, date_from, date_to=None, user_key=None,
                  address_uuid=None, address_type_ref=None, uuid=None):
         super().__init__()
 
