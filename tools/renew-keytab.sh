@@ -8,9 +8,9 @@ if [ -z "${principal}" -o -z "${passwd}" ]; then
     echo export passwd=\"secret\"
     echo program terminated
     exit 1
-fi 
+fi
 echo ${principal}
-echo ${passwd} 
+echo ${passwd}
 
 # test normal login with password
 rm trace-no-key 2>/dev/null
@@ -20,7 +20,7 @@ klist -e
 
 # specify enctyption keys and find password version
 declare -a enctypes=(
-	aes256-cts-hmac-sha1-96 
+	aes256-cts-hmac-sha1-96
 	arcfour-hmac
 )
 kvno=$(kvno ${principal} | awk '{print $NF}')
@@ -31,7 +31,7 @@ kdestroy
 for enctype in "${enctypes[@]}" ; do
     printf "**** enter the following 4 lines into ktutil: coming up ****\n\n"
     echo "addent -password -p ${principal} -k ${kvno} -e ${enctype}"
-    echo $passwd 
+    echo $passwd
     rm user.key-${kvno}-enc-${enctype} trace-kvno-${kvno}-enc-${enctype} 2>/dev/null
     echo wkt user.key-${kvno}-enc-${enctype}
     echo quit
