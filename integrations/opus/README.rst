@@ -163,8 +163,6 @@ Nuværende begrænsninger omkring re-import
  * Tomme ændringer på en leder opdages ikke, så der opstår en ekstra række på
    lederobjekter hvis en leder ændres. Den resulterende tilstand er korrekt, men
    indeholder en kunstig skæringsdato i sin historik.
- * Der oprettes ikke automatisk nye enhedstyper, alle enheder forventes at have
-   en type som blev oprettet ved førstegangsimporten.
  * Der oprettes ikke automatisk nye engagementstyper, alle engagementer forventes
    at have en type som blev oprettet ved førstegangsimporten.
  * Der oprettes ikke automatisk nye lederniveauer, alle ledere forventes
