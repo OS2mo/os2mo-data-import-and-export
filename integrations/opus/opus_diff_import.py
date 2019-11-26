@@ -54,6 +54,7 @@ EMPLOYEE_ADDRESS_CHECKS = {
 
 class OpusDiffImport(object):
     def __init__(self, latest_date, ad_reader, employee_mapping={}):
+        logger.info('Opus diff importer __init__ started')
         # TODO: Soon we have done this 4 times. Should we make a small settings
         # importer, that will also handle datatype for specicic keys?
         cfg_file = Path.cwd() / 'settings' / 'settings.json'
@@ -74,12 +75,15 @@ class OpusDiffImport(object):
             print(e)
             exit()
 
-        self.engagement_types = self._find_classes('engagement_type')
-        self.unit_types = self._find_classes('org_unit_type')
-        self.manager_levels = self._find_classes('manager_level')
-        self.manager_types = self._find_classes('manager_type')
-        self.responsibilities = self._find_classes('responsibility')
+        self.engagement_types, _ = self._find_classes('engagement_type')
+        # self.role_types = self._find_classes('role_type')
+        self.unit_types, self.unit_type_facet = self._find_classes('org_unit_type')
+        self.manager_levels, _ = self._find_classes('manager_level')
+        self.role_types, _ = self._find_classes('role_type')
+        self.manager_types, _ = self._find_classes('manager_type')
+        self.responsibilities, _ = self._find_classes('responsibility')
 
+        # TODO, this should also be done be _find_classes
         logger.info('Read job_functions')
         facet_info = self.helper.read_classes_in_facet('engagement_job_function')
         job_functions = facet_info[0]
@@ -88,6 +92,21 @@ class OpusDiffImport(object):
         for job in job_functions:
             self.job_functions[job['name']] = job['uuid']
 
+        self.role_cache = []
+        units = self.helper._mo_lookup(self.org_uuid, 'o/{}/ou?limit=1000000000')
+        for unit in units['items']:
+            roles = self.helper._mo_lookup(unit['uuid'], 'ou/{}/details/role')
+            for role in roles:
+                self.role_cache.append(
+                    {
+                        'uuid': role['uuid'],
+                        'person': role['person']['uuid'],
+                        'validity': role['validity'],
+                        'role_type': role['role_type']['uuid'],
+                        'role_type_text': role['role_type']['name']
+                    }
+                )
+
         self.latest_date = latest_date
         self.units = None
         self.employees = None
@@ -95,9 +114,10 @@ class OpusDiffImport(object):
     def _find_classes(self, facet):
         class_types = self.helper.read_classes_in_facet(facet)
         types_dict = {}
+        facet = class_types[1]
         for class_type in class_types[0]:
             types_dict[class_type['user_key']] = class_type['uuid']
-        return types_dict
+        return types_dict, facet
 
     # This exact function also exists in sd_changed_at
     def _assert(self, response):
@@ -115,11 +135,10 @@ class OpusDiffImport(object):
         self.employees = data['employee']
         return True
 
-    def _add_profession_to_lora(self, profession):
-        klasse_uuid = opus_helpers.generate_uuid(profession)
-        logger.debug('Adding Klasse: {}, uuid: {}'.format(profession, klasse_uuid))
-        payload = payloads.profession(profession, self.org_uuid,
-                                      self.job_function_facet)
+    def _add_klasse_to_lora(self, klasse_name, facet_uuid):
+        klasse_uuid = opus_helpers.generate_uuid(klasse_name)
+        logger.debug('Adding Klasse: {}, uuid: {}'.format(klasse_name, klasse_uuid))
+        payload = payloads.klasse(klasse_name, self.org_uuid, facet_uuid)
         url = '{}/klassifikation/klasse/{}'
         response = requests.put(
             url=url.format(self.settings['mox.base'], klasse_uuid),
@@ -132,9 +151,17 @@ class OpusDiffImport(object):
     def _update_professions(self, emp_name):
         job_uuid = self.job_functions.get(emp_name)
         if job_uuid is None:
-            response = self._add_profession_to_lora(emp_name)
+            response = self._add_klasse_to_lora(emp_name, self.job_function_facet)
             uuid = response['uuid']
             self.job_functions[emp_name] = uuid
+
+    def _update_unit_types(self, unit_type):
+        unit_type_uuid = self.unit_types.get(unit_type)
+        if unit_type_uuid is None:
+            print('New unit type: {}!'.format(unit_type))
+            response = self._add_klasse_to_lora(unit_type, self.unit_type_facet)
+            uuid = response['uuid']
+            self.unit_types[unit_type] = uuid
 
     def _get_organisationfunktion(self, lora_uuid):
         resource = '/organisation/organisationfunktion/{}'
@@ -190,8 +217,11 @@ class OpusDiffImport(object):
         :return: A valid MO valididty payload
         """
         to_date = employee['leaveDate']
+        if not edit and to_date is None:
+            logger.error('Missing start date for employee!')
+            edit = True  # Falk back to using @lastChanged
+
         if edit:
-            # from_date = self.latest_date.strftime('%Y-%m-%d')
             from_date = employee.get('@lastChanged')
         else:
             from_date = employee['entryDate']
@@ -333,9 +363,9 @@ class OpusDiffImport(object):
         parent_uuid = opus_helpers.generate_uuid(unit['parentOrgUnit'])
         mo_unit = self.helper.read_ou(calculated_uuid)
 
-        # It is assumed no new unit types are added during daily updates.
         # Default 'Enhed' is the default from the initial import
-        org_type = unit.get('orgType', 'Enhed')
+        org_type = unit.get('orgTypeTxt', 'Enhed')
+        self._update_unit_types(org_type)
         unit_type = self.unit_types[org_type]
 
         unit_args = {
@@ -532,6 +562,53 @@ class OpusDiffImport(object):
                 response = self.helper._mo_post('details/create', payload)
                 assert response.status_code == 201
 
+    def update_roller(self, employee):
+        cpr = employee['cpr']['#text']
+        mo_user = self.helper.read_user(user_cpr=cpr)
+        logger.info('Check {} for updates in Roller'.format(cpr))
+        if isinstance(employee['function'], dict):
+            opus_roles = [employee['function']]
+        else:
+            opus_roles = employee['function']
+
+        for opus_role in opus_roles:
+            if opus_role['@endDate'] == '9999-12-31':
+                opus_role['@endDate'] = None
+
+            found = False
+            for mo_role in self.role_cache:
+                if (
+                        mo_role['person'] == mo_user['uuid'] and
+                        opus_role['artText'] == mo_role['role_type_text']
+                ):
+                    found = True
+                    if (
+                            opus_role['@endDate'] == mo_role['validity']['to'] and
+                            opus_role['@startDate'] == mo_role['validity']['from']
+                    ):
+                        logger.info('No edit')
+                    else:
+                        print('Edit - now implement suiatable payload')
+                        exit()
+                    self.role_cache.remove(mo_role)
+            if not found:
+                logger.info('Create new role: {}'.format(opus_role))
+                # TODO: We will fail a if  new role-type surfaces
+                role_type = self.role_types.get(opus_role['artText'])
+                payload = payloads.create_role(
+                    employee=employee,
+                    user_uuid=mo_user['uuid'],
+                    unit_uuid=str(opus_helpers.generate_uuid(employee['orgUnit'])),
+                    role_type=role_type,
+                    validity={
+                        'from': opus_role['@startDate'],
+                        'to': opus_role['@endDate']
+                    }
+                )
+                logger.debug('New role, payload: {}'.format(payload))
+                response = self.helper._mo_post('details/create', payload)
+                assert response.status_code == 201
+
     def update_employee(self, employee):
         cpr = employee['cpr']['#text']
         logger.info('----')
@@ -577,15 +654,6 @@ class OpusDiffImport(object):
 
         self.update_manager_status(employee_mo_uuid, employee)
 
-        # TODO: Update Roller
-        if 'function' in employee:
-            print()
-            print('Employee has a role')
-            print(cpr)
-            print(employee['function'])
-            print()
-            exit()
-
     def terminate_detail(self, uuid, detail_type='engagement'):
         payload = payloads.terminate_detail(
             uuid, self.latest_date.strftime('%Y-%m-%d'), detail_type
@@ -600,7 +668,6 @@ class OpusDiffImport(object):
         Start an opus import, run the oldest available dump that
         has not already been imported.
         """
-        logger.info('Program started')
         self.parser(xml_file)
 
         for unit in self.units:
@@ -610,12 +677,15 @@ class OpusDiffImport(object):
 
         for employee in self.employees:
             last_changed_str = employee.get('@lastChanged')
-            if last_changed_str is not None:
-                # This is a true employee-object
+            if last_changed_str is not None:  # This is a true employee-object.
                 last_changed = datetime.strptime(last_changed_str, '%Y-%m-%d')
                 if last_changed > self.latest_date:
                     self.update_employee(employee)
-            else:
+
+                # Changes to Roller is not included in @lastChanged...
+                if 'function' in employee:
+                    self.update_roller(employee)
+            else:  # This is an implicit termination.
                 if not include_terminations:
                     continue
 
@@ -633,4 +703,9 @@ class OpusDiffImport(object):
                     if 'manager' in org_funk_info:
                         self.terminate_detail(org_funk_info['manager'],
                                               detail_type='manager')
+
+        for role in self.role_cache:
+            logger.info('Role not found, implicitly terminating {}'.format(role))
+            self.terminate_detail(role['uuid'], detail_type='role')
+
         logger.info('Program ended correctly')
