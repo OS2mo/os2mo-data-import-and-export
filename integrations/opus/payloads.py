@@ -35,6 +35,18 @@ def create_engagement(employee, user_uuid, unit_uuid, job_function, engagement_t
     return payload
 
 
+def create_role(employee, user_uuid, unit_uuid, role_type,  validity):
+    payload = {
+        'type': 'role',
+        'org_unit': {'uuid': str(unit_uuid)},
+        'person': {'uuid': user_uuid},
+        'role_type': {'uuid': role_type},
+        'user_key': 'role_{}'.format(employee['@id']),
+        'validity': validity
+    }
+    return payload
+
+
 def create_org_unit(unit, unit_uuid, parent, unit_type, from_date):
     payload = {
         'uuid': unit_uuid,
@@ -191,17 +203,17 @@ def edit_manager(object_uuid, unit, person, manager_type, level, responsibility,
     return payload
 
 
-# Exact same code is found in sd_payloads
-def profession(profession, org, job_function_facet):
+# Same code is found in sd_payloads
+def klasse(klasse_navn, org, facet_uuid):
     validity = {
         'from': '1900-01-01',
         'to': 'infinity'
     }
 
-    # "integrationsdata":  # TODO: Check this
+    # "integrationsdata":
     properties = {
-        'brugervendtnoegle': profession,
-        'titel':  profession,
+        'brugervendtnoegle': klasse_navn,
+        'titel': klasse_navn,
         'omfang': 'TEXT',
         "virkning": validity
     }
@@ -219,7 +231,7 @@ def profession(profession, org, job_function_facet):
         'facet': [
             {
                 'objekttype': 'facet',
-                'uuid': job_function_facet,
+                'uuid': facet_uuid,
                 'virkning': validity
             }
         ]
