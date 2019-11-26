@@ -3,7 +3,9 @@ import pathlib
 import argparse
 import requests
 import requests_kerberos
+
 from winrm import Session
+from integrations.ad_integration import ad_logger
 
 
 # TODO: Soon we have done this 4 times. Should we make a small settings
@@ -159,4 +161,5 @@ def cli():
 
 
 if __name__ == '__main__':
+    ad_logger.start_logging('test_connectivity.log')
     cli()
