@@ -21,6 +21,18 @@ def edit_engagement(data, mo_engagement_uuid):
     return payload
 
 
+def edit_role(validity, mo_role_uuid):
+    data = {
+        'validity': validity
+    }
+    payload = {
+        'type': 'role',
+        'uuid': mo_role_uuid,
+        'data': data
+    }
+    return payload
+
+
 def create_engagement(employee, user_uuid, unit_uuid, job_function, engagement_type,
                       validity):
     payload = {
