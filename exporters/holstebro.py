@@ -63,9 +63,22 @@ def export_to_planorama(mh, nodes, filename_org, filename_persons):
     """ Traverses a tree of OUs, for each OU finds the manager of the OU.
     :param nodes: The nodes of the OU tree
     """
-    fieldnames_persons = ['UUID', 'Username', 'Password', 'Name', 'Title',
-                          'Address', 'Zip', 'Country', 'CPR', 'Email',
-                          'Number', 'Mobile', 'Telephone', 'Responsible', 'Responsible_UUID', 'Company']
+    fieldnames_persons = ['UUID',
+                          'Username',
+                          # 'Password',
+                          'Name',
+                          'Title',
+                          'Address',
+                          # 'Zip',
+                          # 'Country',
+                          # 'CPR',
+                          'Email',
+                          # 'Number',
+                          'Mobile',
+                          'Telephone',
+                          'Responsible',
+                          'Responsible_UUID',
+                          'Company']
     fieldnames_org = ['Root', 'Number', 'Name']
 
     rows_org = []
@@ -99,16 +112,15 @@ def export_to_planorama(mh, nodes, filename_org, filename_persons):
                 # row.update(employee)  # Everything else
                 row = {'UUID': uuid,
                        'Username': employee['User Key'],
-                       'Password': '',
+                       # 'Password': '',
                        'Name': employee['Navn'],
                        'Title': employee['Stillingsbetegnelse'][0] if len(employee['Stillingsbetegnelse']) > 0 else '',
                        'Address': address['Lokation'] if 'Lokation' in address else '',
-                       'Zip': '',
-                       'Country': '',
-                       'CPR': '',  # we do not send CPR to planorama
+                       # 'Zip': '',
+                       # 'Country': '',
                        # 'CPR': address['CPR-Nummer'],
                        'Email': address['E-mail'] if 'E-mail' in address else '',
-                       'Number': '',
+                       # 'Number': '',
                        'Mobile': address['Mobiltelefon'] if 'Mobiltelefon' in address else '',
                        'Telephone': address['Telefon'] if 'Telefon' in address else '',
                        'Responsible': manager_engagement[0]['user_key'] if len(manager_engagement) > 0 else '',
