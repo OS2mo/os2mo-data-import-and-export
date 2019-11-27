@@ -58,17 +58,20 @@ imports_sd_changed_at(){
 }
 
 imports_ad_sync(){
+    set -e
     echo running imports_ad_sync
     # remove ad cache files for now - they will be disabled later
     ${VENV}/bin/python3  integrations/ad_integration/ad_sync.py
 }
 
 imports_ballerup_apos(){
+    set -e
     echo running imports_ballerup_apos
     ${VENV}/bin/python3 integrations/ballerup/ballerup.py
 }
 
 imports_ballerup_udvalg(){
+    set -e
     echo running imports_ballerup_udvalg
     ${VENV}/bin/python3 integrations/ballerup/udvalg_import.py
     echo appending udvalg logfile to BACKED_UP_LOGFILES
@@ -76,6 +79,7 @@ imports_ballerup_udvalg(){
 }
 
 exports_mox_rollekatalog(){
+    set -e
     echo running exports_mox_rollekatalog
     if [ -z "${MOX_ROLLE_COMPOSE_YML}" ]; then
         echo ERROR: MOX_ROLLE_COMPOSE_YML not set in configuration, aborting
@@ -86,6 +90,7 @@ exports_mox_rollekatalog(){
 }
 
 exports_mox_stsorgsync(){
+    set -e
     echo running exports_mox_stsorgsync
     (
         # get VENV, MOX_MO_CONFIG and LOGFILE
@@ -103,6 +108,12 @@ exports_mox_stsorgsync(){
     ))
 }
 
+exports_os2mo_phonebook(){
+    set -e
+    :
+}
+
+
 reports_sd_db_overview(){
     set -e
     echo running reports_sd_db_overview
@@ -116,6 +127,7 @@ reports_cpr_uuid(){
 }
 
 exports_queries_ballerup(){
+    set -e
     echo running exports_queries_ballerup
     (
 	set -x
@@ -137,6 +149,7 @@ exports_queries_ballerup(){
 }
 
 exports_test(){
+    set -e
     :
 }
 
@@ -169,8 +182,6 @@ imports(){
     if [ "${RUN_BALLERUP_UDVALG}" == "true" ]; then
         imports_ballerup_udvalg || return 2
     fi
-
-
 }
 
 # exports may also be interdependent: -e
@@ -189,6 +200,10 @@ exports(){
 
     if [ "${RUN_QUERIES_BALLERUP}" == "true" ]; then
         exports_queries_ballerup || return 2
+    fi
+
+    if [ "${RUN_EXPORTS_OS2MO_PHONEBOOK}" == "true" ]; then
+        exports_os2mo_phonebook || return 2
     fi
 
     if [ "${RUN_EXPORTS_TEST}" == "true" ]; then
