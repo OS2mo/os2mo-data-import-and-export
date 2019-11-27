@@ -76,7 +76,6 @@ class OpusDiffImport(object):
             exit()
 
         self.engagement_types, _ = self._find_classes('engagement_type')
-        # self.role_types = self._find_classes('role_type')
         self.unit_types, self.unit_type_facet = self._find_classes('org_unit_type')
         self.manager_levels, _ = self._find_classes('manager_level')
         self.role_types, _ = self._find_classes('role_type')
@@ -588,8 +587,14 @@ class OpusDiffImport(object):
                     ):
                         logger.info('No edit')
                     else:
-                        print('Edit - now implement suiatable payload')
-                        exit()
+                        validity = {
+                            'from': opus_role['@startDate'],
+                            'to': opus_role['@endDate']
+                        }
+                        payload = payloads.edit_role(validity, mo_role['uuid'])
+                        logger.debug('Edit role, payload: {}'.format(payload))
+                        response = self.helper._mo_post('details/edit', payload)
+                        self._assert(response)
                     self.role_cache.remove(mo_role)
             if not found:
                 logger.info('Create new role: {}'.format(opus_role))
