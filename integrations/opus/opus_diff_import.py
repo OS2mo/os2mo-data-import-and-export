@@ -571,6 +571,7 @@ class OpusDiffImport(object):
             opus_roles = employee['function']
 
         for opus_role in opus_roles:
+            opus_end_datetime = datetime.strptime(opus_role['@endDate'], '%Y-%m-%d')
             if opus_role['@endDate'] == '9999-12-31':
                 opus_role['@endDate'] = None
 
@@ -581,12 +582,19 @@ class OpusDiffImport(object):
                         opus_role['artText'] == mo_role['role_type_text']
                 ):
                     found = True
-                    if (
-                            opus_role['@endDate'] == mo_role['validity']['to'] and
-                            opus_role['@startDate'] == mo_role['validity']['from']
-                    ):
-                        logger.info('No edit')
+                    if mo_role['validity']['to'] is None:
+                        mo_end_datetime = datetime.strptime('9999-12-31', '%Y-%m-%d')
                     else:
+                        mo_end_datetime = datetime.strptime(
+                            mo_role['validity']['to'], '%Y-%m-%d'
+                        )
+
+                    # We only compare end dates, it is assumed start-date is not
+                    # changed.
+                    if mo_end_datetime == opus_end_datetime:
+                        logger.info('No edit')
+                    elif opus_end_datetime > mo_end_datetime:
+                        logger.info('Extend role')
                         validity = {
                             'from': opus_role['@startDate'],
                             'to': opus_role['@endDate']
@@ -595,6 +603,13 @@ class OpusDiffImport(object):
                         logger.debug('Edit role, payload: {}'.format(payload))
                         response = self.helper._mo_post('details/edit', payload)
                         self._assert(response)
+                    else:  # opus_end_datetime < mo_end_datetime:
+                        logger.info('Terminate role')
+                        self.terminate_detail(
+                            mo_role['uuid'],
+                            detail_type='role',
+                            end_date=opus_end_datetime
+                        )
                     self.role_cache.remove(mo_role)
             if not found:
                 logger.info('Create new role: {}'.format(opus_role))
@@ -659,9 +674,12 @@ class OpusDiffImport(object):
 
         self.update_manager_status(employee_mo_uuid, employee)
 
-    def terminate_detail(self, uuid, detail_type='engagement'):
+    def terminate_detail(self, uuid, detail_type='engagement', end_date=None):
+        if end_date is None:
+            end_date = self.latest_date
+
         payload = payloads.terminate_detail(
-            uuid, self.latest_date.strftime('%Y-%m-%d'), detail_type
+            uuid, end_date.strftime('%Y-%m-%d'), detail_type
         )
         logger.debug('Terminate payload: {}'.format(payload))
         response = self.helper._mo_post('details/terminate', payload)
