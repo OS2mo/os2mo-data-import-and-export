@@ -159,7 +159,8 @@ Nuværende begrænsninger omkring re-import
 
  * IT-systemer tilknyttes kun i forbindelse med oprettelsen af en medarbejder, de
    tildeles uendelig virkning og nedlægges aldrig.
- * Ændringer i roller håndteres endnu ikke.
+ * Ændringer i roller håndteres kun ved ændringer i slutdatoer, det antages at
+   startdatoer ikke ændres.
  * Tomme ændringer på en leder opdages ikke, så der opstår en ekstra række på
    lederobjekter hvis en leder ændres. Den resulterende tilstand er korrekt, men
    indeholder en kunstig skæringsdato i sin historik.
