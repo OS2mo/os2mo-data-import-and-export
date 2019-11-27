@@ -14,11 +14,18 @@ source ${DIPEXAR}/tools/prefixed_settings.sh
 cd ${DIPEXAR}
 
 # FIXME: remove cache ad pickle files
-# Robert disables them in later ad
+# Robert disables/moves them in later ad
+# maybe he also takes care of the apos ones
 rm *.p 2>/dev/null || :
 
-export PYTHONPATH=$PWD:$PYTHONPATH
+# some logfiles can be truncated after backup
+# as a primitive log rotation
+# they should be appended to this array
+declare -a BACKED_UP_LOGFILES=(
+    ${DIPEXAR}/mo_integrations.log
+)
 
+export PYTHONPATH=$PWD:$PYTHONPATH
 
 show_git_commit(){
     echo
@@ -64,6 +71,8 @@ imports_ballerup_apos(){
 imports_ballerup_udvalg(){
     echo running imports_ballerup_udvalg
     ${VENV}/bin/python3 integrations/ballerup/udvalg_import.py
+    echo appending udvalg logfile to BACKED_UP_LOGFILES
+    BACKED_UP_LOGFILES+=("${DIPEXAR}/udvalg.log")
 }
 
 exports_mox_rollekatalog(){
@@ -87,6 +96,11 @@ exports_mox_stsorgsync(){
         echo "last 10 Errors from OS2sync"
         grep ERROR /var/log/os2sync/service.log | tail -n 10
     )
+    echo appending mox_stsorgsync logfile to BACKED_UP_LOGFILES
+    BACKED_UP_LOGFILES+=($(
+        SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
+        echo ${LOGFILE}
+    ))
 }
 
 reports_sd_db_overview(){
@@ -115,6 +129,15 @@ exports_queries_ballerup(){
         ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
         mv "${WORK_DIR}/*.csv" "${EXPORTS_DIR}"
     )
+    echo appending ballerup exports logfile to BACKED_UP_LOGFILES
+    BACKED_UP_LOGFILES+=($(
+        SETTING_PREFIX="exporters.ballerup" source ${DIPEXAR}/tools/prefixed_settings.sh
+        echo ${WORK_DIR}/export.log
+    ))
+}
+
+exports_test(){
+    :
 }
 
 # imports are typically interdependent: -e
@@ -167,6 +190,10 @@ exports(){
     if [ "${RUN_QUERIES_BALLERUP}" == "true" ]; then
         exports_queries_ballerup || return 2
     fi
+
+    if [ "${RUN_EXPORTS_TEST}" == "true" ]; then
+        exports_test || return 2
+    fi
 }
 
 # reports are typically not interdependent
@@ -184,6 +211,11 @@ reports(){
         # this particular report is not allowed to fail
         reports_cpr_uuid || return 2
     fi
+}
+
+pre_truncate_logfiles(){
+    # logfiles are truncated before each run as 
+    [ -f "udvalg.log" ] && truncate -s 0 "udvalg.log" 
 }
 
 pre_backup(){
@@ -209,10 +241,11 @@ pre_backup(){
 post_backup(){
     # some files are not parameterised yet, others are.
     # primitive backup, I know - but until something better turns up...
-    tar -rf $BUPFILE\
+    tar -rvf $BUPFILE\
         ${DIPEXAR}/cpr_mo_ad_map.csv \
         ${DIPEXAR}//settings/cpr_uuid_map.csv \
         ${CRON_LOG_FILE} \
+        ${BACKED_UP_LOGFILES[@]} \
         > /dev/null 2>&1
 
     echo
@@ -220,6 +253,9 @@ post_backup(){
     echo ${BUPFILE}.gz
     tar -tvf ${BUPFILE}
     gzip  ${BUPFILE}
+
+    echo truncating backed up logfiles
+    truncate -s 0 ${BACKED_UP_LOGFILES[@]}
 
     echo
     BACKUP_SAVE_DAYS=${BACKUP_SAVE_DAYS:=90}
