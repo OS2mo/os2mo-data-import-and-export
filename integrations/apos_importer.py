@@ -12,7 +12,7 @@ import logging
 import requests
 import xmltodict
 import collections
-import dawa_helper
+from integrations import dawa_helper
 from datetime import datetime
 from uuid import UUID
 

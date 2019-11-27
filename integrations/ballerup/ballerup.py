@@ -9,8 +9,7 @@
 import os
 import sys
 from os2mo_data_import import ImportHelper
-sys.path.append('..')
-import apos_importer
+from integrations import apos_importer
 
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')

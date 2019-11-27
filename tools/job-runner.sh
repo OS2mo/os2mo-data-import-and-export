@@ -15,7 +15,7 @@ cd ${DIPEXAR}
 
 # FIXME: remove cache ad pickle files
 # Robert disables them in later ad
-rm -v ad_*.p 2>/dev/null || :
+rm *.p 2>/dev/null || :
 
 export PYTHONPATH=$PWD:$PYTHONPATH
 
@@ -23,6 +23,12 @@ export PYTHONPATH=$PWD:$PYTHONPATH
 show_git_commit(){
     echo
     echo CRON_GIT_COMMIT=$(git show -s --format=%H)
+}
+
+imports_mox_db_clear(){
+    set -e
+    echo running imports_mox_db_clear
+    ${VENV}/bin/python3 tools/clear_mox_tables.py
 }
 
 imports_test_ad_connectivity(){
@@ -48,6 +54,16 @@ imports_ad_sync(){
     echo running imports_ad_sync
     # remove ad cache files for now - they will be disabled later
     ${VENV}/bin/python3  integrations/ad_integration/ad_sync.py
+}
+
+imports_ballerup_apos(){
+    echo running imports_ballerup_apos
+    ${VENV}/bin/python3 integrations/ballerup/ballerup.py
+}
+
+imports_ballerup_udvalg(){
+    echo running imports_ballerup_udvalg
+    ${VENV}/bin/python3 integrations/ballerup/udvalg_import.py
 }
 
 exports_mox_rollekatalog(){
@@ -85,8 +101,28 @@ reports_cpr_uuid(){
     ${VENV}/bin/python3 exporters/cpr_uuid.py
 }
 
+exports_queries_ballerup(){
+    echo running exports_queries_ballerup
+    (
+	set -x
+        # get OUT_DIR and EXPORTS_DIR
+        SETTING_PREFIX="exporters.ballerup" source ${DIPEXAR}/tools/prefixed_settings.sh
+        [ -z "${EXPORTS_DIR}" ] && echo "EXPORTS_DIR not spec'ed for exports_queries_ballerup" && exit 1
+        [ -z "${WORK_DIR}" ] && echo "WORK_DIR not spec'ed for exports_queries_ballerup" && exit 1
+        [ -d "${WORK_DIR}" ] || mkdir "${WORK_DIR}"
+	rm "${WORK_DIR}/*.csv"
+        cd "${WORK_DIR}"
+        ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
+        mv "${WORK_DIR}/*.csv" "${EXPORTS_DIR}"
+    )
+}
+
 # imports are typically interdependent: -e
 imports(){
+    if [ "${RUN_MOX_DB_CLEAR}" == "true" ]; then
+        imports_mox_db_clear || return 2
+    fi
+
     if [ "${RUN_CHECK_AD_CONNECTIVITY}" == "true" ]; then
         imports_test_ad_connectivity || return 2
     fi
@@ -102,6 +138,16 @@ imports(){
     if [ "${RUN_AD_SYNC}" == "true" ]; then
         imports_ad_sync || return 2
     fi
+
+    if [ "${RUN_BALLERUP_APOS}" == "true" ]; then
+        imports_ballerup_apos || return 2
+    fi
+
+    if [ "${RUN_BALLERUP_UDVALG}" == "true" ]; then
+        imports_ballerup_udvalg || return 2
+    fi
+
+
 }
 
 # exports may also be interdependent: -e
@@ -116,6 +162,10 @@ exports(){
 
     if [ "${RUN_MOX_STS_ORGSYNC}" == "true" ]; then
         exports_mox_stsorgsync || return 2
+    fi
+
+    if [ "${RUN_QUERIES_BALLERUP}" == "true" ]; then
+        exports_queries_ballerup || return 2
     fi
 }
 
@@ -191,16 +241,14 @@ if [ "$#" == "0" ]; then
     fi
 
     if [ ! -n "${SVC_USER}" ]; then
-        echo "FATAL: Service user not specified"
-        exit 2
+        echo "WARNING: Service user not specified"
     fi
 
     if [ ! -n "${SVC_KEYTAB}" ]; then
-        echo "FATAL: Service keytab not specified"
-        exit 2
+        echo "WARNING: Service keytab not specified"
     fi
 
-    if [ ! -f "${SVC_KEYTAB}" ]; then
+    if [ -n "${SVC_KEYTAB}" -a ! -f "${SVC_KEYTAB}" ]; then
         echo "FATAL: Service keytab not found"
         exit 2
     fi
@@ -225,7 +273,12 @@ if [ "$#" == "0" ]; then
         exit 2
     fi
 
-    kinit ${SVC_USER} -k -t ${SVC_KEYTAB}
+    if [ -n "${SVC_USER}" -a -n "${SVC_KEYTAB}" ]; then
+        kinit ${SVC_USER} -k -t ${SVC_KEYTAB}
+    else
+        echo WARNING: not able to refresh kerberos auth
+    fi
+
     export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
     pre_backup
