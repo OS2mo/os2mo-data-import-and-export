@@ -86,7 +86,10 @@ def export_to_planorama(mh, nodes, filename_org, filename_persons):
             employees = mh.read_organisation_people(node.name, 'engagement', False)
             # Does this node have a new name?
             manager = find_org_manager(mh, node)
-            manager_engagement = mh.read_user_engagement(manager['uuid'])
+            if(manager['uuid'] != ''):
+                manager_engagement = mh.read_user_engagement(manager['uuid'])
+            else:
+                manager_engagement = [{'user_key': ''}]
 
             for uuid, employee in employees.items():
                 row = {}
@@ -108,8 +111,8 @@ def export_to_planorama(mh, nodes, filename_org, filename_persons):
                        'Number': '',
                        'Mobile': address['Mobiltelefon'] if 'Mobiltelefon' in address else '',
                        'Telephone': address['Telefon'] if 'Telefon' in address else '',
-                       'Responsible': manager_engagement[0]['user_key'],
-                       'Responsible_UUID': manager['uuid'],
+                       'Responsible': manager_engagement[0]['user_key'] if len(manager_engagement) > 0 else '',
+                       'Responsible_UUID': manager['uuid'] if 'uuid' in manager else '',
                        'Company': employee['Org-enhed UUID']
                        }
 
@@ -121,11 +124,16 @@ def export_to_planorama(mh, nodes, filename_org, filename_persons):
 
 def find_org_manager(mh, node):
 
+    if(node.is_root):
+        print("root node")
+        # return {'uuid': ''}
+
     new_manager = mh.read_ou_manager(node.name, True)
+
     if new_manager:
         return new_manager
     elif node.depth != 0:
-        return find_org_manager(node.parent, True)
+        return find_org_manager(mh, node.parent)
     else:
         return {'uuid': ''}
 
