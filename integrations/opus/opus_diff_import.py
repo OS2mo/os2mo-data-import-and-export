@@ -447,6 +447,13 @@ class OpusDiffImport(object):
             logger.debug('Update engagement payload: {}'.format(payload))
             response = self.helper._mo_post('details/edit', payload)
             self._assert(response)
+
+        if new_valid_to < old_valid_to:
+            self.terminate_detail(
+                engagement['uuid'],
+                detail_type='engagement',
+                end_date=new_valid_to
+            )
         return something_new
 
     def create_engagement(self, mo_user_uuid, opus_employee):
