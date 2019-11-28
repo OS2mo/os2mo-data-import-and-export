@@ -136,10 +136,9 @@ exports_queries_ballerup(){
         [ -z "${EXPORTS_DIR}" ] && echo "EXPORTS_DIR not spec'ed for exports_queries_ballerup" && exit 1
         [ -z "${WORK_DIR}" ] && echo "WORK_DIR not spec'ed for exports_queries_ballerup" && exit 1
         [ -d "${WORK_DIR}" ] || mkdir "${WORK_DIR}"
-	rm "${WORK_DIR}/*.csv"
         cd "${WORK_DIR}"
         ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
-        mv "${WORK_DIR}/*.csv" "${EXPORTS_DIR}"
+        mv "${WORK_DIR}"/*.csv "${EXPORTS_DIR}"
     )
     echo appending ballerup exports logfile to BACKED_UP_LOGFILES
     BACKED_UP_LOGFILES+=($(
