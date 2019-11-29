@@ -471,7 +471,8 @@ class MoraHelper(object):
                 data = {'Navn': manager['person']['name'],
                         # 'Ansvar': manager['responsibility'][0]['name'],
                         'Ansvar': responsibility['name'],
-                        'uuid': uuid
+                        'uuid': uuid, 
+                        'relation_uuid': manager['uuid']
                         }
                 manager_list[uuid] = data
             else:
