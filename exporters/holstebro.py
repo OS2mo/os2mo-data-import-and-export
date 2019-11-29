@@ -24,7 +24,7 @@ import holstebro_helpers as hh
 import holstebro_logger
 from os2mo_helpers.mora_helpers import MoraHelper
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+cfg_file = pathlib.Path.cwd() / 'settings' / 'holstebro.settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
 SETTINGS = json.loads(cfg_file.read_text())
@@ -43,13 +43,14 @@ def export_from_mo(hostname):
 
     mh = MoraHelper(hostname=hostname, export_ansi=False)
 
+    logger.info(f"Reading organisation from: {hostname}")
     org = mh.read_organisation()
 
     # find Holstebro Kommune root uuid, if no uuid is specified
-    roots = mh.read_top_units(org)
-    for root in roots:
-        if root['name'] == SETTINGS['municipality.name']:
-            holstebro_uuid = root['uuid']
+    org_roots = mh.read_top_units(org)
+    root_uuids = []
+    for root in org_roots:
+        root_uuids.append(root['uuid'])
 
     filename = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
     planorama_org = f"{filename}_{SETTINGS['exports.holstebro.planorama.org_filename']}"
@@ -59,19 +60,32 @@ def export_from_mo(hostname):
     # TEST UUIDs
     itdig_uuid = '9f981b4d-66c3-4100-b800-000001480001'
     okit_uuid = '470ce14c-66c3-4100-ba00-0000014b0001'
-    bufl_uuid = '4105e152-66c3-4100-8c00-0000014b0001'
+    boou_uuid = '5826074e-66c3-4100-8a00-000001510001'
 
-    nodes = mh.read_ou_tree(holstebro_uuid)
-    logger.info('Read nodes: {}s'.format(time.time() - t))
+    all_nodes = {}
+    roots = SETTINGS['exports.holstebro.roots']
+    for uuid in roots:
+        if uuid not in root_uuids:
+            raise Exception("Configured root uuid does not exist in organisation")
+
+        all_nodes[uuid] = {}
+        logger.info(f"Reading ou tree from {uuid}")
+
+        mh.read_ou_tree(uuid, all_nodes[uuid])
+        logger.info('Read nodes: {}s'.format(time.time() - t))
 
     if threaded_speedup:
         cq.pre_cache_users(mh)
         logger.info('Build cache: {}'.format(time.time() - t))
 
-    hh.export_to_planorama(mh, nodes, planorama_org, planorama_employee)
+    logger.info(f"Exporting data to Planorama")
+    hh.export_to_planorama(
+        mh, all_nodes, planorama_org, planorama_employee, org)
     logger.info(f"{planorama_org}: {time.time() - t}")
 
-    hh.export_to_essenslms(mh, nodes, essens_lms_filename)
+    logger.info(f"Exporting data to EssensLMS")
+    hh.export_to_essenslms(
+        mh, all_nodes, essens_lms_filename)
     logger.info(f"{essens_lms_filename}: {time.time() - t}")
 
 
