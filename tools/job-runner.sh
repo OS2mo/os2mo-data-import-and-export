@@ -14,11 +14,45 @@ source ${DIPEXAR}/tools/prefixed_settings.sh
 cd ${DIPEXAR}
 
 # FIXME: remove cache ad pickle files
-# Robert disables them in later ad
+# Robert disables/moves them in later ad
+# maybe he also takes care of the apos ones
 rm *.p 2>/dev/null || :
 
-export PYTHONPATH=$PWD:$PYTHONPATH
+# some logfiles can be truncated after backup as a primitive log rotation
+# they should be appended to BACK_UP_AND_TRUNCATE
+declare -a BACK_UP_AND_TRUNCATE=(
+	${DIPEXAR}/mo_integrations.log
+)
 
+# files that need to be backed up BEFORE running the jobs
+# should be appended to BACK_UP_BEFORE_JOBS NOW - they can't
+# be added inside the job functions
+declare -a BACK_UP_BEFORE_JOBS=(
+    ${SNAPSHOT_LORA}
+    $(readlink ${CUSTOMER_SETTINGS})
+    $(
+        SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
+        # backup mox_stsorgsync config only if file exists
+        [ -f "${MOX_MO_CONFIG}" ] && echo ${MOX_MO_CONFIG}
+    )
+    $(
+        SETTING_PREFIX="integrations.SD_Lon.import" source ${DIPEXAR}/tools/prefixed_settings.sh
+        # backup run_db only if file exists - it will not exist on non-SD customers
+        [ -f "${run_db}" ] && echo ${run_db}
+    )
+)
+
+# files that need to be backed up AFTER running the jobs
+# should be appended to BACK_UP_AFTER_JOBS
+declare -a BACK_UP_AFTER_JOBS=(
+    ${CRON_LOG_FILE}
+    # 2 files only exists at SD customers running changed at/cpr_uuid
+    # always take them if they are there
+    $([ -f "${DIPEXAR}/cpr_mo_ad_map.csv" ] && echo "${DIPEXAR}/cpr_mo_ad_map.csv")
+    $([ -f "${DIPEXAR}/settings/cpr_uuid_map.csv" ] && echo "${DIPEXAR}/settings/cpr_uuid_map.csv")
+)
+
+export PYTHONPATH=$PWD:$PYTHONPATH
 
 show_git_commit(){
     echo
@@ -47,26 +81,37 @@ imports_sd_fix_departments(){
 imports_sd_changed_at(){
     set -e
     echo running imports_sd_changed_at
+    BACK_UP_AFTER_JOBS+=(
+        ${DIPEXAR}/cpr_mo_ad_map.csv
+        ${DIPEXAR}/settings/cpr_uuid_map.csv
+    )
     ${VENV}/bin/python3 integrations/SD_Lon/sd_changed_at.py
 }
 
 imports_ad_sync(){
+    set -e
     echo running imports_ad_sync
     # remove ad cache files for now - they will be disabled later
     ${VENV}/bin/python3  integrations/ad_integration/ad_sync.py
 }
 
 imports_ballerup_apos(){
+    set -e
     echo running imports_ballerup_apos
     ${VENV}/bin/python3 integrations/ballerup/ballerup.py
 }
 
 imports_ballerup_udvalg(){
+    set -e
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/udvalg.log"
+    )
     echo running imports_ballerup_udvalg
     ${VENV}/bin/python3 integrations/ballerup/udvalg_import.py
 }
 
 exports_mox_rollekatalog(){
+    set -e
     echo running exports_mox_rollekatalog
     if [ -z "${MOX_ROLLE_COMPOSE_YML}" ]; then
         echo ERROR: MOX_ROLLE_COMPOSE_YML not set in configuration, aborting
@@ -77,6 +122,11 @@ exports_mox_rollekatalog(){
 }
 
 exports_mox_stsorgsync(){
+    set -e
+    BACK_UP_AND_TRUNCATE+=($(
+        SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
+        echo ${LOGFILE}
+    ))
     echo running exports_mox_stsorgsync
     (
         # get VENV, MOX_MO_CONFIG and LOGFILE
@@ -88,6 +138,12 @@ exports_mox_stsorgsync(){
         grep ERROR /var/log/os2sync/service.log | tail -n 10
     )
 }
+
+exports_os2mo_phonebook(){
+    set -e
+    :
+}
+
 
 reports_sd_db_overview(){
     set -e
@@ -102,6 +158,7 @@ reports_cpr_uuid(){
 }
 
 exports_queries_ballerup(){
+    set -e
     echo running exports_queries_ballerup
     (
 	set -x
@@ -110,11 +167,20 @@ exports_queries_ballerup(){
         [ -z "${EXPORTS_DIR}" ] && echo "EXPORTS_DIR not spec'ed for exports_queries_ballerup" && exit 1
         [ -z "${WORK_DIR}" ] && echo "WORK_DIR not spec'ed for exports_queries_ballerup" && exit 1
         [ -d "${WORK_DIR}" ] || mkdir "${WORK_DIR}"
-	rm "${WORK_DIR}/*.csv"
         cd "${WORK_DIR}"
         ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
-        mv "${WORK_DIR}/*.csv" "${EXPORTS_DIR}"
+        mv "${WORK_DIR}"/*.csv "${EXPORTS_DIR}"
     )
+    echo appending ballerup exports logfile to BACK_UP_AND_TRUNCATE
+    BACK_UP_AND_TRUNCATE+=($(
+        SETTING_PREFIX="exporters.ballerup" source ${DIPEXAR}/tools/prefixed_settings.sh
+        echo ${WORK_DIR}/export.log
+    ))
+}
+
+exports_test(){
+    set -e
+    :
 }
 
 # imports are typically interdependent: -e
@@ -146,8 +212,6 @@ imports(){
     if [ "${RUN_BALLERUP_UDVALG}" == "true" ]; then
         imports_ballerup_udvalg || return 2
     fi
-
-
 }
 
 # exports may also be interdependent: -e
@@ -166,6 +230,14 @@ exports(){
 
     if [ "${RUN_QUERIES_BALLERUP}" == "true" ]; then
         exports_queries_ballerup || return 2
+    fi
+
+    if [ "${RUN_EXPORTS_OS2MO_PHONEBOOK}" == "true" ]; then
+        exports_os2mo_phonebook || return 2
+    fi
+
+    if [ "${RUN_EXPORTS_TEST}" == "true" ]; then
+        exports_test || return 2
     fi
 }
 
@@ -186,33 +258,21 @@ reports(){
     fi
 }
 
-pre_backup(){
-    # some files are not parameterised yet, others are.
-    # primitive backup, I know - but until something better turns up...
-    STS_ORG_CONFIG=$(
-        SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
-        echo ${MOX_MO_CONFIG}
-    )
-    SD_IMPORT_RUN_DB=$(
-        SETTING_PREFIX="integrations.SD_Lon.import" source ${DIPEXAR}/tools/prefixed_settings.sh
-        echo ${run_db}
-    )
-    tar -cf $BUPFILE\
-        ${SNAPSHOT_LORA} \
-        ${SD_IMPORT_RUN_DB} \
-        $(readlink ${CUSTOMER_SETTINGS}) \
-        ${STS_ORG_CONFIG} \
-        > /dev/null 2>&1
+pre_truncate_logfiles(){
+    # logfiles are truncated before each run as 
+    [ -f "udvalg.log" ] && truncate -s 0 "udvalg.log" 
+}
 
+pre_backup(){
+    tar -cf $BUPFILE\
+        ${BACK_UP_BEFORE_JOBS[@]}\
+        > /dev/null 2>&1
 }
 
 post_backup(){
-    # some files are not parameterised yet, others are.
-    # primitive backup, I know - but until something better turns up...
-    tar -rf $BUPFILE\
-        ${DIPEXAR}/cpr_mo_ad_map.csv \
-        ${DIPEXAR}//settings/cpr_uuid_map.csv \
-        ${CRON_LOG_FILE} \
+    tar -rvf $BUPFILE \
+        ${BACK_UP_AFTER_JOBS[@]} \
+        ${BACK_UP_AND_TRUNCATE[@]} \
         > /dev/null 2>&1
 
     echo
@@ -220,6 +280,9 @@ post_backup(){
     echo ${BUPFILE}.gz
     tar -tvf ${BUPFILE}
     gzip  ${BUPFILE}
+
+    echo truncating backed up logfiles
+    truncate -s 0 ${BACK_UP_AND_TRUNCATE[@]}
 
     echo
     BACKUP_SAVE_DAYS=${BACKUP_SAVE_DAYS:=90}
