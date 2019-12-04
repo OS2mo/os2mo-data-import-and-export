@@ -182,3 +182,8 @@ update-dipex.sh
 
 Dette program anvendes for at opdatere repositoriet og afhængigheder
 
+inspect_config.py
+=================
+
+compare settings file with kommune-anddeby.json and report what is missing
+
