@@ -3,15 +3,18 @@ set +x
 export DIPEXAR=${DIPEXAR:=$(cd $(dirname $0); pwd )/..}
 export CUSTOMER_SETTINGS=${CUSTOMER_SETTINGS:=${DIPEXAR}/settings/settings.json}
 export SETTINGS_FILE=$(basename ${CUSTOMER_SETTINGS})
+export BACKUP_MAX_SECONDS_AGE=60
 export VENV=${VENV:=${DIPEXAR}/venv}
 export IMPORTS_OK=false
 export EXPORTS_OK=false
 export REPORTS_OK=false
+export BACKUP_OK=true
 export LC_ALL="C.UTF-8"
 
 source ${DIPEXAR}/tools/prefixed_settings.sh
 
 cd ${DIPEXAR}
+export PYTHONPATH=$PWD:$PYTHONPATH
 
 # FIXME: remove cache ad pickle files
 # Robert disables/moves them in later ad
@@ -38,7 +41,7 @@ declare -a BACK_UP_BEFORE_JOBS=(
     $(
         SETTING_PREFIX="integrations.SD_Lon.import" source ${DIPEXAR}/tools/prefixed_settings.sh
         # backup run_db only if file exists - it will not exist on non-SD customers
-        [ -f "${run_db}" ] && echo ${run_db}
+        echo ${run_db}
     )
 )
 
@@ -52,11 +55,10 @@ declare -a BACK_UP_AFTER_JOBS=(
     $([ -f "${DIPEXAR}/settings/cpr_uuid_map.csv" ] && echo "${DIPEXAR}/settings/cpr_uuid_map.csv")
 )
 
-export PYTHONPATH=$PWD:$PYTHONPATH
-
 show_git_commit(){
     echo
     echo CRON_GIT_COMMIT=$(git show -s --format=%H)
+    echo
 }
 
 imports_mox_db_clear(){
@@ -144,6 +146,11 @@ exports_os2mo_phonebook(){
     :
 }
 
+exports_cpr_uuid(){
+    set -e
+    echo running exports_cpr_uuid
+    ${VENV}/bin/python3 exporters/cpr_uuid.py
+}
 
 reports_sd_db_overview(){
     set -e
@@ -151,14 +158,14 @@ reports_sd_db_overview(){
     ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py
 }
 
-reports_cpr_uuid(){
-    set -e
-    echo running reports_cpr_uuid
-    ${VENV}/bin/python3 exporters/cpr_uuid.py
-}
 
 exports_queries_ballerup(){
     set -e
+    echo appending ballerup exports logfile to BACK_UP_AND_TRUNCATE
+    BACK_UP_AND_TRUNCATE+=($(
+        SETTING_PREFIX="exporters.ballerup" source ${DIPEXAR}/tools/prefixed_settings.sh
+        echo ${WORK_DIR}/export.log
+    ))
     echo running exports_queries_ballerup
     (
 	set -x
@@ -171,11 +178,6 @@ exports_queries_ballerup(){
         ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
         mv "${WORK_DIR}"/*.csv "${EXPORTS_DIR}"
     )
-    echo appending ballerup exports logfile to BACK_UP_AND_TRUNCATE
-    BACK_UP_AND_TRUNCATE+=($(
-        SETTING_PREFIX="exporters.ballerup" source ${DIPEXAR}/tools/prefixed_settings.sh
-        echo ${WORK_DIR}/export.log
-    ))
 }
 
 exports_test(){
@@ -185,6 +187,10 @@ exports_test(){
 
 # imports are typically interdependent: -e
 imports(){
+    [ "${BACKUP_OK}" == "false" ] \
+        && echo ERROR: backup is in error - skipping imports \
+        && return 1 # imports depend on backup
+
     if [ "${RUN_MOX_DB_CLEAR}" == "true" ]; then
         imports_mox_db_clear || return 2
     fi
@@ -236,6 +242,11 @@ exports(){
         exports_os2mo_phonebook || return 2
     fi
 
+    if [ "${RUN_CPR_UUID}" == "true" ]; then
+        # this particular report is not allowed to fail
+        exports_cpr_uuid || return 2
+    fi
+
     if [ "${RUN_EXPORTS_TEST}" == "true" ]; then
         exports_test || return 2
     fi
@@ -252,10 +263,6 @@ reports(){
         reports_sd_db_overview || echo "error in reports_sd_db_overview - continuing"
     fi
 
-    if [ "${RUN_CPR_UUID}" == "true" ]; then
-        # this particular report is not allowed to fail
-        reports_cpr_uuid || return 2
-    fi
 }
 
 pre_truncate_logfiles(){
@@ -264,16 +271,23 @@ pre_truncate_logfiles(){
 }
 
 pre_backup(){
-    tar -cf $BUPFILE\
-        ${BACK_UP_BEFORE_JOBS[@]}\
-        > /dev/null 2>&1
+    for f in ${BACK_UP_BEFORE_JOBS[@]}
+    do
+        # try to append to tar file and report if not found
+	tar -rf $BUPFILE "${f}" > /dev/null 2>&1 || BACKUP_OK=false 
+    done
+    declare -i age=$(stat -c%Y ${BUPFILE})-$(stat -c%Y ${SNAPSHOT_LORA})
+    if [[ ${age} > ${BACKUP_MAX_SECONDS_AGE} ]]; then
+        BACKUP_OK=false 
+	echo "ERROR database snapshot is more than ${BACKUP_MAX_SECONDS_AGE} seconds old: $age"
+    fi
 }
 
 post_backup(){
-    tar -rvf $BUPFILE \
-        ${BACK_UP_AFTER_JOBS[@]} \
-        ${BACK_UP_AND_TRUNCATE[@]} \
-        > /dev/null 2>&1
+    for f in ${BACK_UP_AFTER_JOBS[@]} ${BACK_UP_AND_TRUNCATE[@]}
+    do
+	tar -rf $BUPFILE "${f}" > /dev/null 2>&1 || BACKUP_OK=false 
+    done
 
     echo
     echo listing preliminary backup archive
@@ -344,15 +358,16 @@ if [ "$#" == "0" ]; then
 
     export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
-    pre_backup
     show_git_commit
+    pre_backup
     imports && IMPORTS_OK=true
     exports && EXPORTS_OK=true
     reports && REPORTS_OK=true
-    show_git_commit
     echo IMPORTS_OK=${IMPORTS_OK}
     echo EXPORTS_OK=${EXPORTS_OK}
     echo REPORTS_OK=${REPORTS_OK}
+    echo BACKUP_OK=${BACKUP_OK}
+    show_git_commit
     post_backup
     ) 2>&1 | tee ${CRON_LOG_FILE}
 
