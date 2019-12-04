@@ -277,7 +277,7 @@ pre_backup(){
 	tar -rf $BUPFILE "${f}" > /dev/null 2>&1 || BACKUP_OK=false 
     done
     declare -i age=$(stat -c%Y ${BUPFILE})-$(stat -c%Y ${SNAPSHOT_LORA})
-    if [[ ${age} > ${BACKUP_MAX_SECONDS_AGE} ]]; then
+    if [[ ${age} -gt ${BACKUP_MAX_SECONDS_AGE} ]]; then
         BACKUP_OK=false 
 	echo "ERROR database snapshot is more than ${BACKUP_MAX_SECONDS_AGE} seconds old: $age"
     fi
