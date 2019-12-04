@@ -20,6 +20,7 @@
     "crontab.BACKUP_SAVE_DAYS": "60",
     "crontab.MOX_ROLLE_COMPOSE_YML":"/path/to/file.yml",
     "crontab.SNAPSHOT_LORA":"/path/db-snapshot.sql",
+    "crontab.LORA_CONFIG":"/path/to/lora_config/for/db/restore",
 
     "mox.base": "http://example.com/mox",
     "mora.base": "http://example.com/mora",
