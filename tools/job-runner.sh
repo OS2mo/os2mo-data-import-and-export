@@ -3,6 +3,7 @@ set +x
 export DIPEXAR=${DIPEXAR:=$(cd $(dirname $0); pwd )/..}
 export CUSTOMER_SETTINGS=${CUSTOMER_SETTINGS:=${DIPEXAR}/settings/settings.json}
 export SETTINGS_FILE=$(basename ${CUSTOMER_SETTINGS})
+export BACKUP_MAX_SECONDS_AGE=60
 export VENV=${VENV:=${DIPEXAR}/venv}
 export IMPORTS_OK=false
 export EXPORTS_OK=false
@@ -40,7 +41,7 @@ declare -a BACK_UP_BEFORE_JOBS=(
     $(
         SETTING_PREFIX="integrations.SD_Lon.import" source ${DIPEXAR}/tools/prefixed_settings.sh
         # backup run_db only if file exists - it will not exist on non-SD customers
-        [ -f "${run_db}" ] && echo ${run_db}
+        echo ${run_db}
     )
 )
 
@@ -57,6 +58,7 @@ declare -a BACK_UP_AFTER_JOBS=(
 show_git_commit(){
     echo
     echo CRON_GIT_COMMIT=$(git show -s --format=%H)
+    echo
 }
 
 imports_mox_db_clear(){
@@ -185,6 +187,10 @@ exports_test(){
 
 # imports are typically interdependent: -e
 imports(){
+    [ "${BACKUP_OK}" == "false" ] \
+        && echo ERROR: backup is in error - skipping imports \
+        && return 1 # imports depend on backup
+
     if [ "${RUN_MOX_DB_CLEAR}" == "true" ]; then
         imports_mox_db_clear || return 2
     fi
@@ -268,14 +274,19 @@ pre_backup(){
     for f in ${BACK_UP_BEFORE_JOBS[@]}
     do
         # try to append to tar file and report if not found
-	tar -rf $BUPFILE "${f}" || BACKUP_OK=false 
+	tar -rf $BUPFILE "${f}" > /dev/null 2>&1 || BACKUP_OK=false 
     done
+    declare -i age=$(stat -c%Y ${BUPFILE})-$(stat -c%Y ${SNAPSHOT_LORA})
+    if [[ ${age} > ${BACKUP_MAX_SECONDS_AGE} ]]; then
+        BACKUP_OK=false 
+	echo "ERROR database snapshot is more than ${BACKUP_MAX_SECONDS_AGE} seconds old: $age"
+    fi
 }
 
 post_backup(){
     for f in ${BACK_UP_AFTER_JOBS[@]} ${BACK_UP_AND_TRUNCATE[@]}
     do
-	tar -rf $BUPFILE "${f}" || BACKUP_OK=false 
+	tar -rf $BUPFILE "${f}" > /dev/null 2>&1 || BACKUP_OK=false 
     done
 
     echo
@@ -347,16 +358,16 @@ if [ "$#" == "0" ]; then
 
     export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
-    pre_backup
     show_git_commit
+    pre_backup
     imports && IMPORTS_OK=true
     exports && EXPORTS_OK=true
     reports && REPORTS_OK=true
-    show_git_commit
     echo IMPORTS_OK=${IMPORTS_OK}
     echo EXPORTS_OK=${EXPORTS_OK}
     echo REPORTS_OK=${REPORTS_OK}
     echo BACKUP_OK=${BACKUP_OK}
+    show_git_commit
     post_backup
     ) 2>&1 | tee ${CRON_LOG_FILE}
 
