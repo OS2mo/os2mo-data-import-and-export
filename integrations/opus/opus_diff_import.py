@@ -216,14 +216,23 @@ class OpusDiffImport(object):
         :return: A valid MO valididty payload
         """
         to_date = employee['leaveDate']
-        if not edit and to_date is None:
+        # if to_date is None: # This can most likely be removed
+        #     to_datetime = datetime.strptime('9999-12-31', '%Y-%m-%d') 
+        # else:
+        #     to_datetime = datetime.strptime(to_date, '%Y-%m-%d')
+
+        from_date = employee['entryDate']
+        if not edit and from_date is None:
             logger.error('Missing start date for employee!')
-            edit = True  # Falk back to using @lastChanged
+            from_date = employee.get('@lastChanged')
 
         if edit:
-            from_date = employee.get('@lastChanged')
-        else:
-            from_date = employee['entryDate']
+            lastchanged = employee.get('@lastChanged')
+            entry_datetime = datetime.strptime(from_date, '%Y-%m-%d')
+            lastchanged_datetime = datetime.strptime(lastchanged, '%Y-%m-%d')
+
+            if lastchanged_datetime > entry_datetime:
+                from_date = lastchanged
 
         validity = {
             'from': from_date,
@@ -516,10 +525,19 @@ class OpusDiffImport(object):
             logger.info('Added AD account info to {}'.format(cpr))
         return return_uuid
 
+    def _to_datetime(self, item):
+        if item is None:
+            item_datetime = datetime.strptime('9999-12-31', '%Y-%m-%d')
+        else:
+            item_datetime = datetime.strptime(item, '%Y-%m-%d')
+        return item_datetime
+
     def update_manager_status(self, employee_mo_uuid, employee):
-        manager_functions = self.helper._mo_lookup(employee_mo_uuid,
-                                                   'e/{}/details/manager')
+        url = 'e/{}/details/manager?at=' + self.latest_date.strftime('%Y-%m-%d')
+        manager_functions = self.helper._mo_lookup(employee_mo_uuid, url)
         logger.debug('Manager functions to update: {}'.format(manager_functions))
+        if manager_functions:
+            logger.debug('Manager functions to update: {}'.format(manager_functions))
 
         if employee['isManager'] == 'false':
             if manager_functions:
@@ -545,26 +563,58 @@ class OpusDiffImport(object):
                 'responsibility': responsibility_uuid,
                 'validity': self.validity(employee, edit=True)
             }
-
-            # TODO: We do no attempt of detecting whether anything is changed, the
-            # manager is unconditionally updated and thus an extra row will appear
-            # in MO.
             if manager_functions:
                 logger.info('Attempt manager update of {}:'.format(employee_mo_uuid))
                 # Currently Opus supports only a single manager object pr employee
                 assert len(manager_functions) == 1
+
+                mf = manager_functions[0]
+
                 payload = payloads.edit_manager(
                     object_uuid=manager_functions[0]['uuid'],
                     **args
                 )
+
+                something_new = not (
+                        mf['org_unit']['uuid'] == args['unit'] and
+                        mf['person']['uuid'] == args['person'] and
+                        mf['manager_type']['uuid'] == args['manager_type'] and
+                        mf['manager_level']['uuid'] == args['level'] and
+                        mf['responsibility'][0]['uuid'] == args['responsibility']
+                )
+
+                if something_new:
+                    logger.debug('Something is changed, execute payload')
+                else:
+                    mo_end_datetime = self._to_datetime(mf['validity']['to'])
+                    opus_end_datetime = self._to_datetime(args['validity']['to'])
+                    logger.info('MO end datetime: {}'.format(mo_end_datetime))
+                    logger.info('OPUS end datetime: {}'.format(opus_end_datetime))
+
+                    if mo_end_datetime == opus_end_datetime:
+                        logger.info('No edit of manager object')
+                        payload = None
+                    elif opus_end_datetime > mo_end_datetime:
+                        logger.info('Extend validity, send payload to MO')
+                    else:  # opus_end_datetime < mo_end_datetime:
+                        logger.info('Terminate mangement role')
+                        payload = None
+                        self.terminate_detail(
+                            mf['uuid'],
+                            detail_type='manager',
+                            end_date=opus_end_datetime
+                        )
+
                 logger.debug('Update manager payload: {}'.format(payload))
-                response = self.helper._mo_post('details/edit', payload)
-                self._assert(response)
-            else:
+                if payload is not None:
+                    response = self.helper._mo_post('details/edit', payload)
+                    self._assert(response)
+            else: # No existing manager functions
                 logger.info('Turn this person into a manager')
                 # Validity is set to edit=True since the validiy should
                 # calculated as an edit to the engagement
                 payload = payloads.create_manager(user_key=employee['@id'], **args)
+                logger.debug('Create manager payload: {}'.format(payload))
                 response = self.helper._mo_post('details/create', payload)
                 assert response.status_code == 201
 
