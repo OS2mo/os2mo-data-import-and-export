@@ -3,7 +3,7 @@ set +x
 export DIPEXAR=${DIPEXAR:=$(cd $(dirname $0); pwd )/..}
 export CUSTOMER_SETTINGS=${CUSTOMER_SETTINGS:=${DIPEXAR}/settings/settings.json}
 export SETTINGS_FILE=$(basename ${CUSTOMER_SETTINGS})
-export BACKUP_MAX_SECONDS_AGE=60
+export BACKUP_MAX_SECONDS_AGE=${BACKUP_MAX_SECONDS_AGE:=60}
 export VENV=${VENV:=${DIPEXAR}/venv}
 export IMPORTS_OK=false
 export EXPORTS_OK=false
