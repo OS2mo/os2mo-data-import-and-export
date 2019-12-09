@@ -1,53 +1,42 @@
-import os
+import uuid
+import json
+import pathlib
+import hashlib
 import logging
 import sqlite3
 import datetime
 from pathlib import Path
 
+from integrations import cpr_mapper
 from integrations.opus import opus_import
+from integrations.opus import opus_diff_import
 from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_exceptions import NoNewerDumpAvailable
 from integrations.opus.opus_exceptions import RedundantForceException
 from integrations.opus.opus_exceptions import ImporterrunNotCompleted
 
-RUN_DB = os.environ.get('RUN_DB', None)
-MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'Opus Import')
+# TODO: Soon we have done this 4 times. Should we make a small settings
+# importer, that will also handle datatype for specicic keys?
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+SETTINGS = json.loads(cfg_file.read_text())
 
 DUMP_PATH = Path('/opt/magenta/dataimport/opus')
-START_DATE = datetime.datetime(2019, 10, 25, 0, 0)
+START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
 
-# Check this!!!!!!!!!!
-# Maybe we should do the logging configuration here!
-logger = logging.getLogger("opusImport")
+logger = logging.getLogger("opusHelper")
 
 
-def compare_files():
-    import difflib
-    dumps = _read_available_dumps()
-    names = sorted(dumps.keys())
+def _read_cpr_mapping():
+    cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
+    if not cpr_map.is_file():
+        logger.error('Did not find cpr mapping')
+        raise Exception('Did not find cpr mapping')
 
-    # with .open(mode='r') as xmldump:
-    #     file0 = xmldump.read()
-    # with open(str(dumps[names[1]])) as xmldump:
-    #     file1 = xmldump.read()
-
-    # print(file0)
-
-    #    print(dumps[names[0]].read_text().split('\n'))
-
-    diff = difflib.ndiff(
-        dumps[names[0]].read_text().split('\n'),
-        dumps[names[1]].read_text().split('\n')
-    )
-
-    line_number = 0
-    for d in diff:
-        line_number += 1
-        # if d[0] in ('+', '-'):
-        if d[0] == '+':
-            msg = 'Line: {}: {}'.format(str(line_number).zfill(7), d)
-            print(msg)
-    # print(list(diff)[0])
+    logger.info('Found cpr mapping')
+    employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
+    return employee_forced_uuids
 
 
 def _read_available_dumps():
@@ -62,7 +51,8 @@ def _read_available_dumps():
 
 
 def _local_db_insert(insert_tuple):
-    conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
+    conn = sqlite3.connect(SETTINGS['opus.import.run_db'],
+                           detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
     query = 'insert into runs (dump_date, status) values (?, ?)'
     final_tuple = (
@@ -87,7 +77,8 @@ def _initialize_db(run_db):
 
 
 def _next_xml_file(run_db, dumps):
-    conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
+    conn = sqlite3.connect(SETTINGS['opus.import.run_db'],
+                           detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
     query = 'select * from runs order by id desc limit 1'
     c.execute(query)
@@ -105,17 +96,46 @@ def _next_xml_file(run_db, dumps):
             break
     if next_date is None:
         raise NoNewerDumpAvailable('No newer XML dump is available')
-    return next_date
+    return (next_date, latest_date)
 
 
-def start_opus_import(importer, ad_reader=None, force=False, employee_mapping={}):
+def parse_phone(phone_number):
+    validated_phone = None
+    if len(phone_number) == 8:
+        validated_phone = phone_number
+    elif len(phone_number) in (9, 11):
+        validated_phone = phone_number.replace(' ', '')
+    elif len(phone_number) in (4, 5):
+        validated_phone = '0000' + phone_number.replace(' ', '')
+
+    if validated_phone is None:
+        logger.warning('Could not parse phone {}'.format(phone_number))
+    return validated_phone
+
+
+def generate_uuid(value):
+    """
+    Generate a predictable uuid based on org name and a unique value.
+    """
+    base_hash = hashlib.md5(SETTINGS['municipality.name'].encode())
+    base_digest = base_hash.hexdigest()
+    base_uuid = uuid.UUID(base_digest)
+
+    combined_value = (str(base_uuid) + str(value)).encode()
+    value_hash = hashlib.md5(combined_value)
+    value_digest = value_hash.hexdigest()
+    value_uuid = uuid.UUID(value_digest)
+    return value_uuid
+
+
+def start_opus_import(importer, ad_reader=None, force=False):
     """
     Start an opus import, run the oldest available dump that
     has not already been imported.
     """
     dumps = _read_available_dumps()
 
-    run_db = Path(RUN_DB)
+    run_db = Path(SETTINGS['opus.import.run_db'])
     if not run_db.is_file():
         logger.error('Local base not correctly initialized')
         if not force:
@@ -131,9 +151,11 @@ def start_opus_import(importer, ad_reader=None, force=False, employee_mapping={}
     xml_file = dumps[xml_date]
     _local_db_insert((xml_date, 'Running since {}'))
 
+    employee_mapping = _read_cpr_mapping()
+
     opus_importer = opus_import.OpusImport(
         importer,
-        org_name=MUNICIPALTY_NAME,
+        org_name=SETTINGS['municipality.name'],
         xml_data=str(xml_file),
         ad_reader=ad_reader,
         import_first=True,
@@ -149,5 +171,29 @@ def start_opus_import(importer, ad_reader=None, force=False, employee_mapping={}
     _local_db_insert((xml_date, 'Import ended: {}'))
 
 
-if __name__ == '__main__':
-    compare_files()
+def start_opus_diff(ad_reader=None):
+    """
+    Start an opus update, use the oldest available dump that has not
+    already been imported.
+    """
+    dumps = _read_available_dumps()
+    run_db = Path(SETTINGS['opus.import.run_db'])
+
+    employee_mapping = _read_cpr_mapping()
+
+    if not run_db.is_file():
+        logger.error('Local base not correctly initialized')
+        raise RunDBInitException('Local base not correctly initialized')
+    xml_date, latest_date = _next_xml_file(run_db, dumps)
+    xml_file = dumps[xml_date]
+
+    _local_db_insert((xml_date, 'Running diff update since {}'))
+    msg = 'Start update: File: {}, update since: {}'
+    logger.info(msg.format(xml_file, latest_date))
+    print(msg.format(xml_file, latest_date))
+
+    diff = opus_diff_import.OpusDiffImport(latest_date, ad_reader=ad_reader,
+                                           employee_mapping=employee_mapping)
+    diff.start_re_import(xml_file, include_terminations=True)
+    logger.info('Ended update')
+    _local_db_insert((xml_date, 'Diff update ended: {}'))
