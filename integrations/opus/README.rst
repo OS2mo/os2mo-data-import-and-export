@@ -61,7 +61,7 @@ til at berige objekterne fra OPUS med information fra Active Directory. I øjebl
 er det muligt at importere felterne ``ObjectGuid`` og ``SamAccountName``.
 
 Hvis AD integrationen er aktiv, vil importeren oprette IT-systemet 'Active Directory'
-og oprette alle brugere der findes i AD med bruernavnet fundet i ``SamAccountName``.
+og oprette alle brugere der findes i AD med brugernavnet fundet i ``SamAccountName``.
 Brugere med en AD konto vil blive oprettet med deres AD ``ObjectGuid`` som UUID på
 deres brugerobjekt, med mindre de er angivet i en cpr-mapning.
 
