@@ -217,11 +217,13 @@ class OpusDiffImport(object):
         """
         to_date = employee['leaveDate']
         # if to_date is None: # This can most likely be removed
-        #     to_datetime = datetime.strptime('9999-12-31', '%Y-%m-%d') 
+        #     to_datetime = datetime.strptime('9999-12-31', '%Y-%m-%d')
         # else:
         #     to_datetime = datetime.strptime(to_date, '%Y-%m-%d')
 
         from_date = employee['entryDate']
+        if from_date is None:
+            from_date = employee.get('@lastChanged')
         if not edit and from_date is None:
             logger.error('Missing start date for employee!')
             from_date = employee.get('@lastChanged')
@@ -609,7 +611,7 @@ class OpusDiffImport(object):
                 if payload is not None:
                     response = self.helper._mo_post('details/edit', payload)
                     self._assert(response)
-            else: # No existing manager functions
+            else:  # No existing manager functions
                 logger.info('Turn this person into a manager')
                 # Validity is set to edit=True since the validiy should
                 # calculated as an edit to the engagement
