@@ -158,6 +158,12 @@ reports_sd_db_overview(){
     ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py
 }
 
+reports_opus_db_overview(){
+    set -e
+    echo running reports_opus_db_overview
+    ${VENV}/bin/python3 integrations/opus/db_overview.py
+}
+
 
 exports_queries_ballerup(){
     set -e
@@ -261,6 +267,10 @@ reports(){
 
     if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
         reports_sd_db_overview || echo "error in reports_sd_db_overview - continuing"
+    fi
+    
+    if [ "${RUN_OPUS_DB_OVERVIEW}" == "true" ]; then
+        reports_opus_db_overview || echo "error in reports_opus_db_overview - continuing"
     fi
 
 }
