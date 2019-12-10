@@ -217,7 +217,7 @@ class OpusDiffImport(object):
         """
         to_date = employee['leaveDate']
         # if to_date is None: # This can most likely be removed
-        #     to_datetime = datetime.strptime('9999-12-31', '%Y-%m-%d') 
+        #     to_datetime = datetime.strptime('9999-12-31', '%Y-%m-%d')
         # else:
         #     to_datetime = datetime.strptime(to_date, '%Y-%m-%d')
 
@@ -609,7 +609,7 @@ class OpusDiffImport(object):
                 if payload is not None:
                     response = self.helper._mo_post('details/edit', payload)
                     self._assert(response)
-            else: # No existing manager functions
+            else:  # No existing manager functions
                 logger.info('Turn this person into a manager')
                 # Validity is set to edit=True since the validiy should
                 # calculated as an edit to the engagement
@@ -789,3 +789,21 @@ class OpusDiffImport(object):
             self.terminate_detail(role['uuid'], detail_type='role')
 
         logger.info('Program ended correctly')
+
+
+if __name__ == '__main__':
+    from integrations.ad_integration import ad_reader
+    from integrations.opus.opus_helpers import start_opus_diff
+    from integrations.opus.opus_exceptions import RunDBInitException
+
+    cfg_file = Path.cwd() / 'settings' / 'settings.json'
+    if not cfg_file.is_file():
+        raise Exception('No setting file')
+    SETTINGS = json.loads(cfg_file.read_text())
+
+    ad_reader = ad_reader.ADParameterReader()
+
+    try:
+        start_opus_diff(ad_reader=ad_reader)
+    except RunDBInitException:
+        print('RunDB not initialized')
