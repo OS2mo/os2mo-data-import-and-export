@@ -1,7 +1,4 @@
-export MUNICIPALITY_NAME='Hjørring Kommune'
-export MUNICIPALITY_CODE=860
+export PYTHONPATH=$PWD:$PYTHONPATH
+script_dir=$(cd $(dirname $0); pwd)
 
-export MOX_BASE=http://localhost:5000
-export MORA_BASE=http://localhost:80
-
-python3 hjørring.py
+python3 "$script_dir/hjørring.py"

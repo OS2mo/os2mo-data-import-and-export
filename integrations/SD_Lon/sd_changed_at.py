@@ -61,7 +61,15 @@ class ChangeAtSD(object):
         self.department_fixer = FixDepartments()
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
-        self.ad_reader = ad_reader.ADParameterReader()
+
+        use_ad = SETTINGS.get('integrations.SD_Lon.use_ad_integration', True)
+        if use_ad:
+            logger.info('AD integration in use')
+            self.ad_reader = ad_reader.ADParameterReader()
+        else:
+            logger.info('AD integration not in use')
+            self.ad_reader = None
+
         self.updater = MOPrimaryEngagementUpdater()
         self.from_date = from_date
         self.to_date = to_date
@@ -221,7 +229,11 @@ class ChangeAtSD(object):
 
             uuid = None
             mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
-            ad_info = self.ad_reader.read_user(cpr=cpr)
+
+            if self.ad_reader is not None:
+                ad_info = self.ad_reader.read_user(cpr=cpr)
+            else:
+                ad_info = {}
 
             if mo_person:
                 if mo_person['name'] == sd_name:
