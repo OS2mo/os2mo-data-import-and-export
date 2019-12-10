@@ -128,7 +128,7 @@ integrationen har derfor en yderst primitiv håndtering af enheder:
 
 Ved førstegangsimport vil alle aktuelle enheder blive importeret med den
 virkningstid som oplyses af kald til ``GetDepartment``. Dette er dog ikke
-nødvendigvis den egenlige oprettelsesdato for enheden og der vil være tilfælde
+nødvendigvis den egentlige oprettelsesdato for enheden og der vil være tilfælde
 hvor startdato er enten for tidlig eller for sen i forhold til den reele startdato
 for enheden.
 
@@ -145,7 +145,7 @@ Enheden vil herefter fremgå af MO som om den altid har haft det navn og den pla
 den har på importdagen.
 
 I øjeblikket er det ikke muligt at fremprovokere en synkronisering af navn og
-placering af en enhed so er ændret i SD, men dette vil blive implementeret indenfor
+placering af en enhed som er ændret i SD, men dette vil blive implementeret indenfor
 den nærmeste fremtid.
 
 Det skal altså understreges, at MOs historiske information om enhder **ikke** er
@@ -153,7 +153,7 @@ retsvisende. Det betyder dels, at det ikke er muligt at se tidligere navne på
 enheden, men mere bemærkelsesværdigt er det, at det ikke er muligt at se tidligere
 placeringer i organisationshierakiet. Det betyder altså, at enheden potentielt
 tidligere kan have været placeret et helt andet sted i organisationen. Hvis en
-medarbejder har været ansat i en enhed mens enhed er er blevet flyttet, vil dette
+medarbejder har været ansat i en enhed mens enheden er er blevet flyttet, vil dette
 ikke fremgå at medarbejderens fortidsfane, da engagementets tilknytning til enheden
 ikke har været ændret. Det er derfor vigtigt at holde sig for øje, at selvom en
 medarbejders historik ikke indeholder ændringer i organisatorisk placering, kan
