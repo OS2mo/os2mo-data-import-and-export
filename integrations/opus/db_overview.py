@@ -63,7 +63,7 @@ class DBOverview(object):
 if __name__ == '__main__':
     db_overview = DBOverview()
 
-    print(db_overview.delete_last_row())
+    # print(db_overview.delete_last_row())
     # print(db_overview.delete_last_row(force=True))
     # print(db_overview.delete_last_row(force=True))
     db_overview.read_db_content()

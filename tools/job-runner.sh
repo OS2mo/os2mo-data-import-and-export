@@ -90,6 +90,16 @@ imports_sd_changed_at(){
     ${VENV}/bin/python3 integrations/SD_Lon/sd_changed_at.py
 }
 
+imports_opus_diff_import(){
+    set -e
+    echo running opus_diff_import
+    BACK_UP_AFTER_JOBS+=(
+        ${DIPEXAR}/cpr_mo_ad_map.csv
+        ${DIPEXAR}/settings/cpr_uuid_map.csv
+    )
+    ${VENV}/bin/python3 integrations/opus/opus_diff_import.py
+}
+
 imports_ad_sync(){
     set -e
     echo running imports_ad_sync
@@ -158,6 +168,12 @@ reports_sd_db_overview(){
     ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py
 }
 
+reports_opus_db_overview(){
+    set -e
+    echo running reports_opus_db_overview
+    ${VENV}/bin/python3 integrations/opus/db_overview.py
+}
+
 
 exports_queries_ballerup(){
     set -e
@@ -205,6 +221,10 @@ imports(){
 
     if [ "${RUN_SD_CHANGED_AT}" == "true" ]; then
         imports_sd_changed_at || return 2
+    fi
+
+    if [ "${RUN_OPUS_DIFF_IMPORT}" == "true" ]; then
+        imports_opus_diff_import || return 2
     fi
 
     if [ "${RUN_AD_SYNC}" == "true" ]; then
@@ -261,6 +281,10 @@ reports(){
 
     if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
         reports_sd_db_overview || echo "error in reports_sd_db_overview - continuing"
+    fi
+    
+    if [ "${RUN_OPUS_DB_OVERVIEW}" == "true" ]; then
+        reports_opus_db_overview || echo "error in reports_opus_db_overview - continuing"
     fi
 
 }
