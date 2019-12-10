@@ -222,6 +222,8 @@ class OpusDiffImport(object):
         #     to_datetime = datetime.strptime(to_date, '%Y-%m-%d')
 
         from_date = employee['entryDate']
+        if from_date is None:
+            from_date = employee.get('@lastChanged')
         if not edit and from_date is None:
             logger.error('Missing start date for employee!')
             from_date = employee.get('@lastChanged')
