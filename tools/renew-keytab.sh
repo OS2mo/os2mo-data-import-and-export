@@ -24,8 +24,9 @@ declare -a enctypes=(
 	aes256-cts-hmac-sha1-96
 	arcfour-hmac
 )
-declare -a kvnos=($(kvno ${system_user} | awk '{print $NF}'))
-[ -n "${kvnos[@]}" ] || kvnos=(1 2 3 4 5 6 7)
+declare -a kvnos=(1 2 3 4 5 6 7)
+#kvnos=($(kvno ${system_user} | awk '{print $NF}'))
+#[ -n "${kvnos[@]}" ] || 
 # remove cached ticket
 kdestroy
 
