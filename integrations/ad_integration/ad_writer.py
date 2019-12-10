@@ -51,7 +51,7 @@ class ADWriter(AD):
             raise Exception(msg)
         return self.all_settings['primary_write']
 
-    def _other_attributes(self, mo_values, new_user=False):
+    def _other_attributes(self, mo_values, user_sam, new_user=False):
         school = False  # TODO
         write_settings = self._get_write_setting(school)
         if new_user:
@@ -65,6 +65,9 @@ class ADWriter(AD):
             (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
         ]
 
+        # Add SAM to mo_values
+        mo_values['name_sam'] = '{} - {}'.format(mo_values['full_name'], user_sam)
+
         # Local fields for MO->AD sync'ing
         named_sync_fields = self.settings.get(
             'integrations.ad_writer.mo_to_ad_fields', {})
@@ -74,8 +77,14 @@ class ADWriter(AD):
                 (ad_field, mo_values[mo_field])
             )
 
-        # These two fields are NEVER updated.
+        # These fields are NEVER updated.
         if new_user:
+            # This needs extended permissions, do we need it?
+            # other_attributes_fields.append(('pwdLastSet', '0'))
+            other_attributes_fields.append(
+                ('UserPrincipalName',
+                 '{}@{}'.format(user_sam, write_settings['upn_end']))
+            )
             other_attributes_fields.append(
                 (write_settings['uuid_field'], mo_values['uuid'])
             )
@@ -293,7 +302,8 @@ class ADWriter(AD):
             user_sam = user_ad_info['SamAccountName']
 
         edit_user_template = ad_templates.edit_user_template
-        replace_attributes = self._other_attributes(mo_values, new_user=False)
+        replace_attributes = self._other_attributes(mo_values, user_sam,
+                                                    new_user=False)
 
         edit_user_string = edit_user_template.format(
             givenname=mo_values['name'][0],
@@ -349,7 +359,8 @@ class ADWriter(AD):
             raise ad_exceptions.CprNotNotUnique(mo_values['cpr'])
 
         create_user_template = ad_templates.create_user_template
-        other_attributes = self._other_attributes(mo_values, new_user=True)
+        other_attributes = self._other_attributes(mo_values, sam_account_name,
+                                                  new_user=True)
 
         create_user_string = create_user_template.format(
             givenname=mo_values['name'][0],
@@ -359,8 +370,6 @@ class ADWriter(AD):
         )
         create_user_string = self.remove_redundant(create_user_string)
         create_user_string += other_attributes
-
-        # TODO: Should we add UPN here or in user_script?
 
         ps_script = (
             self._build_user_credential(school) +
