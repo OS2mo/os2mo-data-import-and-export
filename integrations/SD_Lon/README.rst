@@ -121,20 +121,55 @@ i MOs gui fremgå i fanen fortid. Er en medarbejers startdato i fremtiden, er
 personen endnu ikke tiltrådt, og fremgår i fanen fremtid i MOs gui.
 
 
+Håndtering af enheder
+=====================
+SDs API til udlæsning af organisationsenheder er desværre meget mangelfuldt, og
+integrationen har derfor en yderst primitiv håndtering af enheder:
+
+Ved førstegangsimport vil alle aktuelle enheder blive importeret med den
+virkningstid som oplyses af kald til ``GetDepartment``. Dette er dog ikke
+nødvendigvis den egenlige oprettelsesdato for enheden og der vil være tilfælde
+hvor startdato er enten for tidlig eller for sen i forhold til den reele startdato
+for enheden.
+
+Der findes ikke nogen differentiel service fra SD som oplyser om ændringer i
+organisationen, og der sker derfor som udgangspunkt ingen synkronisering af
+enhedstræet mellem SD og MO. I de tilfælde hvor der ansættes en medarbejder i en
+enhed som enten ikke eksisterer i MO, eller hvor enhedens virkningstid er kortere
+end ansættelsens start, vil MO oprette enheden eller forlænge dens virkningstid
+så den bliver i stand til at rumme engagementet.
+
+Da det er meget vanskeligt at hente historisk information om enheder, vil MO oprette
+eller rette enheden med udgangspunkt i de data som gælder for enheden på importdagen.
+Enheden vil herefter fremgå af MO som om den altid har haft det navn og den placering
+den har på importdagen.
+
+I øjeblikket er det ikke muligt at fremprovokere en synkronisering af navn og
+placering af en enhed so er ændret i SD, men dette vil blive implementeret indenfor
+den nærmeste fremtid.
+
+Det skal altså understreges, at MOs historiske information om enhder **ikke** er
+retsvisende. Det betyder dels, at det ikke er muligt at se tidligere navne på
+enheden, men mere bemærkelsesværdigt er det, at det ikke er muligt at se tidligere
+placeringer i organisationshierakiet. Det betyder altså, at enheden potentielt
+tidligere kan have været placeret et helt andet sted i organisationen. Hvis en
+medarbejder har været ansat i en enhed mens enhed er er blevet flyttet, vil dette
+ikke fremgå at medarbejderens fortidsfane, da engagementets tilknytning til enheden
+ikke har været ændret. Det er derfor vigtigt at holde sig for øje, at selvom en
+medarbejders historik ikke indeholder ændringer i organisatorisk placering, kan
+vedkommende godt være flyttet alligevel i form af eventuelle flytninger af hele
+enheden.
+
+I tilknytning til SD importen, er der i øjeblikket ved at implementeret en
+funktionalitet som via SD Løns beskedservice kan oprette enheder i SD når de
+oprettes i MO. Med denne service vil den fremadrettede historik for enhdeder fra
+idriftsættelsen af servicen, blive korrekt.
+
+
 Hjælpeværktøjer
 ===============
 Udover de direkte værktøjer til import og løbende opdateringer, findes et antal
 hjælpeværktøjer:
-
- * `sd_fix_organisation.py`: Forsøger at synkronisere alle nye enheder fra SD Løn
-   til MO. Der findes ikke nogen differentiel service fra SD som oplyser om
-   ændringer i organisationen, så det er nødvendigt at sammenligne alle enheder
-   til alle tider for at opnå en komplet synkronisering. Værktøjet er i øjeblikket
-   hårdkodet til at hente alle ændringer til organisatinen siden 1. januar 2019.
-   På sigt vil dette værktøj formentlig blive erstattet af enten en service som
-   opretter enheder efterhånden som der dukker ansatte om i enheder som ikke
-   findes i MO (kræver at SDs nye service GetDepartmentParent tages i brug),
-   eller af den SD-mox agent som er ved at blive udviklet.
 
  * `calculate_primary.py`: Et værktøj som er i stand til at gennemløbe alle
    ansættelser i MO og afgøre om der for alle medarbejdere til alle tider
@@ -146,6 +181,12 @@ hjælpeværktøjer:
    Værktøjet er udstyret med et kommandolinjeinterface, som kan udskrive en liste
    over brugere uden primærengagement (eller med mere end et) samt opdatere
    primære engagementer for en enkelt bruger eller for alle brugere.
+
+ * `sd_fix_organisation.py`: Tidligere forsøg på at håndtere opdateringer af
+   enheder. Scriptet findes nu kun som basis for evenutelle senere forsøg på
+   at lave et fuldt historisk import af enhedstræet.
+
+
 
 Tjekliste for fuldt import
 ==========================
