@@ -90,6 +90,16 @@ imports_sd_changed_at(){
     ${VENV}/bin/python3 integrations/SD_Lon/sd_changed_at.py
 }
 
+imports_opus_diff_import(){
+    set -e
+    echo running opus_diff_import
+    BACK_UP_AFTER_JOBS+=(
+        ${DIPEXAR}/cpr_mo_ad_map.csv
+        ${DIPEXAR}/settings/cpr_uuid_map.csv
+    )
+    ${VENV}/bin/python3 integrations/opus/opus_diff_import.py
+}
+
 imports_ad_sync(){
     set -e
     echo running imports_ad_sync
@@ -211,6 +221,10 @@ imports(){
 
     if [ "${RUN_SD_CHANGED_AT}" == "true" ]; then
         imports_sd_changed_at || return 2
+    fi
+
+    if [ "${RUN_OPUS_DIFF_IMPORT}" == "true" ]; then
+        imports_opus_diff_import || return 2
     fi
 
     if [ "${RUN_AD_SYNC}" == "true" ]; then
