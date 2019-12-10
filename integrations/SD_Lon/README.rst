@@ -149,7 +149,7 @@ placering af en enhed som er ændret i SD, men dette vil blive implementeret ind
 den nærmeste fremtid.
 
 Det skal altså understreges, at MOs historiske information om enhder **ikke** er
-retsvisende. Det betyder dels, at det ikke er muligt at se tidligere navne på
+retvisende. Det betyder dels, at det ikke er muligt at se tidligere navne på
 enheden, men mere bemærkelsesværdigt er det, at det ikke er muligt at se tidligere
 placeringer i organisationshierakiet. Det betyder altså, at enheden potentielt
 tidligere kan have været placeret et helt andet sted i organisationen. Hvis en
@@ -160,9 +160,9 @@ medarbejders historik ikke indeholder ændringer i organisatorisk placering, kan
 vedkommende godt være flyttet alligevel i form af eventuelle flytninger af hele
 enheden.
 
-I tilknytning til SD importen, er der i øjeblikket ved at implementeret en
+I tilknytning til SD importen, er der i øjeblikket ved at blive implementeret en
 funktionalitet som via SD Løns beskedservice kan oprette enheder i SD når de
-oprettes i MO. Med denne service vil den fremadrettede historik for enhdeder fra
+oprettes i MO. Med denne service vil den fremadrettede historik for enheder fra
 idriftsættelsen af servicen, blive korrekt.
 
 
