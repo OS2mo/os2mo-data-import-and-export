@@ -86,6 +86,16 @@ def calc_employment_id(employment):
     return employment_id
 
 
+def mora_assert(response):
+    """ Check response is as expected """
+    assert response.status_code in (200, 201, 400, 404)
+    if response.status_code == 400:
+        # Check actual response
+        assert response.text.find('not give raise to a new registration') > 0
+        logger.debug('Requst had no effect')
+    return None
+
+
 def generate_uuid(value, org_id_prefix, org_name=None):
     """
     Code almost identical to this also lives in the Opus importer.
