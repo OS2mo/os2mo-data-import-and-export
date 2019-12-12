@@ -343,6 +343,11 @@ class ImportUtility(object):
                 organisation_unit.time_planning_ref
             )
 
+        if hasattr(organisation_unit, 'org_unit_level_ref'):
+            organisation_unit.org_unit_level_uuid = self.inserted_klasse_map.get(
+                organisation_unit.org_unit_level_ref
+            )
+
         organisation_unit.type_ref_uuid = type_ref_uuid
 
         payload = organisation_unit.build()
@@ -611,7 +616,8 @@ class ImportUtility(object):
                     klasse_res = 'klassifikation/klasse'
                     uuid = self.ia.find_object(klasse_res, getattr(detail, check_value))
                 else:
-                    print('Detail: {}, check_value: {}'.format(detail, check_value))
+                    # print('Detail: {}, check_value: {}'.format(detail, check_value))
+                    pass
 
             setattr(detail, set_value, uuid)
 
@@ -619,6 +625,11 @@ class ImportUtility(object):
         if hasattr(detail, "visibility_ref"):
             detail.visibility_ref_uuid = self.inserted_klasse_map.get(
                 detail.visibility_ref
+            )
+
+        if hasattr(detail, 'primary_ref'):
+            detail.primary_uuid = self.inserted_klasse_map.get(
+                detail.primary_ref
             )
 
         if hasattr(detail, "org_unit_ref"):
