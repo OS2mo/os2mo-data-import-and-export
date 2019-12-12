@@ -117,6 +117,7 @@ class ChangeAtSD(object):
         assert response.status_code == 201
         return response.json()
 
+    # Consider to use the version sd_common
     def _assert(self, response):
         """ Check response is as expected """
         assert response.status_code in (200, 400, 404)
