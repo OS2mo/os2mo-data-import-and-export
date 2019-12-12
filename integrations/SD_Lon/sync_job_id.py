@@ -89,7 +89,7 @@ class JobIdSync(object):
         If a title is also given, the titel will be synced independant of
         the SD value.
         """
-        parser = argparse.ArgumentParser(description='AD Writer')
+        parser = argparse.ArgumentParser(description='JobIdentifier Sync')
         parser.add_argument('--job-pos-id', nargs=1, required=True,
                             metavar='SD_Job_position_ID')
         parser.add_argument('--titel', nargs=1, required=False, metavar='Titel')
