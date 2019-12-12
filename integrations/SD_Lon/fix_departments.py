@@ -3,6 +3,7 @@ import pathlib
 import logging
 import requests
 import datetime
+import argparse
 import sd_payloads
 
 from integrations.SD_Lon.sd_common import sd_lookup
@@ -400,13 +401,25 @@ class FixDepartments(object):
         for unit in reversed(branch):
             self.fix_department_at_single_date(unit[1], date)
 
+    def _cli(self): # Not tested!
+        """
+        Command line interface to sync SD departent information to MO.
+        """
+        parser = argparse.ArgumentParser(description='Department updater')
+        parser.add_argument('--department-uuid', nargs=1, required=True,
+                            metavar='UUID of the department to update')
+        args = vars(parser.parse_args())
+
+        today = datetime.datetime.today()
+        department_uuid = args.get('job_pos_id')[0]
+        self.fix_or_create_branch(department_uuid, today)
+
 
 if __name__ == '__main__':
     unit_fixer = FixDepartments()
-    uruk = 'cf9864bf-1ed8-4800-9600-000001290002'
-
-    # from_date = datetime.datetime(2008, 8, 1, 0, 0)
+    # uruk = 'cf9864bf-1ed8-4800-9600-000001290002'
+    # today = datetime.datetime.today()
     # print(unit_fixer.get_all_parents(uruk, from_date))
-
-    today = datetime.datetime.today()
-    print(unit_fixer.get_all_parents(uruk, today))
+    # print(unit_fixer.get_all_parents(uruk, today))
+    # unit_fixer.fix_or_create_branch(uruk, today)
+    unit_fixer._cli()
