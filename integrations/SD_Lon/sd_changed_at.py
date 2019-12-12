@@ -11,6 +11,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration import ad_reader
 from integrations.SD_Lon.sd_common import sd_lookup
 # from integrations.SD_Lon.sd_common import generate_uuid
+from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import engagement_types
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater
@@ -21,7 +22,8 @@ LOG_FILE = 'mo_integrations.log'
 
 logger = logging.getLogger("sdChangedAt")
 
-detail_logging = ('sdCommon', 'sdChangedAt', 'updatePrimaryEngagements', 'fixDepartments')
+detail_logging = ('sdCommon', 'sdChangedAt', 'updatePrimaryEngagements',
+                  'fixDepartments')
 for name in logging.root.manager.loggerDict:
     if name in detail_logging:
         logging.getLogger(name).setLevel(LOG_LEVEL)
@@ -116,16 +118,6 @@ class ChangeAtSD(object):
         )
         assert response.status_code == 201
         return response.json()
-
-    # Consider to use the version sd_common
-    def _assert(self, response):
-        """ Check response is as expected """
-        assert response.status_code in (200, 400, 404)
-        if response.status_code == 400:
-            # Check actual response
-            assert response.text.find('not give raise to a new registration') > 0
-            logger.debug('Requst had no effect')
-        return None
 
     def read_employment_changed(self):
         if not self.employment_response:  # Caching, we need to get of this
@@ -535,7 +527,7 @@ class ChangeAtSD(object):
         logger.debug('Terminate payload: {}'.format(payload))
         response = self.helper._mo_post('details/terminate', payload)
         logger.debug('Terminate response: {}'.format(response.text))
-        self._assert(response)
+        mora_assert(response)
         return True
 
     def edit_engagement(self, engagement, validity=None, status0=False):
@@ -560,7 +552,7 @@ class ChangeAtSD(object):
             payload = sd_payloads.engagement(data, mo_eng)
             logger.debug('Status0 payload: {}'.format(payload))
             response = self.helper._mo_post('details/edit', payload)
-            self._assert(response)
+            mora_assert(response)
 
         for department in engagement_info['departments']:
             logger.info('Change department of engagement {}:'.format(job_id))
@@ -589,7 +581,7 @@ class ChangeAtSD(object):
                 payload = sd_payloads.association(data, current_association)
                 logger.debug('Association edit payload: {}'.format(payload))
                 response = self.helper._mo_post('details/edit', payload)
-                self._assert(response)
+                mora_assert(response)
 
             org_unit = self.apply_NY_logic(org_unit, job_id, validity)
 
@@ -598,7 +590,7 @@ class ChangeAtSD(object):
                     'validity': validity}
             payload = sd_payloads.engagement(data, mo_eng)
             response = self.helper._mo_post('details/edit', payload)
-            self._assert(response)
+            mora_assert(response)
 
         for profession_info in engagement_info['professions']:
             logger.info('Change profession of engagement {}'.format(job_id))
@@ -626,7 +618,7 @@ class ChangeAtSD(object):
             payload = sd_payloads.engagement(data, mo_eng)
             logger.debug('Update profession payload: {}'.format(payload))
             response = self.helper._mo_post('details/edit', payload)
-            self._assert(response)
+            mora_assert(response)
 
         for worktime_info in engagement_info['working_time']:
             logger.info('Change working time of engagement {}'.format(job_id))
@@ -644,7 +636,7 @@ class ChangeAtSD(object):
                     'validity': validity}
             payload = sd_payloads.engagement(data, mo_eng)
             response = self.helper._mo_post('details/edit', payload)
-            self._assert(response)
+            mora_assert(response)
 
     def _update_user_employments(self, cpr, sd_engagement):
         for engagement in sd_engagement:
@@ -695,7 +687,7 @@ class ChangeAtSD(object):
                             }
                             payload = sd_payloads.engagement(data, mo_eng)
                             response = self.helper._mo_post('details/edit', payload)
-                            self._assert(response)
+                            mora_assert(response)
                             self.mo_engagement = self.helper.read_user_engagement(
                                 self.mo_person['uuid'],
                                 read_all=True,
