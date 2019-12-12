@@ -50,7 +50,18 @@ class FixDepartments(object):
             exit()
 
         logger.info('Read org_unit types')
-        self.unit_types = self.helper.read_classes_in_facet('org_unit_type')[0]
+        self.level_types = self.helper.read_classes_in_facet('org_unit_level')[0]
+        unit_types = self.helper.read_classes_in_facet('org_unit_type')[0]
+
+        # Currently only a single unit type exists, we will not do anything fancy
+        # until it has been decided what the source for types should be.
+        self.unit_type = None
+        for unit in unit_types:
+            if unit['user_key'] == 'Enhed':
+                self.unit_type = unit
+
+        if self.unit_type is None:
+            raise Exception('Unit types not correctly configured')
 
     # def create_department(self, department, activation_date):
     #     params = {
@@ -164,13 +175,14 @@ class FixDepartments(object):
         if parent is None:
             parent = self.org_uuid
 
-        for unit_type in self.unit_types:
-            if unit_type['user_key'] == department['DepartmentLevelIdentifier']:
-                unit_type_uuid = unit_type['uuid']
+        for unit_level in self.level_types:
+            if unit_level['user_key'] == department['DepartmentLevelIdentifier']:
+                unit_level_uuid = unit_level['uuid']
 
         payload = sd_payloads.create_single_org_unit(
             department=department,
-            unit_type=unit_type_uuid,
+            unit_type=self.unit_type['uuid'],
+            unit_level=unit_level_uuid,
             parent=parent
         )
         logger.debug('Create department payload: {}'.format(payload))
@@ -213,9 +225,9 @@ class FixDepartments(object):
             name = validity['DepartmentName']
             unit_uuid = validity['DepartmentUUIDIdentifier']
 
-            for unit_type in self.unit_types:
-                if unit_type['user_key'] == validity['DepartmentLevelIdentifier']:
-                    unit_type_uuid = unit_type['uuid']
+            for unit_level in self.level_types:
+                if unit_level['user_key'] == validity['DepartmentLevelIdentifier']:
+                    unit_level_uuid = unit_level['uuid']
 
             # SD has a challenge with the internal validity-consistency, extend first
             # validity indefinitely
@@ -234,8 +246,16 @@ class FixDepartments(object):
                 ]
             print('Unit parent at {} is {}'.format(from_date, parent))
 
-            payload = sd_payloads.edit_org_unit(user_key, name, unit_uuid, parent,
-                                                unit_type_uuid, from_date)
+            payload = sd_payloads.edit_org_unit(
+                user_key=user_key,
+                name=name,
+                unit_uuid=unit_uuid,
+                parent=parent,
+                ou_level=unit_level_uuid,
+                ou_type=self.unit_type['uuid'],
+                from_date=from_date
+            )
+
             logger.debug('Edit payload to fix unit: {}'.format(payload))
             response = self.helper._mo_post('details/edit', payload)
             if response.status_code == 400:
@@ -252,9 +272,9 @@ class FixDepartments(object):
         }
         department = self.get_department(validity, uuid=unit_uuid)[0]
 
-        for unit_type in self.unit_types:
-            if unit_type['user_key'] == department['DepartmentLevelIdentifier']:
-                unit_type_uuid = unit_type['uuid']
+        for unit_level in self.level_types:
+            if unit_level['user_key'] == department['DepartmentLevelIdentifier']:
+                unit_level_uuid = unit_level['uuid']
 
         try:
             parent = self.get_parent(unit_uuid, validity_date)
@@ -273,8 +293,15 @@ class FixDepartments(object):
             parent = self.org_uuid
         print('Unit parent at {} is {}'.format(from_date, parent))
 
-        payload = sd_payloads.edit_org_unit(shortname, name, unit_uuid, parent,
-                                            unit_type_uuid, from_date)
+        payload = sd_payloads.edit_org_unit(
+            user_key=shortname,
+            name=name,
+            unit_uuid=unit_uuid,
+            parent=parent,
+            ou_level=unit_level_uuid,
+            ou_type=self.unit_type['uuid'],
+            from_date=from_date
+        )
         logger.debug('Edit payload to fix unit: {}'.format(payload))
         response = self.helper._mo_post('details/edit', payload)
         if response.status_code == 400:
@@ -382,5 +409,4 @@ if __name__ == '__main__':
     # print(unit_fixer.get_all_parents(uruk, from_date))
 
     today = datetime.datetime.today()
-    # print(unit_fixer.get_all_parents(uruk, today))
-    unit_fixer.fix_or_create_branch(uruk, today)
+    print(unit_fixer.get_all_parents(uruk, today))
