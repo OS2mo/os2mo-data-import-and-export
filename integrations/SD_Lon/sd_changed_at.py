@@ -12,7 +12,8 @@ from integrations.ad_integration import ad_reader
 from integrations.SD_Lon.sd_common import sd_lookup
 # from integrations.SD_Lon.sd_common import generate_uuid
 from integrations.SD_Lon.sd_common import mora_assert
-from integrations.SD_Lon.sd_common import engagement_types
+from integrations.SD_Lon.sd_common import primary_types
+from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater
 
@@ -87,7 +88,7 @@ class ChangeAtSD(object):
         self.mo_person = None      # Updated continously with the person currently
         self.mo_engagement = None  # being processed.
 
-        self.eng_types = engagement_types(self.helper)
+        self.primary_types = primary_types(self.helper)
 
         logger.info('Read it systems')
         it_systems = self.helper.read_it_systems()
@@ -102,6 +103,13 @@ class ChangeAtSD(object):
         self.job_functions = {}
         for job in job_functions:
             self.job_functions[job['name']] = job['uuid']
+
+        # The Opus diff-import contains a slightly more abstrac def to do this
+        engagement_types = self.helper.read_classes_in_facet('engagement_type')
+        # self.engagement_type_facet = engagement__types[1]
+        self.engagement_types = {}
+        for engagement_type in engagement_types[0]:
+            self.engagement_types[engagement_type['user_key']] = engagement_type['uuid']
 
         logger.info('Read leave types')
         facet_info = self.helper.read_classes_in_facet('leave_type')
@@ -261,11 +269,14 @@ class ChangeAtSD(object):
 
             sam_account = ad_info.get('SamAccountName', None)
             if (not mo_person) and sam_account:
-                sd_payloads.connect_it_system_to_user(
+                payload = sd_payloads.connect_it_system_to_user(
                     sam_account,
                     self.ad_uuid,
                     return_uuid
                 )
+                print(payload)
+                response = self.helper._mo_post('details/create', payload)
+                assert response.status_code == 201
                 logger.info('Added AD account info to {}'.format(cpr))
 
     def _compare_dates(self, first_date, second_date, expected_diff=1):
@@ -348,6 +359,7 @@ class ChangeAtSD(object):
             logger.info(msg)
         return relevant_engagement
 
+    # Possibly this should be generalizedto also be able to add engagement_types
     def _update_professions(self, emp_name):
         # Add new profssions to LoRa
         job_uuid = self.job_functions.get(emp_name)
@@ -452,7 +464,7 @@ class ChangeAtSD(object):
         Create a new engagement
         AD integration handled in check for primary engagement.
         """
-        job_id, engagement_info = self.engagement_components(engagement)
+        user_key, engagement_info = self.engagement_components(engagement)
         validity = self._validity(status)
         also_edit = False
         if (
@@ -466,13 +478,16 @@ class ChangeAtSD(object):
         try:
             org_unit = engagement_info['departments'][0]['DepartmentUUIDIdentifier']
             logger.info('Org unit for new engagement: {}'.format(org_unit))
-            org_unit = self.apply_NY_logic(org_unit, job_id, validity)
+            org_unit = self.apply_NY_logic(org_unit, user_key, validity)
         except IndexError:
             # This can be removed if we do not see the exception:
             # org_unit = '4f79e266-4080-4300-a800-000006180002'  # CONF!!!!
-            msg = 'No unit for engagement {}'.format(job_id)
+            msg = 'No unit for engagement {}'.format(user_key)
             logger.error(msg)
             raise Exception(msg)
+
+        # JobPositionIdentifier is supposedly always returned
+        job_position = engagement_info['professions'][0]['JobPositionIdentifier']
 
         try:
             emp_name = engagement_info['professions'][0]['EmploymentName']
@@ -481,14 +496,31 @@ class ChangeAtSD(object):
         self._update_professions(emp_name)
 
         if status['EmploymentStatusCode'] == '0':
-            engagement_type = self.eng_types['no_salary']
+            primary = self.primary_types['no_salary']
         else:
-            engagement_type = self.eng_types['non_primary']
+            primary = self.primary_types['non_primary']
 
-        payload = sd_payloads.create_engagement(org_unit, self.mo_person,
-                                                self.job_functions.get(emp_name),
-                                                engagement_type, job_id,
-                                                engagement_info, validity)
+        split = self.settings['integrations.SD_Lon.monthly_hourly_divide']
+        employment_id = calc_employment_id(engagement)
+        if employment_id['value'] < split:
+            engagement_type = self.engagement_types.get('månedsløn')
+        elif (split - 1) < employment_id['value'] < 999999:
+            engagement_type = self.engagement_types.get('timeløn')
+        else:  # This happens if EmploymentID is not a number
+            # Will fail if a new job position emerges
+            engagement_type = self.engagement_types.get(job_position)
+            logger.info('Non-nummeric id. Job pos id: {}'.format(job_position))
+
+        payload = sd_payloads.create_engagement(
+            org_unit=org_unit,
+            mo_peson=self.mo_person,
+            job_function=self.job_functions.get(emp_name),
+            engagement_type=engagement_type,
+            primary=primary,
+            user_key=user_key,
+            engagement_info=engagement_info,
+            validity=validity
+        )
 
         response = self.helper._mo_post('details/create', payload)
         assert response.status_code == 201
@@ -499,7 +531,7 @@ class ChangeAtSD(object):
             only_primary=True,
             use_cache=False
         )
-        logger.info('Engagement {} created'.format(job_id))
+        logger.info('Engagement {} created'.format(user_key))
 
         if also_edit:
             # This will take of the extra entries
@@ -875,7 +907,7 @@ def initialize_changed_at(from_date, run_db, force=False):
 if __name__ == '__main__':
     logger.info('***************')
     logger.info('Program started')
-    init = False
+    init = True
 
     from_date = datetime.datetime.strptime(
         SETTINGS['integrations.SD_Lon.global_from_date'],
