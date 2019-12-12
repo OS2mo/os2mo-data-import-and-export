@@ -125,7 +125,7 @@ def connect_it_system_to_user(username, it_system, person_uuid):
     payload = {
         'type': 'it',
         'user_key': username,
-        'it-system': {'uuid': it_system},
+        'itsystem': {'uuid': it_system},
         'person': {'uuid': person_uuid},
         'validity': {
             'from': None,
