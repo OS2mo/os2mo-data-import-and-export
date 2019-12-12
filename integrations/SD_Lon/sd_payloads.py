@@ -1,8 +1,4 @@
 def create_org_unit(department, name, org, unit_type, from_date):
-    # TODO: MO currently fails when creating future sub-units
-    activation_date = '2019-07-01'
-
-
     payload = {
         'uuid': department['DepartmentUUIDIdentifier'],
         'user_key': department['DepartmentIdentifier'],
@@ -17,6 +13,7 @@ def create_org_unit(department, name, org, unit_type, from_date):
         }
     }
     return payload
+
 
 def create_single_org_unit(department, unit_type, parent):
     payload = {
@@ -56,6 +53,7 @@ def edit_org_unit(user_key, name, unit_uuid, parent, ou_level, from_date):
         }
     }
     return payload
+
 
 def engagement(data, mo_engagement):
     payload = {
@@ -127,6 +125,25 @@ def connect_it_system_to_user(username, it_system, person_uuid):
         'validity': {
             'from': None,
             'to': None
+        }
+    }
+    return payload
+
+
+def edit_engagement_type(titel):
+    payload = {
+        "attributter": {
+            "klasseegenskaber": [
+                {
+                    'titel': titel,
+                    'virkning': {
+                        'from': '1900-01-01',
+                        'to': 'infinity',
+                        'aktoerref': 'ddc99abd-c1b0-48c2-aef7-74fea841adae',
+                        'aktoertypekode': 'Bruger'
+                    }
+                }
+            ]
         }
     }
     return payload
