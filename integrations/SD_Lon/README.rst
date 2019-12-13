@@ -78,6 +78,21 @@ ikke skifter UUID hvis det bliver nødvendigt at genimporere fra SD. TIl hjælp 
 dette findes et script (``cpr_uuid.py``) under exports som kan lave en sådan liste
 fra en kørende instans af MO.
 
+Engagementstyper
+================
+
+Alle medarbejdere som har et ansættelsesnummer som udelukkende består af tal,
+tildeles en af to ansættelsestyper:
+
+ * Medarbejder (månedsløn), hvis ansættelsesnummeret er lavere end værdien angivet
+   i ``settings.json`` med nøglen, ``integrations.SD_Lon.monthly_hourly_divide``
+ * Medarbejder (timeløn), hvis ansættelsesnummeret er højere.
+
+Hvis medarbejderen har et ansættelsesnummer, som ikke udelukke er tal, vil
+ansættelsestypen blive bestemt fra personens ``JobPositionIdentifier``, hvor
+der i MO er oprettet klasser der svarer til disse værdier. Den tilknyttede
+tekst til hver klasse kan sættes med et hjælpeværktøj (beskrevet nedenfor).
+
 Primær ansættelse
 =================
 
@@ -95,15 +110,8 @@ Hvis en medarbejder har ansættelser i både status 0 og status 1, vil en ansæt
 i status 1 blive beregnet til primær og status 0 ansættelsen vil ikke blive
 betragtet som primær.
 
-MOs betegnelse 'Primær' anvedes ikke af SD integrationen, da dette felt ikke
-automatisk synkroniseres med ansættelsestypen, feltet bør derfor ikke benyttes.
-Hvis den aktuelle version af MO undestøtter at slå visningen af feltet fra, kan
-dette med fordel gøres.
-
-
-Håndtering af SD Løns statuskoder
-=================================
-En medarbejder der importers fra SD, kan have en af fire forskelllige ansættelsestyper:
+Informationen om primæransætelse opretholdes i MOs facet ``primary_type``, som ved
+import af SD altid populeres med disse fire klasser:
 
  * Manuelt primær ansættelse: Dette felt angiver at en ansættelse manuelt er sat
    til at være primær
@@ -113,12 +121,14 @@ En medarbejder der importers fra SD, kan have en af fire forskelllige ansættels
  * Ikke-primær ansat: Angiver alle andre ansættelser for en medarbejder.
 
 Manuelt primær optræder ikke direkte i imports, men kan sættes manuelt fra MOs GUI.
+De øvrige primærklasser håndteres af SD integrationen, og må ikke sættes manuelt.
 
 En medarbejder skifter ikke ansættelsestype selvom vedkommende fratræder sit
 engagement. En ansættelses aktuelle status angives i stedet via MOs start- og
 slutdato. Er slutdato'en i fortiden, er vedkommende ikke længere ansat og vil
 i MOs gui fremgå i fanen fortid. Er en medarbejers startdato i fremtiden, er
-personen endnu ikke tiltrådt, og fremgår i fanen fremtid i MOs gui.
+personen endnu ikke tiltrådt, og fremgår i fanen fremtid.
+.. _Håndtering af enheder:
 
 
 Håndtering af enheder
@@ -182,6 +192,18 @@ hjælpeværktøjer:
    over brugere uden primærengagement (eller med mere end et) samt opdatere
    primære engagementer for en enkelt bruger eller for alle brugere.
 
+ * ``sync_job_id.py``: Dette værktøj kan opdatere den tekst som vises i forbindelse
+   med ansættelsestyper som er knyttet til SDs ``JobPositionIdentifier``. Efter
+   den initielle import vil klassens navn modsvare talværdien i SD, og dette
+   værktøj kan efterfølgende anvendes til at enten at synkronisere teksten til
+   den aktuelle værdi i SD eller til en valgfri teskt.
+
+ * ``fix_departments.py``: En implementering af logikken beskrevet under afsnitet
+   `Håndtering af enheder`_. Udover anvendelsen i den løbende integrationen,
+   indeholder programmet også et kommandolinjeværktøj som kan anvendes til
+   manuelt at fremprovokere en synkronisering af en enhed (med tilhørende
+   overenheder) til den nuværende tilsand af SD Løn.
+
  * `sd_fix_organisation.py`: Tidligere forsøg på at håndtere opdateringer af
    enheder. Scriptet findes nu kun som basis for evenutelle senere forsøg på
    at lave et fuldt historisk import af enhedstræet.
@@ -193,10 +215,9 @@ Tjekliste for fuldt import
 Overordnet foregår opstart af en ny SD import efter dette mønster:
 
 1. Kør importværktøjet med fuld historik (dette er standard opførsel).
-2. Kør `sd_fix_organisation.py` for at sikre synkronisering af alle enheder
-3. Kør en inledende ChangedAt for at hente alle kendte fremtidige ændringer og
+2. Kør en inledende ChangedAt for at hente alle kendte fremtidige ændringer og
    intitialisere den lokale database over kørsler.
-4. Kør sd_changed_at.py periodisk (eksempelvis dagligt). Hvis enhederne har ændret
+3. Kør sd_changed_at.py periodisk (eksempelvis dagligt). Hvis enhederne har ændret
    sig, er det nødvendigt først at køre sd_fix_organisation.py før hver kørsel.
 
 1. Kør importværktøjet
