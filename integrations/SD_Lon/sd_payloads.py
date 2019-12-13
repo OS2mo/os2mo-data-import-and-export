@@ -128,7 +128,7 @@ def connect_it_system_to_user(username, it_system, person_uuid):
         'itsystem': {'uuid': it_system},
         'person': {'uuid': person_uuid},
         'validity': {
-            'from': '1900-01-01',,
+            'from': '1900-01-01',
             'to': None
         }
     }
