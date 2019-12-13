@@ -401,7 +401,7 @@ class FixDepartments(object):
         for unit in reversed(branch):
             self.fix_department_at_single_date(unit[1], date)
 
-    def _cli(self): # Not tested!
+    def _cli(self):
         """
         Command line interface to sync SD departent information to MO.
         """
@@ -411,7 +411,7 @@ class FixDepartments(object):
         args = vars(parser.parse_args())
 
         today = datetime.datetime.today()
-        department_uuid = args.get('job_pos_id')[0]
+        department_uuid = args.get('department_uuid')[0]
         self.fix_or_create_branch(department_uuid, today)
 
 
