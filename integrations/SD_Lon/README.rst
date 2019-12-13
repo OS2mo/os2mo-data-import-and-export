@@ -229,6 +229,7 @@ Overordnet foregår opstart af en ny SD import efter dette mønster:
 3. Kør sd_changed_at.py periodisk (eksempelvis dagligt). Hvis enhederne har ændret
    sig, er det nødvendigt først at køre sd_fix_organisation.py før hver kørsel.
 
+   
 1. Kør importværktøjet
 ----------------------
 En indledende import køres ved at oprette en instans af ImportHelper_ ImportHelper
@@ -239,9 +240,7 @@ En indledende import køres ved at oprette en instans af ImportHelper_ ImportHel
        create_defaults=True,
        mox_base=MOX_BASE,
        mora_base=MORA_BASE,
-       system_name='SD-Import',
-       end_marker='SDSTOP',
-       store_integration_data=True,
+       store_integration_data=False,
        seperate_names=True
    )
 			       
@@ -254,9 +253,6 @@ Importen kan derefter køres med disse trin:
 
     sd = sd_importer.SdImport(
 	importer,
-        MUNICIPALTY_NAME,
-	MUNICIPALTY_CODE,
-        import_date_from=GLOBAL_GET_DATE,
         ad_info=None,
 	manager_rows=None
    )
@@ -281,17 +277,7 @@ undertræet med den pågældende uuid i SD som vil blive importeret. Det er i
 Importen vil nu blive afviklet og nogle timer senere vil MO være populeret med
 værdierne fra SD Løn som de ser ud dags dato.
 
-2. `sd_fix_organisation.py`
--------------------------------
-Den indledende import henter kun enhedsstrukturen for den virkningsdato importen
-foretages fra, hvis der er fremtidige ændringer skal disse hentes efterfølgende.
-Til det formål findes værktøjet `sd_fix_organisation.py` som henter alle fremtidige
-ændringer til organisationen:
-
-python3 sd_fix_organisation.py
-
-
-3. Kør en inledende ChangedAt
+2. Kør en inledende ChangedAt
 -----------------------------
 I SD Løn importeres i udgangspunktet kun nuværende og forhenværende medarbejdere og
 engagementer, fremtidige ændringer skal hentes i en seperat process. Denne process
@@ -308,18 +294,13 @@ Herefter vil alle kendte fremtidige virkninger blive indlæst til MO. Desuden vi
 blive oprettet en sqlite database med en oversigt over kørsler af changed_at (se
 ChangedAt.db_) .
 
-4. Kør sd_changed_at.py periodisk
+3. Kør sd_changed_at.py periodisk
 ---------------------------------
 
 Daglige indlæsninger foregår som nævnt også med programmet `sd_changed_at.py`,
 hvilket foregår ved at sætte `init` til `False` og køre programmet uden yderligere
 parametre. Programmet vil så spørge ChangedAt.db_ om hvorår der sidst blev
 synkroniseret, og vil herefter synkronisere yderligere en dag frem i tiden.
-
-Programmet gør ikke noget forsøg på at opdatere organisationen, og vil fejle hvis
-en medarbejder modtager en ansættelse i en ukendt enhed. For at undgå dette skal
-man før `sd_changed_at` afvikle `sd_fix_organisation.py` hvis der er oprettet nye
-enheder.
    
 .. _Ledere i SD Løn:
 
@@ -380,7 +361,7 @@ ChangedAt.db
 
 For at holde rede på hvornår MO sidst er opdateret fra SD Løn, findes en SQLite
 database som indeholder to rækker for hver færdiggjort kørsel. Adressen på denne
-database er angivet i miljøvariablen ``RUN_DB``.
+database er angivet i settings med nøglen ``integrations.SD_Lon.import.run_db``.
 
 Programmet ``db_overview.py`` er i stand til at læse denne database og giver et
 outut som dette:
