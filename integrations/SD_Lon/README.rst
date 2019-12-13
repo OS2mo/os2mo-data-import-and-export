@@ -11,7 +11,7 @@ Opsætning
 ==========
 
 For at kunne afvikle integrationen, kræves loginoplysninger til SD-Løn, som angives
-via``settings.json``, desuden angives en række felter som angiver den lokale anvendelse
+via``settings.json``, desuden anvendes en række felter som angiver den lokale anvendelse
 af SD Løn. De påkrævede felter er:
 
  * ``integrations.SD_Lon.institution_identifier``: Institution Identifer i SD.
@@ -46,7 +46,7 @@ Løn, til dette anvendes udover de nævne webservices også:
 
  * ``GetEmploymentChangedAtDate20111201``
 
-Hvis der ønsked synkronisering af titler hørende til ``JobPositionIdentifier``
+Hvis der ønskes synkronisering af titler hørende til ``JobPositionIdentifier``
 anvendes desuden:
 
  * ``GetProfession20080201``
@@ -97,10 +97,10 @@ to ansættelsestyper:
    i nøglen ``integrations.SD_Lon.monthly_hourly_divide``.
  * Medarbejder (timeløn), hvis ansættelsesnummeret er højere.
 
-Hvis medarbejderen har et ansættelsesnummer, som ikke udelukke er tal, vil
-ansættelsestypen blive bestemt fra personens ``JobPositionIdentifier``, hvor
-der i MO er oprettet klasser der svarer til disse værdier. Den tilknyttede
-tekst til hver klasse kan sættes med et hjælpeværktøj (beskrevet nedenfor).
+Hvis medarbejderen har et ansættelsesnummer, som ikke udelukkende er tal, vil
+ansættelsestypen blive bestemt fra personens ``JobPositionIdentifier``, hvor der i
+MO er oprettet klasser der svarer til disse værdier. Den tilknyttede tekst til hver
+klasse kan sættes med et hjælpeværktøj (beskrevet nedenfor).
 
 Primær ansættelse
 =================
@@ -108,13 +108,14 @@ Primær ansættelse
 SD Løn har ikke et koncept om primæransættelse, men da AD integrationen til MO
 har behov for at kunne genkende den primære ansættelse til synkronisering, bestemmes
 dette ud fra en beregning:
+
 En medarbejders primære ansættelse regnes som den ansættelse som har den største
 arbejdstidsprocent, hvis flere har den samme, vælges ansættelsen med det laveste
 ansættelsenummer. Hvis en ansættelse er manuelt angivet til at være primær, vil
 denne ansættelse altid regnes som primær.
 
-Ansættelser i SDs status kode 0 kan anses som primære hvis ingen andre ansættelser
-er primære (altså, medarbejderen har udelukkende ansættelser i status kode 0).
+Ansættelser i SDs statuskode 0 kan anses som primære hvis ingen andre ansættelser
+er primære (altså, medarbejderen har udelukkende ansættelser i statuskode 0).
 Hvis en medarbejder har ansættelser i både status 0 og status 1, vil en ansættelse
 i status 1 blive beregnet til primær og status 0 ansættelsen vil ikke blive
 betragtet som primær.
