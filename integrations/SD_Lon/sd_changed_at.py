@@ -565,7 +565,6 @@ class ChangeAtSD(object):
     def _edit_engagement_department(self, engagement, mo_eng):
         job_id, engagement_info = self.engagement_components(engagement)
         for department in engagement_info['departments']:
-            print('Edit engagement department')
             logger.info('Change department of engagement {}:'.format(job_id))
             logger.debug('Department object: {}'.format(department))
 
@@ -606,7 +605,6 @@ class ChangeAtSD(object):
     def _edit_engagement_profession(self, engagement, mo_eng):
         job_id, engagement_info = self.engagement_components(engagement)
         for profession_info in engagement_info['professions']:
-            print('_edit_engagement_profession')
             logger.info('Change profession of engagement {}'.format(job_id))
             # We load the name from SD and handles the AD-integration
             # when calculating the primary engagement.
