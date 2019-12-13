@@ -11,13 +11,17 @@ Opsætning
 ==========
 
 For at kunne afvikle integrationen, kræves loginoplysninger til SD-Løn, som angives
-via``settings.json`` De påkrævede felter er:
+via``settings.json``, desuden angives en række felter som angiver den lokale anvendelse
+af SD Løn. De påkrævede felter er:
 
  * ``integrations.SD_Lon.institution_identifier``: Institution Identifer i SD.
  * ``integrations.SD_Lon.sd_user``: Brugernavn (inklusiv foranstillet SY) til SD.
  * ``integrations.SD_Lon.sd_password``: Password til SD.
- * ``integrations.SD_Lon.global_from_date``: Virkningsdato for import på formen YYYY-MM-DD
-   
+ * ``integrations.SD_Lon.global_from_date``: Virkningsdato for import på formen YYYY-MM-DD.
+ * ``integrations.SD_Lon.import.too_deep``: Liste over SD niveauer som anses som
+   afdelingsniveau.
+ * ``integrations.SD_Lon.monthly_hourly_divide``: Skilleværdi for måneds/timelønnede.
+
 Desuden er det nødvendigt at angive adressen på MO og LoRa i variablerne:
  * ``mox.base``
  * ``mora.base``
