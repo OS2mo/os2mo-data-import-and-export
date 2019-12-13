@@ -400,10 +400,13 @@ class ChangeAtSD(object):
         """ Create a leave for a user """
         logger.info('Create leave, job_id: {}, status: {}'.format(job_id, status))
         # TODO: This code potentially creates duplicated leaves.
-        # Implment solution like the one for associations.
 
-        # TODO: It seems we should find a way to create a matching engagment
-        # while the leave is running. Wait for final confirmation.
+        # Notice, the expected and desired behaviour for leaves is for the engagement
+        # to continue during the leave. It turns out this is actually what happens
+        # because a leave is apparently always accompanied by a worktime-update that
+        # forces an edit to the engagement that will extend it to span the
+        # leave. If this ever turns out not to hold, add a dummy-edit to the
+        # engagement here.
         mo_eng = self._find_engagement(job_id)
         payload = sd_payloads.create_leave(mo_eng, self.mo_person, self.leave_uuid,
                                            job_id, self._validity(status))
@@ -644,6 +647,7 @@ class ChangeAtSD(object):
             data = {'fraction': int(working_time * 1000000),
                     'validity': validity}
             payload = sd_payloads.engagement(data, mo_eng)
+            logger.debug('Change worktime, payload: {}'.format(payload))
             response = self.helper._mo_post('details/edit', payload)
             mora_assert(response)
 
@@ -712,6 +716,7 @@ class ChangeAtSD(object):
                         'primary_type': {'uuid': self.primary_types['non_primary']},
                     }
                     payload = sd_payloads.engagement(data, mo_eng)
+                    logger.debug('Edit status 1, payload: {}'.format(payload))
                     response = self.helper._mo_post('details/edit', payload)
                     mora_assert(response)
                     self.mo_engagement = self.helper.read_user_engagement(
