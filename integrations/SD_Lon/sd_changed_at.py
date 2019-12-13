@@ -104,9 +104,9 @@ class ChangeAtSD(object):
         for job in job_functions:
             self.job_functions[job['name']] = job['uuid']
 
+        logger.info('Read engagement types')
         # The Opus diff-import contains a slightly more abstrac def to do this
         engagement_types = self.helper.read_classes_in_facet('engagement_type')
-        # self.engagement_type_facet = engagement__types[1]
         self.engagement_types = {}
         for engagement_type in engagement_types[0]:
             self.engagement_types[engagement_type['user_key']] = engagement_type['uuid']
@@ -447,12 +447,12 @@ class ChangeAtSD(object):
             self.department_fixer.fix_or_create_branch(org_unit, today)
             ou_info = self.helper.read_ou(org_unit, use_cache=False)
 
-        if ou_info['org_unit_type']['name'] in too_deep:
+        if ou_info['org_unit_level']['user_key'] in too_deep:
             self.create_association(org_unit, self.mo_person,
                                     job_id, validity)
 
-        logger.debug('OU info is currently: {}'.format(ou_info))
-        while ou_info['org_unit_type']['name'] in too_deep:
+        # logger.debug('OU info is currently: {}'.format(ou_info))
+        while ou_info['org_unit_level']['user_key'] in too_deep:
             ou_info = ou_info['parent']
             logger.debug('Parent unit: {}'.format(ou_info))
         org_unit = ou_info['uuid']
@@ -513,7 +513,7 @@ class ChangeAtSD(object):
 
         payload = sd_payloads.create_engagement(
             org_unit=org_unit,
-            mo_peson=self.mo_person,
+            mo_person=self.mo_person,
             job_function=self.job_functions.get(emp_name),
             engagement_type=engagement_type,
             primary=primary,
@@ -562,31 +562,10 @@ class ChangeAtSD(object):
         mora_assert(response)
         return True
 
-    def edit_engagement(self, engagement, validity=None, status0=False):
-        """
-        Edit an engagement
-        """
+    def _edit_engagement_department(self, engagement, mo_eng):
         job_id, engagement_info = self.engagement_components(engagement)
-
-        mo_eng = self._find_engagement(job_id)
-        if not mo_eng:
-            logger.error('Engagement {} has never existed!'.format(job_id))
-            return
-
-        if not validity:
-            validity = mo_eng['validity']
-
-        data = {}
-        if status0:
-            logger.info('Setting {} to status0'.format(job_id))
-            data = {'engagement_type': {'uuid': self.eng_types['non_primary']},
-                    'validity': validity}
-            payload = sd_payloads.engagement(data, mo_eng)
-            logger.debug('Status0 payload: {}'.format(payload))
-            response = self.helper._mo_post('details/edit', payload)
-            mora_assert(response)
-
         for department in engagement_info['departments']:
+            print('Edit engagement department')
             logger.info('Change department of engagement {}:'.format(job_id))
             logger.debug('Department object: {}'.format(department))
 
@@ -624,7 +603,10 @@ class ChangeAtSD(object):
             response = self.helper._mo_post('details/edit', payload)
             mora_assert(response)
 
+    def _edit_engagement_profession(self, engagement, mo_eng):
+        job_id, engagement_info = self.engagement_components(engagement)
         for profession_info in engagement_info['professions']:
+            print('_edit_engagement_profession')
             logger.info('Change profession of engagement {}'.format(job_id))
             # We load the name from SD and handles the AD-integration
             # when calculating the primary engagement.
@@ -633,12 +615,8 @@ class ChangeAtSD(object):
             else:
                 emp_name = profession_info['JobPositionIdentifier']
             logger.debug('Employment name: {}'.format(emp_name))
-
-            # Should this have an end comparison and cut=True?
-            # Most likely not, but be aware of the option.
             validity = self._validity(profession_info, mo_eng['validity']['to'],
                                       cut=True)
-
             if validity is None:
                 continue
 
@@ -652,6 +630,8 @@ class ChangeAtSD(object):
             response = self.helper._mo_post('details/edit', payload)
             mora_assert(response)
 
+    def _edit_engagement_worktime(self, engagement, mo_eng):
+        job_id, engagement_info = self.engagement_components(engagement)
         for worktime_info in engagement_info['working_time']:
             logger.info('Change working time of engagement {}'.format(job_id))
 
@@ -663,134 +643,122 @@ class ChangeAtSD(object):
                 continue
 
             working_time = float(worktime_info['OccupationRate'])
-
             data = {'fraction': int(working_time * 1000000),
                     'validity': validity}
             payload = sd_payloads.engagement(data, mo_eng)
             response = self.helper._mo_post('details/edit', payload)
             mora_assert(response)
 
+    def edit_engagement(self, engagement, validity=None, status0=False):
+        """
+        Edit an engagement
+        """
+        job_id, engagement_info = self.engagement_components(engagement)
+
+        mo_eng = self._find_engagement(job_id)
+        if not mo_eng:
+            logger.error('Engagement {} has never existed!'.format(job_id))
+            return
+
+        if not validity:
+            validity = mo_eng['validity']
+
+        data = {}
+        if status0:
+            logger.info('Setting {} to status0'.format(job_id))
+            data = {'primary_type': {'uuid': self.primary_types['non_primary']},
+                    'validity': validity}
+            payload = sd_payloads.engagement(data, mo_eng)
+            logger.debug('Status0 payload: {}'.format(payload))
+            response = self.helper._mo_post('details/edit', payload)
+            mora_assert(response)
+
+        self._edit_engagement_department(engagement, mo_eng)
+        self._edit_engagement_profession(engagement, mo_eng)
+        self._edit_engagement_worktime(engagement, mo_eng)
+
+    def _handle_status_chages(self, cpr, engagement):
+        skip = False
+        # The EmploymentStatusCode can take a number of magical values.
+        # that must be handled seperately.
+        job_id, eng = self.engagement_components(engagement)
+        for status in eng['status_list']:
+            logger.info('Status is: {}'.format(status))
+            code = status['EmploymentStatusCode']
+
+            if code not in ('0', '1', '3', '7', '8', '9', 'S'):
+                logger.error('Unkown status code {}!'.format(status))
+                1/0
+
+            if status['EmploymentStatusCode'] == '0':
+                logger.info('Status 0. Cpr: {}, job: {}'.format(cpr, job_id))
+                mo_eng = self._find_engagement(job_id)
+                if mo_eng:
+                    logger.info('Status 0, edit eng {}'.format(mo_eng['uuid']))
+                    self.edit_engagement(engagement, status0=True)
+                else:
+                    logger.info('Status 0, create new engagement')
+                    self.create_new_engagement(engagement, status)
+                skip = True
+
+            if status['EmploymentStatusCode'] == '1':
+                logger.info('Setting {} to status 1'.format(job_id))
+                mo_eng = self._find_engagement(job_id)
+                if mo_eng:
+                    logger.info('Status 1, edit eng. {}'.format(mo_eng['uuid']))
+
+                    validity = self._validity(status)
+                    logger.debug('Validity for edit: {}'.format(validity))
+                    data = {
+                        'validity': validity,
+                        'primary_type': {'uuid': self.primary_types['non_primary']},
+                    }
+                    payload = sd_payloads.engagement(data, mo_eng)
+                    response = self.helper._mo_post('details/edit', payload)
+                    mora_assert(response)
+                    self.mo_engagement = self.helper.read_user_engagement(
+                        self.mo_person['uuid'], read_all=True,
+                        only_primary=True, use_cache=False
+                    )
+                    self.edit_engagement(engagement, validity)
+                else:
+                    logger.info('Status 1: Create new engagement')
+                    self.create_new_engagement(engagement, status)
+                skip = True
+
+            if status['EmploymentStatusCode'] == '3':
+                mo_eng = self._find_engagement(job_id)
+                if not mo_eng:
+                    logger.info('Leave for non existent eng., create one')
+                    self.create_new_engagement(engagement, status)
+                logger.info('Create a leave for {} '.format(cpr))
+                self.create_leave(status, job_id)
+
+            if status['EmploymentStatusCode'] in ('7', '8'):
+                from_date = status['ActivationDate']
+                logger.info('Terminate {}, job_id {} '.format(cpr, job_id))
+                success = self._terminate_engagement(from_date, job_id)
+                if not success:
+                    logger.error('Problem wit job-id: {}'.format(job_id))
+                    skip = True
+
+            if status['EmploymentStatusCode'] in ('S', '9'):
+                skip = True
+                for mo_eng in self.mo_engagement:
+                    if mo_eng['user_key'] == job_id:
+                        logger.info('Status S, 9: Terminate {}'.format(job_id))
+                        self._terminate_engagement(status['ActivationDate'], job_id)
+        return skip
+
     def _update_user_employments(self, cpr, sd_engagement):
         for engagement in sd_engagement:
             job_id, eng = self.engagement_components(engagement)
             logger.info('Update Job id: {}'.format(job_id))
             logger.debug('SD Engagement: {}'.format(engagement))
-
             skip = False
             # If status is present, we have a potential creation
             if eng['status_list']:
-                # The EmploymentStatusCode can take a number of magical values.
-                # that must be handled seperately.
-                for status in eng['status_list']:
-                    logger.info('Status is: {}'.format(status))
-                    code = status['EmploymentStatusCode']
-
-                    if code not in ('0', '1', '3', '7', '8', '9', 'S'):
-                        logger.error('Unkown status code {}!'.format(status))
-                        1/0
-
-                    if status['EmploymentStatusCode'] == '0':
-                        logger.info('Status 0. Cpr: {}, job: {}'.format(cpr, job_id))
-                        mo_eng = self._find_engagement(job_id)
-                        if mo_eng:
-                            logger.info(
-                                'Status 0, edit eng {}'.format(mo_eng['uuid'])
-                            )
-                            self.edit_engagement(engagement, status0=True)
-                        else:
-                            logger.info('Status 0, create new engagement')
-                            self.create_new_engagement(engagement, status)
-                        skip = True
-
-                    if status['EmploymentStatusCode'] == '1':
-                        logger.info('Setting {} to status 1'.format(job_id))
-                        mo_eng = self._find_engagement(job_id)
-                        if mo_eng:
-                            logger.info(
-                                'Status 1, edit eng. {}'.format(mo_eng['uuid'])
-                            )
-
-                            validity = self._validity(status)
-                            logger.debug('Validity for edit: {}'.format(validity))
-                            data = {
-                                'validity': validity,
-                                'engagement_type': {'uuid':
-                                                    self.eng_types['non_primary']},
-                            }
-                            payload = sd_payloads.engagement(data, mo_eng)
-                            response = self.helper._mo_post('details/edit', payload)
-                            mora_assert(response)
-                            self.mo_engagement = self.helper.read_user_engagement(
-                                self.mo_person['uuid'],
-                                read_all=True,
-                                only_primary=True,
-                                use_cache=False
-                            )
-
-                            self.edit_engagement(engagement, validity)
-                        else:
-                            logger.info('Status 1: Create new engagement')
-                            self.create_new_engagement(engagement, status)
-                        skip = True
-
-                    if status['EmploymentStatusCode'] == '3':
-                        mo_eng = self._find_engagement(job_id)
-                        if not mo_eng:
-                            logger.info('Leave for non existent eng., create one')
-                            self.create_new_engagement(engagement, status)
-                        logger.info('Create a leave for {} '.format(cpr))
-                        self.create_leave(status, job_id)
-
-                    if status['EmploymentStatusCode'] in ('7', '8'):
-                        from_date = status['ActivationDate']
-                        logger.info('Terminate {}, job_id {} '.format(cpr, job_id))
-                        success = self._terminate_engagement(from_date, job_id)
-                        if not success:
-                            logger.error('Problem wit job-id: {}'.format(job_id))
-                            skip = True
-
-                    if status['EmploymentStatusCode'] in ('S', '9'):
-                        skip = True
-                        for mo_eng in self.mo_engagement:
-                            if not mo_eng['user_key'] == job_id:
-                                # User was never actually hired
-                                logger.info('Engagement deleted: {}'.format(
-                                    status['EmploymentStatusCode']
-                                ))
-                            else:
-                                # Earlier, we checked this for consistency with
-                                # existing engagements (see the disaled code below).
-                                # However, it seems we should just unconditionally
-                                # terminate.
-                                end_date = status['ActivationDate']
-                                logger.info(
-                                    'Status S, 9: Terminate {}'.format(job_id)
-                                )
-                                self._terminate_engagement(end_date, job_id)
-                                """
-                                logger.info('Checking consistent end-dates')
-                                to_date = mo_eng['validity']['to']
-                                if to_date is not None:
-                                    consistent = self._compare_dates(
-                                        mo_eng['validity']['to'],
-                                        status['ActivationDate'],
-                                        expected_diff=2
-                                    )
-                                    logger.info(
-                                        'mo: {}, status: {}, consistent: {}'.format(
-                                            mo_eng['validity']['to'],
-                                            status['ActivationDate'],
-                                            consistent
-                                        )
-                                    )
-                                    assert(consistent)
-                                else:
-                                    end_date = status['ActivationDate']
-                                    logger.info(
-                                        'Status S, 9: Terminate {}'.format(job_id)
-                                    )
-                                    self._terminate_engagement(end_date, job_id)
-                                """
+                skip = self._handle_status_chages(cpr, engagement)
             if skip:
                 continue
             self.edit_engagement(engagement)
