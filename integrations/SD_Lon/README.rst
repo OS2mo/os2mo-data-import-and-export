@@ -45,21 +45,26 @@ Endelig er der også en implementering af løbende synkronisering af ændringer 
 Løn, til dette anvendes udover de nævne webservices også:
 
  * ``GetEmploymentChangedAtDate20111201``
-  
+
+Hvis der ønsked synkronisering af titler hørende til ``JobPositionIdentifier``
+anvendes desuden:
+
+ * ``GetProfession20080201``
+
 Alle enheder fra SD importeres 1:1 som de er i SD, dog er det muligt at flytte enheder
 uden hverken overenhed eller underenheder til en særlig overenhed kaldet
 'Forældreløse enheder'.
 
-Medarbejdere som er ansat på niveauerne, Afdelings-niveau og NY1-niveau rykkes op til
-det laveste niveau højere end dette, og der oprettes en tilknytning til den afdeling
-de befinder sig i i SD Løn.
+Medarbejdere som er ansat på niveauerne, angivet i konfigurationensnøglen
+``integrations.SD_Lon.import.too_deep`` rykkes op til det laveste niveau højere end
+dette, og der oprettes en tilknytning til den afdeling de befinder sig i i SD Løn.
 
 Det er muligt at levere en ekstern liste med ledere, eller alternativt at benytte SD
 Løns JobPositionIdentifier til at vurdere at en medarbejder skal regnes som leder.
 
 Medarbejdere i statuskode 3 regnes for at være på orlov.
 
-Der importeres ingen adresser på medarbejdere. På sigt vil disse kunne hentes fra
+Der importeres ingen adresser på medarbejdere. Disse kan eventuelt hentes fra
 ad-integrationen.
 
 Alle personer og ansættelser som kan returneres fra de ovennævnte webservices
@@ -85,11 +90,11 @@ fra en kørende instans af MO.
 Engagementstyper
 ================
 
-Alle medarbejdere som har et ansættelsesnummer som udelukkende består af tal,
-tildeles en af to ansættelsestyper:
+Alle medarbejdere som har et ansættelsesnummer udelukkende med tal, tildeles en af
+to ansættelsestyper:
 
  * Medarbejder (månedsløn), hvis ansættelsesnummeret er lavere end værdien angivet
-   i ``settings.json`` med nøglen, ``integrations.SD_Lon.monthly_hourly_divide``
+   i nøglen ``integrations.SD_Lon.monthly_hourly_divide``.
  * Medarbejder (timeløn), hvis ansættelsesnummeret er højere.
 
 Hvis medarbejderen har et ansættelsesnummer, som ikke udelukke er tal, vil
