@@ -152,6 +152,7 @@ class ADWriter(AD):
 
         engagements = self.helper.read_user_engagement(uuid)
 
+        # TODO: This should be replaced by the new calculate_primary flag in MO.
         primary_index = sys.maxsize
         for engagement in engagements:
             # TODO: Do not pick any primary, we must choose the very most primary
