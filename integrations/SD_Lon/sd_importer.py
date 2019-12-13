@@ -329,7 +329,7 @@ class SdImport(object):
             parent = ou.parent_ref
             if parent is None:
                 uuid = key
-                niveau = ou.type_ref
+                niveau = ou.org_unit_level_ref
                 nodes[uuid] = Node(niveau, uuid=uuid)
             else:
                 new_ous.append(ou)
@@ -343,7 +343,7 @@ class SdImport(object):
                 parent = ou.parent_ref
                 if parent in nodes.keys():
                     uuid = ou.uuid
-                    niveau = ou.type_ref
+                    niveau = ou.org_unit_level_ref
                     nodes[uuid] = Node(niveau, parent=nodes[parent], uuid=uuid)
                 else:
                     new_ous.append(ou)
