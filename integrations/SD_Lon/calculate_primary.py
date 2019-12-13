@@ -223,7 +223,7 @@ class MOPrimaryEngagementUpdater(object):
                 except ValueError:
                     logger.warning('Engagement type not status0. Will fix.')
                     data = {
-                        'primary': {'uuid': self.eng_types['no_salary']},
+                        'primary': {'uuid': self.primary_types['no_salary']},
                         'validity': validity
                     }
                     payload = sd_payloads.engagement(data, eng)
