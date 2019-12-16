@@ -878,7 +878,7 @@ def initialize_changed_at(from_date, run_db, force=False):
 if __name__ == '__main__':
     logger.info('***************')
     logger.info('Program started')
-    init = True
+    init = False
 
     from_date = datetime.datetime.strptime(
         SETTINGS['integrations.SD_Lon.global_from_date'],
