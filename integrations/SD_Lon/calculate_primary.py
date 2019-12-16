@@ -94,7 +94,7 @@ class MOPrimaryEngagementUpdater(object):
         logger.debug('Min id: {}, Max rate: {}'.format(min_id, max_rate))
         return (min_id, max_rate)
 
-    def _find_cut_dates(self):
+    def _find_cut_dates(self, no_past=False):
         """
         Run throgh entire history of current user and return a list of dates with
         changes in the engagement.

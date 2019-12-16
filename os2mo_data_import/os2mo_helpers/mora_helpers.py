@@ -294,11 +294,13 @@ class MoraHelper(object):
         logger.info("Terminate detail %s", payload)
         # self._mo_post('details/terminate', payload):
 
-    def read_user_engagement(self, user, at=None, read_all=False,
+    def read_user_engagement(self, user, at=None, read_all=False, skip_past=False,
                              only_primary=False, use_cache=None):
         """
         Read engagements for a user.
         :param user: UUID of the wanted user.
+        :read_all: Read all engagements, not only the present ones.
+        :skip_past: Even if read_all is true, do not read the past.
         :return: List of the users engagements.
         """
         if not read_all:
@@ -306,8 +308,13 @@ class MoraHelper(object):
                                           at, only_primary=only_primary,
                                           use_cache=use_cache)
         else:
+            if skip_past:
+                validity_times = ['past', 'present', 'future']
+            else:
+                validity_times = ['present', 'future']
+
             engagements = []
-            for validity in ['past', 'present', 'future']:
+            for validity in validity_times:
                 engagement = self._mo_lookup(user, 'e/{}/details/engagement',
                                              validity=validity,
                                              only_primary=only_primary,
