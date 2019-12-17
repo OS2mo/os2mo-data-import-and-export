@@ -1,3 +1,4 @@
+import time
 import json
 import pathlib
 import logging
@@ -46,6 +47,8 @@ class MOPrimaryEngagementUpdater(object):
         :param mo_person: An already existing user object from mora_helper.
         :return: True if current user is valid, otherwise False.
         """
+        print()
+        t = time.time()
         if uuid:
             mo_person = self.helper.read_user(user_uuid=uuid)
         elif cpr:
@@ -54,7 +57,7 @@ class MOPrimaryEngagementUpdater(object):
             pass
         else:
             mo_person = None
-
+        print('Read user: {}s'.format(time.time() - t))
         if mo_person:
             self.mo_person = mo_person
             success = True
@@ -99,12 +102,14 @@ class MOPrimaryEngagementUpdater(object):
         Run throgh entire history of current user and return a list of dates with
         changes in the engagement.
         """
+        t = time.time()
         uuid = self.mo_person['uuid']
         mo_engagement = self.helper.read_user_engagement(
             user=uuid,
             only_primary=True,
             read_all=True,
         )
+
         dates = set()
         for eng in mo_engagement:
             dates.add(datetime.datetime.strptime(eng['validity']['from'],
@@ -118,6 +123,7 @@ class MOPrimaryEngagementUpdater(object):
 
         date_list = sorted(list(dates))
         logger.debug('List of cut-dates: {}'.format(date_list))
+        print('Find cut dates: {}s'.format(time.time() - t))
         return date_list
 
     def _read_engagement(self, date):
@@ -169,19 +175,23 @@ class MOPrimaryEngagementUpdater(object):
                 # print('Correct')
                 pass
 
-    def recalculate_primary(self):
+    def recalculate_primary(self, no_past=False):
         """
         Re-calculate primary engagement for the enire history of the current user.
         """
         logger.info('Calculate primary engagement: {}'.format(self.mo_person))
-        date_list = self._find_cut_dates()
+        date_list = self._find_cut_dates(no_past=no_past)
+
         number_of_edits = 0
 
         for i in range(0, len(date_list) - 1):
             date = date_list[i]
             logger.info('Recalculate primary, date: {}'.format(date))
 
+            t = time.time()
             mo_engagement = self._read_engagement(date)
+            print('Read engagements {}: {}s'.format(i, time.time() - t))
+
             logger.debug('MO engagement: {}'.format(mo_engagement))
             (min_id, max_rate) = self._calculate_rate_and_ids(mo_engagement)
             if (min_id is None) or (max_rate is None):
@@ -273,7 +283,7 @@ class MOPrimaryEngagementUpdater(object):
         return_dict = {self.mo_person['uuid']: number_of_edits}
         return return_dict
 
-    def recalculate_all(self):
+    def recalculate_all(self, no_past=False):
         """
         Recalculate all primary engagements
         :return: TODO
@@ -281,9 +291,11 @@ class MOPrimaryEngagementUpdater(object):
         all_users = self.helper.read_all_users()
         edit_status = {}
         for user in all_users:
+            t = time.time()
             self.set_current_person(uuid=user['uuid'])
-            status = self.recalculate_primary()
+            status = self.recalculate_primary(no_past=no_past)
             edit_status.update(status)
+            logger.debug('Time for primary calculation: {}'.format(time.time() - t))
         print('Total edits: {}'.format(sum(edit_status.values())))
 
     def _cli(self):
@@ -300,9 +312,11 @@ class MOPrimaryEngagementUpdater(object):
 
         if args.get('recalculate_user'):
             print('Recalculate user')
+            t = time.time()
             uuid = args.get('recalculate_user')[0]
             self.set_current_person(uuid=uuid)
             self.recalculate_primary()
+            print('Time for primary calculation: {}'.format(time.time() - t))
 
         if args.get('check_all_for_primary'):
             print('Check all for primary')
@@ -310,7 +324,7 @@ class MOPrimaryEngagementUpdater(object):
 
         if args.get('recalculate_all'):
             print('Check all for primary')
-            self.recalculate_all()
+            self.recalculate_all(no_past=True)
 
 
 if __name__ == '__main__':
