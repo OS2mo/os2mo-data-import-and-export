@@ -169,6 +169,13 @@ exports_cpr_uuid(){
     ${VENV}/bin/python3 exporters/cpr_uuid.py
 }
 
+exports_viborg_emus(){
+    set -e
+    echo running viborg_emus
+    ${VENV}/bin/python3 exporters/viborg_xml_emus.py
+}
+
+
 reports_sd_db_overview(){
     set -e
     echo running reports_sd_db_overview
@@ -267,6 +274,10 @@ exports(){
 
     if [ "${RUN_QUERIES_BALLERUP}" == "true" ]; then
         exports_queries_ballerup || return 2
+    fi
+
+    if [ "${RUN_EXPORT_EMUS}" == "true" ]; then
+        exports_viborg_emus || return 2
     fi
 
     if [ "${RUN_EXPORTS_OS2MO_PHONEBOOK}" == "true" ]; then
