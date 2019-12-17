@@ -416,26 +416,6 @@ class SdImport(object):
                     date_from=None
                 )
 
-            # NOTICE: This will soon be removed and replaced with the
-            # AD-sync functionality which will sync all and not just a few
-            # magic fields.
-            phone = self.ad_people[cpr].get('MobilePhone')
-            if phone:
-                self.importer.add_address_type(
-                    employee=cpr,
-                    value=phone,
-                    type_ref='PhoneEmployee',
-                    date_from=None
-                )
-
-            email = self.ad_people[cpr].get('EmailAddress')
-            if email:
-                self.importer.add_address_type(
-                    employee=cpr,
-                    value=email,
-                    type_ref='EmailEmployee',
-                    date_from=None
-                )
 
     def create_ou_tree(self, create_orphan_container, sub_tree=None,
                        super_unit=None):
