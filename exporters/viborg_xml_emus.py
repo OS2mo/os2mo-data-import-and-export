@@ -23,7 +23,7 @@ import logging
 import collections
 from xml.sax.saxutils import escape
 
-MORA_BASE = os.environ.get('MORA_BASE', 'localhost:80')
+MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
 MORA_ROOT_ORG_UNIT_NAME = os.environ.get('MORA_ROOT_ORG_UNIT_NAME', 'Viborg Kommune')
 USERID_ITSYSTEM = os.environ.get('USERID_ITSYSTEM', 'Active Directory')
 EMUS_RESPONSIBILITY_CLASS = os.environ['EMUS_RESPONSIBILITY_CLASS']
