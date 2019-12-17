@@ -47,7 +47,6 @@ class MOPrimaryEngagementUpdater(object):
         :param mo_person: An already existing user object from mora_helper.
         :return: True if current user is valid, otherwise False.
         """
-        print()
         t = time.time()
         if uuid:
             mo_person = self.helper.read_user(user_uuid=uuid)
@@ -57,7 +56,7 @@ class MOPrimaryEngagementUpdater(object):
             pass
         else:
             mo_person = None
-        print('Read user: {}s'.format(time.time() - t))
+        # print('Read user: {}s'.format(time.time() - t))
         if mo_person:
             self.mo_person = mo_person
             success = True
@@ -126,7 +125,7 @@ class MOPrimaryEngagementUpdater(object):
 
         date_list = sorted(list(dates))
         logger.debug('List of cut-dates: {}'.format(date_list))
-        print('Find cut dates: {}s'.format(time.time() - t))
+        # print('Find cut dates: {}s'.format(time.time() - t))
         return date_list
 
     def _read_engagement(self, date):
@@ -193,7 +192,7 @@ class MOPrimaryEngagementUpdater(object):
 
             t = time.time()
             mo_engagement = self._read_engagement(date)
-            print('Read engagements {}: {}s'.format(i, time.time() - t))
+            # print('Read engagements {}: {}s'.format(i, time.time() - t))
 
             logger.debug('MO engagement: {}'.format(mo_engagement))
             (min_id, max_rate) = self._calculate_rate_and_ids(mo_engagement)
