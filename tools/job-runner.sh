@@ -100,6 +100,13 @@ imports_opus_diff_import(){
     ${VENV}/bin/python3 integrations/opus/opus_diff_import.py
 }
 
+imports_sd_update_primary(){
+    set -e
+    echo updating primary engagements
+    ${VENV}/bin/python3 integrations/SD_Lon/calculate_primary.py --recalculate-all
+}
+
+
 imports_ad_sync(){
     set -e
     echo running imports_ad_sync
@@ -221,6 +228,10 @@ imports(){
 
     if [ "${RUN_SD_CHANGED_AT}" == "true" ]; then
         imports_sd_changed_at || return 2
+    fi
+
+    if [ "${RUN_SD_UPDATE_PRIMARY}" == "true" ]; then
+        imports_sd_update_primary || return 2
     fi
 
     if [ "${RUN_OPUS_DIFF_IMPORT}" == "true" ]; then
