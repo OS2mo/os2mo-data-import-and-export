@@ -318,7 +318,9 @@ class ImportHelper(object):
         """
 
         if identifier in self.klasse_objects:
-            raise ReferenceError("Unique constraint - Klasse identifier exists")
+            raise ReferenceError(
+                'Unique constraint - Klasse identifier {} exists'.format(identifier)
+            )
 
         if "user_key" not in kwargs:
             kwargs["user_key"] = identifier

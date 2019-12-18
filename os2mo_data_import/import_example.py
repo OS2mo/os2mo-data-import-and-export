@@ -2,8 +2,8 @@
 import os
 from os2mo_data_import import ImportHelper
 
-MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:5000')
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
+MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
+MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
 
 
 def example_import(mox_base, mora_base):
@@ -43,21 +43,21 @@ def example_import(mox_base, mora_base):
 
     os2mo.add_klasse(
         identifier="Niveau 1",
-        facet_type_ref="unit_level",
+        facet_type_ref="org_unit_level",
         user_key="Niveau 1",
         title="Niveau 1"
     )
 
     os2mo.add_klasse(
         identifier="Niveau 2",
-        facet_type_ref="unit_level",
+        facet_type_ref="org_unit_level",
         user_key="Niveau 2",
         title="Niveau 2"
     )
 
     os2mo.add_klasse(
         identifier="Niveau 3",
-        facet_type_ref="unit_level",
+        facet_type_ref="org_unit_level",
         user_key="Niveau 3",
         title="Niveau 3"
     )
@@ -273,7 +273,7 @@ def example_import(mox_base, mora_base):
         fraction=7,
         job_function_ref="Direktør",
         engagement_type_ref="Ansat",
-        primary_ref='Primær',
+        primary_ref='primær',
         date_from="2014-11-07"
     )
 
@@ -282,7 +282,7 @@ def example_import(mox_base, mora_base):
         organisation_unit="Pilestræde",
         job_function_ref="Projektleder",
         engagement_type_ref="Ansat",
-        primary_ref='Primær',
+        primary_ref='primær',
         fraction=8,
         date_from="2004-02-01"
     )
@@ -292,7 +292,7 @@ def example_import(mox_base, mora_base):
         organisation_unit="SJA2",
         job_function_ref="Projektleder",
         engagement_type_ref="Ansat",
-        primary_ref='Primær',
+        primary_ref='primær',
         date_from="2011-09-01"
     )
 
@@ -301,7 +301,7 @@ def example_import(mox_base, mora_base):
         organisation_unit="Pilestræde",
         job_function_ref="Udvikler",
         engagement_type_ref="Ansat",
-        primary_ref='Primær',
+        primary_ref='primær',
         fraction=2,
         date_from="2003-04-01"
     )
@@ -311,7 +311,7 @@ def example_import(mox_base, mora_base):
         organisation_unit="SJA2",
         job_function_ref="Udvikler",
         engagement_type_ref="Ansat",
-        primary_ref='Primær',
+        primary_ref='primær',
         fraction=1,
         date_from="2001-05-01"
     )
@@ -320,7 +320,7 @@ def example_import(mox_base, mora_base):
         employee="Carl Sand Holth",
         organisation_unit="Pilestræde",
         job_function_ref="Projektmedarbejder",
-        primary_ref='Primær',
+        primary_ref='primær',
         engagement_type_ref="Ansat",
         fraction=4,
         date_from="1981-06-01"

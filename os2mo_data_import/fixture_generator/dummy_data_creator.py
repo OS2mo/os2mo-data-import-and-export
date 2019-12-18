@@ -25,6 +25,7 @@ CLASSES = {
         'Afdeling', 'Institutionsafsnit', 'Institution', 'Fagligt center',
         'Direktørområde'
     ],
+    'org_unit_level': ['N1', 'N2', 'N3', 'N4', 'N5', 'N6', 'N7', 'N8'],
     'responsibility': [
         'Personale: ansættelse/afskedigelse',
         'Beredskabsledelse',
@@ -77,6 +78,11 @@ CLASSES = {
         ('Ekstern', 'Må vises eksternt', 'PUBLIC'),
         ('Intern', 'Må vises internt', 'INTERNAL'),
         ('Hemmelig', 'Hemmelig', 'SECRET')
+    ],
+    'primary_type': [
+        ('explicitly-primary', 'Manuelt primær ansættelse', '5000'),
+        ('primary', 'Primær', '3000'),
+        ('non-primary', 'Ikke-primær ansættelse', '0')
     ]
 }
 
@@ -227,8 +233,10 @@ class CreateDummyOrg(object):
             address=address[0],
             url='www.{}'.format(_name_to_host(self.name)),
             email='info@{}'.format(_name_to_host(self.name)),
+            time_planning='Dannes ikke',
             p_number=_number(10),
             ean=_number(13),
+            unit_level='N1',
             place_of_contact=address[1],
             location=None,
             type='ou',
@@ -283,12 +291,13 @@ class CreateDummyOrg(object):
             place_of_contact = address
         return address, place_of_contact
 
-    def _create_org_level(self, org_list, parent):
+    def _create_org_level(self, org_list, parent, level):
         """
         Create a dict with names, adresses and parents.
         :param org_list: List of names of the organisation.
         :return: A flat dict with name, random adress and room for sub-units.
         """
+        unit_level = self.classes['org_unit_level'][level]
         uuid_list = []
         for org_tuple in org_list:
             if not isinstance(org_tuple, tuple):
@@ -310,13 +319,16 @@ class CreateDummyOrg(object):
             else:
                 location = None
 
+            time_planning = random.choice(self.classes['time_planning'])
             self.nodes[uuid] = Node(
                 org,
                 address=addresses[0],
                 place_of_contact=addresses[1],
                 location=location,
+                time_planning=time_planning,
                 email='{}@{}'.format(_name_to_email(org), _name_to_host(self.name)),
                 ean=_number(13),
+                unit_level=unit_level,
                 p_number=_number(10),
                 url=None,
                 parent=parent,
@@ -440,7 +452,7 @@ class CreateDummyOrg(object):
                 ('Teknik og Miljø', '23a2ace2-52ca-458d-bead-d1a42080579f'),
                 ('Skole og Børn', '7a8e45f7-4de0-44c8-990f-43c0565ee505'),
                 ('Social og sundhed', 'a6773531-6c0a-4c7b-b0e2-77992412b610')]
-        self._create_org_level(orgs, parent=self.nodes[self.root_name])
+        self._create_org_level(orgs, parent=self.nodes[self.root_name], level=0)
 
         keys = sorted(self.nodes.keys())  # Sort the keys to ensure test-cosistency
         for node in list(keys):
@@ -452,10 +464,11 @@ class CreateDummyOrg(object):
                             ('Renovation', 'dac3b1ef-3d36-4464-9839-f611a4215cb5'),
                             ('Belysning', 'fe2d2ff4-45f8-4b19-8e1b-72d1c4914360'),
                             ('IT-Support', '8bf0c4ce-816e-41f9-99fe-057e0592d86d')]
-                    uuids = self._create_org_level(orgs, self.nodes[node])
+                    uuids = self._create_org_level(orgs, self.nodes[node], level=1)
                     for uuid in uuids:
                         if random.random() > 0.5:
-                            self._create_org_level(['Kantine'], self.nodes[uuid])
+                            self._create_org_level(['Kantine'], self.nodes[uuid],
+                                                   level=2)
 
                 if org == 'Borgmesterens Afdeling':
                     orgs = [
@@ -467,17 +480,17 @@ class CreateDummyOrg(object):
                         ('Byudvikling', 'f1c20ee2-ecbb-4b74-b91c-66ef9831c5cd'),
                         ('IT-Support', '25e39a21-caef-4e96-ac90-7cc27173082e')
                     ]
-                    self._create_org_level(orgs, self.nodes[node])
+                    self._create_org_level(orgs, self.nodes[node], level=1)
 
             if org == 'Skole og Børn':
                 orgs = [
                     ('Social Indsats', '535ba446-d618-4e51-8dae-821d63e26560'),
                     ('IT-Support', '9b7b3dde-16c9-4f88-87cc-e03aa5b4e709')
                 ]
-                self._create_org_level(orgs, self.nodes[node])
+                self._create_org_level(orgs, self.nodes[node], level=2)
 
                 org = ['Skoler og børnehaver']
-                uuid = self._create_org_level(org, self.nodes[node])[0]
+                uuid = self._create_org_level(org, self.nodes[node], level=3)[0]
 
                 skoler = []
                 for dist in self._postdistrikter():
@@ -485,20 +498,21 @@ class CreateDummyOrg(object):
                     if org_size == Size.Large:
                         for i in range(0, 25):
                             skoler.append(dist + " skole " + str(i))
-                self._create_org_level(skoler, self.nodes[uuid])
+                self._create_org_level(skoler, self.nodes[uuid], level=4)
 
                 if not org_size == Size.Small:
                     børnehaver = [dist + " børnehus"
                                   for dist in self._postdistrikter()]
-                    uuids = self._create_org_level(børnehaver, self.nodes[uuid])
+                    uuids = self._create_org_level(børnehaver, self.nodes[uuid],
+                                                   level=4)
                     for uuid in uuids:
                         if random.random() > 0.5:
                             self._create_org_level(['Administration'],
-                                                   self.nodes[uuid])
+                                                   self.nodes[uuid], level=5)
                         elif random.random() > 0.5:
                             self._create_org_level(
                                 ['Administration', 'Teknisk Support'],
-                                self.nodes[uuid]
+                                self.nodes[uuid], level=6
                             )
 
     def create_manager(self):
