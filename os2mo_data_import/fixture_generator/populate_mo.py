@@ -118,6 +118,8 @@ class CreateDummyOrg(object):
         self.importer.add_organisation_unit(
             identifier=ou_node.key,
             name=ou_node.name,
+            org_unit_level_ref=ou_node.unit_level,
+            time_planning_ref=ou_node.time_planning,
             parent_ref=parent,
             type_ref='Afdeling',
             date_from=date_from,
@@ -213,6 +215,7 @@ class CreateDummyOrg(object):
                 organisation_unit=user_node.parent.key,
                 job_function_ref=user['job_function'],
                 engagement_type_ref="Ansat",
+                primary_ref='primary',
                 date_from=date_from,
                 date_to=date_to
             )
@@ -298,8 +301,8 @@ class CreateDummyOrg(object):
     auto_envvar_prefix='MO',
     help_option_names=['-h', '--help'],
 ))
-@option('--mox-base', metavar='URL', default='http://localhost:5000')
-@option('--mora-base', metavar='URL', default='http://localhost')
+@option('--mox-base', metavar='URL', default='http://localhost:8080')
+@option('--mora-base', metavar='URL', default='http://localhost:5000')
 @option('--municipality', metavar='NAME', default='København')
 @option('--scale', type=int, default=4)
 @option('--extra-root/--no-extra-root', is_flag=True)
@@ -324,7 +327,7 @@ def main(mox_base, mora_base, municipality, scale, org_size, extra_root):
                             mora_base=mora_base,
                             system_name="Artificial import",
                             end_marker="STOP_DUMMY",
-                            store_integration_data=True,
+                            store_integration_data=False,
                             seperate_names=True)
 
     CreateDummyOrg(importer,
