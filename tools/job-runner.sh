@@ -172,7 +172,7 @@ exports_cpr_uuid(){
 exports_viborg_emus(){
     set -e
     echo running viborg_emus
-    ${VENV}/bin/python3 exporters/viborg_xml_emus.py
+    ${VENV}/bin/python3 exporters/viborg_xml_emus_sftp.py
 }
 
 
