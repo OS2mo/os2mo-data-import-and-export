@@ -87,7 +87,7 @@ def export_ou_emus(mh, nodes, emus_file):
                         ou["uuid"])
             continue
 
-        manager = mh.read_organisation_managers(node.name)
+        manager = mh.read_ou_managers(node.name)
         manager_uuid = manager["uuid"] if manager else ''
         address = get_emus_address(mh, node.name)
         fra = ou['validity']['from'] if ou['validity']['from'] else ''
