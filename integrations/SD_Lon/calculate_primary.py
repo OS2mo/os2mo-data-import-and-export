@@ -104,12 +104,11 @@ class MOPrimaryEngagementUpdater(object):
         t = time.time()
         uuid = self.mo_person['uuid']
 
-        skip_past = not no_past
         mo_engagement = self.helper.read_user_engagement(
             user=uuid,
             only_primary=True,
             read_all=True,
-            skip_past=skip_past 
+            skip_past=no_past
         )
 
         dates = set()
