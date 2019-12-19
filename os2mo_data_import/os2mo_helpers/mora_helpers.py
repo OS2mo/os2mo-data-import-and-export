@@ -309,9 +309,9 @@ class MoraHelper(object):
                                           use_cache=use_cache)
         else:
             if skip_past:
-                validity_times = ['past', 'present', 'future']
-            else:
                 validity_times = ['present', 'future']
+            else:
+                validity_times = ['past', 'present', 'future']
 
             engagements = []
             for validity in validity_times:
