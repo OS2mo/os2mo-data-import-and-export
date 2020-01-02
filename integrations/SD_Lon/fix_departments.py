@@ -6,8 +6,9 @@ import datetime
 import argparse
 import sd_payloads
 
-from integrations.SD_Lon.sd_common import sd_lookup
 from os2mo_helpers.mora_helpers import MoraHelper
+from integrations.SD_Lon.sd_common import sd_lookup
+from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.exceptions import NoCurrentValdityException
 
 # LOG_LEVEL = logging.DEBUG
@@ -349,6 +350,87 @@ class FixDepartments(object):
             department = [department]
         return department
 
+    # Notice! This code also exists in sd_changed_at!
+    def _find_engagement(self, mo_engagements, job_id):
+        relevant_engagement = None
+        try:
+            user_key = str(int(job_id)).zfill(5)
+        except ValueError:  # We will end here, if int(job_id) fails
+            user_key = job_id
+
+        for mo_eng in mo_engagements:
+            if mo_eng['user_key'] == user_key:
+                relevant_engagement = mo_eng
+
+        if relevant_engagement is None:
+            msg = 'Fruitlessly searched for {} in {}'.format(job_id,
+                                                             mo_engagements)
+            logger.info(msg)
+        return relevant_engagement
+
+    def _fix_NY_logic(self, unit_uuid, validity_date):
+        # This should be called AFTER the recursive fix of the department_tree
+        sd_validity = {
+            'from_date': validity_date.strftime('%d.%m.%Y'),
+            'to_date': validity_date.strftime('%d.%m.%Y')
+        }
+        department = self.get_department(sd_validity, uuid=unit_uuid)[0]
+
+        too_deep = self.settings['integrations.SD_Lon.import.too_deep']
+        mo_unit = self.helper.read_ou(unit_uuid, use_cache=False)
+        while mo_unit['org_unit_level']['user_key'] in too_deep:
+            mo_unit = mo_unit['parent']
+            logger.debug('Parent unit: {}'.format(mo_unit))
+        destination_unit = mo_unit['uuid']
+        logger.debug('Destination found: {}'.format(destination_unit))
+
+        params = {
+            'EffectiveDate': validity_date.strftime('%d.%m.%Y'),
+            # NOTICE!Det er ikke helt oplagt hvad den korrekte virkningsdato er i det
+            # generelle tilfælde. Hvis enheden indeholder fremtidige engagementer,
+            # bør funktionen køres med flere virkningstider. En pragmatisk løsning
+            # kunne være at køre med 'i dag', 'om tre måneder' og 'om 2 år'
+            'DepartmentIdentifier': department['DepartmentIdentifier'],
+            'DepartmentLevelIdentifier': department['DepartmentLevelIdentifier'],
+            'StatusActiveIndicator': True,
+            'StatusPassiveIndicator': False,
+            'EmploymentStatusIndicator': True
+        }
+        employments = sd_lookup('GetEmployment20111201', params, use_cache=True)
+        people = employments['Person']
+        if not isinstance(people, list):
+            people = [people]
+        for person in people:
+            cpr = person['PersonCivilRegistrationIdentifier']
+            job_id = person['Employment']['EmploymentIdentifier']
+            mo_person = self.helper.read_user(user_cpr=cpr,
+                                              org_uuid=self.org_uuid)
+
+            mo_engagements = self.helper.read_user_engagement(
+                    mo_person['uuid'],
+                    read_all=True,
+                    only_primary=True,
+                    skip_past=True,
+                    use_cache=False
+            )
+            mo_engagement = self._find_engagement(mo_engagements, job_id)
+            for eng in mo_engagements:
+                if eng['uuid'] == mo_engagement['uuid']:
+                    if eng['org_unit']['uuid'] == destination_unit:
+                        continue
+
+                    from_date = datetime.datetime.strptime(
+                        eng['validity']['from'], '%Y-%m-%d')
+                    if from_date < validity_date:
+                        eng['validity']['from'] = validity_date.strftime('%Y-%m-%d')
+
+                    data = {'org_unit': {'uuid': destination_unit},
+                            'validity': eng['validity']}
+                    payload = sd_payloads.engagement(data, mo_engagement)
+                    print(payload)
+                    response = self.helper._mo_post('details/edit', payload)
+                    mora_assert(response)
+
     def get_parent(self, unit_uuid, validity_date):
         params = {
             'EffectiveDate': validity_date.strftime('%d.%m.%Y'),
@@ -417,9 +499,13 @@ class FixDepartments(object):
 
 if __name__ == '__main__':
     unit_fixer = FixDepartments()
-    # uruk = 'cf9864bf-1ed8-4800-9600-000001290002'
-    # today = datetime.datetime.today()
+    uruk = 'cf9864bf-1ed8-4800-9600-000001290002'
+    today = datetime.datetime.today()
     # print(unit_fixer.get_all_parents(uruk, from_date))
     # print(unit_fixer.get_all_parents(uruk, today))
     # unit_fixer.fix_or_create_branch(uruk, today)
-    unit_fixer._cli()
+    # unit_fixer._cli()
+
+    unit_fixer._fix_NY_logic(uruk, today)
+
+    # FIX DATE PROBLEM REGARDING FUTURE UNITS
