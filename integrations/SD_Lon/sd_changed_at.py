@@ -345,7 +345,7 @@ class ChangeAtSD(object):
 
         logger.debug(
             'Find engagement, from date: {}, user_key: {}'.format(
-                from_date, user_key
+                self.from_date, user_key
             )
         )
 
