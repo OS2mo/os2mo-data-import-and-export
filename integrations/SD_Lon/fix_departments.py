@@ -282,6 +282,7 @@ class FixDepartments(object):
         time_deltas = [0, 90, 365]
 
         all_people = {}
+        logger.debug('Perform GetEmployments, time_delas: {}'.format(time_deltas))
         for time_delta in time_deltas:
             effective_date = validity_date + datetime.timedelta(days=time_delta)
             params['EffectiveDate'] = effective_date.strftime('%d.%m.%Y'),
@@ -363,7 +364,7 @@ class FixDepartments(object):
                     data = {'org_unit': {'uuid': destination_unit},
                             'validity': eng['validity']}
                     payload = sd_payloads.engagement(data, mo_engagement)
-                    print(payload)
+                    logger.debug('Move engagement payload: {}'.format(payload))
                     response = self.helper._mo_post('details/edit', payload)
                     mora_assert(response)
 
