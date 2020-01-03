@@ -130,19 +130,27 @@ class FixDepartments(object):
         logger.debug('Response: {}'.format(response.text))
 
     def fix_department_at_single_date(self, unit_uuid, validity_date):
-        logger.info('Set department {} to state as of today'.format(unit_uuid))
+        msg = 'Set department {} to state as of {}'
+        logger.info(msg.format(unit_uuid, validity_date))
         validity = {
             'from_date': validity_date.strftime('%d.%m.%Y'),
             'to_date': validity_date.strftime('%d.%m.%Y')
         }
         department = self.get_department(validity, uuid=unit_uuid)[0]
 
+        unit_level_uuid = None
         for unit_level in self.level_types:
             if unit_level['user_key'] == department['DepartmentLevelIdentifier']:
                 unit_level_uuid = unit_level['uuid']
+        if unit_level_uuid is None:
+            msg = 'Unknown department level {}!!'
+            logger.error(msg.format(department['DepartmentLevelIdentifier']))
+            raise Exception(msg.format(department['DepartmentLevelIdentifier']))
 
         try:
             parent = self.get_parent(unit_uuid, validity_date)
+            if parent is None:
+                parent = self.org_uuid
             department = self.get_department(validity, uuid=unit_uuid)[0]
             name = department['DepartmentName']
             shortname = department['DepartmentIdentifier']
@@ -151,11 +159,9 @@ class FixDepartments(object):
             logger.error(msg.format(validity_date))
             raise Exception(msg.format(validity_date))
 
-        # SD has a challenge with the internal validity-consistency, extend first
+        # SD has a challenge with the internal validity-consistency, extend
         # validity indefinitely
         from_date = '1900-01-01'
-        if parent is None:
-            parent = self.org_uuid
         print('Unit parent at {} is {}'.format(from_date, parent))
 
         payload = sd_payloads.edit_org_unit(
@@ -165,7 +171,7 @@ class FixDepartments(object):
             parent=parent,
             ou_level=unit_level_uuid,
             ou_type=self.unit_type['uuid'],
-            from_date=from_date
+            from_date=from_date  # End date is always infinity
         )
         logger.debug('Edit payload to fix unit: {}'.format(payload))
         response = self.helper._mo_post('details/edit', payload)
@@ -178,11 +184,10 @@ class FixDepartments(object):
     def get_department(self, validity, shortname=None, uuid=None):
         """
         Read department information from SD.
-        NOTICE: Shortname is not universally unitque in SD, and even a request
+        NOTICE: Shortnames are not universally unique in SD, and even a request
         spanning a single date might return more than one row if searched by
         shortname.
-        :param validity: Validity dictionaty containing two datetime objects
-        with keys from_date and to_date.
+        :param validity: Validity dictionaty.
         :param shortname: Shortname for the unit(s).
         :param uuid: uuid for the unit.
         :return: A list of information about the unit(s).
@@ -213,7 +218,7 @@ class FixDepartments(object):
             department = [department]
         return department
 
-    # Notice! This code also exists in sd_changed_at!
+    # Notice! Similar code also exists in sd_changed_at
     def _find_engagement(self, mo_engagements, job_id):
         """
         Given a list of engagements for a person, find the one with a specific
@@ -241,15 +246,29 @@ class FixDepartments(object):
         return relevant_engagement
 
     def _fix_NY_logic(self, unit_uuid, validity_date):
+        """
+        Read all engagements in a unit and ensure that the position in MO is correct
+        according to the rules of the import (ie, move engagement up from
+        'Afdeling'). This is mainly relevant if an 'Afdeling' is moved to have a new
+        NY-department as parent.
+        If an engagement is already correct, it will not be moved, if it is currently
+        in a wrong unit, it will be corrected.
+        :param unit_uuid: uuid of the unit to check.
+        :validity_date: The validity_date of the operation, moved engagements will
+        be moved as of this date.
+        """
+
         # This should be called AFTER the recursive fix of the department_tree
+        too_deep = self.settings['integrations.SD_Lon.import.too_deep']
         sd_validity = {
             'from_date': validity_date.strftime('%d.%m.%Y'),
             'to_date': validity_date.strftime('%d.%m.%Y')
         }
-        too_deep = self.settings['integrations.SD_Lon.import.too_deep']
         department = self.get_department(sd_validity, uuid=unit_uuid)[0]
         if not department['DepartmentLevelIdentifier'] in too_deep:
-            print('{} regnes ikke som et SD afdelingsniveau'.format(unit_uuid))
+            msg = '{} regnes ikke som et SD afdelingsniveau'
+            print(msg.format(unit_uuid))
+            logger.info(msg.format(unit_uuid))
             return
 
         mo_unit = self.helper.read_ou(unit_uuid, use_cache=False)
@@ -293,7 +312,7 @@ class FixDepartments(object):
         for person in all_people.values():
             cpr = person['PersonCivilRegistrationIdentifier']
             job_id = person['Employment']['EmploymentIdentifier']
-            print('Chekking job-id: {}'.format(job_id))
+            print('Checking job-id: {}'.format(job_id))
             sd_uuid = (person['Employment']['EmploymentDepartment']
                        ['DepartmentUUIDIdentifier'])
             if not sd_uuid == unit_uuid:
