@@ -72,6 +72,14 @@ importeres, både passive og aktive. Dette skyldes dels et ønske om et så komp
 datasæt som muligt, dels at SDs vedligeholdsesservices gå ud fra, at alle kendte
 engagementer er i den lokale model.
 
+Den importerede startdato for engagementer er desværre ikke i alle tilfælde korrekt,
+men repræsenterer for aktive ansættelser den dato hvor den nuværende
+ansættelsesstatus indtrådte, da det ikke er muligt at finde den korrekte oprindelige
+startdato uden et meget stort antal kald mod SDs api.
+For afsluttede ansættelser vil sidste ændrede status være lig med slutdatoen, i
+disse tilfælde anvendes i stedet SDs felt EmploymentDate, som desværre er et
+fritekstfelt som i pricippet kan være behæftet med fejl.
+
 Postadresser på enheder hentes fa SD og valideres mod DAR. Hvis adressen kan entydigt
 genkendes hos DAR, gemmes den tilhørende DAR-uuid på enheden i MO.
 
