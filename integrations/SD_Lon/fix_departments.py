@@ -377,7 +377,7 @@ class FixDepartments(object):
         too_deep = self.settings['integrations.SD_Lon.import.too_deep']
         department = self.get_department(sd_validity, uuid=unit_uuid)[0]
         if not department['DepartmentLevelIdentifier'] in too_deep:
-            print('{} er ikke et SD afdelingsniveau'.format(unit_uuid))
+            print('{} regnes ikke som et SD afdelingsniveau'.format(unit_uuid))
             return
 
         mo_unit = self.helper.read_ou(unit_uuid, use_cache=False)
@@ -509,7 +509,9 @@ class FixDepartments(object):
             mo_unit = self.helper.read_ou(unit[1])
             if 'status' in mo_unit:  # Unit does not exist in MO
                 logger.warning('Unknown unit {}, will create'.format(unit))
-                self.create_single_department(unit[1], date)
+                # Use a future date to be sure that the unit exists in SD.
+                fix_date = date + datetime.timedelta(weeks=80)
+                self.create_single_department(unit[1], fix_date)
         for unit in reversed(branch):
             self.fix_department_at_single_date(unit[1], date)
 
@@ -536,5 +538,3 @@ if __name__ == '__main__':
     # print(unit_fixer.get_all_parents(uruk, today))
     # unit_fixer.fix_or_create_branch(uruk, today)
     unit_fixer._cli()
-
-    # FIX DATE PROBLEM REGARDING FUTURE UNITS
