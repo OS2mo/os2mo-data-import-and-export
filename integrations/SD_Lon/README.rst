@@ -214,7 +214,7 @@ hjælpeværktøjer:
    med ansættelsestyper som er knyttet til SDs ``JobPositionIdentifier``. Efter
    den initielle import vil klassens navn modsvare talværdien i SD, og dette
    værktøj kan efterfølgende anvendes til at enten at synkronisere teksten til
-   den aktuelle værdi i SD eller til en valgfri teskt.
+   den aktuelle værdi i SD eller til en valgfri tekst.
 
  * ``fix_departments.py``: En implementering af logikken beskrevet under afsnitet
    `Håndtering af enheder`_. Udover anvendelsen i den løbende integrationen,

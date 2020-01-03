@@ -274,7 +274,7 @@ class ChangeAtSD(object):
                     self.ad_uuid,
                     return_uuid
                 )
-                print(payload)
+                logger.debug('Connect it-system: {}'.format(payload))
                 response = self.helper._mo_post('details/create', payload)
                 assert response.status_code == 201
                 logger.info('Added AD account info to {}'.format(cpr))
@@ -359,7 +359,7 @@ class ChangeAtSD(object):
             logger.info(msg)
         return relevant_engagement
 
-    # Possibly this should be generalizedto also be able to add engagement_types
+    # Possibly this should be generalized to also be able to add engagement_types
     def _update_professions(self, emp_name):
         # Add new profssions to LoRa
         job_uuid = self.job_functions.get(emp_name)

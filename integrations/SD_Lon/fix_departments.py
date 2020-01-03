@@ -248,7 +248,7 @@ class FixDepartments(object):
     def _read_department_engagements(self, unit_uuid, validity_date):
         """
         Retrive a list from SD with all engagements in a given department.
-        All current (as of validity_date) and future engagements are retived,
+        All current (as of validity_date) and future engagements are retrived,
         since GetEngagement does not support time ranges, we ask for three
         points in time that should cover all known future.
         :param unit_uuid: uuid of the relevant department.
@@ -352,21 +352,24 @@ class FixDepartments(object):
             # future rows.
             mo_engagement = self._find_engagement(mo_engagements, job_id)
             for eng in mo_engagements:
-                if eng['uuid'] == mo_engagement['uuid']:
-                    if eng['org_unit']['uuid'] == destination_unit:
-                        continue
+                if not eng['uuid'] == mo_engagement['uuid']:
+                    # This engagement is not relevant for this unit
+                    continue
+                if eng['org_unit']['uuid'] == destination_unit:
+                    # This engagement is already in the correct unit
+                    continue
 
-                    from_date = datetime.datetime.strptime(
-                        eng['validity']['from'], '%Y-%m-%d')
-                    if from_date < validity_date:
-                        eng['validity']['from'] = validity_date.strftime('%Y-%m-%d')
+                from_date = datetime.datetime.strptime(
+                    eng['validity']['from'], '%Y-%m-%d')
+                if from_date < validity_date:
+                    eng['validity']['from'] = validity_date.strftime('%Y-%m-%d')
 
-                    data = {'org_unit': {'uuid': destination_unit},
-                            'validity': eng['validity']}
-                    payload = sd_payloads.engagement(data, mo_engagement)
-                    logger.debug('Move engagement payload: {}'.format(payload))
-                    response = self.helper._mo_post('details/edit', payload)
-                    mora_assert(response)
+                data = {'org_unit': {'uuid': destination_unit},
+                        'validity': eng['validity']}
+                payload = sd_payloads.engagement(data, mo_engagement)
+                logger.debug('Move engagement payload: {}'.format(payload))
+                response = self.helper._mo_post('details/edit', payload)
+                mora_assert(response)
 
     def get_parent(self, unit_uuid, validity_date):
         """
@@ -379,7 +382,7 @@ class FixDepartments(object):
         other sources. In general queries to the future and near past should always
         be safe if the unit exists at the point in time.
         :param unit_uuid: uuid of the unit to be queried.
-        :param validity_date: python datetie object with the date to query.
+        :param validity_date: python datetime object with the date to query.
         :return: uuid of the parent department, None if the department is a root.
         """
         params = {
