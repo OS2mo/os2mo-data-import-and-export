@@ -128,6 +128,13 @@ class FixDepartments(object):
         logger.debug('Create response status: {}'.format(response.status_code))
 
     def fix_department_at_single_date(self, unit_uuid, validity_date):
+        """
+        Synchronize the state of a MO unit to the current state in SD.
+        The updated validity of the MO unit will extend from 1900-01-01 to infinity
+        and any existing validities will be overwritten.
+        :param unit_uuid: uuid of the unit to be updated.
+        :param validity_date: The validity date to read the departent info from SD.
+        """
         msg = 'Set department {} to state as of {}'
         logger.info(msg.format(unit_uuid, validity_date))
         validity = {
