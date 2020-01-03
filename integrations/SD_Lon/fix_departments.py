@@ -11,24 +11,23 @@ from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.exceptions import NoCurrentValdityException
 
-# LOG_LEVEL = logging.DEBUG
-# LOG_FILE = 'fix_sd_departments.log'
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'fix_sd_departments.log'
 
 logger = logging.getLogger('fixDepartments')
 
-# TODO!
-# detail_logging = ('sdCommon', 'fixDepartments')
-# for name in logging.root.manager.loggerDict:
-#     if name in detail_logging:
-#         logging.getLogger(name).setLevel(LOG_LEVEL)
-#     else:
-#         logging.getLogger(name).setLevel(logging.ERROR)
+detail_logging = ('sdCommon', 'fixDepartments')
+for name in logging.root.manager.loggerDict:
+    if name in detail_logging:
+        logging.getLogger(name).setLevel(LOG_LEVEL)
+    else:
+        logging.getLogger(name).setLevel(logging.ERROR)
 
-# logging.basicConfig(
-#     format='%(levelname)s %(asctime)s %(name)s %(message)s',
-#     level=LOG_LEVEL,
-#     filename=LOG_FILE
-# )
+logging.basicConfig(
+    format='%(levelname)s %(asctime)s %(name)s %(message)s',
+    level=LOG_LEVEL,
+    filename=LOG_FILE
+)
 
 
 class FixDepartments(object):
@@ -80,7 +79,6 @@ class FixDepartments(object):
             'InstitutionIdentifier': inst_id
         }
         institution_info = sd_lookup('GetInstitution20111201', params)
-        # print(institution_info.keys())
         institution = institution_info['Region']['Institution']
         institution_uuid = institution['InstitutionUUIDIdentifier']
         return institution_uuid
@@ -127,7 +125,7 @@ class FixDepartments(object):
         logger.info('Created unit {}'.format(
             department['DepartmentIdentifier'])
         )
-        logger.debug('Response: {}'.format(response.text))
+        logger.debug('Create response status: {}'.format(response.status_code))
 
     def fix_department_at_single_date(self, unit_uuid, validity_date):
         msg = 'Set department {} to state as of {}'
@@ -162,7 +160,9 @@ class FixDepartments(object):
         # SD has a challenge with the internal validity-consistency, extend
         # validity indefinitely
         from_date = '1900-01-01'
-        print('Unit parent at {} is {}'.format(from_date, parent))
+        msg = 'Unit parent at {} is {}'
+        print(msg.format(from_date, parent))
+        logger.info(msg.format(from_date, parent))
 
         payload = sd_payloads.edit_org_unit(
             user_key=shortname,
@@ -175,11 +175,11 @@ class FixDepartments(object):
         )
         logger.debug('Edit payload to fix unit: {}'.format(payload))
         response = self.helper._mo_post('details/edit', payload)
+        logger.debug('Edit response status: {}'.format(response.status_code))
         if response.status_code == 400:
             assert(response.text.find('raise to a new registration') > 0)
         else:
             response.raise_for_status()
-        logger.debug('Response: {}'.format(response.text))
 
     def get_department(self, validity, shortname=None, uuid=None):
         """
@@ -245,20 +245,16 @@ class FixDepartments(object):
             logger.info(msg)
         return relevant_engagement
 
-    def _fix_NY_logic(self, unit_uuid, validity_date):
+    def _read_department_engagements(self, unit_uuid, validity_date):
         """
-        Read all engagements in a unit and ensure that the position in MO is correct
-        according to the rules of the import (ie, move engagement up from
-        'Afdeling'). This is mainly relevant if an 'Afdeling' is moved to have a new
-        NY-department as parent.
-        Notice that this should be called AFTER the recursive fix of the department
-        tree to ensure that the logic is applied to a self-consistent tree.
-
-        If an engagement is already correct, it will not be moved, if it is currently
-        in a wrong unit, it will be corrected.
-        :param unit_uuid: uuid of the unit to check.
-        :validity_date: The validity_date of the operation, moved engagements will
-        be moved as of this date.
+        Retrive a list from SD with all engagements in a given department.
+        All current (as of validity_date) and future engagements are retived,
+        since GetEngagement does not support time ranges, we ask for three
+        points in time that should cover all known future.
+        :param unit_uuid: uuid of the relevant department.
+        :param validity_date: The origin of the query, all engagements newer than
+        this will be retrieved.
+        :return: Dict with cpr as key and SD Person objects as values.
         """
         too_deep = self.settings['integrations.SD_Lon.import.too_deep']
         sd_validity = {
@@ -271,13 +267,6 @@ class FixDepartments(object):
             print(msg.format(unit_uuid))
             logger.info(msg.format(unit_uuid))
             return
-
-        mo_unit = self.helper.read_ou(unit_uuid, use_cache=False)
-        while mo_unit['org_unit_level']['user_key'] in too_deep:
-            mo_unit = mo_unit['parent']
-            logger.debug('Parent unit: {}'.format(mo_unit))
-        destination_unit = mo_unit['uuid']
-        logger.debug('Destination found: {}'.format(destination_unit))
 
         params = {
             'DepartmentIdentifier': department['DepartmentIdentifier'],
@@ -306,6 +295,33 @@ class FixDepartments(object):
                 cpr = person['PersonCivilRegistrationIdentifier']
                 if cpr not in all_people:
                     all_people[cpr] = person
+        logger.debug('Department engagements: {}'.format(all_people.keys()))
+        return all_people
+
+    def fix_NY_logic(self, unit_uuid, validity_date):
+        """
+        Read all engagements in a unit and ensure that the position in MO is correct
+        according to the rules of the import (ie, move engagement up from
+        'Afdeling'). This is mainly relevant if an 'Afdeling' is moved to have a new
+        NY-department as parent.
+        Notice that this should be called AFTER the recursive fix of the department
+        tree to ensure that the logic is applied to a self-consistent tree.
+
+        If an engagement is already correct, it will not be moved, if it is currently
+        in a wrong unit, it will be corrected.
+        :param unit_uuid: uuid of the unit to check.
+        :validity_date: The validity_date of the operation, moved engagements will
+        be moved as of this date.
+        """
+        too_deep = self.settings['integrations.SD_Lon.import.too_deep']
+        mo_unit = self.helper.read_ou(unit_uuid, use_cache=False)
+        while mo_unit['org_unit_level']['user_key'] in too_deep:
+            mo_unit = mo_unit['parent']
+            logger.debug('Parent unit: {}'.format(mo_unit['uuid']))
+        destination_unit = mo_unit['uuid']
+        logger.debug('Destination found: {}'.format(destination_unit))
+
+        all_people = self._read_department_engagements(unit_uuid, validity_date)
 
         # We now have a list of all current and future people in the unit,
         # they should all be unconditionally moved if they are not already
@@ -313,11 +329,13 @@ class FixDepartments(object):
         for person in all_people.values():
             cpr = person['PersonCivilRegistrationIdentifier']
             job_id = person['Employment']['EmploymentIdentifier']
-            print('Checking job-id: {}'.format(job_id))
+            msg = 'Checking job-id: {}'
+            print(msg.format(job_id))
+            logger.info(msg.format(job_id))
             sd_uuid = (person['Employment']['EmploymentDepartment']
                        ['DepartmentUUIDIdentifier'])
             if not sd_uuid == unit_uuid:
-                # This employment is not from the current departpartment,
+                # This employment is not from the current department,
                 # but is inherited from a lower level. Can happen if this
                 # tool is initiated on a level higher than Afdelings-niveau.
                 continue
@@ -326,11 +344,7 @@ class FixDepartments(object):
                                               org_uuid=self.org_uuid)
 
             mo_engagements = self.helper.read_user_engagement(
-                    mo_person['uuid'],
-                    read_all=True,
-                    only_primary=True,
-                    skip_past=True,
-                    use_cache=False
+                mo_person['uuid'], read_all=True, only_primary=True, skip_past=True
             )
 
             # Find the uuid of the relevant engagement and update all current and
@@ -452,7 +466,7 @@ class FixDepartments(object):
         fix_date = today + datetime.timedelta(weeks=80)
         self.fix_or_create_branch(department_uuid, fix_date)
 
-        self._fix_NY_logic(department_uuid, today)
+        self.fix_NY_logic(department_uuid, today)
 
 
 if __name__ == '__main__':
