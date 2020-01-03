@@ -221,11 +221,13 @@ hjælpeværktøjer:
    indeholder programmet også et kommandolinjeværktøj som kan anvendes til
    manuelt at fremprovokere en synkronisering af en enhed (med tilhørende
    overenheder) til den nuværende tilsand af SD Løn.
+   Hvis værktøjet afvikles på en enhed som anses for at være Afdelings-niveau,
+   vil det opdatere alle enhedens ansættelser, så engagementerne flyttes til
+   de korrekte NY-niveauer (som kan være ændret, hvis afdelingen er flyttet).
 
  * `sd_fix_organisation.py`: Tidligere forsøg på at håndtere opdateringer af
    enheder. Scriptet findes nu kun som basis for evenutelle senere forsøg på
    at lave et fuldt historisk import af enhedstræet.
-
 
 
 Tjekliste for fuldt import
