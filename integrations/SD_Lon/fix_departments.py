@@ -222,7 +222,7 @@ class FixDepartments(object):
     def _find_engagement(self, mo_engagements, job_id):
         """
         Given a list of engagements for a person, find the one with a specific
-        job_id. If severel elements covering the same engagement is in the list
+        job_id. If several elements covering the same engagement is in the list
         an unspecified element will be returned.
         :param mo_engaements: A list of engagements as returned by MO.
         :param job_id: The SD JobIdentifier to find.
@@ -251,14 +251,15 @@ class FixDepartments(object):
         according to the rules of the import (ie, move engagement up from
         'Afdeling'). This is mainly relevant if an 'Afdeling' is moved to have a new
         NY-department as parent.
+        Notice that this should be called AFTER the recursive fix of the department
+        tree to ensure that the logic is applied to a self-consistent tree.
+
         If an engagement is already correct, it will not be moved, if it is currently
         in a wrong unit, it will be corrected.
         :param unit_uuid: uuid of the unit to check.
         :validity_date: The validity_date of the operation, moved engagements will
         be moved as of this date.
         """
-
-        # This should be called AFTER the recursive fix of the department_tree
         too_deep = self.settings['integrations.SD_Lon.import.too_deep']
         sd_validity = {
             'from_date': validity_date.strftime('%d.%m.%Y'),
