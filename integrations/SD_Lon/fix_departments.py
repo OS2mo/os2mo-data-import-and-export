@@ -374,9 +374,12 @@ class FixDepartments(object):
             'from_date': validity_date.strftime('%d.%m.%Y'),
             'to_date': validity_date.strftime('%d.%m.%Y')
         }
-        department = self.get_department(sd_validity, uuid=unit_uuid)[0]
-
         too_deep = self.settings['integrations.SD_Lon.import.too_deep']
+        department = self.get_department(sd_validity, uuid=unit_uuid)[0]
+        if not department['DepartmentLevelIdentifier'] in too_deep:
+            print('{} er ikke et SD afdelingsniveau'.format(unit_uuid))
+            return
+
         mo_unit = self.helper.read_ou(unit_uuid, use_cache=False)
         while mo_unit['org_unit_level']['user_key'] in too_deep:
             mo_unit = mo_unit['parent']
@@ -385,24 +388,48 @@ class FixDepartments(object):
         logger.debug('Destination found: {}'.format(destination_unit))
 
         params = {
-            'EffectiveDate': validity_date.strftime('%d.%m.%Y'),
-            # NOTICE!Det er ikke helt oplagt hvad den korrekte virkningsdato er i det
-            # generelle tilfælde. Hvis enheden indeholder fremtidige engagementer,
-            # bør funktionen køres med flere virkningstider. En pragmatisk løsning
-            # kunne være at køre med 'i dag', 'om tre måneder' og 'om 2 år'
             'DepartmentIdentifier': department['DepartmentIdentifier'],
             'DepartmentLevelIdentifier': department['DepartmentLevelIdentifier'],
             'StatusActiveIndicator': True,
             'StatusPassiveIndicator': False,
-            'EmploymentStatusIndicator': True
+            'DepartmentIndicator': True,
+            'UUIDIndicator': True
         }
-        employments = sd_lookup('GetEmployment20111201', params, use_cache=True)
-        people = employments['Person']
-        if not isinstance(people, list):
-            people = [people]
-        for person in people:
+
+        # We need to catch all current and future engagements, this is an attempt to
+        # do so, without making too many calls to the api.
+        time_deltas = [0, 90, 365]
+
+        all_people = {}
+        for time_delta in time_deltas:
+            effective_date = validity_date + datetime.timedelta(days=time_delta)
+            params['EffectiveDate'] = effective_date.strftime('%d.%m.%Y'),
+
+            employments = sd_lookup('GetEmployment20111201', params, use_cache=True)
+            people = employments['Person']
+            if not isinstance(people, list):
+                people = [people]
+
+            for person in people:
+                cpr = person['PersonCivilRegistrationIdentifier']
+                if cpr not in all_people:
+                    all_people[cpr] = person
+
+        # We now have a list of all current and future people in the unit,
+        # they should all be unconditionally moved if they are not already
+        # in destination_unit.
+        for person in all_people.values():
             cpr = person['PersonCivilRegistrationIdentifier']
             job_id = person['Employment']['EmploymentIdentifier']
+            print('Chekking job-id: {}'.format(job_id))
+            sd_uuid = (person['Employment']['EmploymentDepartment']
+                       ['DepartmentUUIDIdentifier'])
+            if not sd_uuid == unit_uuid:
+                # This employment is not from the current departpartment,
+                # but is inherited from a lower level. Can happen if this
+                # tool is initiated on a level higher than Afdelings-niveau.
+                continue
+
             mo_person = self.helper.read_user(user_cpr=cpr,
                                               org_uuid=self.org_uuid)
 
@@ -413,6 +440,9 @@ class FixDepartments(object):
                     skip_past=True,
                     use_cache=False
             )
+
+            # Find the uuid of the relevant engagement and update all current and
+            # future rows.
             mo_engagement = self._find_engagement(mo_engagements, job_id)
             for eng in mo_engagements:
                 if eng['uuid'] == mo_engagement['uuid']:
@@ -495,17 +525,16 @@ class FixDepartments(object):
         today = datetime.datetime.today()
         department_uuid = args.get('department_uuid')[0]
         self.fix_or_create_branch(department_uuid, today)
+        self._fix_NY_logic(department_uuid, today)
 
 
 if __name__ == '__main__':
     unit_fixer = FixDepartments()
-    uruk = 'cf9864bf-1ed8-4800-9600-000001290002'
-    today = datetime.datetime.today()
+    # uruk = 'cf9864bf-1ed8-4800-9600-000001290002'
+    # today = datetime.datetime.today()
     # print(unit_fixer.get_all_parents(uruk, from_date))
     # print(unit_fixer.get_all_parents(uruk, today))
     # unit_fixer.fix_or_create_branch(uruk, today)
-    # unit_fixer._cli()
-
-    unit_fixer._fix_NY_logic(uruk, today)
+    unit_fixer._cli()
 
     # FIX DATE PROBLEM REGARDING FUTURE UNITS
