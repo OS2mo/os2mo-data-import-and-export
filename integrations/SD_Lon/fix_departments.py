@@ -16,6 +16,7 @@ from integrations.SD_Lon.exceptions import NoCurrentValdityException
 
 logger = logging.getLogger('fixDepartments')
 
+# TODO!
 # detail_logging = ('sdCommon', 'fixDepartments')
 # for name in logging.root.manager.loggerDict:
 #     if name in detail_logging:
@@ -150,6 +151,13 @@ class FixDepartments(object):
     #                 self.create_department(departments.pop(), activation_date)
 
     def get_institution(self):
+        """
+        Get the institution uuid of the current organisation. It is uniquely
+        determined from the InstitutionIdentifier. The identifier is read
+        from settings.json. The value is rarely used, but is needed to dertermine
+        if a unit is a root unit.
+        :return: The SD institution uuid for the organisation.
+        """
         inst_id = self.settings['integrations.SD_Lon.institution_identifier']
         params = {
             'UUIDIndicator': 'true',
@@ -162,7 +170,9 @@ class FixDepartments(object):
         return institution_uuid
 
     def create_single_department(self, unit_uuid, validity_date):
-        """ Create a single department at a single snapshot in time """
+        """
+        Create a single department at a single snapshot in time
+        """
         logger.info('Create department: {}, at {}'.format(unit_uuid, validity_date))
         validity = {
             'from_date': validity_date.strftime('%d.%m.%Y'),
@@ -352,6 +362,15 @@ class FixDepartments(object):
 
     # Notice! This code also exists in sd_changed_at!
     def _find_engagement(self, mo_engagements, job_id):
+        """
+        Given a list of engagements for a person, find the one with a specific
+        job_id. If severel elements covering the same engagement is in the list
+        an unspecified element will be returned.
+        :param mo_engaements: A list of engagements as returned by MO.
+        :param job_id: The SD JobIdentifier to find.
+        :return: Some element in the list that has the correct job_id. If no
+        engagement is found, None is returned.
+        """
         relevant_engagement = None
         try:
             user_key = str(int(job_id)).zfill(5)
@@ -462,6 +481,19 @@ class FixDepartments(object):
                     mora_assert(response)
 
     def get_parent(self, unit_uuid, validity_date):
+        """
+        Return the parent of a given department at at given point in time.
+        Notice that the query is perfomed against SD, not against MO.
+        It is generally not possible to predict whether this call will succeed, since
+        this depends on the internal start-date at SD, which cannot be read from the
+        API; the user of this function should be prepared to handle
+        NoCurrentValdityException, unless the validity of the unit is known from
+        other sources. In general queries to the future and near past should always
+        be safe if the unit exists at the point in time.
+        :param unit_uuid: uuid of the unit to be queried.
+        :param validity_date: python datetie object with the date to query.
+        :return: uuid of the parent department, None if the department is a root.
+        """
         params = {
             'EffectiveDate': validity_date.strftime('%d.%m.%Y'),
             'DepartmentUUIDIdentifier': unit_uuid
@@ -477,6 +509,14 @@ class FixDepartments(object):
         return parent
 
     def get_all_parents(self, leaf_uuid, validity_date):
+        """
+        Find all parents from leaf unit up to the root of the tree.
+        Notice, this is a query to SD, not to MO.
+        :param leaf_uuid: The starting point of the chain, this does not stictly need
+        to be a leaf node.
+        :validity_date: The validity date of the fix.
+        :return: A list of unit uuids sorted from leaf to root.
+        """
         validity = {
             'from_date': validity_date.strftime('%d.%m.%Y'),
             'to_date': validity_date.strftime('%d.%m.%Y')
@@ -502,6 +542,16 @@ class FixDepartments(object):
         return department_branch
 
     def fix_or_create_branch(self, leaf_uuid, date):
+        """
+        Run through all units up to the top of the tree and synchroize the state of
+        MO to the state of SD. This includes reanming of MO units, moving MO units
+        and creating units that currently does not exist in MO. The updated validity
+        of the MO units will extend from 1900-01-01 to infinity and any existing
+        validities will be overwritten.
+        :param leaf_uuid: The starting point of the fix, this does not stictly need
+        to be a leaf node.
+        :date: The validity date of the fix.
+        """
         # This is a question to SD, units will not need to exist in MO
         branch = self.get_all_parents(leaf_uuid, date)
 
@@ -509,9 +559,7 @@ class FixDepartments(object):
             mo_unit = self.helper.read_ou(unit[1])
             if 'status' in mo_unit:  # Unit does not exist in MO
                 logger.warning('Unknown unit {}, will create'.format(unit))
-                # Use a future date to be sure that the unit exists in SD.
-                fix_date = date + datetime.timedelta(weeks=80)
-                self.create_single_department(unit[1], fix_date)
+                self.create_single_department(unit[1], date)
         for unit in reversed(branch):
             self.fix_department_at_single_date(unit[1], date)
 
@@ -526,7 +574,11 @@ class FixDepartments(object):
 
         today = datetime.datetime.today()
         department_uuid = args.get('department_uuid')[0]
-        self.fix_or_create_branch(department_uuid, today)
+
+        # Use a future date to be sure that the unit exists in SD.
+        fix_date = date + datetime.timedelta(weeks=80)
+        self.fix_or_create_branch(department_uuid, fix_date)
+
         self._fix_NY_logic(department_uuid, today)
 
 
