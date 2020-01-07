@@ -273,7 +273,7 @@ class FixDepartments(object):
             msg = '{} regnes ikke som et SD afdelingsniveau'
             print(msg.format(unit_uuid))
             logger.info(msg.format(unit_uuid))
-            return
+            return {}
 
         params = {
             'DepartmentIdentifier': department['DepartmentIdentifier'],
