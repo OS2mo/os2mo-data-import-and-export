@@ -471,6 +471,7 @@ class SdImport(object):
             passive_people['Person'] = [passive_people['Person']]
 
         self._create_employees(active_people)
+        self.manager_rows = None
         self._create_employees(passive_people)
 
     def _create_employees(self, persons):
