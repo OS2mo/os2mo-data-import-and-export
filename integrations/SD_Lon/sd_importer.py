@@ -97,6 +97,7 @@ class SdImport(object):
             for row in self.manager_rows:
                 resp = row.get('ansvar')
                 self._add_klasse(resp, resp, 'responsibility')
+                print(resp)
 
         self._add_klasse('leder_type', 'Leder', 'manager_type')
 
@@ -416,7 +417,6 @@ class SdImport(object):
                     date_from=None
                 )
 
-
     def create_ou_tree(self, create_orphan_container, sub_tree=None,
                        super_unit=None):
         """ Read all department levels from SD """
@@ -471,10 +471,9 @@ class SdImport(object):
             passive_people['Person'] = [passive_people['Person']]
 
         self._create_employees(active_people)
-        self.manager_rows = None
-        self._create_employees(passive_people)
+        self._create_employees(passive_people, skip_manager=True)
 
-    def _create_employees(self, persons):
+    def _create_employees(self, persons, skip_manager=False):
         for person in persons['Person']:
             logger.debug('Person object to create: {}'.format(person))
             cpr = person['PersonCivilRegistrationIdentifier']
@@ -653,7 +652,8 @@ class SdImport(object):
                             date_from=date_from,
                             date_to=date_to
                         )
-            if self.manager_rows:
+
+            if self.manager_rows and (not skip_manager):
                 for row in self.manager_rows:
                     if row['cpr'] == cpr:
                         if 'uuid' not in row:
@@ -667,6 +667,7 @@ class SdImport(object):
                         logger.info(
                             'Manager {} to {}'.format(cpr, row['afdeling'])
                         )
+
                         self.importer.add_manager(
                             employee=cpr,
                             organisation_unit=row['uuid'],
