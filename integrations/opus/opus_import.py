@@ -78,6 +78,8 @@ class OpusImport(object):
             self.ad_reader.cache_all()
 
         self.employee_addresses = {}
+
+        # These now lives in OpusBase and should be inherited.
         self._add_klasse('AddressPostUnit', 'Postadresse',
                          'org_unit_address_type', 'DAR')
         self._add_klasse('Pnummer', 'Pnummer',
@@ -122,6 +124,7 @@ class OpusImport(object):
         for employee in self.employees:
             self._import_employee(employee)
 
+    # This now lives in OpusBase and should be inherited.
     def _add_klasse(self, klasse_id, klasse, facet, scope='TEXT'):
         if not self.importer.check_if_exists('klasse', klasse_id):
             uuid = opus_helpers.generate_uuid(klasse_id)
