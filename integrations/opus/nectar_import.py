@@ -250,7 +250,9 @@ class NectarImport(OpusBase):
 
         if 'email' in employee:
             self.employee_addresses[cpr]['EmailEmployee'] = employee['email']
-        if employee['workPhone'] is not None:
+
+        # This field can exit in an empty state in Opus
+        if employee.get('workPhone') is not None:
             phone = opus_helpers.parse_phone(employee['workPhone'])
             self.employee_addresses[cpr]['PhoneEmployee'] = phone
 
@@ -367,7 +369,7 @@ class NectarImport(OpusBase):
             nectar_employee = employee['Properties']
             for element in nectar_employee:
                 if element['Name'] == 'CPR':
-                    opus_employee['cpr'] = element['Value']
+                    opus_employee['cpr'] = {'#text': element['Value']}
                 elif element['Name'] == 'MedarbejderId':
                     opus_employee['userId'] = element['Value']
                 elif element['Name'] == 'FirstName':
@@ -395,8 +397,11 @@ class NectarImport(OpusBase):
                         # TODO: We do not know the meaing of the value
                         # print('IsManager: "{}"'.format(element['Value']))
                         opus_employee['isManager'] = 'true'
+                        # Where do we get these?
+                        opus_employee['superiorLevel'] = '0'
+                        opus_employee['subordinateLevel'] = '0'
                 elif element['Name'] == 'EmployeeGroup':
-                    # Unknwon field
+                    # Unknown field
                     # print('EmployeeGroup: "{}"'.format(element['Value']))
                     pass
                 elif element['Name'] == 'ManagerId':
@@ -421,7 +426,7 @@ class NectarImport(OpusBase):
                     raise Exception('Found new key: {}'.format(element))
             if debug_employee:
                 print(employee)
-            # self._import_employee(opus_employee)
+            self._import_employee(opus_employee)
 
 
 if __name__ == '__main__':
