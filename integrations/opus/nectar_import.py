@@ -5,6 +5,8 @@ from integrations import dawa_helper
 from integrations.opus import opus_helpers
 from integrations.opus.opus_base import OpusBase
 
+from integrations.opus.opus_exceptions import UnknownOpusAction
+
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'
 
@@ -191,6 +193,156 @@ class NectarImport(OpusBase):
                     date_to=date_to
                 )
 
+    # TODO: Check carefully for overlap with opus-import-classic
+    def _import_employee(self, employee):
+        logger.debug('Employee object: {}'.format(employee))
+        if 'cpr' in employee:
+            cpr = employee['cpr']['#text']
+            if employee['firstName'] is None and employee['lastName'] is None:
+                # Service user, skip
+                logger.info('Skipped {}, we think it is a serviceuser'.format(cpr))
+                return
+
+        else:  # This employee has left the organisation
+            if not employee['@action'] == 'leave':
+                msg = 'Unknown action: {}'.format(employee['@action'])
+                logger.error(msg)
+                raise UnknownOpusAction(msg)
+            return
+
+        self._update_ad_map(cpr)
+
+        uuid = self.employee_forced_uuids.get(cpr)
+        logger.info('Employee in force list: {} {}'.format(cpr, uuid))
+        if uuid is None and 'ObjectGuid' in self.ad_people[cpr]:
+            uuid = self.ad_people[cpr]['ObjectGuid']
+
+        date_from = employee['entryDate']
+        date_to = employee['leaveDate']
+
+        # Only add employee and address information once, this info is duplicated
+        # if the employee has multiple engagements
+        if not self.importer.check_if_exists('employee', cpr):
+            self.employee_addresses[cpr] = {}
+            self.importer.add_employee(
+                identifier=cpr,
+                name=(employee['firstName'], employee['lastName']),
+                cpr_no=cpr,
+                uuid=uuid
+            )
+
+        if 'SamAccountName' in self.ad_people[cpr]:
+            self.importer.join_itsystem(
+                employee=cpr,
+                user_key=self.ad_people[cpr]['SamAccountName'],
+                itsystem_ref='AD',
+                date_from=None
+            )
+
+        if 'userId' in employee:
+            self.importer.join_itsystem(
+                employee=cpr,
+                user_key=employee['userId'],
+                itsystem_ref='Opus',
+                date_from=date_from,
+                date_to=date_to
+            )
+
+        if 'email' in employee:
+            self.employee_addresses[cpr]['EmailEmployee'] = employee['email']
+        if employee['workPhone'] is not None:
+            phone = opus_helpers.parse_phone(employee['workPhone'])
+            self.employee_addresses[cpr]['PhoneEmployee'] = phone
+
+        if 'postalCode' in employee and employee['address']:
+            if isinstance(employee['address'], dict):
+                # This is a protected address, cannot import
+                pass
+            else:
+                address_string = employee['address']
+                zip_code = employee["postalCode"]
+                addr_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+                if addr_uuid:
+                    self.employee_addresses[cpr]['AdressePostEmployee'] = addr_uuid
+
+        job = employee['position']
+        self._add_klasse(job, job, 'engagement_job_function')
+
+        if 'workContractText' in employee:
+            contract = employee['workContract']
+            self._add_klasse(contract, employee['workContractText'],
+                             'engagement_type')
+        else:
+            contract = '1'
+            self._add_klasse(contract, 'Ansat', 'engagement_type')
+
+        org_unit = employee['orgUnit']
+        job_id = employee['@id']
+        engagement_uuid = opus_helpers.generate_uuid(job_id)
+
+        logger.info('Add engagement: {} to {}'.format(job_id, cpr))
+        self.importer.add_engagement(
+            employee=cpr,
+            uuid=str(engagement_uuid),
+            organisation_unit=org_unit,
+            user_key=job_id,
+            job_function_ref=job,
+            engagement_type_ref=contract,
+            date_from=date_from,
+            date_to=date_to
+        )
+
+        if employee['isManager'] == 'true':
+            manager_type_ref = 'manager_type_' + job
+            self._add_klasse(manager_type_ref, job, 'manager_type')
+
+            # Opus has two levels of manager_level, since MO handles only one
+            # they are concatenated into one.
+            manager_level = '{}.{}'.format(employee['superiorLevel'],
+                                           employee['subordinateLevel'])
+            self._add_klasse(manager_level, manager_level, 'manager_level')
+            logger.info('{} is manager {}'.format(cpr, manager_level))
+            self.importer.add_manager(
+                employee=cpr,
+                user_key=job_id,
+                organisation_unit=org_unit,
+                manager_level_ref=manager_level,
+                manager_type_ref=manager_type_ref,
+                responsibility_list=['Lederansvar'],
+                date_from=date_from,
+                date_to=date_to
+            )
+
+        if 'function' in employee:
+            if not isinstance(employee['function'], list):
+                roles = [employee['function']]
+            else:
+                roles = employee['function']
+
+            for role in roles:
+                logger.debug('{} has role {}'.format(cpr, role))
+                # We have only a single class for roles, must combine the information
+                if 'roleText' in role:
+                    combined_role = '{} - {}'.format(role['artText'],
+                                                     role['roleText'])
+                else:
+                    combined_role = role['artText']
+                self._add_klasse(combined_role, combined_role, 'role_type')
+
+                date_from = role['@startDate']
+                if role['@endDate'] == '9999-12-31':
+                    date_to = None
+                else:
+                    date_to = role['@endDate']
+
+                self.importer.add_role(
+                    employee=cpr,
+                    organisation_unit=org_unit,
+                    role_type_ref=combined_role,
+                    date_from=date_from,
+                    date_to=date_to
+                )
+
     def insert_org_units(self):
         url = self.settings['integrations.nectar.url'] + 'Organization/OPUSLoen/All'
         units = self.read_from_nectar(url=url)
@@ -198,10 +350,78 @@ class NectarImport(OpusBase):
             self._import_org_unit(unit)
 
     def insert_users(self):
-        url = self.settings['integrations.nectar.url'] + '/person/OPUSLoen/All'
-        units = self.read_from_nectar(url=url)
-        for unit in units:
-            self._import_org_unit(unit)
+        url = self.settings['integrations.nectar.url'] + 'person/OPUSLoen/All'
+        opus_employee = {}
+        employees = self.read_from_nectar(url=url)
+
+        # This will go to the for-loop, for now one example will do
+        nectar_employee = employees[117]['Properties']
+
+        skip_fields = ['OrganizationCity', 'ParentOrganizationalUnitID',
+                       'OrganizationAddress', 'OrganizationPostCode',
+                       'OrganizationPhone']
+
+        for employee in employees:
+            debug_employee = False
+
+            nectar_employee = employee['Properties']
+            for element in nectar_employee:
+                if element['Name'] == 'CPR':
+                    opus_employee['cpr'] = element['Value']
+                elif element['Name'] == 'MedarbejderId':
+                    opus_employee['userId'] = element['Value']
+                elif element['Name'] == 'FirstName':
+                    opus_employee['firstName'] = element['Value']
+                elif element['Name'] == 'LastName':
+                    opus_employee['lastName'] = element['Value']
+                elif element['Name'] == 'StartDate':
+                    opus_employee['entryDate'] = element['Value']
+                elif element['Name'] == 'EndDate':
+                    opus_employee['leaveDate'] = element['Value']
+                elif element['Name'] == 'OrganizationalUnitID':
+                    opus_employee['orgUnit'] = element['Value']
+                elif element['Name'] == 'PositionName':
+                    opus_employee['position'] = element['Value']
+                elif element['Name'] == 'PositionId':
+                    # This is assumed to be the opus userId
+                    opus_employee['@id'] = element['Value']
+                elif element['Name'] == 'EmploymentType':
+                    # This is assumed somehow be the same as workContract?
+                    opus_employee['workContract'] = element['Value']
+                elif element['Name'] == 'IsManager':
+                    if element['Value'][0] == '0':
+                        opus_employee['isManager'] = 'false'
+                    else:
+                        # TODO: We do not know the meaing of the value
+                        # print('IsManager: "{}"'.format(element['Value']))
+                        opus_employee['isManager'] = 'true'
+                elif element['Name'] == 'EmployeeGroup':
+                    # Unknwon field
+                    # print('EmployeeGroup: "{}"'.format(element['Value']))
+                    pass
+                elif element['Name'] == 'ManagerId':
+                    # Buest current guess, this is the name of the person's manager
+                    # We do not need this for information.
+                    pass
+
+                # These two emelements both indicate whether an engagment is
+                # active or terminated:
+                elif element['Name'] == 'Status':
+                    if not element['Value'] == 'Active':
+                        # print('Status: "{}"'.format(element['Value']))
+                        pass
+                elif element['Name'] == 'StatusId':
+                    if not element['Value'] == '3':
+                        # debug_employee = True
+                        # print('StatusId: "{}"'.format(element['Value']))
+                        pass
+                elif element['Name'] in skip_fields:
+                    pass
+                else:
+                    raise Exception('Found new key: {}'.format(element))
+            if debug_employee:
+                print(employee)
+            # self._import_employee(opus_employee)
 
 
 if __name__ == '__main__':
