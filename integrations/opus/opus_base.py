@@ -1,12 +1,14 @@
 import json
 import logging
 import pathlib
-import requests
 
 from integrations.opus import opus_helpers
 
+logger = logging.getLogger('OpusBase')
+
+
 class OpusBase(object):
-    def __init__(self, importer):
+    def __init__(self, importer, ad_reader=None, employee_mapping={}):
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         print(cfg_file)
         if not cfg_file.is_file():
@@ -24,6 +26,19 @@ class OpusBase(object):
             identifier='Opus',
             system_name='Opus'
         )
+
+        self.ad_people = {}
+        self.employee_forced_uuids = employee_mapping
+        self.ad_reader = None
+        if ad_reader:
+            self.ad_reader = ad_reader
+            self.importer.new_itsystem(
+                identifier='AD',
+                system_name='Active Directory'
+            )
+            self.ad_reader.cache_all()
+
+        self.employee_addresses = {}
 
         self._add_klasse('AddressPostUnit', 'Postadresse',
                          'org_unit_address_type', 'DAR')
@@ -43,6 +58,17 @@ class OpusBase(object):
         self._add_klasse('Ekstern', 'Må vises eksternt', 'visibility', 'PUBLIC')
         self._add_klasse('Intern', 'Må vises internt', 'visibility', 'INTERNAL')
         self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
+
+    def _update_ad_map(self, cpr):
+        logger.debug('Update cpr {}'.format(cpr))
+        self.ad_people[cpr] = {}
+        if self.ad_reader:
+            response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
+            if response:
+                logger.debug('AD response: {}'.format(response))
+                self.ad_people[cpr] = response
+            else:
+                logger.debug('Not found in AD')
 
     def _add_klasse(self, klasse_id, klasse, facet, scope='TEXT'):
         if not self.importer.check_if_exists('klasse', klasse_id):
