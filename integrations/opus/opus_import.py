@@ -66,6 +66,7 @@ class OpusImport(object):
             system_name='Opus'
         )
 
+        # This now lives in OpusBase and should be inherited.
         self.ad_people = {}
         self.employee_forced_uuids = employee_mapping
         self.ad_reader = None
