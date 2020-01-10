@@ -184,6 +184,7 @@ class OpusImport(object):
         if parent_org == self.organisation_id and not self.import_first:
             parent_org = None
 
+        # From here should go to OpusBase
         self.importer.add_organisation_unit(
             identifier=identifier,
             name=name,
@@ -267,9 +268,6 @@ class OpusImport(object):
                     )
 
     def _import_employee(self, employee):
-        # UNUSED KEYS:
-        # '@lastChanged'
-
         logger.debug('Employee object: {}'.format(employee))
         if 'cpr' in employee:
             cpr = employee['cpr']['#text']
