@@ -4,42 +4,40 @@ import flask
 import logging
 import subprocess
 import toml
-import uuid
+from uuid import UUID
 
 app = flask.Flask(__name__)
 
 logger = logging.getLogger(__name__)
 
 
-@app.route("/")
+@app.route("/", methods=["POST"])
 def index():
-    return flask.render_template("index.html")
+    uuid = flask.request.json.get("uuid")
 
-
-@app.route("/submit", methods=["POST"])
-def submit():
-    args = flask.request.form.get("uuid")
-    split_args = args.split(" ")
-
-    if len(split_args) != 1:
-        return "Parameter must be a single UUID"
+    if not uuid:
+        return flask.jsonify("Parameter must be a single UUID"), 400
 
     try:
-        uuid_arg = uuid.UUID(split_args[0])
+        UUID(uuid)
     except ValueError:
-        return "UUID is malformed"
+        return flask.jsonify("UUID is malformed"), 400
 
     script = app.config.get("script").split(" ")
-    script.append(str(uuid_arg))
+    script.append(str(uuid))
 
     try:
-        result = subprocess.run(script)
+        result = subprocess.run(
+            script, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="UTF-8"
+        )
         result.check_returncode()
-    except (OSError, subprocess.CalledProcessError):
+    except OSError as e:
         logger.exception("Script error occurred")
-        return "Script error occurred"
+        return flask.jsonify(e.strerror), 500
+    except subprocess.CalledProcessError as e:
+        return flask.jsonify(e.stdout), 500
 
-    return flask.render_template("index.html")
+    return flask.jsonify({"output": result.stdout})
 
 
 def create_app():
