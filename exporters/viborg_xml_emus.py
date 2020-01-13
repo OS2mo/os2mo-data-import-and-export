@@ -213,21 +213,21 @@ def build_engagement_row(mh, ou, engagement):
 
 
 def get_manager_dates(mh, person):
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
-    startdate = ''
-    enddate = ''
+    startdate = '9999-12-31'
+    enddate = '0000-00-00'
     for engagement in mh.read_user_engagement(person["uuid"], read_all=True):
-        if engagement["validity"].get("to"):
-            if not enddate or engagement["validity"]["to"] > enddate:
+        if engagement["validity"].get("to") and enddate is not '':
+            # Enddate is finite, check if it is later than current
+            if engagement["validity"]["to"] > enddate:
                 enddate = engagement["validity"]["to"]
+        else:
+            enddate = ''
 
-            # don't take startdate from expired employment
-            if engagement["validity"]["to"] < today:
-                continue
-
-        if not startdate or engagement["validity"]["from"] < startdate:
+        if engagement["validity"]["from"] < startdate:
             startdate = engagement["validity"]["from"]
 
+    assert startdate < '9999-12-31'
+    assert enddate is '' or enddate > '0000-00-00'
     return startdate, enddate
 
 
@@ -387,6 +387,7 @@ def main(
 
     logger.warning("caching all ou's,"
                    " so program may seem unresponsive temporarily")
+
     nodes = mh.read_ou_tree(root_org_unit_uuid)
 
     # Write the xml file
