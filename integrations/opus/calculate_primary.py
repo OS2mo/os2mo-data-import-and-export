@@ -29,9 +29,11 @@ class MOPrimaryEngagementUpdater(object):
 
         self.mo_person = None
 
+        # Currently primary is set first by engagement type (order given in
+        # settings) and secondly by job_id. self.primary is an ordered list of
+        # classes that can considered to be primary. self.primary_types is a dict
+        # with all classes in the primary facet.
         self.eng_types_order = SETTINGS['integrations.opus.eng_types_primary_order']
-
-        # Keys are; fixed_primary, primary
         self.primary_types, self.primary = self._primary_types()
 
     def _primary_types(self):
@@ -48,29 +50,26 @@ class MOPrimaryEngagementUpdater(object):
         FIXED_PRIMARY = 'explicitly-primary'
 
         logger.info('Read primary types')
-        primary = None
-        non_primary = None
-        fixed_primary = None
+        primary_dict = {
+            'fixed_primary': None,
+            'primary': None,
+            'non_primary': None
+        }
 
         primary_types = self.helper.read_classes_in_facet('primary_type')
         for primary_type in primary_types[0]:
             if primary_type['user_key'] == PRIMARY:
-                primary = primary_type['uuid']
+                primary_dict['primary'] = primary_type['uuid']
             if primary_type['user_key'] == NON_PRIMARY:
-                non_primary = primary_type['uuid']
+                primary_dict['non_primary'] = primary_type['uuid']
             if primary_type['user_key'] == FIXED_PRIMARY:
-                fixed_primary = primary_type['uuid']
+                primary_dict['fixed_primary'] = primary_type['uuid']
 
-        primary_types_dict = {
-            'fixed_primary': fixed_primary,
-            'primary': primary,
-            'non_primary': non_primary
-        }
-        primary_list = [fixed_primary, primary]
-        if None in primary_types_dict.values():
-            raise Exception('Missing primary types: {}'.format(primary_types_dict))
+        if None in primary_dict.values():
+            raise Exception('Missing primary types: {}'.format(primary_dict))
+        primary_list = [primary_dict['fixed_primary'], primary_dict['primary']]
 
-        return primary_types_dict, primary_list
+        return primary_dict, primary_list
 
     def set_current_person(self, cpr=None, uuid=None, mo_person=None):
         """
@@ -124,46 +123,6 @@ class MOPrimaryEngagementUpdater(object):
         logger.debug('Min id: {}, Prioritied type: {}'.format(min_id, min_type_pri))
         return (min_id, min_type_pri)
 
-    # This could potentially be moved to mora_helpers, same code is in SD
-    def _find_cut_dates(self, no_past=False):
-        """
-        Run throgh entire history of current user and return a list of dates with
-        changes in the engagement.
-        """
-        uuid = self.mo_person['uuid']
-
-        mo_engagement = self.helper.read_user_engagement(
-            user=uuid,
-            only_primary=True,
-            read_all=True,
-            skip_past=no_past
-        )
-
-        dates = set()
-        for eng in mo_engagement:
-            dates.add(datetime.datetime.strptime(eng['validity']['from'],
-                                                 '%Y-%m-%d'))
-            if eng['validity']['to']:
-                to = datetime.datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
-                day_after = to + datetime.timedelta(days=1)
-                dates.add(day_after)
-            else:
-                dates.add(datetime.datetime(9999, 12, 30, 0, 0))
-
-        date_list = sorted(list(dates))
-        logger.debug('List of cut-dates: {}'.format(date_list))
-        # print('Find cut dates: {}s'.format(time.time() - t))
-        return date_list
-
-    def _read_engagement(self, date):
-        mo_engagement = self.helper.read_user_engagement(
-            user=self.mo_person['uuid'],
-            at=date,
-            only_primary=True,  # Do not read extended info from MO.
-            use_cache=False
-        )
-        return mo_engagement
-
     def check_all_for_primary(self):
         """
         Check all users for the existence of primary engagements.
@@ -178,10 +137,14 @@ class MOPrimaryEngagementUpdater(object):
             count += 1
 
             self.set_current_person(uuid=user['uuid'])
-            date_list = self._find_cut_dates()
+            # date_list = self._find_cut_dates()
+            date_list = self.helper.find_cut_dates(user['uuid'])
             for i in range(0, len(date_list) - 1):
                 date = date_list[i]
-                mo_engagement = self._read_engagement(date)
+                mo_engagement = self.helper.read_user_engagement(
+                    user=self.mo_person['uuid'], at=date, only_primary=True
+                )
+
                 primary_count = 0
                 for eng in mo_engagement:
                     if eng['engagement_type']['uuid'] in self.primary:
@@ -189,17 +152,7 @@ class MOPrimaryEngagementUpdater(object):
             if primary_count == 0:
                 print('No primary for {} at {}'.format(user['uuid'], date))
             elif primary_count > 1:
-                # This will typically happen because of both a primary and a status0
-                logger.info('{} has more than one primary'.format(user['uuid']))
-                extra_primary_count = 0
-                for eng in mo_engagement:
-                    if eng['engagement_type']['uuid'] in self.primary[0:2]:
-                        extra_primary_count += 1
-                if extra_primary_count == 1:
-                    logger.info('Only one primary was different from status 0')
-                if extra_primary_count > 1:
-                    print('Too many primaries for {} at {}'.format(user['uuid'],
-                                                                   date))
+                print('Too many primaries for {} at {}'.format(user['uuid'], date))
             else:
                 # print('Correct')
                 pass
@@ -209,7 +162,8 @@ class MOPrimaryEngagementUpdater(object):
         Re-calculate primary engagement for the enire history of the current user.
         """
         logger.info('Calculate primary engagement: {}'.format(self.mo_person))
-        date_list = self._find_cut_dates(no_past=no_past)
+        date_list = self.helper.find_cut_dates(self.mo_person['uuid'],
+                                               no_past=no_past)
 
         number_of_edits = 0
 
@@ -217,8 +171,9 @@ class MOPrimaryEngagementUpdater(object):
             date = date_list[i]
             logger.info('Recalculate primary, date: {}'.format(date))
 
-            mo_engagement = self._read_engagement(date)
-            # print('Read engagements {}: {}s'.format(i, time.time() - t))
+            mo_engagement = self.helper.read_user_engagement(
+                    user=self.mo_person['uuid'], at=date, only_primary=True
+            )
 
             logger.debug('MO engagement: {}'.format(mo_engagement))
             (min_id, min_type_pri) = self._calculate_rate_and_ids(mo_engagement)
