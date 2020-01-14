@@ -22,7 +22,7 @@ if not cfg_file.is_file():
     raise Exception('No setting file')
 SETTINGS = json.loads(cfg_file.read_text())
 
-DUMP_PATH = Path('/opt/magenta/dataimport/opus')
+DUMP_PATH = Path(SETTINGS['integrations.opus.import.xml_path'])
 START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
 
 logger = logging.getLogger("opusHelper")
@@ -51,7 +51,7 @@ def _read_available_dumps():
 
 
 def _local_db_insert(insert_tuple):
-    conn = sqlite3.connect(SETTINGS['opus.import.run_db'],
+    conn = sqlite3.connect(SETTINGS['integrationso.pus.import.run_db'],
                            detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
     query = 'insert into runs (dump_date, status) values (?, ?)'
@@ -135,7 +135,7 @@ def start_opus_import(importer, ad_reader=None, force=False):
     """
     dumps = _read_available_dumps()
 
-    run_db = Path(SETTINGS['opus.import.run_db'])
+    run_db = Path(SETTINGS['integrations.opus.import.run_db'])
     if not run_db.is_file():
         logger.error('Local base not correctly initialized')
         if not force:
@@ -177,7 +177,7 @@ def start_opus_diff(ad_reader=None):
     already been imported.
     """
     dumps = _read_available_dumps()
-    run_db = Path(SETTINGS['opus.import.run_db'])
+    run_db = Path(SETTINGS['integrations.opus.import.run_db'])
 
     employee_mapping = _read_cpr_mapping()
 
