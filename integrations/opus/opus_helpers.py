@@ -51,7 +51,7 @@ def _read_available_dumps():
 
 
 def _local_db_insert(insert_tuple):
-    conn = sqlite3.connect(SETTINGS['integrationso.opus.import.run_db'],
+    conn = sqlite3.connect(SETTINGS['integrations.opus.import.run_db'],
                            detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
     query = 'insert into runs (dump_date, status) values (?, ?)'
