@@ -75,7 +75,39 @@ denne UUID, hvis vedkommendes cpr-nummer er i csv-udtrækket.
 Udtrækket kan produceres fra en kørende instans af MO ved hjælp ved værktøkjet
 ``cpr_uuid.py``, som findes under ``exports``.
 
-Anendelse af integrationen
+Primær ansættelse
+=================
+
+I XML dumps fra Opus findes ikke et koncept om primæransættelse, men da AD
+integrationen til MO har behov for at kunne genkende den primære ansættelse til
+synkronisering, bestemmes dette ud fra en beregning:
+
+Den mest afgørende komponent af beregningen foregår på baggrund af ansættelestypen,
+hvor en liste af uuid'er i ``settings.json`` bestemmer hvilke ansættelstyper der
+anses for at være mest primære. Hvis flere engagementer har den samme
+ansættelsestype, vælges ansættelsen med det laveste ansættelsenummer. Hvis en
+ansættelse er manuelt angivet til at være primær, vil denne ansættelse altid regnes
+som primær.
+
+Informationen om primæransætelse opretholdes i MOs facet ``primary_type``, som ved
+import fra Opus XML altid populeres med disse tre klasser:
+
+ * Manuelt primær ansættelse: Dette felt angiver at en ansættelse manuelt er sat
+   til at være primær
+ * Ansat: Angiver en medarbejders beregnede primære ansættelse.
+ * Ikke-primær ansat: Angiver alle andre ansættelser for en medarbejder.
+
+Manuelt primær optræder ikke direkte i imports, men kan sættes manuelt fra MOs GUI.
+De øvrige primærklasser håndteres af Opus integrationen, og må ikke sættes manuelt.
+
+En medarbejder skifter ikke ansættelsestype selvom vedkommende fratræder sit
+engagement. En ansættelses aktuelle status angives i stedet via MOs start- og
+slutdato. Er slutdato'en i fortiden, er vedkommende ikke længere ansat og vil
+i MOs gui fremgå i fanen fortid. Er en medarbejers startdato i fremtiden, er
+personen endnu ikke tiltrådt, og fremgår i fanen fremtid.
+
+
+Anvendelse af integrationen
 ==========================
 
 For at anvende integrationen kræves udover de nævnte xml-dumps, at der oprettes
