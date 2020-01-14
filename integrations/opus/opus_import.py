@@ -341,12 +341,10 @@ class OpusImport(object):
         self._add_klasse(job, job, 'engagement_job_function')
 
         if 'workContractText' in employee:
-            contract = employee['workContract']
-            self._add_klasse(contract, employee['workContractText'],
-                             'engagement_type')
+            contract = employee['workContractText']
         else:
-            contract = '1'
-            self._add_klasse(contract, 'Ansat', 'engagement_type')
+            contract = 'Ansat'
+        self._add_klasse(contract, contract, 'engagement_type')
 
         org_unit = employee['orgUnit']
         job_id = employee['@id']
