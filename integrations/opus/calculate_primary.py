@@ -128,7 +128,6 @@ class MOPrimaryEngagementUpdater(object):
         Check all users for the existence of primary engagements.
         :return: TODO
         """
-        # TODO: This is a seperate function in AD Sync! Change to mora_helpers!
         count = 0
         all_users = self.helper.read_all_users()
         for user in all_users:
@@ -137,7 +136,6 @@ class MOPrimaryEngagementUpdater(object):
             count += 1
 
             self.set_current_person(uuid=user['uuid'])
-            # date_list = self._find_cut_dates()
             date_list = self.helper.find_cut_dates(user['uuid'])
             for i in range(0, len(date_list) - 1):
                 date = date_list[i]
@@ -200,9 +198,6 @@ class MOPrimaryEngagementUpdater(object):
                     'to': to
                 }
 
-                # if 'user_key' not in eng:
-                # break
-
                 employment_id = int(eng['user_key'])
                 if eng['engagement_type'] in self.eng_types_order:
                     type_pri = self.eng_types_order.index(eng['engagement_type'])
@@ -234,10 +229,8 @@ class MOPrimaryEngagementUpdater(object):
                     'validity': validity
                 }
 
-                # payload = sd_payloads.engagement(data, eng)
                 payload = payloads.edit_engagement(data, eng['uuid'])
                 if not payload['data']['primary'] == eng['primary']:
-                    print(payload)
                     logger.debug('Edit payload: {}'.format(payload))
                     response = self.helper._mo_post('details/edit', payload)
                     assert response.status_code == 200
