@@ -34,9 +34,9 @@ class MOPrimaryEngagementUpdater(object):
         # classes that can considered to be primary. self.primary_types is a dict
         # with all classes in the primary facet.
         self.eng_types_order = SETTINGS['integrations.opus.eng_types_primary_order']
-        self.primary_types, self.primary = self._primary_types()
+        self.primary_types, self.primary = self._find_primary_types()
 
-    def _primary_types(self):
+    def _find_primary_types(self):
         """
         Read the engagement types from MO and match them up against the three
         known types in the OPUS->MO import.
