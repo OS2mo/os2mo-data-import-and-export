@@ -34,12 +34,13 @@ def edit_role(validity, mo_role_uuid):
 
 
 def create_engagement(employee, user_uuid, unit_uuid, job_function, engagement_type,
-                      validity):
+                      primary, validity):
     payload = {
         'type': 'engagement',
         'org_unit': {'uuid': str(unit_uuid)},
         'person': {'uuid': user_uuid},
         'job_function': {'uuid': job_function},
+        'primary': {'uuid': primary},
         'engagement_type': {'uuid': engagement_type},
         'user_key': employee['@id'],
         'validity': validity
