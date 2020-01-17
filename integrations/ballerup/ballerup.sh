@@ -1,8 +1,10 @@
+export PYTHONPATH=$PWD:$PYTHONPATH
+
 source /home/lev_magenta_robert/os2mo-data-import-and-export/venv/bin/activate
 
 cd /home/lev_magenta_robert/os2mo-data-import-and-export/integrations/ballerup
 
-rm *.p
+rm tmp/*.p
 
 export MOX_BASE=http://localhost:8080
 export MORA_BASE=http://localhost:5000
@@ -20,4 +22,4 @@ export MAIN_PHONE_NAME="41504f53-0203-001f-4158-41504f494e54"
 export ALT_PHONE_NAME="7e118f76-2150-4fec-b09f-6428cd05802b"
 
 python3 ballerup.py
-# python3 udvalg_import.py
+python3 udvalg_import.py
