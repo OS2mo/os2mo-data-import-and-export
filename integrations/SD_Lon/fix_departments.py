@@ -295,7 +295,7 @@ class FixDepartments(object):
             params['EffectiveDate'] = effective_date.strftime('%d.%m.%Y'),
 
             employments = sd_lookup('GetEmployment20111201', params, use_cache=True)
-            people = employments['Person']
+            people = employments.get('Person', [])
             if not isinstance(people, list):
                 people = [people]
 
