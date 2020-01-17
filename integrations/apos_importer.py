@@ -84,11 +84,11 @@ class AposImport(object):
     def _apos_lookup(self, url):
         path_url = url.replace('/', '_')
         try:
-            with open(path_url + '.p', 'rb') as f:
+            with open('tmp/' + path_url + '.p', 'rb') as f:
                 response = pickle.load(f)
         except FileNotFoundError:
             response = requests.get(self.base_url + url)
-            with open(path_url + '.p', 'wb') as f:
+            with open('tmp/' + path_url + '.p', 'wb') as f:
                 pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
 
         xml_response = xmltodict.parse(response.text)
@@ -763,3 +763,33 @@ class AposImport(object):
         for unit in units:
             self.get_ou_functions(unit)
             self.create_associations_for_ou(unit)
+
+    def add_all_missing_employees(self):
+        """
+        Call this function to retrive any person known by apos and add them to MO
+        if they are not already imported at this point.
+        """
+        url = 'app-part/GetPersonList'
+        persons = self._apos_lookup(url)
+
+        for person in persons['person']:
+            given_name = person['@fornavn'] + ' '
+            if person['@mellemnavn']:
+                given_name += person['@mellemnavn']
+            sur_name = person['@efternavn']
+            name = (given_name, sur_name)
+
+            cpr = person['@personnummer']
+            if not len(cpr) == 10:
+                print('Unable to import {}'.format(person))
+                continue
+
+            if not self.importer.check_if_exists('employee', person['@uuid']):
+                logger.info('New employee: {}'.format(person))
+                self.importer.add_employee(
+                    name=name,
+                    uuid=person['@uuid'],
+                    identifier=person['@uuid'],
+                    cpr_no=person['@personnummer'],
+                    user_key=person['@uuid']
+                )
