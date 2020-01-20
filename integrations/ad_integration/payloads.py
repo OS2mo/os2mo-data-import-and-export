@@ -52,6 +52,14 @@ def unit_for_externals(uuid, unit_type, parent):
     }
     return payload
 
+def terminate_engagement(uuid, terminate_date):
+    payload = {
+        'type': 'engagement',
+        'uuid': uuid,
+        'validity': {'to': terminate_date.strftime('%Y-%m-%d')}
+    }
+    return payload
+
 # Same code is found in sd_payloads and opus_payloads
 def klasse(bvn, navn, org, facet_uuid):
     validity = {

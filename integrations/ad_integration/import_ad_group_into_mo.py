@@ -37,8 +37,8 @@ class ADMOImporter(object):
         # This will be populated by _find_or_create_unit_and_classes
         self.uuids = None
 
-        # List of all the AD users that should go to MO
-        self.users = self._find_external_users_in_ad
+        # All relevant AD users, populated by self._find_external_users_in_ad()
+        self.users = None
 
     # This function also exists i opus_helpers
     def generate_uuid(self, value):
@@ -118,22 +118,51 @@ class ADMOImporter(object):
         self.uuids = uuids
 
     def _find_external_users_in_mo(self):
-        # TODO: Make a settings key for MO unit, lookup all engagements
-        pass
+        """
+        Find all MO users in the unit for external employees.
+        """
+        mo_users = self.helper.read_organisation_people(
+            self.settings['integrations.ad.import_ou.mo_unit_uuid'])
+        return mo_users
 
-    def _find_external_users_in_ad(self):
-        users = []
-        everything = self.ad_reader.read_it_all()
-        for user in everything:  # TODO: Name of OU should go to settings
+    def _update_list_of_external_users_in_ad(self):
+        """
+        Read all users in AD, find the ones that match criterion as external
+        users and update self.ad_users to contain these users.
+        """
+        users = {}
+
+        with open('everything.p', 'rb') as f:
+            everything = pickle.load(f)
+        # everything = self.ad_reader.read_it_all()
+        # with open('everything.p', 'wb') as f:
+        #     pickle.dump(everything, f, pickle.HIGHEST_PROTOCOL)
+
+        for user in everything:  # TODO: Name of OU should go in settings.
             if user['DistinguishedName'].find('Ekstern Konsulenter') > 0:
-                users.append(user)
-        return users
+                uuid = user['ObjectGUID']
+                users[uuid] = user
+        self.users = users
 
     def cleanup_removed_users_from_mo(self):
+        """
+        Remove users in MO if they are no longer found as external users in AD.
+        """
+        # yesteraday = datetime.strftime(datetime.now() - timedelta(1), '%Y-%m-%d')
+        yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+        if self.users is None:
+            self._update_list_of_external_users_in_ad()
         mo_users = self._find_external_users_in_mo()
-        for user in mo_users:
-            self.helper.get_e_username(user['uuid'],
-                                       self.settings['opus.it_systems.ad'])
+
+        for key, user in mo_users.items():
+            if key not in self.users:
+                # This users is in MO but not in AD:
+                payload = payloads.terminate_engagement(user['Engagement UUID'],
+                                                        yesterday)
+                logger.debug('Terminate payload: {}'.format(payload))
+                response = self.helper._mo_post('details/terminate', payload)
+                logger.debug('Terminate response: {}'.format(response.text))
+                assert response.status_code == 200
 
     def create_user(self, user):
         cpr_raw = user.get(self.settings['integrations.ad.cpr_field'])
@@ -176,21 +205,16 @@ if __name__ == '__main__':
     ad_import = ADMOImporter()
 
     ad_import._find_or_create_unit_and_classes()
-    # ad_reader = ADParameterReader()
-    # everything = ad_reader.read_it_all()
-    # with open('everything.p', 'wb') as f:
-    # pickle.dump(everything, f, pickle.HIGHEST_PROTOCOL)
+    # ad_import._find_external_users_in_mo()
+    ad_import.cleanup_removed_users_from_mo()
 
-    with open('everything.p', 'rb') as f:
-        everything = pickle.load(f)
-
-    for user in everything:
-        if user['DistinguishedName'].find('Ekstern Konsulenter') > 0:
-            ad_import.create_user(user)
-    #         print()
-    #         print(user['DistinguishedName'])
-    #         print(user['SamAccountName'])
-    #         print(user.get('extensionAttribute1', '-'))
-    #         print(user['GivenName'])
-    #         print(user['Surname'])
-    #         print(user)
+    # for user in everything:
+    #     if user['DistinguishedName'].find('Ekstern Konsulenter') > 0:
+    #         ad_import.create_user(user)
+    # #         print()
+    # #         print(user['DistinguishedName'])
+    # #         print(user['SamAccountName'])
+    # #         print(user.get('extensionAttribute1', '-'))
+    # #         print(user['GivenName'])
+    # #         print(user['Surname'])
+    # #         print(user)
