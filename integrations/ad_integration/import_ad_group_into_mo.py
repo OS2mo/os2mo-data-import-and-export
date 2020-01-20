@@ -144,7 +144,7 @@ class ADMOImporter(object):
                 users[uuid] = user
         self.users = users
 
-    def _create_user(self, user):
+    def _create_user(self, user, edit=True):
         cpr_raw = user.get(self.settings['integrations.ad.cpr_field'])
         if cpr_raw is None:
             return None
@@ -155,6 +155,9 @@ class ADMOImporter(object):
         logger.info('Create user payload: {}'.format(payload))
         user_uuid = self.helper._mo_post('e/create', payload).json()
         logger.info('Created employee {}'.format(user_uuid))
+
+        if edit is True:
+            return user_uuid
 
         payload = payloads.connect_it_system_to_user(
             user, self.settings['opus.it_systems.ad']
@@ -208,7 +211,6 @@ class ADMOImporter(object):
         if self.users is None:
             self._update_list_of_external_users_in_ad()
         mo_users = self._find_external_users_in_mo()
-
         for key, user in mo_users.items():
             if key not in self.users:
                 # This users is in MO but not in AD:
@@ -219,27 +221,35 @@ class ADMOImporter(object):
                 logger.debug('Terminate response: {}'.format(response.text))
                 assert response.status_code == 200
 
-    def create_missing_users_in_mo(self):
+    def create_or_update_users_in_mo(self):
         if self.uuids is None:
             self._find_or_create_unit_and_classes()
         if self.users is None:
             self._update_list_of_external_users_in_ad()
 
-        for user_uuid, user in self.users.items():
+        for user_uuid, ad_user in self.users.items():
             mo_user = self.helper.read_user(user_uuid=user_uuid)
             if 'status' in mo_user:
-                self._create_user(user)
+                self._create_user(ad_user, edit=False)
+            else:
+                if (
+                        mo_user['givenname'] != ad_user['GivenName'] or
+                        mo_user['surname'] != ad_user['Surname']
+                ):
+                    print()
+                    print('Update name')
+                    msg = '{}. Given: {}, Sur: {}'
+                    print(msg.format('MO', mo_user['givenname'], mo_user['surname']))
+                    print(msg.format('AD', ad_user['GivenName'], ad_user['Surname']))
+                    self._create_user(ad_user)
 
 
 if __name__ == '__main__':
     ad_import = ADMOImporter()
 
-    # uuid = 'db25bf9b-264b-4266-b766-ccc4d2c81d41'
-    # uuid = '1fd162c5-ee26-45e6-a17e-8015869134f0'
-    # ad_import.rename_user(uuid)
+    # user_uuid = 'db25bf9b-264b-4266-b766-ccc4d2c81d41'
+    # user_uuid = '1fd162c5-ee26-45e6-a17e-8015869134f0'
+    # ad_import.rename_user(user_uuid)
 
-    ad_import.create_missing_users_in_mo()
-
-    # ad_import.cleanup_removed_users_from_mo()
-
-    # ad_import.sync_names_from_ad_to_mo()
+    ad_import.create_or_update_users_in_mo()
+    ad_import.cleanup_removed_users_from_mo()
