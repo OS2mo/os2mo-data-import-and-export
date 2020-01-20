@@ -37,11 +37,11 @@ class ADMOImporter(object):
         # This will be populated by _find_or_create_unit_and_classes
         self.uuids = None
 
-        # All relevant AD users, populated by self._find_external_users_in_ad()
+        # All relevant AD users, populated by _update_list_of_external_users_in_ad
         self.users = None
 
     # This function also exists i opus_helpers
-    def generate_uuid(self, value):
+    def _generate_uuid(self, value):
         """
         Generate a predictable uuid based on org name and a unique value.
         """
@@ -55,9 +55,28 @@ class ADMOImporter(object):
         value_uuid = uuid.UUID(value_digest)
         return value_uuid
 
+    def rename_user(self, uuid):
+        """
+        This is purely for testing, rename the user to check that the integration
+        is able to change it back.
+        """
+        user = self.helper.read_user(user_uuid=uuid)
+        print(user)
+        payload = {
+            'uuid': uuid,
+            'givenname': 'Fornavn',
+            'surname': 'Efternavnsen',
+            'cpr_no': user['cpr_no'],
+            'org': {
+                'uuid': self.org_uuid
+            }
+        }
+        return_uuid = self.helper._mo_post('e/create', payload).json()
+        print(return_uuid)
+
     # Similar versions exists in opus-diff-import and sd_changed_at
     def _add_klasse_to_lora(self, bvn, navn, facet_uuid):
-        klasse_uuid = self.generate_uuid(bvn)
+        klasse_uuid = self._generate_uuid(bvn)
         msg = 'Adding Klasse: {}, bvn: {}, uuid: {}'
         logger.debug(msg.format(navn, bvn, klasse_uuid))
         payload = payloads.klasse(bvn, navn, self.org_uuid, facet_uuid)
@@ -164,7 +183,7 @@ class ADMOImporter(object):
                 logger.debug('Terminate response: {}'.format(response.text))
                 assert response.status_code == 200
 
-    def create_user(self, user):
+    def _create_user(self, user):
         cpr_raw = user.get(self.settings['integrations.ad.cpr_field'])
         if cpr_raw is None:
             return None
@@ -201,20 +220,27 @@ class ADMOImporter(object):
 
         return user_uuid
 
+    def create_missing_users_in_mo(self):
+        if self.uuids is None:
+            self._find_or_create_unit_and_classes()
+        if self.users is None:
+            self._update_list_of_external_users_in_ad()
+
+        for user_uuid, user in self.users.items():
+            mo_user = self.helper.read_user(user_uuid=user_uuid)
+            if 'status' in mo_user:
+                self._create_user(user)
+
+
 if __name__ == '__main__':
     ad_import = ADMOImporter()
 
-    ad_import._find_or_create_unit_and_classes()
-    # ad_import._find_external_users_in_mo()
-    ad_import.cleanup_removed_users_from_mo()
+    # uuid = 'db25bf9b-264b-4266-b766-ccc4d2c81d41'
+    # uuid = '1fd162c5-ee26-45e6-a17e-8015869134f0'
+    # ad_import.rename_user(uuid)
 
-    # for user in everything:
-    #     if user['DistinguishedName'].find('Ekstern Konsulenter') > 0:
-    #         ad_import.create_user(user)
-    # #         print()
-    # #         print(user['DistinguishedName'])
-    # #         print(user['SamAccountName'])
-    # #         print(user.get('extensionAttribute1', '-'))
-    # #         print(user['GivenName'])
-    # #         print(user['Surname'])
-    # #         print(user)
+    ad_import.create_missing_users_in_mo()
+
+    # ad_import.cleanup_removed_users_from_mo()
+
+    # ad_import.sync_names_from_ad_to_mo()
