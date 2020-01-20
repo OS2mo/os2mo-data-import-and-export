@@ -55,25 +55,6 @@ class ADMOImporter(object):
         value_uuid = uuid.UUID(value_digest)
         return value_uuid
 
-    def rename_user(self, uuid):
-        """
-        This is purely for testing, rename the user to check that the integration
-        is able to change it back.
-        """
-        user = self.helper.read_user(user_uuid=uuid)
-        print(user)
-        payload = {
-            'uuid': uuid,
-            'givenname': 'Fornavn',
-            'surname': 'Efternavnsen',
-            'cpr_no': user['cpr_no'],
-            'org': {
-                'uuid': self.org_uuid
-            }
-        }
-        return_uuid = self.helper._mo_post('e/create', payload).json()
-        print(return_uuid)
-
     # Similar versions exists in opus-diff-import and sd_changed_at
     def _add_klasse_to_lora(self, bvn, navn, facet_uuid):
         klasse_uuid = self._generate_uuid(bvn)
@@ -163,26 +144,6 @@ class ADMOImporter(object):
                 users[uuid] = user
         self.users = users
 
-    def cleanup_removed_users_from_mo(self):
-        """
-        Remove users in MO if they are no longer found as external users in AD.
-        """
-        # yesteraday = datetime.strftime(datetime.now() - timedelta(1), '%Y-%m-%d')
-        yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
-        if self.users is None:
-            self._update_list_of_external_users_in_ad()
-        mo_users = self._find_external_users_in_mo()
-
-        for key, user in mo_users.items():
-            if key not in self.users:
-                # This users is in MO but not in AD:
-                payload = payloads.terminate_engagement(user['Engagement UUID'],
-                                                        yesterday)
-                logger.debug('Terminate payload: {}'.format(payload))
-                response = self.helper._mo_post('details/terminate', payload)
-                logger.debug('Terminate response: {}'.format(response.text))
-                assert response.status_code == 200
-
     def _create_user(self, user):
         cpr_raw = user.get(self.settings['integrations.ad.cpr_field'])
         if cpr_raw is None:
@@ -219,6 +180,44 @@ class ADMOImporter(object):
         logger.info('Added engagement to {}'.format(cpr))
 
         return user_uuid
+
+    def rename_user(self, uuid):
+        """
+        This is purely for testing, rename the user to check that the integration
+        is able to change it back.
+        """
+        user = self.helper.read_user(user_uuid=uuid)
+        print(user)
+        payload = {
+            'uuid': uuid,
+            'givenname': 'Fornavn',
+            'surname': 'Efternavnsen',
+            'cpr_no': user['cpr_no'],
+            'org': {
+                'uuid': self.org_uuid
+            }
+        }
+        return_uuid = self.helper._mo_post('e/create', payload).json()
+        print(return_uuid)
+
+    def cleanup_removed_users_from_mo(self):
+        """
+        Remove users in MO if they are no longer found as external users in AD.
+        """
+        yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
+        if self.users is None:
+            self._update_list_of_external_users_in_ad()
+        mo_users = self._find_external_users_in_mo()
+
+        for key, user in mo_users.items():
+            if key not in self.users:
+                # This users is in MO but not in AD:
+                payload = payloads.terminate_engagement(user['Engagement UUID'],
+                                                        yesterday)
+                logger.debug('Terminate payload: {}'.format(payload))
+                response = self.helper._mo_post('details/terminate', payload)
+                logger.debug('Terminate response: {}'.format(response.text))
+                assert response.status_code == 200
 
     def create_missing_users_in_mo(self):
         if self.uuids is None:
