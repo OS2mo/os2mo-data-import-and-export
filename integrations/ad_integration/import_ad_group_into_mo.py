@@ -57,6 +57,13 @@ class ADMOImporter(object):
 
     # Similar versions exists in opus-diff-import and sd_changed_at
     def _add_klasse_to_lora(self, bvn, navn, facet_uuid):
+        """
+        Helper to add a Klasse to LoRa.
+        :param bvn: BrugerVendtNøgle for the Klasse.
+        :param navn: Titel for the klasse.
+        :param facet_uuid: The facet that the Klasse will belong to.
+        :return uuid of the Klasse.
+        """
         klasse_uuid = self._generate_uuid(bvn)
         msg = 'Adding Klasse: {}, bvn: {}, uuid: {}'
         logger.debug(msg.format(navn, bvn, klasse_uuid))
@@ -93,6 +100,11 @@ class ADMOImporter(object):
         return klasse_uuid
 
     def _find_or_create_unit_and_classes(self):
+        """
+        Find uuids of the needed unit and classes for the import. If any unit or
+        class is missing from MO, it will be created. The function does not
+        return anything, but wil leave self.uuids in valid state.
+        """
         job_type = self._fc_klasse('jobfunc_ext', 'Ekstern',
                                    'engagement_job_function')
         eng_type = self._fc_klasse('engtype_ext', 'Ekstern', 'engagement_type')
@@ -144,13 +156,21 @@ class ADMOImporter(object):
                 users[uuid] = user
         self.users = users
 
-    def _create_user(self, user, edit=True):
-        cpr_raw = user.get(self.settings['integrations.ad.cpr_field'])
+    def _create_user(self, ad_user, edit=True):
+        """
+        Create or update a user in MO using an AD user as a template.
+        The user will share uuid between MO and AD.
+        :param ad_user: The ad_object to use as template for MO.
+        :param edit: If True only the user object will be updated (to update
+        name), if False an engagement and an IT-system will also be added.
+        :return: uuid of the the user.
+        """
+        cpr_raw = ad_user.get(self.settings['integrations.ad.cpr_field'])
         if cpr_raw is None:
             return None
         cpr = cpr_raw.replace('-', '')
 
-        payload = payloads.create_user(cpr, user, self.org_uuid)
+        payload = payloads.create_user(cpr, ad_user, self.org_uuid)
         print('Create user: {}'.format(payload))
         logger.info('Create user payload: {}'.format(payload))
         user_uuid = self.helper._mo_post('e/create', payload).json()
@@ -160,7 +180,7 @@ class ADMOImporter(object):
             return user_uuid
 
         payload = payloads.connect_it_system_to_user(
-            user, self.settings['opus.it_systems.ad']
+            ad_user, self.settings['opus.it_systems.ad']
         )
         logger.debug('AD account payload: {}'.format(payload))
         response = self.helper._mo_post('details/create', payload)
@@ -173,7 +193,7 @@ class ADMOImporter(object):
         }
 
         payload = payloads.create_engagement(
-            ad_user=user,
+            ad_user=ad_user,
             validity=validity,
             **self.uuids
         )
@@ -184,15 +204,16 @@ class ADMOImporter(object):
 
         return user_uuid
 
-    def rename_user(self, uuid):
+    def rename_user(self, mo_uuid):
         """
         This is purely for testing, rename the user to check that the integration
         is able to change it back.
+        :param mo_uuid: uuid of the mo user to rename.
         """
-        user = self.helper.read_user(user_uuid=uuid)
+        user = self.helper.read_user(user_uuid=mo_uuid)
         print(user)
         payload = {
-            'uuid': uuid,
+            'uuid': mo_uuid,
             'givenname': 'Fornavn',
             'surname': 'Efternavnsen',
             'cpr_no': user['cpr_no'],
@@ -222,6 +243,10 @@ class ADMOImporter(object):
                 assert response.status_code == 200
 
     def create_or_update_users_in_mo(self):
+        """
+        Create users in MO that exist in AD but not in MO.
+        Update name of users that has changed name in AD.
+        """
         if self.uuids is None:
             self._find_or_create_unit_and_classes()
         if self.users is None:
