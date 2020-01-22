@@ -100,6 +100,13 @@ imports_opus_diff_import(){
     ${VENV}/bin/python3 integrations/opus/opus_diff_import.py
 }
 
+imports_sd_update_primary(){
+    set -e
+    echo updating primary engagements
+    ${VENV}/bin/python3 integrations/SD_Lon/calculate_primary.py --recalculate-all
+}
+
+
 imports_ad_sync(){
     set -e
     echo running imports_ad_sync
@@ -162,6 +169,13 @@ exports_cpr_uuid(){
     ${VENV}/bin/python3 exporters/cpr_uuid.py
 }
 
+exports_viborg_emus(){
+    set -e
+    echo running viborg_emus
+    ${VENV}/bin/python3 exporters/viborg_xml_emus_sftp.py
+}
+
+
 reports_sd_db_overview(){
     set -e
     echo running reports_sd_db_overview
@@ -223,6 +237,10 @@ imports(){
         imports_sd_changed_at || return 2
     fi
 
+    if [ "${RUN_SD_UPDATE_PRIMARY}" == "true" ]; then
+        imports_sd_update_primary || return 2
+    fi
+
     if [ "${RUN_OPUS_DIFF_IMPORT}" == "true" ]; then
         imports_opus_diff_import || return 2
     fi
@@ -256,6 +274,10 @@ exports(){
 
     if [ "${RUN_QUERIES_BALLERUP}" == "true" ]; then
         exports_queries_ballerup || return 2
+    fi
+
+    if [ "${RUN_EXPORT_EMUS}" == "true" ]; then
+        exports_viborg_emus || return 2
     fi
 
     if [ "${RUN_EXPORTS_OS2MO_PHONEBOOK}" == "true" ]; then

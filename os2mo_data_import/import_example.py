@@ -2,8 +2,8 @@
 import os
 from os2mo_data_import import ImportHelper
 
-MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:5000')
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
+MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
+MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
 
 
 def example_import(mox_base, mora_base):
@@ -42,6 +42,51 @@ def example_import(mox_base, mora_base):
     )
 
     os2mo.add_klasse(
+        identifier="Niveau 1",
+        facet_type_ref="org_unit_level",
+        user_key="Niveau 1",
+        title="Niveau 1"
+    )
+
+    os2mo.add_klasse(
+        identifier="Niveau 2",
+        facet_type_ref="org_unit_level",
+        user_key="Niveau 2",
+        title="Niveau 2"
+    )
+
+    os2mo.add_klasse(
+        identifier="Niveau 3",
+        facet_type_ref="org_unit_level",
+        user_key="Niveau 3",
+        title="Niveau 3"
+    )
+
+    os2mo.add_klasse(
+        identifier="manuelt_primær",
+        facet_type_ref="primary_type",
+        user_key="Manuelt primær",
+        title="Manuelt primær",
+        scope='5000'
+    )
+
+    os2mo.add_klasse(
+        identifier="primær",
+        facet_type_ref="primary_type",
+        user_key="Primær",
+        title="Primær",
+        scope='3000'
+    )
+
+    os2mo.add_klasse(
+        identifier="ikke-primær",
+        facet_type_ref="primary_type",
+        user_key="Ikke-primær",
+        title="Ikke-primær",
+        scope='0'
+    )
+
+    os2mo.add_klasse(
         identifier="Arbejdstidsplaner",
         facet_type_ref="time_planning",
         user_key="Arbejdstidsplaner",
@@ -59,6 +104,7 @@ def example_import(mox_base, mora_base):
     os2mo.add_organisation_unit(
         identifier="Magenta",
         name="Magenta Aps",
+        org_unit_level_ref="Niveau 1",
         type_ref="Hovedenhed",  # Reference to the unit type
         time_planning_ref="Arbejdstidsplaner",
         date_from="1986-01-01"
@@ -67,6 +113,7 @@ def example_import(mox_base, mora_base):
     # Use parent_ref to make it a sub group of "Magenta"
     os2mo.add_organisation_unit(
         identifier="Pilestræde",
+        org_unit_level_ref="Niveau 2",
         type_ref="Afdeling",  # This unit is of type: Afdeling
         parent_ref="Magenta",  # Sub unit of/Belongs to Magenta
         time_planning_ref="Tjenestetid",
@@ -75,6 +122,7 @@ def example_import(mox_base, mora_base):
 
     os2mo.add_organisation_unit(
         identifier="SJA2",
+        org_unit_level_ref="Niveau 2",
         type_ref="Afdeling",
         parent_ref="Magenta",  # Sub unit of/Belongs to Magenta
         date_from="1986-01-01",
@@ -84,6 +132,7 @@ def example_import(mox_base, mora_base):
     os2mo.add_organisation_unit(
         identifier="Sysadmins",
         type_ref="Afdeling",
+        org_unit_level_ref="Niveau 3",
         parent_ref="SJA2",  # Sub unit of/Belongs to SJA2
         date_from="1986-01-01"
     )
@@ -91,6 +140,7 @@ def example_import(mox_base, mora_base):
     os2mo.add_organisation_unit(
         identifier="Dummy",
         type_ref="Afdeling",
+        org_unit_level_ref="Niveau 3",
         parent_ref="Sysadmins",  # Sub unit of/Belongs to SJA2
         date_from="1986-01-01"
     )
@@ -223,7 +273,8 @@ def example_import(mox_base, mora_base):
         fraction=7,
         job_function_ref="Direktør",
         engagement_type_ref="Ansat",
-        date_from="1986-01-01"
+        primary_ref='primær',
+        date_from="2014-11-07"
     )
 
     os2mo.add_engagement(
@@ -231,8 +282,9 @@ def example_import(mox_base, mora_base):
         organisation_unit="Pilestræde",
         job_function_ref="Projektleder",
         engagement_type_ref="Ansat",
+        primary_ref='primær',
         fraction=8,
-        date_from="1986-02-01"
+        date_from="2004-02-01"
     )
 
     os2mo.add_engagement(
@@ -240,7 +292,8 @@ def example_import(mox_base, mora_base):
         organisation_unit="SJA2",
         job_function_ref="Projektleder",
         engagement_type_ref="Ansat",
-        date_from="1986-03-01"
+        primary_ref='primær',
+        date_from="2011-09-01"
     )
 
     os2mo.add_engagement(
@@ -248,8 +301,9 @@ def example_import(mox_base, mora_base):
         organisation_unit="Pilestræde",
         job_function_ref="Udvikler",
         engagement_type_ref="Ansat",
+        primary_ref='primær',
         fraction=2,
-        date_from="1986-04-01"
+        date_from="2003-04-01"
     )
 
     os2mo.add_engagement(
@@ -257,17 +311,29 @@ def example_import(mox_base, mora_base):
         organisation_unit="SJA2",
         job_function_ref="Udvikler",
         engagement_type_ref="Ansat",
+        primary_ref='primær',
         fraction=1,
-        date_from="1986-05-01"
+        date_from="2001-05-01"
     )
 
     os2mo.add_engagement(
         employee="Carl Sand Holth",
         organisation_unit="Pilestræde",
         job_function_ref="Projektmedarbejder",
+        primary_ref='primær',
         engagement_type_ref="Ansat",
         fraction=4,
-        date_from="1986-06-01"
+        date_from="1981-06-01"
+    )
+
+    os2mo.add_engagement(
+        employee="Carl Sand Holth",
+        organisation_unit="Sysadmins",
+        job_function_ref="Udvikler",
+        primary_ref='ikke-primær',
+        engagement_type_ref="Ansat",
+        fraction=4,
+        date_from="1989-02-01"
     )
 
     # Association

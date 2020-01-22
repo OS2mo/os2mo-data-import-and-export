@@ -88,8 +88,9 @@ def _read_primary_write_information():
     # AD write and can benifit from the automated check.
 
     # Ordered list of primary engagements
-    primary_write_settings['primary_types'] = SETTINGS.get(
-        'integrations.ad.write.primary_types')
+    # Obsolete as of January 2020, will be removed.
+    # primary_write_settings['primary_types'] = SETTINGS.get(
+    # 'integrations.ad.write.primary_types')
 
     # UUID for the unit type considered to be 'Forvaltning'
     primary_write_settings['forvaltning_type'] = SETTINGS.get(

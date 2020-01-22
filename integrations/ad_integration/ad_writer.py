@@ -34,7 +34,7 @@ class ADWriter(AD):
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
-        self.pet = self.settings['integrations.ad.write.primary_types']
+        # self.pet = self.settings['integrations.ad.write.primary_types']
 
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
@@ -150,27 +150,26 @@ class ADWriter(AD):
         else:
             assert(mo_user['uuid'] == uuid)
 
-        engagements = self.helper.read_user_engagement(uuid)
+        engagements = self.helper.read_user_engagement(uuid, calculate_primary=True)
 
-        primary_index = sys.maxsize
+        found_primary = False
         for engagement in engagements:
-            # TODO: Do not pick any primary, we must choose the very most primary
             uuid = engagement['engagement_type']['uuid']
-            if uuid in self.pet and self.pet.index(uuid) < primary_index:
-                primary_index = self.pet.index(uuid)
+            if engagement['is_primary']:
+                found_primary = True
                 employment_number = engagement['user_key']
                 title = engagement['job_function']['name']
                 end_date = engagement['validity']['to']
                 if end_date is None:
                     end_date = '9999-12-31'
 
-        if not primary_index < sys.maxsize:
+        if not found_primary:
             raise ad_exceptions.NoPrimaryEngagementException('User: {}'.format(uuid))
 
         # Now, calculate final end date for any primary engagement
-        future_engagements = self.helper.read_user_engagement(uuid, read_all=True)
+        future_engagements = self.helper.read_user_engagement(uuid, read_all=True, skip_past=True)
         for eng in future_engagements:
-            if engagement['engagement_type']['uuid'] in self.pet:
+            if engagement['is_primary']:
                 current_end = eng['validity']['to']
                 if current_end is None:
                     current_end = '9999-12-31'

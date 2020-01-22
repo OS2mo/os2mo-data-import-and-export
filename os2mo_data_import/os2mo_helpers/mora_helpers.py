@@ -111,12 +111,14 @@ class MoraHelper(object):
         return path_dict
 
     def _mo_lookup(self, uuid, url, at=None, validity=None, only_primary=False,
-                   use_cache=None):
+                   use_cache=None, calculate_primary=False):
         # TODO: at-value is currently not part of cache key
         if use_cache is None:
             use_cache = self.default_cache
 
         params = {}
+        if calculate_primary:
+            params['calculate_primary'] = 1
         if only_primary:
             params['only_primary_uuid'] = 1
         if at:
@@ -294,24 +296,35 @@ class MoraHelper(object):
         logger.info("Terminate detail %s", payload)
         # self._mo_post('details/terminate', payload):
 
-    def read_user_engagement(self, user, at=None, read_all=False,
-                             only_primary=False, use_cache=None):
+    def read_user_engagement(self, user, at=None, read_all=False, skip_past=False,
+                             only_primary=False, use_cache=None,
+                             calculate_primary=False):
         """
         Read engagements for a user.
         :param user: UUID of the wanted user.
+        :read_all: Read all engagements, not only the present ones.
+        :skip_past: Even if read_all is true, do not read the past.
+        :calculate_primary: If True, ask MO to calculate primary engagement status.
         :return: List of the users engagements.
         """
         if not read_all:
             engagements = self._mo_lookup(user, 'e/{}/details/engagement',
                                           at, only_primary=only_primary,
-                                          use_cache=use_cache)
+                                          use_cache=use_cache,
+                                          calculate_primary=calculate_primary)
         else:
+            if skip_past:
+                validity_times = ['present', 'future']
+            else:
+                validity_times = ['past', 'present', 'future']
+
             engagements = []
-            for validity in ['past', 'present', 'future']:
+            for validity in validity_times:
                 engagement = self._mo_lookup(user, 'e/{}/details/engagement',
                                              validity=validity,
                                              only_primary=only_primary,
-                                             use_cache=False)
+                                             use_cache=False,
+                                             calculate_primary=calculate_primary)
                 engagements = engagements + engagement
         return engagements
 

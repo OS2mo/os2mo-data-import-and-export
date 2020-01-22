@@ -23,7 +23,7 @@ import logging
 import collections
 from xml.sax.saxutils import escape
 
-MORA_BASE = os.environ.get('MORA_BASE', 'localhost:80')
+MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
 MORA_ROOT_ORG_UNIT_NAME = os.environ.get('MORA_ROOT_ORG_UNIT_NAME', 'Viborg Kommune')
 USERID_ITSYSTEM = os.environ.get('USERID_ITSYSTEM', 'Active Directory')
 EMUS_RESPONSIBILITY_CLASS = os.environ['EMUS_RESPONSIBILITY_CLASS']
@@ -87,7 +87,7 @@ def export_ou_emus(mh, nodes, emus_file):
                         ou["uuid"])
             continue
 
-        manager = mh.read_organisation_managers(node.name)
+        manager = mh.read_ou_manager(node.name)
         manager_uuid = manager["uuid"] if manager else ''
         address = get_emus_address(mh, node.name)
         fra = ou['validity']['from'] if ou['validity']['from'] else ''
@@ -213,21 +213,21 @@ def build_engagement_row(mh, ou, engagement):
 
 
 def get_manager_dates(mh, person):
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
-    startdate = ''
-    enddate = ''
+    startdate = '9999-12-31'
+    enddate = '0000-00-00'
     for engagement in mh.read_user_engagement(person["uuid"], read_all=True):
-        if engagement["validity"].get("to"):
-            if not enddate or engagement["validity"]["to"] > enddate:
+        if engagement["validity"].get("to") and enddate is not '':
+            # Enddate is finite, check if it is later than current
+            if engagement["validity"]["to"] > enddate:
                 enddate = engagement["validity"]["to"]
+        else:
+            enddate = ''
 
-            # don't take startdate from expired employment
-            if engagement["validity"]["to"] < today:
-                continue
-
-        if not startdate or engagement["validity"]["from"] < startdate:
+        if engagement["validity"]["from"] < startdate:
             startdate = engagement["validity"]["from"]
 
+    assert startdate < '9999-12-31'
+    assert enddate is '' or enddate > '0000-00-00'
     return startdate, enddate
 
 
@@ -387,6 +387,7 @@ def main(
 
     logger.warning("caching all ou's,"
                    " so program may seem unresponsive temporarily")
+
     nodes = mh.read_ou_tree(root_org_unit_uuid)
 
     # Write the xml file
