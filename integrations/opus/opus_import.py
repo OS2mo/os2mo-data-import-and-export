@@ -97,6 +97,12 @@ class OpusImport(object):
         self._add_klasse('Intern', 'Må vises internt', 'visibility', 'INTERNAL')
         self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
 
+        self._add_klasse('Ansat', 'Ansat', 'primary_type', '3000')
+        self._add_klasse('non-primary', 'Ikke-primær ansættelse',
+                         'primary_type', '0')
+        self._add_klasse('explicitly-primary', 'Manuelt primær ansættelse',
+                         'primary_type', '5000')
+
     def _update_ad_map(self, cpr):
         logger.debug('Update cpr {}'.format(cpr))
         self.ad_people[cpr] = {}
@@ -123,7 +129,7 @@ class OpusImport(object):
                 identifier=klasse_id,
                 uuid=uuid,
                 facet_type_ref=facet,
-                user_key=klasse,
+                user_key=klasse_id,
                 scope=scope,
                 title=klasse
             )
@@ -335,22 +341,24 @@ class OpusImport(object):
         self._add_klasse(job, job, 'engagement_job_function')
 
         if 'workContractText' in employee:
-            contract = employee['workContract']
-            self._add_klasse(contract, employee['workContractText'],
-                             'engagement_type')
+            contract = employee['workContractText']
         else:
-            contract = '1'
-            self._add_klasse(contract, 'Ansat', 'engagement_type')
+            contract = 'Ansat'
+        self._add_klasse(contract, contract, 'engagement_type')
 
         org_unit = employee['orgUnit']
         job_id = employee['@id']
         engagement_uuid = opus_helpers.generate_uuid(job_id)
 
+        # Every engagement is initially imported as non-primary,
+        # a seperate script will correct this after import.
+        # This allows separate rules for primary calculation.
         logger.info('Add engagement: {} to {}'.format(job_id, cpr))
         self.importer.add_engagement(
             employee=cpr,
             uuid=str(engagement_uuid),
             organisation_unit=org_unit,
+            primary_ref='non-primary',
             user_key=job_id,
             job_function_ref=job,
             engagement_type_ref=contract,

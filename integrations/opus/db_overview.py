@@ -17,7 +17,7 @@ class DBOverview(object):
         self.settings = json.loads(cfg_file.read_text())
 
     def read_db_content(self):
-        conn = sqlite3.connect(self.settings['opus.import.run_db'],
+        conn = sqlite3.connect(self.settings['integrations.opus.import.run_db'],
                                detect_types=sqlite3.PARSE_DECLTYPES)
         c = conn.cursor()
 
@@ -29,7 +29,7 @@ class DBOverview(object):
             print(status.format(row[0], row[1], row[2]))
 
     def read_current_status(self):
-        conn = sqlite3.connect(self.settings['opus.import.run_db'],
+        conn = sqlite3.connect(self.settings['integrations.opus.import.run_db'],
                                detect_types=sqlite3.PARSE_DECLTYPES)
         c = conn.cursor()
 
@@ -47,7 +47,7 @@ class DBOverview(object):
         if current_status[0] and not force:
             return 'Status ok, no delete'
 
-        conn = sqlite3.connect(self.settings['opus.import.run_db'],
+        conn = sqlite3.connect(self.settings['integrations.opus.import.run_db'],
                                detect_types=sqlite3.PARSE_DECLTYPES)
         c = conn.cursor()
         query = 'select id from runs order by id desc limit 1'

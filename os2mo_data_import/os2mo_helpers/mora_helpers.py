@@ -13,9 +13,10 @@ Helper class to make a number of pre-defined queries into MO
 import os
 import csv
 import codecs
-import requests
-from anytree import Node
 import logging
+import requests
+import datetime
+from anytree import Node
 
 SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
 PRIMARY_RESPONSIBILITY = 'Personale: ansættelse/afskedigelse'
@@ -544,6 +545,33 @@ class MoraHelper(object):
             if unit['child_count'] > 0:
                 nodes = self.read_ou_tree(uuid, nodes, nodes[uuid])
         return nodes
+
+    def find_cut_dates(self, uuid, no_past=False):
+        """
+        Run throgh entire history of a user and return a list of dates with
+        changes in the engagement.
+        """
+        mo_engagement = self.read_user_engagement(
+            user=uuid,
+            only_primary=True,
+            read_all=True,
+            skip_past=no_past
+        )
+
+        dates = set()
+        for eng in mo_engagement:
+            dates.add(datetime.datetime.strptime(eng['validity']['from'],
+                                                 '%Y-%m-%d'))
+            if eng['validity']['to']:
+                to = datetime.datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
+                day_after = to + datetime.timedelta(days=1)
+                dates.add(day_after)
+            else:
+                dates.add(datetime.datetime(9999, 12, 30, 0, 0))
+
+        date_list = sorted(list(dates))
+        logger.debug('List of cut-dates: {}'.format(date_list))
+        return date_list
 
     def get_e_username(self, e_uuid, id_it_system):
         for its in self._mo_lookup(e_uuid, 'e/{}/details/it'):

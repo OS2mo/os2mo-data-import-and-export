@@ -12,6 +12,7 @@ from integrations import dawa_helper
 from integrations.opus import payloads
 from integrations.opus import opus_helpers
 from os2mo_helpers.mora_helpers import MoraHelper
+from integrations.opus.calculate_primary import MOPrimaryEngagementUpdater
 from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 
 logger = logging.getLogger("opusDiff")
@@ -74,6 +75,7 @@ class OpusDiffImport(object):
             logger.error(e)
             print(e)
             exit()
+        self.updater = MOPrimaryEngagementUpdater()
 
         self.engagement_types, _ = self._find_classes('engagement_type')
         self.unit_types, self.unit_type_facet = self._find_classes('org_unit_type')
@@ -477,6 +479,7 @@ class OpusDiffImport(object):
             unit_uuid=unit_uuid,
             job_function=job_function,
             engagement_type=eng_type,
+            primary=self.updater.primary_types['non_primary'],
             validity=validity
         )
         logger.debug('Create engagement payload: {}'.format(payload))
@@ -494,7 +497,6 @@ class OpusDiffImport(object):
                 msg = '{} not in MO, UUID list or AD, assign random uuid'
                 logger.debug(msg.format(cpr))
         payload = payloads.create_user(employee, self.org_uuid, uuid)
-
         logger.info('Create user payload: {}'.format(payload))
         return_uuid = self.helper._mo_post('e/create', payload).json()
         logger.info('Created employee {} {} with uuid {}'.format(
@@ -506,7 +508,7 @@ class OpusDiffImport(object):
         if 'userId' in employee:
             payload = payloads.connect_it_system_to_user(
                 employee['userId'],
-                self.settings['opus.it_systems.opus'],
+                self.settings['integrations.opus.it_systems.opus'],
                 return_uuid
             )
             logger.debug('Opus account payload: {}'.format(payload))
@@ -518,7 +520,7 @@ class OpusDiffImport(object):
         if sam_account:
             payload = payloads.connect_it_system_to_user(
                 sam_account,
-                self.settings['opus.it_systems.ad'],
+                self.settings['integrations.opus.it_systems.ad'],
                 return_uuid
             )
             logger.debug('AD account payload: {}'.format(payload))
@@ -553,7 +555,8 @@ class OpusDiffImport(object):
             manager_level = '{}.{}'.format(employee['superiorLevel'],
                                            employee['subordinateLevel'])
             manager_level_uuid = self.manager_levels.get(manager_level)
-            manager_type_uuid = self.manager_types.get(employee["position"])
+            manager_type_uuid = self.manager_types.get(
+                'manager_type_' + employee["position"])
             # This will fail if new manager levels or types are added...
             responsibility_uuid = self.responsibilities.get('Lederansvar')
 
@@ -636,9 +639,15 @@ class OpusDiffImport(object):
 
             found = False
             for mo_role in self.role_cache:
+                if 'roleText' in opus_role:
+                    combined_role = '{} - {}'.format(opus_role['artText'],
+                                                     opus_role['roleText'])
+                else:
+                    combined_role = opus_role['artText']
+
                 if (
                         mo_role['person'] == mo_user['uuid'] and
-                        opus_role['artText'] == mo_role['role_type_text']
+                        combined_role == mo_role['role_type_text']
                 ):
                     found = True
                     if mo_role['validity']['to'] is None:
@@ -694,6 +703,7 @@ class OpusDiffImport(object):
         logger.info('Now updating {}'.format(cpr))
         logger.debug('Available info: {}'.format(employee))
         mo_user = self.helper.read_user(user_cpr=cpr)
+
         if mo_user is None:
             employee_mo_uuid = self.create_user(employee)
         else:
@@ -732,6 +742,8 @@ class OpusDiffImport(object):
             self.update_engagement(eng, employee)
 
         self.update_manager_status(employee_mo_uuid, employee)
+        self.updater.set_current_person(cpr=cpr)
+        self.updater.recalculate_primary()
 
     def terminate_detail(self, uuid, detail_type='engagement', end_date=None):
         if end_date is None:
