@@ -15,7 +15,7 @@ from anytree import PreOrderIter
 from os2mo_helpers.mora_helpers import MoraHelper
 import common_queries as cq
 
-MORA_BASE = os.environ.get('MORA_BASE')
+MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
 
 
 def export_udvalg(mh, nodes, filename, fieldnames, org_types):
