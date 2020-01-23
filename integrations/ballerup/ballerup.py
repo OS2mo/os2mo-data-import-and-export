@@ -21,13 +21,16 @@ importer = ImportHelper(create_defaults=True,
                         mora_base=MORA_BASE,
                         system_name='APOS-Import',
                         end_marker='APOSSTOP',
-                        store_integration_data=True,
+                        store_integration_data=False,
                         seperate_names=True)
 
 
-apos_import = apos_importer.AposImport(importer,
-                                       MUNICIPALTY_NAME,
-                                       MUNICIPALTY_CODE)
+apos_import = apos_importer.AposImport(
+    importer,
+    MUNICIPALTY_NAME,
+    MUNICIPALTY_CODE,
+    org_uuid='00000000-0000-43b4-8415-1c70c2cd0cbd'
+)
 
 apos_import.create_facetter_and_klasser()
 
