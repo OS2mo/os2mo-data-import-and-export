@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 @app.route("/", methods=["POST"])
 def index():
-    uuid = flask.request.json.get("uuid")
+    uuid = flask.request.json.get("uuid") if flask.request.json else None
 
     if not uuid:
         return flask.jsonify("Parameter must be a single UUID"), 400
@@ -28,8 +28,7 @@ def index():
 
     try:
         result = subprocess.run(
-            script, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="UTF-8"
-        )
+            script, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         result.check_returncode()
     except OSError as e:
         logger.exception("Script error occurred")
@@ -37,7 +36,7 @@ def index():
     except subprocess.CalledProcessError as e:
         return flask.jsonify(e.stdout), 500
 
-    return flask.jsonify({"output": result.stdout})
+    return flask.jsonify({"output": result.stdout.decode("utf-8").strip()})
 
 
 def create_app():
