@@ -54,7 +54,7 @@ if __name__ == '__main__':
     threaded_speedup = False
     t = time.time()
 
-    mh = MoraHelper(hostname=MORA_BASE, export_ansi=True)
+    mh = MoraHelper(hostname=MORA_BASE, export_ansi=False)
 
     org = mh.read_organisation()
     roots = mh.read_top_units(org)
@@ -77,7 +77,7 @@ if __name__ == '__main__':
     filename = 'Alle_lederfunktioner_os2mo.csv'
     cq.export_managers(mh, nodes, filename)
     print('Alle ledere: {}s'.format(time.time() - t))
-
+    exit()
     filename = 'AlleBK-stilling-email_os2mo.csv'
     cq.export_all_employees(mh, nodes, filename)
     print('AlleBK-stilling-email: {}s'.format(time.time() - t))
