@@ -49,7 +49,7 @@ ALT_PHONE_NAME = os.environ.get('ALT_PHONE_NAME', None)
 
 
 def _format_time(gyldighed):
-    from_time = '1900-01-01'
+    from_time = '1920-01-01'
     to_time = None
     if not gyldighed['@fra'] == '-INFINITY':
         from_time = datetime.strptime(gyldighed['@fra'], '%d/%m/%Y')
@@ -65,11 +65,12 @@ def _format_time(gyldighed):
 
 class AposImport(object):
 
-    def __init__(self, importer, org_name, municipality_code):
+    def __init__(self, importer, org_name, municipality_code, org_uuid=None):
         self.base_url = BASE_APOS_URL
 
         self.importer = importer
         self.importer.add_organisation(
+            uuid=org_uuid,
             identifier=org_name,
             user_key=org_name,
             municipality_code=municipality_code
@@ -695,12 +696,14 @@ class AposImport(object):
                     klasse_ref = self.importer.get('klasse', klasse)
                     # We have a few problematic Klasser, chack manually
                     if klasse_ref is None:
+                        print(klasse)
                         self.klassifikation_errors[klasse] = True
                         continue
 
                     facet = klasse_ref.facet_type_ref
 
                     if facet == 'manager_type':
+
                         manager_type = klasse
                     elif facet == 'responsibility':
                         manager_responsibility.append(klasse)
@@ -781,7 +784,7 @@ class AposImport(object):
 
             cpr = person['@personnummer']
             if not len(cpr) == 10:
-                print('Unable to import {}'.format(person))
+                # print('Unable to import {}'.format(person))
                 continue
 
             if not self.importer.check_if_exists('employee', person['@uuid']):
