@@ -105,7 +105,10 @@ class ImportUtility(object):
 
         payload = organisation.build()
 
-        organisation_uuid = integration_data.get('uuid', None)
+        if organisation.uuid is not None:
+            organisation_uuid = organisation.uuid
+        else:
+            organisation_uuid = integration_data.get('uuid', None)
 
         self.organisation_uuid = self.insert_mox_data(
             resource=resource,
