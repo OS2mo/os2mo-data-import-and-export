@@ -77,7 +77,7 @@ if __name__ == '__main__':
     filename = 'Alle_lederfunktioner_os2mo.csv'
     cq.export_managers(mh, nodes, filename)
     print('Alle ledere: {}s'.format(time.time() - t))
-    exit()
+
     filename = 'AlleBK-stilling-email_os2mo.csv'
     cq.export_all_employees(mh, nodes, filename)
     print('AlleBK-stilling-email: {}s'.format(time.time() - t))
