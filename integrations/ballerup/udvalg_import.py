@@ -245,9 +245,9 @@ if __name__ == '__main__':
     logger.info('Program started')
     ROOT = _find_org()
 
-    orgtyper_file = '/opt/magenta/dataimport/ballerup_udvalg/OrgTyper.csv'
-    amr_medlemmer_file = '/opt/magenta/dataimport/ballerup_udvalg/AMR-medlemmer.csv'
-    med_medlemmer_file = '/opt/magenta/dataimport/ballerup_udvalg/MED-medlemmer.csv'
+    orgtyper_file = '/opt/customer/dataimport/ballerup_udvalg/OrgTyper.csv'
+    amr_medlemmer_file = '/opt/customer/dataimport/ballerup_udvalg/AMR-medlemmer.csv'
+    med_medlemmer_file = '/opt/customer/dataimport/ballerup_udvalg/MED-medlemmer.csv'
 
     if True:
         nodes = create_tree(orgtyper_file)
