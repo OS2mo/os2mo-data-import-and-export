@@ -15,6 +15,9 @@ Tools indeholder scripts primært beregnet til at køre natlige jobs og restore 
 job-runner.sh
 =============
 
+VIGTIGT: Det er nødvendigt at ændre gruppeejerskab, så det er alignet med den gruppe, der kører docker, Denne gruppe skal eje både hele os2mo-data-import-and-export og det directory hvor konfigurationsfiler ligger
+I praksis betyder det for os at vi ændrer ejerskabet på det dertil indrettede CRON-dicrectory i systembrugerens hjemmemappe.
+
 Afvikling af cron-jobs
 ++++++++++++++++++++++
 
