@@ -8,6 +8,8 @@ export VENV=${VENV:=${DIPEXAR}/venv}
 cd ${DIPEXAR}
 
 [ -d venv ] || python3 -m venv venv
+[ -d ../backup ] || mkdir ../backup
+[ -d ./tmp ] || mkdir ./tmp
 
 git pull
 
