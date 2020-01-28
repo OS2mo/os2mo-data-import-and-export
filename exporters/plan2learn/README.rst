@@ -33,7 +33,8 @@ Der udarbejdes i alt 5 csv udtræk:
 Brugerudtrækket
 ===============
 
-I dette udtræk eksporteres disse feler:
+I dette udtræk eksporteres disse felter:
+
  * `BrugerId`: Brugerens uuid i MO
  * `CPR`: Brugerens cpr-nummer
  * `Navn`: Brugerens fulde navn, ikke opdelt i fornavn og efteranvn
@@ -52,6 +53,9 @@ listen hårdkoden direkte i python filen, men vil på sigt blive flyttet til
 
 Organisation
 ============
+
+I dette udtræk eksporteres disse felter:
+
 
  * `AfdelingsID`: Afdelingens uuid i MO.
  * `Afdelingsnavn`: Afdelingens navn.
@@ -72,6 +76,8 @@ Rodenheden for organisationen vil have en tom streng som Parentid.
 
 Engagement
 ==========
+
+I dette udtræk eksporteres disse felter:
 
  * `BrugerId`: Brugerens uuid i MO. Nøgle til `Bruger` -udtrækket.
  * `AfdelingsId`: Afdelingens uuid i MO. Nøgle til `Organisation` -udtrækket.
@@ -94,6 +100,8 @@ ikke. Kendte fremtidige engagementer eksporteres med AktivStatus 0.
 Stillingskode
 =============
 
+I dette udtræk eksporteres disse felter:
+
  * `StillingskodeID`: uuid på den klasse i MO som holder stillingsbetegnelsne,
    nøgle til `Engagement` -udtrækket
  * `AktivStatus`: Angiver om stillingskoden anvendes. Der eksporteres kun akive
@@ -105,6 +113,8 @@ Stillingskode
 
 Leder
 =====
+
+I dette udtræk eksporteres disse felter:
 
  * `BrugerId`: Brugerens uuid i MO. Nøgle til `Bruger` -udtrækket.
  * `AfdelingsID`: Afdelingens uuid i MO. Nøgle til `Organisation` -udtrækket.
