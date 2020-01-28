@@ -1,5 +1,6 @@
 import json
 import pathlib
+import logging
 import argparse
 import requests
 import requests_kerberos
@@ -8,8 +9,6 @@ from winrm import Session
 from integrations.ad_integration import ad_logger
 
 
-# TODO: Soon we have done this 4 times. Should we make a small settings
-# importer, that will also handle datatype for specicic keys?
 cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
@@ -19,6 +18,8 @@ SETTINGS = json.loads(cfg_file.read_text())
 WINRM_HOST = SETTINGS.get('integrations.ad.winrm_host')
 if not (WINRM_HOST):
     raise Exception('WINRM_HOST is missing')
+
+logger = logging.getLogger('AdTestConnectivity')
 
 
 def test_basic_connectivity():
@@ -130,6 +131,9 @@ def perform_read_test():
 
 
 def perform_write_test():
+    from ad_reader import ADParameterReader
+    ad_reader = ADParameterReader()
+
     print('Test that AD write settings are set up')
     write_settings = test_ad_write_settings()
     if not write_settings:
@@ -138,8 +142,51 @@ def perform_write_test():
 
     # TODO: If we could make a test write, it would be nice.
 
-    print('Success')
-    exit(0)
+    print('Write settings set up correctly')
+
+    user_info_list = []
+    i = 0
+    logger.info('Check for avaiability of needed fields - find some test users')
+    print('Check for avaiability of needed fields - find some test users')
+
+    minumum_expected_fields = {
+        SETTINGS['integrations.ad.write.uuid_field']: False,
+        SETTINGS['integrations.ad.write.forvaltning_field']: False,
+        SETTINGS['integrations.ad.write.org_unit_field']: False
+    }
+
+    while len(user_info_list) < 10:
+        i = i + 1
+        if i > 31:
+            msg = 'Cannot find 10 users - unable to test for avaiable fields'
+            print(msg)
+            logger.error(msg)
+            exit(1)
+        msg = 'So far found {} users, current cpr: {}'
+        logger.info(msg.format(len(user_info_list), str(i).zfill(2)))
+        user_info = ad_reader.get_from_ad(cpr=str(i).zfill(2) + '*')
+        user_info_list = user_info_list + user_info
+
+    msg = 'Found more than 10 users ({}) - now test for avaiable fields'
+    print(msg.format(len(user_info_list)))
+    logger.info(msg.format(len(user_info_list)))
+
+    for user in user_info_list:
+        if isinstance(user, str):
+            print('Unable to read from AD: {}'.format(user))
+            exit(1)
+
+        for prop in user['PropertyNames']:
+            if prop in minumum_expected_fields:
+                minumum_expected_fields[prop] = True
+
+    if False in minumum_expected_fields.values():
+        print('An import field is now found on the tested users')
+        print(minumum_expected_fields)
+        exit(1)
+    else:
+        print('Test of AD fields for writing is a success')
+        exit(0)
 
 
 def cli():
