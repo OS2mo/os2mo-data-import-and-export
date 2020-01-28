@@ -12,7 +12,13 @@ Implementeringsstrategi
 
 Der udarbejdes i alt 5 csv udtræk:
 
- * `plan2learn_bruger.csv`: Udtræk af alle nuværende og kendte fremtidigt aktive brugere i kommunen.
+ * `bruger.csv`: Udtræk af alle nuværende og kendte fremtidigt aktive brugere i
+   kommunen.
+ * `organisation.csv`:  Udtræk af alle organisationsenheder og deres relation til
+   hinanden.
+ * `engagement.csv`: Udtræk over alle nuværende og kendte fremtidige engagementer.
+ * `stillingskode.csv`: Udtræk over alle aktive stillingsbetegnelser.
+ * `leder.csv`: Udtræk over alle ledere i kommunen.
 
 
 
@@ -54,3 +60,45 @@ Enheder som ikke har en gyldig adresse i MO, vil få angivet en tom streng for G
 Postnr og By.
 
 Rodenheden for organisationen vil have en tom streng som Parentid.
+
+
+Engagement
+==========
+
+ * `BrugerId`: Brugerens uuid i MO. Nøgle til `Bruger` -udtrækket.
+ * `AfdelingsId`: Afdelingens uuid i MO. Nøgle til `Organisation` -udtrækket.
+ * `AktivStatus`: Sættes til 1 for aktive engagementer, 0 for fremtidige.
+ * `StillingskodeId`: uuid til engagements titel, som gemmes som en klasse under
+   facetten `engagement_job_function` i MO. Nøgle til stillingskode.
+ * `Primær`: 1 hvis engagementet er primært, ellers 0.
+ * `Engagementstype`: Angiver om stillingen er måneds eller timelønnet.
+ * `StartdatoEngagement`: Startdato hvis engagementet endnu ikke er startet
+
+
+Kun timelønnede og og månedslønnede engagementer eksporteres. Angivelse af hvordan
+disse engagementstyper gives er i øjeblikket givet ved en liste direkte i koden,
+dette skal flyttes til settings. TODO!
+
+Engagmenter som tidligere har været aktive, men som nu er afsluttede, eksporteres
+ikke. Kendte fremtidige engagementer eksporteres med AktivStatus 0.
+
+
+Stillingskode
+=============
+
+ * `StillingskodeID`: uuid på den klasse i MO som holder stillingsbetegnelsne,
+   nøgle til `Engagement` -udtrækket
+ * `AktivStatus`: Angiver om stillingskoden anvendes. Der eksporteres kun akive
+   stillingskoder, så værdien er altid 1.
+ * `Stillingskode`: Læsbar tekstrepræsentation af stillingskoden (i modsæting til
+   uuid'en).
+ * `Stillingskode#`: I øjeblikket en Kopi af `StillingskodeID`.
+
+
+Leder
+=====
+
+ * `BrugerId`: Brugerens uuid i MO. Nøgle til `Bruger` -udtrækket.
+ * `AfdelingsID`: Afdelingens uuid i MO. Nøgle til `Organisation` -udtrækket.
+ * `AktivStatus`: Kun aktive ledere eksporteres, væriden er altid 1.
+ * `Titel`: Lederens ansvarsområder.
