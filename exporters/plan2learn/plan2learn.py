@@ -107,7 +107,6 @@ def export_engagement(mh, filename):
                 eng['validity']['from'], '%Y-%m-%d'
             )
             active = valid_from < datetime.datetime.now()
-            print('From: {}, active: {}'.format(valid_from, active))
             if active:
                 aktiv_status = 1
                 start_dato = ''
@@ -178,9 +177,8 @@ if __name__ == '__main__':
 
     mh = MoraHelper(hostname=MORA_BASE, export_ansi=False)
 
-    # In real life, this should go to settings
     # root_unit = '35840e9c-4480-4300-8000-000006140002'  # Short test
-    root_unit = '4f79e266-4080-4300-a800-000006180002'  # Full run
+    root_unit = SETTINGS['exporters.plan2learn.root_unit']
 
     nodes = mh.read_ou_tree(root_unit)
     print('Read nodes: {}s'.format(time.time() - t))
