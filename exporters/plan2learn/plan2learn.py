@@ -85,28 +85,29 @@ def export_organisation(mh, nodes, filename):
     mh._write_csv(fieldnames, rows, filename)
 
 
-def export_engagement(mh, nodes, filename):
+def export_engagement(mh, filename):
     fieldnames = ['BrugerId', 'AfdelingsId', 'AktivStatus', 'StillingskodeId',
                   'Primær', 'Engagementstype', 'StartdatoEngagement']
 
-    # Todo: Move to settings
-    allowed_engagement_types = ['d3ffdf48-0ea2-72dc-6319-8597bdaa81d3',
-                                'ac485d1c-025f-9818-f2c9-fafea2c1d282']
+    allowed_engagement_types = SETTINGS[
+        'exporters.plan2learn.allowed_engagement_types']
 
     rows = []
-    # employees = mh.read_all_users(limit=10)
+    # employees = mh.read_all_users(limit=10000)
     employees = mh.read_all_users()
     for employee in employees:
-        engagements = mh.read_user_engagement(employee['uuid'],
-                                              calculate_primary=True)
+        engagements = mh.read_user_engagement(employee['uuid'], read_all=True,
+                                              skip_past=True, calculate_primary=True)
         for eng in engagements:
             if eng['engagement_type']['uuid'] not in allowed_engagement_types:
+                print('Skipping {}'.format(eng))
                 continue
 
             valid_from = datetime.datetime.strptime(
                 eng['validity']['from'], '%Y-%m-%d'
             )
             active = valid_from < datetime.datetime.now()
+            print('From: {}, active: {}'.format(valid_from, active))
             if active:
                 aktiv_status = 1
                 start_dato = ''
@@ -157,7 +158,7 @@ def export_stillingskode(mh, nodes, filename):
 
 
 def export_leder(mh, nodes, filename):
-    fieldnames = ['BrugerId', 'AfdelingsID', 'AktivStatus']
+    fieldnames = ['BrugerId', 'AfdelingsID', 'AktivStatus', 'Titel']
     rows = []
     for node in PreOrderIter(nodes['root']):
         manager = mh.read_ou_manager(node.name, inherit=False)
@@ -193,7 +194,7 @@ if __name__ == '__main__':
     print('Organisation: {}s'.format(time.time() - t))
 
     filename = 'plan2lean_engagement.csv'
-    export_engagement(mh, nodes, filename)
+    export_engagement(mh, filename)
     print('Engagement: {}s'.format(time.time() - t))
 
     filename = 'plan2lean_stillingskode.csv'
