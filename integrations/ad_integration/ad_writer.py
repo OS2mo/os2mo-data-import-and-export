@@ -1,5 +1,4 @@
 import re
-import sys
 import json
 import time
 import random
@@ -167,7 +166,8 @@ class ADWriter(AD):
             raise ad_exceptions.NoPrimaryEngagementException('User: {}'.format(uuid))
 
         # Now, calculate final end date for any primary engagement
-        future_engagements = self.helper.read_user_engagement(uuid, read_all=True, skip_past=True)
+        future_engagements = self.helper.read_user_engagement(uuid, read_all=True,
+                                                              skip_past=True)
         for eng in future_engagements:
             if engagement['is_primary']:
                 current_end = eng['validity']['to']
@@ -203,21 +203,25 @@ class ADWriter(AD):
             if mail['visibibility']['scope'] == 'SECRET':
                 unit_secure_email = mail['value']
 
+        postal_code = city = streetname = 'Ukendt'
         if postal:
-            postal_code = re.findall('[0-9]{4}', postal['Adresse'])[0]
-            city_pos = postal['Adresse'].find(postal_code) + 5
-            city = postal['Adresse'][city_pos:]
-            streetname = postal['Adresse'][:city_pos - 7]
-        else:
-            postal_code = city = streetname = 'Ukendt'
+            try:
+                postal_code = re.findall('[0-9]{4}', postal['Adresse'])[0]
+                city_pos = postal['Adresse'].find(postal_code) + 5
+                city = postal['Adresse'][city_pos:]
+                streetname = postal['Adresse'][:city_pos - 7]
+            except IndexError:
+                logger.error('Unable to read adresse from MO (no access to DAR?)')
 
         location = ''
         current_unit = unit_info
         forvaltning = 'Ingen'
         while current_unit:
             location = current_unit['name'] + '\\' + location
-            if current_unit['org_unit_type']['uuid'] == self.settings[
-                    'integrations.ad.write.forvaltning_type']:
+
+            if self.settings['integrations.ad.write.forvaltning_type'] in (
+                    current_unit['org_unit_type']['uuid'],
+                    current_unit['org_unit_level']['uuid']):
                 forvaltning = current_unit['name']
             current_unit = current_unit['parent']
         location = location[:-1]
@@ -226,7 +230,13 @@ class ADWriter(AD):
         manager_sam = None
         manager_mail = None
         if read_manager:
-            manager = self.helper.read_engagement_manager(engagement['uuid'])
+            try:
+                manager = self.helper.read_engagement_manager(engagement['uuid'])
+            except KeyError:
+                logger.info('No managers found')
+                read_manager = False
+
+        if read_manager:
             manager_name = manager['Navn']
             mo_manager_user = self.helper.read_user(user_uuid=manager['uuid'])
             manager_cpr = mo_manager_user['cpr_no']
