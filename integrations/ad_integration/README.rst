@@ -346,25 +346,6 @@ projektet i en lokal mappe og oprette et lokal python miljø:
    pip install os2mo_data_import/
    pip install pywinrm[kerberos]
 
-Der findes desværre i den nuærende udgave af `pywinrm` en fejl som gør det nødvendigt
-at lave en rettelse direkte i en lokal installeret fil.
-
-::
-
-   nano venv/lib/python3.5/site-packages/winrm/__init__.py
-
-Ret linjen:
-
-::
-
-   rs.std_err = self._clean_error_msg(rs.std_err)
-
-Til:
-
-::
-
-   rs.std_err = self._clean_error_msg(rs.std_err.decode('utf-8'))
-
 
 For at bekræfte at alt er på plads, findes et værktøj til at teste kommunikationen:
 
