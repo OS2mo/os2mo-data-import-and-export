@@ -6,6 +6,14 @@ Indledning
 ==========
 Denne eksport script bygger datafiler som via sftp kan sendes til plan2learn.
 
+Koden består af to dele `plan2learn.py` som foretager eksporteringen fra MO til
+5 csv-filer, samt `ship_files.py`, som via ftpes afleverer filerne til Play2Learn.
+Forbindelsesoplysninger på ftp-serveren angives i `settings.json` via tre nøgler:
+
+ * `exporters.plan2learn.host`
+ * `exporters.plan2learn.user`
+ * `exporters.plan2learn.password`
+
 
 Implementeringsstrategi
 =======================
@@ -74,10 +82,10 @@ Engagement
  * `Engagementstype`: Angiver om stillingen er måneds eller timelønnet.
  * `StartdatoEngagement`: Startdato hvis engagementet endnu ikke er startet
 
-
-Kun timelønnede og og månedslønnede engagementer eksporteres. Angivelse af hvordan
-disse engagementstyper gives er i øjeblikket givet ved en liste direkte i koden,
-dette skal flyttes til settings. TODO!
+Kun bestemte typer engagementer eksporteres, dette vil normalt være timelønnede og
+månedslønnede. Disse genkendes via nøglen
+`exporters.plan2learn.allowed_engagement_types` i `settings.json`, som angiver en
+liste over uuid'er på de engagementstyper som skal eksporeres.
 
 Engagmenter som tidligere har været aktive, men som nu er afsluttede, eksporteres
 ikke. Kendte fremtidige engagementer eksporteres med AktivStatus 0.
