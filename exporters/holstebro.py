@@ -51,7 +51,7 @@ def export_from_mo(root, threaded_speedup, hostname, api_token):
     okit_uuid = '470ce14c-66c3-4100-ba00-0000014b0001'
     bufl_uuid = '4105e152-66c3-4100-8c00-0000014b0001'
 
-    nodes = mh.read_ou_tree(bufl_uuid)
+    nodes = mh.read_ou_tree(holstebro_uuid)
 
     print('Read nodes: {}s'.format(time.time() - t))
 
