@@ -50,7 +50,7 @@ def export_to_planorama(mh, nodes, filename_org, filename_persons):
     for node in PreOrderIter(nodes['root']):
         ou = mh.read_ou(node.name)
         # Do not add "Afdelings-niveau"
-        if ou['org_unit_type']['name'] != 'Afdelings-niveau':
+        if ou['org_unit_level']['name'] != 'Afdelings-niveau':
             over_uuid = ou['parent']['uuid'] if ou['parent'] else ''
 
             employees = mh.read_organisation_people(node.name, 'engagement', False)
@@ -106,7 +106,7 @@ def update_org_with_hk_managers(mh, nodes):
         ou = mh.read_ou(node.name)
         # for each ou, check if name contains _leder
         # if so, check ou for "tilknytninger" and set  this as leader for ou.parent
-        if ou['org_unit_type']['name'] == 'Afdelings-niveau' and ou['name'].count('_leder') == 1:
+        if ou['org_unit_level']['name'] == 'Afdelings-niveau' and ou['name'].count('_leder') == 1:
             # We have an Afdeling with name _leder, find associated employees and make them leaders in the parent ou
             associated_employees = mh.read_organisation_people(
                 node.name, 'association', False)
@@ -119,7 +119,7 @@ def update_org_with_hk_managers(mh, nodes):
             # This manager is now manager for parent ou
             # if parent ou's name ends with "led/adm", make employee
             # manager for the parent ou's parent as well.
-            if ou['parent']['parent'] != None and ou['parent']['name'].count('led/adm') == 1:
+            if ou['parent']['parent'] != None and ou['parent']['name'].count('led-adm') == 1:
                 # test
                 manager_uuid = list(associated_employees)[0]
                 managerHelper.update_manager(
@@ -170,13 +170,13 @@ class HolstebroManagerHelper(object):
         return return_dict
 
     def _get_org_level(self, ou):
-        if ou['org_unit_type']['name'] == 'NY5-niveau':
+        if ou['org_unit_level']['name'] == 'NY5-niveau':
             return self.manager_info['manager_levels']['Direktør']['uuid']
 
-        elif ou['org_unit_type']['name'] == 'NY4-niveau':
+        elif ou['org_unit_level']['name'] == 'NY4-niveau':
             return self.manager_info['manager_levels']['Chef']['uuid']
 
-        elif ou['org_unit_type']['name'] == 'NY3-niveau':
+        elif ou['org_unit_level']['name'] == 'NY3-niveau':
             return self.manager_info['manager_levels']['Leder']['uuid']
 
         else:
