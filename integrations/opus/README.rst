@@ -16,7 +16,7 @@ OPUS. Oplysninger om stien til denne mappe er øjeblikket skrevet direkte i
 importkoden og kan ikke ændres i runtime.
 
 Den forventede sti for mappen med opus dumps er:
-``/opt/magenta/dataimport/opus``
+``/opt/customer/``
 
 De enkelte dumps forventes at være navngivet systematisk som:
 ``ZLPE<data + tid>_delta.xml``
