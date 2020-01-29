@@ -13,9 +13,10 @@ Helper class to make a number of pre-defined queries into MO
 import os
 import csv
 import codecs
-import requests
-from anytree import Node
 import logging
+import requests
+import datetime
+from anytree import Node
 
 SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
 PRIMARY_RESPONSIBILITY = 'Personale: ansættelse/afskedigelse'
@@ -111,12 +112,14 @@ class MoraHelper(object):
         return path_dict
 
     def _mo_lookup(self, uuid, url, at=None, validity=None, only_primary=False,
-                   use_cache=None):
+                   use_cache=None, calculate_primary=False):
         # TODO: at-value is currently not part of cache key
         if use_cache is None:
             use_cache = self.default_cache
 
         params = {}
+        if calculate_primary:
+            params['calculate_primary'] = 1
         if only_primary:
             params['only_primary_uuid'] = 1
         if at:
@@ -223,16 +226,14 @@ class MoraHelper(object):
         return_list = []
         addresses = self._mo_lookup(uuid, 'ou/{}/details/address', at, use_cache)
 
-        # print(scope)
-        
         for address in addresses:
-            print()
-            print(address)
             return_address = {}
-            if address['address_type']['scope'] == scope:
+            if address['address_type']['scope'] == scope or scope is None:
+                return_address['type'] = address['address_type']['uuid']
                 return_address['visibibility'] = address.get('visibility')
                 return_address['Adresse'] = address['name']
                 return_address['value'] = address['value']
+                return_address['uuid'] = address['uuid']
                 return_list.append(return_address)
 
         if return_all:
@@ -296,24 +297,35 @@ class MoraHelper(object):
         logger.info("Terminate detail %s", payload)
         # self._mo_post('details/terminate', payload):
 
-    def read_user_engagement(self, user, at=None, read_all=False,
-                             only_primary=False, use_cache=None):
+    def read_user_engagement(self, user, at=None, read_all=False, skip_past=False,
+                             only_primary=False, use_cache=None,
+                             calculate_primary=False):
         """
         Read engagements for a user.
         :param user: UUID of the wanted user.
+        :read_all: Read all engagements, not only the present ones.
+        :skip_past: Even if read_all is true, do not read the past.
+        :calculate_primary: If True, ask MO to calculate primary engagement status.
         :return: List of the users engagements.
         """
         if not read_all:
             engagements = self._mo_lookup(user, 'e/{}/details/engagement',
                                           at, only_primary=only_primary,
-                                          use_cache=use_cache)
+                                          use_cache=use_cache,
+                                          calculate_primary=calculate_primary)
         else:
+            if skip_past:
+                validity_times = ['present', 'future']
+            else:
+                validity_times = ['past', 'present', 'future']
+
             engagements = []
-            for validity in ['past', 'present', 'future']:
+            for validity in validity_times:
                 engagement = self._mo_lookup(user, 'e/{}/details/engagement',
                                              validity=validity,
                                              only_primary=only_primary,
-                                             use_cache=False)
+                                             use_cache=False,
+                                             calculate_primary=calculate_primary)
                 engagements = engagements + engagement
         return engagements
 
@@ -535,6 +547,33 @@ class MoraHelper(object):
             if unit['child_count'] > 0:
                 nodes = self.read_ou_tree(uuid, nodes, nodes[uuid])
         return nodes
+
+    def find_cut_dates(self, uuid, no_past=False):
+        """
+        Run throgh entire history of a user and return a list of dates with
+        changes in the engagement.
+        """
+        mo_engagement = self.read_user_engagement(
+            user=uuid,
+            only_primary=True,
+            read_all=True,
+            skip_past=no_past
+        )
+
+        dates = set()
+        for eng in mo_engagement:
+            dates.add(datetime.datetime.strptime(eng['validity']['from'],
+                                                 '%Y-%m-%d'))
+            if eng['validity']['to']:
+                to = datetime.datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
+                day_after = to + datetime.timedelta(days=1)
+                dates.add(day_after)
+            else:
+                dates.add(datetime.datetime(9999, 12, 30, 0, 0))
+
+        date_list = sorted(list(dates))
+        logger.debug('List of cut-dates: {}'.format(date_list))
+        return date_list
 
     def get_e_username(self, e_uuid, id_it_system):
         for its in self._mo_lookup(e_uuid, 'e/{}/details/it'):

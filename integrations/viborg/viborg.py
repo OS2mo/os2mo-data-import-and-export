@@ -64,6 +64,7 @@ with open(manager_file, encoding=encoding) as csvfile:
 
 sd = sd_importer.SdImport(
     importer,
+    org_only=False,
     ad_info=ad_reader,
     manager_rows=manager_rows,
     employee_mapping=employee_mapping

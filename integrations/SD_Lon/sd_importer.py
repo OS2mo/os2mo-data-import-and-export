@@ -97,8 +97,11 @@ class SdImport(object):
             for row in self.manager_rows:
                 resp = row.get('ansvar')
                 self._add_klasse(resp, resp, 'responsibility')
+                print(resp)
 
         self._add_klasse('leder_type', 'Leder', 'manager_type')
+
+        self._add_klasse('Enhed', 'Enhed', 'org_unit_type')
 
         self._add_klasse('Pnummer', 'Pnummer',
                          'org_unit_address_type', 'PNUMBER')
@@ -125,11 +128,17 @@ class SdImport(object):
                          'employee_address_type', 'EMAIL')
         self._add_klasse('Orlov', 'Orlov', 'leave_type')
 
-        self._add_klasse('Ansat', 'Ansat', 'engagement_type')
-        self._add_klasse('status0', 'Ansat - Ikke i løn', 'engagement_type')
-        self._add_klasse('non-primary', 'Ikke-primær ansættelse', 'engagement_type')
-        self._add_klasse('explicitly-primary', 'Manuelt primær ansættelse',
+        self._add_klasse('månedsløn', 'Medarbejder (månedsløn)',
                          'engagement_type')
+        self._add_klasse('timeløn', 'Medarbejder (timeløn)',
+                         'engagement_type')
+
+        self._add_klasse('Ansat', 'Ansat', 'primary_type', '3000')
+        self._add_klasse('status0', 'Ansat - Ikke i løn', 'primary_type', '1000')
+        self._add_klasse('non-primary', 'Ikke-primær ansættelse',
+                         'primary_type', '0')
+        self._add_klasse('explicitly-primary', 'Manuelt primær ansættelse',
+                         'primary_type', '5000')
 
         self._add_klasse('SD-medarbejder', 'SD-medarbejder', 'association_type')
 
@@ -167,10 +176,10 @@ class SdImport(object):
                 uuid = generate_uuid(uuid, self.org_id_prefix, self.org_name)
 
             department_info[uuid] = department
-            unit_type = department['DepartmentLevelIdentifier']
-            if not self.importer.check_if_exists('klasse', unit_type):
-                self._add_klasse(unit_type, unit_type,
-                                 'org_unit_type', scope='TEXT')
+            unit_level = department['DepartmentLevelIdentifier']
+            if not self.importer.check_if_exists('klasse', unit_level):
+                self._add_klasse(unit_level, unit_level,
+                                 'org_unit_level', scope='TEXT')
         return department_info
 
     def _add_klasse(self, klasse_id, klasse, facet, scope='TEXT'):
@@ -252,7 +261,8 @@ class SdImport(object):
                 identifier=unit_id,
                 name=info['DepartmentName'],
                 user_key=user_key,
-                type_ref=ou_level,
+                org_unit_level_ref=ou_level,
+                type_ref='Enhed',
                 date_from=date_from,
                 uuid=unit_id,
                 date_to=None,
@@ -320,7 +330,7 @@ class SdImport(object):
             parent = ou.parent_ref
             if parent is None:
                 uuid = key
-                niveau = ou.type_ref
+                niveau = ou.org_unit_level_ref
                 nodes[uuid] = Node(niveau, uuid=uuid)
             else:
                 new_ous.append(ou)
@@ -334,7 +344,7 @@ class SdImport(object):
                 parent = ou.parent_ref
                 if parent in nodes.keys():
                     uuid = ou.uuid
-                    niveau = ou.type_ref
+                    niveau = ou.org_unit_level_ref
                     nodes[uuid] = Node(niveau, parent=nodes[parent], uuid=uuid)
                 else:
                     new_ous.append(ou)
@@ -344,16 +354,31 @@ class SdImport(object):
         """ Load all person details and store for later user """
         params = {
             'StatusActiveIndicator': 'true',
-            'StatusPassiveIndicator': 'true',
+            'StatusPassiveIndicator': 'false',
             'ContactInformationIndicator': 'false',
-            'PostalAddressIndicator': 'false'
+            'PostalAddressIndicator': 'false',
+            'EffectiveDate': self.import_date
         }
-        params['EffectiveDate'] = self.import_date
-        people = sd_lookup('GetPerson20111201', params)
-        if not isinstance(people['Person'], list):
-            people['Person'] = [people['Person']]
+        active_people = sd_lookup('GetPerson20111201', params)
+        if not isinstance(active_people['Person'], list):
+            active_people['Person'] = [active_people['Person']]
 
-        for person in people['Person']:
+        params['StatusActiveIndicator'] = False
+        params['StatusPassiveIndicator'] = True
+        passive_people = sd_lookup('GetPerson20111201', params)
+        if not isinstance(passive_people['Person'], list):
+            passive_people['Person'] = [passive_people['Person']]
+
+        people = active_people['Person']
+
+        cprs = []
+        for person in active_people['Person']:
+            cprs.append(person['PersonCivilRegistrationIdentifier'])
+        for person in passive_people['Person']:
+            if not person['PersonCivilRegistrationIdentifier'] in cprs:
+                people.append(person)
+
+        for person in people:
             cpr = person['PersonCivilRegistrationIdentifier']
             logger.info('Importing {}'.format(cpr))
             if cpr[-4:] == '0000':
@@ -392,27 +417,6 @@ class SdImport(object):
                     date_from=None
                 )
 
-            # NOTICE: This will soon be removed and replaced with the
-            # AD-sync functionality which will sync all and not just a few
-            # magic fields.
-            phone = self.ad_people[cpr].get('MobilePhone')
-            if phone:
-                self.importer.add_address_type(
-                    employee=cpr,
-                    value=phone,
-                    type_ref='PhoneEmployee',
-                    date_from=None
-                )
-
-            email = self.ad_people[cpr].get('EmailAddress')
-            if email:
-                self.importer.add_address_type(
-                    employee=cpr,
-                    value=email,
-                    type_ref='EmailEmployee',
-                    date_from=None
-                )
-
     def create_ou_tree(self, create_orphan_container, sub_tree=None,
                        super_unit=None):
         """ Read all department levels from SD """
@@ -445,23 +449,31 @@ class SdImport(object):
     def create_employees(self):
         params = {
             'StatusActiveIndicator': 'true',
+            'StatusPassiveIndicator': 'false',
             'DepartmentIndicator': 'true',
             'EmploymentStatusIndicator': 'true',
             'ProfessionIndicator': 'true',
             'WorkingTimeIndicator': 'true',
             'UUIDIndicator': 'true',
-            'StatusPassiveIndicator': 'true',
             'SalaryAgreementIndicator': 'false',
             'SalaryCodeGroupIndicator': 'false',
             'EffectiveDate': self.import_date
         }
         logger.info('Create emplyoees')
-        persons = sd_lookup('GetEmployment20111201', params)
-        if not isinstance(persons['Person'], list):
-            persons['Person'] = [persons['Person']]
-        self._create_employees(persons)
+        active_people = sd_lookup('GetEmployment20111201', params)
+        if not isinstance(active_people['Person'], list):
+            active_people['Person'] = [active_people['Person']]
 
-    def _create_employees(self, persons):
+        params['StatusActiveIndicator'] = False
+        params['StatusPassiveIndicator'] = True
+        passive_people = sd_lookup('GetEmployment20111201', params)
+        if not isinstance(passive_people['Person'], list):
+            passive_people['Person'] = [passive_people['Person']]
+
+        self._create_employees(active_people)
+        self._create_employees(passive_people, skip_manager=True)
+
+    def _create_employees(self, persons, skip_manager=False):
         for person in persons['Person']:
             logger.debug('Person object to create: {}'.format(person))
             cpr = person['PersonCivilRegistrationIdentifier']
@@ -501,12 +513,6 @@ class SdImport(object):
             exactly_one_primary = False
             for employment in employments:
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
-                """
-                if int(status) in (8, 9):
-                    # Fratrådt
-                    continue
-                """
-
                 # Find a valid job_function name, this might be overwritten from
                 # AD, if an AD value is available for this employment
                 job_id = int(employment['Profession']['JobPositionIdentifier'])
@@ -520,34 +526,33 @@ class SdImport(object):
 
                 employment_id = calc_employment_id(employment)
 
+                employment['Profession']['JobPositionIdentifier']
+                split = self.settings['integrations.SD_Lon.monthly_hourly_divide']
+                if employment_id['value'] < split:
+                    engagement_type_ref = 'månedsløn'
+                elif (split - 1) < employment_id['value'] < 999999:
+                    engagement_type_ref = 'timeløn'
+                else:  # This happens if EmploymentID is not a number
+                    s_job_id = str(job_id)
+                    self._add_klasse(s_job_id, s_job_id, 'engagement_type')
+                    engagement_type_ref = s_job_id
+                    logger.info('Non-nummeric id. Job pos id: {}'.format(s_job_id))
+
                 if occupation_rate == max_rate and employment_id['value'] == min_id:
                     assert(exactly_one_primary is False)
-                    engagement_type_ref = 'Ansat'
+                    primary_type_ref = 'Ansat'
                     exactly_one_primary = True
-
-                    # TODO: This part of the AD integration most likely needs to go,
-                    # it does not obey temporality.
-
-                    # ad_titel = self.ad_people[cpr].get('Title', None)
-                    # if ad_titel:  # Title exists in AD, this is primary engagement
-                    #     job_func = ad_titel
                 else:
-                    engagement_type_ref = 'non-primary'
+                    primary_type_ref = 'non-primary'
 
                 if status == '0':  # If status 0, uncondtionally override
-                    engagement_type_ref = 'status0'
+                    primary_type_ref = 'status0'
 
                 job_func_ref = self._add_klasse(job_func,
                                                 job_func,
                                                 'engagement_job_function')
                 emp_dep = employment['EmploymentDepartment']
                 unit = emp_dep['DepartmentUUIDIdentifier']
-
-                # This can removed once we fully trust the new date logic
-                # date_from = datetime.datetime.strptime(
-                #     employment['EmploymentDate'],
-                #     '%Y-%m-%d'
-                # )
 
                 if status in ('7', '8', '9'):
                     date_from = datetime.datetime.strptime(
@@ -594,18 +599,19 @@ class SdImport(object):
                 try:
                     # In a distant future, an employment id will be re-used and
                     # then a more refined version of this code will be needed.
-                    engagement_uuid = generate_uuid(employment_id['id'],
-                                                    self.org_id_prefix,
-                                                    self.org_name)
+                    # engagement_uuid = generate_uuid(employment_id['id'],
+                    #                                 self.org_id_prefix,
+                    #                                 self.org_name)
 
                     # We explicitly do not want identical uuids for engagements
                     self.importer.add_engagement(
                         employee=cpr,
-                        # uuid=engagement_uuid, 
+                        # uuid=engagement_uuid,
                         user_key=employment_id['id'],
                         organisation_unit=unit,
                         job_function_ref=job_func_ref,
                         fraction=int(occupation_rate * 1000000),
+                        primary_ref=primary_type_ref,
                         engagement_type_ref=engagement_type_ref,
                         date_from=date_from,
                         date_to=date_to
@@ -646,7 +652,8 @@ class SdImport(object):
                             date_from=date_from,
                             date_to=date_to
                         )
-            if self.manager_rows:
+
+            if self.manager_rows and (not skip_manager):
                 for row in self.manager_rows:
                     if row['cpr'] == cpr:
                         if 'uuid' not in row:
@@ -660,6 +667,7 @@ class SdImport(object):
                         logger.info(
                             'Manager {} to {}'.format(cpr, row['afdeling'])
                         )
+
                         self.importer.add_manager(
                             employee=cpr,
                             organisation_unit=row['uuid'],

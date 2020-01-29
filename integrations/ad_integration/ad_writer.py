@@ -1,6 +1,4 @@
-import os
 import re
-import sys
 import json
 import time
 import random
@@ -8,7 +6,6 @@ import logging
 import pathlib
 import datetime
 import argparse
-from uuid import UUID
 
 import ad_logger
 import ad_templates
@@ -18,34 +15,7 @@ from ad_common import AD
 from user_names import CreateUserNames
 from os2mo_helpers.mora_helpers import MoraHelper
 
-
 logger = logging.getLogger("AdWriter")
-
-MORA_BASE = os.environ.get('MORA_BASE')
-FORVALTNING_TYPE = os.environ.get('FORVALTNING_TYPE')
-PRIMARY_ENGAGEMENT_LIST = os.environ.get('PRIMARY_ENGAGEMENT_TYPES', '')
-
-SETTINGS_FILE = os.environ.get('SETTINGS_FILE')
-if not SETTINGS_FILE:
-    raise Exception('Settings file not set in enironment')
-
-
-# These checks could in principle go to a common configuration checker
-if not PRIMARY_ENGAGEMENT_LIST == '':
-    PRIMARY_ENGAGEMENT_TYPES = PRIMARY_ENGAGEMENT_LIST.split(' ')
-else:
-    msg = 'Configuration error: MORA_BASE: {}, PRIMARY_ENGAGEMENT_TYPE: {}'
-    raise Exception(msg.format(MORA_BASE, PRIMARY_ENGAGEMENT_LIST))
-
-for prim_eng in PRIMARY_ENGAGEMENT_TYPES:
-    try:
-        UUID(prim_eng, version=4)
-    except ValueError:
-        raise Exception('Illegal uuid in primary engagement list')
-
-if MORA_BASE is None:
-    msg = 'Configuration error: MORA_BASE: {}, PRIMARY_ENGAGEMENT_TYPE: {}'
-    raise Exception(msg.format(MORA_BASE, PRIMARY_ENGAGEMENT_TYPES))
 
 
 def _random_password(length=12):
@@ -59,13 +29,14 @@ class ADWriter(AD):
     def __init__(self):
         super().__init__()
 
-        cfg_file = pathlib.Path.cwd() / 'settings' / SETTINGS_FILE
+        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
+        # self.pet = self.settings['integrations.ad.write.primary_types']
 
-        self.pet = PRIMARY_ENGAGEMENT_TYPES
-        self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
+        self.helper = MoraHelper(hostname=self.settings['mora.base'],
+                                 use_cache=False)
         self.name_creator = CreateUserNames(occupied_names=set())
         logger.info('Reading occupied names')
         self.name_creator.populate_occupied_names()
@@ -79,7 +50,7 @@ class ADWriter(AD):
             raise Exception(msg)
         return self.all_settings['primary_write']
 
-    def _other_attributes(self, mo_values, new_user=False):
+    def _other_attributes(self, mo_values, user_sam, new_user=False):
         school = False  # TODO
         write_settings = self._get_write_setting(school)
         if new_user:
@@ -93,6 +64,9 @@ class ADWriter(AD):
             (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
         ]
 
+        # Add SAM to mo_values
+        mo_values['name_sam'] = '{} - {}'.format(mo_values['full_name'], user_sam)
+
         # Local fields for MO->AD sync'ing
         named_sync_fields = self.settings.get(
             'integrations.ad_writer.mo_to_ad_fields', {})
@@ -102,8 +76,14 @@ class ADWriter(AD):
                 (ad_field, mo_values[mo_field])
             )
 
-        # These two fields are NEVER updated.
+        # These fields are NEVER updated.
         if new_user:
+            # This needs extended permissions, do we need it?
+            # other_attributes_fields.append(('pwdLastSet', '0'))
+            other_attributes_fields.append(
+                ('UserPrincipalName',
+                 '{}@{}'.format(user_sam, write_settings['upn_end']))
+            )
             other_attributes_fields.append(
                 (write_settings['uuid_field'], mo_values['uuid'])
             )
@@ -169,27 +149,27 @@ class ADWriter(AD):
         else:
             assert(mo_user['uuid'] == uuid)
 
-        engagements = self.helper.read_user_engagement(uuid)
+        engagements = self.helper.read_user_engagement(uuid, calculate_primary=True)
 
-        primary_index = sys.maxsize
+        found_primary = False
         for engagement in engagements:
-            # TODO: Do not pick any primary, we must choose the very most primary
             uuid = engagement['engagement_type']['uuid']
-            if uuid in self.pet and self.pet.index(uuid) < primary_index:
-                primary_index = self.pet.index(uuid)
+            if engagement['is_primary']:
+                found_primary = True
                 employment_number = engagement['user_key']
                 title = engagement['job_function']['name']
                 end_date = engagement['validity']['to']
                 if end_date is None:
                     end_date = '9999-12-31'
 
-        if not primary_index < sys.maxsize:
+        if not found_primary:
             raise ad_exceptions.NoPrimaryEngagementException('User: {}'.format(uuid))
 
         # Now, calculate final end date for any primary engagement
-        future_engagements = self.helper.read_user_engagement(uuid, read_all=True)
+        future_engagements = self.helper.read_user_engagement(uuid, read_all=True,
+                                                              skip_past=True)
         for eng in future_engagements:
-            if engagement['engagement_type']['uuid'] in PRIMARY_ENGAGEMENT_TYPES:
+            if engagement['is_primary']:
                 current_end = eng['validity']['to']
                 if current_end is None:
                     current_end = '9999-12-31'
@@ -223,17 +203,25 @@ class ADWriter(AD):
             if mail['visibibility']['scope'] == 'SECRET':
                 unit_secure_email = mail['value']
 
-        postal_code = re.findall('[0-9]{4}', postal['Adresse'])[0]
-        city_pos = postal['Adresse'].find(postal_code) + 5
-        city = postal['Adresse'][city_pos:]
-        streetname = postal['Adresse'][:city_pos - 7]
+        postal_code = city = streetname = 'Ukendt'
+        if postal:
+            try:
+                postal_code = re.findall('[0-9]{4}', postal['Adresse'])[0]
+                city_pos = postal['Adresse'].find(postal_code) + 5
+                city = postal['Adresse'][city_pos:]
+                streetname = postal['Adresse'][:city_pos - 7]
+            except IndexError:
+                logger.error('Unable to read adresse from MO (no access to DAR?)')
 
         location = ''
         current_unit = unit_info
         forvaltning = 'Ingen'
         while current_unit:
             location = current_unit['name'] + '\\' + location
-            if current_unit['org_unit_type']['uuid'] == FORVALTNING_TYPE:
+
+            if self.settings['integrations.ad.write.forvaltning_type'] in (
+                    current_unit['org_unit_type']['uuid'],
+                    current_unit['org_unit_level']['uuid']):
                 forvaltning = current_unit['name']
             current_unit = current_unit['parent']
         location = location[:-1]
@@ -242,7 +230,13 @@ class ADWriter(AD):
         manager_sam = None
         manager_mail = None
         if read_manager:
-            manager = self.helper.read_engagement_manager(engagement['uuid'])
+            try:
+                manager = self.helper.read_engagement_manager(engagement['uuid'])
+            except KeyError:
+                logger.info('No managers found')
+                read_manager = False
+
+        if read_manager:
             manager_name = manager['Navn']
             mo_manager_user = self.helper.read_user(user_uuid=manager['uuid'])
             manager_cpr = mo_manager_user['cpr_no']
@@ -260,6 +254,7 @@ class ADWriter(AD):
 
         mo_values = {
             'name': (mo_user['givenname'], mo_user['surname']),
+            'full_name': '{} {}'.format(mo_user['givenname'], mo_user['surname']),
             'employment_number': employment_number,
             'end_date': end_date,
             'uuid': uuid,
@@ -316,7 +311,8 @@ class ADWriter(AD):
             user_sam = user_ad_info['SamAccountName']
 
         edit_user_template = ad_templates.edit_user_template
-        replace_attributes = self._other_attributes(mo_values, new_user=False)
+        replace_attributes = self._other_attributes(mo_values, user_sam,
+                                                    new_user=False)
 
         edit_user_string = edit_user_template.format(
             givenname=mo_values['name'][0],
@@ -372,7 +368,8 @@ class ADWriter(AD):
             raise ad_exceptions.CprNotNotUnique(mo_values['cpr'])
 
         create_user_template = ad_templates.create_user_template
-        other_attributes = self._other_attributes(mo_values, new_user=True)
+        other_attributes = self._other_attributes(mo_values, sam_account_name,
+                                                  new_user=True)
 
         create_user_string = create_user_template.format(
             givenname=mo_values['name'][0],
@@ -382,8 +379,6 @@ class ADWriter(AD):
         )
         create_user_string = self.remove_redundant(create_user_string)
         create_user_string += other_attributes
-
-        # TODO: Should we add UPN here or in user_script?
 
         ps_script = (
             self._build_user_credential(school) +
@@ -477,7 +472,7 @@ class ADWriter(AD):
         Command line interface for the AD writer class.
         """
         parser = argparse.ArgumentParser(description='AD Writer')
-        group = parser.add_mutually_exclusive_group()
+        group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument('--create-user-with-manager', nargs=1, metavar='MO_uuid',
                            help='Create a new user in AD, also assign a manager')
         group.add_argument('--create-user', nargs=1, metavar='MO_uuid',

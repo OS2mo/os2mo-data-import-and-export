@@ -7,10 +7,8 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import os
-import sys
 from os2mo_data_import import ImportHelper
-sys.path.append('..')
-import apos_importer
+from integrations import apos_importer
 
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
@@ -23,13 +21,16 @@ importer = ImportHelper(create_defaults=True,
                         mora_base=MORA_BASE,
                         system_name='APOS-Import',
                         end_marker='APOSSTOP',
-                        store_integration_data=True,
+                        store_integration_data=False,
                         seperate_names=True)
 
 
-apos_import = apos_importer.AposImport(importer,
-                                       MUNICIPALTY_NAME,
-                                       MUNICIPALTY_CODE)
+apos_import = apos_importer.AposImport(
+    importer,
+    MUNICIPALTY_NAME,
+    MUNICIPALTY_CODE,
+    org_uuid='00000000-0000-43b4-8415-1c70c2cd0cbd'
+)
 
 apos_import.create_facetter_and_klasser()
 
@@ -40,6 +41,8 @@ apos_import.create_ou_tree('b78993bb-d67f-405f-acc0-27653bd8c116')
 apos_import.create_ou_tree('945bb286-9753-4f77-9082-a67a5d7bdbaf')
 
 apos_import.create_managers_and_associatins()
+
+apos_import.add_all_missing_employees()
 
 importer.import_all()
 

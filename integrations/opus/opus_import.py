@@ -1,26 +1,24 @@
 # -- coding: utf-8 --
-import os
-import uuid
-import hashlib
+import json
+import pathlib
 import logging
 import xmltodict
 
 from requests import Session
-from integrations.opus.opus_exceptions import UnknownOpusAction
-from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
-from os2mo_helpers.mora_helpers import MoraHelper
 from integrations import dawa_helper
+from integrations.opus import opus_helpers
+from os2mo_helpers.mora_helpers import MoraHelper
+from integrations.opus.opus_exceptions import UnknownOpusAction
 
-MOX_BASE = os.environ.get('MOX_BASE')
-MORA_BASE = os.environ.get('MORA_BASE', None)
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'
 
 logger = logging.getLogger("opusImport")
 
 for name in logging.root.manager.loggerDict:
-    if name in ('opusImport', 'moImporterMoraTypes', 'moImporterMoxTypes',
-                'moImporterUtilities', 'moImporterHelpers', 'ADReader'):
+    if name in ('opusImport', 'opusHelper', 'moImporterMoraTypes',
+                'moImporterMoxTypes', 'moImporterUtilities', 'moImporterHelpers',
+                'ADReader'):
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
         logging.getLogger(name).setLevel(logging.ERROR)
@@ -32,28 +30,23 @@ logging.basicConfig(
 )
 
 
-def _parse_phone(phone_number):
-    validated_phone = None
-    if len(phone_number) == 8:
-        validated_phone = phone_number
-    elif len(phone_number) in (9, 11):
-        validated_phone = phone_number.replace(' ', '')
-    elif len(phone_number) in (4, 5):
-        validated_phone = '0000' + phone_number.replace(' ', '')
-    return validated_phone
-
-
 class OpusImport(object):
 
     def __init__(self, importer, org_name, xml_data, ad_reader=None,
                  import_first=False, employee_mapping={}):
         """ If import first is False, the first unit will be skipped """
         self.org_uuid = None
+
+        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+        if not cfg_file.is_file():
+            raise Exception('No setting file')
+        self.settings = json.loads(cfg_file.read_text())
+
         self.importer = importer
         self.import_first = import_first
         self.session = Session()
-        self.mox_base = MOX_BASE
-        self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
+        self.helper = MoraHelper(hostname=self.settings['mora.base'],
+                                 use_cache=False)
 
         self.organisation_id = None
         self.units = None
@@ -100,64 +93,15 @@ class OpusImport(object):
         self._add_klasse('AdressePostEmployee', 'Postadresse',
                          'employee_address_type', 'DAR')
         self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
+        self._add_klasse('Ekstern', 'Må vises eksternt', 'visibility', 'PUBLIC')
+        self._add_klasse('Intern', 'Må vises internt', 'visibility', 'INTERNAL')
+        self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
 
-    def _generate_uuid(self, value):
-        """
-        Generate a predictable uuid based on org name and a unique value.
-        """
-        base_hash = hashlib.md5(self.org_name.encode())
-        base_digest = base_hash.hexdigest()
-        base_uuid = uuid.UUID(base_digest)
-
-        combined_value = (str(base_uuid) + str(value)).encode()
-        value_hash = hashlib.md5(combined_value)
-        value_digest = value_hash.hexdigest()
-        value_uuid = uuid.UUID(value_digest)
-        return value_uuid
-
-    def _find_engagement(self, bvn, present=False):
-        engagement_info = {}
-        resource = '/organisation/organisationfunktion?bvn={}'.format(bvn)
-        if present:
-            resource += '&gyldighed=Aktiv'
-        response = self.session.get(url=self.mox_base + resource)
-        response.raise_for_status()
-        uuids = response.json()['results'][0]
-        if uuids:
-            if len(uuids) > 1:
-                msg = 'Employment ID {} not unique: {}'.format(bvn, uuids)
-                logger.error(msg)
-                raise EmploymentIdentifierNotUnique(msg)
-            logger.info('bvn: {}, uuid: {}'.format(bvn, uuids))
-            engagement_info['uuid'] = uuids[0]
-
-            resource = '/organisation/organisationfunktion/{}'
-            resource = resource.format(engagement_info['uuid'])
-            response = self.session.get(url=self.mox_base + resource)
-            response.raise_for_status()
-            data = response.json()
-            logger.debug('Organisationsfunktionsinfo: {}'.format(data))
-
-            data = data[engagement_info['uuid']][0]['registreringer'][0]
-            user_uuid = data['relationer']['tilknyttedebrugere'][0]['uuid']
-
-            valid = data['tilstande']['organisationfunktiongyldighed']
-            valid = valid[0]['gyldighed']
-            if valid == 'Inaktiv':
-                logger.debug('Inactive user, skip')
-                return {}
-
-            logger.debug('Active user, terminate')
-            # Now, get user_key for user:
-            if self.org_uuid is None:
-                # We will get a hit unless this is a re-import, and in this case we
-                # will always be able to find an org uuid.
-                self.org_uuid = self.helper.read_organisation()
-            mo_person = self.helper.read_user(user_uuid=user_uuid,
-                                              org_uuid=self.org_uuid)
-            engagement_info['cpr'] = mo_person['cpr_no']
-            engagement_info['name'] = (mo_person['givenname'], mo_person['surname'])
-        return engagement_info
+        self._add_klasse('Ansat', 'Ansat', 'primary_type', '3000')
+        self._add_klasse('non-primary', 'Ikke-primær ansættelse',
+                         'primary_type', '0')
+        self._add_klasse('explicitly-primary', 'Manuelt primær ansættelse',
+                         'primary_type', '5000')
 
     def _update_ad_map(self, cpr):
         logger.debug('Update cpr {}'.format(cpr))
@@ -180,11 +124,15 @@ class OpusImport(object):
 
     def _add_klasse(self, klasse_id, klasse, facet, scope='TEXT'):
         if not self.importer.check_if_exists('klasse', klasse_id):
-            self.importer.add_klasse(identifier=klasse_id,
-                                     facet_type_ref=facet,
-                                     user_key=klasse,
-                                     scope=scope,
-                                     title=klasse)
+            uuid = opus_helpers.generate_uuid(klasse_id)
+            self.importer.add_klasse(
+                identifier=klasse_id,
+                uuid=uuid,
+                facet_type_ref=facet,
+                user_key=klasse_id,
+                scope=scope,
+                title=klasse
+            )
         return klasse_id
 
     def parser(self, target_file):
@@ -210,9 +158,6 @@ class OpusImport(object):
         return municipality_code
 
     def _import_org_unit(self, unit):
-        # UNUSED KEYS:
-        # costCenter, @lastChanged
-
         try:
             org_type = unit['orgType']
             self._add_klasse(org_type, unit['orgTypeTxt'], 'org_unit_type')
@@ -221,7 +166,7 @@ class OpusImport(object):
             self._add_klasse(org_type, 'Enhed', 'org_unit_type')
 
         identifier = unit['@id']
-        uuid = self._generate_uuid(identifier)
+        uuid = opus_helpers.generate_uuid(identifier)
         logger.debug('Generated uuid for {}: {}'.format(unit['@id'], uuid))
 
         user_key = unit['shortName']
@@ -335,22 +280,6 @@ class OpusImport(object):
                 msg = 'Unknown action: {}'.format(employee['@action'])
                 logger.error(msg)
                 raise UnknownOpusAction(msg)
-
-            engagement_info = self._find_engagement(employee['@id'], present=True)
-            if engagement_info:  # We need to add the employee for the sake of
-                # the importers internal consistency
-                if not self.importer.check_if_exists('employee',
-                                                     engagement_info['cpr']):
-                    self.importer.add_employee(
-                        identifier=engagement_info['cpr'],
-                        name=(engagement_info['name']),
-                        cpr_no=engagement_info['cpr'],
-                    )
-                self.importer.terminate_engagement(
-                    employee=engagement_info['cpr'],
-                    engagement_uuid=engagement_info['uuid']
-                )
-
             return
 
         self._update_ad_map(cpr)
@@ -394,13 +323,12 @@ class OpusImport(object):
         if 'email' in employee:
             self.employee_addresses[cpr]['EmailEmployee'] = employee['email']
         if employee['workPhone'] is not None:
-            phone = _parse_phone(employee['workPhone'])
+            phone = opus_helpers.parse_phone(employee['workPhone'])
             self.employee_addresses[cpr]['PhoneEmployee'] = phone
 
         if 'postalCode' in employee and employee['address']:
             if isinstance(employee['address'], dict):
-                # TODO: This is a protected address
-                # We currenly only support visibility for phones
+                # This is a protected address, cannot import
                 pass
             else:
                 address_string = employee['address']
@@ -413,22 +341,24 @@ class OpusImport(object):
         self._add_klasse(job, job, 'engagement_job_function')
 
         if 'workContractText' in employee:
-            contract = employee['workContract']
-            self._add_klasse(contract, employee['workContractText'],
-                             'engagement_type')
+            contract = employee['workContractText']
         else:
-            contract = '1'
-            self._add_klasse(contract, 'Ansat', 'engagement_type')
+            contract = 'Ansat'
+        self._add_klasse(contract, contract, 'engagement_type')
 
         org_unit = employee['orgUnit']
         job_id = employee['@id']
-        engagement_uuid = self._generate_uuid(job_id)
+        engagement_uuid = opus_helpers.generate_uuid(job_id)
 
+        # Every engagement is initially imported as non-primary,
+        # a seperate script will correct this after import.
+        # This allows separate rules for primary calculation.
         logger.info('Add engagement: {} to {}'.format(job_id, cpr))
         self.importer.add_engagement(
             employee=cpr,
             uuid=str(engagement_uuid),
             organisation_unit=org_unit,
+            primary_ref='non-primary',
             user_key=job_id,
             job_function_ref=job,
             engagement_type_ref=contract,
@@ -448,6 +378,7 @@ class OpusImport(object):
             logger.info('{} is manager {}'.format(cpr, manager_level))
             self.importer.add_manager(
                 employee=cpr,
+                user_key=job_id,
                 organisation_unit=org_unit,
                 manager_level_ref=manager_level,
                 manager_type_ref=manager_type_ref,

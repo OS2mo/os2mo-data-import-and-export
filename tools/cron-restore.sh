@@ -54,10 +54,15 @@ restore_sd_run_db(){
 
 # restore the map between cpr and uuid
 restore_cpr_mo_ad_map_to_cpr_uuid_map(){
+    echo cpr_mo_ad_map.csv is not restored. You are supposed to always use the latest
+    echo Should the file be missing and You still have a valid database You should create it 
+    echo by running "job-runner.sh reports_cpr_uuid"
+    echo The resulting file should be compared to to settings/cpr_uuid_map.csv
+    echo All lines in cpr_mo_ad_map.csv must be in settings/cpr_uuid_map.csv
     # settings/cpr_uuid_map.csv is the one that is read from during import
     # cpr_mo_ad_map.csv is the one that is written to during export
-    tar -xOf ${bupfile} cpr_mo_ad_map.csv > ${DIPEXAR}/settings/cpr_uuid_map.csv
-    tar -xOf ${bupfile} cpr_mo_ad_map.csv > ${DIPEXAR}/cpr_mo_ad_map.csv
+    # tar -xOf ${bupfile} cpr_mo_ad_map.csv > ${DIPEXAR}/cpr_mo_ad_map-restored.csv
+    :
 }
 
 check_restore_validity || exit 2

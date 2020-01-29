@@ -1,38 +1,37 @@
-import os
-import sys
-import datetime
+import json
+import pathlib
+
+from integrations import cpr_mapper
 from os2mo_data_import import ImportHelper
+from integrations.SD_Lon import sd_importer
 
-sys.path.append('../SD_Lon')
-import sd_importer
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+settings = json.loads(cfg_file.read_text())
 
-MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
-MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_CODE', 0)
-MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
-MANAGER_FILE = os.environ.get('MANAGER_FILE', 'Organisationsdata.csv')
-
-GLOBAL_GET_DATE = datetime.datetime(2019, 5, 28, 0, 0)
-
+cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
+if not cpr_map.is_file():
+    raise Exception('No mapping file')
+employee_mapping = cpr_mapper.employee_mapper(str(cpr_map))
 
 importer = ImportHelper(
     create_defaults=True,
-    mox_base=MOX_BASE,
-    mora_base=MORA_BASE,
-    system_name='SD-Import',
-    end_marker='SDSTOP',
-    store_integration_data=True,
-    seperate_names=False
+    mox_base=settings['mox.base'],
+    mora_base=settings['mora.base'],
+    store_integration_data=False,
+    seperate_names=True
 )
+
+ad_info_reader = None
 
 sd = sd_importer.SdImport(
     importer,
-    MUNICIPALTY_NAME,
-    MUNICIPALTY_CODE,
-    import_date_from=GLOBAL_GET_DATE,
+    ad_info=ad_info_reader,
+    employee_mapping=employee_mapping
 )
 
-sd.create_ou_tree()
+sd.create_ou_tree(create_orphan_container=True)
 sd.create_employees()
 
-# importer.import_all()
+importer.import_all()

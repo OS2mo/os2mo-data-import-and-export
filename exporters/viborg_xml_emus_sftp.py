@@ -9,7 +9,7 @@ from viborg_xml_emus import main as generate_file, EMUS_FILENAME
 logger = logging.getLogger("emus-sftp")
 
 logger.info("checking environment")
-MORA_BASE = os.environ.get('MORA_BASE', 'localhost:80')
+MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
 try:
     SFTP_USER = os.environ["SFTP_USER"]
     SFTP_HOST = os.environ["SFTP_HOST"]

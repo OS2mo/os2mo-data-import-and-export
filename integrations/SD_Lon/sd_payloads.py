@@ -1,8 +1,4 @@
 def create_org_unit(department, name, org, unit_type, from_date):
-    # TODO: MO currently fails when creating future sub-units
-    activation_date = '2019-07-01'
-
-
     payload = {
         'uuid': department['DepartmentUUIDIdentifier'],
         'user_key': department['DepartmentIdentifier'],
@@ -18,7 +14,8 @@ def create_org_unit(department, name, org, unit_type, from_date):
     }
     return payload
 
-def create_single_org_unit(department, unit_type, parent):
+
+def create_single_org_unit(department, unit_type, unit_level, parent):
     payload = {
         'uuid': department['DepartmentUUIDIdentifier'],
         'user_key': department['DepartmentIdentifier'],
@@ -27,6 +24,7 @@ def create_single_org_unit(department, unit_type, parent):
             'uuid': parent
         },
         'org_unit_type': {'uuid': unit_type},
+        'org_unit_level': {'uuid': unit_level},
         'validity': {
             'from': department['ActivationDate'],
             'to': None
@@ -35,7 +33,7 @@ def create_single_org_unit(department, unit_type, parent):
     return payload
 
 
-def edit_org_unit(user_key, name, unit_uuid, parent, ou_level, from_date):
+def edit_org_unit(user_key, name, unit_uuid, parent, ou_level, ou_type, from_date):
     payload = {
         'type': 'org_unit',
         'data': {
@@ -45,8 +43,11 @@ def edit_org_unit(user_key, name, unit_uuid, parent, ou_level, from_date):
             'parent': {
                 'uuid': parent
             },
-            'org_unit_type': {
+            'org_unit_level': {
                 'uuid': ou_level
+            },
+            'org_unit_type': {
+                'uuid': ou_type
             },
             'validity': {
                 'from': from_date,
@@ -56,6 +57,7 @@ def edit_org_unit(user_key, name, unit_uuid, parent, ou_level, from_date):
         }
     }
     return payload
+
 
 def engagement(data, mo_engagement):
     payload = {
@@ -88,7 +90,7 @@ def create_leave(mo_eng, mo_person, leave_uuid, job_id, validity):
 
 
 def create_engagement(org_unit, mo_person, job_function, engagement_type,
-                      job_id, engagement_info, validity):
+                      primary, user_key, engagement_info, validity):
     try:
         working_time = float(engagement_info['working_time'][0]['OccupationRate'])
     except IndexError:
@@ -98,8 +100,9 @@ def create_engagement(org_unit, mo_person, job_function, engagement_type,
         'org_unit': {'uuid': org_unit},
         'person': {'uuid': mo_person['uuid']},
         'job_function': {'uuid': job_function},
+        'primary': {'uuid': primary},
         'engagement_type': {'uuid': engagement_type},
-        'user_key': job_id,
+        'user_key': user_key,
         'fraction': int(working_time * 1000000),
         'validity': validity
     }
@@ -122,11 +125,30 @@ def connect_it_system_to_user(username, it_system, person_uuid):
     payload = {
         'type': 'it',
         'user_key': username,
-        'it-system': {'uuid': it_system},
+        'itsystem': {'uuid': it_system},
         'person': {'uuid': person_uuid},
         'validity': {
-            'from': None,
+            'from': '1900-01-01',
             'to': None
+        }
+    }
+    return payload
+
+
+def edit_engagement_type(titel):
+    payload = {
+        "attributter": {
+            "klasseegenskaber": [
+                {
+                    'titel': titel,
+                    'virkning': {
+                        'from': '1900-01-01',
+                        'to': 'infinity',
+                        'aktoerref': 'ddc99abd-c1b0-48c2-aef7-74fea841adae',
+                        'aktoertypekode': 'Bruger'
+                    }
+                }
+            ]
         }
     }
     return payload

@@ -245,8 +245,12 @@ if __name__ == '__main__':
     logger.info('Program started')
     ROOT = _find_org()
 
+    orgtyper_file = '/opt/customer/dataimport/ballerup_udvalg/OrgTyper.csv'
+    amr_medlemmer_file = '/opt/customer/dataimport/ballerup_udvalg/AMR-medlemmer.csv'
+    med_medlemmer_file = '/opt/customer/dataimport/ballerup_udvalg/MED-medlemmer.csv'
+
     if True:
-        nodes = create_tree('OrgTyper.csv')
+        nodes = create_tree(orgtyper_file)
         with open('nodes.p', 'wb') as f:
             pickle.dump(nodes, f, pickle.HIGHEST_PROTOCOL)
 
@@ -254,9 +258,9 @@ if __name__ == '__main__':
         nodes = pickle.load(f)
 
     logger.info('Create AMR')
-    nodes = create_udvalg(nodes, 'AMR-medlemmer.csv')
+    nodes = create_udvalg(nodes, amr_medlemmer_file)
     logger.info('Create MED')
-    nodes = create_udvalg(nodes, 'MED-medlemmer.csv')
+    nodes = create_udvalg(nodes, med_medlemmer_file)
 
     # root = min(nodes.keys())
     # from anytree import RenderTree

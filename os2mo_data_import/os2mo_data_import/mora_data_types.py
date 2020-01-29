@@ -215,7 +215,8 @@ class EngagementType(MoType):
     """
 
     def __init__(self, org_unit_ref, job_function_ref, engagement_type_ref,
-                 date_from, date_to=None, uuid=None, user_key=None, fraction=None):
+                 date_from, date_to=None, uuid=None, user_key=None, fraction=None,
+                 primary_ref=None):
         super().__init__()
 
         self.type_id = "engagement"
@@ -229,6 +230,9 @@ class EngagementType(MoType):
             self.fraction = fraction
         else:
             self.fraction = None
+
+        self.primary_ref = primary_ref
+        self.primary_uuid = None
 
         self.org_unit_ref = org_unit_ref
         self.org_unit_uuid = None
@@ -287,6 +291,11 @@ class EngagementType(MoType):
             hash_value.hexdigest(),
             encode=False
         )
+
+        if self.primary_uuid:
+            self.payload['primary'] = {
+                'uuid': self.primary_uuid
+            }
 
         # Reference the job function uuid
         if not self.job_function_uuid:
@@ -601,13 +610,18 @@ class ManagerType(MoType):
     """
 
     def __init__(self, org_unit, manager_type_ref, manager_level_ref,
-                 responsibility_list, date_from, date_to=None,
+                 responsibility_list, date_from, date_to=None, user_key=None,
                  address_uuid=None, address_type_ref=None, uuid=None):
         super().__init__()
 
         self.type_id = "manager"
 
         self.uuid = uuid
+
+        if user_key:
+            self.user_key = user_key
+        else:
+            self.user_key = None
 
         self.org_unit_ref = org_unit
         self.org_unit_uuid = None
@@ -641,6 +655,7 @@ class ManagerType(MoType):
         """
 
         self.payload = {
+            'user_key': self.user_key,
             "org_unit": {
                 "uuid": self.org_unit_uuid
             },
@@ -685,7 +700,8 @@ class OrganisationUnitType(MoType):
     """
 
     def __init__(self, name, type_ref, date_from, date_to=None,
-                 user_key=None, time_planning_ref=None, parent_ref=None, uuid=None):
+                 user_key=None, time_planning_ref=None, org_unit_level_ref=None,
+                 parent_ref=None, uuid=None):
         super().__init__()
 
         self.uuid = uuid
@@ -697,6 +713,9 @@ class OrganisationUnitType(MoType):
 
         self.type_ref = type_ref
         self.type_ref_uuid = None
+
+        self.org_unit_level_ref = org_unit_level_ref
+        self.org_unit_level_uuid = None
 
         self.time_planning_ref = time_planning_ref
         self.time_planning_ref_uuid = None
@@ -739,6 +758,11 @@ class OrganisationUnitType(MoType):
         if self.time_planning_ref:
             self.payload["time_planning"] = {
                 "uuid": self.time_planning_ref_uuid
+            }
+
+        if self.org_unit_level_ref:
+            self.payload['org_unit_level'] = {
+                'uuid': self.org_unit_level_uuid
             }
 
         return self._build_payload()
