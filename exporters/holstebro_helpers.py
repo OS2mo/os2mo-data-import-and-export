@@ -4,7 +4,7 @@
 #
 
 """
-Holstebro specific export functions, decorators and 
+Holstebro specific export functions, decorators and
 helper classes
 """
 import csv
@@ -27,13 +27,51 @@ SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
 logger = logging.getLogger('holstebro-helpers')
 
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+cfg_file = pathlib.Path.cwd() / 'settings' / 'holstebro.settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
 SETTINGS = json.loads(cfg_file.read_text())
 
 
-def export_to_essenslms(mh, nodes, filename):
+def holstebro_generic_export(mh, nodes, filename):
+
+    fieldnames = ['uuid',
+                  'name',
+                  'email',
+                  'sam_account',
+                  'phone',
+                  'location',
+                  'mobile',
+                  'loen_nummer',
+                  'forvaltning',  # direktørområde
+                  'omraade',  # chefområde
+                  'afdeling',  # nærmeste leders afdeling
+                  'gruppe',  # engagmentsafdeling
+                  'org_sti',
+                  'stilling',
+                  'engagements_type']
+
+    rows = []
+
+    for node in PreOrderIter(nodes['root']):
+        ou = mh.read_ou(node.name)
+        # Do not add "Afdelings-niveau"
+        if ou['org_unit_level']['name'] != 'Afdelings-niveau':
+            employees = mh.read_organisation_people(node.name, 'engagement', False)
+            manager = find_org_manager(mh, node)
+
+            org_path = f"{ou['location']}/{ou['name']}"
+
+            for uuid, employee in employees.items():
+                row = {}
+                address = mh.read_user_address(uuid, username=True, cpr=True)
+
+                """
+                Create generic mapping function from employee data to fieldnames
+                """
+
+
+def export_to_essenslms(mh, all_nodes, filename):
     """ Traverses a tree of OUs, for each OU finds the manager of the OU.
     : param nodes: The nodes of the OU tree
     """
@@ -48,35 +86,60 @@ def export_to_essenslms(mh, nodes, filename):
 
     rows = []
 
-    for node in PreOrderIter(nodes['root']):
-        ou = mh.read_ou(node.name)
-        # Do not add "Afdelings-niveau"
-        if ou['org_unit_level']['name'] != 'Afdelings-niveau':
+    roots = SETTINGS['exports.holstebro.roots']
 
-            employees = mh.read_organisation_people(node.name, 'engagement', False)
-            manager = find_org_manager(mh, node)
+    for root_uuid, nodes in all_nodes.items():
 
-            org_path = f"/Root/MOCH/Holstebro/Holstebro/{ou['location']}/{ou['name']}"
+        export_all = True if len(roots[root_uuid]) == 0 else False
 
-            logger.info(f"Exporting {org_path} to EssensLMS")
+        for node in PreOrderIter(nodes['root']):
+            # if this is only partial export of org and this org unit is not on the exports list
+            # or is a child of an org unit in the exports list, continue
+            export_node = False
+            node_parent = node
+            while(node_parent != None and export_node is False):
+                export_node = True if node_parent.name in roots[root_uuid] else False
+                node_parent = node_parent.parent  # look backwards in hierarchy
 
-            for uuid, employee in employees.items():
-                row = {}
-                address = mh.read_user_address(uuid, username=True, cpr=True)
+            if not export_all and not export_node:
+                continue
 
-                ou_role = f"{org_path}:Manager" if uuid == manager['uuid'] else f"{org_path}:User"
+            ou = mh.read_ou(node.name)
 
-                row = {'name': employee['Navn'],
-                       'handle': f"{employee['User Key']}".lstrip('0'),
-                       'email': address['E-mail'] if 'E-mail' in address else '',
-                       'ou_roles': ou_role.replace("\\", "/"),
-                       'user_roles': 'Holstebro',
-                       'locale': 'da',
-                       'tmp_password': 'true',
-                       'password': 'abcd1234'
-                       }
+            # Do not add "Afdelings-niveau"
+            if ou['org_unit_level']['name'] != 'Afdelings-niveau':
 
-                rows.append(row)
+                employees = mh.read_organisation_people(
+                    node.name, 'engagement', False)
+                manager = find_org_manager(mh, node)
+
+                org_path = f"/Root/MOCH/Holstebro/Holstebro/{ou['location']}/{ou['name']}"
+
+                logger.info(f"Exporting {org_path} to EssensLMS")
+
+                for uuid, employee in employees.items():
+                    row = {}
+                    address = mh.read_user_address(uuid, username=True, cpr=True)
+
+                    if uuid == manager['uuid']:  # this is the manager
+                        # Strip " led-adm" from path, since manager for "led-adm" is also manager for parent level
+                        replace_value = f" {SETTINGS['imports.holstebro.leaders.common_management_name']}"
+                        org_path = org_path.replace(replace_value, '', 1)
+                        ou_role = f"{org_path}:Manager"
+                    else:
+                        ou_role = f"{org_path}:User"
+
+                    row = {'name': employee['Navn'],
+                           'handle': f"{employee['User Key']}".lstrip('0'),
+                           'email': address['E-mail'] if 'E-mail' in address else '',
+                           'ou_roles': ou_role.replace("\\", "/"),
+                           'user_roles': 'Holstebro',
+                           'locale': 'da',
+                           'tmp_password': 'true',
+                           'password': 'abcd1234'
+                           }
+
+                    rows.append(row)
 
     my_options = {"extrasaction": "ignore",
                   "delimiter": ",",
@@ -87,90 +150,128 @@ def export_to_essenslms(mh, nodes, filename):
     mh._write_csv(fieldnames, rows, filename, **my_options)
 
 
-def export_to_planorama(mh, nodes, filename_org, filename_persons):
+def export_to_planorama(mh, all_nodes, filename_org, filename_persons, org_root_uuid):
     """ Traverses a tree of OUs, for each OU finds the manager of the OU.
     : param nodes: The nodes of the OU tree
     """
     fieldnames_persons = ['integrationsid',
                           'Username',
-                          # 'Password',
                           'Name',
                           'Title',
                           'Address',
-                          # 'Zip',
-                          # 'Country',
-                          # 'CPR',
                           'Email',
-                          # 'Number',
                           'Mobile',
                           'Telephone',
                           'Responsible',
-                          # 'Responsible_UUID',
                           'Company']
-    fieldnames_org = ['Root', 'Number', 'Name']
+    fieldnames_org = ['Root', 'Number', 'Name', 'Manager']
 
     rows_org = []
     rows_persons = []
 
-    for node in PreOrderIter(nodes['root']):
-        ou = mh.read_ou(node.name)
-        # Do not add "Afdelings-niveau"
-        if ou['org_unit_level']['name'] != 'Afdelings-niveau':
-            parent_ou_uuid = ou['parent']['uuid'] if ou['parent'] else ''
+    roots = SETTINGS['exports.holstebro.roots']
+    org_root_name = SETTINGS['municipality.name']
+    # insert root
+    row_org = {'Root': '', 'Number': org_root_uuid, 'Name': org_root_name}
+    rows_org.append(row_org)
+    logger.info(f"Exporting root unit: {org_root_name} to Planorama")
 
-            manager = find_org_manager(mh, node)
-            if(manager['uuid'] != ''):
-                manager_engagement = mh.read_user_engagement(manager['uuid'])
-            else:
-                manager_engagement = [{'user_key': ''}]
+    for root_uuid, nodes in all_nodes.items():
 
-            row_org = {'Root': parent_ou_uuid,
+        # is this a partail export
+        export_all = True if len(roots[root_uuid]) == 0 else False
+
+        if not export_all:
+            # partial export
+            # insert this root_uuid in rows_org with holstebro_uuid as parent
+            t_node = Node(root_uuid)
+            ou = mh.read_ou(root_uuid)
+
+            # find this unit's manager
+            manager = find_org_manager(mh, t_node)
+
+            row_org = {'Root': org_root_uuid,
                        'Number': ou['uuid'],
-                       'Name': ou['name']
-                       }
+                       'Name': ou['name'],
+                       'Manager': manager['uuid']}
+
             rows_org.append(row_org)
             logger.info(f"Exporting {ou['name']} to Planorama")
 
-            employees = mh.read_organisation_people(node.name, 'engagement', False)
-            for uuid, employee in employees.items():
-                row = {}
-                address = mh.read_user_address(uuid, username=True, cpr=True)
-                # manager = mh.read_engagement_manager(employee['Engagement UUID'])
+        for node in PreOrderIter(nodes['root']):
+            # if this is only partial export of org and this org unit is not on the exports list
+            # or is a child of an org unit in the exports list, continue
+            export_node = False
+            node_parent = node
+            while(node_parent != None and export_node is False):
+                export_node = True if node_parent.name in roots[root_uuid] else False
+                node_parent = node_parent.parent  # look backwards in hierarchy
 
-                # is this employee the manager for the department? Then fetch the parent ou's manager
-                if uuid != manager['uuid']:
-                    responsible = manager_engagement[0]['user_key']
+            if not export_all and not export_node:
+                continue
+
+            ou = mh.read_ou(node.name)
+            # Do not add "Afdelings-niveau"
+            if ou['org_unit_level']['name'] != 'Afdelings-niveau':
+
+                # find this unit's manager
+                manager = find_org_manager(mh, node)
+
+                if(manager['uuid'] != ''):
+                    manager_engagement = mh.read_user_engagement(manager['uuid'])
                 else:
-                    parent_manager = find_org_manager(mh, node.parent)
-                    if(parent_manager['uuid'] != ''):
-                        pmanager_engagement = mh.read_user_engagement(
-                            parent_manager['uuid'])
+                    manager_engagement = [{'user_key': ''}]
+
+                if not export_all:  # and ou['uuid'] in root[root_uuid]
+                    # partial export
+                    # add this ou directly under the root_uuid thats being exported
+                    row_org = {'Root': root_uuid, 'Number': ou['uuid'],
+                               'Name': ou['name'], 'Manager': manager['uuid']}
+                else:
+                    parent_ou_uuid = ou['parent']['uuid'] if ou['parent'] else org_root_uuid
+                    row_org = {'Root': parent_ou_uuid, 'Number': ou['uuid'],
+                               'Name': ou['name'], 'Manager': manager['uuid']}
+
+                rows_org.append(row_org)
+                logger.info(f"Exporting {ou['name']} to Planorama")
+
+                # Read all employees in org unit and add them to employee export rows
+                employees = mh.read_organisation_people(
+                    node.name, 'engagement', False)
+                for uuid, employee in employees.items():
+                    row = {}
+                    address = mh.read_user_address(uuid, username=True, cpr=True)
+
+                    # is this employee the manager for the department? Then fetch the parent ou's manager
+                    if uuid != manager['uuid']:
+                        responsible = manager_engagement[0]['user_key']
                     else:
-                        pmanager_engagement = [{'user_key': ''}]
-                    responsible = pmanager_engagement[0]['user_key']
+                        parent_manager = find_org_manager(mh, node.parent)
+                        if(parent_manager['uuid'] != ''):
+                            pmanager_engagement = mh.read_user_engagement(
+                                parent_manager['uuid'])
+                        else:
+                            pmanager_engagement = [{'user_key': ''}]
 
-                row = {'integrationsid': uuid,
-                       'Username': f"HK-{employee['User Key']}",
-                       # 'Password': '',
-                       'Name': employee['Navn'],
-                       'Title': employee['Stillingsbetegnelse'][0] if len(employee['Stillingsbetegnelse']) > 0 else '',
-                       'Address': address['Lokation'] if 'Lokation' in address else '',
-                       # 'Zip': '',
-                       # 'Country': '',
-                       # 'CPR': address['CPR-Nummer'],
-                       'Email': address['E-mail'] if 'E-mail' in address else '',
-                       # 'Number': '',
-                       'Mobile': address['Mobiltelefon'] if 'Mobiltelefon' in address else '',
-                       'Telephone': address['Telefon'] if 'Telefon' in address else '',
-                       'Responsible': f"HK-{responsible}" if responsible != '' else '',
-                       # 'Responsible_UUID': manager['uuid'] if 'uuid' in manager else '',
-                       'Company': employee['Org-enhed UUID']
-                       }
+                        responsible = pmanager_engagement[0]['user_key']
 
-                rows_persons.append(row)
+                    row = {'integrationsid': uuid,
+                           'Username': f"HK-{employee['User Key']}",
+                           'Name': employee['Navn'],
+                           'Title': employee['Stillingsbetegnelse'] if 'Stillingsbetegnelse' in employee else '',
+                           'Address': address['Lokation'] if 'Lokation' in address else '',
+                           'Email': address['E-mail'] if 'E-mail' in address else '',
+                           'Mobile': address['Mobiltelefon'] if 'Mobiltelefon' in address else '',
+                           'Telephone': address['Telefon'] if 'Telefon' in address else '',
+                           'Responsible': f"HK-{responsible}" if responsible != '' else '',
+                           'Company': employee['Org-enhed UUID']
+                           }
+
+                    rows_persons.append(row)
 
     logger.info(f"Writing {len(rows_persons)} rows to {filename_persons}")
     mh._write_csv(fieldnames_persons, rows_persons, filename_persons)
+
     logger.info(f"Writing {len(rows_org)} rows to {filename_org}")
     mh._write_csv(fieldnames_org, rows_org, filename_org)
 
@@ -196,7 +297,7 @@ def update_org_with_hk_managers(mh, nodes):
                     ou['parent'], associated_employees[manager_uuid])
 
             # This manager is now manager for parent ou
-            # if parent ou's name ends with "led/adm", make employee
+            # if parent ou's name ends with "led-adm", make employee
             # manager for the parent ou's parent as well.
             if ou['parent']['parent'] != None and ou['parent']['name'].count(SETTINGS['imports.holstebro.leaders.common_management_name']) == 1:
                 manager_uuid = list(associated_employees)[0]
@@ -206,7 +307,7 @@ def update_org_with_hk_managers(mh, nodes):
 
 def find_org_manager(mh, node):
     """
-    Searches for a manager for the given node. 
+    Searches for a manager for the given node.
     Returns the manager directly associated with the node
     OR the enherited manager from higherlevel
     If no managers at all in organisation, the empty
