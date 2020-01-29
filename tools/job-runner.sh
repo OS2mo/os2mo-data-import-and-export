@@ -206,7 +206,7 @@ exports_queries_ballerup(){
         [ -d "${WORK_DIR}" ] || mkdir "${WORK_DIR}"
         cd "${WORK_DIR}"
         ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
-        mv "${WORK_DIR}"/*.csv "${EXPORTS_DIR}"
+        cp "${WORK_DIR}"/*.csv "${EXPORTS_DIR}"
     )
 }
 
