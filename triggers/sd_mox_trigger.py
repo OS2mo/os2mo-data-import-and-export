@@ -50,7 +50,7 @@ sdmox_config = {}
 
 
 def read_config(app):
-    cfg_file = custpath / "settings" / app.config["CUSTOMER_CONFIG_FILE"]
+    cfg_file = custpath / "settings" / "settings.json"
     cfg = json.loads(cfg_file.read_text())
     sdmox_config.update(
         sd.get_prefixed_configuration(
@@ -154,6 +154,8 @@ def ou_before_edit(data):
         payload = mox.payload_create(data["uuid"], unit, parent)
         operation = "flyt"
         mox.move_unit(test_run=False, **payload)
+        # when moving, do not check against name
+        payload["unit_name"] = None
 
     mox.check_unit(operation=operation, **payload)
 
@@ -240,3 +242,5 @@ def register(app):
         Trigger.RequestType.EDIT,
         Trigger.Event.ON_BEFORE
     )(address_before_edit)
+
+    logger.warning("registered")
