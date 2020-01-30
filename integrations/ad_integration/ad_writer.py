@@ -198,10 +198,14 @@ class ADWriter(AD):
         unit_secure_email = None
         unit_public_email = None
         for mail in email:
-            if mail['visibibility']['scope'] == 'PUBLIC':
-                unit_public_email = mail['value']
-            if mail['visibibility']['scope'] == 'SECRET':
+            if mail['visibibility'] is None:
+                # If visibility is not set, we assume it is non-public.
                 unit_secure_email = mail['value']
+            else:
+                if mail['visibibility']['scope'] == 'PUBLIC':
+                    unit_public_email = mail['value']
+                if mail['visibibility']['scope'] == 'SECRET':
+                    unit_secure_email = mail['value']
 
         postal_code = city = streetname = 'Ukendt'
         if postal:
