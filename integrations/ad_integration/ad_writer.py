@@ -253,7 +253,8 @@ class ADWriter(AD):
             if len(manager_ad_info) == 1:
                 manager_sam = manager_ad_info[0]['SamAccountName']
             else:
-                logger.debug('Managers in AD: {}'.format(manager_ad_info))
+                msg = 'Searching for {}, found in AD: {}'
+                logger.debug(msg.format(manager['Navn'], manager_ad_info))
                 raise ad_exceptions.ManagerNotUniqueFromCprException()
 
         mo_values = {
