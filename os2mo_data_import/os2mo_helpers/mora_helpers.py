@@ -181,7 +181,7 @@ class MoraHelper(object):
         Currently reads only one, theroretically more than root org can exist.
         :return: UUID of root organisation
         """
-        org_id = self._mo_lookup(uuid=None, url='o')
+        org_id = self._mo_lookup(uuid=None, url='o/')
         return org_id[0]['uuid']
 
     def read_all_users(self, limit=None):
