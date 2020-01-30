@@ -115,7 +115,7 @@ class sdMox(object):
     def _update_virkning(self, from_date, to_date=None):
         self.virkning = smp.sd_virkning(from_date, to_date)
         if to_date is None:
-            to_date = datetime.date(2099, 12, 31)
+            to_date = datetime.date(9999, 12, 31)
         if not from_date.day == 1:
             raise SdMoxError('Startdato skal altid være den første i en måned')
         self._times = {
@@ -146,10 +146,10 @@ class sdMox(object):
             'UUIDIndicator': 'true',
             'EmploymentDepartmentIndicator': 'false'
         }
-        if unit_code:
-            params['DepartmentIdentifier'] = unit_code
         if unit_uuid:
             params['DepartmentUUIDIdentifier'] = unit_uuid
+        elif unit_code:
+            params['DepartmentIdentifier'] = unit_code
         if unit_level:
             params['DepartmentLevelIdentifier'] = unit_level
         logger.debug('Read department, params: {}'.format(params))
