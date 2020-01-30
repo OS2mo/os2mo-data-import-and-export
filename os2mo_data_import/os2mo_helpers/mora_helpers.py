@@ -423,21 +423,23 @@ class MoraHelper(object):
         unit = relationer['tilknyttedeenheder'][0]
 
         unit_manager = self.read_ou_manager(unit['uuid'], inherit=True)
+        if unit_manager is None:
+            raise Exception('Unable to find manager')
+
         if unit_manager['uuid'] != user['uuid']:
             # In this case the engagement is not manager for itself
             user_manager = unit_manager
         else:
+            mo_unit = self.read_ou(unit['uuid'])
             while unit_manager['uuid'] == user['uuid']:
-                mo_unit = self.read_ou(unit['uuid'])
                 if mo_unit['parent'] is None:
                     # Self manager!
                     break
                 parent_uuid = mo_unit['parent']['uuid']
                 unit_manager = self.read_ou_manager(parent_uuid, inherit=True)
+                mo_unit = self.read_ou(parent_uuid)
             user_manager = unit_manager
 
-        if user_manager is None:
-            raise Exception('Unable to find manager')
         return user_manager
 
     def read_ou_manager(self, unit_uuid, inherit=False):
