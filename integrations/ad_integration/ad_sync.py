@@ -1,6 +1,8 @@
 import json
+import time
 import pathlib
 import logging
+import requests
 from datetime import datetime
 
 import ad_reader
@@ -40,6 +42,14 @@ class AdMoSync(object):
                                  use_cache=False)
         self.org = self.helper.read_organisation()
 
+        # Possibly get IT-system directly from LoRa for better performance.
+        lora_speedup = self.settings.get(
+            'integrations.ad.ad_mo_sync_direct_lora_speedup', False)
+        if lora_speedup:
+            self.mo_ad_users = self._cahce_it_systems()
+        else:
+            self.mo_ad_users = {}
+
         mo_visibilities = self.helper.read_classes_in_facet('visibility')[0]
         self.visibility = {
             'PUBLIC': self.settings['address.visibility.public'],
@@ -60,6 +70,40 @@ class AdMoSync(object):
 
         self.ad_reader.cache_all()
         logger.info('Done with AD caching')
+
+    def _cahce_it_systems(self):
+        logger.info('Cache all it-systems')
+        mo_ad_users = {}
+        # Get LoRa url from settings
+        url = '/organisation/organisationfunktion?funktionsnavn=IT-system'
+        response = requests.get(self.settings['mox.base'] + url)
+        uuid_list = response.json()
+        it_systems = []
+        build_up = '?'
+
+        for uuid in uuid_list['results'][0]:
+            if build_up.count('&') < 96:
+                build_up += 'uuid=' + uuid + '&'
+                continue
+
+            url = '/organisation/organisationfunktion' + build_up[:-1]
+            response = requests.get(self.settings['mox.base'] + url)
+            data = response.json()
+            it_systems += data['results'][0]
+            build_up = '?'
+
+        for system in it_systems:
+            reg = system['registreringer'][0]
+            user_key = (reg['attributter']['organisationfunktionegenskaber'][0]
+                        ['brugervendtnoegle'])
+            user_uuid = reg['relationer']['tilknyttedebrugere'][0]['uuid']
+            it_system = reg['relationer']['tilknyttedeitsystemer'][0]['uuid']
+
+            if it_system == self.mapping['it_systems']['samAccountName']:
+                mo_ad_users[user_uuid] = user_key
+
+        logger.info('Done Cacheing all it-systems')
+        return mo_ad_users
 
     def _read_mo_classes(self):
         """
@@ -149,7 +193,7 @@ class AdMoSync(object):
             payload[0]['data']['visibility'] = {'uuid': self.visibility[klasse[1]]}
         logger.debug('Edit payload: {}'.format(payload))
         response = self.helper._mo_post('details/edit', payload)
-        logger.debug('Response: {}'.format(response))
+        logger.debug('Response: {}'.format(response.text))
 
     def _update_single_user(self, uuid, ad_object):
         """
@@ -157,7 +201,34 @@ class AdMoSync(object):
         :param uuid: uuid of the user.
         :param ad_object: Dict with the AD information for the user.
         """
+
+        # First, check for AD account:
+        t = time.time()
+
+        if self.mo_ad_users:
+            username = self.mo_ad_users.get(uuid, '')
+        else:
+            username = self.helper.get_e_username(uuid, 'Active Directory')
+        print('Tid for username read: {}'.format(time.time() - t))
+        # If username is blank, we have found a user that needs to be assiged to an
+        # IT-system.
+        if username is '':
+            payload = {
+                'type': 'it',
+                'user_key': ad_object['SamAccountName'],
+                'itsystem': {'uuid': self.mapping['it_systems']['samAccountName']},
+                'person': {'uuid': uuid},
+                'validity': VALIDITY
+            }
+            logger.debug('Create it system payload: {}'.format(payload))
+            response = self.helper._mo_post('details/create', payload)
+            logger.debug('Response: {}'.format(response.text))
+            response.raise_for_status()
+
+        t = time.time()
         fields_to_edit = self._find_existing_ad_address_types(uuid)
+        print('Tid for at finde adresser: {}'.format(time.time() - t))
+
         # Assume no existing adresses, we fix that later
         for field, klasse in self.mapping['user_addresses'].items():
             if field not in ad_object:
@@ -184,10 +255,10 @@ class AdMoSync(object):
         """
         i = 0
         employees = self._read_all_mo_users()
-
         for employee in employees:
             i = i + 1
-            print('Progress: {}/{}'.format(i, len(employees)))
+            if i % 100 == 0:
+                print('Progress: {}/{}'.format(i, len(employees)))
             logger.info('Start sync of {}'.format(employee['uuid']))
             user = self.helper.read_user(employee['uuid'])
             response = self.ad_reader.read_user(cpr=user['cpr_no'], cache_only=True)
