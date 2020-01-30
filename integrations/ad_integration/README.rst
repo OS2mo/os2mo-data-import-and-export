@@ -182,18 +182,59 @@ Synkronisering
 Der eksisterer (udvikles) to synkroniseringstjenester, en til at synkronisere felter
 fra AD til MO, og en til at synkronisere felter fra MO til AD.
 
-Synkronisering fra AD til MO foregår via programmet ``ad_sync.py``. Programmet vil
-(for nuværende) i udgangspunktet opdaterere alle relevante værdier i MO fra de
-tilsvarende i AD for alle medarbejdere.
-Dette foregår ved at programmet først udtrækker samtlige medarbejdere fra MO, der
-itereres hen over denne liste, og information fra AD'et slås op med cpr nummer som
-nøgle. Hvis brugeren findes i AD, udlæses alle parametre angivet i ``AD_PROPERTIES``
-og de relevante af dem synkroniseres til MO. Hvad der er relevant, angives i
-øjeblikket som en hårdkodet liste direkte i synkroniseringsværktøkjet, de nuværende
-eksempler går alle på forskellige former for adresser.
+AD til MO
++++++++++
+
+Synkronisering fra AD til MO foregår via programmet ``ad_sync.py``.
+
+Programmet opdaterer alle værdier i MO i henhold til den feltmapning som er angivet
+i `settings.json`. Det er muligt at synkronisere adresseoplysninger, samt at
+oprette et IT-system på brugeren, hvis brugeren findes i AD, men endnu ikke har et
+tilknyttet IT-system i MO. Et eksempel på en feltmapning angives herunder:
+
+.. code-block:: json
+
+    "integrations.ad.ad_mo_sync_mapping": {
+	"user_addresses": {
+	    "telephoneNumber": ["a6dbb837-5fca-4f05-b369-8476a35e0a95", "INTERNAL"],
+	    "pager": ["d9cd7a04-a992-4b31-9534-f375eba2f1f4 ", "PUBLIC"],
+	    "EmailAddress": ["fbd70da1-ad2e-4373-bb4f-2a431b308bf1", null],
+	    "mobile": ["6e7131a0-de91-4346-8607-9da1b576fc2a ", "PUBLIC"]
+	},
+	"it_systems": {
+	    "samAccountName": "d2998fa8-9d0f-4a2c-b80e-c754c72ef094"
+	}
+    }
+
+For adresser angives en synlighed, som kan antage værdien `PUBLIC`, `INTERNAL`,
+`SECRET` eller `null` som angiver henholdsvis at synligheden i MO sættes til
+henholdsvis offentlig, intern, hemmelig, eller ikke angivet. UUID'er er på
+de tilhørende adresseklasser i MO som AD felterne skal mappes til.
+
+Hvis der for en given bruger er felter i feltmapningen som ikke findes i AD, vil
+disse felter bliver sprunget over, men de øvrige felter vil stadig blive
+sykroniseret.
+
+Selve synkroniseringen foregår ved at programmet først udtrækker samtlige
+medarbejdere fra MO, der itereres hen over denne liste, og information fra AD'et
+slås op med cpr-nummer som nøgle. Hvis brugeren findes i AD, udlæses alle parametre
+angivet i ``AD_PROPERTIES`` og de af dem som figurerer i feltmapningen synkroniseres
+til MO.
+
+Integrationen vil som udgangspunkt ikke synkronisere fra et eventuelt skole AD, med
+mindre nøglen `integrations.ad.skip_school_ad_to_mo` sættes til `false`.
 
 Da AD ikke understøtter gyldighedstider, antages alle informationer uddraget fra AD
 at gælde fra 'i dag' og til evig tid.
+
+Slutteligt skal det nævnes, at implemeneringen af synkroniseringen understøtter
+muligheden for at opnå en betydelig hastighedsforbering ved at tillade direkte adgang
+til LoRa, denne funktion aktiveres med nøglen
+`integrations.ad.ad_mo_sync_direct_lora_speedup` og reducerer kørselstiden med ca.
+50%.
+
+MO til AD
++++++++++
 
 Synkronisering fra MO til AD foregår efter en algoritme hvor der itereres hen over
 alle AD brugere. Hver enkelt bruger slås op i MO via feltet `AD_WRITE_UUID` og
