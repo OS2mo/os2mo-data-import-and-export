@@ -29,7 +29,7 @@ def main():
 
     for user in all_users:
         if mo_uuid_field not in user:
-            msg = 'User does not have a {} field - skipping'
+            msg = 'User {} does not have a {} field - skipping'
             logger.info(msg.format(user['SamAccountName'], mo_uuid_field))
             continue
         msg = 'Now syncing: {}, {}'.format(user['SamAccountName'],
