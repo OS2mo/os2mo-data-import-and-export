@@ -45,7 +45,7 @@ class AdMoSync(object):
         lora_speedup = self.settings.get(
             'integrations.ad.ad_mo_sync_direct_lora_speedup', False)
         if lora_speedup:
-            self.mo_ad_users = self._cahce_it_systems()
+            self.mo_ad_users = self._cache_it_systems()
         else:
             self.mo_ad_users = {}
 
@@ -70,7 +70,7 @@ class AdMoSync(object):
         self.ad_reader.cache_all()
         logger.info('Done with AD caching')
 
-    def _cahce_it_systems(self):
+    def _cache_it_systems(self):
         logger.info('Cache all it-systems')
         mo_ad_users = {}
         # Get LoRa url from settings
@@ -101,7 +101,7 @@ class AdMoSync(object):
             if it_system == self.mapping['it_systems']['samAccountName']:
                 mo_ad_users[user_uuid] = user_key
 
-        logger.info('Done Cacheing all it-systems')
+        logger.info('Done caching all it-systems')
         return mo_ad_users
 
     def _read_mo_classes(self):
