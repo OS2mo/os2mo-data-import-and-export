@@ -348,7 +348,7 @@ class OpusImport(object):
 
         org_unit = employee['orgUnit']
         job_id = employee['@id']
-        engagement_uuid = opus_helpers.generate_uuid(job_id)
+        # engagement_uuid = opus_helpers.generate_uuid(job_id)
 
         # Every engagement is initially imported as non-primary,
         # a seperate script will correct this after import.
@@ -356,7 +356,7 @@ class OpusImport(object):
         logger.info('Add engagement: {} to {}'.format(job_id, cpr))
         self.importer.add_engagement(
             employee=cpr,
-            uuid=str(engagement_uuid),
+            # uuid=str(engagement_uuid),
             organisation_unit=org_unit,
             primary_ref='non-primary',
             user_key=job_id,

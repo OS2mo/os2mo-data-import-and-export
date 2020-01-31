@@ -86,5 +86,7 @@
         "it_systems":{
            "samAccountName": ""
         }
-    }
+    },
+    "integrations.ad.ad_mo_sync_direct_lora_speedup": false,
+    "integrations.ad.skip_school_ad_to_mo": false
 }
