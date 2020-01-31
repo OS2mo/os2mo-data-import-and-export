@@ -40,7 +40,7 @@ def main():
             response = writer.sync_user(user[mo_uuid_field], user)
             logger.debug('Respose to sync: {}'.format(response))
         except ad_exceptions.ManagerNotUniqueFromCprException:
-            msg = 'Did ot find a unique manager for {}'.format(user[mo_uuid_field])
+            msg = 'Did not find a unique manager for {}'.format(user[mo_uuid_field])
             logger.error(msg)
         except ad_exceptions.UserNotFoundException:
             msg = 'User {}, {} with uuid {} was not found i MO, unable to sync'
