@@ -207,9 +207,9 @@ tilknyttet IT-system i MO. Et eksempel på en feltmapning angives herunder:
     }
 
 For adresser angives en synlighed, som kan antage værdien `PUBLIC`, `INTERNAL`,
-`SECRET` eller `null` som angiver henholdsvis at synligheden i MO sættes til
-henholdsvis offentlig, intern, hemmelig, eller ikke angivet. UUID'er er på
-de tilhørende adresseklasser i MO som AD felterne skal mappes til.
+`SECRET` eller `null` som angiver at synligheden i MO sættes til henholdsvis
+offentlig, intern, hemmelig, eller ikke angivet. UUID'er er på de tilhørende
+adresseklasser i MO som AD felterne skal mappes til.
 
 Hvis der for en given bruger er felter i feltmapningen som ikke findes i AD, vil
 disse felter bliver sprunget over, men de øvrige felter vil stadig blive
@@ -218,8 +218,8 @@ sykroniseret.
 Selve synkroniseringen foregår ved at programmet først udtrækker samtlige
 medarbejdere fra MO, der itereres hen over denne liste, og information fra AD'et
 slås op med cpr-nummer som nøgle. Hvis brugeren findes i AD, udlæses alle parametre
-angivet i ``AD_PROPERTIES`` og de af dem som figurerer i feltmapningen synkroniseres
-til MO.
+angivet i `integrations.ad.properties` og de af dem som figurerer i feltmapningen
+synkroniseres til MO.
 
 Integrationen vil som udgangspunkt ikke synkronisere fra et eventuelt skole AD, med
 mindre nøglen `integrations.ad.skip_school_ad_to_mo` sættes til `false`.
@@ -240,14 +240,14 @@ Synkronisering fra MO til AD foregår efter en algoritme hvor der itereres hen o
 alle AD brugere. Hver enkelt bruger slås op i MO via feltet angivet i nøglen
 `integrations.ad.write.uuid_field` og informatione fra MO synkroniseres
 til AD i henhold til den lokale feltmapning. AD-integrationen stiller et antal
-værdier til rådighed, som det er muligt at synkronisere til felter i AD, flere
-felter formentlig dukke op efterhånden som integrationen udvikles.
+værdier til rådighed, som det er muligt at synkronisere til felter i AD. Flere
+lan tilføjes efterhånden som integrationen udvikles.
 
- * `employment_number`: Lønsystemets ansættelsesnummer for medarbejderns primære
+ * `employment_number`: Lønsystemets ansættelsesnummer for medarbejderens primære
    engagement.
  * `end_date`: Slutdato for længste ansættelse i MO, hvis en ansættelse ikke har
-   nogen kendt slutdato, angives 9999-12-31
- * `uuid`: Brugerens uuid i MO
+   nogen kendt slutdato, angives 9999-12-31.
+ * `uuid`: Brugerens UUID i MO.
  * `title`: Stillingsbetegnelse for brugerens primære engagement.
  * `unit`: Navn på enheden for brugerens primære engagement.
  * `unit_uuid`: UUID på enheden for brugerens primære engagement.
@@ -268,8 +268,8 @@ felter formentlig dukke op efterhånden som integrationen udvikles.
 
 Felterne `forvaltning` og `location` synkroniseres altid til felterne angivet i
 nøglerner `integrations.ad.write.forvaltning_type` og
-`integrations.ad.write.org_unit_field`, og skal derfor ikke angives specificeres
-yderligere i feltmapningen.
+`integrations.ad.write.org_unit_field`, og skal derfor ikke specificeres yderligere
+i feltmapningen.
 
 Desuden synkroniseres  altid AD felterne:
  * `Displayname` Synkroniseres til medarbejderens fulde navn
