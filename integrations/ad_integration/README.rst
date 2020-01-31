@@ -237,8 +237,60 @@ MO til AD
 +++++++++
 
 Synkronisering fra MO til AD foregår efter en algoritme hvor der itereres hen over
-alle AD brugere. Hver enkelt bruger slås op i MO via feltet `AD_WRITE_UUID` og
-informatione fra MO synkroniseres til AD.
+alle AD brugere. Hver enkelt bruger slås op i MO via feltet angivet i nøglen
+`integrations.ad.write.uuid_field` og informatione fra MO synkroniseres
+til AD i henhold til den lokale feltmapning. AD-integrationen stiller et antal
+værdier til rådighed, som det er muligt at synkronisere til felter i AD, flere
+felter formentlig dukke op efterhånden som integrationen udvikles.
+
+ * `employment_number`: Lønsystemets ansættelsesnummer for medarbejderns primære
+   engagement.
+ * `end_date`: Slutdato for længste ansættelse i MO, hvis en ansættelse ikke har
+   nogen kendt slutdato, angives 9999-12-31
+ * `uuid`: Brugerens uuid i MO
+ * `title`: Stillingsbetegnelse for brugerens primære engagement.
+ * `unit`: Navn på enheden for brugerens primære engagement.
+ * `unit_uuid`: UUID på enheden for brugerens primære engagement.
+ * `unit_user_key`: Brugervendt nøgle for enheden for brugerens primære engagement,
+   dette vil typisk være lønssystemets kortnavn for enheden.
+ * `unit_public_email`: Email på brugerens primære enhed med synligheen `offentlig`
+ * `unit_secure_email`: Email på brugerens primære enhed med synligheen `hemmelig`.
+   Hvis enheden kun har email adresser uden angivet synlighed, vil den blive agivet
+   her.
+ * `unit_postal_code`: Postnummer for brugerens primære enhed.
+ * `unit_city`: By for brugerens primære enhed.
+ * `unit_streetname`: Gadenavn for brugerens primære enhed.
+ * `location`: Fuld organisatorisk sti til brugerens primære enhed.
+ * `forvaltning`: Forvaltingen som brugerens primære engagement hører under.
+ * `manager_name`: Navn på leder for brugerens primære engagement.
+ * `manager_sam`: SamAccountName for leder for brugerens primære engagement.
+ * `manager_mail`: Email på lederen for brugerens primære engagement.
+
+Felterne `forvaltning` og `location` synkroniseres altid til felterne angivet i
+nøglerner `integrations.ad.write.forvaltning_type` og
+`integrations.ad.write.org_unit_field`, og skal derfor ikke angives specificeres
+yderligere i feltmapningen.
+
+Desuden synkroniseres  altid AD felterne:
+ * `Displayname` Synkroniseres til medarbejderens fulde navn
+ * `GivenName`: Synkroniseres til medarbejderens fornavn
+ * `SurName`: Synkroniseres til medarbejderens efternavn
+ * `EmployeeNumber`: Synkroniseres til `employment_number`
+
+Yderligere synkronisering fortages i henhold til en lokal feltmaping, som eksempelvis
+kan se ud som dette:
+
+.. code-block:: json
+
+   "integrations.ad_writer.mo_to_ad_fields": {
+	"unit_postal_code": "postalCode",
+	"unit_city": "l",
+	"unit_user_key": "department",
+	"unit_streetname": "streetAddress",
+	"unit_public_email": "extensionAttribute3",
+	"title": "Title",
+	"unit": "extensionAttribute2"
+   }
 
 
 Afvikling af PoerShell templates
