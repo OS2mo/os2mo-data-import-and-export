@@ -1,5 +1,4 @@
 import json
-import time
 import pathlib
 import logging
 import requests
@@ -203,13 +202,10 @@ class AdMoSync(object):
         """
 
         # First, check for AD account:
-        t = time.time()
-
         if self.mo_ad_users:
             username = self.mo_ad_users.get(uuid, '')
         else:
             username = self.helper.get_e_username(uuid, 'Active Directory')
-        print('Tid for username read: {}'.format(time.time() - t))
         # If username is blank, we have found a user that needs to be assiged to an
         # IT-system.
         if username is '':
@@ -225,9 +221,7 @@ class AdMoSync(object):
             logger.debug('Response: {}'.format(response.text))
             response.raise_for_status()
 
-        t = time.time()
         fields_to_edit = self._find_existing_ad_address_types(uuid)
-        print('Tid for at finde adresser: {}'.format(time.time() - t))
 
         # Assume no existing adresses, we fix that later
         for field, klasse in self.mapping['user_addresses'].items():
