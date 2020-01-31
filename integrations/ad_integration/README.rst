@@ -88,6 +88,31 @@ En test af læsning foregår i flere trin:
    en manglende rettighed til at læse cpr-nummer feltet.
  * Der testes om de returnerede svar indeholder mindst et eksempel på disse tegn:
    æ, ø, å, @ som en test af at tegnsættet er korrekt sat op.
+
+En test af skrivning foregår efter denne opskrift:
+
+ * Der testes for om de nødvendige værdier er til stede i ``settings.json``, det
+   drejer sig om nøglerne:
+   * ``integrations.ad.write.uuid_field``: AD feltet som rummer MOs bruger-UUID
+   * ``integrations.ad.write.forvaltning_field``: AD feltet hvor MO skriver
+     forvaltning for brugerens primære engagement.
+   * ``integrations.ad.write.org_unit_field``: Navnet på det felt i AD, hvor MO
+   skriver enhedshierakiet for den enhed, hvor medarbejderen har sin primære
+   ansættelse.
+   * ``integrations.ad.write.upn_end``: Endelse for feltet UPN.
+   * ``integrations.ad.write.forvaltning_type``: UUID på den klasse som beskriver
+     at en enhed er en forvalting. Dette kan være en enhedstype eller et
+     enhedsniveau.
+
+ * Der udrages et antal tilfældige brugere fra AD (mindst 10), og disse tjekkes for
+   tilstædeværelsen af de tre AD felter beskrevet i
+   ``integrations.ad.write.uuid_field``, ``integrations.ad.write.forvaltning_field``
+   og ``integrations.ad.write.org_unit_field``. Hvis hvert felt findes hos mindst
+   en bruger, godkendes den lokale AD opsætning.
+
+Hvis disse to tests begge går igennem, anses opsætningen for at være klar til
+AD skriv integrationen.
+
    
 Brug af integrationen
 =====================
@@ -243,32 +268,32 @@ til AD i henhold til den lokale feltmapning. AD-integrationen stiller et antal
 værdier til rådighed, som det er muligt at synkronisere til felter i AD. Flere
 lan tilføjes efterhånden som integrationen udvikles.
 
- * `employment_number`: Lønsystemets ansættelsesnummer for medarbejderens primære
+ * ``employment_number``: Lønsystemets ansættelsesnummer for medarbejderens primære
    engagement.
- * `end_date`: Slutdato for længste ansættelse i MO, hvis en ansættelse ikke har
+ * ``end_date``: Slutdato for længste ansættelse i MO, hvis en ansættelse ikke har
    nogen kendt slutdato, angives 9999-12-31.
- * `uuid`: Brugerens UUID i MO.
- * `title`: Stillingsbetegnelse for brugerens primære engagement.
- * `unit`: Navn på enheden for brugerens primære engagement.
- * `unit_uuid`: UUID på enheden for brugerens primære engagement.
- * `unit_user_key`: Brugervendt nøgle for enheden for brugerens primære engagement,
+ * ``uuid``: Brugerens UUID i MO.
+ * ``title``: Stillingsbetegnelse for brugerens primære engagement.
+ * ``unit``: Navn på enheden for brugerens primære engagement.
+ * ``unit_uuid``: UUID på enheden for brugerens primære engagement.
+ * ``unit_user_key``: Brugervendt nøgle for enheden for brugerens primære engagement,
    dette vil typisk være lønssystemets kortnavn for enheden.
- * `unit_public_email`: Email på brugerens primære enhed med synligheen `offentlig`
- * `unit_secure_email`: Email på brugerens primære enhed med synligheen `hemmelig`.
-   Hvis enheden kun har email adresser uden angivet synlighed, vil den blive agivet
+ * ``unit_public_email``: Email på brugerens primære enhed med synligheen ``offentlig``
+ * ``unit_secure_email``: Email på brugerens primære enhed med synligheen ``hemmelig``.
+   Hvis enheden kun har email-adresser uden angivet synlighed, vil den blive agivet
    her.
- * `unit_postal_code`: Postnummer for brugerens primære enhed.
- * `unit_city`: By for brugerens primære enhed.
- * `unit_streetname`: Gadenavn for brugerens primære enhed.
- * `location`: Fuld organisatorisk sti til brugerens primære enhed.
- * `forvaltning`: Forvaltingen som brugerens primære engagement hører under.
- * `manager_name`: Navn på leder for brugerens primære engagement.
- * `manager_sam`: SamAccountName for leder for brugerens primære engagement.
- * `manager_mail`: Email på lederen for brugerens primære engagement.
+ * ``unit_postal_code``: Postnummer for brugerens primære enhed.
+ * ``unit_city``: By for brugerens primære enhed.
+ * ``unit_streetname``: Gadenavn for brugerens primære enhed.
+ * ``location``: Fuld organisatorisk sti til brugerens primære enhed.
+ * ``forvaltning``: Forvaltingen som brugerens primære engagement hører under.
+ * ``manager_name``: Navn på leder for brugerens primære engagement.
+ * ``manager_sam``: SamAccountName for leder for brugerens primære engagement.
+ * ``manager_mail``: Email på lederen for brugerens primære engagement.
 
-Felterne `forvaltning` og `location` synkroniseres altid til felterne angivet i
-nøglerner `integrations.ad.write.forvaltning_type` og
-`integrations.ad.write.org_unit_field`, og skal derfor ikke specificeres yderligere
+Felterne ``forvaltning`` og ``location`` synkroniseres altid til felterne angivet i
+nøglerner ``integrations.ad.write.forvaltning_type`` og
+``integrations.ad.write.org_unit_field``, og skal derfor ikke specificeres yderligere
 i feltmapningen.
 
 Desuden synkroniseres  altid AD felterne:
