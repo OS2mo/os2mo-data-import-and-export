@@ -44,7 +44,7 @@ declare -a BACK_UP_BEFORE_JOBS=(
         echo ${run_db}
     )
     $(
-        SETTING_PREFIX="opus.import" source ${DIPEXAR}/tools/prefixed_settings.sh
+        SETTING_PREFIX="integrations.opus.import" source ${DIPEXAR}/tools/prefixed_settings.sh
         # backup run_db only if file exists - it will not exist on non-OPUS customers
         echo ${run_db}
     )
