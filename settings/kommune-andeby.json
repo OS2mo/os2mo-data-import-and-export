@@ -91,6 +91,7 @@
     "integrations.ad.skip_school_ad_to_mo": false,
 
     "integrations.opus.import.run_db": "/path/to/CRON/run_db.sqlite",
+    "integrations.opus.import.xml_path": "/path-to/customer-dumps",
     "opus.addresses.employee.dar": "uuid-for-e-dar",
     "opus.addresses.employee.phone": "uuid-for-e-phone",
     "opus.addresses.employee.email": "uuid-for-e-email",
