@@ -43,6 +43,11 @@ declare -a BACK_UP_BEFORE_JOBS=(
         # backup run_db only if file exists - it will not exist on non-SD customers
         echo ${run_db}
     )
+    $(
+        SETTING_PREFIX="opus.import" source ${DIPEXAR}/tools/prefixed_settings.sh
+        # backup run_db only if file exists - it will not exist on non-OPUS customers
+        echo ${run_db}
+    )
 )
 
 # files that need to be backed up AFTER running the jobs
