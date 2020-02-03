@@ -97,7 +97,7 @@ class OpusImport(object):
         self._add_klasse('Intern', 'Må vises internt', 'visibility', 'INTERNAL')
         self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
 
-        self._add_klasse('Ansat', 'Ansat', 'primary_type', '3000')
+        self._add_klasse('primary', 'Ansat', 'primary_type', '3000')
         self._add_klasse('non-primary', 'Ikke-primær ansættelse',
                          'primary_type', '0')
         self._add_klasse('explicitly-primary', 'Manuelt primær ansættelse',
