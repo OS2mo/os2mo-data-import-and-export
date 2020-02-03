@@ -45,7 +45,7 @@ class MOPrimaryEngagementUpdater(object):
         """
         # These constants are global in all OPUS municipalities (because they are
         # created by the OPUS->MO importer.
-        PRIMARY = 'Ansat'
+        PRIMARY = 'primary'
         NON_PRIMARY = 'non-primary'
         FIXED_PRIMARY = 'explicitly-primary'
 
@@ -145,7 +145,7 @@ class MOPrimaryEngagementUpdater(object):
 
                 primary_count = 0
                 for eng in mo_engagement:
-                    if eng['engagement_type']['uuid'] in self.primary:
+                    if eng['primary']['uuid'] in self.primary:
                         primary_count += 1
             if primary_count == 0:
                 print('No primary for {} at {}'.format(user['uuid'], date))
@@ -155,7 +155,7 @@ class MOPrimaryEngagementUpdater(object):
                 # print('Correct')
                 pass
 
-    def recalculate_primary(self, no_past=False):
+    def recalculate_primary(self, no_past=True):
         """
         Re-calculate primary engagement for the enire history of the current user.
         """
