@@ -47,7 +47,6 @@ class MOPrimaryEngagementUpdater(object):
         :param mo_person: An already existing user object from mora_helper.
         :return: True if current user is valid, otherwise False.
         """
-        t = time.time()
         if uuid:
             mo_person = self.helper.read_user(user_uuid=uuid)
         elif cpr:
@@ -101,7 +100,6 @@ class MOPrimaryEngagementUpdater(object):
         Run throgh entire history of current user and return a list of dates with
         changes in the engagement.
         """
-        t = time.time()
         uuid = self.mo_person['uuid']
 
         mo_engagement = self.helper.read_user_engagement(
@@ -189,7 +187,6 @@ class MOPrimaryEngagementUpdater(object):
             date = date_list[i]
             logger.info('Recalculate primary, date: {}'.format(date))
 
-            t = time.time()
             mo_engagement = self._read_engagement(date)
             # print('Read engagements {}: {}s'.format(i, time.time() - t))
 
@@ -277,7 +274,9 @@ class MOPrimaryEngagementUpdater(object):
                 if not payload['data']['primary'] == eng['primary']:
                     logger.debug('Edit payload: {}'.format(payload))
                     response = self.helper._mo_post('details/edit', payload)
-                    assert response.status_code == 200
+                    assert response.status_code in (200, 400)
+                    if response.status_code == 400:
+                        logger.info('Attempted edit, but no change needed.')
                     number_of_edits += 1
                 else:
                     logger.debug('No edit, primary type not changed.')
