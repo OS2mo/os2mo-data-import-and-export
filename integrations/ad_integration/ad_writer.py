@@ -58,10 +58,15 @@ class ADWriter(AD):
         else:
             other_attributes = ' -Replace @{'
 
+        # other_attributes_fields = [
+        #     (write_settings['forvaltning_field'],
+        #      mo_values['forvaltning'].replace('&', 'og')),
+        #     (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
+        # ]
         other_attributes_fields = [
             (write_settings['forvaltning_field'],
-             mo_values['forvaltning'].replace('&', 'og')),
-            (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
+             mo_values['forvaltning']),
+            (write_settings['org_field'], mo_values['location'])
         ]
 
         # Add SAM to mo_values
