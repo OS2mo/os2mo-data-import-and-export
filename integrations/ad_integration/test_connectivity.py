@@ -146,8 +146,8 @@ def perform_write_test():
 
     user_info_list = []
     i = 0
-    logger.info('Check for avaiability of needed fields - find some test users')
-    print('Check for avaiability of needed fields - find some test users')
+    logger.info('Check for availability of needed fields - find some test users')
+    print('Check for availability of needed fields - find some test users')
 
     minumum_expected_fields = {
         SETTINGS['integrations.ad.write.uuid_field']: False,
