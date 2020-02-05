@@ -141,6 +141,7 @@ class FixDepartments(object):
             'from_date': validity_date.strftime('%d.%m.%Y'),
             'to_date': validity_date.strftime('%d.%m.%Y')
         }
+
         department = self.get_department(validity, uuid=unit_uuid)[0]
 
         unit_level_uuid = None
@@ -263,10 +264,11 @@ class FixDepartments(object):
         this will be retrieved.
         :return: Dict with cpr as key and SD Person objects as values.
         """
+        fix_date = validity_date + datetime.timedelta(weeks=80)
         too_deep = self.settings['integrations.SD_Lon.import.too_deep']
         sd_validity = {
-            'from_date': validity_date.strftime('%d.%m.%Y'),
-            'to_date': validity_date.strftime('%d.%m.%Y')
+            'from_date': fix_date.strftime('%d.%m.%Y'),
+            'to_date': fix_date.strftime('%d.%m.%Y')
         }
         department = self.get_department(sd_validity, uuid=unit_uuid)[0]
         if not department['DepartmentLevelIdentifier'] in too_deep:
@@ -458,6 +460,7 @@ class FixDepartments(object):
             if 'status' in mo_unit:  # Unit does not exist in MO
                 logger.warning('Unknown unit {}, will create'.format(unit))
                 self.create_single_department(unit[1], date)
+
         for unit in reversed(branch):
             self.fix_department_at_single_date(unit[1], date)
 
