@@ -18,10 +18,16 @@ def extract_prefixed_envvars(settings, prefix):
     prefixlen=len(prefix)
     for k,v in settings.items():
         if (
-            k.startswith(prefix) and isinstance(v, str) 
-            and k.count(".") == prefix.count(".")
+            k.startswith(prefix) and k.count(".") == prefix.count(".")
         ):
-            environment.append("export %s=\"%s\"" %(k[prefixlen:],v))
+            if isinstance(v,str):
+                environment.append("export %s=\"%s\"" %(k[prefixlen:],v))
+            elif isinstance(v,bool):
+                environment.append("export %s=%s" %(k[prefixlen:],str(v).lower()))
+            elif isinstance(v,float):
+                environment.append("export %s=%g" %(k[prefixlen:],v))
+            elif isinstance(v,int):
+                environment.append("export %s=%d" %(k[prefixlen:],v))
     return environment
 
 if __name__ == '__main__':
