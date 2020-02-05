@@ -26,6 +26,7 @@ ACTIVE_JOB_FUNCTIONS = []  # Liste over aktive engagementer som skal eksporteres
 
 def export_bruger(mh, nodes, filename):
     fieldnames = ['BrugerId', 'CPR', 'Navn', 'E-mail', 'Mobil']
+    used_cprs = []
 
     # Todo: Move to settings
     phone_type = '7db54183-1f2c-87ba-d4c3-de22a101ebc1'
@@ -34,12 +35,20 @@ def export_bruger(mh, nodes, filename):
 
     rows = []
     for node in PreOrderIter(nodes['root']):
+        print(node.name)
         employees = mh.read_organisation_people(node.name, split_name=False,
                                                 read_all=True, skip_past=True)
+        print(len(employees))
         for uuid, employee in employees.items():
             if employee['engagement_type_uuid'] not in allowed_engagement_types:
                 continue
             address = mh.read_user_address(uuid, cpr=True, phone_type=phone_type)
+            cpr = address['CPR-Nummer']
+            if cpr in used_cprs:
+                # print('Skipping user: {} '.format(uuid))
+                continue
+
+            used_cprs.append(cpr)
             row = {
                 'BrugerId': employee['Person UUID'],
                 'CPR': address['CPR-Nummer'],
@@ -55,6 +64,10 @@ def export_organisation(mh, nodes, filename):
     fieldnames = ['AfdelingsID', 'Afdelingsnavn', 'Parentid', 'Gade', 'Postnr', 'By']
 
     rows = []
+
+    # Vi laver en liste over eksporterede afdelinger, så de som ikke er eksporterede
+    # men alligevel har en leder, ignoreres i lederutrækket (typisk NY1 afdelinger).
+    eksporterede_afdelinger = []
     for node in PreOrderIter(nodes['root']):
         ou = mh.read_ou(node.name)
         level = ou['org_unit_level']
@@ -73,6 +86,7 @@ def export_organisation(mh, nodes, filename):
             post = ''
             by = ''
 
+        eksporterede_afdelinger.append(ou['uuid'])
         row = {
             'AfdelingsID': ou['uuid'],
             'Afdelingsnavn': ou['name'],
@@ -83,9 +97,10 @@ def export_organisation(mh, nodes, filename):
         }
         rows.append(row)
     mh._write_csv(fieldnames, rows, filename)
+    return eksporterede_afdelinger
 
 
-def export_engagement(mh, filename):
+def export_engagement(mh, filename, eksporterede_afdelinger):
     fieldnames = ['BrugerId', 'AfdelingsId', 'AktivStatus', 'StillingskodeId',
                   'Primær', 'Engagementstype', 'StartdatoEngagement']
 
@@ -99,6 +114,10 @@ def export_engagement(mh, filename):
         engagements = mh.read_user_engagement(employee['uuid'], read_all=True,
                                               skip_past=True, calculate_primary=True)
         for eng in engagements:
+            if eng['org_unit']['uuid'] not in eksporterede_afdelinger:
+                # Denne afdeling er ikke med i afdelingseksport.
+                continue
+
             if eng['engagement_type']['uuid'] not in allowed_engagement_types:
                 print('Skipping {}'.format(eng))
                 continue
@@ -156,10 +175,14 @@ def export_stillingskode(mh, nodes, filename):
     mh._write_csv(fieldnames, rows, filename)
 
 
-def export_leder(mh, nodes, filename):
+def export_leder(mh, nodes, filename, eksporterede_afdelinger):
     fieldnames = ['BrugerId', 'AfdelingsID', 'AktivStatus', 'Titel']
     rows = []
     for node in PreOrderIter(nodes['root']):
+        if node.name not in eksporterede_afdelinger:
+            # Denne afdeling er ikke med i afdelingseksport.
+            continue
+
         manager = mh.read_ou_manager(node.name, inherit=False)
         if 'uuid' in manager:
             row = {
@@ -188,11 +211,11 @@ if __name__ == '__main__':
     print('Bruger: {}s'.format(time.time() - t))
 
     filename = 'plan2lean_organisation.csv'
-    export_organisation(mh, nodes, filename)
+    eksporterede_afdelinger = export_organisation(mh, nodes, filename)
     print('Organisation: {}s'.format(time.time() - t))
 
     filename = 'plan2lean_engagement.csv'
-    export_engagement(mh, filename)
+    export_engagement(mh, filename, eksporterede_afdelinger)
     print('Engagement: {}s'.format(time.time() - t))
 
     filename = 'plan2lean_stillingskode.csv'
@@ -200,7 +223,7 @@ if __name__ == '__main__':
     print('Stillingskode: {}s'.format(time.time() - t))
 
     filename = 'plan2lean_leder.csv'
-    export_leder(mh, nodes, filename)
+    export_leder(mh, nodes, filename, eksporterede_afdelinger)
     print('Leder: {}s'.format(time.time() - t))
 
     print('Export completed')
