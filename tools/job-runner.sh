@@ -184,13 +184,23 @@ exports_viborg_emus(){
 reports_sd_db_overview(){
     set -e
     echo running reports_sd_db_overview
-    ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py
+    outfile=$(mktemp)
+    ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py > ${outfile}
+    head -2 ${outfile}
+    echo "..."
+    tail -3 ${outfile}
+    rm ${outfile}
 }
 
 reports_opus_db_overview(){
     set -e
     echo running reports_opus_db_overview
-    ${VENV}/bin/python3 integrations/opus/db_overview.py
+    outfile=$(mktemp)
+    ${VENV}/bin/python3 integrations/opus/db_overview.py > ${outfile}
+    head -4 ${outfile}
+    echo "..."
+    tail -3 ${outfile}
+    rm ${outfile}
 }
 
 
