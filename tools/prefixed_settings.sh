@@ -16,12 +16,4 @@
 #
 export SETTING_PREFIX=${SETTING_PREFIX:=crontab}
 export CUSTOMER_SETTINGS=${CUSTOMER_SETTINGS:=/opt/settings/customer-settings.json}
-. <(
-    set +x
-    jq -r 'to_entries|map("\(.key)=\(.value|tostring)")[]' ${CUSTOMER_SETTINGS} \
-    | sed -e 's/^'${SETTING_PREFIX}'\.//' \
-    | while IFS="=" read key val
-    do  # only keys with exactly this prefix - no dots
-        [ "${key}" == "${key/\./X}" ] && echo export ${key}=\"$val\"
-    done
-)
+. <(venv/bin/python tools/prefixed_settings.py)
