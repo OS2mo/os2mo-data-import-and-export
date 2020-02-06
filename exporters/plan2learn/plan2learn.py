@@ -35,10 +35,9 @@ def export_bruger(mh, nodes, filename):
 
     rows = []
     for node in PreOrderIter(nodes['root']):
-        print(node.name)
         employees = mh.read_organisation_people(node.name, split_name=False,
                                                 read_all=True, skip_past=True)
-        print(len(employees))
+
         for uuid, employee in employees.items():
             if employee['engagement_type_uuid'] not in allowed_engagement_types:
                 continue
@@ -153,7 +152,7 @@ def export_engagement(mh, filename, eksporterede_afdelinger):
             ACTIVE_JOB_FUNCTIONS.append(stilingskode_id)
 
             row = {
-                'EngagementId': eng['user_key'],
+                'EngagementId': eng['uuid'],
                 'BrugerId':  employee['uuid'],
                 'AfdelingsId': eng['org_unit']['uuid'],
                 'AktivStatus': aktiv_status,
