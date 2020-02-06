@@ -1,5 +1,6 @@
 import time
 import json
+import random
 import logging
 
 from winrm import Session
@@ -210,6 +211,11 @@ class AD(object):
         server_string = ''
         if server:
             server_string = ' -Server {}'.format(server)
+        else:
+            if 'servers' in self.all_settings['global']:
+                server_string = ' -Server {}'.format(
+                    random.choice(self.all_settings['global']['servers'])
+                )
 
         command_end = (' | ConvertTo-Json  | ' +
                        ' % {$_.replace("ø","&oslash;")} | ' +
