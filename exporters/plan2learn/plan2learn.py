@@ -101,13 +101,19 @@ def export_organisation(mh, nodes, filename):
 
 
 def export_engagement(mh, filename, eksporterede_afdelinger):
-    fieldnames = ['BrugerId', 'AfdelingsId', 'AktivStatus', 'StillingskodeId',
-                  'Primær', 'Engagementstype', 'StartdatoEngagement']
+    fieldnames = ['EngagementId', 'BrugerId', 'AfdelingsId', 'AktivStatus',
+                  'StillingskodeId', 'Primær', 'Engagementstype',
+                  'StartdatoEngagement']
 
     allowed_engagement_types = SETTINGS[
         'exporters.plan2learn.allowed_engagement_types']
 
     rows = []
+
+    # Keep a list of exported engagements to avoid exporting the same engagment
+    # multiple times if it has multiple rows in MO.
+    exported_engagements = []
+
     # employees = mh.read_all_users(limit=10000)
     employees = mh.read_all_users()
     for employee in employees:
@@ -122,6 +128,10 @@ def export_engagement(mh, filename, eksporterede_afdelinger):
                 print('Skipping {}'.format(eng))
                 continue
 
+            if eng['uuid'] in exported_engagements:
+                continue
+            exported_engagements.append(eng['uuid'])
+
             valid_from = datetime.datetime.strptime(
                 eng['validity']['from'], '%Y-%m-%d'
             )
@@ -130,7 +140,8 @@ def export_engagement(mh, filename, eksporterede_afdelinger):
                 aktiv_status = 1
                 start_dato = ''
             else:
-                aktiv_status = 0
+                # Currently we always set engagment to active, even if it is not.
+                aktiv_status = 1
                 start_dato = eng['validity']['from']
 
             if eng['is_primary']:
@@ -142,6 +153,7 @@ def export_engagement(mh, filename, eksporterede_afdelinger):
             ACTIVE_JOB_FUNCTIONS.append(stilingskode_id)
 
             row = {
+                'EngagementId': eng['user_key'],
                 'BrugerId':  employee['uuid'],
                 'AfdelingsId': eng['org_unit']['uuid'],
                 'AktivStatus': aktiv_status,
