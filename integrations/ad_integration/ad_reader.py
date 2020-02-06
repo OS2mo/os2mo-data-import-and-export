@@ -1,4 +1,5 @@
 import time
+import random
 import logging
 from winrm import Session
 
@@ -46,6 +47,12 @@ class ADParameterReader(AD):
         bp = self._ps_boiler_plate(school)
         get_command = "get-aduser -Filter '*'"
 
+        server_string = ''
+        if 'servers' in self.all_settings['global']:
+            server_string = ' -Server {} '.format(
+                random.choice(self.all_settings['global']['servers'])
+            )
+
         command_end = (' | ConvertTo-Json  | ' +
                        ' % {$_.replace("ø","&oslash;")} | ' +
                        '% {$_.replace("Ø","&Oslash;")} ')
@@ -53,6 +60,7 @@ class ADParameterReader(AD):
         ps_script = (
             self._build_user_credential(school) +
             get_command +
+            server_string +
             bp['complete'] +
             self._properties(school) +
             bp['get_ad_object'] +

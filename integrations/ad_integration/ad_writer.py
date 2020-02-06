@@ -116,7 +116,7 @@ class ADWriter(AD):
                     raise ad_exceptions.ReplicationFailedException()
 
                 for server in self.all_settings['global']['servers']:
-                    user = self.get_from_ad(user=sam)
+                    user = self.get_from_ad(user=sam, server=server)
                     logger.debug('Testing {}, found: {}'.format(server, len(user)))
                     if user:
                         logger.debug('Found successfully')
@@ -220,6 +220,7 @@ class ADWriter(AD):
                 city = postal['Adresse'][city_pos:]
                 streetname = postal['Adresse'][:city_pos - 7]
             except IndexError:
+
                 logger.error('Unable to read adresse from MO (no access to DAR?)')
 
         location = ''
@@ -227,10 +228,14 @@ class ADWriter(AD):
         forvaltning = 'Ingen'
         while current_unit:
             location = current_unit['name'] + '\\' + location
-
+            current_type = current_unit['org_unit_type']
+            current_level = current_unit['org_unit_level']
+            if current_level is None:
+                current_level =  {'uuid': None}
             if self.settings['integrations.ad.write.forvaltning_type'] in (
-                    current_unit['org_unit_type']['uuid'],
-                    current_unit['org_unit_level']['uuid']):
+                    current_type['uuid'],
+                    current_level['uuid']
+            ):
                 forvaltning = current_unit['name']
             current_unit = current_unit['parent']
         location = location[:-1]
