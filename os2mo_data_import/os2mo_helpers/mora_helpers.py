@@ -128,9 +128,10 @@ class MoraHelper(object):
             params['validity'] = validity
 
         full_url = self.host + url.format(uuid)
-        if (full_url in self.cache) and use_cache:
-            logger.debug("cache hit: %s", full_url)
-            return_dict = self.cache[full_url]
+        cache_id = full_url + str(validity)
+        if (cache_id in self.cache) and use_cache:
+            logger.debug("cache hit: %s", cache_id)
+            return_dict = self.cache[cache_id]
         else:
             if SAML_TOKEN is None:
                 response = requests.get(full_url, params=params)
@@ -150,8 +151,9 @@ class MoraHelper(object):
                     msg = 'SAML token not accepted'
                     logger.error(msg)
                     raise requests.exceptions.RequestException(msg)
+
                 return_dict = response.json()
-            self.cache[full_url] = return_dict
+            self.cache[cache_id] = return_dict
         return return_dict
 
     def _mo_post(self, url, payload, force=True):
