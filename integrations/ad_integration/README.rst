@@ -551,3 +551,13 @@ De forskellige muligheder gennemgås her en ad gangen:
 
    Denne kommando vil finde en skabelon i ``scripts/send_email.ps_template`` og først
    validere og derefter afvikle de med værdier taget fra brugen med uuid som angivet.
+
+
+Import af AD OU til MO
+======================
+
+Som en ekstra funktionalitet, er det muligt at anvende integrationens læsefaciliteter
+til at indlæse en bestemt OU fra AD'et til MO. Dette vil eksempelvis kunne anvendes
+hvis AD'et er autoritativ for eksterne konsulenter i kommunen, men man alligevel
+ønsker, at disse personer skal fremgå af MOs frontend.
+
