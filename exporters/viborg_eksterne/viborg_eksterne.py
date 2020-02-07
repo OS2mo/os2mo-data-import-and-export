@@ -116,12 +116,15 @@ if __name__ == '__main__':
     logger.info('Starting export')
 
     mora_base = SETTINGS['mora.base']
+    query_exports_dir = pathlib.Path(SETTINGS["mora.folder.query_export"])
+    outfile_name = query_exports_dir / SETTINGS[
+        "exports_viborg_eksterne.outfile_basename"
+    ]
 
     t = time.time()
     mh = MoraHelper(hostname=mora_base, export_ansi=False)
 
-    filename = '../viborg_ekstern.csv'
-    export_engagement(mh, filename)
+    export_engagement(mh, outfile_name)
     logger.info('Time: {}s'.format(time.time() - t))
 
     logger.info('Export completed')
