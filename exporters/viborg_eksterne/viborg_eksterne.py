@@ -120,6 +120,7 @@ if __name__ == '__main__':
     outfile_name = query_exports_dir / SETTINGS[
         "exports_viborg_eksterne.outfile_basename"
     ]
+    logger.info("writing to file %s", outfile_name)
 
     t = time.time()
     mh = MoraHelper(hostname=mora_base, export_ansi=False)
