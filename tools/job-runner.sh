@@ -11,9 +11,10 @@ export REPORTS_OK=false
 export BACKUP_OK=true
 export LC_ALL="C.UTF-8"
 
-source ${DIPEXAR}/tools/prefixed_settings.sh
-
 cd ${DIPEXAR}
+source ${DIPEXAR}/tools/prefixed_settings.sh
+cd ${DIPEXAR}
+
 export PYTHONPATH=$PWD:$PYTHONPATH
 
 # FIXME: remove cache ad pickle files
