@@ -16,4 +16,4 @@
 #
 export SETTING_PREFIX=${SETTING_PREFIX:=crontab}
 export CUSTOMER_SETTINGS=${CUSTOMER_SETTINGS:=/opt/settings/customer-settings.json}
-. <(venv/bin/python tools/prefixed_settings.py)
+. <(${VENV}/bin/python tools/prefixed_settings.py)
