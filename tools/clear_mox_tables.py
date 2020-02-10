@@ -30,7 +30,7 @@ def clear_docker_mox_tables(conf):
     clear_db_tables(
         user=conf["environment"]["DB_USER"],
         dbname=conf["environment"]["DB_NAME"],
-        host=conf["networks"]["default"]["ipv4_address"],
+        host=conf["networks"]["os2molan"]["ipv4_address"],
         password=conf["environment"]["DB_PASSWORD"],
     )
 
