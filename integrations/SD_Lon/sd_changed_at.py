@@ -778,7 +778,6 @@ class ChangeAtSD(object):
             i = i + 1
 
             cpr = employment['PersonCivilRegistrationIdentifier']
-            continue
             if cpr[-4:] == '0000':
                 logger.warning('Skipping fictional user: {}'.format(cpr))
                 continue
@@ -881,8 +880,7 @@ if __name__ == '__main__':
     )
     logger.info('***************')
     logger.info('Program started')
-    #init = False
-    init = True
+    init = False
 
     from_date = datetime.datetime.strptime(
         SETTINGS['integrations.SD_Lon.global_from_date'],
