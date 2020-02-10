@@ -96,7 +96,7 @@ def _next_xml_file(run_db, dumps):
             break
     if next_date is None:
         # raise NoNewerDumpAvailable('No newer XML dump is available')
-        print('No never dump is available - already done :)')
+        print('No newer dump is available - already done :)')
     return (next_date, latest_date)
 
 
