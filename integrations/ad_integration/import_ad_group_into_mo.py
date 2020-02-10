@@ -4,6 +4,7 @@ import pickle
 import pathlib
 import hashlib
 import logging
+import argparse
 import datetime
 
 import requests
@@ -14,6 +15,21 @@ from integrations.ad_integration.ad_reader import ADParameterReader
 
 # Set up a real logger!
 logger = logging.getLogger("ImportADGroup")
+
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'external_ad_users.log'
+
+for name in logging.root.manager.loggerDict:
+    if name in ('ImportADGroup', 'AdReader', 'mora-helper', 'AdCommon'):
+        logging.getLogger(name).setLevel(LOG_LEVEL)
+    else:
+        logging.getLogger(name).setLevel(logging.ERROR)
+
+logging.basicConfig(
+    format='%(levelname)s %(asctime)s %(name)s %(message)s',
+    level=LOG_LEVEL,
+    filename=LOG_FILE
+)
 
 
 class ADMOImporter(object):
@@ -180,7 +196,7 @@ class ADMOImporter(object):
             return user_uuid
 
         payload = payloads.connect_it_system_to_user(
-            ad_user, self.settings['opus.it_systems.ad']
+            ad_user, self.settings['integrations.opus.it_systems.ad']
         )
         logger.debug('AD account payload: {}'.format(payload))
         response = self.helper._mo_post('details/create', payload)
@@ -268,13 +284,33 @@ class ADMOImporter(object):
                     print(msg.format('AD', ad_user['GivenName'], ad_user['Surname']))
                     self._create_user(ad_user)
 
+    def cli(self):
+        """
+        Command line interface for the AD to MO user import.
+        """
+
+        parser = argparse.ArgumentParser(description='AD->MO user import')
+        group = parser.add_mutually_exclusive_group(required=True)
+        group.add_argument('--create-or-update', action='store_true')
+        group.add_argument('--cleanup-removed-users', action='store_true')
+        group.add_argument('--full-sync', action='store_true')
+
+        args = vars(parser.parse_args())
+
+        if args.get('create_or_update'):
+            self.create_or_update_users_in_mo()
+
+        if args.get('cleanup_removed_users'):
+            self.cleanup_removed_users_from_mo()
+
+        if args.get('full_sync'):
+            self.create_or_update_users_in_mo()
+            self.cleanup_removed_users_from_mo()
+
 
 if __name__ == '__main__':
     ad_import = ADMOImporter()
+    ad_import.cli()
 
-    # user_uuid = 'db25bf9b-264b-4266-b766-ccc4d2c81d41'
     # user_uuid = '1fd162c5-ee26-45e6-a17e-8015869134f0'
     # ad_import.rename_user(user_uuid)
-
-    ad_import.create_or_update_users_in_mo()
-    ad_import.cleanup_removed_users_from_mo()
