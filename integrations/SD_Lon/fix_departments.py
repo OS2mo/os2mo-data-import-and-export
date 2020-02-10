@@ -23,11 +23,6 @@ for name in logging.root.manager.loggerDict:
     else:
         logging.getLogger(name).setLevel(logging.ERROR)
 
-logging.basicConfig(
-    format='%(levelname)s %(asctime)s %(name)s %(message)s',
-    level=LOG_LEVEL,
-    filename=LOG_FILE
-)
 
 
 class FixDepartments(object):
@@ -484,6 +479,11 @@ class FixDepartments(object):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
     unit_fixer = FixDepartments()
     # uruk = 'cf9864bf-1ed8-4800-9600-000001290002'
     # today = datetime.datetime.today()

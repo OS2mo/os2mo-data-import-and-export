@@ -31,11 +31,6 @@ for name in logging.root.manager.loggerDict:
     else:
         logging.getLogger(name).setLevel(logging.ERROR)
 
-logging.basicConfig(
-    format='%(levelname)s %(asctime)s %(name)s %(message)s',
-    level=LOG_LEVEL,
-    filename=LOG_FILE
-)
 
 # TODO: Soon we have done this 4 times. Should we make a small settings
 # importer, that will also handle datatype for specicic keys?
@@ -878,6 +873,11 @@ def initialize_changed_at(from_date, run_db, force=False):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
     logger.info('***************')
     logger.info('Program started')
     init = False
