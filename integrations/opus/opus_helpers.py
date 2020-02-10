@@ -11,7 +11,7 @@ from integrations import cpr_mapper
 from integrations.opus import opus_import
 from integrations.opus import opus_diff_import
 from integrations.opus.opus_exceptions import RunDBInitException
-from integrations.opus.opus_exceptions import NoNewerDumpAvailable
+# from integrations.opus.opus_exceptions import NoNewerDumpAvailable
 from integrations.opus.opus_exceptions import RedundantForceException
 from integrations.opus.opus_exceptions import ImporterrunNotCompleted
 
@@ -95,7 +95,8 @@ def _next_xml_file(run_db, dumps):
             next_date = date
             break
     if next_date is None:
-        raise NoNewerDumpAvailable('No newer XML dump is available')
+        # raise NoNewerDumpAvailable('No newer XML dump is available')
+        print('No newer dump is available - already done :)')
     return (next_date, latest_date)
 
 
@@ -185,15 +186,17 @@ def start_opus_diff(ad_reader=None):
         logger.error('Local base not correctly initialized')
         raise RunDBInitException('Local base not correctly initialized')
     xml_date, latest_date = _next_xml_file(run_db, dumps)
-    xml_file = dumps[xml_date]
 
-    _local_db_insert((xml_date, 'Running diff update since {}'))
-    msg = 'Start update: File: {}, update since: {}'
-    logger.info(msg.format(xml_file, latest_date))
-    print(msg.format(xml_file, latest_date))
+    if xml_date is not None:
+        xml_file = dumps[xml_date]
 
-    diff = opus_diff_import.OpusDiffImport(latest_date, ad_reader=ad_reader,
-                                           employee_mapping=employee_mapping)
-    diff.start_re_import(xml_file, include_terminations=True)
-    logger.info('Ended update')
-    _local_db_insert((xml_date, 'Diff update ended: {}'))
+        _local_db_insert((xml_date, 'Running diff update since {}'))
+        msg = 'Start update: File: {}, update since: {}'
+        logger.info(msg.format(xml_file, latest_date))
+        print(msg.format(xml_file, latest_date))
+
+        diff = opus_diff_import.OpusDiffImport(latest_date, ad_reader=ad_reader,
+                                               employee_mapping=employee_mapping)
+        diff.start_re_import(xml_file, include_terminations=True)
+        logger.info('Ended update')
+        _local_db_insert((xml_date, 'Diff update ended: {}'))

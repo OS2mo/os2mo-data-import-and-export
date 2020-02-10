@@ -1,4 +1,9 @@
 def create_user(employee, org_uuid, uuid=None):
+    if employee['firstName'] is None and employee['lastName'] is None:
+        employee['firstName'] = 'Ukendt'
+        employee['lastName'] = 'Ukendt'
+        print('No names on user')
+        print(employee)
     payload = {
         'givenname': employee['firstName'],
         'surname': employee['lastName'],
