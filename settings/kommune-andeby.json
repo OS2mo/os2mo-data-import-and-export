@@ -26,9 +26,15 @@
 
     "mox.base": "http://example.com/mox",
     "mora.base": "http://example.com/mora",
+
+    "mox_stsorgsync.VENV":"path-to-CRON/mox_stsorgsync/venv",
+    "mox_stsorgsync.LOGFILE":"path-to-CRON/mox_stsorgsync.log",
+    "mox_stsorgsync.MOX_MO_CONFIG":"path-to-CRON/mox_stsorgsync.ini",
+
     "address.visibility.secret": "uuid-for-secret-address",
     "address.visibility.internal": "uuid-for-internal-address",
     "address.visibility.public": "uuid-for-public-address",
+
     "integrations.SD_Lon.sd_user": "",
     "integrations.SD_Lon.sd_password": "",
     "integrations.SD_Lon.institution_identifier": "",
@@ -40,6 +46,7 @@
     ] ,
     "integrations.SD_Lon.global_from_date": "YYYY-mm-dd",
     "integrations.SD_Lon.import.run_db": "/path/to/CRON/run_db.sqlite",
+
     "#integrations.SD_Lon.import.manager_file": "/path/to/manager_file",
     "#integrations.SD_Lon.sd_mox.AMQP_USER": "",
     "#integrations.SD_Lon.sd_mox.AMQP_HOST": "",
@@ -67,6 +74,7 @@
     "#integrations.SD_Lon.sd_mox.TR_TJENESTETID": "uuid-for-class",
     "#integrations.SD_Lon.sd_mox.TR_ARBEJDSTIDSPLANER": "uuid-for-class",
     "#integrations.SD_Lon.sd_mox.TR_DANNES_IKKE": "uuid-for-class",
+
     "integrations.ad.winrm_host": "hostname",
     "integrations.ad.cpr_field": "cprfield",
     "integrations.ad.system_user": "user@DOMAIN",
