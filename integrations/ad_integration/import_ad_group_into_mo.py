@@ -131,7 +131,6 @@ class ADMOImporter(object):
         if 'status' in unit:  # Unit does not exist
             payload = payloads.unit_for_externals(unit_uuid, org_unit_type,
                                                   self.org_uuid)
-            print(payload)
             logger.debug('Create department payload: {}'.format(payload))
             response = self.helper._mo_post('ou/create', payload)
             response.raise_for_status()
@@ -172,13 +171,11 @@ class ADMOImporter(object):
                 users[uuid] = user
         self.users = users
 
-    def _create_user(self, ad_user, edit=True):
+    def _create_user(self, ad_user):
         """
         Create or update a user in MO using an AD user as a template.
         The user will share uuid between MO and AD.
         :param ad_user: The ad_object to use as template for MO.
-        :param edit: If True only the user object will be updated (to update
-        name), if False an engagement and an IT-system will also be added.
         :return: uuid of the the user.
         """
         cpr_raw = ad_user.get(self.settings['integrations.ad.cpr_field'])
@@ -187,22 +184,23 @@ class ADMOImporter(object):
         cpr = cpr_raw.replace('-', '')
 
         payload = payloads.create_user(cpr, ad_user, self.org_uuid)
-        print('Create user: {}'.format(payload))
         logger.info('Create user payload: {}'.format(payload))
         user_uuid = self.helper._mo_post('e/create', payload).json()
         logger.info('Created employee {}'.format(user_uuid))
+        return user_uuid
 
-        if edit is True:
-            return user_uuid
-
+    def _connect_user_to_ad(self, ad_user):
+        logger.info('Connect user to AD: {}'.format(ad_user['SamAccountName']))
         payload = payloads.connect_it_system_to_user(
             ad_user, self.settings['integrations.opus.it_systems.ad']
         )
         logger.debug('AD account payload: {}'.format(payload))
         response = self.helper._mo_post('details/create', payload)
         assert response.status_code == 201
-        logger.info('Added AD account info to {}'.format(cpr))
+        logger.debug('Added AD account info to {}'.format(ad_user['SamAccountName']))
+        return True
 
+    def _create_engagement(self, ad_user):
         validity = {
             'from': datetime.datetime.now().strftime('%Y-%m-%d'),
             'to': None
@@ -216,9 +214,8 @@ class ADMOImporter(object):
         response = self.helper._mo_post('details/create', payload)
         logger.info('Create engagement payload: {}'.format(payload))
         assert response.status_code == 201
-        logger.info('Added engagement to {}'.format(cpr))
-
-        return user_uuid
+        logger.info('Added engagement to {}'.format(ad_user['SamAccountName']))
+        return True
 
     def rename_user(self, mo_uuid):
         """
@@ -269,20 +266,36 @@ class ADMOImporter(object):
             self._update_list_of_external_users_in_ad()
 
         for user_uuid, ad_user in self.users.items():
+            logger.info('Updating {}'.format(ad_user['SamAccountName']))
             mo_user = self.helper.read_user(user_uuid=user_uuid)
+            logger.info('Existing MO info: {}'.format(mo_user))
             if 'status' in mo_user:
-                self._create_user(ad_user, edit=False)
+                print('Create user')
+                mo_uuid = self._create_user(ad_user)
             else:
-                if (
-                        mo_user['givenname'] != ad_user['GivenName'] or
-                        mo_user['surname'] != ad_user['Surname']
-                ):
-                    print()
+                mo_uuid = mo_user['uuid']
+                name_changed = (mo_user['givenname'] != ad_user['GivenName'] or
+                                mo_user['surname'] != ad_user['Surname'])
+                if name_changed:
                     print('Update name')
                     msg = '{}. Given: {}, Sur: {}'
-                    print(msg.format('MO', mo_user['givenname'], mo_user['surname']))
                     print(msg.format('AD', ad_user['GivenName'], ad_user['Surname']))
                     self._create_user(ad_user)
+
+            url = 'e/{}/details/it'
+            found_it = False
+            it_systems = self.helper._mo_lookup(mo_uuid, url)
+            for it_system in it_systems:
+                it_uuid = it_system['itsystem']['uuid']
+                if it_uuid == self.settings['integrations.opus.it_systems.ad']:
+                    found_it = True
+            if not found_it:
+                self._connect_user_to_ad(ad_user)
+
+            current_engagements = self.helper.read_user_engagement(
+                user=mo_uuid, only_primary=True)
+            if not current_engagements:
+                self._create_engagement(ad_user)
 
     def cli(self):
         """
@@ -312,5 +325,3 @@ if __name__ == '__main__':
     ad_import = ADMOImporter()
     ad_import.cli()
 
-    # user_uuid = '1fd162c5-ee26-45e6-a17e-8015869134f0'
-    # ad_import.rename_user(user_uuid)
