@@ -99,7 +99,7 @@ class MOPrimaryEngagementUpdater(object):
 
     def _calculate_rate_and_ids(self, mo_engagement):
         min_type_pri = 9999
-        min_id = 9999999
+        min_id = 999999999
         for eng in mo_engagement:
             logger.debug('Calculate rate, engagement: {}'.format(eng))
             employment_id = int(eng['user_key'])
