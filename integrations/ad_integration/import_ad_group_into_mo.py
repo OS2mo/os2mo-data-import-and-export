@@ -1,6 +1,5 @@
 import uuid
 import json
-import pickle
 import pathlib
 import hashlib
 import logging
@@ -159,11 +158,7 @@ class ADMOImporter(object):
         """
         users = {}
 
-        with open('everything.p', 'rb') as f:
-            everything = pickle.load(f)
-        # everything = self.ad_reader.read_it_all()
-        # with open('everything.p', 'wb') as f:
-        #     pickle.dump(everything, f, pickle.HIGHEST_PROTOCOL)
+        everything = self.ad_reader.read_it_all()
 
         for user in everything:  # TODO: Name of OU should go in settings.
             if user['DistinguishedName'].find('Ekstern Konsulenter') > 0:
@@ -324,4 +319,3 @@ class ADMOImporter(object):
 if __name__ == '__main__':
     ad_import = ADMOImporter()
     ad_import.cli()
-
