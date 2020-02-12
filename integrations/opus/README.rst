@@ -198,8 +198,6 @@ Nuværende begrænsninger omkring re-import
    indeholder en kunstig skæringsdato i sin historik.
  * Der oprettes ikke automatisk nye engagementstyper, alle engagementer forventes
    at have en type som blev oprettet ved førstegangsimporten.
- * Der oprettes ikke automatisk nye lederniveauer, alle ledere forventes
-   at have et niveau som eksisterede ved førstegangsimporten.
 
 
 run_db.sqlite
