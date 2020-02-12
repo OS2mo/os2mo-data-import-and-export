@@ -156,7 +156,9 @@ class OpusImport(object):
         else:
             self.units = data['orgUnit'][1:]
 
-        self.employees = data['employee']
+        self.employees = data.get('employee', {})
+        if self.employees is {}:
+            self._add_klasse('Ansat', 'Ansat', 'engagement_type')
 
         municipality_code = int(data['orgUnit'][0]['@client'])
         return municipality_code
