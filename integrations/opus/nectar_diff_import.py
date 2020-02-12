@@ -156,7 +156,6 @@ class NectarImport(OpusDiffCommon):
                         opus_employee['leaveDate'] = element['Value']
                 elif element['Name'] == 'OrganizationalUnitID':
                     opus_employee['orgUnit'] = str(int(element['Value']))
-                    print('Nectar unit: {}'.format(opus_employee['orgUnit']))
                 elif element['Name'] == 'PositionName':
                     opus_employee['position'] = element['Value']
                 elif element['Name'] == 'PositionId':
