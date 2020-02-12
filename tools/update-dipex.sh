@@ -11,7 +11,12 @@ cd ${DIPEXAR}
 [ -d ../backup ] || mkdir ../backup
 [ -d ./tmp ] || mkdir ./tmp
 
+
+# show a changelog after pull overview
+old_git=$(git show -s --format=%H)
 git pull
+new_git=$(git show -s --format=%H)
+git log --pretty=oneline ${old_git}..${new_git}
 
 venv/bin/pip install pip --upgrade
 find . -name 'requirements.*' | grep -v venv/ | while read REQFILE
