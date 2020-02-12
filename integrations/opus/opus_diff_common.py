@@ -10,6 +10,7 @@ from integrations import dawa_helper
 from integrations.opus import payloads
 from integrations.opus import opus_helpers
 from os2mo_helpers.mora_helpers import MoraHelper
+from integrations.opus.opus_exceptions import UnknownOpusUnit
 from integrations.opus.calculate_primary import MOPrimaryEngagementUpdater
 
 logger = logging.getLogger('OpusDiffCommon')
@@ -19,6 +20,7 @@ EMPLOYEE_ADDRESS_CHECKS = {
     'email': 'opus.addresses.employee.email',
     'dar': 'opus.addresses.employee.dar'
 }
+
 
 class OpusDiffCommon(object):
     def __init__(self, latest_date, ad_reader, employee_mapping={}):
@@ -93,7 +95,7 @@ class OpusDiffCommon(object):
         else:
             item_datetime = datetime.strptime(item, '%Y-%m-%d')
         return item_datetime
-    
+
     def validity(self, employee, edit=False):
         """
         Calculates a validity object from en employee object.
@@ -116,7 +118,7 @@ class OpusDiffCommon(object):
             from_date = employee.get('@lastChanged')
 
         if edit:
-            lastchanged = employee.get('@lastChanged', '2020-02-10') # NOTICE!!!!!!!!!!!!!
+            lastchanged = employee.get('@lastChanged', '2020-02-10')  # NOTICE!!!!!!!!!!!!!
             entry_datetime = datetime.strptime(from_date, '%Y-%m-%d')
             lastchanged_datetime = datetime.strptime(lastchanged, '%Y-%m-%d')
 
@@ -133,8 +135,16 @@ class OpusDiffCommon(object):
         manager_type_uuid = self.manager_types.get(manager_type)
         if manager_type_uuid is None:
             print('New manager type: {}!'.format(manager_type))
-            response = self._add_klasse_to_lora(manager_type,
-                                                self.manager_type_facet)
+            if manager_type.find('manager_type_') == 0:
+                manager_titel = manager_type[len('manager_type_'):]
+            else:
+                manager_titel = manager_type
+
+            response = self._add_klasse_to_lora(
+                klasse_name=manager_titel,
+                klasse_bvn=manager_type,
+                facet_uuid=self.manager_type_facet
+            )
             uuid = response['uuid']
             self.manager_types[manager_type] = uuid
 
@@ -208,10 +218,12 @@ class OpusDiffCommon(object):
                 response = self.helper._mo_post('details/edit', payload)
                 self._assert(response)
 
-    def _add_klasse_to_lora(self, klasse_name, facet_uuid):
+    def _add_klasse_to_lora(self, klasse_name, facet_uuid, klasse_bvn=None):
+        if klasse_bvn is None:
+            klasse_bvn = klasse_name
         klasse_uuid = opus_helpers.generate_uuid(klasse_name)
         logger.debug('Adding Klasse: {}, uuid: {}'.format(klasse_name, klasse_uuid))
-        payload = payloads.klasse(klasse_name, self.org_uuid, facet_uuid)
+        payload = payloads.klasse(klasse_name, klasse_bvn, self.org_uuid, facet_uuid)
         url = '{}/klassifikation/klasse/{}'
         response = requests.put(
             url=url.format(self.settings['mox.base'], klasse_uuid),
@@ -228,7 +240,6 @@ class OpusDiffCommon(object):
             uuid = response['uuid']
             self.job_functions[emp_name] = uuid
 
-                
     def _job_and_engagement_type(self, employee):
         # It is assumed no new engagement types are added during daily
         # updates. Default 'Ansat' is the default from the initial import
@@ -239,7 +250,7 @@ class OpusDiffCommon(object):
         contract = employee.get('workContractText', 'Ansat')
         eng_type = self.engagement_types[contract]
         return job_function, eng_type
-                
+
     def _update_employee_address(self, mo_uuid, employee):
         opus_addresses = self._condense_employee_opus_addresses(employee)
         mo_addresses = self._condense_employee_mo_addresses(mo_uuid)
@@ -319,7 +330,7 @@ class OpusDiffCommon(object):
                 end_date=new_valid_to
             )
         return something_new
-            
+
     def update_manager_status(self, employee_mo_uuid, employee):
         url = 'e/{}/details/manager?at=' + self.latest_date.strftime('%Y-%m-%d')
         manager_functions = self.helper._mo_lookup(employee_mo_uuid, url)
@@ -408,14 +419,14 @@ class OpusDiffCommon(object):
                 logger.debug('Create manager payload: {}'.format(payload))
                 response = self.helper._mo_post('details/create', payload)
                 assert response.status_code == 201
-            
+
     def create_user(self, employee):
         cpr = employee['cpr']['#text']
 
         # NOTICE!
         # ad_info = self.ad_reader.read_user(cpr=cpr)
         ad_info = {}
-        
+
         uuid = self.employee_forced_uuids.get(cpr)
         logger.info('Employee in force list: {} {}'.format(cpr, uuid))
         if uuid is None and cpr in ad_info:
