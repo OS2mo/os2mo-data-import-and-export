@@ -558,12 +558,13 @@ Import af AD OU til MO
 
 Som en ekstra funktionalitet, er det muligt at anvende AD integrationens
 læsefaciliteter til at indlæse en bestemt OU fra AD'et til MO. Dette vil eksempelvis
-kunne anvendes hvis AD'et er autoritativ for eksterne konsulenter i kommunen, men man
-alligevel ønsker, at disse personer skal fremgå af MOs frontend. Integrationen vil
-oprette ansættelsestypen 'Ekstern' og vil oprette alle brugere fra et på forhånd
-angivet OU som ansatte i MO. Det er en forudsætning, at disse brugere ikke har andre
-ansættelser i MO i forvejen. Hvis brugere fjernes fra OU'et vil de blive fjernet fra
-MO ved næste kørsel af integrationen.
+kunne anvendes hvis AD'et er autoritativ for eksterne konsulenter i kommunen og man
+ønsker, at disse personer skal fremgå af MOs frontend på trods af at de ikke
+importeres fra lønsystemet.
+Integrationen vil oprette ansættelsestypen 'Ekstern' og vil oprette alle brugere fra
+et på forhånd angivet OU som ansatte i MO. Det er en forudsætning, at disse brugere
+ikke har andre ansættelser i MO i forvejen. Hvis brugere fjernes fra OU'et vil de
+blive fjernet fra MO ved næste kørsel af integrationen.
 
 I den nuværende udgave af integrationen, genkendes OU'et med eksterne brugere på,
 at dets navn indeholder ordene 'Ekstern Konsulenter', dette vil på sigt blive
