@@ -37,15 +37,14 @@ class NectarImport(OpusDiffCommon):
     def read_from_nectar(self, url):
         import pickle
         pickle_key = url.replace('/', '_') + '.p'
-        with open(pickle_key, 'rb') as f:
-            nectar_objects = pickle.load(f)
-        return nectar_objects
+        # with open(pickle_key, 'rb') as f:
+        #     nectar_objects = pickle.load(f)
+        # return nectar_objects
 
         max_index = 9999999  # Will be updated after the first request
         next_position = 0
         nectar_objects = []
         while len(nectar_objects) < max_index:
-            print(url.format(next_position))
             params = {
                 'formatType': 'Native',
                 'page': next_position
@@ -78,8 +77,7 @@ class NectarImport(OpusDiffCommon):
 
         with open(pickle_key, 'wb') as f:
             pickle.dump(nectar_objects, f, pickle.HIGHEST_PROTOCOL)
-        print(nectar_objects)
-        exit()
+
         return nectar_objects
 
     def update_employee(self, employee):
@@ -133,9 +131,6 @@ class NectarImport(OpusDiffCommon):
         url = self.settings['integrations.nectar.url'] + 'person/OPUSLoen/All'
         opus_employee = {}
         employees = self.read_from_nectar(url=url)
-
-        # This will go to the for-loop, for now one example will do
-        nectar_employee = employees[117]['Properties']
 
         skip_fields = ['OrganizationCity', 'ParentOrganizationalUnitID',
                        'OrganizationAddress', 'OrganizationPostCode',
