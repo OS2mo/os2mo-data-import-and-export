@@ -222,7 +222,7 @@ def edit_manager(object_uuid, unit, person, manager_type, level, responsibility,
 
 
 # Same code is found in sd_payloads
-def klasse(klasse_navn, org, facet_uuid):
+def klasse(klasse_navn, klasse_bvn, org, facet_uuid):
     validity = {
         'from': '1900-01-01',
         'to': 'infinity'
@@ -230,7 +230,7 @@ def klasse(klasse_navn, org, facet_uuid):
 
     # "integrationsdata":
     properties = {
-        'brugervendtnoegle': klasse_navn,
+        'brugervendtnoegle': klasse_bvn,
         'titel': klasse_navn,
         'omfang': 'TEXT',
         "virkning": validity
