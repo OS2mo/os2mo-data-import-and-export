@@ -135,6 +135,15 @@ imports_ballerup_udvalg(){
     ${VENV}/bin/python3 integrations/ballerup/udvalg_import.py
 }
 
+imports_ad_group_into_mo(){
+    set -e
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/external_ad_users.log"
+    )
+    echo running imports_ad_group_into_mo
+    ${VENV}/bin/python3 integrations/ad_integration/import_ad_group_into_mo.py --full-sync
+}
+
 exports_mox_rollekatalog(){
     set -e
     echo running exports_mox_rollekatalog
@@ -301,6 +310,10 @@ imports(){
 
     if [ "${RUN_BALLERUP_UDVALG}" == "true" ]; then
         imports_ballerup_udvalg || return 2
+    fi
+
+    if [ "${RUN_AD_GROUP_INTO_MO}" == "true" ]; then
+        imports_ad_group_into_mo || return 2
     fi
 }
 

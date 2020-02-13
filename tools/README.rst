@@ -106,6 +106,7 @@ I ovenstående konfiguration kan man slå jobs til med alle de tilgængeglige ``
 * RUN_EXPORTS_TEST - Kør ingenting, men viser at job-runner har været i gang
 * RUN_SD_DB_OVERVIEW -  Kør overbliksrapport over SD-indlæsningens progress (datoer)
 * RUN_OPUS_DB_OVERVIEW -  Kør overbliksrapport over OPUS-indlæsningens progress (datoer)
+* RUN_AD_GROUP_INTO_MO - Importer en gruppe af eksterne ansatte som ikke findes i lønsystemet
 
 Pakning og lagring af Backup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
