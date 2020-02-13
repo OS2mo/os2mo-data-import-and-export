@@ -551,3 +551,35 @@ De forskellige muligheder gennemgås her en ad gangen:
 
    Denne kommando vil finde en skabelon i ``scripts/send_email.ps_template`` og først
    validere og derefter afvikle de med værdier taget fra brugen med uuid som angivet.
+
+
+Import af AD OU til MO
+======================
+
+Som en ekstra funktionalitet, er det muligt at anvende AD integrationens
+læsefaciliteter til at indlæse en bestemt OU fra AD'et til MO. Dette vil eksempelvis
+kunne anvendes hvis AD'et er autoritativ for eksterne konsulenter i kommunen og man
+ønsker, at disse personer skal fremgå af MOs frontend på trods af at de ikke
+importeres fra lønsystemet.
+Integrationen vil oprette ansættelsestypen 'Ekstern' og vil oprette alle brugere fra
+et på forhånd angivet OU som ansatte i MO. Det er en forudsætning, at disse brugere
+ikke har andre ansættelser i MO i forvejen. Hvis brugere fjernes fra OU'et vil de
+blive fjernet fra MO ved næste kørsel af integrationen.
+
+I den nuværende udgave af integrationen, genkendes OU'et med eksterne brugere på,
+at dets navn indeholder ordene 'Ekstern Konsulenter', dette vil på sigt blive
+erstattet med konfiguration.
+
+For at programmet kan afvikles, er det nødvendigt at sætte konfigurationsværdien
+``integrations.ad.import_ou.mo_unit_uuid`` som angiver UUID'en på den enhed brugerne
+fra AD skal synkroniseres til. Hvis enheden ikke eksisterer i forvejen vil
+den blive oprettet ved første kørsel, så for en kommune som starter op med brug af
+denne integration, kan der blot angives et tilfældigt UUID.
+
+Programmet hedder ``import_ad_group_into_mo.py`` og kan anvendes med et antal
+kommandolinjeparametre:
+
+ *   --create-or-update: Opretter og opdaterer bruger fra AD til MO.
+ *   --cleanup-removed-users: Fjerne MO brugere som ikke længere er konsulenter i AD.
+ *   --full-sync: Kører begge de to ovenstående operationer.
+
