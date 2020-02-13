@@ -249,7 +249,7 @@ class AposImport(object):
 
         if CREATE_UDVALGS_CLASSES:
             specific_klasser = [
-                {'id': 'AMR', 'titel': 'AMR',
+                {'id': 'AMG', 'titel': 'AMG',
                  'facet': 'org_unit_type', 'scope': 'TEXT'},
                 {'id': 'H-MED', 'titel': 'H-MED',
                  'facet': 'org_unit_type', 'scope': 'TEXT'},

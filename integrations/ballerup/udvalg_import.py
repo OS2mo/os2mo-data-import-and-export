@@ -86,7 +86,7 @@ def _load_csv(file_name):
     encoding = detector.result['encoding']
 
     with open(file_name, encoding=encoding) as csvfile:
-        reader = csv.DictReader(csvfile, delimiter=',')
+        reader = csv.DictReader(csvfile, delimiter=';')
         for row in reader:
             rows.append(row)
     return rows
