@@ -28,6 +28,7 @@ logging.basicConfig(
 
 class NectarImport(OpusDiffCommon):
     def __init__(self):
+        logger.info('Nectar Opus Diff Import Running')
         latest_date = '1900-01-01'
         ad_reader = None
         super().__init__(latest_date, ad_reader)
