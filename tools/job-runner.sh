@@ -107,9 +107,11 @@ imports_opus_diff_import(){
 }
 
 imports_sd_update_primary(){
-    set -e
     echo updating primary engagements
-    ${VENV}/bin/python3 integrations/SD_Lon/calculate_primary.py --recalculate-all
+    ${VENV}/bin/python3 integrations/SD_Lon/calculate_primary.py --recalculate-all || (
+        # denne fejl skal ikke stoppe afviklingen, da en afbrudt kørsel blot kan gentages
+        echo FEJL i updating primary engagements, men kører videre
+    )
 }
 
 
