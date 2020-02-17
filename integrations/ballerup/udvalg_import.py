@@ -115,12 +115,16 @@ def _create_mo_ou(name, parent, org_type, bvn):
     ou_type = _find_class(find_facet='org_unit_type', find_class=org_type)
     if parent == 'root':
         parent = ROOT
-    payload = {'name': '{} {}'.format(org_type, name),
-               'brugervendtnoegle': bvn,
-               'org_unit_type': {'uuid': ou_type},
-               'parent': {'uuid': parent},
-               'validity': {'from': '1900-01-01',
-                            'to':  None}}
+    payload = {
+        'uuid': uuid,
+        'user_key': str(bvn),
+        'name': '{} {}'.format(org_type, name),
+        'org_unit_type': {'uuid': ou_type},
+        'parent': {'uuid': parent},
+        'validity': {'from': '1900-01-01',
+                     'to':  None}
+    }
+
     url = BASE_URL + 'ou/create'
     params = {'force': 1}
     response = requests.post(url, json=payload, params=params)
