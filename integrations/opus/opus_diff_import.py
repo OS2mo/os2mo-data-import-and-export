@@ -96,24 +96,30 @@ class OpusDiffImport(object):
         for job in job_functions:
             self.job_functions[job['name']] = job['uuid']
 
+        logger.info('Read Roles')
+        # Potential to cut ~30s by parsing this:
+        # /organisationfunktion?funktionsnavn=Rolle&virkningFra=2019-01-01
         self.role_cache = []
         units = self.helper._mo_lookup(self.org_uuid, 'o/{}/ou?limit=1000000000')
         for unit in units['items']:
-            roles = self.helper._mo_lookup(unit['uuid'], 'ou/{}/details/role')
-            for role in roles:
-                self.role_cache.append(
-                    {
-                        'uuid': role['uuid'],
-                        'person': role['person']['uuid'],
-                        'validity': role['validity'],
-                        'role_type': role['role_type']['uuid'],
-                        'role_type_text': role['role_type']['name']
-                    }
-                )
+            for validity in ['past', 'present', 'future']:
+                url = 'ou/{}/details/role?validity=' + validity
+                roles = self.helper._mo_lookup(unit['uuid'], url)
+                for role in roles:
+                    self.role_cache.append(
+                        {
+                            'uuid': role['uuid'],
+                            'person': role['person']['uuid'],
+                            'validity': role['validity'],
+                            'role_type': role['role_type']['uuid'],
+                            'role_type_text': role['role_type']['name']
+                        }
+                    )
 
         self.latest_date = latest_date
         self.units = None
         self.employees = None
+        logger.info('__init__ done, now start export')
 
     def _find_classes(self, facet):
         class_types = self.helper.read_classes_in_facet(facet)
@@ -515,7 +521,10 @@ class OpusDiffImport(object):
 
     def create_user(self, employee):
         cpr = employee['cpr']['#text']
-        ad_info = self.ad_reader.read_user(cpr=cpr)
+        if self.ad_reader is not None:
+            ad_info = self.ad_reader.read_user(cpr=cpr)
+        else:
+            ad_info = {}
         uuid = self.employee_forced_uuids.get(cpr)
         logger.info('Employee in force list: {} {}'.format(cpr, uuid))
         if uuid is None and cpr in ad_info:
