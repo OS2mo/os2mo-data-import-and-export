@@ -1,6 +1,8 @@
+import uuid
 import csv
-import logging
 import pickle
+import logging
+import hashlib
 import requests
 import datetime
 from anytree import Node
@@ -92,16 +94,37 @@ def _load_csv(file_name):
     return rows
 
 
-def _create_mo_ou(name, parent, org_type):
+def generate_uuid(value, org_name):
+    """
+    Code almost identical to this also lives in the Opus importer.
+    """
+    base_hash = hashlib.md5(org_name.encode())
+
+    base_digest = base_hash.hexdigest()
+    base_uuid = uuid.UUID(base_digest)
+
+    combined_value = (str(base_uuid) + str(value)).encode()
+    value_hash = hashlib.md5(combined_value)
+    value_digest = value_hash.hexdigest()
+    value_uuid = str(uuid.UUID(value_digest))
+    return value_uuid
+
+
+def _create_mo_ou(name, parent, org_type, bvn):
+    uuid = generate_uuid(bvn, ROOT)
     ou_type = _find_class(find_facet='org_unit_type', find_class=org_type)
     if parent == 'root':
         parent = ROOT
-    payload = {'name': '{} {}'.format(org_type, name),
-               'brugervendtnoegle': name,
-               'org_unit_type': {'uuid': ou_type},
-               'parent': {'uuid': parent},
-               'validity': {'from': '1900-01-01',
-                            'to':  None}}
+    payload = {
+        'uuid': uuid,
+        'user_key': str(bvn),
+        'name': '{} {}'.format(org_type, name),
+        'org_unit_type': {'uuid': ou_type},
+        'parent': {'uuid': parent},
+        'validity': {'from': '1900-01-01',
+                     'to':  None}
+    }
+
     url = BASE_URL + 'ou/create'
     params = {'force': 1}
     response = requests.post(url, json=payload, params=params)
@@ -224,13 +247,13 @@ def create_tree(file_name):
             parent = int(row['ParentID']) if row['ParentID'] else None
             if parent is None:
                 uuid = _create_mo_ou(row['OrgEnhed'], parent='root',
-                                     org_type=org_type)
+                                     org_type=org_type, bvn=id_nr)
                 new[id_nr] = Node(row['OrgEnhed'],
                                   uuid=uuid, org_type=org_type)
             elif parent in nodes:
                 uuid = _create_mo_ou(row['OrgEnhed'],
                                      parent=nodes[parent].uuid,
-                                     org_type=org_type)
+                                     org_type=org_type, bvn=id_nr)
                 new[id_nr] = Node(row['OrgEnhed'],
                                   uuid=uuid, org_type=org_type,
                                   parent=nodes[parent])
