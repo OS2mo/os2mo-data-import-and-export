@@ -20,7 +20,6 @@
     "crontab.CRON_BACKUP": "/path/backup-dir", 
     "crontab.CRON_LOG_FILE": "/path/cron-log-file", 
     "crontab.BACKUP_SAVE_DAYS": "60",
-    "crontab.MOX_ROLLE_COMPOSE_YML":"/path/to/file.yml",
     "crontab.SNAPSHOT_LORA":"/path/db-snapshot.sql",
     "crontab.LORA_CONFIG":"/path/to/lora_config/for/db/restore",
 
@@ -112,5 +111,9 @@
     "opus.it_systems.ad": "uuid-for-ad",
     "opus.it_systems.opus": "uuid-for-opus",
     "exporters.plan2learn.allowed_engagement_types": ["list-of","engagement-type-uuid"],
-    "exporters.viborg.primary_manager_responsibility": "class-for-responsibility"
+    "exporters.viborg.primary_manager_responsibility": "class-for-responsibility",
+    "exporters.os2rollekatalog.rollekatalog_url": "",
+    "exporters.os2rollekatalog.rollekatalog_api_token": "",
+    "exporters.os2rollekatalog.ad_system_name": "",
+    "exporters.os2rollekatalog.main_root_org_unit": ""
 }
