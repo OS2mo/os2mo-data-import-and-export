@@ -7,6 +7,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import os
+import csv
 from os2mo_data_import import ImportHelper
 from integrations import apos_importer
 
@@ -15,6 +16,14 @@ MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
 MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:5000')
 MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
 MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_NAME', 0)
+
+ean_file = '/opt/customer/dataimport/ballerup_udvalg/ean.csv'
+ean_rows = {}
+with open(ean_file) as csvfile:
+    reader = csv.reader(csvfile, delimiter=';')
+    for row in reader:
+        ean_rows[row[0]] = row[1]
+
 
 importer = ImportHelper(create_defaults=True,
                         mox_base=MOX_BASE,
@@ -29,7 +38,8 @@ apos_import = apos_importer.AposImport(
     importer,
     MUNICIPALTY_NAME,
     MUNICIPALTY_CODE,
-    org_uuid='00000000-0000-43b4-8415-1c70c2cd0cbd'
+    org_uuid='00000000-0000-43b4-8415-1c70c2cd0cbd',
+    ean=ean_rows
 )
 
 apos_import.create_facetter_and_klasser()
