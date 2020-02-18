@@ -125,7 +125,7 @@ if __name__ == '__main__':
     t = time.time()
     mh = MoraHelper(hostname=mora_base, export_ansi=False)
 
-    export_engagement(mh, outfile_name)
+    export_engagement(mh, str(outfile_name))
     logger.info('Time: {}s'.format(time.time() - t))
 
     logger.info('Export completed')
