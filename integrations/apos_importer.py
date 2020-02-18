@@ -23,7 +23,7 @@ logger = logging.getLogger("aposImport")
 
 for name in logging.root.manager.loggerDict:
     if name in ('aposImport', 'moImporterMoraTypes', 'moImporterMoxTypes',
-                'moImporterUtilities', 'moImporterHelpers'):
+                'moImporterUtilities', 'moImporterHelpers', 'mora-helper'):
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
         logging.getLogger(name).setLevel(logging.WARNING)
@@ -33,6 +33,8 @@ logging.basicConfig(
     level=LOG_LEVEL,
     filename=LOG_FILE
 )
+
+logger.info('Apos import started')
 
 MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
 BASE_APOS_URL = os.environ.get('BASE_APOS_URL', 'http://localhost:8080/apos2-')
@@ -65,7 +67,7 @@ def _format_time(gyldighed):
 
 class AposImport(object):
 
-    def __init__(self, importer, org_name, municipality_code, org_uuid=None):
+    def __init__(self, importer, org_name, municipality_code, org_uuid=None, ean={}):
         self.base_url = BASE_APOS_URL
 
         self.importer = importer
@@ -76,6 +78,7 @@ class AposImport(object):
             municipality_code=municipality_code
         )
 
+        self.ean = ean
         self.object_to_uuid = {}  # Mapping of Apos object ID to Apos UUID
         self.address_challenges = {}  # Needs support in dawa helper
         self.duplicate_persons = {}
@@ -98,6 +101,10 @@ class AposImport(object):
         return xml_response[outer_key]
 
     def read_locations(self, unit):
+        # url = 'app-organisation/GetOrganisationEnhedIntegration?uuid={}'
+        # integration_values = self._apos_lookup(url.format(unit['@uuid']))
+        # print(integration_values)
+
         url = 'app-organisation/GetLocations?uuid={}'
         locations = self._apos_lookup(url.format(unit['@uuid']))
 
@@ -358,7 +365,6 @@ class AposImport(object):
         includes looking up address information """
         url = "app-organisation/GetUnitDetails?uuid={}"
         r = self._apos_lookup(url.format(apos_unit['@uuid']))
-
         details = r['enhed']
 
         """
@@ -464,6 +470,14 @@ class AposImport(object):
                 date_from=fra
             )
 
+        if apos_unit['@uuid'] in self.ean:
+            self.importer.add_address_type(
+                organisation_unit=unit_id,
+                type_ref='EAN',
+                value=self.ean[apos_unit['@uuid']],
+                date_from=fra
+            )
+
         # This is most likely the orgunit relation information
         # print(details['tilknyttedeEnheder']))
 
@@ -478,6 +492,7 @@ class AposImport(object):
                         date_from=fra)
                 except AssertionError:  # pnumber added multiple times
                     pass
+
             if location['dawa_uuid']:
                 try:
                     self.importer.add_address_type(
@@ -766,6 +781,7 @@ class AposImport(object):
         for unit in units:
             self.get_ou_functions(unit)
             self.create_associations_for_ou(unit)
+        logger.info('Finished creating managers')
 
     def add_all_missing_employees(self):
         """
@@ -796,3 +812,4 @@ class AposImport(object):
                     cpr_no=person['@personnummer'],
                     user_key=person['@uuid']
                 )
+        logger.info('Finished importig remaining employees')

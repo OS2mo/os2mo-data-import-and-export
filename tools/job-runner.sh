@@ -17,10 +17,7 @@ cd ${DIPEXAR}
 
 export PYTHONPATH=$PWD:$PYTHONPATH
 
-# FIXME: remove cache ad pickle files
-# Robert disables/moves them in later ad
-# maybe he also takes care of the apos ones
-rm *.p 2>/dev/null || :
+rm tmp/*.p 2>/dev/null || :
 
 # some logfiles can be truncated after backup as a primitive log rotation
 # they should be appended to BACK_UP_AND_TRUNCATE
