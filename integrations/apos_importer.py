@@ -67,7 +67,7 @@ def _format_time(gyldighed):
 
 class AposImport(object):
 
-    def __init__(self, importer, org_name, municipality_code, org_uuid=None):
+    def __init__(self, importer, org_name, municipality_code, org_uuid=None, ean={}):
         self.base_url = BASE_APOS_URL
 
         self.importer = importer
@@ -78,6 +78,7 @@ class AposImport(object):
             municipality_code=municipality_code
         )
 
+        self.ean = ean
         self.object_to_uuid = {}  # Mapping of Apos object ID to Apos UUID
         self.address_challenges = {}  # Needs support in dawa helper
         self.duplicate_persons = {}
@@ -466,6 +467,14 @@ class AposImport(object):
                 organisation_unit=unit_id,
                 type_ref=key,
                 value=value,
+                date_from=fra
+            )
+
+        if apos_unit['@uuid'] in self.ean:
+            self.importer.add_address_type(
+                organisation_unit=unit_id,
+                type_ref='EAN',
+                value=self.ean[apos_unit['@uuid']],
                 date_from=fra
             )
 
