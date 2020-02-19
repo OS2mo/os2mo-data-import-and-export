@@ -88,19 +88,25 @@ job-runner.sh er ikke et smart program. Dert er til gengæld simpelt.: Job-afvik
 
 I ovenstående konfiguration kan man slå jobs til med alle de tilgængeglige ``crontab.RUN_*``, som dækker over:
 
-        RUN_MOX_DB_CLEAR : 			Tøm OS2mo's database
-        RUN_CHECK_AD_CONNECTIVITY: 		Check at der er di korrekte rettigheder i AD
-        RUN_BALLERUP_APOS			Indlæs til OS2MO fra APOS (Ballerups version)
-        RUN_BALLERUP_UDVALG			Indlæs udvalgshierarkiet i Ballerups OS2MO
-        RUN_QUERIES_BALLERUP			Kør Ballerups exports / forespørgsler
-        RUN_SD_CHANGED_AT			Kør SD-changed-at
-        RUN_SD_FIX_DEPARTMENTS			Kør SD-fix-departments
-        RUN_SD_DB_OVERVIEW			Få et overblik over SD-indlæsningens progress (datoer)
-        RUN_AD_SYNC				Kør en AD-synkronisering
-        RUN_MOX_STS_ORGSYNC			Kør Overførslen til STS Organisation
-        RUN_MOX_ROLLE				Kør overførslen til rollekataloget
-        RUN_CPR_UUID				Lav en cachefile med CPR/UUID-sammenhænger - gøres typisk før en genindlæsning
-
+* RUN_MOX_DB_CLEAR - Tøm OS2mo's database
+* RUN_CHECK_AD_CONNECTIVITY - Check at der er di korrekte rettigheder i AD
+* RUN_SD_FIX_DEPARTMENTS - Kør SD-fix-departments
+* RUN_SD_CHANGED_AT - Kør SD-changed-at - deltaimport af ændringer fra SD
+* RUN_SD_UPDATE_PRIMARY - Kør Primærberegning af SD-employees
+* RUN_BALLERUP_APOS - Indlæs til OS2MO fra APOS (Ballerups version)
+* RUN_OPUS_DIFF_IMPORT - Kør Opus  diff import - deltaimport af øndringer fra OPUS
+* RUN_AD_SYNC - Kør en AD-synkronisering
+* RUN_BALLERUP_APOS - total-indlæsning af APOS i Ballerup
+* RUN_BALLERUP_UDVALG - udvalgshierarkiet i Ballerups OS2MO
+* RUN_MOX_ROLLE - overførslen til rollekataloget
+* RUN_MOX_STS_ORGSYNC - Overførslen til STS Organisation
+* RUN_QUERIES_BALLERUP - Ballerups exports / forespørgsler
+* RUN_EXPORT_EMUS - Kør Eksport til EMUS
+* RUN_CPR_UUID - Lav en cachefile med CPR/UUID-sammenhænge - gøres typisk før en genindlæsning/restore
+* RUN_EXPORTS_TEST - Kør ingenting, men viser at job-runner har været i gang
+* RUN_SD_DB_OVERVIEW -  Kør overbliksrapport over SD-indlæsningens progress (datoer)
+* RUN_OPUS_DB_OVERVIEW -  Kør overbliksrapport over OPUS-indlæsningens progress (datoer)
+* RUN_AD_GROUP_INTO_MO - Importer en gruppe af eksterne ansatte som ikke findes i lønsystemet
 
 Pakning og lagring af Backup
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -132,11 +138,23 @@ Følgende interne funktioner kan kaldes:
 * imports_test_ad_connectivity
 * imports_sd_fix_departments
 * imports_sd_changed_at
+* imports_opus_diff_import
+* imports_sd_update_primary
 * imports_ad_sync
+* imports_ballerup_apos
+* imports_ballerup_udvalg
 * exports_mox_rollekatalog
 * exports_mox_stsorgsync
+* exports_os2mo_phonebook
+* exports_cpr_uuid
+* exports_viborg_emus
 * reports_sd_db_overview
-* reports_cpr_uuid
+* reports_opus_db_overview
+* exports_queries_ballerup
+* exports_test
+* imports
+* exports
+* reports
 
 Vil man for eksempel afvikle mox_stsorgsync, anvender man kaldet:
 

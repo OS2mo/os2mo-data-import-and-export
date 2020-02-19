@@ -26,9 +26,17 @@
 
     "mox.base": "http://example.com/mox",
     "mora.base": "http://example.com/mora",
+    "mora.folder.query_export":"path-to-where-os2mo-reads-csv-files",
     "address.visibility.secret": "uuid-for-secret-address",
     "address.visibility.internal": "uuid-for-internal-address",
     "address.visibility.public": "uuid-for-public-address",
+    "exports_viborg_eksterne.destination_smb_share":"smb-share",
+    "exports_viborg_eksterne.destination_directory":"directory-name",
+    "exports_viborg_eksterne.workgroup":"Windows-WORKGROUP",
+    "exports_viborg_eksterne.outfile_basename":"viborg_ekstern.csv",
+    "exports_viborg_eksterne.destination_smb_share":"sharename-write-4-backslashes-for-each-backslash",
+    "exports_viborg_eksterne.destination_directory":"directory-name-on-smb-share",
+
     "integrations.SD_Lon.sd_user": "",
     "integrations.SD_Lon.sd_password": "",
     "integrations.SD_Lon.institution_identifier": "",
@@ -39,7 +47,7 @@
         "ny-niveauer"
     ] ,
     "integrations.SD_Lon.global_from_date": "YYYY-mm-dd",
-    "integrations.SD_Lon.import.run_db": "/path/to/rundb",
+    "integrations.SD_Lon.import.run_db": "/path/to/CRON/run_db.sqlite",
     "#integrations.SD_Lon.import.manager_file": "/path/to/manager_file",
     "#integrations.SD_Lon.sd_mox.AMQP_USER": "",
     "#integrations.SD_Lon.sd_mox.AMQP_HOST": "",
@@ -86,5 +94,23 @@
         "it_systems":{
            "samAccountName": ""
         }
-    }
+    },
+    "integrations.ad.ad_mo_sync_direct_lora_speedup": false,
+    "integrations.ad.skip_school_ad_to_mo": false,
+
+    "integrations.opus.import.run_db": "/path/to/CRON/run_db.sqlite",
+    "integrations.opus.import.xml_path": "/path-to/customer-dumps",
+    "opus.addresses.employee.dar": "uuid-for-e-dar",
+    "opus.addresses.employee.phone": "uuid-for-e-phone",
+    "opus.addresses.employee.email": "uuid-for-e-email",
+    "opus.addresses.unit.se": "uuid-for-ou-se",
+    "opus.addresses.unit.cvr": "uuid-for-ou-cvr",
+    "opus.addresses.unit.ean": "uuid-for-ou-ean",
+    "opus.addresses.unit.pnr": "uuid-for-ou-pnr",
+    "opus.addresses.unit.phoneNumber": "uuid-for-ou-phone",
+    "opus.addresses.unit.dar": "uuid-for-ou-dar",
+    "opus.it_systems.ad": "uuid-for-ad",
+    "opus.it_systems.opus": "uuid-for-opus",
+    "exporters.plan2learn.allowed_engagement_types": ["list-of","engagement-type-uuid"],
+    "exporters.viborg.primary_manager_responsibility": "class-for-responsibility"
 }

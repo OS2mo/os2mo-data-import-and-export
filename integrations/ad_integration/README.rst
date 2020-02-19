@@ -182,22 +182,115 @@ Synkronisering
 Der eksisterer (udvikles) to synkroniseringstjenester, en til at synkronisere felter
 fra AD til MO, og en til at synkronisere felter fra MO til AD.
 
-Synkronisering fra AD til MO foregår via programmet ``ad_sync.py``. Programmet vil
-(for nuværende) i udgangspunktet opdaterere alle relevante værdier i MO fra de
-tilsvarende i AD for alle medarbejdere.
-Dette foregår ved at programmet først udtrækker samtlige medarbejdere fra MO, der
-itereres hen over denne liste, og information fra AD'et slås op med cpr nummer som
-nøgle. Hvis brugeren findes i AD, udlæses alle parametre angivet i ``AD_PROPERTIES``
-og de relevante af dem synkroniseres til MO. Hvad der er relevant, angives i
-øjeblikket som en hårdkodet liste direkte i synkroniseringsværktøkjet, de nuværende
-eksempler går alle på forskellige former for adresser.
+AD til MO
++++++++++
+
+Synkronisering fra AD til MO foregår via programmet ``ad_sync.py``.
+
+Programmet opdaterer alle værdier i MO i henhold til den feltmapning som er angivet
+i `settings.json`. Det er muligt at synkronisere adresseoplysninger, samt at
+oprette et IT-system på brugeren, hvis brugeren findes i AD, men endnu ikke har et
+tilknyttet IT-system i MO. Et eksempel på en feltmapning angives herunder:
+
+.. code-block:: json
+
+    "integrations.ad.ad_mo_sync_mapping": {
+	"user_addresses": {
+	    "telephoneNumber": ["a6dbb837-5fca-4f05-b369-8476a35e0a95", "INTERNAL"],
+	    "pager": ["d9cd7a04-a992-4b31-9534-f375eba2f1f4 ", "PUBLIC"],
+	    "EmailAddress": ["fbd70da1-ad2e-4373-bb4f-2a431b308bf1", null],
+	    "mobile": ["6e7131a0-de91-4346-8607-9da1b576fc2a ", "PUBLIC"]
+	},
+	"it_systems": {
+	    "samAccountName": "d2998fa8-9d0f-4a2c-b80e-c754c72ef094"
+	}
+    }
+
+For adresser angives en synlighed, som kan antage værdien `PUBLIC`, `INTERNAL`,
+`SECRET` eller `null` som angiver at synligheden i MO sættes til henholdsvis
+offentlig, intern, hemmelig, eller ikke angivet. UUID'er er på de tilhørende
+adresseklasser i MO som AD felterne skal mappes til.
+
+Hvis der for en given bruger er felter i feltmapningen som ikke findes i AD, vil
+disse felter bliver sprunget over, men de øvrige felter vil stadig blive
+sykroniseret.
+
+Selve synkroniseringen foregår ved at programmet først udtrækker samtlige
+medarbejdere fra MO, der itereres hen over denne liste, og information fra AD'et
+slås op med cpr-nummer som nøgle. Hvis brugeren findes i AD, udlæses alle parametre
+angivet i `integrations.ad.properties` og de af dem som figurerer i feltmapningen
+synkroniseres til MO.
+
+Integrationen vil som udgangspunkt ikke synkronisere fra et eventuelt skole AD, med
+mindre nøglen `integrations.ad.skip_school_ad_to_mo` sættes til `false`.
 
 Da AD ikke understøtter gyldighedstider, antages alle informationer uddraget fra AD
 at gælde fra 'i dag' og til evig tid.
 
+Slutteligt skal det nævnes, at implemeneringen af synkroniseringen understøtter
+muligheden for at opnå en betydelig hastighedsforbering ved at tillade direkte adgang
+til LoRa, denne funktion aktiveres med nøglen
+`integrations.ad.ad_mo_sync_direct_lora_speedup` og reducerer kørselstiden med ca.
+50%.
+
+MO til AD
++++++++++
+
 Synkronisering fra MO til AD foregår efter en algoritme hvor der itereres hen over
-alle AD brugere. Hver enkelt bruger slås op i MO via feltet `AD_WRITE_UUID` og
-informatione fra MO synkroniseres til AD.
+alle AD brugere. Hver enkelt bruger slås op i MO via feltet angivet i nøglen
+`integrations.ad.write.uuid_field` og informatione fra MO synkroniseres
+til AD i henhold til den lokale feltmapning. AD-integrationen stiller et antal
+værdier til rådighed, som det er muligt at synkronisere til felter i AD. Flere
+lan tilføjes efterhånden som integrationen udvikles.
+
+ * `employment_number`: Lønsystemets ansættelsesnummer for medarbejderens primære
+   engagement.
+ * `end_date`: Slutdato for længste ansættelse i MO, hvis en ansættelse ikke har
+   nogen kendt slutdato, angives 9999-12-31.
+ * `uuid`: Brugerens UUID i MO.
+ * `title`: Stillingsbetegnelse for brugerens primære engagement.
+ * `unit`: Navn på enheden for brugerens primære engagement.
+ * `unit_uuid`: UUID på enheden for brugerens primære engagement.
+ * `unit_user_key`: Brugervendt nøgle for enheden for brugerens primære engagement,
+   dette vil typisk være lønssystemets kortnavn for enheden.
+ * `unit_public_email`: Email på brugerens primære enhed med synligheen `offentlig`
+ * `unit_secure_email`: Email på brugerens primære enhed med synligheen `hemmelig`.
+   Hvis enheden kun har email adresser uden angivet synlighed, vil den blive agivet
+   her.
+ * `unit_postal_code`: Postnummer for brugerens primære enhed.
+ * `unit_city`: By for brugerens primære enhed.
+ * `unit_streetname`: Gadenavn for brugerens primære enhed.
+ * `location`: Fuld organisatorisk sti til brugerens primære enhed.
+ * `forvaltning`: Forvaltingen som brugerens primære engagement hører under.
+ * `manager_name`: Navn på leder for brugerens primære engagement.
+ * `manager_sam`: SamAccountName for leder for brugerens primære engagement.
+ * `manager_mail`: Email på lederen for brugerens primære engagement.
+
+Felterne `forvaltning` og `location` synkroniseres altid til felterne angivet i
+nøglerner `integrations.ad.write.forvaltning_type` og
+`integrations.ad.write.org_unit_field`, og skal derfor ikke specificeres yderligere
+i feltmapningen.
+
+Desuden synkroniseres  altid AD felterne:
+ * `Displayname` Synkroniseres til medarbejderens fulde navn
+ * `GivenName`: Synkroniseres til medarbejderens fornavn
+ * `SurName`: Synkroniseres til medarbejderens efternavn
+ * `EmployeeNumber`: Synkroniseres til `employment_number`
+
+Yderligere synkronisering fortages i henhold til en lokal feltmaping, som eksempelvis
+kan se ud som dette:
+
+.. code-block:: json
+
+   "integrations.ad_writer.mo_to_ad_fields": {
+	"unit_postal_code": "postalCode",
+	"unit_city": "l",
+	"unit_user_key": "department",
+	"unit_streetname": "streetAddress",
+	"unit_public_email": "extensionAttribute3",
+	"title": "Title",
+	"unit": "extensionAttribute2"
+   }
 
 
 Afvikling af PoerShell templates
@@ -458,3 +551,35 @@ De forskellige muligheder gennemgås her en ad gangen:
 
    Denne kommando vil finde en skabelon i ``scripts/send_email.ps_template`` og først
    validere og derefter afvikle de med værdier taget fra brugen med uuid som angivet.
+
+
+Import af AD OU til MO
+======================
+
+Som en ekstra funktionalitet, er det muligt at anvende AD integrationens
+læsefaciliteter til at indlæse en bestemt OU fra AD'et til MO. Dette vil eksempelvis
+kunne anvendes hvis AD'et er autoritativ for eksterne konsulenter i kommunen og man
+ønsker, at disse personer skal fremgå af MOs frontend på trods af at de ikke
+importeres fra lønsystemet.
+Integrationen vil oprette ansættelsestypen 'Ekstern' og vil oprette alle brugere fra
+et på forhånd angivet OU som ansatte i MO. Det er en forudsætning, at disse brugere
+ikke har andre ansættelser i MO i forvejen. Hvis brugere fjernes fra OU'et vil de
+blive fjernet fra MO ved næste kørsel af integrationen.
+
+I den nuværende udgave af integrationen, genkendes OU'et med eksterne brugere på,
+at dets navn indeholder ordene 'Ekstern Konsulenter', dette vil på sigt blive
+erstattet med konfiguration.
+
+For at programmet kan afvikles, er det nødvendigt at sætte konfigurationsværdien
+``integrations.ad.import_ou.mo_unit_uuid`` som angiver UUID'en på den enhed brugerne
+fra AD skal synkroniseres til. Hvis enheden ikke eksisterer i forvejen vil
+den blive oprettet ved første kørsel, så for en kommune som starter op med brug af
+denne integration, kan der blot angives et tilfældigt UUID.
+
+Programmet hedder ``import_ad_group_into_mo.py`` og kan anvendes med et antal
+kommandolinjeparametre:
+
+ *   --create-or-update: Opretter og opdaterer bruger fra AD til MO.
+ *   --cleanup-removed-users: Fjerne MO brugere som ikke længere er konsulenter i AD.
+ *   --full-sync: Kører begge de to ovenstående operationer.
+

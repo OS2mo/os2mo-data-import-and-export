@@ -11,15 +11,13 @@ export REPORTS_OK=false
 export BACKUP_OK=true
 export LC_ALL="C.UTF-8"
 
-source ${DIPEXAR}/tools/prefixed_settings.sh
-
 cd ${DIPEXAR}
+source ${DIPEXAR}/tools/prefixed_settings.sh
+cd ${DIPEXAR}
+
 export PYTHONPATH=$PWD:$PYTHONPATH
 
-# FIXME: remove cache ad pickle files
-# Robert disables/moves them in later ad
-# maybe he also takes care of the apos ones
-rm *.p 2>/dev/null || :
+rm tmp/*.p 2>/dev/null || :
 
 # some logfiles can be truncated after backup as a primitive log rotation
 # they should be appended to BACK_UP_AND_TRUNCATE
@@ -41,6 +39,11 @@ declare -a BACK_UP_BEFORE_JOBS=(
     $(
         SETTING_PREFIX="integrations.SD_Lon.import" source ${DIPEXAR}/tools/prefixed_settings.sh
         # backup run_db only if file exists - it will not exist on non-SD customers
+        echo ${run_db}
+    )
+    $(
+        SETTING_PREFIX="integrations.opus.import" source ${DIPEXAR}/tools/prefixed_settings.sh
+        # backup run_db only if file exists - it will not exist on non-OPUS customers
         echo ${run_db}
     )
 )
@@ -101,9 +104,11 @@ imports_opus_diff_import(){
 }
 
 imports_sd_update_primary(){
-    set -e
     echo updating primary engagements
-    ${VENV}/bin/python3 integrations/SD_Lon/calculate_primary.py --recalculate-all
+    ${VENV}/bin/python3 integrations/SD_Lon/calculate_primary.py --recalculate-all || (
+        # denne fejl skal ikke stoppe afviklingen, da en afbrudt kørsel blot kan gentages
+        echo FEJL i updating primary engagements, men kører videre
+    )
 }
 
 
@@ -127,6 +132,15 @@ imports_ballerup_udvalg(){
     )
     echo running imports_ballerup_udvalg
     ${VENV}/bin/python3 integrations/ballerup/udvalg_import.py
+}
+
+imports_ad_group_into_mo(){
+    set -e
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/external_ad_users.log"
+    )
+    echo running imports_ad_group_into_mo
+    ${VENV}/bin/python3 integrations/ad_integration/import_ad_group_into_mo.py --full-sync
 }
 
 exports_mox_rollekatalog(){
@@ -175,17 +189,56 @@ exports_viborg_emus(){
     ${VENV}/bin/python3 exporters/viborg_xml_emus_sftp.py
 }
 
+exports_viborg_eksterne(){
+    set -e
+    echo "running viborgs eksterne"
+    ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py || exit 1
+    $(
+        SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
+        SETTING_PREFIX="integrations.ad" source ${DIPEXAR}/tools/prefixed_settings.sh
+        SETTING_PREFIX="exports_viborg_eksterne" source ${DIPEXAR}/tools/prefixed_settings.sh
+        system_user="${system_user%%@*}"
+        [ -z "${query_export}" ] && exit 1
+        [ -z "${system_user}" ] && exit 1
+        [ -z "${password}" ] && exit 1
+        [ -z "${destination_smb_share}" ] && exit 1
+        [ -z "${destination_directory}" ] && exit 1
+        [ -z "${outfile_basename}" ] && exit 1
+        [ -z "${workgroup}" ] && exit 1
+
+        cd ${query_export}
+        smbclient -U "${system_user}%${password}"  \
+            ${destination_smb_share} -m SMB2  \
+            -W ${workgroup} --directory ${destination_directory} \
+            -c 'put '${outfile_basename}''
+
+        #smbclient -U "${system_user}%${password}"  \
+        #    ${destination_smb_share} -m SMB2  \
+        #    -W ${workgroup} --directory ${destination_directory} \
+        #    -c 'del '${outfile_basename}''
+    )
+}
 
 reports_sd_db_overview(){
     set -e
     echo running reports_sd_db_overview
-    ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py
+    outfile=$(mktemp)
+    ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py > ${outfile}
+    head -2 ${outfile}
+    echo "..."
+    tail -3 ${outfile}
+    rm ${outfile}
 }
 
 reports_opus_db_overview(){
     set -e
     echo running reports_opus_db_overview
-    ${VENV}/bin/python3 integrations/opus/db_overview.py
+    outfile=$(mktemp)
+    ${VENV}/bin/python3 integrations/opus/db_overview.py > ${outfile}
+    head -4 ${outfile}
+    echo "..."
+    tail -3 ${outfile}
+    rm ${outfile}
 }
 
 
@@ -206,7 +259,7 @@ exports_queries_ballerup(){
         [ -d "${WORK_DIR}" ] || mkdir "${WORK_DIR}"
         cd "${WORK_DIR}"
         ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
-        mv "${WORK_DIR}"/*.csv "${EXPORTS_DIR}"
+        cp "${WORK_DIR}"/*.csv "${EXPORTS_DIR}"
     )
 }
 
@@ -214,6 +267,7 @@ exports_test(){
     set -e
     :
 }
+
 
 # imports are typically interdependent: -e
 imports(){
@@ -256,6 +310,10 @@ imports(){
     if [ "${RUN_BALLERUP_UDVALG}" == "true" ]; then
         imports_ballerup_udvalg || return 2
     fi
+
+    if [ "${RUN_AD_GROUP_INTO_MO}" == "true" ]; then
+        imports_ad_group_into_mo || return 2
+    fi
 }
 
 # exports may also be interdependent: -e
@@ -280,6 +338,10 @@ exports(){
         exports_viborg_emus || return 2
     fi
 
+    if [ "${RUN_EXPORTS_VIBORG_EKSTERNE}" == "true" ]; then
+        exports_viborg_eksterne || return 2
+    fi
+
     if [ "${RUN_EXPORTS_OS2MO_PHONEBOOK}" == "true" ]; then
         exports_os2mo_phonebook || return 2
     fi
@@ -292,6 +354,8 @@ exports(){
     if [ "${RUN_EXPORTS_TEST}" == "true" ]; then
         exports_test || return 2
     fi
+
+
 }
 
 # reports are typically not interdependent

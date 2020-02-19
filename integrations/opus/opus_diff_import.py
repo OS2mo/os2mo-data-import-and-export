@@ -7,12 +7,14 @@ import xmltodict
 from pathlib import Path
 from requests import Session
 from datetime import datetime
+from datetime import timedelta
 
 from integrations import dawa_helper
 from integrations.opus import payloads
 from integrations.opus import opus_helpers
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.opus.calculate_primary import MOPrimaryEngagementUpdater
+from integrations.opus.opus_exceptions import UnknownOpusUnit
 from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 
 logger = logging.getLogger("opusDiff")
@@ -81,7 +83,8 @@ class OpusDiffImport(object):
         self.unit_types, self.unit_type_facet = self._find_classes('org_unit_type')
         self.manager_levels, _ = self._find_classes('manager_level')
         self.role_types, _ = self._find_classes('role_type')
-        self.manager_types, _ = self._find_classes('manager_type')
+        self.manager_types, self.manager_type_facet = self._find_classes(
+            'manager_type')
         self.responsibilities, _ = self._find_classes('responsibility')
 
         # TODO, this should also be done be _find_classes
@@ -93,24 +96,30 @@ class OpusDiffImport(object):
         for job in job_functions:
             self.job_functions[job['name']] = job['uuid']
 
+        logger.info('Read Roles')
+        # Potential to cut ~30s by parsing this:
+        # /organisationfunktion?funktionsnavn=Rolle&virkningFra=2019-01-01
         self.role_cache = []
         units = self.helper._mo_lookup(self.org_uuid, 'o/{}/ou?limit=1000000000')
         for unit in units['items']:
-            roles = self.helper._mo_lookup(unit['uuid'], 'ou/{}/details/role')
-            for role in roles:
-                self.role_cache.append(
-                    {
-                        'uuid': role['uuid'],
-                        'person': role['person']['uuid'],
-                        'validity': role['validity'],
-                        'role_type': role['role_type']['uuid'],
-                        'role_type_text': role['role_type']['name']
-                    }
-                )
+            for validity in ['past', 'present', 'future']:
+                url = 'ou/{}/details/role?validity=' + validity
+                roles = self.helper._mo_lookup(unit['uuid'], url)
+                for role in roles:
+                    self.role_cache.append(
+                        {
+                            'uuid': role['uuid'],
+                            'person': role['person']['uuid'],
+                            'validity': role['validity'],
+                            'role_type': role['role_type']['uuid'],
+                            'role_type_text': role['role_type']['name']
+                        }
+                    )
 
         self.latest_date = latest_date
         self.units = None
         self.employees = None
+        logger.info('__init__ done, now start export')
 
     def _find_classes(self, facet):
         class_types = self.helper.read_classes_in_facet(facet)
@@ -163,6 +172,15 @@ class OpusDiffImport(object):
             response = self._add_klasse_to_lora(unit_type, self.unit_type_facet)
             uuid = response['uuid']
             self.unit_types[unit_type] = uuid
+
+    def _update_manager_types(self, manager_type):
+        manager_type_uuid = self.manager_types.get(manager_type)
+        if manager_type_uuid is None:
+            print('New manager type: {}!'.format(manager_type))
+            response = self._add_klasse_to_lora(manager_type,
+                                                self.manager_type_facet)
+            uuid = response['uuid']
+            self.manager_types[manager_type] = uuid
 
     def _get_organisationfunktion(self, lora_uuid):
         resource = '/organisation/organisationfunktion/{}'
@@ -251,6 +269,7 @@ class OpusDiffImport(object):
         # Unfortunately, mora-helper currently does not read all addresses
         user_addresses = self.helper._mo_lookup(mo_uuid, 'e/{}/details/address')
         address_dict = {}  # Condensate of all MO addresses for the employee
+
         for address in user_addresses:
             if address_dict.get(address['address_type']['uuid']) is not None:
                 # More than one of this type exist in MO, this is not allowed.
@@ -429,6 +448,7 @@ class OpusDiffImport(object):
         """
         job_function, eng_type = self._job_and_engagement_type(employee)
         unit_uuid = opus_helpers.generate_uuid(employee['orgUnit'])
+
         validity = self.validity(employee, edit=True)
         data = {
             'engagement_type': {'uuid': eng_type},
@@ -436,6 +456,12 @@ class OpusDiffImport(object):
             'org_unit': {'uuid': str(unit_uuid)},
             'validity': validity
         }
+
+        engagement_unit = self.helper.read_ou(unit_uuid)
+        if 'error' in engagement_unit:
+            msg = 'The wanted unit does not exit: {}'
+            logger.error(msg.format(unit_uuid))
+            raise UnknownOpusUnit
 
         if engagement['validity']['to'] is None:
             old_valid_to = datetime.strptime('9999-12-31', '%Y-%m-%d')
@@ -472,6 +498,13 @@ class OpusDiffImport(object):
     def create_engagement(self, mo_user_uuid, opus_employee):
         job_function, eng_type = self._job_and_engagement_type(opus_employee)
         unit_uuid = opus_helpers.generate_uuid(opus_employee['orgUnit'])
+
+        engagement_unit = self.helper.read_ou(unit_uuid)
+        if 'error' in engagement_unit:
+            msg = 'The wanted unit does not exit: {}'
+            logger.error(msg.format(opus_employee['orgUnit']))
+            raise UnknownOpusUnit
+
         validity = self.validity(opus_employee, edit=False)
         payload = payloads.create_engagement(
             employee=opus_employee,
@@ -488,7 +521,10 @@ class OpusDiffImport(object):
 
     def create_user(self, employee):
         cpr = employee['cpr']['#text']
-        ad_info = self.ad_reader.read_user(cpr=cpr)
+        if self.ad_reader is not None:
+            ad_info = self.ad_reader.read_user(cpr=cpr)
+        else:
+            ad_info = {}
         uuid = self.employee_forced_uuids.get(cpr)
         logger.info('Employee in force list: {} {}'.format(cpr, uuid))
         if uuid is None and cpr in ad_info:
@@ -497,6 +533,7 @@ class OpusDiffImport(object):
                 msg = '{} not in MO, UUID list or AD, assign random uuid'
                 logger.debug(msg.format(cpr))
         payload = payloads.create_user(employee, self.org_uuid, uuid)
+
         logger.info('Create user payload: {}'.format(payload))
         return_uuid = self.helper._mo_post('e/create', payload).json()
         logger.info('Created employee {} {} with uuid {}'.format(
@@ -555,9 +592,9 @@ class OpusDiffImport(object):
             manager_level = '{}.{}'.format(employee['superiorLevel'],
                                            employee['subordinateLevel'])
             manager_level_uuid = self.manager_levels.get(manager_level)
-            manager_type_uuid = self.manager_types.get(
-                'manager_type_' + employee["position"])
-            # This will fail if new manager levels or types are added...
+            manager_type = 'manager_type_' + employee["position"]
+            self._update_manager_types(manager_type)
+            manager_type_uuid = self.manager_types.get(manager_type)
             responsibility_uuid = self.responsibilities.get('Lederansvar')
 
             args = {
@@ -766,6 +803,8 @@ class OpusDiffImport(object):
 
         for unit in self.units:
             last_changed = datetime.strptime(unit['@lastChanged'], '%Y-%m-%d')
+            # Turns out org-unit updates are sometimes a day off
+            last_changed = last_changed + timedelta(days=1)
             if last_changed > self.latest_date:
                 self.update_unit(unit)
 
