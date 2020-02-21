@@ -5,7 +5,7 @@ from pathlib import Path
 from ftplib import FTP_TLS
 
 
-def start_ftpes_connection(timeout=120):
+def start_ftpes_connection(timeout=30):
     ftps = FTP_TLS(timeout=timeout)
     ftps.connect(SETTINGS['exporters.plan2learn.host'], 21)
     ftps.auth()
