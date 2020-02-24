@@ -15,14 +15,11 @@ import xmltodict
 from integrations.SD_Lon import sd_mox_payloads as smp
 from integrations.SD_Lon.sd import SD
 import requests
-
-
 from collections import OrderedDict
+
 
 logger = logging.getLogger('sdMox')
 logger.setLevel(logging.DEBUG)
-
-CFG_PREFIX = "integrations.SD_Lon.sd_mox."
 
 
 class SdMoxError(Exception):
@@ -48,25 +45,9 @@ class sdMox(object):
             raise SdMoxError("SD AMQP credentials mangler")
 
         try:
-            sd_levels = [
-                ('NY6-niveau', cfg["NY6_NIVEAU"]),
-                ('NY5-niveau', cfg["NY5_NIVEAU"]),
-                ('NY4-niveau', cfg["NY4_NIVEAU"]),
-                ('NY3-niveau', cfg["NY3_NIVEAU"]),
-                ('NY2-niveau', cfg["NY2_NIVEAU"]),
-                ('NY1-niveau', cfg["NY1_NIVEAU"]),
-                ('Afdelings-niveau', cfg["AFDELINGS_NIVEAU"])
-            ]
-            self.sd_levels = OrderedDict(sd_levels)
+            self.sd_levels = OrderedDict(cfg["sd_unit_levels"])
             self.level_by_uuid = {v: k for k, v in self.sd_levels.items()}
-
-            sd_arbtid = [
-                ('Normaltjeneste dannes ikke', cfg["TR_DANNES_IKKE"]),
-                ('Arbejdstidsplaner', cfg["TR_ARBEJDSTIDSPLANER"]),
-                ('Tjenestetid', cfg["TR_TJENESTETID"]),
-            ]
-            self.sd_arbtid = OrderedDict(sd_arbtid)
-            self.arbtid_by_uuid = {v: k for k, v in self.sd_arbtid.items()}
+            self.arbtid_by_uuid = cfg["arbtid_by_uuid"]
 
         except Exception:
             raise SdMoxError("Klasse-uuider for conf af Ny-Niveauer "
@@ -115,7 +96,7 @@ class sdMox(object):
     def _update_virkning(self, from_date, to_date=None):
         self.virkning = smp.sd_virkning(from_date, to_date)
         if to_date is None:
-            to_date = datetime.date(2099, 12, 31)
+            to_date = datetime.date(9999, 12, 31)
         if not from_date.day == 1:
             raise SdMoxError('Startdato skal altid være den første i en måned')
         self._times = {
@@ -146,10 +127,10 @@ class sdMox(object):
             'UUIDIndicator': 'true',
             'EmploymentDepartmentIndicator': 'false'
         }
-        if unit_code:
-            params['DepartmentIdentifier'] = unit_code
         if unit_uuid:
             params['DepartmentUUIDIdentifier'] = unit_uuid
+        elif unit_code:
+            params['DepartmentIdentifier'] = unit_code
         if unit_level:
             params['DepartmentLevelIdentifier'] = unit_level
         logger.debug('Read department, params: {}'.format(params))
@@ -394,11 +375,11 @@ class sdMox(object):
         return unit
 
     def payload_create(self, unit_uuid, unit, parent):
-        unit_level = self.level_by_uuid.get(unit["org_unit_type"]["uuid"])
+        unit_level = self.level_by_uuid.get(unit["org_unit_level"]["uuid"])
         if not unit_level:
             raise SdMoxError("Enhedstype er ikke et kendt NY-niveau")
 
-        parent_level = self.level_by_uuid.get(parent["org_unit_type"]["uuid"])
+        parent_level = self.level_by_uuid.get(parent["org_unit_level"]["uuid"])
         if not parent_level:
             raise SdMoxError("Forældreenhedens enhedstype er "
                              "ikke et kendt NY-niveau")
