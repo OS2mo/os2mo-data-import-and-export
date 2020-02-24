@@ -72,15 +72,20 @@ imports_mox_db_clear(){
 
 imports_test_ad_connectivity(){
     set -e
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/test_connectivity.log"
+    )
     echo running imports_test_ad_connectivity
     ${VENV}/bin/python3 integrations/ad_integration/test_connectivity.py  --test-read-settings
 }
 
 imports_sd_fix_departments(){
     set -e
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/fix_sd_departments.log"
+    )
     echo running imports_sd_fix_departments
-    SD_FIX_LOG="${SD_FIX_LOG:=/tmp/sd_fix_departments.log}"
-    ${VENV}/bin/python3 integrations/SD_Lon/sd_fix_departments.py > ${SD_FIX_LOG}
+    ${VENV}/bin/python3 integrations/SD_Lon/sd_fix_departments.py
 }
 
 imports_sd_changed_at(){
@@ -104,6 +109,9 @@ imports_opus_diff_import(){
 }
 
 imports_sd_update_primary(){
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/calculate_primary.log"
+    )
     echo updating primary engagements
     ${VENV}/bin/python3 integrations/SD_Lon/calculate_primary.py --recalculate-all || (
         # denne fejl skal ikke stoppe afviklingen, da en afbrudt kørsel blot kan gentages
@@ -114,9 +122,11 @@ imports_sd_update_primary(){
 
 imports_ad_sync(){
     set -e
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/ad_mo_sync.log"
+    )
     echo running imports_ad_sync
-    # remove ad cache files for now - they will be disabled later
-    ${VENV}/bin/python3  integrations/ad_integration/ad_sync.py
+    ${VENV}/bin/python3 integrations/ad_integration/ad_sync.py
 }
 
 imports_ballerup_apos(){
