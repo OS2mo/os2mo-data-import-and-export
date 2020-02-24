@@ -155,13 +155,16 @@ imports_ad_group_into_mo(){
 
 exports_mox_rollekatalog(){
     set -e
+    export MOX_ROLLE_MAPPING="${DIPEXAR}/cpr_mo_ad_map.csv"
+    export MOX_ROLLE_OS2MO_API_KEY=$SAML_TOKEN
+    export MOX_ROLLE_LOG_FILE="${DIPEXAR}/exports_mox_rollekatalog.log"
+
     echo running exports_mox_rollekatalog
-    if [ -z "${MOX_ROLLE_COMPOSE_YML}" ]; then
-        echo ERROR: MOX_ROLLE_COMPOSE_YML not set in configuration, aborting
-        echo
-        return 2
-    fi
-    docker-compose -f "${MOX_ROLLE_COMPOSE_YML}" up
+    BACK_UP_AND_TRUNCATE+=(
+        "$MOX_ROLLE_LOG_FILE"
+    )
+
+    ${VENV}/bin/python3 exporters/os2rollekatalog/os2rollekatalog_integration.py
 }
 
 exports_mox_stsorgsync(){
@@ -190,7 +193,10 @@ exports_os2mo_phonebook(){
 exports_cpr_uuid(){
     set -e
     echo running exports_cpr_uuid
-    ${VENV}/bin/python3 exporters/cpr_uuid.py
+    (
+        SETTING_PREFIX="cpr.uuid" source ${DIPEXAR}/tools/prefixed_settings.sh
+        ${VENV}/bin/python3 exporters/cpr_uuid.py "${CPR_UUID_FLAGS}"
+    )
 }
 
 exports_viborg_emus(){
@@ -332,10 +338,6 @@ exports(){
         && echo ERROR: imports are in error - skipping exports \
         && return 1 # exports depend on imports
 
-    if [ "${RUN_MOX_ROLLE}" == "true" ]; then
-        exports_mox_rollekatalog || return 2
-    fi
-
     if [ "${RUN_MOX_STS_ORGSYNC}" == "true" ]; then
         exports_mox_stsorgsync || return 2
     fi
@@ -359,6 +361,10 @@ exports(){
     if [ "${RUN_CPR_UUID}" == "true" ]; then
         # this particular report is not allowed to fail
         exports_cpr_uuid || return 2
+    fi
+
+    if [ "${RUN_MOX_ROLLE}" == "true" ]; then
+        exports_mox_rollekatalog || return 2
     fi
 
     if [ "${RUN_EXPORTS_TEST}" == "true" ]; then
