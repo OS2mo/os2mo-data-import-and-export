@@ -49,31 +49,20 @@ from integrations.SD_Lon import (
 sdmox_config = {}
 
 
-def read_config(app):
-    cfg_file = custpath / "settings" / "settings.json"
-    cfg = json.loads(cfg_file.read_text())
-    sdmox_config.update(
-        sd.get_prefixed_configuration(
-            cfg,
-            sd_mox.CFG_PREFIX
-        )
-    )
-    sdmox_config["sd_common"] = sd.get_prefixed_configuration(
-        cfg,
-        sd.CFG_PREFIX
-    )
-    # force no caching for sd
-    sdmox_config["sd_common"]["USE_PICKLE_CACHE"] = False
-
-
 def mo_request(service, method="get", **params):
     method = getattr(requests, method)
     # :5000/service/ + "ou/1234"
     url = sdmox_config["OS2MO_SERVICE"] + service
+
+    if sdmox_config["OS2MO_TOKEN"]:
+        headers={"SESSION": sdmox_config["OS2MO_TOKEN"]}
+    else:
+        headers={}
+
     try:
         r = method(
             url,
-            headers={"SESSION": sdmox_config["OS2MO_TOKEN"]},
+            headers=headers,
             params=params,
             verify=sdmox_config["OS2MO_VERIFY"]
         )
@@ -84,11 +73,60 @@ def mo_request(service, method="get", **params):
         raise
 
 
+def read_config(app):
+    cfg_file = custpath / "settings" / "settings.json"
+    cfg = json.loads(cfg_file.read_text())
+
+    sdmox_config.update({
+        "AMQP_USER": cfg["integrations.SD_Lon.sd_mox.AMQP_USER"],
+        "AMQP_PASSWORD": cfg["integrations.SD_Lon.sd_mox.AMQP_PASSWORD"],
+        "AMQP_HOST": cfg["integrations.SD_Lon.sd_mox.AMQP_HOST"],
+        "AMQP_PORT": cfg["integrations.SD_Lon.sd_mox.AMQP_PORT"],
+        "VIRTUAL_HOST": cfg["integrations.SD_Lon.sd_mox.VIRTUAL_HOST"],
+        "OS2MO_SERVICE": cfg["mora.base"] + "/service/",
+        "OS2MO_TOKEN": cfg.get("crontab.SAML_TOKEN"),
+        "OS2MO_VERIFY": cfg["mora.verify"],
+        "TRIGGERED_UUIDS": cfg["integrations.SD_Lon.sd_mox.TRIGGERED_UUIDS"],
+        "OU_LEVELKEYS": cfg["integrations.SD_Lon.sd_mox.OU_LEVELKEYS"],
+        "OU_TIME_PLANNING_MO_VS_SD": cfg["integrations.SD_Lon.sd_mox.OU_TIME_PLANNING_MO_VS_SD"],
+        "sd_unit_levels":[],
+        "arbtid_by_uuid":{},
+    })
+
+    sdmox_config["sd_common"] = {
+        "USE_PICKLE_CACHE": False,  # force no caching for sd
+        "SD_USER": cfg["integrations.SD_Lon.sd_user"],
+        "SD_PASSWORD": cfg["integrations.SD_Lon.sd_password"],
+        "INSTITUTION_IDENTIFIER": cfg["integrations.SD_Lon.institution_identifier"],
+        "BASE_URL":  cfg["integrations.SD_Lon.base_url"],
+    }
+
+
 def get_sdMox():
     """ instantiate integration object
     """
-    from_date = datetime.datetime(2019, 7, 1, 0, 0)
-    mox = sd_mox.sdMox(from_date, **sdmox_config)
+    mora_org = mo_request("o").json()[0]["uuid"]
+    logger.warn(mora_org)
+    classes = {
+        i["user_key"]: i["uuid"]
+        for i in mo_request("o/" + mora_org + "/f/org_unit_level/"
+        ).json()["data"]["items"]
+    }
+
+    for key in sdmox_config["OU_LEVELKEYS"]:
+        sdmox_config["sd_unit_levels"].append((key, classes[key]))
+
+
+    classes = mo_request("o/" + mora_org + "/f/time_planning/").json()
+    classes = {
+        i["user_key"]: i["uuid"]
+        for i in mo_request("o/" + mora_org + "/f/time_planning/"
+        ).json()["data"]["items"]
+    }
+    for key, sd_value in sdmox_config["OU_TIME_PLANNING_MO_VS_SD"].items():
+        sdmox_config["arbtid_by_uuid"][classes[key]] = sd_value
+
+    mox = sd_mox.sdMox(**sdmox_config)
     mox.amqp_connect()
     return mox
 
