@@ -109,7 +109,6 @@ imports_opus_diff_import(){
 }
 
 imports_sd_update_primary(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/calculate_primary.log"
     )
