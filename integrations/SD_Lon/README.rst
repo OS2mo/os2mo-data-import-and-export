@@ -464,7 +464,7 @@ omsætte os2mos klasse-uuider for facetten ``org_unit_level`` til de tekst-stren
 SD-MOX forventer samt for at validere omtalte regler inden indsætning. Den ser 
 typisk ud som ``["NY6-niveau", "NY5-niveau",... ,"NY1-niveau", "Afdelings-niveau"]``
 
-Nogen kommuner anvender en facet, der hedder ``time_planning``, og den setting, 
+Nogle kommuner anvender en facet, der hedder ``time_planning``, og den setting, 
 der hedder ``integrations.SD_Lon.sd_mox.OU_TIME_PLANNING_MO_VS_SD`` udgør en mapning
 imellem brugervendte nøgler for klasserne i ``time_planning`` og de strenge, der skal 
 overføres til SD som repræsentation for samme. Den kan se ud som :
