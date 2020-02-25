@@ -92,22 +92,22 @@ class Tilknytning(Base):
     # start_date, # TODO
     # end_date # TODO
 
-# class Orlov(Base):
-#     __tablename__ = 'orlover'
+class Orlov(Base):
+    __tablename__ = 'orlover'
 
-#     uuid = Column(String(36), nullable=False, primary_key=True)
-#     user_key = Column(String(250), nullable=False)
-#     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
-#     leave_type_text = Column(String(250), nullable=False)
-#     leave_type_uuid = Column(String(36), nullable=False)
-#     # start_date # TODO
-#     # end_date # TODO
+    uuid = Column(String(36), nullable=False, primary_key=True)
+    user_key = Column(String(250), nullable=False)
+    bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
+    leave_type_text = Column(String(250), nullable=False)
+    leave_type_uuid = Column(String(36), nullable=False)
+    # start_date # TODO
+    # end_date # TODO
 
-# class IT_system(Base):
-#     __tablename__ = 'it_systemer'
+class IT_system(Base):
+    __tablename__ = 'it_systemer'
 
-#     uuid = Column(String(36), nullable=False, primary_key=True)
-#     name = Column(String(250), nullable=False)
+    uuid = Column(String(36), nullable=False, primary_key=True)
+    name = Column(String(250), nullable=False)
 
 # class IT_forbindelse(Base):
 #     __tablename__ = 'it_forbindelser'
@@ -229,6 +229,19 @@ for association, association_info in lc.associations.items():
 session.commit()
 
 
+for leave, leave_info in lc.leaves.items():
+    sql_leave = Orlov(
+        uuid=leave,
+        user_key=leave_info['user_key'],
+        bruger_uuid=leave_info['user'],
+        leave_type_text = lc.classes[leave_info['leave_type']]['title'],
+        leave_type_uuid = leave_info['leave_type'],
+        # start_date # TODO
+        # end_date # TODO
+    )
+    session.add(sql_leave)
+session.commit()
+
 for manager, manager_info in lc.managers.items():
     sql_manager = Leder(
         uuid=manager,
@@ -262,5 +275,9 @@ session.commit()
 #     print(result.items())
 
 # for result in engine.execute('select * from tilknytninger limit 20'):
+#    print()
+#    print(result.items())
+
+#for result in engine.execute('select * from orlover limit 20'):
 #    print()
 #    print(result.items())
