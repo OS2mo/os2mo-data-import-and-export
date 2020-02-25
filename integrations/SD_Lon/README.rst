@@ -422,7 +422,7 @@ SD-MOX er en udvidelse til SD-løn, som leveres af Silkeborg Data. SD-Mox muligg
 opdatering af visse felter på organisationsenheder, som findes både i OS2MO
 og i SD-løn.
 
-OS2MO's integration til SD-mox involverer brug af SD-løns AMQP-server
+OS2MO's integration til SD-mox involverer brug af SD-løns AMQP-kø
 til afsendelse af ændringer og oprettelser, hvorimod læsning og verifikation foregår
 via SD's webinterface.
 
@@ -432,7 +432,7 @@ således at forstå at man får svar umiddelbart i forbindelse med sin handling,
 1. oprettelse af organisatiorisk enhed
 2. omdøbning af organisatorisk enhed
 3. flytning af organisatorisk enhed
-4. ændring/oprettelse af adresser op en organisatorisk enhed
+4. ændring/oprettelse af adresser på en organisatorisk enhed
 
 
 .. _SD_MOX_konfiguration:
@@ -530,7 +530,5 @@ opmærksom på dem og de er alle foranstillet prefixet ``Integrationsfejl, SD-Mo
  * Følgende felter kunne ikke opdateres i SD
  * Enhedstype er ikke et kendt NY-niveau
  * Forældreenhedens enhedstype er ikke et kendt NY-niveau
- * Fejlende opslag i DAR for <dar-id>
- * Addresse ikke fundet i DAR: <dar-id>
  * Opret postaddresse før pnummer
 
