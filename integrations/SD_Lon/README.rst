@@ -7,7 +7,7 @@ Indledning
 Denne integration gør det muligt at hente og opdatere organisations- og
 medarbejderoplysninger fra SD Løn til OS2MO. 
 
-.. _SD løn opsætning_:
+.. _SD løn opsætning:
 
 Opsætning
 ==========
@@ -426,7 +426,7 @@ OS2MO's integration til SD-mox involverer brug af SD-løns AMQP-server
 til afsendelse af ændringer og oprettelser, hvorimod læsning og verifikation foregår
 via SD's webinterface.
 
-Integrationen er synkron (udført med `triggere https://os2mo.readthedocs.io/en/latest/dev/triggers.html_` ), 
+Integrationen er synkron (udført med `triggere https://os2mo.readthedocs.io/en/latest/dev/triggers.html`_ ), 
 således at forstå at man får svar i forbindelse med sin handling, som er en af
 
 1. oprettelse af organisatiorisk enhed
@@ -442,7 +442,7 @@ Konfiguration
 
 Konfiguration af modulet er fleksibel og dermed lidt kompleks. For det første
 er der url, bruger og password mv. til SD's webinterface som dokumenteret under
-`SD løn opsætning`_. SD's AMQP-opsætning er derimod specifik for SD-mox-modulet 
+`SD løn opsætning`_ . SD's AMQP-opsætning er derimod specifik for SD-mox-modulet 
 og udgøres af disse settings:
 
  * ``integrations.SD_Lon.sd_mox.AMQP_USER``: AMQP bruger aftalt med SD
@@ -480,8 +480,6 @@ oprettelser, omdøbninger og tilføjelse/ændring af adresser bliver overført t
 Der er dog visse begræsninger i input, som gennemgås nedenfor. 
 
 
-.. _Begrænsninger i input:
-
 Begrænsninger i input
 ---------------------
 
@@ -502,15 +500,13 @@ som er inkluderet i ``integrations.SD_Lon.sd_mox.TRIGGERED_UUIDS``
    at sætte noget ind hos SD. 
 
 
-.. _SD-mox fejlmeddelelser:
-
 SD-mox fejlmeddelelser
 ----------------------
 
 Der er en del mulige fejl, man kan begå, når man anvender OS2MO med denne integration tilkoblet.
-Der er gjort et stort arbejde for at fange dem, inden man laver en ændring i OS2MO, som ikke er 
-reflekteret i SD. De vises som fejlmeddelser i OS2MO's brugerinterface og er alle foranstillet 
-prefixet ``Integrationsfejl, SD-Mox:``
+Der er gjort et stort arbejde for at fange dem, så man ikke kan lave en ændring i OS2MO,
+der ikke er reflekteret i SD. Der vises fejlmeddelser i OS2MO's brugerinterface for at gøre 
+opmærksom på dem og de er alle foranstillet prefixet ``Integrationsfejl, SD-Mox:``
 
  * SD AMQP credentials mangler
  * Klasse-uuider for conf af Ny-Niveauer eller Tidsregistrering mangler
