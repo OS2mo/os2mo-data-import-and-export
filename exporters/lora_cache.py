@@ -73,6 +73,26 @@ class LoraCache(object):
             }
         return classes
 
+    def _cache_lora_itsystems(self):
+        uuid_url = '/organisation/itsystem?bvn=%'
+        data_url = '/organisation/itsystem{}'
+        itsystem_list = self._run_buildup(uuid_url, data_url)
+
+        itsystems = {}
+        for itsystem in itsystem_list:
+            uuid = itsystem['id']
+            reg = itsystem['registreringer'][0]
+            user_key = (reg['attributter']['itsystemegenskaber'][0]
+                        ['brugervendtnoegle'])
+            name = (reg['attributter']['itsystemegenskaber'][0]
+                    ['itsystemnavn'])
+
+            itsystems[uuid] = {
+                'user_key': user_key,
+                'name': name,
+            }
+        return itsystems
+
     def _cache_lora_users(self):
         users = {}
         uuid_url = '/organisation/bruger?bvn=%'
@@ -235,6 +255,30 @@ class LoraCache(object):
             }
         return associations
 
+
+    def _cache_lora_leaves(self):
+        uuid_url = '/organisation/organisationfunktion?funktionsnavn=Orlov'
+        data_url = '/organisation/organisationfunktion{}'
+        leave_list = self._run_buildup(uuid_url, data_url)
+
+        leaves = {}
+        for leave in leave_list:
+            uuid = leave['id']
+            reg = leave['registreringer'][0]
+            user_key = (reg['attributter']['organisationfunktionegenskaber'][0]
+                        ['brugervendtnoegle'])
+            leave_type = reg['relationer']['organisatoriskfunktionstype'][0]['uuid']
+            user_uuid = reg['relationer']['tilknyttedebrugere'][0]['uuid']
+
+            leaves[uuid] = {
+                'uuid': uuid,
+                'user': user_uuid,
+                'user_key': user_key,
+                'leave_type': leave_type,
+            }
+        return leaves
+
+
     def _cache_lora_managers(self):
         uuid_url = '/organisation/organisationfunktion?funktionsnavn=Leder'
         data_url = '/organisation/organisationfunktion{}'
@@ -281,6 +325,8 @@ class LoraCache(object):
             self.managers = pickle.load(f)
         with open('associations.p', 'rb') as f:
             self.associations = pickle.load(f)
+        with open('leaves.p', 'rb') as f:
+            self.leaves = pickle.load(f)
 
         # self.classes = self._cache_lora_classes()
         # self.users = self._cache_lora_users()
@@ -289,6 +335,8 @@ class LoraCache(object):
         # self.engagements = self._cache_lora_engagements()
         # self.managers = self._cache_lora_managers()
         # self.associations = self._cache_lora_associations()
+        # self.leaves = self._cache_lora_leaves()
+        self.itsystems = self._cache_lora_itsystems()
 
         with open('classes.p', 'wb') as f:
             pickle.dump(self.classes, f, pickle.HIGHEST_PROTOCOL)
@@ -304,6 +352,10 @@ class LoraCache(object):
             pickle.dump(self.managers, f, pickle.HIGHEST_PROTOCOL)
         with open('associations.p', 'wb') as f:
             pickle.dump(self.associations, f, pickle.HIGHEST_PROTOCOL)
+        with open('leaves.p', 'wb') as f:
+            pickle.dump(self.leaves, f, pickle.HIGHEST_PROTOCOL)
+        with open('itsystems.p', 'wb') as f:
+            pickle.dump(self.itsystems, f, pickle.HIGHEST_PROTOCOL)
 
 
 if __name__ == '__main__':
