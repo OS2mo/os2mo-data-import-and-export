@@ -14,8 +14,6 @@ import datetime
 from anytree import PreOrderIter
 from os2mo_helpers.mora_helpers import MoraHelper
 
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
-
 cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
@@ -209,7 +207,9 @@ def export_leder(mh, nodes, filename, eksporterede_afdelinger):
 if __name__ == '__main__':
     t = time.time()
 
-    mh = MoraHelper(hostname=MORA_BASE, export_ansi=False)
+    mh = MoraHelper(hostname=SETTINGS['mora.base'], export_ansi=False)
+
+    dest_folder = pathlib.Path(SETTINGS['mora.folder.query_export'])
 
     # root_unit = '35840e9c-4480-4300-8000-000006140002'  # Short test
     root_unit = SETTINGS['exporters.plan2learn.root_unit']
@@ -217,23 +217,23 @@ if __name__ == '__main__':
     nodes = mh.read_ou_tree(root_unit)
     print('Read nodes: {}s'.format(time.time() - t))
 
-    filename = 'bruger.csv'
+    filename = str(dest_folder / 'plan2learn_bruger.csv')
     export_bruger(mh, nodes, filename)
     print('Bruger: {}s'.format(time.time() - t))
 
-    filename = 'organisation.csv'
+    filename = str(dest_folder / 'plan2learn_organisation.csv')
     eksporterede_afdelinger = export_organisation(mh, nodes, filename)
     print('Organisation: {}s'.format(time.time() - t))
 
-    filename = 'engagement.csv'
+    filename = str(dest_folder / 'plan2learn_engagement.csv')
     export_engagement(mh, filename, eksporterede_afdelinger)
     print('Engagement: {}s'.format(time.time() - t))
 
-    filename = 'stillingskode.csv'
+    filename = str(dest_folder / 'plan2learn_stillingskode.csv')
     export_stillingskode(mh, nodes, filename)
     print('Stillingskode: {}s'.format(time.time() - t))
 
-    filename = 'leder.csv'
+    filename = str(dest_folder / 'plan2learn_leder.csv')
     export_leder(mh, nodes, filename, eksporterede_afdelinger)
     print('Leder: {}s'.format(time.time() - t))
 

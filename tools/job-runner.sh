@@ -257,6 +257,33 @@ reports_opus_db_overview(){
     rm ${outfile}
 }
 
+ 
+
+exports_plan2learn(){
+    set -e
+    echo "running exports_plan2learn"
+    declare -a CSV_FILES=(
+	bruger
+	# leder
+	# engagement
+	# organisation
+	# stillingskode
+    )
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py
+    
+    (
+	set -x
+        # get OUT_DIR and EXPORTS_DIR
+        SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
+	[ -z "$query_export" ] && exit 1
+	for f in "${CSV_FILES[@]}"
+	do
+	    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/ship_files.py \
+		   ${query_export}/plan2learn_${f}.csv ${f}.csv_test_do_not_use
+	done
+    )
+}
+
 
 exports_queries_ballerup(){
     set -e
@@ -365,6 +392,10 @@ exports(){
 
     if [ "${RUN_MOX_ROLLE}" == "true" ]; then
         exports_mox_rollekatalog || return 2
+    fi
+
+    if [ "${RUN_PLAN2LEARN}" == "true" ]; then
+        exports_plan2learn || return 2
     fi
 
     if [ "${RUN_EXPORTS_TEST}" == "true" ]; then
