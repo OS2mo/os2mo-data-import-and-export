@@ -128,9 +128,10 @@ class MoraHelper(object):
             params['validity'] = validity
 
         full_url = self.host + url.format(uuid)
-        if (full_url in self.cache) and use_cache:
-            logger.debug("cache hit: %s", full_url)
-            return_dict = self.cache[full_url]
+        cache_id = full_url + str(validity)
+        if (cache_id in self.cache) and use_cache:
+            logger.debug("cache hit: %s", cache_id)
+            return_dict = self.cache[cache_id]
         else:
             if SAML_TOKEN is None:
                 response = requests.get(full_url, params=params)
@@ -150,8 +151,9 @@ class MoraHelper(object):
                     msg = 'SAML token not accepted'
                     logger.error(msg)
                     raise requests.exceptions.RequestException(msg)
+
                 return_dict = response.json()
-            self.cache[full_url] = return_dict
+            self.cache[cache_id] = return_dict
         return return_dict
 
     def _mo_post(self, url, payload, force=True):
@@ -351,16 +353,23 @@ class MoraHelper(object):
         return associations
 
     def read_user_address(self, user, username=False, cpr=False,
-                          at=None, use_cache=None):
-        """ Read phone number and email from user
+                          at=None, use_cache=None, phone_type=None):
+        """
+        Read phone number and email from user
         :param user: UUID of the wanted user
-        :return: Dict witn phone number and email (if the exists in MO
+        :param phone_type: Optionally add a specific phone_type class.
+        :return: Dict witn phone number and email (if they exists in MO)
         """
         addresses = self._mo_lookup(user, 'e/{}/details/address', at, use_cache)
         return_address = {}
         for address in addresses:
             if address['address_type']['scope'] == 'PHONE':
-                return_address['Telefon'] = address['name']
+                if phone_type is None:
+                    return_address['Telefon'] = address['name']
+                else:
+                    if address['address_type']['uuid'] == phone_type:
+                        return_address['Telefon'] = address['name']
+
             if address['address_type']['scope'] == 'EMAIL':
                 return_address['E-mail'] = address['name']
         if username or cpr:
@@ -479,15 +488,29 @@ class MoraHelper(object):
         return manager
 
     def read_organisation_people(self, org_uuid, person_type='engagement',
-                                 split_name=True):
+                                 split_name=True, read_all=False, skip_past=False):
         """ Read all employees in an ou. If the same employee is listed
         more than once, only the latest listing will be included.
         :param org_uuid: UUID of the OU to find emplyees in.
+        :read_all: Read all engagements, not only the present ones.
         :return: The list of emplyoees
         """
         person_list = {}
-        persons = self._mo_lookup(org_uuid, 'ou/{}/details/' + person_type)
-        for person in persons:
+        if not read_all:
+            all_persons = self._mo_lookup(org_uuid, 'ou/{}/details/' + person_type)
+        else:
+            if skip_past:
+                validity_times = ['present', 'future']
+            else:
+                validity_times = ['past', 'present', 'future']
+
+            all_persons = []
+            for validity in validity_times:
+                persons = self._mo_lookup(org_uuid, 'ou/{}/details/' + person_type,
+                                          validity=validity)
+                all_persons = all_persons + persons
+
+        for person in all_persons:
             uuid = person['person']['uuid']
             data = {
                 'Ansættelse gyldig fra': person['validity']['from'],
@@ -498,7 +521,11 @@ class MoraHelper(object):
                 'Engagement UUID': person['uuid']
             }
             if 'job_function' in person:
-                data['Stillingsbetegnelse'] = person['job_function']['name'],
+                data['Stillingsbetegnelse'] = person['job_function']['name']
+
+            if 'engagement_type' in person:
+                data['engagement_type_uuid'] = person['engagement_type']['uuid']
+                data['Engagementstype'] = person['engagement_type']['name']
 
             if 'association_type' in person:
                 data['Post'] = person['association_type']['name']
