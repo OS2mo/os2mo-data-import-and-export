@@ -264,10 +264,10 @@ exports_plan2learn(){
     echo "running exports_plan2learn"
     declare -a CSV_FILES=(
 	bruger
-	# leder
-	# engagement
-	# organisation
-	# stillingskode
+	leder
+	engagement
+	organisation
+	stillingskode
     )
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py
     
@@ -279,7 +279,7 @@ exports_plan2learn(){
 	for f in "${CSV_FILES[@]}"
 	do
 	    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/ship_files.py \
-		   ${query_export}/plan2learn_${f}.csv ${f}.csv_test_do_not_use
+		   ${query_export}/plan2learn_${f}.csv ${f}.csv
 	done
     )
 }
