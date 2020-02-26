@@ -217,23 +217,23 @@ if __name__ == '__main__':
     nodes = mh.read_ou_tree(root_unit)
     print('Read nodes: {}s'.format(time.time() - t))
 
-    filename = 'plan2lean_bruger.csv'
+    filename = 'bruger.csv'
     export_bruger(mh, nodes, filename)
     print('Bruger: {}s'.format(time.time() - t))
 
-    filename = 'plan2lean_organisation.csv'
+    filename = 'organisation.csv'
     eksporterede_afdelinger = export_organisation(mh, nodes, filename)
     print('Organisation: {}s'.format(time.time() - t))
 
-    filename = 'plan2lean_engagement.csv'
+    filename = 'engagement.csv'
     export_engagement(mh, filename, eksporterede_afdelinger)
     print('Engagement: {}s'.format(time.time() - t))
 
-    filename = 'plan2lean_stillingskode.csv'
+    filename = 'stillingskode.csv'
     export_stillingskode(mh, nodes, filename)
     print('Stillingskode: {}s'.format(time.time() - t))
 
-    filename = 'plan2lean_leder.csv'
+    filename = 'leder.csv'
     export_leder(mh, nodes, filename, eksporterede_afdelinger)
     print('Leder: {}s'.format(time.time() - t))
 
