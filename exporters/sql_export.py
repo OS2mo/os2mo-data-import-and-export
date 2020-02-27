@@ -15,6 +15,7 @@ class Facet(Base):
     user_key= Column(String(250), nullable=False)
     title = Column(String(250), nullable=False)
 
+
 class Klasse(Base):
     __tablename__ = 'klasser'
 
@@ -22,6 +23,7 @@ class Klasse(Base):
     user_key= Column(String(250), nullable=False)
     title = Column(String(250), nullable=False)
     facet_uuid = Column(String, ForeignKey('facetter.uuid'))
+
 
 class Bruger(Base):
     __tablename__ = 'brugere'
@@ -148,22 +150,74 @@ class Leder(Base):
     niveau_type_text = Column(String(250), nullable=False)
     niveau_type_uuid = Column(String(36), nullable=False)
 
-# class Leder_ansvar(Base):
-#     __tablename__ = 'leder_ansvar'
 
-#     leder_uuid = Column(String, ForeignKey('ledere.uuid'))
-#     responsibility_text =  Column(String(250), nullable=False)
-#     responsibility_uuid = Column(String(36), nullable=False)
+class LederAnsvar(Base):
+    __tablename__ = 'leder_ansvar'
+
+    id = Column(Integer, nullable=False, primary_key=True)
+    leder_uuid = Column(String, ForeignKey('ledere.uuid'))
+    responsibility_text =  Column(String(250), nullable=False)
+    responsibility_uuid = Column(String(36), nullable=False)
 
 
+def _add_managers(lc, engine, session):
+    for manager, manager_info in lc.managers.items():
+        sql_manager = Leder(
+            uuid=manager,
+            bruger_uuid=manager_info['user'],
+            enhed_uuid=manager_info['unit'],
+            # nedarvet (True / False)  # TODO
+            manager_type_text=lc.classes[manager_info['manager_type']]['title'],
+            manager_type_uuid=manager_info['manager_type'],
+            niveau_type_text=lc.classes[manager_info['manager_level']]['title'],
+            niveau_type_uuid=manager_info['manager_level']
+        )
+        session.add(sql_manager)
+
+        for responsibility in manager_info['manager_responsibility']:
+            sql_responsibility = LederAnsvar(
+                leder_uuid = manager,
+                responsibility_text = lc.classes[responsibility]['title'],
+                responsibility_uuid = responsibility
+            )
+            session.add(sql_responsibility)
+
+    session.commit()
+    for result in engine.execute('select * from ledere limit 10'):
+        print()
+        print(result.items())
+
+    for result in engine.execute('select * from leder_ansvar limit 10'):
+        print()
+        print(result.items())
+
+def _add_engagements(lc, engine, session):
+    for engagement, engagement_info in lc.engagements.items():
+        sql_engagement = Engagement(
+            uuid=engagement,
+            bruger_uuid=engagement_info['user'],
+            enhed_uuid=engagement_info['unit'],
+            user_key=engagement_info['user_key'],
+            engagementstype_text=lc.classes[engagement_info['engagement_type']]['title'],
+            engagementstype_uuid=engagement_info['engagement_type'],
+            primærtype_text=lc.classes[engagement_info['primary_type']]['title'],
+            primærtype_uuid=engagement_info['primary_type'],
+            # primærboolean, # TODO
+            job_function_text=lc.classes[engagement_info['job_function']]['title'],
+            job_function_uuid=engagement_info['job_function']
+        )
+        session.add(sql_engagement)
+    session.commit()
+    for result in engine.execute('select * from engagementer limit 20'):
+        print(result.items())
+     
 engine = create_engine('sqlite:///mo.db')
 
 Base.metadata.create_all(engine)
 
-
 Session = sessionmaker(bind=engine)
-session = Session()
 
+session = Session()
 
 lc = LoraCache()
 lc.populate_cache()
@@ -182,7 +236,6 @@ lc.populate_cache()
 #     user_key= Column(String(250), nullable=False)
 #     title = Column(String(250), nullable=False)
 #     facet_uuid = Column(String, ForeignKey('facetter.uuid'))
-
 
 
 for user, user_info in lc.users.items():
@@ -232,22 +285,6 @@ for address, address_info in lc.addresses.items():
 session.commit()
 
 
-for engagement, engagement_info in lc.engagements.items():
-    sql_engagement = Engagement(
-        uuid=engagement,
-        bruger_uuid=engagement_info['user'],
-        enhed_uuid=engagement_info['unit'],
-        user_key=engagement_info['user_key'],
-        engagementstype_text=lc.classes[engagement_info['engagement_type']]['title'],
-        engagementstype_uuid=engagement_info['engagement_type'],
-        primærtype_text=lc.classes[engagement_info['primary_type']]['title'],
-        primærtype_uuid=engagement_info['primary_type'],
-        # primærboolean, # TODO
-        job_function_text=lc.classes[engagement_info['job_function']]['title'],
-        job_function_uuid=engagement_info['job_function']
-    )
-    session.add(sql_engagement)
-session.commit()
 
 
 for association, association_info in lc.associations.items():
@@ -275,8 +312,6 @@ for role, role_info in lc.roles.items():
     session.add(sql_role)
 session.commit()
 
-
-
 for leave, leave_info in lc.leaves.items():
     sql_leave = Orlov(
         uuid=leave,
@@ -289,21 +324,6 @@ for leave, leave_info in lc.leaves.items():
     )
     session.add(sql_leave)
 session.commit()
-
-for manager, manager_info in lc.managers.items():
-    sql_manager = Leder(
-        uuid=manager,
-        bruger_uuid=manager_info['user'],
-        enhed_uuid=manager_info['unit'],
-        # nedarvet (True / False)  # TODO
-        manager_type_text=lc.classes[manager_info['manager_type']]['title'],
-        manager_type_uuid=manager_info['manager_type'],
-        niveau_type_text=lc.classes[manager_info['manager_level']]['title'],
-        niveau_type_uuid=manager_info['manager_level']
-    )
-    session.add(sql_manager)
-session.commit()
-
 
 for itsystem, itsystem_info in lc.itsystems.items():
     sql_itsystem = IT_system(
@@ -325,6 +345,9 @@ for it_connection, it_connection_info in lc.it_connections.items():
 session.commit()
 
 
+_add_engagements(lc, engine, session)
+_add_managers(lc, engine, session)
+
 # for result in engine.execute('select * from enheder'):
 #    print(result)
 
@@ -332,14 +355,6 @@ session.commit()
 # print(result)
 
 # for result in engine.execute('select * from adresser limit 20'):
-#     print()
-#     print(result.items())
-
-# for result in engine.execute('select * from engagementer limit 20'):
-#     print()
-#     print(result.items())
-
-# for result in engine.execute('select * from ledere limit 20'):
 #     print()
 #     print(result.items())
 
@@ -359,6 +374,6 @@ session.commit()
 #     print()
 #     print(result.items())
 
-for result in engine.execute('select * from roller limit 20'):
-    print()
-    print(result.items())
+# for result in engine.execute('select * from roller limit 20'):
+#     print()
+#     print(result.items())
