@@ -13,7 +13,6 @@ class Facet(Base):
     __tablename__ = 'facetter'
     uuid = Column(String(36), nullable=False, primary_key=True)
     user_key= Column(String(250), nullable=False)
-    title = Column(String(250), nullable=False)
 
 
 class Klasse(Base):
@@ -23,6 +22,7 @@ class Klasse(Base):
     user_key= Column(String(250), nullable=False)
     title = Column(String(250), nullable=False)
     facet_uuid = Column(String, ForeignKey('facetter.uuid'))
+    facet_text = Column(String(250), nullable=False)
 
 
 class Bruger(Base):
@@ -42,11 +42,13 @@ class Enhed(Base):
     # Undersøg, dette er en refence til tabellen selv
     forældreenhed_uuid = Column(String(36), nullable=True, primary_key=False)
     enhedstype_text = Column(String(250), nullable=False)
-    enhedstype_uuid = Column(String(36), nullable=False)
+    enhedstype_uuid = Column(String, ForeignKey('klasser.uuid'))
     enhedsniveau_tekst = Column(String(250), nullable=True)
-    enhedsniveau_uuid = Column(String(36), nullable=True)
+    enhedsniveau_uuid = Column(String, ForeignKey('klasser.uuid'))
     organisatorisk_sti = Column(String(1000), nullable=False)
     # start_date # TODO
+    # Skal vi have leder på her?
+    # nedarvet (True / False)  # TODO
 
 
 class Adresse(Base):
@@ -58,10 +60,10 @@ class Adresse(Base):
     værdi_text = Column(String(250), nullable=True)
     dar_uuid = Column(String(36), nullable=True)
     adresse_type_text = Column(String(250), nullable=False)
-    adresse_type_uuid = Column(String(36), nullable=False)
+    adresse_type_uuid = Column(String, ForeignKey('klasser.uuid'))
     adresse_type_scope = Column(String(250), nullable=False)
     synlighed_text = Column(String(250), nullable=True)
-    synlighed_uuid = Column(String(36), nullable=True)
+    synlighed_uuid = Column(String, ForeignKey('klasser.uuid'))
     # start_date # TODO
 
 
@@ -73,13 +75,13 @@ class Engagement(Base):
     enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
     user_key = Column(String(250), nullable=False)
     engagementstype_text = Column(String(250), nullable=False)
-    engagementstype_uuid = Column(String(36), nullable=False)
+    engagementstype_uuid = Column(String, ForeignKey('klasser.uuid'))
     primærtype_text = Column(String(250), nullable=True)
-    primærtype_uuid = Column(String(36), nullable=True)
+    primærtype_uuid = Column(String, ForeignKey('klasser.uuid'))
     # Workfraction # TODO
     # primærboolean, # TODO
     job_function_text = Column(String(250), nullable=False)
-    job_function_uuid = Column(String(36), nullable=False)
+    job_function_uuid = Column(String, ForeignKey('klasser.uuid'))
     # start_date,
     # end_date
 
@@ -91,7 +93,7 @@ class Rolle(Base):
     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
     role_type_text = Column(String(250), nullable=False)
-    role_type_uuid = Column(String(36), nullable=False)
+    role_type_uuid = Column(String, ForeignKey('klasser.uuid'))
     # start_date, # TODO
     # end_date # TODO
 
@@ -104,7 +106,7 @@ class Tilknytning(Base):
     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
     association_type_text = Column(String(250), nullable=False)
-    association_type_uuid = Column(String(36), nullable=False)
+    association_type_uuid = Column(String, ForeignKey('klasser.uuid'))
     # start_date, # TODO
     # end_date # TODO
 
@@ -116,7 +118,7 @@ class Orlov(Base):
     user_key = Column(String(250), nullable=False)
     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
     leave_type_text = Column(String(250), nullable=False)
-    leave_type_uuid = Column(String(36), nullable=False)
+    leave_type_uuid = Column(String, ForeignKey('klasser.uuid'))
     # start_date # TODO
     # end_date # TODO
 
@@ -144,11 +146,10 @@ class Leder(Base):
     uuid = Column(String(36), nullable=False, primary_key=True)
     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
-    # nedarvet (True / False)  # TODO
     manager_type_text = Column(String(250), nullable=False)
-    manager_type_uuid = Column(String(36), nullable=False)
+    manager_type_uuid = Column(String, ForeignKey('klasser.uuid'))
     niveau_type_text = Column(String(250), nullable=False)
-    niveau_type_uuid = Column(String(36), nullable=False)
+    niveau_type_uuid = Column(String, ForeignKey('klasser.uuid'))
 
 
 class LederAnsvar(Base):
@@ -157,7 +158,31 @@ class LederAnsvar(Base):
     id = Column(Integer, nullable=False, primary_key=True)
     leder_uuid = Column(String, ForeignKey('ledere.uuid'))
     responsibility_text =  Column(String(250), nullable=False)
-    responsibility_uuid = Column(String(36), nullable=False)
+    responsibility_uuid = Column(String, ForeignKey('klasser.uuid'))
+
+def _add_classification(lc, engine, session):
+    for facet, facet_info in lc.facets.items():
+        sql_facet = Facet(
+            uuid=facet,
+            user_key=facet_info['user_key'],
+        )
+        session.add(sql_facet)
+    session.commit()
+    for result in engine.execute('select * from facetter limit 20'):
+        print(result.items())
+
+    for klasse, klasse_info in lc.classes.items():
+        sql_class = Klasse(
+            uuid=klasse,
+            user_key=klasse_info['user_key'],
+            title=klasse_info['title'],
+            facet_uuid=klasse_info['facet'],
+            facet_text=lc.facets[klasse_info['facet']]['user_key']
+        )
+        session.add(sql_class)
+    session.commit()
+    for result in engine.execute('select * from klasser limit 20'):
+        print(result.items())
 
 
 def _add_managers(lc, engine, session):
@@ -223,21 +248,6 @@ lc = LoraCache()
 lc.populate_cache()
 
 
-# class Facet(Base):
-#     __tablename__ = 'facetter'
-#     uuid = Column(String(36), nullable=False, primary_key=True)
-#     user_key= Column(String(250), nullable=False)
-#     title = Column(String(250), nullable=False)
-
-# class Klasse(Base):
-#     __tablename__ = 'klasser'
-
-#     uuid = Column(String(36), nullable=False, primary_key=True)
-#     user_key= Column(String(250), nullable=False)
-#     title = Column(String(250), nullable=False)
-#     facet_uuid = Column(String, ForeignKey('facetter.uuid'))
-
-
 for user, user_info in lc.users.items():
     sql_user = Bruger(
         uuid=user,
@@ -283,9 +293,6 @@ for address, address_info in lc.addresses.items():
     )
     session.add(sql_address)
 session.commit()
-
-
-
 
 for association, association_info in lc.associations.items():
     sql_association = Tilknytning(
@@ -345,6 +352,7 @@ for it_connection, it_connection_info in lc.it_connections.items():
 session.commit()
 
 
+_add_classification(lc, engine, session)
 _add_engagements(lc, engine, session)
 _add_managers(lc, engine, session)
 
