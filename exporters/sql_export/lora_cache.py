@@ -22,46 +22,19 @@ class LoraCache(object):
             print(e)
             exit()
 
-    def _perform_lora_lookup(self, url, params):
-        response = requests.get(self.settings['mox.base'] + url.format(params))
+    def _perform_lora_lookup(self, url):
+        """
+        Exctract a complete set of objects in LoRa.
+        :param url: The url that should be used to extract data.
+        """
+        response = requests.get(self.settings['mox.base'] + url + '&list=1')
         data = response.json()
         data_list = data['results'][0]
         return data_list
 
-    def _run_buildup(self, uuid_url, data_url):
-        """
-        Exctract a complete set of objects in LoRa.
-        :param uuid_url: The url that should be used to extract uuids from LoRa.
-        :param data_url: The url that should be used to extract data.
-        """
-        data_list = []
-
-        # response = requests.get(self.settings['mox.base'] + uuid_url + '&list=1')
-        response = requests.get(self.settings['mox.base'] + uuid_url)
-        uuids = response.json()
-
-        # print(len(uuids['results'][0]))
-        # exit()
-        
-        build_up = '?'
-        # TODO! Huske at også fremtidige virkninger måske skal med
-        for uuid in uuids['results'][0]:
-            build_up += 'uuid=' + uuid + '&'
-            if build_up.count('&') < 96:
-                continue
-            data_list += self._perform_lora_lookup(data_url, build_up[:-1])
-            build_up = '?'
-            # break
-        if not build_up == '?':
-            data_list += self._perform_lora_lookup(data_url, build_up[:-1])
-
-        assert len(data_list) == len(uuids['results'][0])
-        return data_list
-
     def _cache_lora_facets(self):
-        uuid_url = '/klassifikation/facet?bvn=%'
-        data_url = '/klassifikation/facet{}'
-        facet_list = self._run_buildup(uuid_url, data_url)
+        url = '/klassifikation/facet?bvn=%'
+        facet_list = self._perform_lora_lookup(url)
 
         facets = {}
         for facet in facet_list:
@@ -74,9 +47,8 @@ class LoraCache(object):
         return facets
     
     def _cache_lora_classes(self):
-        uuid_url = '/klassifikation/klasse?bvn=%'
-        data_url = '/klassifikation/klasse{}'
-        class_list = self._run_buildup(uuid_url, data_url)
+        url = '/klassifikation/klasse?bvn=%'
+        class_list = self._perform_lora_lookup(url)
 
         classes = {}
         for oio_class in class_list:
@@ -93,9 +65,8 @@ class LoraCache(object):
         return classes
 
     def _cache_lora_itsystems(self):
-        uuid_url = '/organisation/itsystem?bvn=%'
-        data_url = '/organisation/itsystem{}'
-        itsystem_list = self._run_buildup(uuid_url, data_url)
+        url = '/organisation/itsystem?bvn=%'
+        itsystem_list = self._perform_lora_lookup(url)
 
         itsystems = {}
         for itsystem in itsystem_list:
@@ -113,11 +84,10 @@ class LoraCache(object):
         return itsystems
 
     def _cache_lora_users(self):
-        users = {}
-        uuid_url = '/organisation/bruger?bvn=%'
-        data_url = '/organisation/bruger{}'
-        user_list = self._run_buildup(uuid_url, data_url)
+        url = '/organisation/bruger?bvn=%'
+        user_list = self._perform_lora_lookup(url)
 
+        users = {}
         for user in user_list:
             uuid = user['id']
             reg = user['registreringer'][0]
@@ -133,11 +103,10 @@ class LoraCache(object):
         return users
 
     def _cache_lora_units(self):
-        units = {}
         uuid_url = '/organisation/organisationenhed?bvn=%'
-        data_url = '/organisation/organisationenhed{}'
-        unit_list = self._run_buildup(uuid_url, data_url)
+        unit_list = self._perform_lora_lookup(url)
 
+        units = {}
         for unit in unit_list:
             uuid = unit['id']
             reg = unit['registreringer'][0]
@@ -160,9 +129,8 @@ class LoraCache(object):
         return units
 
     def _cache_lora_address(self):
-        uuid_url = '/organisation/organisationfunktion?funktionsnavn=Adresse'
-        data_url = '/organisation/organisationfunktion{}'
-        address_list = self._run_buildup(uuid_url, data_url)
+        url = '/organisation/organisationfunktion?funktionsnavn=Adresse'
+        address_list = self._perform_lora_lookup(url)
 
         addresses = {}
         for address in address_list:
@@ -223,9 +191,8 @@ class LoraCache(object):
         return addresses
 
     def _cache_lora_engagements(self):
-        uuid_url = '/organisation/organisationfunktion?funktionsnavn=Engagement'
-        data_url = '/organisation/organisationfunktion{}'
-        engagement_list = self._run_buildup(uuid_url, data_url)
+        url = '/organisation/organisationfunktion?funktionsnavn=Engagement'
+        engagement_list = self._perform_lora_lookup(url)
 
         engagements = {}
         for engagement in engagement_list:
@@ -251,9 +218,8 @@ class LoraCache(object):
         return engagements
 
     def _cache_lora_associations(self):
-        uuid_url = '/organisation/organisationfunktion?funktionsnavn=Tilknytning'
-        data_url = '/organisation/organisationfunktion{}'
-        association_list = self._run_buildup(uuid_url, data_url)
+        url = '/organisation/organisationfunktion?funktionsnavn=Tilknytning'
+        association_list = self._perform_lora_lookup(url)
 
         associations = {}
         for association in association_list:
@@ -276,9 +242,8 @@ class LoraCache(object):
 
 
     def _cache_lora_roles(self):
-        uuid_url = '/organisation/organisationfunktion?funktionsnavn=Rolle'
-        data_url = '/organisation/organisationfunktion{}'
-        role_list = self._run_buildup(uuid_url, data_url)
+        url = '/organisation/organisationfunktion?funktionsnavn=Rolle'
+        role_list = self._perform_lora_lookup(url)
 
         roles = {}
         for role in role_list:
@@ -298,9 +263,8 @@ class LoraCache(object):
 
 
     def _cache_lora_leaves(self):
-        uuid_url = '/organisation/organisationfunktion?funktionsnavn=Orlov'
-        data_url = '/organisation/organisationfunktion{}'
-        leave_list = self._run_buildup(uuid_url, data_url)
+        url = '/organisation/organisationfunktion?funktionsnavn=Orlov'
+        leave_list = self._perform_lora_lookup(url)
 
         leaves = {}
         for leave in leave_list:
@@ -320,9 +284,8 @@ class LoraCache(object):
         return leaves
 
     def _cache_lora_it_connections(self):
-        uuid_url = '/organisation/organisationfunktion?funktionsnavn=IT-system'
-        data_url = '/organisation/organisationfunktion{}'
-        it_connection_list = self._run_buildup(uuid_url, data_url)
+        url = '/organisation/organisationfunktion?funktionsnavn=IT-system'
+        it_connection_list = self._perform_lora_lookup(url)
 
         it_connections = {}
         for it_connection in it_connection_list:
@@ -351,9 +314,8 @@ class LoraCache(object):
         return it_connections
 
     def _cache_lora_managers(self):
-        uuid_url = '/organisation/organisationfunktion?funktionsnavn=Leder'
-        data_url = '/organisation/organisationfunktion{}'
-        manager_list = self._run_buildup(uuid_url, data_url)
+        url = '/organisation/organisationfunktion?funktionsnavn=Leder'
+        manager_list = self._perform_lora_lookup(url)
 
         managers = {}
         for manager in manager_list:
@@ -382,6 +344,8 @@ class LoraCache(object):
 
     def populate_cache(self):
         import pickle
+        # with open('facets.p', 'rb') as f:
+        #    self.facets = pickle.load(f)
         with open('classes.p', 'rb') as f:
             self.classes = pickle.load(f)
         with open('users.p', 'rb') as f:
@@ -403,37 +367,71 @@ class LoraCache(object):
         with open('it_connections.p', 'rb') as f:
             self.it_connections = pickle.load(f)
 
+        t = time.time()
+        msg = 'Kørselstid: {:.1f}s, {} elementer, {:.0f}/s'
+        
         print('Læs facetter og klasser')
         self.facets = self._cache_lora_facets()
         self.classes = self._cache_lora_classes()
+        dt = time.time() - t
+        elements = len(self.classes) + len(self.facets)
+        print(msg.format(dt, elements, elements/dt))
 
-        print('Læs brugere')
-        self.users = self._cache_lora_users()
+        # t = time.time()
+        # print('Læs brugere')
+        # self.users = self._cache_lora_users()
+        # dt = time.time() - t
+        # print(msg.format(dt, len(self.users), len(self.users)/dt))
 
-        print('Læs enheder')
-        self.units = self._cache_lora_units()
+        # t = time.time()
+        # print('Læs enheder')
+        # self.units = self._cache_lora_units()
+        # dt = time.time() - t
+        # print(msg.format(dt, len(self.units), len(self.units)/dt))
 
-        print('Læs adresser:')
-        self.addresses = self._cache_lora_address()
+        # t = time.time()
+        # print('Læs adresser:')
+        # self.addresses = self._cache_lora_address()
+        # dt = time.time() - t
+        # print(msg.format(dt, len(self.addresses), len(self.addresses)/dt))
 
-        print('Læs engagementer')
-        self.engagements = self._cache_lora_engagements()
+        # t = time.time()
+        # print('Læs engagementer')
+        # self.engagements = self._cache_lora_engagements()
+        # dt = time.time() - t
+        # print(msg.format(dt, len(self.engagements), len(self.engagements)/dt))
 
-        print('Læs ledere')
-        self.managers = self._cache_lora_managers()
+        # t = time.time()
+        # print('Læs ledere')
+        # self.managers = self._cache_lora_managers()
+        # dt = time.time() - t
+        # print(msg.format(dt, len(self.managers), len(self.managers)/dt))
 
-        print('Læs tilknytninger')
-        self.associations = self._cache_lora_associations()
+        # t = time.time()
+        # print('Læs tilknytninger')
+        # self.associations = self._cache_lora_associations()
+        # dt = time.time() - t
+        # print(msg.format(dt, len(self.associations), len(self.associations)/dt))
 
-        print('Læs orlover')
-        self.leaves = self._cache_lora_leaves()
+        # t = time.time()
+        # print('Læs orlover')
+        # self.leaves = self._cache_lora_leaves()
+        # dt = time.time() - t
+        # print(msg.format(dt, len(self.leaves), len(self.leaves)/dt))
 
         print('Læs roller')
+        t = time.time()
         self.roles = self._cache_lora_roles()
+        dt = time.time() - t
+        print(msg.format(dt, len(self.roles), len(self.roles)/dt))
 
-        print('Læs it')        
-        self.itsystems = self._cache_lora_itsystems()
-        self.it_connections = self._cache_lora_it_connections()
+        # t = time.time()
+        # print('Læs it')        
+        # self.itsystems = self._cache_lora_itsystems()
+        # self.it_connections = self._cache_lora_it_connections()
+        # elements = len(self.itsystems) + len(self.it_connections)
+        # dt = time.time() - t
+        # print(msg.format(dt, elements, elements/dt))
 
         # with open('facets.p', 'wb') as f:
         #     pickle.dump(self.facets, f, pickle.HIGHEST_PROTOCOL)
@@ -453,6 +451,8 @@ class LoraCache(object):
         #     pickle.dump(self.associations, f, pickle.HIGHEST_PROTOCOL)
         # with open('leaves.p', 'wb') as f:
         #     pickle.dump(self.leaves, f, pickle.HIGHEST_PROTOCOL)
+        # with open('roles.p', 'wb') as f:
+        # pickle.dump(self.roles, f, pickle.HIGHEST_PROTOCOL)
         # with open('itsystems.p', 'wb') as f:
         #     pickle.dump(self.itsystems, f, pickle.HIGHEST_PROTOCOL)
         # with open('it_connections.p', 'wb') as f:
