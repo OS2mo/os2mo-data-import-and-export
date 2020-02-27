@@ -100,7 +100,7 @@ enheder
 adresser
 --------
 
-Adresser er i MO organisationfunktioner med funktionsnavnet ``Adresse``
+Adresser er i MO organisationfunktioner med funktionsnavnet ``Adresse``.
 
  * `uuid`: Adressens (org-funk'ens) uuid, primærnøgle for tabellen
  * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``. Hvis adressen
@@ -123,7 +123,7 @@ Adresser er i MO organisationfunktioner med funktionsnavnet ``Adresse``
 engagementer
 --------
 
-Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``
+Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``.
 
  * `uuid`: =  Engagementets (org-funk'ens) uuid, primærnøgle for tabellen.
  * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``. 
@@ -146,7 +146,7 @@ Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``
 roller
 --------
 
-Roller er i MO organisationfunktioner med funktionsnavnet ``Rolle``
+Roller er i MO organisationfunktioner med funktionsnavnet ``Rolle``.
 
  * `uuid`: Rollens  (org-funk'ens) uuid, primærnøgle for tabellen.
  * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``. 
@@ -159,7 +159,7 @@ Roller er i MO organisationfunktioner med funktionsnavnet ``Rolle``
 tilknytninger
 --------
 
-Tilknytninger er i MO organisationfunktioner med funktionsnavnet ``Tilknytning``
+Tilknytninger er i MO organisationfunktioner med funktionsnavnet ``Tilknytning``.
 
  * `uuid`: =  (org-funk'ens) uuid, primærnøgle for tabellenColumn(String(36), nullable=False, primary_key=True)
  * `user_key`: = Column(String(250), nullable=False)
@@ -174,7 +174,7 @@ Tilknytninger er i MO organisationfunktioner med funktionsnavnet ``Tilknytning``
 orlover
 --------
 
-Orlover er i MO organisationfunktioner med funktionsnavnet ``Orlov``
+Orlover er i MO organisationfunktioner med funktionsnavnet ``Orlov``.
 
  * `uuid`:  Orlovens (org-funk'ens) uuid, primærnøgle for tabellenColumn(String(36), nullable=False, primary_key=True)
  * `user_key`: = Column(String(250), nullable=False)
@@ -192,7 +192,7 @@ it_systemer
 it_forbindelser
 ---------------
 
-IT-forbindelser er i MO organisationfunktioner med funktionsnavnet ``IT-system``
+IT-forbindelser er i MO organisationfunktioner med funktionsnavnet ``IT-system``.
 
 IT-forbindeler dækker over en sammenkædningen mellem et IT-system og enten en enhed
 eller en bruger. Hvis forbindelsen er til en bruger, vil sammenkædningen indeholde
