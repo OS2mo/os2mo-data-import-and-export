@@ -1,0 +1,231 @@
+*************************************
+Eksport til Actual State SQL database
+*************************************
+
+Indledning
+==========
+Denne eksport laver et dags-dato udtræk af MO og afleverer det i en SQL database.
+
+For at opnå den nødvendige afviklingshastighed, tilgår eksporten data direkte fra
+LoRa hvor det er muligt at lave bulk udtræk, baseret på den kendte datamodel for
+OS2MO behandles de udtrukne data så SQL eksporten for et udseende som svarer til
+det man finder i MO.
+
+Tabellerne er for den praktiske anvendeligheds skyld ikke 100% normaliserede, der
+vil således for alle klasser altid være både en reference til primærnøglen for
+klassen plus en tekstrepræsentation, så det er muligt at aflæse tabellen uden at
+skulle foretage et join mod tabellen ``klasser`` for alle opslag.
+
+Konfiguration
+=============
+
+For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
+`settings.json`:
+
+ * `exporters.actual_state.xxx`: 
+ * `exporters.actual_state.yyy`: 
+
+Modellering
+===========
+
+Langt hovedparten af de dato som eksporteres kan betragtes som rene rådata,
+der er dog nogle få undtagelser, hvor værdierne er fremkommet algoritmisk:
+
+ * `enheder.organisatorisk_sti`: Forklaring .....
+ * `enheder.fungerende_leder`: Forklaring .....
+ * `engagementer.primærboolean` : Forklaring....   
+
+   Eksporterede tabeller
+========================
+
+Eksporten producerer disse tabeller, indholdet af de enkelte tabeller gennemgås
+systematisk i det følgende afsnit.
+
+ * `facetter`
+ * `klasser`
+ * `brugere`
+ * `enheder`
+ * `adresser`
+ * `engagementer`
+ * `roller`
+ * `tilknytninger`
+ * `orlover`
+ * `it_systemer`
+ * `it_forbindelser`
+ * `ledere`
+ * `leder_ansvar`
+
+
+facetter
+--------
+
+ * `uuid`: Facettens uuid, primærnøgle for tabellen.
+ * `user_key`: Brugervendt nøgle for facetten.
+
+Facetter i MO har ikke nogen titel.
+
+klasser
+--------
+
+ * `uuid`: Klassens uuid, primærnøgle for tabellen.
+ * `user_key`: Brugervendt nøgle for facetten.
+ * `title`: Klassens titel, det er denne tekst som vil fremgå af MOs frontend.
+ * `facet_uuid`: Reference til primærnøglen i tabellen ``facetter``.
+ * `facet_text`: Den brugervendte nøgle som knytter sig til facetten.
+
+brugere
+--------
+ * `uuid`: Brugerens uuid, primærnøgle for tabellen.
+ * `fornavn`: Brugerens fornavn.
+ * `efternavn`:  Brugerens efternavn.
+ * `cpr`:  Brugerens cpr-nummer.
+
+enheder
+--------
+ * `uuid`: Enhedens uuid, primærnøgle for tabellen.
+ * `navn` Enhedens navn.
+ * `forældreenhed_uuid`: Reference til primærnøglen for forælderenheden.
+ * `enhedstype_text`: Titel på enhedstypens klasse.
+ * `enhedstype_uuid`: Enhedstypen, reference til primærnøglen i tabellen
+   ``klasser``.
+ * `enhedsniveau_tekst`: Titel på klassen for enhedsniveau.
+ * `enhedsniveau_uuid`: Enhedsniveau, dette felt anvendes normalt kun af kommuner,
+   som anvender SD som lønsystemet. reference til primærnøglen i tabellen ``klasser``.
+ * `organisatorisk_sti`: Enhedens organisatoriske placering, se afsnit om beregnede
+   felter REF!!!.
+ * `# start_date`: # TODO
+ * `# Skal vi have leder på her? , se afsnit om beregnede felter REF!!!.
+
+    
+adresser
+--------
+
+Adresser er i MO organisationfunktioner med funktionsnavnet ``Adresse``
+
+ * `uuid`: Adressens (org-funk'ens) uuid, primærnøgle for tabellen
+ * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``. Hvis adressen
+   er på en enhed, vil feltet være blankt.
+ * `enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``.  Hvis adressen
+ er på en bruger, vil feltet være blakt.
+ * `værdi_text`: Selve adressen, hvis adressen er en DAR-adresse, vil dette felt
+   indeholde en tekstrepræsentation af adressen.
+ * `dar_uuid`: DAR-uuid'en som liger bag opslaget som fremgår af ``værdi_tekst``.
+   Blankt hvis ikke adressen er en DAR-adresse.
+ * `adresse_type_text`: Titlen på adressetypens klasse.
+ * `adresse_type_uuid`: Adressetypen, reference til primærnøglen i tabellen
+   ``klasser``.
+ * `adresse_type_scope`: Adressens overordnede type (omfang), eksempelvis Telefon
+   eller P-nummer.
+ * `synlighed_text`: Titlen på synlighedstypens klasse.
+ * `synlighed_uuid`: Synlighedstype, reference til primærnøglen i tabellen ``klasser``.
+ * `# start_date`: # TODO
+
+engagementer
+--------
+
+Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``
+
+ * `uuid`: =  Engagementets (org-funk'ens) uuid, primærnøgle for tabellen.
+ * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``. 
+ * `enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``. 
+ * `user_key`: Engagementets brugervendte nøgle. Dette vil i de fleste tilfælde være
+   ansættelsesnummeret i lønsystemet.
+ * `engagementstype_text`: Titlen på engagementstypeklassen.
+ * `engagementstype_uuid`: Engagementstypen, reference til primærnøglen i tabellen
+   ``klasser``.
+ * `primærtype_text`: Titlen på primærtypetypeklassen.
+ * `primærtype_uuid`: Engagementets primærtype, reference til primærnøglen i tabellen ``klasser``.
+ * `# Workfraction`: # TODO
+ * `# primærboolean`:, # TODO , se afsnit om beregnede   felter REF!!!.
+ * `job_function_text`: Titlen på klassen for stillingsbetegnelse.
+ * `job_function_uuid`: Engagementets stillingsbetegnelse, reference til primærnøglen
+   i tabellen ``klasser``.
+ * `# start_date`:,
+ * `# end_date`:
+
+roller
+--------
+
+Roller er i MO organisationfunktioner med funktionsnavnet ``Rolle``
+
+ * `uuid`: Rollens  (org-funk'ens) uuid, primærnøgle for tabellen.
+ * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``. 
+ * `enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``. 
+ * `role_type_text`: = Column(String(250), nullable=False)
+ * `role_type_uuid`: = Column(String, ForeignKey('klasser.uuid'))
+ * `# start_date`:, # TODO
+ * `# end_date`: # TODO
+
+tilknytninger
+--------
+
+Tilknytninger er i MO organisationfunktioner med funktionsnavnet ``Tilknytning``
+
+ * `uuid`: =  (org-funk'ens) uuid, primærnøgle for tabellenColumn(String(36), nullable=False, primary_key=True)
+ * `user_key`: = Column(String(250), nullable=False)
+ * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``. 
+ * `enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``. 
+ * `association_type_text`: = Column(String(250), nullable=False)
+ * `association_type_uuid`: = Column(String, ForeignKey('klasser.uuid'))
+ * `# start_date`:, # TODO
+ * `# end_date`: # TODO
+
+
+orlover
+--------
+
+Orlover er i MO organisationfunktioner med funktionsnavnet ``Orlov``
+
+ * `uuid`:  Orlovens (org-funk'ens) uuid, primærnøgle for tabellenColumn(String(36), nullable=False, primary_key=True)
+ * `user_key`: = Column(String(250), nullable=False)
+ * `bruger_uuid`: = Reference til primærnøglen i tabellen ``brugere``. 
+ * `leave_type_text`: = Column(String(250), nullable=False)
+ * `leave_type_uuid = Column(String, ForeignKey('klasser.uuid'))
+ * `# start_date`: # TODO
+ * `# end_date`: # TODO
+
+it_systemer
+--------
+ * `uuid`: Column(String(36), nullable=False, primary_key=True)
+ * `name`: Column(String(250), nullable=False)
+
+it_forbindelser
+---------------
+
+IT-forbindelser er i MO organisationfunktioner med funktionsnavnet ``IT-system``
+
+IT-forbindeler dækker over en sammenkædningen mellem et IT-system og enten en enhed
+eller en bruger. Hvis forbindelsen er til en bruger, vil sammenkædningen indeholde
+brugerens brugernavn i det pågældende system. Hvis forbindelsen er til en enhed, skal
+den tolkes i betydningen, at dette IT-system er i anvendelse i den pågældende enhed,
+i dette tilfælde vil der normalt ikke være brugernavn på forbindelsen.
+
+ * `uuid`: =  IT-forbindelsens (org-funk'ens) uuid, primærnøgle for tabellen.
+ * `it_system_uuid`: = Reference til primærnøglen i tabellen ``it_systemer``
+ * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``.  Hvis
+   it-forbindelsen er på en enhed, vil feltet være blankt.
+ * `enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``. 
+ * `brugernavn`: Brugerens brugernavn i IT-systemet. Normalt blank for forbindelser
+   til enheder.
+
+ledere
+--------
+ * `uuid`: =  Lederrollens (org-funk'ens) uuid, primærnøgle for tabellen.
+ * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``.
+ * `enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``.
+ * `manager_type_text`: = Column(String(250), nullable=False)
+ * `manager_type_uuid`: = Column(String, ForeignKey('klasser.uuid'))
+ * `niveau_type_text`: = Column(String(250), nullable=False)
+ * `niveau_type_uuid`: = Column(String, ForeignKey('klasser.uuid'))
+
+leder_ansvar
+------------
+
+Lederansvar er i MO ikke et selvstændigt objekt, men er modelleret som en liste af
+klasser som tilknyttes en lederrolle.
+
+ * `id`: Arbitrært løbenummer, da denne tabel ikke har nogen naturlig primærnøgle.
+ * `leder_uuid`: Reference til primærnøglen i tabellen ``ledere``.
+ * `responsibility_text`: =  Column(String(250), nullable=False)
+ * `responsibility_uuid`: = Column(String, ForeignKey('klasser.uuid'))
+
