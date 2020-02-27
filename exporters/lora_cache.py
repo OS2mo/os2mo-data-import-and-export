@@ -36,9 +36,13 @@ class LoraCache(object):
         """
         data_list = []
 
+        # response = requests.get(self.settings['mox.base'] + uuid_url + '&list=1')
         response = requests.get(self.settings['mox.base'] + uuid_url)
         uuids = response.json()
 
+        # print(len(uuids['results'][0]))
+        # exit()
+        
         build_up = '?'
         # TODO! Huske at også fremtidige virkninger måske skal med
         for uuid in uuids['results'][0]:
@@ -54,12 +58,27 @@ class LoraCache(object):
         assert len(data_list) == len(uuids['results'][0])
         return data_list
 
+    def _cache_lora_facets(self):
+        uuid_url = '/klassifikation/facet?bvn=%'
+        data_url = '/klassifikation/facet{}'
+        facet_list = self._run_buildup(uuid_url, data_url)
+
+        facets = {}
+        for facet in facet_list:
+            uuid = facet['id']
+            reg = facet['registreringer'][0]
+            user_key = reg['attributter']['facetegenskaber'][0]['brugervendtnoegle']
+            facets[uuid] = {
+                'user_key': user_key,
+            }
+        return facets
+    
     def _cache_lora_classes(self):
-        classes = {}
         uuid_url = '/klassifikation/klasse?bvn=%'
         data_url = '/klassifikation/klasse{}'
         class_list = self._run_buildup(uuid_url, data_url)
 
+        classes = {}
         for oio_class in class_list:
             uuid = oio_class['id']
             reg = oio_class['registreringer'][0]
@@ -256,6 +275,28 @@ class LoraCache(object):
         return associations
 
 
+    def _cache_lora_roles(self):
+        uuid_url = '/organisation/organisationfunktion?funktionsnavn=Rolle'
+        data_url = '/organisation/organisationfunktion{}'
+        role_list = self._run_buildup(uuid_url, data_url)
+
+        roles = {}
+        for role in role_list:
+            uuid = role['id']
+            reg = role['registreringer'][0]
+            role_type = reg['relationer']['organisatoriskfunktionstype'][0]['uuid']
+            user_uuid = reg['relationer']['tilknyttedebrugere'][0]['uuid']
+            unit_uuid = reg['relationer']['tilknyttedeenheder'][0]['uuid']
+
+            roles[uuid] = {
+                'uuid': uuid,
+                'user': user_uuid,
+                'unit': unit_uuid,
+                'role_type': role_type,
+            }
+        return roles
+
+
     def _cache_lora_leaves(self):
         uuid_url = '/organisation/organisationfunktion?funktionsnavn=Orlov'
         data_url = '/organisation/organisationfunktion{}'
@@ -278,6 +319,36 @@ class LoraCache(object):
             }
         return leaves
 
+    def _cache_lora_it_connections(self):
+        uuid_url = '/organisation/organisationfunktion?funktionsnavn=IT-system'
+        data_url = '/organisation/organisationfunktion{}'
+        it_connection_list = self._run_buildup(uuid_url, data_url)
+
+        it_connections = {}
+        for it_connection in it_connection_list:
+            uuid = it_connection['id']
+            reg = it_connection['registreringer'][0]
+            user_key = (reg['attributter']['organisationfunktionegenskaber'][0]
+                        ['brugervendtnoegle'])
+
+            itsystem = reg['relationer']['tilknyttedeitsystemer'][0]['uuid']
+
+            if 'tilknyttedeenheder' in reg['relationer']:
+                unit_uuid = reg['relationer']['tilknyttedeenheder'][0]['uuid']
+                user_uuid = None
+            else:
+                user_uuid = reg['relationer']['tilknyttedebrugere'][0]['uuid']
+                unit_uuid = None
+
+
+            it_connections[uuid] = {
+                'uuid': uuid,
+                'user': user_uuid,
+                'unit': unit_uuid,
+                'username': user_key,
+                'itsystem': itsystem
+            }
+        return it_connections
 
     def _cache_lora_managers(self):
         uuid_url = '/organisation/organisationfunktion?funktionsnavn=Leder'
@@ -327,35 +398,65 @@ class LoraCache(object):
             self.associations = pickle.load(f)
         with open('leaves.p', 'rb') as f:
             self.leaves = pickle.load(f)
+        with open('itsystems.p', 'rb') as f:
+            self.itsystems = pickle.load(f)
+        with open('it_connections.p', 'rb') as f:
+            self.it_connections = pickle.load(f)
 
-        # self.classes = self._cache_lora_classes()
-        # self.users = self._cache_lora_users()
-        # self.units = self._cache_lora_units()
-        # self.addresses = self._cache_lora_address()
-        # self.engagements = self._cache_lora_engagements()
-        # self.managers = self._cache_lora_managers()
-        # self.associations = self._cache_lora_associations()
-        # self.leaves = self._cache_lora_leaves()
+        print('Læs facetter og klasser')
+        self.facets = self._cache_lora_facets()
+        self.classes = self._cache_lora_classes()
+
+        print('Læs brugere')
+        self.users = self._cache_lora_users()
+
+        print('Læs enheder')
+        self.units = self._cache_lora_units()
+
+        print('Læs adresser:')
+        self.addresses = self._cache_lora_address()
+
+        print('Læs engagementer')
+        self.engagements = self._cache_lora_engagements()
+
+        print('Læs ledere')
+        self.managers = self._cache_lora_managers()
+
+        print('Læs tilknytninger')
+        self.associations = self._cache_lora_associations()
+
+        print('Læs orlover')
+        self.leaves = self._cache_lora_leaves()
+
+        print('Læs roller')
+        self.roles = self._cache_lora_roles()
+
+        print('Læs it')        
         self.itsystems = self._cache_lora_itsystems()
+        self.it_connections = self._cache_lora_it_connections()
 
-        with open('classes.p', 'wb') as f:
-            pickle.dump(self.classes, f, pickle.HIGHEST_PROTOCOL)
-        with open('users.p', 'wb') as f:
-            pickle.dump(self.users, f, pickle.HIGHEST_PROTOCOL)
-        with open('units.p', 'wb') as f:
-            pickle.dump(self.units, f, pickle.HIGHEST_PROTOCOL)
-        with open('addresses.p', 'wb') as f:
-            pickle.dump(self.addresses, f, pickle.HIGHEST_PROTOCOL)
-        with open('engagements.p', 'wb') as f:
-            pickle.dump(self.engagements, f, pickle.HIGHEST_PROTOCOL)
-        with open('managers.p', 'wb') as f:
-            pickle.dump(self.managers, f, pickle.HIGHEST_PROTOCOL)
-        with open('associations.p', 'wb') as f:
-            pickle.dump(self.associations, f, pickle.HIGHEST_PROTOCOL)
-        with open('leaves.p', 'wb') as f:
-            pickle.dump(self.leaves, f, pickle.HIGHEST_PROTOCOL)
-        with open('itsystems.p', 'wb') as f:
-            pickle.dump(self.itsystems, f, pickle.HIGHEST_PROTOCOL)
+        # with open('facets.p', 'wb') as f:
+        #     pickle.dump(self.facets, f, pickle.HIGHEST_PROTOCOL)
+        # with open('classes.p', 'wb') as f:
+        #     pickle.dump(self.classes, f, pickle.HIGHEST_PROTOCOL)
+        # with open('users.p', 'wb') as f:
+        #     pickle.dump(self.users, f, pickle.HIGHEST_PROTOCOL)
+        # with open('units.p', 'wb') as f:
+        #     pickle.dump(self.units, f, pickle.HIGHEST_PROTOCOL)
+        # with open('addresses.p', 'wb') as f:
+        #     pickle.dump(self.addresses, f, pickle.HIGHEST_PROTOCOL)
+        # with open('engagements.p', 'wb') as f:
+        #     pickle.dump(self.engagements, f, pickle.HIGHEST_PROTOCOL)
+        # with open('managers.p', 'wb') as f:
+        #     pickle.dump(self.managers, f, pickle.HIGHEST_PROTOCOL)
+        # with open('associations.p', 'wb') as f:
+        #     pickle.dump(self.associations, f, pickle.HIGHEST_PROTOCOL)
+        # with open('leaves.p', 'wb') as f:
+        #     pickle.dump(self.leaves, f, pickle.HIGHEST_PROTOCOL)
+        # with open('itsystems.p', 'wb') as f:
+        #     pickle.dump(self.itsystems, f, pickle.HIGHEST_PROTOCOL)
+        # with open('it_connections.p', 'wb') as f:
+        #     pickle.dump(self.it_connections, f, pickle.HIGHEST_PROTOCOL)
 
 
 if __name__ == '__main__':

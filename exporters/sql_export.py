@@ -9,6 +9,19 @@ from exporters.lora_cache import LoraCache
 
 Base = declarative_base()
 
+class Facet(Base):
+    __tablename__ = 'facetter'
+    uuid = Column(String(36), nullable=False, primary_key=True)
+    user_key= Column(String(250), nullable=False)
+    title = Column(String(250), nullable=False)
+
+class Klasse(Base):
+    __tablename__ = 'klasser'
+
+    uuid = Column(String(36), nullable=False, primary_key=True)
+    user_key= Column(String(250), nullable=False)
+    title = Column(String(250), nullable=False)
+    facet_uuid = Column(String, ForeignKey('facetter.uuid'))
 
 class Bruger(Base):
     __tablename__ = 'brugere'
@@ -69,16 +82,17 @@ class Engagement(Base):
     # end_date
 
 
-# class Rolle(Base):
-#     __tablename__ = 'roller'
-#
-#     uuid = Column(String(36), nullable=False, primary_key=True)
-#     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
-#     enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
-#     rolle_type_text = Column(String(250), nullable=False)
-#     rolle_type_uuid = Column(String(36), nullable=False)
-#     # start_date, # TODO
-#     # end_date # TODO
+class Rolle(Base):
+    __tablename__ = 'roller'
+
+    uuid = Column(String(36), nullable=False, primary_key=True)
+    bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
+    enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
+    role_type_text = Column(String(250), nullable=False)
+    role_type_uuid = Column(String(36), nullable=False)
+    # start_date, # TODO
+    # end_date # TODO
+
 
 class Tilknytning(Base):
     __tablename__ = 'tilknytninger'
@@ -92,6 +106,7 @@ class Tilknytning(Base):
     # start_date, # TODO
     # end_date # TODO
 
+
 class Orlov(Base):
     __tablename__ = 'orlover'
 
@@ -103,19 +118,22 @@ class Orlov(Base):
     # start_date # TODO
     # end_date # TODO
 
+
 class IT_system(Base):
     __tablename__ = 'it_systemer'
 
     uuid = Column(String(36), nullable=False, primary_key=True)
     name = Column(String(250), nullable=False)
 
-# class IT_forbindelse(Base):
-#     __tablename__ = 'it_forbindelser'
 
-#     it_system_uuid = relationship('IT_system')
-#     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
-#     enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
-#     brugernavn = Column(String(250), nullable=True)
+class IT_forbindelse(Base):
+    __tablename__ = 'it_forbindelser'
+
+    uuid = Column(String(36), nullable=False, primary_key=True)
+    it_system_uuid = Column(String, ForeignKey('it_systemer.uuid'))
+    bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
+    enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
+    brugernavn = Column(String(250), nullable=True)
 
 
 class Leder(Base):
@@ -149,6 +167,22 @@ session = Session()
 
 lc = LoraCache()
 lc.populate_cache()
+
+
+# class Facet(Base):
+#     __tablename__ = 'facetter'
+#     uuid = Column(String(36), nullable=False, primary_key=True)
+#     user_key= Column(String(250), nullable=False)
+#     title = Column(String(250), nullable=False)
+
+# class Klasse(Base):
+#     __tablename__ = 'klasser'
+
+#     uuid = Column(String(36), nullable=False, primary_key=True)
+#     user_key= Column(String(250), nullable=False)
+#     title = Column(String(250), nullable=False)
+#     facet_uuid = Column(String, ForeignKey('facetter.uuid'))
+
 
 
 for user, user_info in lc.users.items():
@@ -228,6 +262,20 @@ for association, association_info in lc.associations.items():
     session.add(sql_association)
 session.commit()
 
+for role, role_info in lc.roles.items():
+    sql_role = Rolle(
+        uuid=role,
+        bruger_uuid=role_info['user'],
+        enhed_uuid=role_info['unit'],
+        role_type_text=lc.classes[role_info['role_type']]['title'],
+        role_type_uuid=role_info['role_type']
+        # start_date, # TODO
+        # end_date # TODO
+    )
+    session.add(sql_role)
+session.commit()
+
+
 
 for leave, leave_info in lc.leaves.items():
     sql_leave = Orlov(
@@ -256,6 +304,27 @@ for manager, manager_info in lc.managers.items():
     session.add(sql_manager)
 session.commit()
 
+
+for itsystem, itsystem_info in lc.itsystems.items():
+    sql_itsystem = IT_system(
+        uuid = itsystem,
+        name = itsystem_info['name']
+    )
+    session.add(sql_itsystem)
+session.commit()
+
+for it_connection, it_connection_info in lc.it_connections.items():
+    sql_it_connection = IT_forbindelse(
+        uuid=it_connection,
+        it_system_uuid=it_connection_info['itsystem'],
+        bruger_uuid=it_connection_info['user'],
+        enhed_uuid=it_connection_info['unit'],
+        brugernavn=it_connection_info['username']
+    )
+    session.add(sql_it_connection)
+session.commit()
+
+
 # for result in engine.execute('select * from enheder'):
 #    print(result)
 
@@ -281,3 +350,15 @@ session.commit()
 #for result in engine.execute('select * from orlover limit 20'):
 #    print()
 #    print(result.items())
+
+# for result in engine.execute('select * from it_systemer limit 20'):
+#     print()
+#     print(result.items())
+
+# for result in engine.execute('select * from it_forbindelser limit 20'):
+#     print()
+#     print(result.items())
+
+for result in engine.execute('select * from roller limit 20'):
+    print()
+    print(result.items())
