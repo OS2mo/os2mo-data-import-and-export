@@ -303,7 +303,7 @@ class CreateDummyOrg(object):
 ))
 @option('--mox-base', metavar='URL', default='http://localhost:8080')
 @option('--mora-base', metavar='URL', default='http://localhost:5000')
-@option('--municipality', metavar='NAME', default='København')
+@option('--municipality', metavar='NAME', default='Læsø')
 @option('--scale', type=int, default=4)
 @option('--extra-root/--no-extra-root', is_flag=True)
 @option('--small', 'org_size', flag_value=Size.Small)
