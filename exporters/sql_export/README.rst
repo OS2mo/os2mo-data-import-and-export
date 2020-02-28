@@ -16,6 +16,11 @@ vil således for alle klasser altid være både en reference til primærnøglen 
 klassen plus en tekstrepræsentation, så det er muligt at aflæse tabellen uden at
 skulle foretage et join mod tabellen ``klasser`` for alle opslag.
 
+Implementerigen er foretaget ved hjælp af værktøjet SQLAlchemy, som sikrer at
+det er muligt at aflevere data til en lang række forskellige databasesystemer,
+det er desuden muligt at køre hele eksporten mod en flad SQLite fil som muliggør
+eksporting helt uden en kørende databaseserver.
+
 Konfiguration
 =============
 
@@ -36,9 +41,13 @@ Langt hovedparten af de data som eksporteres kan betragtes som rene rådata,
 der er dog nogle få undtagelser, hvor værdierne er fremkommet algoritmisk:
 
  * ``enheder.organisatorisk_sti``: Angiver den organisatoriske sti for en enhed
-   beregnet ved at gå baglæns gennem enhedstræet og tilføje et \\-tegn mellem
+   beregnet ved at gå baglæns gennem enhedstræet og tilføje et `\\`-tegn mellem
    hver enhed. Eksempel: `Basildon Kommune\\Kunst & Kultur\\Musiktilbud\\Øvelokaler`.
- * ``enheder.fungerende_leder``: Forklaring .....
+ * ``enheder.fungerende_leder``: I MO er en leder modeleret som en
+   organissationfunktion som sammenkæder en person med en enhed. Der er ikke noget
+   krav om at alle enheder har en lederfunktion pegende på sig, og der vil derfor
+   være enheder som ikke figurerer i tabellen ``ledere``. For disse enheder er det
+   muligt algoritmisk af 
  * ``engagementer.primærboolean`` : Forklaring....   
 
 Eksporterede tabeller
@@ -100,9 +109,14 @@ enheder
    ``klasser``.
  * ``organisatorisk_sti``: Enhedens organisatoriske placering, se afsnit om
    `Modellering`_.
- * ``leder_uuid``: Reference til primærnøglen for det lederobjet som er leder af enheden.
+ * ``leder_uuid``: Reference til primærnøglen for det lederobjet som er leder af
+   enheden. Informationen er teknisk set redundant, da den også fremkommer ved et
+   join til tabellen ``ledere``, men angives også her som en bekemmelighed.
+   Af implementeringstekniske årsager er dette felt i øjeblikket ikke
+   markeret som en fremmednøgle i databasen.
  * ``fungerende_leder_uuid``: Reference til primærnøglen for nærmeste leder af
-   enheden. Hvis enheder har en leder, vil dette være det samme som `leder`.
+   enheden. Hvis enheder har en leder, vil dette være det samme som `leder`. Feltet
+   er et afledt felt og findes ikke i rådata, se afsnit om `Modellering`_.
  * ``# start_date``: # TODO
 
     
