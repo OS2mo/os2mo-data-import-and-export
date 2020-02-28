@@ -51,7 +51,7 @@ class sdMox(object):
 
         except Exception:
             raise SdMoxError("Klasse-uuider for conf af Ny-Niveauer "
-                             "eller Tidsregistreing mangler")
+                             "eller Tidsregistrering mangler")
 
         if from_date:
             self._update_virkning(from_date)
