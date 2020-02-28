@@ -22,21 +22,23 @@ Konfiguration
 For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
 `settings.json`:
 
- * `exporters.actual_state.xxx`: 
+ * `exporters.actual_state.manager_responsibility_class`: UUID på det lederansvar,
+ som angiver at en leder kan nedarve sin lederrolle til enheder dybere i
+ organisationen.
  * `exporters.actual_state.yyy`: 
 
 Modellering
 ===========
 
-Langt hovedparten af de dato som eksporteres kan betragtes som rene rådata,
+Langt hovedparten af de data som eksporteres kan betragtes som rene rådata,
 der er dog nogle få undtagelser, hvor værdierne er fremkommet algoritmisk:
 
  * `enheder.organisatorisk_sti`: Forklaring .....
  * `enheder.fungerende_leder`: Forklaring .....
  * `engagementer.primærboolean` : Forklaring....   
 
-   Eksporterede tabeller
-========================
+Eksporterede tabeller
+=====================
 
 Eksporten producerer disse tabeller, indholdet af de enkelte tabeller gennemgås
 systematisk i det følgende afsnit.
@@ -68,10 +70,10 @@ klasser
 --------
 
  * `uuid`: Klassens uuid, primærnøgle for tabellen.
- * `user_key`: Brugervendt nøgle for facetten.
+ * `user_key`: Brugervendt nøgle for klassen.
  * `title`: Klassens titel, det er denne tekst som vil fremgå af MOs frontend.
  * `facet_uuid`: Reference til primærnøglen i tabellen ``facetter``.
- * `facet_text`: Den brugervendte nøgle som knytter sig til facetten.
+ * `facet_text`: Den brugervendte nøgle som knytter sig til klassens facet.
 
 brugere
 --------
@@ -93,8 +95,10 @@ enheder
    som anvender SD som lønsystemet. reference til primærnøglen i tabellen ``klasser``.
  * `organisatorisk_sti`: Enhedens organisatoriske placering, se afsnit om beregnede
    felter REF!!!.
+ * `leder_uuid`: Reference til primærnøglen for det lederobjet som er leder af enheden.
+ * `fungerende_leder_uuid`: Reference til primærnøglen for nærmeste leder af
+   enheden. Hvis enheder har en leder, vil dette være det samme som `leder`.
  * `# start_date`: # TODO
- * `# Skal vi have leder på her? , se afsnit om beregnede felter REF!!!.
 
     
 adresser
@@ -148,11 +152,12 @@ roller
 
 Roller er i MO organisationfunktioner med funktionsnavnet ``Rolle``.
 
- * `uuid`: Rollens  (org-funk'ens) uuid, primærnøgle for tabellen.
+ * `uuid`: Rollens (org-funk'ens) uuid, primærnøgle for tabellen.
  * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``. 
  * `enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``. 
- * `role_type_text`: = Column(String(250), nullable=False)
- * `role_type_uuid`: = Column(String, ForeignKey('klasser.uuid'))
+ * `role_type_text`: Titlen på klassen for rolletypen.
+ * `role_type_uuid`: Rolletypen, reference til primærnøglen i tabellen
+   ``klasser``.
  * `# start_date`:, # TODO
  * `# end_date`: # TODO
 
@@ -161,12 +166,13 @@ tilknytninger
 
 Tilknytninger er i MO organisationfunktioner med funktionsnavnet ``Tilknytning``.
 
- * `uuid`: =  (org-funk'ens) uuid, primærnøgle for tabellenColumn(String(36), nullable=False, primary_key=True)
- * `user_key`: = Column(String(250), nullable=False)
+ * `uuid`: Tilknytningens (org-funk'ens) uuid, primærnøgle for tabellen.
+ * `user_key`: Tilknytningens brugervendte nøgle.
  * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``. 
  * `enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``. 
- * `association_type_text`: = Column(String(250), nullable=False)
- * `association_type_uuid`: = Column(String, ForeignKey('klasser.uuid'))
+ * `association_type_text`: Titlen på klassen for tilknytningstypen.
+ * `association_type_uuid`: Tilknytningstypen, reference til primærnøglen i tabellen
+   ``klasser``.
  * `# start_date`:, # TODO
  * `# end_date`: # TODO
 
@@ -176,18 +182,19 @@ orlover
 
 Orlover er i MO organisationfunktioner med funktionsnavnet ``Orlov``.
 
- * `uuid`:  Orlovens (org-funk'ens) uuid, primærnøgle for tabellenColumn(String(36), nullable=False, primary_key=True)
- * `user_key`: = Column(String(250), nullable=False)
+ * `uuid`:  Orlovens (org-funk'ens) uuid, primærnøgle for tabellen.
+ * `user_key`: Brugervendt nøgle for orloven.
  * `bruger_uuid`: = Reference til primærnøglen i tabellen ``brugere``. 
- * `leave_type_text`: = Column(String(250), nullable=False)
- * `leave_type_uuid = Column(String, ForeignKey('klasser.uuid'))
+ * `leave_type_text`: Titlen på klasse for orlovstypen.
+ * `leave_type_uuid`: Orlovstypen, reference til primærnøglen i tabellen
+ ``klasser``.
  * `# start_date`: # TODO
  * `# end_date`: # TODO
 
 it_systemer
 --------
- * `uuid`: Column(String(36), nullable=False, primary_key=True)
- * `name`: Column(String(250), nullable=False)
+ * `uuid`: IT-systemets uuid, primærnøgle for tabellen.
+ * `name`: IT-systemets navn.
 
 it_forbindelser
 ---------------
@@ -213,10 +220,12 @@ ledere
  * `uuid`: =  Lederrollens (org-funk'ens) uuid, primærnøgle for tabellen.
  * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``.
  * `enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``.
- * `manager_type_text`: = Column(String(250), nullable=False)
- * `manager_type_uuid`: = Column(String, ForeignKey('klasser.uuid'))
- * `niveau_type_text`: = Column(String(250), nullable=False)
- * `niveau_type_uuid`: = Column(String, ForeignKey('klasser.uuid'))
+ * `manager_type_text`: Titlen på klassen for ledertypen.
+ * `manager_type_uuid`: Klassen for ledertypen, reference til primærnøglen i tabellen
+   ``klasser``.
+ * `niveau_type_text`: Titlen på klassen for lederniveau.
+ * `niveau_type_uuid`: Klassen for lederniveau, reference til primærnøglen i tabellen
+   ``klasser``.
 
 leder_ansvar
 ------------
@@ -224,8 +233,9 @@ leder_ansvar
 Lederansvar er i MO ikke et selvstændigt objekt, men er modelleret som en liste af
 klasser som tilknyttes en lederrolle.
 
- * `id`: Arbitrært løbenummer, da denne tabel ikke har nogen naturlig primærnøgle.
+ * `id`: Arbitrært løbenummer, denne tabel har ikke har nogen naturlig primærnøgle.
  * `leder_uuid`: Reference til primærnøglen i tabellen ``ledere``.
- * `responsibility_text`: =  Column(String(250), nullable=False)
- * `responsibility_uuid`: = Column(String, ForeignKey('klasser.uuid'))
+ * `responsibility_text`: Titlen på klassen for lederansvar.
+ * `responsibility_uuid`: Klassen for lederansvar, reference til primærnøglen i tabellen
+   ``klasser``.
 
