@@ -131,7 +131,7 @@ engagementer
 
 Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``.
 
- * ``uuid``: =  Engagementets (org-funk'ens) uuid, primærnøgle for tabellen.
+ * ``uuid``: Engagementets (org-funk'ens) uuid, primærnøgle for tabellen.
  * ``bruger_uuid``: Reference til primærnøglen i tabellen ``brugere``. 
  * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``. 
  * ``user_key``: Engagementets brugervendte nøgle. Dette vil i de fleste tilfælde
@@ -209,8 +209,8 @@ brugerens brugernavn i det pågældende system. Hvis forbindelsen er til en enhe
 den tolkes i betydningen, at dette IT-system er i anvendelse i den pågældende enhed,
 i dette tilfælde vil der normalt ikke være brugernavn på forbindelsen.
 
- * `uuid`: =  IT-forbindelsens (org-funk'ens) uuid, primærnøgle for tabellen.
- * `it_system_uuid`: = Reference til primærnøglen i tabellen ``it_systemer``
+ * `uuid`: IT-forbindelsens (org-funk'ens) uuid, primærnøgle for tabellen.
+ * `it_system_uuid`: Reference til primærnøglen i tabellen ``it_systemer``
  * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``.  Hvis
    it-forbindelsen er på en enhed, vil feltet være blankt.
  * `enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``. 
@@ -219,7 +219,7 @@ i dette tilfælde vil der normalt ikke være brugernavn på forbindelsen.
 
 ledere
 --------
- * `uuid`: =  Lederrollens (org-funk'ens) uuid, primærnøgle for tabellen.
+ * `uuid`: Lederrollens (org-funk'ens) uuid, primærnøgle for tabellen.
  * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``.
  * `enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``.
  * `manager_type_text`: Titlen på klassen for ledertypen.
