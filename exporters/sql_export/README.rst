@@ -36,8 +36,8 @@ Langt hovedparten af de data som eksporteres kan betragtes som rene rådata,
 der er dog nogle få undtagelser, hvor værdierne er fremkommet algoritmisk:
 
  * ``enheder.organisatorisk_sti``: Angiver den organisatoriske sti for en enhed
-   beregnet ved at gå baglæns gennem enhedstræet og tilføje et \-tegn mellem
-   hver enhed. Eksempel: `Basildon Kommune\Kunst & Kultur\Musiktilbud\Øvelokaler`
+   beregnet ved at gå baglæns gennem enhedstræet og tilføje et \\-tegn mellem
+   hver enhed. Eksempel: `Basildon Kommune\\Kunst & Kultur\\Musiktilbud\\Øvelokaler`.
  * ``enheder.fungerende_leder``: Forklaring .....
  * ``engagementer.primærboolean`` : Forklaring....   
 
