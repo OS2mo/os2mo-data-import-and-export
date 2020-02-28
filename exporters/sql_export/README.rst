@@ -47,7 +47,9 @@ der er dog nogle få undtagelser, hvor værdierne er fremkommet algoritmisk:
    organissationfunktion som sammenkæder en person med en enhed. Der er ikke noget
    krav om at alle enheder har en lederfunktion pegende på sig, og der vil derfor
    være enheder som ikke figurerer i tabellen ``ledere``. For disse enheder er det
-   muligt algoritmisk af 
+   muligt algoritmisk at bestemme en leder ved at gå op i træet indtil der findes
+   en leder med passende lederansvar. Dette felt indeholder resultatet af denne
+   algoritme.
  * ``engagementer.primærboolean`` : Forklaring....   
 
 Eksporterede tabeller
