@@ -30,12 +30,10 @@ class SqlExport(object):
 
         self._add_classification(output=False)
         self._add_users_and_units(output=False)
-        self._add_engagements(output=False)
-
-        # TODO: Add dar-lookup!
+        self._add_engagements(output=True)
         self._add_addresses(output=False)
 
-        self._add_associactions_leaves_and_roles(output=True)
+        self._add_associactions_leaves_and_roles(output=False)
         # _add_managers(lc, engine, session)
         # _add_it_systems(lc, engine, session)
 
@@ -131,6 +129,7 @@ class SqlExport(object):
 
     def _add_engagements(self, output=False):
         for engagement, engagement_info in self.lc.engagements.items():
+            print(engagement_info['primary_boolean'])
             sql_engagement = Engagement(
                 uuid=engagement,
                 bruger_uuid=engagement_info['user'],
@@ -140,7 +139,7 @@ class SqlExport(object):
                 engagementstype_uuid=engagement_info['engagement_type'],
                 primærtype_text=self.lc.classes[engagement_info['primary_type']]['title'],
                 primærtype_uuid=engagement_info['primary_type'],
-                # primærboolean, # TODO
+                primary_boolean=engagement_info['primary_boolean'],
                 job_function_text=self.lc.classes[engagement_info['job_function']]['title'],
                 job_function_uuid=engagement_info['job_function']
             )
@@ -244,10 +243,10 @@ class SqlExport(object):
             self.session.add(sql_address)
         self.session.commit()
         if output:
-            for result in self.engine.execute('select * from adresser limit 4'):
+            for result in self.engine.execute('select * from adresser limit 10'):
                 print(result.items())
 
-    def _add_it_systems(lc, engine, session):
+    def _add_it_systems(self, output=False):
         for itsystem, itsystem_info in lc.itsystems.items():
             sql_itsystem = ItSystem(
                 uuid=itsystem,
@@ -265,11 +264,12 @@ class SqlExport(object):
             )
             session.add(sql_it_connection)
         session.commit()
-        # for result in engine.execute('select * from it_systemer limit 2'):
-        #     print(result.items())
+        if output:
+            for result in engine.execute('select * from it_systemer limit 2'):
+                print(result.items())
 
-        # for result in engine.execute('select * from it_forbindelser limit 2'):
-        #     print(result.items())
+            for result in engine.execute('select * from it_forbindelser limit 2'):
+                print(result.items())
 
 
 if __name__ == '__main__':
