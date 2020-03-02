@@ -60,11 +60,13 @@ class LoraCache(object):
             uuid = oio_class['id']
             reg = oio_class['registreringer'][0]
             user_key = reg['attributter']['klasseegenskaber'][0]['brugervendtnoegle']
+            scope = reg['attributter']['klasseegenskaber'][0].get('omfang')
             title = reg['attributter']['klasseegenskaber'][0]['titel']
             facet = reg['relationer']['facet'][0]['uuid']
             classes[uuid] = {
                 'user_key': user_key,
                 'title': title,
+                'scope': scope,
                 'facet': facet
             }
         return classes
@@ -243,8 +245,25 @@ class LoraCache(object):
                 'user_key': user_key,
                 'engagement_type': engagement_type,
                 'primary_type': primary_type,
-                'job_function': job_function
+                'job_function': job_function,
+                'primary_boolean': None
             }
+
+        user_primary = {}
+        # TODO: Check this code by ensuring that primary==True matches type==Ansat
+        for uuid, eng in engagements.items():
+            primary_scope = int(self.classes[eng['primary_type']]['scope'])
+            if eng['user'] in user_primary:
+                if user_primary[eng['user']][0] < primary_scope:
+                   user_primary[eng['user']] = (primary_scope, uuid)
+            else:
+                user_primary[eng['user']] = (primary_scope, uuid)
+
+        for uuid, eng in engagements.items():
+            if user_primary[eng['user']][1] == uuid:
+                eng['primary_boolean'] = True
+            else:
+                eng['primary_boolean'] = False
         return engagements
 
     def _cache_lora_associations(self):
@@ -400,19 +419,19 @@ class LoraCache(object):
         with open('it_connections.p', 'rb') as f:
             self.it_connections = pickle.load(f)
 
-        # t = time.time()
-        # msg = 'Kørselstid: {:.1f}s, {} elementer, {:.0f}/s'
+        t = time.time()
+        msg = 'Kørselstid: {:.1f}s, {} elementer, {:.0f}/s'
 
-        # print('Læs facetter og klasser')
-        # self.facets = self._cache_lora_facets()
-        # self.classes = self._cache_lora_classes()
-        # dt = time.time() - t
-        # elements = len(self.classes) + len(self.facets)
-        # with open('facets.p', 'wb') as f:
-        #     pickle.dump(self.facets, f, pickle.HIGHEST_PROTOCOL)
-        # with open('classes.p', 'wb') as f:
-        #     pickle.dump(self.classes, f, pickle.HIGHEST_PROTOCOL)
-        # print(msg.format(dt, elements, elements/dt))
+        print('Læs facetter og klasser')
+        self.facets = self._cache_lora_facets()
+        self.classes = self._cache_lora_classes()
+        dt = time.time() - t
+        elements = len(self.classes) + len(self.facets)
+        with open('facets.p', 'wb') as f:
+            pickle.dump(self.facets, f, pickle.HIGHEST_PROTOCOL)
+        with open('classes.p', 'wb') as f:
+            pickle.dump(self.classes, f, pickle.HIGHEST_PROTOCOL)
+        print(msg.format(dt, elements, elements/dt))
 
         # t = time.time()
         # print('Læs brugere')
@@ -438,13 +457,13 @@ class LoraCache(object):
         #     pickle.dump(self.addresses, f, pickle.HIGHEST_PROTOCOL)
         # print(msg.format(dt, len(self.addresses), len(self.addresses)/dt))
 
-        # t = time.time()
-        # print('Læs engagementer')
-        # self.engagements = self._cache_lora_engagements()
-        # dt = time.time() - t
-        # with open('engagements.p', 'wb') as f:
-        #     pickle.dump(self.engagements, f, pickle.HIGHEST_PROTOCOL)
-        # print(msg.format(dt, len(self.engagements), len(self.engagements)/dt))
+        t = time.time()
+        print('Læs engagementer')
+        self.engagements = self._cache_lora_engagements()
+        dt = time.time() - t
+        with open('engagements.p', 'wb') as f:
+            pickle.dump(self.engagements, f, pickle.HIGHEST_PROTOCOL)
+        print(msg.format(dt, len(self.engagements), len(self.engagements)/dt))
 
         # t = time.time()
         # print('Læs ledere')
