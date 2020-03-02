@@ -14,6 +14,7 @@ class LoraCache(object):
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
 
+        self.dar_cache = {}
         self.mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
         try:
             self.org_uuid = self.mh.read_organisation()
@@ -29,7 +30,11 @@ class LoraCache(object):
         """
         response = requests.get(self.settings['mox.base'] + url + '&list=1')
         data = response.json()
-        data_list = data['results'][0]
+        results = data['results']
+        if results:
+            data_list = data['results'][0]
+        else:
+            data_list = []
         return data_list
 
     def _cache_lora_facets(self):
@@ -45,7 +50,7 @@ class LoraCache(object):
                 'user_key': user_key,
             }
         return facets
-    
+
     def _cache_lora_classes(self):
         url = '/klassifikation/klasse?bvn=%'
         class_list = self._perform_lora_lookup(url)
@@ -92,8 +97,9 @@ class LoraCache(object):
             uuid = user['id']
             reg = user['registreringer'][0]
             cpr = reg['relationer']['tilknyttedepersoner'][0]['urn'][-10:]
-            fornavn = reg['attributter']['brugerudvidelser'][0]['fornavn']
-            efternavn = reg['attributter']['brugerudvidelser'][0]['efternavn']
+            udv = reg['attributter']['brugerudvidelser'][0]
+            fornavn = udv.get('fornavn', '')
+            efternavn = udv.get('efternavn', '')
             users[uuid] = {
                 'cpr': cpr,
                 'fornavn': fornavn,
@@ -103,7 +109,7 @@ class LoraCache(object):
         return users
 
     def _cache_lora_units(self):
-        uuid_url = '/organisation/organisationenhed?bvn=%'
+        url = '/organisation/organisationenhed?bvn=%'
         unit_list = self._perform_lora_lookup(url)
 
         units = {}
@@ -132,6 +138,8 @@ class LoraCache(object):
         url = '/organisation/organisationfunktion?funktionsnavn=Adresse'
         address_list = self._perform_lora_lookup(url)
 
+        total_dar = 0
+        no_hit = 0
         addresses = {}
         for address in address_list:
             uuid = address['id']
@@ -161,9 +169,29 @@ class LoraCache(object):
                 value = value_raw[skip_len:]
             elif address_type == 'DAR':
                 scope = 'DAR'
-                skip_len = len('')
+                skip_len = len('urn:dar:')
                 dar_uuid = value_raw[skip_len:]
-                value = ''  # TODO - perform DAR lookup
+                total_dar += 1
+
+                if self.dar_cache.get(dar_uuid) is None:
+                    self.dar_cache[dar_uuid] = {}
+                    no_hit += 1
+                    for addrtype in ('adresser', 'adgangsadresser'):
+                        adr_url = 'https://dawa.aws.dk/{}'.format(addrtype)
+                        # 'historik/adresser', 'historik/adgangsadresser'
+                        params = {'id': dar_uuid, 'struktur': 'mini'}
+                        # Note: Dar accepts up to 10 simultanious connections,
+                        # consider grequests.
+                        r = requests.get(url=adr_url, params=params)
+
+                        address_data = r.json()
+                        r.raise_for_status()
+                        if address_data:
+                            self.dar_cache[dar_uuid] = address_data[0]
+                            break
+
+                if self.dar_cache[dar_uuid]:
+                    value = self.dar_cache[dar_uuid].get('betegnelse')
             else:
                 print('Ny type: {}'.format(address_type))
                 print(value_raw)
@@ -188,6 +216,7 @@ class LoraCache(object):
                 'adresse_type': address_type_class,
                 'visibility': synlighed
             }
+        print('Total dar: {}, no-hit: {}'.format(total_dar, no_hit))
         return addresses
 
     def _cache_lora_engagements(self):
@@ -200,11 +229,12 @@ class LoraCache(object):
             reg = engagement['registreringer'][0]
             user_key = (reg['attributter']['organisationfunktionegenskaber'][0]
                         ['brugervendtnoegle'])
-            engagement_type = reg['relationer']['organisatoriskfunktionstype'][0]['uuid']
-            primary_type = reg['relationer']['primær'][0]['uuid']
-            job_function = reg['relationer']['opgaver'][0]['uuid']
-            user_uuid = reg['relationer']['tilknyttedebrugere'][0]['uuid']
-            unit_uuid = reg['relationer']['tilknyttedeenheder'][0]['uuid']
+            rel = reg['relationer']
+            engagement_type = rel['organisatoriskfunktionstype'][0]['uuid']
+            primary_type = rel['primær'][0]['uuid']
+            job_function = rel['opgaver'][0]['uuid']
+            user_uuid = rel['tilknyttedebrugere'][0]['uuid']
+            unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
 
             engagements[uuid] = {
                 'uuid': uuid,
@@ -227,9 +257,10 @@ class LoraCache(object):
             reg = association['registreringer'][0]
             user_key = (reg['attributter']['organisationfunktionegenskaber'][0]
                         ['brugervendtnoegle'])
-            association_type = reg['relationer']['organisatoriskfunktionstype'][0]['uuid']
-            user_uuid = reg['relationer']['tilknyttedebrugere'][0]['uuid']
-            unit_uuid = reg['relationer']['tilknyttedeenheder'][0]['uuid']
+            rel = reg['relationer']
+            association_type = rel['organisatoriskfunktionstype'][0]['uuid']
+            user_uuid = rel['tilknyttedebrugere'][0]['uuid']
+            unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
 
             associations[uuid] = {
                 'uuid': uuid,
@@ -239,7 +270,6 @@ class LoraCache(object):
                 'association_type': association_type,
             }
         return associations
-
 
     def _cache_lora_roles(self):
         url = '/organisation/organisationfunktion?funktionsnavn=Rolle'
@@ -260,7 +290,6 @@ class LoraCache(object):
                 'role_type': role_type,
             }
         return roles
-
 
     def _cache_lora_leaves(self):
         url = '/organisation/organisationfunktion?funktionsnavn=Orlov'
@@ -303,7 +332,6 @@ class LoraCache(object):
                 user_uuid = reg['relationer']['tilknyttedebrugere'][0]['uuid']
                 unit_uuid = None
 
-
             it_connections[uuid] = {
                 'uuid': uuid,
                 'user': user_uuid,
@@ -314,19 +342,22 @@ class LoraCache(object):
         return it_connections
 
     def _cache_lora_managers(self):
-        url = '/organisation/organisationfunktion?funktionsnavn=Leder'
+        url = '/organisation/organisationfunktion?gyldighed=Aktiv&funktionsnavn=Leder'
         manager_list = self._perform_lora_lookup(url)
 
         managers = {}
         for manager in manager_list:
+            print()
+            print(manager)
             uuid = manager['id']
-            reg = manager['registreringer'][0]
-            user_uuid = reg['relationer']['tilknyttedebrugere'][0]['uuid']
-            unit_uuid = reg['relationer']['tilknyttedeenheder'][0]['uuid']
-            manager_type = reg['relationer']['organisatoriskfunktionstype'][0]['uuid']
+            # reg = manager['registreringer'][0]
+            rel = manager['registreringer'][0]['relationer']
+            user_uuid = rel['tilknyttedebrugere'][0]['uuid']
+            unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
+            manager_type = rel['organisatoriskfunktionstype'][0]['uuid']
             manager_responsibility = []
 
-            for opgave in reg['relationer']['opgaver']:
+            for opgave in rel['opgaver']:
                 if opgave['objekttype'] == 'lederniveau':
                     manager_level = opgave['uuid']
                 if opgave['objekttype'] == 'lederansvar':
@@ -344,8 +375,8 @@ class LoraCache(object):
 
     def populate_cache(self):
         import pickle
-        # with open('facets.p', 'rb') as f:
-        #    self.facets = pickle.load(f)
+        with open('facets.p', 'rb') as f:
+            self.facets = pickle.load(f)
         with open('classes.p', 'rb') as f:
             self.classes = pickle.load(f)
         with open('users.p', 'rb') as f:
@@ -362,97 +393,99 @@ class LoraCache(object):
             self.associations = pickle.load(f)
         with open('leaves.p', 'rb') as f:
             self.leaves = pickle.load(f)
+        with open('roles.p', 'rb') as f:
+            self.roles = pickle.load(f)
         with open('itsystems.p', 'rb') as f:
             self.itsystems = pickle.load(f)
         with open('it_connections.p', 'rb') as f:
             self.it_connections = pickle.load(f)
 
-        t = time.time()
-        msg = 'Kørselstid: {:.1f}s, {} elementer, {:.0f}/s'
-        
-        print('Læs facetter og klasser')
-        self.facets = self._cache_lora_facets()
-        self.classes = self._cache_lora_classes()
-        dt = time.time() - t
-        elements = len(self.classes) + len(self.facets)
-        print(msg.format(dt, elements, elements/dt))
+        # t = time.time()
+        # msg = 'Kørselstid: {:.1f}s, {} elementer, {:.0f}/s'
+
+        # print('Læs facetter og klasser')
+        # self.facets = self._cache_lora_facets()
+        # self.classes = self._cache_lora_classes()
+        # dt = time.time() - t
+        # elements = len(self.classes) + len(self.facets)
+        # with open('facets.p', 'wb') as f:
+        #     pickle.dump(self.facets, f, pickle.HIGHEST_PROTOCOL)
+        # with open('classes.p', 'wb') as f:
+        #     pickle.dump(self.classes, f, pickle.HIGHEST_PROTOCOL)
+        # print(msg.format(dt, elements, elements/dt))
 
         # t = time.time()
         # print('Læs brugere')
         # self.users = self._cache_lora_users()
         # dt = time.time() - t
+        # with open('users.p', 'wb') as f:
+        #     pickle.dump(self.users, f, pickle.HIGHEST_PROTOCOL)
         # print(msg.format(dt, len(self.users), len(self.users)/dt))
 
         # t = time.time()
         # print('Læs enheder')
         # self.units = self._cache_lora_units()
         # dt = time.time() - t
+        # with open('units.p', 'wb') as f:
+        #     pickle.dump(self.units, f, pickle.HIGHEST_PROTOCOL)
         # print(msg.format(dt, len(self.units), len(self.units)/dt))
 
         # t = time.time()
         # print('Læs adresser:')
         # self.addresses = self._cache_lora_address()
         # dt = time.time() - t
+        # with open('addresses.p', 'wb') as f:
+        #     pickle.dump(self.addresses, f, pickle.HIGHEST_PROTOCOL)
         # print(msg.format(dt, len(self.addresses), len(self.addresses)/dt))
 
         # t = time.time()
         # print('Læs engagementer')
         # self.engagements = self._cache_lora_engagements()
         # dt = time.time() - t
+        # with open('engagements.p', 'wb') as f:
+        #     pickle.dump(self.engagements, f, pickle.HIGHEST_PROTOCOL)
         # print(msg.format(dt, len(self.engagements), len(self.engagements)/dt))
 
         # t = time.time()
         # print('Læs ledere')
         # self.managers = self._cache_lora_managers()
         # dt = time.time() - t
+        # with open('managers.p', 'wb') as f:
+        #     pickle.dump(self.managers, f, pickle.HIGHEST_PROTOCOL)
         # print(msg.format(dt, len(self.managers), len(self.managers)/dt))
 
         # t = time.time()
         # print('Læs tilknytninger')
         # self.associations = self._cache_lora_associations()
         # dt = time.time() - t
+        # with open('associations.p', 'wb') as f:
+        #     pickle.dump(self.associations, f, pickle.HIGHEST_PROTOCOL)
         # print(msg.format(dt, len(self.associations), len(self.associations)/dt))
 
         # t = time.time()
         # print('Læs orlover')
         # self.leaves = self._cache_lora_leaves()
         # dt = time.time() - t
+        # with open('leaves.p', 'wb') as f:
+        #     pickle.dump(self.leaves, f, pickle.HIGHEST_PROTOCOL)
         # print(msg.format(dt, len(self.leaves), len(self.leaves)/dt))
 
-        print('Læs roller')
-        t = time.time()
-        self.roles = self._cache_lora_roles()
-        dt = time.time() - t
-        print(msg.format(dt, len(self.roles), len(self.roles)/dt))
+        # t = time.time()
+        # print('Læs roller')
+        # t = time.time()
+        # self.roles = self._cache_lora_roles()
+        # dt = time.time() - t
+        # with open('roles.p', 'wb') as f:
+        #     pickle.dump(self.roles, f, pickle.HIGHEST_PROTOCOL)
+        # print(msg.format(dt, len(self.roles), len(self.roles)/dt))
 
         # t = time.time()
-        # print('Læs it')        
+        # print('Læs it')
         # self.itsystems = self._cache_lora_itsystems()
         # self.it_connections = self._cache_lora_it_connections()
         # elements = len(self.itsystems) + len(self.it_connections)
         # dt = time.time() - t
         # print(msg.format(dt, elements, elements/dt))
-
-        # with open('facets.p', 'wb') as f:
-        #     pickle.dump(self.facets, f, pickle.HIGHEST_PROTOCOL)
-        # with open('classes.p', 'wb') as f:
-        #     pickle.dump(self.classes, f, pickle.HIGHEST_PROTOCOL)
-        # with open('users.p', 'wb') as f:
-        #     pickle.dump(self.users, f, pickle.HIGHEST_PROTOCOL)
-        # with open('units.p', 'wb') as f:
-        #     pickle.dump(self.units, f, pickle.HIGHEST_PROTOCOL)
-        # with open('addresses.p', 'wb') as f:
-        #     pickle.dump(self.addresses, f, pickle.HIGHEST_PROTOCOL)
-        # with open('engagements.p', 'wb') as f:
-        #     pickle.dump(self.engagements, f, pickle.HIGHEST_PROTOCOL)
-        # with open('managers.p', 'wb') as f:
-        #     pickle.dump(self.managers, f, pickle.HIGHEST_PROTOCOL)
-        # with open('associations.p', 'wb') as f:
-        #     pickle.dump(self.associations, f, pickle.HIGHEST_PROTOCOL)
-        # with open('leaves.p', 'wb') as f:
-        #     pickle.dump(self.leaves, f, pickle.HIGHEST_PROTOCOL)
-        # with open('roles.p', 'wb') as f:
-        # pickle.dump(self.roles, f, pickle.HIGHEST_PROTOCOL)
         # with open('itsystems.p', 'wb') as f:
         #     pickle.dump(self.itsystems, f, pickle.HIGHEST_PROTOCOL)
         # with open('it_connections.p', 'wb') as f:
