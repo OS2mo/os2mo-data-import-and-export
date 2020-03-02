@@ -166,7 +166,7 @@ Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``.
  * ``primærtype_text``: Titlen på primærtypetypeklassen.
  * ``primærtype_uuid``: Engagementets primærtype, reference til primærnøglen i tabellen ``klasser``.
  * ``# Workfraction``: # TODO
- * ``# primærboolean``:, # TODO , se afsnit om beregnede   felter REF!!!.
+ * ``primary_boolean``:, # TODO , se afsnit om beregnede   felter REF!!!.
  * ``job_function_text``: Titlen på klassen for stillingsbetegnelse.
  * ``job_function_uuid``: Engagementets stillingsbetegnelse, reference til primærnøglen
    i tabellen ``klasser``.
