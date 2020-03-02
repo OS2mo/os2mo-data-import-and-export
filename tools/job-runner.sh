@@ -60,7 +60,7 @@ declare -a BACK_UP_AFTER_JOBS=(
 
 show_git_commit(){
     echo
-    echo CRON_GIT_COMMIT=$(git show -s --format=%H)
+    echo "    CRON_GIT_COMMIT=$(git show -s --format=%H)"
     echo
 }
 
@@ -467,67 +467,93 @@ post_backup(){
     done
 }
 
-if [ "$#" == "0" ]; then
-    (
-    if [ ! -d "${VENV}" ]; then
-        echo "FATAL: python env not found"
-        exit 2 # error
-    fi
-
-    if [ ! -n "${SVC_USER}" ]; then
-        echo "WARNING: Service user not specified"
-    fi
-
-    if [ ! -n "${SVC_KEYTAB}" ]; then
-        echo "WARNING: Service keytab not specified"
-    fi
-
-    if [ -n "${SVC_KEYTAB}" -a ! -f "${SVC_KEYTAB}" ]; then
-        echo "FATAL: Service keytab not found"
-        exit 2
-    fi
-
-    if [ ! -n "${CRON_LOG_FILE}" ]; then
-        echo "FATAL: Cron log file not specified"
-        exit 2
-    fi
-
-    if [ ! -n "${CRON_BACKUP}" ]; then
-        echo "FATAL: Backup directory not specified"
-        exit 2
-    fi
-
-    if [ ! -d "${CRON_BACKUP}" ]; then
-        echo "FATAL: Backup directory non existing"
-        exit 2
-    fi
-
-    if [ ! -f "${SNAPSHOT_LORA}" ]; then
-        echo "FATAL: Database snapshot does not exist"
-        exit 2
-    fi
-
-    if [ -n "${SVC_USER}" -a -n "${SVC_KEYTAB}" ]; then
-        kinit ${SVC_USER} -k -t ${SVC_KEYTAB}
-    else
-        echo WARNING: not able to refresh kerberos auth
-    fi
-
-    export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
-
-    show_git_commit
-    pre_backup
-    imports && IMPORTS_OK=true
-    exports && EXPORTS_OK=true
-    reports && REPORTS_OK=true
+show_status(){
     echo IMPORTS_OK=${IMPORTS_OK}
     echo EXPORTS_OK=${EXPORTS_OK}
     echo REPORTS_OK=${REPORTS_OK}
     echo BACKUP_OK=${BACKUP_OK}
+    echo
+    echo Hvilke jobs er slået til/fra/udkommenterede:
+    echo
+    grep 'crontab.*RUN_.*' settings/settings.json
+    echo
+    echo "Import/export software:"
     show_git_commit
-    post_backup
-    ) 2>&1 | tee ${CRON_LOG_FILE}
+    echo "Os2mo-software"
+    echo
+    grep image: /opt/docker/os2mo/docker-compose.yml
+    echo
+    echo "Os2Sync software"
+    echo
+    grep image: /opt/docker/os2sync/docker-compose.yml
+    echo "    mox_stsorgsync: $(head -1 ../mox_stsorgsync/NEWS)"
+    echo
+}
 
+if [ "$#" == "0" ]; then
+    (
+        if [ ! -d "${VENV}" ]; then
+            echo "FATAL: python env not found"
+            exit 2 # error
+        fi
+
+        if [ ! -n "${SVC_USER}" ]; then
+            echo "WARNING: Service user not specified"
+        fi
+
+        if [ ! -n "${SVC_KEYTAB}" ]; then
+            echo "WARNING: Service keytab not specified"
+        fi
+
+        if [ -n "${SVC_KEYTAB}" -a ! -f "${SVC_KEYTAB}" ]; then
+            echo "FATAL: Service keytab not found"
+            exit 2
+        fi
+
+        if [ ! -n "${CRON_LOG_FILE}" ]; then
+            echo "FATAL: Cron log file not specified"
+            exit 2
+        fi
+
+        if [ ! -n "${CRON_BACKUP}" ]; then
+            echo "FATAL: Backup directory not specified"
+            exit 2
+        fi
+
+        if [ ! -d "${CRON_BACKUP}" ]; then
+            echo "FATAL: Backup directory non existing"
+            exit 2
+        fi
+
+        if [ ! -f "${SNAPSHOT_LORA}" ]; then
+            echo "FATAL: Database snapshot does not exist"
+            exit 2
+        fi
+        if [ -n "${SVC_USER}" -a -n "${SVC_KEYTAB}" ]; then
+
+            [ -r "${SVC_KEYTAB}" ] || echo WARNING: cannot read keytab
+
+            kinit ${SVC_USER} -k -t ${SVC_KEYTAB} || (
+                echo WARNING: not able to refresh kerberos auth - authentication failure
+            )
+        else
+            echo WARNING: not able to refresh kerberos auth - username or keytab missing
+        fi
+
+        export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
+
+        pre_backup
+        imports && IMPORTS_OK=true
+        exports && EXPORTS_OK=true
+        reports && REPORTS_OK=true
+        post_backup
+        show_status
+    ) > ${CRON_LOG_FILE} 2>&1
+
+    # write directly on stdout for mail-log
+    show_status
+    cat ${CRON_LOG_FILE}
+     
 elif [ -n "$(grep $1\(\) $0)" ]; then
     echo running single job function
     $1

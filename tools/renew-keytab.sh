@@ -3,6 +3,7 @@
 # set system_user and password in environment before running this script
 # it will subsequently replace the 'user.key' keytab in the ~/CRON directory
 export DIPEXAR=${DIPEXAR:=$(cd $(dirname $0); pwd )/..}
+export VENV=${VENV:=$(cd $(dirname $0); pwd )/../venv}
 export CUSTOMER_SETTINGS=${CUSTOMER_SETTINGS:=${DIPEXAR}/settings/settings.json}
 export SETTINGS_FILE=$(basename ${CUSTOMER_SETTINGS})
 SETTING_PREFIX="integrations.ad" source ${DIPEXAR}/tools/prefixed_settings.sh
