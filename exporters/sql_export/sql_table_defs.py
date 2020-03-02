@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Column, ForeignKey, Boolean, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy import create_engine
@@ -74,8 +74,8 @@ class Engagement(Base):
     engagementstype_uuid = Column(String, ForeignKey('klasser.uuid'))
     primærtype_text = Column(String(250), nullable=True)
     primærtype_uuid = Column(String, ForeignKey('klasser.uuid'))
-    # Workfraction # TODO
-    # primærboolean, # TODO
+    work_fraction = Column(Integer)
+    primary_boolean = Column(Boolean)
     job_function_text = Column(String(250), nullable=False)
     job_function_uuid = Column(String, ForeignKey('klasser.uuid'))
     # start_date,
