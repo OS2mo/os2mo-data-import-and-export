@@ -50,6 +50,10 @@ der er dog nogle få undtagelser, hvor værdierne er fremkommet algoritmisk:
    muligt algoritmisk at bestemme en leder ved at gå op i træet indtil der findes
    en leder med passende lederansvar. Dette felt indeholder resultatet af denne
    algoritme.
+ * ``adresser.værdi_text``: For alle adressetyper, undtaget DAR adresser, er dette
+   felt taget direkte fra rådata. I for DAR-adresser, er rådata en UUID og ikke en
+   tekststreng, i dette tilfælde indeholder dette felt resultatet af et opsalg mod
+   DAR, og den egentlige rådata (UUID'en) befinder sig i feltet ``dar_uuid``.
  * ``engagementer.primærboolean`` : Forklaring....   
 
 Eksporterede tabeller
