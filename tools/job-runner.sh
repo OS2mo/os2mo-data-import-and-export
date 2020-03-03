@@ -467,6 +467,7 @@ post_backup(){
             rm -v ${oldbup}
         )
     done
+    echo backup done # do not remove this line
 }
 
 show_status(){
