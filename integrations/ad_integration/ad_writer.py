@@ -158,7 +158,7 @@ class ADWriter(AD):
 
         found_primary = False
         for engagement in engagements:
-            uuid = engagement['engagement_type']['uuid']
+            # engagement_type = engagement['engagement_type']['uuid']
             if engagement['is_primary']:
                 found_primary = True
                 employment_number = engagement['user_key']
