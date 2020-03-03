@@ -71,7 +71,7 @@ class sdMox(object):
         self.callback_queue = result.method.queue
         self.channel.basic_consume(
             queue=self.callback_queue,
-            consumer_callback=self.on_response,
+            on_message_callback=self.on_response,
         )
         # auto_ack=True
 
