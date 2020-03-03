@@ -421,7 +421,7 @@ class LoraCache(object):
                 self.itsystems = pickle.load(f)
             with open('it_connections.p', 'rb') as f:
                 self.it_connections = pickle.load(f)
-        return
+            return
 
         t = time.time()
         msg = 'Kørselstid: {:.1f}s, {} elementer, {:.0f}/s'
@@ -451,7 +451,7 @@ class LoraCache(object):
         dt = time.time() - t
         with open('units.p', 'wb') as f:
             pickle.dump(self.units, f, pickle.HIGHEST_PROTOCOL)
-        logger.info.info(msg.format(dt, len(self.units), len(self.units)/dt))
+        logger.info(msg.format(dt, len(self.units), len(self.units)/dt))
 
         t = time.time()
         logger.info('Læs adresser:')
