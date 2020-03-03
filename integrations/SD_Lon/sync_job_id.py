@@ -7,6 +7,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import mora_assert
 
+# TODO: We now need to sync both engagement types and job_functions!
 
 class JobIdSync(object):
     def __init__(self):
