@@ -19,7 +19,7 @@ skulle foretage et join mod tabellen ``klasser`` for alle opslag.
 Implementerigen er foretaget ved hjælp af værktøjet SQLAlchemy, som sikrer at
 det er muligt at aflevere data til en lang række forskellige databasesystemer,
 det er desuden muligt at køre hele eksporten mod en flad SQLite fil som muliggør
-eksporting helt uden en kørende databaseserver.
+eksporting helt uden en kørende databaseserver. 
 
 Konfiguration
 =============
@@ -30,7 +30,7 @@ For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
  * ``exporters.actual_state.manager_responsibility_class``: UUID på det lederansvar,
    som angiver at en leder kan nedarve sin lederrolle til enheder dybere i
    organisationen.
- * ``exporters.actual_state.yyy``: 
+
 
 .. _Modellering:
 
@@ -44,7 +44,7 @@ der er dog nogle få undtagelser, hvor værdierne er fremkommet algoritmisk:
    beregnet ved at gå baglæns gennem enhedstræet og tilføje et `\\`-tegn mellem
    hver enhed. Eksempel: `Basildon Kommune\\Kunst & Kultur\\Musiktilbud\\Øvelokaler`.
  * ``enheder.fungerende_leder``: I MO er en leder modeleret som en
-   organissationfunktion som sammenkæder en person med en enhed. Der er ikke noget
+   organisationfunktion som sammenkæder en person med en enhed. Der er ikke noget
    krav om at alle enheder har en lederfunktion pegende på sig, og der vil derfor
    være enheder som ikke figurerer i tabellen ``ledere``. For disse enheder er det
    muligt algoritmisk at bestemme en leder ved at gå op i træet indtil der findes
@@ -54,7 +54,9 @@ der er dog nogle få undtagelser, hvor værdierne er fremkommet algoritmisk:
    felt taget direkte fra rådata. I for DAR-adresser, er rådata en UUID og ikke en
    tekststreng, i dette tilfælde indeholder dette felt resultatet af et opsalg mod
    DAR, og den egentlige rådata (UUID'en) befinder sig i feltet ``dar_uuid``.
- * ``engagementer.primærboolean`` : Forklaring....   
+ * ``engagementer.primærboolean``: Beregnes ved at iterere hen over elle engagementer
+   for en bruger, det engagement som har det højeste `scope` på sin primærklasse
+   vil blive markeret som primær, alle andre vil blive markeret som ikke-primært.
 
 Eksporterede tabeller
 =====================
@@ -111,7 +113,7 @@ enheder
    ``klasser``.
  * ``enhedsniveau_tekst``: Titel på klassen for enhedsniveau.
  * ``enhedsniveau_uuid``: Enhedsniveau, dette felt anvendes normalt kun af kommuner,
-   som anvender SD som lønsystemet. reference til primærnøglen i tabellen
+   som anvender SD som lønsystem. reference til primærnøglen i tabellen
    ``klasser``.
  * ``organisatorisk_sti``: Enhedens organisatoriske placering, se afsnit om
    `Modellering`_.
