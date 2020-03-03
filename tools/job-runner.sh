@@ -474,7 +474,11 @@ show_status(){
     echo IMPORTS_OK=${IMPORTS_OK}
     echo EXPORTS_OK=${EXPORTS_OK}
     echo REPORTS_OK=${REPORTS_OK}
-    echo BACKUP_OK=${BACKUP_OK}
+    if [ "${1}" = "post_backup" ]; then
+        echo BACKUP_OK=${BACKUP_OK}
+        echo
+        return
+    fi
     echo
     echo Hvilke jobs er slået til/fra/udkommenterede:
     echo
@@ -549,12 +553,14 @@ if [ "$#" == "0" ]; then
         imports && IMPORTS_OK=true
         exports && EXPORTS_OK=true
         reports && REPORTS_OK=true
-        post_backup
+        echo
         show_status
+        post_backup
+        show_status post_backup > ${CRON_LOG_FILE}_status
     ) > ${CRON_LOG_FILE} 2>&1
 
     # write directly on stdout for mail-log
-    show_status
+    cat ${CRON_LOG_FILE}_status
     cat ${CRON_LOG_FILE}
      
 elif [ -n "$(grep $1\(\) $0)" ]; then
