@@ -169,6 +169,7 @@ exports_mox_rollekatalog(){
 
 exports_mox_stsorgsync(){
     set -e
+    MOX_ERR_CODE=0
     BACK_UP_AND_TRUNCATE+=($(
         SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
         echo ${LOGFILE}
@@ -177,11 +178,12 @@ exports_mox_stsorgsync(){
     (
         # get VENV, MOX_MO_CONFIG and LOGFILE
         SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
-        ${VENV}/bin/python3 -m mox_stsorgsync >> ${LOGFILE} 2>&1 || exit 2
+        ${VENV}/bin/python3 -m mox_stsorgsync >> ${LOGFILE} 2>&1 || MOX_ERR_CODE=1
         echo "Last 50 lines from mox_stsorgsyncs log :"
         tail  -n 50  ${LOGFILE}
         echo "last 10 Errors from OS2sync"
         grep ERROR /var/log/os2sync/service.log | tail -n 10
+        exit ${MOX_ERR_CODE}
     )
 }
 
@@ -465,13 +467,18 @@ post_backup(){
             rm -v ${oldbup}
         )
     done
+    echo backup done # do not remove this line
 }
 
 show_status(){
     echo IMPORTS_OK=${IMPORTS_OK}
     echo EXPORTS_OK=${EXPORTS_OK}
     echo REPORTS_OK=${REPORTS_OK}
-    echo BACKUP_OK=${BACKUP_OK}
+    if [ "${1}" = "post_backup" ]; then
+        echo BACKUP_OK=${BACKUP_OK}
+        echo
+        return
+    fi
     echo
     echo Hvilke jobs er slået til/fra/udkommenterede:
     echo
@@ -546,12 +553,14 @@ if [ "$#" == "0" ]; then
         imports && IMPORTS_OK=true
         exports && EXPORTS_OK=true
         reports && REPORTS_OK=true
-        post_backup
+        echo
         show_status
+        post_backup
+        show_status post_backup > ${CRON_LOG_FILE}_status
     ) > ${CRON_LOG_FILE} 2>&1
 
     # write directly on stdout for mail-log
-    show_status
+    cat ${CRON_LOG_FILE}_status
     cat ${CRON_LOG_FILE}
      
 elif [ -n "$(grep $1\(\) $0)" ]; then
