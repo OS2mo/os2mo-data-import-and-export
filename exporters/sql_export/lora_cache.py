@@ -1,9 +1,13 @@
 import json
 import time
+import pickle
+import logging
 import pathlib
 import requests
 
 from os2mo_helpers.mora_helpers import MoraHelper
+
+logger = logging.getLogger("LoraCache")
 
 
 class LoraCache(object):
@@ -23,12 +27,13 @@ class LoraCache(object):
             print(e)
             exit()
 
-    def _perform_lora_lookup(self, url):
+    def _perform_lora_lookup(self, url, params):
         """
         Exctract a complete set of objects in LoRa.
         :param url: The url that should be used to extract data.
         """
-        response = requests.get(self.settings['mox.base'] + url + '&list=1')
+        params['list'] = 1
+        response = requests.get(self.settings['mox.base'] + url, params=params)
         data = response.json()
         results = data['results']
         if results:
@@ -38,8 +43,9 @@ class LoraCache(object):
         return data_list
 
     def _cache_lora_facets(self):
-        url = '/klassifikation/facet?bvn=%'
-        facet_list = self._perform_lora_lookup(url)
+        params = {'bvn': '%'}
+        url = '/klassifikation/facet'
+        facet_list = self._perform_lora_lookup(url, params)
 
         facets = {}
         for facet in facet_list:
@@ -52,8 +58,9 @@ class LoraCache(object):
         return facets
 
     def _cache_lora_classes(self):
-        url = '/klassifikation/klasse?bvn=%'
-        class_list = self._perform_lora_lookup(url)
+        params = {'bvn': '%'}
+        url = '/klassifikation/klasse'
+        class_list = self._perform_lora_lookup(url, params)
 
         classes = {}
         for oio_class in class_list:
@@ -72,8 +79,9 @@ class LoraCache(object):
         return classes
 
     def _cache_lora_itsystems(self):
-        url = '/organisation/itsystem?bvn=%'
-        itsystem_list = self._perform_lora_lookup(url)
+        params = {'bvn': '%'}
+        url = '/organisation/itsystem'
+        itsystem_list = self._perform_lora_lookup(url, params)
 
         itsystems = {}
         for itsystem in itsystem_list:
@@ -91,8 +99,9 @@ class LoraCache(object):
         return itsystems
 
     def _cache_lora_users(self):
-        url = '/organisation/bruger?bvn=%'
-        user_list = self._perform_lora_lookup(url)
+        params = {'bvn': '%'}
+        url = '/organisation/bruger'
+        user_list = self._perform_lora_lookup(url, params)
 
         users = {}
         for user in user_list:
@@ -111,8 +120,9 @@ class LoraCache(object):
         return users
 
     def _cache_lora_units(self):
-        url = '/organisation/organisationenhed?bvn=%'
-        unit_list = self._perform_lora_lookup(url)
+        params = {'bvn': '%'}
+        url = '/organisation/organisationenhed'
+        unit_list = self._perform_lora_lookup(url, params)
 
         units = {}
         for unit in unit_list:
@@ -137,8 +147,9 @@ class LoraCache(object):
         return units
 
     def _cache_lora_address(self):
-        url = '/organisation/organisationfunktion?funktionsnavn=Adresse'
-        address_list = self._perform_lora_lookup(url)
+        params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Adresse'}
+        url = '/organisation/organisationfunktion'
+        address_list = self._perform_lora_lookup(url, params)
 
         total_dar = 0
         no_hit = 0
@@ -221,8 +232,9 @@ class LoraCache(object):
         return addresses
 
     def _cache_lora_engagements(self):
-        url = '/organisation/organisationfunktion?funktionsnavn=Engagement'
-        engagement_list = self._perform_lora_lookup(url)
+        params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Engagement'}
+        url = '/organisation/organisationfunktion'
+        engagement_list = self._perform_lora_lookup(url, params)
 
         engagements = {}
         for engagement in engagement_list:
@@ -252,29 +264,13 @@ class LoraCache(object):
                 'engagement_type': engagement_type,
                 'primary_type': primary_type,
                 'job_function': job_function,
-                'primary_boolean': None
             }
-
-        user_primary = {}
-
-        for uuid, eng in engagements.items():
-            primary_scope = int(self.classes[eng['primary_type']]['scope'])
-            if eng['user'] in user_primary:
-                if user_primary[eng['user']][0] < primary_scope:
-                   user_primary[eng['user']] = (primary_scope, uuid)
-            else:
-                user_primary[eng['user']] = (primary_scope, uuid)
-
-        for uuid, eng in engagements.items():
-            if user_primary[eng['user']][1] == uuid:
-                eng['primary_boolean'] = True
-            else:
-                eng['primary_boolean'] = False
         return engagements
 
     def _cache_lora_associations(self):
-        url = '/organisation/organisationfunktion?funktionsnavn=Tilknytning'
-        association_list = self._perform_lora_lookup(url)
+        params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Tilknytning'}
+        url = '/organisation/organisationfunktion'
+        association_list = self._perform_lora_lookup(url, params)
 
         associations = {}
         for association in association_list:
@@ -297,8 +293,9 @@ class LoraCache(object):
         return associations
 
     def _cache_lora_roles(self):
-        url = '/organisation/organisationfunktion?funktionsnavn=Rolle'
-        role_list = self._perform_lora_lookup(url)
+        params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Rolle'}
+        url = '/organisation/organisationfunktion'
+        role_list = self._perform_lora_lookup(url, params)
 
         roles = {}
         for role in role_list:
@@ -317,8 +314,9 @@ class LoraCache(object):
         return roles
 
     def _cache_lora_leaves(self):
-        url = '/organisation/organisationfunktion?funktionsnavn=Orlov'
-        leave_list = self._perform_lora_lookup(url)
+        params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Orlov'}
+        url = '/organisation/organisationfunktion'
+        leave_list = self._perform_lora_lookup(url, params)
 
         leaves = {}
         for leave in leave_list:
@@ -338,8 +336,9 @@ class LoraCache(object):
         return leaves
 
     def _cache_lora_it_connections(self):
-        url = '/organisation/organisationfunktion?funktionsnavn=IT-system'
-        it_connection_list = self._perform_lora_lookup(url)
+        params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'IT-system'}
+        url = '/organisation/organisationfunktion'
+        it_connection_list = self._perform_lora_lookup(url, params)
 
         it_connections = {}
         for it_connection in it_connection_list:
@@ -367,15 +366,13 @@ class LoraCache(object):
         return it_connections
 
     def _cache_lora_managers(self):
-        url = '/organisation/organisationfunktion?gyldighed=Aktiv&funktionsnavn=Leder'
-        manager_list = self._perform_lora_lookup(url)
+        params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Leder'}
+        url = '/organisation/organisationfunktion'
+        manager_list = self._perform_lora_lookup(url, params)
 
         managers = {}
         for manager in manager_list:
-            print()
-            print(manager)
             uuid = manager['id']
-            # reg = manager['registreringer'][0]
             rel = manager['registreringer'][0]['relationer']
             user_uuid = rel['tilknyttedebrugere'][0]['uuid']
             unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
@@ -398,37 +395,38 @@ class LoraCache(object):
             }
         return managers
 
-    def populate_cache(self):
-        import pickle
-        with open('facets.p', 'rb') as f:
-            self.facets = pickle.load(f)
-        with open('classes.p', 'rb') as f:
-            self.classes = pickle.load(f)
-        with open('users.p', 'rb') as f:
-            self.users = pickle.load(f)
-        with open('units.p', 'rb') as f:
-            self.units = pickle.load(f)
-        with open('addresses.p', 'rb') as f:
-            self.addresses = pickle.load(f)
-        with open('engagements.p', 'rb') as f:
-            self.engagements = pickle.load(f)
-        with open('managers.p', 'rb') as f:
-            self.managers = pickle.load(f)
-        with open('associations.p', 'rb') as f:
-            self.associations = pickle.load(f)
-        with open('leaves.p', 'rb') as f:
-            self.leaves = pickle.load(f)
-        with open('roles.p', 'rb') as f:
-            self.roles = pickle.load(f)
-        with open('itsystems.p', 'rb') as f:
-            self.itsystems = pickle.load(f)
-        with open('it_connections.p', 'rb') as f:
-            self.it_connections = pickle.load(f)
+    def populate_cache(self, dry_run=False):
+        if dry_run:
+            with open('facets.p', 'rb') as f:
+                self.facets = pickle.load(f)
+            with open('classes.p', 'rb') as f:
+                self.classes = pickle.load(f)
+            with open('users.p', 'rb') as f:
+                self.users = pickle.load(f)
+            with open('units.p', 'rb') as f:
+                self.units = pickle.load(f)
+            with open('addresses.p', 'rb') as f:
+                self.addresses = pickle.load(f)
+            with open('engagements.p', 'rb') as f:
+                self.engagements = pickle.load(f)
+            with open('managers.p', 'rb') as f:
+                self.managers = pickle.load(f)
+            with open('associations.p', 'rb') as f:
+                self.associations = pickle.load(f)
+            with open('leaves.p', 'rb') as f:
+                self.leaves = pickle.load(f)
+            with open('roles.p', 'rb') as f:
+                self.roles = pickle.load(f)
+            with open('itsystems.p', 'rb') as f:
+                self.itsystems = pickle.load(f)
+            with open('it_connections.p', 'rb') as f:
+                self.it_connections = pickle.load(f)
+        return
 
         t = time.time()
         msg = 'Kørselstid: {:.1f}s, {} elementer, {:.0f}/s'
 
-        print('Læs facetter og klasser')
+        logger.info('Læs facetter og klasser')
         self.facets = self._cache_lora_facets()
         self.classes = self._cache_lora_classes()
         dt = time.time() - t
@@ -437,84 +435,85 @@ class LoraCache(object):
             pickle.dump(self.facets, f, pickle.HIGHEST_PROTOCOL)
         with open('classes.p', 'wb') as f:
             pickle.dump(self.classes, f, pickle.HIGHEST_PROTOCOL)
-        print(msg.format(dt, elements, elements/dt))
-
-        # t = time.time()
-        # print('Læs brugere')
-        # self.users = self._cache_lora_users()
-        # dt = time.time() - t
-        # with open('users.p', 'wb') as f:
-        #     pickle.dump(self.users, f, pickle.HIGHEST_PROTOCOL)
-        # print(msg.format(dt, len(self.users), len(self.users)/dt))
-
-        # t = time.time()
-        # print('Læs enheder')
-        # self.units = self._cache_lora_units()
-        # dt = time.time() - t
-        # with open('units.p', 'wb') as f:
-        #     pickle.dump(self.units, f, pickle.HIGHEST_PROTOCOL)
-        # print(msg.format(dt, len(self.units), len(self.units)/dt))
-
-        # t = time.time()
-        # print('Læs adresser:')
-        # self.addresses = self._cache_lora_address()
-        # dt = time.time() - t
-        # with open('addresses.p', 'wb') as f:
-        #     pickle.dump(self.addresses, f, pickle.HIGHEST_PROTOCOL)
-        # print(msg.format(dt, len(self.addresses), len(self.addresses)/dt))
+        logger.info(msg.format(dt, elements, elements/dt))
 
         t = time.time()
-        print('Læs engagementer')
+        logger.info('Læs brugere')
+        self.users = self._cache_lora_users()
+        dt = time.time() - t
+        with open('users.p', 'wb') as f:
+            pickle.dump(self.users, f, pickle.HIGHEST_PROTOCOL)
+        logger.info(msg.format(dt, len(self.users), len(self.users)/dt))
+
+        t = time.time()
+        logger.info('Læs enheder')
+        self.units = self._cache_lora_units()
+        dt = time.time() - t
+        with open('units.p', 'wb') as f:
+            pickle.dump(self.units, f, pickle.HIGHEST_PROTOCOL)
+        logger.info.info(msg.format(dt, len(self.units), len(self.units)/dt))
+
+        t = time.time()
+        logger.info('Læs adresser:')
+        self.addresses = self._cache_lora_address()
+        dt = time.time() - t
+        with open('addresses.p', 'wb') as f:
+            pickle.dump(self.addresses, f, pickle.HIGHEST_PROTOCOL)
+        logger.info(msg.format(dt, len(self.addresses), len(self.addresses)/dt))
+
+        t = time.time()
+        logger.info('Læs engagementer')
         self.engagements = self._cache_lora_engagements()
         dt = time.time() - t
         with open('engagements.p', 'wb') as f:
             pickle.dump(self.engagements, f, pickle.HIGHEST_PROTOCOL)
-        print(msg.format(dt, len(self.engagements), len(self.engagements)/dt))
+        logger.info(msg.format(dt, len(self.engagements), len(self.engagements)/dt))
 
-        # t = time.time()
-        # print('Læs ledere')
-        # self.managers = self._cache_lora_managers()
-        # dt = time.time() - t
-        # with open('managers.p', 'wb') as f:
-        #     pickle.dump(self.managers, f, pickle.HIGHEST_PROTOCOL)
-        # print(msg.format(dt, len(self.managers), len(self.managers)/dt))
+        t = time.time()
+        logger.info('Læs ledere')
+        self.managers = self._cache_lora_managers()
+        dt = time.time() - t
+        with open('managers.p', 'wb') as f:
+            pickle.dump(self.managers, f, pickle.HIGHEST_PROTOCOL)
+        logger.info(msg.format(dt, len(self.managers), len(self.managers)/dt))
 
-        # t = time.time()
-        # print('Læs tilknytninger')
-        # self.associations = self._cache_lora_associations()
-        # dt = time.time() - t
-        # with open('associations.p', 'wb') as f:
-        #     pickle.dump(self.associations, f, pickle.HIGHEST_PROTOCOL)
-        # print(msg.format(dt, len(self.associations), len(self.associations)/dt))
+        t = time.time()
+        logger.info('Læs tilknytninger')
+        self.associations = self._cache_lora_associations()
+        dt = time.time() - t
+        with open('associations.p', 'wb') as f:
+            pickle.dump(self.associations, f, pickle.HIGHEST_PROTOCOL)
+        logger.info(msg.format(dt, len(self.associations),
+                               len(self.associations)/dt))
 
-        # t = time.time()
-        # print('Læs orlover')
-        # self.leaves = self._cache_lora_leaves()
-        # dt = time.time() - t
-        # with open('leaves.p', 'wb') as f:
-        #     pickle.dump(self.leaves, f, pickle.HIGHEST_PROTOCOL)
-        # print(msg.format(dt, len(self.leaves), len(self.leaves)/dt))
+        t = time.time()
+        logger.info('Læs orlover')
+        self.leaves = self._cache_lora_leaves()
+        dt = time.time() - t
+        with open('leaves.p', 'wb') as f:
+            pickle.dump(self.leaves, f, pickle.HIGHEST_PROTOCOL)
+        logger.info(msg.format(dt, len(self.leaves), len(self.leaves)/dt))
 
-        # t = time.time()
-        # print('Læs roller')
-        # t = time.time()
-        # self.roles = self._cache_lora_roles()
-        # dt = time.time() - t
-        # with open('roles.p', 'wb') as f:
-        #     pickle.dump(self.roles, f, pickle.HIGHEST_PROTOCOL)
-        # print(msg.format(dt, len(self.roles), len(self.roles)/dt))
+        t = time.time()
+        logger.info('Læs roller')
+        t = time.time()
+        self.roles = self._cache_lora_roles()
+        dt = time.time() - t
+        with open('roles.p', 'wb') as f:
+            pickle.dump(self.roles, f, pickle.HIGHEST_PROTOCOL)
+        logger.info(msg.format(dt, len(self.roles), len(self.roles)/dt))
 
-        # t = time.time()
-        # print('Læs it')
-        # self.itsystems = self._cache_lora_itsystems()
-        # self.it_connections = self._cache_lora_it_connections()
-        # elements = len(self.itsystems) + len(self.it_connections)
-        # dt = time.time() - t
-        # print(msg.format(dt, elements, elements/dt))
-        # with open('itsystems.p', 'wb') as f:
-        #     pickle.dump(self.itsystems, f, pickle.HIGHEST_PROTOCOL)
-        # with open('it_connections.p', 'wb') as f:
-        #     pickle.dump(self.it_connections, f, pickle.HIGHEST_PROTOCOL)
+        t = time.time()
+        logger.info('Læs it')
+        self.itsystems = self._cache_lora_itsystems()
+        self.it_connections = self._cache_lora_it_connections()
+        elements = len(self.itsystems) + len(self.it_connections)
+        dt = time.time() - t
+        with open('itsystems.p', 'wb') as f:
+            pickle.dump(self.itsystems, f, pickle.HIGHEST_PROTOCOL)
+        with open('it_connections.p', 'wb') as f:
+            pickle.dump(self.it_connections, f, pickle.HIGHEST_PROTOCOL)
+        logger.info(msg.format(dt, elements, elements/dt))
 
 
 if __name__ == '__main__':
