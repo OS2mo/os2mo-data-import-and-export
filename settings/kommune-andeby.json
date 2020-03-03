@@ -41,7 +41,6 @@
     "integrations.SD_Lon.sd_user": "",
     "integrations.SD_Lon.sd_password": "",
     "integrations.SD_Lon.institution_identifier": "",
-    "integrations.SD_Lon.unknown_parent_container": "uuid-for-parent-container",
     "integrations.SD_Lon.import.too_deep": [
         "liste", 
         "af", 
@@ -49,6 +48,9 @@
     ] ,
     "integrations.SD_Lon.global_from_date": "YYYY-mm-dd",
     "integrations.SD_Lon.import.run_db": "/path/to/CRON/run_db.sqlite",
+    "#integrations.SD_Lon.job_function": 'EmploymentName',
+    "integrations.SD_Lon.job_function": 'JobPositionIdentifier',
+    "integrations.SD_Lon.employment_field": 'extension_1',
     "#integrations.SD_Lon.import.manager_file": "/path/to/manager_file",
     "#integrations.SD_Lon.sd_mox.AMQP_HOST": "msg-amqp.silkeborgdata.dk",
     "#integrations.SD_Lon.sd_mox.AMQP_PORT": 5672,
