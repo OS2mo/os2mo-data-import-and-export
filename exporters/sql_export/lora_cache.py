@@ -202,7 +202,6 @@ class LoraCache(object):
             address_type_class = (reg['relationer']['organisatoriskfunktionstype']
                                   [0]['uuid'])
 
-            # Notice: The index-0 assumes that no other tasks are on the address
             synlighed = None
             if 'opgaver' in reg['relationer']:
                 if reg['relationer']['opgaver'][0]['objekttype'] == 'synlighed':
@@ -228,10 +227,16 @@ class LoraCache(object):
         engagements = {}
         for engagement in engagement_list:
             uuid = engagement['id']
-            reg = engagement['registreringer'][0]
-            user_key = (reg['attributter']['organisationfunktionegenskaber'][0]
+
+            attr = engagement['registreringer'][0]['attributter']
+            user_key = (attr['organisationfunktionegenskaber'][0]
                         ['brugervendtnoegle'])
-            rel = reg['relationer']
+
+            # This model is slightly changed by the new extra field
+            # fraction = attr['organisationfunktionudvidelser'][0]['fraktion']
+            fraction = None
+
+            rel = engagement['registreringer'][0]['relationer']
             engagement_type = rel['organisatoriskfunktionstype'][0]['uuid']
             primary_type = rel['primær'][0]['uuid']
             job_function = rel['opgaver'][0]['uuid']
@@ -242,6 +247,7 @@ class LoraCache(object):
                 'uuid': uuid,
                 'user': user_uuid,
                 'unit': unit_uuid,
+                'fraction': fraction,
                 'user_key': user_key,
                 'engagement_type': engagement_type,
                 'primary_type': primary_type,
@@ -250,7 +256,7 @@ class LoraCache(object):
             }
 
         user_primary = {}
-        # TODO: Check this code by ensuring that primary==True matches type==Ansat
+
         for uuid, eng in engagements.items():
             primary_scope = int(self.classes[eng['primary_type']]['scope'])
             if eng['user'] in user_primary:
