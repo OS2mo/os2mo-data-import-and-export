@@ -471,7 +471,10 @@ post_backup(){
     gzip  ${BUPFILE}
 
     echo truncating backed up logfiles
-    truncate -s 0 ${BACK_UP_AND_TRUNCATE[@]}
+    for f in ${BACK_UP_AND_TRUNCATE[@]}
+    do
+        [ -f "${f}" ] && truncate -s 0 "${f}"
+    done
 
     echo
     BACKUP_SAVE_DAYS=${BACKUP_SAVE_DAYS:=90}
