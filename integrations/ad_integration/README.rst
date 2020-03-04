@@ -95,15 +95,15 @@ En test af skrivning foregår efter denne opskrift:
    drejer sig om nøglerne:
    * ``integrations.ad.write.uuid_field``: AD feltet som rummer MOs bruger-UUID
    * ``integrations.ad.write.level2orgunit_field``: AD feltet hvor MO skriver
-     den primære organisatoriske gruppering (direktørområde, forvaltning, etc.)
-     for brugerens primære engagement.
+   den primære organisatoriske gruppering (direktørområde, forvaltning, etc.)
+   for brugerens primære engagement.
    * ``integrations.ad.write.org_unit_field``: Navnet på det felt i AD, hvor MO
    skriver enhedshierakiet for den enhed, hvor medarbejderen har sin primære
    ansættelse.
    * ``integrations.ad.write.upn_end``: Endelse for feltet UPN.
    * ``integrations.ad.write.level2orgunit_type``: UUID på den klasse som beskriver
-     at en enhed er den primære organisatoriske gruppering (direktørområde,
-     forvaltning, etc.). Dette kan være en enhedstype eller et enhedsniveau.
+   at en enhed er den primære organisatoriske gruppering (direktørområde,
+   forvaltning, etc.). Dette kan være en enhedstype eller et enhedsniveau.
 
  * Der udrages et antal tilfældige brugere fra AD (mindst 10), og disse tjekkes for
    tilstædeværelsen af de tre AD felter beskrevet i
