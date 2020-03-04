@@ -50,7 +50,7 @@ der er dog nogle få undtagelser, hvor værdierne er fremkommet algoritmisk:
    muligt algoritmisk at bestemme en leder ved at gå op i træet indtil der findes
    en leder med passende lederansvar. Dette felt indeholder resultatet af denne
    algoritme.
- * ``adresser.værdi_text``: For alle adressetyper, undtaget DAR adresser, er dette
+ * ``adresser.værdi``: For alle adressetyper, undtaget DAR adresser, er dette
    felt taget direkte fra rådata. I for DAR-adresser, er rådata en UUID og ikke en
    tekststreng, i dette tilfælde indeholder dette felt resultatet af et opsalg mod
    DAR, og den egentlige rådata (UUID'en) befinder sig i feltet ``dar_uuid``.
@@ -83,7 +83,7 @@ facetter
 --------
 
  * ``uuid``: Facettens uuid, primærnøgle for tabellen.
- * ``user_key``: Brugervendt nøgle for facetten.
+ * ``bvn``: Brugervendt nøgle for facetten.
 
 Facetter i MO har ikke nogen titel.
 
@@ -91,10 +91,10 @@ klasser
 --------
 
  * ``uuid``: Klassens uuid, primærnøgle for tabellen.
- * ``user_key``: Brugervendt nøgle for klassen.
- * ``title``: Klassens titel, det er denne tekst som vil fremgå af MOs frontend.
+ * ``bvn``: Brugervendt nøgle for klassen.
+ * ``titel``: Klassens titel, det er denne tekst som vil fremgå af MOs frontend.
  * ``facet_uuid``: Reference til primærnøglen i tabellen ``facetter``.
- * ``facet_text``: Den brugervendte nøgle som knytter sig til klassens facet.
+ * ``facet_bvn``: Den brugervendte nøgle som knytter sig til klassens facet.
 
 brugere
 --------
@@ -108,13 +108,13 @@ enheder
  * ``uuid``: Enhedens uuid, primærnøgle for tabellen.
  * ``navn`` Enhedens navn.
  * ``forældreenhed_uuid``: Reference til primærnøglen for forælderenheden.
- * ``enhedstype_text``: Titel på enhedstypens klasse.
  * ``enhedstype_uuid``: Enhedstypen, reference til primærnøglen i tabellen
+ * ``enhedstype_titel``: Titel på enhedstypens klasse.
    ``klasser``.
- * ``enhedsniveau_tekst``: Titel på klassen for enhedsniveau.
  * ``enhedsniveau_uuid``: Enhedsniveau, dette felt anvendes normalt kun af kommuner,
    som anvender SD som lønsystem. reference til primærnøglen i tabellen
    ``klasser``.
+ * ``enhedsniveau_titel``: Titel på klassen for enhedsniveau.
  * ``organisatorisk_sti``: Enhedens organisatoriske placering, se afsnit om
    `Modellering`_.
  * ``leder_uuid``: Reference til primærnøglen for det lederobjet som er leder af
@@ -138,18 +138,18 @@ Adresser er i MO organisationfunktioner med funktionsnavnet ``Adresse``.
    er på en enhed, vil feltet være blankt.
  * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``.  Hvis adressen
    er på en bruger, vil feltet være blankt.
- * ``værdi_text``: Selve adressen, hvis adressen er en DAR-adresse, vil dette felt
+ * ``værdi``: Selve adressen, hvis adressen er en DAR-adresse, vil dette felt
    indeholde en tekstrepræsentation af adressen.
  * ``dar_uuid``: DAR-uuid'en som liger bag opslaget som fremgår af ``værdi_tekst``.
    Blankt hvis ikke adressen er en DAR-adresse.
- * ``adresse_type_text``: Titlen på adressetypens klasse.
  * ``adresse_type_uuid``: Adressetypen, reference til primærnøglen i tabellen
    ``klasser``.
  * ``adresse_type_scope``: Adressens overordnede type (omfang), eksempelvis Telefon
    eller P-nummer.
- * ``synlighed_text``: Titlen på synlighedstypens klasse.
+ * ``adresse_type_titel``: Titlen på adressetypens klasse.
  * ``synlighed_uuid``: Synlighedstype, reference til primærnøglen i tabellen
    ``klasser``.
+ * ``synlighed_titel``: Titlen på synlighedstypens klasse.
  * ``# start_date``: # TODO
 
 engagementer
@@ -160,18 +160,19 @@ Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``.
  * ``uuid``: Engagementets (org-funk'ens) uuid, primærnøgle for tabellen.
  * ``bruger_uuid``: Reference til primærnøglen i tabellen ``brugere``. 
  * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``. 
- * ``user_key``: Engagementets brugervendte nøgle. Dette vil i de fleste tilfælde
+ * ``bvn``: Engagementets brugervendte nøgle. Dette vil i de fleste tilfælde
    være ansættelsesnummeret i lønsystemet.
+ * ``arbejds_fraktion``: # TODO
  * ``engagementstype_text``: Titlen på engagementstypeklassen.
  * ``engagementstype_uuid``: Engagementstypen, reference til primærnøglen i tabellen
    ``klasser``.
- * ``primærtype_text``: Titlen på primærtypetypeklassen.
  * ``primærtype_uuid``: Engagementets primærtype, reference til primærnøglen i tabellen ``klasser``.
- * ``# Workfraction``: # TODO
- * ``primary_boolean``:, # TODO , se afsnit om beregnede   felter REF!!!.
- * ``job_function_text``: Titlen på klassen for stillingsbetegnelse.
+ * ``primærtype_titel``: Titlen på primærtypetypeklassen.
  * ``job_function_uuid``: Engagementets stillingsbetegnelse, reference til primærnøglen
+ * ``job_function_titel``: Titlen på klassen for stillingsbetegnelse.
    i tabellen ``klasser``.
+ * ``primary_boolean``: Boolean som angiver om engagementet er brugerens primære
+   engagement, se afsnit om beregnede felter
  * ``# start_date``:,
  * ``# end_date``:
 

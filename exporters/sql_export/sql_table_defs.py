@@ -7,17 +7,17 @@ Base = declarative_base()
 class Facet(Base):
     __tablename__ = 'facetter'
     uuid = Column(String(36), nullable=False, primary_key=True)
-    user_key= Column(String(250), nullable=False)
+    bvn = Column(String(250), nullable=False)
 
 
 class Klasse(Base):
     __tablename__ = 'klasser'
 
     uuid = Column(String(36), nullable=False, primary_key=True)
-    user_key= Column(String(250), nullable=False)
-    title = Column(String(250), nullable=False)
+    bvn= Column(String(250), nullable=False)
+    titel = Column(String(250), nullable=False)
     facet_uuid = Column(String, ForeignKey('facetter.uuid'))
-    facet_text = Column(String(250), nullable=False)
+    facet_bvn = Column(String(250), nullable=False)
 
 
 class Bruger(Base):
@@ -36,14 +36,14 @@ class Enhed(Base):
     navn = Column(String(250), nullable=False)
     # Undersøg, dette er en refence til tabellen selv
     forældreenhed_uuid = Column(String(36), nullable=True, primary_key=False)
-    enhedstype_text = Column(String(250), nullable=False)
     enhedstype_uuid = Column(String, ForeignKey('klasser.uuid'))
-    enhedsniveau_tekst = Column(String(250), nullable=True)
+    enhedstype_titel = Column(String(250), nullable=False)
     enhedsniveau_uuid = Column(String, ForeignKey('klasser.uuid'))
+    enhedsniveau_titel = Column(String(250), nullable=True)
     organisatorisk_sti = Column(String(1000), nullable=False)
     # Will be populated before ledere, cannot use ForeignKey
-    leder = Column(String(36))
-    fungerende_leder = Column(String(36))
+    leder_uuuid = Column(String(36))
+    fungerende_leder_uuid = Column(String(36))
     # start_date # TODO
 
 
@@ -53,13 +53,13 @@ class Adresse(Base):
     uuid = Column(String(36), nullable=False, primary_key=True)
     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
-    værdi_text = Column(String(250), nullable=True)
+    værdi = Column(String(250), nullable=True)
     dar_uuid = Column(String(36), nullable=True)
-    adresse_type_text = Column(String(250), nullable=False)
     adresse_type_uuid = Column(String, ForeignKey('klasser.uuid'))
     adresse_type_scope = Column(String(250), nullable=False)
-    synlighed_text = Column(String(250), nullable=True)
+    adresse_type_titel = Column(String(250), nullable=False)
     synlighed_uuid = Column(String, ForeignKey('klasser.uuid'))
+    synlighed_titel = Column(String(250), nullable=True)
     # start_date # TODO
 
 
@@ -69,15 +69,15 @@ class Engagement(Base):
     uuid = Column(String(36), nullable=False, primary_key=True)
     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
-    user_key = Column(String(250), nullable=False)
-    engagementstype_text = Column(String(250), nullable=False)
+    bvn = Column(String(250), nullable=False)
+    arbejds_fraktion = Column(Integer)
     engagementstype_uuid = Column(String, ForeignKey('klasser.uuid'))
-    primærtype_text = Column(String(250), nullable=True)
+    engagementstype_titel = Column(String(250), nullable=False)
     primærtype_uuid = Column(String, ForeignKey('klasser.uuid'))
-    work_fraction = Column(Integer)
-    primary_boolean = Column(Boolean)
+    primærtype_titel = Column(String(250), nullable=True)
     job_function_text = Column(String(250), nullable=False)
     job_function_uuid = Column(String, ForeignKey('klasser.uuid'))
+    primær_boolean = Column(Boolean)
     # start_date,
     # end_date
 

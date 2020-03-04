@@ -1,5 +1,5 @@
 import json
-import logging # TODO
+import logging  # TODO
 import pathlib
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -43,17 +43,17 @@ class SqlExport(object):
         for facet, facet_info in self.lc.facets.items():
             sql_facet = Facet(
                 uuid=facet,
-                user_key=facet_info['user_key'],
+                bvn=facet_info['user_key'],
             )
             self.session.add(sql_facet)
 
         for klasse, klasse_info in self.lc.classes.items():
             sql_class = Klasse(
                 uuid=klasse,
-                user_key=klasse_info['user_key'],
-                title=klasse_info['title'],
+                bvn=klasse_info['user_key'],
+                titel=klasse_info['title'],
                 facet_uuid=klasse_info['facet'],
-                facet_text=self.lc.facets[klasse_info['facet']]['user_key']
+                facet_bvn=self.lc.facets[klasse_info['facet']]['user_key']
             )
             self.session.add(sql_class)
         self.session.commit()
@@ -111,13 +111,13 @@ class SqlExport(object):
                 uuid=unit,
                 navn=unit_info['name'],
                 forældreenhed_uuid=unit_info['parent'],
-                enhedstype_text=self.lc.classes[unit_info['unit_type']]['title'],
                 enhedstype_uuid=unit_info['unit_type'],
-                enhedsniveau_tekst=self.lc.classes[unit_info['level']]['title'],
                 enhedsniveau_uuid=unit_info['level'],
                 organisatorisk_sti=location,
-                leder=manager_uuid,
-                fungerende_leder=acting_manager_uuid
+                leder_uuid=manager_uuid,
+                fungerende_leder_uuid=acting_manager_uuid,
+                enhedstype_titel=self.lc.classes[unit_info['unit_type']]['title'],
+                enhedsniveau_titel=self.lc.classes[unit_info['level']]['title']
             )
             self.session.add(sql_unit)
         self.session.commit()
@@ -129,7 +129,6 @@ class SqlExport(object):
                 print(result)
 
     def _add_engagements(self, output=False):
-
         user_primary = {}
         for uuid, eng in self.lc.engagements.items():
             primary_type = self.lc.classes[eng['primary_type']]
@@ -147,16 +146,17 @@ class SqlExport(object):
                 uuid=engagement,
                 enhed_uuid=engagement_info['unit'],
                 bruger_uuid=engagement_info['user'],
-                user_key=engagement_info['user_key'],
+                bvn=engagement_info['user_key'],
                 primærtype_uuid=engagement_info['primary_type'],
                 job_function_uuid=engagement_info['job_function'],
                 engagementstype_uuid=engagement_info['engagement_type'],
-                primary_boolean=primary,
-                engagementstype_text=self.lc.classes[
+                primær_boolean=primary,
+                # arbejds_fraktion=TODO!
+                engagementstype_titel=self.lc.classes[
                     engagement_info['engagement_type']]['title'],
-                job_function_text=self.lc.classes[
+                job_function_titelt=self.lc.classes[
                     engagement_info['job_function']]['title'],
-                primærtype_text=self.lc.classes[
+                primærtype_titel=self.lc.classes[
                     engagement_info['primary_type']]['title']
             )
             self.session.add(sql_engagement)
@@ -164,6 +164,32 @@ class SqlExport(object):
 
         if output:
             for result in self.engine.execute('select * from engagementer limit 5'):
+                print(result.items())
+
+    def _add_addresses(self, output=False):
+        for address, address_info in self.lc.addresses.items():
+            visibility_text = None
+            if address_info['visibility'] is not None:
+                visibility_text = self.lc.classes[
+                    address_info['visibility']]['title']
+
+            sql_address = Adresse(
+                uuid=address,
+                enhed_uuid=address_info['unit'],
+                bruger_uuid=address_info['user'],
+                værdi=address_info['value'],
+                dar_uuid=address_info['dar_uuid'],
+                adresse_type_uuid=address_info['adresse_type'],
+                adresse_type_scope=address_info['scope'],
+                synlighed_uuid=address_info['visibility'],
+                synlighed_titel=visibility_text,
+                adresse_type_titel=self.lc.classes[
+                    address_info['adresse_type']]['title']
+            )
+            self.session.add(sql_address)
+        self.session.commit()
+        if output:
+            for result in self.engine.execute('select * from adresser limit 10'):
                 print(result.items())
 
     def _add_associactions_leaves_and_roles(self, output=False):
@@ -238,31 +264,6 @@ class SqlExport(object):
             for result in self.engine.execute('select * from ledere limit 10'):
                 print(result.items())
             for result in self.engine.execute('select * from leder_ansvar limit 10'):
-                print(result.items())
-
-    def _add_addresses(self, output=False):
-        for address, address_info in self.lc.addresses.items():
-            synlighed_text = None
-            if address_info['visibility'] is not None:
-                synlighed_text = self.lc.classes[address_info['visibility']]['title']
-
-            sql_address = Adresse(
-                uuid=address,
-                enhed_uuid=address_info['unit'],
-                bruger_uuid=address_info['user'],
-                værdi_text=address_info['value'],
-                dar_uuid=address_info['dar_uuid'],
-                adresse_type_uuid=address_info['adresse_type'],
-                adresse_type_scope=address_info['scope'],
-                synlighed_uuid=address_info['visibility'],
-                synlighed_text=synlighed_text,
-                adresse_type_text=self.lc.classes[
-                    address_info['adresse_type']]['title']
-            )
-            self.session.add(sql_address)
-        self.session.commit()
-        if output:
-            for result in self.engine.execute('select * from adresser limit 10'):
                 print(result.items())
 
     def _add_it_systems(self, output=False):
