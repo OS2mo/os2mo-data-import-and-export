@@ -94,20 +94,22 @@ En test af skrivning foregår efter denne opskrift:
  * Der testes for om de nødvendige værdier er til stede i ``settings.json``, det
    drejer sig om nøglerne:
    * ``integrations.ad.write.uuid_field``: AD feltet som rummer MOs bruger-UUID
-   * ``integrations.ad.write.forvaltning_field``: AD feltet hvor MO skriver
-     forvaltning for brugerens primære engagement.
+   * ``integrations.ad.write.level2orgunit_field``: AD feltet hvor MO skriver
+     den primære organisatoriske gruppering (direktørområde, forvaltning, etc.)
+     for brugerens primære engagement.
    * ``integrations.ad.write.org_unit_field``: Navnet på det felt i AD, hvor MO
    skriver enhedshierakiet for den enhed, hvor medarbejderen har sin primære
    ansættelse.
    * ``integrations.ad.write.upn_end``: Endelse for feltet UPN.
-   * ``integrations.ad.write.forvaltning_type``: UUID på den klasse som beskriver
-     at en enhed er en forvalting. Dette kan være en enhedstype eller et
-     enhedsniveau.
+   * ``integrations.ad.write.level2orgunit_type``: UUID på den klasse som beskriver
+     at en enhed er den primære organisatoriske gruppering (direktørområde,
+     forvaltning, etc.). Dette kan være en enhedstype eller et enhedsniveau.
 
  * Der udrages et antal tilfældige brugere fra AD (mindst 10), og disse tjekkes for
    tilstædeværelsen af de tre AD felter beskrevet i
-   ``integrations.ad.write.uuid_field``, ``integrations.ad.write.forvaltning_field``
-   og ``integrations.ad.write.org_unit_field``. Hvis hvert felt findes hos mindst
+   ``integrations.ad.write.uuid_field``,
+   ``integrations.ad.write.level2orgunit_field`` og
+   ``integrations.ad.write.org_unit_field``. Hvis hvert felt findes hos mindst
    en bruger, godkendes den lokale AD opsætning.
 
 Hvis disse to tests begge går igennem, anses opsætningen for at være klar til
@@ -147,7 +149,7 @@ med nøglen ``integrations.ad.properties``.
 Skrivning til AD
 ================
 
-Der udvikles i øjeblikket en udvidesle til AD integrationen som skal muliggøre at
+Der udvikles i øjeblikket en udvidelse til AD integrationen som skal muliggøre at
 oprette AD brugere og skrive information fra MO til relevante felter.
 
 Hvis denne funktionalitet skal benyttes, er der brug for yderligere parametre som
@@ -158,17 +160,18 @@ skal være sat når programmet afvikles:
    til en nyoprettet bruger.
  * ``integrations.ad.write.uuid_field``: Navnet på det felt i AD, hvor MOs
    bruger-uuid skrives.
- * ``integrations.ad.write.forvaltning_field``: Navnet på det felt i AD, hvor MO
-   skriver navnet på den forvaltning hvor medarbejderen har sin primære ansættelse.
+ * ``integrations.ad.write.level2orgunit_field``: Navnet på det felt i AD, hvor MO
+   skriver navnet på den oganisatoreiske hovedgruppering (Magistrat, direktørområde,
+   eller forvalting) hvor medarbejderen har sin primære ansættelse.
  * ``integrations.ad.write.org_unit_field``: Navnet på det felt i AD, hvor MO
    skriver enhedshierakiet for den enhed, hvor medarbejderen har sin primære
    ansættelse.
  * ``integrations.ad.write.primary_types``: Sorteret lister over uuid'er på de
    ansættelsestyper som markerer en primær ansættelse. Jo tidligere et engagement
    står i listen, jo mere primært anses det for at være.
- * ``integrations.ad.write.forvaltning_type``: uuid på den enhedstype som angiver at
-   enheden er på forvaltingsnieau og derfor skal skrives i feltet angivet i
-   ``integrations.ad.write.forvaltning_field``.
+ * ``integrations.ad.write.level2orgunit_type``: uuid på den enhedstype som angiver
+   at enheden er en organisatorisk hovedgruppering og derfor skal skrives i feltet
+   angivet i ``integrations.ad.write.level2orgunit_field``.
 
 
 Skabelse af brugernavne
@@ -266,7 +269,7 @@ alle AD brugere. Hver enkelt bruger slås op i MO via feltet angivet i nøglen
 `integrations.ad.write.uuid_field` og informatione fra MO synkroniseres
 til AD i henhold til den lokale feltmapning. AD-integrationen stiller et antal
 værdier til rådighed, som det er muligt at synkronisere til felter i AD. Flere
-lan tilføjes efterhånden som integrationen udvikles.
+kan tilføjes efterhånden som integrationen udvikles.
 
  * ``employment_number``: Lønsystemets ansættelsesnummer for medarbejderens primære
    engagement.
@@ -286,20 +289,23 @@ lan tilføjes efterhånden som integrationen udvikles.
  * ``unit_city``: By for brugerens primære enhed.
  * ``unit_streetname``: Gadenavn for brugerens primære enhed.
  * ``location``: Fuld organisatorisk sti til brugerens primære enhed.
- * ``forvaltning``: Forvaltingen som brugerens primære engagement hører under.
+ * ``level2orgunit``: Den oganisatoreiske hovedgruppering (Magistrat, direktørområde,
+   eller forvalting) som brugerens primære engagement hører under.
  * ``manager_name``: Navn på leder for brugerens primære engagement.
  * ``manager_sam``: SamAccountName for leder for brugerens primære engagement.
  * ``manager_mail``: Email på lederen for brugerens primære engagement.
 
-Felterne ``forvaltning`` og ``location`` synkroniseres altid til felterne angivet i
-nøglerner ``integrations.ad.write.forvaltning_type`` og
+Felterne ``level2orgunit`` og ``location`` synkroniseres altid til felterne angivet i
+nøglerner ``integrations.ad.write.level2orgunit_type`` og
 ``integrations.ad.write.org_unit_field``, og skal derfor ikke specificeres yderligere
 i feltmapningen.
 
 Desuden synkroniseres  altid AD felterne:
- * `Displayname` Synkroniseres til medarbejderens fulde navn
+ * `Displayname`: Synkroniseres til medarbejderens fulde navn
  * `GivenName`: Synkroniseres til medarbejderens fornavn
  * `SurName`: Synkroniseres til medarbejderens efternavn
+ * `Name`: Synkroniseres til vædien
+   "`Givenname`  `Surname`  - `Sam_account_name`"
  * `EmployeeNumber`: Synkroniseres til `employment_number`
 
 Yderligere synkronisering fortages i henhold til en lokal feltmaping, som eksempelvis
@@ -396,7 +402,7 @@ eksempel på sådan en fil kunne se sådan ud:
 	   "DC4",
 	   "DC5"
        ],
-       "integrations.ad.write.forvaltning_type": "cdd1305d-ee6a-45ec-9652-44b2b720395f",
+       "integrations.ad.write.level2orgunit_type": "cdd1305d-ee6a-45ec-9652-44b2b720395f",
        "integrations.ad.write.primary_types": [
 	   "62e175e9-9173-4885-994b-9815a712bf42",
 	   "829ad880-c0b7-4f9e-8ef7-c682fb356077",
@@ -404,12 +410,12 @@ eksempel på sådan en fil kunne se sådan ud:
        ],
        "integrations.ad_writer.mo_to_ad_fields": {
 	   "unit_user_key": "department",
-	   "forvaltning": "company",
+	   "level2orgunit": "company",
 	   "title": "Title",
 	   "unit": "extensionAttribute2"
        },
        "integrations.ad.write.uuid_field": "sts_field",
-       "integrations.ad.write.forvaltning_field": "extensionAttribute1",
+       "integrations.ad.write.level2orgunit_field": "extensionAttribute1",
        "integrations.ad.write.org_unit_field": "extensionAttribute2",
        "integrations.ad.properties": [
 	   "manager",

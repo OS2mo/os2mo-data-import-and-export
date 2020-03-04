@@ -59,13 +59,13 @@ class ADWriter(AD):
             other_attributes = ' -Replace @{'
 
         # other_attributes_fields = [
-        #     (write_settings['forvaltning_field'],
-        #      mo_values['forvaltning'].replace('&', 'og')),
+        #     (write_settings['level2orgunit_field'],
+        #      mo_values['level2orgunit'].replace('&', 'og')),
         #     (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
         # ]
         other_attributes_fields = [
-            (write_settings['forvaltning_field'],
-             mo_values['forvaltning']),
+            (write_settings['level2orgunit_field'],
+             mo_values['level2orgunit']),
             (write_settings['org_field'], mo_values['location'])
         ]
 
@@ -142,7 +142,7 @@ class ADWriter(AD):
             'cpr': '1122334455',
             'title': 'Musiker',
             'location': 'Viborg Kommune\Forvalting\Enhed\',
-            'forvaltning': 'Beskæftigelse, Økonomi & Personale',
+            'level2orgunit: 'Beskæftigelse, Økonomi & Personale',
             'manager_sam': 'DMILL'
         }
         """
@@ -225,18 +225,18 @@ class ADWriter(AD):
 
         location = ''
         current_unit = unit_info
-        forvaltning = 'Ingen'
+        level2orgunit = 'Ingen'
         while current_unit:
             location = current_unit['name'] + '\\' + location
             current_type = current_unit['org_unit_type']
             current_level = current_unit['org_unit_level']
             if current_level is None:
                 current_level =  {'uuid': None}
-            if self.settings['integrations.ad.write.forvaltning_type'] in (
+            if self.settings['integrations.ad.write.level2orgunit_type'] in (
                     current_type['uuid'],
                     current_level['uuid']
             ):
-                forvaltning = current_unit['name']
+                level2orgunit = current_unit['name']
             current_unit = current_unit['parent']
         location = location[:-1]
 
@@ -286,7 +286,7 @@ class ADWriter(AD):
             # UNIT PHONE NUMBER
             # UNIT WEB PAGE
             'location': location,
-            'forvaltning': forvaltning,
+            'level2orgunit': level2orgunit,
             'manager_name': manager_name,
             'manager_sam': manager_sam,
             'manager_mail': manager_mail
