@@ -135,7 +135,7 @@ def connect_it_system_to_user(username, it_system, person_uuid):
     return payload
 
 
-def edit_engagement_type(titel):
+def edit_klasse_title(titel):
     payload = {
         "attributter": {
             "klasseegenskaber": [
