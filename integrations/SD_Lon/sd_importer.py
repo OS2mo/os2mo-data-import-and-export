@@ -606,9 +606,12 @@ class SdImport(object):
                     #                                 self.org_id_prefix,
                     #                                 self.org_name)
 
-                    # We explicitly do not want identical uuids for engagements
-                    ext_field = self.settings['integrations.SD_Lon.employment_field']
-                    extention = {ext_field: job_name}
+                    ext_field = self.settings.get(
+                        'integrations.SD_Lon.employment_field')
+                    if ext_field is not None:
+                        extention = {ext_field: job_name}
+                    else:
+                        extention = {}
 
                     self.importer.add_engagement(
                         employee=cpr,
