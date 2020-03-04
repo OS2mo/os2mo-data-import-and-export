@@ -430,24 +430,40 @@ pre_truncate_logfiles(){
 }
 
 pre_backup(){
+    temp_report=$(mktemp)
     for f in ${BACK_UP_BEFORE_JOBS[@]}
     do
+        FILE_FAILED=false
         # try to append to tar file and report if not found
-	tar -rf $BUPFILE "${f}" > /dev/null 2>&1 || BACKUP_OK=false 
+        tar -rf $BUPFILE "${f}" > ${temp_report} 2>&1 || FILE_FAILED=true
+        if [ "${FILE_FAILED}" = "true" ]; then
+            BACKUP_OK=false
+            echo BACKUP ERROR
+            cat ${temp_report}
+        fi
     done
+    rm ${temp_report}
     declare -i age=$(stat -c%Y ${BUPFILE})-$(stat -c%Y ${SNAPSHOT_LORA})
     if [[ ${age} -gt ${BACKUP_MAX_SECONDS_AGE} ]]; then
         BACKUP_OK=false 
-	echo "ERROR database snapshot is more than ${BACKUP_MAX_SECONDS_AGE} seconds old: $age"
+        echo "ERROR database snapshot is more than ${BACKUP_MAX_SECONDS_AGE} seconds old: $age"
     fi
 }
 
 post_backup(){
+    temp_report=$(mktemp)
     for f in ${BACK_UP_AFTER_JOBS[@]} ${BACK_UP_AND_TRUNCATE[@]}
     do
-	tar -rf $BUPFILE "${f}" > /dev/null 2>&1 || BACKUP_OK=false 
+        FILE_FAILED=false
+        # try to append to tar file and report if not found
+        tar -rf $BUPFILE "${f}" > ${temp_report} 2>&1 || FILE_FAILED=true
+        if [ "${FILE_FAILED}" = "true" ]; then
+            BACKUP_OK=false
+            echo BACKUP ERROR
+            cat ${temp_report}
+        fi
     done
-
+    rm ${temp_report}
     echo
     echo listing preliminary backup archive
     echo ${BUPFILE}.gz
@@ -455,7 +471,10 @@ post_backup(){
     gzip  ${BUPFILE}
 
     echo truncating backed up logfiles
-    truncate -s 0 ${BACK_UP_AND_TRUNCATE[@]}
+    for f in ${BACK_UP_AND_TRUNCATE[@]}
+    do
+        [ -f "${f}" ] && truncate -s 0 "${f}"
+    done
 
     echo
     BACKUP_SAVE_DAYS=${BACKUP_SAVE_DAYS:=90}
