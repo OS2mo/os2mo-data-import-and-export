@@ -24,6 +24,18 @@ af SD Løn. De påkrævede felter er:
  * ``integrations.SD_Lon.import.too_deep``: Liste over SD niveauer som anses som
    afdelingsniveau.
  * ``integrations.SD_Lon.monthly_hourly_divide``: Skilleværdi for måneds/timelønnede.
+ * ``integrations.SD_Lon.job_function``: Feltet kan have en af to vædier:
+   `EmploymentName` eller `JobPositionIdentifier`, se yderligere nedenfor.
+ * ``integrations.SD_Lon.employment_field``: Angiver et af MOs ekstrafelter på
+   engagementer, hvis feltet angives vil integrationen skrive værdien af
+   `EmploymentName` i dette felt.
+
+Hvis `integrations.SD_Lon.job_function`` har værdien `EmploymentName` vil
+ansættelsers stilingsbetegnelser bliver taget fra SDs felt af samme navn, som
+er et fritekstfelt, integrationen vil oprette en klasse for alle forekommende
+stillingsbetegnelser.
+Benyttes i stedet værdien `JobPositionIdentifier` vil stillingsbetegelsen blive
+taget fra dette felt i SD, som er et klassicieret felt.
 
 Desuden er det nødvendigt at angive adressen på MO og LoRa i variablerne:
  * ``mox.base``
@@ -224,10 +236,10 @@ hjælpeværktøjer:
    primære engagementer for en enkelt bruger eller for alle brugere.
 
  * ``sync_job_id.py``: Dette værktøj kan opdatere den tekst som vises i forbindelse
-   med ansættelsestyper som er knyttet til SDs ``JobPositionIdentifier``. Efter
-   den initielle import vil klassens navn modsvare talværdien i SD, og dette
-   værktøj kan efterfølgende anvendes til at enten at synkronisere teksten til
-   den aktuelle værdi i SD eller til en valgfri tekst.
+   med ansættelsestyper og stillingsbetegnelser som er knyttet til SDs
+   ``JobPositionIdentifier``. Efter den initielle import vil klassens navn modsvare
+   talværdien i SD, og dette værktøj kan efterfølgende anvendes til at enten at
+   synkronisere teksten til  den aktuelle værdi i SD eller til en valgfri tekst.
 
  * ``fix_departments.py``: En implementering af logikken beskrevet under afsnitet
    `Håndtering af enheder`_. Udover anvendelsen i den løbende integrationen,
