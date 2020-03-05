@@ -225,7 +225,7 @@ Hjælpeværktøjer
 Udover de direkte værktøjer til import og løbende opdateringer, findes et antal
 hjælpeværktøjer:
 
- * `calculate_primary.py`: Et værktøj som er i stand til at gennemløbe alle
+ * ``calculate_primary.py``: Et værktøj som er i stand til at gennemløbe alle
    ansættelser i MO og afgøre om der for alle medarbejdere til alle tider
    findes et primærengagement. Værktøjet er også i stand til at reparere en
    (eller alle) ansættelser hvor dette ikke skulle være tilfældet. Dette modul
@@ -240,7 +240,7 @@ hjælpeværktøjer:
    med ansættelsestyper og stillingsbetegnelser som er knyttet til SDs
    ``JobPositionIdentifier``. Efter den initielle import vil klassens navn modsvare
    talværdien i SD, og dette værktøj kan efterfølgende anvendes til at enten at
-   synkronisere teksten til  den aktuelle værdi i SD eller til en valgfri tekst.
+   synkronisere teksten til den aktuelle værdi i SD eller til en valgfri tekst.
 
  * ``fix_departments.py``: En implementering af logikken beskrevet under afsnitet
    `Håndtering af enheder`_. Udover anvendelsen i den løbende integrationen,
@@ -251,7 +251,7 @@ hjælpeværktøjer:
    vil det opdatere alle enhedens ansættelser, så engagementerne flyttes til
    de korrekte NY-niveauer (som kan være ændret, hvis afdelingen er flyttet).
 
- * `sd_fix_organisation.py`: Tidligere forsøg på at håndtere opdateringer af
+ * ``sd_fix_organisation.py``: Tidligere forsøg på at håndtere opdateringer af
    enheder. Scriptet findes nu kun som basis for evenutelle senere forsøg på
    at lave et fuldt historisk import af enhedstræet.
 
