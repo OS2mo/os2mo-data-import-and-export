@@ -43,7 +43,7 @@ class Enhed(Base):
     enhedsniveau_titel = Column(String(250), nullable=True)
     organisatorisk_sti = Column(String(1000), nullable=False)
     # Will be populated before ledere, cannot use ForeignKey
-    leder_uuuid = Column(String(36))
+    leder_uuid = Column(String(36))
     fungerende_leder_uuid = Column(String(36))
     # start_date # TODO
 
@@ -114,8 +114,8 @@ class Orlov(Base):
     uuid = Column(String(36), nullable=False, primary_key=True)
     bvn = Column(String(250), nullable=False)
     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
-    orlovstype_text = Column(String(250), nullable=False)
     orlovstype_uuid = Column(String, ForeignKey('klasser.uuid'))
+    orlovstype_titel = Column(String(250), nullable=False)
     # start_date # TODO
     # end_date # TODO
 

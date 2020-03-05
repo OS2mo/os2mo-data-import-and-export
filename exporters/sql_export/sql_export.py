@@ -28,7 +28,7 @@ class SqlExport(object):
         self.session = Session()
 
         self.lc = LoraCache()
-        self.lc.populate_cache()
+        self.lc.populate_cache(dry_run=True)
 
         self._add_classification(output=False)
         self._add_users_and_units(output=False)
@@ -222,8 +222,8 @@ class SqlExport(object):
                 uuid=leave,
                 bvn=leave_info['user_key'],
                 bruger_uuid=leave_info['user'],
-                orlovs_type_uuid=leave_info['leave_type'],
-                orlovs_type_titel=self.lc.classes[leave_info['leave_type']]['title'],
+                orlovstype_uuid=leave_info['leave_type'],
+                orlovstype_titel=self.lc.classes[leave_info['leave_type']]['title'],
                 # start_date # TODO
                 # end_date # TODO
             )
@@ -269,11 +269,11 @@ class SqlExport(object):
                 uuid=manager,
                 bruger_uuid=manager_info['user'],
                 enhed_uuid=manager_info['unit'],
-                niveau_type_uuid=manager_info['manager_level'],
-                leder_type_uuid=manager_info['manager_type'],
-                niveau_type_titel=self.lc.classes[
+                niveautype_uuid=manager_info['manager_level'],
+                ledertype_uuid=manager_info['manager_type'],
+                niveautype_titel=self.lc.classes[
                     manager_info['manager_level']]['title'],
-                leder_type_titel=self.lc.classes[
+                ledertype_titel=self.lc.classes[
                     manager_info['manager_type']]['title']
             )
             self.session.add(sql_manager)
