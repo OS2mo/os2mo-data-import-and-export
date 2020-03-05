@@ -13,7 +13,7 @@ Opsætning
 ==========
 
 For at kunne afvikle integrationen, kræves loginoplysninger til SD-Løn, som angives
-via``settings.json``, desuden anvendes en række felter som angiver den lokale anvendelse
+via ``settings.json``, desuden anvendes en række felter som angiver den lokale anvendelse
 af SD Løn. De påkrævede felter er:
 
  * ``integrations.SD_Lon.institution_identifier``: Institution Identifer i SD.
@@ -30,14 +30,15 @@ af SD Løn. De påkrævede felter er:
    engagementer, hvis feltet angives vil integrationen skrive værdien af
    `EmploymentName` i dette felt.
 
-Hvis `integrations.SD_Lon.job_function`` har værdien `EmploymentName` vil
-ansættelsers stilingsbetegnelser bliver taget fra SDs felt af samme navn, som
-er et fritekstfelt, integrationen vil oprette en klasse for alle forekommende
+Hvis ``integrations.SD_Lon.job_function`` har værdien `EmploymentName` vil
+ansættelsers stillingsbetegnelser bliver taget fra SDs felt af samme navn, som
+er et fritekstfelt. Integrationen vil oprette en klasse for alle forekommende
 stillingsbetegnelser.
 Benyttes i stedet værdien `JobPositionIdentifier` vil stillingsbetegelsen blive
 taget fra dette felt i SD, som er et klassicieret felt.
 
 Desuden er det nødvendigt at angive adressen på MO og LoRa i variablerne:
+
  * ``mox.base``
  * ``mora.base``
 
