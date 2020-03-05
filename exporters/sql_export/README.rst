@@ -142,11 +142,11 @@ Adresser er i MO organisationfunktioner med funktionsnavnet ``Adresse``.
    indeholde en tekstrepræsentation af adressen.
  * ``dar_uuid``: DAR-uuid'en som liger bag opslaget som fremgår af ``værdi_tekst``.
    Blankt hvis ikke adressen er en DAR-adresse.
- * ``adresse_type_uuid``: Adressetypen, reference til primærnøglen i tabellen
+ * ``adressetype_uuid``: Adressetypen, reference til primærnøglen i tabellen
    ``klasser``.
- * ``adresse_type_scope``: Adressens overordnede type (omfang), eksempelvis Telefon
+ * ``adressetype_scope``: Adressens overordnede type (omfang), eksempelvis Telefon
    eller P-nummer.
- * ``adresse_type_titel``: Titlen på adressetypens klasse.
+ * ``adressetype_titel``: Titlen på adressetypens klasse.
  * ``synlighed_uuid``: Synlighedstype, reference til primærnøglen i tabellen
    ``klasser``.
  * ``synlighed_titel``: Titlen på synlighedstypens klasse.
@@ -162,16 +162,17 @@ Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``.
  * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``. 
  * ``bvn``: Engagementets brugervendte nøgle. Dette vil i de fleste tilfælde
    være ansættelsesnummeret i lønsystemet.
- * ``arbejds_fraktion``: # TODO
- * ``engagementstype_text``: Titlen på engagementstypeklassen.
+ * ``arbejdstidsfraktion``: # TODO
  * ``engagementstype_uuid``: Engagementstypen, reference til primærnøglen i tabellen
    ``klasser``.
- * ``primærtype_uuid``: Engagementets primærtype, reference til primærnøglen i tabellen ``klasser``.
+ * ``engagementstype_titel``: Titlen på engagementstypeklassen.
+ * ``primærtype_uuid``: Engagementets primærtype, reference til primærnøglen i
+   tabellen ``klasser``.
  * ``primærtype_titel``: Titlen på primærtypetypeklassen.
- * ``job_function_uuid``: Engagementets stillingsbetegnelse, reference til primærnøglen
+ * ``stillingsbetegnelse_uuid``: Engagementets stillingsbetegnelse, reference til
+   primærnøglen i tabellen ``klasser``.
  * ``job_function_titel``: Titlen på klassen for stillingsbetegnelse.
-   i tabellen ``klasser``.
- * ``primary_boolean``: Boolean som angiver om engagementet er brugerens primære
+ * ``primær_boolean``: Boolean som angiver om engagementet er brugerens primære
    engagement, se afsnit om beregnede felter
  * ``# start_date``:,
  * ``# end_date``:
@@ -184,9 +185,9 @@ Roller er i MO organisationfunktioner med funktionsnavnet ``Rolle``.
  * ``uuid``: Rollens (org-funk'ens) uuid, primærnøgle for tabellen.
  * ``bruger_uuid``: Reference til primærnøglen i tabellen ``brugere``. 
  * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``. 
- * ``role_type_text``: Titlen på klassen for rolletypen.
- * ``role_type_uuid``: Rolletypen, reference til primærnøglen i tabellen
+ * ``rolletype_uuid``: Rolletypen, reference til primærnøglen i tabellen
    ``klasser``.
+ * ``rolletype_titel``: Titlen på klassen for rolletypen.
  * ``# start_date``:, # TODO
  * ``# end_date``: # TODO
 
@@ -196,12 +197,12 @@ tilknytninger
 Tilknytninger er i MO organisationfunktioner med funktionsnavnet ``Tilknytning``.
 
  * ``uuid``: Tilknytningens (org-funk'ens) uuid, primærnøgle for tabellen.
- * ``user_key``: Tilknytningens brugervendte nøgle.
+ * ``bvn``: Tilknytningens brugervendte nøgle.
  * ``bruger_uuid``: Reference til primærnøglen i tabellen ``brugere``. 
  * ``enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``. 
- * ``association_type_text``: Titlen på klassen for tilknytningstypen.
- * ``association_type_uuid``: Tilknytningstypen, reference til primærnøglen i tabellen
+ * ``tilknytningstype_uuid``: Tilknytningstypen, reference til primærnøglen i tabellen
    ``klasser``.
+ * ``tilknytningstype_text``: Titlen på klassen for tilknytningstypen.
  * ``# start_date``:, # TODO
  * ``# end_date``: # TODO
 
@@ -212,10 +213,10 @@ orlover
 Orlover er i MO organisationfunktioner med funktionsnavnet ``Orlov``.
 
  * ``uuid``:  Orlovens (org-funk'ens) uuid, primærnøgle for tabellen.
- * ``user_key``: Brugervendt nøgle for orloven.
+ * ``bvn``: Brugervendt nøgle for orloven.
  * ``bruger_uuid``:  Reference til primærnøglen i tabellen ``brugere``. 
- * ``leave_type_text``: Titlen på klasse for orlovstypen.
- * ``leave_type_uuid``: Orlovstypen, reference til primærnøglen i tabellen
+ * ``orlovstype_text``: Titlen på klasse for orlovstypen.
+ * ``orlovstype_uuid``: Orlovstypen, reference til primærnøglen i tabellen
    ``klasser``.
  * ``# start_date``: # TODO
  * ``# end_date``: # TODO
@@ -223,7 +224,7 @@ Orlover er i MO organisationfunktioner med funktionsnavnet ``Orlov``.
 it_systemer
 --------
  * ``uuid``: IT-systemets uuid, primærnøgle for tabellen.
- * ``name``: IT-systemets navn.
+ * ``navn``: IT-systemets navn.
 
 it_forbindelser
 ---------------
@@ -249,11 +250,11 @@ ledere
  * `uuid`: Lederrollens (org-funk'ens) uuid, primærnøgle for tabellen.
  * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``.
  * `enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``.
- * `manager_type_text`: Titlen på klassen for ledertypen.
- * `manager_type_uuid`: Klassen for ledertypen, reference til primærnøglen i tabellen
+ * `ledertype_titel`: Titlen på klassen for ledertypen.
+ * `ledertype_uuid`: Klassen for ledertypen, reference til primærnøglen i tabellen
    ``klasser``.
- * `niveau_type_text`: Titlen på klassen for lederniveau.
- * `niveau_type_uuid`: Klassen for lederniveau, reference til primærnøglen i tabellen
+ * `niveautype_titel`: Titlen på klassen for lederniveau.
+ * `niveautype_uuid`: Klassen for lederniveau, reference til primærnøglen i tabellen
    ``klasser``.
 
 leder_ansvar
@@ -264,7 +265,7 @@ klasser som tilknyttes en lederrolle.
 
  * ``id``: Arbitrært løbenummer, denne tabel har ikke har nogen naturlig primærnøgle.
  * ``leder_uuid``: Reference til primærnøglen i tabellen ``ledere``.
- * ``responsibility_text``: Titlen på klassen for lederansvar.
- * ``responsibility_uuid``: Klassen for lederansvar, reference til primærnøglen i tabellen
+ * ``lederansvar_uuid``: Klassen for lederansvar, reference til primærnøglen i tabellen
    ``klasser``.
+ * ``lederansvar_titel``: Titlen på klassen for lederansvar.
 

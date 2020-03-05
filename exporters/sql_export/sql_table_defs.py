@@ -1,8 +1,9 @@
 from sqlalchemy import Column, ForeignKey, Boolean, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
-from sqlalchemy import create_engine
+# from sqlalchemy.orm import relationship, sessionmaker
+# from sqlalchemy import create_engine
 Base = declarative_base()
+
 
 class Facet(Base):
     __tablename__ = 'facetter'
@@ -14,7 +15,7 @@ class Klasse(Base):
     __tablename__ = 'klasser'
 
     uuid = Column(String(36), nullable=False, primary_key=True)
-    bvn= Column(String(250), nullable=False)
+    bvn = Column(String(250), nullable=False)
     titel = Column(String(250), nullable=False)
     facet_uuid = Column(String, ForeignKey('facetter.uuid'))
     facet_bvn = Column(String(250), nullable=False)
@@ -55,9 +56,9 @@ class Adresse(Base):
     enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
     værdi = Column(String(250), nullable=True)
     dar_uuid = Column(String(36), nullable=True)
-    adresse_type_uuid = Column(String, ForeignKey('klasser.uuid'))
-    adresse_type_scope = Column(String(250), nullable=False)
-    adresse_type_titel = Column(String(250), nullable=False)
+    adressetype_uuid = Column(String, ForeignKey('klasser.uuid'))
+    adressetype_scope = Column(String(250), nullable=False)
+    adressetype_titel = Column(String(250), nullable=False)
     synlighed_uuid = Column(String, ForeignKey('klasser.uuid'))
     synlighed_titel = Column(String(250), nullable=True)
     # start_date # TODO
@@ -70,13 +71,13 @@ class Engagement(Base):
     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
     bvn = Column(String(250), nullable=False)
-    arbejds_fraktion = Column(Integer)
+    arbejdstidsfraktion = Column(Integer)
     engagementstype_uuid = Column(String, ForeignKey('klasser.uuid'))
     engagementstype_titel = Column(String(250), nullable=False)
     primærtype_uuid = Column(String, ForeignKey('klasser.uuid'))
     primærtype_titel = Column(String(250), nullable=True)
-    job_function_text = Column(String(250), nullable=False)
-    job_function_uuid = Column(String, ForeignKey('klasser.uuid'))
+    stillingsbetegnelse_uuid = Column(String, ForeignKey('klasser.uuid'))
+    stillingsbetegnelse_titel = Column(String(250), nullable=False)
     primær_boolean = Column(Boolean)
     # start_date,
     # end_date
@@ -88,8 +89,8 @@ class Rolle(Base):
     uuid = Column(String(36), nullable=False, primary_key=True)
     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
-    role_type_text = Column(String(250), nullable=False)
-    role_type_uuid = Column(String, ForeignKey('klasser.uuid'))
+    rolletype_uuid = Column(String, ForeignKey('klasser.uuid'))
+    rolletype_titel = Column(String(250), nullable=False)
     # start_date, # TODO
     # end_date # TODO
 
@@ -98,11 +99,11 @@ class Tilknytning(Base):
     __tablename__ = 'tilknytninger'
 
     uuid = Column(String(36), nullable=False, primary_key=True)
-    user_key = Column(String(250), nullable=False)
+    bvn = Column(String(250), nullable=False)
     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
-    association_type_text = Column(String(250), nullable=False)
-    association_type_uuid = Column(String, ForeignKey('klasser.uuid'))
+    tilknytningstype_uuid = Column(String, ForeignKey('klasser.uuid'))
+    tilknytningstype_titel = Column(String(250), nullable=False)
     # start_date, # TODO
     # end_date # TODO
 
@@ -111,10 +112,10 @@ class Orlov(Base):
     __tablename__ = 'orlover'
 
     uuid = Column(String(36), nullable=False, primary_key=True)
-    user_key = Column(String(250), nullable=False)
+    bvn = Column(String(250), nullable=False)
     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
-    leave_type_text = Column(String(250), nullable=False)
-    leave_type_uuid = Column(String, ForeignKey('klasser.uuid'))
+    orlovstype_text = Column(String(250), nullable=False)
+    orlovstype_uuid = Column(String, ForeignKey('klasser.uuid'))
     # start_date # TODO
     # end_date # TODO
 
@@ -123,7 +124,7 @@ class ItSystem(Base):
     __tablename__ = 'it_systemer'
 
     uuid = Column(String(36), nullable=False, primary_key=True)
-    name = Column(String(250), nullable=False)
+    navn = Column(String(250), nullable=False)
 
 
 class ItForbindelse(Base):
@@ -142,10 +143,10 @@ class Leder(Base):
     uuid = Column(String(36), nullable=False, primary_key=True)
     bruger_uuid = Column(String, ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String, ForeignKey('enheder.uuid'))
-    manager_type_text = Column(String(250), nullable=False)
-    manager_type_uuid = Column(String, ForeignKey('klasser.uuid'))
-    niveau_type_text = Column(String(250), nullable=False)
-    niveau_type_uuid = Column(String, ForeignKey('klasser.uuid'))
+    ledertype_uuid = Column(String, ForeignKey('klasser.uuid'))
+    ledertype_titel = Column(String(250), nullable=False)
+    niveautype_uuid = Column(String, ForeignKey('klasser.uuid'))
+    niveautype_titel = Column(String(250), nullable=False)
 
 
 class LederAnsvar(Base):
@@ -153,5 +154,5 @@ class LederAnsvar(Base):
 
     id = Column(Integer, nullable=False, primary_key=True)
     leder_uuid = Column(String, ForeignKey('ledere.uuid'))
-    responsibility_text =  Column(String(250), nullable=False)
-    responsibility_uuid = Column(String, ForeignKey('klasser.uuid'))
+    lederansvar_uuid = Column(String, ForeignKey('klasser.uuid'))
+    lederansvar_titel = Column(String(250), nullable=False)

@@ -148,13 +148,13 @@ class SqlExport(object):
                 bruger_uuid=engagement_info['user'],
                 bvn=engagement_info['user_key'],
                 primærtype_uuid=engagement_info['primary_type'],
-                job_function_uuid=engagement_info['job_function'],
+                stillingsbetegnelse_uuid=engagement_info['job_function'],
                 engagementstype_uuid=engagement_info['engagement_type'],
                 primær_boolean=primary,
-                # arbejds_fraktion=TODO!
+                arbejdstidsfraktion=engagement_info['fraction'],
                 engagementstype_titel=self.lc.classes[
                     engagement_info['engagement_type']]['title'],
-                job_function_titelt=self.lc.classes[
+                stillingsbetegnelse_titel=self.lc.classes[
                     engagement_info['job_function']]['title'],
                 primærtype_titel=self.lc.classes[
                     engagement_info['primary_type']]['title']
@@ -179,11 +179,11 @@ class SqlExport(object):
                 bruger_uuid=address_info['user'],
                 værdi=address_info['value'],
                 dar_uuid=address_info['dar_uuid'],
-                adresse_type_uuid=address_info['adresse_type'],
-                adresse_type_scope=address_info['scope'],
+                adressetype_uuid=address_info['adresse_type'],
+                adressetype_scope=address_info['scope'],
                 synlighed_uuid=address_info['visibility'],
                 synlighed_titel=visibility_text,
-                adresse_type_titel=self.lc.classes[
+                adressetype_titel=self.lc.classes[
                     address_info['adresse_type']]['title']
             )
             self.session.add(sql_address)
@@ -198,9 +198,9 @@ class SqlExport(object):
                 uuid=association,
                 bruger_uuid=association_info['user'],
                 enhed_uuid=association_info['unit'],
-                user_key=association_info['user_key'],
-                association_type_uuid=association_info['association_type'],
-                association_type_text=self.lc.classes[
+                bvn=association_info['user_key'],
+                tilknytningstype_uuid=association_info['association_type'],
+                tilknytningstype_titel=self.lc.classes[
                     association_info['association_type']]['title']
             )
             self.session.add(sql_association)
@@ -210,8 +210,8 @@ class SqlExport(object):
                 uuid=role,
                 bruger_uuid=role_info['user'],
                 enhed_uuid=role_info['unit'],
-                role_type_uuid=role_info['role_type'],
-                role_type_text=self.lc.classes[role_info['role_type']]['title']
+                rolletype_uuid=role_info['role_type'],
+                rolletype_titel=self.lc.classes[role_info['role_type']]['title']
                 # start_date, # TODO
                 # end_date # TODO
             )
@@ -220,10 +220,10 @@ class SqlExport(object):
         for leave, leave_info in self.lc.leaves.items():
             sql_leave = Orlov(
                 uuid=leave,
-                user_key=leave_info['user_key'],
+                bvn=leave_info['user_key'],
                 bruger_uuid=leave_info['user'],
-                leave_type_text=self.lc.classes[leave_info['leave_type']]['title'],
-                leave_type_uuid=leave_info['leave_type'],
+                orlovs_type_uuid=leave_info['leave_type'],
+                orlovs_type_titel=self.lc.classes[leave_info['leave_type']]['title'],
                 # start_date # TODO
                 # end_date # TODO
             )
@@ -237,40 +237,11 @@ class SqlExport(object):
             for result in self.engine.execute('select * from roller limit 4'):
                 print(result.items())
 
-    def _add_managers(self, output=False):
-        for manager, manager_info in self.lc.managers.items():
-            sql_manager = Leder(
-                uuid=manager,
-                bruger_uuid=manager_info['user'],
-                enhed_uuid=manager_info['unit'],
-                niveau_type_uuid=manager_info['manager_level'],
-                manager_type_uuid=manager_info['manager_type'],
-                niveau_type_text=self.lc.classes[
-                    manager_info['manager_level']]['title'],
-                manager_type_text=self.lc.classes[
-                    manager_info['manager_type']]['title']
-            )
-            self.session.add(sql_manager)
-
-            for responsibility in manager_info['manager_responsibility']:
-                sql_responsibility = LederAnsvar(
-                    leder_uuid=manager,
-                    responsibility_uuid=responsibility,
-                    responsibility_text=self.lc.classes[responsibility]['title']
-                )
-                self.session.add(sql_responsibility)
-        self.session.commit()
-        if output:
-            for result in self.engine.execute('select * from ledere limit 10'):
-                print(result.items())
-            for result in self.engine.execute('select * from leder_ansvar limit 10'):
-                print(result.items())
-
     def _add_it_systems(self, output=False):
         for itsystem, itsystem_info in self.lc.itsystems.items():
             sql_itsystem = ItSystem(
                 uuid=itsystem,
-                name=itsystem_info['name']
+                navn=itsystem_info['name']
             )
             self.session.add(sql_itsystem)
 
@@ -290,6 +261,35 @@ class SqlExport(object):
 
             for result in self.engine.execute(
                     'select * from it_forbindelser limit 2'):
+                print(result.items())
+
+    def _add_managers(self, output=False):
+        for manager, manager_info in self.lc.managers.items():
+            sql_manager = Leder(
+                uuid=manager,
+                bruger_uuid=manager_info['user'],
+                enhed_uuid=manager_info['unit'],
+                niveau_type_uuid=manager_info['manager_level'],
+                leder_type_uuid=manager_info['manager_type'],
+                niveau_type_titel=self.lc.classes[
+                    manager_info['manager_level']]['title'],
+                leder_type_titel=self.lc.classes[
+                    manager_info['manager_type']]['title']
+            )
+            self.session.add(sql_manager)
+
+            for responsibility in manager_info['manager_responsibility']:
+                sql_responsibility = LederAnsvar(
+                    leder_uuid=manager,
+                    lederansvar_uuid=responsibility,
+                    lederansvar_titel=self.lc.classes[responsibility]['title']
+                )
+                self.session.add(sql_responsibility)
+        self.session.commit()
+        if output:
+            for result in self.engine.execute('select * from ledere limit 10'):
+                print(result.items())
+            for result in self.engine.execute('select * from leder_ansvar limit 10'):
                 print(result.items())
 
 
