@@ -17,7 +17,7 @@ from integrations.SD_Lon.sd_common import generate_uuid
 from integrations.SD_Lon.sd_common import calc_employment_id
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = 'mo_integrations.log'
+LOG_FILE = 'mo_initial_import.log'
 
 logger = logging.getLogger('sdImport')
 
@@ -39,8 +39,6 @@ class SdImport(object):
     def __init__(self, importer, ad_info=None, org_only=False, org_id_prefix=None,
                  manager_rows=[], super_unit=None, employee_mapping={}):
 
-        # TODO: Soon we have done this 4 times. Should we make a small settings
-        # importer, that will also handle datatype for specicic keys?
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')
@@ -88,7 +86,7 @@ class SdImport(object):
             self.add_people()
 
         self.info = self._read_department_info()
-        for level in [(1040, 'Leder'), (1035, 'Chef'), (1030, 'Direktør')]:
+        for level in [('manager_1040', 'Leder'), ('manager_1035', 'Chef'), ('manager_1030', 'Direktør')]:
             self._add_klasse(level[0], level[1], 'manager_level')
 
         if self.manager_rows is None:
@@ -651,11 +649,11 @@ class SdImport(object):
                 if not self.manager_rows:
                     # These job functions will normally (but necessarily)
                     #  correlate to a manager position
-                    if int(job_position_id) in [1040, 1035, 1030]:
+                    if job_position_id in ['1040', '1035', '1030']:
                         self.importer.add_manager(
                             employee=cpr,
                             organisation_unit=unit,
-                            manager_level_ref=job_position_id,
+                            manager_level_ref='manager_' + job_position_id,
                             address_uuid=None,  # Manager address is not used
                             manager_type_ref='leder_type',
                             responsibility_list=['Lederansvar'],
@@ -669,10 +667,10 @@ class SdImport(object):
                         if 'uuid' not in row:
                             logger.warning('NO UNIT: {}'.format(row['afdeling']))
                             continue
-                        if int(job_position_id) in [1040, 1035, 1030]:
-                            manager_level = int(job_position_id)
+                        if job_position_id in ['1040', '1035', '1030']:
+                            manager_level = 'manager_' + job_position_id
                         else:
-                            manager_level = 1040
+                            manager_level = 'manager_1040'
 
                         logger.info(
                             'Manager {} to {}'.format(cpr, row['afdeling'])
