@@ -107,7 +107,10 @@ class ChangeAtSD(object):
         self.job_function_facet = facet_info[1]
         self.job_functions = {}
         for job in job_functions:
-            self.job_functions[job['name']] = job['uuid']
+            if self.use_jpi:
+                self.job_functions[job['user_key']] = job['uuid']
+            else:
+                self.job_functions[job['name']] = job['uuid']
 
         logger.info('Read engagement types')
         # The Opus diff-import contains a slightly more abstrac def to do this
@@ -635,23 +638,34 @@ class ChangeAtSD(object):
         job_id, engagement_info = self.engagement_components(engagement)
         for profession_info in engagement_info['professions']:
             logger.info('Change profession of engagement {}'.format(job_id))
-            # We load the name from SD and handles the AD-integration
-            # when calculating the primary engagement.
+            job_position = profession_info['JobPositionIdentifier']
             if 'EmploymentName' in profession_info:
                 emp_name = profession_info['EmploymentName']
             else:
                 emp_name = profession_info['JobPositionIdentifier']
-            logger.debug('Employment name: {}'.format(emp_name))
             validity = self._validity(profession_info, mo_eng['validity']['to'],
                                       cut=True)
             if validity is None:
                 continue
 
-            self._update_professions(emp_name)
-            job_function = self.job_functions.get(emp_name)
+            if self.use_jpi:
+                job_function = job_position
+            else:
+                job_function = emp_name
+            logger.debug('Employment name: {}'.format(job_function))
 
-            data = {'job_function': {'uuid': job_function},
+            ext_field = self.settings.get('integrations.SD_Lon.employment_field')
+            if ext_field is not None:
+                extention = {ext_field: emp_name}
+            else:
+                extention = {}
+
+            self._update_professions(job_function)
+            job_function_uuid = self.job_functions.get(job_function)
+
+            data = {'job_function': {'uuid': job_function_uuid},
                     'validity': validity}
+            data.update(extention)
             payload = sd_payloads.engagement(data, mo_eng)
             logger.debug('Update profession payload: {}'.format(payload))
             response = self.helper._mo_post('details/edit', payload)
