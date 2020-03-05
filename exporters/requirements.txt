@@ -1,3 +1,4 @@
 click
 anytree
+sqlalchemy
 git+https://github.com/magenta-aps/spsftp
