@@ -100,7 +100,7 @@ class JobIdSync(object):
         mora_assert(response)
         return response
 
-    def get_job_pos_id_from_sd(self, job_pos_id):
+    def _get_job_pos_id_from_sd(self, job_pos_id):
         """
         Return the textual value of a Job Position Identifier fro SD.
         """
@@ -116,16 +116,16 @@ class JobIdSync(object):
         logger.info('Found {}'.format(job_pos_id))
         return job_pos
 
-    def sync_to_sd(self, job_pos_id):
+    def sync_from_sd(self, job_pos_id):
         """
         Sync the titel of LoRa engagement type to the value current
         registred at SD.
         """
         logger.info('Sync {} to value found in SD'.format(job_pos_id))
         return_status = [None, None]
-        sd_job_pos_text = self.get_job_pos_id_from_sd(job_pos_id)
+        sd_job_pos_text = self._get_job_pos_id_from_sd(job_pos_id)
         if sd_job_pos_text is None:
-            logger.warning('Job position {} not found i SD'.format(job_pos_id))
+            logger.info('Job position {} not found i SD'.format(job_pos_id))
             return return_status
 
         mo_eng_type = self._find_engagement_type(job_pos_id)
@@ -151,6 +151,20 @@ class JobIdSync(object):
 
         logger.info('Return status: {}'.format(return_status))
         return return_status
+
+    def sync_all_from_sd(self):
+        logger.info('Sync all classes')
+        for eng_type in self.engagement_types[0]:
+            user_key = eng_type['user_key']
+            if user_key.startswith('engagement_type'):
+                user_key = user_key[15:]
+            print('Sync from SD: {}'.format(user_key))  # self.sync_from_sd(user_key)
+
+        if self.update_job_functions:
+            for job_function in self.job_function_types[0]:
+                user_key = job_function['user_key']
+                print('Sync from SD: {}'.format(user_key))  # self.sync_from_sd(user_key)
+        logger.info('Full sync completed')
 
     def sync_manually(self, job_pos_id, title):
         """
@@ -187,18 +201,28 @@ class JobIdSync(object):
         the SD value.
         """
         parser = argparse.ArgumentParser(description='JobIdentifier Sync')
-        parser.add_argument('--job-pos-id', nargs=1, required=True,
+        parser.add_argument('--job-pos-id', nargs=1, required=False,
                             metavar='SD_Job_position_ID')
         parser.add_argument('--titel', nargs=1, required=False, metavar='Titel')
+
+        parser.add_argument('--sync-all',  action='store_true')
+
         args = vars(parser.parse_args())
 
-        job_pos_id = args.get('job_pos_id')[0]
-        print(job_pos_id)
-        title = args.get('titel')
-        if title is None:
-            print(self.sync_to_sd(job_pos_id))
+        if args['job_pos_id'] is not None:
+            job_pos_id = args.get('job_pos_id')[0]
+            print(job_pos_id)
+            title = args.get('titel')
+            if title is None:
+                print(self.sync_from_sd(job_pos_id))
+            else:
+                print(self.sync_manually(job_pos_id, title[0]))
+
+        elif args['sync_all']:
+            self.sync_all_from_sd()
+
         else:
-            print(self.sync_manually(job_pos_id, title[0]))
+            print('No arguments given (-h for help)')
 
 
 if __name__ == '__main__':
