@@ -90,7 +90,7 @@ def create_leave(mo_eng, mo_person, leave_uuid, job_id, validity):
 
 
 def create_engagement(org_unit, mo_person, job_function, engagement_type,
-                      primary, user_key, engagement_info, validity):
+                      primary, user_key, engagement_info, validity, **extensions):
     try:
         working_time = float(engagement_info['working_time'][0]['OccupationRate'])
     except IndexError:
@@ -106,6 +106,7 @@ def create_engagement(org_unit, mo_person, job_function, engagement_type,
         'fraction': int(working_time * 1000000),
         'validity': validity
     }
+    payload.update(extensions)
     return payload
 
 
@@ -160,7 +161,6 @@ def profession(profession, org, job_function_facet):
         'to': 'infinity'
     }
 
-    # "integrationsdata":  # TODO: Check this
     properties = {
         'brugervendtnoegle': profession,
         'titel':  profession,
