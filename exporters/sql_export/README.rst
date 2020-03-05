@@ -174,6 +174,9 @@ Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``.
  * ``job_function_titel``: Titlen på klassen for stillingsbetegnelse.
  * ``primær_boolean``: Boolean som angiver om engagementet er brugerens primære
    engagement, se afsnit om beregnede felter
+ * ``udvidelse_1``: Første af 10 fritekstfelter på MOs engagementer
+ * ....
+ * ``udvidelse_10``: Sidste af 10 fritekstfelter på MOs engagementer
  * ``# start_date``:,
  * ``# end_date``:
 

@@ -79,6 +79,16 @@ class Engagement(Base):
     stillingsbetegnelse_uuid = Column(String, ForeignKey('klasser.uuid'))
     stillingsbetegnelse_titel = Column(String(250), nullable=False)
     primær_boolean = Column(Boolean)
+    udvidelse_1 = Column(String(250), nullable=True)
+    udvidelse_2 = Column(String(250), nullable=True)
+    udvidelse_3 = Column(String(250), nullable=True)
+    udvidelse_4 = Column(String(250), nullable=True)
+    udvidelse_5 = Column(String(250), nullable=True)
+    udvidelse_6 = Column(String(250), nullable=True)
+    udvidelse_7 = Column(String(250), nullable=True)
+    udvidelse_8 = Column(String(250), nullable=True)
+    udvidelse_9 = Column(String(250), nullable=True)
+    udvidelse_10 = Column(String(250), nullable=True)
     # start_date,
     # end_date
 

@@ -244,9 +244,21 @@ class LoraCache(object):
             user_key = (attr['organisationfunktionegenskaber'][0]
                         ['brugervendtnoegle'])
 
-            # This model is slightly changed by the new extra field
-            # fraction = attr['organisationfunktionudvidelser'][0]['fraktion']
-            fraction = None
+            udvidelser = engagement['registreringer'][0]['attributter'].get(
+                'organisationfunktionudvidelser', [{}])[0]
+            fraction = udvidelser.get('fraktion')
+            extentions = {
+                'udvidelse_1': udvidelser.get('udvidelse_1'),
+                'udvidelse_2': udvidelser.get('udvidelse_2'),
+                'udvidelse_3': udvidelser.get('udvidelse_3'),
+                'udvidelse_4': udvidelser.get('udvidelse_4'),
+                'udvidelse_5': udvidelser.get('udvidelse_5'),
+                'udvidelse_6': udvidelser.get('udvidelse_6'),
+                'udvidelse_7': udvidelser.get('udvidelse_7'),
+                'udvidelse_8': udvidelser.get('udvidelse_8'),
+                'udvidelse_9': udvidelser.get('udvidelse_9'),
+                'udvidelse_10': udvidelser.get('udvidelse_10')
+            }
 
             rel = engagement['registreringer'][0]['relationer']
             engagement_type = rel['organisatoriskfunktionstype'][0]['uuid']
@@ -264,7 +276,9 @@ class LoraCache(object):
                 'engagement_type': engagement_type,
                 'primary_type': primary_type,
                 'job_function': job_function,
+                'extentions': extentions
             }
+
         return engagements
 
     def _cache_lora_associations(self):

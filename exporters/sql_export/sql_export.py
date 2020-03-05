@@ -28,7 +28,7 @@ class SqlExport(object):
         self.session = Session()
 
         self.lc = LoraCache()
-        self.lc.populate_cache(dry_run=True)
+        self.lc.populate_cache(dry_run=False)
 
         self._add_classification(output=False)
         self._add_users_and_units(output=False)
@@ -36,8 +36,8 @@ class SqlExport(object):
         self._add_addresses(output=False)
 
         self._add_associactions_leaves_and_roles(output=False)
-        self._add_managers(output=True)
-        self._add_it_systems(output=True)
+        self._add_managers(output=False)
+        self._add_it_systems(output=False)
 
     def _add_classification(self, output=False):
         for facet, facet_info in self.lc.facets.items():
@@ -157,7 +157,8 @@ class SqlExport(object):
                 stillingsbetegnelse_titel=self.lc.classes[
                     engagement_info['job_function']]['title'],
                 primærtype_titel=self.lc.classes[
-                    engagement_info['primary_type']]['title']
+                    engagement_info['primary_type']]['title'],
+                **engagement_info['extentions']
             )
             self.session.add(sql_engagement)
         self.session.commit()
