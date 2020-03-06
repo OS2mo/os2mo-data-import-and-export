@@ -1,6 +1,9 @@
 import json
-import logging  # TODO
+import atexit
+import logging
 import pathlib
+import urllib.parse
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -13,39 +16,79 @@ from exporters.sql_export.sql_table_defs import (
     Adresse, Engagement, Rolle, Tilknytning, Orlov, ItForbindelse, Leder
 )
 
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'sql_export.log'
+
+logger = logging.getLogger('SqlExport')
+
+for name in logging.root.manager.loggerDict:
+    if name in ('LoraCache', 'SqlExport'):
+        logging.getLogger(name).setLevel(LOG_LEVEL)
+    else:
+        logging.getLogger(name).setLevel(logging.ERROR)
+
+logging.basicConfig(
+    format='%(levelname)s %(asctime)s %(name)s %(message)s',
+    level=LOG_LEVEL,
+    filename=LOG_FILE
+)
+
 
 class SqlExport(object):
-
     def __init__(self):
+        logger.info('Start SQL export')
+        atexit.register(self.at_exit)
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
 
-        self.engine = create_engine('sqlite:///mo.db')
+        db_type = self.settings['exporters.actual_state.type']
+        db_name = self.settings['exporters.actual_state.db_name']
+        user = self.settings.get('exporters.actual_state.user')
+        db_host = self.settings.get('exporters.actual_state.host')
+        pw_raw = self.settings.get('exporters.actual_state.password', '')
+        pw = urllib.parse.quote_plus(pw_raw)
+        if db_type == 'SQLite':
+            db_string = 'sqlite:///{}.db'.format(db_name)
+        elif db_type == 'MS-SQL':
+            db_string = 'mssql+pymssql://{}:{}@{}/{}'.format(
+                user, pw, db_host, db_name)
+        else:
+            raise Exception('Unknown DB type')
+
+        self.engine = create_engine(db_string)
+
+        Base.metadata.drop_all(self.engine)
         Base.metadata.create_all(self.engine)
-        Session = sessionmaker(bind=self.engine)
+        Session = sessionmaker(bind=self.engine, autoflush=False)
         self.session = Session()
 
         self.lc = LoraCache()
-        self.lc.populate_cache(dry_run=False)
+        self.lc.populate_cache()
 
-        self._add_classification(output=False)
-        self._add_users_and_units(output=False)
-        self._add_engagements(output=False)
-        self._add_addresses(output=False)
+        self._add_classification()
+        self._add_users_and_units()
+        self._add_addresses()
+        self._add_engagements()
+        self._add_associactions_leaves_and_roles()
+        self._add_managers()
+        self._add_it_systems()
 
-        self._add_associactions_leaves_and_roles(output=False)
-        self._add_managers(output=False)
-        self._add_it_systems(output=False)
+    def at_exit(self):
+        logger.info('*SQL export ended*')
 
     def _add_classification(self, output=False):
+        logger.info('Add classification')
+        print('Add classification')
+        logger.info('Add classification')
         for facet, facet_info in self.lc.facets.items():
             sql_facet = Facet(
                 uuid=facet,
                 bvn=facet_info['user_key'],
             )
             self.session.add(sql_facet)
+        self.session.commit()
 
         for klasse, klasse_info in self.lc.classes.items():
             sql_class = Klasse(
@@ -65,6 +108,8 @@ class SqlExport(object):
                 print(result.items())
 
     def _add_users_and_units(self, output=False):
+        logger.info('Add users and units')
+        print('Add users and units')
         for user, user_info in self.lc.users.items():
             sql_user = Bruger(
                 uuid=user,
@@ -129,6 +174,8 @@ class SqlExport(object):
                 print(result)
 
     def _add_engagements(self, output=False):
+        logger.info('Add engagements')
+        print('Add engagements')
         user_primary = {}
         for uuid, eng in self.lc.engagements.items():
             primary_type = self.lc.classes[eng['primary_type']]
@@ -168,6 +215,8 @@ class SqlExport(object):
                 print(result.items())
 
     def _add_addresses(self, output=False):
+        logger.info('Add addresses')
+        print('Add addresses')
         for address, address_info in self.lc.addresses.items():
             visibility_text = None
             if address_info['visibility'] is not None:
@@ -194,6 +243,8 @@ class SqlExport(object):
                 print(result.items())
 
     def _add_associactions_leaves_and_roles(self, output=False):
+        logger.info('Add associactions leaves and roles')
+        print('Add associactions leaves and roles')
         for association, association_info in self.lc.associations.items():
             sql_association = Tilknytning(
                 uuid=association,
@@ -239,6 +290,8 @@ class SqlExport(object):
                 print(result.items())
 
     def _add_it_systems(self, output=False):
+        logger.info('Add IT systems')
+        print('Add IT systems')
         for itsystem, itsystem_info in self.lc.itsystems.items():
             sql_itsystem = ItSystem(
                 uuid=itsystem,
@@ -265,6 +318,8 @@ class SqlExport(object):
                 print(result.items())
 
     def _add_managers(self, output=False):
+        logger.info('Add managers')
+        print('Add managers')
         for manager, manager_info in self.lc.managers.items():
             sql_manager = Leder(
                 uuid=manager,
