@@ -158,12 +158,14 @@ class JobIdSync(object):
             user_key = eng_type['user_key']
             if user_key.startswith('engagement_type'):
                 user_key = user_key[15:]
-            print('Sync from SD: {}'.format(user_key))  # self.sync_from_sd(user_key)
+            print('Sync from SD: {}'.format(user_key))
+            self.sync_from_sd(user_key)
 
         if self.update_job_functions:
             for job_function in self.job_function_types[0]:
                 user_key = job_function['user_key']
-                print('Sync from SD: {}'.format(user_key))  # self.sync_from_sd(user_key)
+                print('Sync from SD: {}'.format(user_key))
+                self.sync_from_sd(user_key)
         logger.info('Full sync completed')
 
     def sync_manually(self, job_pos_id, title):
