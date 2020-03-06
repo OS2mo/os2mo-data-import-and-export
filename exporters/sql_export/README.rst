@@ -30,6 +30,15 @@ For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
  * ``exporters.actual_state.manager_responsibility_class``: UUID på det lederansvar,
    som angiver at en leder kan nedarve sin lederrolle til enheder dybere i
    organisationen.
+ * ``exporters.actual_state.type``: Typen af database, i øjeblikket understøttes
+   `SQLite` og `MS-SQL`, flere kan tilføjes efter behov. For typen `SQLite` kan
+   brugernavn, password og host være tomme felter.
+ * ``exporters.actual_state.user``:  Brugernavn for sql bruger.
+ * ``exporters.actual_state.password``: Password til sql bruger.
+ * ``exporters.actual_state.db_name``: Navnet på databasen.
+ * ``exporters.actual_state.host``: Hostnavn på SQL-serveren, hvis hostnavn er
+   `SQLite` vil data blive gemt til en lokal fil, og brugernavn og password
+   kan efterlades som tomme felter.
 
 
 .. _Modellering:
