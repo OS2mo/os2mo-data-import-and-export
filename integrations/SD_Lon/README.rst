@@ -225,6 +225,10 @@ Hjælpeværktøjer
 Udover de direkte værktøjer til import og løbende opdateringer, findes et antal
 hjælpeværktøjer:
 
+ * ``test_sd_connectivity``: Et lille værktøj som tester at den lokale
+   ``settings.json`` indeholder de nødvendige nøgler. Desuden tester programmet
+   for en række potentielle fejl, eksempevis om felterne har gyldige værdier
+   og om det er muligt at kotakte SD Løn med de angivne brugeroplysinger.
  * ``calculate_primary.py``: Et værktøj som er i stand til at gennemløbe alle
    ansættelser i MO og afgøre om der for alle medarbejdere til alle tider
    findes et primærengagement. Værktøjet er også i stand til at reparere en
