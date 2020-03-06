@@ -129,8 +129,6 @@ enheder
  * ``leder_uuid``: Reference til primærnøglen for det lederobjet som er leder af
    enheden. Informationen er teknisk set redundant, da den også fremkommer ved et
    join til tabellen ``ledere``, men angives også her som en bekemmelighed.
-   Af implementeringstekniske årsager er dette felt i øjeblikket ikke
-   markeret som en fremmednøgle i databasen.
  * ``fungerende_leder_uuid``: Reference til primærnøglen for nærmeste leder af
    enheden. Hvis enheder har en leder, vil dette være det samme som `leder`. Feltet
    er et afledt felt og findes ikke i rådata, se afsnit om `Modellering`_.
@@ -249,25 +247,25 @@ brugerens brugernavn i det pågældende system. Hvis forbindelsen er til en enhe
 den tolkes i betydningen, at dette IT-system er i anvendelse i den pågældende enhed,
 i dette tilfælde vil der normalt ikke være brugernavn på forbindelsen.
 
- * `uuid`: IT-forbindelsens (org-funk'ens) uuid, primærnøgle for tabellen.
- * `it_system_uuid`: Reference til primærnøglen i tabellen ``it_systemer``
- * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``.  Hvis
+ * ``uuid``: IT-forbindelsens (org-funk'ens) uuid, primærnøgle for tabellen.
+ * ``it_system_uuid``: Reference til primærnøglen i tabellen ``it_systemer``
+ * ``bruger_uuid``: Reference til primærnøglen i tabellen ``brugere``.  Hvis
    it-forbindelsen er på en enhed, vil feltet være blankt.
- * `enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``. 
- * `brugernavn`: Brugerens brugernavn i IT-systemet. Normalt blank for forbindelser
+ * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``. 
+ * ``brugernavn``: Brugerens brugernavn i IT-systemet. Normalt blank for forbindelser
    til enheder.
 
 ledere
 --------
- * `uuid`: Lederrollens (org-funk'ens) uuid, primærnøgle for tabellen.
- * `bruger_uuid`: Reference til primærnøglen i tabellen ``brugere``.
- * `enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``.
- * `ledertype_titel`: Titlen på klassen for ledertypen.
- * `ledertype_uuid`: Klassen for ledertypen, reference til primærnøglen i tabellen
+ * ``uuid``: Lederrollens (org-funk'ens) uuid, primærnøgle for tabellen.
+ * ``bruger_uuid``: Reference til primærnøglen i tabellen ``brugere``.
+ * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``.
+ * ``ledertype_titel``: Titlen på klassen for ledertypen.
+ * ``ledertype_uuid``: Klassen for ledertypen, reference til primærnøglen i tabellen
    ``klasser``.
- * `niveautype_titel`: Titlen på klassen for lederniveau.
- * `niveautype_uuid`: Klassen for lederniveau, reference til primærnøglen i tabellen
-   ``klasser``.
+ * ``niveautype_titel``: Titlen på klassen for lederniveau.
+ * ``niveautype_uuid``: Klassen for lederniveau, reference til primærnøglen i
+   tabellen ``klasser``.
 
 leder_ansvar
 ------------
