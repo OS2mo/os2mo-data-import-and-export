@@ -43,6 +43,9 @@ class SqlExport(object):
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
 
+        self.lc = LoraCache()
+        self.lc.populate_cache()
+        
         db_type = self.settings['exporters.actual_state.type']
         db_name = self.settings['exporters.actual_state.db_name']
         user = self.settings.get('exporters.actual_state.user')
@@ -63,9 +66,6 @@ class SqlExport(object):
         Base.metadata.create_all(self.engine)
         Session = sessionmaker(bind=self.engine, autoflush=False)
         self.session = Session()
-
-        self.lc = LoraCache()
-        self.lc.populate_cache()
 
         self._add_classification()
         self._add_users_and_units()
