@@ -598,6 +598,14 @@ class ChangeAtSD(object):
         response = self.helper._mo_post('details/terminate', payload)
         logger.debug('Terminate response: {}'.format(response.text))
         mora_assert(response)
+
+        self.mo_engagement = self.helper.read_user_engagement(
+            self.mo_person['uuid'],
+            read_all=True,
+            only_primary=True,
+            use_cache=False
+        )
+
         return True
 
     def _edit_engagement_department(self, engagement, mo_eng):
@@ -684,7 +692,10 @@ class ChangeAtSD(object):
 
             # Should this have an end comparison and cut=True?
             # Most likely not, but be aware of the option.
-            validity = self._validity(worktime_info, mo_eng['validity']['to'])
+            print('MO eng: {}'.format(mo_eng))
+            validity = self._validity(worktime_info, mo_eng['validity']['to'],
+                                      cut=True)
+            print('Edit worktime validity: {}'.format(validity))
             # As far as we know, this can only happen for work time
             if validity is None:
                 continue
