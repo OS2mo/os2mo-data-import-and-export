@@ -8,7 +8,11 @@ class TestSdConnectivity(object):
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        try:
+            self.settings = json.loads(cfg_file.read_text())
+        except json.decoder.JSONDecodeError as e:
+            print('Syntax error in settings file: {}'.format(e))
+            exit(1)
 
     def _check_existens_of_keys(self):
         print('Check for tilstedeværlse af konfigurationsøgler')
@@ -35,7 +39,8 @@ class TestSdConnectivity(object):
 
         nice_to_have_keys = [
             'integrations.SD_Lon.employment_field',
-            'integrations.SD_Lon.import.manager_file'
+            'integrations.SD_Lon.import.manager_file',
+            'integrations.SD_Lon.skip_employment_types'
         ]
         wanted_keys = []
         for key in nice_to_have_keys:
@@ -85,6 +90,20 @@ class TestSdConnectivity(object):
             else:
                 print(' * Specificeret lederfil skal være en csv-fil')
                 exit(1)
+
+        skip_job_functions = self.settings.get(
+            'integrations.SD_Lon.skip_employment_types')
+        if skip_job_functions is not None:
+            if not isinstance(skip_job_functions, list):
+                print('skip_employment_types skal være en liste')
+                exit(1)
+            for job_function in skip_job_functions:
+                try:
+                    int(job_function)
+                except ValueError:
+                    print('All elementer i skip_employment_types skal være tal')
+                    exit(1)
+            print(' * skip_employment_types er korrekt')
 
         # TODO:
         # Tjek at run_db stien er korrekt.
