@@ -26,9 +26,17 @@ af SD Løn. De påkrævede felter er:
  * ``integrations.SD_Lon.monthly_hourly_divide``: Skilleværdi for måneds/timelønnede.
  * ``integrations.SD_Lon.job_function``: Feltet kan have en af to vædier:
    `EmploymentName` eller `JobPositionIdentifier`, se yderligere nedenfor.
+
+Desuden kan disse ikke-påkrævede felter angives:
+
  * ``integrations.SD_Lon.employment_field``: Angiver et af MOs ekstrafelter på
    engagementer, hvis feltet angives vil integrationen skrive værdien af
    `EmploymentName` i dette felt.
+ * ``integrations.SD_Lon.skip_employment_types``: En liste over værdier af
+   `JobPositionIdentifier` som ikke skal importeres. Hvis et engagement har
+   en type fra listen, vil engagementet bliver ignorere og ikke importeret i MO.
+   Den tilhørende bruger vil dog blive oprettet, men vil optræde uden engagementer
+   (med mindre personen har andre engagementer i kommunen).
 
 Hvis ``integrations.SD_Lon.job_function`` har værdien `EmploymentName` vil
 ansættelsers stillingsbetegnelser bliver taget fra SDs felt af samme navn, som

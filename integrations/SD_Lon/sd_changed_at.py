@@ -70,6 +70,9 @@ class ChangeAtSD(object):
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
 
+        # List of job_functions that should be ignored.
+        self.skip_job_functions = self.settings.get('skip_job_functions', [])
+
         use_ad = SETTINGS.get('integrations.SD_Lon.use_ad_integration', True)
         if use_ad:
             logger.info('AD integration in use')
@@ -486,6 +489,12 @@ class ChangeAtSD(object):
         AD integration handled in check for primary engagement.
         """
         user_key, engagement_info = self.engagement_components(engagement)
+
+        job_position = engagement_info['professions'][0]['JobPositionIdentifier']
+        if job_position in self.skip_job_functions:
+            logger.info('Skipping {} due to job_pos_id'.format(engagement))
+            return None
+
         validity = self._validity(status)
         also_edit = False
         if (
@@ -504,9 +513,6 @@ class ChangeAtSD(object):
             msg = 'No unit for engagement {}'.format(user_key)
             logger.error(msg)
             raise Exception(msg)
-
-        # JobPositionIdentifier is supposedly always returned
-        job_position = engagement_info['professions'][0]['JobPositionIdentifier']
 
         try:
             emp_name = engagement_info['professions'][0]['EmploymentName']

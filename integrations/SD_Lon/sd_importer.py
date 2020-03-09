@@ -67,6 +67,9 @@ class SdImport(object):
         )
 
         self.import_date = import_date_from.strftime('%d.%m.%Y')
+        # List of job_functions that should be ignored.
+        self.skip_job_functions = self.settings.get(
+            'integrations.SD_Lon.skip_employment_types', [])
 
         self.ad_people = {}
         self.employee_forced_uuids = employee_mapping
@@ -86,7 +89,8 @@ class SdImport(object):
             self.add_people()
 
         self.info = self._read_department_info()
-        for level in [('manager_1040', 'Leder'), ('manager_1035', 'Chef'), ('manager_1030', 'Direktør')]:
+        for level in [('manager_1040', 'Leder'), ('manager_1035', 'Chef'),
+                      ('manager_1030', 'Direktør')]:
             self._add_klasse(level[0], level[1], 'manager_level')
 
         if self.manager_rows is None:
@@ -486,6 +490,11 @@ class SdImport(object):
             max_rate = -1
             min_id = 999999
             for employment in employments:
+                job_position_id = employment['Profession']['JobPositionIdentifier']
+                if job_position_id in self.skip_job_functions:
+                    logger.info('Skipping {} due to job_pos_id'.format(employment))
+                    continue
+
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
                 if status == '3':
                     # Orlov
@@ -512,6 +521,8 @@ class SdImport(object):
                 # Job_position_id: Klassificeret liste over stillingstyper.
                 # job_name: Fritiksfelt med stillingsbetegnelser.
                 job_position_id = employment['Profession']['JobPositionIdentifier']
+                if job_position_id in self.skip_job_functions:
+                    continue
                 job_name = employment['Profession'].get(
                     'EmploymentName', job_position_id)
 
