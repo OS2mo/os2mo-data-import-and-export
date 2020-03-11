@@ -8,7 +8,7 @@ Denne eksport laver et dags-dato udtræk af MO og afleverer det i en SQL databas
 
 For at opnå den nødvendige afviklingshastighed, tilgår eksporten data direkte fra
 LoRa hvor det er muligt at lave bulk udtræk, baseret på den kendte datamodel for
-OS2MO behandles de udtrukne data så SQL eksporten for et udseende som svarer til
+OS2MO behandles de udtrukne data så SQL eksporten får et udseende som svarer til
 det man finder i MO.
 
 Tabellerne er for den praktiske anvendeligheds skyld ikke 100% normaliserede, der
@@ -19,7 +19,7 @@ skulle foretage et join mod tabellen ``klasser`` for alle opslag.
 Implementerigen er foretaget ved hjælp af værktøjet SQLAlchemy, som sikrer at
 det er muligt at aflevere data til en lang række forskellige databasesystemer,
 det er desuden muligt at køre hele eksporten mod en flad SQLite fil som muliggør
-eksporting helt uden en kørende databaseserver. 
+eksportering helt uden en kørende databaseserver.
 
 Konfiguration
 =============
@@ -36,9 +36,7 @@ For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
  * ``exporters.actual_state.user``:  Brugernavn for sql bruger.
  * ``exporters.actual_state.password``: Password til sql bruger.
  * ``exporters.actual_state.db_name``: Navnet på databasen.
- * ``exporters.actual_state.host``: Hostnavn på SQL-serveren, hvis hostnavn er
-   `SQLite` vil data blive gemt til en lokal fil, og brugernavn og password
-   kan efterlades som tomme felter.
+ * ``exporters.actual_state.host``: Hostnavn på SQL-serveren.
 
 
 .. _Modellering:
@@ -60,10 +58,10 @@ der er dog nogle få undtagelser, hvor værdierne er fremkommet algoritmisk:
    en leder med passende lederansvar. Dette felt indeholder resultatet af denne
    algoritme.
  * ``adresser.værdi``: For alle adressetyper, undtaget DAR adresser, er dette
-   felt taget direkte fra rådata. I for DAR-adresser, er rådata en UUID og ikke en
+   felt taget direkte fra rådata. For DAR-adresser, er rådata en UUID og ikke en
    tekststreng, i dette tilfælde indeholder dette felt resultatet af et opsalg mod
    DAR, og den egentlige rådata (UUID'en) befinder sig i feltet ``dar_uuid``.
- * ``engagementer.primærboolean``: Beregnes ved at iterere hen over elle engagementer
+ * ``engagementer.primærboolean``: Beregnes ved at iterere hen over alle engagementer
    for en bruger, det engagement som har det højeste `scope` på sin primærklasse
    vil blive markeret som primær, alle andre vil blive markeret som ikke-primært.
 
@@ -105,12 +103,14 @@ klasser
  * ``facet_uuid``: Reference til primærnøglen i tabellen ``facetter``.
  * ``facet_bvn``: Den brugervendte nøgle som knytter sig til klassens facet.
 
+
 brugere
 --------
  * ``uuid``: Brugerens uuid, primærnøgle for tabellen.
  * ``fornavn``: Brugerens fornavn.
  * ``efternavn``:  Brugerens efternavn.
  * ``cpr``:  Brugerens cpr-nummer.
+
 
 enheder
 --------
@@ -132,9 +132,8 @@ enheder
  * ``fungerende_leder_uuid``: Reference til primærnøglen for nærmeste leder af
    enheden. Hvis enheder har en leder, vil dette være det samme som `leder`. Feltet
    er et afledt felt og findes ikke i rådata, se afsnit om `Modellering`_.
- * ``# start_date``: # TODO
 
-    
+
 adresser
 --------
 
@@ -157,7 +156,7 @@ Adresser er i MO organisationfunktioner med funktionsnavnet ``Adresse``.
  * ``synlighed_uuid``: Synlighedstype, reference til primærnøglen i tabellen
    ``klasser``.
  * ``synlighed_titel``: Titlen på synlighedstypens klasse.
- * ``# start_date``: # TODO
+
 
 engagementer
 --------
@@ -169,7 +168,8 @@ Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``.
  * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``. 
  * ``bvn``: Engagementets brugervendte nøgle. Dette vil i de fleste tilfælde
    være ansættelsesnummeret i lønsystemet.
- * ``arbejdstidsfraktion``: # TODO
+ * ``arbejdstidsfraktion``: Angiver den registrerede arbejdstidsfraktion for
+   engagementet.
  * ``engagementstype_uuid``: Engagementstypen, reference til primærnøglen i tabellen
    ``klasser``.
  * ``engagementstype_titel``: Titlen på engagementstypeklassen.
@@ -184,8 +184,7 @@ Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``.
  * ``udvidelse_1``: Første af 10 fritekstfelter på MOs engagementer
  * ....
  * ``udvidelse_10``: Sidste af 10 fritekstfelter på MOs engagementer
- * ``# start_date``:,
- * ``# end_date``:
+
 
 roller
 --------
@@ -198,9 +197,8 @@ Roller er i MO organisationfunktioner med funktionsnavnet ``Rolle``.
  * ``rolletype_uuid``: Rolletypen, reference til primærnøglen i tabellen
    ``klasser``.
  * ``rolletype_titel``: Titlen på klassen for rolletypen.
- * ``# start_date``:, # TODO
- * ``# end_date``: # TODO
 
+   
 tilknytninger
 --------
 
@@ -213,8 +211,6 @@ Tilknytninger er i MO organisationfunktioner med funktionsnavnet ``Tilknytning``
  * ``tilknytningstype_uuid``: Tilknytningstypen, reference til primærnøglen i tabellen
    ``klasser``.
  * ``tilknytningstype_text``: Titlen på klassen for tilknytningstypen.
- * ``# start_date``:, # TODO
- * ``# end_date``: # TODO
 
 
 orlover
@@ -228,8 +224,6 @@ Orlover er i MO organisationfunktioner med funktionsnavnet ``Orlov``.
  * ``orlovstype_text``: Titlen på klasse for orlovstypen.
  * ``orlovstype_uuid``: Orlovstypen, reference til primærnøglen i tabellen
    ``klasser``.
- * ``# start_date``: # TODO
- * ``# end_date``: # TODO
 
 it_systemer
 --------
