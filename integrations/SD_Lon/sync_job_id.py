@@ -109,10 +109,10 @@ class JobIdSync(object):
             'JobPositionIdentifier': job_pos_id,
         }
         job_pos_response = sd_lookup('GetProfession20080201', params)
-        if 'Profession' in job_pos_response:
+        job_pos = None
+        while 'Profession' in job_pos_response:
             job_pos = job_pos_response['Profession']['JobPositionName']
-        else:
-            job_pos = None
+            job_pos_response = job_pos_response['Profession']
         logger.info('Found {}'.format(job_pos_id))
         return job_pos
 
