@@ -83,7 +83,23 @@ def test_full_ad_read():
         'å': False,
         '@': False
     }
+    # Run through a set of users and test encoding and cpr-separator.
     for user in ad_reader.results.values():
+        cpr = user[SETTINGS['integrations.ad.cpr_field']]
+        separator = SETTINGS['integrations.ad.cpr_separator']
+
+        cpr_ok = False
+        if separator == '' and len(cpr) == 10:
+            cpr_ok = True
+        if cpr.count(separator) == 1 and len(cpr) == 11:
+            cpr_ok = True
+        if not cpr.replace(separator, '').isdigit():
+            cpr_ok = False
+        if not cpr_ok:
+            msg = 'CPR-is not valid according to settings: {}, cpr-length: {}'
+            print(msg.format(user['Name'], len(cpr)))
+            return False
+
         for value in user.values():
             for char in test_chars.keys():
                 if str(value).find(char) > -1:

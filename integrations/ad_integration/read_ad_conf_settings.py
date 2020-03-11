@@ -39,7 +39,7 @@ def _read_primary_ad_settings():
 
     missing = []
     for key, val in primary_settings.items():
-        if not val:
+        if val is None:
             missing.append(key)
     if missing:
         msg = 'Missing values for {}'.format(missing)
