@@ -46,6 +46,9 @@ Standard AD
  * ``integrations.ad.search_base``: Search base, eksempelvis
    'OU=enheder,DC=kommune,DC=local'
  * ``integrations.ad.cpr_field``: Navnet på feltet i AD som indeholder cpr nummer.
+ * ``integrations.ad.cpr_separator``: Angiver en eventuel separator mellem
+   fødselsdato og løbenumre i cpr-feltet i AD. Hvis der ikke er en separator,
+   angives en tom streng.
  * ``integrations.ad.system_user``: Navnet på den systembruger som har rettighed til
    at læse fra AD.
  * ``integrations.ad.password``: Password til samme systembruger.

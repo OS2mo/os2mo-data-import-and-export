@@ -92,8 +92,15 @@ class ADWriter(AD):
             other_attributes_fields.append(
                 (write_settings['uuid_field'], mo_values['uuid'])
             )
+            # If local settings dictates a separator, we add it directly to the
+            # power-shell code.
+            ad_cpr = '{}{}{}'.format(
+                mo_values['cpr'][0:6],
+                self.settings['integrations.ad.cpr_separator'],
+                mo_values['cpr'][6:10]
+            )
             other_attributes_fields.append(
-                (write_settings['cpr_field'], mo_values['cpr'])
+                (write_settings['cpr_field'], ad_cpr)
             )
 
         for field in other_attributes_fields:
@@ -231,7 +238,7 @@ class ADWriter(AD):
             current_type = current_unit['org_unit_type']
             current_level = current_unit['org_unit_level']
             if current_level is None:
-                current_level =  {'uuid': None}
+                current_level = {'uuid': None}
             if self.settings['integrations.ad.write.level2orgunit_type'] in (
                     current_type['uuid'],
                     current_level['uuid']

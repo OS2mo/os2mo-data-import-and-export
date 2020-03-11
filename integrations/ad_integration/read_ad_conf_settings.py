@@ -32,6 +32,7 @@ def _read_primary_ad_settings():
     primary_settings = {}
     primary_settings['search_base'] = SETTINGS.get('integrations.ad.search_base')
     primary_settings['cpr_field'] = SETTINGS.get('integrations.ad.cpr_field')
+    primary_settings['cpr_separator'] = SETTINGS.get('integrations.ad.cpr_separator')
     primary_settings['system_user'] = SETTINGS.get('integrations.ad.system_user')
     primary_settings['password'] = SETTINGS.get('integrations.ad.password')
     primary_settings['properties'] = SETTINGS.get('integrations.ad.properties')
