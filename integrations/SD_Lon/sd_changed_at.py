@@ -690,13 +690,8 @@ class ChangeAtSD(object):
         for worktime_info in engagement_info['working_time']:
             logger.info('Change working time of engagement {}'.format(job_id))
 
-            # Should this have an end comparison and cut=True?
-            # Most likely not, but be aware of the option.
-            print('MO eng: {}'.format(mo_eng))
             validity = self._validity(worktime_info, mo_eng['validity']['to'],
                                       cut=True)
-            print('Edit worktime validity: {}'.format(validity))
-            # As far as we know, this can only happen for work time
             if validity is None:
                 continue
 
