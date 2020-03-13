@@ -36,3 +36,4 @@ emus_filename.xml
 
 # customer settings
 settings
+exporters/test.py
