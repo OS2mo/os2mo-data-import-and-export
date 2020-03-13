@@ -1,6 +1,8 @@
 #!/bin/bash
-set +x
-export DIPEXAR=${DIPEXAR:=$(cd $(dirname $0); pwd )/..}
+[ "${BASH_SOURCE[0]}" == "${0}" ] && JOB_RUNNER_MODE=running || JOB_RUNNER_MODE=sourced
+[ "${JOB_RUNNER_MODE}" == "running" ] && set +x
+export JOB_RUNNER_MODE
+export DIPEXAR=${DIPEXAR:=$(realpath -L $(dirname $(realpath -L "${BASH_SOURCE}"))/..)}
 export CUSTOMER_SETTINGS=${CUSTOMER_SETTINGS:=${DIPEXAR}/settings/settings.json}
 export SETTINGS_FILE=$(basename ${CUSTOMER_SETTINGS})
 export BACKUP_MAX_SECONDS_AGE=${BACKUP_MAX_SECONDS_AGE:=60}
@@ -447,6 +449,7 @@ pre_backup(){
     if [[ ${age} -gt ${BACKUP_MAX_SECONDS_AGE} ]]; then
         BACKUP_OK=false 
         echo "ERROR database snapshot is more than ${BACKUP_MAX_SECONDS_AGE} seconds old: $age"
+	return 1
     fi
 }
 
@@ -516,7 +519,7 @@ show_status(){
     echo
 }
 
-if [ "$#" == "0" ]; then
+if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
     (
         if [ ! -d "${VENV}" ]; then
             echo "FATAL: python env not found"
@@ -582,7 +585,12 @@ if [ "$#" == "0" ]; then
     cat ${CRON_LOG_FILE}_status
     cat ${CRON_LOG_FILE}
      
-elif [ -n "$(grep $1\(\) $0)" ]; then
-    echo running single job function
-    $1
+elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
+    if [ -n "$(grep $1\(\) $0)" ]; then
+        echo running single job function
+        $1
+    fi
+elif [ "${JOB_RUNNER_MODE}" == "sourced" ]; then
+    # export essential functions
+    export -f pre_backup post_backup reports_opus_db_overview reports_sd_db_overview
 fi
