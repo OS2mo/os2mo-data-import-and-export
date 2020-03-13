@@ -4,6 +4,7 @@ import argparse
 
 from os2mo_data_import import ImportHelper
 
+from integrations.ad_integration import ad_reader
 from integrations.opus.opus_helpers import start_opus_diff
 from integrations.opus.opus_helpers import start_opus_import
 from integrations.opus.opus_exceptions import RunDBInitException
@@ -19,10 +20,11 @@ if not cfg_file.is_file():
     raise Exception('No setting file')
 SETTINGS = json.loads(cfg_file.read_text())
 
+ad_reader = ad_reader.ADParameterReader()
 
 if args['update']:
     try:
-        start_opus_diff(ad_reader=None)
+        start_opus_diff(ad_reader=ad_reader)
     except RunDBInitException:
         print('RunDB not initialized')
 
@@ -38,6 +40,6 @@ if args['import']:
     )
 
     try:
-        start_opus_import(importer, ad_reader=None, force=True)
+        start_opus_import(importer, ad_reader=ad_reader, force=True)
     except RunDBInitException:
         print('RunDB not initialized')

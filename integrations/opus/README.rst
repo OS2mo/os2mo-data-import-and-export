@@ -119,13 +119,25 @@ en gyldig konfiguration i ``settings.json``. De påkrævede nøgler er:
    af integrationen. Hvis integrationen skal køre som mere end et engangsimport har
    denne fil en vigtig betydning.
  * ``municipality.name``: Navnet på kommunen.
+ * ``crontab.SAML_TOKEN``: saml token til forbindelse til OS2MO
 
 Til at hjælpe med afviklingen af importen, findes en hjælpefunktion i
 ``opus_helpers.py`` som afvikler selve importen og initialiserer databasen i
 ``opus.import.run_db`` korrekt. Dette modul forventer at finde en cpr-mapning og
-vil fejle hvis ikke filen ``settings/cpr_uuid_map.csv`` eksisterer. Hvis den
-nuværende import er den første, findes der ikke nogen mapning, og der må oprettes
-en tom fil.
+vil fejle hvis ikke filen ``settings/cpr_uuid_map.csv`` eksisterer.
+
+Førstegangsimport (initialindlæsning)
+-------------------------------------
+
+Hvis den nuværende import er den første, findes der i reglen ikke nogen mapning,
+og der må så oprettes en tom fil i dens sted (``settings/cpr_uuid_map.csv``)
+
+før kaldet af initialindlæsning skal SAML_TOKEN være defineret i environment. Det
+kan man få igennem at source (dotte) tools/prefixed_settings.sh når man, som det
+sig hør og bør, er placeret i roden af directoriet os2mo-data-import-and-export.
+
+Ligeledes må databasen, som er defineret i ``opus.import.run_db`` ikke findes
+og lora-databasen skal være tom.
    
 Løbende opdatering af Opus data i MO
 ====================================
