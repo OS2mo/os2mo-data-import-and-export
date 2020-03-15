@@ -105,10 +105,6 @@ class TestSdConnectivity(object):
                     exit(1)
             print(' * skip_employment_types er korrekt')
 
-        # TODO:
-        # Tjek at run_db stien er korrekt.
-        print()
-
     def _check_contact_to_sd(self):
         print('Tjekker at vi har kontakt til SD:')
         from integrations.SD_Lon.sd_common import sd_lookup
