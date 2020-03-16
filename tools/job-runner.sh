@@ -167,6 +167,16 @@ exports_mox_rollekatalog(){
     ${VENV}/bin/python3 exporters/os2rollekatalog/os2rollekatalog_integration.py
 }
 
+exports_os2sync(){
+    set -e
+    BACK_UP_AND_TRUNCATE+=($(
+        SETTING_PREFIX="os2sync" source ${DIPEXAR}/tools/prefixed_settings.sh
+        echo ${log_file}
+    ))
+    echo running exports_os2sync
+    ${VENV}/bin/python3 -m integrations.os2sync
+}
+
 exports_mox_stsorgsync(){
     set -e
     MOX_ERR_CODE=0
@@ -366,6 +376,10 @@ exports(){
     [ "${IMPORTS_OK}" == "false" ] \
         && echo ERROR: imports are in error - skipping exports \
         && return 1 # exports depend on imports
+
+    if [ "${RUN_OS2SYNC}" == "true" ]; then
+        exports_os2sync || return 2
+    fi
 
     if [ "${RUN_MOX_STS_ORGSYNC}" == "true" ]; then
         exports_mox_stsorgsync || return 2

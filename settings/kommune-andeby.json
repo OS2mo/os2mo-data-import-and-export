@@ -26,6 +26,8 @@
     "mox.base": "http://example.com/mox",
     "mora.base": "http://example.com/mora",
     "mora.folder.query_export":"path-to-where-os2mo-reads-csv-files",
+    "municipality.name": "Andeby Kommune",
+    "municipality.cvr": "11223344",
     "address.visibility.secret": "uuid-for-secret-address",
     "address.visibility.internal": "uuid-for-internal-address",
     "address.visibility.public": "uuid-for-public-address",
@@ -116,4 +118,15 @@
     "exporters.os2rollekatalog.rollekatalog_api_token": "",
     "exporters.os2rollekatalog.ad_system_name": "",
     "exporters.os2rollekatalog.main_root_org_unit": ""
+
+    "#os2sync.settings": "after mox-stsorgsync has been moved into integrations",
+    "os2sync.log_file": "/home/system-account/CRON/mox_stsorgsync.log",
+    "os2sync.log_level": 10,
+    "os2sync.ca_verify_os2mo": true,
+    "os2sync.ca_verify_os2sync": true,
+    "os2sync.hash_cache": "/home/system-account/CRON/os2sync_hash_cache",
+    "os2sync.phone_scope_classes": [],
+    "os2sync.email_scope_classes": [],
+    "os2sync.api_url" : "/url-to-os2sync-api",
+    "os2sync.top_unit_uuid": "uuid for administrative org top unit in os2mo"
 }
