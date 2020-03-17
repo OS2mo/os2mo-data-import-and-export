@@ -17,7 +17,7 @@ from integrations.SD_Lon.sd_common import generate_uuid
 from integrations.SD_Lon.sd_common import calc_employment_id
 
 LOG_LEVEL = logging.DEBUG
-LOG_FILE = 'mo_integrations.log'
+LOG_FILE = 'mo_initial_import.log'
 
 logger = logging.getLogger('sdImport')
 
@@ -39,8 +39,6 @@ class SdImport(object):
     def __init__(self, importer, ad_info=None, org_only=False, org_id_prefix=None,
                  manager_rows=[], super_unit=None, employee_mapping={}):
 
-        # TODO: Soon we have done this 4 times. Should we make a small settings
-        # importer, that will also handle datatype for specicic keys?
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')
@@ -69,6 +67,9 @@ class SdImport(object):
         )
 
         self.import_date = import_date_from.strftime('%d.%m.%Y')
+        # List of job_functions that should be ignored.
+        self.skip_job_functions = self.settings.get(
+            'integrations.SD_Lon.skip_employment_types', [])
 
         self.ad_people = {}
         self.employee_forced_uuids = employee_mapping
@@ -88,7 +89,8 @@ class SdImport(object):
             self.add_people()
 
         self.info = self._read_department_info()
-        for level in [(1040, 'Leder'), (1035, 'Chef'), (1030, 'Direktør')]:
+        for level in [('manager_1040', 'Leder'), ('manager_1035', 'Chef'),
+                      ('manager_1030', 'Direktør')]:
             self._add_klasse(level[0], level[1], 'manager_level')
 
         if self.manager_rows is None:
@@ -97,7 +99,6 @@ class SdImport(object):
             for row in self.manager_rows:
                 resp = row.get('ansvar')
                 self._add_klasse(resp, resp, 'responsibility')
-                print(resp)
 
         self._add_klasse('leder_type', 'Leder', 'manager_type')
 
@@ -233,7 +234,8 @@ class SdImport(object):
             if self._check_subtree(department, sub_tree):
                 import_unit = True
 
-            parent_uuid = department['DepartmentReference']['DepartmentUUIDIdentifier']
+            parent_uuid = department[
+                'DepartmentReference']['DepartmentUUIDIdentifier']
             if self.org_id_prefix:
                 parent_uuid = self._generate_uuid(parent_uuid, self.org_id_prefix)
         else:
@@ -429,7 +431,7 @@ class SdImport(object):
                 name='Forældreløse enheder',
                 user_key='OrphanUnits',
                 type_ref='Orphan',
-                date_from='1900-01-01',
+                date_from='1930-01-01',
                 date_to=None,
                 parent_ref=None
             )
@@ -488,6 +490,11 @@ class SdImport(object):
             max_rate = -1
             min_id = 999999
             for employment in employments:
+                job_position_id = employment['Profession']['JobPositionIdentifier']
+                if job_position_id in self.skip_job_functions:
+                    logger.info('Skipping {} due to job_pos_id'.format(employment))
+                    continue
+
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
                 if status == '3':
                     # Orlov
@@ -497,11 +504,8 @@ class SdImport(object):
                     continue
 
                 employment_id = calc_employment_id(employment)
-                occupation_rate = float(employment['WorkingTime']
-                                        ['OccupationRate'])
-
-                # if occupation_rate == 0:
-                # continue
+                occupation_rate = float(
+                    employment['WorkingTime']['OccupationRate'])
 
                 if occupation_rate == max_rate:
                     if employment_id['value'] < min_id:
@@ -513,30 +517,31 @@ class SdImport(object):
             exactly_one_primary = False
             for employment in employments:
                 status = employment['EmploymentStatus']['EmploymentStatusCode']
-                # Find a valid job_function name, this might be overwritten from
-                # AD, if an AD value is available for this employment
-                job_id = int(employment['Profession']['JobPositionIdentifier'])
-                try:
-                    job_func = employment['Profession']['EmploymentName']
-                except KeyError:
-                    job_func = employment['Profession']['JobPositionIdentifier']
 
-                occupation_rate = float(employment['WorkingTime']
-                                        ['OccupationRate'])
+                # Job_position_id: Klassificeret liste over stillingstyper.
+                # job_name: Fritiksfelt med stillingsbetegnelser.
+                job_position_id = employment['Profession']['JobPositionIdentifier']
+                if job_position_id in self.skip_job_functions:
+                    continue
+                job_name = employment['Profession'].get(
+                    'EmploymentName', job_position_id)
+
+                occupation_rate = float(
+                    employment['WorkingTime']['OccupationRate'])
 
                 employment_id = calc_employment_id(employment)
 
-                employment['Profession']['JobPositionIdentifier']
                 split = self.settings['integrations.SD_Lon.monthly_hourly_divide']
                 if employment_id['value'] < split:
                     engagement_type_ref = 'månedsløn'
                 elif (split - 1) < employment_id['value'] < 999999:
                     engagement_type_ref = 'timeløn'
                 else:  # This happens if EmploymentID is not a number
-                    s_job_id = str(job_id)
-                    self._add_klasse(s_job_id, s_job_id, 'engagement_type')
-                    engagement_type_ref = s_job_id
-                    logger.info('Non-nummeric id. Job pos id: {}'.format(s_job_id))
+                    engagement_type_ref = 'engagement_type' + job_position_id
+                    self._add_klasse(
+                        engagement_type_ref, job_position_id, 'engagement_type')
+                    logger.info(
+                        'Non-nummeric id. Job pos id: {}'.format(job_position_id))
 
                 if occupation_rate == max_rate and employment_id['value'] == min_id:
                     assert(exactly_one_primary is False)
@@ -548,9 +553,16 @@ class SdImport(object):
                 if status == '0':  # If status 0, uncondtionally override
                     primary_type_ref = 'status0'
 
-                job_func_ref = self._add_klasse(job_func,
-                                                job_func,
-                                                'engagement_job_function')
+                job_function_type = self.settings['integrations.SD_Lon.job_function']
+                if job_function_type == 'EmploymentName':
+                    job_func_ref = self._add_klasse(
+                        job_name, job_name, 'engagement_job_function')
+                elif job_function_type == 'JobPositionIdentifier':
+                    job_func_ref = self._add_klasse(
+                        job_position_id, job_position_id, 'engagement_job_function')
+                else:
+                    raise Exception('integrations.SD_Lon.job_function is wrong')
+
                 emp_dep = employment['EmploymentDepartment']
                 unit = emp_dep['DepartmentUUIDIdentifier']
 
@@ -603,7 +615,13 @@ class SdImport(object):
                     #                                 self.org_id_prefix,
                     #                                 self.org_name)
 
-                    # We explicitly do not want identical uuids for engagements
+                    ext_field = self.settings.get(
+                        'integrations.SD_Lon.employment_field')
+                    if ext_field is not None:
+                        extention = {ext_field: job_name}
+                    else:
+                        extention = {}
+
                     self.importer.add_engagement(
                         employee=cpr,
                         # uuid=engagement_uuid,
@@ -614,7 +632,8 @@ class SdImport(object):
                         primary_ref=primary_type_ref,
                         engagement_type_ref=engagement_type_ref,
                         date_from=date_from,
-                        date_to=date_to
+                        date_to=date_to,
+                        **extention
                     )
                     # Remove this to remove any sign of the employee from the
                     # lowest levels of the org
@@ -641,11 +660,11 @@ class SdImport(object):
                 if not self.manager_rows:
                     # These job functions will normally (but necessarily)
                     #  correlate to a manager position
-                    if job_id in [1040, 1035, 1030]:
+                    if job_position_id in ['1040', '1035', '1030']:
                         self.importer.add_manager(
                             employee=cpr,
                             organisation_unit=unit,
-                            manager_level_ref=job_id,
+                            manager_level_ref='manager_' + job_position_id,
                             address_uuid=None,  # Manager address is not used
                             manager_type_ref='leder_type',
                             responsibility_list=['Lederansvar'],
@@ -659,10 +678,10 @@ class SdImport(object):
                         if 'uuid' not in row:
                             logger.warning('NO UNIT: {}'.format(row['afdeling']))
                             continue
-                        if job_id in [1040, 1035, 1030]:
-                            manager_level = job_id
+                        if job_position_id in ['1040', '1035', '1030']:
+                            manager_level = 'manager_' + job_position_id
                         else:
-                            manager_level = 1040
+                            manager_level = 'manager_1040'
 
                         logger.info(
                             'Manager {} to {}'.format(cpr, row['afdeling'])
@@ -674,7 +693,7 @@ class SdImport(object):
                             manager_level_ref=manager_level,
                             manager_type_ref='leder_type',
                             responsibility_list=[row['ansvar']],
-                            date_from='1900-01-01',
+                            date_from='1930-01-01',
                             date_to=None
                         )
 

@@ -125,7 +125,7 @@ class FixDepartments(object):
     def fix_department_at_single_date(self, unit_uuid, validity_date):
         """
         Synchronize the state of a MO unit to the current state in SD.
-        The updated validity of the MO unit will extend from 1900-01-01 to infinity
+        The updated validity of the MO unit will extend from 1930-01-01 to infinity
         and any existing validities will be overwritten.
         :param unit_uuid: uuid of the unit to be updated.
         :param validity_date: The validity date to read the departent info from SD.
@@ -162,7 +162,7 @@ class FixDepartments(object):
 
         # SD has a challenge with the internal validity-consistency, extend
         # validity indefinitely
-        from_date = '1900-01-01'
+        from_date = '1930-01-01'
         msg = 'Unit parent at {} is {}'
         print(msg.format(from_date, parent))
         logger.info(msg.format(from_date, parent))
@@ -441,7 +441,7 @@ class FixDepartments(object):
         Run through all units up to the top of the tree and synchroize the state of
         MO to the state of SD. This includes reanming of MO units, moving MO units
         and creating units that currently does not exist in MO. The updated validity
-        of the MO units will extend from 1900-01-01 to infinity and any existing
+        of the MO units will extend from 1930-01-01 to infinity and any existing
         validities will be overwritten.
         :param leaf_uuid: The starting point of the fix, this does not stictly need
         to be a leaf node.

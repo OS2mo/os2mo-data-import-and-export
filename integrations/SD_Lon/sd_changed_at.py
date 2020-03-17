@@ -11,6 +11,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration import ad_reader
 from integrations.SD_Lon.sd_common import sd_lookup
 # from integrations.SD_Lon.sd_common import generate_uuid
+from integrations.SD_Lon import exceptions
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import calc_employment_id
@@ -32,11 +33,9 @@ for name in logging.root.manager.loggerDict:
         logging.getLogger(name).setLevel(logging.ERROR)
 
 
-# TODO: Soon we have done this 4 times. Should we make a small settings
-# importer, that will also handle datatype for specicic keys?
 cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
 if not cfg_file.is_file():
-    raise Exception('No setting file')
+    raise Exception('No settings file')
 # TODO: This must be clean up, settings should be loaded by __init__
 # and no references should be needed in global scope.
 SETTINGS = json.loads(cfg_file.read_text())
@@ -49,6 +48,17 @@ class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):
         self.settings = SETTINGS
 
+        if self.settings[
+                'integrations.SD_Lon.job_function'] == 'JobPositionIdentifier':
+            logger.info('Read settings. JobPositionIdentifier for job_functions')
+            self.use_jpi = True
+        elif self.settings[
+                'integrations.SD_Lon.job_function'] == 'EmploymentName':
+            logger.info('Read settings. Do not update job_functions')
+            self.use_jpi = False
+        else:
+            raise exceptions.JobfunctionSettingsIsWrongException()
+
         cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
         if not cpr_map.is_file():
             logger.error('Did not find cpr mapping')
@@ -59,6 +69,9 @@ class ChangeAtSD(object):
         self.department_fixer = FixDepartments()
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
+
+        # List of job_functions that should be ignored.
+        self.skip_job_functions = self.settings.get('skip_job_functions', [])
 
         use_ad = SETTINGS.get('integrations.SD_Lon.use_ad_integration', True)
         if use_ad:
@@ -97,14 +110,18 @@ class ChangeAtSD(object):
         self.job_function_facet = facet_info[1]
         self.job_functions = {}
         for job in job_functions:
-            self.job_functions[job['name']] = job['uuid']
+            if self.use_jpi:
+                self.job_functions[job['user_key']] = job['uuid']
+            else:
+                self.job_functions[job['name']] = job['uuid']
 
         logger.info('Read engagement types')
         # The Opus diff-import contains a slightly more abstrac def to do this
         engagement_types = self.helper.read_classes_in_facet('engagement_type')
         self.engagement_types = {}
         for engagement_type in engagement_types[0]:
-            self.engagement_types[engagement_type['user_key']] = engagement_type['uuid']
+            self.engagement_types[
+                engagement_type['user_key']] = engagement_type['uuid']
 
         logger.info('Read leave types')
         facet_info = self.helper.read_classes_in_facet('leave_type')
@@ -113,6 +130,13 @@ class ChangeAtSD(object):
         self.association_uuid = facet_info[0][0]['uuid']
 
     def _add_profession_to_lora(self, profession):
+        """
+        Add a new job_function type to LoRa. This does not depend on self.use_jpi,
+        since the argument is just af string. If self.use_jpi is true, the string
+        will be the SD JobPositionIdentifier, otherwise it will be the actual job
+        name.
+        :param prefession: The job_position to be created.
+        """
         payload = sd_payloads.profession(profession, self.org_uuid,
                                          self.job_function_facet)
         response = requests.post(
@@ -465,6 +489,12 @@ class ChangeAtSD(object):
         AD integration handled in check for primary engagement.
         """
         user_key, engagement_info = self.engagement_components(engagement)
+
+        job_position = engagement_info['professions'][0]['JobPositionIdentifier']
+        if job_position in self.skip_job_functions:
+            logger.info('Skipping {} due to job_pos_id'.format(engagement))
+            return None
+
         validity = self._validity(status)
         also_edit = False
         if (
@@ -480,20 +510,21 @@ class ChangeAtSD(object):
             logger.info('Org unit for new engagement: {}'.format(org_unit))
             org_unit = self.apply_NY_logic(org_unit, user_key, validity)
         except IndexError:
-            # This can be removed if we do not see the exception:
-            # org_unit = '4f79e266-4080-4300-a800-000006180002'  # CONF!!!!
             msg = 'No unit for engagement {}'.format(user_key)
             logger.error(msg)
             raise Exception(msg)
-
-        # JobPositionIdentifier is supposedly always returned
-        job_position = engagement_info['professions'][0]['JobPositionIdentifier']
 
         try:
             emp_name = engagement_info['professions'][0]['EmploymentName']
         except (KeyError, IndexError):
             emp_name = 'Ukendt'
-        self._update_professions(emp_name)
+
+        if self.use_jpi:
+            job_function = job_position
+        else:
+            job_function = emp_name
+
+        self._update_professions(job_function)
 
         if status['EmploymentStatusCode'] == '0':
             primary = self.primary_types['no_salary']
@@ -511,15 +542,22 @@ class ChangeAtSD(object):
             engagement_type = self.engagement_types.get(job_position)
             logger.info('Non-nummeric id. Job pos id: {}'.format(job_position))
 
+        extension_field = self.settings.get('integrations.SD_Lon.employment_field')
+        if extension_field is not None:
+            extension = {extension_field: emp_name}
+        else:
+            extension = {}
+
         payload = sd_payloads.create_engagement(
             org_unit=org_unit,
             mo_person=self.mo_person,
-            job_function=self.job_functions.get(emp_name),
+            job_function=self.job_functions.get(job_function),
             engagement_type=engagement_type,
             primary=primary,
             user_key=user_key,
             engagement_info=engagement_info,
-            validity=validity
+            validity=validity,
+            **extension
         )
 
         response = self.helper._mo_post('details/create', payload)
@@ -560,6 +598,14 @@ class ChangeAtSD(object):
         response = self.helper._mo_post('details/terminate', payload)
         logger.debug('Terminate response: {}'.format(response.text))
         mora_assert(response)
+
+        self.mo_engagement = self.helper.read_user_engagement(
+            self.mo_person['uuid'],
+            read_all=True,
+            only_primary=True,
+            use_cache=False
+        )
+
         return True
 
     def _edit_engagement_department(self, engagement, mo_eng):
@@ -606,23 +652,34 @@ class ChangeAtSD(object):
         job_id, engagement_info = self.engagement_components(engagement)
         for profession_info in engagement_info['professions']:
             logger.info('Change profession of engagement {}'.format(job_id))
-            # We load the name from SD and handles the AD-integration
-            # when calculating the primary engagement.
+            job_position = profession_info['JobPositionIdentifier']
             if 'EmploymentName' in profession_info:
                 emp_name = profession_info['EmploymentName']
             else:
                 emp_name = profession_info['JobPositionIdentifier']
-            logger.debug('Employment name: {}'.format(emp_name))
             validity = self._validity(profession_info, mo_eng['validity']['to'],
                                       cut=True)
             if validity is None:
                 continue
 
-            self._update_professions(emp_name)
-            job_function = self.job_functions.get(emp_name)
+            if self.use_jpi:
+                job_function = job_position
+            else:
+                job_function = emp_name
+            logger.debug('Employment name: {}'.format(job_function))
 
-            data = {'job_function': {'uuid': job_function},
+            ext_field = self.settings.get('integrations.SD_Lon.employment_field')
+            if ext_field is not None:
+                extention = {ext_field: emp_name}
+            else:
+                extention = {}
+
+            self._update_professions(job_function)
+            job_function_uuid = self.job_functions.get(job_function)
+
+            data = {'job_function': {'uuid': job_function_uuid},
                     'validity': validity}
+            data.update(extention)
             payload = sd_payloads.engagement(data, mo_eng)
             logger.debug('Update profession payload: {}'.format(payload))
             response = self.helper._mo_post('details/edit', payload)
@@ -633,10 +690,8 @@ class ChangeAtSD(object):
         for worktime_info in engagement_info['working_time']:
             logger.info('Change working time of engagement {}'.format(job_id))
 
-            # Should this have an end comparison and cut=True?
-            # Most likely not, but be aware of the option.
-            validity = self._validity(worktime_info, mo_eng['validity']['to'])
-            # As far as we know, this can only happen for work time
+            validity = self._validity(worktime_info, mo_eng['validity']['to'],
+                                      cut=True)
             if validity is None:
                 continue
 

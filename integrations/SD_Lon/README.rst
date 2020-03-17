@@ -13,7 +13,7 @@ Opsætning
 ==========
 
 For at kunne afvikle integrationen, kræves loginoplysninger til SD-Løn, som angives
-via``settings.json``, desuden anvendes en række felter som angiver den lokale anvendelse
+via ``settings.json``, desuden anvendes en række felter som angiver den lokale anvendelse
 af SD Løn. De påkrævede felter er:
 
  * ``integrations.SD_Lon.institution_identifier``: Institution Identifer i SD.
@@ -24,8 +24,29 @@ af SD Løn. De påkrævede felter er:
  * ``integrations.SD_Lon.import.too_deep``: Liste over SD niveauer som anses som
    afdelingsniveau.
  * ``integrations.SD_Lon.monthly_hourly_divide``: Skilleværdi for måneds/timelønnede.
+ * ``integrations.SD_Lon.job_function``: Feltet kan have en af to vædier:
+   `EmploymentName` eller `JobPositionIdentifier`, se yderligere nedenfor.
+
+Desuden kan disse ikke-påkrævede felter angives:
+
+ * ``integrations.SD_Lon.employment_field``: Angiver et af MOs ekstrafelter på
+   engagementer, hvis feltet angives vil integrationen skrive værdien af
+   `EmploymentName` i dette felt.
+ * ``integrations.SD_Lon.skip_employment_types``: En liste over værdier af
+   `JobPositionIdentifier` som ikke skal importeres. Hvis et engagement har
+   en type fra listen, vil engagementet bliver ignoreret og ikke importeret i MO.
+   Den tilhørende bruger vil dog blive oprettet, men vil optræde uden engagementer
+   (med mindre personen har andre engagementer i kommunen).
+
+Hvis ``integrations.SD_Lon.job_function`` har værdien `EmploymentName` vil
+ansættelsers stillingsbetegnelser bliver taget fra SDs felt af samme navn, som
+er et fritekstfelt. Integrationen vil oprette en klasse for alle forekommende
+stillingsbetegnelser.
+Benyttes i stedet værdien `JobPositionIdentifier` vil stillingsbetegelsen blive
+taget fra dette felt i SD, som er et klassicieret felt.
 
 Desuden er det nødvendigt at angive adressen på MO og LoRa i variablerne:
+
  * ``mox.base``
  * ``mora.base``
 
@@ -212,7 +233,20 @@ Hjælpeværktøjer
 Udover de direkte værktøjer til import og løbende opdateringer, findes et antal
 hjælpeværktøjer:
 
- * `calculate_primary.py`: Et værktøj som er i stand til at gennemløbe alle
+ * ``test_sd_connectivity.py``: Et lille værktøj som tester at den lokale
+   ``settings.json`` indeholder de nødvendige nøgler. Desuden tester programmet
+   for en række potentielle fejl, eksempevis om felterne har gyldige værdier
+   og om det er muligt at kotakte SD Løn med de angivne brugeroplysinger.
+
+ * ``test_mo_against_sd.py``: Et værktøj som tester udvalgte personers engagementer
+   mod SD løn of checker at MO og SD er løn har samme opfattelse af om personens
+   engagementer er aktive eller ej. Værktøjet kan anvendes på et enkelt person
+   eller på alle personer som har ansættelse i en bestemt enhed (alle engagementer
+   for disse personer vil blive tjekket også dem i andre enheder). Værktøjet
+   anvender opslag til SDs API'er og kan derfor kun anvendes i begrænset omfang, og
+   af samme årsag er der ikke implementeret mulighed for at tjekke alle ansatte.
+
+ * ``calculate_primary.py``: Et værktøj som er i stand til at gennemløbe alle
    ansættelser i MO og afgøre om der for alle medarbejdere til alle tider
    findes et primærengagement. Værktøjet er også i stand til at reparere en
    (eller alle) ansættelser hvor dette ikke skulle være tilfældet. Dette modul
@@ -224,10 +258,10 @@ hjælpeværktøjer:
    primære engagementer for en enkelt bruger eller for alle brugere.
 
  * ``sync_job_id.py``: Dette værktøj kan opdatere den tekst som vises i forbindelse
-   med ansættelsestyper som er knyttet til SDs ``JobPositionIdentifier``. Efter
-   den initielle import vil klassens navn modsvare talværdien i SD, og dette
-   værktøj kan efterfølgende anvendes til at enten at synkronisere teksten til
-   den aktuelle værdi i SD eller til en valgfri tekst.
+   med ansættelsestyper og stillingsbetegnelser som er knyttet til SDs
+   ``JobPositionIdentifier``. Efter den initielle import vil klassens navn modsvare
+   talværdien i SD, og dette værktøj kan efterfølgende anvendes til at enten at
+   synkronisere teksten til den aktuelle værdi i SD eller til en valgfri tekst.
 
  * ``fix_departments.py``: En implementering af logikken beskrevet under afsnitet
    `Håndtering af enheder`_. Udover anvendelsen i den løbende integrationen,
@@ -238,7 +272,7 @@ hjælpeværktøjer:
    vil det opdatere alle enhedens ansættelser, så engagementerne flyttes til
    de korrekte NY-niveauer (som kan være ændret, hvis afdelingen er flyttet).
 
- * `sd_fix_organisation.py`: Tidligere forsøg på at håndtere opdateringer af
+ * ``sd_fix_organisation.py``: Tidligere forsøg på at håndtere opdateringer af
    enheder. Scriptet findes nu kun som basis for evenutelle senere forsøg på
    at lave et fuldt historisk import af enhedstræet.
 

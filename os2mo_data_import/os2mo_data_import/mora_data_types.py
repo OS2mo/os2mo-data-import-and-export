@@ -216,7 +216,7 @@ class EngagementType(MoType):
 
     def __init__(self, org_unit_ref, job_function_ref, engagement_type_ref,
                  date_from, date_to=None, uuid=None, user_key=None, fraction=None,
-                 primary_ref=None):
+                 primary_ref=None, **kwargs):
         super().__init__()
 
         self.type_id = "engagement"
@@ -245,6 +245,8 @@ class EngagementType(MoType):
 
         self.date_from = date_from
         self.date_to = date_to
+
+        self.extentions = kwargs
 
     def build(self):
         """
@@ -316,6 +318,9 @@ class EngagementType(MoType):
             self.payload['user_key'] = self.user_key
         self.payload['fraction'] = self.fraction
 
+        # Todo: Consider a check for the value of the keys.
+        self.payload.update(self.extentions)
+        
         return self._build_payload()
 
 

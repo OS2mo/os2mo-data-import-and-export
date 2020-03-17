@@ -90,7 +90,7 @@ def create_leave(mo_eng, mo_person, leave_uuid, job_id, validity):
 
 
 def create_engagement(org_unit, mo_person, job_function, engagement_type,
-                      primary, user_key, engagement_info, validity):
+                      primary, user_key, engagement_info, validity, **extensions):
     try:
         working_time = float(engagement_info['working_time'][0]['OccupationRate'])
     except IndexError:
@@ -106,6 +106,7 @@ def create_engagement(org_unit, mo_person, job_function, engagement_type,
         'fraction': int(working_time * 1000000),
         'validity': validity
     }
+    payload.update(extensions)
     return payload
 
 
@@ -128,21 +129,21 @@ def connect_it_system_to_user(username, it_system, person_uuid):
         'itsystem': {'uuid': it_system},
         'person': {'uuid': person_uuid},
         'validity': {
-            'from': '1900-01-01',
+            'from': '1930-01-01',
             'to': None
         }
     }
     return payload
 
 
-def edit_engagement_type(titel):
+def edit_klasse_title(titel):
     payload = {
         "attributter": {
             "klasseegenskaber": [
                 {
                     'titel': titel,
                     'virkning': {
-                        'from': '1900-01-01',
+                        'from': '1930-01-01',
                         'to': 'infinity',
                         'aktoerref': 'ddc99abd-c1b0-48c2-aef7-74fea841adae',
                         'aktoertypekode': 'Bruger'
@@ -156,11 +157,10 @@ def edit_engagement_type(titel):
 
 def profession(profession, org, job_function_facet):
     validity = {
-        'from': '1900-01-01',
+        'from': '1930-01-01',
         'to': 'infinity'
     }
 
-    # "integrationsdata":  # TODO: Check this
     properties = {
         'brugervendtnoegle': profession,
         'titel':  profession,
