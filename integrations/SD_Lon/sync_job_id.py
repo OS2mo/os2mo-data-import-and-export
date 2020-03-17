@@ -75,7 +75,7 @@ class JobIdSync(object):
         found_type = None
         if not self.update_job_functions:
             logger.info('Job functons not enabled in settings')
-            return found_type
+            return None
 
         logger.info('Search MO for job_function_type {}'.format(job_pos_id))
         # Currently we do not use a prefix anywhere, list has only one element
@@ -102,7 +102,7 @@ class JobIdSync(object):
 
     def _get_job_pos_id_from_sd(self, job_pos_id):
         """
-        Return the textual value of a Job Position Identifier fro SD.
+        Return the textual value of a Job Position Identifier from SD.
         """
         logger.info('Search SD for {}'.format(job_pos_id))
         params = {

@@ -34,7 +34,7 @@ Desuden kan disse ikke-påkrævede felter angives:
    `EmploymentName` i dette felt.
  * ``integrations.SD_Lon.skip_employment_types``: En liste over værdier af
    `JobPositionIdentifier` som ikke skal importeres. Hvis et engagement har
-   en type fra listen, vil engagementet bliver ignorere og ikke importeret i MO.
+   en type fra listen, vil engagementet bliver ignoreret og ikke importeret i MO.
    Den tilhørende bruger vil dog blive oprettet, men vil optræde uden engagementer
    (med mindre personen har andre engagementer i kommunen).
 

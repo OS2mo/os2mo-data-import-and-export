@@ -35,7 +35,7 @@ for name in logging.root.manager.loggerDict:
 
 cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
 if not cfg_file.is_file():
-    raise Exception('No setting file')
+    raise Exception('No settings file')
 # TODO: This must be clean up, settings should be loaded by __init__
 # and no references should be needed in global scope.
 SETTINGS = json.loads(cfg_file.read_text())
@@ -542,11 +542,11 @@ class ChangeAtSD(object):
             engagement_type = self.engagement_types.get(job_position)
             logger.info('Non-nummeric id. Job pos id: {}'.format(job_position))
 
-        ext_field = self.settings.get('integrations.SD_Lon.employment_field')
-        if ext_field is not None:
-            extention = {ext_field: emp_name}
+        extension_field = self.settings.get('integrations.SD_Lon.employment_field')
+        if extension_field is not None:
+            extension = {extension_field: emp_name}
         else:
-            extention = {}
+            extension = {}
 
         payload = sd_payloads.create_engagement(
             org_unit=org_unit,
@@ -557,7 +557,7 @@ class ChangeAtSD(object):
             user_key=user_key,
             engagement_info=engagement_info,
             validity=validity,
-            **extention
+            **extension
         )
 
         response = self.helper._mo_post('details/create', payload)
