@@ -259,7 +259,7 @@ class OpusImport(object):
                         employee=cpr,
                         value=address,
                         type_ref=facet,
-                        date_from='1900-01-01',
+                        date_from='1930-01-01',
                         date_to=None
                     )
 

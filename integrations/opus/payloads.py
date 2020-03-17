@@ -130,7 +130,7 @@ def connect_it_system_to_user(username, it_system, person_uuid):
         'itsystem': {'uuid': it_system},
         'person': {'uuid': person_uuid},
         'validity': {
-            'from': '1900-01-01',
+            'from': '1930-01-01',
             'to': None
         }
     }
@@ -224,7 +224,7 @@ def edit_manager(object_uuid, unit, person, manager_type, level, responsibility,
 # Same code is found in sd_payloads
 def klasse(klasse_navn, org, facet_uuid):
     validity = {
-        'from': '1900-01-01',
+        'from': '1930-01-01',
         'to': 'infinity'
     }
 
