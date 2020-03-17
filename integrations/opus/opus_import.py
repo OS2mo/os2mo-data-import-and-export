@@ -170,11 +170,17 @@ class OpusImport(object):
         logger.debug('Generated uuid for {}: {}'.format(unit['@id'], uuid))
 
         user_key = unit['shortName']
-        date_from = unit['startDate']
+
+        if unit['startDate'] == '1900-01-01':
+            date_from = '1930-01-01'
+        else:
+            date_from = unit['startDate']
+
         if unit['endDate'] == '9999-12-31':
             date_to = None
         else:
             date_to = unit['endDate']
+
         name = unit['longName']
 
         parent_org = unit.get("parentOrgUnit")
