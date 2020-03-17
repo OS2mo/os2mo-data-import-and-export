@@ -28,7 +28,7 @@ class Base(object):
     """
     def __init__(self):
 
-        self.date_from = "1900-01-01"
+        self.date_from = "1930-01-01"
         self.date_to = "infinity"
         self.integration_data = {}
 
@@ -93,7 +93,7 @@ class Facet(Base):
         self.organisation_uuid = str(organisation_uuid)
         self.klassifikation_uuid = str(klassifikation_uuid)
 
-        self.date_from = (date_from or "1900-01-01")
+        self.date_from = (date_from or "1930-01-01")
         self.date_to = (date_to or "infinity")
 
     def build(self):
@@ -232,7 +232,7 @@ class Klasse(Base):
         self.organisation_uuid = None
         self.facet_uuid = None
 
-        self.date_from = (date_from or "1900-01-01")
+        self.date_from = (date_from or "1930-01-01")
         self.date_to = (date_to or "infinity")
 
     def build(self):
@@ -400,7 +400,7 @@ class Klassifikation(Base):
         self.parent_name = parent_name
 
         self.organisation_uuid = None
-        self.date_from = (date_from or "1900-01-01")
+        self.date_from = (date_from or "1930-01-01")
         self.date_to = (date_to or "infinity")
 
     def build(self):
@@ -485,7 +485,7 @@ class Organisation(Base):
         self.user_key = (user_key or name)
         self.municipality_code = str(municipality_code)
 
-        self.date_from = (date_from or "1900-01-01")
+        self.date_from = (date_from or "1930-01-01")
         self.date_to = (date_to or "infinity")
 
     def build(self):
