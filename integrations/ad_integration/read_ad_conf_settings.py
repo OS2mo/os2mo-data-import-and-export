@@ -32,13 +32,14 @@ def _read_primary_ad_settings():
     primary_settings = {}
     primary_settings['search_base'] = SETTINGS.get('integrations.ad.search_base')
     primary_settings['cpr_field'] = SETTINGS.get('integrations.ad.cpr_field')
+    primary_settings['cpr_separator'] = SETTINGS.get('integrations.ad.cpr_separator')
     primary_settings['system_user'] = SETTINGS.get('integrations.ad.system_user')
     primary_settings['password'] = SETTINGS.get('integrations.ad.password')
     primary_settings['properties'] = SETTINGS.get('integrations.ad.properties')
 
     missing = []
     for key, val in primary_settings.items():
-        if not val:
+        if val is None:
             missing.append(key)
     if missing:
         msg = 'Missing values for {}'.format(missing)
@@ -72,9 +73,9 @@ def _read_primary_write_information():
     primary_write_settings['uuid_field'] = SETTINGS.get(
         'integrations.ad.write.uuid_field')
 
-    # Field for writing the name of the users 'forvaltning'
-    primary_write_settings['forvaltning_field'] = SETTINGS.get(
-        'integrations.ad.write.forvaltning_field')
+    # Field for writing the name of the users level2orgunit (eg direktørområde)
+    primary_write_settings['level2orgunit_field'] = SETTINGS.get(
+        'integrations.ad.write.level2orgunit_field')
 
     # Field for the path to the users unit
     primary_write_settings['org_field'] = SETTINGS.get(
@@ -92,9 +93,9 @@ def _read_primary_write_information():
     # primary_write_settings['primary_types'] = SETTINGS.get(
     # 'integrations.ad.write.primary_types')
 
-    # UUID for the unit type considered to be 'Forvaltning'
-    primary_write_settings['forvaltning_type'] = SETTINGS.get(
-        'integrations.ad.write.forvaltning_type')
+    # UUID for the unit type considered to be level2orgunit
+    primary_write_settings['level2orgunit_type'] = SETTINGS.get(
+        'integrations.ad.write.level2orgunit_type')
 
     missing = []
 

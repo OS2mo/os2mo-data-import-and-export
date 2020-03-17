@@ -1,5 +1,6 @@
 import time
 import json
+import random
 import logging
 
 from winrm import Session
@@ -201,7 +202,17 @@ class AD(object):
             ps_template = "get-aduser -Filter 'SamAccountName -eq \"{}\"' "
 
         if cpr:
-            dict_key = cpr
+            # For wild-card searches, we do a litteral search.
+            if cpr.find('*') > -1:
+                dict_key = cpr
+            else:
+                # For direct cpr-search we obey the local separator setting.
+                dict_key = '{}{}{}'.format(
+                    cpr[0:6],
+                    settings['cpr_separator'],
+                    cpr[6:10]
+                )
+
             field = settings['cpr_field']
             ps_template = "get-aduser -Filter '" + field + " -like \"{}\"'"
 
@@ -210,6 +221,11 @@ class AD(object):
         server_string = ''
         if server:
             server_string = ' -Server {}'.format(server)
+        else:
+            if 'servers' in self.all_settings['global']:
+                server_string = ' -Server {}'.format(
+                    random.choice(self.all_settings['global']['servers'])
+                )
 
         command_end = (' | ConvertTo-Json  | ' +
                        ' % {$_.replace("ø","&oslash;")} | ' +

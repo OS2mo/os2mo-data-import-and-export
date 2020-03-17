@@ -58,10 +58,15 @@ class ADWriter(AD):
         else:
             other_attributes = ' -Replace @{'
 
+        # other_attributes_fields = [
+        #     (write_settings['level2orgunit_field'],
+        #      mo_values['level2orgunit'].replace('&', 'og')),
+        #     (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
+        # ]
         other_attributes_fields = [
-            (write_settings['forvaltning_field'],
-             mo_values['forvaltning'].replace('&', 'og')),
-            (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
+            (write_settings['level2orgunit_field'],
+             mo_values['level2orgunit']),
+            (write_settings['org_field'], mo_values['location'])
         ]
 
         # Add SAM to mo_values
@@ -87,8 +92,15 @@ class ADWriter(AD):
             other_attributes_fields.append(
                 (write_settings['uuid_field'], mo_values['uuid'])
             )
+            # If local settings dictates a separator, we add it directly to the
+            # power-shell code.
+            ad_cpr = '{}{}{}'.format(
+                mo_values['cpr'][0:6],
+                self.settings['integrations.ad.cpr_separator'],
+                mo_values['cpr'][6:10]
+            )
             other_attributes_fields.append(
-                (write_settings['cpr_field'], mo_values['cpr'])
+                (write_settings['cpr_field'], ad_cpr)
             )
 
         for field in other_attributes_fields:
@@ -111,7 +123,7 @@ class ADWriter(AD):
                     raise ad_exceptions.ReplicationFailedException()
 
                 for server in self.all_settings['global']['servers']:
-                    user = self.get_from_ad(user=sam)
+                    user = self.get_from_ad(user=sam, server=server)
                     logger.debug('Testing {}, found: {}'.format(server, len(user)))
                     if user:
                         logger.debug('Found successfully')
@@ -137,7 +149,7 @@ class ADWriter(AD):
             'cpr': '1122334455',
             'title': 'Musiker',
             'location': 'Viborg Kommune\Forvalting\Enhed\',
-            'forvaltning': 'Beskæftigelse, Økonomi & Personale',
+            'level2orgunit: 'Beskæftigelse, Økonomi & Personale',
             'manager_sam': 'DMILL'
         }
         """
@@ -153,7 +165,7 @@ class ADWriter(AD):
 
         found_primary = False
         for engagement in engagements:
-            uuid = engagement['engagement_type']['uuid']
+            # engagement_type = engagement['engagement_type']['uuid']
             if engagement['is_primary']:
                 found_primary = True
                 employment_number = engagement['user_key']
@@ -198,10 +210,14 @@ class ADWriter(AD):
         unit_secure_email = None
         unit_public_email = None
         for mail in email:
-            if mail['visibibility']['scope'] == 'PUBLIC':
-                unit_public_email = mail['value']
-            if mail['visibibility']['scope'] == 'SECRET':
+            if mail['visibibility'] is None:
+                # If visibility is not set, we assume it is non-public.
                 unit_secure_email = mail['value']
+            else:
+                if mail['visibibility']['scope'] == 'PUBLIC':
+                    unit_public_email = mail['value']
+                if mail['visibibility']['scope'] == 'SECRET':
+                    unit_secure_email = mail['value']
 
         postal_code = city = streetname = 'Ukendt'
         if postal:
@@ -211,18 +227,23 @@ class ADWriter(AD):
                 city = postal['Adresse'][city_pos:]
                 streetname = postal['Adresse'][:city_pos - 7]
             except IndexError:
+
                 logger.error('Unable to read adresse from MO (no access to DAR?)')
 
         location = ''
         current_unit = unit_info
-        forvaltning = 'Ingen'
+        level2orgunit = 'Ingen'
         while current_unit:
             location = current_unit['name'] + '\\' + location
-
-            if self.settings['integrations.ad.write.forvaltning_type'] in (
-                    current_unit['org_unit_type']['uuid'],
-                    current_unit['org_unit_level']['uuid']):
-                forvaltning = current_unit['name']
+            current_type = current_unit['org_unit_type']
+            current_level = current_unit['org_unit_level']
+            if current_level is None:
+                current_level = {'uuid': None}
+            if self.settings['integrations.ad.write.level2orgunit_type'] in (
+                    current_type['uuid'],
+                    current_level['uuid']
+            ):
+                level2orgunit = current_unit['name']
             current_unit = current_unit['parent']
         location = location[:-1]
 
@@ -249,7 +270,8 @@ class ADWriter(AD):
             if len(manager_ad_info) == 1:
                 manager_sam = manager_ad_info[0]['SamAccountName']
             else:
-                logger.debug('Managers in AD: {}'.format(manager_ad_info))
+                msg = 'Searching for {}, found in AD: {}'
+                logger.debug(msg.format(manager['Navn'], manager_ad_info))
                 raise ad_exceptions.ManagerNotUniqueFromCprException()
 
         mo_values = {
@@ -271,7 +293,7 @@ class ADWriter(AD):
             # UNIT PHONE NUMBER
             # UNIT WEB PAGE
             'location': location,
-            'forvaltning': forvaltning,
+            'level2orgunit': level2orgunit,
             'manager_name': manager_name,
             'manager_sam': manager_sam,
             'manager_mail': manager_mail

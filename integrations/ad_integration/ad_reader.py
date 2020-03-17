@@ -1,4 +1,5 @@
 import time
+import random
 import logging
 from winrm import Session
 
@@ -46,6 +47,12 @@ class ADParameterReader(AD):
         bp = self._ps_boiler_plate(school)
         get_command = "get-aduser -Filter '*'"
 
+        server_string = ''
+        if 'servers' in self.all_settings['global']:
+            server_string = ' -Server {} '.format(
+                random.choice(self.all_settings['global']['servers'])
+            )
+
         command_end = (' | ConvertTo-Json  | ' +
                        ' % {$_.replace("ø","&oslash;")} | ' +
                        '% {$_.replace("Ø","&Oslash;")} ')
@@ -53,6 +60,7 @@ class ADParameterReader(AD):
         ps_script = (
             self._build_user_credential(school) +
             get_command +
+            server_string +
             bp['complete'] +
             self._properties(school) +
             bp['get_ad_object'] +
@@ -80,7 +88,8 @@ class ADParameterReader(AD):
                 if 'mail' in current_user:
                     current_user['EmailAddress'] = current_user['mail']
                     del current_user['mail']
-                school_cpr = current_user[settings['cpr_field']].replace('-', '')
+                school_cpr = current_user[settings['cpr_field']].replace(
+                    settings['cpr_separator'], '')
                 self.results[school_cpr] = current_user
                 self.results[current_user['SamAccountName']] = current_user
 
@@ -99,7 +108,8 @@ class ADParameterReader(AD):
                 if not current_user:
                     current_user = {}
 
-                cpr = current_user[settings['cpr_field']].replace('-', '')
+                cpr = current_user[settings['cpr_field']].replace(
+                    settings['cpr_separator'], '')
                 self.results[cpr] = current_user
                 self.results[current_user['SamAccountName']] = current_user
             return current_user
