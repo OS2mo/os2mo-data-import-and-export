@@ -121,7 +121,7 @@ def _create_mo_ou(name, parent, org_type, bvn):
         'name': '{} {}'.format(org_type, name),
         'org_unit_type': {'uuid': ou_type},
         'parent': {'uuid': parent},
-        'validity': {'from': '1900-01-01',
+        'validity': {'from': '1930-01-01',
                      'to':  None}
     }
 
@@ -212,7 +212,7 @@ def create_udvalg(nodes, file_name):
                 '%Y-%m-%d'
             )
         except ValueError:
-            from_string = '1900-01-01'
+            from_string = '1930-01-01'
 
         if uuid:
             nodes[uuid] = Node(row['Fornavn'] + ' ' + row['Efternavn'],

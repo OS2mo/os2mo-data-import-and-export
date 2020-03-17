@@ -17,7 +17,7 @@ def connect_it_system_to_user(ad_user, it_system):
         'itsystem': {'uuid': it_system},
         'person': {'uuid': ad_user['ObjectGUID']},
         'validity': {
-            'from': '1900-01-01',
+            'from': '1930-01-01',
             'to': None
         }
     }
@@ -46,7 +46,7 @@ def unit_for_externals(uuid, unit_type, parent):
         'parent': {'uuid': parent},
         'org_unit_type': {'uuid': unit_type},
         'validity': {
-            'from': '1900-01-01',
+            'from': '1930-01-01',
             'to': None
         }
     }
@@ -63,7 +63,7 @@ def terminate_engagement(uuid, terminate_date):
 # Same code is found in sd_payloads and opus_payloads
 def klasse(bvn, navn, org, facet_uuid):
     validity = {
-        'from': '1900-01-01',
+        'from': '1930-01-01',
         'to': 'infinity'
     }
 

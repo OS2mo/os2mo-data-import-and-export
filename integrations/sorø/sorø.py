@@ -58,7 +58,7 @@ if args['import']:
         name=med_name,
         user_key=med_name,
         type_ref=med_name,
-        date_from='1900-01-01',
+        date_from='1930-01-01',
         date_to=None,
         parent_ref=None
     )

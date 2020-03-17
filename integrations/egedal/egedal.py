@@ -38,7 +38,7 @@ importer.add_organisation_unit(
     name=adm_name,
     user_key=adm_name,
     type_ref=adm_name,
-    date_from='1900-01-01',
+    date_from='1930-01-01',
     date_to=None,
     parent_ref=None
 )
@@ -77,7 +77,7 @@ importer.add_organisation_unit(
     name=løn_name,
     user_key=løn_name,
     type_ref=løn_name,
-    date_from='1900-01-01',
+    date_from='1930-01-01',
     date_to=None,
     parent_ref=None
 )
