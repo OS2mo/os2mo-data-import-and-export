@@ -129,7 +129,7 @@ def connect_it_system_to_user(username, it_system, person_uuid):
         'itsystem': {'uuid': it_system},
         'person': {'uuid': person_uuid},
         'validity': {
-            'from': '1900-01-01',
+            'from': '1930-01-01',
             'to': None
         }
     }
@@ -143,7 +143,7 @@ def edit_klasse_title(titel):
                 {
                     'titel': titel,
                     'virkning': {
-                        'from': '1900-01-01',
+                        'from': '1930-01-01',
                         'to': 'infinity',
                         'aktoerref': 'ddc99abd-c1b0-48c2-aef7-74fea841adae',
                         'aktoertypekode': 'Bruger'
@@ -157,7 +157,7 @@ def edit_klasse_title(titel):
 
 def profession(profession, org, job_function_facet):
     validity = {
-        'from': '1900-01-01',
+        'from': '1930-01-01',
         'to': 'infinity'
     }
 

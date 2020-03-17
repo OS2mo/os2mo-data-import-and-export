@@ -431,7 +431,7 @@ class SdImport(object):
                 name='Forældreløse enheder',
                 user_key='OrphanUnits',
                 type_ref='Orphan',
-                date_from='1900-01-01',
+                date_from='1930-01-01',
                 date_to=None,
                 parent_ref=None
             )
@@ -693,7 +693,7 @@ class SdImport(object):
                             manager_level_ref=manager_level,
                             manager_type_ref='leder_type',
                             responsibility_list=[row['ansvar']],
-                            date_from='1900-01-01',
+                            date_from='1930-01-01',
                             date_to=None
                         )
 

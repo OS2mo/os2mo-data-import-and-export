@@ -127,7 +127,7 @@ def fix_specific_department(self, shortname):
         # SD has a challenge with the internal validity-consistency, extend first
         # validity indefinitely
         if first_iteration:
-            from_date = '1900-01-01'
+            from_date = '1930-01-01'
             first_iteration = False
         else:
             from_date = validity_date.strftime('%Y-%m-%d')
