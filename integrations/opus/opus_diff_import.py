@@ -574,7 +574,8 @@ class OpusDiffImport(object):
         return item_datetime
 
     def update_manager_status(self, employee_mo_uuid, employee):
-        url = 'e/{}/details/manager?at=' + self.latest_date.strftime('%Y-%m-%d')
+        url = 'e/{}/details/manager?at=' + self.validity(employee,
+                                                         edit=True)["from"]
         manager_functions = self.helper._mo_lookup(employee_mo_uuid, url)
         logger.debug('Manager functions to update: {}'.format(manager_functions))
         if manager_functions:
