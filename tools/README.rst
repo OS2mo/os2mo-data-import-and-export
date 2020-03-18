@@ -202,7 +202,7 @@ opus_import_all.sh
 
 Anvendes under initialindlæsning af opus filer til det mellemliggende trin, der er imellem den første
 komplette indlæsning og det tidspunkt, hvor man bare indlæser filen fra natten før. Programmet forsøger
-at indlæse alle opus-filer på en gang, og skulle det fejle markeres stopper programmet efter et ekstra
+at indlæse alle opus-filer på en gang, og skulle det fejle markeres programmet efter et ekstra
 fejlet gennemløb og backup skal derefter indlæses.
 
 Programmet kører som root med
