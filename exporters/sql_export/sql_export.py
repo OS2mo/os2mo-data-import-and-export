@@ -44,8 +44,8 @@ class SqlExport(object):
         self.settings = json.loads(cfg_file.read_text())
 
         self.lc = LoraCache()
-        self.lc.populate_cache()
-        
+        self.lc.populate_cache(dry_run=True)
+
         db_type = self.settings['exporters.actual_state.type']
         db_name = self.settings['exporters.actual_state.db_name']
         user = self.settings.get('exporters.actual_state.user')
@@ -152,6 +152,9 @@ class SqlExport(object):
                                     acting_manager_uuid = manager
             location = location[:-1]
 
+            enhedsniveau_titel = ''
+            if unit_info['level']:
+                enhedsniveau_titel = self.lc.classes[unit_info['level']]['title']
             sql_unit = Enhed(
                 uuid=unit,
                 navn=unit_info['name'],
@@ -162,7 +165,7 @@ class SqlExport(object):
                 leder_uuid=manager_uuid,
                 fungerende_leder_uuid=acting_manager_uuid,
                 enhedstype_titel=self.lc.classes[unit_info['unit_type']]['title'],
-                enhedsniveau_titel=self.lc.classes[unit_info['level']]['title']
+                enhedsniveau_titel=enhedsniveau_titel
             )
             self.session.add(sql_unit)
         self.session.commit()
