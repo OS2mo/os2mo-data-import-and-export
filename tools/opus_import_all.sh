@@ -76,17 +76,12 @@ for xml in ${xml_path}/* ; do
     fi
     reports_opus_db_overview
 done
-exit 0
-#do
-#    bash integrations/rebild/rebild.sh --update
-#    let count+=1
-#    [ "$(($count % 10))" = "0" ] && (
-#	cp ../run_db.sqlite ../run_db.sqlite_bak_${count}.sql
-#
-#	salt-call os2mo.create_db_snapshot installation_type=docker
-#	mv /opt/docker/os2mo/database_snapshot/os2mo_database.sql /opt/docker/os2mo/database_snapshot/os2mo_database_bak_${count}.sql
-#	# pg_dump --data-only -Umox mox > rebild_id_${count}.sql
-#    )
-#
-#done
 
+# report changedate per logfile
+for i in ${CRON_BACKUP}/*opus-import-all*
+do
+    firstline=$(tar -xOf $i ${CRON_LOG_FILE#/}| head --quiet --lines=1 )
+    echo ${firstline##*update}: $i
+done
+echo Critical Error betyder at jobbet har været startet efter en uafsluttet kørsel
+echo I så tilfælde stopper programmet uden af lave noget
