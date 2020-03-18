@@ -1,14 +1,21 @@
 #!/bin/bash
-set +x
-export DIPEXAR=${DIPEXAR:=$(cd $(dirname $0); pwd )/..}
-export CUSTOMER_SETTINGS=${CUSTOMER_SETTINGS:=${DIPEXAR}/settings/settings.json}
-export SETTINGS_FILE=$(basename ${CUSTOMER_SETTINGS})
-export VENV=${VENV:=${DIPEXAR}/venv}
-source ${DIPEXAR}/tools/prefixed_settings.sh
-
-cd "${DIPEXAR}"
+. tools/job-runner.sh
+if [ "$EUID" -ne 0 -o "${JOB_RUNNER_MODE}" != "sourced" ]; then
+    echo this script must be run as user root from the root of the os2mo-data-import-and-export folder
+    exit 1
+fi
 
 bupfile="$1"
+
+if [ -z "${OS2MO_COMPOSE_YML}" ]; then
+    echo no docker compose file for os2mo specified
+    exit 2
+fi
+
+if [ -z "${SNAPSHOT_LORA}" ]; then
+    echo no lora snapshot specd
+    exit 2
+fi
 
 if [ -z "${bupfile}" ]; then
     echo no backup tar.gz file specified
@@ -26,30 +33,26 @@ check_restore_validity(){
     echo "       look for IMPORTS_OK file in backup.tar.gz"
     echo "       sql file of reasonable size, and other needed files"
     echo "       also check that the mox database is empty"
-    echo "You have to do this first:"
-    echo "sudo systemctl restart postgresql; sudo salt-call state.apply magenta.mox_releases.recreatedb; sudo systemctl restart oio_rest; sudo systemctl restart mora"
 }
 
 # restore lora database
 restore_lora_db(){
-    (
-    SETTING_PREFIX= \
-    CUSTOMER_SETTINGS="${LORA_CONFIG}" \
     source ${DIPEXAR}/tools/prefixed_settings.sh
-    tar -xOf ${bupfile} opt/magenta/snapshots/os2mo_database.sql \
-    | PGPASSWORD=${DB_PASSWORD} psql -d mox -h ${DB_HOST} -p ${DB_PORT} -U ${DB_USER}
-    )
+    tar -xOf ${bupfile} "${SNAPSHOT_LORA#/}" > "${SNAPSHOT_LORA}" || exit 1
+    docker-compose -f "${OS2MO_COMPOSE_YML}" exec mox python3 -m oio_rest truncatedb
+    docker-compose -f "${OS2MO_COMPOSE_YML}" exec -u postgres mox-db bash -c 'psql mox < /database_snapshot/'${SNAPSHOT_LORA##*/}
 }
 
 # restore run-db so import knows where it is at
 restore_sd_run_db(){
-    set -x
-    SD_IMPORT_RUN_DB=$(
-        SETTING_PREFIX="integrations.SD_Lon.import" \
-        source ${DIPEXAR}/tools/prefixed_settings.sh
-        echo ${run_db}
-    )
-    tar -xOf ${bupfile} ${SD_IMPORT_RUN_DB#/} > $SD_IMPORT_RUN_DB
+    RUN_DB=$(SETTING_PREFIX="integrations.SD_Lon.import" source ${DIPEXAR}/tools/prefixed_settings.sh; echo ${run_db})
+    if [ -z "$RUN_DB" ]; then
+        RUN_DB=$(SETTING_PREFIX="integrations.opus.import" source ${DIPEXAR}/tools/prefixed_settings.sh; echo ${run_db})
+    fi
+    if [ -z "$RUN_DB" ]; then
+        exit 2
+    fi
+    tar -xOf ${bupfile} ${RUN_DB#/} > $RUN_DB
 }
 
 # restore the map between cpr and uuid

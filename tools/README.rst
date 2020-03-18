@@ -160,7 +160,14 @@ Vil man for eksempel afvikle mox_stsorgsync, anvender man kaldet:
 
     tools/jon-runner.sh exports_mox_stsorgsync
 
+dotning / (sourcing) af job-runner.sh
++++++++++++++++++++++++++++++++++++++
 
+Man kan source (. tools/job-runner.sh) for at få sat sit environment op.
+Dermed kan man få adgang til at anvende samme backup/restore funktionalitet, som
+anvendes af job-runner.sh / cron-restore.sh. Se tools/opus_import_all.sh for hvordan
+man angiver filer, der skal backes op måske trunkeres efterfølgende. Det er vigtigt
+at du bruger dit eget suffix - se her også eksemplet i tools/opus_import_all.sh
 
 clear_mox_tables.py
 ===================
@@ -170,13 +177,45 @@ Dette anvendes typisk kun af cron-restore og der, hvor man hver nat genindlæser
 cron-restore.sh
 ===============
 
-Tømmer OS2MOS database og indlæser backup i mo og pakker run-db ud. 'Run-db er en lille sqlite-database, som fortæller SD-changed-at hvor langt den er kommet.
+Tømmer OS2MOS database og indlæser backup i mo og pakker den tilhørende run-db ud.
+Run-db er den lille sqlite-database, som fortæller SD-changed-at/opus_diff_import
+hvor langt den er kommet in indlæsningen.
+
+Programmet køres som root på følgende måde:
+
+.. code-block:: bash
+
+    bash tools/cron-restore.sh backupfil.tar.gz
+
+``backupfil.tar.gz`` er så en af de daterede filer, der ligger under sti-til-service-bruger/CRON/backup
+
+Programmet er 17/3 2020 skrevet om til at håndtere os2mo under docker.
 
 moxklas.sh
 ==========
 
 Anvendes under implementering til at oprette klasser i Lora.
 
+
+opus_import_all.sh
+==================
+
+Anvendes under initialindlæsning af opus filer til det mellemliggende trin, der er imellem den første
+komplette indlæsning og det tidspunkt, hvor man bare indlæser filen fra natten før. Programmet forsøger
+at indlæse alle opus-filer på en gang, og skulle det fejle markeres programmet efter et ekstra
+fejlet gennemløb og backup skal derefter indlæses.
+
+Programmet kører som root med
+
+.. code-block:: bash
+
+    bash tools/opus_import_all.sh
+
+Opus_import_all.sh anvender intensivt settings/settings.json. Se under Opus-indlæsning i
+dokumentationen for at finde ud af hvilke settings, der skal være defineret for indlæsning fra Opus.
+
+Programmet slutter af med at fortælle hvilken dato, der tilhører hvilken logfil, så man kan spole
+tilbage fra før fejlen opstod. 'At spole tilbage' gøres så med tools/cron-restore.sh
 
 prefixed_settings.sh
 ====================

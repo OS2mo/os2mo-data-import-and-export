@@ -21,7 +21,7 @@
     "crontab.CRON_LOG_FILE": "/path/cron-log-file", 
     "crontab.BACKUP_SAVE_DAYS": "60",
     "crontab.SNAPSHOT_LORA":"/path/db-snapshot.sql",
-    "crontab.LORA_CONFIG":"/path/to/lora_config/for/db/restore",
+    "crontab.OS2MO_COMPOSE_YML":"/path/to/os2mo/docker-compose.yml",
 
     "mox.base": "http://example.com/mox",
     "mora.base": "http://example.com/mora",
