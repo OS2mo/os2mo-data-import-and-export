@@ -17,7 +17,7 @@ DEFAULT_TIMEZONE = dateutil.tz.gettz('Europe/Copenhagen')
 
 class LoraCache(object):
 
-    def __init__(self):
+    def __init__(self, resolve_dar=True):
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')
@@ -27,10 +27,14 @@ class LoraCache(object):
             'relationer': ('tilknyttedeorganisationer',)
         }
 
+        if resolve_dar:
+            self.dar_cache = {}
+        else:
+            self.dar_cache = None
+
         self.full_history = True
         # self.full_history=False
 
-        self.dar_cache = {}
         self.mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
         try:
             self.org_uuid = self.mh.read_organisation()
@@ -262,30 +266,33 @@ class LoraCache(object):
                     skip_len = len('urn:text:')
                     value = value_raw[skip_len:]
                 elif address_type == 'DAR':
-                    print('Total dar: {}, no-hit: {}'.format(total_dar, no_hit))
+                    # print('Total dar: {}, no-hit: {}'.format(total_dar, no_hit))
 
                     scope = 'DAR'
                     skip_len = len('urn:dar:')
                     dar_uuid = value_raw[skip_len:]
                     total_dar += 1
 
-                    if self.dar_cache.get(dar_uuid) is None:
-                        self.dar_cache[dar_uuid] = {}
-                        no_hit += 1
-                        for addrtype in ('adresser', 'adgangsadresser'):
-                            adr_url = 'https://dawa.aws.dk/{}'.format(addrtype)
-                            # 'historik/adresser', 'historik/adgangsadresser'
-                            params = {'id': dar_uuid, 'struktur': 'mini'}
-                            # Note: Dar accepts up to 10 simultanious connections,
-                            # consider grequests.
-                            # r = requests.get(url=adr_url, params=params)
-                            # address_data = r.json()
-                            # r.raise_for_status()
-                            # if address_data:
-                            #     self.dar_cache[dar_uuid] = address_data[0]
-                            #     break
-                            self.dar_cache[dar_uuid] = {'betegelse': 'skip dar'}
-                    value = self.dar_cache[dar_uuid].get('betegnelse')
+                    if self.dar_cache is None:
+                        value = None
+                    else:
+                        if self.dar_cache.get(dar_uuid) is None:
+                            self.dar_cache[dar_uuid] = {}
+                            no_hit += 1
+                            for addrtype in ('adresser', 'adgangsadresser'):
+                                adr_url = 'https://dawa.aws.dk/{}'.format(addrtype)
+                                # 'historik/adresser', 'historik/adgangsadresser'
+                                params = {'id': dar_uuid, 'struktur': 'mini'}
+                                # Note: Dar accepts up to 10 simultanious connections,
+                                # consider grequests.
+                                r = requests.get(url=adr_url, params=params)
+                                address_data = r.json()
+                                r.raise_for_status()
+                                if address_data:
+                                    self.dar_cache[dar_uuid] = address_data[0]
+                                    break
+                                self.dar_cache[dar_uuid] = {'betegelse': 'skip dar'}
+                        value = self.dar_cache[dar_uuid].get('betegnelse')
                 else:
                     print('Ny type: {}'.format(address_type))
                     print(value_raw)
@@ -295,7 +302,7 @@ class LoraCache(object):
                                       [0]['uuid'])
 
                 synlighed = None
-                if 'opgaver' in relationer:
+                if relationer.get('opgaver'):
                     if relationer['opgaver'][0]['objekttype'] == 'synlighed':
                         synlighed = relationer['opgaver'][0]['uuid']
 

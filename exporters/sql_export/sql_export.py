@@ -43,7 +43,7 @@ class SqlExport(object):
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
 
-        self.lc = LoraCache()
+        self.lc = LoraCache(resolve_dar=resolve_dar)
         self.lc.populate_cache(dry_run=False)
 
         db_type = self.settings['exporters.actual_state.type']
@@ -262,7 +262,10 @@ class SqlExport(object):
                     synlighed_uuid=address_info['visibility'],
                     synlighed_titel=visibility_text,
                     adressetype_titel=self.lc.classes[
-                        address_info['adresse_type']]['title']
+                        address_info['adresse_type']]['title'],
+                    startdato=address_info['from_date'],
+                    slutdato=address_info['to_date']
+
                 )
                 self.session.add(sql_address)
         self.session.commit()
@@ -387,4 +390,4 @@ class SqlExport(object):
 
 
 if __name__ == '__main__':
-    sql_export = SqlExport(resolve_dar=True)
+    sql_export = SqlExport(resolve_dar=False)
