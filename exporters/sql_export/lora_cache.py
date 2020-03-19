@@ -39,6 +39,19 @@ class LoraCache(object):
             print(e)
             exit()
 
+    def _from_to_from_effect(self, effect):
+        dt = dateutil.parser.isoparse(str(effect[0]))
+        dt = dt.astimezone(DEFAULT_TIMEZONE)
+        from_date = dt.date().isoformat()
+
+        if effect[1].replace(tzinfo=None) == datetime.datetime.max:
+            to_date = None
+        else:
+            dt = dateutil.parser.isoparse(str(effect[1]))
+            dt = dt.astimezone(DEFAULT_TIMEZONE)
+            to_date = dt.date().isoformat()
+        return from_date, to_date
+
     def _perform_lora_lookup(self, url, params):
         """
         Exctract a complete set of objects in LoRa.
@@ -148,6 +161,7 @@ class LoraCache(object):
         units = {}
         for unit in unit_list:
             uuid = unit['id']
+            units[uuid] = []
             relevant = {
                 'relationer': ('overordnet', 'enhedstype', 'niveau'),
                 'attributter': ('organisationenhedegenskaber',)
@@ -163,20 +177,7 @@ class LoraCache(object):
                                                  additional=relevant)
 
             for effect in effects:
-                dt = dateutil.parser.isoparse(str(effect[0]))
-                dt = dt.astimezone(DEFAULT_TIMEZONE)
-                from_date = dt.date().isoformat()
-
-                if not from_date == '1899-12-31':
-                    print('Enhed med flere rækker: {}'.format(uuid))
-
-                if effect[1].replace(tzinfo=None) == datetime.datetime.max:
-                    to_date = None
-                else:
-                    dt = dateutil.parser.isoparse(str(effect[1]))
-                    dt = dt.astimezone(DEFAULT_TIMEZONE)
-                    to_date = dt.date().isoformat()
-
+                from_date, to_date = self._from_to_from_effect(effect)
                 relationer = effect[2]['relationer']
                 egenskaber = (effect[2]['attributter']
                               ['organisationenhedegenskaber'][0])
@@ -186,16 +187,18 @@ class LoraCache(object):
                 else:
                     parent = parent_raw
 
-                dict_key = (from_date, to_date, uuid)
-                units[dict_key] = {
-                    'user_key': egenskaber['brugervendtnoegle'],
-                    'name': egenskaber['enhedsnavn'],
-                    'unit_type': relationer['enhedstype'][0]['uuid'],
-                    # 'level': relationer['niveau'][0]['uuid'],
-                    'level': None,  # TODO!
-                    'parent': parent
-                }
-
+                units[uuid].append(
+                    {
+                        'user_key': egenskaber['brugervendtnoegle'],
+                        'name': egenskaber['enhedsnavn'],
+                        'unit_type': relationer['enhedstype'][0]['uuid'],
+                        # 'level': relationer['niveau'][0]['uuid'],
+                        'level': None,  # TODO!
+                        'parent': parent,
+                        'from_date': from_date,
+                        'to_date': to_date
+                    }
+                )
         return units
 
     def _cache_lora_address(self):
@@ -208,6 +211,7 @@ class LoraCache(object):
         addresses = {}
         for address in address_list:
             uuid = address['id']
+            addresses[uuid] = []
 
             relevant = {
                 'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
@@ -224,17 +228,7 @@ class LoraCache(object):
                                                  additional=relevant)
 
             for effect in effects:
-                dt = dateutil.parser.isoparse(str(effect[0]))
-                dt = dt.astimezone(DEFAULT_TIMEZONE)
-                from_date = dt.date().isoformat()
-
-                if effect[1].replace(tzinfo=None) == datetime.datetime.max:
-                    to_date = None
-                else:
-                    dt = dateutil.parser.isoparse(str(effect[1]))
-                    dt = dt.astimezone(DEFAULT_TIMEZONE)
-                    to_date = dt.date().isoformat()
-
+                from_date, to_date = self._from_to_from_effect(effect)
                 relationer = effect[2]['relationer']
 
                 if 'tilknyttedeenheder' in relationer:
@@ -305,31 +299,33 @@ class LoraCache(object):
                     if relationer['opgaver'][0]['objekttype'] == 'synlighed':
                         synlighed = relationer['opgaver'][0]['uuid']
 
-                dict_key = (from_date, to_date, uuid)
-                assert addresses.get(dict_key) is None
-                addresses[dict_key] = {
-                    'uuid': uuid,
-                    'user': user_uuid,
-                    'unit': unit_uuid,
-                    'value': value,
-                    'scope': scope,
-                    'dar_uuid': dar_uuid,
-                    'adresse_type': address_type_class,
-                    'visibility': synlighed
-                }
+                addresses[uuid].append(
+                    {
+                        'uuid': uuid,
+                        'user': user_uuid,
+                        'unit': unit_uuid,
+                        'value': value,
+                        'scope': scope,
+                        'dar_uuid': dar_uuid,
+                        'adresse_type': address_type_class,
+                        'visibility': synlighed,
+                        'from_date': from_date,
+                        'to_date': to_date
+                    }
+                )
         print('Total dar: {}, no-hit: {}'.format(total_dar, no_hit))
         return addresses
 
     def _cache_lora_engagements(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Engagement'}
-        # params['uuid'] = 'a3704d24-425e-4b32-8791-5afc505c7559'
-        # params['uuid'] = '20c69a8b-35b3-44c6-a036-6f09fc847af0'
 
         url = '/organisation/organisationfunktion'
         engagement_list = self._perform_lora_lookup(url, params)
 
         engagements = {}
         for engagement in engagement_list:
+            uuid = engagement['id']
+            engagements[uuid] = []
             relevant = {
                 'relationer': ('opgaver', 'tilknyttedeenheder', 'tilknyttedebrugere',
                                'organisatoriskfunktionstype', 'primær'),
@@ -337,7 +333,6 @@ class LoraCache(object):
                                 'organisationfunktionudvidelser')
             }
 
-            uuid = engagement['id']
             if self.full_history:
                 effects = lora_utils.get_effects(engagement['registreringer'][0],
                                                  relevant=relevant,
@@ -348,23 +343,14 @@ class LoraCache(object):
                                                  additional=relevant)
 
             for effect in effects:
-                dt = dateutil.parser.isoparse(str(effect[0]))
-                dt = dt.astimezone(DEFAULT_TIMEZONE)
-                from_date = dt.date().isoformat()
-
-                if effect[1].replace(tzinfo=None) == datetime.datetime.max:
-                    to_date = None
-                else:
-                    dt = dateutil.parser.isoparse(str(effect[1]))
-                    dt = dt.astimezone(DEFAULT_TIMEZONE)
-                    to_date = dt.date().isoformat()
-
+                from_date, to_date = self._from_to_from_effect(effect)
                 # print(from_date, to_date)
+
                 attr = effect[2]['attributter']
                 rel = effect[2]['relationer']
 
                 if not rel['organisatoriskfunktionstype']:
-                    print('Dette datointerval er ikke glydigt')
+                    # print('Dette datointerval er ikke gyldigt')
                     continue
 
                 user_key = (attr['organisationfunktionegenskaber'][0]
@@ -384,7 +370,7 @@ class LoraCache(object):
 
                 udvidelser = attr.get('organisationfunktionudvidelser', [{}])[0]
                 fraction = udvidelser.get('fraktion')
-                extentions = {
+                extensions = {
                     'udvidelse_1': udvidelser.get('udvidelse_1'),
                     'udvidelse_2': udvidelser.get('udvidelse_2'),
                     'udvidelse_3': udvidelser.get('udvidelse_3'),
@@ -397,18 +383,20 @@ class LoraCache(object):
                     'udvidelse_10': udvidelser.get('udvidelse_10')
                 }
 
-                dict_key = (from_date, to_date, uuid)
-                engagements[dict_key] = {
-                    # 'uuid': uuid,
-                    'user': user_uuid,
-                    'unit': unit_uuid,
-                    'fraction': fraction,
-                    'user_key': user_key,
-                    'engagement_type': engagement_type,
-                    'primary_type': primary_type,
-                    'job_function': job_function,
-                    'extentions': extentions
-                }
+                engagements[uuid].append(
+                    {
+                        'user': user_uuid,
+                        'unit': unit_uuid,
+                        'fraction': fraction,
+                        'user_key': user_key,
+                        'engagement_type': engagement_type,
+                        'primary_type': primary_type,
+                        'job_function': job_function,
+                        'extensions': extensions,
+                        'from_date': from_date,
+                        'to_date': to_date
+                    }
+                )
         return engagements
 
     def _cache_lora_associations(self):
@@ -444,17 +432,38 @@ class LoraCache(object):
         roles = {}
         for role in role_list:
             uuid = role['id']
-            reg = role['registreringer'][0]
-            role_type = reg['relationer']['organisatoriskfunktionstype'][0]['uuid']
-            user_uuid = reg['relationer']['tilknyttedebrugere'][0]['uuid']
-            unit_uuid = reg['relationer']['tilknyttedeenheder'][0]['uuid']
-
-            roles[uuid] = {
-                'uuid': uuid,
-                'user': user_uuid,
-                'unit': unit_uuid,
-                'role_type': role_type,
+            roles[uuid] = []
+            relevant = {
+                'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
+                               'organisatoriskfunktionstype')
             }
+
+            if self.full_history:
+                effects = lora_utils.get_effects(role['registreringer'][0],
+                                                 relevant=relevant,
+                                                 additional=self.additional)
+            else:
+                effects = lora_utils.get_effects(role['registreringer'][0],
+                                                 relevant=self.additional,
+                                                 additional=relevant)
+
+            for effect in effects:
+                from_date, to_date = self._from_to_from_effect(effect)
+                rel = effect[2]['relationer']
+                role_type = rel['organisatoriskfunktionstype'][0]['uuid']
+                user_uuid = rel['tilknyttedebrugere'][0]['uuid']
+                unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
+
+                roles[uuid].append(
+                    {
+                        'uuid': uuid,
+                        'user': user_uuid,
+                        'unit': unit_uuid,
+                        'role_type': role_type,
+                        'from_date': from_date,
+                        'to_date': to_date
+                    }
+                )
         return roles
 
     def _cache_lora_leaves(self):
@@ -487,26 +496,51 @@ class LoraCache(object):
         it_connections = {}
         for it_connection in it_connection_list:
             uuid = it_connection['id']
-            reg = it_connection['registreringer'][0]
-            user_key = (reg['attributter']['organisationfunktionegenskaber'][0]
-                        ['brugervendtnoegle'])
+            it_connections[uuid] = []
 
-            itsystem = reg['relationer']['tilknyttedeitsystemer'][0]['uuid']
-
-            if 'tilknyttedeenheder' in reg['relationer']:
-                unit_uuid = reg['relationer']['tilknyttedeenheder'][0]['uuid']
-                user_uuid = None
-            else:
-                user_uuid = reg['relationer']['tilknyttedebrugere'][0]['uuid']
-                unit_uuid = None
-
-            it_connections[uuid] = {
-                'uuid': uuid,
-                'user': user_uuid,
-                'unit': unit_uuid,
-                'username': user_key,
-                'itsystem': itsystem
+            relevant = {
+                'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
+                               'tilknyttedeitsystemer'),
+                'attributter': ('organisationfunktionegenskaber',)
             }
+
+            if self.full_history:
+                effects = lora_utils.get_effects(it_connection['registreringer'][0],
+                                                 relevant=relevant,
+                                                 additional=self.additional)
+            else:
+                effects = lora_utils.get_effects(it_connection['registreringer'][0],
+                                                 relevant=self.additional,
+                                                 additional=relevant)
+
+            for effect in effects:
+                from_date, to_date = self._from_to_from_effect(effect)
+                user_key = (
+                    effect[2]['attributter']['organisationfunktionegenskaber']
+                    [0]['brugervendtnoegle']
+                )
+
+                rel = effect[2]['relationer']
+                itsystem = rel['tilknyttedeitsystemer'][0]['uuid']
+
+                if 'tilknyttedeenheder' in rel:
+                    unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
+                    user_uuid = None
+                else:
+                    user_uuid = rel['tilknyttedebrugere'][0]['uuid']
+                    unit_uuid = None
+
+                it_connections[uuid].append(
+                    {
+                        'uuid': uuid,
+                        'user': user_uuid,
+                        'unit': unit_uuid,
+                        'username': user_key,
+                        'itsystem': itsystem,
+                        'from_date': from_date,
+                        'to_date': to_date
+                    }
+                )
         return it_connections
 
     def _cache_lora_managers(self):
@@ -517,26 +551,47 @@ class LoraCache(object):
         managers = {}
         for manager in manager_list:
             uuid = manager['id']
-            rel = manager['registreringer'][0]['relationer']
-            user_uuid = rel['tilknyttedebrugere'][0]['uuid']
-            unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
-            manager_type = rel['organisatoriskfunktionstype'][0]['uuid']
-            manager_responsibility = []
-
-            for opgave in rel['opgaver']:
-                if opgave['objekttype'] == 'lederniveau':
-                    manager_level = opgave['uuid']
-                if opgave['objekttype'] == 'lederansvar':
-                    manager_responsibility.append(opgave['uuid'])
-
-            managers[uuid] = {
-                'uuid': uuid,
-                'user': user_uuid,
-                'unit': unit_uuid,
-                'manager_type': manager_type,
-                'manager_level': manager_level,
-                'manager_responsibility': manager_responsibility
+            managers[uuid] = []
+            relevant = {
+                'relationer': ('opgaver', 'tilknyttedeenheder', 'tilknyttedebrugere',
+                               'organisatoriskfunktionstype')
             }
+
+            if self.full_history:
+                effects = lora_utils.get_effects(manager['registreringer'][0],
+                                                 relevant=relevant,
+                                                 additional=self.additional)
+            else:
+                effects = lora_utils.get_effects(manager['registreringer'][0],
+                                                 relevant=self.additional,
+                                                 additional=relevant)
+
+            for effect in effects:
+                from_date, to_date = self._from_to_from_effect(effect)
+                rel = effect[2]['relationer']
+                user_uuid = rel['tilknyttedebrugere'][0]['uuid']
+                unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
+                manager_type = rel['organisatoriskfunktionstype'][0]['uuid']
+                manager_responsibility = []
+
+                for opgave in rel['opgaver']:
+                    if opgave['objekttype'] == 'lederniveau':
+                        manager_level = opgave['uuid']
+                    if opgave['objekttype'] == 'lederansvar':
+                        manager_responsibility.append(opgave['uuid'])
+
+                managers[uuid].append(
+                    {
+                        'uuid': uuid,
+                        'user': user_uuid,
+                        'unit': unit_uuid,
+                        'manager_type': manager_type,
+                        'manager_level': manager_level,
+                        'manager_responsibility': manager_responsibility,
+                        'from_date': from_date,
+                        'to_date': to_date
+                    }
+                )
         return managers
 
     def populate_cache(self, dry_run=False):
@@ -615,7 +670,6 @@ class LoraCache(object):
             pickle.dump(self.engagements, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.engagements), len(self.engagements)/dt))
 
-        # Fortsæt herfra
         t = time.time()
         logger.info('Læs ledere')
         self.managers = self._cache_lora_managers()
@@ -624,6 +678,7 @@ class LoraCache(object):
             pickle.dump(self.managers, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.managers), len(self.managers)/dt))
 
+        # Mangler
         t = time.time()
         logger.info('Læs tilknytninger')
         self.associations = self._cache_lora_associations()
@@ -633,6 +688,7 @@ class LoraCache(object):
         logger.info(msg.format(dt, len(self.associations),
                                len(self.associations)/dt))
 
+        # Mangler
         t = time.time()
         logger.info('Læs orlover')
         self.leaves = self._cache_lora_leaves()
@@ -650,6 +706,7 @@ class LoraCache(object):
             pickle.dump(self.roles, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.roles), len(self.roles)/dt))
 
+        # Mangler
         t = time.time()
         logger.info('Læs it')
         self.itsystems = self._cache_lora_itsystems()
