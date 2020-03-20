@@ -43,6 +43,17 @@ class LoraCache(object):
             print(e)
             exit()
 
+    def _get_effects(self, lora_object, relevant):
+        if self.full_history:
+            effects = lora_utils.get_effects(lora_object['registreringer'][0],
+                                             relevant=relevant,
+                                             additional=self.additional)
+        else:
+            effects = lora_utils.get_effects(lora_object['registreringer'][0],
+                                             relevant=self.additional,
+                                             additional=relevant)
+        return effects
+
     def _from_to_from_effect(self, effect):
         dt = dateutil.parser.isoparse(str(effect[0]))
         dt = dt.astimezone(DEFAULT_TIMEZONE)
@@ -158,28 +169,19 @@ class LoraCache(object):
 
     def _cache_lora_units(self):
         params = {'bvn': '%'}
-
         url = '/organisation/organisationenhed'
+        relevant = {
+            'relationer': ('overordnet', 'enhedstype', 'niveau'),
+            'attributter': ('organisationenhedegenskaber',)
+        }
         unit_list = self._perform_lora_lookup(url, params)
 
         units = {}
         for unit in unit_list:
             uuid = unit['id']
             units[uuid] = []
-            relevant = {
-                'relationer': ('overordnet', 'enhedstype', 'niveau'),
-                'attributter': ('organisationenhedegenskaber',)
-            }
 
-            if self.full_history:
-                effects = lora_utils.get_effects(unit['registreringer'][0],
-                                                 relevant=relevant,
-                                                 additional=self.additional)
-            else:
-                effects = lora_utils.get_effects(unit['registreringer'][0],
-                                                 relevant=self.additional,
-                                                 additional=relevant)
-
+            effects = self._get_effects(unit, relevant)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 relationer = effect[2]['relationer']
@@ -208,6 +210,10 @@ class LoraCache(object):
     def _cache_lora_address(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Adresse'}
         url = '/organisation/organisationfunktion'
+        relevant = {
+            'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
+                           'adresser', 'organisatoriskfunktionstype', 'opgaver')
+        }
         address_list = self._perform_lora_lookup(url, params)
 
         total_dar = 0
@@ -217,20 +223,7 @@ class LoraCache(object):
             uuid = address['id']
             addresses[uuid] = []
 
-            relevant = {
-                'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
-                               'adresser', 'organisatoriskfunktionstype', 'opgaver')
-            }
-
-            if self.full_history:
-                effects = lora_utils.get_effects(address['registreringer'][0],
-                                                 relevant=relevant,
-                                                 additional=self.additional)
-            else:
-                effects = lora_utils.get_effects(address['registreringer'][0],
-                                                 relevant=self.additional,
-                                                 additional=relevant)
-
+            effects = self._get_effects(address, relevant)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 relationer = effect[2]['relationer']
@@ -283,8 +276,8 @@ class LoraCache(object):
                                 adr_url = 'https://dawa.aws.dk/{}'.format(addrtype)
                                 # 'historik/adresser', 'historik/adgangsadresser'
                                 params = {'id': dar_uuid, 'struktur': 'mini'}
-                                # Note: Dar accepts up to 10 simultanious connections,
-                                # consider grequests.
+                                # Note: Dar accepts up to 10 simultanious
+                                # connections, consider grequests.
                                 r = requests.get(url=adr_url, params=params)
                                 address_data = r.json()
                                 r.raise_for_status()
@@ -325,30 +318,20 @@ class LoraCache(object):
 
     def _cache_lora_engagements(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Engagement'}
-
+        relevant = {
+            'relationer': ('opgaver', 'tilknyttedeenheder', 'tilknyttedebrugere',
+                           'organisatoriskfunktionstype', 'primær'),
+            'attributter': ('organisationfunktionegenskaber',
+                            'organisationfunktionudvidelser')
+        }
         url = '/organisation/organisationfunktion'
-        engagement_list = self._perform_lora_lookup(url, params)
-
         engagements = {}
+        engagement_list = self._perform_lora_lookup(url, params)
         for engagement in engagement_list:
             uuid = engagement['id']
             engagements[uuid] = []
-            relevant = {
-                'relationer': ('opgaver', 'tilknyttedeenheder', 'tilknyttedebrugere',
-                               'organisatoriskfunktionstype', 'primær'),
-                'attributter': ('organisationfunktionegenskaber',
-                                'organisationfunktionudvidelser')
-            }
 
-            if self.full_history:
-                effects = lora_utils.get_effects(engagement['registreringer'][0],
-                                                 relevant=relevant,
-                                                 additional=self.additional)
-            else:
-                effects = lora_utils.get_effects(engagement['registreringer'][0],
-                                                 relevant=self.additional,
-                                                 additional=relevant)
-
+            effects = self._get_effects(engagement, relevant)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 # print(from_date, to_date)
