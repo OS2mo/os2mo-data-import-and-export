@@ -8,9 +8,11 @@ Holstebro specific export functions, decorators and
 helper classes
 """
 import json
+import logging
 import os
 import queue
 import threading
+import pathlib
 import time
 
 import requests
@@ -20,6 +22,15 @@ from datetime import datetime, timedelta
 from os2mo_helpers.mora_helpers import MoraHelper
 
 SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
+
+
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+SETTINGS = json.loads(cfg_file.read_text())
+
+leader_logger = logging.getLogger('LederHierarki')
+logger = logging.getLogger('Exports')
 
 
 def export_to_planorama(mh, nodes, filename_org, filename_persons):
@@ -120,7 +131,6 @@ def update_org_with_hk_managers(mh, nodes):
             # if parent ou's name ends with "led/adm", make employee
             # manager for the parent ou's parent as well.
             if ou['parent']['parent'] != None and ou['parent']['name'].count('led-adm') == 1:
-                # test
                 manager_uuid = list(associated_employees)[0]
                 managerHelper.update_manager(
                     ou['parent']['parent'], associated_employees[manager_uuid])
@@ -206,8 +216,10 @@ class HolstebroManagerHelper(object):
                 "from": self._get_date()
             }
         }
+        leader_logger.debug(
+            "Attempting to create manager for ou uuid: {}".format(ou_uuid))
         self.mh._mo_post('details/create', payload, False)
-        # TODO: add log message
+        leader_logger.debug("Manager created")
 
     def _terminate_manager(self, manager_releation_uuid):
         payload = {
@@ -218,8 +230,10 @@ class HolstebroManagerHelper(object):
             }
         }
 
+        leader_logger.debug(
+            "Attempting to terminate manager relation uuid: {}".format(manager_releation_uuid))
         self.mh._mo_post('details/terminate', payload, True)
-        # TODO: add log message
+        leader_logger.debug("Manager terminated")
 
     def _get_date(self, td=0):
         rdate = datetime.today() - timedelta(days=td)
@@ -239,14 +253,14 @@ class HolstebroManagerHelper(object):
         ou_manager = self.mh.read_ou_manager(ou_uuid, False)
 
         if ou_manager == {}:  # no manager, create it
-            print("Manager for {} should be {}".format(
+            leader_logger.debug("Manager for {} should be {}".format(
                 ou['name'], manager['Navn']))
 
             manager_level = self._get_org_level(ou)
             self._create_manager(ou_uuid, manager_uuid, manager_level)
 
         elif ou_manager['uuid'] != manager_uuid:
-            print("Manager for {} should be {}".format(
+            leader_logger.debug("Manager for {} should be {}".format(
                 ou['name'], manager['Navn']))
 
             self._terminate_manager(ou_manager['relation_uuid'])
