@@ -50,9 +50,11 @@ def export_from_mo(root, threaded_speedup, hostname):
         cq.pre_cache_users(mh)
         print('Build cache: {}'.format(time.time() - t))
 
+    """
     filename = 'alle_lederfunktioner_os2mo.csv'
     cq.export_managers(mh, nodes, filename)
     print('Alle ledere: {}s'.format(time.time() - t))
+    """
 
     filename = 'alle-medarbejdere-stilling-email_os2mo.csv'
     cq.export_all_employees(mh, nodes, filename)
@@ -66,9 +68,11 @@ def export_from_mo(root, threaded_speedup, hostname):
     cq.export_adm_org(mh, nodes, filename)
     print('adm-org-incl-start-stop: {}s'.format(time.time() - t))
 
+    """
     filename = 'tilknytninger.csv'
     cq.export_all_teams(mh, nodes, filename)
     print('tilknytninger: {}s'.format(time.time() - t))
+    """
 
 
 if __name__ == '__main__':
