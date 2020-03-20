@@ -222,7 +222,7 @@ class AD(object):
         if server:
             server_string = ' -Server {}'.format(server)
         else:
-            if 'servers' in self.all_settings['global']:
+            if self.all_settings['global'].get('servers') is not None:
                 server_string = ' -Server {}'.format(
                     random.choice(self.all_settings['global']['servers'])
                 )
