@@ -1,17 +1,19 @@
 import json
+import logging
 import pathlib
 import requests
 import xmltodict
 
-from integrations.kle import payloads
+from kle import payloads
 
+logger = logging.getLogger(__name__)
 
 # Facetter
 # Emne: http://clever-gewicht-reduzieren.de/resources/kle/emneplan
 # Funktion: http://clever-gewicht-reduzieren.de/resources/kle/handlingsfacetter
 
 
-class KleUploader(object):
+class KleImporter(object):
     """ Script to import KLE into LoRa to allow easy access to relevant
     test data
 
@@ -26,17 +28,15 @@ class KleUploader(object):
     necessary with seperate templates for the various levels.
     """
 
-    def __init__(self):
+    def __init__(self, mox_base, mora_base):
         """
         Init function
         :para hostname: hostname for the rest interface
         """
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.mox_base = mox_base
+        self.mora_base = mora_base
 
-    def _read_kle_dict(self, facet='emne', local=True):
+    def _read_kle_dict(self, facet='emne', local=False):
         """ Read the entire KLE file
         :param facet: Either 'emne' or 'handlingsfacetter'
         :param local: If True the file is read from local cache
@@ -45,7 +45,7 @@ class KleUploader(object):
         if facet == 'emne':
             navn = 'emneplan'
         else:
-            navn = 'handlefacetter'
+            navn = 'handlingsfacetter'
 
         if local:
             with open('integrations/kle/' + navn + '.xml', 'r') as content_file:
@@ -53,6 +53,7 @@ class KleUploader(object):
         else:
             url = 'http://clever-gewicht-reduzieren.de/resources/kle/'
             response = requests.get(url + navn)
+            response.encoding = 'utf-8'
             xml_content = response.text
 
         kle_dict = xmltodict.parse(xml_content)
@@ -71,8 +72,9 @@ class KleUploader(object):
         :return: Returns uuid of the new facet
         """
         url = '/klassifikation/facet'
-        template = payloads.lora_facet(bvn=facet_name)
-        response = requests.post(self.settings['mox.base'] + url, json=template)
+        template = payloads.lora_facet(bvn=facet_name, org=self.org_uuid)
+        response = requests.post(self.mox_base + url,
+                                 json=template)
         return response.json()['uuid']
 
     def _create_kle_klasse(self, facet, klasse_info, overklasse=None):
@@ -82,12 +84,22 @@ class KleUploader(object):
         :param klasse_info: Dict as returned by read_all_*
         :return: Returns uuid of the new klasse
         """
-        url = '/klassifikation/klasse/{}'
         uuid = klasse_info['uuid']
-        del klasse_info['uuid']
-        payload = payloads.lora_klasse(facet=facet, overklasse=overklasse,
-                                       **klasse_info)
-        full_url = self.settings['mox.base'] + url.format(uuid)
+
+        payload = payloads.lora_klasse(
+            brugervendtnoegle=klasse_info['nummer'],
+            beskrivelse=klasse_info['titel'],
+            titel="{} - {}".format(klasse_info['nummer'], klasse_info['titel']),
+            facet=facet,
+            dato=klasse_info['dato'],
+            overklasse=overklasse,
+            ansvarlig=self.org_uuid)
+
+        return self._insert_lora_klasse(payload, uuid)
+
+    def _insert_lora_klasse(self, payload, uuid):
+        url = '/klassifikation/klasse/{}'
+        full_url = self.mox_base + url.format(uuid)
         response = requests.put(full_url, json=payload)
         lora_uuid = response.json()['uuid']
         assert lora_uuid == uuid
@@ -96,7 +108,6 @@ class KleUploader(object):
 
     def _read_all_hovedgrupper(self, facet='emne'):
         """ Read all Hovedgrupper from KLE
-        :param kle_dict: A dictinary containing KLE
         :param facet: Either 'emne' or 'handlingsfacetter'
         :return: Dict with index as as key and
         (HovedgruppeTitel, HovedgruppeNr) as value
@@ -112,7 +123,6 @@ class KleUploader(object):
         """
         Read all relevant fields from a Hovedgruppe - this can
         easily be extended if more info turns out to be relevant
-        :param kle_dict: A dictinary containing KLE
         :param hovedgruppe_index: Index for the wanted Hovedgruppe
         :param facet: Either 'emne' or 'handlingsfacetter'
         :return: Dict with relevant info
@@ -130,7 +140,6 @@ class KleUploader(object):
 
     def _read_all_grupper(self, hovedgruppe, facet='emne'):
         """ Read all Grupper from a KLE Hovedgruppe
-        :param kle_dict: A dictinary containing KLE
         :param hovedgruppe: A KLE Hovedgruppe index to be retrieved
         :param facet: Either 'emne' or 'handlingsfacetter'
         :return: Dict with index as key and (GruppeTitel, GruppeNr) as value
@@ -146,7 +155,6 @@ class KleUploader(object):
     def _read_all_from_gruppe(self, hovedgruppe, gruppe, facet='emne'):
         """ Read all relevant fields from a Gruppe - this can
         easily be extended if more info turns out to be relevant
-        :param kle_dict: A dictinary containing KLE
         :param hovedgruppe: Index for the wanted Hovedgruppe
         :param gruppe: Index for the wanted Gruppe
         :param facet: Either 'emne' or 'handlingsfacetter'
@@ -165,9 +173,7 @@ class KleUploader(object):
 
     def _read_all_emner(self, hovedgruppe, gruppe):
         """ Read all Emner from a KLE Gruppe
-        :param kle_dict: A dictinary containing KLE
         :param hovedgruppe: The KLE Hovedgruppe index containing the Gruppe
-        :param GruppeNr: The KLE Gruppe index to be retrieved
         :return: Dict with index as key and (EmneTitel, EmneNr) as value
         """
         emner = {}
@@ -184,7 +190,6 @@ class KleUploader(object):
     def _read_all_from_emne(self, hovedgruppe, gruppe, emne):
         """ Read all relevant fields from a Gruppe - this can
         easily be extended if more info turns out to be relevant
-        :param kle_dict: A dictinary containing KLE
         :param hovedgruppe: Index for the wanted Hovedgruppe
         :param gruppe: Index for the wanted Gruppe
         :param gruppe: emne for the wanted Emne
@@ -198,68 +203,104 @@ class KleUploader(object):
         emne_info = {
             'uuid': emne['UUID'],
             'titel': emne['EmneTitel'],
-            'dato':  emne['EmneAdministrativInfo']['OprettetDato'],
+            'dato': emne['EmneAdministrativInfo']['OprettetDato'],
             'nummer': emne['EmneNr']
         }
         return emne_info
 
-    def _import_emne(self):
+    def _import_emne(self, facet_uuid):
+        """
+        Read all classes from the KLE facet 'emneplan'
+        :param facet_uuid: UUID of the facet the classes are created under
+        """
+        logger.info("Importing 'Emne'")
         kle_content = self._read_kle_dict(facet='emne')
-        print('Document date: ' + kle_content[0])
         self.kle_dict = kle_content[1]
 
-        emne_facet_uuid = self._create_facet('Emne')
         hovedgrupper = self._read_all_hovedgrupper()
         for hoved_index in hovedgrupper:
             hoved_info = self._read_all_from_hovedgruppe(hoved_index)
-            print(hoved_info['nummer'] + ': ' + hoved_info['titel'])
             # Create hovedgruppe
-            hoved_uuid = self._create_kle_klasse(emne_facet_uuid, hoved_info)
+            hoved_uuid = self._create_kle_klasse(facet_uuid, hoved_info)
 
             grupper = self._read_all_grupper(hoved_index)
             for gruppe_index in grupper:
                 gruppe_info = self._read_all_from_gruppe(hoved_index, gruppe_index)
-                print(hoved_info['nummer'] + '.' + gruppe_info['nummer'] + ': ' +
-                      gruppe_info['titel'])
                 # Create gruppe
-                gruppe_uuid = self._create_kle_klasse(emne_facet_uuid, gruppe_info,
+                gruppe_uuid = self._create_kle_klasse(facet_uuid, gruppe_info,
                                                       hoved_uuid)
                 emner = self._read_all_emner(hoved_index, gruppe_index)
                 for emne_index in emner:
-                    emne_info = self._read_all_from_emne(hoved_index, gruppe_index,
+                    emne_info = self._read_all_from_emne(hoved_index,
+                                                         gruppe_index,
                                                          emne_index)
-                    print(hoved_info['nummer'] + '.' + gruppe_info['nummer'] +
-                          '.' + emne_info['nummer'] + ': ' + emne_info['titel'])
                     # Create emne
-                    self._create_kle_klasse(emne_facet_uuid, emne_info, gruppe_uuid)
+                    self._create_kle_klasse(facet_uuid, emne_info, gruppe_uuid)
 
-    def _import_handling(self):
-        facet = 'handlig'
+    def _import_handling(self, facet_uuid):
+        """
+        Import the classes from the KLE facet 'handlingsfacetter'
+        :param facet_uuid: UUID of the facet the classes are created under
+        """
+        logger.info("Importing 'Handling'")
+        facet = 'handling'
         kle_content = self._read_kle_dict(facet=facet)
-        print('Document date: ' + kle_content[0])
         self.kle_dict = kle_content[1]
 
-        funktion_facet_uuid = self._create_facet('Funktion')
         hovedgrupper = (self._read_all_hovedgrupper(facet=facet))
         for hoved_index in hovedgrupper:
-            hoved_info = self._read_all_from_hovedgruppe(hoved_index, facet=facet)
-            print(hoved_info['nummer'] + ': ' + hoved_info['titel'])
-            hoved_uuid = self._create_kle_klasse(funktion_facet_uuid, hoved_info)
+            hoved_info = self._read_all_from_hovedgruppe(hoved_index,
+                                                         facet=facet)
+            hoved_uuid = self._create_kle_klasse(facet_uuid, hoved_info)
 
             grupper = self._read_all_grupper(hoved_index, facet=facet)
             for gruppe_index in grupper:
-                gruppe_info = self._read_all_from_gruppe(hoved_index, gruppe_index,
+                gruppe_info = self._read_all_from_gruppe(hoved_index,
+                                                         gruppe_index,
                                                          facet=facet)
-                print(hoved_info['nummer'] + gruppe_info['nummer'] + ': ' +
-                      gruppe_info['titel'])
                 # Create gruppe
-                self._create_kle_klasse(funktion_facet_uuid, gruppe_info, hoved_uuid)
+                self._create_kle_klasse(facet_uuid, gruppe_info, hoved_uuid)
+
+    def set_mo_org_uuid(self):
+        mora_base = self.mora_base
+        r = requests.get("{}/service/o/".format(mora_base))
+        r.raise_for_status()
+        self.org_uuid = r.json()[0]['uuid']
+
+    def import_aspect_classes(self, facet_uuid):
+        logger.info('Importing aspect classes')
+        for key, scope, uuid in [
+            ('Indsigt', 'INDSIGT', '92f719f2-9e34-459e-8610-8dd160747a93'),
+            ('Udførende', 'UDFOERENDE', '40e91f7a-d2fc-4e07-8108-4046bde113d0'),
+            ('Ansvarlig', 'ANSVARLIG', '4d9d0ff4-017d-4e34-acc4-d403f7b2358c')
+        ]:
+            payload = payloads.lora_klasse(
+                brugervendtnoegle=key,
+                beskrivelse=key,
+                titel=key,
+                facet=facet_uuid,
+                omfang=scope,
+                dato="1910-01-01 00:00:00",
+                ansvarlig=self.org_uuid)
+            self._insert_lora_klasse(payload, uuid)
 
     def import_kle(self):
-        self._import_emne()
-        self._import_handling()
+        self.set_mo_org_uuid()
+        aspect_facet_uuid = self._create_facet('kle_aspect')
+        self.import_aspect_classes(aspect_facet_uuid)
+        number_facet_uuid = self._create_facet('kle_number')
+        self._import_emne(number_facet_uuid)
+        self._import_handling(number_facet_uuid)
 
 
 if __name__ == '__main__':
-    kle = KleUploader()
+    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+    if not cfg_file.is_file():
+        raise Exception('No setting file')
+    settings = json.loads(cfg_file.read_text())
+
+    mora_base = settings['mora.base']
+    mox_base = settings['mox.base']
+
+    kle = KleImporter(mox_base, mora_base)
     kle.import_kle()

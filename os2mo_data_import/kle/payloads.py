@@ -36,11 +36,12 @@ def lora_facet(bvn, org='ddc99abd-c1b0-48c2-aef7-74fea841adae'):
     return facet
 
 
-def lora_klasse(nummer, titel, dato, facet, overklasse):
+def lora_klasse(brugervendtnoegle, beskrivelse, titel, dato, facet, ansvarlig, omfang=None,
+                overklasse=None):
     attributter = {
         'klasseegenskaber': [{
-            'brugervendtnoegle': nummer,
-            'beskrivelse': titel,
+            'brugervendtnoegle': brugervendtnoegle,
+            'beskrivelse': beskrivelse,
             'titel': titel,
             'virkning': _virkning(dato)
         }]
@@ -60,6 +61,11 @@ def lora_klasse(nummer, titel, dato, facet, overklasse):
         'overordnetklasse': [{
             'virkning': _virkning(dato),
             'objekttype': 'Klasse'
+        }],
+        'ansvarlig': [{
+            'uuid': ansvarlig,
+            'virkning': _virkning(dato),
+            'objekttype': 'Organisation'
         }]
     }
     klasse = {
@@ -71,5 +77,8 @@ def lora_klasse(nummer, titel, dato, facet, overklasse):
         klasse['relationer']['overordnetklasse'][0]['uuid'] = overklasse
     else:
         del klasse['relationer']['overordnetklasse']
+
+    if omfang:
+        attributter['klasseegenskaber'][0]['omfang'] = omfang
 
     return klasse
