@@ -160,6 +160,7 @@ Vil man for eksempel afvikle mox_stsorgsync, anvender man kaldet:
 
     tools/jon-runner.sh exports_mox_stsorgsync
 
+
 dotning / (sourcing) af job-runner.sh
 +++++++++++++++++++++++++++++++++++++
 
@@ -168,6 +169,16 @@ Dermed kan man få adgang til at anvende samme backup/restore funktionalitet, so
 anvendes af job-runner.sh / cron-restore.sh. Se tools/opus_import_all.sh for hvordan
 man angiver filer, der skal backes op måske trunkeres efterfølgende. Det er vigtigt
 at du bruger dit eget suffix - se her også eksemplet i tools/opus_import_all.sh
+
+
+job-status json-logning
++++++++++++++++++++++++
+
+i settings findes mulighed for at logge til distribueret log. Det er værdien ``crontab.CRON_LOG_JSON_SINK``,
+der bestemmer, hvor loggen skrives. Hvis den er slået til skrives der jsonlines til denne fil med status på
+både de store linier og de enkelte jobs. Hvis den ikke er slået til, gives der en warning i det almindelige 
+logoutput
+
 
 clear_mox_tables.py
 ===================

@@ -286,7 +286,6 @@ exports_plan2learn(){
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py
     
     (
-	set -x
         # get OUT_DIR and EXPORTS_DIR
         SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
 	[ -z "$query_export" ] && exit 1
@@ -308,7 +307,6 @@ exports_queries_ballerup(){
     ))
     echo running exports_queries_ballerup
     (
-	set -x
         # get OUT_DIR and EXPORTS_DIR
         SETTING_PREFIX="exporters.ballerup" source ${DIPEXAR}/tools/prefixed_settings.sh
         [ -z "${EXPORTS_DIR}" ] && echo "EXPORTS_DIR not spec'ed for exports_queries_ballerup" && exit 1
@@ -326,6 +324,13 @@ exports_test(){
 }
 
 
+# read the run-job script et al
+for module in tools/job-runner.d/*.sh; do
+    echo sourcing $module
+    source $module 
+done
+
+
 # imports are typically interdependent: -e
 imports(){
     [ "${BACKUP_OK}" == "false" ] \
@@ -333,43 +338,43 @@ imports(){
         && return 1 # imports depend on backup
 
     if [ "${RUN_MOX_DB_CLEAR}" == "true" ]; then
-        imports_mox_db_clear || return 2
+        run-job imports_mox_db_clear || return 2
     fi
 
     if [ "${RUN_CHECK_AD_CONNECTIVITY}" == "true" ]; then
-        imports_test_ad_connectivity || return 2
+        run-job imports_test_ad_connectivity || return 2
     fi
 
     if [ "${RUN_SD_FIX_DEPARTMENTS}" == "true" ]; then
-        imports_sd_fix_departments || return 2
+        run-job imports_sd_fix_departments || return 2
     fi
 
     if [ "${RUN_SD_CHANGED_AT}" == "true" ]; then
-        imports_sd_changed_at || return 2
+        run-job imports_sd_changed_at || return 2
     fi
 
     if [ "${RUN_SD_UPDATE_PRIMARY}" == "true" ]; then
-        imports_sd_update_primary || return 2
+        run-job imports_sd_update_primary || return 2
     fi
 
     if [ "${RUN_OPUS_DIFF_IMPORT}" == "true" ]; then
-        imports_opus_diff_import || return 2
+        run-job imports_opus_diff_import || return 2
     fi
 
     if [ "${RUN_AD_SYNC}" == "true" ]; then
-        imports_ad_sync || return 2
+        run-job imports_ad_sync || return 2
     fi
 
     if [ "${RUN_BALLERUP_APOS}" == "true" ]; then
-        imports_ballerup_apos || return 2
+        run-job imports_ballerup_apos || return 2
     fi
 
     if [ "${RUN_BALLERUP_UDVALG}" == "true" ]; then
-        imports_ballerup_udvalg || return 2
+        run-job imports_ballerup_udvalg || return 2
     fi
 
     if [ "${RUN_AD_GROUP_INTO_MO}" == "true" ]; then
-        imports_ad_group_into_mo || return 2
+        run-job imports_ad_group_into_mo || return 2
     fi
 }
 
@@ -380,44 +385,44 @@ exports(){
         && return 1 # exports depend on imports
 
     if [ "${RUN_OS2SYNC}" == "true" ]; then
-        exports_os2sync || return 2
+        run-job exports_os2sync || return 2
     fi
 
     if [ "${RUN_MOX_STS_ORGSYNC}" == "true" ]; then
-        exports_mox_stsorgsync || return 2
+        run-job exports_mox_stsorgsync || return 2
     fi
 
     if [ "${RUN_QUERIES_BALLERUP}" == "true" ]; then
-        exports_queries_ballerup || return 2
+        run-job exports_queries_ballerup || return 2
     fi
 
     if [ "${RUN_EXPORT_EMUS}" == "true" ]; then
-        exports_viborg_emus || return 2
+        run-job exports_viborg_emus || return 2
     fi
 
     if [ "${RUN_EXPORTS_VIBORG_EKSTERNE}" == "true" ]; then
-        exports_viborg_eksterne || return 2
+        run-job exports_viborg_eksterne || return 2
     fi
 
     if [ "${RUN_EXPORTS_OS2MO_PHONEBOOK}" == "true" ]; then
-        exports_os2mo_phonebook || return 2
+        run-job exports_os2mo_phonebook || return 2
     fi
 
     if [ "${RUN_CPR_UUID}" == "true" ]; then
         # this particular report is not allowed to fail
-        exports_cpr_uuid || return 2
+        run-job exports_cpr_uuid || return 2
     fi
 
     if [ "${RUN_MOX_ROLLE}" == "true" ]; then
-        exports_mox_rollekatalog || return 2
+        run-job exports_mox_rollekatalog || return 2
     fi
 
     if [ "${RUN_PLAN2LEARN}" == "true" ]; then
-        exports_plan2learn || return 2
+        run-job exports_plan2learn || return 2
     fi
 
     if [ "${RUN_EXPORTS_TEST}" == "true" ]; then
-        exports_test || return 2
+        run-job exports_test || return 2
     fi
 
 
@@ -431,11 +436,11 @@ reports(){
         && return 1 # reports depend on imports
 
     if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
-        reports_sd_db_overview || echo "error in reports_sd_db_overview - continuing"
+        run-job reports_sd_db_overview || echo "error in reports_sd_db_overview - continuing"
     fi
     
     if [ "${RUN_OPUS_DB_OVERVIEW}" == "true" ]; then
-        reports_opus_db_overview || echo "error in reports_opus_db_overview - continuing"
+        run-job reports_opus_db_overview || echo "error in reports_opus_db_overview - continuing"
     fi
 
 }
@@ -454,6 +459,7 @@ pre_backup(){
         tar -rf $BUPFILE "${f}" > ${temp_report} 2>&1 || FILE_FAILED=true
         if [ "${FILE_FAILED}" = "true" ]; then
             BACKUP_OK=false
+            run-job-log job pre-backup file ! job-status failed ! file $f
             echo BACKUP ERROR
             cat ${temp_report}
         fi
@@ -462,6 +468,7 @@ pre_backup(){
     declare -i age=$(stat -c%Y ${BUPFILE})-$(stat -c%Y ${SNAPSHOT_LORA})
     if [[ ${age} -gt ${BACKUP_MAX_SECONDS_AGE} ]]; then
         BACKUP_OK=false 
+        run-job-log job pre-backup lora ! job-status failed ! age $age
         echo "ERROR database snapshot is more than ${BACKUP_MAX_SECONDS_AGE} seconds old: $age"
 	return 1
     fi
@@ -476,6 +483,7 @@ post_backup(){
         tar -rf $BUPFILE "${f}" > ${temp_report} 2>&1 || FILE_FAILED=true
         if [ "${FILE_FAILED}" = "true" ]; then
             BACKUP_OK=false
+            run-job-log job post-backup file ! job-status failed ! file $f
             echo BACKUP ERROR
             cat ${temp_report}
         fi
@@ -513,63 +521,81 @@ show_status(){
     if [ "${1}" = "post_backup" ]; then
         echo BACKUP_OK=${BACKUP_OK}
         echo
+        [ "${IMPORTS_OK}" = "true" -a "${EXPORTS_OK}" = "true" -a "${REPORTS_OK}" = "true" -a "${BACKUP_OK}" = "true" ] && TOTAL_STATUS=success || TOTAL_STATUS=failed
+        run-job-log job job-runner total-status ! job-status $TOTAL_STATUS \
+            ! imports-ok ${IMPORTS_OK} ! exports-ok ${EXPORTS_OK} \
+            ! reports-ok ${REPORTS_OK} ! backup-ok ${BACKUP_OK}
         return
     fi
     echo
-    echo Hvilke jobs er slået til/fra/udkommenterede:
+    echo Hvilke jobs er slået til/fra/X-ede/udkommenterede :
     echo
-    grep 'crontab.*RUN_.*' settings/settings.json
+    enabled_jobs=$(grep 'crontab.*RUN_.*' settings/settings.json | tr "#\",:" "X ! ")
+    run-job-log job job-runner enabled-jobs ! job-status info ! ${enabled_jobs} 
+    echo ${enabled_jobs} | sed 's/! */\n/g'
     echo
-    echo "Import/export software:"
-    show_git_commit
-    echo "Os2mo-software"
-    echo
-    grep image: /opt/docker/os2mo/docker-compose.yml
-    echo
-    echo "Os2Sync software"
-    echo
-    grep image: /opt/docker/os2sync/docker-compose.yml
-    echo "    mox_stsorgsync: $(head -1 ../mox_stsorgsync/NEWS)"
-    echo
+    run-job-log job job-runner version-info ! job-status info ! git-commit $(git show -s --format=%H)
 }
+
 
 if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
     (
+        if [ ! -n "${CRON_LOG_JSON_SINK}" ]; then
+            REASON="WARNING: crontab.CRON_LOG_JSON_SINK not specified - no json logging"
+            echo ${REASON}
+        fi
+
         if [ ! -d "${VENV}" ]; then
-            echo "FATAL: python env not found"
+            REASON="FATAL: python env not found"
+            run-job-log job job-runner pre-check ! job-status failed ! $REASON
+            echo ${REASON}
             exit 2 # error
         fi
 
         if [ ! -n "${SVC_USER}" ]; then
-            echo "WARNING: Service user not specified"
+            REASON="WARNING: Service user not specified"
+            run-job-log job job-runner pre-check ! job-status warning ! $REASON
+            echo ${REASON}
         fi
 
         if [ ! -n "${SVC_KEYTAB}" ]; then
-            echo "WARNING: Service keytab not specified"
+            REASON="WARNING: Service keytab not specified"
+            run-job-log job job-runner pre-check ! job-status warning ! $REASON
+            echo ${REASON}
         fi
 
         if [ -n "${SVC_KEYTAB}" -a ! -f "${SVC_KEYTAB}" ]; then
-            echo "FATAL: Service keytab not found"
+            REASON="FATAL: Service keytab not found"
+            run-job-log job job-runner pre-check ! job-status failed ! $REASON
+            echo ${REASON}
             exit 2
         fi
 
         if [ ! -n "${CRON_LOG_FILE}" ]; then
-            echo "FATAL: Cron log file not specified"
+            REASON="FATAL: Cron log file not specified"
+            run-job-log job job-runner pre-check ! job-status failed ! $REASON
+            echo ${REASON}
             exit 2
         fi
 
         if [ ! -n "${CRON_BACKUP}" ]; then
-            echo "FATAL: Backup directory not specified"
+            REASON="FATAL: Backup directory not specified"
+            run-job-log job job-runner pre-check ! job-status failed ! $REASON
+            echo ${REASON}
             exit 2
         fi
 
         if [ ! -d "${CRON_BACKUP}" ]; then
-            echo "FATAL: Backup directory non existing"
+            REASON="FATAL: Backup directory non existing"
+            run-job-log job job-runner pre-check ! job-status failed ! $REASON
+            echo ${REASON}
             exit 2
         fi
 
         if [ ! -f "${SNAPSHOT_LORA}" ]; then
-            echo "FATAL: Database snapshot does not exist"
+            REASON="FATAL: Database snapshot does not exist"
+            run-job-log job job-runner pre-check ! job-status failed ! $REASON
+            echo ${REASON}
             exit 2
         fi
         if [ -n "${SVC_USER}" -a -n "${SVC_KEYTAB}" ]; then
@@ -577,18 +603,22 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
             [ -r "${SVC_KEYTAB}" ] || echo WARNING: cannot read keytab
 
             kinit ${SVC_USER} -k -t ${SVC_KEYTAB} || (
-                echo WARNING: not able to refresh kerberos auth - authentication failure
+                REASON="WARNING: not able to refresh kerberos auth - authentication failure"
+                run-job-log job job-runner pre-check ! job-status warning ! $REASON
+                echo ${REASON}
             )
         else
-            echo WARNING: not able to refresh kerberos auth - username or keytab missing
+            REASON="WARNING: not able to refresh kerberos auth - username or keytab missing"
+            run-job-log job job-runner pre-check ! job-status warning ! $REASON
+            echo ${REASON}
         fi
 
         export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
         pre_backup
-        imports && IMPORTS_OK=true
-        exports && EXPORTS_OK=true
-        reports && REPORTS_OK=true
+        run-job imports && IMPORTS_OK=true
+        run-job exports && EXPORTS_OK=true
+        run-job reports && REPORTS_OK=true
         echo
         show_status
         post_backup
