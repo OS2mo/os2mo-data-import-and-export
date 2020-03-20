@@ -33,9 +33,10 @@ logger = logging.getLogger(__name__)
 @click.command()
 @click.option('--root', default=None, help='uuid of the root to be exported.')
 @click.option('--threaded-speedup', default=False, help='Run in multithreaded mode')
-@click.option('--hostname', envvar='MORA_BASE', default=None, required=True, help='MO hostname')
+@click.option('--dev', 'hostname', flag_value='https://os2mo-dev.holstebro.dk', help='https://os2mo-dev.holstebro.dk')
+@click.option('--test', 'hostname', flag_value='https://os2mo-test.holstebro.dk', help='https://os2mo-test.holstebro.dk')
+@click.option('--prod', 'hostname', flag_value='https://os2mo.holstebro.dk', help='https://os2mo.holstebro.dk')
 @click.option('--api_token', envvar='SAML_TOKEN', default=None, required=True, help='SAML API Token')
-# @click.option('--action', default='decorate_leaders', required=True, help='Which action should be performed?')
 def export_from_mo(root, threaded_speedup, hostname, api_token):
     threaded_speedup = threaded_speedup
     t = time.time()
@@ -68,11 +69,8 @@ def export_from_mo(root, threaded_speedup, hostname, api_token):
         cq.pre_cache_users(mh)
         print('Build cache: {}'.format(time.time() - t))
 
-    # export_org_with_hk_managers(mh, nodes, 'hk_organisation.csv')
+    #hh.update_org_with_hk_managers(mh, nodes)
 
-    hh.update_org_with_hk_managers(mh, nodes)
-
-    """
     filename_org = 'planorama_org.csv'
     filename_persons = 'planorama_persons.csv'
     hh.export_to_planorama(mh, nodes, filename_org, filename_persons)
@@ -80,7 +78,6 @@ def export_from_mo(root, threaded_speedup, hostname, api_token):
 
     cq.export_orgs(mh, nodes, "hk_organisation.csv", False)
     print('hk_organisation.csv: {}s'.format(time.time() - t))
-    """
 
 
 if __name__ == '__main__':
