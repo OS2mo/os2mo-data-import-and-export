@@ -25,7 +25,7 @@ import holstebro_helpers as hh
 import holstebro_logger
 from os2mo_helpers.mora_helpers import MoraHelper
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+cfg_file = pathlib.Path.cwd() / 'settings' / 'holstebro.settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
 SETTINGS = json.loads(cfg_file.read_text())
@@ -55,8 +55,9 @@ def decorate_leaders(hostname):
 
     nodes = mh.read_ou_tree(holstebro_uuid)
 
-    print('Read nodes: {}s'.format(time.time() - t))
+    logger.info('Read nodes: {}s'.format(time.time() - t))
 
+    logger.info(f"Updating organisation tree for {holstebro_uuid}")
     hh.update_org_with_hk_managers(mh, nodes)
 
 
