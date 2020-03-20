@@ -86,7 +86,10 @@ def test_full_ad_read():
     # Run through a set of users and test encoding and cpr-separator.
     for user in ad_reader.results.values():
         cpr = user[SETTINGS['integrations.ad.cpr_field']]
-        separator = SETTINGS['integrations.ad.cpr_separator']
+
+        # Notice, separator is read straight from settings file not via
+        # read_conf_settings, default behaviour must be kept synchronized.
+        separator = SETTINGS.get('integrations.ad.cpr_separator', '')
 
         cpr_ok = False
         if separator == '' and len(cpr) == 10:
