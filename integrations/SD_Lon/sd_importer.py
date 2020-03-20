@@ -237,7 +237,7 @@ class SdImport(object):
             parent_uuid = department[
                 'DepartmentReference']['DepartmentUUIDIdentifier']
             if self.org_id_prefix:
-                parent_uuid = self._generate_uuid(parent_uuid, self.org_id_prefix)
+                parent_uuid = generate_uuid(parent_uuid, self.org_id_prefix)
         else:
             import_unit = unit_id == sub_tree
 
