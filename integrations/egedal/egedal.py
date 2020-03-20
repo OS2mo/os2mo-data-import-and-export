@@ -1,29 +1,35 @@
-import os
-import sys
-import datetime
+import json
+import pathlib
 
+from integrations import cpr_mapper
 from os2mo_data_import import ImportHelper
-sys.path.append('../SD_Lon')
-import sd_importer
+from integrations.SD_Lon import sd_importer
+# from integrations.ad_integration import ad_reader
 
-MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'SD-Løn Import')
-MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_CODE', 0)
-MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
+# TODO: Soon we have done this 4 times. Should we make a small settings
+# importer, that will also handle datatype for specicic keys?
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+settings = json.loads(cfg_file.read_text())
 
-GLOBAL_GET_DATE = datetime.datetime(2019, 6, 13, 0, 0)
-
-# Import of Administration
-adm_name = 'AdmOrg'
+cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
+if not cpr_map.is_file():
+    raise Exception('No mapping file')
+employee_mapping = cpr_mapper.employee_mapper(str(cpr_map))
 
 importer = ImportHelper(
     create_defaults=True,
-    mox_base=MOX_BASE,
-    mora_base=MORA_BASE,
-    system_name='SD-Import',
-    end_marker='SDSTOP',
-    store_integration_data=True
+    mox_base=settings['mox.base'],
+    mora_base=settings['mora.base'],
+    store_integration_data=False,
+    seperate_names=True
 )
+
+ad_reader = None
+
+# Import of Administration
+adm_name = 'AdmOrg'
 
 importer.add_klasse(
     identifier=adm_name,
@@ -45,9 +51,6 @@ importer.add_organisation_unit(
 
 sd = sd_importer.SdImport(
     importer,
-    MUNICIPALTY_NAME,
-    MUNICIPALTY_CODE,
-    import_date_from=GLOBAL_GET_DATE,
     org_only=True,
     org_id_prefix='adm_'
 )
@@ -56,7 +59,7 @@ sd.create_ou_tree(
     create_orphan_container=False,
     # 'Direktionen encoded with org prefix 'adm_'
     sub_tree='fff9e2a6-d670-b656-c719-994eeac03a74',
-    super_unit = adm_name
+    super_unit=adm_name
 )
 
 
@@ -84,16 +87,13 @@ importer.add_organisation_unit(
 
 sd = sd_importer.SdImport(
     importer,
-    MUNICIPALTY_NAME,
-    MUNICIPALTY_CODE,
-    import_date_from=GLOBAL_GET_DATE,
-    org_only=True,
+    org_only=False,
     org_id_prefix=None
 )
 
 sd.create_ou_tree(
     create_orphan_container=False,
-    super_unit = løn_name
+    super_unit=løn_name
 )
 
 importer.import_all()
