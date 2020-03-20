@@ -547,54 +547,54 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
 
         if [ ! -d "${VENV}" ]; then
             REASON="FATAL: python env not found"
-            run-job-log job job-runner pre-check ! job-status failed ! $REASON
+            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
             echo ${REASON}
             exit 2 # error
         fi
 
         if [ ! -n "${SVC_USER}" ]; then
             REASON="WARNING: Service user not specified"
-            run-job-log job job-runner pre-check ! job-status warning ! $REASON
+            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
             echo ${REASON}
         fi
 
         if [ ! -n "${SVC_KEYTAB}" ]; then
             REASON="WARNING: Service keytab not specified"
-            run-job-log job job-runner pre-check ! job-status warning ! $REASON
+            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
             echo ${REASON}
         fi
 
         if [ -n "${SVC_KEYTAB}" -a ! -f "${SVC_KEYTAB}" ]; then
             REASON="FATAL: Service keytab not found"
-            run-job-log job job-runner pre-check ! job-status failed ! $REASON
+            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
             echo ${REASON}
             exit 2
         fi
 
         if [ ! -n "${CRON_LOG_FILE}" ]; then
             REASON="FATAL: Cron log file not specified"
-            run-job-log job job-runner pre-check ! job-status failed ! $REASON
+            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
             echo ${REASON}
             exit 2
         fi
 
         if [ ! -n "${CRON_BACKUP}" ]; then
             REASON="FATAL: Backup directory not specified"
-            run-job-log job job-runner pre-check ! job-status failed ! $REASON
+            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
             echo ${REASON}
             exit 2
         fi
 
         if [ ! -d "${CRON_BACKUP}" ]; then
             REASON="FATAL: Backup directory non existing"
-            run-job-log job job-runner pre-check ! job-status failed ! $REASON
+            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
             echo ${REASON}
             exit 2
         fi
 
         if [ ! -f "${SNAPSHOT_LORA}" ]; then
             REASON="FATAL: Database snapshot does not exist"
-            run-job-log job job-runner pre-check ! job-status failed ! $REASON
+            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
             echo ${REASON}
             exit 2
         fi
@@ -604,12 +604,12 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
 
             kinit ${SVC_USER} -k -t ${SVC_KEYTAB} || (
                 REASON="WARNING: not able to refresh kerberos auth - authentication failure"
-                run-job-log job job-runner pre-check ! job-status warning ! $REASON
+                run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
                 echo ${REASON}
             )
         else
             REASON="WARNING: not able to refresh kerberos auth - username or keytab missing"
-            run-job-log job job-runner pre-check ! job-status warning ! $REASON
+            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
             echo ${REASON}
         fi
 
