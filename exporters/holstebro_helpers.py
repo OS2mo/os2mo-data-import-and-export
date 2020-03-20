@@ -14,6 +14,7 @@ import queue
 import threading
 import pathlib
 import time
+import logging
 
 import requests
 from anytree import Node, PreOrderIter
@@ -22,6 +23,8 @@ from datetime import datetime, timedelta
 from os2mo_helpers.mora_helpers import MoraHelper
 
 SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
+
+logger = logging.getLogger('holstebro-helpers')
 
 
 cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
@@ -111,7 +114,7 @@ def update_org_with_hk_managers(mh, nodes):
     """ Traverses a tree of OUs, for each OU finds the manager of the OU.
     : param nodes: The nodes of the OU tree
     """
-    managerHelper = HolstebroManagerHelper(mh)
+    managerHelper = HolstebroHelper(mh)
 
     for node in PreOrderIter(nodes['root']):
         ou = mh.read_ou(node.name)
@@ -159,7 +162,7 @@ def find_org_manager(mh, node):
         return {'uuid': ''}
 
 
-class HolstebroManagerHelper(object):
+class HolstebroHelper(object):
     def __init__(self, mh):
         self.mh = mh
         self.manager_info = self._get_manager_types()
@@ -267,3 +270,28 @@ class HolstebroManagerHelper(object):
 
             manager_level = self._get_org_level(ou)
             self._create_manager(ou_uuid, manager_uuid, manager_level)
+
+    def add_employee(self, employee_info):
+        # TODO: add check for data before posting
+
+        engagement_types = {
+            "ML": "55e2f6c9-2dcb-cdc1-556c-d78d7f9e173d",
+            "TL": "b523b991-ece7-0cce-dbcd-7f227e57ad81"
+        }
+
+        org_uuid = self.mh.read_organisation()
+
+        employee_info['org']['uuid'] = org_uuid
+
+        response = self.mh._mo_post('e/create', employee_info, False)
+        if response.status_code == 400:
+            error = response.json()['description']
+            raise requests.HTTPError("Inserting mora data failed")
+        elif response.status_code not in (200, 201):
+            logger.error(
+                'MO post. Response: {}, data'.format(response.text, data)
+            )
+            raise requests.HTTPError("Inserting mora data failed")
+        else:
+            uuid = response.json()
+        return uuid
