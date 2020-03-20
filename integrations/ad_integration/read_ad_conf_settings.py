@@ -32,7 +32,6 @@ def _read_primary_ad_settings():
     primary_settings = {}
     primary_settings['search_base'] = SETTINGS.get('integrations.ad.search_base')
     primary_settings['cpr_field'] = SETTINGS.get('integrations.ad.cpr_field')
-    primary_settings['cpr_separator'] = SETTINGS.get('integrations.ad.cpr_separator')
     primary_settings['system_user'] = SETTINGS.get('integrations.ad.system_user')
     primary_settings['password'] = SETTINGS.get('integrations.ad.password')
     primary_settings['properties'] = SETTINGS.get('integrations.ad.properties')
@@ -47,9 +46,9 @@ def _read_primary_ad_settings():
         raise Exception(msg)
 
     # Settings that do not need to be set, or have defaults
-    # Most likely the correct value is always None
-    # primary_settings['server'] = os.environ.get('AD_SERVER')
     primary_settings['server'] = None
+    primary_settings['cpr_separator'] = SETTINGS.get(
+        'integrations.ad.cpr_separator', '')
 
     # So far false in all known cases, default to false
     # get_ad_object = os.environ.get('AD_GET_AD_OBJECT', 'False')
@@ -116,6 +115,8 @@ def _read_school_ad_settings():
     school_settings['cpr_field'] = os.environ.get('AD_SCHOOL_CPR_FIELD')
     school_settings['system_user'] = os.environ.get('AD_SCHOOL_SYSTEM_USER')
     school_settings['password'] = os.environ.get('AD_SCHOOL_PASSWORD')
+    school_settings['cpr_separator'] = SETTINGS.get(
+        'integrations.ad.school_cpr_separator')
     ad_school_prop_raw = os.environ.get('AD_SCHOOL_PROPERTIES')
     if ad_school_prop_raw:
         school_settings['properties'] = set(ad_school_prop_raw.split(' '))
