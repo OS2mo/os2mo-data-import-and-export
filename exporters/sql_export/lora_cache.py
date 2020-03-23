@@ -72,19 +72,36 @@ class LoraCache(object):
         Exctract a complete set of objects in LoRa.
         :param url: The url that should be used to extract data.
         """
+        t = time.time()
+        logger.debug('Start reading {}, params: {}, at t={}'.format(url, params, t))
         params['list'] = 1
+        params['maximalantalresultater'] = 10000
+        params['foersteresultat'] = 0
         if self.full_history:
             params['virkningFra'] = '-infinity'
             params['virkningTil'] = 'infinity'
 
-        response = requests.get(self.settings['mox.base'] + url, params=params)
-        data = response.json()
-        results = data['results']
-        if results:
-            data_list = data['results'][0]
-        else:
-            data_list = []
-        return data_list
+        complete_data = []
+
+        done = False
+        while not done:
+            response = requests.get(self.settings['mox.base'] + url, params=params)
+            data = response.json()
+            results = data['results']
+            if results:
+                data_list = data['results'][0]
+            else:
+                data_list = []
+            complete_data = complete_data + data_list
+            if len(data_list) == 0:
+                done = True
+            else:
+                params['foersteresultat'] += 10000
+                logger.debug('Mellemtid, {} læsninger: {}s'.format(
+                    params['foersteresultat'], time.time() - t))
+        logger.debug('LoRa læsning færdig. {} elementer, {}s'.format(
+            len(complete_data), time.time() - t))
+        return complete_data
 
     def _cache_lora_facets(self):
         # Facets are eternal i MO and does not need a historic dump
@@ -358,7 +375,14 @@ class LoraCache(object):
                 user_uuid = rel['tilknyttedebrugere'][0]['uuid']
                 unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
 
-                udvidelser = attr.get('organisationfunktionudvidelser', [{}])[0]
+                udvidelser = {}
+                udv_raw = attr.get('organisationfunktionudvidelser')
+                if isinstance(udv_raw, list):
+                    if len(udv_raw) == 1:
+                        udvidelser = udv_raw[0]
+                    if len(udv_raw) > 1:
+                        msg = 'Ugyldig organisationfunktionudvidelser: {}'
+                        raise Exception(msg.format(udv_raw))
                 fraction = udvidelser.get('fraktion')
                 extensions = {
                     'udvidelse_1': udvidelser.get('udvidelse_1'),
