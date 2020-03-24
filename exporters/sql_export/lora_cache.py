@@ -17,14 +17,14 @@ DEFAULT_TIMEZONE = dateutil.tz.gettz('Europe/Copenhagen')
 
 class LoraCache(object):
 
-    def __init__(self, resolve_dar=True):
+    def __init__(self, resolve_dar=True, full_history=False):
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
 
         self.additional = {
-            'relationer': ('tilknyttedeorganisationer',)
+            'relationer': ('tilknyttedeorganisationer', 'tilhoerer')
         }
 
         if resolve_dar:
@@ -32,8 +32,7 @@ class LoraCache(object):
         else:
             self.dar_cache = None
 
-        self.full_history = True
-        # self.full_history=False
+        self.full_history = full_history
 
         self.mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
         try:
@@ -67,7 +66,7 @@ class LoraCache(object):
             to_date = dt.date().isoformat()
         return from_date, to_date
 
-    def _perform_lora_lookup(self, url, params):
+    def _perform_lora_lookup(self, url, params, skip_history=False):
         """
         Exctract a complete set of objects in LoRa.
         :param url: The url that should be used to extract data.
@@ -77,7 +76,7 @@ class LoraCache(object):
         params['list'] = 1
         params['maximalantalresultater'] = 10000
         params['foersteresultat'] = 0
-        if self.full_history:
+        if self.full_history and not skip_history:
             params['virkningFra'] = '-infinity'
             params['virkningTil'] = 'infinity'
 
@@ -107,7 +106,7 @@ class LoraCache(object):
         # Facets are eternal i MO and does not need a historic dump
         params = {'bvn': '%'}
         url = '/klassifikation/facet'
-        facet_list = self._perform_lora_lookup(url, params)
+        facet_list = self._perform_lora_lookup(url, params, skip_history=True)
 
         facets = {}
         for facet in facet_list:
@@ -124,7 +123,7 @@ class LoraCache(object):
         # currently we replicate this behaviour here.
         params = {'bvn': '%'}
         url = '/klassifikation/klasse'
-        class_list = self._perform_lora_lookup(url, params)
+        class_list = self._perform_lora_lookup(url, params, skip_history=True)
 
         classes = {}
         for oio_class in class_list:
@@ -166,7 +165,7 @@ class LoraCache(object):
         # MO assigns no validity to users, no historic export here.
         params = {'bvn': '%'}
         url = '/organisation/bruger'
-        user_list = self._perform_lora_lookup(url, params)
+        user_list = self._perform_lora_lookup(url, params, skip_history=True)
 
         users = {}
         for user in user_list:
@@ -215,8 +214,7 @@ class LoraCache(object):
                         'user_key': egenskaber['brugervendtnoegle'],
                         'name': egenskaber['enhedsnavn'],
                         'unit_type': relationer['enhedstype'][0]['uuid'],
-                        # 'level': relationer['niveau'][0]['uuid'],
-                        'level': None,  # TODO!
+                        'level': relationer['niveau'][0]['uuid'],
                         'parent': parent,
                         'from_date': from_date,
                         'to_date': to_date
@@ -608,6 +606,91 @@ class LoraCache(object):
                 )
         return managers
 
+    def calculate_primary_engagements(self):
+        if self.full_history:
+            msg = """
+            Calculation of primary engagements is currently not implemented for
+            full historic export.
+            """
+            print(msg)
+            return
+
+        user_primary = {}
+        for uuid, eng_validities in self.engagements.items():
+            assert(len(eng_validities)) == 1
+            eng = eng_validities[0]
+
+            primary_type = self.classes.get(eng['primary_type'])
+            if primary_type is None:
+                print('Primærinformation mangler')
+                continue
+            primary_scope = int(primary_type['scope'])
+            if eng['user'] in user_primary:
+                if user_primary[eng['user']][0] < primary_scope:
+                    user_primary[eng['user']] = [primary_scope, uuid, None]
+            else:
+                user_primary[eng['user']] = [primary_scope, uuid, None]
+            # print('User primary: {}'.format(user_primary[eng['user']]))
+
+        for uuid, eng_validities in self.engagements.items():
+            eng = eng_validities[0]
+            if user_primary[eng['user']][1] == uuid:
+                self.engagements[uuid][0]['primary_boolean'] = True
+            else:
+                self.engagements[uuid][0]['primary_boolean'] = False
+
+    def calculate_derived_unit_data(self):
+        if self.full_history:
+            msg = """
+            Calculation of derived unit data is currently not implemented for
+            full historic export.
+            """
+            print(msg)
+            return
+
+        responsibility_class = self.settings[
+            'exporters.actual_state.manager_responsibility_class']
+        for unit, unit_validities in self.units.items():
+            assert(len(unit_validities)) == 1
+            unit_info = unit_validities[0]
+            manager_uuid = None
+            acting_manager_uuid = None
+
+            # Find a direct manager, if possible
+            for manager, manager_validities in self.managers.items():
+                assert(len(manager_validities)) == 1
+                manager_info = manager_validities[0]
+
+                if manager_info['unit'] == unit:
+                    for resp in manager_info['manager_responsibility']:
+                        if resp == responsibility_class:
+                            manager_uuid = manager
+                            acting_manager_uuid = manager
+
+            location = ''
+            current_unit = unit_info
+            while current_unit:
+                location = current_unit['name'] + "\\" + location
+                current_parent = current_unit.get('parent')
+                if current_parent is not None:
+                    current_unit = self.units[current_parent][0]
+                else:
+                    current_unit = None
+
+                # Find the acting manager.
+                if acting_manager_uuid is None:
+                    for manager, manager_validities in self.managers.items():
+                        manager_info = manager_validities[0]
+                        if manager_info['unit'] == current_parent:
+                            for resp in manager_info['manager_responsibility']:
+                                if resp == responsibility_class:
+                                    acting_manager_uuid = manager
+            location = location[:-1]
+
+            self.units[unit][0]['location'] = location
+            self.units[unit][0]['manager_uuid'] = manager_uuid
+            self.units[unit][0]['acting_manager_uuid'] = acting_manager_uuid
+
     def populate_cache(self, dry_run=False):
         if dry_run:
             with open('facets.p', 'rb') as f:
@@ -735,5 +818,8 @@ class LoraCache(object):
 
 
 if __name__ == '__main__':
-    lc = LoraCache()
-    lc.populate_cache()
+    lc = LoraCache(full_history=False, resolve_dar=False)
+    lc.populate_cache(dry_run=True)
+
+    lc.calculate_derived_unit_data()
+    lc.calculate_primary_engagements()
