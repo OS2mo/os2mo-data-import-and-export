@@ -211,6 +211,7 @@ class LoraCache(object):
 
                 units[uuid].append(
                     {
+                        'uuid': uuid,
                         'user_key': egenskaber['brugervendtnoegle'],
                         'name': egenskaber['enhedsnavn'],
                         'unit_type': relationer['enhedstype'][0]['uuid'],
@@ -397,6 +398,7 @@ class LoraCache(object):
 
                 engagements[uuid].append(
                     {
+                        'uuid': uuid,
                         'user': user_uuid,
                         'unit': unit_uuid,
                         'fraction': fraction,
