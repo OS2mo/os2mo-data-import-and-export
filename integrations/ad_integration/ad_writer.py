@@ -14,6 +14,7 @@ import ad_exceptions
 from ad_common import AD
 from user_names import CreateUserNames
 from os2mo_helpers.mora_helpers import MoraHelper
+from exporters.sql_export.lora_cache import LoraCache
 
 logger = logging.getLogger("AdWriter")
 
@@ -26,7 +27,7 @@ def _random_password(length=12):
 
 
 class ADWriter(AD):
-    def __init__(self):
+    def __init__(self, lc=None):
         super().__init__()
 
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
@@ -35,6 +36,14 @@ class ADWriter(AD):
         self.settings = json.loads(cfg_file.read_text())
         # self.pet = self.settings['integrations.ad.write.primary_types']
 
+        self.lc = lc
+        # This does not belong here, is should be handed over from the sync-tool
+        # self.lc = LoraCache(resolve_dar=True)
+        # self.lc.populate_cache(dry_run=True)
+        # self.lc.calculate_derived_unit_data()
+        # self.lc.calculate_primary_engagements()
+
+        
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
         self.name_creator = CreateUserNames(occupied_names=set())
@@ -135,6 +144,25 @@ class ADWriter(AD):
                         break
         logger.info('replication_finished: {}s'.format(time.time() - t_start))
 
+    def _read_user(self, uuid):
+        if self.lc:
+            lc_user = self.lc.users[uuid]
+            mo_user = {
+                'uuid': uuid,
+                'name': lc_user['navn'],
+                'surname': lc_user['efternavn'],
+                'givenname': lc_user['fornavn'],
+                'cpr_no': lc_user['cpr']
+            }
+        else: 
+            mo_user = self.helper.read_user(user_uuid=uuid)
+
+        if 'uuid' not in mo_user:
+            raise ad_exceptions.UserNotFoundException
+        else:
+            assert(mo_user['uuid'] == uuid)
+        return mo_user
+
     def read_ad_information_from_mo(self, uuid, read_manager=True):
         """
         Retrive the necessary information from MO to contruct a new AD user.
@@ -153,26 +181,37 @@ class ADWriter(AD):
             'manager_sam': 'DMILL'
         }
         """
+        t = time.time()
+        print('r_a_i_f_m_01: {}'.format(time.time() - t))
+        
         logger.info('Read information for {}'.format(uuid))
-        mo_user = self.helper.read_user(user_uuid=uuid)
+        mo_user = self._read_user(uuid)
 
-        if 'uuid' not in mo_user:
-            raise ad_exceptions.UserNotFoundException
+        if self.lc:
+            for eng in self.lc.engagements.values():
+                if eng[0]['user'] == uuid:
+                    if eng[0]['primary_boolean']:
+                        found_primary = True
+                        employment_number = eng[0]['user_key']
+                        title = self.lc.classes[eng[0]['job_function']]['title']
+                        end_date = eng[0]['to_date']
+                        eng_org_unit = eng[0]['unit']
+                        eng_uuid = eng[0]['uuid']
         else:
-            assert(mo_user['uuid'] == uuid)
-
-        engagements = self.helper.read_user_engagement(uuid, calculate_primary=True)
-
-        found_primary = False
-        for engagement in engagements:
-            # engagement_type = engagement['engagement_type']['uuid']
-            if engagement['is_primary']:
-                found_primary = True
-                employment_number = engagement['user_key']
-                title = engagement['job_function']['name']
-                end_date = engagement['validity']['to']
-                if end_date is None:
-                    end_date = '9999-12-31'
+            engagements = self.helper.read_user_engagement(uuid, calculate_primary=True)
+            found_primary = False
+            for engagement in engagements:
+                # engagement_type = engagement['engagement_type']['uuid']
+                if engagement['is_primary']:
+                    found_primary = True
+                    employment_number = engagement['user_key']
+                    title = engagement['job_function']['name']
+                    end_date = engagement['validity']['to']
+                    eng_org_unit = engagement['org_unit']['uuid']
+                    eng_uuid = engagement['uuid']
+        if end_date is None:
+            end_date = '9999-12-31'
+        print('r_a_i_f_m_02: {}'.format(time.time() - t))
 
         if not found_primary:
             raise ad_exceptions.NoPrimaryEngagementException('User: {}'.format(uuid))
@@ -180,44 +219,97 @@ class ADWriter(AD):
         # Now, calculate final end date for any primary engagement
         future_engagements = self.helper.read_user_engagement(uuid, read_all=True,
                                                               skip_past=True)
+        print('r_a_i_f_m_03: {}'.format(time.time() - t))
+
         for eng in future_engagements:
-            if engagement['is_primary']:
-                current_end = eng['validity']['to']
-                if current_end is None:
-                    current_end = '9999-12-31'
+            # if eng['is_primary']:
+            current_end = eng['validity']['to']
+            if current_end is None:
+                current_end = '9999-12-31'
 
-                if (
-                        datetime.datetime.strptime(current_end, '%Y-%m-%d') >
-                        datetime.datetime.strptime(end_date, '%Y-%m-%d')
+            if (
+                    datetime.datetime.strptime(current_end, '%Y-%m-%d') >
+                    datetime.datetime.strptime(end_date, '%Y-%m-%d')
+            ):
+                end_date = current_end
+
+        level2orgunit = 'Ingen'
+        if self.lc:
+            unit_name = self.lc.units[eng_org_unit][0]['name']
+            unit_uuid = eng_org_unit  # ?!?!?!?!?
+            unit_user_key = self.lc.units[eng_org_unit][0]['user_key']
+            location = self.lc.units[eng_org_unit][0]['location']
+
+            # We initialize parent as the unit itself to ensure to catch if
+            # a person is engaged directly in a level2org
+            parent_uuid = self.lc.units[eng_org_unit][0]['uuid'] 
+            while parent_uuid is not None:
+                parent_unit = self.lc.units[parent_uuid][0]
+
+                if self.settings['integrations.ad.write.level2orgunit_type'] in (
+                        parent_unit['unit_type'],
+                        parent_unit['level']
                 ):
-                    end_date = current_end
+                    level2orgunit = parent_unit['name']
+                parent_uuid = parent_unit['parent']
+        else:
+            unit_info = self.helper.read_ou(eng_org_unit)
+            unit_name = unit_info['name']
+            unit_uuid = unit_info['uuid']
+            unit_user_key = unit_info['user_key']
 
-        unit_info = self.helper.read_ou(engagement['org_unit']['uuid'])
-        unit_name = unit_info['name']
-        unit_uuid = unit_info['uuid']
-        unit_user_key = unit_info['user_key']
-
-        # misc = self.helper.read_ou_address(unit_uuid, scope='TEXT',
-        # return_all=True)
-        # www = self.helper.read_ou_address(unit_uuid, scope='WWW', return_all=True)
-        # phone = self.helper.read_ou_address(unit_uuid, scope='PHONE',
-        # return_all=True)
-        email = self.helper.read_ou_address(unit_uuid, scope='EMAIL',
-                                            return_all=True)
-        postal = self.helper.read_ou_address(unit_uuid, scope='DAR',
-                                             return_all=False)
+            location = ''
+            current_unit = unit_info
+            while current_unit:
+                location = current_unit['name'] + '\\' + location
+                current_type = current_unit['org_unit_type']
+                current_level = current_unit['org_unit_level']
+                if current_level is None:
+                    current_level = {'uuid': None}
+                if self.settings['integrations.ad.write.level2orgunit_type'] in (
+                        current_type['uuid'],
+                        current_level['uuid']
+                ):
+                    level2orgunit = current_unit['name']
+                current_unit = current_unit['parent']
+            location = location[:-1]
+            
+        if self.lc:
+            email = []
+            postal  = {}
+            for addr in self.lc.addresses.values():
+                if addr[0]['unit'] == eng_org_unit:
+                    if addr[0]['scope'] == 'DAR':
+                        postal = {'Adresse': addr[0]['value']}
+                    if addr[0]['scope'] == 'E-mail':
+                        visibility = addr[0]['visibility']
+                        visibility_class = None
+                        if visibility is not None:
+                            visibility_class = self.lc.classes[visibility]
+                        email.append(
+                            {
+                                'visibility': visibility_class,
+                                'value': addr[0]['value']
+                            }
+                        )
+        else:
+            email = self.helper.read_ou_address(unit_uuid, scope='EMAIL',
+                                                return_all=True)
+            postal = self.helper.read_ou_address(unit_uuid, scope='DAR',
+                                                 return_all=False)
 
         unit_secure_email = None
         unit_public_email = None
         for mail in email:
-            if mail['visibibility'] is None:
+            if mail['visibility'] is None:
                 # If visibility is not set, we assume it is non-public.
                 unit_secure_email = mail['value']
             else:
-                if mail['visibibility']['scope'] == 'PUBLIC':
+                if mail['visibility']['scope'] == 'PUBLIC':
                     unit_public_email = mail['value']
-                if mail['visibibility']['scope'] == 'SECRET':
+                if mail['visibility']['scope'] == 'SECRET':
                     unit_secure_email = mail['value']
+        print('r_a_i_f_m_04: {}'.format(time.time() - t))
 
         postal_code = city = streetname = 'Ukendt'
         if postal:
@@ -230,42 +322,47 @@ class ADWriter(AD):
 
                 logger.error('Unable to read adresse from MO (no access to DAR?)')
 
-        location = ''
-        current_unit = unit_info
-        level2orgunit = 'Ingen'
-        while current_unit:
-            location = current_unit['name'] + '\\' + location
-            current_type = current_unit['org_unit_type']
-            current_level = current_unit['org_unit_level']
-            if current_level is None:
-                current_level = {'uuid': None}
-            if self.settings['integrations.ad.write.level2orgunit_type'] in (
-                    current_type['uuid'],
-                    current_level['uuid']
-            ):
-                level2orgunit = current_unit['name']
-            current_unit = current_unit['parent']
-        location = location[:-1]
-
         manager_name = None
         manager_sam = None
         manager_mail = None
         if read_manager:
-            try:
-                manager = self.helper.read_engagement_manager(engagement['uuid'])
-            except KeyError:
-                logger.info('No managers found')
-                read_manager = False
+            if self.lc:
+                manager_uuid = self.lc.managers[
+                    self.lc.units[eng_org_unit][0]['acting_manager_uuid']][0]['user']
+                parent_uuid = self.lc.units[eng_org_unit][0]['parent']
+                while manager_uuid == mo_user['uuid']:
+                    print('Self manager, keep searching: {}!'.format(mo_user))
+                    parent_unit = self.lc.units[parent_uuid][0]
+                    manager_uuid = self.lc.managers[
+                        parent_unit['acting_manager_uuid']][0]['user']
+                    
+                    parent_uuid = self.lc.units[parent_uuid][0]['parent']
+                    if parent_uuid == None:
+                        print('This person has no manager!')
+                        read_manager = False
+                        break
+            else:
+                try:
+                    manager = self.helper.read_engagement_manager(eng_uuid)
+                    manager_uuid = manager['uuid']
+                except KeyError:
+                    logger.info('No managers found')
+                    read_manager = False
+        print('r_a_i_f_m_05: {}'.format(time.time() - t))
 
         if read_manager:
-            manager_name = manager['Navn']
-            mo_manager_user = self.helper.read_user(user_uuid=manager['uuid'])
+            mo_manager_user = self._read_user(manager_uuid)
+            manager_name = mo_manager_user['name']
             manager_cpr = mo_manager_user['cpr_no']
-            manager_mail_dict = self.helper.get_e_address(manager['uuid'],
+            print('r_a_i_f_m_06: {}'.format(time.time() - t))
+            manager_mail_dict = self.helper.get_e_address(manager_uuid,
                                                           scope='EMAIL')
             if manager_mail_dict:
                 manager_mail = manager_mail_dict['value']
+            print('r_a_i_f_m_07: {}'.format(time.time() - t))
 
+            # This is also slow, but can be easily cached, by
+            # AD sync
             manager_ad_info = self.get_from_ad(cpr=manager_cpr)
             if len(manager_ad_info) == 1:
                 manager_sam = manager_ad_info[0]['SamAccountName']
@@ -273,6 +370,7 @@ class ADWriter(AD):
                 msg = 'Searching for {}, found in AD: {}'
                 logger.debug(msg.format(manager['Navn'], manager_ad_info))
                 raise ad_exceptions.ManagerNotUniqueFromCprException()
+        print('r_a_i_f_m_10: {}'.format(time.time() - t))
 
         mo_values = {
             'name': (mo_user['givenname'], mo_user['surname']),
@@ -298,6 +396,7 @@ class ADWriter(AD):
             'manager_sam': manager_sam,
             'manager_mail': manager_mail
         }
+        print(mo_values)
         return mo_values
 
     def add_manager_to_user(self, user_sam, manager_sam):
@@ -318,19 +417,23 @@ class ADWriter(AD):
         return response is {}
 
     def sync_user(self, mo_uuid, user_ad_info=None, sync_manager=True):
+        import time
         """
         Sync MO information into AD
         """
         school = False  # TODO
         bp = self._ps_boiler_plate(school)
 
+        t = time.time()
         mo_values = self.read_ad_information_from_mo(mo_uuid)
-
+        print('MO values: {}s'.format(time.time() - t))
+              
         if user_ad_info is None:
             logger.debug('No AD information supplied, will look it up')
             user_sam = self._find_unique_user(mo_values['cpr'])
         else:
             user_sam = user_ad_info['SamAccountName']
+        print('User sam: {}s'.format(time.time() - t))
 
         edit_user_template = ad_templates.edit_user_template
         replace_attributes = self._other_attributes(mo_values, user_sam,
@@ -354,10 +457,13 @@ class ADWriter(AD):
 
         response = self._run_ps_script(ps_script)
         logger.debug('Response from sync: {}'.format(response))
+        print('Run ps: {}s'.format(time.time() - t))
 
         if sync_manager:
             self.add_manager_to_user(user_sam=user_sam,
                                      manager_sam=mo_values['manager_sam'])
+        print('Sync manager: {}s'.format(time.time() - t))
+
         return (True, 'Sync completed')
 
     def create_user(self, mo_uuid, create_manager, dry_run=False):
