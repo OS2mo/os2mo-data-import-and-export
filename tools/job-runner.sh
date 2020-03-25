@@ -143,6 +143,12 @@ imports_ad_group_into_mo(){
     ${VENV}/bin/python3 integrations/ad_integration/import_ad_group_into_mo.py --full-sync
 }
 
+imports_holstebro_ledere(){
+    set -e
+    echo running holstebro_decorate_leaders
+    ${VENV}/bin/python3 exporters/holstebro_decorate_leaders.py --test
+}
+
 exports_mox_rollekatalog(){
     set -e
     echo running exports_mox_rollekatalog
@@ -314,6 +320,11 @@ imports(){
     if [ "${RUN_AD_GROUP_INTO_MO}" == "true" ]; then
         imports_ad_group_into_mo || return 2
     fi
+
+    if [ "${RUN_HOLSTEBRO_LEADERS}" == "true" ]; then
+        imports_holstebro_ledere || return 2
+    fi
+
 }
 
 # exports may also be interdependent: -e
@@ -354,7 +365,6 @@ exports(){
     if [ "${RUN_EXPORTS_TEST}" == "true" ]; then
         exports_test || return 2
     fi
-
 
 }
 

@@ -66,7 +66,7 @@ class MoraHelper(object):
             fieldnames += [str(i) + 'xsub org']
         return fieldnames
 
-    def _write_csv(self, fieldnames, rows, filename):
+    def _write_csv(self, fieldnames, rows, filename, **options):
         """ Write a csv-file from a a dataset. Only fields explicitly mentioned
         in fieldnames will be saved, the rest will be ignored.
         :param fieldnames: The headline for the columns, also act as filter.
@@ -74,12 +74,18 @@ class MoraHelper(object):
         in dict will be matched to fieldnames.
         :param filename: The name of the exported file.
         """
+
+        if len(options.items()) > 0:
+            my_options = options
+        else:
+            my_options = {"extrasaction": "ignore",
+                          "delimiter": ";",
+                          "quoting": csv.QUOTE_ALL
+                          }
+
         print('Encode ascii: {}'.format(self.export_ansi))
         with codecs.open(filename, 'w', encoding='utf-8') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames,
-                                    extrasaction='ignore',
-                                    delimiter=';',
-                                    quoting=csv.QUOTE_ALL)
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames, **my_options)
             writer.writeheader()
             for row in rows:
                 writer.writerow(row)
@@ -460,7 +466,7 @@ class MoraHelper(object):
                 data = {'Navn': manager['person']['name'],
                         # 'Ansvar': manager['responsibility'][0]['name'],
                         'Ansvar': responsibility['name'],
-                        'uuid': uuid, 
+                        'uuid': uuid,
                         'relation_uuid': manager['uuid']
                         }
                 manager_list[uuid] = data
