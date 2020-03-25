@@ -171,6 +171,10 @@ imports_opgavefordeler(){
     )
     echo running imports_opgavefordeler
     "${VENV}/bin/python3" integrations/kle/opgavefordeler.py
+imports_holstebro_ledere(){
+    set -e
+    echo running holstebro_decorate_leaders
+    ${VENV}/bin/python3 exporters/holstebro_decorate_leaders.py --test
 }
 
 exports_mox_rollekatalog(){
@@ -408,6 +412,11 @@ imports(){
     if [ "${RUN_OPGAVEFORDELER}" == "true" ]; then
         run-job imports_opgavefordeler || return 2
     fi
+    
+    if [ "${RUN_HOLSTEBRO_LEADERS}" == "true" ]; then
+        imports_holstebro_ledere || return 2
+    fi
+
 }
 
 # exports may also be interdependent: -e
@@ -460,7 +469,6 @@ exports(){
     if [ "${RUN_EXPORTS_TEST}" == "true" ]; then
         run-job exports_test || return 2
     fi
-
 
 }
 

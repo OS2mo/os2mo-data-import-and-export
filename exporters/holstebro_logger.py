@@ -5,7 +5,7 @@ LOG_LEVEL = logging.DEBUG
 
 def start_logging(log_file, detail_logging=None):
     if detail_logging is None:
-        detail_logging = ('Exports', 'LederHierarki')
+        detail_logging = ('Exports', 'LederHierarki', 'holstebro-helpers')
 
     for name in logging.root.manager.loggerDict:
         if name in detail_logging:
