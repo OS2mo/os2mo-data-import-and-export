@@ -7,18 +7,18 @@
 Holstebro specific export functions, decorators and 
 helper classes
 """
+import csv
 import json
 import logging
 import os
+import pathlib
 import queue
 import threading
-import pathlib
 import time
-import logging
+from datetime import datetime, timedelta
 
 import requests
 from anytree import Node, PreOrderIter
-from datetime import datetime, timedelta
 
 from os2mo_helpers.mora_helpers import MoraHelper
 
@@ -32,15 +32,66 @@ if not cfg_file.is_file():
     raise Exception('No setting file')
 SETTINGS = json.loads(cfg_file.read_text())
 
-leader_logger = logging.getLogger('LederHierarki')
-logger = logging.getLogger('Exports')
+
+def export_to_essenslms(mh, nodes, filename):
+    """ Traverses a tree of OUs, for each OU finds the manager of the OU.
+    : param nodes: The nodes of the OU tree
+    """
+    fieldnames = ['name',
+                  'handle',
+                  'email',
+                  'ou_roles',
+                  'user_roles',
+                  'locale',
+                  'tmp_password',
+                  'password']
+
+    rows = []
+
+    for node in PreOrderIter(nodes['root']):
+        ou = mh.read_ou(node.name)
+        # Do not add "Afdelings-niveau"
+        if ou['org_unit_level']['name'] != 'Afdelings-niveau':
+
+            employees = mh.read_organisation_people(node.name, 'engagement', False)
+            manager = find_org_manager(mh, node)
+
+            org_path = f"/Root/MOCH/Holstebro/Holstebro/{ou['location']}/{ou['name']}"
+
+            logger.info(f"Exporting {org_path} to EssensLMS")
+
+            for uuid, employee in employees.items():
+                row = {}
+                address = mh.read_user_address(uuid, username=True, cpr=True)
+
+                ou_role = f"{org_path}:Manager" if uuid == manager['uuid'] else f"{org_path}:User"
+
+                row = {'name': employee['Navn'],
+                       'handle': f"{employee['User Key']}".lstrip('0'),
+                       'email': address['E-mail'] if 'E-mail' in address else '',
+                       'ou_roles': ou_role.replace("\\", "/"),
+                       'user_roles': 'Holstebro',
+                       'locale': 'da',
+                       'tmp_password': 'true',
+                       'password': 'abcd1234'
+                       }
+
+                rows.append(row)
+
+    my_options = {"extrasaction": "ignore",
+                  "delimiter": ",",
+                  "quoting": csv.QUOTE_MINIMAL
+                  }
+
+    logger.info(f"Writing {len(rows)} rows to {filename}")
+    mh._write_csv(fieldnames, rows, filename, **my_options)
 
 
 def export_to_planorama(mh, nodes, filename_org, filename_persons):
     """ Traverses a tree of OUs, for each OU finds the manager of the OU.
     : param nodes: The nodes of the OU tree
     """
-    fieldnames_persons = ['UUID',
+    fieldnames_persons = ['integrationsid',
                           'Username',
                           # 'Password',
                           'Name',
@@ -54,9 +105,9 @@ def export_to_planorama(mh, nodes, filename_org, filename_persons):
                           'Mobile',
                           'Telephone',
                           'Responsible',
-                          'Responsible_UUID',
+                          # 'Responsible_UUID',
                           'Company']
-    fieldnames_org = ['Root', 'Number', 'Name', 'Manager_uuid']
+    fieldnames_org = ['Root', 'Number', 'Name']
 
     rows_org = []
     rows_persons = []
@@ -65,29 +116,41 @@ def export_to_planorama(mh, nodes, filename_org, filename_persons):
         ou = mh.read_ou(node.name)
         # Do not add "Afdelings-niveau"
         if ou['org_unit_level']['name'] != 'Afdelings-niveau':
-            over_uuid = ou['parent']['uuid'] if ou['parent'] else ''
+            parent_ou_uuid = ou['parent']['uuid'] if ou['parent'] else ''
 
-            employees = mh.read_organisation_people(node.name, 'engagement', False)
-            # Does this node have a new name?
             manager = find_org_manager(mh, node)
             if(manager['uuid'] != ''):
                 manager_engagement = mh.read_user_engagement(manager['uuid'])
             else:
                 manager_engagement = [{'user_key': ''}]
 
-            row_org = {'Root': over_uuid,
+            row_org = {'Root': parent_ou_uuid,
                        'Number': ou['uuid'],
-                       'Name': ou['name'],
-                       'Manager_uuid': manager['uuid'] if 'uuid' in manager else ''}
+                       'Name': ou['name']
+                       }
             rows_org.append(row_org)
+            logger.info(f"Exporting {ou['name']} to Planorama")
 
+            employees = mh.read_organisation_people(node.name, 'engagement', False)
             for uuid, employee in employees.items():
                 row = {}
                 address = mh.read_user_address(uuid, username=True, cpr=True)
                 # manager = mh.read_engagement_manager(employee['Engagement UUID'])
 
-                row = {'UUID': uuid,
-                       'Username': employee['User Key'],
+                # is this employee the manager for the department? Then fetch the parent ou's manager
+                if uuid != manager['uuid']:
+                    responsible = manager_engagement[0]['user_key']
+                else:
+                    parent_manager = find_org_manager(mh, node.parent)
+                    if(parent_manager['uuid'] != ''):
+                        pmanager_engagement = mh.read_user_engagement(
+                            parent_manager['uuid'])
+                    else:
+                        pmanager_engagement = [{'user_key': ''}]
+                    responsible = pmanager_engagement[0]['user_key']
+
+                row = {'integrationsid': uuid,
+                       'Username': f"HK-{employee['User Key']}",
                        # 'Password': '',
                        'Name': employee['Navn'],
                        'Title': employee['Stillingsbetegnelse'][0] if len(employee['Stillingsbetegnelse']) > 0 else '',
@@ -99,14 +162,16 @@ def export_to_planorama(mh, nodes, filename_org, filename_persons):
                        # 'Number': '',
                        'Mobile': address['Mobiltelefon'] if 'Mobiltelefon' in address else '',
                        'Telephone': address['Telefon'] if 'Telefon' in address else '',
-                       'Responsible': manager_engagement[0]['user_key'] if len(manager_engagement) > 0 else '',
-                       'Responsible_UUID': manager['uuid'] if 'uuid' in manager else '',
+                       'Responsible': f"HK-{responsible}" if responsible != '' else '',
+                       # 'Responsible_UUID': manager['uuid'] if 'uuid' in manager else '',
                        'Company': employee['Org-enhed UUID']
                        }
 
                 rows_persons.append(row)
 
+    logger.info(f"Writing {len(rows_persons)} rows to {filename_persons}")
     mh._write_csv(fieldnames_persons, rows_persons, filename_persons)
+    logger.info(f"Writing {len(rows_org)} rows to {filename_org}")
     mh._write_csv(fieldnames_org, rows_org, filename_org)
 
 
@@ -120,7 +185,7 @@ def update_org_with_hk_managers(mh, nodes):
         ou = mh.read_ou(node.name)
         # for each ou, check if name contains _leder
         # if so, check ou for "tilknytninger" and set  this as leader for ou.parent
-        if ou['org_unit_level']['name'] == 'Afdelings-niveau' and ou['name'].count('_leder') == 1:
+        if ou['org_unit_level']['name'] == 'Afdelings-niveau' and ou['name'].count(SETTINGS['imports.holstebro.leaders.manager_extension']) == 1:
             # We have an Afdeling with name _leder, find associated employees and make them leaders in the parent ou
             associated_employees = mh.read_organisation_people(
                 node.name, 'association', False)
@@ -133,7 +198,7 @@ def update_org_with_hk_managers(mh, nodes):
             # This manager is now manager for parent ou
             # if parent ou's name ends with "led/adm", make employee
             # manager for the parent ou's parent as well.
-            if ou['parent']['parent'] != None and ou['parent']['name'].count('led-adm') == 1:
+            if ou['parent']['parent'] != None and ou['parent']['name'].count(SETTINGS['imports.holstebro.leaders.common_management_name']) == 1:
                 manager_uuid = list(associated_employees)[0]
                 managerHelper.update_manager(
                     ou['parent']['parent'], associated_employees[manager_uuid])
@@ -148,9 +213,8 @@ def find_org_manager(mh, node):
     dict is returned
     """
 
-    if(node.is_root):
-        print("root node")
-        # return {'uuid': ''}
+    if node == None:
+        return {'uuid': ''}
 
     new_manager = mh.read_ou_manager(node.name, True)
 
@@ -219,10 +283,10 @@ class HolstebroHelper(object):
                 "from": self._get_date()
             }
         }
-        leader_logger.debug(
+        logger.info(
             "Attempting to create manager for ou uuid: {}".format(ou_uuid))
         self.mh._mo_post('details/create', payload, False)
-        leader_logger.debug("Manager created")
+        logger.info("Manager created")
 
     def _terminate_manager(self, manager_releation_uuid):
         payload = {
@@ -233,10 +297,10 @@ class HolstebroHelper(object):
             }
         }
 
-        leader_logger.debug(
+        logger.info(
             "Attempting to terminate manager relation uuid: {}".format(manager_releation_uuid))
         self.mh._mo_post('details/terminate', payload, True)
-        leader_logger.debug("Manager terminated")
+        logger.info("Manager terminated")
 
     def _get_date(self, td=0):
         rdate = datetime.today() - timedelta(days=td)
@@ -256,14 +320,14 @@ class HolstebroHelper(object):
         ou_manager = self.mh.read_ou_manager(ou_uuid, False)
 
         if ou_manager == {}:  # no manager, create it
-            leader_logger.debug("Manager for {} should be {}".format(
+            logger.info("Manager for {} should be {}".format(
                 ou['name'], manager['Navn']))
 
             manager_level = self._get_org_level(ou)
             self._create_manager(ou_uuid, manager_uuid, manager_level)
 
         elif ou_manager['uuid'] != manager_uuid:
-            leader_logger.debug("Manager for {} should be {}".format(
+            logger.info("Manager for {} should be {}".format(
                 ou['name'], manager['Navn']))
 
             self._terminate_manager(ou_manager['relation_uuid'])
@@ -289,7 +353,7 @@ class HolstebroHelper(object):
             raise requests.HTTPError("Inserting mora data failed")
         elif response.status_code not in (200, 201):
             logger.error(
-                'MO post. Response: {}, data'.format(response.text, data)
+                'MO post. Response: {}, data'.format(response.text, response)
             )
             raise requests.HTTPError("Inserting mora data failed")
         else:

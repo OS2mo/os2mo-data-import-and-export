@@ -34,15 +34,13 @@ logger = logging.getLogger('LederHierarki')
 
 
 @click.command()
-@click.option('--hostname', envvar='MORA_BASE', default=None, required=True, help='MO hostname')
-@click.option('--api_token', envvar='SAML_TOKEN', default=None, required=True, help='SAML API Token')
-def decorate_leaders(hostname, api_token):
+@click.option('--prod', 'hostname', required=True, flag_value='https://os2mo.holstebro.dk', help='MO Prod server')
+@click.option('--test', 'hostname', required=True, flag_value='https://os2mo-test.holstebro.dk', help='MO Test server')
+@click.option('--dev', 'hostname', required=True, flag_value='https://os2mo-dev.holstebro.dk', help='MO Dev server')
+def decorate_leaders(hostname):
     holstebro_logger.start_logging(SETTINGS['logging.holstebro.leaders_logfile'])
 
     t = time.time()
-
-    if api_token is None:
-        raise NameError('Ugyldigt argument')
 
     mh = MoraHelper(hostname=hostname, export_ansi=False)
 
