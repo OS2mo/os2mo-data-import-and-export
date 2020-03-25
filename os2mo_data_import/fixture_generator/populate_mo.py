@@ -5,6 +5,7 @@ from requests import Session
 from anytree import PreOrderIter
 from os2mo_data_import import ImportHelper
 from fixture_generator.dummy_data_creator import Size
+from kle import kle_import
 
 
 """
@@ -306,10 +307,11 @@ class CreateDummyOrg(object):
 @option('--municipality', metavar='NAME', default='Læsø')
 @option('--scale', type=int, default=4)
 @option('--extra-root/--no-extra-root', is_flag=True)
+@option('--kle/--no-kle', is_flag=True, default=False)
 @option('--small', 'org_size', flag_value=Size.Small)
 @option('--normal', 'org_size', flag_value=Size.Normal, default=True)
 @option('--large', 'org_size', flag_value=Size.Large)
-def main(mox_base, mora_base, municipality, scale, org_size, extra_root):
+def main(mox_base, mora_base, municipality, scale, org_size, extra_root, kle):
     with Session() as sess:
         r = sess.get('http://dawa.aws.dk/kommuner', params={
             'navn': municipality,
@@ -338,6 +340,10 @@ def main(mox_base, mora_base, municipality, scale, org_size, extra_root):
                    extra_root=True)
 
     importer.import_all()
+
+    if kle:
+        kle_importer = kle_import.KleImporter(mox_base, mora_base)
+        kle_importer.import_kle()
 
 
 if __name__ == '__main__':
