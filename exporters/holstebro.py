@@ -43,6 +43,7 @@ def export_from_mo(hostname):
 
     mh = MoraHelper(hostname=hostname, export_ansi=False)
 
+    logger.info(f"Reading organisation from: {hostname}")
     org = mh.read_organisation()
 
     # find Holstebro Kommune root uuid, if no uuid is specified
@@ -61,6 +62,11 @@ def export_from_mo(hostname):
     okit_uuid = '470ce14c-66c3-4100-ba00-0000014b0001'
     bufl_uuid = '4105e152-66c3-4100-8c00-0000014b0001'
 
+    #holstebro_uuid = itdig_uuid
+    #holstebro_uuid = okit_uuid
+    #holstebro_uuid = bufl_uuid
+
+    logger.info(f"Reading ou tree from {holstebro_uuid}")
     nodes = mh.read_ou_tree(holstebro_uuid)
     logger.info('Read nodes: {}s'.format(time.time() - t))
 
@@ -68,9 +74,11 @@ def export_from_mo(hostname):
         cq.pre_cache_users(mh)
         logger.info('Build cache: {}'.format(time.time() - t))
 
+    logger.info(f"Exporting data to Planorama")
     hh.export_to_planorama(mh, nodes, planorama_org, planorama_employee)
     logger.info(f"{planorama_org}: {time.time() - t}")
 
+    logger.info(f"Exporting data to EssensLMS")
     hh.export_to_essenslms(mh, nodes, essens_lms_filename)
     logger.info(f"{essens_lms_filename}: {time.time() - t}")
 

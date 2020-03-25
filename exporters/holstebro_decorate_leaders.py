@@ -55,8 +55,9 @@ def decorate_leaders(hostname):
 
     nodes = mh.read_ou_tree(holstebro_uuid)
 
-    print('Read nodes: {}s'.format(time.time() - t))
+    logger.info('Read nodes: {}s'.format(time.time() - t))
 
+    logger.info(f"Updating organisation tree for {holstebro_uuid}")
     hh.update_org_with_hk_managers(mh, nodes)
 
 
