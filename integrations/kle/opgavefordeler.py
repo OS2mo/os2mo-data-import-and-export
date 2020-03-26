@@ -6,8 +6,13 @@ from enum import Enum
 
 import requests
 
+LOG_FILE = 'opgavefordeler.log'
+
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    filename=LOG_FILE
+)
 
 
 class Aspects(Enum):

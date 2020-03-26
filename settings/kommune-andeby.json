@@ -13,6 +13,8 @@
     "crontab.RUN_CPR_UUID": false,
     "crontab.RUN_OPUS_DIFF_IMPORT": false,
     "crontab.RUN_SD_UPDATE_PRIMARY": false,
+    "crontab.RUN_KLE_ONLINE": false,
+    "crontab.RUN_OPGAVEFORDELER": false,
 
     "crontab.SAML_TOKEN": "",
     "crontab.SVC_USER": "USER@KOMMUNE.NET", 

@@ -155,6 +155,24 @@ imports_ad_group_into_mo(){
     ${VENV}/bin/python3 integrations/ad_integration/import_ad_group_into_mo.py --full-sync
 }
 
+imports_kle_online(){
+    set -e
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/kle_online.log"
+    )
+    echo running imports_kle_online
+    "${VENV}/bin/python3" os2mo_data_import/kle/kle_import.py
+}
+
+imports_opgavefordeler(){
+    set -e
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/opgavefordeler.log"
+    )
+    echo running imports_opgavefordeler
+    "${VENV}/bin/python3" integrations/kle/opgavefordeler.py
+}
+
 exports_mox_rollekatalog(){
     set -e
     export MOX_ROLLE_MAPPING="${DIPEXAR}/cpr_mo_ad_map.csv"
@@ -375,6 +393,14 @@ imports(){
 
     if [ "${RUN_AD_GROUP_INTO_MO}" == "true" ]; then
         run-job imports_ad_group_into_mo || return 2
+    fi
+
+    if [ "${RUN_KLE_ONLINE}" == "true" ]; then
+        run-job imports_kle_online || return 2
+    fi
+
+    if [ "${RUN_OPGAVEFORDELER}" == "true" ]; then
+        run-job imports_opgavefordeler || return 2
     fi
 }
 

@@ -6,7 +6,13 @@ import xmltodict
 
 from kle import payloads
 
+LOG_FILE = 'kle_online.log'
+
 logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    filename=LOG_FILE
+)
 
 # Facetter
 # Emne: http://clever-gewicht-reduzieren.de/resources/kle/emneplan
