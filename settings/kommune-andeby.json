@@ -13,6 +13,8 @@
     "crontab.RUN_CPR_UUID": false,
     "crontab.RUN_OPUS_DIFF_IMPORT": false,
     "crontab.RUN_SD_UPDATE_PRIMARY": false,
+    "crontab.RUN_KLE_ONLINE": false,
+    "crontab.RUN_OPGAVEFORDELER": false,
 
     "crontab.SAML_TOKEN": "",
     "crontab.SVC_USER": "USER@KOMMUNE.NET", 
@@ -111,7 +113,7 @@
     "exporters.os2rollekatalog.rollekatalog_url": "",
     "exporters.os2rollekatalog.rollekatalog_api_token": "",
     "exporters.os2rollekatalog.ad_system_name": "",
-    "exporters.os2rollekatalog.main_root_org_unit": ""
+    "exporters.os2rollekatalog.main_root_org_unit": "",
 
     "#os2sync.settings": "after mox-stsorgsync has been moved into integrations",
     "os2sync.log_file": "/home/system-account/CRON/mox_stsorgsync.log",
@@ -122,5 +124,8 @@
     "os2sync.phone_scope_classes": [],
     "os2sync.email_scope_classes": [],
     "os2sync.api_url" : "/url-to-os2sync-api",
-    "os2sync.top_unit_uuid": "uuid for administrative org top unit in os2mo"
+    "os2sync.top_unit_uuid": "uuid for administrative org top unit in os2mo",
+
+    "integrations.os2opgavefordeler.url": "",
+    "integrations.os2opgavefordeler.token": ""
 }
