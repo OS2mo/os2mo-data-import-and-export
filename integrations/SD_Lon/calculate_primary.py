@@ -64,10 +64,16 @@ class MOPrimaryEngagementUpdater(object):
             success = False
         return success
 
-    def _calculate_rate_and_ids(self, mo_engagement):
+    def _calculate_rate_and_ids(self, mo_engagement, no_past):
         max_rate = 0
         min_id = 9999999
         for eng in mo_engagement:
+            if no_past and eng['validity']['to']:
+                to = datetime.datetime.strptime(
+                    eng['validity']['to'], '%Y-%m-%d')
+                if to < datetime.datetime.now():
+                    continue
+
             logger.debug('Calculate rate, engagement: {}'.format(eng))
             if 'user_key' not in eng:
                 logger.error('Cannot calculate primary!!! Eng: {}'.format(eng))
@@ -180,7 +186,6 @@ class MOPrimaryEngagementUpdater(object):
         """
         logger.info('Calculate primary engagement: {}'.format(self.mo_person))
         date_list = self._find_cut_dates(no_past=no_past)
-
         number_of_edits = 0
 
         for i in range(0, len(date_list) - 1):
@@ -191,12 +196,18 @@ class MOPrimaryEngagementUpdater(object):
             # print('Read engagements {}: {}s'.format(i, time.time() - t))
 
             logger.debug('MO engagement: {}'.format(mo_engagement))
-            (min_id, max_rate) = self._calculate_rate_and_ids(mo_engagement)
+            (min_id, max_rate) = self._calculate_rate_and_ids(mo_engagement, no_past)
             if (min_id is None) or (max_rate is None):
                 continue
 
             fixed = None
             for eng in mo_engagement:
+                if no_past and eng['validity']['to']:
+                    to = datetime.datetime.strptime(
+                        eng['validity']['to'], '%Y-%m-%d')
+                    if to < datetime.datetime.now():
+                        continue
+
                 if not eng['primary']:
                     # Todo: It would seem this happens for leaves, should we make
                     # a special type for this?
@@ -208,6 +219,12 @@ class MOPrimaryEngagementUpdater(object):
 
             exactly_one_primary = False
             for eng in mo_engagement:
+                if no_past and eng['validity']['to']:
+                    to = datetime.datetime.strptime(
+                        eng['validity']['to'], '%Y-%m-%d')
+                    if to < datetime.datetime.now():
+                        continue
+                print(eng)
                 if eng['primary']['uuid'] == self.primary_types['no_salary']:
                     logger.info('Status 0, no update of primary')
                     continue
