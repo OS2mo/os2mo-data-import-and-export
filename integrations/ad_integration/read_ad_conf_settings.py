@@ -115,8 +115,6 @@ def _read_school_ad_settings():
     school_settings['cpr_field'] = os.environ.get('AD_SCHOOL_CPR_FIELD')
     school_settings['system_user'] = os.environ.get('AD_SCHOOL_SYSTEM_USER')
     school_settings['password'] = os.environ.get('AD_SCHOOL_PASSWORD')
-    school_settings['cpr_separator'] = SETTINGS.get(
-        'integrations.ad.school_cpr_separator')
     ad_school_prop_raw = os.environ.get('AD_SCHOOL_PROPERTIES')
     if ad_school_prop_raw:
         school_settings['properties'] = set(ad_school_prop_raw.split(' '))
@@ -136,6 +134,8 @@ def _read_school_ad_settings():
 
     # Settings that do not need to be set
     school_settings['server'] = os.environ.get('AD_SCHOOL_SERVER')
+    school_settings['cpr_separator'] = SETTINGS.get(
+        'integrations.ad.school_cpr_separator', '')
 
     # So far true in all known cases, default to true
     get_ad_object = os.environ.get('AD_SCHOOL_GET_AD_OBJECT', 'True')
