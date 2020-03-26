@@ -79,7 +79,8 @@ class ADParameterReader(AD):
         if self.all_settings['school']['read_school']:
             settings = self._get_setting(school=True)
             # response = self._get_from_ad(user=user, cpr=cpr, school=True)
-            response = self.get_from_ad(user=user, cpr=cpr, school=True)
+            response = self.get_from_ad(user=user, cpr=cpr, school=True,
+                                        server=settings['server'])
             for current_user in response:
                 job_title = current_user.get('Title')
                 if job_title and job_title.find('FRATR') == 0:
