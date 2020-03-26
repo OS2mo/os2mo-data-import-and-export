@@ -14,7 +14,7 @@ import ad_exceptions
 from ad_common import AD
 from user_names import CreateUserNames
 from os2mo_helpers.mora_helpers import MoraHelper
-# from exporters.sql_export.lora_cache import LoraCache
+from exporters.sql_export.lora_cache import LoraCache
 
 logger = logging.getLogger("AdWriter")
 
@@ -145,6 +145,9 @@ class ADWriter(AD):
 
     def _read_user(self, uuid):
         if self.lc:
+            if uuid not in self.lc.users:
+                raise ad_exceptions.UserNotFoundException
+
             lc_user = self.lc.users[uuid]
             mo_user = {
                 'uuid': uuid,
@@ -156,14 +159,14 @@ class ADWriter(AD):
         else:
             mo_user = self.helper.read_user(user_uuid=uuid)
 
-        if 'uuid' not in mo_user:
-            raise ad_exceptions.UserNotFoundException
-        else:
-            assert(mo_user['uuid'] == uuid)
+            if 'uuid' not in mo_user:
+                raise ad_exceptions.UserNotFoundException
+            else:
+                assert(mo_user['uuid'] == uuid)
         return mo_user
 
     def _find_ad_user(self, cpr, ad_dump):
-        manager_ad_info = None
+        manager_ad_info = []
         if ad_dump is not None:
             for user in ad_dump:
                 if user[self.settings['integrations.ad.cpr_field']] == cpr:
@@ -220,6 +223,51 @@ class ADWriter(AD):
         }
         return unit_info
 
+    def _read_user_addresses(self, eng_org_unit):
+        addresses = {}
+        if self.lc:
+            email = []
+            postal = {}
+            for addr in self.lc.addresses.values():
+                if addr[0]['unit'] == eng_org_unit:
+                    if addr[0]['scope'] == 'DAR':
+                        postal = {'Adresse': addr[0]['value']}
+                    if addr[0]['scope'] == 'E-mail':
+                        visibility = addr[0]['visibility']
+                        visibility_class = None
+                        if visibility is not None:
+                            visibility_class = self.lc.classes[visibility]
+                        email.append(
+                            {
+                                'visibility': visibility_class,
+                                'value': addr[0]['value']
+                            }
+                        )
+        else:
+            email = self.helper.read_ou_address(eng_org_unit, scope='EMAIL',
+                                                return_all=True)
+            postal = self.helper.read_ou_address(eng_org_unit, scope='DAR',
+                                                 return_all=False)
+
+        unit_secure_email = None
+        unit_public_email = None
+        for mail in email:
+            if mail['visibility'] is None:
+                # If visibility is not set, we assume it is non-public.
+                unit_secure_email = mail['value']
+            else:
+                if mail['visibility']['scope'] == 'PUBLIC':
+                    unit_public_email = mail['value']
+                if mail['visibility']['scope'] == 'SECRET':
+                    unit_secure_email = mail['value']
+
+        addresses = {
+            'unit_secure_email': unit_secure_email,
+            'unit_public_email': unit_public_email,
+            'postal': postal
+        }
+        return addresses
+
     def read_ad_information_from_mo(self, uuid, read_manager=True, ad_dump=None):
         """
         Retrive the necessary information from MO to contruct a new AD user.
@@ -274,6 +322,7 @@ class ADWriter(AD):
         if not found_primary:
             raise ad_exceptions.NoPrimaryEngagementException('User: {}'.format(uuid))
 
+        # Todo: Her er 0.4s at hente, kræver dog historik cache.
         # Now, calculate final end date for any primary engagement
         future_engagements = self.helper.read_user_engagement(uuid, read_all=True,
                                                               skip_past=True)
@@ -292,53 +341,18 @@ class ADWriter(AD):
                 end_date = current_end
 
         unit_info = self._find_unit_info(eng_org_unit)
-
-        if self.lc:
-            email = []
-            postal = {}
-            for addr in self.lc.addresses.values():
-                if addr[0]['unit'] == eng_org_unit:
-                    if addr[0]['scope'] == 'DAR':
-                        postal = {'Adresse': addr[0]['value']}
-                    if addr[0]['scope'] == 'E-mail':
-                        visibility = addr[0]['visibility']
-                        visibility_class = None
-                        if visibility is not None:
-                            visibility_class = self.lc.classes[visibility]
-                        email.append(
-                            {
-                                'visibility': visibility_class,
-                                'value': addr[0]['value']
-                            }
-                        )
-        else:
-            email = self.helper.read_ou_address(eng_org_unit, scope='EMAIL',
-                                                return_all=True)
-            postal = self.helper.read_ou_address(eng_org_unit, scope='DAR',
-                                                 return_all=False)
-
-        unit_secure_email = None
-        unit_public_email = None
-        for mail in email:
-            if mail['visibility'] is None:
-                # If visibility is not set, we assume it is non-public.
-                unit_secure_email = mail['value']
-            else:
-                if mail['visibility']['scope'] == 'PUBLIC':
-                    unit_public_email = mail['value']
-                if mail['visibility']['scope'] == 'SECRET':
-                    unit_secure_email = mail['value']
+        addresses = self._read_user_addresses(eng_org_unit)
         print('r_a_i_f_m_04: {}'.format(time.time() - t))
 
         postal_code = city = streetname = 'Ukendt'
-        if postal:
+        if addresses['postal']:
+            postal = addresses['postal']
             try:
                 postal_code = re.findall('[0-9]{4}', postal['Adresse'])[0]
                 city_pos = postal['Adresse'].find(postal_code) + 5
                 city = postal['Adresse'][city_pos:]
                 streetname = postal['Adresse'][:city_pos - 7]
             except IndexError:
-
                 logger.error('Unable to read adresse from MO (no access to DAR?)')
 
         manager_name = None
@@ -350,16 +364,18 @@ class ADWriter(AD):
                     self.lc.units[eng_org_unit][0]['acting_manager_uuid']][0]['user']
                 parent_uuid = self.lc.units[eng_org_unit][0]['parent']
                 while manager_uuid == mo_user['uuid']:
+                    if parent_uuid is None:
+                        print('This person has no manager!')
+                        read_manager = False
+                        break
+
                     print('Self manager, keep searching: {}!'.format(mo_user))
                     parent_unit = self.lc.units[parent_uuid][0]
                     manager_uuid = self.lc.managers[
                         parent_unit['acting_manager_uuid']][0]['user']
 
                     parent_uuid = self.lc.units[parent_uuid][0]['parent']
-                    if parent_uuid is None:
-                        print('This person has no manager!')
-                        read_manager = False
-                        break
+
             else:
                 try:
                     manager = self.helper.read_engagement_manager(eng_uuid)
@@ -373,6 +389,8 @@ class ADWriter(AD):
             manager_name = mo_manager_user['name']
             manager_cpr = mo_manager_user['cpr_no']
             print('r_a_i_f_m_06: {}'.format(time.time() - t))
+
+            # TODO: Her er 0.1s at hente.
             manager_mail_dict = self.helper.get_e_address(manager_uuid,
                                                           scope='EMAIL')
             if manager_mail_dict:
@@ -384,7 +402,7 @@ class ADWriter(AD):
                 manager_sam = manager_ad_info[0]['SamAccountName']
             else:
                 msg = 'Searching for {}, found in AD: {}'
-                logger.debug(msg.format(manager['Navn'], manager_ad_info))
+                logger.debug(msg.format(manager_name, manager_ad_info))
                 raise ad_exceptions.ManagerNotUniqueFromCprException()
         print('r_a_i_f_m_08: {}'.format(time.time() - t))
 
@@ -398,9 +416,9 @@ class ADWriter(AD):
             'title': title,
             'unit': unit_info['name'],
             'unit_uuid': eng_org_unit,
-            'unit_user_key': unit_info['unit_user_key'],
-            'unit_public_email': unit_public_email,
-            'unit_secure_email': unit_secure_email,
+            'unit_user_key': unit_info['user_key'],
+            'unit_public_email': addresses['unit_public_email'],
+            'unit_secure_email': addresses['unit_secure_email'],
             'unit_postal_code': postal_code,
             'unit_city': city,
             'unit_streetname': streetname,
