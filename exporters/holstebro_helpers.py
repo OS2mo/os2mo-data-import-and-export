@@ -4,7 +4,7 @@
 #
 
 """
-Holstebro specific export functions, decorators and 
+Holstebro specific export functions, decorators and
 helper classes
 """
 import csv
@@ -31,6 +31,44 @@ cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
 SETTINGS = json.loads(cfg_file.read_text())
+
+
+def holstebro_generic_export(mh, nodes, filename):
+
+    fieldnames = ['uuid',
+                  'name',
+                  'email',
+                  'sam_account',
+                  'phone',
+                  'location',
+                  'mobile',
+                  'loen_nummer',
+                  'forvaltning',  # direktørområde
+                  'omraade',  # chefområde
+                  'afdeling',  # nærmeste leders afdeling
+                  'gruppe',  # engagmentsafdeling
+                  'org_sti',
+                  'stilling',
+                  'engagements_type']
+
+    rows = []
+
+    for node in PreOrderIter(nodes['root']):
+        ou = mh.read_ou(node.name)
+        # Do not add "Afdelings-niveau"
+        if ou['org_unit_level']['name'] != 'Afdelings-niveau':
+            employees = mh.read_organisation_people(node.name, 'engagement', False)
+            manager = find_org_manager(mh, node)
+
+            org_path = f"{ou['location']}/{ou['name']}"
+
+            for uuid, employee in employees.items():
+                row = {}
+                address = mh.read_user_address(uuid, username=True, cpr=True)
+
+                """
+                Create generic mapping function from employee data to fieldnames
+                """
 
 
 def export_to_essenslms(mh, nodes, filename):
@@ -64,7 +102,13 @@ def export_to_essenslms(mh, nodes, filename):
                 row = {}
                 address = mh.read_user_address(uuid, username=True, cpr=True)
 
-                ou_role = f"{org_path}:Manager" if uuid == manager['uuid'] else f"{org_path}:User"
+                if uuid == manager['uuid']:  # this is the manager
+                    # Strip " led-adm" from path, since manager for "led-adm" is also manager for parent level
+                    replace_value = f" {SETTINGS['imports.holstebro.leaders.common_management_name']}"
+                    org_path = org_path.replace(replace_value, '', 1)
+                    ou_role = f"{org_path}:Manager"
+                else:
+                    ou_role = f"{org_path}:User"
 
                 row = {'name': employee['Navn'],
                        'handle': f"{employee['User Key']}".lstrip('0'),
@@ -196,7 +240,7 @@ def update_org_with_hk_managers(mh, nodes):
                     ou['parent'], associated_employees[manager_uuid])
 
             # This manager is now manager for parent ou
-            # if parent ou's name ends with "led/adm", make employee
+            # if parent ou's name ends with "led-adm", make employee
             # manager for the parent ou's parent as well.
             if ou['parent']['parent'] != None and ou['parent']['name'].count(SETTINGS['imports.holstebro.leaders.common_management_name']) == 1:
                 manager_uuid = list(associated_employees)[0]
@@ -206,7 +250,7 @@ def update_org_with_hk_managers(mh, nodes):
 
 def find_org_manager(mh, node):
     """
-    Searches for a manager for the given node. 
+    Searches for a manager for the given node.
     Returns the manager directly associated with the node
     OR the enherited manager from higherlevel
     If no managers at all in organisation, the empty

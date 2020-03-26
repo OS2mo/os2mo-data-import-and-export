@@ -60,11 +60,11 @@ def export_from_mo(hostname):
     # TEST UUIDs
     itdig_uuid = '9f981b4d-66c3-4100-b800-000001480001'
     okit_uuid = '470ce14c-66c3-4100-ba00-0000014b0001'
-    bufl_uuid = '4105e152-66c3-4100-8c00-0000014b0001'
+    boou_uuid = '5826074e-66c3-4100-8a00-000001510001'
 
     #holstebro_uuid = itdig_uuid
     #holstebro_uuid = okit_uuid
-    #holstebro_uuid = bufl_uuid
+    holstebro_uuid = boou_uuid
 
     logger.info(f"Reading ou tree from {holstebro_uuid}")
     nodes = mh.read_ou_tree(holstebro_uuid)
@@ -74,9 +74,11 @@ def export_from_mo(hostname):
         cq.pre_cache_users(mh)
         logger.info('Build cache: {}'.format(time.time() - t))
 
+    """
     logger.info(f"Exporting data to Planorama")
     hh.export_to_planorama(mh, nodes, planorama_org, planorama_employee)
     logger.info(f"{planorama_org}: {time.time() - t}")
+    """
 
     logger.info(f"Exporting data to EssensLMS")
     hh.export_to_essenslms(mh, nodes, essens_lms_filename)
