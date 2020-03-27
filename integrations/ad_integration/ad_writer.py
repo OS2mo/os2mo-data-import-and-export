@@ -9,7 +9,6 @@ import argparse
 
 import ad_logger
 import ad_templates
-# import ad_exceptions
 
 from integrations.ad_integration.ad_exceptions import CprNotNotUnique
 from integrations.ad_integration.ad_exceptions import UserNotFoundException
@@ -35,7 +34,7 @@ def _random_password(length=12):
 
 
 class ADWriter(AD):
-    def __init__(self, lc=None):
+    def __init__(self, lc=None, lc_historic=None):
         super().__init__()
 
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
@@ -45,11 +44,7 @@ class ADWriter(AD):
         # self.pet = self.settings['integrations.ad.write.primary_types']
 
         self.lc = lc
-        # This does not belong here, is should be handed over from the sync-tool
-        # self.lc = LoraCache(resolve_dar=True)
-        # self.lc.populate_cache(dry_run=True)
-        # self.lc.calculate_derived_unit_data()
-        # self.lc.calculate_primary_engagements()
+        self.lc_historic = lc_historic
 
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
