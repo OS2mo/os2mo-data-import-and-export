@@ -336,6 +336,12 @@ exports_queries_ballerup(){
     )
 }
 
+exports_actual_state_export(){
+    # kører en test-kørsel
+    BACK_UP_AND_TRUNCATE+=(sql_export.log)
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py
+}
+
 exports_test(){
     set -e
     :
@@ -409,6 +415,10 @@ exports(){
     [ "${IMPORTS_OK}" == "false" ] \
         && echo ERROR: imports are in error - skipping exports \
         && return 1 # exports depend on imports
+
+    if [ "${RUN_ACTUAL_STATE_EXPORT}" == "true" ]; then
+        run-job exports_actual_state_export || return 2
+    fi
 
     if [ "${RUN_OS2SYNC}" == "true" ]; then
         run-job exports_os2sync || return 2
