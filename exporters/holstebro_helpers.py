@@ -71,7 +71,7 @@ def holstebro_generic_export(mh, nodes, filename):
                 """
 
 
-def export_to_essenslms(mh, nodes, filename):
+def export_to_essenslms(mh, all_nodes, filename):
     """ Traverses a tree of OUs, for each OU finds the manager of the OU.
     : param nodes: The nodes of the OU tree
     """
@@ -86,41 +86,53 @@ def export_to_essenslms(mh, nodes, filename):
 
     rows = []
 
-    for node in PreOrderIter(nodes['root']):
-        ou = mh.read_ou(node.name)
-        # Do not add "Afdelings-niveau"
-        if ou['org_unit_level']['name'] != 'Afdelings-niveau':
+    roots = SETTINGS['exports.holstebro.roots']
 
-            employees = mh.read_organisation_people(node.name, 'engagement', False)
-            manager = find_org_manager(mh, node)
+    for root_uuid, nodes in all_nodes.items():
 
-            org_path = f"/Root/MOCH/Holstebro/Holstebro/{ou['location']}/{ou['name']}"
+        export_all = True if len(roots[root_uuid]) == 0 else False
 
-            logger.info(f"Exporting {org_path} to EssensLMS")
+        for node in PreOrderIter(nodes['root']):
+            ou = mh.read_ou(node.name)
 
-            for uuid, employee in employees.items():
-                row = {}
-                address = mh.read_user_address(uuid, username=True, cpr=True)
+            # if this is only partial export of org and this org unit is not on the exports list, continue
+            if not export_all and ou['uuid'] not in roots[root_uuid]:
+                continue
 
-                if uuid == manager['uuid']:  # this is the manager
-                    # Strip " led-adm" from path, since manager for "led-adm" is also manager for parent level
-                    replace_value = f" {SETTINGS['imports.holstebro.leaders.common_management_name']}"
-                    org_path = org_path.replace(replace_value, '', 1)
-                    ou_role = f"{org_path}:Manager"
-                else:
-                    ou_role = f"{org_path}:User"
+            # Do not add "Afdelings-niveau"
+            if ou['org_unit_level']['name'] != 'Afdelings-niveau':
 
-                row = {'name': employee['Navn'],
-                       'handle': f"{employee['User Key']}".lstrip('0'),
-                       'email': address['E-mail'] if 'E-mail' in address else '',
-                       'ou_roles': ou_role.replace("\\", "/"),
-                       'user_roles': 'Holstebro',
-                       'locale': 'da',
-                       'tmp_password': 'true',
-                       'password': 'abcd1234'
-                       }
+                employees = mh.read_organisation_people(
+                    node.name, 'engagement', False)
+                manager = find_org_manager(mh, node)
 
-                rows.append(row)
+                org_path = f"/Root/MOCH/Holstebro/Holstebro/{ou['location']}/{ou['name']}"
+
+                logger.info(f"Exporting {org_path} to EssensLMS")
+
+                for uuid, employee in employees.items():
+                    row = {}
+                    address = mh.read_user_address(uuid, username=True, cpr=True)
+
+                    if uuid == manager['uuid']:  # this is the manager
+                        # Strip " led-adm" from path, since manager for "led-adm" is also manager for parent level
+                        replace_value = f" {SETTINGS['imports.holstebro.leaders.common_management_name']}"
+                        org_path = org_path.replace(replace_value, '', 1)
+                        ou_role = f"{org_path}:Manager"
+                    else:
+                        ou_role = f"{org_path}:User"
+
+                    row = {'name': employee['Navn'],
+                           'handle': f"{employee['User Key']}".lstrip('0'),
+                           'email': address['E-mail'] if 'E-mail' in address else '',
+                           'ou_roles': ou_role.replace("\\", "/"),
+                           'user_roles': 'Holstebro',
+                           'locale': 'da',
+                           'tmp_password': 'true',
+                           'password': 'abcd1234'
+                           }
+
+                    rows.append(row)
 
     my_options = {"extrasaction": "ignore",
                   "delimiter": ",",

@@ -47,8 +47,10 @@ def export_from_mo(hostname):
     org = mh.read_organisation()
 
     # find Holstebro Kommune root uuid, if no uuid is specified
-    roots = mh.read_top_units(org)
-    for root in roots:
+    org_roots = mh.read_top_units(org)
+    root_uuids = []
+    for root in org_roots:
+        root_uuids.append(root['uuid'])
         if root['name'] == SETTINGS['municipality.name']:
             holstebro_uuid = root['uuid']
 
@@ -64,24 +66,31 @@ def export_from_mo(hostname):
 
     #holstebro_uuid = itdig_uuid
     #holstebro_uuid = okit_uuid
-    holstebro_uuid = boou_uuid
+    #holstebro_uuid = boou_uuid
 
-    logger.info(f"Reading ou tree from {holstebro_uuid}")
-    nodes = mh.read_ou_tree(holstebro_uuid)
-    logger.info('Read nodes: {}s'.format(time.time() - t))
+    all_nodes = {}
+    roots = SETTINGS['exports.holstebro.roots']
+    for uuid in roots:
+        if uuid not in root_uuids:
+            raise Exception("Configured root uuid does not exist in organisation")
+
+        all_nodes[uuid] = {}
+        logger.info(f"Reading ou tree from {uuid}")
+        mh.read_ou_tree(uuid, all_nodes[uuid])
+        logger.info('Read nodes: {}s'.format(time.time() - t))
 
     if threaded_speedup:
         cq.pre_cache_users(mh)
         logger.info('Build cache: {}'.format(time.time() - t))
 
-    """
     logger.info(f"Exporting data to Planorama")
-    hh.export_to_planorama(mh, nodes, planorama_org, planorama_employee)
+    hh.export_to_planorama(
+        mh, all_nodes[holstebro_uuid], planorama_org, planorama_employee)
     logger.info(f"{planorama_org}: {time.time() - t}")
-    """
 
     logger.info(f"Exporting data to EssensLMS")
-    hh.export_to_essenslms(mh, nodes, essens_lms_filename)
+    hh.export_to_essenslms(
+        mh, all_nodes, essens_lms_filename)
     logger.info(f"{essens_lms_filename}: {time.time() - t}")
 
 
