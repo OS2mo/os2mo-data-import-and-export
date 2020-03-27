@@ -19,6 +19,7 @@ setup(
         "integration_abstraction",
         "os2mo_helpers",
         "fixture_generator",
+        "kle",
     ],
     package_data={
         "fixture_generator": ["navne/*.txt", "*.p"],
