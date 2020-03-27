@@ -70,6 +70,7 @@ class AD(object):
                 output = output.replace('&oslash;', 'ø')
                 response = json.loads(output)
         else:
+            print('Error: {}'.format(r.std_err))
             response = r.std_err
         return response
 
@@ -80,9 +81,9 @@ class AD(object):
         settings = self._get_setting(school)
 
         # This is most likely never neeed.
-        server = ''
-        if settings['server']:
-            server = ' -Server {} '.format(settings['server'])
+        # server = ''
+        # if settings['server']:
+        #     server = ' -Server {} '.format(settings['server'])
 
         # TODO: Are these really different?
         path = ''
@@ -99,12 +100,13 @@ class AD(object):
         credentials = ' -Credential $usercredential'
 
         boiler_plate = {
-            'server': server,
+            # 'server': server,
             'path': path,
             'get_ad_object': get_ad_object,
             'search_base': search_base,
             'credentials': credentials,
-            'complete': server + search_base + credentials
+            # 'complete': server + search_base + credentials
+            'complete': search_base + credentials
         }
         return boiler_plate
 
@@ -249,4 +251,5 @@ class AD(object):
                 return_val = [response]
             else:
                 return_val = response
+
         return return_val
