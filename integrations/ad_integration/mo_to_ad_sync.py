@@ -4,10 +4,9 @@ import time
 import logging
 import pathlib
 
-import ad_reader
-import ad_writer
-import ad_logger
-
+from integrations.ad_integration import ad_reader
+from integrations.ad_integration import ad_writer
+from integrations.ad_integration import ad_logger
 from integrations.ad_integration.ad_exceptions import UserNotFoundException
 from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
 from integrations.ad_integration.ad_exceptions import ManagerNotUniqueFromCprException
@@ -16,7 +15,11 @@ from exporters.sql_export.lora_cache import LoraCache
 
 
 LOG_FILE = 'mo_to_ad_sync.log'
-MO_UUID_FIELD = os.environ.get('AD_WRITE_UUID')
+
+# Notice!!!!!
+# MO_UUID_FIELD = os.environ.get('AD_WRITE_UUID')
+
+# Notice, logging os not working fully as expected.
 logger = logging.getLogger('MoAdSync')
 
 
@@ -27,10 +30,13 @@ def main():
     settings = json.loads(cfg_file.read_text())
 
     # if lora_speedup:
-    lc = LoraCache(resolve_dar=True)
+    lc = LoraCache(resolve_dar=True, full_history=False)
     lc.populate_cache(dry_run=True)
     lc.calculate_derived_unit_data()
     lc.calculate_primary_engagements()
+
+    lc_historic = LoraCache(resolve_dar=False, full_history=True)
+    lc_historic.populate_cache(dry_run=True)
 
     mo_uuid_field = settings['integrations.ad.write.uuid_field']
 
