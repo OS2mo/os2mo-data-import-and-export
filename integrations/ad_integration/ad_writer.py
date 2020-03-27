@@ -9,12 +9,20 @@ import argparse
 
 import ad_logger
 import ad_templates
-import ad_exceptions
+# import ad_exceptions
+
+from integrations.ad_integration.ad_exceptions import CprNotNotUnique
+from integrations.ad_integration.ad_exceptions import UserNotFoundException
+from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
+from integrations.ad_integration.ad_exceptions import ReplicationFailedException
+from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException
+from integrations.ad_integration.ad_exceptions import SamAccountNameNotUnique
+from integrations.ad_integration.ad_exceptions import (
+    ManagerNotUniqueFromCprException)
 
 from ad_common import AD
 from user_names import CreateUserNames
 from os2mo_helpers.mora_helpers import MoraHelper
-from exporters.sql_export.lora_cache import LoraCache
 
 logger = logging.getLogger("AdWriter")
 
@@ -128,7 +136,7 @@ class ADWriter(AD):
             while not replication_finished:
                 if time.time() - t_start > 60:
                     logger.error('Replication error')
-                    raise ad_exceptions.ReplicationFailedException()
+                    raise ReplicationFailedException()
 
                 for server in self.all_settings['global']['servers']:
                     user = self.get_from_ad(user=sam, server=server)
@@ -146,7 +154,7 @@ class ADWriter(AD):
     def _read_user(self, uuid):
         if self.lc:
             if uuid not in self.lc.users:
-                raise ad_exceptions.UserNotFoundException
+                raise UserNotFoundException()
 
             lc_user = self.lc.users[uuid]
             mo_user = {
@@ -160,20 +168,25 @@ class ADWriter(AD):
             mo_user = self.helper.read_user(user_uuid=uuid)
 
             if 'uuid' not in mo_user:
-                raise ad_exceptions.UserNotFoundException
+                raise UserNotFoundException()
             else:
                 assert(mo_user['uuid'] == uuid)
         return mo_user
 
     def _find_ad_user(self, cpr, ad_dump):
-        manager_ad_info = []
+        ad_info = []
         if ad_dump is not None:
             for user in ad_dump:
                 if user[self.settings['integrations.ad.cpr_field']] == cpr:
-                    manager_ad_info = user
+                    ad_info.append(user)
         else:
-            manager_ad_info = self.get_from_ad(cpr=cpr)
-        return manager_ad_info
+            ad_info = self.get_from_ad(cpr=cpr)
+
+        if not ad_info:
+            msg = 'Found no account for {}'.format(cpr)
+            logger.error(msg)
+            raise CprNotFoundInADException()
+        return ad_info
 
     def _find_unit_info(self, eng_org_unit):
         level2orgunit = 'Ingen'
@@ -307,7 +320,6 @@ class ADWriter(AD):
                 uuid, calculate_primary=True)
             found_primary = False
             for engagement in engagements:
-                # engagement_type = engagement['engagement_type']['uuid']
                 if engagement['is_primary']:
                     found_primary = True
                     employment_number = engagement['user_key']
@@ -320,7 +332,7 @@ class ADWriter(AD):
         print('r_a_i_f_m_02: {}'.format(time.time() - t))
 
         if not found_primary:
-            raise ad_exceptions.NoPrimaryEngagementException('User: {}'.format(uuid))
+            raise NoPrimaryEngagementException('User: {}'.format(uuid))
 
         # Todo: Her er 0.4s at hente, kræver dog historik cache.
         # Now, calculate final end date for any primary engagement
@@ -329,7 +341,6 @@ class ADWriter(AD):
         print('r_a_i_f_m_03: {}'.format(time.time() - t))
 
         for eng in future_engagements:
-            # if eng['is_primary']:
             current_end = eng['validity']['to']
             if current_end is None:
                 current_end = '9999-12-31'
@@ -358,6 +369,7 @@ class ADWriter(AD):
         manager_name = None
         manager_sam = None
         manager_mail = None
+        manager_cpr = None
         if read_manager:
             if self.lc:
                 manager_uuid = self.lc.managers[
@@ -403,7 +415,7 @@ class ADWriter(AD):
             else:
                 msg = 'Searching for {}, found in AD: {}'
                 logger.debug(msg.format(manager_name, manager_ad_info))
-                raise ad_exceptions.ManagerNotUniqueFromCprException()
+                raise ManagerNotUniqueFromCprException()
         print('r_a_i_f_m_08: {}'.format(time.time() - t))
 
         mo_values = {
@@ -426,11 +438,11 @@ class ADWriter(AD):
             # UNIT WEB PAGE
             'location': unit_info['location'],
             'level2orgunit': unit_info['level2orgunit'],
-            'manager_name': manager_name,
             'manager_sam': manager_sam,
+            'manager_cpr': manager_cpr,
+            'manager_name': manager_name,
             'manager_mail': manager_mail
         }
-        print(mo_values)
         return mo_values
 
     def add_manager_to_user(self, user_sam, manager_sam):
@@ -450,6 +462,59 @@ class ADWriter(AD):
         response = self._run_ps_script(ps_script)
         return response is {}
 
+    def _cf(self, ad_field, value, ad):
+        logger.info('Check AD field: {}'.format(ad_field))
+        mismatch = {}
+        if not ad.get(ad_field) == value:
+            msg = '{}: AD value: {}, does not match MO value: {}'
+            logger.info(msg.format(ad_field, ad.get(ad_field), value))
+            mismatch = {
+                ad_field: (
+                    ad.get(ad_field),
+                    value
+                )
+            }
+        return mismatch
+
+    def _sync_compare(self, mo_values, ad_dump):
+        school = False  # TODO
+        write_settings = self._get_write_setting(school)
+
+        user_ad_info = self._find_ad_user(mo_values['cpr'], ad_dump)
+        assert(len(user_ad_info) == 1)
+        ad = user_ad_info[0]
+        # Todo: Why is this not generated along with all other info in mo_values?
+        mo_values['name_sam'] = '{} - {}'.format(mo_values['full_name'],
+                                                 ad['SamAccountName'])
+
+        mismatch = {}
+        mismatch.update(self._cf(write_settings['level2orgunit_field'],
+                                 mo_values['level2orgunit'], ad))
+        mismatch.update(self._cf(write_settings['org_field'],
+                                 mo_values['location'], ad))
+        mismatch.update(self._cf('DisplayName', mo_values['full_name'], ad))
+        mismatch.update(self._cf('GivenName', mo_values['name'][0], ad))
+        mismatch.update(self._cf('Surname', mo_values['name'][1], ad))
+        mismatch.update(self._cf('EmployeeNumber',
+                                 mo_values['employment_number'], ad))
+
+        named_sync_fields = self.settings.get(
+            'integrations.ad_writer.mo_to_ad_fields', {})
+
+        # Den nuværende feltmapning har ingen felter her.
+        # print(named_sync_fields)
+        # for mo_field, ad_field in named_sync_fields.items():
+        #     other_attributes_fields.append(
+        #         (ad_field, mo_values[mo_field])
+        #     )
+        if 'manager_cpr' in mo_values:
+            manager_ad_info = self._find_ad_user(mo_values['manager_cpr'], ad_dump)
+            if not ad['Manager'] == manager_ad_info[0]['DistinguishedName']:
+                mismatch['manager'] = (ad['Manager'],
+                                       manager_ad_info[0]['DistinguishedName'])
+                logger.info('Manager should be updated')
+        return mismatch
+
     def sync_user(self, mo_uuid, ad_dump=None, sync_manager=True):
         """
         Sync MO information into AD
@@ -463,10 +528,21 @@ class ADWriter(AD):
         if ad_dump is None:
             logger.debug('No AD information supplied, will look it up')
             user_sam = self._find_unique_user(mo_values['cpr'])
+            # Todo, we could also add the compare logic here, but
+            # the benifit will be max 40%
+            mismatch = {'force re-sync': 'yes', 'manager': 'yes'}
         else:
             user_ad_info = self._find_ad_user(mo_values['cpr'], ad_dump)
-            user_sam = user_ad_info['SamAccountName']
+            user_sam = user_ad_info[0]['SamAccountName']
+            mismatch = self._sync_compare(mo_values, ad_dump)
 
+        print('Sync compare: {}'.format(mismatch))
+
+        if not mismatch:
+            logger.info('Nothig to edit')
+            return (True, 'Nothing to edit')
+
+        logger.info('Sync compare: {}'.format(mismatch))
         edit_user_template = ad_templates.edit_user_template
         replace_attributes = self._other_attributes(mo_values, user_sam,
                                                     new_user=False)
@@ -490,7 +566,7 @@ class ADWriter(AD):
         response = self._run_ps_script(ps_script)
         logger.debug('Response from sync: {}'.format(response))
 
-        if sync_manager:
+        if sync_manager and 'manager' in mismatch:
             self.add_manager_to_user(user_sam=user_sam,
                                      manager_sam=mo_values['manager_sam'])
 
@@ -520,10 +596,10 @@ class ADWriter(AD):
         existing_cpr = self.get_from_ad(cpr=mo_values['cpr'])
         if existing_sam:
             logger.error('SamAccount already in use: {}'.format(sam_account_name))
-            ad_exceptions.SamAccountNameNotUnique(sam_account_name)
+            raise SamAccountNameNotUnique(sam_account_name)
         if existing_cpr:
             logger.error('cpr already in use: {}'.format(mo_values['cpr']))
-            raise ad_exceptions.CprNotNotUnique(mo_values['cpr'])
+            raise CprNotNotUnique(mo_values['cpr'])
 
         create_user_template = ad_templates.create_user_template
         other_attributes = self._other_attributes(mo_values, sam_account_name,
