@@ -694,30 +694,58 @@ class LoraCache(object):
             self.units[unit][0]['acting_manager_uuid'] = acting_manager_uuid
 
     def populate_cache(self, dry_run=False):
+
+        if self.full_history:
+            facets_file = 'facets_historic.p'
+            classes_file = 'classes_historic.p'
+            users_file = 'users_historic.p'
+            units_file = 'units_historic.p'
+            addresses_file = 'addresses_historic.p'
+            engagements_file = 'engagements_historic.p'
+            managers_file = 'managers_historic.p'
+            associations_file = 'associations_historic.p'
+            leaves_file = 'leaves_historic.p'
+            roles_file = 'roles_historic.p'
+            itsystems_file = 'itsystems_historic.p'
+            it_connections_file = 'it_connections_historic.p'
+        else:
+            facets_file = 'facets.p'
+            classes_file = 'classes.p'
+            users_file = 'users.p'
+            units_file = 'units.p'
+            addresses_file = 'addresses.p'
+            engagements_file = 'engagements.p'
+            managers_file = 'managers.p'
+            associations_file = 'associations.p'
+            leaves_file = 'leaves.p'
+            roles_file = 'roles.p'
+            itsystems_file = 'itsystems.p'
+            it_connections_file = 'it_connections.p'
+
         if dry_run:
-            with open('facets.p', 'rb') as f:
+            with open(facets_file, 'rb') as f:
                 self.facets = pickle.load(f)
-            with open('classes.p', 'rb') as f:
+            with open(classes_file, 'rb') as f:
                 self.classes = pickle.load(f)
-            with open('users.p', 'rb') as f:
+            with open(users_file, 'rb') as f:
                 self.users = pickle.load(f)
-            with open('units.p', 'rb') as f:
+            with open(units_file, 'rb') as f:
                 self.units = pickle.load(f)
-            with open('addresses.p', 'rb') as f:
+            with open(addresses_file, 'rb') as f:
                 self.addresses = pickle.load(f)
-            with open('engagements.p', 'rb') as f:
+            with open(engagements_file, 'rb') as f:
                 self.engagements = pickle.load(f)
-            with open('managers.p', 'rb') as f:
+            with open(managers_file, 'rb') as f:
                 self.managers = pickle.load(f)
-            with open('associations.p', 'rb') as f:
+            with open(associations_file, 'rb') as f:
                 self.associations = pickle.load(f)
-            with open('leaves.p', 'rb') as f:
+            with open(leaves_file, 'rb') as f:
                 self.leaves = pickle.load(f)
-            with open('roles.p', 'rb') as f:
+            with open(roles_file, 'rb') as f:
                 self.roles = pickle.load(f)
-            with open('itsystems.p', 'rb') as f:
+            with open(itsystems_file, 'rb') as f:
                 self.itsystems = pickle.load(f)
-            with open('it_connections.p', 'rb') as f:
+            with open(it_connections_file, 'rb') as f:
                 self.it_connections = pickle.load(f)
             return
 
@@ -729,9 +757,9 @@ class LoraCache(object):
         self.classes = self._cache_lora_classes()
         dt = time.time() - t
         elements = len(self.classes) + len(self.facets)
-        with open('facets.p', 'wb') as f:
+        with open(facets_file, 'wb') as f:
             pickle.dump(self.facets, f, pickle.HIGHEST_PROTOCOL)
-        with open('classes.p', 'wb') as f:
+        with open(classes_file, 'wb') as f:
             pickle.dump(self.classes, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, elements, elements/dt))
         print(msg.format(dt, elements, elements/dt))
@@ -740,7 +768,7 @@ class LoraCache(object):
         logger.info('Læs brugere')
         self.users = self._cache_lora_users()
         dt = time.time() - t
-        with open('users.p', 'wb') as f:
+        with open(users_file, 'wb') as f:
             pickle.dump(self.users, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.users), len(self.users)/dt))
 
@@ -748,7 +776,7 @@ class LoraCache(object):
         logger.info('Læs enheder')
         self.units = self._cache_lora_units()
         dt = time.time() - t
-        with open('units.p', 'wb') as f:
+        with open(units_file, 'wb') as f:
             pickle.dump(self.units, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.units), len(self.units)/dt))
 
@@ -756,7 +784,7 @@ class LoraCache(object):
         logger.info('Læs adresser:')
         self.addresses = self._cache_lora_address()
         dt = time.time() - t
-        with open('addresses.p', 'wb') as f:
+        with open(addresses_file, 'wb') as f:
             pickle.dump(self.addresses, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.addresses), len(self.addresses)/dt))
         print(msg.format(dt, len(self.addresses), len(self.addresses)/dt))
@@ -765,7 +793,7 @@ class LoraCache(object):
         logger.info('Læs engagementer')
         self.engagements = self._cache_lora_engagements()
         dt = time.time() - t
-        with open('engagements.p', 'wb') as f:
+        with open(engagements_file, 'wb') as f:
             pickle.dump(self.engagements, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.engagements), len(self.engagements)/dt))
 
@@ -773,7 +801,7 @@ class LoraCache(object):
         logger.info('Læs ledere')
         self.managers = self._cache_lora_managers()
         dt = time.time() - t
-        with open('managers.p', 'wb') as f:
+        with open(managers_file, 'wb') as f:
             pickle.dump(self.managers, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.managers), len(self.managers)/dt))
 
@@ -782,7 +810,7 @@ class LoraCache(object):
         logger.info('Læs tilknytninger')
         self.associations = self._cache_lora_associations()
         dt = time.time() - t
-        with open('associations.p', 'wb') as f:
+        with open(associations_file, 'wb') as f:
             pickle.dump(self.associations, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.associations),
                                len(self.associations)/dt))
@@ -792,7 +820,7 @@ class LoraCache(object):
         logger.info('Læs orlover')
         self.leaves = self._cache_lora_leaves()
         dt = time.time() - t
-        with open('leaves.p', 'wb') as f:
+        with open(leaves_file, 'wb') as f:
             pickle.dump(self.leaves, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.leaves), len(self.leaves)/dt))
 
@@ -801,7 +829,7 @@ class LoraCache(object):
         t = time.time()
         self.roles = self._cache_lora_roles()
         dt = time.time() - t
-        with open('roles.p', 'wb') as f:
+        with open(roles_file, 'wb') as f:
             pickle.dump(self.roles, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.roles), len(self.roles)/dt))
 
@@ -812,9 +840,9 @@ class LoraCache(object):
         self.it_connections = self._cache_lora_it_connections()
         elements = len(self.itsystems) + len(self.it_connections)
         dt = time.time() - t
-        with open('itsystems.p', 'wb') as f:
+        with open(itsystems_file, 'wb') as f:
             pickle.dump(self.itsystems, f, pickle.HIGHEST_PROTOCOL)
-        with open('it_connections.p', 'wb') as f:
+        with open(it_connections_file, 'wb') as f:
             pickle.dump(self.it_connections, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, elements, elements/dt))
 
