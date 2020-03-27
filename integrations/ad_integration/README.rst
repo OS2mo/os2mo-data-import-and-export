@@ -299,6 +299,7 @@ kan tilføjes efterhånden som integrationen udvikles.
  * ``level2orgunit``: Den oganisatoreiske hovedgruppering (Magistrat, direktørområde,
    eller forvalting) som brugerens primære engagement hører under.
  * ``manager_name``: Navn på leder for brugerens primære engagement.
+ * ``manager_cpr``: CPR på leder for brugerens primære engagement.
  * ``manager_sam``: SamAccountName for leder for brugerens primære engagement.
  * ``manager_mail``: Email på lederen for brugerens primære engagement.
 
