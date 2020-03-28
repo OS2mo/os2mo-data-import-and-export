@@ -143,7 +143,7 @@ def export_to_essenslms(mh, all_nodes, filename):
     mh._write_csv(fieldnames, rows, filename, **my_options)
 
 
-def export_to_planorama(mh, nodes, filename_org, filename_persons):
+def export_to_planorama(mh, all_nodes, filename_org, filename_persons):
     """ Traverses a tree of OUs, for each OU finds the manager of the OU.
     : param nodes: The nodes of the OU tree
     """
@@ -168,65 +168,79 @@ def export_to_planorama(mh, nodes, filename_org, filename_persons):
     rows_org = []
     rows_persons = []
 
-    for node in PreOrderIter(nodes['root']):
-        ou = mh.read_ou(node.name)
-        # Do not add "Afdelings-niveau"
-        if ou['org_unit_level']['name'] != 'Afdelings-niveau':
-            parent_ou_uuid = ou['parent']['uuid'] if ou['parent'] else ''
+    roots = SETTINGS['exports.holstebro.roots']
 
-            manager = find_org_manager(mh, node)
-            if(manager['uuid'] != ''):
-                manager_engagement = mh.read_user_engagement(manager['uuid'])
-            else:
-                manager_engagement = [{'user_key': ''}]
+    for root_uuid, nodes in all_nodes.items():
 
-            row_org = {'Root': parent_ou_uuid,
-                       'Number': ou['uuid'],
-                       'Name': ou['name']
-                       }
-            rows_org.append(row_org)
-            logger.info(f"Exporting {ou['name']} to Planorama")
+        export_all = True if len(roots[root_uuid]) == 0 else False
 
-            employees = mh.read_organisation_people(node.name, 'engagement', False)
-            for uuid, employee in employees.items():
-                row = {}
-                address = mh.read_user_address(uuid, username=True, cpr=True)
-                # manager = mh.read_engagement_manager(employee['Engagement UUID'])
+        for node in PreOrderIter(nodes['root']):
+            ou = mh.read_ou(node.name)
 
-                # is this employee the manager for the department? Then fetch the parent ou's manager
-                if uuid != manager['uuid']:
-                    responsible = manager_engagement[0]['user_key']
+            # if this is only partial export of org and this org unit is not on the exports list, continue
+            if not export_all and ou['uuid'] not in roots[root_uuid]:
+                continue
+
+            # Do not add "Afdelings-niveau"
+            if ou['org_unit_level']['name'] != 'Afdelings-niveau':
+
+                parent_ou_uuid = ou['parent']['uuid'] if ou['parent'] else ''
+                manager = find_org_manager(mh, node)
+
+                if(manager['uuid'] != ''):
+                    manager_engagement = mh.read_user_engagement(manager['uuid'])
                 else:
-                    parent_manager = find_org_manager(mh, node.parent)
-                    if(parent_manager['uuid'] != ''):
-                        pmanager_engagement = mh.read_user_engagement(
-                            parent_manager['uuid'])
+                    manager_engagement = [{'user_key': ''}]
+
+                row_org = {'Root': parent_ou_uuid,
+                           'Number': ou['uuid'],
+                           'Name': ou['name']
+                           }
+                rows_org.append(row_org)
+                logger.info(f"Exporting {ou['name']} to Planorama")
+
+                employees = mh.read_organisation_people(
+                    node.name, 'engagement', False)
+                for uuid, employee in employees.items():
+                    row = {}
+                    address = mh.read_user_address(uuid, username=True, cpr=True)
+                    # manager = mh.read_engagement_manager(employee['Engagement UUID'])
+
+                    # is this employee the manager for the department? Then fetch the parent ou's manager
+                    if uuid != manager['uuid']:
+                        responsible = manager_engagement[0]['user_key']
                     else:
-                        pmanager_engagement = [{'user_key': ''}]
-                    responsible = pmanager_engagement[0]['user_key']
+                        parent_manager = find_org_manager(mh, node.parent)
+                        if(parent_manager['uuid'] != ''):
+                            pmanager_engagement = mh.read_user_engagement(
+                                parent_manager['uuid'])
+                        else:
+                            pmanager_engagement = [{'user_key': ''}]
+                        responsible = pmanager_engagement[0]['user_key']
 
-                row = {'integrationsid': uuid,
-                       'Username': f"HK-{employee['User Key']}",
-                       # 'Password': '',
-                       'Name': employee['Navn'],
-                       'Title': employee['Stillingsbetegnelse'][0] if len(employee['Stillingsbetegnelse']) > 0 else '',
-                       'Address': address['Lokation'] if 'Lokation' in address else '',
-                       # 'Zip': '',
-                       # 'Country': '',
-                       # 'CPR': address['CPR-Nummer'],
-                       'Email': address['E-mail'] if 'E-mail' in address else '',
-                       # 'Number': '',
-                       'Mobile': address['Mobiltelefon'] if 'Mobiltelefon' in address else '',
-                       'Telephone': address['Telefon'] if 'Telefon' in address else '',
-                       'Responsible': f"HK-{responsible}" if responsible != '' else '',
-                       # 'Responsible_UUID': manager['uuid'] if 'uuid' in manager else '',
-                       'Company': employee['Org-enhed UUID']
-                       }
+                    row = {'integrationsid': uuid,
+                           'Username': f"HK-{employee['User Key']}",
+                           # 'Password': '',
+                           'Name': employee['Navn'],
+                           'Title': employee['Stillingsbetegnelse'][0] if len(employee['Stillingsbetegnelse']) > 0 else '',
+                           'Address': address['Lokation'] if 'Lokation' in address else '',
+                           # 'Zip': '',
+                           # 'Country': '',
+                           # 'CPR': address['CPR-Nummer'],
+                           'Email': address['E-mail'] if 'E-mail' in address else '',
+                           # 'Number': '',
+                           'Mobile': address['Mobiltelefon'] if 'Mobiltelefon' in address else '',
+                           'Telephone': address['Telefon'] if 'Telefon' in address else '',
+                           'Responsible': f"HK-{responsible}" if responsible != '' else '',
+                           # 'Responsible_UUID': manager['uuid'] if 'uuid' in manager else '',
+                           'Company': employee['Org-enhed UUID']
+                           }
 
-                rows_persons.append(row)
+                    rows_persons.append(row)
 
     logger.info(f"Writing {len(rows_persons)} rows to {filename_persons}")
     mh._write_csv(fieldnames_persons, rows_persons, filename_persons)
+
     logger.info(f"Writing {len(rows_org)} rows to {filename_org}")
     mh._write_csv(fieldnames_org, rows_org, filename_org)
 

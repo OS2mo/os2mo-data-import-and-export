@@ -85,7 +85,7 @@ def export_from_mo(hostname):
 
     logger.info(f"Exporting data to Planorama")
     hh.export_to_planorama(
-        mh, all_nodes[holstebro_uuid], planorama_org, planorama_employee)
+        mh, all_nodes, planorama_org, planorama_employee)
     logger.info(f"{planorama_org}: {time.time() - t}")
 
     logger.info(f"Exporting data to EssensLMS")
