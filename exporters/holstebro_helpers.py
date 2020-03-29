@@ -27,7 +27,7 @@ SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
 logger = logging.getLogger('holstebro-helpers')
 
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+cfg_file = pathlib.Path.cwd() / 'settings' / 'holstebro.settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
 SETTINGS = json.loads(cfg_file.read_text())
