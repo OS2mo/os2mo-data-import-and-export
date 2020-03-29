@@ -250,7 +250,7 @@ def export_to_planorama(mh, all_nodes, filename_org, filename_persons, org_root_
                     row = {'integrationsid': uuid,
                            'Username': f"HK-{employee['User Key']}",
                            'Name': employee['Navn'],
-                           'Title': employee['Stillingsbetegnelse'][0] if len(employee['Stillingsbetegnelse']) > 0 else '',
+                           'Title': employee['Stillingsbetegnelse'] if 'Stillingsbetegnelse' in employee else '',
                            'Address': address['Lokation'] if 'Lokation' in address else '',
                            'Email': address['E-mail'] if 'E-mail' in address else '',
                            'Mobile': address['Mobiltelefon'] if 'Mobiltelefon' in address else '',
