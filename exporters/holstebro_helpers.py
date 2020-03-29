@@ -93,11 +93,18 @@ def export_to_essenslms(mh, all_nodes, filename):
         export_all = True if len(roots[root_uuid]) == 0 else False
 
         for node in PreOrderIter(nodes['root']):
-            ou = mh.read_ou(node.name)
+            # if this is only partial export of org and this org unit is not on the exports list
+            # or is a child of an org unit in the exports list, continue
+            export_node = False
+            node_parent = node
+            while(node_parent != None and export_node is False):
+                export_node = True if node_parent.name in roots[root_uuid] else False
+                node_parent = node_parent.parent  # look backwards in hierarchy
 
-            # if this is only partial export of org and this org unit is not on the exports list, continue
-            if not export_all and ou['uuid'] not in roots[root_uuid]:
+            if not export_all and not export_node:
                 continue
+
+            ou = mh.read_ou(node.name)
 
             # Do not add "Afdelings-niveau"
             if ou['org_unit_level']['name'] != 'Afdelings-niveau':
@@ -143,25 +150,19 @@ def export_to_essenslms(mh, all_nodes, filename):
     mh._write_csv(fieldnames, rows, filename, **my_options)
 
 
-def export_to_planorama(mh, all_nodes, filename_org, filename_persons):
+def export_to_planorama(mh, all_nodes, filename_org, filename_persons, org_root_uuid):
     """ Traverses a tree of OUs, for each OU finds the manager of the OU.
     : param nodes: The nodes of the OU tree
     """
     fieldnames_persons = ['integrationsid',
                           'Username',
-                          # 'Password',
                           'Name',
                           'Title',
                           'Address',
-                          # 'Zip',
-                          # 'Country',
-                          # 'CPR',
                           'Email',
-                          # 'Number',
                           'Mobile',
                           'Telephone',
                           'Responsible',
-                          # 'Responsible_UUID',
                           'Company']
     fieldnames_org = ['Root', 'Number', 'Name']
 
@@ -169,22 +170,56 @@ def export_to_planorama(mh, all_nodes, filename_org, filename_persons):
     rows_persons = []
 
     roots = SETTINGS['exports.holstebro.roots']
+    org_root_name = SETTINGS['municipality.name']
+    # insert root
+    row_org = {'Root': '', 'Number': org_root_uuid, 'Name': org_root_name}
+    rows_org.append(row_org)
+    logger.info(f"Exporting root unit: {org_root_name} to Planorama")
 
     for root_uuid, nodes in all_nodes.items():
 
+        # is this a partail export
         export_all = True if len(roots[root_uuid]) == 0 else False
 
-        for node in PreOrderIter(nodes['root']):
-            ou = mh.read_ou(node.name)
+        if not export_all:
+            # partial export
+            # insert this root_uuid in rows_org with holstebro_uuid as parent
+            ou = mh.read_ou(root_uuid)
+            row_org = {'Root': org_root_uuid,
+                       'Number': ou['uuid'], 'Name': ou['name']}
+            rows_org.append(row_org)
+            logger.info(f"Exporting {ou['name']} to Planorama")
 
-            # if this is only partial export of org and this org unit is not on the exports list, continue
-            if not export_all and ou['uuid'] not in roots[root_uuid]:
+        for node in PreOrderIter(nodes['root']):
+            # if this is only partial export of org and this org unit is not on the exports list
+            # or is a child of an org unit in the exports list, continue
+            export_node = False
+            node_parent = node
+            while(node_parent != None and export_node is False):
+                export_node = True if node_parent.name in roots[root_uuid] else False
+                node_parent = node_parent.parent  # look backwards in hierarchy
+
+            if not export_all and not export_node:
                 continue
 
+            ou = mh.read_ou(node.name)
             # Do not add "Afdelings-niveau"
             if ou['org_unit_level']['name'] != 'Afdelings-niveau':
 
-                parent_ou_uuid = ou['parent']['uuid'] if ou['parent'] else ''
+                if not export_all:  # and ou['uuid'] in root[root_uuid]
+                    # partial export
+                    # add this ou directly under the root_uuid thats being exported
+                    row_org = {'Root': root_uuid,
+                               'Number': ou['uuid'], 'Name': ou['name']}
+                else:
+                    parent_ou_uuid = ou['parent']['uuid'] if ou['parent'] else org_root_uuid
+                    row_org = {'Root': parent_ou_uuid,
+                               'Number': ou['uuid'], 'Name': ou['name']}
+
+                rows_org.append(row_org)
+                logger.info(f"Exporting {ou['name']} to Planorama")
+
+                # find this unit's manager
                 manager = find_org_manager(mh, node)
 
                 if(manager['uuid'] != ''):
@@ -192,19 +227,12 @@ def export_to_planorama(mh, all_nodes, filename_org, filename_persons):
                 else:
                     manager_engagement = [{'user_key': ''}]
 
-                row_org = {'Root': parent_ou_uuid,
-                           'Number': ou['uuid'],
-                           'Name': ou['name']
-                           }
-                rows_org.append(row_org)
-                logger.info(f"Exporting {ou['name']} to Planorama")
-
+                # Read all employees in org unit and add them to employee export rows
                 employees = mh.read_organisation_people(
                     node.name, 'engagement', False)
                 for uuid, employee in employees.items():
                     row = {}
                     address = mh.read_user_address(uuid, username=True, cpr=True)
-                    # manager = mh.read_engagement_manager(employee['Engagement UUID'])
 
                     # is this employee the manager for the department? Then fetch the parent ou's manager
                     if uuid != manager['uuid']:
@@ -216,23 +244,18 @@ def export_to_planorama(mh, all_nodes, filename_org, filename_persons):
                                 parent_manager['uuid'])
                         else:
                             pmanager_engagement = [{'user_key': ''}]
+
                         responsible = pmanager_engagement[0]['user_key']
 
                     row = {'integrationsid': uuid,
                            'Username': f"HK-{employee['User Key']}",
-                           # 'Password': '',
                            'Name': employee['Navn'],
                            'Title': employee['Stillingsbetegnelse'][0] if len(employee['Stillingsbetegnelse']) > 0 else '',
                            'Address': address['Lokation'] if 'Lokation' in address else '',
-                           # 'Zip': '',
-                           # 'Country': '',
-                           # 'CPR': address['CPR-Nummer'],
                            'Email': address['E-mail'] if 'E-mail' in address else '',
-                           # 'Number': '',
                            'Mobile': address['Mobiltelefon'] if 'Mobiltelefon' in address else '',
                            'Telephone': address['Telefon'] if 'Telefon' in address else '',
                            'Responsible': f"HK-{responsible}" if responsible != '' else '',
-                           # 'Responsible_UUID': manager['uuid'] if 'uuid' in manager else '',
                            'Company': employee['Org-enhed UUID']
                            }
 

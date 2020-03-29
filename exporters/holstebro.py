@@ -51,8 +51,6 @@ def export_from_mo(hostname):
     root_uuids = []
     for root in org_roots:
         root_uuids.append(root['uuid'])
-        if root['name'] == SETTINGS['municipality.name']:
-            holstebro_uuid = root['uuid']
 
     filename = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
     planorama_org = f"{filename}_{SETTINGS['exports.holstebro.planorama.org_filename']}"
@@ -64,10 +62,6 @@ def export_from_mo(hostname):
     okit_uuid = '470ce14c-66c3-4100-ba00-0000014b0001'
     boou_uuid = '5826074e-66c3-4100-8a00-000001510001'
 
-    #holstebro_uuid = itdig_uuid
-    #holstebro_uuid = okit_uuid
-    #holstebro_uuid = boou_uuid
-
     all_nodes = {}
     roots = SETTINGS['exports.holstebro.roots']
     for uuid in roots:
@@ -76,6 +70,7 @@ def export_from_mo(hostname):
 
         all_nodes[uuid] = {}
         logger.info(f"Reading ou tree from {uuid}")
+
         mh.read_ou_tree(uuid, all_nodes[uuid])
         logger.info('Read nodes: {}s'.format(time.time() - t))
 
@@ -85,7 +80,7 @@ def export_from_mo(hostname):
 
     logger.info(f"Exporting data to Planorama")
     hh.export_to_planorama(
-        mh, all_nodes, planorama_org, planorama_employee)
+        mh, all_nodes, planorama_org, planorama_employee, org)
     logger.info(f"{planorama_org}: {time.time() - t}")
 
     logger.info(f"Exporting data to EssensLMS")
