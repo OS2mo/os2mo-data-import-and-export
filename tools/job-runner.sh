@@ -155,18 +155,6 @@ imports_ad_group_into_mo(){
     ${VENV}/bin/python3 integrations/ad_integration/import_ad_group_into_mo.py --full-sync
 }
 
-imports_holstebro_ledere(){
-    set -e
-    echo running holstebro_decorate_leaders
-    ${VENV}/bin/python3 exporters/holstebro_decorate_leaders.py --test
-}
-
-exports_holstebro(){
-    set -e
-    echo "running exports_holstebro"
-    ${VENV}/bin/python3 exporters/holstebro.py --test
-}
-
 exports_mox_rollekatalog(){
     set -e
     export MOX_ROLLE_MAPPING="${DIPEXAR}/cpr_mo_ad_map.csv"
