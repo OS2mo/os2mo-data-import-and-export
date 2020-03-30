@@ -42,7 +42,7 @@ def main():
 
     ad_logger.start_logging(LOG_FILE)
     reader = ad_reader.ADParameterReader()
-    writer = ad_writer.ADWriter(lc=lc)
+    writer = ad_writer.ADWriter(lc=lc, lc_historic=lc_historic)
 
     all_users = reader.read_it_all()
 
@@ -85,10 +85,10 @@ def main():
             msg = 'User {}, {} with uuid {} was not found i MO, unable to sync'
             logger.error(msg.format(user['SamAccountName'], user['Name'],
                                     user[mo_uuid_field]))
-        except Exception as e:
-            logger.error('Unhandled exception: {}'.format(e))
-            logger.exception("Unhandled exception:")
-            print('Unhandled exception: {}'.format(e))
+        #except Exception as e:
+        #    logger.error('Unhandled exception: {}'.format(e))
+        #    logger.exception("Unhandled exception:")
+        #    print('Unhandled exception: {}'.format(e))
 
         print('Sync time: {}'.format(time.time() - t))
     print()
