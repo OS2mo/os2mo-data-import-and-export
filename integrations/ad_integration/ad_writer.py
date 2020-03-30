@@ -276,6 +276,41 @@ class ADWriter(AD):
         }
         return addresses
 
+    def _find_end_date(self, uuid):
+        end_date = '1800-01-01'
+        # Now, calculate final end date for any primary engagement
+        if self.lc_historic is not None:
+            all_engagements = []
+            for eng in self.lc_historic.engagements.values():
+                if eng[0]['user'] == uuid:  # All elements have the same user
+                    all_engagements += eng
+            for eng in all_engagements:
+                current_end = eng['to_date']
+                if current_end is None:
+                    current_end = '9999-12-31'
+
+                if (
+                        datetime.datetime.strptime(current_end, '%Y-%m-%d') >
+                        datetime.datetime.strptime(end_date, '%Y-%m-%d')
+                ):
+                    end_date = current_end
+
+        else:
+            future_engagements = self.helper.read_user_engagement(uuid,
+                                                                  read_all=True,
+                                                                  skip_past=True)
+            for eng in future_engagements:
+                current_end = eng['validity']['to']
+                if current_end is None:
+                    current_end = '9999-12-31'
+
+                if (
+                        datetime.datetime.strptime(current_end, '%Y-%m-%d') >
+                        datetime.datetime.strptime(end_date, '%Y-%m-%d')
+                ):
+                    end_date = current_end
+        return end_date
+
     def read_ad_information_from_mo(self, uuid, read_manager=True, ad_dump=None):
         """
         Retrive the necessary information from MO to contruct a new AD user.
@@ -307,7 +342,6 @@ class ADWriter(AD):
                         found_primary = True
                         employment_number = eng[0]['user_key']
                         title = self.lc.classes[eng[0]['job_function']]['title']
-                        end_date = eng[0]['to_date']
                         eng_org_unit = eng[0]['unit']
                         eng_uuid = eng[0]['uuid']
         else:
@@ -319,32 +353,15 @@ class ADWriter(AD):
                     found_primary = True
                     employment_number = engagement['user_key']
                     title = engagement['job_function']['name']
-                    end_date = engagement['validity']['to']
                     eng_org_unit = engagement['org_unit']['uuid']
                     eng_uuid = engagement['uuid']
-        if end_date is None:
-            end_date = '9999-12-31'
         print('r_a_i_f_m_02: {}'.format(time.time() - t))
 
         if not found_primary:
             raise NoPrimaryEngagementException('User: {}'.format(uuid))
 
-        # Todo: Her er 0.4s at hente, kræver dog historik cache.
-        # Now, calculate final end date for any primary engagement
-        future_engagements = self.helper.read_user_engagement(uuid, read_all=True,
-                                                              skip_past=True)
+        end_date = self._find_end_date(uuid)
         print('r_a_i_f_m_03: {}'.format(time.time() - t))
-
-        for eng in future_engagements:
-            current_end = eng['validity']['to']
-            if current_end is None:
-                current_end = '9999-12-31'
-
-            if (
-                    datetime.datetime.strptime(current_end, '%Y-%m-%d') >
-                    datetime.datetime.strptime(end_date, '%Y-%m-%d')
-            ):
-                end_date = current_end
 
         unit_info = self._find_unit_info(eng_org_unit)
         addresses = self._read_user_addresses(eng_org_unit)
@@ -398,8 +415,14 @@ class ADWriter(AD):
             print('r_a_i_f_m_06: {}'.format(time.time() - t))
 
             # TODO: Her er 0.1s at hente.
-            manager_mail_dict = self.helper.get_e_address(manager_uuid,
-                                                          scope='EMAIL')
+            if self.lc:
+                manager_mail_dict = {}
+                for addr in self.lc.addresses.values():
+                    if addr[0]['user'] == manager_uuid:
+                        manager_mail_dict = addr[0]
+            else:
+                manager_mail_dict = self.helper.get_e_address(manager_uuid,
+                                                              scope='EMAIL')
             if manager_mail_dict:
                 manager_mail = manager_mail_dict['value']
             print('r_a_i_f_m_07: {}'.format(time.time() - t))
