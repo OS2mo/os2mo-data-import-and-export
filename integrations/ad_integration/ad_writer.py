@@ -378,10 +378,12 @@ class ADWriter(AD):
             except IndexError:
                 logger.error('Unable to read adresse from MO (no access to DAR?)')
 
-        manager_name = None
-        manager_sam = None
-        manager_mail = None
-        manager_cpr = None
+        manager_info = {
+            'name': None,
+            'sam':  None,
+            'mail': None,
+            'cpr': None
+        }
         if read_manager:
             if self.lc:
                 manager_uuid = self.lc.managers[
@@ -410,11 +412,10 @@ class ADWriter(AD):
 
         if read_manager:
             mo_manager_user = self._read_user(manager_uuid)
-            manager_name = mo_manager_user['name']
-            manager_cpr = mo_manager_user['cpr_no']
+            manager_info['name'] = mo_manager_user['name']
+            manager_info['cpr'] = mo_manager_user['cpr_no']
             print('r_a_i_f_m_06: {}'.format(time.time() - t))
 
-            # TODO: Her er 0.1s at hente.
             if self.lc:
                 manager_mail_dict = {}
                 for addr in self.lc.addresses.values():
@@ -424,15 +425,16 @@ class ADWriter(AD):
                 manager_mail_dict = self.helper.get_e_address(manager_uuid,
                                                               scope='EMAIL')
             if manager_mail_dict:
-                manager_mail = manager_mail_dict['value']
+                manager_info['mail'] = manager_mail_dict['value']
             print('r_a_i_f_m_07: {}'.format(time.time() - t))
 
-            manager_ad_info = self._find_ad_user(cpr=manager_cpr, ad_dump=ad_dump)
+            manager_ad_info = self._find_ad_user(cpr=manager_info['cpr'],
+                                                 ad_dump=ad_dump)
             if len(manager_ad_info) == 1:
-                manager_sam = manager_ad_info[0]['SamAccountName']
+                manager_info['sam'] = manager_ad_info[0]['SamAccountName']
             else:
                 msg = 'Searching for {}, found in AD: {}'
-                logger.debug(msg.format(manager_name, manager_ad_info))
+                logger.debug(msg.format(manager_info['name'], manager_ad_info))
                 raise ManagerNotUniqueFromCprException()
         print('r_a_i_f_m_08: {}'.format(time.time() - t))
 
@@ -456,10 +458,10 @@ class ADWriter(AD):
             # UNIT WEB PAGE
             'location': unit_info['location'],
             'level2orgunit': unit_info['level2orgunit'],
-            'manager_sam': manager_sam,
-            'manager_cpr': manager_cpr,
-            'manager_name': manager_name,
-            'manager_mail': manager_mail
+            'manager_sam': manager_info['sam'],
+            'manager_cpr': manager_info['cpr'],
+            'manager_name': manager_info['name'],
+            'manager_mail': manager_info['mail']
         }
         return mo_values
 
