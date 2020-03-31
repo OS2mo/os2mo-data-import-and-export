@@ -206,6 +206,39 @@ class AdMoSync(object):
         response = self.helper._mo_post('details/edit', payload)
         logger.debug('Response: {}'.format(response.text))
 
+    def _edit_engagement(self, uuid, ad_object):
+        # This really should be done with the help of LoRa cache
+        user_engagements = self.helper._mo_lookup(
+            uuid, 'e/{}/details/engagement?calculate_primary=1')
+        for eng in user_engagements:
+            if not eng['is_primary']:
+                continue
+
+            validity = {
+                'from': VALIDITY['from'],
+                'to': eng['validity']['to']
+            }
+            for ad_field, mo_field in self.mapping['engagements'].items():
+                if ad_object.get(ad_field):
+                    payload = {
+                        'type': 'engagement',
+                        'uuid': eng['uuid'],
+                        'data': {
+                            mo_field: ad_object.get(ad_field),
+                            'validity': validity
+                        }
+                    }
+                    if not eng[mo_field] == ad_object.get(ad_field):
+                        print(payload)
+                        logger.debug('Edit payload: {}'.format(payload))
+                        response = self.helper._mo_post('details/edit', payload)
+                        logger.debug('Response: {}'.format(response.text))
+                    else:
+                        print('Ingen ændring')
+
+                else:
+                    logger.info('{} not in ad_object'.format(ad_field))
+
     def _update_single_user(self, uuid, ad_object):
         """
         Update all fields for a single user.
@@ -232,6 +265,9 @@ class AdMoSync(object):
             response = self.helper._mo_post('details/create', payload)
             logger.debug('Response: {}'.format(response.text))
             response.raise_for_status()
+
+        if 'engagements' in self.mapping:
+            self._edit_engagement(uuid, ad_object)
 
         fields_to_edit = self._find_existing_ad_address_types(uuid)
 
