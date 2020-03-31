@@ -16,31 +16,32 @@ from exporters.sql_export.lora_cache import LoraCache
 
 LOG_FILE = 'mo_to_ad_sync.log'
 
-# Notice!!!!!
-# MO_UUID_FIELD = os.environ.get('AD_WRITE_UUID')
-
 # Notice, logging os not working fully as expected.
 logger = logging.getLogger('MoAdSync')
 
+# ad_logger.start_logging('mo_to_ad_sync.log')
 
 def main():
+    ad_logger.start_logging(LOG_FILE)
     cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
     if not cfg_file.is_file():
         raise Exception('No setting file')
     settings = json.loads(cfg_file.read_text())
 
-    # if lora_speedup:
-    lc = LoraCache(resolve_dar=True, full_history=False)
-    lc.populate_cache(dry_run=True)
-    lc.calculate_derived_unit_data()
-    lc.calculate_primary_engagements()
+    if settings['integrations.ad_writer.lora_speedup']:
+        lc = LoraCache(resolve_dar=True, full_history=False)
+        lc.populate_cache(dry_run=True)
+        lc.calculate_derived_unit_data()
+        lc.calculate_primary_engagements()
 
-    lc_historic = LoraCache(resolve_dar=False, full_history=True)
-    lc_historic.populate_cache(dry_run=True)
+        lc_historic = LoraCache(resolve_dar=False, full_history=True)
+        lc_historic.populate_cache(dry_run=True)
+    else:
+        lc = None
+        lc_historic = None
 
     mo_uuid_field = settings['integrations.ad.write.uuid_field']
 
-    ad_logger.start_logging(LOG_FILE)
     reader = ad_reader.ADParameterReader()
     writer = ad_writer.ADWriter(lc=lc, lc_historic=lc_historic)
 

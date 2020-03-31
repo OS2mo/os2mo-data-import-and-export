@@ -18,6 +18,9 @@ DEFAULT_TIMEZONE = dateutil.tz.gettz('Europe/Copenhagen')
 class LoraCache(object):
 
     def __init__(self, resolve_dar=True, full_history=False):
+        msg = 'Start LoRa cache, resolve dar: {}, full_history: {}'
+        logger.info(msg.format(resolve_dar, full_history))
+
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')
@@ -723,6 +726,7 @@ class LoraCache(object):
             it_connections_file = 'it_connections.p'
 
         if dry_run:
+            logger.info('LoRa cache dry run - no actual read')
             with open(facets_file, 'rb') as f:
                 self.facets = pickle.load(f)
             with open(classes_file, 'rb') as f:
