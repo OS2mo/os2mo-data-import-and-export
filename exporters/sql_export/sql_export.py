@@ -35,7 +35,7 @@ logging.basicConfig(
 
 
 class SqlExport(object):
-    def __init__(self, resolve_dar=True):
+    def __init__(self, historic=False, resolve_dar=True):
         logger.info('Start SQL export')
         atexit.register(self.at_exit)
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
@@ -43,8 +43,14 @@ class SqlExport(object):
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
 
-        self.lc = LoraCache(resolve_dar=resolve_dar)
-        self.lc.populate_cache(dry_run=False)
+        if historic:
+            lc_historic = LoraCache(resolve_dar=resolve_dar, full_history=True)
+            lc_historic.populate_cache(dry_run=True)
+        else:
+            self.lc = LoraCache(resolve_dar=resolve_dar)
+            self.lc.populate_cache(dry_run=True)
+            self.lc.calculate_derived_unit_data()
+            self.lc.calculate_primary_engagements()
 
         db_type = self.settings['exporters.actual_state.type']
         db_name = self.settings['exporters.actual_state.db_name']
@@ -119,42 +125,11 @@ class SqlExport(object):
             )
             self.session.add(sql_user)
 
-        responsibility_class = self.settings[
-            'exporters.actual_state.manager_responsibility_class']
-
         for unit, unit_validities in self.lc.units.items():
             for unit_info in unit_validities:
-                # manager_uuid = None
-                # acting_manager_uuid = None
-                # # Find a direct manager, if possible
-                # for manager, manager_info in self.lc.managers.items():
-                #     if manager_info['unit'] == unit:
-                #         for resp in manager_info['manager_responsibility']:
-                #             if resp == responsibility_class:
-                #                 manager_uuid = manager
-                #                 acting_manager_uuid = manager
-                manager_uuid = None
-                acting_manager_uuid = None  # TODO
-
-                # location = ''
-                # current_unit = unit_info
-                # while current_unit:
-                #     location = current_unit['name'] + "\\" + location
-                #     current_parent = current_unit.get('parent')
-                #     if current_parent is not None:
-                #         current_unit = self.lc.units[current_parent]
-                #     else:
-                #         current_unit = None
-
-                #     # Find the acting manager.
-                #     if acting_manager_uuid is None:
-                #         for manager, manager_info in self.lc.managers.items():
-                #             if manager_info['unit'] == current_parent:
-                #                 for resp in manager_info['manager_responsibility']:
-                #                     if resp == responsibility_class:
-                #                         acting_manager_uuid = manager
-                # location = location[:-1]
-                location = ' '  # Todo
+                location = unit_info.get('location')
+                manager_uuid = unit_info.get('manager_uuid')
+                acting_manager_uuid = unit_info.get('acting_manager_uuid')
 
                 unit_type = unit_info['unit_type']
                 enhedsniveau_titel = ''
@@ -187,6 +162,7 @@ class SqlExport(object):
         logger.info('Add engagements')
         print('Add engagements')
         user_primary = {}
+        # Denne beregning foretages nu direkte i lora_cahce
         # for uuid, eng in self.lc.engagements.items():
         #     primary_type = self.lc.classes.get(eng['primary_type'])
         #     print('Primary type: {}'.format(primary_type))
@@ -390,4 +366,4 @@ class SqlExport(object):
 
 
 if __name__ == '__main__':
-    sql_export = SqlExport(resolve_dar=False)
+    sql_export = SqlExport(resolve_dar=False, historic=False)
