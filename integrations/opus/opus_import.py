@@ -297,6 +297,8 @@ class OpusImport(object):
 
         date_from = employee['entryDate']
         date_to = employee['leaveDate']
+        if date_from is None:
+            date_from = '1930-01-01'
 
         # Only add employee and address information once, this info is duplicated
         # if the employee has multiple engagements
