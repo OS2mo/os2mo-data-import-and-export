@@ -2,6 +2,7 @@ import json
 import atexit
 import logging
 import pathlib
+import argparse
 import urllib.parse
 
 from sqlalchemy import create_engine
@@ -35,7 +36,7 @@ logging.basicConfig(
 
 
 class SqlExport(object):
-    def __init__(self, historic=False, resolve_dar=True, dry_run=False):
+    def __init__(self, force_sqlite=False):
         logger.info('Start SQL export')
         atexit.register(self.at_exit)
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
@@ -43,16 +44,10 @@ class SqlExport(object):
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
 
-        if historic:
-            lc_historic = LoraCache(resolve_dar=resolve_dar, full_history=True)
-            lc_historic.populate_cache(dry_run=dry_run)
-        else:
-            self.lc = LoraCache(resolve_dar=resolve_dar)
-            self.lc.populate_cache(dry_run=dry_run)
-            self.lc.calculate_derived_unit_data()
-            self.lc.calculate_primary_engagements()
+        db_type = self.settings.get('exporters.actual_state.type')
+        if force_sqlite:
+            db_type = 'SQLite'
 
-        db_type = self.settings['exporters.actual_state.type']
         db_name = self.settings['exporters.actual_state.db_name']
         user = self.settings.get('exporters.actual_state.user')
         db_host = self.settings.get('exporters.actual_state.host')
@@ -67,6 +62,16 @@ class SqlExport(object):
             raise Exception('Unknown DB type')
 
         self.engine = create_engine(db_string)
+
+    def perform_export(self, historic=False, resolve_dar=True, dry_run=False):
+        if historic:
+            self.lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
+            self.lc.populate_cache(dry_run=dry_run)
+        else:
+            self.lc = LoraCache(resolve_dar=resolve_dar)
+            self.lc.populate_cache(dry_run=dry_run)
+            self.lc.calculate_derived_unit_data()
+            self.lc.calculate_primary_engagements()
 
         Base.metadata.drop_all(self.engine)
         Base.metadata.create_all(self.engine)
@@ -347,5 +352,29 @@ class SqlExport(object):
                 print(result.items())
 
 
+def cli():
+    """
+    Command line interface.
+    """
+    parser = argparse.ArgumentParser(description='SQL export')
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument('--resolve-dar', action='store_true')
+    group.add_argument('--historic', action='store_true')
+    group.add_argument('--dry-run', action='store_true')
+    group.add_argument('--force-sqlite', action='store_true')
+
+    args = vars(parser.parse_args())
+
+    sql_export = SqlExport(
+        force_sqlite=args.get('force_sqlite')
+    )
+
+    sql_export.perform_export(
+        resolve_dar=args.get('resolve_dar'),
+        historic=args.get('historic'),
+        dry_run=args.get('dry_run')
+    )
+
+
 if __name__ == '__main__':
-    sql_export = SqlExport(resolve_dar=False, historic=False, dry_run=True)
+    cli()

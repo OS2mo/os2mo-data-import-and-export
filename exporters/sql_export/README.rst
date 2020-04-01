@@ -47,6 +47,25 @@ værdier på forskellige tidspunkt, såkaldte virknignstider. SQL-eksporten vil
 som udgangspunkt eksportere de aktuelt gyldige værdier, men det er også muligt
 at foretage en komplet eksport af alle gyldigheder.
 
+
+Kommandolinjeværktøj
+====================
+
+En eksport kan startes fra kommandolinjen med følgende parametre:
+ * ``--resolve-dar``: Hvis denne parameter er sat, vil eksporten forsøge at slå
+   MOs DAR uuid'er op, så adressen også eksporteres i klar tekst. Hvis datasættet
+   indeholder mange forskellige adresser, vil det betyde en betydelig forøgelse af
+   kørselstiden.
+ * ``-historic``: Hvis denne parameter er sat, vil der blive foretaget en fuld
+   eksport af både fortidige, nutidige og fremtidige rækker. Dette vil betyde, at
+   en række beregnede parametre ikke vil komme med i datasættet.
+ * ``force-sqlite``: Denne parameter vil betyde at ``exporters.actual_state.type``
+   i ``settings.json`` vil blive ignoreret, og en `SQLite`-fil vil blive
+   eksporteret.
+ * ``--dry-run``: Ingen opslag vil blive foretaget i LoRa, udtrækket vil baseres
+   på cache-filer fra sidste gennemløb, mest anvedeligt til udvikling.
+
+
 .. _Modellering:
 
 Modellering
