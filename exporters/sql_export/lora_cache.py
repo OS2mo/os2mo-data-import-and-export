@@ -17,7 +17,7 @@ DEFAULT_TIMEZONE = dateutil.tz.gettz('Europe/Copenhagen')
 
 class LoraCache(object):
 
-    def __init__(self, resolve_dar=True, full_history=False):
+    def __init__(self, resolve_dar=True, full_history=False, skip_past=False):
         msg = 'Start LoRa cache, resolve dar: {}, full_history: {}'
         logger.info(msg.format(resolve_dar, full_history))
 
@@ -36,6 +36,7 @@ class LoraCache(object):
             self.dar_cache = None
 
         self.full_history = full_history
+        self.skip_past = skip_past
 
         self.mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
         try:
@@ -77,11 +78,12 @@ class LoraCache(object):
         t = time.time()
         logger.debug('Start reading {}, params: {}, at t={}'.format(url, params, t))
         params['list'] = 1
-        params['maximalantalresultater'] = 10000
+        params['maximalantalresultater'] = 5000
         params['foersteresultat'] = 0
         if self.full_history and not skip_history:
-            params['virkningFra'] = '-infinity'
             params['virkningTil'] = 'infinity'
+            if not self.skip_past:
+                params['virkningFra'] = '-infinity'
 
         complete_data = []
 
@@ -98,7 +100,10 @@ class LoraCache(object):
             if len(data_list) == 0:
                 done = True
             else:
-                params['foersteresultat'] += 10000
+                params['foersteresultat'] += 5000
+                print('Mellemtid, {} læsninger: {}s'.format(
+                    params['foersteresultat'], time.time() - t))
+
                 logger.debug('Mellemtid, {} læsninger: {}s'.format(
                     params['foersteresultat'], time.time() - t))
         logger.debug('LoRa læsning færdig. {} elementer, {}s'.format(
@@ -145,6 +150,7 @@ class LoraCache(object):
         return classes
 
     def _cache_lora_itsystems(self):
+        # IT-systems are eternal i MO and does not need a historic dump
         params = {'bvn': '%'}
         url = '/organisation/itsystem'
         itsystem_list = self._perform_lora_lookup(url, params)
@@ -424,9 +430,8 @@ class LoraCache(object):
             'attributter': ('organisationfunktionegenskaber',)
         }
         url = '/organisation/organisationfunktion'
-
-        association_list = self._perform_lora_lookup(url, params)
         associations = {}
+        association_list = self._perform_lora_lookup(url, params)
         for association in association_list:
             uuid = association['id']
             associations[uuid] = []
@@ -458,27 +463,18 @@ class LoraCache(object):
 
     def _cache_lora_roles(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Rolle'}
+        relevant = {
+            'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
+                           'organisatoriskfunktionstype')
+        }
         url = '/organisation/organisationfunktion'
-        role_list = self._perform_lora_lookup(url, params)
-
         roles = {}
+        role_list = self._perform_lora_lookup(url, params)
         for role in role_list:
             uuid = role['id']
             roles[uuid] = []
-            relevant = {
-                'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
-                               'organisatoriskfunktionstype')
-            }
 
-            if self.full_history:
-                effects = lora_utils.get_effects(role['registreringer'][0],
-                                                 relevant=relevant,
-                                                 additional=self.additional)
-            else:
-                effects = lora_utils.get_effects(role['registreringer'][0],
-                                                 relevant=self.additional,
-                                                 additional=relevant)
-
+            effects = self._get_effects(role, relevant)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 rel = effect[2]['relationer']
@@ -505,9 +501,8 @@ class LoraCache(object):
             'attributter': ('organisationfunktionegenskaber',)
         }
         url = '/organisation/organisationfunktion'
-        leave_list = self._perform_lora_lookup(url, params)
-
         leaves = {}
+        leave_list = self._perform_lora_lookup(url, params)
         for leave in leave_list:
             uuid = leave['id']
             leaves[uuid] = []
@@ -877,7 +872,7 @@ class LoraCache(object):
 
 
 if __name__ == '__main__':
-    lc = LoraCache(full_history=False, resolve_dar=False)
+    lc = LoraCache(full_history=True, skip_past=False, resolve_dar=False)
     lc.populate_cache(dry_run=False)
 
     lc.calculate_derived_unit_data()
