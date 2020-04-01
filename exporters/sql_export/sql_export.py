@@ -35,7 +35,7 @@ logging.basicConfig(
 
 
 class SqlExport(object):
-    def __init__(self, historic=False, resolve_dar=True):
+    def __init__(self, historic=False, resolve_dar=True, dry_run=False):
         logger.info('Start SQL export')
         atexit.register(self.at_exit)
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
@@ -45,10 +45,10 @@ class SqlExport(object):
 
         if historic:
             lc_historic = LoraCache(resolve_dar=resolve_dar, full_history=True)
-            lc_historic.populate_cache(dry_run=True)
+            lc_historic.populate_cache(dry_run=dry_run)
         else:
             self.lc = LoraCache(resolve_dar=resolve_dar)
-            self.lc.populate_cache(dry_run=True)
+            self.lc.populate_cache(dry_run=dry_run)
             self.lc.calculate_derived_unit_data()
             self.lc.calculate_primary_engagements()
 
@@ -161,32 +161,8 @@ class SqlExport(object):
     def _add_engagements(self, output=False):
         logger.info('Add engagements')
         print('Add engagements')
-        user_primary = {}
-        # Denne beregning foretages nu direkte i lora_cahce
-        # for uuid, eng in self.lc.engagements.items():
-        #     primary_type = self.lc.classes.get(eng['primary_type'])
-        #     print('Primary type: {}'.format(primary_type))
-
-        #     if primary_type is None:
-        #         print('Denne bruger har ikke nogen primær')
-        #         continue
-
-        #     print('User: {}'.format(eng['user']))
-        #     # print(user_primary[eng['user']])
-        #     primary_scope = int(primary_type['scope'])
-        #     print('Primart scope: {}'.format(primary_scope))
-        #     if eng['user'] in user_primary:
-        #         if user_primary[eng['user']][0] < primary_scope:
-        #             user_primary[eng['user']] = [primary_scope, uuid, None]
-        #     else:
-        #         user_primary[eng['user']] = [primary_scope, uuid, None]
-        #     print('User primary: {}'.format(user_primary[eng['user']]))
-
         for engagement, engagement_validity in self.lc.engagements.items():
             for engagement_info in engagement_validity:
-                user = engagement_info['user']
-                primary = user_primary.get(user, [None, None])[1] == engagement
-
                 if engagement_info['primary_type'] is not None:
                     primærtype_titel = self.lc.classes[
                         engagement_info['primary_type']]['title']
@@ -201,13 +177,15 @@ class SqlExport(object):
                     primærtype_uuid=engagement_info['primary_type'],
                     stillingsbetegnelse_uuid=engagement_info['job_function'],
                     engagementstype_uuid=engagement_info['engagement_type'],
-                    primær_boolean=primary,
+                    primær_boolean=engagement_info.get('primary_boolean'),
                     arbejdstidsfraktion=engagement_info['fraction'],
                     engagementstype_titel=self.lc.classes[
                         engagement_info['engagement_type']]['title'],
                     stillingsbetegnelse_titel=self.lc.classes[
                         engagement_info['job_function']]['title'],
                     primærtype_titel=primærtype_titel,
+                    startdato=engagement_info['from_date'],
+                    slutdato=engagement_info['to_date'],
                     **engagement_info['extensions']
                 )
                 self.session.add(sql_engagement)
@@ -241,7 +219,6 @@ class SqlExport(object):
                         address_info['adresse_type']]['title'],
                     startdato=address_info['from_date'],
                     slutdato=address_info['to_date']
-
                 )
                 self.session.add(sql_address)
         self.session.commit()
@@ -252,17 +229,20 @@ class SqlExport(object):
     def _add_associactions_leaves_and_roles(self, output=False):
         logger.info('Add associactions leaves and roles')
         print('Add associactions leaves and roles')
-        for association, association_info in self.lc.associations.items():
-            sql_association = Tilknytning(
-                uuid=association,
-                bruger_uuid=association_info['user'],
-                enhed_uuid=association_info['unit'],
-                bvn=association_info['user_key'],
-                tilknytningstype_uuid=association_info['association_type'],
-                tilknytningstype_titel=self.lc.classes[
-                    association_info['association_type']]['title']
-            )
-            self.session.add(sql_association)
+        for association, association_validity in self.lc.associations.items():
+            for association_info in association_validity:
+                sql_association = Tilknytning(
+                    uuid=association,
+                    bruger_uuid=association_info['user'],
+                    enhed_uuid=association_info['unit'],
+                    bvn=association_info['user_key'],
+                    tilknytningstype_uuid=association_info['association_type'],
+                    tilknytningstype_titel=self.lc.classes[
+                        association_info['association_type']]['title'],
+                    startdato=association_info['from_date'],
+                    slutdato=association_info['to_date']
+                )
+                self.session.add(sql_association)
 
         for role, role_validity in self.lc.roles.items():
             for role_info in role_validity:
@@ -277,17 +257,19 @@ class SqlExport(object):
                 )
                 self.session.add(sql_role)
 
-        for leave, leave_info in self.lc.leaves.items():
-            sql_leave = Orlov(
-                uuid=leave,
-                bvn=leave_info['user_key'],
-                bruger_uuid=leave_info['user'],
-                orlovstype_uuid=leave_info['leave_type'],
-                orlovstype_titel=self.lc.classes[leave_info['leave_type']]['title'],
-                # start_date # TODO
-                # end_date # TODO
-            )
-            self.session.add(sql_leave)
+        for leave, leave_validity in self.lc.leaves.items():
+            for leave_info in leave_validity:
+                leave_type = leave_info['leave_type']
+                sql_leave = Orlov(
+                    uuid=leave,
+                    bvn=leave_info['user_key'],
+                    bruger_uuid=leave_info['user'],
+                    orlovstype_uuid=leave_type,
+                    orlovstype_titel=self.lc.classes[leave_type]['title'],
+                    startdato=leave_info['from_date'],
+                    slutdato=leave_info['to_date']
+                )
+                self.session.add(sql_leave)
         self.session.commit()
         if output:
             for result in self.engine.execute('select * from tilknytninger limit 4'):
@@ -366,4 +348,4 @@ class SqlExport(object):
 
 
 if __name__ == '__main__':
-    sql_export = SqlExport(resolve_dar=False, historic=False)
+    sql_export = SqlExport(resolve_dar=False, historic=False, dry_run=True)
