@@ -418,27 +418,42 @@ class LoraCache(object):
 
     def _cache_lora_associations(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Tilknytning'}
+        relevant = {
+            'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
+                           'organisatoriskfunktionstype'),
+            'attributter': ('organisationfunktionegenskaber',)
+        }
         url = '/organisation/organisationfunktion'
-        association_list = self._perform_lora_lookup(url, params)
 
+        association_list = self._perform_lora_lookup(url, params)
         associations = {}
         for association in association_list:
             uuid = association['id']
-            reg = association['registreringer'][0]
-            user_key = (reg['attributter']['organisationfunktionegenskaber'][0]
-                        ['brugervendtnoegle'])
-            rel = reg['relationer']
-            association_type = rel['organisatoriskfunktionstype'][0]['uuid']
-            user_uuid = rel['tilknyttedebrugere'][0]['uuid']
-            unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
+            associations[uuid] = []
 
-            associations[uuid] = {
-                'uuid': uuid,
-                'user': user_uuid,
-                'unit': unit_uuid,
-                'user_key': user_key,
-                'association_type': association_type,
-            }
+            effects = self._get_effects(association, relevant)
+            for effect in effects:
+                from_date, to_date = self._from_to_from_effect(effect)
+
+                attr = effect[2]['attributter']
+                rel = effect[2]['relationer']
+                user_key = (attr['organisationfunktionegenskaber'][0]
+                            ['brugervendtnoegle'])
+                association_type = rel['organisatoriskfunktionstype'][0]['uuid']
+                user_uuid = rel['tilknyttedebrugere'][0]['uuid']
+                unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
+
+                associations[uuid].append(
+                     {
+                         'uuid': uuid,
+                         'user': user_uuid,
+                         'unit': unit_uuid,
+                         'user_key': user_key,
+                         'association_type': association_type,
+                         'from_date': from_date,
+                         'to_date': to_date
+                     }
+                )
         return associations
 
     def _cache_lora_roles(self):
@@ -485,24 +500,37 @@ class LoraCache(object):
 
     def _cache_lora_leaves(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Orlov'}
+        relevant = {
+            'relationer': ('tilknyttedebrugere', 'organisatoriskfunktionstype'),
+            'attributter': ('organisationfunktionegenskaber',)
+        }
         url = '/organisation/organisationfunktion'
         leave_list = self._perform_lora_lookup(url, params)
 
         leaves = {}
         for leave in leave_list:
             uuid = leave['id']
-            reg = leave['registreringer'][0]
-            user_key = (reg['attributter']['organisationfunktionegenskaber'][0]
-                        ['brugervendtnoegle'])
-            leave_type = reg['relationer']['organisatoriskfunktionstype'][0]['uuid']
-            user_uuid = reg['relationer']['tilknyttedebrugere'][0]['uuid']
+            leaves[uuid] = []
+            effects = self._get_effects(leave, relevant)
+            for effect in effects:
+                from_date, to_date = self._from_to_from_effect(effect)
+                attr = effect[2]['attributter']
+                rel = effect[2]['relationer']
+                user_key = (attr['organisationfunktionegenskaber'][0]
+                            ['brugervendtnoegle'])
+                leave_type = rel['organisatoriskfunktionstype'][0]['uuid']
+                user_uuid = rel['tilknyttedebrugere'][0]['uuid']
 
-            leaves[uuid] = {
-                'uuid': uuid,
-                'user': user_uuid,
-                'user_key': user_key,
-                'leave_type': leave_type,
-            }
+                leaves[uuid].append(
+                    {
+                        'uuid': uuid,
+                        'user': user_uuid,
+                        'user_key': user_key,
+                        'leave_type': leave_type,
+                        'from_date': from_date,
+                        'to_date': to_date
+                    }
+                )
         return leaves
 
     def _cache_lora_it_connections(self):
@@ -809,7 +837,6 @@ class LoraCache(object):
             pickle.dump(self.managers, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.managers), len(self.managers)/dt))
 
-        # Mangler
         t = time.time()
         logger.info('Læs tilknytninger')
         self.associations = self._cache_lora_associations()
@@ -819,7 +846,6 @@ class LoraCache(object):
         logger.info(msg.format(dt, len(self.associations),
                                len(self.associations)/dt))
 
-        # Mangler
         t = time.time()
         logger.info('Læs orlover')
         self.leaves = self._cache_lora_leaves()
@@ -837,7 +863,6 @@ class LoraCache(object):
             pickle.dump(self.roles, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.roles), len(self.roles)/dt))
 
-        # Mangler
         t = time.time()
         logger.info('Læs it')
         self.itsystems = self._cache_lora_itsystems()
@@ -853,7 +878,7 @@ class LoraCache(object):
 
 if __name__ == '__main__':
     lc = LoraCache(full_history=False, resolve_dar=False)
-    lc.populate_cache(dry_run=True)
+    lc.populate_cache(dry_run=False)
 
     lc.calculate_derived_unit_data()
     lc.calculate_primary_engagements()
