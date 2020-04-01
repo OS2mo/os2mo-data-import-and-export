@@ -101,9 +101,6 @@ class LoraCache(object):
                 done = True
             else:
                 params['foersteresultat'] += 5000
-                print('Mellemtid, {} læsninger: {}s'.format(
-                    params['foersteresultat'], time.time() - t))
-
                 logger.debug('Mellemtid, {} læsninger: {}s'.format(
                     params['foersteresultat'], time.time() - t))
         logger.debug('LoRa læsning færdig. {} elementer, {}s'.format(
