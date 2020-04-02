@@ -224,7 +224,7 @@ class MOPrimaryEngagementUpdater(object):
                         eng['validity']['to'], '%Y-%m-%d')
                     if to < datetime.datetime.now():
                         continue
-                print(eng)
+
                 if eng['primary']['uuid'] == self.primary_types['no_salary']:
                     logger.info('Status 0, no update of primary')
                     continue
