@@ -81,7 +81,8 @@ class OpusDiffImport(object):
 
         self.engagement_types, _ = self._find_classes('engagement_type')
         self.unit_types, self.unit_type_facet = self._find_classes('org_unit_type')
-        self.manager_levels, _ = self._find_classes('manager_level')
+        self.manager_levels, self.manager_level_facet = self._find_classes(
+            'manager_level')
         self.role_types, _ = self._find_classes('role_type')
         self.manager_types, self.manager_type_facet = self._find_classes(
             'manager_type')
@@ -181,6 +182,15 @@ class OpusDiffImport(object):
                                                 self.manager_type_facet)
             uuid = response['uuid']
             self.manager_types[manager_type] = uuid
+
+    def _update_manager_level(self, manager_level):
+        manager_level_uuid = self.manager_levels.get(manager_level)
+        if manager_level_uuid is None:
+            print('New manager level: {}!'.format(manager_level))
+            response = self._add_klasse_to_lora(manager_level,
+                                                self.manager_level_facet)
+            uuid = response['uuid']
+            self.manager_levels[manager_level] = uuid
 
     def _get_organisationfunktion(self, lora_uuid):
         resource = '/organisation/organisationfunktion/{}'
@@ -592,6 +602,7 @@ class OpusDiffImport(object):
         if employee['isManager'] == 'true':
             manager_level = '{}.{}'.format(employee['superiorLevel'],
                                            employee['subordinateLevel'])
+            self._update_manager_level(manager_level)
             manager_level_uuid = self.manager_levels.get(manager_level)
             manager_type = 'manager_type_' + employee["position"]
             self._update_manager_types(manager_type)
