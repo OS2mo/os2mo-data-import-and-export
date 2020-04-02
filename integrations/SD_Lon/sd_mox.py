@@ -9,6 +9,7 @@
 
 import pika
 import time
+import pprint
 import logging
 import datetime
 import xmltodict
@@ -136,6 +137,7 @@ class sdMox(object):
         logger.debug('Read department, params: {}'.format(params))
         department = self.sd.lookup('GetDepartment20111201', params)
         department_info = department.get('Department', None)
+        logger.debug('Read department, department_info: {}'.format(pprint.pformat(department_info)))
 
         if isinstance(department_info, list):
             msg = 'Afdeling ikke unik. Code {}, uuid {}, level {}'.format(
@@ -245,22 +247,25 @@ class sdMox(object):
         xml = xmltodict.unparse(flyt_dict)
         return xml
 
-    def _validate_unit_code(self, unit_code, unit_level=None):
+    def _validate_unit_code(self, unit_code, unit_level=None, can_exist=False):
         logger.info('Validating unit code {}'.format(unit_code))
         code_errors = []
-        if len(unit_code) < 2:
-            code_errors.append('Enhedsnummer for kort')
-        if len(unit_code) > 4:
-            code_errors.append('Enhedsnummer for langt')
-        if not unit_code.isalnum():
-            code_errors.append('Ugyldigt tegn i enhedsnummer')
-        if unit_code.upper() != unit_code:
-            code_errors.append('Enhedsnummer skal være store bogstaver')
+        if unit_code is None:
+            code_errors.append('Enhedsnummer ikke angivet')
+        else:
+            if len(unit_code) < 2:
+                code_errors.append('Enhedsnummer for kort')
+            elif len(unit_code) > 4:
+                code_errors.append('Enhedsnummer for langt')
+            if not unit_code.isalnum():
+                code_errors.append('Ugyldigt tegn i enhedsnummer')
+            if unit_code.upper() != unit_code:
+                code_errors.append('Enhedsnummer skal være store bogstaver')
 
         if not code_errors:
             # customers expect unique unit_codes globally
             department = self.read_department(unit_code=unit_code)
-            if department is not None:
+            if department is not None and not can_exist:
                 code_errors.append('Enhedsnummer er i brug')
         return code_errors
 
@@ -337,6 +342,11 @@ class sdMox(object):
 
     def move_unit(self, unit_name, unit_code, parent, unit_level, unit_uuid=None,
                   test_run=True):
+
+        code_errors = self._validate_unit_code(unit_code)
+        if code_errors:
+            raise SdMoxError(", ".join(code_errors))
+
         # Verify the parent department actually exist
         parent_department = self.read_department(unit_code=parent['unit_code'],
                                                  unit_level=parent['level'])
