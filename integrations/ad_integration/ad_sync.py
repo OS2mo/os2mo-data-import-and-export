@@ -59,7 +59,7 @@ class AdMoSync(object):
             'integrations.ad.ad_mo_sync_direct_lora_speedup', False)
         if lora_speedup:
             self.lc = LoraCache(resolve_dar=False, full_history=False)
-            self.lc.populate_cache(dry_run=True)
+            self.lc.populate_cache(dry_run=False)
             self.lc.calculate_primary_engagements()
         else:
             self.lc = None
@@ -77,6 +77,14 @@ class AdMoSync(object):
                     found = True
             if not found:
                 raise Exception('Error in visibility class configuration')
+
+        used_mo_fields = []
+        for key in self.mapping.keys():
+            for ad_field, mo_combi in self.mapping.get(key, {}).items():
+                if mo_combi in used_mo_fields:
+                    msg = 'MO field {} used more than once'
+                    raise Exception(msg.format(mo_combi))
+                used_mo_fields.append(mo_combi)
 
         skip_school = self.settings.get('integrations.ad.skip_school_ad_to_mo', True)
         logger.info('Skip school domain: {}'.format(skip_school))
@@ -100,9 +108,12 @@ class AdMoSync(object):
         :return: List af all employees.
         """
         logger.info('Read all MO users')
-        # employee_list = self.helper._mo_lookup(self.org, 'o/{}/e?limit=1000000000')
-        employee_list = self.helper._mo_lookup(self.org, 'o/{}/e?limit=1000')
-        employees = employee_list['items']
+        if self.lc:
+            employees = self.lc.users.values()
+        else:
+            employee_list = self.helper._mo_lookup(
+                self.org, 'o/{}/e?limit=1000000000')
+            employees = employee_list['items']
         logger.info('Done reading all MO users')
         return employees
 
@@ -185,6 +196,7 @@ class AdMoSync(object):
         ]
         if klasse[1] is not None:
             payload[0]['data']['visibility'] = {'uuid': self.visibility[klasse[1]]}
+
         logger.debug('Edit payload: {}'.format(payload))
         response = self.helper._mo_post('details/edit', payload)
         logger.debug('Response: {}'.format(response.text))
@@ -219,7 +231,6 @@ class AdMoSync(object):
                     }
                 }
                 if mo_value == ad_object.get(ad_field):
-                    print('Ingen ændring')
                     continue
                 logger.debug('Edit payload: {}'.format(payload))
                 response = self.helper._mo_post('details/edit', payload)
@@ -258,11 +269,12 @@ class AdMoSync(object):
                         logger.info('{} not in ad_object'.format(ad_field))
 
     def _edit_it_system(self, uuid, ad_object):
+        mo_itsystem_uuid = self.mapping['it_systems']['samAccountName']
         if self.lc:
             username = ''
             for it in self.lc.it_connections.values():
                 if it[0]['user'] == uuid:
-                    if it[0]['itsystem'] == self.mapping['it_systems']['samAccountName']:
+                    if it[0]['itsystem'] == mo_itsystem_uuid:
                         username = it[0]['username']
         else:
             username = self.helper.get_e_username(uuid, 'Active Directory')
@@ -272,7 +284,7 @@ class AdMoSync(object):
             payload = {
                 'type': 'it',
                 'user_key': ad_object['SamAccountName'],
-                'itsystem': {'uuid': self.mapping['it_systems']['samAccountName']},
+                'itsystem': {'uuid': mo_itsystem_uuid},
                 'person': {'uuid': uuid},
                 'validity': VALIDITY
             }
@@ -280,6 +292,29 @@ class AdMoSync(object):
             response = self.helper._mo_post('details/create', payload)
             logger.debug('Response: {}'.format(response.text))
             response.raise_for_status()
+
+    def _edit_user_addresses(self, uuid, ad_object):
+        fields_to_edit = self._find_existing_ad_address_types(uuid)
+
+        for field, klasse in self.mapping['user_addresses'].items():
+            if field not in ad_object:
+                logger.debug('No such AD field: {}'.format(field))
+                continue
+
+            if field not in fields_to_edit.keys():
+                # This is a new address
+                self._create_address(uuid, ad_object[field], klasse)
+            else:
+                # This is an existing address
+                if not fields_to_edit[field][1] == ad_object[field]:
+                    msg = 'Value change, MO: {} <> AD: {}'
+                    self._edit_address(fields_to_edit[field][0],
+                                       ad_object[field],
+                                       klasse)
+                else:
+                    msg = 'No value change: {}=={}'
+                    logger.debug(msg.format(fields_to_edit[field][1],
+                                            ad_object[field]))
 
     def _update_single_user(self, uuid, ad_object):
         """
@@ -296,30 +331,8 @@ class AdMoSync(object):
             self._edit_engagement(uuid, ad_object)
         print('Engagements: {}s'.format(time.time() - t))
 
-        fields_to_edit = self._find_existing_ad_address_types(uuid)
-        print('Fields to edit: {}s'.format(time.time() - t))
-
-        # TODO: We need to stop unconditional edits!
-
-        # Assume no existing adresses, we fix that later
-        for field, klasse in self.mapping['user_addresses'].items():
-            if field not in ad_object:
-                logger.debug('No such AD field: {}'.format(field))
-                continue
-
-            if field not in fields_to_edit.keys():
-                # This is a new address
-                self._create_address(uuid, ad_object[field], klasse)
-            else:
-                # This is an existing address
-                if not fields_to_edit[field][1] == ad_object[field]:
-                    self._edit_address(fields_to_edit[field][0],
-                                       ad_object[field],
-                                       klasse)
-                else:
-                    msg = 'No value change: {}=={}'
-                    logger.debug(msg.format(fields_to_edit[field][1],
-                                            ad_object[field]))
+        if 'user_addresses' in self.mapping:
+            self._edit_user_addresses(uuid, ad_object)
         print('Address edit: {}s'.format(time.time() - t))
 
     def update_all_users(self):
@@ -332,12 +345,17 @@ class AdMoSync(object):
             i = i + 1
             if i % 100 == 0:
                 print('Progress: {}/{}'.format(i, len(employees)))
-            logger.info('Start sync of {}'.format(employee['uuid']))
-            user = self.helper.read_user(employee['uuid'])
-            response = self.ad_reader.read_user(cpr=user['cpr_no'], cache_only=True)
+            # logger.info('Start sync of {}'.format(employee['uuid']))
+            if 'cpr' in employee:
+                cpr = employee['cpr']
+            else:
+                user = self.helper.read_user(employee['uuid'])
+                cpr = user['cpr_no']
+            response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
             if response:
+                print(cpr)
                 self._update_single_user(employee['uuid'], response)
-            logger.info('End sync of {}'.format(employee['uuid']))
+            # logger.info('End sync of {}'.format(employee['uuid']))
 
 
 if __name__ == '__main__':
