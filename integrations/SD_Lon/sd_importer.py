@@ -106,7 +106,7 @@ class SdImport(object):
 
         self._add_klasse('Pnummer', 'Pnummer',
                          'org_unit_address_type', 'PNUMBER')
-        self._add_klasse('AddressMailUnit', 'Postdresse',
+        self._add_klasse('AddressMailUnit', 'Postadresse',
                          'org_unit_address_type', 'DAR')
         self._add_klasse('AdresseReturUnit', 'Returadresse',
                          'org_unit_address_type', 'DAR')
