@@ -182,6 +182,7 @@ class LoraCache(object):
             fornavn = udv.get('fornavn', '')
             efternavn = udv.get('efternavn', '')
             users[uuid] = {
+                'uuid': uuid,
                 'cpr': cpr,
                 'fornavn': fornavn,
                 'efternavn': efternavn,
