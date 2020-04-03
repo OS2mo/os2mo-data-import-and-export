@@ -40,7 +40,7 @@ class Enhed(Base):
     enhedsniveau_uuid = Column(String(36),
                                nullable=True)  # ForeignKey('klasser.uuid'))
     enhedsniveau_titel = Column(String(250), nullable=True)
-    organisatorisk_sti = Column(String(1000), nullable=False)
+    organisatorisk_sti = Column(String(1000), nullable=True)
     leder_uuid = Column(String(36))
     fungerende_leder_uuid = Column(String(36))
     startdato = Column(String(10))
