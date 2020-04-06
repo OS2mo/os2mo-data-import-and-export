@@ -58,10 +58,13 @@ class AdMoSync(object):
         lora_speedup = self.settings.get(
             'integrations.ad.ad_mo_sync_direct_lora_speedup', False)
         if lora_speedup:
+            print('Retrive LoRa dump')
             self.lc = LoraCache(resolve_dar=False, full_history=False)
             self.lc.populate_cache(dry_run=False)
             self.lc.calculate_primary_engagements()
+            print('Done')
         else:
+            print('Use direct MO access')
             self.lc = None
 
         mo_visibilities = self.helper.read_classes_in_facet('visibility')[0]
@@ -90,7 +93,16 @@ class AdMoSync(object):
         logger.info('Skip school domain: {}'.format(skip_school))
         self.ad_reader = ad_reader.ADParameterReader(skip_school=skip_school)
 
+        self.stats = {
+            'addresses': [0, 0],
+            'engagements': 0,
+            'it_systems': 0,
+            'users': set()
+        }
+
+        print('Retrive AD dump')
         self.ad_reader.cache_all()
+        print('Done')
         logger.info('Done with AD caching')
 
     def _read_mo_classes(self):
@@ -234,6 +246,8 @@ class AdMoSync(object):
                     continue
                 logger.debug('Edit payload: {}'.format(payload))
                 response = self.helper._mo_post('details/edit', payload)
+                self.stats['engagements'] += 1
+                self.stats['users'].add(uuid)
                 logger.debug('Response: {}'.format(response.text))
         else:
             print('No cache')
@@ -261,6 +275,8 @@ class AdMoSync(object):
                             print(payload)
                             logger.debug('Edit payload: {}'.format(payload))
                             response = self.helper._mo_post('details/edit', payload)
+                            self.stats['engagements'] += 1
+                            self.stats['users'].add(uuid)
                             logger.debug('Response: {}'.format(response.text))
                         else:
                             print('Ingen ændring')
@@ -290,6 +306,8 @@ class AdMoSync(object):
             }
             logger.debug('Create it system payload: {}'.format(payload))
             response = self.helper._mo_post('details/create', payload)
+            self.stats['it_systems'][1] += 1
+            self.stats['users'].add(uuid)
             logger.debug('Response: {}'.format(response.text))
             response.raise_for_status()
 
@@ -303,18 +321,23 @@ class AdMoSync(object):
 
             if field not in fields_to_edit.keys():
                 # This is a new address
+                self.stats['addresses'][0] += 1
+                self.stats['users'].add(uuid)
                 self._create_address(uuid, ad_object[field], klasse)
             else:
                 # This is an existing address
                 if not fields_to_edit[field][1] == ad_object[field]:
                     msg = 'Value change, MO: {} <> AD: {}'
+                    self.stats['addresses'][1] += 1
+                    self.stats['users'].add(uuid)
+
                     self._edit_address(fields_to_edit[field][0],
                                        ad_object[field],
                                        klasse)
                 else:
                     msg = 'No value change: {}=={}'
-                    logger.debug(msg.format(fields_to_edit[field][1],
-                                            ad_object[field]))
+                logger.debug(msg.format(fields_to_edit[field][1],
+                                        ad_object[field]))
 
     def _update_single_user(self, uuid, ad_object):
         """
@@ -325,15 +348,15 @@ class AdMoSync(object):
         t = time.time()
         if 'it_systems' in self.mapping:
             self._edit_it_system(uuid, ad_object)
-        print('IT systems: {}s'.format(time.time() - t))
+        # print('IT systems: {}s'.format(time.time() - t))
 
         if 'engagements' in self.mapping:
             self._edit_engagement(uuid, ad_object)
-        print('Engagements: {}s'.format(time.time() - t))
+        # print('Engagements: {}s'.format(time.time() - t))
 
         if 'user_addresses' in self.mapping:
             self._edit_user_addresses(uuid, ad_object)
-        print('Address edit: {}s'.format(time.time() - t))
+        # print('Address edit: {}s'.format(time.time() - t))
 
     def update_all_users(self):
         """
@@ -356,6 +379,7 @@ class AdMoSync(object):
                 print(cpr)
                 self._update_single_user(employee['uuid'], response)
             # logger.info('End sync of {}'.format(employee['uuid']))
+        print(self.stats)
 
 
 if __name__ == '__main__':
