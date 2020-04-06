@@ -216,13 +216,17 @@ class LoraCache(object):
                 else:
                     parent = parent_raw
 
+                if 'niveau' in relationer:
+                    level = relationer['niveau'][0]['uuid']
+                else:
+                    level = None
                 units[uuid].append(
                     {
                         'uuid': uuid,
                         'user_key': egenskaber['brugervendtnoegle'],
                         'name': egenskaber['enhedsnavn'],
                         'unit_type': relationer['enhedstype'][0]['uuid'],
-                        'level': relationer['niveau'][0]['uuid'],
+                        'level': level,
                         'parent': parent,
                         'from_date': from_date,
                         'to_date': to_date
@@ -440,11 +444,17 @@ class LoraCache(object):
 
                 attr = effect[2]['attributter']
                 rel = effect[2]['relationer']
+
+                if rel['tilknyttedeenheder']:
+                    unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
+                else:
+                    unit_uuid = None
+                    logger.error('Error: Unable to find unit in {}'.format(uuid))
+
                 user_key = (attr['organisationfunktionegenskaber'][0]
                             ['brugervendtnoegle'])
                 association_type = rel['organisatoriskfunktionstype'][0]['uuid']
                 user_uuid = rel['tilknyttedebrugere'][0]['uuid']
-                unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
 
                 associations[uuid].append(
                      {
