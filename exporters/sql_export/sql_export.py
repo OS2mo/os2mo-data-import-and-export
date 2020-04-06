@@ -357,11 +357,10 @@ def cli():
     Command line interface.
     """
     parser = argparse.ArgumentParser(description='SQL export')
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument('--resolve-dar', action='store_true')
-    group.add_argument('--historic', action='store_true')
-    group.add_argument('--dry-run', action='store_true')
-    group.add_argument('--force-sqlite', action='store_true')
+    parser.add_argument('--resolve-dar', action='store_true')
+    parser.add_argument('--historic', action='store_true')
+    parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--force-sqlite', action='store_true')
 
     args = vars(parser.parse_args())
 
