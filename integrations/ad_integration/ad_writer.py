@@ -472,10 +472,7 @@ class ADWriter(AD):
         :param manager_sam: SamAccountName for the manager.
         """
         school = False  # TODO
-        bp = self._ps_boiler_plate(school)
-
-        format_rules = {'user_sam': user_sam, 'manager_sam': manager_sam,
-                        'ad_server': bp['server']}
+        format_rules = {'user_sam': user_sam, 'manager_sam': manager_sam}
         ps_script = self._build_ps(ad_templates.add_manager_template,
                                    school, format_rules)
 
@@ -485,6 +482,10 @@ class ADWriter(AD):
     def _cf(self, ad_field, value, ad):
         logger.info('Check AD field: {}'.format(ad_field))
         mismatch = {}
+        if value is None:
+            msg = 'Value for {} is None-type replace to string None'
+            logger.debug(msg.format(ad_field))
+            value = 'None'
         if not ad.get(ad_field) == value:
             msg = '{}: AD value: {}, does not match MO value: {}'
             logger.info(msg.format(ad_field, ad.get(ad_field), value))
@@ -506,7 +507,6 @@ class ADWriter(AD):
         # Todo: Why is this not generated along with all other info in mo_values?
         mo_values['name_sam'] = '{} - {}'.format(mo_values['full_name'],
                                                  ad['SamAccountName'])
-
         mismatch = {}
         mismatch.update(self._cf(write_settings['level2orgunit_field'],
                                  mo_values['level2orgunit'], ad))
@@ -521,12 +521,9 @@ class ADWriter(AD):
         named_sync_fields = self.settings.get(
             'integrations.ad_writer.mo_to_ad_fields', {})
 
-        # Den nuværende feltmapning har ingen felter her.
-        # print(named_sync_fields)
-        # for mo_field, ad_field in named_sync_fields.items():
-        #     other_attributes_fields.append(
-        #         (ad_field, mo_values[mo_field])
-        #     )
+        for mo_field, ad_field in named_sync_fields.items():
+            mismatch.update(self._cf(ad_field, mo_values[mo_field], ad))
+
         if 'manager_cpr' in mo_values:
             manager_ad_info = self._find_ad_user(mo_values['manager_cpr'], ad_dump)
             if not ad['Manager'] == manager_ad_info[0]['DistinguishedName']:
@@ -540,8 +537,6 @@ class ADWriter(AD):
         Sync MO information into AD
         """
         school = False  # TODO
-        bp = self._ps_boiler_plate(school)
-
         mo_values = self.read_ad_information_from_mo(
             mo_uuid, ad_dump=ad_dump, read_manager=sync_manager)
 
@@ -576,10 +571,16 @@ class ADWriter(AD):
         edit_user_string = self.remove_redundant(edit_user_string)
         edit_user_string += replace_attributes
 
+        server_string = ''
+        if self.all_settings['global'].get('servers') is not None:
+            server_string = ' -Server {} '.format(
+                random.choice(self.all_settings['global']['servers'])
+            )
+
         ps_script = (
             self._build_user_credential(school) +
             edit_user_string +
-            bp['server']
+            server_string
         )
         logger.debug('Sync user, ps_script: {}'.format(ps_script))
 
