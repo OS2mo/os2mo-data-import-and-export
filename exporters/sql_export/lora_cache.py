@@ -1,6 +1,7 @@
 import json
 import time
 import pickle
+import urllib
 import logging
 import pathlib
 import datetime
@@ -236,10 +237,12 @@ class LoraCache(object):
 
     def _cache_lora_address(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Adresse'}
+
         url = '/organisation/organisationfunktion'
         relevant = {
             'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
-                           'adresser', 'organisatoriskfunktionstype', 'opgaver')
+                           'adresser', 'organisatoriskfunktionstype', 'opgaver'),
+            'attributter': ('organisationfunktionegenskaber',)
         }
         address_list = self._perform_lora_lookup(url, params)
 
@@ -284,7 +287,7 @@ class LoraCache(object):
                 elif address_type == 'TEXT':
                     scope = 'Text'
                     skip_len = len('urn:text:')
-                    value = value_raw[skip_len:]
+                    value = urllib.parse.unquote(value_raw[skip_len:])
                 elif address_type == 'DAR':
                     # print('Total dar: {}, no-hit: {}'.format(total_dar, no_hit))
 
@@ -880,7 +883,7 @@ class LoraCache(object):
 
 
 if __name__ == '__main__':
-    lc = LoraCache(full_history=True, skip_past=False, resolve_dar=False)
+    lc = LoraCache(full_history=False, skip_past=False, resolve_dar=False)
     lc.populate_cache(dry_run=False)
 
     lc.calculate_derived_unit_data()
