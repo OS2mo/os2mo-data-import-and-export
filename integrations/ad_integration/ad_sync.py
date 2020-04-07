@@ -133,7 +133,7 @@ class AdMoSync(object):
         """
         Find the addresses that is already related to a user.
         :param uuid: The uuid of the user in question.
-        :return: A dictionary with address classes as keys and tuples of adress
+        :return: A dictionary with address classes as keys and tuples of address
         objects and values as values.
         """
         types_to_edit = {}
@@ -272,7 +272,6 @@ class AdMoSync(object):
                             }
                         }
                         if not eng[mo_field] == ad_object.get(ad_field):
-                            print(payload)
                             logger.debug('Edit payload: {}'.format(payload))
                             response = self.helper._mo_post('details/edit', payload)
                             self.stats['engagements'] += 1
@@ -306,7 +305,7 @@ class AdMoSync(object):
             }
             logger.debug('Create it system payload: {}'.format(payload))
             response = self.helper._mo_post('details/create', payload)
-            self.stats['it_systems'][1] += 1
+            self.stats['it_systems'] += 1
             self.stats['users'].add(uuid)
             logger.debug('Response: {}'.format(response.text))
             response.raise_for_status()
@@ -330,7 +329,6 @@ class AdMoSync(object):
                     msg = 'Value change, MO: {} <> AD: {}'
                     self.stats['addresses'][1] += 1
                     self.stats['users'].add(uuid)
-
                     self._edit_address(fields_to_edit[field][0],
                                        ad_object[field],
                                        klasse)
