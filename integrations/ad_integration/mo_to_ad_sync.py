@@ -16,10 +16,7 @@ from exporters.sql_export.lora_cache import LoraCache
 
 LOG_FILE = 'mo_to_ad_sync.log'
 
-# Notice, logging os not working fully as expected.
 logger = logging.getLogger('MoAdSync')
-
-# ad_logger.start_logging('mo_to_ad_sync.log')
 
 def main():
     ad_logger.start_logging(LOG_FILE)
