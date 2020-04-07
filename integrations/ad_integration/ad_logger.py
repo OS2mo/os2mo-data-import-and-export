@@ -6,7 +6,7 @@ LOG_LEVEL = logging.DEBUG
 def start_logging(log_file, detail_logging=None):
     if detail_logging is None:
         detail_logging = ('MoAdSync', 'AdReader', 'AdWriter', 'mora-helper',
-                          'AdSyncRead', 'LoraCache')
+                          'AdSyncRead', 'MoUuidAdSync', 'LoraCache')
 
     for name in logging.root.manager.loggerDict:
         if name in detail_logging:
