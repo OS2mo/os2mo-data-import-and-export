@@ -13,6 +13,11 @@ logger = logging.getLogger('MoUuidAdSync')
 
 
 class SyncMoUuidToAd(AD):
+    """
+    Small tool to help the development of AD write test.
+    Walks through all users in AD, search in MO by cpr and writes the MO
+    uuid on the users AD account.
+    """
 
     def __init__(self):
         ad_logger.start_logging(LOG_FILE)
@@ -66,10 +71,10 @@ class SyncMoUuidToAd(AD):
             expected_mo_uuid = user.get(
                 self.settings['integrations.ad.write.uuid_field'])
             if expected_mo_uuid == mo_uuid:
-                print('uuid for {} correct in AD'.format(user['DisplayName']))
+                logger.info('uuid for {} correct in AD'.format(user['DisplayName']))
                 continue
 
-            print('Need to sync {}'.format(user['DisplayName']))
+            logger.info('Need to sync {}'.format(user['DisplayName']))
             ps_script = (
                 self._build_user_credential() +
                 "Get-ADUser -Filter 'SamAccountName -eq \"" +
@@ -79,12 +84,9 @@ class SyncMoUuidToAd(AD):
                 self.settings['integrations.ad.write.uuid_field'] +
                 "\"=\"" + mo_uuid + "\"}"
             )
-            # print(ps_script)
-
+            logger.debug('PS-script: {}'.format(ps_script))
             response = self._run_ps_script(ps_script)
-            # print()
-            # print(response)
-
+            logger.debug('Response: {}'.format(response))
             self.stats['updated'] += 1
         print(self.stats)
 
