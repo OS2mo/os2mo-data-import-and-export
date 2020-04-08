@@ -161,7 +161,6 @@ class ADWriter(AD):
             }
         else:
             mo_user = self.helper.read_user(user_uuid=uuid)
-
             if 'uuid' not in mo_user:
                 raise UserNotFoundException()
             else:
@@ -335,9 +334,11 @@ class ADWriter(AD):
         logger.info('Read information for {}'.format(uuid))
         mo_user = self._read_user(uuid)
 
+        no_active_engagements = True
         if self.lc:
             for eng in self.lc.engagements.values():
                 if eng[0]['user'] == uuid:
+                    no_active_engagements = False
                     if eng[0]['primary_boolean']:
                         found_primary = True
                         employment_number = eng[0]['user_key']
@@ -349,6 +350,7 @@ class ADWriter(AD):
                 uuid, calculate_primary=True)
             found_primary = False
             for engagement in engagements:
+                no_active_engagements = False
                 if engagement['is_primary']:
                     found_primary = True
                     employment_number = engagement['user_key']
@@ -356,6 +358,10 @@ class ADWriter(AD):
                     eng_org_unit = engagement['org_unit']['uuid']
                     eng_uuid = engagement['uuid']
         print('r_a_i_f_m_02: {}'.format(time.time() - t))
+
+        if no_active_engagements:
+            logger.info('No active engagements found')
+            return None
 
         if not found_primary:
             raise NoPrimaryEngagementException('User: {}'.format(uuid))
@@ -428,8 +434,12 @@ class ADWriter(AD):
                 manager_info['mail'] = manager_mail_dict['value']
             print('r_a_i_f_m_07: {}'.format(time.time() - t))
 
-            manager_ad_info = self._find_ad_user(cpr=manager_info['cpr'],
-                                                 ad_dump=ad_dump)
+            try:
+                manager_ad_info = self._find_ad_user(cpr=manager_info['cpr'],
+                                                     ad_dump=ad_dump)
+            except CprNotFoundInADException:
+                manager_ad_info = []
+
             if len(manager_ad_info) == 1:
                 manager_info['sam'] = manager_ad_info[0]['SamAccountName']
             else:
@@ -524,7 +534,7 @@ class ADWriter(AD):
         for mo_field, ad_field in named_sync_fields.items():
             mismatch.update(self._cf(ad_field, mo_values[mo_field], ad))
 
-        if 'manager_cpr' in mo_values:
+        if mo_values.get('manager_cpr'):
             manager_ad_info = self._find_ad_user(mo_values['manager_cpr'], ad_dump)
             if not ad['Manager'] == manager_ad_info[0]['DistinguishedName']:
                 mismatch['manager'] = (ad['Manager'],
@@ -540,6 +550,9 @@ class ADWriter(AD):
         mo_values = self.read_ad_information_from_mo(
             mo_uuid, ad_dump=ad_dump, read_manager=sync_manager)
 
+        if mo_values is None:
+            return (False, 'No active engagments')
+
         if ad_dump is None:
             logger.debug('No AD information supplied, will look it up')
             user_sam = self._find_unique_user(mo_values['cpr'])
@@ -551,7 +564,7 @@ class ADWriter(AD):
             user_sam = user_ad_info[0]['SamAccountName']
             mismatch = self._sync_compare(mo_values, ad_dump)
 
-        print('Sync compare: {}'.format(mismatch))
+        logger.debug('Sync compare: {}'.format(mismatch))
 
         if not mismatch:
             logger.info('Nothig to edit')
@@ -635,10 +648,17 @@ class ADWriter(AD):
         create_user_string = self.remove_redundant(create_user_string)
         create_user_string += other_attributes
 
+        # Should this go to self._ps_boiler_plate()?
+        server_string = ''
+        if self.all_settings['global'].get('servers') is not None:
+            server_string = ' -Server {} '.format(
+                random.choice(self.all_settings['global']['servers'])
+            )
+
         ps_script = (
             self._build_user_credential(school) +
             create_user_string +
-            bp['server'] +
+            server_string +
             bp['path']
         )
 
