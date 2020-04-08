@@ -1,4 +1,3 @@
-import os
 import json
 import time
 import logging
@@ -18,6 +17,7 @@ LOG_FILE = 'mo_to_ad_sync.log'
 
 logger = logging.getLogger('MoAdSync')
 
+
 def main():
     ad_logger.start_logging(LOG_FILE)
     cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
@@ -27,12 +27,12 @@ def main():
 
     if settings['integrations.ad_writer.lora_speedup']:
         lc = LoraCache(resolve_dar=True, full_history=False)
-        lc.populate_cache(dry_run=True)
+        lc.populate_cache(dry_run=False)
         lc.calculate_derived_unit_data()
         lc.calculate_primary_engagements()
 
         lc_historic = LoraCache(resolve_dar=False, full_history=True)
-        lc_historic.populate_cache(dry_run=True)
+        lc_historic.populate_cache(dry_run=False)
     else:
         lc = None
         lc_historic = None
@@ -48,9 +48,13 @@ def main():
     stats = {
         'attempted_users': 0,
         'fully_synced': 0,
+        'updated': 0,
         'no_manager': 0,
         'user_not_in_mo': 0,
-        'user_not_in_ad': 0
+        'user_not_in_ad': 0,
+        'critical_error': 0,
+        'unknown_failed_sync': 0,
+        'no_active_engagement': 0
     }
     for user in all_users:
         t = time.time()
@@ -68,7 +72,15 @@ def main():
             response = writer.sync_user(user[mo_uuid_field], ad_dump=all_users)
             # response = writer.sync_user(user[mo_uuid_field], ad_dump=None)
             logger.debug('Respose to sync: {}'.format(response))
-            stats['fully_synced'] += 1
+            if response[0]:
+                stats['fully_synced'] += 1
+                if response[1] == 'Sync completed':
+                    stats['updated'] += 1
+            else:
+                if response[1] == 'No active engagments':
+                    stats['no_active_engagement'] += 1
+                else:
+                    stats['unknown_failed_sync'] += 1
         except ManagerNotUniqueFromCprException:
             stats['no_manager'] += 1
             msg = 'Did not find a unique manager for {}'.format(user[mo_uuid_field])
@@ -83,10 +95,11 @@ def main():
             msg = 'User {}, {} with uuid {} was not found i MO, unable to sync'
             logger.error(msg.format(user['SamAccountName'], user['Name'],
                                     user[mo_uuid_field]))
-        #except Exception as e:
-        #    logger.error('Unhandled exception: {}'.format(e))
-        #    logger.exception("Unhandled exception:")
-        #    print('Unhandled exception: {}'.format(e))
+        except Exception as e:
+            stats['critical_error'] += 1
+            logger.error('Unhandled exception: {}'.format(e))
+            logger.exception("Unhandled exception:")
+            print('Unhandled exception: {}'.format(e))
 
         print('Sync time: {}'.format(time.time() - t))
     print()
