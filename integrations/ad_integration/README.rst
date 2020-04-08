@@ -60,8 +60,8 @@ Standard AD
    som en liste i json-filen.
 
 
-Skole  AD
----------
+Skole AD
+--------
 
 Hvis der ønskes integration til et AD til skoleområdet, udover det almindelige
 administrative AD, skal disse parametre desuden angives som miljøvariable. Hvis de
@@ -118,8 +118,12 @@ En test af skrivning foregår efter denne opskrift:
    ``integrations.ad.write.level2orgunit_field`` og
    ``integrations.ad.write.org_unit_field``. Hvis hvert felt findes hos mindst
    en bruger, godkendes den lokale AD opsætning.
+ * Længden af cpr-numrene hos de tilfældige brugere testes for om de har den
+   forventede længde, 10 cifre hvis der ikke anvendes en separator, 11 hvis der
+   gør. Det er et krav for at integrationen kan køre korrekt, at alle cpr-numre
+   anvender samme (eller ingen) separator.
 
-Hvis disse to tests begge går igennem, anses opsætningen for at være klar til
+Hvis disse tests går igennem, anses opsætningen for at være klar til
 AD skriv integrationen.
 
    
