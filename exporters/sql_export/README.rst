@@ -43,7 +43,7 @@ Eksport af historik
 ===================
 
 MO/LoRa er en historisk database hvor de fleste objekter kan have forskellige
-værdier på forskellige tidspunkt, såkaldte virknignstider. SQL-eksporten vil
+værdier på forskellige tidspunkt, såkaldte virkningstider. SQL-eksporten vil
 som udgangspunkt eksportere de aktuelt gyldige værdier, men det er også muligt
 at foretage en komplet eksport af alle gyldigheder.
 
