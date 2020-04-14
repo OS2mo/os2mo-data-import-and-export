@@ -377,6 +377,7 @@ class AdMoSync(object):
                 print(cpr)
                 self._update_single_user(employee['uuid'], response)
             # logger.info('End sync of {}'.format(employee['uuid']))
+        logger.info('Stats: {}'.format(self.stats))
         print(self.stats)
 
 
