@@ -140,7 +140,7 @@ class AdMoSync(object):
         if self.lc:
             user_addresses = []
             for addr in self.lc.addresses.values():
-                if addr[0]['user'] == uuid:
+                if addr[0]['user'] == uuid and addr[0]['value'] is not None:
                     user_addresses.append(
                         {
                             'uuid': addr[0]['uuid'],
@@ -229,8 +229,27 @@ class AdMoSync(object):
                 'to': eng['to_date']
             }
             for ad_field, mo_field in self.mapping['engagements'].items():
+                if mo_field == 'extension_1':
+                    mo_value = eng['extensions']['udvidelse_1']
                 if mo_field == 'extension_2':
                     mo_value = eng['extensions']['udvidelse_2']
+                if mo_field == 'extension_3':
+                    mo_value = eng['extensions']['udvidelse_3']
+                if mo_field == 'extension_4':
+                    mo_value = eng['extensions']['udvidelse_4']
+                if mo_field == 'extension_5':
+                    mo_value = eng['extensions']['udvidelse_5']
+                if mo_field == 'extension_6':
+                    mo_value = eng['extensions']['udvidelse_6']
+                if mo_field == 'extension_7':
+                    mo_value = eng['extensions']['udvidelse_7']
+                if mo_field == 'extension_8':
+                    mo_value = eng['extensions']['udvidelse_8']
+                if mo_field == 'extension_9':
+                    mo_value = eng['extensions']['udvidelse_9']
+                if mo_field == 'extension_10':
+                    mo_value = eng['extensions']['udvidelse_10']
+
                 if not ad_object.get(ad_field):
                     logger.info('{} not in ad_object'.format(ad_field))
                     continue
