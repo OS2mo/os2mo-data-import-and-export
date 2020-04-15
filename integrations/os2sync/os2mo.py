@@ -62,10 +62,10 @@ def os2mo_get(url, **params):
         raise
 
 
-def user_uuids():
+def user_uuids(**kwargs):
     return [
         e["uuid"]
-        for e in os2mo_get("{BASE}/o/{ORG}/e/", limit=100000).json()["items"]
+        for e in os2mo_get("{BASE}/o/{ORG}/e/", limit=9999999, **kwargs).json()["items"]
     ]
 
 
@@ -103,7 +103,7 @@ def addresses_to_user(user, addresses):
         if a["address_type"]["scope"] == "PHONE":
             phones.append(a)
         if a["address_type"]["scope"] == "DAR":
-            user["Location"] = {"Value": a["name"], "Uuid": a["uuid"]}
+            user["Location"] = a["name"]
 
     # find phone using prioritized/empty list of address_type uuids
     phone = chose_visible_prioritized_address(
@@ -111,7 +111,7 @@ def addresses_to_user(user, addresses):
         settings["OS2SYNC_PHONE_SCOPE_CLASSES"]
     )
     if phone:
-        user["Phone"] = phone
+        user["Phone"] = phone["Value"]
 
     # find email using prioritized/empty list of address_type uuids
     email = chose_visible_prioritized_address(
@@ -119,7 +119,7 @@ def addresses_to_user(user, addresses):
         settings["OS2SYNC_EMAIL_SCOPE_CLASSES"]
     )
     if email:
-        user["Email"] = email
+        user["Email"] = email["Value"]
 
 
 def engagements_to_user(user, engagements, allowed_unitids):
@@ -129,7 +129,6 @@ def engagements_to_user(user, engagements, allowed_unitids):
                 {
                     "OrgUnitUuid": e["org_unit"]["uuid"],
                     "Name": e["job_function"]["name"],
-                    "Uuid": e["uuid"],
                 }
             )
 
@@ -140,8 +139,11 @@ def get_sts_user(uuid, allowed_unitids):
         "Uuid": uuid,
         "UserId": uuid,
         "Positions": [],
-        "Person": {"Name": base["name"], "Uuid": uuid},
+        "Person": {"Name": base["name"], "Cpr": base["cpr_no"]},
     }
+    if not settings["OS2SYNC_XFER_CPR"]:
+        sts_user["Person"]["Cpr"] = None
+
     addresses_to_user(
         sts_user, os2mo_get("{BASE}/e/" + uuid + "/details/address").json()
     )
@@ -168,10 +170,10 @@ def pruned_tree(uuids=[]):
     return retval
 
 
-def org_unit_uuids():
+def org_unit_uuids(**kwargs):
     return [
         ou["uuid"]
-        for ou in os2mo_get("{BASE}/o/{ORG}/ou", limit=100000).json()["items"]
+        for ou in os2mo_get("{BASE}/o/{ORG}/ou", limit=999999, **kwargs).json()["items"]
     ]
 
 
@@ -183,15 +185,13 @@ def itsystems_to_orgunit(orgunit, itsystems):
 def addresses_to_orgunit(orgunit, addresses):
     for a in addresses:
         if a["address_type"]["scope"] == "EMAIL":
-            orgunit["Email"] = {"Value": a["name"], "Uuid": a["uuid"]}
+            orgunit["Email"] = a["name"]
         elif a["address_type"]["scope"] == "PNUMBER":
-            orgunit["Ean"] = {"Value": a["name"], "Uuid": a["uuid"]}
+            orgunit["Ean"] = a["name"]
         elif a["address_type"]["scope"] == "PHONE":
-            orgunit["Phone"] = {"Value": a["name"], "Uuid": a["uuid"]}
+            orgunit["PhoneNumber"] = a["name"]
         elif a["address_type"]["scope"] == "DAR":
-            orgunit["Post"] = {"Value": a["value"], "Uuid": a["uuid"]}
-        elif a["address_type"]["scope"] == "TEXT":
-            orgunit["Location"] = {"Value": a["name"], "Uuid": a["uuid"]}
+            orgunit["Post"] = a["value"]
 
 
 def get_sts_orgunit(uuid):

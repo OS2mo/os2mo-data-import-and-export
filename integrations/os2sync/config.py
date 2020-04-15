@@ -22,6 +22,7 @@ settings = {
         "OS2SYNC_EMAIL_SCOPE_CLASSES": top_settings["os2sync.email_scope_classes"],  # can be empty
         "OS2MO_TOP_UNIT_UUID": top_settings["os2sync.top_unit_uuid"],
         "OS2SYNC_MUNICIPALITY": top_settings["municipality.cvr"],
+        "OS2SYNC_XFER_CPR": top_settings["os2sync.xfer_cpr"],
 }
 
 loggername = "os2sync"
