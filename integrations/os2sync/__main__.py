@@ -11,6 +11,7 @@ import collections
 import argparse
 import pathlib
 import json
+import datetime
 
 # set warning-level for all loggers
 [
@@ -54,39 +55,32 @@ def log_mox_counters(counter):
 def sync_os2sync_orgunits(counter, cherrypicked=[]):
     logger.info("sync_os2sync_orgunits starting")
 
-    if cherrypicked:
-        logger.info("sync_os2sync_orgunits getting "
-                    "cherrypicked organisational units from os2mo")
-        os2mo_uuids = set(os2mo.pruned_tree(cherrypicked))
-    else:
-        logger.info("sync_os2sync_orgunits getting "
-                    "all organisational units from os2mo")
-        os2mo_uuids = set(os2mo.org_unit_uuids())
+    logger.info("sync_os2sync_orgunits getting "
+                "all current organisational units from os2mo")
+    os2mo_uuids_present = set(os2mo.org_unit_uuids())
 
-    counter["Orgenheder fundet i OS2MO"] = len(os2mo_uuids)
+    logger.info("sync_os2sync_orgunits getting "
+                "units from os2mo from previous xfer date")
+    os2mo_uuids_past = set(os2mo.org_unit_uuids(at=prev_date))
+
+    counter["Aktive Orgenheder fundet i OS2MO"] = len(os2mo_uuids_present)
+    counter["Orgenheder tidligere"] = len(os2mo_uuids_past)
 
     logger.info("sync_os2sync_orgunits getting all "
                 "organisational units from os2sync")
 
-    if cherrypicked:
-        logger.info("No deletion of organisational units attempted in "
-                    "os2sync when cherrypicking")
-    else:
-        os2sync_uuids = set(os2sync.orgunit_uuids())
-        counter["Orgenheder fundet i OS2Sync"] = len(os2sync_uuids)
-
-        logger.info("sync_os2sync_orgunits deleting organisational "
-                    "units from os2sync if deleted in os2mo")
-        if len(os2mo_uuids):
-            for uuid in set(os2sync_uuids - os2mo_uuids):
-                counter["Orgenheder som slettes i OS2Sync"] += 1
-                os2sync.delete_orgunit(uuid)
+    logger.info("sync_os2sync_orgunits deleting organisational "
+                "units from os2sync if deleted in os2mo")
+    if len(os2mo_uuids_present):
+        for uuid in set(os2mo_uuids_past - os2mo_uuids_present):
+            counter["Orgenheder som slettes i OS2Sync"] += 1
+            os2sync.delete_orgunit(uuid)
 
     logger.info("sync_os2sync_orgunits upserting "
                 "organisational units in os2sync")
 
     allowed_unitids = []
-    for i in os2mo_uuids:
+    for i in os2mo_uuids_present:
         sts_orgunit = os2mo.get_sts_orgunit(i)
         if sts_orgunit:
             allowed_unitids.append(i)
@@ -99,31 +93,32 @@ def sync_os2sync_orgunits(counter, cherrypicked=[]):
 
 
 def sync_os2sync_users(allowed_unitids, counter):
+
     logger.info("sync_os2sync_users starting")
     logger.info("sync_os2sync_users getting list "
                 "of users from os2sync")
 
-    os2sync_uuids = set(os2sync.user_uuids())
-    counter["Medarbejdere fundet i OS2Sync"] = len(os2sync_uuids)
-
+    os2mo_uuids_past = set(os2mo.user_uuids(at=prev_date))
     logger.info("sync_os2sync_users getting list of users from os2mo")
 
-    os2mo_uuids = set(os2mo.user_uuids())
-    counter["Medarbejdere fundet i OS2MO"] = len(os2mo_uuids)
+    os2mo_uuids_present = set(os2mo.user_uuids())
+
+    counter["Medarbejdere fundet i OS2Mo"] = len(os2mo_uuids_present)
+    counter["Medarbejdere tidligere"] = len(os2mo_uuids_past)
 
     logger.info("sync_os2sync_users deleting "
                 "os2mo-deleted users in os2sync")
 
-    if len(os2mo_uuids):
-        for uuid in set(os2sync_uuids - os2mo_uuids):
+    if len(os2mo_uuids_present):
+        for uuid in set(os2mo_uuids_past - os2mo_uuids_present):
             counter["Medarbejdere slettes i OS2Sync (del)"] += 1
             os2sync.delete_user(uuid)
 
     # insert/overwrite all users from os2mo
-    # delete if user has no more positions
+    # maybe delete if user has no more positions
     logger.info("sync_os2sync_users upserting os2sync users")
 
-    for i in os2mo_uuids:
+    for i in os2mo_uuids_present:
         sts_user = os2mo.get_sts_user(i, allowed_unitids)
 
         if not sts_user["Positions"]:
@@ -139,10 +134,14 @@ def sync_os2sync_users(allowed_unitids, counter):
 
 if __name__ == "__main__":
 
+    prev_date = datetime.datetime.now() - datetime.timedelta(days=1)
     hash_cache_file = pathlib.Path(settings["OS2SYNC_HASH_CACHE"])
+
+    if hash_cache_file.exists():
+        prev_date = datetime.datetime.fromtimestamp(hash_cache_file.stat().st_mtime)
+    prev_date = prev_date.strftime("%Y-%m-%d")
+
     parser = argparse.ArgumentParser(description='Mox Stsorgsync')
-    parser.add_argument('--cherrypick', dest='cherrypick', action='append',
-                        nargs='+', help='add cherrypicked ou uuids one by one')
     args = vars(parser.parse_args())
     counter = collections.Counter()
     logger.info("mox_os2sync starting")
@@ -155,13 +154,7 @@ if __name__ == "__main__":
         settings["OS2MO_ORG_UUID"] = os2mo.os2mo_get("{BASE}/o/").json()[0][
             "uuid"
         ]
-    if args["cherrypick"]:
-        orgunit_uuids = sync_os2sync_orgunits(
-            counter,
-            args["cherrypick"][0] + [settings["OS2MO_TOP_UNIT_UUID"]]
-        )
-    else:
-        orgunit_uuids = sync_os2sync_orgunits(counter)
+    orgunit_uuids = sync_os2sync_orgunits(counter)
     sync_os2sync_users(orgunit_uuids, counter)
 
     if hash_cache_file:
