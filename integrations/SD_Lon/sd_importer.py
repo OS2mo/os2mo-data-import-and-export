@@ -416,7 +416,7 @@ class SdImport(object):
                     employee=cpr,
                     user_key=self.ad_people[cpr]['SamAccountName'],
                     itsystem_ref='AD',
-                    date_from=None
+                    date_from='1930-01-01'
                 )
 
     def create_ou_tree(self, create_orphan_container, sub_tree=None,

@@ -316,7 +316,7 @@ class OpusImport(object):
                 employee=cpr,
                 user_key=self.ad_people[cpr]['SamAccountName'],
                 itsystem_ref='AD',
-                date_from=None
+                date_from='1930-01-01'
             )
 
         if 'userId' in employee:
