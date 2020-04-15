@@ -56,10 +56,10 @@ En eksport kan startes fra kommandolinjen med følgende parametre:
    MOs DAR uuid'er op, så adressen også eksporteres i klar tekst. Hvis datasættet
    indeholder mange forskellige adresser, vil det betyde en betydelig forøgelse af
    kørselstiden.
- * ``-historic``: Hvis denne parameter er sat, vil der blive foretaget en fuld
+ * ``--historic``: Hvis denne parameter er sat, vil der blive foretaget en fuld
    eksport af både fortidige, nutidige og fremtidige rækker. Dette vil betyde, at
    en række beregnede parametre ikke vil komme med i datasættet.
- * ``force-sqlite``: Denne parameter vil betyde at ``exporters.actual_state.type``
+ * ``--force-sqlite``: Denne parameter vil betyde at ``exporters.actual_state.type``
    i ``settings.json`` vil blive ignoreret, og en `SQLite`-fil vil blive
    eksporteret.
  * ``--dry-run``: Ingen opslag vil blive foretaget i LoRa, udtrækket vil baseres
