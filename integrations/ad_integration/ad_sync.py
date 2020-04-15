@@ -1,5 +1,4 @@
 import json
-import time
 import pathlib
 import logging
 from datetime import datetime
@@ -60,7 +59,7 @@ class AdMoSync(object):
         if lora_speedup:
             print('Retrive LoRa dump')
             self.lc = LoraCache(resolve_dar=False, full_history=False)
-            self.lc.populate_cache(dry_run=False)
+            self.lc.populate_cache(dry_run=False, skip_associations=True)
             self.lc.calculate_primary_engagements()
             print('Done')
         else:
@@ -140,7 +139,7 @@ class AdMoSync(object):
         if self.lc:
             user_addresses = []
             for addr in self.lc.addresses.values():
-                if addr[0]['user'] == uuid and addr[0]['value'] is not None:
+                if addr[0]['user'] == uuid:
                     user_addresses.append(
                         {
                             'uuid': addr[0]['uuid'],
@@ -333,7 +332,7 @@ class AdMoSync(object):
         fields_to_edit = self._find_existing_ad_address_types(uuid)
 
         for field, klasse in self.mapping['user_addresses'].items():
-            if field not in ad_object:
+            if not ad_object.get(field):
                 logger.debug('No such AD field: {}'.format(field))
                 continue
 
@@ -362,18 +361,14 @@ class AdMoSync(object):
         :param uuid: uuid of the user.
         :param ad_object: Dict with the AD information for the user.
         """
-        t = time.time()
         if 'it_systems' in self.mapping:
             self._edit_it_system(uuid, ad_object)
-        # print('IT systems: {}s'.format(time.time() - t))
 
         if 'engagements' in self.mapping:
             self._edit_engagement(uuid, ad_object)
-        # print('Engagements: {}s'.format(time.time() - t))
 
         if 'user_addresses' in self.mapping:
             self._edit_user_addresses(uuid, ad_object)
-        # print('Address edit: {}s'.format(time.time() - t))
 
     def update_all_users(self):
         """
@@ -393,10 +388,10 @@ class AdMoSync(object):
                 cpr = user['cpr_no']
             response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
             if response:
-                print(cpr)
                 self._update_single_user(employee['uuid'], response)
             # logger.info('End sync of {}'.format(employee['uuid']))
         logger.info('Stats: {}'.format(self.stats))
+        self.stats['users'] = 'Written in log file'
         print(self.stats)
 
 
