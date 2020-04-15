@@ -730,8 +730,13 @@ class LoraCache(object):
             self.units[unit][0]['manager_uuid'] = manager_uuid
             self.units[unit][0]['acting_manager_uuid'] = acting_manager_uuid
 
-    def populate_cache(self, dry_run=False):
-
+    def populate_cache(self, dry_run=False, skip_associations=False):
+        """
+        Perform the actual data import.
+        :param skip_associations: If associations are not needed, they can be
+        skipped for increased performance.
+        :param dry_run: For testing purposes it is possible to read from cache.
+        """
         if self.full_history:
             facets_file = 'facets_historic.p'
             classes_file = 'classes_historic.p'
@@ -800,7 +805,6 @@ class LoraCache(object):
         with open(classes_file, 'wb') as f:
             pickle.dump(self.classes, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, elements, elements/dt))
-        print(msg.format(dt, elements, elements/dt))
 
         t = time.time()
         logger.info('Læs brugere')
@@ -825,7 +829,6 @@ class LoraCache(object):
         with open(addresses_file, 'wb') as f:
             pickle.dump(self.addresses, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.addresses), len(self.addresses)/dt))
-        print(msg.format(dt, len(self.addresses), len(self.addresses)/dt))
 
         t = time.time()
         logger.info('Læs engagementer')
@@ -843,14 +846,15 @@ class LoraCache(object):
             pickle.dump(self.managers, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.managers), len(self.managers)/dt))
 
-        t = time.time()
-        logger.info('Læs tilknytninger')
-        self.associations = self._cache_lora_associations()
-        dt = time.time() - t
-        with open(associations_file, 'wb') as f:
-            pickle.dump(self.associations, f, pickle.HIGHEST_PROTOCOL)
-        logger.info(msg.format(dt, len(self.associations),
-                               len(self.associations)/dt))
+        if not skip_associations:
+            t = time.time()
+            logger.info('Læs tilknytninger')
+            self.associations = self._cache_lora_associations()
+            dt = time.time() - t
+            with open(associations_file, 'wb') as f:
+                pickle.dump(self.associations, f, pickle.HIGHEST_PROTOCOL)
+                logger.info(msg.format(dt, len(self.associations),
+                                       len(self.associations)/dt))
 
         t = time.time()
         logger.info('Læs orlover')
