@@ -48,39 +48,63 @@ class LoraCache(object):
             exit()
 
     def _get_effects(self, lora_object, relevant):
-        if self.full_history:
-            effects = lora_utils.get_effects(lora_object['registreringer'][0],
-                                             relevant=relevant,
-                                             additional=self.additional)
-        else:
-            effects = lora_utils.get_effects(lora_object['registreringer'][0],
-                                             relevant=self.additional,
-                                             additional=relevant)
+        effects = lora_utils.get_effects(
+            lora_object['registreringer'][0],
+            relevant=relevant,
+            additional=self.additional
+        )
+        # Notice, the code below will return the entire validity of an object
+        # in the case of non-historic export, this could be handy in some
+        # situations, eg ad->mo sync
+        # if self.full_history:
+        #     effects = lora_utils.get_effects(lora_object['registreringer'][0],
+        #                                      relevant=relevant,
+        #                                      additional=self.additional)
+        # else:
+        #     effects = lora_utils.get_effects(lora_object['registreringer'][0],
+        #                                      relevant=self.additional,
+        #                                      additional=relevant)
         return effects
 
     def _from_to_from_effect(self, effect):
-        dt = dateutil.parser.isoparse(str(effect[0]))
-        dt = dt.astimezone(DEFAULT_TIMEZONE)
-        from_date = dt.date().isoformat()
+        dt_from = dateutil.parser.isoparse(str(effect[0]))
+        dt_from = dt_from.astimezone(DEFAULT_TIMEZONE)
+        from_date = dt_from.date().isoformat()
 
         if effect[1].replace(tzinfo=None) == datetime.datetime.max:
             to_date = None
         else:
-            dt = dateutil.parser.isoparse(str(effect[1]))
-            dt = dt.astimezone(DEFAULT_TIMEZONE)
-            to_date = dt.date().isoformat()
+            dt_to = dateutil.parser.isoparse(str(effect[1]))
+            dt_to = dt_to.astimezone(DEFAULT_TIMEZONE)
+            # MO considers end-dates inclusive, we need to subtract a day
+            to_date = (dt_to.date() - datetime.timedelta(days=1)).isoformat()
+
+        if not self.full_history:
+            now = datetime.datetime.now(DEFAULT_TIMEZONE)
+            if to_date is None:
+                # In this case, make sure dt_to is bigger than now
+                dt_to = now + datetime.timedelta(days=1)
+            if not dt_from < now < dt_to:
+                from_date = to_date = None
         return from_date, to_date
 
     def _perform_lora_lookup(self, url, params, skip_history=False):
         """
         Exctract a complete set of objects in LoRa.
         :param url: The url that should be used to extract data.
+        :param skip_history: Force a validity of today, even if self.full_history
+        is true.
         """
         t = time.time()
         logger.debug('Start reading {}, params: {}, at t={}'.format(url, params, t))
         params['list'] = 1
         params['maximalantalresultater'] = 5000
         params['foersteresultat'] = 0
+
+        # Default, this can be overwritten in the lines below
+        now = datetime.datetime.today()
+        params['virkningFra'] = now.strftime('%Y-%m-%d') + " 00:00:00"
+        params['virkningTil'] = now.strftime('%Y-%m-%d') + " 00:00:01"
         if self.full_history and not skip_history:
             params['virkningTil'] = 'infinity'
             if not self.skip_past:
@@ -208,6 +232,8 @@ class LoraCache(object):
             effects = self._get_effects(unit, relevant)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
+                if from_date is None and to_date is None:
+                    continue
                 relationer = effect[2]['relationer']
                 egenskaber = (effect[2]['attributter']
                               ['organisationenhedegenskaber'][0])
@@ -256,6 +282,8 @@ class LoraCache(object):
             effects = self._get_effects(address, relevant)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
+                if from_date is None and to_date is None:
+                    continue
                 relationer = effect[2]['relationer']
 
                 if 'tilknyttedeenheder' in relationer:
@@ -364,7 +392,9 @@ class LoraCache(object):
             effects = self._get_effects(engagement, relevant)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
-                # print(from_date, to_date)
+                if from_date is None and to_date is None:
+                    continue
+                # print('Found effect, from: {}, to: {}'.format(from_date, to_date))
 
                 attr = effect[2]['attributter']
                 rel = effect[2]['relationer']
@@ -444,6 +474,8 @@ class LoraCache(object):
             effects = self._get_effects(association, relevant)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
+                if from_date is None and to_date is None:
+                    continue
 
                 attr = effect[2]['attributter']
                 rel = effect[2]['relationer']
@@ -488,6 +520,8 @@ class LoraCache(object):
             effects = self._get_effects(role, relevant)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
+                if from_date is None and to_date is None:
+                    continue
                 rel = effect[2]['relationer']
                 role_type = rel['organisatoriskfunktionstype'][0]['uuid']
                 user_uuid = rel['tilknyttedebrugere'][0]['uuid']
@@ -520,6 +554,8 @@ class LoraCache(object):
             effects = self._get_effects(leave, relevant)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
+                if from_date is None and to_date is None:
+                    continue
                 attr = effect[2]['attributter']
                 rel = effect[2]['relationer']
                 user_key = (attr['organisationfunktionegenskaber'][0]
@@ -555,17 +591,11 @@ class LoraCache(object):
                 'attributter': ('organisationfunktionegenskaber',)
             }
 
-            if self.full_history:
-                effects = lora_utils.get_effects(it_connection['registreringer'][0],
-                                                 relevant=relevant,
-                                                 additional=self.additional)
-            else:
-                effects = lora_utils.get_effects(it_connection['registreringer'][0],
-                                                 relevant=self.additional,
-                                                 additional=relevant)
-
+            effects = self._get_effects(it_connection, relevant)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
+                if from_date is None and to_date is None:
+                    continue
                 user_key = (
                     effect[2]['attributter']['organisationfunktionegenskaber']
                     [0]['brugervendtnoegle']
@@ -656,6 +686,7 @@ class LoraCache(object):
 
         user_primary = {}
         for uuid, eng_validities in self.engagements.items():
+            print(uuid, eng_validities)
             assert(len(eng_validities)) == 1
             eng = eng_validities[0]
 
