@@ -223,6 +223,9 @@ class AdMoSync(object):
             if eng is None:
                 # No current primary engagment found
                 return False
+            # Notice, this will only current row, if more rows exists, they will
+            # not be updated until the first run after that row has become current.
+            # To fix this, we will nedd to read future information as well.
             validity = {
                 'from': VALIDITY['from'],
                 'to': eng['to_date']
