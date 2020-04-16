@@ -160,7 +160,7 @@ enheder
  * ``enhedstype_titel``: Titel på enhedstypens klasse.
    ``klasser``.
  * ``enhedsniveau_uuid``: Enhedsniveau, dette felt anvendes normalt kun af kommuner,
-   som anvender SD som lønsystem. reference til primærnøglen i tabellen
+   som anvender SD som lønsystem. Reference til primærnøglen i tabellen
    ``klasser``.
  * ``enhedsniveau_titel``: Titel på klassen for enhedsniveau.
  * ``organisatorisk_sti``: Enhedens organisatoriske placering, se afsnit om
