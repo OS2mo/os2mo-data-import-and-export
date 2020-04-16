@@ -686,7 +686,6 @@ class LoraCache(object):
 
         user_primary = {}
         for uuid, eng_validities in self.engagements.items():
-            print(uuid, eng_validities)
             assert(len(eng_validities)) == 1
             eng = eng_validities[0]
 
