@@ -36,19 +36,30 @@ logging.basicConfig(
 
 
 class SqlExport(object):
-    def __init__(self, force_sqlite=False):
+    def __init__(self, force_sqlite=False, historic=False):
         logger.info('Start SQL export')
         atexit.register(self.at_exit)
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
+        self.historic = historic
 
-        db_type = self.settings.get('exporters.actual_state.type')
+        if self.historic:
+            db_type = self.settings.get('exporters.actual_state_historic.type')
+            db_name = self.settings.get('exporters.actual_state_historic.db_name')
+        else:
+            db_type = self.settings.get('exporters.actual_state.type')
+            db_name = self.settings.get('exporters.actual_state.db_name')
+
         if force_sqlite:
             db_type = 'SQLite'
 
-        db_name = self.settings['exporters.actual_state.db_name']
+        if None in [db_type, db_name]:
+            msg = 'Configuration error, missing db name or type'
+            logger.error(msg)
+            raise Exception(msg)
+
         user = self.settings.get('exporters.actual_state.user')
         db_host = self.settings.get('exporters.actual_state.host')
         pw_raw = self.settings.get('exporters.actual_state.password', '')
@@ -63,8 +74,8 @@ class SqlExport(object):
 
         self.engine = create_engine(db_string)
 
-    def perform_export(self, historic=False, resolve_dar=True, dry_run=False):
-        if historic:
+    def perform_export(self, resolve_dar=True, dry_run=False):
+        if self.historic:
             self.lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
             self.lc.populate_cache(dry_run=dry_run)
         else:
@@ -365,12 +376,12 @@ def cli():
     args = vars(parser.parse_args())
 
     sql_export = SqlExport(
-        force_sqlite=args.get('force_sqlite')
+        force_sqlite=args.get('force_sqlite'),
+        historic=args.get('historic'),
     )
 
     sql_export.perform_export(
         resolve_dar=args.get('resolve_dar'),
-        historic=args.get('historic'),
         dry_run=args.get('dry_run')
     )
 
