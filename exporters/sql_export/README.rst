@@ -33,9 +33,14 @@ For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
  * ``exporters.actual_state.type``: Typen af database, i øjeblikket understøttes
    `SQLite` og `MS-SQL`, flere kan tilføjes efter behov. For typen `SQLite` kan
    brugernavn, password og host være tomme felter.
+ * ``exporters.actual_state_historic.type``: Som ovenfor, men for historisk eksport.
+   `SQLite` og `MS-SQL`, flere kan tilføjes efter behov. For typen `SQLite` kan
+   brugernavn, password og host være tomme felter.
  * ``exporters.actual_state.user``:  Brugernavn for sql bruger.
  * ``exporters.actual_state.password``: Password til sql bruger.
- * ``exporters.actual_state.db_name``: Navnet på databasen.
+ * ``exporters.actual_state.db_name``: Navn på databasen for actual state eksport.
+ * ``exporters.actual_state_historic.db_name``: Navnet på databasen for historisk
+   eksport.
  * ``exporters.actual_state.host``: Hostnavn på SQL-serveren.
 
 
