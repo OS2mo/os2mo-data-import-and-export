@@ -9,7 +9,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lora_cache import LoraCache
-from exporters.sql_export.sql_table_defs_historic import (
+from exporters.sql_export.sql_table_defs import (
     Base,
     Facet, Klasse,
     Bruger, Enhed,
