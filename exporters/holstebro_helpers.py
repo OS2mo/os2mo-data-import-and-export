@@ -164,7 +164,7 @@ def export_to_planorama(mh, all_nodes, filename_org, filename_persons, org_root_
                           'Telephone',
                           'Responsible',
                           'Company']
-    fieldnames_org = ['Root', 'Number', 'Name']
+    fieldnames_org = ['Root', 'Number', 'Name', 'Manager']
 
     rows_org = []
     rows_persons = []
@@ -184,9 +184,17 @@ def export_to_planorama(mh, all_nodes, filename_org, filename_persons, org_root_
         if not export_all:
             # partial export
             # insert this root_uuid in rows_org with holstebro_uuid as parent
+            t_node = Node(root_uuid)
             ou = mh.read_ou(root_uuid)
+
+            # find this unit's manager
+            manager = find_org_manager(mh, t_node)
+
             row_org = {'Root': org_root_uuid,
-                       'Number': ou['uuid'], 'Name': ou['name']}
+                       'Number': ou['uuid'],
+                       'Name': ou['name'],
+                       'Manager': manager['uuid']}
+
             rows_org.append(row_org)
             logger.info(f"Exporting {ou['name']} to Planorama")
 
@@ -206,19 +214,6 @@ def export_to_planorama(mh, all_nodes, filename_org, filename_persons, org_root_
             # Do not add "Afdelings-niveau"
             if ou['org_unit_level']['name'] != 'Afdelings-niveau':
 
-                if not export_all:  # and ou['uuid'] in root[root_uuid]
-                    # partial export
-                    # add this ou directly under the root_uuid thats being exported
-                    row_org = {'Root': root_uuid,
-                               'Number': ou['uuid'], 'Name': ou['name']}
-                else:
-                    parent_ou_uuid = ou['parent']['uuid'] if ou['parent'] else org_root_uuid
-                    row_org = {'Root': parent_ou_uuid,
-                               'Number': ou['uuid'], 'Name': ou['name']}
-
-                rows_org.append(row_org)
-                logger.info(f"Exporting {ou['name']} to Planorama")
-
                 # find this unit's manager
                 manager = find_org_manager(mh, node)
 
@@ -226,6 +221,19 @@ def export_to_planorama(mh, all_nodes, filename_org, filename_persons, org_root_
                     manager_engagement = mh.read_user_engagement(manager['uuid'])
                 else:
                     manager_engagement = [{'user_key': ''}]
+
+                if not export_all:  # and ou['uuid'] in root[root_uuid]
+                    # partial export
+                    # add this ou directly under the root_uuid thats being exported
+                    row_org = {'Root': root_uuid, 'Number': ou['uuid'],
+                               'Name': ou['name'], 'Manager': manager['uuid']}
+                else:
+                    parent_ou_uuid = ou['parent']['uuid'] if ou['parent'] else org_root_uuid
+                    row_org = {'Root': parent_ou_uuid, 'Number': ou['uuid'],
+                               'Name': ou['name'], 'Manager': manager['uuid']}
+
+                rows_org.append(row_org)
+                logger.info(f"Exporting {ou['name']} to Planorama")
 
                 # Read all employees in org unit and add them to employee export rows
                 employees = mh.read_organisation_people(
