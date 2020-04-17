@@ -63,11 +63,13 @@ def sd_lookup(url, params={}, use_cache=True):
             pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
 
     dict_response = xmltodict.parse(response.text)
+
     if url in dict_response:
         xml_response = dict_response[url]
     else:
-        logger.error('Envelope: {}'.format(dict_response['Envelope']))
-        xml_response = {}
+        msg = 'SD api error, envelope: {}'
+        logger.error(msg.format(dict_response['Envelope']))
+        raise Exception(msg.format(dict_response['Envelope']))
     logger.debug('Done with {}'.format(url))
     return xml_response
 
