@@ -53,6 +53,14 @@ class AdMoSync(object):
                     msg = '{} with uuid {}, not found in MO'
                     raise Exception(msg.format(it_system, it_system_uuid))
 
+        skip_school = self.settings.get('integrations.ad.skip_school_ad_to_mo', True)
+        logger.info('Skip school domain: {}'.format(skip_school))
+        self.ad_reader = ad_reader.ADParameterReader(skip_school=skip_school)
+        print('Retrive AD dump')
+        self.ad_reader.cache_all()
+        print('Done')
+        logger.info('Done with AD caching')
+
         # Possibly get IT-system directly from LoRa for better performance.
         lora_speedup = self.settings.get(
             'integrations.ad.ad_mo_sync_direct_lora_speedup', False)
@@ -88,21 +96,12 @@ class AdMoSync(object):
                     raise Exception(msg.format(mo_combi))
                 used_mo_fields.append(mo_combi)
 
-        skip_school = self.settings.get('integrations.ad.skip_school_ad_to_mo', True)
-        logger.info('Skip school domain: {}'.format(skip_school))
-        self.ad_reader = ad_reader.ADParameterReader(skip_school=skip_school)
-
         self.stats = {
             'addresses': [0, 0],
             'engagements': 0,
             'it_systems': 0,
             'users': set()
         }
-
-        print('Retrive AD dump')
-        self.ad_reader.cache_all()
-        print('Done')
-        logger.info('Done with AD caching')
 
     def _read_mo_classes(self):
         """
