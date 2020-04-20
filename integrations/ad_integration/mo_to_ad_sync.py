@@ -26,6 +26,11 @@ def main():
     settings = json.loads(cfg_file.read_text())
 
     if settings['integrations.ad_writer.lora_speedup']:
+        # Here we should de-activate read-only mode, actual state and
+        # full history dumps needs to be in sync.
+
+        # Full history does not calculate derived data, we must
+        # fetch both kinds.
         lc = LoraCache(resolve_dar=True, full_history=False)
         lc.populate_cache(dry_run=False)
         lc.calculate_derived_unit_data()
@@ -33,6 +38,7 @@ def main():
 
         lc_historic = LoraCache(resolve_dar=False, full_history=True)
         lc_historic.populate_cache(dry_run=False)
+        # Here we should de-activate read-only mode
     else:
         lc = None
         lc_historic = None
