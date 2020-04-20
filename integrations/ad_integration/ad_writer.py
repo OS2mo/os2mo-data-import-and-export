@@ -171,7 +171,7 @@ class ADWriter(AD):
         ad_info = []
         if ad_dump is not None:
             for user in ad_dump:
-                if user[self.settings['integrations.ad.cpr_field']] == cpr:
+                if user.get(self.settings['integrations.ad.cpr_field']) == cpr:
                     ad_info.append(user)
         else:
             ad_info = self.get_from_ad(cpr=cpr)
