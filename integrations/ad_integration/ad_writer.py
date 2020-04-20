@@ -328,9 +328,6 @@ class ADWriter(AD):
             'manager_sam': 'DMILL'
         }
         """
-        t = time.time()
-        print('r_a_i_f_m_01: {}'.format(time.time() - t))
-
         logger.info('Read information for {}'.format(uuid))
         mo_user = self._read_user(uuid)
 
@@ -357,7 +354,6 @@ class ADWriter(AD):
                     title = engagement['job_function']['name']
                     eng_org_unit = engagement['org_unit']['uuid']
                     eng_uuid = engagement['uuid']
-        print('r_a_i_f_m_02: {}'.format(time.time() - t))
 
         if no_active_engagements:
             logger.info('No active engagements found')
@@ -367,11 +363,9 @@ class ADWriter(AD):
             raise NoPrimaryEngagementException('User: {}'.format(uuid))
 
         end_date = self._find_end_date(uuid)
-        print('r_a_i_f_m_03: {}'.format(time.time() - t))
 
         unit_info = self._find_unit_info(eng_org_unit)
         addresses = self._read_user_addresses(eng_org_unit)
-        print('r_a_i_f_m_04: {}'.format(time.time() - t))
 
         postal_code = city = streetname = 'Ukendt'
         if addresses['postal']:
@@ -420,7 +414,6 @@ class ADWriter(AD):
             mo_manager_user = self._read_user(manager_uuid)
             manager_info['name'] = mo_manager_user['name']
             manager_info['cpr'] = mo_manager_user['cpr_no']
-            print('r_a_i_f_m_06: {}'.format(time.time() - t))
 
             if self.lc:
                 manager_mail_dict = {}
@@ -432,7 +425,6 @@ class ADWriter(AD):
                                                               scope='EMAIL')
             if manager_mail_dict:
                 manager_info['mail'] = manager_mail_dict['value']
-            print('r_a_i_f_m_07: {}'.format(time.time() - t))
 
             try:
                 manager_ad_info = self._find_ad_user(cpr=manager_info['cpr'],
@@ -446,7 +438,6 @@ class ADWriter(AD):
                 msg = 'Searching for {}, found in AD: {}'
                 logger.debug(msg.format(manager_info['name'], manager_ad_info))
                 raise ManagerNotUniqueFromCprException()
-        print('r_a_i_f_m_08: {}'.format(time.time() - t))
 
         mo_values = {
             'name': (mo_user['givenname'], mo_user['surname']),
