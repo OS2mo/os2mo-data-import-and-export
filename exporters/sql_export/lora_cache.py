@@ -768,31 +768,31 @@ class LoraCache(object):
         :param dry_run: For testing purposes it is possible to read from cache.
         """
         if self.full_history:
-            facets_file = 'facets_historic.p'
-            classes_file = 'classes_historic.p'
-            users_file = 'users_historic.p'
-            units_file = 'units_historic.p'
-            addresses_file = 'addresses_historic.p'
-            engagements_file = 'engagements_historic.p'
-            managers_file = 'managers_historic.p'
-            associations_file = 'associations_historic.p'
-            leaves_file = 'leaves_historic.p'
-            roles_file = 'roles_historic.p'
-            itsystems_file = 'itsystems_historic.p'
-            it_connections_file = 'it_connections_historic.p'
+            facets_file = 'tmp/facets_historic.p'
+            classes_file = 'tmp/classes_historic.p'
+            users_file = 'tmp/users_historic.p'
+            units_file = 'tmp/units_historic.p'
+            addresses_file = 'tmp/addresses_historic.p'
+            engagements_file = 'tmp/engagements_historic.p'
+            managers_file = 'tmp/managers_historic.p'
+            associations_file = 'tmp/associations_historic.p'
+            leaves_file = 'tmp/leaves_historic.p'
+            roles_file = 'tmp/roles_historic.p'
+            itsystems_file = 'tmp/itsystems_historic.p'
+            it_connections_file = 'tmp/it_connections_historic.p'
         else:
-            facets_file = 'facets.p'
-            classes_file = 'classes.p'
-            users_file = 'users.p'
-            units_file = 'units.p'
-            addresses_file = 'addresses.p'
-            engagements_file = 'engagements.p'
-            managers_file = 'managers.p'
-            associations_file = 'associations.p'
-            leaves_file = 'leaves.p'
-            roles_file = 'roles.p'
-            itsystems_file = 'itsystems.p'
-            it_connections_file = 'it_connections.p'
+            facets_file = 'tmp/facets.p'
+            classes_file = 'tmp/classes.p'
+            users_file = 'tmp/users.p'
+            units_file = 'tmp/units.p'
+            addresses_file = 'tmp/addresses.p'
+            engagements_file = 'tmp/engagements.p'
+            managers_file = 'tmp/managers.p'
+            associations_file = 'tmp/associations.p'
+            leaves_file = 'tmp/leaves.p'
+            roles_file = 'tmp/roles.p'
+            itsystems_file = 'tmp/itsystems.p'
+            it_connections_file = 'tmp/it_connections.p'
 
         if dry_run:
             logger.info('LoRa cache dry run - no actual read')
@@ -825,6 +825,7 @@ class LoraCache(object):
         t = time.time()
         msg = 'Kørselstid: {:.1f}s, {} elementer, {:.0f}/s'
 
+        # Here we should activate read-only mode
         logger.info('Læs facetter og klasser')
         self.facets = self._cache_lora_facets()
         self.classes = self._cache_lora_classes()
@@ -914,6 +915,7 @@ class LoraCache(object):
         with open(it_connections_file, 'wb') as f:
             pickle.dump(self.it_connections, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, elements, elements/dt))
+        # Here we should de-activate read-only mode
 
 
 if __name__ == '__main__':
