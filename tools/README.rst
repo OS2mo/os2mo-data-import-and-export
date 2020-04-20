@@ -258,3 +258,10 @@ inspect_config.py
 
 compare settings file with kommune-anddeby.json and report what is missing
 
+
+job-runner.d
+============
+
+Job-runner.d er konponenter, der loades af job-runneren
+Indtil nu loades funktionen, der afvikler jobs herigennem ligesom nyeste tilføjelse: tidsmålinger gør.
+
