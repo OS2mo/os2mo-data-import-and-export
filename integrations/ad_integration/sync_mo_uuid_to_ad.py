@@ -1,4 +1,5 @@
 import json
+import random
 import pathlib
 import logging
 import requests
@@ -74,15 +75,21 @@ class SyncMoUuidToAd(AD):
                 logger.info('uuid for {} correct in AD'.format(user['DisplayName']))
                 continue
 
+            server_string = ''
+            if self.settings.get('integrations.ad.write.servers') is not None:
+                server_string = ' -Server {} '.format(
+                    random.choice(self.settings['integrations.ad.write.servers'])
+                )
+
             logger.info('Need to sync {}'.format(user['DisplayName']))
             ps_script = (
                 self._build_user_credential() +
-                "Get-ADUser -Filter 'SamAccountName -eq \"" +
+                "Get-ADUser " + server_string + " -Filter 'SamAccountName -eq \"" +
                 user['SamAccountName'] + "\"' -Credential $usercredential | " +
                 " Set-ADUser -Credential $usercredential " +
                 " -Replace @{\"" +
                 self.settings['integrations.ad.write.uuid_field'] +
-                "\"=\"" + mo_uuid + "\"}"
+                "\"=\"" + mo_uuid + "\"} " + server_string
             )
             logger.debug('PS-script: {}'.format(ps_script))
             response = self._run_ps_script(ps_script)
