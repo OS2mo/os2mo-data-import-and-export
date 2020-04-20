@@ -67,6 +67,14 @@ class LoraCache(object):
         return effects
 
     def _from_to_from_effect(self, effect):
+        """
+        Finds to and from date from an effect-row as returned by  iterating over the
+        result of _get_effects().
+        :param effect: The effect to analyse.
+        :return: from_date and to_date. To date can be None, which should be
+        interpreted as an infinite validity. In non-historic exports, both values
+        can be None, meaning that this row is not the actual-state value.
+        """
         dt_from = dateutil.parser.isoparse(str(effect[0]))
         dt_from = dt_from.astimezone(DEFAULT_TIMEZONE)
         from_date = dt_from.date().isoformat()
@@ -79,6 +87,8 @@ class LoraCache(object):
             # MO considers end-dates inclusive, we need to subtract a day
             to_date = (dt_to.date() - datetime.timedelta(days=1)).isoformat()
 
+        # If this is an actual state export, we should only return a value if
+        # the row is valid today.
         if not self.full_history:
             now = datetime.datetime.now(DEFAULT_TIMEZONE)
             if to_date is None:
@@ -97,8 +107,9 @@ class LoraCache(object):
         """
         t = time.time()
         logger.debug('Start reading {}, params: {}, at t={}'.format(url, params, t))
+        results_pr_request = 5000
         params['list'] = 1
-        params['maximalantalresultater'] = 5000
+        params['maximalantalresultater'] = results_pr_request
         params['foersteresultat'] = 0
 
         # Default, this can be overwritten in the lines below
@@ -125,7 +136,7 @@ class LoraCache(object):
             if len(data_list) == 0:
                 done = True
             else:
-                params['foersteresultat'] += 5000
+                params['foersteresultat'] += results_pr_request
                 logger.debug('Mellemtid, {} læsninger: {}s'.format(
                     params['foersteresultat'], time.time() - t))
         logger.debug('LoRa læsning færdig. {} elementer, {}s'.format(
@@ -175,7 +186,7 @@ class LoraCache(object):
         # IT-systems are eternal i MO and does not need a historic dump
         params = {'bvn': '%'}
         url = '/organisation/itsystem'
-        itsystem_list = self._perform_lora_lookup(url, params)
+        itsystem_list = self._perform_lora_lookup(url, params, skip_history=True)
 
         itsystems = {}
         for itsystem in itsystem_list:
@@ -345,9 +356,10 @@ class LoraCache(object):
                                 self.dar_cache[dar_uuid] = {'betegelse': 'skip dar'}
                         value = self.dar_cache[dar_uuid].get('betegnelse')
                 else:
-                    print('Ny type: {}'.format(address_type))
-                    print(value_raw)
-                    exit()
+                    print('Ny type: {}'.format())
+                    msg = 'Unknown addresse type: {}, value: {}'
+                    logger.error(msg.format(address_type, value_raw))
+                    raise('Unknown address type: {}'.format(address_type))
 
                 address_type_class = (relationer['organisatoriskfunktionstype']
                                       [0]['uuid'])
@@ -371,7 +383,7 @@ class LoraCache(object):
                         'to_date': to_date
                     }
                 )
-        print('Total dar: {}, no-hit: {}'.format(total_dar, no_hit))
+        logger.info('Total dar: {}, no-hit: {}'.format(total_dar, no_hit))
         return addresses
 
     def _cache_lora_engagements(self):
@@ -394,13 +406,13 @@ class LoraCache(object):
                 from_date, to_date = self._from_to_from_effect(effect)
                 if from_date is None and to_date is None:
                     continue
-                # print('Found effect, from: {}, to: {}'.format(from_date, to_date))
 
                 attr = effect[2]['attributter']
                 rel = effect[2]['relationer']
 
                 if not rel['organisatoriskfunktionstype']:
-                    # print('Dette datointerval er ikke gyldigt')
+                    msg = 'Missing in organisatoriskfunktionstype in {}'
+                    logger.error(msg.format(engagement))
                     continue
 
                 user_key = (attr['organisationfunktionegenskaber'][0]
@@ -691,7 +703,8 @@ class LoraCache(object):
 
             primary_type = self.classes.get(eng['primary_type'])
             if primary_type is None:
-                print('Primærinformation mangler')
+                msg = 'Primary information missing in engagement {}'
+                logger.debug(msg.format(uuid))
                 continue
             primary_scope = int(primary_type['scope'])
             if eng['user'] in user_primary:
@@ -699,7 +712,6 @@ class LoraCache(object):
                     user_primary[eng['user']] = [primary_scope, uuid, None]
             else:
                 user_primary[eng['user']] = [primary_scope, uuid, None]
-            # print('User primary: {}'.format(user_primary[eng['user']]))
 
         for uuid, eng_validities in self.engagements.items():
             eng = eng_validities[0]
