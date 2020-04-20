@@ -286,6 +286,7 @@ class LoraCache(object):
         total_dar = 0
         no_hit = 0
         addresses = {}
+        logger.info('Performing DAR lookup, this might take a while...')
         for address in address_list:
             uuid = address['id']
             addresses[uuid] = []
@@ -342,6 +343,7 @@ class LoraCache(object):
                             self.dar_cache[dar_uuid] = {}
                             no_hit += 1
                             for addrtype in ('adresser', 'adgangsadresser'):
+                                logger.debug('Looking up dar: {}'.format(dar_uuid))
                                 adr_url = 'https://dawa.aws.dk/{}'.format(addrtype)
                                 # 'historik/adresser', 'historik/adgangsadresser'
                                 params = {'id': dar_uuid, 'struktur': 'mini'}
