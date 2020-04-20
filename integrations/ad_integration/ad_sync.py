@@ -222,9 +222,10 @@ class AdMoSync(object):
             if eng is None:
                 # No current primary engagment found
                 return False
-            # Notice, this will only current row, if more rows exists, they will
-            # not be updated until the first run after that row has become current.
-            # To fix this, we will nedd to read future information as well.
+            # Notice, this will only update current row, if more rows exists, they
+            # will not be updated until the first run after that row has become
+            # current. To fix this, we will need to ad option to LoRa cache to be
+            # able to return entire object validity (poc-code exists).
             validity = {
                 'from': VALIDITY['from'],
                 'to': eng['to_date']
