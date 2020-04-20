@@ -36,7 +36,7 @@ def main():
         lc.calculate_derived_unit_data()
         lc.calculate_primary_engagements()
 
-        lc_historic = LoraCache(resolve_dar=False, full_history=True)
+        lc_historic = LoraCache(resolve_dar=False, full_history=True, skip_past=True)
         lc_historic.populate_cache(dry_run=False)
         # Here we should de-activate read-only mode
     else:
