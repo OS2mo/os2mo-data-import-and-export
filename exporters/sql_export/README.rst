@@ -34,8 +34,6 @@ For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
    `SQLite` og `MS-SQL`, flere kan tilføjes efter behov. For typen `SQLite` kan
    brugernavn, password og host være tomme felter.
  * ``exporters.actual_state_historic.type``: Som ovenfor, men for historisk eksport.
-   `SQLite` og `MS-SQL`, flere kan tilføjes efter behov. For typen `SQLite` kan
-   brugernavn, password og host være tomme felter.
  * ``exporters.actual_state.user``:  Brugernavn for sql bruger.
  * ``exporters.actual_state.password``: Password til sql bruger.
  * ``exporters.actual_state.db_name``: Navn på databasen for actual state eksport.
@@ -78,7 +76,7 @@ Modellering
 
 Langt hovedparten af de data som eksporteres kan betragtes som rene rådata,
 der er dog nogle få undtagelser, hvor værdierne er fremkommet algoritmisk,
-disse værdier beregnes kun ved dags-data eksport, ved fuld eksport af historiske
+disse værdier beregnes kun ved dags-dato eksport, ved fuld eksport af historiske
 værdier, er felterne tomme:
 
  * ``enheder.organisatorisk_sti``: Angiver den organisatoriske sti for en enhed
