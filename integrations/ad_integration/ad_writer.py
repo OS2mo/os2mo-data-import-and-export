@@ -391,11 +391,11 @@ class ADWriter(AD):
                 parent_uuid = self.lc.units[eng_org_unit][0]['parent']
                 while manager_uuid == mo_user['uuid']:
                     if parent_uuid is None:
-                        print('This person has no manager!')
+                        logger.info('This person has no manager!')
                         read_manager = False
                         break
 
-                    print('Self manager, keep searching: {}!'.format(mo_user))
+                    logger.info('Self manager, keep searching: {}!'.format(mo_user))
                     parent_unit = self.lc.units[parent_uuid][0]
                     manager_uuid = self.lc.managers[
                         parent_unit['acting_manager_uuid']][0]['user']
