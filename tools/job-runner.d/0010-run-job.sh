@@ -1,7 +1,10 @@
 # denne fil skal sources af job-runner.sh
 run_job_date=$(date +"%Y-%m-%d")
 run_job_batch_number=$(($(find "${CRON_BACKUP}" -name ${run_job_date}'*' | wc -l) + 1 ))
+run_job_log_json=${CRON_LOG_JSON:=/dev/null}
+
 run-job-log (){
+    set -x
     LOGLINE="$*"
     [ -n "${BATCH_COMMENT}" ] && LOGLINE="$LOGLINE ! batch-comment $BATCH_COMMENT !"
     [ -z "${CRON_LOG_JSON_SINK}" ] && return 0
@@ -29,7 +32,7 @@ run-job-log (){
             COMMA=","
 	done
         echo '}'
-    ) | jq -c . >> ${CRON_LOG_JSON_SINK} || echo could not write to ${CRON_LOG_JSON_SINK}
+    ) | jq -c . | tee -a ${run_job_log_json} >> ${CRON_LOG_JSON_SINK} || echo could not write to ${CRON_LOG_JSON_SINK}
 }
 
 run-job(){

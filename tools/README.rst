@@ -177,7 +177,20 @@ job-status json-logning
 i settings findes mulighed for at logge til distribueret log. Det er værdien ``crontab.CRON_LOG_JSON_SINK``,
 der bestemmer, hvor loggen skrives. Hvis den er slået til skrives der jsonlines til denne fil med status på
 både de store linier og de enkelte jobs. Hvis den ikke er slået til, gives der en warning i det almindelige 
-logoutput
+logoutput.
+
+I tillæg til denne fil pakker vi de jsonlinier, der vedrører nærværende kørsel af job-runner, ned i den 
+backup-fil, som vedrører kørslen. Det sker ved at vi skriver til filen ``crontab.CRON_LOG_JSON``, som 
+trunkeres efter pakning til log og kørsel.
+
+
+job-status metrikker til prometheus
++++++++++++++++++++++++++++++++++++
+Magenta anvender tidsseriedatabasen Prometheus til at opsamle metrikker på udstrækningen af de jobs,
+der afvikles af job-runner. Konfigurationsværdien ``crontab.CRON_LOG_PROM_API`` styrer
+både hvorvidt denne funktionalitet er slåt til og hvor man kalder api'et, som typisk vil være igennem
+en såkaldt push-gateway på localhost.
+
 
 
 clear_mox_tables.py
