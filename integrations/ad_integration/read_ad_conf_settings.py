@@ -47,6 +47,7 @@ def _read_primary_ad_settings():
 
     # Settings that do not need to be set, or have defaults
     primary_settings['server'] = None
+    primary_settings['sam_filter'] = SETTINGS.get('integrations.ad.sam_filter', '')
     primary_settings['cpr_separator'] = SETTINGS.get(
         'integrations.ad.cpr_separator', '')
 

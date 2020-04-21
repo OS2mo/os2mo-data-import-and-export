@@ -111,8 +111,9 @@ class ADParameterReader(AD):
 
                 cpr = current_user[settings['cpr_field']].replace(
                     settings['cpr_separator'], '')
-                self.results[cpr] = current_user
                 self.results[current_user['SamAccountName']] = current_user
+                if current_user['SamAccountName'].startswith(settings['sam_filter']):
+                    self.results[cpr] = current_user
             return current_user
         except Exception:
             logger.error('Response from uncached_read_user: {}'.format(response))
