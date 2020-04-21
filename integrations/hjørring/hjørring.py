@@ -4,6 +4,7 @@ import pathlib
 from integrations import cpr_mapper
 from os2mo_data_import import ImportHelper
 from integrations.SD_Lon import sd_importer
+from integrations.ad_integration import ad_reader
 
 cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
 if not cfg_file.is_file():
@@ -23,15 +24,15 @@ importer = ImportHelper(
     seperate_names=True
 )
 
-ad_info_reader = None
+ad_reader = ad_reader.ADParameterReader()
 
 sd = sd_importer.SdImport(
     importer,
-    ad_info=ad_info_reader,
+    ad_info=ad_reader,
     employee_mapping=employee_mapping
 )
 
-sd.create_ou_tree(create_orphan_container=True)
+sd.create_ou_tree(create_orphan_container=False)
 sd.create_employees()
 
 importer.import_all()
