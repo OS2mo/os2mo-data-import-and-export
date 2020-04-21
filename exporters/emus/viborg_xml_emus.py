@@ -13,7 +13,7 @@ These are specfic for Viborg
 
 import time
 from os2mo_helpers.mora_helpers import MoraHelper
-import common_queries as cq
+import exporters.common_queries as cq
 import datetime
 import requests
 import uuid

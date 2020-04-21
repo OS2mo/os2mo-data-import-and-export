@@ -4,7 +4,7 @@ import datetime
 import logging
 from spsftp import SpSftp
 from os2mo_helpers.mora_helpers import MoraHelper
-from viborg_xml_emus import main as generate_file, EMUS_FILENAME
+from exporters.emus.viborg_xml_emus import main as generate_file, EMUS_FILENAME
 
 logger = logging.getLogger("emus-sftp")
 

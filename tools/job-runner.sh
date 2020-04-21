@@ -24,7 +24,9 @@ rm tmp/*.p 2>/dev/null || :
 # some logfiles can be truncated after backup as a primitive log rotation
 # they should be appended to BACK_UP_AND_TRUNCATE
 declare -a BACK_UP_AND_TRUNCATE=(
-	${DIPEXAR}/mo_integrations.log
+    ${DIPEXAR}/mo_integrations.log
+    # if the json-log-tee file is present - take that too
+    ${CRON_LOG_JSON}
 )
 
 # files that need to be backed up BEFORE running the jobs
@@ -234,7 +236,7 @@ exports_cpr_uuid(){
 exports_viborg_emus(){
     set -e
     echo running viborg_emus
-    ${VENV}/bin/python3 exporters/viborg_xml_emus_sftp.py
+    ${VENV}/bin/python3 exporters/emus/viborg_xml_emus_sftp.py
 }
 
 exports_viborg_eksterne(){
