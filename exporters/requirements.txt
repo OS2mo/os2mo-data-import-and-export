@@ -1,5 +1,4 @@
 click
-pymssql
 anytree
 sqlalchemy
 git+https://github.com/magenta-aps/spsftp
