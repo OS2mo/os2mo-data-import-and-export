@@ -3,6 +3,7 @@
 *.log
 *.csv
 *.xlsx
+*.bat
 
 # Development
 .idea
