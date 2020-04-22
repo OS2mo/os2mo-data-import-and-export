@@ -4,7 +4,6 @@ run_job_batch_number=$(($(find "${CRON_BACKUP}" -name ${run_job_date}'*' | wc -l
 run_job_log_json=${CRON_LOG_JSON:=/dev/null}
 
 run-job-log (){
-    set -x
     LOGLINE="$*"
     [ -n "${BATCH_COMMENT}" ] && LOGLINE="$LOGLINE ! batch-comment $BATCH_COMMENT !"
     [ -z "${CRON_LOG_JSON_SINK}" ] && return 0
