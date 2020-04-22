@@ -23,13 +23,6 @@ import logging
 import collections
 from xml.sax.saxutils import escape
 
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
-MORA_ROOT_ORG_UNIT_NAME = os.environ.get('MORA_ROOT_ORG_UNIT_NAME', 'Viborg Kommune')
-USERID_ITSYSTEM = os.environ.get('USERID_ITSYSTEM', 'Active Directory')
-EMUS_RESPONSIBILITY_CLASS = os.environ['EMUS_RESPONSIBILITY_CLASS']
-EMUS_FILENAME = os.environ.get('EMUS_FILENAME', 'emus_filename.xml')
-LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
-
 
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(name)s %(message)s',
@@ -37,11 +30,27 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger("xml-export-emus")
+
 for i in logging.root.manager.loggerDict:
     if i in ["mora-helper", "xml-export-emus"]:
         logging.getLogger(i).setLevel(LOG_LEVEL)
     else:
         logging.getLogger(i).setLevel(logging.WARNING)
+
+
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+settings = json.loads(cfg_file.read_text())
+
+MORA_BASE = settings.get("mora.base", 'http://localhost:5000')
+MORA_ROOT_ORG_UNIT_NAME = settings.get("mora.admin_top_unit", 'Viborg Kommune')
+USERID_ITSYSTEM = settings["emus.userid_itsystem"]
+EMUS_RESPONSIBILITY_CLASS = settings["emus.manager_responsibility_class"]
+EMUS_FILENAME = settings.get("emus.outfile_name", 'emus_filename.xml')
+EMUS_DISCARDED_JOB_FUNCTIONS = settings.get("emus.discard_job_functions",[])
+LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
+
 
 engagement_counter = collections.Counter()
 
@@ -166,6 +175,11 @@ def build_engagement_row(mh, ou, engagement):
         engagement["person"]["uuid"],
         'e/{}'
     )
+
+    jfkey = engagement.get("job_function", {}).get("user_key", "")
+    if jfkey in EMUS_DISCARDED_JOB_FUNCTIONS:
+        logger.debug("%s skipping job function %s", engagement["person"]["uuid"], jfkey)
+        continue
 
     if "surname" in engagement["person"]:
         firstname = engagement["person"]["givenname"]

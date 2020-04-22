@@ -4,22 +4,19 @@ import datetime
 import logging
 from spsftp import SpSftp
 from os2mo_helpers.mora_helpers import MoraHelper
-from exporters.emus.viborg_xml_emus import main as generate_file, EMUS_FILENAME
+from exporters.emus.viborg_xml_emus import settings, main as generate_file
 
 logger = logging.getLogger("emus-sftp")
 
-logger.info("checking environment")
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
-try:
-    SFTP_USER = os.environ["SFTP_USER"]
-    SFTP_HOST = os.environ["SFTP_HOST"]
-    SFTP_KEY_PATH = os.environ["SFTP_KEY_PATH"]
-    SFTP_KEY_PASSPHRASE = os.environ["SFTP_KEY_PASSPHRASE"]
-    MUSSKEMA_RECIPIENT = os.environ["MUSSKEMA_RECIPIENT"]
-    QUERY_EXPORT_DIR = os.environ.get("QUERY_EXPORT_DIR")
-except Exception as e:
-    logger.error(e)
-    raise EnvironmentError(str(e))
+logger.info("reading settings")
+MORA_BASE = settings["mora.base"]
+SFTP_USER = settings["emus.sftp_user"]
+SFTP_HOST = settings["emus.sftp_host"]
+SFTP_KEY_PATH = settings["emus.sftp_key_path"]
+SFTP_KEY_PASSPHRASE = settings["emus.sftp_key_passphrase"]
+MUSSKEMA_RECIPIENT = settings["emus.recipient"]
+QUERY_EXPORT_DIR = settings["mora.folder.query_export"]
+EMUS_FILENAME = settings.get("emus.outfile_name", 'emus_filename.xml')
 
 
 def main():

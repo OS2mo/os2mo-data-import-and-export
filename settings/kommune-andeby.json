@@ -27,6 +27,7 @@
     "crontab.OS2MO_COMPOSE_YML":"/path/to/os2mo/docker-compose.yml",
 
     "mox.base": "http://example.com/mox",
+    "mora.admin_top_unit": "angiver roden af det organisatoriske træ, der skal overføres(emus/os2sync)",
     "mora.base": "http://example.com/mora",
     "mora.folder.query_export":"path-to-where-os2mo-reads-csv-files",
     "municipality.name": "Andeby Kommune",
@@ -34,6 +35,19 @@
     "address.visibility.secret": "uuid-for-secret-address",
     "address.visibility.internal": "uuid-for-internal-address",
     "address.visibility.public": "uuid-for-public-address",
+
+    "emus.discard_job_functions": "angiver jobfunktioner, der skal springes over",
+    "emus.manager_responsibility_class": "angiver den leder-klasse man vil overføre",
+    "emus.outfile_name": "default ``emus_filename.xml`` er det filnavn viborg_xml_emus.py kan skrive til",
+    "emus.recipient":"angiver den bruger, som man skal sende til. Dette giver kun mening med sftp på serviceplatformen",
+    "emus.sftp_host":"er typisk ``sftp.serviceplatformen.dk``, men til test kan en anden anvendes",
+    "emus.sftp_key_passphrase": "angiver password til ovenst. nøgle",
+    "emus.sftp_key_path": "angiver den nøgle, man anvender got at forbinde sig til sftp-serveren",
+    "emus.sftp_user": "angiver den sftp-user, man forbinder som",
+    "emus.userid_itsystem": "angiver hvilket IT-system, man tager brugernavnet fra, default er ``Active Directory",
+
+
+
     "exports_viborg_eksterne.destination_smb_share":"smb-share",
     "exports_viborg_eksterne.destination_directory":"directory-name",
     "exports_viborg_eksterne.workgroup":"Windows-WORKGROUP",

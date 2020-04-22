@@ -45,6 +45,8 @@ Nøglen, ``employee_id``, som overføres er tjenestenr.
 
 Timelønnede medarbejdere er ikke med i udtrækket.
 
+I settings.json vedligeholdes en liste af frasorterede job-funktioner, som også fjernes fra udtrækket
+
 
 Organisatoriske enheder
 -----------------------
@@ -73,17 +75,18 @@ Styring af udtrækket
 
 Programmet er afhængig af følgende indstillinger i ``settings.json``
 
- * ``crontab.MORA_BASE`` styrer hvilken OS2MO, der tilgås 
- * ``crontab.MORA_ROOT_ORG_UNIT_NAME`` angiver roden af det organisatoriske træ, der skal overføres
- * ``crontab.USERID_ITSYSTEM`` angiver hvilket IT-system, man tager brugernavnet fra, default er ``Active Directory``.
- * ``crontab.EMUS_RESPONSIBILITY_CLASS`` angiver den leder-klasse man vil overføre
- * ``crontab.EMUS_FILENAME`` default ``emus_filename.xml`` er det filnavn viborg_xml_emus.py kan skrive til
- * ``crontab.SFTP_USER`` angiver den sftp-user, man forbinder som
- * ``crontab.SFTP_HOST`` er typisk ``sftp.serviceplatformen.dk``, men til test kan en anden anvendes
- * ``crontab.SFTP_KEY_PATH`` angiver den nøgle, man anvender got at forbinde sig til sftp-serveren
- * ``crontab.SFTP_KEY_PASSPHRASE`` angiver password til ovenst. nøgle
- * ``crontab.MUSSKEMA_RECIPIENT`` angiver den bruger, som man skal sende til. Dette giver kun mening med sftp på serviceplatformen
- * ``crontab.QUERY_EXPORT_DIR`` angiver det sted, hvor kopien af rapporten skal lægges - dette skal være det output-dir, som kan nås igennem OS2MO.
+ * ``emus.discard_job_functions`` angiver jobfunktioner, der skal springes over
+ * ``emus.manager_responsibility_class`` angiver den leder-klasse man vil overføre
+ * ``emus.outfile_name`` default ``emus_filename.xml`` er det filnavn viborg_xml_emus.py kan skrive til
+ * ``emus.recipient`` angiver den bruger, som man skal sende til. Dette giver kun mening med sftp på serviceplatformen
+ * ``emus.sftp_host`` er typisk ``sftp.serviceplatformen.dk``, men til test kan en anden anvendes
+ * ``emus.sftp_key_passphrase`` angiver password til ovenst. nøgle
+ * ``emus.sftp_key_path`` angiver den nøgle, man anvender got at forbinde sig til sftp-serveren
+ * ``emus.sftp_user`` angiver den sftp-user, man forbinder som
+ * ``emus.userid_itsystem`` angiver hvilket IT-system, man tager brugernavnet fra, default er ``Active Directory``.
+ * ``mora.admin_top_unit`` angiver roden af det organisatoriske træ, der skal overføres
+ * ``mora.base`` styrer hvilken OS2MO, der tilgås
+ * ``mora.folder.query_export`` angiver det sted, hvor kopien af rapporten skal lægges - dette skal være det output-dir, som kan nås igennem OS2MO.
 
 
 Programmet kan styres af følgende environment-variable:
