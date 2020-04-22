@@ -336,14 +336,22 @@ class HolstebroHelper(object):
         org_uuid = self.mh.read_organisation()
         manager_types = self.mh._mo_lookup(org_uuid, 'o/{}/f/manager_type')
         manager_levels = self.mh._mo_lookup(org_uuid, 'o/{}/f/manager_level')
+        manager_responsibility = self.mh._mo_lookup(
+            org_uuid, 'o/{}/f/responsibility')
 
-        return_dict = {'manager_types': {}, 'manager_levels': {}}
+        return_dict = {'manager_types': {},
+                       'manager_levels': {},
+                       'manager_responsibility': {}}
 
         for mt in manager_types['data']['items']:
             return_dict['manager_types'].update({mt['name']: mt})
 
         for ml in manager_levels['data']['items']:
             return_dict['manager_levels'].update({ml['name']: ml})
+
+        for mr in manager_levels['data']['items']:
+            return_dict['manager_responsibility'].update({mr['uuid']: mr})
+        # TODO: Add check for SETTINGS['imports.holstebro.leaders.responsibility'] in responsibility
 
         return return_dict
 
@@ -378,7 +386,11 @@ class HolstebroHelper(object):
                 "uuid": person_uuid
 
             },
-            "responsibility": [],
+            "responsibility": [
+                {
+                    "uuid": SETTINGS['imports.holstebro.leaders.responsibility']
+                }
+            ],
             "user_key": "HK-AUTO-ASSIGNED",
             "validity": {
                 "from": self._get_date()
