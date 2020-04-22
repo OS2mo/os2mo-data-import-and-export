@@ -8,19 +8,15 @@ from exporters.emus.viborg_xml_emus import settings, main as generate_file
 
 logger = logging.getLogger("emus-sftp")
 
-logger.info("checking settings")
-try:
-    MORA_BASE = settings["mora.base"]
-    SFTP_USER = settings["emus.sftp_user"]
-    SFTP_HOST = settings["emus.sftp_host"]
-    SFTP_KEY_PATH = settings["emus.sftp_key_path"]
-    SFTP_KEY_PASSPHRASE = settings["emus.sftp_key_passphrase"]
-    MUSSKEMA_RECIPIENT = settings["emus.recipient"]
-    QUERY_EXPORT_DIR = os.environ.get("mora.folder.query_export")
-    EMUS_FILENAME = settings.get("emus.outfile_name", 'emus_filename.xml')
-except Exception as e:
-    logger.error(e)
-    raise KeyError(str(e))
+logger.info("reading settings")
+MORA_BASE = settings["mora.base"]
+SFTP_USER = settings["emus.sftp_user"]
+SFTP_HOST = settings["emus.sftp_host"]
+SFTP_KEY_PATH = settings["emus.sftp_key_path"]
+SFTP_KEY_PASSPHRASE = settings["emus.sftp_key_passphrase"]
+MUSSKEMA_RECIPIENT = settings["emus.recipient"]
+QUERY_EXPORT_DIR = settings["mora.folder.query_export"]
+EMUS_FILENAME = settings.get("emus.outfile_name", 'emus_filename.xml')
 
 
 def main():
