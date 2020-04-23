@@ -83,6 +83,12 @@ imports_test_ad_connectivity(){
     ${VENV}/bin/python3 integrations/ad_integration/test_connectivity.py  --test-read-settings
 }
 
+imports_test_sd_connectivity(){
+    set -e
+    echo running imports_test_sd_connectivity
+    ${VENV}/bin/python3 integrations/SD_Lon/test_sd_connectivity.py
+}
+
 imports_sd_fix_departments(){
     set -e
     BACK_UP_AND_TRUNCATE+=(
@@ -371,6 +377,10 @@ imports(){
         run-job imports_test_ad_connectivity || return 2
     fi
 
+    if [ "${RUN_CHECK_SD_CONNECTIVITY}" == "true" ]; then
+        run-job imports_test_sd_connectivity || return 2
+    fi
+    
     if [ "${RUN_SD_FIX_DEPARTMENTS}" == "true" ]; then
         run-job imports_sd_fix_departments || return 2
     fi
