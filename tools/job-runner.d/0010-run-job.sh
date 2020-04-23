@@ -39,10 +39,19 @@ run-job(){
     # [ ! "$JOB" = "imports" ] && JOB=true # testing
     run-job-log ! job $1 ! job-status starting !
 
+    pm_start=$(prometrics-ts)
+
     $JOB
+
+    export JOBTIME=$(prometrics-ts $pm_start)
+    export JOBNAME=mo_${JOB}
+
+    prometrics-job-end
 
     if [ "$?" = "0" ] ; then
         run-job-log ! job $1 ! job-status success !
+    	JOBTIME=$(prometrics-ts)
+        prometrics-job-success
         return 0
     else
         run-job-log ! job $1 ! job-status failed  !
