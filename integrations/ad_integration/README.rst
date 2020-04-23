@@ -49,6 +49,10 @@ Standard AD
  * ``integrations.ad.cpr_separator``: Angiver en eventuel separator mellem
    fødselsdato og løbenumre i cpr-feltet i AD. Hvis der ikke er en separator,
    angives en tom streng.
+ * ``integrations.ad.sam_filter``: Hvis denne værdi er sat, vil kun det være muligt
+   at cpr-fremsøge medarbejder som har denne værdi foranstillet i SAM-navn.
+   Funktionen muliggør at skelne mellem brugere og servicebrugere som har samme
+   cpr-nummer.
  * ``integrations.ad.system_user``: Navnet på den systembruger som har rettighed til
    at læse fra AD.
  * ``integrations.ad.password``: Password til samme systembruger.
