@@ -70,13 +70,18 @@ class TestSdConnectivity(object):
             exit(1)
 
         employment_field = self.settings.get('integrations.SD_Lon.employment_field')
-        if employment_field is not None and employment_field in legal_extensions:
-            print(' * Felt til stillingsbetegnelse er korrekt')
+        if employment_field is None:
+            print(' * Der skrives ikke stillingsbetegnelse til udvidelsesfelt')
         else:
-            print(' * Felt til stillingsbetegnelse skal være {}'.format(
-                legal_job_functions))
-            exit(1)
+            if employment_field in legal_extensions:
+                print(' * Udvidelsesfelt til stillingsbetegnelse er korrekt')
+            else:
+                msg = ' * Udvidelsesfelt til stillingsbetegnelse skal være {}'
+                print(msg.format(legal_extensions))
+                exit(1)
+        print()
 
+        print('Tjekker indstillinger for ledere')
         manager_file = self.settings.get('integrations.SD_Lon.import.manager_file')
         if manager_file is not None:
             manager_path = pathlib.Path(manager_file)
@@ -90,6 +95,9 @@ class TestSdConnectivity(object):
             else:
                 print(' * Specificeret lederfil skal være en csv-fil')
                 exit(1)
+        else:
+            print(' * Der er ikke specificeret en lederfil')
+        print()
 
         skip_job_functions = self.settings.get(
             'integrations.SD_Lon.skip_employment_types')
