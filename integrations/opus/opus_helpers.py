@@ -1,11 +1,14 @@
 import uuid
 import json
+import pickle
 import pathlib
 import hashlib
 import logging
 import sqlite3
 import datetime
 from pathlib import Path
+
+import xmltodict
 
 from integrations import cpr_mapper
 from integrations.opus import opus_import
@@ -181,6 +184,7 @@ def start_opus_diff(ad_reader=None):
     run_db = Path(SETTINGS['integrations.opus.import.run_db'])
 
     employee_mapping = _read_cpr_mapping()
+    ad_reader = ad_reader.ADParameterReader()
 
     if not run_db.is_file():
         logger.error('Local base not correctly initialized')
@@ -200,3 +204,89 @@ def start_opus_diff(ad_reader=None):
         diff.start_re_import(xml_file, include_terminations=True)
         logger.info('Ended update')
         _local_db_insert((xml_date, 'Diff update ended: {}'))
+
+
+# Denne bør nok også bruges af import og diff_import
+def read_dump_data(dump_file):
+    cache_file = pathlib.Path.cwd() / 'tmp' / (dump_file.stem + '.p')
+    if not cache_file.is_file():
+        data = xmltodict.parse(dump_file.read_text())['kmd']
+        with open(str(cache_file), 'wb') as f:
+            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+    else:
+        with open(str(cache_file), 'rb') as f:
+            data = pickle.load(f)
+    return data
+
+
+def compare_employees(original, new, force=False):
+    # Differences is these keys will not be counted as a difference, unless force
+    # is set to true. Notice lastChanged is included here, since we perform a
+    # brute-force comparison and does not care for lastChanged.
+    skip_keys = ['productionNumber', 'entryIntoGroup', 'invoiceRecipient',
+                 '@lastChanged']
+    identical = True
+    for key in new.keys():
+        if key in skip_keys and not force:
+            continue
+        if not original.get(key) == new[key]:
+            identical = False
+            msg = 'Changed {} from {} to {}'
+            print(msg.format(key, original.get(key), new[key]))
+    return identical
+
+
+def show_all_employee_updates(employee_number=None):
+    import sys  # TODO, implement argparse, parameters for timedelta
+    # and for employee_number
+    from integrations.ad_integration import ad_reader
+
+    employee_mapping = _read_cpr_mapping()
+    ad_read = ad_reader.ADParameterReader()
+    latest_date = None
+
+    current_object = {'terminated': False}
+    cut_date = datetime.datetime.now() - datetime.timedelta(days=int(sys.argv[1]))
+    dumps = _read_available_dumps()
+
+    for date in sorted(dumps.keys()):
+        if date < cut_date:
+            continue
+        dump_file = dumps[date]
+        data = read_dump_data(dump_file)
+
+        employees = data['employee']
+        for employee in employees:
+            if employee['@id'] != employee_number:
+                continue
+
+            # We might not actually need any of this:
+            # found_employee = True
+            # if employee.get('@action') == 'leave':
+            #     # This employment has ended
+            #     if not current_object.get('terminated'):
+            #         print('Employee terminated')
+            #         current_object = {'terminated': True}
+            #     break
+
+            if employee == current_object:
+                continue
+            if not compare_employees(current_object, employee):
+                if not latest_date:
+                    latest_date = date - datetime.timedelta(days=1)
+                msg = 'date: {}, lastChanged: {}'
+                print(msg.format(date, employee['@lastChanged']))
+                current_object = employee
+
+                diff = opus_diff_import.OpusDiffImport(
+                    latest_date,
+                    ad_reader=ad_read,
+                    employee_mapping=employee_mapping
+                )
+                diff.import_single_employment(employee)
+                latest_date = date
+
+
+if __name__ == '__main__':
+
+    show_all_employee_updates(employee_number=eng)
