@@ -184,7 +184,6 @@ def start_opus_diff(ad_reader=None):
     run_db = Path(SETTINGS['integrations.opus.import.run_db'])
 
     employee_mapping = _read_cpr_mapping()
-    ad_reader = ad_reader.ADParameterReader()
 
     if not run_db.is_file():
         logger.error('Local base not correctly initialized')
@@ -224,7 +223,7 @@ def compare_employees(original, new, force=False):
     # is set to true. Notice lastChanged is included here, since we perform a
     # brute-force comparison and does not care for lastChanged.
     skip_keys = ['productionNumber', 'entryIntoGroup', 'invoiceRecipient',
-                 '@lastChanged']
+                 '@lastChanged', 'cpr']
     identical = True
     for key in new.keys():
         if key in skip_keys and not force:
@@ -236,20 +235,19 @@ def compare_employees(original, new, force=False):
     return identical
 
 
-def show_all_employee_updates(employee_number=None):
-    import sys  # TODO, implement argparse, parameters for timedelta
-    # and for employee_number
+def update_employee(employee_number, days):
     from integrations.ad_integration import ad_reader
 
     employee_mapping = _read_cpr_mapping()
     ad_read = ad_reader.ADParameterReader()
     latest_date = None
 
-    current_object = {'terminated': False}
-    cut_date = datetime.datetime.now() - datetime.timedelta(days=int(sys.argv[1]))
+    current_object = {}
+    cut_date = datetime.datetime.now() - datetime.timedelta(days=days)
     dumps = _read_available_dumps()
 
     for date in sorted(dumps.keys()):
+        print(date)
         if date < cut_date:
             continue
         dump_file = dumps[date]
@@ -260,15 +258,6 @@ def show_all_employee_updates(employee_number=None):
             if employee['@id'] != employee_number:
                 continue
 
-            # We might not actually need any of this:
-            # found_employee = True
-            # if employee.get('@action') == 'leave':
-            #     # This employment has ended
-            #     if not current_object.get('terminated'):
-            #         print('Employee terminated')
-            #         current_object = {'terminated': True}
-            #     break
-
             if employee == current_object:
                 continue
             if not compare_employees(current_object, employee):
@@ -276,17 +265,19 @@ def show_all_employee_updates(employee_number=None):
                     latest_date = date - datetime.timedelta(days=1)
                 msg = 'date: {}, lastChanged: {}'
                 print(msg.format(date, employee['@lastChanged']))
-                current_object = employee
 
                 diff = opus_diff_import.OpusDiffImport(
                     latest_date,
                     ad_reader=ad_read,
                     employee_mapping=employee_mapping
                 )
+
+                if current_object:
+                    # If this is not the first edit, we force the lastChanged to that
+                    # of the latest known edit.
+                    employee['@lastChanged'] = latest_date.strftime('%Y-%m-%d')
+                else:
+                    employee['@lastChanged'] = employee['entryDate']
                 diff.import_single_employment(employee)
+                current_object = employee
                 latest_date = date
-
-
-if __name__ == '__main__':
-
-    show_all_employee_updates(employee_number=eng)
