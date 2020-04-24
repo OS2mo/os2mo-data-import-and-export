@@ -717,9 +717,12 @@ class LoraCache(object):
 
         for uuid, eng_validities in self.engagements.items():
             eng = eng_validities[0]
-            if user_primary[eng['user']][1] == uuid:
+            primary_for_user = user_primary.get(eng['user'], [None, None, None])
+            if primary_for_user[1] == uuid:
+                logger.debug('Primary for {} is {}'.format(eng['user'], uuid))
                 self.engagements[uuid][0]['primary_boolean'] = True
             else:
+                logger.debug('{} is not primary {}'.format(uuid, eng['user']))
                 self.engagements[uuid][0]['primary_boolean'] = False
 
     def calculate_derived_unit_data(self):
@@ -933,8 +936,24 @@ class LoraCache(object):
 
 
 if __name__ == '__main__':
+    LOG_LEVEL = logging.DEBUG
+    LOG_FILE = 'lora_cache.log'
+
+    for name in logging.root.manager.loggerDict:
+        if name in ('LoraCache'):
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
+
     lc = LoraCache(full_history=False, skip_past=False, resolve_dar=False)
     lc.populate_cache(dry_run=False)
 
+    logger.info('Now calcualate derived data')
     lc.calculate_derived_unit_data()
     lc.calculate_primary_engagements()
