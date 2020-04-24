@@ -229,7 +229,9 @@ Synkronisering fra AD til MO foregår via programmet ``ad_sync.py``.
 Programmet opdaterer alle værdier i MO i henhold til den feltmapning som er angivet
 i `settings.json`. Det er muligt at synkronisere adresseoplysninger, samt at
 oprette et IT-system på brugeren, hvis brugeren findes i AD, men endnu ikke har et
-tilknyttet IT-system i MO. Et eksempel på en feltmapning angives herunder:
+tilknyttet IT-system i MO. Desuden er det muligt at synkronisere et AD felt til
+et felt på brugerens primærengagement (typisk stillingsbetegnelsen).
+Et eksempel på en feltmapning angives herunder:
 
 .. code-block:: json
 
@@ -242,7 +244,11 @@ tilknyttet IT-system i MO. Et eksempel på en feltmapning angives herunder:
 	},
 	"it_systems": {
 	    "samAccountName": "d2998fa8-9d0f-4a2c-b80e-c754c72ef094"
-	}
+	},
+        "engagements": {
+            "Title": "extension_2"
+        }
+
     }
 
 For adresser angives en synlighed, som kan antage værdien `PUBLIC`, `INTERNAL`,
@@ -269,8 +275,9 @@ at gælde fra 'i dag' og til evig tid.
 Slutteligt skal det nævnes, at implemeneringen af synkroniseringen understøtter
 muligheden for at opnå en betydelig hastighedsforbering ved at tillade direkte adgang
 til LoRa, denne funktion aktiveres med nøglen
-`integrations.ad.ad_mo_sync_direct_lora_speedup` og reducerer kørselstiden med ca.
-50%.
+`integrations.ad.ad_mo_sync_direct_lora_speedup` og reducerer kørselstiden
+betragteligt. Hvis der er få ændringer vil afvilingstiden komme ned på nogle få
+minutter.
 
 MO til AD
 +++++++++
