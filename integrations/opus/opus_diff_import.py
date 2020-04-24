@@ -815,10 +815,13 @@ class OpusDiffImport(object):
             if 'function' in employee:
                 self.update_roller(employee)
             else:
-                # TODO:  Terminate existing roles
-                pass
+                # Terminate existing roles
+                mo_user = self.helper.read_user(user_cpr=employee['cpr']['#text'])
+                for role in self.role_cache:
+                    if role['person'] == mo_user['uuid']:
+                        logger.info('Terminating role: {}'.format(role))
+                        self.terminate_detail(role['uuid'], detail_type='role')
         else:  # This is an implicit termination.
-
             # This is a terminated employee, check if engagement is active
             # terminate if it is.
             if not employee['@action'] == 'leave':
