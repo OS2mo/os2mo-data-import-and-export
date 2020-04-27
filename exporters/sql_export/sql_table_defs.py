@@ -31,7 +31,8 @@ class Bruger(Base):
 class Enhed(Base):
     __tablename__ = 'enheder'
 
-    uuid = Column(String(36), nullable=False, primary_key=True)
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
     navn = Column(String(250), nullable=False)
     forældreenhed_uuid = Column(String(36), nullable=True, primary_key=False)
     enhedstype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
@@ -39,17 +40,18 @@ class Enhed(Base):
     enhedsniveau_uuid = Column(String(36),
                                nullable=True)  # ForeignKey('klasser.uuid'))
     enhedsniveau_titel = Column(String(250), nullable=True)
-    organisatorisk_sti = Column(String(1000), nullable=False)
-    # Will be populated before ledere, cannot use ForeignKey
+    organisatorisk_sti = Column(String(1000), nullable=True)
     leder_uuid = Column(String(36))
     fungerende_leder_uuid = Column(String(36))
-    # start_date # TODO
+    startdato = Column(String(10))
+    slutdato = Column(String(10))
 
 
 class Adresse(Base):
     __tablename__ = 'adresser'
 
-    uuid = Column(String(36), nullable=False, primary_key=True)
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
     bruger_uuid = Column(String(36), nullable=True)  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
     værdi = Column(String(250), nullable=True)
@@ -60,13 +62,15 @@ class Adresse(Base):
     synlighed_uuid = Column(String(36),
                             nullable=True)  # , ForeignKey('klasser.uuid'))
     synlighed_titel = Column(String(250), nullable=True)
-    # start_date # TODO
+    startdato = Column(String(10))
+    slutdato = Column(String(10))
 
 
 class Engagement(Base):
     __tablename__ = 'engagementer'
 
-    uuid = Column(String(36), nullable=False, primary_key=True)
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
     bruger_uuid = Column(String(36))  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
     bvn = Column(String(250), nullable=False)
@@ -89,45 +93,48 @@ class Engagement(Base):
     udvidelse_8 = Column(String(250), nullable=True)
     udvidelse_9 = Column(String(250), nullable=True)
     udvidelse_10 = Column(String(250), nullable=True)
-    # start_date,
-    # end_date
+    startdato = Column(String(10))
+    slutdato = Column(String(10))
 
 
 class Rolle(Base):
     __tablename__ = 'roller'
 
-    uuid = Column(String(36), nullable=False, primary_key=True)
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
     bruger_uuid = Column(String(36))  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
     rolletype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     rolletype_titel = Column(String(250), nullable=False)
-    # start_date, # TODO
-    # end_date # TODO
+    startdato = Column(String(10))
+    slutdato = Column(String(10))
 
 
 class Tilknytning(Base):
     __tablename__ = 'tilknytninger'
 
-    uuid = Column(String(36), nullable=False, primary_key=True)
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
     bvn = Column(String(250), nullable=False)
     bruger_uuid = Column(String(36))  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
     tilknytningstype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     tilknytningstype_titel = Column(String(250), nullable=False)
-    # start_date, # TODO
-    # end_date # TODO
+    startdato = Column(String(10))
+    slutdato = Column(String(10))
 
 
 class Orlov(Base):
     __tablename__ = 'orlover'
 
-    uuid = Column(String(36), nullable=False, primary_key=True)
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
     bvn = Column(String(250), nullable=False)
     bruger_uuid = Column(String(36))  # , ForeignKey('brugere.uuid'))
     orlovstype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     orlovstype_titel = Column(String(250), nullable=False)
-    # start_date # TODO
-    # end_date # TODO
+    startdato = Column(String(10))
+    slutdato = Column(String(10))
 
 
 class ItSystem(Base):
@@ -140,23 +147,29 @@ class ItSystem(Base):
 class ItForbindelse(Base):
     __tablename__ = 'it_forbindelser'
 
-    uuid = Column(String(36), nullable=False, primary_key=True)
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
     it_system_uuid = Column(String(36))  # , ForeignKey('it_systemer.uuid'))
     bruger_uuid = Column(String(36), nullable=True)  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
     brugernavn = Column(String(250), nullable=True)
+    startdato = Column(String(10))
+    slutdato = Column(String(10))
 
 
 class Leder(Base):
     __tablename__ = 'ledere'
 
-    uuid = Column(String(36), nullable=False, primary_key=True)
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
     bruger_uuid = Column(String(36))  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
     ledertype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     ledertype_titel = Column(String(250), nullable=False)
     niveautype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     niveautype_titel = Column(String(250), nullable=False)
+    startdato = Column(String(10))
+    slutdato = Column(String(10))
 
 
 class LederAnsvar(Base):
@@ -166,3 +179,5 @@ class LederAnsvar(Base):
     leder_uuid = Column(String(36))  # , ForeignKey('ledere.uuid'))
     lederansvar_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     lederansvar_titel = Column(String(250), nullable=False)
+    startdato = Column(String(10))
+    slutdato = Column(String(10))

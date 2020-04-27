@@ -9,7 +9,15 @@ import argparse
 
 import ad_logger
 import ad_templates
-import ad_exceptions
+
+from integrations.ad_integration.ad_exceptions import CprNotNotUnique
+from integrations.ad_integration.ad_exceptions import UserNotFoundException
+from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
+from integrations.ad_integration.ad_exceptions import ReplicationFailedException
+from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException
+from integrations.ad_integration.ad_exceptions import SamAccountNameNotUnique
+from integrations.ad_integration.ad_exceptions import (
+    ManagerNotUniqueFromCprException)
 
 from ad_common import AD
 from user_names import CreateUserNames
@@ -26,7 +34,7 @@ def _random_password(length=12):
 
 
 class ADWriter(AD):
-    def __init__(self):
+    def __init__(self, lc=None, lc_historic=None):
         super().__init__()
 
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
@@ -34,6 +42,9 @@ class ADWriter(AD):
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
         # self.pet = self.settings['integrations.ad.write.primary_types']
+
+        self.lc = lc
+        self.lc_historic = lc_historic
 
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
@@ -120,7 +131,7 @@ class ADWriter(AD):
             while not replication_finished:
                 if time.time() - t_start > 60:
                     logger.error('Replication error')
-                    raise ad_exceptions.ReplicationFailedException()
+                    raise ReplicationFailedException()
 
                 for server in self.all_settings['global']['servers']:
                     user = self.get_from_ad(user=sam, server=server)
@@ -135,7 +146,171 @@ class ADWriter(AD):
                         break
         logger.info('replication_finished: {}s'.format(time.time() - t_start))
 
-    def read_ad_information_from_mo(self, uuid, read_manager=True):
+    def _read_user(self, uuid):
+        if self.lc:
+            if uuid not in self.lc.users:
+                raise UserNotFoundException()
+
+            lc_user = self.lc.users[uuid]
+            mo_user = {
+                'uuid': uuid,
+                'name': lc_user['navn'],
+                'surname': lc_user['efternavn'],
+                'givenname': lc_user['fornavn'],
+                'cpr_no': lc_user['cpr']
+            }
+        else:
+            mo_user = self.helper.read_user(user_uuid=uuid)
+            if 'uuid' not in mo_user:
+                raise UserNotFoundException()
+            else:
+                assert(mo_user['uuid'] == uuid)
+        return mo_user
+
+    def _find_ad_user(self, cpr, ad_dump):
+        ad_info = []
+        if ad_dump is not None:
+            for user in ad_dump:
+                if user.get(self.settings['integrations.ad.cpr_field']) == cpr:
+                    ad_info.append(user)
+        else:
+            ad_info = self.get_from_ad(cpr=cpr)
+
+        if not ad_info:
+            msg = 'Found no account for {}'.format(cpr)
+            logger.error(msg)
+            raise CprNotFoundInADException()
+        return ad_info
+
+    def _find_unit_info(self, eng_org_unit):
+        level2orgunit = 'Ingen'
+        unit_info = {}
+        if self.lc:
+            unit_name = self.lc.units[eng_org_unit][0]['name']
+            unit_user_key = self.lc.units[eng_org_unit][0]['user_key']
+            location = self.lc.units[eng_org_unit][0]['location']
+
+            # We initialize parent as the unit itself to ensure to catch if
+            # a person is engaged directly in a level2org
+            parent_uuid = self.lc.units[eng_org_unit][0]['uuid']
+            while parent_uuid is not None:
+                parent_unit = self.lc.units[parent_uuid][0]
+                if self.settings['integrations.ad.write.level2orgunit_type'] in (
+                        parent_unit['unit_type'],
+                        parent_unit['level']
+                ):
+                    level2orgunit = parent_unit['name']
+                parent_uuid = parent_unit['parent']
+        else:
+            mo_unit_info = self.helper.read_ou(eng_org_unit)
+            unit_name = mo_unit_info['name']
+            unit_user_key = mo_unit_info['user_key']
+
+            location = ''
+            current_unit = mo_unit_info
+            while current_unit:
+                location = current_unit['name'] + '\\' + location
+                current_type = current_unit['org_unit_type']
+                current_level = current_unit['org_unit_level']
+                if current_level is None:
+                    current_level = {'uuid': None}
+                if self.settings['integrations.ad.write.level2orgunit_type'] in (
+                        current_type['uuid'],
+                        current_level['uuid']
+                ):
+                    level2orgunit = current_unit['name']
+                current_unit = current_unit['parent']
+            location = location[:-1]
+
+        unit_info = {
+            'name': unit_name,
+            'user_key': unit_user_key,
+            'location': location,
+            'level2orgunit': level2orgunit
+        }
+        return unit_info
+
+    def _read_user_addresses(self, eng_org_unit):
+        addresses = {}
+        if self.lc:
+            email = []
+            postal = {}
+            for addr in self.lc.addresses.values():
+                if addr[0]['unit'] == eng_org_unit:
+                    if addr[0]['scope'] == 'DAR':
+                        postal = {'Adresse': addr[0]['value']}
+                    if addr[0]['scope'] == 'E-mail':
+                        visibility = addr[0]['visibility']
+                        visibility_class = None
+                        if visibility is not None:
+                            visibility_class = self.lc.classes[visibility]
+                        email.append(
+                            {
+                                'visibility': visibility_class,
+                                'value': addr[0]['value']
+                            }
+                        )
+        else:
+            email = self.helper.read_ou_address(eng_org_unit, scope='EMAIL',
+                                                return_all=True)
+            postal = self.helper.read_ou_address(eng_org_unit, scope='DAR',
+                                                 return_all=False)
+
+        unit_secure_email = None
+        unit_public_email = None
+        for mail in email:
+            if mail['visibility'] is None:
+                # If visibility is not set, we assume it is non-public.
+                unit_secure_email = mail['value']
+            else:
+                if mail['visibility']['scope'] == 'PUBLIC':
+                    unit_public_email = mail['value']
+                if mail['visibility']['scope'] == 'SECRET':
+                    unit_secure_email = mail['value']
+
+        addresses = {
+            'unit_secure_email': unit_secure_email,
+            'unit_public_email': unit_public_email,
+            'postal': postal
+        }
+        return addresses
+
+    def _find_end_date(self, uuid):
+        end_date = '1800-01-01'
+        # Now, calculate final end date for any primary engagement
+        if self.lc_historic is not None:
+            all_engagements = []
+            for eng in self.lc_historic.engagements.values():
+                if eng[0]['user'] == uuid:  # All elements have the same user
+                    all_engagements += eng
+            for eng in all_engagements:
+                current_end = eng['to_date']
+                if current_end is None:
+                    current_end = '9999-12-31'
+
+                if (
+                        datetime.datetime.strptime(current_end, '%Y-%m-%d') >
+                        datetime.datetime.strptime(end_date, '%Y-%m-%d')
+                ):
+                    end_date = current_end
+
+        else:
+            future_engagements = self.helper.read_user_engagement(uuid,
+                                                                  read_all=True,
+                                                                  skip_past=True)
+            for eng in future_engagements:
+                current_end = eng['validity']['to']
+                if current_end is None:
+                    current_end = '9999-12-31'
+
+                if (
+                        datetime.datetime.strptime(current_end, '%Y-%m-%d') >
+                        datetime.datetime.strptime(end_date, '%Y-%m-%d')
+                ):
+                    end_date = current_end
+        return end_date
+
+    def read_ad_information_from_mo(self, uuid, read_manager=True, ad_dump=None):
         """
         Retrive the necessary information from MO to contruct a new AD user.
         The final information object should of this type, notice that end-date
@@ -154,125 +329,115 @@ class ADWriter(AD):
         }
         """
         logger.info('Read information for {}'.format(uuid))
-        mo_user = self.helper.read_user(user_uuid=uuid)
+        mo_user = self._read_user(uuid)
 
-        if 'uuid' not in mo_user:
-            raise ad_exceptions.UserNotFoundException
+        no_active_engagements = True
+        if self.lc:
+            for eng in self.lc.engagements.values():
+                if eng[0]['user'] == uuid:
+                    no_active_engagements = False
+                    if eng[0]['primary_boolean']:
+                        found_primary = True
+                        employment_number = eng[0]['user_key']
+                        title = self.lc.classes[eng[0]['job_function']]['title']
+                        eng_org_unit = eng[0]['unit']
+                        eng_uuid = eng[0]['uuid']
         else:
-            assert(mo_user['uuid'] == uuid)
+            engagements = self.helper.read_user_engagement(
+                uuid, calculate_primary=True)
+            found_primary = False
+            for engagement in engagements:
+                no_active_engagements = False
+                if engagement['is_primary']:
+                    found_primary = True
+                    employment_number = engagement['user_key']
+                    title = engagement['job_function']['name']
+                    eng_org_unit = engagement['org_unit']['uuid']
+                    eng_uuid = engagement['uuid']
 
-        engagements = self.helper.read_user_engagement(uuid, calculate_primary=True)
-
-        found_primary = False
-        for engagement in engagements:
-            # engagement_type = engagement['engagement_type']['uuid']
-            if engagement['is_primary']:
-                found_primary = True
-                employment_number = engagement['user_key']
-                title = engagement['job_function']['name']
-                end_date = engagement['validity']['to']
-                if end_date is None:
-                    end_date = '9999-12-31'
+        if no_active_engagements:
+            logger.info('No active engagements found')
+            return None
 
         if not found_primary:
-            raise ad_exceptions.NoPrimaryEngagementException('User: {}'.format(uuid))
+            raise NoPrimaryEngagementException('User: {}'.format(uuid))
 
-        # Now, calculate final end date for any primary engagement
-        future_engagements = self.helper.read_user_engagement(uuid, read_all=True,
-                                                              skip_past=True)
-        for eng in future_engagements:
-            if engagement['is_primary']:
-                current_end = eng['validity']['to']
-                if current_end is None:
-                    current_end = '9999-12-31'
+        end_date = self._find_end_date(uuid)
 
-                if (
-                        datetime.datetime.strptime(current_end, '%Y-%m-%d') >
-                        datetime.datetime.strptime(end_date, '%Y-%m-%d')
-                ):
-                    end_date = current_end
-
-        unit_info = self.helper.read_ou(engagement['org_unit']['uuid'])
-        unit_name = unit_info['name']
-        unit_uuid = unit_info['uuid']
-        unit_user_key = unit_info['user_key']
-
-        # misc = self.helper.read_ou_address(unit_uuid, scope='TEXT',
-        # return_all=True)
-        # www = self.helper.read_ou_address(unit_uuid, scope='WWW', return_all=True)
-        # phone = self.helper.read_ou_address(unit_uuid, scope='PHONE',
-        # return_all=True)
-        email = self.helper.read_ou_address(unit_uuid, scope='EMAIL',
-                                            return_all=True)
-        postal = self.helper.read_ou_address(unit_uuid, scope='DAR',
-                                             return_all=False)
-
-        unit_secure_email = None
-        unit_public_email = None
-        for mail in email:
-            if mail['visibibility'] is None:
-                # If visibility is not set, we assume it is non-public.
-                unit_secure_email = mail['value']
-            else:
-                if mail['visibibility']['scope'] == 'PUBLIC':
-                    unit_public_email = mail['value']
-                if mail['visibibility']['scope'] == 'SECRET':
-                    unit_secure_email = mail['value']
+        unit_info = self._find_unit_info(eng_org_unit)
+        addresses = self._read_user_addresses(eng_org_unit)
 
         postal_code = city = streetname = 'Ukendt'
-        if postal:
+        if addresses['postal']:
+            postal = addresses['postal']
             try:
                 postal_code = re.findall('[0-9]{4}', postal['Adresse'])[0]
                 city_pos = postal['Adresse'].find(postal_code) + 5
                 city = postal['Adresse'][city_pos:]
                 streetname = postal['Adresse'][:city_pos - 7]
             except IndexError:
-
                 logger.error('Unable to read adresse from MO (no access to DAR?)')
 
-        location = ''
-        current_unit = unit_info
-        level2orgunit = 'Ingen'
-        while current_unit:
-            location = current_unit['name'] + '\\' + location
-            current_type = current_unit['org_unit_type']
-            current_level = current_unit['org_unit_level']
-            if current_level is None:
-                current_level = {'uuid': None}
-            if self.settings['integrations.ad.write.level2orgunit_type'] in (
-                    current_type['uuid'],
-                    current_level['uuid']
-            ):
-                level2orgunit = current_unit['name']
-            current_unit = current_unit['parent']
-        location = location[:-1]
-
-        manager_name = None
-        manager_sam = None
-        manager_mail = None
+        manager_info = {
+            'name': None,
+            'sam':  None,
+            'mail': None,
+            'cpr': None
+        }
         if read_manager:
-            try:
-                manager = self.helper.read_engagement_manager(engagement['uuid'])
-            except KeyError:
-                logger.info('No managers found')
-                read_manager = False
+            if self.lc:
+                manager_uuid = self.lc.managers[
+                    self.lc.units[eng_org_unit][0]['acting_manager_uuid']][0]['user']
+                parent_uuid = self.lc.units[eng_org_unit][0]['parent']
+                while manager_uuid == mo_user['uuid']:
+                    if parent_uuid is None:
+                        logger.info('This person has no manager!')
+                        read_manager = False
+                        break
+
+                    logger.info('Self manager, keep searching: {}!'.format(mo_user))
+                    parent_unit = self.lc.units[parent_uuid][0]
+                    manager_uuid = self.lc.managers[
+                        parent_unit['acting_manager_uuid']][0]['user']
+
+                    parent_uuid = self.lc.units[parent_uuid][0]['parent']
+
+            else:
+                try:
+                    manager = self.helper.read_engagement_manager(eng_uuid)
+                    manager_uuid = manager['uuid']
+                except KeyError:
+                    logger.info('No managers found')
+                    read_manager = False
 
         if read_manager:
-            manager_name = manager['Navn']
-            mo_manager_user = self.helper.read_user(user_uuid=manager['uuid'])
-            manager_cpr = mo_manager_user['cpr_no']
-            manager_mail_dict = self.helper.get_e_address(manager['uuid'],
-                                                          scope='EMAIL')
+            mo_manager_user = self._read_user(manager_uuid)
+            manager_info['name'] = mo_manager_user['name']
+            manager_info['cpr'] = mo_manager_user['cpr_no']
+
+            if self.lc:
+                manager_mail_dict = {}
+                for addr in self.lc.addresses.values():
+                    if addr[0]['user'] == manager_uuid:
+                        manager_mail_dict = addr[0]
+            else:
+                manager_mail_dict = self.helper.get_e_address(manager_uuid,
+                                                              scope='EMAIL')
             if manager_mail_dict:
-                manager_mail = manager_mail_dict['value']
+                manager_info['mail'] = manager_mail_dict['value']
 
-            manager_ad_info = self.get_from_ad(cpr=manager_cpr)
+            try:
+                manager_ad_info = self._find_ad_user(cpr=manager_info['cpr'],
+                                                     ad_dump=ad_dump)
+            except CprNotFoundInADException:
+                manager_ad_info = []
+
             if len(manager_ad_info) == 1:
-                manager_sam = manager_ad_info[0]['SamAccountName']
+                manager_info['sam'] = manager_ad_info[0]['SamAccountName']
             else:
                 msg = 'Searching for {}, found in AD: {}'
-                logger.debug(msg.format(manager['Navn'], manager_ad_info))
-                raise ad_exceptions.ManagerNotUniqueFromCprException()
+                logger.debug(msg.format(manager_info['name'], manager_ad_info))
+                raise ManagerNotUniqueFromCprException()
 
         mo_values = {
             'name': (mo_user['givenname'], mo_user['surname']),
@@ -282,21 +447,22 @@ class ADWriter(AD):
             'uuid': uuid,
             'cpr': mo_user['cpr_no'],
             'title': title,
-            'unit': unit_name,
-            'unit_uuid': unit_uuid,
-            'unit_user_key': unit_user_key,
-            'unit_public_email': unit_public_email,
-            'unit_secure_email': unit_secure_email,
+            'unit': unit_info['name'],
+            'unit_uuid': eng_org_unit,
+            'unit_user_key': unit_info['user_key'],
+            'unit_public_email': addresses['unit_public_email'],
+            'unit_secure_email': addresses['unit_secure_email'],
             'unit_postal_code': postal_code,
             'unit_city': city,
             'unit_streetname': streetname,
             # UNIT PHONE NUMBER
             # UNIT WEB PAGE
-            'location': location,
-            'level2orgunit': level2orgunit,
-            'manager_name': manager_name,
-            'manager_sam': manager_sam,
-            'manager_mail': manager_mail
+            'location': unit_info['location'],
+            'level2orgunit': unit_info['level2orgunit'],
+            'manager_sam': manager_info['sam'],
+            'manager_cpr': manager_info['cpr'],
+            'manager_name': manager_info['name'],
+            'manager_mail': manager_info['mail']
         }
         return mo_values
 
@@ -307,31 +473,95 @@ class ADWriter(AD):
         :param manager_sam: SamAccountName for the manager.
         """
         school = False  # TODO
-        bp = self._ps_boiler_plate(school)
-
-        format_rules = {'user_sam': user_sam, 'manager_sam': manager_sam,
-                        'ad_server': bp['server']}
+        format_rules = {'user_sam': user_sam, 'manager_sam': manager_sam}
         ps_script = self._build_ps(ad_templates.add_manager_template,
                                    school, format_rules)
 
         response = self._run_ps_script(ps_script)
         return response is {}
 
-    def sync_user(self, mo_uuid, user_ad_info=None, sync_manager=True):
+    def _cf(self, ad_field, value, ad):
+        logger.info('Check AD field: {}'.format(ad_field))
+        mismatch = {}
+        if value is None:
+            msg = 'Value for {} is None-type replace to string None'
+            logger.debug(msg.format(ad_field))
+            value = 'None'
+        if not ad.get(ad_field) == value:
+            msg = '{}: AD value: {}, does not match MO value: {}'
+            logger.info(msg.format(ad_field, ad.get(ad_field), value))
+            mismatch = {
+                ad_field: (
+                    ad.get(ad_field),
+                    value
+                )
+            }
+        return mismatch
+
+    def _sync_compare(self, mo_values, ad_dump):
+        school = False  # TODO
+        write_settings = self._get_write_setting(school)
+
+        user_ad_info = self._find_ad_user(mo_values['cpr'], ad_dump)
+        assert(len(user_ad_info) == 1)
+        ad = user_ad_info[0]
+        # Todo: Why is this not generated along with all other info in mo_values?
+        mo_values['name_sam'] = '{} - {}'.format(mo_values['full_name'],
+                                                 ad['SamAccountName'])
+        mismatch = {}
+        mismatch.update(self._cf(write_settings['level2orgunit_field'],
+                                 mo_values['level2orgunit'], ad))
+        mismatch.update(self._cf(write_settings['org_field'],
+                                 mo_values['location'], ad))
+        mismatch.update(self._cf('DisplayName', mo_values['full_name'], ad))
+        mismatch.update(self._cf('GivenName', mo_values['name'][0], ad))
+        mismatch.update(self._cf('Surname', mo_values['name'][1], ad))
+        mismatch.update(self._cf('EmployeeNumber',
+                                 mo_values['employment_number'], ad))
+
+        named_sync_fields = self.settings.get(
+            'integrations.ad_writer.mo_to_ad_fields', {})
+
+        for mo_field, ad_field in named_sync_fields.items():
+            mismatch.update(self._cf(ad_field, mo_values[mo_field], ad))
+
+        if mo_values.get('manager_cpr'):
+            manager_ad_info = self._find_ad_user(mo_values['manager_cpr'], ad_dump)
+            if not ad['Manager'] == manager_ad_info[0]['DistinguishedName']:
+                mismatch['manager'] = (ad['Manager'],
+                                       manager_ad_info[0]['DistinguishedName'])
+                logger.info('Manager should be updated')
+        return mismatch
+
+    def sync_user(self, mo_uuid, ad_dump=None, sync_manager=True):
         """
         Sync MO information into AD
         """
         school = False  # TODO
-        bp = self._ps_boiler_plate(school)
+        mo_values = self.read_ad_information_from_mo(
+            mo_uuid, ad_dump=ad_dump, read_manager=sync_manager)
 
-        mo_values = self.read_ad_information_from_mo(mo_uuid)
+        if mo_values is None:
+            return (False, 'No active engagments')
 
-        if user_ad_info is None:
+        if ad_dump is None:
             logger.debug('No AD information supplied, will look it up')
             user_sam = self._find_unique_user(mo_values['cpr'])
+            # Todo, we could also add the compare logic here, but
+            # the benifit will be max 40%
+            mismatch = {'force re-sync': 'yes', 'manager': 'yes'}
         else:
-            user_sam = user_ad_info['SamAccountName']
+            user_ad_info = self._find_ad_user(mo_values['cpr'], ad_dump)
+            user_sam = user_ad_info[0]['SamAccountName']
+            mismatch = self._sync_compare(mo_values, ad_dump)
 
+        logger.debug('Sync compare: {}'.format(mismatch))
+
+        if not mismatch:
+            logger.info('Nothig to edit')
+            return (True, 'Nothing to edit')
+
+        logger.info('Sync compare: {}'.format(mismatch))
         edit_user_template = ad_templates.edit_user_template
         replace_attributes = self._other_attributes(mo_values, user_sam,
                                                     new_user=False)
@@ -345,19 +575,26 @@ class ADWriter(AD):
         edit_user_string = self.remove_redundant(edit_user_string)
         edit_user_string += replace_attributes
 
+        server_string = ''
+        if self.all_settings['global'].get('servers') is not None:
+            server_string = ' -Server {} '.format(
+                random.choice(self.all_settings['global']['servers'])
+            )
+
         ps_script = (
             self._build_user_credential(school) +
             edit_user_string +
-            bp['server']
+            server_string
         )
         logger.debug('Sync user, ps_script: {}'.format(ps_script))
 
         response = self._run_ps_script(ps_script)
         logger.debug('Response from sync: {}'.format(response))
 
-        if sync_manager:
+        if sync_manager and 'manager' in mismatch:
             self.add_manager_to_user(user_sam=user_sam,
                                      manager_sam=mo_values['manager_sam'])
+
         return (True, 'Sync completed')
 
     def create_user(self, mo_uuid, create_manager, dry_run=False):
@@ -384,10 +621,10 @@ class ADWriter(AD):
         existing_cpr = self.get_from_ad(cpr=mo_values['cpr'])
         if existing_sam:
             logger.error('SamAccount already in use: {}'.format(sam_account_name))
-            ad_exceptions.SamAccountNameNotUnique(sam_account_name)
+            raise SamAccountNameNotUnique(sam_account_name)
         if existing_cpr:
             logger.error('cpr already in use: {}'.format(mo_values['cpr']))
-            raise ad_exceptions.CprNotNotUnique(mo_values['cpr'])
+            raise CprNotNotUnique(mo_values['cpr'])
 
         create_user_template = ad_templates.create_user_template
         other_attributes = self._other_attributes(mo_values, sam_account_name,
@@ -402,10 +639,17 @@ class ADWriter(AD):
         create_user_string = self.remove_redundant(create_user_string)
         create_user_string += other_attributes
 
+        # Should this go to self._ps_boiler_plate()?
+        server_string = ''
+        if self.all_settings['global'].get('servers') is not None:
+            server_string = ' -Server {} '.format(
+                random.choice(self.all_settings['global']['servers'])
+            )
+
         ps_script = (
             self._build_user_credential(school) +
             create_user_string +
-            bp['server'] +
+            server_string +
             bp['path']
         )
 

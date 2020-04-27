@@ -55,6 +55,15 @@
     "exports_viborg_eksterne.destination_smb_share":"sharename-write-4-backslashes-for-each-backslash",
     "exports_viborg_eksterne.destination_directory":"directory-name-on-smb-share",
 
+    "exporters.actual_state.manager_responsibility_class": "uuid-for-responsibility",
+    "exporters.actual_state.type": "MS-SQL",
+    "exporters.actual_state_historic.type": "SQLite",
+    "exporters.actual_state.db_name": "OS2mo_ActualState",
+    "exporters.actual_state_historic.db_name": "OS2mo_historic",
+    "exporters.actual_state.user": "db_user",
+    "exporters.actual_state.password": "db_password",
+    "exporters.actual_state.host": "db_host",
+
     "integrations.SD_Lon.sd_user": "",
     "integrations.SD_Lon.sd_password": "",
     "integrations.SD_Lon.institution_identifier": "",

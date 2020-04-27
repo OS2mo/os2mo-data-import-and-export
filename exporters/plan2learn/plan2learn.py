@@ -6,7 +6,6 @@
 """
 Helper class to make a number of pre-defined queries into MO
 """
-import os
 import json
 import time
 import pathlib
@@ -22,8 +21,8 @@ SETTINGS = json.loads(cfg_file.read_text())
 ACTIVE_JOB_FUNCTIONS = []  # Liste over aktive engagementer som skal eksporteres.
 
 
-def export_bruger(mh, nodes, filename):
-    fieldnames = ['BrugerId', 'CPR', 'Navn', 'E-mail', 'Mobil']
+def export_bruger(mh, nodes):
+    #  fieldnames = ['BrugerId', 'CPR', 'Navn', 'E-mail', 'Mobil', 'Stilling']
     used_cprs = []
 
     # Todo: Move to settings
@@ -52,9 +51,12 @@ def export_bruger(mh, nodes, filename):
                 'Navn': employee['Navn'],
                 'E-mail': address.get('E-mail', ''),
                 'Mobil': address.get('Telefon', ''),
+                'Stilling': None  # To be populated later
             }
             rows.append(row)
-    mh._write_csv(fieldnames, rows, filename)
+    # Turns out, we need to update this once we reach engagments
+    # mh._write_csv(fieldnames, rows, filename)
+    return rows
 
 
 def export_organisation(mh, nodes, filename):
@@ -97,7 +99,7 @@ def export_organisation(mh, nodes, filename):
     return eksporterede_afdelinger
 
 
-def export_engagement(mh, filename, eksporterede_afdelinger):
+def export_engagement(mh, filename, eksporterede_afdelinger, brugere_rows):
     fieldnames = ['EngagementId', 'BrugerId', 'AfdelingsId', 'AktivStatus',
                   'StillingskodeId', 'Primær', 'Engagementstype',
                   'StartdatoEngagement']
@@ -143,6 +145,12 @@ def export_engagement(mh, filename, eksporterede_afdelinger):
 
             if eng['is_primary']:
                 primær = 1
+                for bruger in brugere_rows:
+                    if bruger['BrugerId'] == employee['uuid']:
+                        if eng['extension_2']:
+                            bruger['Stilling'] = eng['extension_2']
+                        else:
+                            bruger['Stilling'] = eng['job_function']['name']
             else:
                 primær = 0
 
@@ -162,6 +170,7 @@ def export_engagement(mh, filename, eksporterede_afdelinger):
 
             rows.append(row)
     mh._write_csv(fieldnames, rows, filename)
+    return brugere_rows
 
 
 def export_stillingskode(mh, nodes, filename):
@@ -217,8 +226,7 @@ if __name__ == '__main__':
     nodes = mh.read_ou_tree(root_unit)
     print('Read nodes: {}s'.format(time.time() - t))
 
-    filename = str(dest_folder / 'plan2learn_bruger.csv')
-    export_bruger(mh, nodes, filename)
+    brugere_rows = export_bruger(mh, nodes)
     print('Bruger: {}s'.format(time.time() - t))
 
     filename = str(dest_folder / 'plan2learn_organisation.csv')
@@ -226,7 +234,8 @@ if __name__ == '__main__':
     print('Organisation: {}s'.format(time.time() - t))
 
     filename = str(dest_folder / 'plan2learn_engagement.csv')
-    export_engagement(mh, filename, eksporterede_afdelinger)
+    brugere_rows = export_engagement(mh, filename, eksporterede_afdelinger,
+                                     brugere_rows)
     print('Engagement: {}s'.format(time.time() - t))
 
     filename = str(dest_folder / 'plan2learn_stillingskode.csv')
@@ -236,5 +245,10 @@ if __name__ == '__main__':
     filename = str(dest_folder / 'plan2learn_leder.csv')
     export_leder(mh, nodes, filename, eksporterede_afdelinger)
     print('Leder: {}s'.format(time.time() - t))
+
+    # Now exported the now fully populated brugere.csv
+    filename = str(dest_folder / 'plan2learn_bruger.csv')
+    brugere_fieldnames = ['BrugerId', 'CPR', 'Navn', 'E-mail', 'Mobil', 'Stilling']
+    mh._write_csv(brugere_fieldnames, brugere_rows, filename)
 
     print('Export completed')

@@ -178,7 +178,7 @@ def perform_write_test():
 
     minumum_expected_fields = {
         SETTINGS['integrations.ad.write.uuid_field']: False,
-        SETTINGS['integrations.ad.write.forvaltning_field']: False,
+        SETTINGS['integrations.ad.write.level2orgunit_field']: False,
         SETTINGS['integrations.ad.write.org_unit_field']: False
     }
 

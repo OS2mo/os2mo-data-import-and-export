@@ -2,6 +2,7 @@ import json
 import atexit
 import logging
 import pathlib
+import argparse
 import urllib.parse
 
 from sqlalchemy import create_engine
@@ -35,19 +36,30 @@ logging.basicConfig(
 
 
 class SqlExport(object):
-    def __init__(self):
+    def __init__(self, force_sqlite=False, historic=False):
         logger.info('Start SQL export')
         atexit.register(self.at_exit)
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
+        self.historic = historic
 
-        self.lc = LoraCache()
-        self.lc.populate_cache()
-        
-        db_type = self.settings['exporters.actual_state.type']
-        db_name = self.settings['exporters.actual_state.db_name']
+        if self.historic:
+            db_type = self.settings.get('exporters.actual_state_historic.type')
+            db_name = self.settings.get('exporters.actual_state_historic.db_name')
+        else:
+            db_type = self.settings.get('exporters.actual_state.type')
+            db_name = self.settings.get('exporters.actual_state.db_name')
+
+        if force_sqlite:
+            db_type = 'SQLite'
+
+        if None in [db_type, db_name]:
+            msg = 'Configuration error, missing db name or type'
+            logger.error(msg)
+            raise Exception(msg)
+
         user = self.settings.get('exporters.actual_state.user')
         db_host = self.settings.get('exporters.actual_state.host')
         pw_raw = self.settings.get('exporters.actual_state.password', '')
@@ -61,6 +73,16 @@ class SqlExport(object):
             raise Exception('Unknown DB type')
 
         self.engine = create_engine(db_string)
+
+    def perform_export(self, resolve_dar=True, dry_run=False):
+        if self.historic:
+            self.lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
+            self.lc.populate_cache(dry_run=dry_run)
+        else:
+            self.lc = LoraCache(resolve_dar=resolve_dar)
+            self.lc.populate_cache(dry_run=dry_run)
+            self.lc.calculate_derived_unit_data()
+            self.lc.calculate_primary_engagements()
 
         Base.metadata.drop_all(self.engine)
         Base.metadata.create_all(self.engine)
@@ -119,52 +141,31 @@ class SqlExport(object):
             )
             self.session.add(sql_user)
 
-        responsibility_class = self.settings[
-            'exporters.actual_state.manager_responsibility_class']
+        for unit, unit_validities in self.lc.units.items():
+            for unit_info in unit_validities:
+                location = unit_info.get('location')
+                manager_uuid = unit_info.get('manager_uuid')
+                acting_manager_uuid = unit_info.get('acting_manager_uuid')
 
-        for unit, unit_info in self.lc.units.items():
-            manager_uuid = None
-            acting_manager_uuid = None
-            # Find a direct manager, if possible
-            for manager, manager_info in self.lc.managers.items():
-                if manager_info['unit'] == unit:
-                    for resp in manager_info['manager_responsibility']:
-                        if resp == responsibility_class:
-                            manager_uuid = manager
-                            acting_manager_uuid = manager
-
-            location = ''
-            current_unit = unit_info
-            while current_unit:
-                location = current_unit['name'] + "\\" + location
-                current_parent = current_unit.get('parent')
-                if current_parent is not None:
-                    current_unit = self.lc.units[current_parent]
-                else:
-                    current_unit = None
-
-                # Find the acting manager.
-                if acting_manager_uuid is None:
-                    for manager, manager_info in self.lc.managers.items():
-                        if manager_info['unit'] == current_parent:
-                            for resp in manager_info['manager_responsibility']:
-                                if resp == responsibility_class:
-                                    acting_manager_uuid = manager
-            location = location[:-1]
-
-            sql_unit = Enhed(
-                uuid=unit,
-                navn=unit_info['name'],
-                forældreenhed_uuid=unit_info['parent'],
-                enhedstype_uuid=unit_info['unit_type'],
-                enhedsniveau_uuid=unit_info['level'],
-                organisatorisk_sti=location,
-                leder_uuid=manager_uuid,
-                fungerende_leder_uuid=acting_manager_uuid,
-                enhedstype_titel=self.lc.classes[unit_info['unit_type']]['title'],
-                enhedsniveau_titel=self.lc.classes[unit_info['level']]['title']
-            )
-            self.session.add(sql_unit)
+                unit_type = unit_info['unit_type']
+                enhedsniveau_titel = ''
+                if unit_info['level']:
+                    enhedsniveau_titel = self.lc.classes[unit_info['level']]['title']
+                sql_unit = Enhed(
+                    uuid=unit,
+                    navn=unit_info['name'],
+                    forældreenhed_uuid=unit_info['parent'],
+                    enhedstype_uuid=unit_type,
+                    enhedsniveau_uuid=unit_info['level'],
+                    organisatorisk_sti=location,
+                    leder_uuid=manager_uuid,
+                    fungerende_leder_uuid=acting_manager_uuid,
+                    enhedstype_titel=self.lc.classes[unit_type]['title'],
+                    enhedsniveau_titel=enhedsniveau_titel,
+                    startdato=unit_info['from_date'],
+                    slutdato=unit_info['to_date']
+                )
+                self.session.add(sql_unit)
         self.session.commit()
 
         if output:
@@ -176,38 +177,34 @@ class SqlExport(object):
     def _add_engagements(self, output=False):
         logger.info('Add engagements')
         print('Add engagements')
-        user_primary = {}
-        for uuid, eng in self.lc.engagements.items():
-            primary_type = self.lc.classes[eng['primary_type']]
-            primary_scope = int(primary_type['scope'])
-            if eng['user'] in user_primary:
-                if user_primary[eng['user']][0] < primary_scope:
-                    user_primary[eng['user']] = [primary_scope, uuid, None]
-            else:
-                user_primary[eng['user']] = [primary_scope, uuid, None]
+        for engagement, engagement_validity in self.lc.engagements.items():
+            for engagement_info in engagement_validity:
+                if engagement_info['primary_type'] is not None:
+                    primærtype_titel = self.lc.classes[
+                        engagement_info['primary_type']]['title']
+                else:
+                    primærtype_titel = ''
 
-        for engagement, engagement_info in self.lc.engagements.items():
-            primary = user_primary[engagement_info['user']][1] == engagement
-
-            sql_engagement = Engagement(
-                uuid=engagement,
-                enhed_uuid=engagement_info['unit'],
-                bruger_uuid=engagement_info['user'],
-                bvn=engagement_info['user_key'],
-                primærtype_uuid=engagement_info['primary_type'],
-                stillingsbetegnelse_uuid=engagement_info['job_function'],
-                engagementstype_uuid=engagement_info['engagement_type'],
-                primær_boolean=primary,
-                arbejdstidsfraktion=engagement_info['fraction'],
-                engagementstype_titel=self.lc.classes[
-                    engagement_info['engagement_type']]['title'],
-                stillingsbetegnelse_titel=self.lc.classes[
-                    engagement_info['job_function']]['title'],
-                primærtype_titel=self.lc.classes[
-                    engagement_info['primary_type']]['title'],
-                **engagement_info['extentions']
-            )
-            self.session.add(sql_engagement)
+                sql_engagement = Engagement(
+                    uuid=engagement,
+                    enhed_uuid=engagement_info['unit'],
+                    bruger_uuid=engagement_info['user'],
+                    bvn=engagement_info['user_key'],
+                    primærtype_uuid=engagement_info['primary_type'],
+                    stillingsbetegnelse_uuid=engagement_info['job_function'],
+                    engagementstype_uuid=engagement_info['engagement_type'],
+                    primær_boolean=engagement_info.get('primary_boolean'),
+                    arbejdstidsfraktion=engagement_info['fraction'],
+                    engagementstype_titel=self.lc.classes[
+                        engagement_info['engagement_type']]['title'],
+                    stillingsbetegnelse_titel=self.lc.classes[
+                        engagement_info['job_function']]['title'],
+                    primærtype_titel=primærtype_titel,
+                    startdato=engagement_info['from_date'],
+                    slutdato=engagement_info['to_date'],
+                    **engagement_info['extensions']
+                )
+                self.session.add(sql_engagement)
         self.session.commit()
 
         if output:
@@ -217,26 +214,29 @@ class SqlExport(object):
     def _add_addresses(self, output=False):
         logger.info('Add addresses')
         print('Add addresses')
-        for address, address_info in self.lc.addresses.items():
-            visibility_text = None
-            if address_info['visibility'] is not None:
-                visibility_text = self.lc.classes[
-                    address_info['visibility']]['title']
+        for address, address_validities in self.lc.addresses.items():
+            for address_info in address_validities:
+                visibility_text = None
+                if address_info['visibility'] is not None:
+                    visibility_text = self.lc.classes[
+                        address_info['visibility']]['title']
 
-            sql_address = Adresse(
-                uuid=address,
-                enhed_uuid=address_info['unit'],
-                bruger_uuid=address_info['user'],
-                værdi=address_info['value'],
-                dar_uuid=address_info['dar_uuid'],
-                adressetype_uuid=address_info['adresse_type'],
-                adressetype_scope=address_info['scope'],
-                synlighed_uuid=address_info['visibility'],
-                synlighed_titel=visibility_text,
-                adressetype_titel=self.lc.classes[
-                    address_info['adresse_type']]['title']
-            )
-            self.session.add(sql_address)
+                sql_address = Adresse(
+                    uuid=address,
+                    enhed_uuid=address_info['unit'],
+                    bruger_uuid=address_info['user'],
+                    værdi=address_info['value'],
+                    dar_uuid=address_info['dar_uuid'],
+                    adressetype_uuid=address_info['adresse_type'],
+                    adressetype_scope=address_info['scope'],
+                    synlighed_uuid=address_info['visibility'],
+                    synlighed_titel=visibility_text,
+                    adressetype_titel=self.lc.classes[
+                        address_info['adresse_type']]['title'],
+                    startdato=address_info['from_date'],
+                    slutdato=address_info['to_date']
+                )
+                self.session.add(sql_address)
         self.session.commit()
         if output:
             for result in self.engine.execute('select * from adresser limit 10'):
@@ -245,41 +245,47 @@ class SqlExport(object):
     def _add_associactions_leaves_and_roles(self, output=False):
         logger.info('Add associactions leaves and roles')
         print('Add associactions leaves and roles')
-        for association, association_info in self.lc.associations.items():
-            sql_association = Tilknytning(
-                uuid=association,
-                bruger_uuid=association_info['user'],
-                enhed_uuid=association_info['unit'],
-                bvn=association_info['user_key'],
-                tilknytningstype_uuid=association_info['association_type'],
-                tilknytningstype_titel=self.lc.classes[
-                    association_info['association_type']]['title']
-            )
-            self.session.add(sql_association)
+        for association, association_validity in self.lc.associations.items():
+            for association_info in association_validity:
+                sql_association = Tilknytning(
+                    uuid=association,
+                    bruger_uuid=association_info['user'],
+                    enhed_uuid=association_info['unit'],
+                    bvn=association_info['user_key'],
+                    tilknytningstype_uuid=association_info['association_type'],
+                    tilknytningstype_titel=self.lc.classes[
+                        association_info['association_type']]['title'],
+                    startdato=association_info['from_date'],
+                    slutdato=association_info['to_date']
+                )
+                self.session.add(sql_association)
 
-        for role, role_info in self.lc.roles.items():
-            sql_role = Rolle(
-                uuid=role,
-                bruger_uuid=role_info['user'],
-                enhed_uuid=role_info['unit'],
-                rolletype_uuid=role_info['role_type'],
-                rolletype_titel=self.lc.classes[role_info['role_type']]['title']
-                # start_date, # TODO
-                # end_date # TODO
-            )
-            self.session.add(sql_role)
+        for role, role_validity in self.lc.roles.items():
+            for role_info in role_validity:
+                sql_role = Rolle(
+                    uuid=role,
+                    bruger_uuid=role_info['user'],
+                    enhed_uuid=role_info['unit'],
+                    rolletype_uuid=role_info['role_type'],
+                    rolletype_titel=self.lc.classes[role_info['role_type']]['title'],
+                    startdato=role_info['from_date'],
+                    slutdato=role_info['to_date']
+                )
+                self.session.add(sql_role)
 
-        for leave, leave_info in self.lc.leaves.items():
-            sql_leave = Orlov(
-                uuid=leave,
-                bvn=leave_info['user_key'],
-                bruger_uuid=leave_info['user'],
-                orlovstype_uuid=leave_info['leave_type'],
-                orlovstype_titel=self.lc.classes[leave_info['leave_type']]['title'],
-                # start_date # TODO
-                # end_date # TODO
-            )
-            self.session.add(sql_leave)
+        for leave, leave_validity in self.lc.leaves.items():
+            for leave_info in leave_validity:
+                leave_type = leave_info['leave_type']
+                sql_leave = Orlov(
+                    uuid=leave,
+                    bvn=leave_info['user_key'],
+                    bruger_uuid=leave_info['user'],
+                    orlovstype_uuid=leave_type,
+                    orlovstype_titel=self.lc.classes[leave_type]['title'],
+                    startdato=leave_info['from_date'],
+                    slutdato=leave_info['to_date']
+                )
+                self.session.add(sql_leave)
         self.session.commit()
         if output:
             for result in self.engine.execute('select * from tilknytninger limit 4'):
@@ -299,15 +305,18 @@ class SqlExport(object):
             )
             self.session.add(sql_itsystem)
 
-        for it_connection, it_connection_info in self.lc.it_connections.items():
-            sql_it_connection = ItForbindelse(
-                uuid=it_connection,
-                it_system_uuid=it_connection_info['itsystem'],
-                bruger_uuid=it_connection_info['user'],
-                enhed_uuid=it_connection_info['unit'],
-                brugernavn=it_connection_info['username']
-            )
-            self.session.add(sql_it_connection)
+        for it_connection, it_connection_validity in self.lc.it_connections.items():
+            for it_connection_info in it_connection_validity:
+                sql_it_connection = ItForbindelse(
+                    uuid=it_connection,
+                    it_system_uuid=it_connection_info['itsystem'],
+                    bruger_uuid=it_connection_info['user'],
+                    enhed_uuid=it_connection_info['unit'],
+                    brugernavn=it_connection_info['username'],
+                    startdato=it_connection_info['from_date'],
+                    slutdato=it_connection_info['to_date']
+                )
+                self.session.add(sql_it_connection)
         self.session.commit()
         if output:
             for result in self.engine.execute('select * from it_systemer limit 2'):
@@ -320,27 +329,32 @@ class SqlExport(object):
     def _add_managers(self, output=False):
         logger.info('Add managers')
         print('Add managers')
-        for manager, manager_info in self.lc.managers.items():
-            sql_manager = Leder(
-                uuid=manager,
-                bruger_uuid=manager_info['user'],
-                enhed_uuid=manager_info['unit'],
-                niveautype_uuid=manager_info['manager_level'],
-                ledertype_uuid=manager_info['manager_type'],
-                niveautype_titel=self.lc.classes[
-                    manager_info['manager_level']]['title'],
-                ledertype_titel=self.lc.classes[
-                    manager_info['manager_type']]['title']
-            )
-            self.session.add(sql_manager)
-
-            for responsibility in manager_info['manager_responsibility']:
-                sql_responsibility = LederAnsvar(
-                    leder_uuid=manager,
-                    lederansvar_uuid=responsibility,
-                    lederansvar_titel=self.lc.classes[responsibility]['title']
+        for manager, manager_validity in self.lc.managers.items():
+            for manager_info in manager_validity:
+                sql_manager = Leder(
+                    uuid=manager,
+                    bruger_uuid=manager_info['user'],
+                    enhed_uuid=manager_info['unit'],
+                    niveautype_uuid=manager_info['manager_level'],
+                    ledertype_uuid=manager_info['manager_type'],
+                    niveautype_titel=self.lc.classes[
+                        manager_info['manager_level']]['title'],
+                    ledertype_titel=self.lc.classes[
+                        manager_info['manager_type']]['title'],
+                    startdato=manager_info['from_date'],
+                    slutdato=manager_info['to_date']
                 )
-                self.session.add(sql_responsibility)
+                self.session.add(sql_manager)
+
+                for responsibility in manager_info['manager_responsibility']:
+                    sql_responsibility = LederAnsvar(
+                        leder_uuid=manager,
+                        lederansvar_uuid=responsibility,
+                        lederansvar_titel=self.lc.classes[responsibility]['title'],
+                        startdato=manager_info['from_date'],
+                        slutdato=manager_info['to_date']
+                    )
+                    self.session.add(sql_responsibility)
         self.session.commit()
         if output:
             for result in self.engine.execute('select * from ledere limit 10'):
@@ -349,5 +363,28 @@ class SqlExport(object):
                 print(result.items())
 
 
+def cli():
+    """
+    Command line interface.
+    """
+    parser = argparse.ArgumentParser(description='SQL export')
+    parser.add_argument('--resolve-dar', action='store_true')
+    parser.add_argument('--historic', action='store_true')
+    parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--force-sqlite', action='store_true')
+
+    args = vars(parser.parse_args())
+
+    sql_export = SqlExport(
+        force_sqlite=args.get('force_sqlite'),
+        historic=args.get('historic'),
+    )
+
+    sql_export.perform_export(
+        resolve_dar=args.get('resolve_dar'),
+        dry_run=args.get('dry_run')
+    )
+
+
 if __name__ == '__main__':
-    sql_export = SqlExport()
+    cli()

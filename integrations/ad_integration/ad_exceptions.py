@@ -5,6 +5,8 @@ class NoPrimaryEngagementException(Exception):
 class UserNotFoundException(Exception):
     pass
 
+class CprNotFoundInADException(Exception):
+    pass
 
 class ManagerNotUniqueFromCprException(Exception):
     pass
