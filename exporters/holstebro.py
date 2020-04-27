@@ -78,23 +78,26 @@ def export_from_mo(hostname):
     if threaded_speedup:
         cq.pre_cache_users(mh)
         logger.info('Build cache: {}'.format(time.time() - t))
-    """
-    logger.info(f"Exporting data to Intranote")
-    hh.export_to_intranote(
-        mh, all_nodes, intranote_filename)
-    logger.info(f"{planorama_org}: {time.time() - t}")
 
-     
-    logger.info(f"Exporting data to Planorama")
-    hh.export_to_planorama(
-        mh, all_nodes, planorama_org, planorama_employee, org)
-    logger.info(f"{planorama_org}: {time.time() - t}")
+    try:
+        logger.info(f"Exporting data to Intranote")
+        hh.export_to_intranote(
+            mh, all_nodes, intranote_filename)
+        logger.info(f"{intranote_filename}: {time.time() - t}")
 
-    """
-    logger.info(f"Exporting data to EssensLMS")
-    hh.export_to_essenslms(
-        mh, all_nodes, essens_lms_filename)
-    logger.info(f"{essens_lms_filename}: {time.time() - t}")
+        logger.info(f"Exporting data to Planorama")
+        hh.export_to_planorama(
+            mh, all_nodes, planorama_org, planorama_employee, org)
+        logger.info(f"{planorama_org}: {time.time() - t}")
+
+        logger.info(f"Exporting data to EssensLMS")
+        hh.export_to_essenslms(
+            mh, all_nodes, essens_lms_filename)
+        logger.info(f"{essens_lms_filename}: {time.time() - t}")
+
+    except Exception as excep:
+        logger.info(f"Export af data fejlede: {excep}")
+        raise
 
 
 if __name__ == '__main__':

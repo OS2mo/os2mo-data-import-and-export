@@ -148,7 +148,7 @@ def export_to_intranote(mh, all_nodes, filename):
                     rows.append(row)
 
     my_options = {"extrasaction": "ignore",
-                  "delimiter": ",",
+                  "delimiter": ";",
                   "quoting": csv.QUOTE_MINIMAL
                   }
 

@@ -88,13 +88,13 @@ class MoraHelper(object):
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames, **my_options)
             writer.writeheader()
             for row in rows:
-                writer.write(row)
+                writer.writerow(row)
         if self.export_ansi:
             with codecs.open(filename, 'r', encoding='utf-8') as csvfile:
                 lines = csvfile.read()
             with codecs.open(filename, 'w',
                              encoding='cp1252') as csvfile:
-                csvfile.write(lines)
+                csvfile.writerow(lines)
 
     def _create_path_dict(self, fieldnames, node, org_types=None):
         """ Create a dict with a MO-path to a given node.
