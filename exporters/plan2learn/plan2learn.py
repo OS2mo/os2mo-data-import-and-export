@@ -99,7 +99,7 @@ def export_organisation(mh, nodes, filename):
     return eksporterede_afdelinger
 
 
-def export_engagement(mh, filename, eksporterede_afdelinger, brugerer_rows):
+def export_engagement(mh, filename, eksporterede_afdelinger, brugere_rows):
     fieldnames = ['EngagementId', 'BrugerId', 'AfdelingsId', 'AktivStatus',
                   'StillingskodeId', 'Primær', 'Engagementstype',
                   'StartdatoEngagement']
