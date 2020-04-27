@@ -56,6 +56,7 @@ def export_from_mo(hostname):
     planorama_org = f"{filename}_{SETTINGS['exports.holstebro.planorama.org_filename']}"
     planorama_employee = f"{filename}_{SETTINGS['exports.holstebro.planorama.employee_filename']}"
     essens_lms_filename = f"{filename}_{SETTINGS['exports.holstebro.essenslms.filename']}"
+    intranote_filename = f"{filename}_{SETTINGS['exports.holstebro.intranote.filename']}"
 
     # TEST UUIDs
     itdig_uuid = '9f981b4d-66c3-4100-b800-000001480001'
@@ -77,12 +78,19 @@ def export_from_mo(hostname):
     if threaded_speedup:
         cq.pre_cache_users(mh)
         logger.info('Build cache: {}'.format(time.time() - t))
+    """
+    logger.info(f"Exporting data to Intranote")
+    hh.export_to_intranote(
+        mh, all_nodes, intranote_filename)
+    logger.info(f"{planorama_org}: {time.time() - t}")
 
+     
     logger.info(f"Exporting data to Planorama")
     hh.export_to_planorama(
         mh, all_nodes, planorama_org, planorama_employee, org)
     logger.info(f"{planorama_org}: {time.time() - t}")
 
+    """
     logger.info(f"Exporting data to EssensLMS")
     hh.export_to_essenslms(
         mh, all_nodes, essens_lms_filename)

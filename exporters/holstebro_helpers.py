@@ -71,6 +71,91 @@ def holstebro_generic_export(mh, nodes, filename):
                 """
 
 
+def export_to_intranote(mh, all_nodes, filename):
+    fieldnames = ['NY7-niveau',
+                  'NY6-niveau',
+                  'NY5-niveau',
+                  'NY4-niveau',
+                  'NY3-niveau',
+                  'NY2-niveau',
+                  'NY1-niveau',
+                  'Afdelings-niveau',
+                  'Navn (for-/efternavn)',
+                  'Tjenestenummer',
+                  'CPR-nummer',
+                  'Ansættelsesdato',
+                  'Stamafdeling',
+                  'Stilling']
+
+    rows = []
+
+    roots = SETTINGS['exports.holstebro.roots']
+
+    for root_uuid, nodes in all_nodes.items():
+
+        export_all = True if len(roots[root_uuid]) == 0 else False
+
+        for node in PreOrderIter(nodes['root']):
+            # if this is only partial export of org and this org unit is not on the exports list
+            # or is a child of an org unit in the exports list, continue
+            export_node = False
+            node_parent = node
+            while(node_parent != None and export_node is False):
+                export_node = True if node_parent.name in roots[root_uuid] else False
+                node_parent = node_parent.parent  # look backwards in hierarchy
+
+            if not export_all and not export_node:
+                continue
+
+            ou = mh.read_ou(node.name)
+
+            # Do not add "Afdelings-niveau"
+            if ou['org_unit_level']['name'] != 'Afdelings-niveau':
+
+                employees = mh.read_organisation_people(
+                    node.name, 'engagement', False)
+
+                ny_levels = {'NY7-niveau': 'Samling',
+                             'NY6-niveau': 'Samling',
+                             'NY5-niveau': 'Samling',
+                             'NY4-niveau': 'Samling',
+                             'NY3-niveau': 'Samling',
+                             'NY2-niveau': 'Samling',
+                             'NY1-niveau': 'Samling',
+                             'Afdelings-niveau': ou['name'],
+                             'Stamafdeling': ou['name']}
+
+                ou_parent = ou
+                while(ou_parent is not None):
+                    ny_levels[ou_parent['org_unit_level']
+                              ['name']] = ou_parent['name']
+                    ou_parent = ou_parent['parent']
+
+                for uuid, employee in employees.items():
+                    row = {}
+                    row.update(ny_levels)
+
+                    address = mh.read_user_address(uuid, username=True, cpr=True)
+
+                    row.update(
+                        {'Navn (for-/efternavn)': employee['Navn'],
+                         'Tjenestenummer': employee['User Key'],
+                         'CPR-nummer': address['CPR-Nummer'],
+                         'Ansættelsesdato': employee['Ansættelse gyldig fra'],
+                         'Stilling': employee['Stillingsbetegnelse']}
+                    )
+
+                    rows.append(row)
+
+    my_options = {"extrasaction": "ignore",
+                  "delimiter": ",",
+                  "quoting": csv.QUOTE_MINIMAL
+                  }
+
+    logger.info(f"Writing {len(rows)} rows to {filename}")
+    mh._write_csv(fieldnames, rows, filename, **my_options)
+
+
 def export_to_essenslms(mh, all_nodes, filename):
     """ Traverses a tree of OUs, for each OU finds the manager of the OU.
     : param nodes: The nodes of the OU tree
