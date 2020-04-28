@@ -136,12 +136,15 @@ def export_to_intranote(mh, all_nodes, filename):
                     row.update(ny_levels)
 
                     address = mh.read_user_address(uuid, username=True, cpr=True)
+                    # 2020-04-27
+                    dt = datetime.strptime(
+                        employee['Ansættelse gyldig fra'], '%Y-%m-%d')
 
                     row.update(
                         {'Navn (for-/efternavn)': employee['Navn'],
                          'Tjenestenummer': employee['User Key'],
                          'CPR-nummer': address['CPR-Nummer'],
-                         'Ansættelsesdato': employee['Ansættelse gyldig fra'],
+                         'Ansættelsesdato': dt.strftime('%d.%m.%Y'),  # dd.mm.yyyy
                          'Stilling': employee['Titel'] if employee['Titel'] is not None else employee['Stillingsbetegnelse']}
                     )
 
