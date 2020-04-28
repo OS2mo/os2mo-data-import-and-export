@@ -17,13 +17,16 @@ import exporters.common_queries as cq
 import datetime
 import requests
 import uuid
+import json
 import os
 import io
 import logging
 import collections
+import pathlib
 from xml.sax.saxutils import escape
 
 
+LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(name)s %(message)s',
     level=LOG_LEVEL,
@@ -49,7 +52,6 @@ USERID_ITSYSTEM = settings["emus.userid_itsystem"]
 EMUS_RESPONSIBILITY_CLASS = settings["emus.manager_responsibility_class"]
 EMUS_FILENAME = settings.get("emus.outfile_name", 'emus_filename.xml')
 EMUS_DISCARDED_JOB_FUNCTIONS = settings.get("emus.discard_job_functions",[])
-LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
 
 
 engagement_counter = collections.Counter()
@@ -176,10 +178,6 @@ def build_engagement_row(mh, ou, engagement):
         'e/{}'
     )
 
-    jfkey = engagement.get("job_function", {}).get("user_key", "")
-    if jfkey in EMUS_DISCARDED_JOB_FUNCTIONS:
-        logger.debug("%s skipping job function %s", engagement["person"]["uuid"], jfkey)
-        continue
 
     if "surname" in engagement["person"]:
         firstname = engagement["person"]["givenname"]
@@ -321,6 +319,14 @@ def hourly_paid(engagement):
     return hp
 
 
+def discarded(engagement):
+    jfkey = engagement.get("job_function", {}).get("user_key", "")
+    if jfkey in EMUS_DISCARDED_JOB_FUNCTIONS:
+        logger.debug("%s discarded job function %s", engagement["person"]["uuid"], jfkey)
+        return True
+    return False
+
+
 def engagement_count(mh, ou):
     engagement_counter[ou["uuid"]] += 1
     parent = ou
@@ -346,6 +352,10 @@ def export_e_emus(mh, nodes, emus_file):
         ):
             if hourly_paid(engagement):
                 continue
+
+            elif discarded(engagement):
+                continue
+
             logger.info("adding engagement %s", engagement["uuid"])
             engagement_rows.append(build_engagement_row(mh, ou, engagement))
             engagement_count(mh, ou)
