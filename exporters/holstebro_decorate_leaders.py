@@ -59,6 +59,7 @@ def decorate_leaders(hostname):
 
     logger.info(f"Updating organisation tree for {holstebro_uuid}")
     hh.update_org_with_hk_managers(mh, nodes)
+    logger.info('Updating hierarchy took: {}s'.format(time.time() - t))
 
 
 if __name__ == '__main__':

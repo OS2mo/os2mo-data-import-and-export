@@ -81,11 +81,15 @@ def export_from_mo(hostname):
 
     try:
         logger.info(f"Exporting data to Intranote")
+        logger.info("Setting export format to ANSI")
+        mh.export_ansi = True
         hh.export_to_intranote(
             mh, all_nodes, intranote_filename)
         logger.info(f"{intranote_filename}: {time.time() - t}")
 
         logger.info(f"Exporting data to Planorama")
+        logger.info("Setting export format to UTF-8")
+        mh.export_ansi = False
         hh.export_to_planorama(
             mh, all_nodes, planorama_org, planorama_employee, org)
         logger.info(f"{planorama_org}: {time.time() - t}")

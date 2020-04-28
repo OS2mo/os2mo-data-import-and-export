@@ -94,7 +94,7 @@ class MoraHelper(object):
                 lines = csvfile.read()
             with codecs.open(filename, 'w',
                              encoding='cp1252') as csvfile:
-                csvfile.writerow(lines)
+                csvfile.writelines(lines)
 
     def _create_path_dict(self, fieldnames, node, org_types=None):
         """ Create a dict with a MO-path to a given node.
@@ -527,7 +527,8 @@ class MoraHelper(object):
                 'Org-enhed': person['org_unit']['name'],
                 'Org-enhed UUID': person['org_unit']['uuid'],
                 'Engagement UUID': person['uuid'],
-                'User Key': person['user_key']
+                'User Key': person['user_key'],
+                'Titel': person['extension_2']
             }
             if 'job_function' in person:
                 data['Stillingsbetegnelse'] = person['job_function']['name']
