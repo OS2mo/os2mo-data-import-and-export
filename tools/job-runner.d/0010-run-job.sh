@@ -40,20 +40,20 @@ run-job(){
     run-job-log ! job $1 ! job-status starting !
 
     pm_start=$(prometrics-ts)
-
-    $JOB
-
     export JOBTIME=$(prometrics-ts $pm_start)
     export JOBNAME=mo_${JOB}
 
-    prometrics-job-end
+    $JOB
+
 
     if [ "$?" = "0" ] ; then
         run-job-log ! job $1 ! job-status success !
-    	JOBTIME=$(prometrics-ts)
+        prometrics-job-end
+        JOBTIME=$(prometrics-ts)
         prometrics-job-success
         return 0
     else
+        prometrics-job-end
         run-job-log ! job $1 ! job-status failed  !
         return 1
     fi
