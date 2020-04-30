@@ -87,14 +87,21 @@ class LoraCache(object):
             # MO considers end-dates inclusive, we need to subtract a day
             to_date = (dt_to.date() - datetime.timedelta(days=1)).isoformat()
 
+        now = datetime.datetime.now(DEFAULT_TIMEZONE)
         # If this is an actual state export, we should only return a value if
         # the row is valid today.
         if not self.full_history:
-            now = datetime.datetime.now(DEFAULT_TIMEZONE)
             if to_date is None:
                 # In this case, make sure dt_to is bigger than now
                 dt_to = now + datetime.timedelta(days=1)
             if not dt_from < now < dt_to:
+                from_date = to_date = None
+
+        if self.skip_past:
+            if to_date is None:
+                # In this case, make sure dt_to is bigger than now
+                dt_to = now + datetime.timedelta(days=1)
+            if dt_to < now:
                 from_date = to_date = None
         return from_date, to_date
 
@@ -246,8 +253,12 @@ class LoraCache(object):
                 if from_date is None and to_date is None:
                     continue
                 relationer = effect[2]['relationer']
-                egenskaber = (effect[2]['attributter']
-                              ['organisationenhedegenskaber'][0])
+
+                orgegenskaber = (effect[2]['attributter']
+                                 ['organisationenhedegenskaber'])
+                if len(orgegenskaber) == 0:
+                    continue
+                egenskaber = orgegenskaber[0]
                 parent_raw = relationer['overordnet'][0]['uuid']
                 if parent_raw == self.org_uuid:
                     parent = None
@@ -827,8 +838,11 @@ class LoraCache(object):
                 self.engagements = pickle.load(f)
             with open(managers_file, 'rb') as f:
                 self.managers = pickle.load(f)
-            with open(associations_file, 'rb') as f:
-                self.associations = pickle.load(f)
+
+            if not skip_associations:
+                with open(associations_file, 'rb') as f:
+                    self.associations = pickle.load(f)
+
             with open(leaves_file, 'rb') as f:
                 self.leaves = pickle.load(f)
             with open(roles_file, 'rb') as f:
@@ -951,7 +965,7 @@ if __name__ == '__main__':
         filename=LOG_FILE
     )
 
-    lc = LoraCache(full_history=False, skip_past=False, resolve_dar=False)
+    lc = LoraCache(full_history=True, skip_past=True, resolve_dar=False)
     lc.populate_cache(dry_run=False)
 
     logger.info('Now calcualate derived data')
