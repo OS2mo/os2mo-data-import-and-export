@@ -323,6 +323,10 @@ class LoraCache(object):
                     scope = 'E-mail'
                     skip_len = len('urn:mailto:')
                     value = value_raw[skip_len:]
+                elif address_type == 'WWW':
+                    scope = 'Url'
+                    skip_len = len('urn:magenta.dk:www:')
+                    value = value_raw[skip_len:]
                 elif address_type == 'PHONE':
                     scope = 'Telefon'
                     skip_len = len('urn:magenta.dk:telefon:')
@@ -369,7 +373,7 @@ class LoraCache(object):
                                 self.dar_cache[dar_uuid] = {'betegelse': 'skip dar'}
                         value = self.dar_cache[dar_uuid].get('betegnelse')
                 else:
-                    print('Ny type: {}'.format())
+                    print('Ny type: {}'.format(address_type))
                     msg = 'Unknown addresse type: {}, value: {}'
                     logger.error(msg.format(address_type, value_raw))
                     raise('Unknown address type: {}'.format(address_type))
