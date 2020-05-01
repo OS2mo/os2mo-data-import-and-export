@@ -180,6 +180,8 @@ class ADWriter(AD):
             msg = 'Found no account for {}'.format(cpr)
             logger.error(msg)
             raise CprNotFoundInADException()
+        if len(ad_info) > 1:
+            raise CprNotNotUnique
         return ad_info
 
     def _find_unit_info(self, eng_org_unit):
