@@ -11,9 +11,10 @@ import time
 import logging
 import pathlib
 import datetime
+import argparse
 from anytree import PreOrderIter
-from os2mo_helpers.mora_helpers import MoraHelper
 
+from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
 
 LOG_LEVEL = logging.DEBUG
@@ -22,7 +23,7 @@ LOG_FILE = 'plan2learn.log'
 logger = logging.getLogger('plan2learn')
 
 for name in logging.root.manager.loggerDict:
-    if name in ('LoraCache',  'mora-helper'):
+    if name in ('LoraCache',  'mora-helper', 'plan2learn'):
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
         logging.getLogger(name).setLevel(logging.ERROR)
@@ -242,7 +243,8 @@ def export_engagement(mh, filename, eksporterede_afdelinger, brugere_rows,
                     continue
 
                 if engv['unit'] not in eksporterede_afdelinger:
-                    logger.info('Unit {} is not included in the export')
+                    msg = 'Unit {} is not included in the export'
+                    logger.info(msg.format(engv['unit']))
                     continue
 
                 if engv['engagement_type'] not in allowed_engagement_types:
@@ -287,6 +289,7 @@ def export_engagement(mh, filename, eksporterede_afdelinger, brugere_rows,
 
                 stilingskode_id = engv['job_function']
                 ACTIVE_JOB_FUNCTIONS.append(stilingskode_id)
+                eng_type = lc.classes[engv['engagement_type']]['title']
 
                 row = {
                     'EngagementId': engv['uuid'],
@@ -295,7 +298,7 @@ def export_engagement(mh, filename, eksporterede_afdelinger, brugere_rows,
                     'AktivStatus': aktiv_status,
                     'StillingskodeId': stilingskode_id,
                     'Primær': primær,
-                    'Engagementstype': engv['engagement_type'],
+                    'Engagementstype': eng_type,
                     'StartdatoEngagement': start_dato
                 }
                 rows.append(row)
@@ -435,33 +438,32 @@ def export_leder(mh, nodes, filename, eksporterede_afdelinger, lc=None):
     mh._write_csv(fieldnames, rows, filename)
 
 
-if __name__ == '__main__':
+def main(speedup):
     t = time.time()
 
     mh = MoraHelper(hostname=SETTINGS['mora.base'], export_ansi=False)
 
     dest_folder = pathlib.Path(SETTINGS['mora.folder.query_export'])
-
-    # root_unit = '35840e9c-4480-4300-8000-000006140002'  # Short test
     root_unit = SETTINGS['exporters.plan2learn.root_unit']
 
-    speed_up = True
-    if speed_up:
+    if speedup:
         # Here we should activate read-only mode, actual state and
         # full history dumps needs to be in sync.
 
         # Full history does not calculate derived data, we must
         # fetch both kinds.
         lc = LoraCache(resolve_dar=True, full_history=False)
-        lc.populate_cache(dry_run=True, skip_associations=True)
+        lc.populate_cache(dry_run=False, skip_associations=True)
         lc.calculate_derived_unit_data()
         lc.calculate_primary_engagements()
 
-        # Todo, in principle it should be possible to run with skip_past True
         lc_historic = LoraCache(resolve_dar=False, full_history=True,
                                 skip_past=True)
-        lc_historic.populate_cache(dry_run=True, skip_associations=True)
+        lc_historic.populate_cache(dry_run=False, skip_associations=True)
         # Here we should de-activate read-only mode
+    else:
+        lc = None
+        lc_historic = None
 
     # Todo: We need the nodes structure to keep a consistent output,
     # consider if the 70 seconds is worth the implementation.
@@ -500,3 +502,25 @@ if __name__ == '__main__':
     mh._write_csv(brugere_fieldnames, brugere_rows, filename)
 
     print('Export completed')
+
+
+def cli():
+    parser = argparse.ArgumentParser(description='Choose backend')
+    group = parser.add_mutually_exclusive_group(required=True)
+
+    group.add_argument('--lora',  action='store_true')
+    group.add_argument('--mo',  action='store_true')
+
+    args = vars(parser.parse_args())
+
+    logger.info('Starting with args: {}'.format(args))
+
+    if args['lora']:
+        main(speedup=True)
+
+    elif args['mo']:
+        main(speedup=False)
+
+
+if __name__ == '__main__':
+    cli()
