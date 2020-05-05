@@ -86,9 +86,9 @@ def export_bruger(mh, nodes, lc_historic):
                     for raw_address in lc_historic.addresses.values():
                         for addr_validity in raw_address:
                             if addr_validity['user'] == engv['user']:
-                                if addr_validity['scope'] == 'EMAIL':
+                                if addr_validity['scope'] == 'E-mail':
                                     address['E-mail'] = addr_validity['value']
-                                if addr_validity['scope'] == 'PHONE':
+                                if addr_validity['adresse_type'] == phone_type:
                                     address['Telefon'] = addr_validity['value']
 
                     if cpr in used_cprs:
@@ -270,9 +270,21 @@ def export_engagement(mh, filename, eksporterede_afdelinger, brugere_rows,
                 if engv['uuid'] in lc.engagements:
                     primary = lc.engagements[engv['uuid']][0]['primary_boolean']
                 else:
-                    # Todo, this we need to actually read from MO, no primary
-                    # information available in historic cache.
-                    primary = False
+                    # This is a future engagement, we accept that the LoRa cache will
+                    # not provide the answer and search in MO.
+                    mo_engagements = mh.read_user_engagement(
+                        employee['uuid'], read_all=True,
+                        skip_past=True, calculate_primary=True
+                    )
+                    primary = None
+                    for mo_eng in mo_engagements:
+                        if mo_eng['uuid'] == engv['uuid']:
+                            primary = mo_eng['is_primary']
+                    if primary is None:
+                        msg = 'Warning: Unable to find primary for {}!'
+                        logger.warning(msg.format(engv['uuid']))
+                        print(msg.format(engv['uuid']))
+                        primary = False
                 if primary:
                     primær = 1
                     for bruger in brugere_rows:
@@ -308,6 +320,9 @@ def export_engagement(mh, filename, eksporterede_afdelinger, brugere_rows,
             engagements = mh.read_user_engagement(employee['uuid'], read_all=True,
                                                   skip_past=True,
                                                   calculate_primary=True)
+            present_engagements = mh.read_user_engagement(employee['uuid'],
+                                                          read_all=False,
+                                                          calculate_primary=True)
             for eng in engagements:
                 if eng['org_unit']['uuid'] not in eksporterede_afdelinger:
                     # Denne afdeling er ikke med i afdelingseksport.
@@ -324,6 +339,7 @@ def export_engagement(mh, filename, eksporterede_afdelinger, brugere_rows,
                 valid_from = datetime.datetime.strptime(
                     eng['validity']['from'], '%Y-%m-%d'
                 )
+
                 active = valid_from < datetime.datetime.now()
                 if active:
                     aktiv_status = 1
@@ -335,12 +351,17 @@ def export_engagement(mh, filename, eksporterede_afdelinger, brugere_rows,
 
                 if eng['is_primary']:
                     primær = 1
-                    for bruger in brugere_rows:
-                        if bruger['BrugerId'] == employee['uuid']:
-                            if eng['extension_2']:
-                                bruger['Stilling'] = eng['extension_2']
-                            else:
-                                bruger['Stilling'] = eng['job_function']['name']
+
+                    for present_eng in present_engagements:
+                        if not present_eng['uuid'] == eng['uuid']:
+                            # This is a future engagement
+                            continue
+                        for bruger in brugere_rows:
+                            if bruger['BrugerId'] == employee['uuid']:
+                                if eng['extension_2']:
+                                    bruger['Stilling'] = eng['extension_2']
+                                else:
+                                    bruger['Stilling'] = eng['job_function']['name']
                 else:
                     primær = 0
 
@@ -438,7 +459,7 @@ def export_leder(mh, nodes, filename, eksporterede_afdelinger, lc=None):
     mh._write_csv(fieldnames, rows, filename)
 
 
-def main(speedup):
+def main(speedup, dry_run=False):
     t = time.time()
 
     mh = MoraHelper(hostname=SETTINGS['mora.base'], export_ansi=False)
@@ -453,13 +474,13 @@ def main(speedup):
         # Full history does not calculate derived data, we must
         # fetch both kinds.
         lc = LoraCache(resolve_dar=True, full_history=False)
-        lc.populate_cache(dry_run=False, skip_associations=True)
+        lc.populate_cache(dry_run=dry_run, skip_associations=True)
         lc.calculate_derived_unit_data()
         lc.calculate_primary_engagements()
 
         lc_historic = LoraCache(resolve_dar=False, full_history=True,
                                 skip_past=True)
-        lc_historic.populate_cache(dry_run=False, skip_associations=True)
+        lc_historic.populate_cache(dry_run=dry_run, skip_associations=True)
         # Here we should de-activate read-only mode
     else:
         lc = None
@@ -478,23 +499,28 @@ def main(speedup):
 
     brugere_rows = export_bruger(mh, nodes, lc_historic)
     print('Bruger: {}s'.format(time.time() - t))
+    logger.info('Bruger: {}s'.format(time.time() - t))
 
     filename = str(dest_folder / 'plan2learn_organisation.csv')
     eksporterede_afdelinger = export_organisation(mh, nodes, filename, lc)
     print('Organisation: {}s'.format(time.time() - t))
+    logger.info('Organisation: {}s'.format(time.time() - t))
 
     filename = str(dest_folder / 'plan2learn_engagement.csv')
     brugere_rows = export_engagement(mh, filename, eksporterede_afdelinger,
                                      brugere_rows, lc, lc_historic)
     print('Engagement: {}s'.format(time.time() - t))
+    logger.info('Engagement: {}s'.format(time.time() - t))
 
     filename = str(dest_folder / 'plan2learn_stillingskode.csv')
     export_stillingskode(mh, nodes, filename)
     print('Stillingskode: {}s'.format(time.time() - t))
+    logger.info('Stillingskode: {}s'.format(time.time() - t))
 
     filename = str(dest_folder / 'plan2learn_leder.csv')
     export_leder(mh, nodes, filename, eksporterede_afdelinger)
     print('Leder: {}s'.format(time.time() - t))
+    logger.info('Leder: {}s'.format(time.time() - t))
 
     # Now exported the now fully populated brugere.csv
     filename = str(dest_folder / 'plan2learn_bruger.csv')
@@ -502,6 +528,7 @@ def main(speedup):
     mh._write_csv(brugere_fieldnames, brugere_rows, filename)
 
     print('Export completed')
+    logger.info('Export completed')
 
 
 def cli():
@@ -510,16 +537,19 @@ def cli():
 
     group.add_argument('--lora',  action='store_true')
     group.add_argument('--mo',  action='store_true')
+    parser.add_argument('--dry-run',  action='store_true')
 
     args = vars(parser.parse_args())
 
     logger.info('Starting with args: {}'.format(args))
 
     if args['lora']:
-        main(speedup=True)
+        main(speedup=True, dry_run=args['dry_run'])
 
     elif args['mo']:
         main(speedup=False)
+    else:
+        print('Either --mo or --lora must be given as argument')
 
 
 if __name__ == '__main__':
