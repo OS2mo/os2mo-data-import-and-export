@@ -17,12 +17,28 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
 
 
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'viborg_externe.log'
+
+logger = logging.getLogger('viborg_externe')
+
+for name in logging.root.manager.loggerDict:
+    if name in ('LoraCache',  'mora-helper', 'viborg_externe'):
+        logging.getLogger(name).setLevel(LOG_LEVEL)
+    else:
+        logging.getLogger(name).setLevel(logging.ERROR)
+
+logging.basicConfig(
+    format='%(levelname)s %(asctime)s %(name)s %(message)s',
+    level=LOG_LEVEL,
+    filename=LOG_FILE
+)
+
+
 cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
 SETTINGS = json.loads(cfg_file.read_text())
-
-logger = logging.getLogger(__name__)
 
 
 def export_engagement(mh: MoraHelper, filename, lc, lc_historic):
@@ -164,7 +180,7 @@ def _find_manager_email(manager, mora_helper: MoraHelper):
     return email
 
 
-def main(speedup):
+def main(speedup, dry_run=False):
     logger.info('Starting export')
 
     mora_base = SETTINGS['mora.base']
@@ -187,12 +203,12 @@ def main(speedup):
         # Full history does not calculate derived data, we must
         # fetch both kinds.
         lc = LoraCache(resolve_dar=True, full_history=False)
-        lc.populate_cache(dry_run=True, skip_associations=True)
+        lc.populate_cache(dry_run=dry_run, skip_associations=True)
         lc.calculate_derived_unit_data()
 
         lc_historic = LoraCache(resolve_dar=False, full_history=True,
                                 skip_past=True)
-        lc_historic.populate_cache(dry_run=True, skip_associations=True)
+        lc_historic.populate_cache(dry_run=dry_run, skip_associations=True)
         # Here we should de-activate read-only mode
     else:
         lc = None
@@ -210,17 +226,19 @@ def cli():
 
     group.add_argument('--lora',  action='store_true')
     group.add_argument('--mo',  action='store_true')
+    parser.add_argument('--dry-run',  action='store_true')
 
     args = vars(parser.parse_args())
 
     logger.info('Starting with args: {}'.format(args))
 
     if args['lora']:
-        main(speedup=True)
+        main(speedup=True, dry_run=args['dry_run'])
 
     elif args['mo']:
         main(speedup=False)
-
+    else:
+        print('Either --mo or --lora must be given as argument')
 
 if __name__ == '__main__':
     cli()
