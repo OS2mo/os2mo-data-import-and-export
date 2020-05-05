@@ -370,7 +370,7 @@ class ADWriter(AD):
         addresses = self._read_user_addresses(eng_org_unit)
 
         postal_code = city = streetname = 'Ukendt'
-        if addresses['postal']:
+        if addresses.get('postal'):
             postal = addresses['postal']
             try:
                 postal_code = re.findall('[0-9]{4}', postal['Adresse'])[0]
@@ -378,6 +378,8 @@ class ADWriter(AD):
                 city = postal['Adresse'][city_pos:]
                 streetname = postal['Adresse'][:city_pos - 7]
             except IndexError:
+                logger.error('Unable to read adresse from MO (no access to DAR?)')
+            except TypeError:
                 logger.error('Unable to read adresse from MO (no access to DAR?)')
 
         manager_info = {
