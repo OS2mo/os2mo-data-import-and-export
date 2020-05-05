@@ -409,7 +409,8 @@ class LoraCache(object):
             'relationer': ('opgaver', 'tilknyttedeenheder', 'tilknyttedebrugere',
                            'organisatoriskfunktionstype', 'primær'),
             'attributter': ('organisationfunktionegenskaber',
-                            'organisationfunktionudvidelser')
+                            'organisationfunktionudvidelser'),
+            'tilstande': ('organisationfunktiongyldighed',)
         }
         url = '/organisation/organisationfunktion'
         engagements = {}
@@ -422,6 +423,13 @@ class LoraCache(object):
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 if from_date is None and to_date is None:
+                    continue
+
+                # Todo, this should be consistently implemented for all objects
+                gyldighed = effect[2]['tilstande']['organisationfunktiongyldighed']
+                if not gyldighed:
+                    continue
+                if not gyldighed[0]['gyldighed'] == 'Aktiv':
                     continue
 
                 attr = effect[2]['attributter']
