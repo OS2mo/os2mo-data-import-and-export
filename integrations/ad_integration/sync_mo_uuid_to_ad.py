@@ -47,7 +47,9 @@ class SyncMoUuidToAd(AD):
 
     def _search_mo_cpr(self, cpr):
         # Todo, add this to MoraHelper.
-        user = self.helper._mo_lookup(self.org_uuid, 'o/{}/e?query=' + cpr)
+        user = {'items': []}
+        if cpr is not None:
+            user = self.helper._mo_lookup(self.org_uuid, 'o/{}/e?query=' + cpr)
         if not len(user['items']) == 1:
             uuid = None
         else:
