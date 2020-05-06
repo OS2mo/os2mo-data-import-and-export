@@ -33,7 +33,7 @@ def main():
 
         # Full history does not calculate derived data, we must
         # fetch both kinds.
-        lc = LoraCache(resolve_dar=True, full_history=False)
+        lc = LoraCache(resolve_dar=False, full_history=False)
         lc.populate_cache(dry_run=False, skip_associations=True)
         lc.calculate_derived_unit_data()
         lc.calculate_primary_engagements()
@@ -60,8 +60,10 @@ def main():
     stats = {
         'attempted_users': 0,
         'fully_synced': 0,
+        'nothing_to_edit': 0,
         'updated': 0,
         'no_manager': 0,
+        'unknown_manager_failure': 0,
         'cpr_not_unique': 0,
         'user_not_in_mo': 0,
         'user_not_in_ad': 0,
@@ -89,13 +91,21 @@ def main():
                 stats['fully_synced'] += 1
                 if response[1] == 'Sync completed':
                     stats['updated'] += 1
+                    if response[2] == False:
+                        stats['no_manager'] += 1
+
+                if response[1] == 'Nothing to edit':
+                    stats['nothing_to_edit'] += 1
+                    if response[2] == False:
+                        stats['no_manager'] += 1
+
             else:
                 if response[1] == 'No active engagments':
                     stats['no_active_engagement'] += 1
                 else:
                     stats['unknown_failed_sync'] += 1
         except ManagerNotUniqueFromCprException:
-            stats['no_manager'] += 1
+            stats['unknown_manager_failure'] += 1
             msg = 'Did not find a unique manager for {}'.format(user[mo_uuid_field])
             logger.error(msg)
         except CprNotNotUnique:
