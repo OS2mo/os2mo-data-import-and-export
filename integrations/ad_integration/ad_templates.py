@@ -62,3 +62,9 @@ Set-ADUser -Credential $usercredential
  -SurName "{surname}"
  -EmployeeNumber "{employment_number}"
 """
+
+rename_user_template = """
+Get-ADUser -Filter 'SamAccountName -eq \"{sam_account_name}\"'
+            -Credential $usercredential |
+Rename-ADobject -Credential $usercredential -NewName "{givenname} {surname} - {sam_account_name}"
+"""
