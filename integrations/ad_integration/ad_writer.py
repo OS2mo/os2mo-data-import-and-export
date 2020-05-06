@@ -390,22 +390,26 @@ class ADWriter(AD):
         }
         if read_manager:
             if self.lc:
-                manager_uuid = self.lc.managers[
-                    self.lc.units[eng_org_unit][0]['acting_manager_uuid']][0]['user']
-                parent_uuid = self.lc.units[eng_org_unit][0]['parent']
-                while manager_uuid == mo_user['uuid']:
-                    if parent_uuid is None:
-                        logger.info('This person has no manager!')
-                        read_manager = False
-                        break
-
-                    logger.info('Self manager, keep searching: {}!'.format(mo_user))
-                    parent_unit = self.lc.units[parent_uuid][0]
+                try:
                     manager_uuid = self.lc.managers[
-                        parent_unit['acting_manager_uuid']][0]['user']
+                        self.lc.units[eng_org_unit][0]['acting_manager_uuid']][0]['user']
+                    parent_uuid = self.lc.units[eng_org_unit][0]['parent']
+                    while manager_uuid == mo_user['uuid']:
+                        if parent_uuid is None:
+                            logger.info('This person has no manager!')
+                            read_manager = False
+                            break
 
-                    parent_uuid = self.lc.units[parent_uuid][0]['parent']
+                        logger.info('Self manager, keep searching: {}!'.format(mo_user))
+                        parent_unit = self.lc.units[parent_uuid][0]
+                        manager_uuid = self.lc.managers[
+                            parent_unit['acting_manager_uuid']][0]['user']
 
+                        parent_uuid = self.lc.units[parent_uuid][0]['parent']
+                except KeyError:
+                    # TODO: Report back that manager was not found!
+                    logger.info('No managers found')
+                    read_manager = False
             else:
                 try:
                     manager = self.helper.read_engagement_manager(eng_uuid)
@@ -444,6 +448,7 @@ class ADWriter(AD):
                 raise ManagerNotUniqueFromCprException()
 
         mo_values = {
+            'read_manager': read_manager,
             'name': (mo_user['givenname'], mo_user['surname']),
             'full_name': '{} {}'.format(mo_user['givenname'], mo_user['surname']),
             'employment_number': employment_number,
@@ -517,6 +522,7 @@ class ADWriter(AD):
                                  mo_values['level2orgunit'], ad))
         mismatch.update(self._cf(write_settings['org_field'],
                                  mo_values['location'], ad))
+        mismatch.update(self._cf('Name', mo_values['name_sam'], ad))
         mismatch.update(self._cf('DisplayName', mo_values['full_name'], ad))
         mismatch.update(self._cf('GivenName', mo_values['name'][0], ad))
         mismatch.update(self._cf('Surname', mo_values['name'][1], ad))
@@ -561,9 +567,38 @@ class ADWriter(AD):
 
         logger.debug('Sync compare: {}'.format(mismatch))
 
+        if 'Name' in mismatch:
+            logger.info('Rename user:')
+            # Todo: This code is a duplicate of code 15 lines further down...
+            rename_user_template = ad_templates.rename_user_template
+            rename_user_string = rename_user_template.format(
+                givenname=mo_values['name'][0],
+                surname=mo_values['name'][1],
+                sam_account_name=user_sam
+            )
+            rename_user_string = self.remove_redundant(rename_user_string)
+            server_string = ''
+            if self.all_settings['global'].get('servers') is not None:
+                server_string = ' -Server {} '.format(
+                    random.choice(self.all_settings['global']['servers'])
+                )
+            ps_script = (
+                self._build_user_credential(school) +
+                rename_user_string +
+                server_string
+            )
+            logger.debug('Rename user, ps_script: {}'.format(ps_script))
+            response = self._run_ps_script(ps_script)
+            logger.debug('Response from sync: {}'.format(response))
+            logger.debug('Wait for replication')
+            # Todo: In principle we should ask all DCs, bu this will happen
+            # very rarely, performance is not of great importance
+            time.sleep(10)
+            del mismatch['Name']
+
         if not mismatch:
-            logger.info('Nothig to edit')
-            return (True, 'Nothing to edit')
+            logger.info('Nothing to edit')
+            return (True, 'Nothing to edit', mo_values['read_manager'])
 
         logger.info('Sync compare: {}'.format(mismatch))
         edit_user_template = ad_templates.edit_user_template
@@ -596,10 +631,11 @@ class ADWriter(AD):
         logger.debug('Response from sync: {}'.format(response))
 
         if sync_manager and 'manager' in mismatch:
+            logger.info('Add manager')
             self.add_manager_to_user(user_sam=user_sam,
                                      manager_sam=mo_values['manager_sam'])
 
-        return (True, 'Sync completed')
+        return (True, 'Sync completed', mo_values['read_manager'])
 
     def create_user(self, mo_uuid, create_manager, dry_run=False):
         """
