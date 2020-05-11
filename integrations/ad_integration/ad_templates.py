@@ -22,6 +22,14 @@ Get-ADUser -Filter 'SamAccountName -eq \"{username}\"'
 Enable-ADAccount -Credential $usercredential
 """
 
+# Disable AD account
+disable_user_template = """
+Get-ADUser -Filter 'SamAccountName -eq \"{username}\"'
+            -Credential $usercredential |
+Disable-ADAccount -Credential $usercredential
+"""
+
+
 # Create user
 create_user_template = """
 New-ADUser
