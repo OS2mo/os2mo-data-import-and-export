@@ -27,27 +27,25 @@ class AdLifeCycle(object):
         self.org = self.helper.read_organisation()
 
         self.ad_reader = ad_reader.ADParameterReader(skip_school=True)
-        self.ad_writer = ad_writer.ADWriter()
-        print('Retrive AD dump')
-        self.ad_reader.cache_all()
-        print('Done')
-        logger.info('Done with AD caching')
-
-        # This is a list of current and future engagemetns, sorted by user
-        self.user_engagements = {}
-        for eng in self.lc_historic.engagements.values():
-            if eng[0]['user'] in self.user_engagements:
-                self.user_engagements[eng[0]['user']].append(eng[0])
-            else:
-                self.user_engagements[eng[0]['user']] = [eng[0]]
 
         self.stats = {
             'created_users': 0,
             'users': set()
         }
-        print('__init__() done')
+        logger.info('__init__() done')
 
-    def _update_lora_cache(self, dry_run=False):
+    def _update_ad_and_lora_cache(self, dry_run=False):
+        """
+        Read all information from AD and LoRa.
+        :param dry_run: If True, LoRa dump will be read from cache.
+        """
+        # This is a slow step (since ADWriter reads all SAM names in __init__
+        self.ad_writer = ad_writer.ADWriter()
+
+        logger.info('Retrive AD dump')
+        self.ad_reader.cache_all()
+        logger.info('Done with AD caching')
+
         logger.info('Retrive LoRa dump')
         self.lc = LoraCache(resolve_dar=False, full_history=False)
         self.lc.populate_cache(dry_run=dry_run, skip_associations=True)
@@ -56,6 +54,13 @@ class AdLifeCycle(object):
                                      skip_past=True)
         self.lc_historic.populate_cache(dry_run=dry_run, skip_associations=True)
         logger.info('Done')
+        # This is a list of current and future engagemetns, sorted by user
+        self.user_engagements = {}
+        for eng in self.lc_historic.engagements.values():
+            if eng[0]['user'] in self.user_engagements:
+                self.user_engagements[eng[0]['user']].append(eng[0])
+            else:
+                self.user_engagements[eng[0]['user']] = [eng[0]]
 
     def _find_user_unit_tree(self, user):
         user_engagements = self.user_engagements[user['uuid']]
@@ -185,7 +190,11 @@ class AdLifeCycle(object):
 
         logger.info('Starting with args: {}'.format(args))
 
-        self._update_lora_cache(dry_run=args['dry_run'])
+        if not (args['create_ad_accounts'] or  args['create_ad_accounts']):
+            print('At least one of create or disable commands must be given')
+            exit()
+        
+        self._update_ad_and_lora_cache(dry_run=args['dry_run'])
 
         if args['create_ad_accounts']:
             self.create_ad_accounts()
