@@ -392,7 +392,9 @@ class ADWriter(AD):
             if self.lc:
                 try:
                     manager_uuid = self.lc.managers[
-                        self.lc.units[eng_org_unit][0]['acting_manager_uuid']][0]['user']
+                        self.lc.units[eng_org_unit][0]['acting_manager_uuid']
+                    ][0]['user']
+
                     parent_uuid = self.lc.units[eng_org_unit][0]['parent']
                     while manager_uuid == mo_user['uuid']:
                         if parent_uuid is None:
@@ -400,7 +402,8 @@ class ADWriter(AD):
                             read_manager = False
                             break
 
-                        logger.info('Self manager, keep searching: {}!'.format(mo_user))
+                        msg = 'Self manager, keep searching: {}!'
+                        logger.info(msg.format(mo_user))
                         parent_unit = self.lc.units[parent_uuid][0]
                         manager_uuid = self.lc.managers[
                             parent_unit['acting_manager_uuid']][0]['user']
@@ -736,21 +739,28 @@ class ADWriter(AD):
             logger.error(msg)
             return (False, msg)
 
-    def enable_user(self, username):
+    def enable_user(self, username, enable=True):
         """
-        Disable an AD account.
-        :param username: SamAccountName of the account to be disabled
+        Enable or disable an AD account.
+        :param username: SamAccountName of the account to be enabled or disabled
+        :param enable: If True enable account, if False, disbale account
         """
         school = False  # TODO
 
+        logger.info('Enable account: {}'.format(enable))
         format_rules = {'username': username}
-        ps_script = self._build_ps(ad_templates.enable_user_template,
-                                   school, format_rules)
+        if enable:
+            ps_script = self._build_ps(ad_templates.enable_user_template,
+                                       school, format_rules)
+        else:
+            ps_script = self._build_ps(ad_templates.disable_user_template,
+                                       school, format_rules)
+
         response = self._run_ps_script(ps_script)
         if not response:
-            return (True, 'Account enabled')
+            return (True, 'Account enabled or disabled')
         else:
-            msg = 'Failed to set enable account!: {}'.format(response)
+            msg = 'Failed to update account!: {}'.format(response)
             logger.error(msg)
             return (False, msg)
 
