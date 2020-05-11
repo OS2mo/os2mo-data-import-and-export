@@ -183,6 +183,9 @@ skal være sat når programmet afvikles:
  * ``integrations.ad.write.level2orgunit_type``: uuid på den enhedstype som angiver
    at enheden er en organisatorisk hovedgruppering og derfor skal skrives i feltet
    angivet i ``integrations.ad.write.level2orgunit_field``.
+ * ``integrations.ad.write.create_user_trees``: Liste over uuid'er på enheder,
+   medarbejdere i disse enheder samt deres underheder, vil få oprettet AD en
+   konto af scriptet `ad_life_cycle.py` hvis de ikke har en i forvejen.
 
 
 Skabelse af brugernavne
@@ -507,6 +510,7 @@ Følgende funktionaliteter har deres eget kommandolinjeværktøj som gør det mu
 anvende dem uden at rette direkte i Python koden:
 
  * ``ad_writer.py``
+ * ``ad_life_cycle.py``
  * ``execute_ad_script.py``
  * ``user_names.py``
 
@@ -575,6 +579,39 @@ De forskellige muligheder gennemgås her en ad gangen:
    ManagerSAM.
 
 
+ad_life_cycle.py
+++++++++++++++++
+
+Dette værktøj kan afhængig af de valgte parametre oprette eller deaktivere AD-konti
+på brugere som henholdsvis findes i MO men ikke i AD, eller findes i AD, men ikke
+har aktive engagementer i MO.
+
+::
+   usage: ad_life_cycle.py [-h]
+                           [--create-ad-accounts] [--disable-ad-accounts]
+                           [--dry-run]
+
+Betydningen af disse parametre angives herunder, det er muligt at afvilke begge
+synkroniseringer i samme kørsel ved at angive begge parametre.
+			   
+ * --create-ad-accounts
+
+   Opret AD brugere til MO brugere som ikke i forvejen findes i AD efter de
+   regler som er angivet i settings-nøglen
+   ``integrations.ad.write.create_user_trees``.
+
+ * --disable-ad-accounts
+
+   Sæt status til Disabled for AD konti hvor den tilhøende MO bruge ikke længere
+   har et aktivt engagement.
+			   
+ * --dry-run
+
+   Programmet vil ikke forsøge at opdatere sit billede af MO, en vil anvende
+   den aktuelt cache'de værdi. Dette kan være nyttigt til udvikling, eller
+   hvis flere integrationer køres umidelbart efter hinanden.
+
+   
 execute_ad_script.py
 ++++++++++++++++++++
 
