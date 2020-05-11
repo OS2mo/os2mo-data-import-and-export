@@ -190,7 +190,7 @@ class AdLifeCycle(object):
 
         logger.info('Starting with args: {}'.format(args))
 
-        if not (args['create_ad_accounts'] or  args['create_ad_accounts']):
+        if not (args['create_ad_accounts'] or args['disable_ad_accounts']):
             print('At least one of create or disable commands must be given')
             exit()
         
