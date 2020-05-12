@@ -75,10 +75,10 @@ if __name__ == '__main__':
     mo_root = dest_folder / 'mo_generated'
 
     tests = [
-        # ('plan2learn_organisation.csv', 'AfdelingsID', None),
-        # ('plan2learn_engagement.csv', 'EngagementId', None),
-        # ('plan2learn_stillingskode.csv', 'StillingskodeID', None),
-        # ('plan2learn_bruger.csv', 'BrugerIdID', None),
+        ('plan2learn_organisation.csv', 'AfdelingsID', None),
+        ('plan2learn_engagement.csv', 'EngagementId', None),
+        ('plan2learn_stillingskode.csv', 'StillingskodeID', None),
+        ('plan2learn_bruger.csv', 'BrugerId', None),
         ('viborg_externe.csv', 'Tjenestenummer', None)
     ]
 
