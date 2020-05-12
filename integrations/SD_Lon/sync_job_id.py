@@ -108,7 +108,11 @@ class JobIdSync(object):
         params = {
             'JobPositionIdentifier': job_pos_id,
         }
-        job_pos_response = sd_lookup('GetProfession20080201', params)
+        try:
+            job_pos_response = sd_lookup('GetProfession20080201', params)
+        except:
+            logger.info('This job_position could not be found in SD')
+            return None
         job_pos = None
         while 'Profession' in job_pos_response:
             job_pos = job_pos_response['Profession']['JobPositionName']
