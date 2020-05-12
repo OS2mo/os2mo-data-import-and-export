@@ -284,9 +284,9 @@ Overordnet foregår opstart af en ny SD import efter dette mønster:
 1. Kør importværktøjet med fuld historik (dette er standard opførsel).
 2. Kør en inledende ChangedAt for at hente alle kendte fremtidige ændringer og
    intitialisere den lokale database over kørsler.
-3. Kør sd_changed_at.py periodisk (eksempelvis dagligt). Hvis enhederne har ændret
-   sig, er det nødvendigt først at køre sd_fix_organisation.py før hver kørsel.
-
+3. Kør sd_changed_at.py periodisk (eksempelvis dagligt).
+4. Eventuelt synkroisering af stillingsbetegnelser.
+5. Eventuelt synkronisering fra AD.
    
 1. Kør importværktøjet
 ----------------------
@@ -359,7 +359,23 @@ Daglige indlæsninger foregår som nævnt også med programmet `sd_changed_at.py
 hvilket foregår ved at sætte `init` til `False` og køre programmet uden yderligere
 parametre. Programmet vil så spørge ChangedAt.db_ om hvorår der sidst blev
 synkroniseret, og vil herefter synkronisere yderligere en dag frem i tiden.
-   
+
+4. Eventuelt synkroisering af stillingsbetegnelser
+--------------------------------------------------
+
+Hvis nøglen  * ``integrations.SD_Lon.job_function`` er valgt til `JobPositionIdentifier`,
+vil alle stillingsbetegnelser nu være talværdier fra SD Løns klassificerede
+stillinger, for at få læsbare stillinger skal disse synkroniseres ved hjælp af
+værktøjet ``sync_job_id.py`` (se ovenfor).
+
+
+5. Eventuelt synkronisering fra AD
+----------------------------------
+
+Hvis det ønskes at synkronisere adresser fra AD, skal scriptet ``ad_sync.py``
+afvikles, settings til dette er beskrevet i afsnittet `Integration til Active Directory`_
+
+
 .. _Ledere i SD Løn:
 
 Ledere
