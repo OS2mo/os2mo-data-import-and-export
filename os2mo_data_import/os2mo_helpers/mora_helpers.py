@@ -528,7 +528,7 @@ class MoraHelper(object):
                 'Org-enhed UUID': person['org_unit']['uuid'],
                 'Engagement UUID': person['uuid'],
                 'User Key': person['user_key'],
-                'Titel': person['extension_2']
+                'Titel': person['extension_2'] if 'extension_2' in person else ''
             }
             if 'job_function' in person:
                 data['Stillingsbetegnelse'] = person['job_function']['name']
