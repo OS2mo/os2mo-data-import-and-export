@@ -40,7 +40,9 @@ I dette udtræk eksporteres disse felter:
  * `Navn`: Brugerens fulde navn, ikke opdelt i fornavn og efteranvn
  * `E-mail`: Hvis brugeren har en email i MO, angives den her.
  * `Mobil`: Hvis brugeren har en mobiltelefon i MO, angives den her.
- * `Stilling`: Stillingsbetegnelse for brugerens primærengagement.
+ * `Stilling`: Stillingsbetegnelse for brugerens primærengagement. Hvis dette
+   engagement har en stillingsbetegnelse skrevet i feltet extension_2 anvendes
+   dette, og ellers anvendes stillingsbetegnelsen fra engagementet.
 
 Mobiltelefon genkenes via en besemt klasse under adressetype, denne klasse er
 for nuværende hårdkodet direkte i python filen, men vil på sigt blive flyttet til
