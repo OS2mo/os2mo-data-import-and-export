@@ -8,6 +8,7 @@ Helper class to make a number of pre-defined queries into MO
 """
 import json
 import time
+import pickle
 import logging
 import pathlib
 import datetime
@@ -317,6 +318,7 @@ def export_engagement(mh, filename, eksporterede_afdelinger, brugere_rows,
     else:
         employees = mh.read_all_users()
         for employee in employees:
+            logger.info('Read engagements for {}'.format(employee))
             engagements = mh.read_user_engagement(employee['uuid'], read_all=True,
                                                   skip_past=True,
                                                   calculate_primary=True)
@@ -335,27 +337,41 @@ def export_engagement(mh, filename, eksporterede_afdelinger, brugere_rows,
                 if eng['uuid'] in exported_engagements:
                     continue
                 exported_engagements.append(eng['uuid'])
+                logger.info('New line in file: {}'.format(eng))
 
                 valid_from = datetime.datetime.strptime(
                     eng['validity']['from'], '%Y-%m-%d'
                 )
 
                 active = valid_from < datetime.datetime.now()
+                logger.info('Active status: {}'.format(active))
                 if active:
                     aktiv_status = 1
                     start_dato = ''
                 else:
-                    # Currently we always set engagment to active, even if it is not.
+                    # Currently we always set engagement to active, even if it
+                    # is not.
                     aktiv_status = 1
                     start_dato = eng['validity']['from']
 
                 if eng['is_primary']:
                     primær = 1
 
-                    for present_eng in present_engagements:
-                        if not present_eng['uuid'] == eng['uuid']:
-                            # This is a future engagement
-                            continue
+                    # If we have a present engagement, make sure this is the
+                    # one we use.
+                    if present_engagements:
+                        for present_eng in present_engagements:
+                            if not present_eng['uuid'] == eng['uuid']:
+                                # This is a future engagement
+                                continue
+                            for bruger in brugere_rows:
+                                if bruger['BrugerId'] == employee['uuid']:
+                                    if eng['extension_2']:
+                                        bruger['Stilling'] = eng['extension_2']
+                                    else:
+                                        bruger['Stilling'] = eng[
+                                            'job_function']['name']
+                    else:
                         for bruger in brugere_rows:
                             if bruger['BrugerId'] == employee['uuid']:
                                 if eng['extension_2']:
@@ -488,14 +504,14 @@ def main(speedup, dry_run=False):
 
     # Todo: We need the nodes structure to keep a consistent output,
     # consider if the 70 seconds is worth the implementation.
-    import pickle  # Development hack, remove before merge
-    nodes_file = 'tmp/nodes.p'
-    with open(nodes_file, 'rb') as f:
-        nodes = pickle.load(f)
-    # nodes = mh.read_ou_tree(root_unit)
-    # print('Read nodes: {}s'.format(time.time() - t))
-    # with open(nodes_file, 'wb') as f:
-    #    pickle.dump(nodes, f, pickle.HIGHEST_PROTOCOL)
+
+    # nodes_file = 'tmp/nodes.p'   # Development hack, remove before merge
+    # with open(nodes_file, 'rb') as f:
+    #     nodes = pickle.load(f)
+    nodes = mh.read_ou_tree(root_unit)
+    print('Read nodes: {}s'.format(time.time() - t))
+    with open(nodes_file, 'wb') as f:
+        pickle.dump(nodes, f, pickle.HIGHEST_PROTOCOL)
 
     brugere_rows = export_bruger(mh, nodes, lc_historic)
     print('Bruger: {}s'.format(time.time() - t))
