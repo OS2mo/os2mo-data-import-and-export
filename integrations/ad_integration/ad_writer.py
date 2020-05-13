@@ -333,6 +333,7 @@ class ADWriter(AD):
         logger.info('Read information for {}'.format(uuid))
         mo_user = self._read_user(uuid)
 
+        force_mo = False
         no_active_engagements = True
         if self.lc:
             for eng in self.lc.engagements.values():
@@ -344,9 +345,15 @@ class ADWriter(AD):
                         title = self.lc.classes[eng[0]['job_function']]['title']
                         eng_org_unit = eng[0]['unit']
                         eng_uuid = eng[0]['uuid']
-        else:
+            if no_active_engagements:
+                for eng in self.lc_historic.engagements.values():
+                    if eng[0]['user'] == uuid:
+                        logger.info('Found future engagement')
+                        force_mo = True
+
+        if force_mo or not self.lc:
             engagements = self.helper.read_user_engagement(
-                uuid, calculate_primary=True)
+                uuid, calculate_primary=True, read_all=True, skip_past=True)
             found_primary = False
             for engagement in engagements:
                 no_active_engagements = False
@@ -655,6 +662,9 @@ class ADWriter(AD):
 
         bp = self._ps_boiler_plate(school)
         mo_values = self.read_ad_information_from_mo(mo_uuid, create_manager)
+        if mo_values is None:
+            logger.error('Trying to create user with no engagements')
+            raise NoPrimaryEngagementException
 
         all_names = mo_values['name'][0].split(' ') + [mo_values['name'][1]]
         sam_account_name = self.name_creator.create_username(all_names,
