@@ -9,6 +9,8 @@ from integrations.ad_integration import ad_logger
 from integrations.ad_integration import ad_writer
 from exporters.sql_export.lora_cache import LoraCache
 
+from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException
+
 
 logger = logging.getLogger('CreateAdUsers')
 
@@ -29,6 +31,8 @@ class AdLifeCycle(object):
         self.ad_reader = ad_reader.ADParameterReader(skip_school=True)
 
         self.stats = {
+            'critical_errors': 0,
+            'engagement_not_found': 0,
             'created_users': 0,
             'users': set()
         }
@@ -80,7 +84,6 @@ class AdLifeCycle(object):
                         unit = self.lc.units[unit['parent']][0]
             else:
                 logger.info('Future engagement, look in MO')
-                print('Back to the future')
                 # This is a future engagement, we accept that the LoRa cache will
                 # not provide the answer and search in MO.
                 mo_engagements = self.helper.read_user_engagement(
@@ -142,7 +145,7 @@ class AdLifeCycle(object):
         """
         i = 0
         for employee in self.lc.users.values():
-            # print(employee)
+            logger.debug('Now testing: {}'.format(employee))
             i = i + 1
             if i % 1000 == 0:
                 print('Progress: {}/{}'.format(i, len(self.lc.users)))
@@ -165,14 +168,21 @@ class AdLifeCycle(object):
 
             if create_account:
                 logger.info('Create account for {}'.format(employee))
-                self.stats['created_users'] += 1
-                self.stats['users'].add(employee['uuid'])
                 # Create user without manager to avoid risk of failing
                 # if manager is not yet in AD. The manager will be attached
                 # by the next round of sync.
-                status = self.ad_writer.create_user(employee['uuid'],
-                                                    create_manager=False)
-                logger.info('New username: {}'.format(status[1]))
+                try:
+                    status = self.ad_writer.create_user(employee['uuid'],
+                                                        create_manager=False)
+                    logger.info('New username: {}'.format(status[1]))
+                    self.stats['created_users'] += 1
+                    self.stats['users'].add(employee['uuid'])
+                except NoPrimaryEngagementException:
+                    logger.error('No engagment found!!!')
+                    self.stats['engagement_not_found'] += 1
+                except:
+                    self.stats['critical_errors'] += 1
+                    logger.exception('Unknown error!')
 
         logger.info('Stats: {}'.format(self.stats))
         self.stats['users'] = 'Written in log file'
@@ -183,7 +193,7 @@ class AdLifeCycle(object):
 
         parser.add_argument('--create-ad-accounts',  action='store_true')
         parser.add_argument('--disable-ad-accounts',  action='store_true')
-        parser.add_argument('--dry-run',  action='store_true',
+        parser.add_argument('--use-cached-mo',  action='store_true',
                             help='Use cached LoRa data, AD WILL be updated')
 
         args = vars(parser.parse_args())
@@ -194,13 +204,13 @@ class AdLifeCycle(object):
             print('At least one of create or disable commands must be given')
             exit()
         
-        self._update_ad_and_lora_cache(dry_run=args['dry_run'])
+        self._update_ad_and_lora_cache(dry_run=args['use_cached_mo'])
 
         if args['create_ad_accounts']:
             self.create_ad_accounts()
 
-        if args['create_ad_accounts']:
-            self.create_ad_accounts()
+        if args['disable_ad_accounts']:
+            self.disable_ad_accounts()
 
 
 if __name__ == '__main__':
