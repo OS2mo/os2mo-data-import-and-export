@@ -248,7 +248,7 @@ exports_viborg_emus(){
 exports_viborg_eksterne(){
     set -e
     echo "running viborgs eksterne"
-    ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py || exit 1
+    ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py --lora|| exit 1
     $(
         SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
         SETTING_PREFIX="integrations.ad" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -309,7 +309,7 @@ exports_plan2learn(){
 	organisation
 	stillingskode
     )
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py --lora
     
     (
         # get OUT_DIR and EXPORTS_DIR
