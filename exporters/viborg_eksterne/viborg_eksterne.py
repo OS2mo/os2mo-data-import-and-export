@@ -226,14 +226,14 @@ def cli():
 
     group.add_argument('--lora',  action='store_true')
     group.add_argument('--mo',  action='store_true')
-    parser.add_argument('--dry-run',  action='store_true')
+    parser.add_argument('--read-from-cache',  action='store_true')
 
     args = vars(parser.parse_args())
 
     logger.info('Starting with args: {}'.format(args))
 
     if args['lora']:
-        main(speedup=True, dry_run=args['dry_run'])
+        main(speedup=True, dry_run=args['read_from_cache'])
 
     elif args['mo']:
         main(speedup=False)

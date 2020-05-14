@@ -1,11 +1,11 @@
 """
 Dette modul er et simpelt værktøj som kan anvendes til manuel verificering af at
 de eksporterede data fra viborg_externe og plan2learn eksporten er den samme ved
-anvedelse af MO og LoRa backends. Testen foregår ved at der (manuelt) lavet
+anvedelse af MO og LoRa backends. Testen foregår ved at der (manuelt) laves
 datasæt med hver af de to backends hvorefter dette værktøj sammenligner de
 producerede filer og melde tilbage om hvilke forskelle der er er fundet. I den
-ideele verden er alle forskelle nul. I øjeblikket (maj 2020) er der dog enkelte
-forskelle som stammer fra en bug som MO som i enkelte tilfælde udregner et forkert
+ideele verden findes der ingen forskelle. I øjeblikket (maj 2020) er der dog enkelte
+forskelle som stammer fra en bug i MO som i enkelte tilfælde udregner et forkert
 primærengagement.
 """
 
