@@ -14,7 +14,13 @@ Forbindelsesoplysninger på ftp-serveren angives i `settings.json` via tre nøgl
  * `exporters.plan2learn.user`
  * `exporters.plan2learn.password`
 
+Værktøjet har mulighed for at anvende to forskellige backends til at hente data:
+de kan hentes fra MO, eller direkte fra LoRa via LoRa-cache-mekanisme som også
+anvendes i andre eksportmoduler. LoRa-cache udgaven er langt den hurtigste og MO
+backenden er hovedsageligt bibeholdt for at kunne foretage en sammenligning mellem
+de to backends med henblik på fejlfinding.
 
+   
 Implementeringsstrategi
 =======================
 
