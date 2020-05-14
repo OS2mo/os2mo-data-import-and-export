@@ -31,8 +31,8 @@ For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
    som angiver at en leder kan nedarve sin lederrolle til enheder dybere i
    organisationen.
  * ``exporters.actual_state.type``: Typen af database, i øjeblikket understøttes
-   `SQLite` og `MS-SQL`, flere kan tilføjes efter behov. For typen `SQLite` kan
-   brugernavn, password og host være tomme felter.
+   `SQLite` og `MS-SQL`, samt `MS-SQL-ODBC`.  flere kan tilføjes efter behov. 
+ For typen `SQLite` kan brugernavn, password og host være tomme felter.
  * ``exporters.actual_state_historic.type``: Som ovenfor, men for historisk eksport.
  * ``exporters.actual_state.user``:  Brugernavn for sql bruger.
  * ``exporters.actual_state.password``: Password til sql bruger.
@@ -65,8 +65,8 @@ En eksport kan startes fra kommandolinjen med følgende parametre:
  * ``--force-sqlite``: Denne parameter vil betyde at ``exporters.actual_state.type``
    i ``settings.json`` vil blive ignoreret, og en `SQLite`-fil vil blive
    eksporteret.
- * ``--dry-run``: Ingen opslag vil blive foretaget i LoRa, udtrækket vil baseres
-   på cache-filer fra sidste gennemløb, mest anvedeligt til udvikling.
+ * ``--use-pickle``: Ingen opslag vil blive foretaget i LoRa, udtrækket vil baseres
+   på cache-filer fra sidste gennemløb, mest anvendeligt til udvikling.
 
 
 .. _Modellering:

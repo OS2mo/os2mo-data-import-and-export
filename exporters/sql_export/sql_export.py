@@ -69,18 +69,26 @@ class SqlExport(object):
         elif db_type == 'MS-SQL':
             db_string = 'mssql+pymssql://{}:{}@{}/{}'.format(
                 user, pw, db_host, db_name)
+        elif db_type == 'MS-SQL-ODBC':
+            quoted = urllib.parse.quote_plus((
+                'DRIVER=libtdsodbc.so;Server={};Database={};UID={};' +
+                'PWD={};TDS_Version=8.0;Port=1433;').format(
+                    db_host, db_name, user, pw_raw)
+                )
+            db_string = 'mssql+pyodbc:///?odbc_connect={}'.format(quoted)
+
         else:
             raise Exception('Unknown DB type')
 
         self.engine = create_engine(db_string)
 
-    def perform_export(self, resolve_dar=True, dry_run=False):
+    def perform_export(self, resolve_dar=True, use_pickle=False):
         if self.historic:
             self.lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
-            self.lc.populate_cache(dry_run=dry_run)
+            self.lc.populate_cache(dry_run=use_pickle)
         else:
             self.lc = LoraCache(resolve_dar=resolve_dar)
-            self.lc.populate_cache(dry_run=dry_run)
+            self.lc.populate_cache(dry_run=use_pickle)
             self.lc.calculate_derived_unit_data()
             self.lc.calculate_primary_engagements()
 
@@ -370,7 +378,7 @@ def cli():
     parser = argparse.ArgumentParser(description='SQL export')
     parser.add_argument('--resolve-dar', action='store_true')
     parser.add_argument('--historic', action='store_true')
-    parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--use-pickle', action='store_true')
     parser.add_argument('--force-sqlite', action='store_true')
 
     args = vars(parser.parse_args())
@@ -382,7 +390,7 @@ def cli():
 
     sql_export.perform_export(
         resolve_dar=args.get('resolve_dar'),
-        dry_run=args.get('dry_run')
+        use_pickle=args.get('use_pickle')
     )
 
 
