@@ -8,7 +8,6 @@ Helper class to make a number of pre-defined queries into MO
 """
 import json
 import time
-import pickle
 import logging
 import pathlib
 import datetime
@@ -62,16 +61,6 @@ def export_bruger(mh, nodes, lc_historic):
                 for engv in eng:  # Iterate over all validities
                     if engv['unit'] != node.name:
                         continue
-                    # if not engv['to_date']:
-                    #     engv['to_date'] = '9999-12-31'
-                    # valid_to = datetime.datetime.strptime(
-                    #     engv['to_date'], '%Y-%m-%d'
-                    # )
-                    # if valid_to < datetime.datetime.now():
-                    #     # Skip historic entries
-                    #     continue
-                    # Now, this is current or future validity
-                    # This is a valid row from this unit
                     if engv['engagement_type'] not in allowed_engagement_types:
                         continue
 
@@ -503,15 +492,9 @@ def main(speedup, dry_run=False):
         lc_historic = None
 
     # Todo: We need the nodes structure to keep a consistent output,
-    # consider if the 70 seconds is worth the implementation.
-
-    # nodes_file = 'tmp/nodes.p'   # Development hack, remove before merge
-    # with open(nodes_file, 'rb') as f:
-    #     nodes = pickle.load(f)
+    # consider if the 70 seconds is worth the implementation time of
+    # reading this from cache.
     nodes = mh.read_ou_tree(root_unit)
-    print('Read nodes: {}s'.format(time.time() - t))
-    with open(nodes_file, 'wb') as f:
-        pickle.dump(nodes, f, pickle.HIGHEST_PROTOCOL)
 
     brugere_rows = export_bruger(mh, nodes, lc_historic)
     print('Bruger: {}s'.format(time.time() - t))
