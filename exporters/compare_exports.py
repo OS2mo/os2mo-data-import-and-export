@@ -1,3 +1,14 @@
+"""
+Dette modul er et simpelt værktøj som kan anvendes til manuel verificering af at
+de eksporterede data fra viborg_externe og plan2learn eksporten er den samme ved
+anvedelse af MO og LoRa backends. Testen foregår ved at der (manuelt) lavet
+datasæt med hver af de to backends hvorefter dette værktøj sammenligner de
+producerede filer og melde tilbage om hvilke forskelle der er er fundet. I den
+ideele verden er alle forskelle nul. I øjeblikket (maj 2020) er der dog enkelte
+forskelle som stammer fra en bug som MO som i enkelte tilfælde udregner et forkert
+primærengagement.
+"""
+
 import csv
 import json
 import logging
@@ -87,11 +98,3 @@ if __name__ == '__main__':
         lc_rows = load_csv(str(lora_root / test[0]))
         mo_rows = load_csv(str(mo_root / test[0]))
         compare_exports(lc_rows, mo_rows, test[1])
-
-    # Todo: Turn this into a combination of nicely formated output +
-    # more comprehensive log-file
-
-    # lc_rows = load_csv(str(dest_folder / 'plan2learn_leder.csv'))
-    # mo_rows = load_csv(str(dest_folder / 'prod' / 'plan2learn_leder.csv'))
-    # Todo: Here we need a combination of two keys to uniquely identify a row
-    # compare_exports(lc_rows, mo_rows)
