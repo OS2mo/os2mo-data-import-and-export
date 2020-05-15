@@ -29,7 +29,6 @@ SETTINGS = json.loads(cfg_file.read_text())
 
 ad_reader = ad_reader.ADParameterReader()
 
-
 if args['update']:
     try:
         start_opus_diff(ad_reader=ad_reader)
@@ -37,7 +36,6 @@ if args['update']:
         print('RunDB not initialized')
 
 if args['import']:
-
     importer = ImportHelper(
         create_defaults=True,
         mox_base=SETTINGS['mox.base'],
