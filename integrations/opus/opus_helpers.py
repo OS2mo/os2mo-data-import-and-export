@@ -42,7 +42,7 @@ def _read_cpr_mapping():
     return employee_forced_uuids
 
 
-def _read_available_dumps():
+def read_available_dumps():
     dumps = {}
 
     for opus_dump in DUMP_PATH.glob('*.xml'):
@@ -137,7 +137,7 @@ def start_opus_import(importer, ad_reader=None, force=False):
     Start an opus import, run the oldest available dump that
     has not already been imported.
     """
-    dumps = _read_available_dumps()
+    dumps = read_available_dumps()
 
     run_db = Path(SETTINGS['integrations.opus.import.run_db'])
     if not run_db.is_file():
@@ -180,7 +180,7 @@ def start_opus_diff(ad_reader=None):
     Start an opus update, use the oldest available dump that has not
     already been imported.
     """
-    dumps = _read_available_dumps()
+    dumps = read_available_dumps()
     run_db = Path(SETTINGS['integrations.opus.import.run_db'])
 
     employee_mapping = _read_cpr_mapping()
@@ -205,7 +205,6 @@ def start_opus_diff(ad_reader=None):
         _local_db_insert((xml_date, 'Diff update ended: {}'))
 
 
-# Denne bør nok også bruges af import og diff_import
 def read_dump_data(dump_file):
     cache_file = pathlib.Path.cwd() / 'tmp' / (dump_file.stem + '.p')
     if not cache_file.is_file():
@@ -244,7 +243,7 @@ def update_employee(employee_number, days):
 
     current_object = {}
     cut_date = datetime.datetime.now() - datetime.timedelta(days=days)
-    dumps = _read_available_dumps()
+    dumps = read_available_dumps()
 
     for date in sorted(dumps.keys()):
         print(date)
