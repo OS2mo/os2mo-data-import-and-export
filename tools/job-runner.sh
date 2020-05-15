@@ -89,6 +89,12 @@ imports_test_sd_connectivity(){
     ${VENV}/bin/python3 integrations/SD_Lon/test_sd_connectivity.py
 }
 
+imports_test_opus_connectivity(){
+    set -e
+    echo running imports_test_ops_connectivity
+    ${VENV}/bin/python3 integrations/opus/test_opus_connectivity.py --test-diff-import
+}
+
 imports_sd_fix_departments(){
     set -e
     BACK_UP_AND_TRUNCATE+=(
@@ -380,7 +386,11 @@ imports(){
     if [ "${RUN_CHECK_SD_CONNECTIVITY}" == "true" ]; then
         run-job imports_test_sd_connectivity || return 2
     fi
-    
+
+    if [ "${RUN_CHECK_OPUS_CONNECTIVITY}" == "true" ]; then
+        run-job imports_test_opus_connectivity || return 2
+    fi
+
     if [ "${RUN_SD_FIX_DEPARTMENTS}" == "true" ]; then
         run-job imports_sd_fix_departments || return 2
     fi
