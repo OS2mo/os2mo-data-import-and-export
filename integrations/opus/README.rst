@@ -161,6 +161,20 @@ Opus-data, og vælger at arbejde sig igennem gamle dumps for at importere histor
 daglig brug vil mapningen ikke have nogen betydning, da oprettede brugere her altid
 vil være nye.
 
+Opdatering af enkelte brugere
+=============================
+
+Skulle det af den ene eller den anden grund ske, at en bruger ikke er importeret
+korrekt, er det muligt at efterimportere denne bruger. Funktionen er endnu ret ny
+og det tilrådes derfor altid at tage en backup af databasen før den benyttes.
+Funktionen fungerer ved at hente historiske data fra gamle xml-dumps, og det er
+derfor en forudsætning, at disse dumps stadig er til rådighed.
+For at synkronisere en enkelt medarbejder anvedes disse kommandolinjeparametre:
+
+* ``--update-single-user``: Ansættelsesnummer på den relevante medarbejder
+* ``days``: Antal dage bagud integrationen skal søge.
+
+
 Opsætning af agenten til re-import
 ----------------------------------
 
