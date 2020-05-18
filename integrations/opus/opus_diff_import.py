@@ -806,6 +806,37 @@ class OpusDiffImport(object):
         logger.debug('Terminate response: {}'.format(response.text))
         self._assert(response)
 
+    def import_single_employment(self, employee):
+        # logger.info('Update  employment {} from {}'.format(employment, xml_file))
+        last_changed_str = employee.get('@lastChanged')
+        if last_changed_str is not None:  # This is a true employee-object.
+            self.update_employee(employee)
+
+            if 'function' in employee:
+                self.update_roller(employee)
+            else:
+                # Terminate existing roles
+                mo_user = self.helper.read_user(user_cpr=employee['cpr']['#text'])
+                for role in self.role_cache:
+                    if role['person'] == mo_user['uuid']:
+                        logger.info('Terminating role: {}'.format(role))
+                        self.terminate_detail(role['uuid'], detail_type='role')
+        else:  # This is an implicit termination.
+            # This is a terminated employee, check if engagement is active
+            # terminate if it is.
+            if not employee['@action'] == 'leave':
+                msg = 'Missing date on a non-leave object!'
+                logger.error(msg)
+                raise Exception(msg)
+
+            org_funk_info = self._find_engagement(employee['@id'], present=True)
+            if org_funk_info:
+                logger.info('Terminating: {}'.format(org_funk_info))
+                self.terminate_detail(org_funk_info['engagement'])
+                if 'manager' in org_funk_info:
+                    self.terminate_detail(org_funk_info['manager'],
+                                          detail_type='manager')
+
     def start_re_import(self, xml_file, include_terminations=False):
         """
         Start an opus import, run the oldest available dump that
