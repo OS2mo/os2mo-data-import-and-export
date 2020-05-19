@@ -157,6 +157,32 @@ Objektet ``user`` vil nu indeholde de felter der er angivet i ``settings.json``
 med nøglen ``integrations.ad.properties``.
 
 
+Valg af primær konto ved flere konti pr. cprnummer
+--------------------------------------------------
+
+Nogle steder har man flere konti med samme cprnummer i AD'et.
+For at vælge den primære, som opdaterer / opdateres fra MO,
+kan man anvende et sæt nøgler i settingsfilen:
+
+  * ``integrations.ad.discriminator.field`` et felt i det pågældende AD, som bruges til at
+afgøre hvorvidt denne konto er den primære
+  * ``integrations.ad.discriminator.values`` et sæt strenge,
+som matches imod ``integrations.ad.discriminator field``
+  * ``integrations.ad.discriminator.function`` kan være 'include' eller 'exclude'
+
+Man definerer et felt, som indeholder en indikator for om kontoen er den primære,
+det kunnne f.x være et felt, man kaldte xBrugertype, som kunne indeholde "Medarbejder".
+
+Hvis man i dette tilfælde sætter ``integrations.ad.discriminator.function``
+til ``include`` vil kontoen opfattes som primær hvis 'Medarbejder' også findes i
+``integrations.ad.discriminator.values``
+
+Opfattes mere end en konto som primær sættes programmet til at fejle.
+
+Findes nøglen ``integrations.ad.discriminator.field``, skal de andre to nøgler
+også være der. Findes den ikke, opfattes alle AD-konti som primære.
+
+
 Skrivning til AD
 ================
 
@@ -198,13 +224,13 @@ herefter er programet klar til at lave brugernavne.
 .. code-block:: python
 
     from user_names import CreateUserName
-    
+
     name_creator = CreateUserNames(occupied_names=set())
     name_creator.populate_occupied_names()
 
     name = ['Karina', 'Munk', 'Jensen']
     print(name_creator.create_username(name))
-    
+
     name = ['Anders', 'Kristian', 'Jens', 'Peter', 'Andersen']
     print(name_creator.create_username(name))
 
@@ -343,7 +369,7 @@ kan se ud som dette:
    }
 
 
-Afvikling af PoerShell templates
+Afvikling af PowerShell templates
 ---------------------------------
 
 Det er muligt at angive PowerShell kode hvor visse værdier angives med abstrakte
