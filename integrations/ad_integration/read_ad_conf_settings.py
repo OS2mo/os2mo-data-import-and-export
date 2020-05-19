@@ -45,6 +45,15 @@ def _read_primary_ad_settings():
         logger.error(msg)
         raise Exception(msg)
 
+    # 36182 exclude non primary AD-users
+    primary_settings['discriminator.field'] = SETTINGS.get('integrations.ad.discriminator.field')
+    if primary_settings['discriminator.field'] is not None:
+        # if we have a field we MUST have .values and .function
+        primary_settings['discriminator.values'] = SETTINGS['integrations.ad.discriminator.values']
+        primary_settings['discriminator.function'] = SETTINGS['integrations.ad.discriminator.function']
+        if not primary_settings['discriminator.function'] in ["include", "exclude"]:
+            raise ValueError("'ad.discriminator.function' must be include or exclude")
+
     # Settings that do not need to be set, or have defaults
     primary_settings['server'] = None
     primary_settings['sam_filter'] = SETTINGS.get('integrations.ad.sam_filter', '')
