@@ -537,11 +537,14 @@ class OpusDiffImport(object):
             ad_info = {}
         uuid = self.employee_forced_uuids.get(cpr)
         logger.info('Employee in force list: {} {}'.format(cpr, uuid))
-        if uuid is None and cpr in ad_info:
-            uuid = ad_info[cpr]['ObjectGuid']
-            if uuid is None:
+        logger.info('AD info: {}'.format(ad_info))
+        if uuid is None:
+            ad_uuid = ad_info.get('ObjectGuid')
+            if ad_uuid is None:
                 msg = '{} not in MO, UUID list or AD, assign random uuid'
                 logger.debug(msg.format(cpr))
+            else:
+                uuid = ad_uuid
         payload = payloads.create_user(employee, self.org_uuid, uuid)
 
         logger.info('Create user payload: {}'.format(payload))
