@@ -903,6 +903,7 @@ if __name__ == '__main__':
     if 'integrations.ad.winrm_host' in SETTINGS:
         ad_reader = ad_reader.ADParameterReader()
     else:
+        print('Running without AD integration!')
         ad_reader = None
 
     try:
