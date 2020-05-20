@@ -6,6 +6,7 @@ import pathlib
 from integrations.ad_integration import ad_reader
 from integrations.ad_integration import ad_writer
 from integrations.ad_integration import ad_logger
+from integrations.ad_integration.ad_exceptions import CprNotNotUnique
 from integrations.ad_integration.ad_exceptions import UserNotFoundException
 from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
 from integrations.ad_integration.ad_exceptions import ManagerNotUniqueFromCprException
@@ -19,6 +20,7 @@ logger = logging.getLogger('MoAdSync')
 
 
 def main():
+    t_start = time.time()
     ad_logger.start_logging(LOG_FILE)
     cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
     if not cfg_file.is_file():
@@ -26,17 +28,19 @@ def main():
     settings = json.loads(cfg_file.read_text())
 
     if settings['integrations.ad_writer.lora_speedup']:
-        # Here we should de-activate read-only mode, actual state and
+        # Here we should activate read-only mode, actual state and
         # full history dumps needs to be in sync.
 
         # Full history does not calculate derived data, we must
         # fetch both kinds.
-        lc = LoraCache(resolve_dar=True, full_history=False)
+        lc = LoraCache(resolve_dar=False, full_history=False)
         lc.populate_cache(dry_run=False, skip_associations=True)
         lc.calculate_derived_unit_data()
         lc.calculate_primary_engagements()
 
         # Todo, in principle it should be possible to run with skip_past True
+        # This is now fixed in a different branch, remember to update when
+        # merged.
         lc_historic = LoraCache(resolve_dar=False, full_history=True,
                                 skip_past=False)
         lc_historic.populate_cache(dry_run=False, skip_associations=True)
@@ -56,8 +60,11 @@ def main():
     stats = {
         'attempted_users': 0,
         'fully_synced': 0,
+        'nothing_to_edit': 0,
         'updated': 0,
         'no_manager': 0,
+        'unknown_manager_failure': 0,
+        'cpr_not_unique': 0,
         'user_not_in_mo': 0,
         'user_not_in_ad': 0,
         'critical_error': 0,
@@ -84,15 +91,27 @@ def main():
                 stats['fully_synced'] += 1
                 if response[1] == 'Sync completed':
                     stats['updated'] += 1
+                    if response[2] == False:
+                        stats['no_manager'] += 1
+
+                if response[1] == 'Nothing to edit':
+                    stats['nothing_to_edit'] += 1
+                    if response[2] == False:
+                        stats['no_manager'] += 1
+
             else:
                 if response[1] == 'No active engagments':
                     stats['no_active_engagement'] += 1
                 else:
                     stats['unknown_failed_sync'] += 1
         except ManagerNotUniqueFromCprException:
-            stats['no_manager'] += 1
+            stats['unknown_manager_failure'] += 1
             msg = 'Did not find a unique manager for {}'.format(user[mo_uuid_field])
             logger.error(msg)
+        except CprNotNotUnique:
+            stats['cpr_not_unique'] += 1
+            msg = 'User {} with uuid: {} has more than one AD account'
+            logger.error(msg.format(user['Name'], user[mo_uuid_field]))
         except CprNotFoundInADException:
             stats['user_not_in_ad'] += 1
             msg = 'User {}, {} with uuid {} could not be found by cpr'
@@ -111,7 +130,10 @@ def main():
 
         print('Sync time: {}'.format(time.time() - t))
     print()
+    print('Total runtime: {}'.format(time.time() - t_start))
     print(stats)
+    logger.info('Total runtime: {}'.format(time.time() - t_start))
+    logger.info('Stats: {}'.format(stats))
 
 
 if __name__ == '__main__':

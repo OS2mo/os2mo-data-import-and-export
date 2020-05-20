@@ -115,6 +115,19 @@ def _read_primary_write_information():
         msg = 'Missing values for AD write {}'.format(missing)
         logger.info(msg)
         primary_write_settings = {}
+
+    # Check for illegal configuration of AD Write.
+    mo_to_ad_fields = SETTINGS.get('integrations.ad_writer.mo_to_ad_fields')
+    ad_field_names = list(mo_to_ad_fields.values()) + [
+        primary_write_settings['org_field'],
+        primary_write_settings['level2orgunit_field'],
+        primary_write_settings['uuid_field']
+    ]
+    if len(ad_field_names) > len(set(ad_field_names)):
+        msg = 'Duplicate AD fieldnames in settings: {}'
+        logger.info(msg.format(sorted(ad_field_names)))
+        primary_write_settings = {}
+
     return primary_write_settings
 
 
@@ -161,3 +174,7 @@ def read_settings():
     settings['school'] = _read_school_ad_settings()
     settings['primary_write'] = _read_primary_write_information()
     return settings
+
+
+if __name__ == '__main__':
+    read_settings()

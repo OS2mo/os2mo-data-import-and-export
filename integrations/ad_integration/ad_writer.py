@@ -180,6 +180,8 @@ class ADWriter(AD):
             msg = 'Found no account for {}'.format(cpr)
             logger.error(msg)
             raise CprNotFoundInADException()
+        if len(ad_info) > 1:
+            raise CprNotNotUnique
         return ad_info
 
     def _find_unit_info(self, eng_org_unit):
@@ -331,6 +333,7 @@ class ADWriter(AD):
         logger.info('Read information for {}'.format(uuid))
         mo_user = self._read_user(uuid)
 
+        force_mo = False
         no_active_engagements = True
         if self.lc:
             for eng in self.lc.engagements.values():
@@ -342,9 +345,15 @@ class ADWriter(AD):
                         title = self.lc.classes[eng[0]['job_function']]['title']
                         eng_org_unit = eng[0]['unit']
                         eng_uuid = eng[0]['uuid']
-        else:
+            if no_active_engagements:
+                for eng in self.lc_historic.engagements.values():
+                    if eng[0]['user'] == uuid:
+                        logger.info('Found future engagement')
+                        force_mo = True
+
+        if force_mo or not self.lc:
             engagements = self.helper.read_user_engagement(
-                uuid, calculate_primary=True)
+                uuid, calculate_primary=True, read_all=True, skip_past=True)
             found_primary = False
             for engagement in engagements:
                 no_active_engagements = False
@@ -368,7 +377,7 @@ class ADWriter(AD):
         addresses = self._read_user_addresses(eng_org_unit)
 
         postal_code = city = streetname = 'Ukendt'
-        if addresses['postal']:
+        if addresses.get('postal'):
             postal = addresses['postal']
             try:
                 postal_code = re.findall('[0-9]{4}', postal['Adresse'])[0]
@@ -376,6 +385,8 @@ class ADWriter(AD):
                 city = postal['Adresse'][city_pos:]
                 streetname = postal['Adresse'][:city_pos - 7]
             except IndexError:
+                logger.error('Unable to read adresse from MO (no access to DAR?)')
+            except TypeError:
                 logger.error('Unable to read adresse from MO (no access to DAR?)')
 
         manager_info = {
@@ -386,22 +397,29 @@ class ADWriter(AD):
         }
         if read_manager:
             if self.lc:
-                manager_uuid = self.lc.managers[
-                    self.lc.units[eng_org_unit][0]['acting_manager_uuid']][0]['user']
-                parent_uuid = self.lc.units[eng_org_unit][0]['parent']
-                while manager_uuid == mo_user['uuid']:
-                    if parent_uuid is None:
-                        logger.info('This person has no manager!')
-                        read_manager = False
-                        break
-
-                    logger.info('Self manager, keep searching: {}!'.format(mo_user))
-                    parent_unit = self.lc.units[parent_uuid][0]
+                try:
                     manager_uuid = self.lc.managers[
-                        parent_unit['acting_manager_uuid']][0]['user']
+                        self.lc.units[eng_org_unit][0]['acting_manager_uuid']
+                    ][0]['user']
 
-                    parent_uuid = self.lc.units[parent_uuid][0]['parent']
+                    parent_uuid = self.lc.units[eng_org_unit][0]['parent']
+                    while manager_uuid == mo_user['uuid']:
+                        if parent_uuid is None:
+                            logger.info('This person has no manager!')
+                            read_manager = False
+                            break
 
+                        msg = 'Self manager, keep searching: {}!'
+                        logger.info(msg.format(mo_user))
+                        parent_unit = self.lc.units[parent_uuid][0]
+                        manager_uuid = self.lc.managers[
+                            parent_unit['acting_manager_uuid']][0]['user']
+
+                        parent_uuid = self.lc.units[parent_uuid][0]['parent']
+                except KeyError:
+                    # TODO: Report back that manager was not found!
+                    logger.info('No managers found')
+                    read_manager = False
             else:
                 try:
                     manager = self.helper.read_engagement_manager(eng_uuid)
@@ -440,6 +458,7 @@ class ADWriter(AD):
                 raise ManagerNotUniqueFromCprException()
 
         mo_values = {
+            'read_manager': read_manager,
             'name': (mo_user['givenname'], mo_user['surname']),
             'full_name': '{} {}'.format(mo_user['givenname'], mo_user['surname']),
             'employment_number': employment_number,
@@ -513,6 +532,7 @@ class ADWriter(AD):
                                  mo_values['level2orgunit'], ad))
         mismatch.update(self._cf(write_settings['org_field'],
                                  mo_values['location'], ad))
+        mismatch.update(self._cf('Name', mo_values['name_sam'], ad))
         mismatch.update(self._cf('DisplayName', mo_values['full_name'], ad))
         mismatch.update(self._cf('GivenName', mo_values['name'][0], ad))
         mismatch.update(self._cf('Surname', mo_values['name'][1], ad))
@@ -557,9 +577,38 @@ class ADWriter(AD):
 
         logger.debug('Sync compare: {}'.format(mismatch))
 
+        if 'Name' in mismatch:
+            logger.info('Rename user:')
+            # Todo: This code is a duplicate of code 15 lines further down...
+            rename_user_template = ad_templates.rename_user_template
+            rename_user_string = rename_user_template.format(
+                givenname=mo_values['name'][0],
+                surname=mo_values['name'][1],
+                sam_account_name=user_sam
+            )
+            rename_user_string = self.remove_redundant(rename_user_string)
+            server_string = ''
+            if self.all_settings['global'].get('servers') is not None:
+                server_string = ' -Server {} '.format(
+                    random.choice(self.all_settings['global']['servers'])
+                )
+            ps_script = (
+                self._build_user_credential(school) +
+                rename_user_string +
+                server_string
+            )
+            logger.debug('Rename user, ps_script: {}'.format(ps_script))
+            response = self._run_ps_script(ps_script)
+            logger.debug('Response from sync: {}'.format(response))
+            logger.debug('Wait for replication')
+            # Todo: In principle we should ask all DCs, bu this will happen
+            # very rarely, performance is not of great importance
+            time.sleep(10)
+            del mismatch['Name']
+
         if not mismatch:
-            logger.info('Nothig to edit')
-            return (True, 'Nothing to edit')
+            logger.info('Nothing to edit')
+            return (True, 'Nothing to edit', mo_values['read_manager'])
 
         logger.info('Sync compare: {}'.format(mismatch))
         edit_user_template = ad_templates.edit_user_template
@@ -592,10 +641,11 @@ class ADWriter(AD):
         logger.debug('Response from sync: {}'.format(response))
 
         if sync_manager and 'manager' in mismatch:
+            logger.info('Add manager')
             self.add_manager_to_user(user_sam=user_sam,
                                      manager_sam=mo_values['manager_sam'])
 
-        return (True, 'Sync completed')
+        return (True, 'Sync completed', mo_values['read_manager'])
 
     def create_user(self, mo_uuid, create_manager, dry_run=False):
         """
@@ -612,6 +662,9 @@ class ADWriter(AD):
 
         bp = self._ps_boiler_plate(school)
         mo_values = self.read_ad_information_from_mo(mo_uuid, create_manager)
+        if mo_values is None:
+            logger.error('Trying to create user with no engagements')
+            raise NoPrimaryEngagementException
 
         all_names = mo_values['name'][0].split(' ') + [mo_values['name'][1]]
         sam_account_name = self.name_creator.create_username(all_names,
@@ -696,21 +749,28 @@ class ADWriter(AD):
             logger.error(msg)
             return (False, msg)
 
-    def enable_user(self, username):
+    def enable_user(self, username, enable=True):
         """
-        Disable an AD account.
-        :param username: SamAccountName of the account to be disabled
+        Enable or disable an AD account.
+        :param username: SamAccountName of the account to be enabled or disabled
+        :param enable: If True enable account, if False, disbale account
         """
         school = False  # TODO
 
+        logger.info('Enable account: {}'.format(enable))
         format_rules = {'username': username}
-        ps_script = self._build_ps(ad_templates.enable_user_template,
-                                   school, format_rules)
+        if enable:
+            ps_script = self._build_ps(ad_templates.enable_user_template,
+                                       school, format_rules)
+        else:
+            ps_script = self._build_ps(ad_templates.disable_user_template,
+                                       school, format_rules)
+
         response = self._run_ps_script(ps_script)
         if not response:
-            return (True, 'Account enabled')
+            return (True, 'Account enabled or disabled')
         else:
-            msg = 'Failed to set enable account!: {}'.format(response)
+            msg = 'Failed to update account!: {}'.format(response)
             logger.error(msg)
             return (False, msg)
 
