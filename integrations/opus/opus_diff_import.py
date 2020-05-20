@@ -900,7 +900,10 @@ if __name__ == '__main__':
         raise Exception('No setting file')
     SETTINGS = json.loads(cfg_file.read_text())
 
-    ad_reader = ad_reader.ADParameterReader()
+    if 'integrations.ad.winrm_host' in SETTINGS:
+        ad_reader = ad_reader.ADParameterReader()
+    else:
+        ad_reader = None
 
     try:
         start_opus_diff(ad_reader=ad_reader)
