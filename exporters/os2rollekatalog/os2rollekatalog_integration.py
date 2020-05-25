@@ -105,7 +105,9 @@ def get_org_units(connector):
         org_unit_uuid = org_unit["uuid"]
         # Fetch the OU again, as the 'parent' field is missing in the data
         # when listing all org units
-        ou = connector.get_ou_connector(org_unit_uuid)
+        ou_present = connector.get_ou_connector(org_unit_uuid, validity='present')
+        ou_future = connector.get_ou_connector(org_unit_uuid, validity='future')
+        ou_connectors = (ou_present, ou_future)
 
         def get_parent_org_unit_uuid(ou):
             parent = ou.json["parent"]
@@ -118,8 +120,10 @@ def get_org_units(connector):
 
             return None
 
-        def get_manager(ou):
-            managers = ou.manager
+        def get_manager(*ou_connectors):
+            managers = []
+            for ou in ou_connectors:
+                managers.extend(ou.manager)
             if not managers:
                 return None
             if len(managers) > 1:
@@ -145,8 +149,8 @@ def get_org_units(connector):
         payload = {
             "uuid": org_unit_uuid,
             "name": org_unit["name"],
-            "parentOrgUnitUuid": get_parent_org_unit_uuid(ou),
-            "manager": get_manager(ou),
+            "parentOrgUnitUuid": get_parent_org_unit_uuid(ou_present),
+            "manager": get_manager(*ou_connectors),
         }
         converted_org_units.append(payload)
 
@@ -161,10 +165,15 @@ def get_users(connector):
     for employee in employees:
 
         employee_uuid = employee["uuid"]
-        employee_connector = connector.get_employee_connector(employee_uuid)
+        e_present = connector.get_employee_connector(employee_uuid, validity='present')
+        e_future = connector.get_employee_connector(employee_uuid, validity='future')
+        e_connectors = (e_present, e_future)
 
-        def get_employee_email(e):
-            addresses = e.address
+        def get_employee_email(*engagement_connectors):
+            addresses = []
+            for e in engagement_connectors:
+                addresses.extend(e.address)
+
             emails = list(
                 filter(
                     lambda address: address["address_type"]["scope"] == "EMAIL",
@@ -180,8 +189,10 @@ def get_users(connector):
                 return emails[0]["value"]
             return None
 
-        def get_employee_positions(e):
-            engagements = e.engagement
+        def get_employee_positions(*engagement_connectors):
+            engagements = []
+            for e in engagement_connectors:
+                engagements.extend(e.engagement)
 
             converted_positions = []
             for engagement in engagements:
@@ -203,8 +214,8 @@ def get_users(connector):
             "extUuid": ad_guid,
             "userId": sam_account_name,
             "name": employee["name"],
-            "email": get_employee_email(employee_connector),
-            "positions": get_employee_positions(employee_connector),
+            "email": get_employee_email(*e_connectors),
+            "positions": get_employee_positions(*e_connectors),
         }
         converted_users.append(payload)
 
