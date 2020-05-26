@@ -114,7 +114,7 @@ def _read_primary_write_information():
     if missing:
         msg = 'Missing values for AD write {}'.format(missing)
         logger.info(msg)
-        primary_write_settings = {}
+        return {}
 
     # Check for illegal configuration of AD Write.
     mo_to_ad_fields = SETTINGS.get('integrations.ad_writer.mo_to_ad_fields')
