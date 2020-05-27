@@ -3,13 +3,14 @@ import random
 import pathlib
 import logging
 import requests
+import argparse
 
 from ad_common import AD
 from integrations.ad_integration import ad_reader
 from integrations.ad_integration import ad_logger
 from os2mo_helpers.mora_helpers import MoraHelper
 
-LOG_FILE = 'sync_mo_uuids_to_ad.log'
+LOG_FILE = 'sync_mo_uuid_to_ad.log'
 logger = logging.getLogger('MoUuidAdSync')
 
 
@@ -47,6 +48,7 @@ class SyncMoUuidToAd(AD):
 
     def _search_mo_cpr(self, cpr):
         # Todo, add this to MoraHelper.
+        # skriv om til at bruge cachen
         user = {'items': []}
         if cpr is not None:
             user = self.helper._mo_lookup(self.org_uuid, 'o/{}/e?query=' + cpr)
@@ -56,8 +58,10 @@ class SyncMoUuidToAd(AD):
             uuid = user['items'][0]['uuid']
         return uuid
 
-    def perform_sync(self):
-        all_users = self.reader.read_it_all()
+    def perform_sync(self, all_users=[]):
+        if len(all_users) == 0:
+            all_users = self.reader.read_it_all()
+
         logger.info('Will now attempt to sync {} users'.format(len(all_users)))
 
         for user in all_users:
@@ -99,7 +103,29 @@ class SyncMoUuidToAd(AD):
             self.stats['updated'] += 1
         print(self.stats)
 
+    def sync_one(self, cprno):
+        all_users = [self.reader.read_user(cpr=cprno)]
+        if len(all_users) == 1:
+            self.perform_sync(all_users)
+        else:
+            logger.exception("user not found")
+
+    def cli(self):
+        """
+        Command line interface for the AD writer class.
+        """
+        parser = argparse.ArgumentParser(description='SyncMoUuidToAd')
+        group = parser.add_mutually_exclusive_group(required=True)
+        group.add_argument('--sync-all', action='store_true')
+        group.add_argument('--sync-cpr', nargs=1, required=False)
+        args = vars(parser.parse_args())
+        logger.info(args)
+        if args.get('sync_all'):
+            self.perform_sync()
+        if args.get('sync_cpr'):
+            self.sync_one(args["sync_cpr"][0])
+
 
 if __name__ == '__main__':
     sync = SyncMoUuidToAd()
-    sync.perform_sync()
+    sync.cli()

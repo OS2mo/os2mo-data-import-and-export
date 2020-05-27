@@ -212,9 +212,10 @@ if __name__ == '__main__':
     #with open("mypickle.p","bw") as f:
     #    f.write(pickle.dumps(ad_reader.read_it_all()))
 
+    everything = ad_reader.read_it_all()
     for user in everything:
-        print('Name: {}, Sam: {}, Manager: {}'.format(
-            user['Name'], user['SamAccountName'], user.get('Manager')))
-        if user['SamAccountName'] == 'JSTEH':
+        print('Name: {}, Sam: {}, Manager: {}, CPR: {}'.format(
+            user['Name'], user['SamAccountName'], user.get('Manager'), user.get("extensionAttribute1")))
+        if user['SamAccountName'] == 'asdfasdf':
             for key in sorted(user.keys()):
                 print('{}: {}'.format(key, user[key]))
