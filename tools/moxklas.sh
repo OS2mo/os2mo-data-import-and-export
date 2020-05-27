@@ -69,7 +69,12 @@ EOKLASS
 )}
 
 opret(){
-    curl --header "Content-Type: application/json" -X POST http://localhost:8080/klassifikation/klasse -d @-
+    putuuid=$1
+    if [ -z "${putuuid}" ]; then
+        curl --header "Content-Type: application/json" -X POST http://localhost:8080/klassifikation/klasse -d @-
+    else
+        curl --header "Content-Type: application/json" -X PUT http://localhost:8080/klassifikation/klasse/${putuuid} -d @-
+    fi
 }
 
 facet_list(){
@@ -97,7 +102,8 @@ if [ -n "${existing}" ]; then
 fi
 
 [ -n "${facet}" -a -n "${bvn}" -a -n "${titel}" -a -n "${scope}" -a -z "${dry_run}" ] && (
-    facet_class_json "${facet}" "${bvn}" "${titel}" "${organisation}" "${scope}" | opret
+    facet_class_json "${facet}" "${bvn}" "${titel}" "${organisation}" "${scope}" | opret ${uuid}
+
 ) || (
 
     echo DRY_RUN CHECK: Du har angivet:

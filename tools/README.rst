@@ -218,7 +218,72 @@ Programmet er 17/3 2020 skrevet om til at håndtere os2mo under docker.
 moxklas.sh
 ==========
 
-Anvendes under implementering til at oprette klasser i Lora.
+Anvendes under implementering til at oprette klasser i Lora. Nogle gange også efterfølgende. Scriptet er simpelt, men ikke så simpelt at kalde:
+
+For at oprette en Email-addresse-klasse med en predefineret uuid under facetten employee_address_type udføres:
+
+.. code-block:: bash
+
+    uuid=68d3d0ce-9fde-11ea-80b1-63a0ea904cea facet=employee_address_type bvn=test-moxklas titel=test-moxklas scope=EMAIL bash tools/moxklas.sh 
+
+
+Man kan provokere et dry-run ved at sætte en parameter efter hele linien
+
+.. code-block:: bash
+
+    uuid=68d3d0ce-9fde-11ea-80b1-63a0ea904cea facet=employee_address_type bvn=test-moxklas titel=test-moxklas scope=EMAIL bash tools/moxklas.sh 42
+
+Ovenstående sender et payload til lora, som opretter en klasse som ligner nedenstående
+
+.. code-block:: json
+
+    { 
+        "attributter": { 
+        "klasseegenskaber": [ 
+            {
+            "brugervendtnoegle": "test-moxklas", 
+            "titel": "test-moxklas", 
+            "omfang": "EMAIL", 
+            "virkning": { 
+            "from": "1930-01-01 12:02:32", 
+            "to": "infinity"
+            } 
+            }
+        ] 
+        }, 
+        "tilstande": { 
+        "klassepubliceret": [{ 
+            "publiceret": "Publiceret", 
+            "virkning": { 
+            "from": "1930-01-01 12:02:32",
+            "to": "infinity"
+            } 
+        }
+        ] 
+        },
+        "relationer": { 
+        "ansvarlig": [
+        { 
+            "uuid": "8a2ae31b-422a-4374-b3a8-a2ed4ed23c63", 
+            "virkning": { 
+            "from": "1930-01-01 12:02:32",  
+            "to": "infinity"
+            },
+            "objekttype": "organisation"
+        }
+        ],
+       "facet": [ 
+        { 
+            "uuid": "332e8b38-68c3-4457-a5fb-3332216bb7a6", 
+            "virkning": { 
+            "from": "1930-01-01 12:02:32", 
+            "to": "infinity" 
+            }
+        }
+        ] 
+        }
+
+    }
 
 
 opus_import_all.sh
