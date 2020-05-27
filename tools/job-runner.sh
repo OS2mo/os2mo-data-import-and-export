@@ -369,7 +369,7 @@ exports_test(){
 
 # read the run-job script et al
 for module in tools/job-runner.d/*.sh; do
-    echo sourcing $module
+    #echo sourcing $module
     source $module 
 done
 
