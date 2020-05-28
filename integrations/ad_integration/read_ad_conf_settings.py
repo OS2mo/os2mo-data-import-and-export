@@ -19,7 +19,7 @@ SETTINGS = json.loads(cfg_file.read_text())
 def _read_global_settings():
     global_settings = {}
 
-    global_settings['servers'] = SETTINGS.get('integrations.ad.write.servers')
+    global_settings['servers'] = SETTINGS.get('integrations.ad')[0]['servers']
     global_settings['winrm_host'] = SETTINGS.get('integrations.ad.winrm_host')
     if not global_settings['winrm_host']:
         msg = 'Missing hostname for remote management server'
@@ -28,13 +28,20 @@ def _read_global_settings():
     return global_settings
 
 
-def _read_primary_ad_settings():
+def _read_primary_ad_settings(index=0):
     primary_settings = {}
-    primary_settings['search_base'] = SETTINGS.get('integrations.ad.search_base')
-    primary_settings['cpr_field'] = SETTINGS.get('integrations.ad.cpr_field')
-    primary_settings['system_user'] = SETTINGS.get('integrations.ad.system_user')
-    primary_settings['password'] = SETTINGS.get('integrations.ad.password')
-    primary_settings['properties'] = SETTINGS.get('integrations.ad.properties')
+    primary_settings['servers'] = SETTINGS.get(
+        'integrations.ad')[index]['servers']
+    primary_settings['search_base'] = SETTINGS.get(
+        'integrations.ad')[index]["search_base"]
+    primary_settings['cpr_field'] = SETTINGS.get(
+        'integrations.ad')[index]["cpr_field"]
+    primary_settings['system_user'] = SETTINGS.get(
+        'integrations.ad')[index]["system_user"]
+    primary_settings['password'] = SETTINGS.get(
+        'integrations.ad')[index]['password']
+    primary_settings['properties'] = SETTINGS.get(
+        'integrations.ad')[index]["properties"]
 
     missing = []
     for key, val in primary_settings.items():
@@ -46,19 +53,27 @@ def _read_primary_ad_settings():
         raise Exception(msg)
 
     # 36182 exclude non primary AD-users
-    primary_settings['discriminator.field'] = SETTINGS.get('integrations.ad.discriminator.field')
-    if primary_settings['discriminator.field'] is not None:
+    primary_settings["discriminator.field"] = SETTINGS.get(
+        "integrations.ad")[index].get("discriminator.field")
+    if primary_settings["discriminator.field"] is not None:
         # if we have a field we MUST have .values and .function
-        primary_settings['discriminator.values'] = SETTINGS['integrations.ad.discriminator.values']
-        primary_settings['discriminator.function'] = SETTINGS['integrations.ad.discriminator.function']
-        if not primary_settings['discriminator.function'] in ["include", "exclude"]:
-            raise ValueError("'ad.discriminator.function' must be include or exclude")
+        primary_settings["discriminator.values"] = SETTINGS[
+            "integrations.ad"][index]["discriminator.values"]
+        primary_settings["discriminator.function"] = SETTINGS[
+            "integrations.ad"][index]["discriminator.function"]
+        if not primary_settings["discriminator.function"] in ["include", "exclude"]:
+            raise ValueError("'ad.discriminator.function'" +
+                " must be include or exclude for AD %d" % index
+            )
 
     # Settings that do not need to be set, or have defaults
     primary_settings['server'] = None
-    primary_settings['sam_filter'] = SETTINGS.get('integrations.ad.sam_filter', '')
+    primary_settings['sam_filter'] = SETTINGS.get(
+        "integrations.ad")[index].get("sam_filter", '')
     primary_settings['cpr_separator'] = SETTINGS.get(
-        'integrations.ad.cpr_separator', '')
+        'integrations.ad')[index].get('cpr_separator', '')
+    primary_settings['ad_mo_sync_mapping'] = SETTINGS.get(
+        'integrations.ad')[index].get('ad_mo_sync_mapping', {})
 
     # So far false in all known cases, default to false
     # get_ad_object = os.environ.get('AD_GET_AD_OBJECT', 'False')
@@ -76,7 +91,8 @@ def _read_primary_write_information():
     primary_write_settings = {}
 
     # Shared with read
-    primary_write_settings['cpr_field'] = SETTINGS.get('integrations.ad.cpr_field')
+    primary_write_settings['cpr_field'] = SETTINGS.get(
+        'integrations.ad')[0]['cpr_field']
 
     # Field for writing the uuid of a user, used to sync to STS
     primary_write_settings['uuid_field'] = SETTINGS.get(
@@ -97,11 +113,6 @@ def _read_primary_write_information():
     # These are technically speaking not used in this context, but it is needed for
     # AD write and can benifit from the automated check.
 
-    # Ordered list of primary engagements
-    # Obsolete as of January 2020, will be removed.
-    # primary_write_settings['primary_types'] = SETTINGS.get(
-    # 'integrations.ad.write.primary_types')
-
     # UUID for the unit type considered to be level2orgunit
     primary_write_settings['level2orgunit_type'] = SETTINGS.get(
         'integrations.ad.write.level2orgunit_type')
@@ -109,15 +120,15 @@ def _read_primary_write_information():
     missing = []
 
     for key, val in primary_write_settings.items():
-        if not val:
+        if val is None:
             missing.append(key)
-    if missing:
+    if len(missing) > 0:
         msg = 'Missing values for AD write {}'.format(missing)
         logger.info(msg)
         return {}
 
     # Check for illegal configuration of AD Write.
-    mo_to_ad_fields = SETTINGS.get('integrations.ad_writer.mo_to_ad_fields')
+    mo_to_ad_fields = SETTINGS.get('integrations.ad_writer.mo_to_ad_fields', {})
     ad_field_names = list(mo_to_ad_fields.values()) + [
         primary_write_settings['org_field'],
         primary_write_settings['level2orgunit_field'],
@@ -125,13 +136,13 @@ def _read_primary_write_information():
     ]
     if len(ad_field_names) > len(set(ad_field_names)):
         msg = 'Duplicate AD fieldnames in settings: {}'
-        logger.info(msg.format(sorted(ad_field_names)))
+        logger.info(msg.format(list(sorted(ad_field_names))))
         primary_write_settings = {}
 
     return primary_write_settings
 
 
-def _read_school_ad_settings():
+def _NEVER_read_school_ad_settings():
     school_settings = {}
 
     school_settings['search_base'] = os.environ.get('AD_SCHOOL_SEARCH_BASE')
@@ -167,11 +178,10 @@ def _read_school_ad_settings():
     return school_settings
 
 
-def read_settings():
+def read_settings(index=0):
     settings = {}
     settings['global'] = _read_global_settings()
-    settings['primary'] = _read_primary_ad_settings()
-    settings['school'] = _read_school_ad_settings()
+    settings['primary'] = _read_primary_ad_settings(index)
     settings['primary_write'] = _read_primary_write_information()
     return settings
 

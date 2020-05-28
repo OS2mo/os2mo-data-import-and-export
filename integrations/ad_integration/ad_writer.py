@@ -50,11 +50,11 @@ class ADWriter(AD):
                                  use_cache=False)
         self.name_creator = CreateUserNames(occupied_names=set())
         logger.info('Reading occupied names')
+        # lazyness needed - do this on first create user
         self.name_creator.populate_occupied_names()
         logger.info('Done reading occupied names')
 
-    def _get_write_setting(self, school=False):
-        # TODO: Currently we ignore school
+    def _get_write_setting(self):
         if not self.all_settings['primary_write']:
             msg = 'Trying to enable write access with broken settings.'
             logger.error(msg)
@@ -62,18 +62,12 @@ class ADWriter(AD):
         return self.all_settings['primary_write']
 
     def _other_attributes(self, mo_values, user_sam, new_user=False):
-        school = False  # TODO
-        write_settings = self._get_write_setting(school)
+        write_settings = self._get_write_setting()
         if new_user:
             other_attributes = ' -OtherAttributes @{'
         else:
             other_attributes = ' -Replace @{'
 
-        # other_attributes_fields = [
-        #     (write_settings['level2orgunit_field'],
-        #      mo_values['level2orgunit'].replace('&', 'og')),
-        #     (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
-        # ]
         other_attributes_fields = [
             (write_settings['level2orgunit_field'],
              mo_values['level2orgunit']),
@@ -171,7 +165,7 @@ class ADWriter(AD):
         ad_info = []
         if ad_dump is not None:
             for user in ad_dump:
-                if user.get(self.settings['integrations.ad.cpr_field']) == cpr:
+                if user.get(self.all_settings['primary']['cpr_field']) == cpr:
                     ad_info.append(user)
         else:
             ad_info = self.get_from_ad(cpr=cpr)
@@ -325,7 +319,7 @@ class ADWriter(AD):
             'end_date': 2089-11-11,
             'cpr': '1122334455',
             'title': 'Musiker',
-            'location': 'Viborg Kommune\Forvalting\Enhed\',
+            'location': 'Viborg Kommune\\Forvalting\\Enhed\',
             'level2orgunit: 'Beskæftigelse, Økonomi & Personale',
             'manager_sam': 'DMILL'
         }
@@ -491,10 +485,8 @@ class ADWriter(AD):
         :param user_sam: SamAccountName for the employee.
         :param manager_sam: SamAccountName for the manager.
         """
-        school = False  # TODO
         format_rules = {'user_sam': user_sam, 'manager_sam': manager_sam}
-        ps_script = self._build_ps(ad_templates.add_manager_template,
-                                   school, format_rules)
+        ps_script = self._build_ps(ad_templates.add_manager_template, format_rules)
 
         response = self._run_ps_script(ps_script)
         return response is {}
@@ -518,8 +510,7 @@ class ADWriter(AD):
         return mismatch
 
     def _sync_compare(self, mo_values, ad_dump):
-        school = False  # TODO
-        write_settings = self._get_write_setting(school)
+        write_settings = self._get_write_setting()
 
         user_ad_info = self._find_ad_user(mo_values['cpr'], ad_dump)
         assert(len(user_ad_info) == 1)
@@ -557,7 +548,6 @@ class ADWriter(AD):
         """
         Sync MO information into AD
         """
-        school = False  # TODO
         mo_values = self.read_ad_information_from_mo(
             mo_uuid, ad_dump=ad_dump, read_manager=sync_manager)
 
@@ -593,7 +583,7 @@ class ADWriter(AD):
                     random.choice(self.all_settings['global']['servers'])
                 )
             ps_script = (
-                self._build_user_credential(school) +
+                self._build_user_credential() +
                 rename_user_string +
                 server_string
             )
@@ -631,7 +621,7 @@ class ADWriter(AD):
             )
 
         ps_script = (
-            self._build_user_credential(school) +
+            self._build_user_credential() +
             edit_user_string +
             server_string
         )
@@ -657,10 +647,9 @@ class ADWriter(AD):
         expected to be able to be created in AD and the expected SamAccountName.
         :return: The generated SamAccountName for the new user
         """
-        school = False  # TODO
         # TODO: Implement dry_run
 
-        bp = self._ps_boiler_plate(school)
+        bp = self._ps_boiler_plate()
         mo_values = self.read_ad_information_from_mo(mo_uuid, create_manager)
         if mo_values is None:
             logger.error('Trying to create user with no engagements')
@@ -700,7 +689,7 @@ class ADWriter(AD):
             )
 
         ps_script = (
-            self._build_user_credential(school) +
+            self._build_user_credential() +
             create_user_string +
             server_string +
             bp['path']
@@ -736,11 +725,9 @@ class ADWriter(AD):
         :param password: The password to assign to the user.
         :return: True if success, otherwise False
         """
-        school = False  # TODO
 
         format_rules = {'username': username, 'password': password}
-        ps_script = self._build_ps(ad_templates.set_password_template,
-                                   school, format_rules)
+        ps_script = self._build_ps(ad_templates.set_password_template, format_rules)
         response = self._run_ps_script(ps_script)
         if not response:
             return (True, 'Password updated')
@@ -755,16 +742,15 @@ class ADWriter(AD):
         :param username: SamAccountName of the account to be enabled or disabled
         :param enable: If True enable account, if False, disbale account
         """
-        school = False  # TODO
 
         logger.info('Enable account: {}'.format(enable))
         format_rules = {'username': username}
         if enable:
             ps_script = self._build_ps(ad_templates.enable_user_template,
-                                       school, format_rules)
+                                       format_rules)
         else:
             ps_script = self._build_ps(ad_templates.disable_user_template,
-                                       school, format_rules)
+                                       format_rules)
 
         response = self._run_ps_script(ps_script)
         if not response:
@@ -783,7 +769,7 @@ class ADWriter(AD):
         """
         format_rules = {'username': username}
         ps_script = self._build_ps(ad_templates.delete_user_template,
-                                   school=False, format_rules=format_rules)
+                                   format_rules=format_rules)
 
         response = self._run_ps_script(ps_script)
         # TODO: Should we make a read to confirm the user is gone?
