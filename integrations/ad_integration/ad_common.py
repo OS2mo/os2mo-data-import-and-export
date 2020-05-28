@@ -15,8 +15,8 @@ ENCODING = 'cp850'
 
 
 class AD(object):
-    def __init__(self):
-        self.all_settings = read_ad_conf_settings.read_settings()
+    def __init__(self, index=0):
+        self.all_settings = read_ad_conf_settings.read_settings(index)
         if self.all_settings['global']['winrm_host']:
             self.session = Session(
                 'http://{}:5985/wsman'.format(
@@ -74,11 +74,11 @@ class AD(object):
             response = r.std_err
         return response
 
-    def _ps_boiler_plate(self, school):
+    def _ps_boiler_plate(self):
         """
         Boiler plate that needs to go into all PowerShell code.
         """
-        settings = self._get_setting(school)
+        settings = self._get_setting()
 
         # This is most likely never neeed.
         # server = ''
@@ -117,30 +117,22 @@ class AD(object):
             text = text.replace('  ', ' ')
         return text
 
-    def _build_ps(self, ps_script, school, format_rules):
+    def _build_ps(self, ps_script, format_rules):
         """
         Return the standard code need to execute a power shell script from a
         template.
         """
         formatted_script = ps_script.format(**format_rules)
         finished_ps_script = (
-            self._build_user_credential(school) +
+            self._build_user_credential() +
             self.remove_redundant(formatted_script)
         )
         return finished_ps_script
 
-    def _get_setting(self, school):
-        if school and not self.all_settings['school']['read_school']:
-            msg = 'Trying to access school without credentials'
-            logger.error(msg)
-            raise Exception(msg)
-        if school:
-            setting = 'school'
-        else:
-            setting = 'primary'
-        return self.all_settings[setting]
+    def _get_setting(self):
+        return self.all_settings["primary"]
 
-    def _build_user_credential(self, school=False):
+    def _build_user_credential(self):
         """
         Build the commonn set of Power Shell commands that is needed to
         run the AD commands.
@@ -153,13 +145,13 @@ class AD(object):
         $TypeName = "System.Management.Automation.PSCredential"
         $UserCredential = New-Object –TypeName $TypeName –ArgumentList $User, $PWord
         """
-        settings = self._get_setting(school)
+        settings = self._get_setting()
         user_credential = credential_template.format(settings['system_user'],
                                                      settings['password'])
         return user_credential
 
-    def _properties(self, school):
-        settings = self._get_setting(school)
+    def _properties(self):
+        settings = self._get_setting()
         # properties = ' -Properties *'
         properties = ' -Properties '
         for item in settings['properties']:
@@ -171,7 +163,6 @@ class AD(object):
         """
         Find a unique AD account from cpr, otherwise raise an exception.
         """
-        # TODO: Handle school
         user_ad_info = self.get_from_ad(cpr=cpr)
 
         if len(user_ad_info) == 1:
@@ -186,7 +177,7 @@ class AD(object):
             raise ad_exceptions.CprNotNotUnique(msg)
         return user_sam
 
-    def get_from_ad(self, user=None, cpr=None, school=False, server=None):
+    def get_from_ad(self, user=None, cpr=None, server=None):
         """
         Read all properties of an AD user. The user can be retrived either by cpr
         or by AD user name.
@@ -196,8 +187,8 @@ class AD(object):
         if replication is finished.
         :return: All properties listed in AD for the user.
         """
-        settings = self._get_setting(school)
-        bp = self._ps_boiler_plate(school)
+        settings = self._get_setting()
+        bp = self._ps_boiler_plate()
 
         if user:
             dict_key = user
@@ -234,11 +225,11 @@ class AD(object):
                        '% {$_.replace("Ø","&Oslash;")} ')
 
         ps_script = (
-            self._build_user_credential(school) +
+            self._build_user_credential() +
             get_command +
             server_string +
             bp['complete'] +
-            self._properties(school) +
+            self._properties() +
             # bp['get_ad_object'] +
             command_end
         )
