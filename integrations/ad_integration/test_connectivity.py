@@ -60,6 +60,7 @@ def test_basic_connectivity():
 
 def test_ad_contact(index):
     from ad_reader import ADParameterReader
+    ad_reader = ADParameterReader()
     try:
         ad_reader = ADParameterReader(index)
     except Exception as e:
