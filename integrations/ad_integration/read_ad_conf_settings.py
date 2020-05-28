@@ -134,6 +134,7 @@ def _read_primary_write_information():
         primary_write_settings['level2orgunit_field'],
         primary_write_settings['uuid_field']
     ]
+    print(ad_field_names)
     if len(ad_field_names) > len(set(ad_field_names)):
         msg = 'Duplicate AD fieldnames in settings: {}'
         logger.info(msg.format(list(sorted(ad_field_names))))
