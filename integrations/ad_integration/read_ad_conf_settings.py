@@ -91,8 +91,12 @@ def _read_primary_write_information():
     primary_write_settings = {}
 
     # Shared with read
+<<<<<<< d2d6a6176a936ef471e8bede57a8f9a706d45af9
     primary_write_settings['cpr_field'] = SETTINGS.get(
         'integrations.ad')[0]['cpr_field']
+=======
+    primary_write_settings['cpr_field'] = SETTINGS.get('integrations.ad')[0]['cpr_field']
+>>>>>>> WIP-35275-multiple-ad-instanser
 
     # Field for writing the uuid of a user, used to sync to STS
     primary_write_settings['uuid_field'] = SETTINGS.get(
@@ -134,6 +138,7 @@ def _read_primary_write_information():
         primary_write_settings['level2orgunit_field'],
         primary_write_settings['uuid_field']
     ]
+    print(ad_field_names)
     if len(ad_field_names) > len(set(ad_field_names)):
         msg = 'Duplicate AD fieldnames in settings: {}'
         logger.info(msg.format(list(sorted(ad_field_names))))
