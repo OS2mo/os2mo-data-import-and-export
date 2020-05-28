@@ -35,7 +35,7 @@ def test_basic_connectivity():
     except requests_kerberos.exceptions.KerberosExchangeError as e:
         error = str(e)
     except InvalidCredentialsError as e:
-        error = 'Credentails not accepted by remmote management server: {}' 
+        error = 'Credentails not accepted by remote management server: {}' 
         error = error.format(e)
     except requests.exceptions.ConnectionError as e:
         error = 'Unable to contact winrm_host {}, message: {}'
@@ -53,6 +53,7 @@ def test_basic_connectivity():
 
 def test_ad_contact():
     from ad_reader import ADParameterReader
+    ad_reader = ADParameterReader()
     try:
         ad_reader = ADParameterReader()
     except Exception as e:
@@ -93,11 +94,9 @@ def test_full_ad_read():
     }
     # Run through a set of users and test encoding and cpr-separator.
     for user in ad_reader.results.values():
-        cpr = user[SETTINGS['integrations.ad.cpr_field']]
-
-        # Notice, separator is read straight from settings file not via
-        # read_conf_settings, default behaviour must be kept synchronized.
-        separator = SETTINGS.get('integrations.ad.cpr_separator', '')
+        cprfield = ad_reader.all_settings["primary"]["cpr_field"]
+        cpr = user[cprfield]
+        separator = ad_reader.all_settings["primary"]["cpr_separator"]
 
         cpr_ok = False
         if separator == '' and len(cpr) == 10:
