@@ -3,7 +3,7 @@ import pathlib
 import logging
 from datetime import datetime
 
-import ad_reader
+import ad_reader as adreader
 import ad_logger
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
@@ -29,37 +29,16 @@ VALIDITY = {
 
 
 class AdMoSync(object):
-    def __init__(self):
+    def __init__(self, ):
         logger.info('AD Sync Started')
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
-        self.mapping = self.settings['integrations.ad.ad_mo_sync_mapping']
 
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
         self.org = self.helper.read_organisation()
-
-        if 'it_systems' in self.mapping:
-            mo_it_systems = self.helper.read_it_systems()
-
-            for it_system, it_system_uuid in self.mapping['it_systems'].items():
-                found = False
-                for mo_it_system in mo_it_systems:
-                    if mo_it_system['uuid'] == it_system_uuid:
-                        found = True
-                if not found:
-                    msg = '{} with uuid {}, not found in MO'
-                    raise Exception(msg.format(it_system, it_system_uuid))
-
-        skip_school = self.settings.get('integrations.ad.skip_school_ad_to_mo', True)
-        logger.info('Skip school domain: {}'.format(skip_school))
-        self.ad_reader = ad_reader.ADParameterReader(skip_school=skip_school)
-        print('Retrive AD dump')
-        self.ad_reader.cache_all()
-        print('Done')
-        logger.info('Done with AD caching')
 
         # Possibly get IT-system directly from LoRa for better performance.
         lora_speedup = self.settings.get(
@@ -67,12 +46,14 @@ class AdMoSync(object):
         if lora_speedup:
             print('Retrive LoRa dump')
             self.lc = LoraCache(resolve_dar=False, full_history=False)
-            self.lc.populate_cache(dry_run=False, skip_associations=True)
+            #self.lc.populate_cache(dry_run=False, skip_associations=True)
+            self.lc.populate_cache(dry_run=True, skip_associations=True) # skip reading lora - not for prod
             self.lc.calculate_primary_engagements()
             print('Done')
         else:
             print('Use direct MO access')
             self.lc = None
+        #exit() # - når man vil lave picklefiler
 
         mo_visibilities = self.helper.read_classes_in_facet('visibility')[0]
         self.visibility = {
@@ -87,21 +68,6 @@ class AdMoSync(object):
                     found = True
             if not found:
                 raise Exception('Error in visibility class configuration')
-
-        used_mo_fields = []
-        for key in self.mapping.keys():
-            for ad_field, mo_combi in self.mapping.get(key, {}).items():
-                if mo_combi in used_mo_fields:
-                    msg = 'MO field {} used more than once'
-                    raise Exception(msg.format(mo_combi))
-                used_mo_fields.append(mo_combi)
-
-        self.stats = {
-            'addresses': [0, 0],
-            'engagements': 0,
-            'it_systems': 0,
-            'users': set()
-        }
 
     def _read_mo_classes(self):
         """
@@ -374,26 +340,67 @@ class AdMoSync(object):
             self._edit_user_addresses(uuid, ad_object)
 
     def update_all_users(self):
-        """
-        Iterate over all users and sync AD informations to MO.
-        """
-        i = 0
-        employees = self._read_all_mo_users()
-        for employee in employees:
-            i = i + 1
-            if i % 100 == 0:
-                print('Progress: {}/{}'.format(i, len(employees)))
-            # logger.info('Start sync of {}'.format(employee['uuid']))
-            if 'cpr' in employee:
-                cpr = employee['cpr']
-            else:
-                user = self.helper.read_user(employee['uuid'])
-                cpr = user['cpr_no']
-            response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
-            if response:
-                self._update_single_user(employee['uuid'], response)
-            # logger.info('End sync of {}'.format(employee['uuid']))
-        logger.info('Stats: {}'.format(self.stats))
+        # Iterate over all AD's 
+        for index, _ in enumerate(self.settings["integrations.ad"]):
+
+            self.stats = {
+                'ad-index': index,
+                'addresses': [0, 0],
+                'engagements': 0,
+                'it_systems': 0,
+                'users': set()
+            }
+
+            ad_reader = adreader.ADParameterReader(index=index)
+            print('Retrive AD dump')
+            ad_reader.cache_all()
+            print('Done')
+            logger.info('Done with AD caching')
+
+            # move to read_conf_settings og valider på tværs af alle-ad'er
+            # så vi ikke overskriver addresser, itsystemer og extensionfelter 
+            # fra et ad med  med værdier fra et andet
+            self.mapping = ad_reader._get_setting()['ad_mo_sync_mapping']
+
+            if 'it_systems' in self.mapping:
+                mo_it_systems = self.helper.read_it_systems()
+
+                for it_system, it_system_uuid in self.mapping['it_systems'].items():
+                    found = False
+                    for mo_it_system in mo_it_systems:
+                        if mo_it_system['uuid'] == it_system_uuid:
+                            found = True
+                    if not found:
+                        msg = '{} with uuid {}, not found in MO'
+                        raise Exception(msg.format(it_system, it_system_uuid))
+
+            used_mo_fields = []
+
+            for key in self.mapping.keys():
+                for ad_field, mo_combi in self.mapping.get(key, {}).items():
+                    if mo_combi in used_mo_fields:
+                        msg = 'MO field {} used more than once'
+                        raise Exception(msg.format(mo_combi))
+                    used_mo_fields.append(mo_combi)
+
+            # Iterate over all users and sync AD informations to MO.
+            i = 0
+            employees = self._read_all_mo_users()
+            for employee in employees:
+                i = i + 1
+                if i % 100 == 0:
+                    print('Progress: {}/{}'.format(i, len(employees)))
+                # logger.info('Start sync of {}'.format(employee['uuid']))
+                if 'cpr' in employee:
+                    cpr = employee['cpr']
+                else:
+                    user = self.helper.read_user(employee['uuid'])
+                    cpr = user['cpr_no']
+                response = ad_reader.read_user(cpr=cpr, cache_only=True)
+                if response:
+                    self._update_single_user(employee['uuid'], response)
+                #logger.info('End sync of {}'.format(employee['uuid']))
+            logger.info('Stats: {}'.format(self.stats))
         self.stats['users'] = 'Written in log file'
         print(self.stats)
 

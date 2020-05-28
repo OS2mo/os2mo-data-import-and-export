@@ -35,29 +35,42 @@ at AD er sat op med cpr-numre på medarbejdere samt en servicebruger som har
 rettigheder til at læse dette felt. Desuden skal et antal variable være sat i
 ``settings.json``
 
+Det er muligt at anvende flere AD til udlæsning af adresser og itsystemer til OS2MO
+Således er ``integrations.ad`` i ``settings.json`` et array med følgende 
+indbyggede betydning:
+ 
+ * Første AD i listen (index 0) anvendes til skrivning (hvis skrivning er aktiveret) 
+   og til integrationer, som endnu ikke er forberedt for flere ad'er.
+
+ * Alle AD'er anvendes af ad_sync til opdatering af og skabelse af adresser, itsystemer 
+
+
+
+
 Fælles parametre
 ----------------
 
  * ``integrations.ad.winrm_host``: Hostname på remote mangagent server
 
-Standard AD
+For hvert ad angives
 -----------
 
- * ``integrations.ad.search_base``: Search base, eksempelvis
+ * ``search_base``: Search base, eksempelvis
    'OU=enheder,DC=kommune,DC=local'
- * ``integrations.ad.cpr_field``: Navnet på feltet i AD som indeholder cpr nummer.
- * ``integrations.ad.cpr_separator``: Angiver en eventuel separator mellem
+ * ``cpr_field``: Navnet på feltet i AD som indeholder cpr nummer.
+ * ``cpr_separator``: Angiver en eventuel separator mellem
    fødselsdato og løbenumre i cpr-feltet i AD. Hvis der ikke er en separator,
    angives en tom streng.
- * ``integrations.ad.sam_filter``: Hvis denne værdi er sat, vil kun det være muligt
+ * ``sam_filter``: Hvis denne værdi er sat, vil kun det være muligt
    at cpr-fremsøge medarbejder som har denne værdi foranstillet i SAM-navn.
    Funktionen muliggør at skelne mellem brugere og servicebrugere som har samme
    cpr-nummer.
- * ``integrations.ad.system_user``: Navnet på den systembruger som har rettighed til
+ * ``system_user``: Navnet på den systembruger som har rettighed til
    at læse fra AD.
- * ``integrations.ad.password``: Password til samme systembruger.
- * ``integrations.ad.properties``: Liste over felter som skal læses fra AD. Angives
+ * ``password``: Password til samme systembruger.
+ * ``properties``: Liste over felter som skal læses fra AD. Angives
    som en liste i json-filen.
+ * ``servers`` - domain controllere for denne ad.
 
 
 Skole AD
@@ -259,21 +272,25 @@ Programmet opdaterer alle værdier i MO i henhold til den feltmapning som er ang
 i `settings.json`. Det er muligt at synkronisere adresseoplysninger, samt at
 oprette et IT-system på brugeren, hvis brugeren findes i AD, men endnu ikke har et
 tilknyttet IT-system i MO. Desuden er det muligt at synkronisere et AD felt til
-et felt på brugerens primærengagement (typisk stillingsbetegnelsen).
+et felt på brugerens primærengagement (typisk stillingsbetegnelsen). 
+Husk at efterfølgende AD kan overskrive. Derfor:
+Anvend ikke samme klasser, itsystemer eller extensionfelter i flere af 
+de specificerede AD'er
+
 Et eksempel på en feltmapning angives herunder:
 
 .. code-block:: json
 
-    "integrations.ad.ad_mo_sync_mapping": {
-	"user_addresses": {
-	    "telephoneNumber": ["a6dbb837-5fca-4f05-b369-8476a35e0a95", "INTERNAL"],
-	    "pager": ["d9cd7a04-a992-4b31-9534-f375eba2f1f4 ", "PUBLIC"],
-	    "EmailAddress": ["fbd70da1-ad2e-4373-bb4f-2a431b308bf1", null],
-	    "mobile": ["6e7131a0-de91-4346-8607-9da1b576fc2a ", "PUBLIC"]
-	},
-	"it_systems": {
-	    "samAccountName": "d2998fa8-9d0f-4a2c-b80e-c754c72ef094"
-	},
+    "ad_mo_sync_mapping": {
+        "user_addresses": {
+            "telephoneNumber": ["a6dbb837-5fca-4f05-b369-8476a35e0a95", "INTERNAL"],
+            "pager": ["d9cd7a04-a992-4b31-9534-f375eba2f1f4 ", "PUBLIC"],
+            "EmailAddress": ["fbd70da1-ad2e-4373-bb4f-2a431b308bf1", null],
+            "mobile": ["6e7131a0-de91-4346-8607-9da1b576fc2a ", "PUBLIC"]
+        },
+        "it_systems": {
+            "samAccountName": "d2998fa8-9d0f-4a2c-b80e-c754c72ef094"
+        },
         "engagements": {
             "Title": "extension_2"
         }
