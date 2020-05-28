@@ -751,7 +751,6 @@ class ADWriter(AD):
         else:
             ps_script = self._build_ps(ad_templates.disable_user_template,
                                        format_rules)
-
         response = self._run_ps_script(ps_script)
         if not response:
             return (True, 'Account enabled or disabled')
