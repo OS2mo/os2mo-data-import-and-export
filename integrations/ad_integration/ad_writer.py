@@ -50,6 +50,7 @@ class ADWriter(AD):
                                  use_cache=False)
         self.name_creator = CreateUserNames(occupied_names=set())
         logger.info('Reading occupied names')
+        # lazyness needed - do this on first create user
         self.name_creator.populate_occupied_names()
         logger.info('Done reading occupied names')
 
@@ -67,11 +68,6 @@ class ADWriter(AD):
         else:
             other_attributes = ' -Replace @{'
 
-        # other_attributes_fields = [
-        #     (write_settings['level2orgunit_field'],
-        #      mo_values['level2orgunit'].replace('&', 'og')),
-        #     (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
-        # ]
         other_attributes_fields = [
             (write_settings['level2orgunit_field'],
              mo_values['level2orgunit']),
@@ -169,7 +165,7 @@ class ADWriter(AD):
         ad_info = []
         if ad_dump is not None:
             for user in ad_dump:
-                if user.get(self.settings['integrations.ad.cpr_field']) == cpr:
+                if user.get(self.all_settings['primary']['cpr_field']) == cpr:
                     ad_info.append(user)
         else:
             ad_info = self.get_from_ad(cpr=cpr)
@@ -323,7 +319,7 @@ class ADWriter(AD):
             'end_date': 2089-11-11,
             'cpr': '1122334455',
             'title': 'Musiker',
-            'location': 'Viborg Kommune\Forvalting\Enhed\',
+            'location': 'Viborg Kommune\\Forvalting\\Enhed\',
             'level2orgunit: 'Beskæftigelse, Økonomi & Personale',
             'manager_sam': 'DMILL'
         }
@@ -750,9 +746,11 @@ class ADWriter(AD):
         logger.info('Enable account: {}'.format(enable))
         format_rules = {'username': username}
         if enable:
-            ps_script = self._build_ps(ad_templates.enable_user_template, format_rules)
+            ps_script = self._build_ps(ad_templates.enable_user_template,
+                                       format_rules)
         else:
-            ps_script = self._build_ps(ad_templates.disable_user_template, format_rules)
+            ps_script = self._build_ps(ad_templates.disable_user_template,
+                                       format_rules)
 
         response = self._run_ps_script(ps_script)
         if not response:
