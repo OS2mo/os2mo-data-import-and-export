@@ -28,15 +28,20 @@ def _read_global_settings():
     return global_settings
 
 
-    #global_settings = {"instances":SETTINGS.get('integrations.ad')}
 def _read_primary_ad_settings(index=0):
     primary_settings = {}
-    primary_settings['servers'] = SETTINGS.get('integrations.ad')[index]['servers']
-    primary_settings['search_base'] = SETTINGS.get('integrations.ad')[index]["search_base"]
-    primary_settings['cpr_field'] = SETTINGS.get('integrations.ad')[index]["cpr_field"]
-    primary_settings['system_user'] = SETTINGS.get('integrations.ad')[index]["system_user"]
-    primary_settings['password'] = SETTINGS.get('integrations.ad')[index]['password']
-    primary_settings['properties'] = SETTINGS.get('integrations.ad')[index]["properties"]
+    primary_settings['servers'] = SETTINGS.get(
+        'integrations.ad')[index]['servers']
+    primary_settings['search_base'] = SETTINGS.get(
+        'integrations.ad')[index]["search_base"]
+    primary_settings['cpr_field'] = SETTINGS.get(
+        'integrations.ad')[index]["cpr_field"]
+    primary_settings['system_user'] = SETTINGS.get(
+        'integrations.ad')[index]["system_user"]
+    primary_settings['password'] = SETTINGS.get(
+        'integrations.ad')[index]['password']
+    primary_settings['properties'] = SETTINGS.get(
+        'integrations.ad')[index]["properties"]
 
     missing = []
     for key, val in primary_settings.items():
@@ -48,19 +53,27 @@ def _read_primary_ad_settings(index=0):
         raise Exception(msg)
 
     # 36182 exclude non primary AD-users
-    primary_settings["discriminator.field"] = SETTINGS.get("integrations.ad")[index].get("discriminator.field")
+    primary_settings["discriminator.field"] = SETTINGS.get(
+        "integrations.ad")[index].get("discriminator.field")
     if primary_settings["discriminator.field"] is not None:
         # if we have a field we MUST have .values and .function
-        primary_settings["discriminator.values"] = SETTINGS["integrations.ad"][index]["discriminator.values"]
-        primary_settings["discriminator.function"] = SETTINGS["integrations.ad"][index]["discriminator.function"]
+        primary_settings["discriminator.values"] = SETTINGS[
+            "integrations.ad"][index]["discriminator.values"]
+        primary_settings["discriminator.function"] = SETTINGS[
+            "integrations.ad"][index]["discriminator.function"]
         if not primary_settings["discriminator.function"] in ["include", "exclude"]:
-            raise ValueError("'ad.discriminator.function' must be include or exclude for AD %d"% index)
+            raise ValueError("'ad.discriminator.function'" +
+                " must be include or exclude for AD %d" % index
+            )
 
     # Settings that do not need to be set, or have defaults
     primary_settings['server'] = None
-    primary_settings['sam_filter'] = SETTINGS.get("integrations.ad")[index].get("sam_filter", '')
-    primary_settings['cpr_separator'] = SETTINGS.get('integrations.ad')[index].get('cpr_separator', '')
-    primary_settings['ad_mo_sync_mapping'] = SETTINGS.get('integrations.ad')[index].get('ad_mo_sync_mapping', {})
+    primary_settings['sam_filter'] = SETTINGS.get(
+        "integrations.ad")[index].get("sam_filter", '')
+    primary_settings['cpr_separator'] = SETTINGS.get(
+        'integrations.ad')[index].get('cpr_separator', '')
+    primary_settings['ad_mo_sync_mapping'] = SETTINGS.get(
+        'integrations.ad')[index].get('ad_mo_sync_mapping', {})
 
     # So far false in all known cases, default to false
     # get_ad_object = os.environ.get('AD_GET_AD_OBJECT', 'False')
@@ -78,7 +91,8 @@ def _read_primary_write_information():
     primary_write_settings = {}
 
     # Shared with read
-    primary_write_settings['cpr_field'] = SETTINGS.get('integrations.ad')[0]['cpr_field']
+    primary_write_settings['cpr_field'] = SETTINGS.get(
+        'integrations.ad')[0]['cpr_field']
 
     # Field for writing the uuid of a user, used to sync to STS
     primary_write_settings['uuid_field'] = SETTINGS.get(
@@ -120,7 +134,6 @@ def _read_primary_write_information():
         primary_write_settings['level2orgunit_field'],
         primary_write_settings['uuid_field']
     ]
-    print(ad_field_names)
     if len(ad_field_names) > len(set(ad_field_names)):
         msg = 'Duplicate AD fieldnames in settings: {}'
         logger.info(msg.format(list(sorted(ad_field_names))))
