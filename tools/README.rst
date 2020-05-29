@@ -343,3 +343,11 @@ job-runner.d
 Job-runner.d er konponenter, der loades af job-runneren
 Indtil nu loades funktionen, der afvikler jobs herigennem ligesom nyeste tilføjelse: tidsmålinger gør.
 
+
+terminate_orgfunc.py
+====================
+
+Et tool, som terminerer ALLE brugeres adresser og it-forbindelser. Det er jo ikke særligt smart
+at køre sådan et, for så skal man oprette dem allesammen igen. Det er imidlertid nødvendigt, 
+hvis man er Viborg og tidligere har brugt Skole-AD eller man ændrer feltmapning
+
