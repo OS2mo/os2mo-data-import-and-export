@@ -29,7 +29,7 @@ VALIDITY = {
 
 
 class AdMoSync(object):
-    def __init__(self, ):
+    def __init__(self):
         logger.info('AD Sync Started')
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
