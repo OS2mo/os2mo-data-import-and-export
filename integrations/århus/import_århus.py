@@ -22,7 +22,7 @@ logger = logging.getLogger('århusImport')
 
 for name in logging.root.manager.loggerDict:
     if name in ('moImporterMoraTypes', 'moImporterMoxTypes', 'moImporterUtilities',
-                'moImporterHelpers'):
+                'moImporterHelpers', 'århusImport'):
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
         logging.getLogger(name).setLevel(logging.ERROR)
@@ -260,24 +260,29 @@ class ÅrhusImport(object):
                 date_to=mail[0]['end_date_mo']
             )
 
-    # def _diff_import_org_unit(self):
-    #     unit_info = self._parse_org_unit_file()
-    #     for uuid, unit_row in unit_info.items():
-    #         if len(unit_row) == 1:
-    #             continue
-    #         for unit in unit_row[1:]:
-    #             parent = unit['ParentOrgenhedUUID']
-    #             if parent not in unit_info:
-    #                 print('Parent not found')
-    #                 parent = None
-    #             edit_payload = payloads.edit_org_uni(
-    #                 user_key=,
-    #                 name=,
-    #                 unit_uuid=,
-    #                 parent=,
-    #                 ou_type='7F191604-BFBB-4205-A5C6-4B233AB3B7A3',
-    #                 from_date, to_date
-    #             )
+    def _diff_import_unit(self):
+        unit_info = self._parse_org_unit_file()
+        for uuid, unit_row in unit_info.items():
+            if len(unit_row) == 1:
+                continue
+            print('Edit {}'.format(unit_row[1]['Enhedsnavn']))
+            for unit in unit_row[1:]:
+                parent = unit['ParentOrgenhedUUID']
+                if parent not in unit_info:
+                    print('Parent not found')
+                    parent = None
+                payload = payloads.edit_org_unit(
+                    user_key=unit['OrgenhedID'],
+                    name=unit['Enhedsnavn'],
+                    unit_uuid=uuid,
+                    parent=parent,
+                    ou_type='7F191604-BFBB-4205-A5C6-4B233AB3B7A3',
+                    from_date=unit['from_date_mo'],
+                    to_date=unit['end_date_mo']
+                )
+                logger.debug('Update unit: {}'.format(payload))
+                response = self.helper._mo_post('details/edit', payload)
+                response.raise_for_status()
 
     def _diff_import_person_email(self):
         # Todo, generalize to read all adresses
@@ -300,7 +305,6 @@ class ÅrhusImport(object):
                     'user_uuid': mail['PersonUUID']
                 }
                 payload = payloads.edit_address(address_args, uuid)
-                print(payload)
                 response = self.helper._mo_post('details/edit', payload)
                 response.raise_for_status()
 
@@ -326,6 +330,7 @@ class ÅrhusImport(object):
             exit()
 
         self._diff_import_person_email()
+        self._diff_import_unit()
 
 
 if __name__ == '__main__':

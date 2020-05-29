@@ -8,9 +8,6 @@ def edit_org_unit(user_key, name, unit_uuid, parent, ou_type, from_date, to_date
             'parent': {
                 'uuid': parent
             },
-            'org_unit_level': {
-                'uuid': ou_level
-            },
             'org_unit_type': {
                 'uuid': ou_type
             },
