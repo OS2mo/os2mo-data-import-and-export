@@ -173,7 +173,7 @@ class sdMox(object):
             if expected is not None and actual != expected:
                 errors.append(error)
 
-        department = self.read_department(unit_code=unit_code, unit_level=unit_level)
+        department = self.read_department(unit_code=unit_code, unit_uuid=unit_uuid, unit_level=unit_level)
         if department is None:
             return None, ["Unit"]
 
@@ -247,7 +247,7 @@ class sdMox(object):
         xml = xmltodict.unparse(flyt_dict)
         return xml
 
-    def _validate_unit_code(self, unit_code, unit_level=None, can_exist=False):
+    def _validate_unit_code(self, unit_code, unit_level=None):
         logger.info('Validating unit code {}'.format(unit_code))
         code_errors = []
         if unit_code is None:
@@ -264,8 +264,10 @@ class sdMox(object):
 
         if not code_errors:
             # customers expect unique unit_codes globally
+            # raises if there are more than one on same unit code
+            # one is also bad - this is handled here
             department = self.read_department(unit_code=unit_code)
-            if department is not None and not can_exist:
+            if department is not None:
                 code_errors.append('Enhedsnummer er i brug')
         return code_errors
 
@@ -303,8 +305,10 @@ class sdMox(object):
         if code_errors:
             raise SdMoxError(", ".join(code_errors))
 
-        # Verify the parent department actually exist
-        parent_department = self.read_department(unit_code=parent['unit_code'],
+        # Verify the parent department actually exist. 
+        # We need to also look up the parent on uuid - since parent may also be 
+        # one of the old double troubles.
+        parent_department = self.read_department(unit_uuid=parent['uuid'],
                                                  unit_level=parent['level'])
         if not parent_department:
             raise SdMoxError('Forældrenheden findes ikke')
@@ -343,12 +347,10 @@ class sdMox(object):
     def move_unit(self, unit_name, unit_code, parent, unit_level, unit_uuid=None,
                   test_run=True):
 
-        code_errors = self._validate_unit_code(unit_code)
-        if code_errors:
-            raise SdMoxError(", ".join(code_errors))
-
         # Verify the parent department actually exist
-        parent_department = self.read_department(unit_code=parent['unit_code'],
+        # We need to also look up the parent on uuid - since parent may also be 
+        # one of the old double troubles.
+        parent_department = self.read_department(unit_uuid=parent['uuid'],
                                                  unit_level=parent['level'])
         if not parent_department:
             raise SdMoxError('Forældrenheden findes ikke')

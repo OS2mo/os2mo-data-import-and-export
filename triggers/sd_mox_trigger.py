@@ -179,12 +179,6 @@ def ou_before_edit(data):
     mox = get_sdMox()
     mox._update_virkning(from_date)
 
-    # doing a read department here will give the non-unique error
-    # here - where we still have access to the mo-error reporting
-    code_errors = mox._validate_unit_code(unit['user_key'], can_exist=True)
-    if code_errors:
-        raise sd_mox.SdMoxError(", ".join(code_errors))
-
     if "name" in data["request"]["data"]:
         # we are renaming a department
         unit["name"] = data["request"]["data"]["name"]
@@ -283,12 +277,6 @@ def address_before_edit(data):
     from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
     mox = get_sdMox()
     mox._update_virkning(from_date)
-
-    # doing a read department here will give the non-unique error
-    # here - where we still have access to the mo-error reporting
-    code_errors = mox._validate_unit_code(unit['user_key'], can_exist=True)
-    if code_errors:
-        raise sd_mox.SdMoxError(", ".join(code_errors))
 
     payload = mox.payload_edit(ou, unit, addresses)
     mox.edit_unit(test_run=False, **payload)
