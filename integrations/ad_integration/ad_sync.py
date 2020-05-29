@@ -29,7 +29,7 @@ VALIDITY = {
 
 
 class AdMoSync(object):
-    def __init__(self, ):
+    def __init__(self):
         logger.info('AD Sync Started')
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
@@ -46,8 +46,9 @@ class AdMoSync(object):
         if lora_speedup:
             print('Retrive LoRa dump')
             self.lc = LoraCache(resolve_dar=False, full_history=False)
-            #self.lc.populate_cache(dry_run=False, skip_associations=True)
-            self.lc.populate_cache(dry_run=True, skip_associations=True) # skip reading lora - not for prod
+            self.lc.populate_cache(dry_run=False, skip_associations=True)
+            # skip reading lora - not for prod
+            # self.lc.populate_cache(dry_run=True, skip_associations=True)
             self.lc.calculate_primary_engagements()
             print('Done')
         else:
