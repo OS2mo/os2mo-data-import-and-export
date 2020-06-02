@@ -186,7 +186,7 @@ def addresses_to_orgunit(orgunit, addresses):
     for a in addresses:
         if a["address_type"]["scope"] == "EMAIL":
             orgunit["Email"] = a["name"]
-        elif a["address_type"]["scope"] == "PNUMBER":
+        elif a["address_type"]["scope"] == "EAN":
             orgunit["Ean"] = a["name"]
         elif a["address_type"]["scope"] == "PHONE":
             orgunit["PhoneNumber"] = a["name"]
