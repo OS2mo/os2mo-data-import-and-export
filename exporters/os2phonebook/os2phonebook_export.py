@@ -317,7 +317,34 @@ def generate_json():
 
 @cli.command()
 def transfer_json():
-    pass
+    # Load settings file
+    cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
+    if not cfg_file.is_file():
+        raise Exception("No setting file")
+    settings = json.loads(cfg_file.read_text())
+    # Load JSON
+    employee_map = {}
+    org_unit_map = {}
+    with open("tmp/employees.json", "r") as employees_in:
+        employee_map = json.load(employees_in)
+    with open("tmp/org_units.json", "r") as org_units_in:
+        org_unit_map = json.load(org_units_in)
+    print("employees:", len(employee_map))
+    print("org units:", len(org_unit_map))
+    # Transfer JSON
+    username = settings["exporters.os2phonebook_basic_auth_user"]
+    password = settings["exporters.os2phonebook_basic_auth_pass"]
+    employees_url = settings["exporters.os2phonebook_employees_uri"]
+    request = requests.get(employees_url, data=employee_map, auth=(username, password))
+    if request.status_code != 200:
+        logger.warning("OS2Phonebook returned non-200 status code")
+        logger.warning(request.text)
+ 
+    org_units_url = settings["exporters.os2phonebook_org_units_uri"]
+    request = requests.get(org_units_url, data=org_unit_map, auth=(username, password))
+    if request.status_code != 200:
+        logger.warning("OS2Phonebook returned non-200 status code")
+        logger.warning(request.text)
 
 
 if __name__ == "__main__":
