@@ -87,20 +87,99 @@ def generate_json():
     total_number_of_employees = session.query(Bruger).count()
     print(total_number_of_employees)
 
+    def get_org_unit_address_references(enhed):
+        return address_adapter(session.query(Adresse).filter(Adresse.enhed_uuid == enhed.uuid).all())
+
+    def get_org_unit_engagement_references(enhed):
+        queryset = session.query(Engagement, Bruger).filter(
+            Engagement.enhed_uuid == enhed.uuid
+        ).filter(
+            Engagement.bruger_uuid == Bruger.uuid
+        ).all()
+
+        return [
+            {
+                "title": engagement.stillingsbetegnelse_titel,
+                "name": bruger.fornavn + " " + bruger.efternavn,
+                "uuid": bruger.uuid,
+            } for engagement, bruger in queryset
+        ]
+
+    def get_org_unit_association_references(enhed):
+        queryset = session.query(Tilknytning, Bruger).filter(
+            Tilknytning.enhed_uuid == enhed.uuid
+        ).filter(
+            Tilknytning.bruger_uuid == Bruger.uuid
+        ).all()
+
+        return [
+            {
+                "title": tilknytning.tilknytningstype_titel,
+                "name": bruger.fornavn + " " + bruger.efternavn,
+                "uuid": bruger.uuid,
+            }
+            for tilknytning, bruger in queryset
+        ]
+
+    def get_org_unit_manager_references(enhed):
+        queryset = session.query(Leder, Bruger).filter(
+            Leder.enhed_uuid == enhed.uuid
+        ).filter(
+            Leder.bruger_uuid == Bruger.uuid
+        ).all()
+
+        return [
+            {
+                "title": leder.ledertype_titel,
+                "name": bruger.fornavn + " " + bruger.efternavn,
+                "uuid": bruger.uuid,
+            }
+            for leder, bruger in queryset
+        ]
+
+    org_unit_map = {}
+    def get_org_unit(enhed):
+        if enhed.uuid in org_unit_map:
+            return
+
+        unit = {
+            "uuid": enhed.uuid,
+            "name": enhed.navn,
+        }
+        unit["parent"] = enhed.forældreenhed_uuid
+        if unit["parent"]:
+            get_org_unit(
+                session.query(Enhed).filter(
+                    Enhed.uuid == unit["parent"]
+                ).first()
+            )
+
+        unit["addresses"] = get_org_unit_address_references(enhed)
+        unit["engagements"] = get_org_unit_engagement_references(enhed)
+        unit["associations"] = get_org_unit_association_references(enhed)
+        unit["management"] = get_org_unit_manager_references(enhed)
+
+        org_unit_map[enhed.uuid] = unit
+
     def get_employee_engagement_references(uuid):
+        queryset = session.query(Engagement, Enhed).filter(
+            Engagement.bruger_uuid == uuid
+        ).filter(
+            Engagement.enhed_uuid == Enhed.uuid
+        ).all()
+
+        for _, enhed in queryset:
+            get_org_unit(enhed)
+
         return [
             {
                 "title": engagement.stillingsbetegnelse_titel,
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
-            }
-            for engagement, enhed in session.query(Engagement, Enhed)
-            .filter(Engagement.bruger_uuid == uuid)
-            .filter(Engagement.enhed_uuid == Enhed.uuid)
-            .all()
+            } for engagement, enhed in queryset
         ]
 
-    def get_employee_address_references(uuid):
+    def address_adapter(address_list):
         address_types = {
             "DAR": [],
             "PHONE": [],
@@ -118,7 +197,7 @@ def generate_json():
             "P-nummer": "PNUMBER",
             "Url": "WWW",
         }
-        for address in session.query(Adresse).filter(Adresse.bruger_uuid == uuid):
+        for address in address_list:
             scope = address.adressetype_scope
 
             if scope not in da_address_types:
@@ -153,27 +232,39 @@ def generate_json():
 
         return address_types
 
+    def get_employee_address_references(uuid):
+        return address_adapter(session.query(Adresse).filter(Adresse.bruger_uuid == uuid).all())
+
     def get_employee_association_references(uuid):
+        queryset = session.query(Tilknytning, Enhed).filter(
+            Tilknytning.bruger_uuid == uuid
+        ).filter(Tilknytning.enhed_uuid == Enhed.uuid).all()
+
+        for _, enhed in queryset:
+            get_org_unit(enhed)
+
         return [
             {
                 "title": tilknytning.tilknytningstype_titel,
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-            for tilknytning, enhed in session.query(Tilknytning, Enhed)
-            .filter(Tilknytning.bruger_uuid == uuid)
-            .filter(Tilknytning.enhed_uuid == Enhed.uuid)
-            .all()
+            for tilknytning, enhed in queryset
         ]
 
     def get_employee_manager_references(uuid):
+        queryset = session.query(Leder, Enhed).filter(
+            Leder.bruger_uuid == uuid
+        ).filter(
+            Leder.enhed_uuid == Enhed.uuid
+        ).all()
+
+        for _, enhed in queryset:
+            get_org_unit(enhed)
 
         return [
             {"title": leder.ledertype_titel, "name": enhed.navn, "uuid": enhed.uuid,}
-            for leder, enhed in session.query(Leder, Enhed)
-            .filter(Leder.bruger_uuid == uuid)
-            .filter(Leder.enhed_uuid == Enhed.uuid)
-            .all()
+            for leder, enhed in queryset
         ]
 
     employee_map = {}
@@ -219,6 +310,9 @@ def generate_json():
 
     with open("tmp/employees.json", "w") as employees_out:
         json.dump(employee_map, employees_out)
+
+    with open("tmp/org_units.json", "w") as org_units_out:
+        json.dump(org_unit_map, org_units_out)
 
 
 @cli.command()
