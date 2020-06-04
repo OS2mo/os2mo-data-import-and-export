@@ -36,14 +36,13 @@ logging.basicConfig(
 
 
 class SqlExport(object):
-    def __init__(self, force_sqlite=False, historic=False):
+    def __init__(self, force_sqlite=False, historic=False, settings=None):
         logger.info('Start SQL export')
         atexit.register(self.at_exit)
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
         self.historic = historic
+        self.settings = settings
+        if self.settings is None:
+            raise Exception('No settings provided')
 
         if self.historic:
             db_type = self.settings.get('exporters.actual_state_historic.type')
@@ -383,9 +382,15 @@ def cli():
 
     args = vars(parser.parse_args())
 
+    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+    if not cfg_file.is_file():
+        raise Exception('No setting file')
+    settings = json.loads(cfg_file.read_text())
+
     sql_export = SqlExport(
         force_sqlite=args.get('force_sqlite'),
         historic=args.get('historic'),
+        settings=settings,
     )
 
     sql_export.perform_export(
