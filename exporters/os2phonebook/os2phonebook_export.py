@@ -16,7 +16,7 @@ from functools import wraps
 
 import click
 from aiohttp import ClientSession, BasicAuth
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, or_
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.sql_export import SqlExport
@@ -423,15 +423,6 @@ async def generate_json():
 
     async def address_helper(queryset, entry_map, address_to_uuid):
 
-        da_address_types = {
-            "DAR": "DAR",
-            "Telefon": "PHONE",
-            "E-mail": "EMAIL",
-            "EAN": "EAN",
-            "P-nummer": "PNUMBER",
-            "Url": "WWW",
-        }
-
         @cache
         @cacheable
         async def request_dawa(uuid):
@@ -450,6 +441,15 @@ async def generate_json():
                     body = await response.json()
                     return body["adressebetegnelse"]
             return None
+
+        da_address_types = {
+            "DAR": "DAR",
+            "Telefon": "PHONE",
+            "E-mail": "EMAIL",
+            "EAN": "EAN",
+            "P-nummer": "PNUMBER",
+            "Url": "WWW",
+        }
 
         async def process_address(address, aiohttp_session):
             entry_uuid = address_to_uuid(address)
@@ -477,7 +477,6 @@ async def generate_json():
         # Queue all processing
         tasks = []
         async with ClientSession() as aiohttp_session:
-            from sqlalchemy import or_
             queryset = queryset.filter(
                 # Only include address types we care about
                 Adresse.adressetype_scope.in_(da_address_types.keys())
@@ -490,7 +489,7 @@ async def generate_json():
                     process_address(address, aiohttp_session)
                 )
                 tasks.append(task)
-            # Await all tasks
+            # Start firing HTTP requests, and wait for all of them
             await asyncio.gather(*tasks)
 
         return entry_map
@@ -500,36 +499,44 @@ async def generate_json():
     employee_map = {}
     with elapsedtime("fetch_employees"):
         employee_map = fetch_employees(employee_map)
+    # NOTE: These 3 queries can run in parallel
     with elapsedtime("enrich_employees_with_engagements"):
         employee_map = enrich_employees_with_engagements(employee_map)
     with elapsedtime("enrich_employees_with_associations"):
         employee_map = enrich_employees_with_associations(employee_map)
     with elapsedtime("enrich_employees_with_management"):
         employee_map = enrich_employees_with_management(employee_map)
+    # Filter off employees without engagements, assoications and management
     with elapsedtime("filter_employees"):
         employee_map = filter_employees(employee_map)
-    with elapsedtime("enrich_employees_with_addresses"):
-        employee_map = await enrich_employees_with_addresses(employee_map)
 
     # Org Units
     # ----------
-    with elapsedtime("fetch_employees"):
+    with elapsedtime("fetch_parent_org_units"):
         fetch_parent_org_units()
+    # NOTE: These 3 queries can run in parallel
     with elapsedtime("enrich_org_units_with_engagements"):
         org_unit_map = enrich_org_units_with_engagements(org_unit_map)
     with elapsedtime("enrich_org_units_with_associations"):
         org_unit_map = enrich_org_units_with_associations(org_unit_map)
     with elapsedtime("enrich_org_units_with_management"):
         org_unit_map = enrich_org_units_with_management(org_unit_map)
-    with elapsedtime("enrich_org_units_with_addresses"):
-        org_unit_map = await enrich_org_units_with_addresses(org_unit_map)
+
+    # Both
+    #-----
+    # Fire all HTTP requests in parallel (for both employees and org units)
+    with elapsedtime("enrich_x_with_addresses"):
+        employee_map, org_unit_map = await asyncio.gather(
+            enrich_employees_with_addresses(employee_map),
+            enrich_org_units_with_addresses(org_unit_map)
+        )
 
     print("Processing took", query_counter.count, "queries")
     print("Processing took", request_counter.count, "requests")
 
     # Write files
     # ------------
-    # TODO: Asyncio?
+    # TODO: Asyncio to write both files at once?
     with open("tmp/employees.json", "w") as employees_out:
         json.dump(employee_map, employees_out)
 
@@ -550,7 +557,7 @@ async def transfer_json():
     # Load JSON
     employee_map = {}
     org_unit_map = {}
-    # TODO: Asyncio?
+    # TODO: Asyncio to write both files at once?
     with elapsedtime("loading_employees"):
         with open("tmp/employees.json", "r") as employees_in:
             employee_map = json.load(employees_in)
@@ -572,22 +579,21 @@ async def transfer_json():
         "exporters.os2phonebook_org_units_uri", "load-org-units"
     )
     basic_auth = BasicAuth(username, password)
-    with elapsedtime("push_employees"):
-        async with ClientSession() as aiohttp_session:
-            async with aiohttp_session.post(
-                base_url + employees_url, json=employee_map, auth=basic_auth
+
+    async def push_updates(url, payload):
+        async with aiohttp_session.post(
+                base_url + url, json=payload, auth=basic_auth
             ) as response:
                 if response.status != 200:
                     logger.warning("OS2Phonebook returned non-200 status code")
                 print(await response.json())
-    with elapsedtime("push_org_units"):
+
+    with elapsedtime("push_x"):
         async with ClientSession() as aiohttp_session:
-            async with aiohttp_session.post(
-                base_url + org_units_url, json=org_unit_map, auth=basic_auth
-            ) as response:
-                if response.status != 200:
-                    logger.warning("OS2Phonebook returned non-200 status code")
-                print(await response.json())
+            await asyncio.gather(
+                push_updates(employees_url, employee_map),
+                push_updates(org_units_url, org_unit_map)
+            )
 
 
 if __name__ == "__main__":
