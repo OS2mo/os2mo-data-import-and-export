@@ -49,6 +49,7 @@ logging.basicConfig(
     filename=LOG_FILE,
 )
 
+
 class elapsedtime(object):
     def __init__(self, operation, rounding=3):
         self.operation = operation
@@ -62,7 +63,16 @@ class elapsedtime(object):
     def __exit__(self, type, value, traceback):
         elapsed_real = time.time() - self.start_time_real
         elapsed_cpu = time.clock() - self.start_time_cpu
-        print(self.operation, "took", round(elapsed_real, self.rounding), "seconds", "(", round(elapsed_cpu, self.rounding), "seconds", ")")
+        print(
+            self.operation,
+            "took",
+            round(elapsed_real, self.rounding),
+            "seconds",
+            "(",
+            round(elapsed_cpu, self.rounding),
+            "seconds",
+            ")",
+        )
 
 
 @click.group()
@@ -106,26 +116,29 @@ def generate_json():
     print("Total employees:", total_number_of_employees)
 
     def get_org_unit_engagement_references(uuid):
-        queryset = session.query(Engagement, Bruger).filter(
-            Engagement.enhed_uuid == uuid
-        ).filter(
-            Engagement.bruger_uuid == Bruger.uuid
-        ).all()
+        queryset = (
+            session.query(Engagement, Bruger)
+            .filter(Engagement.enhed_uuid == uuid)
+            .filter(Engagement.bruger_uuid == Bruger.uuid)
+            .all()
+        )
 
         return [
             {
                 "title": engagement.stillingsbetegnelse_titel,
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
-            } for engagement, bruger in queryset
+            }
+            for engagement, bruger in queryset
         ]
 
     def get_org_unit_association_references(uuid):
-        queryset = session.query(Tilknytning, Bruger).filter(
-            Tilknytning.enhed_uuid == uuid
-        ).filter(
-            Tilknytning.bruger_uuid == Bruger.uuid
-        ).all()
+        queryset = (
+            session.query(Tilknytning, Bruger)
+            .filter(Tilknytning.enhed_uuid == uuid)
+            .filter(Tilknytning.bruger_uuid == Bruger.uuid)
+            .all()
+        )
 
         return [
             {
@@ -137,11 +150,12 @@ def generate_json():
         ]
 
     def get_org_unit_manager_references(uuid):
-        queryset = session.query(Leder, Bruger).filter(
-            Leder.enhed_uuid == uuid
-        ).filter(
-            Leder.bruger_uuid == Bruger.uuid
-        ).all()
+        queryset = (
+            session.query(Leder, Bruger)
+            .filter(Leder.enhed_uuid == uuid)
+            .filter(Leder.bruger_uuid == Bruger.uuid)
+            .all()
+        )
 
         return [
             {
@@ -153,6 +167,7 @@ def generate_json():
         ]
 
     org_unit_map = {}
+
     def add_org_unit(enhed):
         if enhed.uuid in org_unit_map:
             return
@@ -171,13 +186,11 @@ def generate_json():
                 "EAN": [],
                 "PNUMBER": [],
                 "WWW": [],
-            }
+            },
         }
         if unit["parent"]:
             add_org_unit(
-                session.query(Enhed).filter(
-                    Enhed.uuid == unit["parent"]
-                ).first()
+                session.query(Enhed).filter(Enhed.uuid == unit["parent"]).first()
             )
 
         org_unit_map[enhed.uuid] = unit
@@ -199,16 +212,18 @@ def generate_json():
                     "EAN": [],
                     "PNUMBER": [],
                     "WWW": [],
-                }
+                },
             }
             employee_map[employee.uuid] = phonebook_entry
         return employee_map
 
     def enrich_employees_with_engagements(employee_map):
         # Enrich with engagements
-        queryset = session.query(Engagement, Enhed).filter(
-            Engagement.enhed_uuid == Enhed.uuid
-        ).all()
+        queryset = (
+            session.query(Engagement, Enhed)
+            .filter(Engagement.enhed_uuid == Enhed.uuid)
+            .all()
+        )
 
         for _, enhed in queryset:
             add_org_unit(enhed)
@@ -224,7 +239,11 @@ def generate_json():
 
     def enrich_employees_with_associations(employee_map):
         # Enrich with associations
-        queryset = session.query(Tilknytning, Enhed).filter(Tilknytning.enhed_uuid == Enhed.uuid).all()
+        queryset = (
+            session.query(Tilknytning, Enhed)
+            .filter(Tilknytning.enhed_uuid == Enhed.uuid)
+            .all()
+        )
 
         for _, enhed in queryset:
             add_org_unit(enhed)
@@ -235,20 +254,26 @@ def generate_json():
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-            employee_map[tilknytning.bruger_uuid]["associations"].append(tilknytning_entry)
+            employee_map[tilknytning.bruger_uuid]["associations"].append(
+                tilknytning_entry
+            )
         return employee_map
 
     def enrich_employees_with_management(employee_map):
         # Enrich with management
-        queryset = session.query(Leder, Enhed).filter(
-            Leder.enhed_uuid == Enhed.uuid
-        ).all()
+        queryset = (
+            session.query(Leder, Enhed).filter(Leder.enhed_uuid == Enhed.uuid).all()
+        )
 
         for _, enhed in queryset:
             add_org_unit(enhed)
 
         for leder, enhed in queryset:
-            leder_entry = {"title": leder.ledertype_titel, "name": enhed.navn, "uuid": enhed.uuid}
+            leder_entry = {
+                "title": leder.ledertype_titel,
+                "name": enhed.navn,
+                "uuid": enhed.uuid,
+            }
             employee_map[leder.bruger_uuid]["management"].append(leder_entry)
         return employee_map
 
@@ -274,25 +299,29 @@ def generate_json():
                 )
                 return False
             return True
-        
-        filtered_map = {uuid: entry for uuid, entry in employee_map.items() if filter_function(entry)}
+
+        filtered_map = {
+            uuid: entry
+            for uuid, entry in employee_map.items()
+            if filter_function(entry)
+        }
         return filtered_map
-    
+
     def enrich_org_units_with_addresses(org_unit_map):
         # Enrich with adresses
-        queryset = session.query(Adresse).filter(
-            Adresse.enhed_uuid != None
-        ).all()
+        queryset = session.query(Adresse).filter(Adresse.enhed_uuid != None).all()
 
-        return address_helper(queryset, org_unit_map, lambda address: address.enhed_uuid)
+        return address_helper(
+            queryset, org_unit_map, lambda address: address.enhed_uuid
+        )
 
     def enrich_employees_with_addresses(employee_map):
         # Enrich with adresses
-        queryset = session.query(Adresse).filter(
-            Adresse.bruger_uuid != None
-        ).all()
+        queryset = session.query(Adresse).filter(Adresse.bruger_uuid != None).all()
 
-        return address_helper(queryset, employee_map, lambda address: address.bruger_uuid)
+        return address_helper(
+            queryset, employee_map, lambda address: address.bruger_uuid
+        )
 
     def address_helper(queryset, entry_map, address_to_uuid):
 
@@ -339,14 +368,18 @@ def generate_json():
                 "value": value,
             }
 
-            entry_map[entry_uuid]["addresses"][da_address_types[scope]].append(formatted_address)
+            entry_map[entry_uuid]["addresses"][da_address_types[scope]].append(
+                formatted_address
+            )
 
         async def run():
             # Queue all processing
             tasks = []
             async with ClientSession() as aiohttp_session:
                 for address in queryset:
-                    task = asyncio.ensure_future(process_address(address, aiohttp_session))
+                    task = asyncio.ensure_future(
+                        process_address(address, aiohttp_session)
+                    )
                     tasks.append(task)
                 # Await all tasks
                 await asyncio.gather(*tasks)
@@ -358,7 +391,7 @@ def generate_json():
         return entry_map
 
     # Employees
-    #----------
+    # ----------
     employee_map = {}
     with elapsedtime("fetch_employees"):
         employee_map = fetch_employees(employee_map)
@@ -374,7 +407,7 @@ def generate_json():
         employee_map = enrich_employees_with_addresses(employee_map)
 
     # Org Units
-    #----------
+    # ----------
     with elapsedtime("enrich_org_units_with_addresses"):
         org_unit_map = enrich_org_units_with_addresses(org_unit_map)
 
@@ -384,13 +417,15 @@ def generate_json():
             org_unit_map[uuid]["engagements"] = get_org_unit_engagement_references(uuid)
     with elapsedtime("enrich_org_units_with_associations"):
         for uuid, _ in org_unit_map.items():
-            org_unit_map[uuid]["associations"] = get_org_unit_association_references(uuid)
+            org_unit_map[uuid]["associations"] = get_org_unit_association_references(
+                uuid
+            )
     with elapsedtime("enrich_org_units_with_management"):
         for uuid, _ in org_unit_map.items():
             org_unit_map[uuid]["management"] = get_org_unit_manager_references(uuid)
 
     # Write files
-    #------------
+    # ------------
     with open("tmp/employees.json", "w") as employees_out:
         json.dump(employee_map, employees_out)
 
@@ -419,19 +454,29 @@ def transfer_json():
     print("employees:", len(employee_map))
     print("org units:", len(org_unit_map))
     # Transfer JSON
-    base_url = settings.get("exporters.os2phonebook_base_url", "http://localhost:8000/api/")
+    base_url = settings.get(
+        "exporters.os2phonebook_base_url", "http://localhost:8000/api/"
+    )
     username = settings.get("exporters.os2phonebook_basic_auth_user", "dataloader")
     password = settings.get("exporters.os2phonebook_basic_auth_pass", "password1")
-    employees_url = settings.get("exporters.os2phonebook_employees_uri", "load-employees")
-    org_units_url = settings.get("exporters.os2phonebook_org_units_uri", "load-org-units")
+    employees_url = settings.get(
+        "exporters.os2phonebook_employees_uri", "load-employees"
+    )
+    org_units_url = settings.get(
+        "exporters.os2phonebook_org_units_uri", "load-org-units"
+    )
     with elapsedtime("push_employees"):
-        request = requests.post(base_url + employees_url, json=employee_map, auth=(username, password))
+        request = requests.post(
+            base_url + employees_url, json=employee_map, auth=(username, password)
+        )
         if request.status_code != 200:
             logger.warning("OS2Phonebook returned non-200 status code")
             logger.warning(request.text)
         print(request.text)
     with elapsedtime("push_org_units"):
-        request = requests.post(base_url + org_units_url, json=org_unit_map, auth=(username, password))
+        request = requests.post(
+            base_url + org_units_url, json=org_unit_map, auth=(username, password)
+        )
         if request.status_code != 200:
             logger.warning("OS2Phonebook returned non-200 status code")
             logger.warning(request.text)
