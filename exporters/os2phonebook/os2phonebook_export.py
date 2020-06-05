@@ -1,3 +1,12 @@
+import sys
+# Fetch the best cache implementation we can
+if sys.version_info[0] == 3:
+    if sys.version_info[1] >= 9:
+        from functools import cache
+    else:
+        from functools import lru_cache
+        cache = lru_cache(None)
+
 import asyncio
 import json
 import logging
@@ -103,6 +112,29 @@ def async_to_sync(f):
         return loop.run_until_complete(future)
 
     return wrapper
+
+
+class Cacheable:
+    def __init__(self, co):
+        self.co = co
+        self.done = False
+        self.result = None
+        self.lock = asyncio.Lock()
+
+    def __await__(self):
+        with (yield from self.lock):
+            if self.done:
+                return self.result
+            self.result = yield from self.co.__await__()
+            self.done = True
+            return self.result
+
+
+def cacheable(f):
+    def wrapped(*args, **kwargs):
+        r = f(*args, **kwargs)
+        return Cacheable(r)
+    return wrapped
 
 
 @click.group()
@@ -400,6 +432,25 @@ async def generate_json():
             "Url": "WWW",
         }
 
+        @cache
+        @cacheable
+        async def request_dawa(uuid):
+            # cache requests as many will be the same
+            logger.debug(f"Firing HTTP request for dar_uuid: {uuid}")
+            for addrtype in (
+                'adresser', 'adgangsadresser',
+                'historik/adresser', 'historik/adgangsadresser'
+            ):
+                request_counter()
+                url = "https://dawa.aws.dk/" + addrtype + "/" + uuid
+                async with aiohttp_session.get(url) as response:
+                    if response.status != 200:
+                        logger.warning("DAWA returned non-200 status code")
+                        continue
+                    body = await response.json()
+                    return body["adressebetegnelse"]
+            return None
+
         async def process_address(address, aiohttp_session):
             entry_uuid = address_to_uuid(address)
             if entry_uuid not in entry_map:
@@ -408,17 +459,9 @@ async def generate_json():
             if address.værdi:
                 value = address.værdi
             elif address.dar_uuid is not None:
-                logger.debug(f"Firing HTTP request for dar_uuid: {address.dar_uuid}")
-                request_counter()
-                # TODO: Implement multiple DAWA lookups:
-                # https://git.magenta.dk/rammearkitektur/os2mo/-/blob/development/backend/mora/service/address_handler/dar.py#L81
-                url = "https://dawa.aws.dk/adresser/" + address.dar_uuid
-                async with aiohttp_session.get(url) as response:
-                    if response.status != 200:
-                        logger.warning("DAWA returned non-200 status code")
-                        return
-                    body = await response.json()
-                    value = body["adressebetegnelse"]
+                value = await request_dawa(address.dar_uuid)
+                if value is None:
+                    return
             else:
                 logger.warning(f"Address: {address.uuid} does not have a value")
                 return
