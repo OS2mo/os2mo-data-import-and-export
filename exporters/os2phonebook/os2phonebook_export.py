@@ -13,18 +13,10 @@ from sqlalchemy.orm import sessionmaker
 from exporters.sql_export.sql_export import SqlExport
 from exporters.sql_export.sql_table_defs import (
     Adresse,
-    Base,
     Bruger,
     Engagement,
     Enhed,
-    Facet,
-    ItForbindelse,
-    ItSystem,
-    Klasse,
     Leder,
-    LederAnsvar,
-    Orlov,
-    Rolle,
     Tilknytning,
 )
 
@@ -47,6 +39,22 @@ logging.basicConfig(
 
 
 class elapsedtime(object):
+    """Context manager for timing operations.
+
+    Example:
+
+        with elapsedtime("sleep"):
+            time.sleep(1)
+
+        >>> sleep took 1.001 seconds ( 0.001 seconds)
+    
+    Args:
+        operation (str): Informal name given to the operation.
+        rounding (int): Number of decimal seconds to include in output.
+
+    Returns:
+        :obj:`ContextManager`: The context manager itself.
+    """
     def __init__(self, operation, rounding=3):
         self.operation = operation
         self.rounding = rounding
@@ -72,6 +80,22 @@ class elapsedtime(object):
 
 
 def coro(f):
+    """Decorator to run an async function to completion.
+
+    Example:
+
+        @coro
+        async def sleepy(seconds):
+            await sleep(seconds)
+
+        sleepy(5)
+    
+    Args:
+        f (async function): The async function to wrap and make synchronous.
+
+    Returns:
+        :obj:`sync function`: The syncronhous function wrapping the async one.
+    """
     @wraps(f)
     def wrapper(*args, **kwargs):
         loop = asyncio.get_event_loop()
@@ -83,6 +107,7 @@ def coro(f):
 
 @click.group()
 def cli():
+    # Solely used for command grouping
     pass
 
 
@@ -111,8 +136,10 @@ def sql_export(resolve_dar, historic, use_pickle, force_sqlite):
     )
 
 
+# TODO: @coro + async def funktion
 @cli.command()
 def generate_json():
+    # TODO: Async database access
     db_string = "sqlite:///{}.db".format("tmp/OS2mo_ActualState")
     engine = create_engine(db_string)
     Session = sessionmaker(bind=engine, autoflush=False)
@@ -121,6 +148,7 @@ def generate_json():
     total_number_of_employees = session.query(Bruger).count()
     print("Total employees:", total_number_of_employees)
 
+    # TODO: Bulk this
     def get_org_unit_engagement_references(uuid):
         queryset = (
             session.query(Engagement, Bruger)
@@ -138,6 +166,7 @@ def generate_json():
             for engagement, bruger in queryset
         ]
 
+    # TODO: Bulk this
     def get_org_unit_association_references(uuid):
         queryset = (
             session.query(Tilknytning, Bruger)
@@ -155,6 +184,7 @@ def generate_json():
             for tilknytning, bruger in queryset
         ]
 
+    # TODO: Bulk this
     def get_org_unit_manager_references(uuid):
         queryset = (
             session.query(Leder, Bruger)
@@ -345,11 +375,13 @@ def generate_json():
             if entry_uuid not in entry_map:
                 return
 
+            # TODO: Filter on query
             scope = address.adressetype_scope
             if scope not in da_address_types:
                 logger.debug(f"Scope: {scope} does not exist")
                 return
 
+            # TODO: Filter on query
             visibility = address.synlighed_titel
             if visibility == "Hemmelig":
                 return
@@ -358,6 +390,8 @@ def generate_json():
                 value = address.værdi
             elif address.dar_uuid is not None:
                 logger.debug(f"Firing HTTP request for dar_uuid: {address.dar_uuid}")
+                # TODO: Implement multiple DAWA lookups:
+                # https://git.magenta.dk/rammearkitektur/os2mo/-/blob/development/backend/mora/service/address_handler/dar.py#L81
                 url = "https://dawa.aws.dk/adresser/" + address.dar_uuid
                 async with aiohttp_session.get(url) as response:
                     if response.status != 200:
@@ -431,6 +465,7 @@ def generate_json():
 
     # Write files
     # ------------
+    # TODO: Asyncio?
     with open("tmp/employees.json", "w") as employees_out:
         json.dump(employee_map, employees_out)
 
@@ -451,6 +486,7 @@ async def transfer_json():
     # Load JSON
     employee_map = {}
     org_unit_map = {}
+    # TODO: Asyncio?
     with elapsedtime("loading_employees"):
         with open("tmp/employees.json", "r") as employees_in:
             employee_map = json.load(employees_in)
