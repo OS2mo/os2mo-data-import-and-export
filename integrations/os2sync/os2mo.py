@@ -16,9 +16,13 @@ logger = logging.getLogger(config.loggername)
 session = requests.Session()
 session.verify = settings["OS2MO_CA_BUNDLE"]
 session.headers = {
-    "SESSION": settings["OS2MO_SAML_TOKEN"],
     "User-Agent": "os2mo-data-import-and-export",
 }
+
+if settings["OS2MO_SAML_TOKEN"] is not None:
+    session.headers["SESSION"] = settings["OS2MO_SAML_TOKEN"]
+
+
 TRUNCATE_LENGTH = max(36, int(settings.get("OS2SYNC_TRUNCATE", 200)))
 
 
