@@ -1,36 +1,34 @@
-import json
+import asyncio
 import atexit
+import json
 import logging
 import pathlib
-import urllib.parse
-import requests
 import time
-import asyncio
-from aiohttp import ClientSession
+import urllib.parse
 
 import click
-
+import requests
+from aiohttp import ClientSession
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.sql_export import SqlExport
 from exporters.sql_export.sql_table_defs import (
-    Base,
-    Facet,
-    Klasse,
-    Bruger,
-    Enhed,
-    ItSystem,
-    LederAnsvar,
     Adresse,
+    Base,
+    Bruger,
     Engagement,
+    Enhed,
+    Facet,
+    ItForbindelse,
+    ItSystem,
+    Klasse,
+    Leder,
+    LederAnsvar,
+    Orlov,
     Rolle,
     Tilknytning,
-    Orlov,
-    ItForbindelse,
-    Leder,
 )
-
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "os2phonebook_export.log"
