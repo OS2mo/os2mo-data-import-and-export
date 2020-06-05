@@ -1,14 +1,12 @@
 import asyncio
-import atexit
 import json
 import logging
 import pathlib
 import time
-import urllib.parse
+from functools import wraps
 
 import click
-import requests
-from aiohttp import ClientSession
+from aiohttp import ClientSession, BasicAuth
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -71,6 +69,16 @@ class elapsedtime(object):
             "seconds",
             ")",
         )
+
+
+def coro(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        loop = asyncio.get_event_loop()
+        future = asyncio.ensure_future(f(*args, **kwargs))
+        return loop.run_until_complete(future)
+
+    return wrapper
 
 
 @click.group()
@@ -370,6 +378,7 @@ def generate_json():
                 formatted_address
             )
 
+        @coro
         async def run():
             # Queue all processing
             tasks = []
@@ -382,9 +391,7 @@ def generate_json():
                 # Await all tasks
                 await asyncio.gather(*tasks)
 
-        loop = asyncio.get_event_loop()
-        future = asyncio.ensure_future(run())
-        loop.run_until_complete(future)
+        run()
 
         return entry_map
 
@@ -432,7 +439,8 @@ def generate_json():
 
 
 @cli.command()
-def transfer_json():
+@coro
+async def transfer_json():
     # Load settings file
     settings = None
     with elapsedtime("loading_settings"):
@@ -463,22 +471,23 @@ def transfer_json():
     org_units_url = settings.get(
         "exporters.os2phonebook_org_units_uri", "load-org-units"
     )
+    basic_auth = BasicAuth(username, password)
     with elapsedtime("push_employees"):
-        request = requests.post(
-            base_url + employees_url, json=employee_map, auth=(username, password)
-        )
-        if request.status_code != 200:
-            logger.warning("OS2Phonebook returned non-200 status code")
-            logger.warning(request.text)
-        print(request.text)
+        async with ClientSession() as aiohttp_session:
+            async with aiohttp_session.post(
+                base_url + employees_url, json=employee_map, auth=basic_auth
+            ) as response:
+                if response.status != 200:
+                    logger.warning("OS2Phonebook returned non-200 status code")
+                print(await response.json())
     with elapsedtime("push_org_units"):
-        request = requests.post(
-            base_url + org_units_url, json=org_unit_map, auth=(username, password)
-        )
-        if request.status_code != 200:
-            logger.warning("OS2Phonebook returned non-200 status code")
-            logger.warning(request.text)
-        print(request.text)
+        async with ClientSession() as aiohttp_session:
+            async with aiohttp_session.post(
+                base_url + org_units_url, json=org_unit_map, auth=basic_auth
+            ) as response:
+                if response.status != 200:
+                    logger.warning("OS2Phonebook returned non-200 status code")
+                print(await response.json())
 
 
 if __name__ == "__main__":
