@@ -7,7 +7,7 @@ from functools import wraps
 
 import click
 from aiohttp import ClientSession, BasicAuth
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.sql_export import SqlExport
@@ -79,12 +79,12 @@ class elapsedtime(object):
         )
 
 
-def coro(f):
+def async_to_sync(f):
     """Decorator to run an async function to completion.
 
     Example:
 
-        @coro
+        @async_to_sync
         async def sleepy(seconds):
             await sleep(seconds)
 
@@ -137,14 +137,25 @@ def sql_export(resolve_dar, historic, use_pickle, force_sqlite):
 
 
 @cli.command()
-@coro
+@async_to_sync
 async def generate_json():
     # TODO: Async database access
     db_string = "sqlite:///{}.db".format("tmp/OS2mo_ActualState")
     engine = create_engine(db_string)
+    # Prepare session
     Session = sessionmaker(bind=engine, autoflush=False)
     session = Session()
+    # Count number of queries
+    def query_counter(*_):
+        query_counter.count += 1
+    query_counter.count = 0
+    event.listen(engine, 'before_cursor_execute', query_counter)
+    # Count number of http requests
+    def request_counter():
+        request_counter.count += 1
+    request_counter.count = 0
 
+    # Print number of employees
     total_number_of_employees = session.query(Bruger).count()
     print("Total employees:", total_number_of_employees)
 
@@ -204,6 +215,25 @@ async def generate_json():
         return org_unit_map
 
     org_unit_map = {}
+    org_unit_queue = set()
+
+    def queue_org_unit(uuid):
+        if uuid is None:
+            return
+        org_unit_queue.add(uuid)
+
+    def fetch_parent_org_units():
+        # We trust that heirarchies are somewhat shallow, and thus a query per layer is okay.
+        while org_unit_queue:
+            query_queue = list(org_unit_queue)
+            org_unit_queue.clear()
+            queryset = (
+                session.query(Enhed)
+                .filter(Enhed.uuid.in_(query_queue))
+                .all()
+            )
+            for enhed in queryset:
+                add_org_unit(enhed)
 
     def add_org_unit(enhed):
         if enhed.uuid in org_unit_map:
@@ -226,9 +256,8 @@ async def generate_json():
             },
         }
         if unit["parent"]:
-            add_org_unit(
-                session.query(Enhed).filter(Enhed.uuid == unit["parent"]).first()
-            )
+            # Add parent to queue for bulk fetching later
+            queue_org_unit(enhed.forældreenhed_uuid)
 
         org_unit_map[enhed.uuid] = unit
 
@@ -346,7 +375,7 @@ async def generate_json():
 
     async def enrich_org_units_with_addresses(org_unit_map):
         # Enrich with adresses
-        queryset = session.query(Adresse).filter(Adresse.enhed_uuid != None).all()
+        queryset = session.query(Adresse).filter(Adresse.enhed_uuid != None)
 
         return await address_helper(
             queryset, org_unit_map, lambda address: address.enhed_uuid
@@ -354,7 +383,7 @@ async def generate_json():
 
     async def enrich_employees_with_addresses(employee_map):
         # Enrich with adresses
-        queryset = session.query(Adresse).filter(Adresse.bruger_uuid != None).all()
+        queryset = session.query(Adresse).filter(Adresse.bruger_uuid != None)
 
         return await address_helper(
             queryset, employee_map, lambda address: address.bruger_uuid
@@ -376,21 +405,11 @@ async def generate_json():
             if entry_uuid not in entry_map:
                 return
 
-            # TODO: Filter on query
-            scope = address.adressetype_scope
-            if scope not in da_address_types:
-                logger.debug(f"Scope: {scope} does not exist")
-                return
-
-            # TODO: Filter on query
-            visibility = address.synlighed_titel
-            if visibility == "Hemmelig":
-                return
-
             if address.værdi:
                 value = address.værdi
             elif address.dar_uuid is not None:
                 logger.debug(f"Firing HTTP request for dar_uuid: {address.dar_uuid}")
+                request_counter()
                 # TODO: Implement multiple DAWA lookups:
                 # https://git.magenta.dk/rammearkitektur/os2mo/-/blob/development/backend/mora/service/address_handler/dar.py#L81
                 url = "https://dawa.aws.dk/adresser/" + address.dar_uuid
@@ -409,14 +428,21 @@ async def generate_json():
                 "value": value,
             }
 
-            entry_map[entry_uuid]["addresses"][da_address_types[scope]].append(
-                formatted_address
-            )
+            atype = da_address_types[address.adressetype_scope]
+            entry_map[entry_uuid]["addresses"][atype].append(formatted_address)
 
         # Queue all processing
         tasks = []
         async with ClientSession() as aiohttp_session:
-            for address in queryset:
+            from sqlalchemy import or_
+            queryset = queryset.filter(
+                # Only include address types we care about
+                Adresse.adressetype_scope.in_(da_address_types.keys())
+            ).filter(
+                # Do not include secret addresses
+                or_(Adresse.synlighed_titel == None, Adresse.synlighed_titel != "Hemmelig")
+            )
+            for address in queryset.all():
                 task = asyncio.ensure_future(
                     process_address(address, aiohttp_session)
                 )
@@ -444,6 +470,8 @@ async def generate_json():
 
     # Org Units
     # ----------
+    with elapsedtime("fetch_employees"):
+        fetch_parent_org_units()
     with elapsedtime("enrich_org_units_with_engagements"):
         org_unit_map = enrich_org_units_with_engagements(org_unit_map)
     with elapsedtime("enrich_org_units_with_associations"):
@@ -452,6 +480,9 @@ async def generate_json():
         org_unit_map = enrich_org_units_with_management(org_unit_map)
     with elapsedtime("enrich_org_units_with_addresses"):
         org_unit_map = await enrich_org_units_with_addresses(org_unit_map)
+
+    print("Processing took", query_counter.count, "queries")
+    print("Processing took", request_counter.count, "requests")
 
     # Write files
     # ------------
@@ -464,7 +495,7 @@ async def generate_json():
 
 
 @cli.command()
-@coro
+@async_to_sync
 async def transfer_json():
     # Load settings file
     settings = None
