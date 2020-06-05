@@ -55,12 +55,14 @@ class elapsedtime(object):
         self.rounding = rounding
 
     def __enter__(self):
-        self.t = time.clock()
+        self.start_time_real = time.time()
+        self.start_time_cpu = time.clock()
         return self
 
     def __exit__(self, type, value, traceback):
-        self.t = time.clock() - self.t
-        print(self.operation, "took", round(self.t, self.rounding), "seconds")
+        elapsed_real = time.time() - self.start_time_real
+        elapsed_cpu = time.clock() - self.start_time_cpu
+        print(self.operation, "took", round(elapsed_real, self.rounding), "seconds", "(", round(elapsed_cpu, self.rounding), "seconds", ")")
 
 
 @click.group()
@@ -399,35 +401,41 @@ def generate_json():
 @cli.command()
 def transfer_json():
     # Load settings file
-    cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-    if not cfg_file.is_file():
-        raise Exception("No setting file")
-    settings = json.loads(cfg_file.read_text())
+    settings = None
+    with elapsedtime("loading_settings"):
+        cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
+        if not cfg_file.is_file():
+            raise Exception("No setting file")
+        settings = json.loads(cfg_file.read_text())
     # Load JSON
     employee_map = {}
     org_unit_map = {}
-    with open("tmp/employees.json", "r") as employees_in:
-        employee_map = json.load(employees_in)
-    with open("tmp/org_units.json", "r") as org_units_in:
-        org_unit_map = json.load(org_units_in)
+    with elapsedtime("loading_employees"):
+        with open("tmp/employees.json", "r") as employees_in:
+            employee_map = json.load(employees_in)
+    with elapsedtime("loading_org_units"):
+        with open("tmp/org_units.json", "r") as org_units_in:
+            org_unit_map = json.load(org_units_in)
     print("employees:", len(employee_map))
     print("org units:", len(org_unit_map))
     # Transfer JSON
-    username = settings["exporters.os2phonebook_basic_auth_user"]
-    password = settings["exporters.os2phonebook_basic_auth_pass"]
-    employees_url = settings["exporters.os2phonebook_employees_uri"]
-    request = requests.post(employees_url, json=employee_map, auth=(username, password))
-    if request.status_code != 200:
-        logger.warning("OS2Phonebook returned non-200 status code")
-        logger.warning(request.text)
-    print(request.text)
- 
-    org_units_url = settings["exporters.os2phonebook_org_units_uri"]
-    request = requests.post(org_units_url, json=org_unit_map, auth=(username, password))
-    if request.status_code != 200:
-        logger.warning("OS2Phonebook returned non-200 status code")
-        logger.warning(request.text)
-    print(request.text)
+    base_url = settings.get("exporters.os2phonebook_base_url", "http://localhost:8000/api/")
+    username = settings.get("exporters.os2phonebook_basic_auth_user", "dataloader")
+    password = settings.get("exporters.os2phonebook_basic_auth_pass", "password1")
+    employees_url = settings.get("exporters.os2phonebook_employees_uri", "load-employees")
+    org_units_url = settings.get("exporters.os2phonebook_org_units_uri", "load-org-units")
+    with elapsedtime("push_employees"):
+        request = requests.post(base_url + employees_url, json=employee_map, auth=(username, password))
+        if request.status_code != 200:
+            logger.warning("OS2Phonebook returned non-200 status code")
+            logger.warning(request.text)
+        print(request.text)
+    with elapsedtime("push_org_units"):
+        request = requests.post(base_url + org_units_url, json=org_unit_map, auth=(username, password))
+        if request.status_code != 200:
+            logger.warning("OS2Phonebook returned non-200 status code")
+            logger.warning(request.text)
+        print(request.text)
 
 
 if __name__ == "__main__":
