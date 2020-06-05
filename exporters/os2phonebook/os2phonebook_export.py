@@ -49,6 +49,19 @@ logging.basicConfig(
     filename=LOG_FILE,
 )
 
+class elapsedtime(object):
+    def __init__(self, operation, rounding=3):
+        self.operation = operation
+        self.rounding = rounding
+
+    def __enter__(self):
+        self.t = time.clock()
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.t = time.clock() - self.t
+        print(self.operation, "took", round(self.t, self.rounding), "seconds")
+
 
 @click.group()
 def cli():
@@ -167,59 +180,6 @@ def generate_json():
 
         org_unit_map[enhed.uuid] = unit
 
-    def address_adapter(address_list):
-        address_types = {
-            "DAR": [],
-            "PHONE": [],
-            "EMAIL": [],
-            "EAN": [],
-            "PNUMBER": [],
-            "WWW": [],
-        }
-
-        da_address_types = {
-            "DAR": "DAR",
-            "Telefon": "PHONE",
-            "E-mail": "EMAIL",
-            "EAN": "EAN",
-            "P-nummer": "PNUMBER",
-            "Url": "WWW",
-        }
-        for address in address_list:
-            scope = address.adressetype_scope
-
-            if scope not in da_address_types:
-                logger.debug(f"Scope: {scope} does not exist")
-                continue
-
-            visibility = address.synlighed_titel
-            if visibility == "Hemmelig":
-                continue
-
-            if address.værdi:
-                value = address.værdi
-            elif address.dar_uuid is not None:
-                logger.debug("Firing HTTP request for dar_uuid")
-                url = "https://dawa.aws.dk/adresser/" + address.dar_uuid
-                request = requests.get(url)
-                if request.status_code != 200:
-                    logger.warning("DAWA returned non-200 status code")
-                    logger.warning(request.text)
-                    continue
-                value = request.json()["adressebetegnelse"]
-            else:
-                logger.warning(f"Address: {address.uuid} does not have a value")
-                continue
-
-            formatted_address = {
-                "description": address.adressetype_titel,
-                "value": value,
-            }
-
-            address_types[da_address_types[scope]].append(formatted_address)
-
-        return address_types
-
     def fetch_employees(employee_map):
         for employee in session.query(Bruger).all():
             phonebook_entry = {
@@ -312,10 +272,10 @@ def generate_json():
                 )
                 return False
             return True
-
-        emplyee_map = {uuid: entry for uuid, entry in employee_map.items() if filter_function(entry)}
-        return employee_map
-
+        
+        filtered_map = {uuid: entry for uuid, entry in employee_map.items() if filter_function(entry)}
+        return filtered_map
+    
     def enrich_org_units_with_addresses(org_unit_map):
         # Enrich with adresses
         queryset = session.query(Adresse).filter(
@@ -360,7 +320,7 @@ def generate_json():
             if address.værdi:
                 value = address.værdi
             elif address.dar_uuid is not None:
-                logger.debug("Firing HTTP request for dar_uuid")
+                logger.debug(f"Firing HTTP request for dar_uuid: {address.dar_uuid}")
                 url = "https://dawa.aws.dk/adresser/" + address.dar_uuid
                 async with aiohttp_session.get(url) as response:
                     if response.status != 200:
@@ -395,49 +355,35 @@ def generate_json():
 
         return entry_map
 
-    class catchtime(object):
-        def __init__(self, operation, rounding=3):
-            self.operation = operation
-            self.rounding = rounding
-
-        def __enter__(self):
-            self.t = time.clock()
-            return self
-
-        def __exit__(self, type, value, traceback):
-            self.t = time.clock() - self.t
-            print(self.operation, "took", round(self.t, self.rounding), "seconds")
-
     # Employees
     #----------
     employee_map = {}
-    with catchtime("fetch_employees"):
+    with elapsedtime("fetch_employees"):
         employee_map = fetch_employees(employee_map)
-    with catchtime("enrich_employees_with_engagements"):
+    with elapsedtime("enrich_employees_with_engagements"):
         employee_map = enrich_employees_with_engagements(employee_map)
-    with catchtime("enrich_employees_with_associations"):
+    with elapsedtime("enrich_employees_with_associations"):
         employee_map = enrich_employees_with_associations(employee_map)
-    with catchtime("enrich_employees_with_management"):
+    with elapsedtime("enrich_employees_with_management"):
         employee_map = enrich_employees_with_management(employee_map)
-    with catchtime("filter_employees"):
+    with elapsedtime("filter_employees"):
         employee_map = filter_employees(employee_map)
-    with catchtime("enrich_employees_with_addresses"):
+    with elapsedtime("enrich_employees_with_addresses"):
         employee_map = enrich_employees_with_addresses(employee_map)
 
     # Org Units
     #----------
-    with catchtime("enrich_org_units_with_addresses"):
+    with elapsedtime("enrich_org_units_with_addresses"):
         org_unit_map = enrich_org_units_with_addresses(org_unit_map)
 
-    with catchtime("enrich_org_units_with_engagements"):
+    # TODO: Bulk these
+    with elapsedtime("enrich_org_units_with_engagements"):
         for uuid, _ in org_unit_map.items():
             org_unit_map[uuid]["engagements"] = get_org_unit_engagement_references(uuid)
-
-    with catchtime("enrich_org_units_with_associations"):
+    with elapsedtime("enrich_org_units_with_associations"):
         for uuid, _ in org_unit_map.items():
             org_unit_map[uuid]["associations"] = get_org_unit_association_references(uuid)
-
-    with catchtime("enrich_org_units_with_management"):
+    with elapsedtime("enrich_org_units_with_management"):
         for uuid, _ in org_unit_map.items():
             org_unit_map[uuid]["management"] = get_org_unit_manager_references(uuid)
 
