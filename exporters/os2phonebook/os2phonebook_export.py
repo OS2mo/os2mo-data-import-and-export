@@ -136,9 +136,9 @@ def sql_export(resolve_dar, historic, use_pickle, force_sqlite):
     )
 
 
-# TODO: @coro + async def funktion
 @cli.command()
-def generate_json():
+@coro
+async def generate_json():
     # TODO: Async database access
     db_string = "sqlite:///{}.db".format("tmp/OS2mo_ActualState")
     engine = create_engine(db_string)
@@ -148,59 +148,60 @@ def generate_json():
     total_number_of_employees = session.query(Bruger).count()
     print("Total employees:", total_number_of_employees)
 
-    # TODO: Bulk this
-    def get_org_unit_engagement_references(uuid):
+    def enrich_org_units_with_engagements(org_unit_map):
+        # Enrich with engagements
         queryset = (
             session.query(Engagement, Bruger)
-            .filter(Engagement.enhed_uuid == uuid)
             .filter(Engagement.bruger_uuid == Bruger.uuid)
             .all()
         )
 
-        return [
-            {
+        for engagement, bruger in queryset:
+            if engagement.enhed_uuid not in org_unit_map:
+                continue
+            engagement_entry = {
                 "title": engagement.stillingsbetegnelse_titel,
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-            for engagement, bruger in queryset
-        ]
+            org_unit_map[engagement.enhed_uuid]["engagements"].append(engagement_entry)
+        return org_unit_map
 
-    # TODO: Bulk this
-    def get_org_unit_association_references(uuid):
+    def enrich_org_units_with_associations(org_unit_map):
         queryset = (
             session.query(Tilknytning, Bruger)
-            .filter(Tilknytning.enhed_uuid == uuid)
             .filter(Tilknytning.bruger_uuid == Bruger.uuid)
             .all()
         )
 
-        return [
-            {
+        for tilknytning, bruger in queryset:
+            if tilknytning.enhed_uuid not in org_unit_map:
+                continue
+            association_entry = {
                 "title": tilknytning.tilknytningstype_titel,
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-            for tilknytning, bruger in queryset
-        ]
+            org_unit_map[tilknytning.enhed_uuid]["associations"].append(association_entry)
+        return org_unit_map
 
-    # TODO: Bulk this
-    def get_org_unit_manager_references(uuid):
+    def enrich_org_units_with_management(org_unit_map):
         queryset = (
             session.query(Leder, Bruger)
-            .filter(Leder.enhed_uuid == uuid)
             .filter(Leder.bruger_uuid == Bruger.uuid)
             .all()
         )
 
-        return [
-            {
+        for leder, bruger in queryset:
+            if leder.enhed_uuid not in org_unit_map:
+                continue
+            management_entry = {
                 "title": leder.ledertype_titel,
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-            for leder, bruger in queryset
-        ]
+            org_unit_map[leder.enhed_uuid]["management"].append(management_entry)
+        return org_unit_map
 
     org_unit_map = {}
 
@@ -343,23 +344,23 @@ def generate_json():
         }
         return filtered_map
 
-    def enrich_org_units_with_addresses(org_unit_map):
+    async def enrich_org_units_with_addresses(org_unit_map):
         # Enrich with adresses
         queryset = session.query(Adresse).filter(Adresse.enhed_uuid != None).all()
 
-        return address_helper(
+        return await address_helper(
             queryset, org_unit_map, lambda address: address.enhed_uuid
         )
 
-    def enrich_employees_with_addresses(employee_map):
+    async def enrich_employees_with_addresses(employee_map):
         # Enrich with adresses
         queryset = session.query(Adresse).filter(Adresse.bruger_uuid != None).all()
 
-        return address_helper(
+        return await address_helper(
             queryset, employee_map, lambda address: address.bruger_uuid
         )
 
-    def address_helper(queryset, entry_map, address_to_uuid):
+    async def address_helper(queryset, entry_map, address_to_uuid):
 
         da_address_types = {
             "DAR": "DAR",
@@ -412,20 +413,16 @@ def generate_json():
                 formatted_address
             )
 
-        @coro
-        async def run():
-            # Queue all processing
-            tasks = []
-            async with ClientSession() as aiohttp_session:
-                for address in queryset:
-                    task = asyncio.ensure_future(
-                        process_address(address, aiohttp_session)
-                    )
-                    tasks.append(task)
-                # Await all tasks
-                await asyncio.gather(*tasks)
-
-        run()
+        # Queue all processing
+        tasks = []
+        async with ClientSession() as aiohttp_session:
+            for address in queryset:
+                task = asyncio.ensure_future(
+                    process_address(address, aiohttp_session)
+                )
+                tasks.append(task)
+            # Await all tasks
+            await asyncio.gather(*tasks)
 
         return entry_map
 
@@ -443,25 +440,18 @@ def generate_json():
     with elapsedtime("filter_employees"):
         employee_map = filter_employees(employee_map)
     with elapsedtime("enrich_employees_with_addresses"):
-        employee_map = enrich_employees_with_addresses(employee_map)
+        employee_map = await enrich_employees_with_addresses(employee_map)
 
     # Org Units
     # ----------
-    with elapsedtime("enrich_org_units_with_addresses"):
-        org_unit_map = enrich_org_units_with_addresses(org_unit_map)
-
-    # TODO: Bulk these
     with elapsedtime("enrich_org_units_with_engagements"):
-        for uuid, _ in org_unit_map.items():
-            org_unit_map[uuid]["engagements"] = get_org_unit_engagement_references(uuid)
+        org_unit_map = enrich_org_units_with_engagements(org_unit_map)
     with elapsedtime("enrich_org_units_with_associations"):
-        for uuid, _ in org_unit_map.items():
-            org_unit_map[uuid]["associations"] = get_org_unit_association_references(
-                uuid
-            )
+        org_unit_map = enrich_org_units_with_associations(org_unit_map)
     with elapsedtime("enrich_org_units_with_management"):
-        for uuid, _ in org_unit_map.items():
-            org_unit_map[uuid]["management"] = get_org_unit_manager_references(uuid)
+        org_unit_map = enrich_org_units_with_management(org_unit_map)
+    with elapsedtime("enrich_org_units_with_addresses"):
+        org_unit_map = await enrich_org_units_with_addresses(org_unit_map)
 
     # Write files
     # ------------
