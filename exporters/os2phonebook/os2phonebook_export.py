@@ -1,23 +1,13 @@
-import sys
-# Fetch the best cache implementation we can
-if sys.version_info[0] == 3:
-    if sys.version_info[1] >= 9:
-        from functools import cache
-    else:
-        from functools import lru_cache
-        cache = lru_cache(None)
-
 import asyncio
 import json
 import logging
 import pathlib
+import sys
 import time
 from functools import wraps
 
 import click
-from aiohttp import ClientSession, BasicAuth
-from sqlalchemy import create_engine, event, or_
-from sqlalchemy.orm import sessionmaker
+from aiohttp import BasicAuth, ClientSession, TCPConnector
 
 from exporters.sql_export.sql_export import SqlExport
 from exporters.sql_export.sql_table_defs import (
@@ -28,6 +18,18 @@ from exporters.sql_export.sql_table_defs import (
     Leder,
     Tilknytning,
 )
+from sqlalchemy import create_engine, event, or_
+from sqlalchemy.orm import sessionmaker
+
+# Fetch the best cache implementation we can
+if sys.version_info[0] == 3:
+    if sys.version_info[1] >= 9:
+        from functools import cache
+    else:
+        from functools import lru_cache
+
+        cache = lru_cache(None)
+
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "os2phonebook_export.log"
@@ -64,17 +66,18 @@ class elapsedtime(object):
     Returns:
         :obj:`ContextManager`: The context manager itself.
     """
+
     def __init__(self, operation, rounding=3):
         self.operation = operation
         self.rounding = rounding
 
     def __enter__(self):
-        self.start_time_real = time.time()
+        self.start_time_real = time.monotonic()
         self.start_time_cpu = time.clock()
         return self
 
     def __exit__(self, type, value, traceback):
-        elapsed_real = time.time() - self.start_time_real
+        elapsed_real = time.monotonic() - self.start_time_real
         elapsed_cpu = time.clock() - self.start_time_cpu
         print(
             self.operation,
@@ -105,6 +108,7 @@ def async_to_sync(f):
     Returns:
         :obj:`sync function`: The syncronhous function wrapping the async one.
     """
+
     @wraps(f)
     def wrapper(*args, **kwargs):
         loop = asyncio.get_event_loop()
@@ -115,6 +119,7 @@ def async_to_sync(f):
 
 
 class Cacheable:
+    # TODO: Handle recursion
     def __init__(self, co):
         self.co = co
         self.done = False
@@ -134,6 +139,7 @@ def cacheable(f):
     def wrapped(*args, **kwargs):
         r = f(*args, **kwargs)
         return Cacheable(r)
+
     return wrapped
 
 
@@ -161,11 +167,9 @@ def sql_export(resolve_dar, historic, use_pickle, force_sqlite):
     settings["exporters.actual_state_historic.db_name"] = "tmp/OS2mo_historic"
     # Generate sql export
     sql_export = SqlExport(
-        force_sqlite=force_sqlite, historic=historic, settings=settings,
+        force_sqlite=force_sqlite, historic=historic, settings=settings
     )
-    sql_export.perform_export(
-        resolve_dar=resolve_dar, use_pickle=use_pickle,
-    )
+    sql_export.perform_export(resolve_dar=resolve_dar, use_pickle=use_pickle)
 
 
 @cli.command()
@@ -180,11 +184,13 @@ async def generate_json():
     # Count number of queries
     def query_counter(*_):
         query_counter.count += 1
+
     query_counter.count = 0
-    event.listen(engine, 'before_cursor_execute', query_counter)
+    event.listen(engine, "before_cursor_execute", query_counter)
     # Count number of http requests
     def request_counter():
         request_counter.count += 1
+
     request_counter.count = 0
 
     # Print number of employees
@@ -225,14 +231,14 @@ async def generate_json():
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-            org_unit_map[tilknytning.enhed_uuid]["associations"].append(association_entry)
+            org_unit_map[tilknytning.enhed_uuid]["associations"].append(
+                association_entry
+            )
         return org_unit_map
 
     def enrich_org_units_with_management(org_unit_map):
         queryset = (
-            session.query(Leder, Bruger)
-            .filter(Leder.bruger_uuid == Bruger.uuid)
-            .all()
+            session.query(Leder, Bruger).filter(Leder.bruger_uuid == Bruger.uuid).all()
         )
 
         for leder, bruger in queryset:
@@ -259,11 +265,7 @@ async def generate_json():
         while org_unit_queue:
             query_queue = list(org_unit_queue)
             org_unit_queue.clear()
-            queryset = (
-                session.query(Enhed)
-                .filter(Enhed.uuid.in_(query_queue))
-                .all()
-            )
+            queryset = session.query(Enhed).filter(Enhed.uuid.in_(query_queue)).all()
             for enhed in queryset:
                 add_org_unit(enhed)
 
@@ -422,24 +424,39 @@ async def generate_json():
         )
 
     async def address_helper(queryset, entry_map, address_to_uuid):
-
-        @cache
-        @cacheable
-        async def request_dawa(uuid):
+        # TODO: Use DAWA bulk interface
+        # @cache
+        # @cacheable
+        async def request_dawa(uuid, client):
             # cache requests as many will be the same
             logger.debug(f"Firing HTTP request for dar_uuid: {uuid}")
             for addrtype in (
-                'adresser', 'adgangsadresser',
-                'historik/adresser', 'historik/adgangsadresser'
+                "adresser",
+                "adgangsadresser",
+                "historik/adresser",
+                "historik/adgangsadresser",
             ):
                 request_counter()
-                url = "https://dawa.aws.dk/" + addrtype + "/" + uuid
-                async with aiohttp_session.get(url) as response:
+                url = f"https://dawa.aws.dk/{addrtype}/{uuid}?struktur=mini"
+                async with client.get(url) as response:
+                    if response.status == 429:
+                        # DAWA only allows:
+                        # * 10 concurrent requests
+                        # * 30 requests per second
+                        # Instead of adhering to these limits, we wait for thottling
+                        # to be applied to us, and then we slow down a bit.
+                        print(f"Hit ratelimit {url}")
+                        await asyncio.sleep(2)
+                        return await request_dawa(uuid, client)
+                    if response.status == 404:
+                        # Expected if address is not of this type
+                        continue
                     if response.status != 200:
-                        logger.warning("DAWA returned non-200 status code")
+                        # All status-codes, but 200, 404 and 429 are unexpected
+                        logger.warning(f"DAWA returned {response.status} status code")
                         continue
                     body = await response.json()
-                    return body["adressebetegnelse"]
+                    return body["betegnelse"]
             return None
 
         da_address_types = {
@@ -451,7 +468,7 @@ async def generate_json():
             "Url": "WWW",
         }
 
-        async def process_address(address, aiohttp_session):
+        async def process_address(address, client):
             entry_uuid = address_to_uuid(address)
             if entry_uuid not in entry_map:
                 return
@@ -459,7 +476,7 @@ async def generate_json():
             if address.værdi:
                 value = address.værdi
             elif address.dar_uuid is not None:
-                value = await request_dawa(address.dar_uuid)
+                value = await request_dawa(address.dar_uuid, client)
                 if value is None:
                     return
             else:
@@ -476,18 +493,19 @@ async def generate_json():
 
         # Queue all processing
         tasks = []
-        async with ClientSession() as aiohttp_session:
+        async with ClientSession() as client:
             queryset = queryset.filter(
                 # Only include address types we care about
                 Adresse.adressetype_scope.in_(da_address_types.keys())
             ).filter(
                 # Do not include secret addresses
-                or_(Adresse.synlighed_titel == None, Adresse.synlighed_titel != "Hemmelig")
+                or_(
+                    Adresse.synlighed_titel == None,
+                    Adresse.synlighed_titel != "Hemmelig",
+                )
             )
             for address in queryset.all():
-                task = asyncio.ensure_future(
-                    process_address(address, aiohttp_session)
-                )
+                task = asyncio.ensure_future(process_address(address, client))
                 tasks.append(task)
             # Start firing HTTP requests, and wait for all of them
             await asyncio.gather(*tasks)
@@ -523,12 +541,12 @@ async def generate_json():
         org_unit_map = enrich_org_units_with_management(org_unit_map)
 
     # Both
-    #-----
+    # -----
     # Fire all HTTP requests in parallel (for both employees and org units)
     with elapsedtime("enrich_x_with_addresses"):
         employee_map, org_unit_map = await asyncio.gather(
             enrich_employees_with_addresses(employee_map),
-            enrich_org_units_with_addresses(org_unit_map)
+            enrich_org_units_with_addresses(org_unit_map),
         )
 
     print("Processing took", query_counter.count, "queries")
@@ -582,17 +600,17 @@ async def transfer_json():
 
     async def push_updates(url, payload):
         async with aiohttp_session.post(
-                base_url + url, json=payload, auth=basic_auth
-            ) as response:
-                if response.status != 200:
-                    logger.warning("OS2Phonebook returned non-200 status code")
-                print(await response.json())
+            base_url + url, json=payload, auth=basic_auth
+        ) as response:
+            if response.status != 200:
+                logger.warning("OS2Phonebook returned non-200 status code")
+            print(await response.json())
 
     with elapsedtime("push_x"):
         async with ClientSession() as aiohttp_session:
             await asyncio.gather(
                 push_updates(employees_url, employee_map),
-                push_updates(org_units_url, org_unit_map)
+                push_updates(org_units_url, org_unit_map),
             )
 
 
