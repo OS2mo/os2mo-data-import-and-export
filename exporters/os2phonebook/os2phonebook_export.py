@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 import pathlib
-import sys
 import time
 from functools import wraps
 
@@ -20,15 +19,6 @@ from exporters.sql_export.sql_table_defs import (
 )
 from sqlalchemy import create_engine, event, or_
 from sqlalchemy.orm import sessionmaker
-
-# Fetch the best cache implementation we can
-if sys.version_info[0] == 3:
-    if sys.version_info[1] >= 9:
-        from functools import cache
-    else:
-        from functools import lru_cache
-
-        cache = lru_cache(None)
 
 
 LOG_LEVEL = logging.DEBUG
@@ -116,31 +106,6 @@ def async_to_sync(f):
         return loop.run_until_complete(future)
 
     return wrapper
-
-
-class Cacheable:
-    # TODO: Handle recursion
-    def __init__(self, co):
-        self.co = co
-        self.done = False
-        self.result = None
-        self.lock = asyncio.Lock()
-
-    def __await__(self):
-        with (yield from self.lock):
-            if self.done:
-                return self.result
-            self.result = yield from self.co.__await__()
-            self.done = True
-            return self.result
-
-
-def cacheable(f):
-    def wrapped(*args, **kwargs):
-        r = f(*args, **kwargs)
-        return Cacheable(r)
-
-    return wrapped
 
 
 @click.group()
