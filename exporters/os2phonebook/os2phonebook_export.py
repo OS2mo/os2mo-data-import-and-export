@@ -424,41 +424,6 @@ async def generate_json():
         )
 
     async def address_helper(queryset, entry_map, address_to_uuid):
-        # TODO: Use DAWA bulk interface
-        # @cache
-        # @cacheable
-        async def request_dawa(uuid, client):
-            # cache requests as many will be the same
-            logger.debug(f"Firing HTTP request for dar_uuid: {uuid}")
-            for addrtype in (
-                "adresser",
-                "adgangsadresser",
-                "historik/adresser",
-                "historik/adgangsadresser",
-            ):
-                request_counter()
-                url = f"https://dawa.aws.dk/{addrtype}/{uuid}?struktur=mini"
-                async with client.get(url) as response:
-                    if response.status == 429:
-                        # DAWA only allows:
-                        # * 10 concurrent requests
-                        # * 30 requests per second
-                        # Instead of adhering to these limits, we wait for thottling
-                        # to be applied to us, and then we slow down a bit.
-                        print(f"Hit ratelimit {url}")
-                        await asyncio.sleep(2)
-                        return await request_dawa(uuid, client)
-                    if response.status == 404:
-                        # Expected if address is not of this type
-                        continue
-                    if response.status != 200:
-                        # All status-codes, but 200, 404 and 429 are unexpected
-                        logger.warning(f"DAWA returned {response.status} status code")
-                        continue
-                    body = await response.json()
-                    return body["betegnelse"]
-            return None
-
         da_address_types = {
             "DAR": "DAR",
             "Telefon": "PHONE",
@@ -468,17 +433,21 @@ async def generate_json():
             "Url": "WWW",
         }
 
-        async def process_address(address, client):
+        dawa_queue = {}
+
+        def process_address(address):
             entry_uuid = address_to_uuid(address)
             if entry_uuid not in entry_map:
                 return
 
+            atype = da_address_types[address.adressetype_scope]
+
             if address.værdi:
                 value = address.værdi
             elif address.dar_uuid is not None:
-                value = await request_dawa(address.dar_uuid, client)
-                if value is None:
-                    return
+                dawa_queue[address.dar_uuid] = dawa_queue.get(address.dar_uuid, [])
+                dawa_queue[address.dar_uuid].append(address)
+                return
             else:
                 logger.warning(f"Address: {address.uuid} does not have a value")
                 return
@@ -488,26 +457,63 @@ async def generate_json():
                 "value": value,
             }
 
-            atype = da_address_types[address.adressetype_scope]
             entry_map[entry_uuid]["addresses"][atype].append(formatted_address)
 
-        # Queue all processing
-        tasks = []
-        async with ClientSession() as client:
-            queryset = queryset.filter(
-                # Only include address types we care about
-                Adresse.adressetype_scope.in_(da_address_types.keys())
-            ).filter(
-                # Do not include secret addresses
-                or_(
-                    Adresse.synlighed_titel == None,
-                    Adresse.synlighed_titel != "Hemmelig",
-                )
+        queryset = queryset.filter(
+            # Only include address types we care about
+            Adresse.adressetype_scope.in_(da_address_types.keys())
+        ).filter(
+            # Do not include secret addresses
+            or_(
+                Adresse.synlighed_titel == None,
+                Adresse.synlighed_titel != "Hemmelig",
             )
-            for address in queryset.all():
-                task = asyncio.ensure_future(process_address(address, client))
+        )
+        for address in queryset.all():
+            process_address(address)
+
+        async def process_dawa(keys, client):
+            addrtype = "adresser"
+            request_counter()
+            url = f"https://dawa.aws.dk/{addrtype}"
+            params = {
+                'id': "|".join(keys),
+                'struktur': "mini"
+            }
+            async with client.get(url, params=params) as response:
+                if response.status != 200:
+                    print(response.status)
+                    raise Exception("BAD")
+                body = await response.json()
+                for reply in body:
+                    if "betegnelse" not in reply:
+                        continue
+                    dar_uuid = reply["id"]
+                    value = reply["betegnelse"]
+                    for address in dawa_queue[dar_uuid]:
+                        entry_uuid = address_to_uuid(address)
+                        atype = da_address_types[address.adressetype_scope]
+
+                        formatted_address = {
+                            "description": address.adressetype_titel,
+                            "value": value,
+                        }
+
+                        entry_map[entry_uuid]["addresses"][atype].append(formatted_address)
+
+        tasks = []
+        chunk_size = 150
+        # DAWA only accepts:
+        # * 30 requests per second per IP
+        # * 10 concurrent connections per IP
+        # Thus we limit our connections to 10 here.
+        connector = TCPConnector(limit=10)
+        async with ClientSession(connector=connector) as client:
+            data = list(dawa_queue.keys())
+            chunks = [data[x:x+chunk_size] for x in range(0, len(data), chunk_size)]
+            for chunk in chunks:
+                task = asyncio.ensure_future(process_dawa(chunk, client))
                 tasks.append(task)
-            # Start firing HTTP requests, and wait for all of them
             await asyncio.gather(*tasks)
 
         return entry_map
