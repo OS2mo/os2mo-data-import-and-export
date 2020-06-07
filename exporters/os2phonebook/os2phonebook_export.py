@@ -473,7 +473,9 @@ async def generate_json():
             process_address(address)
 
         async def process_dawa(keys, client):
+            # TODO: Go through different addrtypes
             addrtype = "adresser"
+            missing = set(keys)
             request_counter()
             url = f"https://dawa.aws.dk/{addrtype}"
             params = {
@@ -489,6 +491,7 @@ async def generate_json():
                     if "betegnelse" not in reply:
                         continue
                     dar_uuid = reply["id"]
+                    missing.remove(dar_uuid)
                     value = reply["betegnelse"]
                     for address in dawa_queue[dar_uuid]:
                         entry_uuid = address_to_uuid(address)
@@ -500,6 +503,8 @@ async def generate_json():
                         }
 
                         entry_map[entry_uuid]["addresses"][atype].append(formatted_address)
+            if missing:
+                print(missing, "not found in DAWA")
 
         tasks = []
         chunk_size = 150
