@@ -464,10 +464,7 @@ async def generate_json():
             Adresse.adressetype_scope.in_(da_address_types.keys())
         ).filter(
             # Do not include secret addresses
-            or_(
-                Adresse.synlighed_titel == None,
-                Adresse.synlighed_titel != "Hemmelig",
-            )
+            or_(Adresse.synlighed_titel == None, Adresse.synlighed_titel != "Hemmelig")
         )
         for address in queryset.all():
             process_address(address)
@@ -478,10 +475,7 @@ async def generate_json():
             missing = set(keys)
             request_counter()
             url = f"https://dawa.aws.dk/{addrtype}"
-            params = {
-                'id': "|".join(keys),
-                'struktur': "mini"
-            }
+            params = {"id": "|".join(keys), "struktur": "mini"}
             async with client.get(url, params=params) as response:
                 if response.status != 200:
                     print(response.status)
@@ -502,7 +496,9 @@ async def generate_json():
                             "value": value,
                         }
 
-                        entry_map[entry_uuid]["addresses"][atype].append(formatted_address)
+                        entry_map[entry_uuid]["addresses"][atype].append(
+                            formatted_address
+                        )
             if missing:
                 print(missing, "not found in DAWA")
 
@@ -515,7 +511,7 @@ async def generate_json():
         connector = TCPConnector(limit=10)
         async with ClientSession(connector=connector) as client:
             data = list(dawa_queue.keys())
-            chunks = [data[x:x+chunk_size] for x in range(0, len(data), chunk_size)]
+            chunks = [data[x : x + chunk_size] for x in range(0, len(data), chunk_size)]
             for chunk in chunks:
                 task = asyncio.ensure_future(process_dawa(chunk, client))
                 tasks.append(task)
