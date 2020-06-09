@@ -548,6 +548,15 @@ class HolstebroHelper(object):
                 logger.error(
                     f"Manager with uuid: {manager_uuid} has no active engagements and will not be made manager")
 
+        if ou_manager != {} and ou_manager['uuid'] == manager_uuid:
+            # current manager is this ou's manager,
+            # but the manager no longer has active engagements
+            # then remove manager
+            if not has_engagements:
+                logger.info("Manager for {} is {} and has no engagements. Will be terminated.".format(
+                    ou['name'], manager['Navn']))
+                self._terminate_manager(ou_manager['relation_uuid'])
+
     def add_employee(self, employee_info):
         # TODO: add check for data before posting
 
