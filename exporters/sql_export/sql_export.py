@@ -22,18 +22,6 @@ LOG_FILE = 'sql_export.log'
 
 logger = logging.getLogger('SqlExport')
 
-for name in logging.root.manager.loggerDict:
-    if name in ('LoraCache', 'SqlExport'):
-        logging.getLogger(name).setLevel(LOG_LEVEL)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
-
-logging.basicConfig(
-    format='%(levelname)s %(asctime)s %(name)s %(message)s',
-    level=LOG_LEVEL,
-    filename=LOG_FILE
-)
-
 
 class SqlExport(object):
     def __init__(self, force_sqlite=False, historic=False, settings=None):
@@ -400,4 +388,17 @@ def cli():
 
 
 if __name__ == '__main__':
+
+    for name in logging.root.manager.loggerDict:
+        if name in ('LoraCache', 'SqlExport'):
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
+
     cli()

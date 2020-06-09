@@ -26,18 +26,6 @@ LOG_FILE = "os2phonebook_export.log"
 
 logger = logging.getLogger("os2phonebook_export")
 
-for name in logging.root.manager.loggerDict:
-    if name in ("os2phonebook_export"):
-        logging.getLogger(name).setLevel(LOG_LEVEL)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
-
-logging.basicConfig(
-    format="%(levelname)s %(asctime)s %(name)s %(message)s",
-    level=LOG_LEVEL,
-    filename=LOG_FILE,
-)
-
 
 class elapsedtime(object):
     """Context manager for timing operations.
@@ -587,4 +575,15 @@ async def transfer_json():
 
 
 if __name__ == "__main__":
+    for name in logging.root.manager.loggerDict:
+        if name in ("os2phonebook_export", "LoraCache", "SqlExport"):
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format="%(levelname)s %(asctime)s %(name)s %(message)s",
+        level=LOG_LEVEL,
+        filename=LOG_FILE,
+    )
     cli()
