@@ -20,6 +20,26 @@ def edit_org_unit(user_key, name, unit_uuid, parent, ou_type, from_date, to_date
     }
     return payload
 
+def edit_engagement(user_key, engagement_uuid, job_function_uuid, org_unit_uuid, from_date, to_date):
+    payload = {
+        'type': 'org_unit',
+        'data': {
+            'uuid': engagement_uuid,
+            'job_function': {
+                'uuid': job_function_uuid
+            },
+            'org_unit': {
+                'uuid': org_unit_uuid
+            },
+            'validity': {
+                'from': from_date,
+                'to': to_date
+            }
+
+        }
+    }
+    return payload
+
 
 def edit_address(data, mo_address_uuid):
     payload = {
