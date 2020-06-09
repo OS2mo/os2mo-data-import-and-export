@@ -19,8 +19,10 @@ new_git=$(git show -s --format=%H)
 git log --pretty=oneline ${old_git}..${new_git}
 
 # TODO: Check if the following packages are installed:
-# * unixodbc-dev freetds-dev unixodbc tdsodbc
-# Required for developmentt
+# * unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev
+# Required for development
+# You might also need:
+# $ pip install --upgrade cython
 
 venv/bin/pip install pip --upgrade
 find . -name 'requirements.*' | grep -v venv/ | while read REQFILE
