@@ -63,12 +63,12 @@ class elapsedtime(object):
 
     def __enter__(self):
         self.start_time_real = time.monotonic()
-        self.start_time_cpu = time.clock()
+        self.start_time_cpu = time.process_time()
         return self
 
     def __exit__(self, type, value, traceback):
         elapsed_real = time.monotonic() - self.start_time_real
-        elapsed_cpu = time.clock() - self.start_time_cpu
+        elapsed_cpu = time.process_time() - self.start_time_cpu
         print(
             self.operation,
             "took",
