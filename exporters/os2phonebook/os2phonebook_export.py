@@ -16,6 +16,7 @@ from exporters.sql_export.sql_table_defs import (
     Enhed,
     Leder,
     Tilknytning,
+    KLE,
 )
 from sqlalchemy import create_engine, event, or_
 from sqlalchemy.orm import sessionmaker
@@ -205,6 +206,24 @@ async def generate_json():
             org_unit_map[leder.enhed_uuid]["management"].append(management_entry)
         return org_unit_map
 
+    def enrich_org_units_with_kles(org_unit_map):
+        queryset = (
+            session.query(KLE).all()
+        )
+
+        for kle in queryset:
+            if kle.enhed_uuid not in org_unit_map:
+                continue
+            if kle.kle_aspekt_titel != 'Udførende':
+                continue
+            kle_entry = {
+                "title": kle.kle_nummer_titel,
+                # "name": kle.kle_aspekt_titel,
+                "uuid": kle.uuid,
+            }
+            org_unit_map[kle.enhed_uuid]["kles"].append(kle_entry)
+        return org_unit_map
+
     org_unit_map = {}
     org_unit_queue = set()
 
@@ -233,6 +252,7 @@ async def generate_json():
             "engagements": [],
             "associations": [],
             "management": [],
+            "kles": [],
             "addresses": {
                 "DAR": [],
                 "PHONE": [],
@@ -499,6 +519,8 @@ async def generate_json():
         org_unit_map = enrich_org_units_with_associations(org_unit_map)
     with elapsedtime("enrich_org_units_with_management"):
         org_unit_map = enrich_org_units_with_management(org_unit_map)
+    with elapsedtime("enrich_org_units_with_kles"):
+        org_unit_map = enrich_org_units_with_kles(org_unit_map)
 
     # Both
     # -----
