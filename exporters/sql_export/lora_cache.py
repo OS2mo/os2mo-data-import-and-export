@@ -661,6 +661,50 @@ class LoraCache(object):
                 )
         return it_connections
 
+    def _cache_lora_kles(self):
+        params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'KLE'}
+        url = '/organisation/organisationfunktion'
+        kle_list = self._perform_lora_lookup(url, params)
+        kles = {}
+        for kle in kle_list:
+            uuid = kle['id']
+            kles[uuid] = []
+
+            relevant = {
+                'relationer': ('opgaver', 'tilknyttedeenheder',
+                               'organisatoriskfunktionstype'),
+                'attributter': ('organisationfunktionegenskaber',)
+            }
+
+            effects = self._get_effects(kle, relevant)
+            for effect in effects:
+                from_date, to_date = self._from_to_from_effect(effect)
+                if from_date is None and to_date is None:
+                    continue
+
+                user_key = (
+                    effect[2]['attributter']['organisationfunktionegenskaber']
+                    [0]['brugervendtnoegle']
+                )
+
+                rel = effect[2]['relationer']
+                unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
+                kle_number = rel['organisatoriskfunktionstype'][0]['uuid']
+                kle_aspect = rel['opgaver'][0]['uuid']
+
+                kles[uuid].append(
+                    {
+                        'uuid': uuid,
+                        'unit': unit_uuid,
+                        'kle_number': kle_number,
+                        'kle_aspect': kle_aspect,
+                        'user_key': user_key,
+                        'from_date': from_date,
+                        'to_date': to_date
+                    }
+                )
+        return kles
+
     def _cache_lora_managers(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Leder'}
         url = '/organisation/organisationfunktion'
@@ -820,6 +864,7 @@ class LoraCache(object):
             roles_file = 'tmp/roles_historic.p'
             itsystems_file = 'tmp/itsystems_historic.p'
             it_connections_file = 'tmp/it_connections_historic.p'
+            kles_file = 'tmp/kles_historic.p'
         else:
             facets_file = 'tmp/facets.p'
             classes_file = 'tmp/classes.p'
@@ -833,6 +878,7 @@ class LoraCache(object):
             roles_file = 'tmp/roles.p'
             itsystems_file = 'tmp/itsystems.p'
             it_connections_file = 'tmp/it_connections.p'
+            kles_file = 'tmp/kles.p'
 
         if dry_run:
             logger.info('LoRa cache dry run - no actual read')
@@ -863,6 +909,8 @@ class LoraCache(object):
                 self.itsystems = pickle.load(f)
             with open(it_connections_file, 'rb') as f:
                 self.it_connections = pickle.load(f)
+            with open(kles_file, 'rb') as f:
+                self.kles = pickle.load(f)
             return
 
         t = time.time()
@@ -958,6 +1006,14 @@ class LoraCache(object):
         with open(it_connections_file, 'wb') as f:
             pickle.dump(self.it_connections, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, elements, elements/dt))
+
+        t = time.time()
+        logger.info('Læs kles')
+        self.kles = self._cache_lora_kles()
+        dt = time.time() - t
+        with open(kles_file, 'wb') as f:
+            pickle.dump(self.kles, f, pickle.HIGHEST_PROTOCOL)
+        logger.info(msg.format(dt, len(self.kles), len(self.kles)/dt))
         # Here we should de-activate read-only mode
 
 
