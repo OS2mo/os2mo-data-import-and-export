@@ -181,3 +181,17 @@ class LederAnsvar(Base):
     lederansvar_titel = Column(String(250), nullable=False)
     startdato = Column(String(10))
     slutdato = Column(String(10))
+
+
+class KLE(Base):
+    __tablename__ = 'kle'
+
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
+    enhed_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
+    kle_aspekt_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
+    kle_aspekt_titel = Column(String(250), nullable=False)
+    kle_nummer_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
+    kle_nummer_titel = Column(String(250), nullable=False)
+    startdato = Column(String(10))
+    slutdato = Column(String(10))

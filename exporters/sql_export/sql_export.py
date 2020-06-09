@@ -13,7 +13,7 @@ from exporters.sql_export.sql_table_defs import (
     Base,
     Facet, Klasse,
     Bruger, Enhed,
-    ItSystem, LederAnsvar,
+    ItSystem, LederAnsvar, KLE,
     Adresse, Engagement, Rolle, Tilknytning, Orlov, ItForbindelse, Leder
 )
 
@@ -91,6 +91,7 @@ class SqlExport(object):
         self._add_associactions_leaves_and_roles()
         self._add_managers()
         self._add_it_systems()
+        self._add_kles()
 
     def at_exit(self):
         logger.info('*SQL export ended*')
@@ -319,6 +320,27 @@ class SqlExport(object):
 
             for result in self.engine.execute(
                     'select * from it_forbindelser limit 2'):
+                print(result.items())
+
+    def _add_kles(self, output=False):
+        logger.info('Add KLES')
+        print('Add KLES')
+        for kle, kle_validity in self.lc.kles.items():
+            for kle_info in kle_validity:
+                sql_kle = KLE(
+                    uuid=kle,
+                    enhed_uuid=kle_info['unit'],
+                    kle_aspekt_uuid=kle_info['kle_aspect'],
+                    kle_aspekt_titel=self.lc.classes[kle_info['kle_aspect']]['title'],
+                    kle_nummer_uuid=kle_info['kle_number'],
+                    kle_nummer_titel=self.lc.classes[kle_info['kle_number']]['title'],
+                    startdato=kle_info['from_date'],
+                    slutdato=kle_info['to_date']
+                )
+                self.session.add(sql_kle)
+        self.session.commit()
+        if output:
+            for result in self.engine.execute('select * from kle limit 10'):
                 print(result.items())
 
     def _add_managers(self, output=False):
