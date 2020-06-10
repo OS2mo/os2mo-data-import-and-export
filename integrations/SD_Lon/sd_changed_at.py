@@ -242,13 +242,14 @@ class ChangeAtSD(object):
                 logger.warning('Skipping fictional user: {}'.format(cpr))
                 continue
 
-            # TODO: Shold this go in sd_common?
-            given_name = person.get('PersonGivenName', '')
-            sur_name = person.get('PersonSurnameName', '')
-            sd_name = '{} {}'.format(given_name, sur_name)
-
             uuid = None
             mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
+
+            # TODO: Shold this go in sd_common?
+            given_name = person.get('PersonGivenName', mo_person["givenname"])
+            sur_name = person.get('PersonSurnameName', mo_person["surname"])
+            sd_name = '{} {}'.format(given_name, sur_name)
+
 
             if self.ad_reader is not None:
                 ad_info = self.ad_reader.read_user(cpr=cpr)
