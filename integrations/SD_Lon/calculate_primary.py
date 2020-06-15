@@ -5,8 +5,8 @@ import logging
 import argparse
 import datetime
 
-import sd_common
-import sd_payloads
+from integrations.SD_Lon import sd_common
+from integrations.SD_Lon import sd_payloads
 
 from os2mo_helpers.mora_helpers import MoraHelper
 

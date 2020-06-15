@@ -4,7 +4,7 @@ import logging
 import requests
 import datetime
 import argparse
-import sd_payloads
+from integrations.SD_Lon import sd_payloads
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.SD_Lon.sd_common import sd_lookup
