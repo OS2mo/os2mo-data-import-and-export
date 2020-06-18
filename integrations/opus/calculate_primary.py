@@ -168,7 +168,7 @@ class MOPrimaryEngagementUpdater(object):
 
     def recalculate_primary(self, no_past=True):
         """
-        Re-calculate primary engagement for the enire history of the current user.
+        Re-calculate primary engagement for the entire history of the current user.
         """
         logger.info('Calculate primary engagement: {}'.format(self.mo_person))
         date_list = self.helper.find_cut_dates(self.mo_person['uuid'],

@@ -364,6 +364,11 @@ exports_os2phonebook_export(){
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py transfer-json
 }
 
+exports_sync_mo_uuid_to_ad(){
+    BACK_UP_AND_TRUNCATE+=(sync_mo_uuid_to_ad.log)
+    ${VENV}/bin/python3 ${DIPEXAR}/integrations/ad_integration/sync_mo_uuid_to_ad.py --sync-all
+}
+
 exports_test(){
     set -e
     :
@@ -472,6 +477,10 @@ exports(){
 
     if [ "${RUN_EXPORTS_OS2MO_PHONEBOOK}" == "true" ]; then
         run-job exports_os2mo_phonebook || return 2
+    fi
+
+    if [ "${RUN_EXPORTS_MO_UUID_TO_AD}" == "true" ]; then
+        run-job exports_sync_mo_uuid_to_ad || return 2
     fi
 
     if [ "${RUN_CPR_UUID}" == "true" ]; then
