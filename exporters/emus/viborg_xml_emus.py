@@ -24,6 +24,9 @@ import logging
 import collections
 import pathlib
 from xml.sax.saxutils import escape
+from tools.priority_by_class import choose_public_address
+
+
 
 
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
@@ -154,10 +157,22 @@ def get_e_username(e_uuid, id_it_system, mh):
 
 
 def get_e_address(e_uuid, scope, mh):
+    candidates = []
     for address in mh._mo_lookup(e_uuid, 'e/{}/details/address'):
         if address['address_type']['scope'] == scope:
-            return address
-    return {}
+            candidates.append(address)
+    if scope == "PHONE":
+        priority_list = settings.get("emus.phone.priority",[])
+    elif scope == "EMAIL":
+        priority_list = settings.get("emus.email.priority",[])
+    else:
+        priority_list = []
+
+    address = choose_public_address(candidates, priority_list)
+    if address is not None:
+        return address
+    else:
+        return {} # like mora_helpers
 
 
 """
@@ -191,8 +206,8 @@ def build_engagement_row(mh, ou, engagement):
         engagement["person"]["uuid"],
         'Active Directory'
     )
-    _phone = mh.get_e_address(engagement["person"]["uuid"], "PHONE")
-    _email = mh.get_e_address(engagement["person"]["uuid"], "EMAIL")
+    _phone = get_e_address(engagement["person"]["uuid"], "PHONE", mh)
+    _email = get_e_address(engagement["person"]["uuid"], "EMAIL", mh)
 
     row = {
         # employee_id is tjenestenr by default
@@ -269,8 +284,8 @@ def build_manager_rows(mh, ou, manager):
         'Active Directory'
     )
 
-    _phone = mh.get_e_address(person["uuid"], "PHONE")
-    _email = mh.get_e_address(person["uuid"], "EMAIL")
+    _phone = get_e_address(person["uuid"], "PHONE", mh)
+    _email = get_e_address(person["uuid"], "EMAIL", mh)
 
     # manipulate row into a manager row
     # empty a couple of fields, change client and employee_id
