@@ -84,6 +84,8 @@ Programmet er afhængig af følgende indstillinger i ``settings.json``
  * ``emus.sftp_key_path`` angiver den nøgle, man anvender got at forbinde sig til sftp-serveren
  * ``emus.sftp_user`` angiver den sftp-user, man forbinder som
  * ``emus.userid_itsystem`` angiver hvilket IT-system, man tager brugernavnet fra, default er ``Active Directory``.
+ * ``emus.phone.priority`` indsnævrer valg af tlfnr. til en prioriteret liste af addresse-klasser med scope PHONE, som må bruges
+ * ``emus.email.priority`` indsnævrer valg af email til en prioriteret liste af addresse-klasser med scope EMAIL, som må bruges
  * ``mora.admin_top_unit`` angiver roden af det organisatoriske træ, der skal overføres
  * ``mora.base`` styrer hvilken OS2MO, der tilgås
  * ``mora.folder.query_export`` angiver det sted, hvor kopien af rapporten skal lægges - dette skal være det output-dir, som kan nås igennem OS2MO.

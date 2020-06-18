@@ -45,6 +45,8 @@
     "emus.sftp_key_path": "angiver den nøgle, man anvender got at forbinde sig til sftp-serveren",
     "emus.sftp_user": "angiver den sftp-user, man forbinder som",
     "emus.userid_itsystem": "angiver hvilket IT-system, man tager brugernavnet fra, default er ``Active Directory",
+    "emus.email.priority":["email-addresse-klasser, som valget indsnævres til - prioriteret liste"],
+    "emus.phone.priority":["phone-addresse-klasser, som valget indsnævres til - prioriteret liste"],
 
 
 
@@ -54,6 +56,7 @@
     "exports_viborg_eksterne.outfile_basename":"viborg_ekstern.csv",
     "exports_viborg_eksterne.destination_smb_share":"sharename-write-4-backslashes-for-each-backslash",
     "exports_viborg_eksterne.destination_directory":"directory-name-on-smb-share",
+    "exports_viborg_eksterne.email.priority":["email-addresse-klasser, som valget indsnævres til - prioriteret liste"],
 
     "exporters.actual_state.manager_responsibility_class": "uuid-for-responsibility",
     "exporters.actual_state.type": "MS-SQL",
@@ -151,4 +154,5 @@
 
     "integrations.os2opgavefordeler.url": "",
     "integrations.os2opgavefordeler.token": ""
+}
 }

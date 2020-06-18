@@ -19,8 +19,6 @@ cd ${DIPEXAR}
 
 export PYTHONPATH=$PWD:$PYTHONPATH
 
-rm tmp/*.p 2>/dev/null || :
-
 # some logfiles can be truncated after backup as a primitive log rotation
 # they should be appended to BACK_UP_AND_TRUNCATE
 declare -a BACK_UP_AND_TRUNCATE=(
@@ -607,6 +605,8 @@ show_status(){
 
 if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
     (
+        # Dette er den sektion, der kaldes fra CRON (ingen argumenter)
+
         if [ ! -n "${CRON_LOG_JSON_SINK}" ]; then
             REASON="WARNING: crontab.CRON_LOG_JSON_SINK not specified - no json logging"
             echo ${REASON}
@@ -679,6 +679,9 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
             run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
             echo ${REASON}
         fi
+
+        # Vi sletter lora-cache-picklefiler og andet inden vi kører cronjobbet
+        rm tmp/*.p 2>/dev/null || :
 
         export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
