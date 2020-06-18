@@ -1,3 +1,4 @@
+-r os2phonebook/requirements.txt
 click
 pymssql
 anytree

@@ -64,6 +64,12 @@
     "exporters.actual_state.password": "db_password",
     "exporters.actual_state.host": "db_host",
 
+    "exporters.os2phonebook_base_url": "http://localhost:8000/api/",
+    "exporters.os2phonebook_employees_uri": "load-employees",
+    "exporters.os2phonebook_org_units_uri": "load-org-units",
+    "exporters.os2phonebook_basic_auth_user": "dataloader",
+    "exporters.os2phonebook_basic_auth_pass": "password1",
+
     "integrations.SD_Lon.sd_user": "",
     "integrations.SD_Lon.sd_password": "",
     "integrations.SD_Lon.institution_identifier": "",
