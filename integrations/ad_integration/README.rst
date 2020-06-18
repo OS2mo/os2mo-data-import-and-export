@@ -73,20 +73,6 @@ For hvert ad angives
  * ``servers`` - domain controllere for denne ad.
 
 
-Skole AD
---------
-
-Hvis der ønskes integration til et AD til skoleområdet, udover det almindelige
-administrative AD, skal disse parametre desuden angives som miljøvariable. Hvis de
-ikke er til stede ved afviklingen, vil integrationen ikke forsøge at tilgå et
-skole AD.
-
- * ``AD_SCHOOL_SEARCH_BASE``
- * ``AD_SCHOOL_CPR_FIELD``
- * ``AD_SCHOOL_SYSTEM_USER``
- * ``AD_SCHOOLE_PASSWORD``
- * ``AD_SCHOOL_PROPERTIES``
-
 Test af opsætningen
 -------------------
 
