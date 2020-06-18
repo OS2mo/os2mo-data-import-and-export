@@ -6,4 +6,3 @@ sqlalchemy
 pyodbc
 git+https://github.com/magenta-aps/spsftp
 git+https://github.com/magenta-aps/lora-utils.git@master#egg=lora_utils
-aiohttp
