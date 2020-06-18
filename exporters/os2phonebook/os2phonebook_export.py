@@ -368,7 +368,7 @@ async def generate_json():
 
                 # Reference to the skipped employee to debug log
                 logger.debug(
-                    f"OS2MO_IMPORT_ROUTINE - NO_RELATIONS_TO_ORG_UNIT employee={phonebook_entry['uuid']}"
+                    "OS2MO_IMPORT_ROUTINE - NO_RELATIONS_TO_ORG_UNIT employee={phonebook_entry['uuid']}"
                 )
                 return False
             return True
@@ -422,7 +422,7 @@ async def generate_json():
                 dawa_queue[address.dar_uuid].append(address)
                 return
             else:
-                logger.warning(f"Address: {address.uuid} does not have a value")
+                logger.warning("Address: {address.uuid} does not have a value")
                 return
 
             formatted_address = {
@@ -447,7 +447,7 @@ async def generate_json():
             addrtype = "adresser"
             missing = set(keys)
             request_counter()
-            url = f"https://dawa.aws.dk/{addrtype}"
+            url = "https://dawa.aws.dk/" + addrtype
             params = {"id": "|".join(keys), "struktur": "mini"}
             async with client.get(url, params=params) as response:
                 if response.status != 200:
@@ -586,7 +586,7 @@ async def transfer_json():
         ) as response:
             if response.status != 200:
                 logger.warning("OS2Phonebook returned non-200 status code")
-            print(await response.json())
+            print(await response.text())
 
     with elapsedtime("push_x"):
         async with ClientSession() as aiohttp_session:
