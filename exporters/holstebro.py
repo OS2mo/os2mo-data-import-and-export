@@ -57,6 +57,7 @@ def export_from_mo(hostname):
     planorama_employee = f"{filename}_{SETTINGS['exports.holstebro.planorama.employee_filename']}"
     essens_lms_filename = f"{filename}_{SETTINGS['exports.holstebro.essenslms.filename']}"
     intranote_filename = f"{filename}_{SETTINGS['exports.holstebro.intranote.filename']}"
+    org_viewer_filename = SETTINGS['exports.holstebro.org_viewer.filename']
 
     # TEST UUIDs
     itdig_uuid = '9f981b4d-66c3-4100-b800-000001480001'
@@ -80,7 +81,7 @@ def export_from_mo(hostname):
         logger.info('Build cache: {}'.format(time.time() - t))
 
     try:
-        """
+
         logger.info(f"Exporting data to Intranote")
         logger.info("Setting export format to ANSI")
         mh.export_ansi = True
@@ -99,12 +100,11 @@ def export_from_mo(hostname):
         hh.export_to_essenslms(
             mh, all_nodes, essens_lms_filename)
         logger.info(f"{essens_lms_filename}: {time.time() - t}")
-        """
 
         logger.info(f"Exporting data to Org Viewer")
         hh.export_to_orgviewer(
             mh, all_nodes)
-        logger.info(f"{essens_lms_filename}: {time.time() - t}")
+        logger.info(f"{org_viewer_filename}: {time.time() - t}")
 
     except Exception as excep:
         logger.info(f"Export af data fejlede: {excep}")
