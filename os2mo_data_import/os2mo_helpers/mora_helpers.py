@@ -237,10 +237,12 @@ class MoraHelper(object):
             return_address = {}
             if address['address_type']['scope'] == scope or scope is None:
                 return_address['type'] = address['address_type']['uuid']
-                return_address['visibibility'] = address.get('visibility')
+                return_address['visibility'] = address.get('visibility')
                 return_address['Adresse'] = address['name']
                 return_address['value'] = address['value']
                 return_address['uuid'] = address['uuid']
+                # Deprecated spelling mistake....
+                return_address['visibibility'] = address.get('visibility')
                 return_list.append(return_address)
 
         if return_all:

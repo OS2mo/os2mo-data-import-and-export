@@ -12,7 +12,7 @@ settings = {
         "MOX_LOG_LEVEL": top_settings ["os2sync.log_level"],
         "MOX_LOG_FILE": top_settings["os2sync.log_file"],
         "OS2MO_SERVICE_URL": top_settings["mora.base"] + "/service",
-        "OS2MO_SAML_TOKEN": top_settings["crontab.SAML_TOKEN"],
+        "OS2MO_SAML_TOKEN": top_settings.get("crontab.SAML_TOKEN"),
         "OS2MO_ORG_UUID": "", # dont set this
         "OS2MO_CA_BUNDLE": top_settings["os2sync.ca_verify_os2mo"],
         "OS2SYNC_HASH_CACHE": top_settings["os2sync.hash_cache"],  # in CWD

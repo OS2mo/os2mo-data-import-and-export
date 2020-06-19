@@ -31,12 +31,42 @@ For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
    som angiver at en leder kan nedarve sin lederrolle til enheder dybere i
    organisationen.
  * ``exporters.actual_state.type``: Typen af database, i øjeblikket understøttes
-   `SQLite` og `MS-SQL`, flere kan tilføjes efter behov. For typen `SQLite` kan
-   brugernavn, password og host være tomme felter.
+   `SQLite` og `MS-SQL`, samt `MS-SQL-ODBC`.  flere kan tilføjes efter behov. 
+ For typen `SQLite` kan brugernavn, password og host være tomme felter.
+ * ``exporters.actual_state_historic.type``: Som ovenfor, men for historisk eksport.
  * ``exporters.actual_state.user``:  Brugernavn for sql bruger.
  * ``exporters.actual_state.password``: Password til sql bruger.
- * ``exporters.actual_state.db_name``: Navnet på databasen.
+ * ``exporters.actual_state.db_name``: Navn på databasen for actual state eksport.
+ * ``exporters.actual_state_historic.db_name``: Navnet på databasen for historisk
+   eksport.
  * ``exporters.actual_state.host``: Hostnavn på SQL-serveren.
+
+
+Eksport af historik
+===================
+
+MO/LoRa er en historisk database hvor de fleste objekter kan have forskellige
+værdier på forskellige tidspunkt, såkaldte virkningstider. SQL-eksporten vil
+som udgangspunkt eksportere de aktuelt gyldige værdier, men det er også muligt
+at foretage en komplet eksport af alle gyldigheder.
+
+
+Kommandolinjeværktøj
+====================
+
+En eksport kan startes fra kommandolinjen med følgende parametre:
+ * ``--resolve-dar``: Hvis denne parameter er sat, vil eksporten forsøge at slå
+   MOs DAR uuid'er op, så adressen også eksporteres i klar tekst. Hvis datasættet
+   indeholder mange forskellige adresser, vil det betyde en betydelig forøgelse af
+   kørselstiden.
+ * ``--historic``: Hvis denne parameter er sat, vil der blive foretaget en fuld
+   eksport af både fortidige, nutidige og fremtidige rækker. Dette vil betyde, at
+   en række beregnede parametre ikke vil komme med i datasættet.
+ * ``--force-sqlite``: Denne parameter vil betyde at ``exporters.actual_state.type``
+   i ``settings.json`` vil blive ignoreret, og en `SQLite`-fil vil blive
+   eksporteret.
+ * ``--use-pickle``: Ingen opslag vil blive foretaget i LoRa, udtrækket vil baseres
+   på cache-filer fra sidste gennemløb, mest anvendeligt til udvikling.
 
 
 .. _Modellering:
@@ -45,7 +75,9 @@ Modellering
 ===========
 
 Langt hovedparten af de data som eksporteres kan betragtes som rene rådata,
-der er dog nogle få undtagelser, hvor værdierne er fremkommet algoritmisk:
+der er dog nogle få undtagelser, hvor værdierne er fremkommet algoritmisk,
+disse værdier beregnes kun ved dags-dato eksport, ved fuld eksport af historiske
+værdier, er felterne tomme:
 
  * ``enheder.organisatorisk_sti``: Angiver den organisatoriske sti for en enhed
    beregnet ved at gå baglæns gennem enhedstræet og tilføje et `\\`-tegn mellem
@@ -92,7 +124,7 @@ facetter
  * ``uuid``: Facettens uuid, primærnøgle for tabellen.
  * ``bvn``: Brugervendt nøgle for facetten.
 
-Facetter i MO har ikke nogen titel.
+Facetter i MO har ikke nogen titel, og ikke nogen historik.
 
 klasser
 --------
@@ -103,6 +135,8 @@ klasser
  * ``facet_uuid``: Reference til primærnøglen i tabellen ``facetter``.
  * ``facet_bvn``: Den brugervendte nøgle som knytter sig til klassens facet.
 
+Klasser regnes af MO til at have evig virkning og eksporteres derfor altid med
+dags-dato værdi, også i et historisk eksport.
 
 brugere
 --------
@@ -110,6 +144,9 @@ brugere
  * ``fornavn``: Brugerens fornavn.
  * ``efternavn``:  Brugerens efternavn.
  * ``cpr``:  Brugerens cpr-nummer.
+
+Brugere regnes af MO til at have evig virkning og eksporteres derfor altid med
+dags-dato værdi, også i et historisk eksport.
 
 
 enheder
@@ -121,7 +158,7 @@ enheder
  * ``enhedstype_titel``: Titel på enhedstypens klasse.
    ``klasser``.
  * ``enhedsniveau_uuid``: Enhedsniveau, dette felt anvendes normalt kun af kommuner,
-   som anvender SD som lønsystem. reference til primærnøglen i tabellen
+   som anvender SD som lønsystem. Reference til primærnøglen i tabellen
    ``klasser``.
  * ``enhedsniveau_titel``: Titel på klassen for enhedsniveau.
  * ``organisatorisk_sti``: Enhedens organisatoriske placering, se afsnit om
@@ -132,6 +169,8 @@ enheder
  * ``fungerende_leder_uuid``: Reference til primærnøglen for nærmeste leder af
    enheden. Hvis enheder har en leder, vil dette være det samme som `leder`. Feltet
    er et afledt felt og findes ikke i rådata, se afsnit om `Modellering`_.
+ * ``startdato``: Startdato for denne rækkes gyldighed.
+ * ``slutdato``: Slutdato for denne rækkes gyldighed.
 
 
 adresser
@@ -156,6 +195,8 @@ Adresser er i MO organisationfunktioner med funktionsnavnet ``Adresse``.
  * ``synlighed_uuid``: Synlighedstype, reference til primærnøglen i tabellen
    ``klasser``.
  * ``synlighed_titel``: Titlen på synlighedstypens klasse.
+ * ``startdato``: Startdato for denne rækkes gyldighed.
+ * ``slutdato``: Slutdato for denne rækkes gyldighed.
 
 
 engagementer
@@ -184,6 +225,8 @@ Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``.
  * ``udvidelse_1``: Første af 10 fritekstfelter på MOs engagementer
  * ....
  * ``udvidelse_10``: Sidste af 10 fritekstfelter på MOs engagementer
+ * ``startdato``: Startdato for denne rækkes gyldighed.
+ * ``slutdato``: Slutdato for denne rækkes gyldighed.
 
 
 roller
@@ -197,6 +240,8 @@ Roller er i MO organisationfunktioner med funktionsnavnet ``Rolle``.
  * ``rolletype_uuid``: Rolletypen, reference til primærnøglen i tabellen
    ``klasser``.
  * ``rolletype_titel``: Titlen på klassen for rolletypen.
+ * ``startdato``: Startdato for denne rækkes gyldighed.
+ * ``slutdato``: Slutdato for denne rækkes gyldighed.
 
    
 tilknytninger
@@ -211,6 +256,8 @@ Tilknytninger er i MO organisationfunktioner med funktionsnavnet ``Tilknytning``
  * ``tilknytningstype_uuid``: Tilknytningstypen, reference til primærnøglen i tabellen
    ``klasser``.
  * ``tilknytningstype_text``: Titlen på klassen for tilknytningstypen.
+ * ``startdato``: Startdato for denne rækkes gyldighed.
+ * ``slutdato``: Slutdato for denne rækkes gyldighed.
 
 
 orlover
@@ -224,12 +271,18 @@ Orlover er i MO organisationfunktioner med funktionsnavnet ``Orlov``.
  * ``orlovstype_text``: Titlen på klasse for orlovstypen.
  * ``orlovstype_uuid``: Orlovstypen, reference til primærnøglen i tabellen
    ``klasser``.
+ * ``startdato``: Startdato for denne rækkes gyldighed.
+ * ``slutdato``: Slutdato for denne rækkes gyldighed.
 
 it_systemer
 --------
  * ``uuid``: IT-systemets uuid, primærnøgle for tabellen.
  * ``navn``: IT-systemets navn.
 
+IT-systmer regnes af MO til at have evig virkning og eksporteres derfor altid med
+dags-dato værdi, også i et historisk eksport.
+
+   
 it_forbindelser
 ---------------
 
@@ -248,6 +301,8 @@ i dette tilfælde vil der normalt ikke være brugernavn på forbindelsen.
  * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``. 
  * ``brugernavn``: Brugerens brugernavn i IT-systemet. Normalt blank for forbindelser
    til enheder.
+ * ``startdato``: Startdato for denne rækkes gyldighed.
+ * ``slutdato``: Slutdato for denne rækkes gyldighed.
 
 ledere
 --------
@@ -260,6 +315,8 @@ ledere
  * ``niveautype_titel``: Titlen på klassen for lederniveau.
  * ``niveautype_uuid``: Klassen for lederniveau, reference til primærnøglen i
    tabellen ``klasser``.
+ * ``startdato``: Startdato for denne rækkes gyldighed.
+ * ``slutdato``: Slutdato for denne rækkes gyldighed.
 
 leder_ansvar
 ------------
@@ -272,4 +329,6 @@ klasser som tilknyttes en lederrolle.
  * ``lederansvar_uuid``: Klassen for lederansvar, reference til primærnøglen i tabellen
    ``klasser``.
  * ``lederansvar_titel``: Titlen på klassen for lederansvar.
+ * ``startdato``: Startdato for denne rækkes gyldighed.
+ * ``slutdato``: Slutdato for denne rækkes gyldighed.
 

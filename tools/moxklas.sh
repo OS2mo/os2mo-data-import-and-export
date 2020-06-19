@@ -3,9 +3,9 @@
 # Check selv at klassen med den bvn ikke findes i forvejen
 # Kald nu dette script med:
 #
-# bash moxklas.sh "time_planning" "bvn_bvn" "This is the title"
+# scope=TEXT bvn=noegle title="mytitle" facet=time_planning bash moxklas.sh
 #
-# tilføj en ekstra parameter for at få et dry_run check
+# tilføj en parameter for at få et dry_run check
 #
 # scriptet finder selv uuider for facet og organisation
 
@@ -16,6 +16,7 @@ facet_class_json(){
 	bvn=$2
 	titel=$3
 	organisation=$4
+	scope=$5
 	(cat << EOKLASS
 	{ 
 	    "attributter": { 
@@ -23,9 +24,9 @@ facet_class_json(){
 		    {
 		    "brugervendtnoegle": "${bvn}", 
 		    "titel": "${titel}", 
-		    "omfang": "TEXT", 
+		    "omfang": "${scope}", 
 		    "virkning": { 
-			"from": "1900-01-01 12:02:32", 
+			"from": "1930-01-01 12:02:32", 
 			"to": "infinity"
 		    } 
 		    }
@@ -35,7 +36,7 @@ facet_class_json(){
 		"klassepubliceret": [{ 
 		    "publiceret": "Publiceret", 
 		    "virkning": { 
-			"from": "1900-01-01 12:02:32",
+			"from": "1930-01-01 12:02:32",
 			"to": "infinity"
 		    } 
 		}
@@ -46,7 +47,7 @@ facet_class_json(){
 		{ 
 		    "uuid": "${organisation}", 
 		    "virkning": { 
-			"from": "1900-01-01 12:02:32",  
+			"from": "1930-01-01 12:02:32",  
 			"to": "infinity"
 		    },
 		    "objekttype": "organisation"
@@ -56,7 +57,7 @@ facet_class_json(){
 		{ 
 		    "uuid": "${facet}", 
 		    "virkning": { 
-			"from": "1900-01-01 12:02:32", 
+			"from": "1930-01-01 12:02:32", 
 			"to": "infinity" 
 		    }
 		}
@@ -81,10 +82,11 @@ facet_list(){
     ) 2>/dev/null
 }
 
-facet=$(facet_list | grep $1 | cut -d" " -f2)
-bvn="$2"
-titel="$3"
-dry_run="$4"
+facet=$(facet_list | grep ${facet} | cut -d" " -f2)
+#bvn="$2"
+#titel="$3"
+#dry_run="$4"
+dry_run="$1"
 organisation=$(curl http://localhost:8080/organisation/organisation?bvn=% | jq -r .results[][])
 
 
@@ -94,12 +96,20 @@ if [ -n "${existing}" ]; then
     exit 1
 fi
 
-[ -n "${facet}" -a -n "${bvn}" -a -n "${titel}" -a -z "${dry_run}" ] && (
-    facet_class_json "${facet}" "${bvn}" "${titel}" "${organisation}" | opret
+[ -n "${facet}" -a -n "${bvn}" -a -n "${titel}" -a -n "${scope}" -a -z "${dry_run}" ] && (
+    facet_class_json "${facet}" "${bvn}" "${titel}" "${organisation}" "${scope}" | opret
 ) || (
+
+    echo DRY_RUN CHECK: Du har angivet:
+
+    echo bvn: $bvn
+    echo facet: $facet
+    echo titel: $titel
+    echo scope: $scope
+
     echo DRY_RUN CHECK - facetlist
     facet_list
     echo DRY_RUN CHECK - postdata
-    facet_class_json "${facet}" "${bvn}" "${titel}" "${organisation}"
+    facet_class_json "${facet}" "${bvn}" "${titel}" "${organisation}" "${scope}"
     echo DRY_RUN CHECK
 )

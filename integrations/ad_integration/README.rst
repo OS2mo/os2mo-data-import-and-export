@@ -49,6 +49,10 @@ Standard AD
  * ``integrations.ad.cpr_separator``: Angiver en eventuel separator mellem
    fødselsdato og løbenumre i cpr-feltet i AD. Hvis der ikke er en separator,
    angives en tom streng.
+ * ``integrations.ad.sam_filter``: Hvis denne værdi er sat, vil kun det være muligt
+   at cpr-fremsøge medarbejder som har denne værdi foranstillet i SAM-navn.
+   Funktionen muliggør at skelne mellem brugere og servicebrugere som har samme
+   cpr-nummer.
  * ``integrations.ad.system_user``: Navnet på den systembruger som har rettighed til
    at læse fra AD.
  * ``integrations.ad.password``: Password til samme systembruger.
@@ -56,8 +60,8 @@ Standard AD
    som en liste i json-filen.
 
 
-Skole  AD
----------
+Skole AD
+--------
 
 Hvis der ønskes integration til et AD til skoleområdet, udover det almindelige
 administrative AD, skal disse parametre desuden angives som miljøvariable. Hvis de
@@ -114,8 +118,12 @@ En test af skrivning foregår efter denne opskrift:
    ``integrations.ad.write.level2orgunit_field`` og
    ``integrations.ad.write.org_unit_field``. Hvis hvert felt findes hos mindst
    en bruger, godkendes den lokale AD opsætning.
+ * Længden af cpr-numrene hos de tilfældige brugere testes for om de har den
+   forventede længde, 10 cifre hvis der ikke anvendes en separator, 11 hvis der
+   gør. Det er et krav for at integrationen kan køre korrekt, at alle cpr-numre
+   anvender samme (eller ingen) separator.
 
-Hvis disse to tests begge går igennem, anses opsætningen for at være klar til
+Hvis disse tests går igennem, anses opsætningen for at være klar til
 AD skriv integrationen.
 
    
@@ -149,6 +157,32 @@ Objektet ``user`` vil nu indeholde de felter der er angivet i ``settings.json``
 med nøglen ``integrations.ad.properties``.
 
 
+Valg af primær konto ved flere konti pr. cprnummer
+--------------------------------------------------
+
+Nogle steder har man flere konti med samme cprnummer i AD'et.
+For at vælge den primære, som opdaterer / opdateres fra MO,
+kan man anvende et sæt nøgler i settingsfilen:
+
+  * ``integrations.ad.discriminator.field`` et felt i det pågældende AD, som bruges til at
+afgøre hvorvidt denne konto er den primære
+  * ``integrations.ad.discriminator.values`` et sæt strenge,
+som matches imod ``integrations.ad.discriminator field``
+  * ``integrations.ad.discriminator.function`` kan være 'include' eller 'exclude'
+
+Man definerer et felt, som indeholder en indikator for om kontoen er den primære,
+det kunnne f.x være et felt, man kaldte xBrugertype, som kunne indeholde "Medarbejder".
+
+Hvis man i dette tilfælde sætter ``integrations.ad.discriminator.function``
+til ``include`` vil kontoen opfattes som primær hvis 'Medarbejder' også findes i
+``integrations.ad.discriminator.values``
+
+Opfattes mere end en konto som primær sættes programmet til at fejle.
+
+Findes nøglen ``integrations.ad.discriminator.field``, skal de andre to nøgler
+også være der. Findes den ikke, opfattes alle AD-konti som primære.
+
+
 Skrivning til AD
 ================
 
@@ -175,6 +209,9 @@ skal være sat når programmet afvikles:
  * ``integrations.ad.write.level2orgunit_type``: uuid på den enhedstype som angiver
    at enheden er en organisatorisk hovedgruppering og derfor skal skrives i feltet
    angivet i ``integrations.ad.write.level2orgunit_field``.
+ * ``integrations.ad.write.create_user_trees``: Liste over uuid'er på enheder,
+   medarbejdere i disse enheder samt deres underheder, vil få oprettet AD en
+   konto af scriptet `ad_life_cycle.py` hvis de ikke har en i forvejen.
 
 
 Skabelse af brugernavne
@@ -190,13 +227,13 @@ herefter er programet klar til at lave brugernavne.
 .. code-block:: python
 
     from user_names import CreateUserName
-    
+
     name_creator = CreateUserNames(occupied_names=set())
     name_creator.populate_occupied_names()
 
     name = ['Karina', 'Munk', 'Jensen']
     print(name_creator.create_username(name))
-    
+
     name = ['Anders', 'Kristian', 'Jens', 'Peter', 'Andersen']
     print(name_creator.create_username(name))
 
@@ -221,7 +258,9 @@ Synkronisering fra AD til MO foregår via programmet ``ad_sync.py``.
 Programmet opdaterer alle værdier i MO i henhold til den feltmapning som er angivet
 i `settings.json`. Det er muligt at synkronisere adresseoplysninger, samt at
 oprette et IT-system på brugeren, hvis brugeren findes i AD, men endnu ikke har et
-tilknyttet IT-system i MO. Et eksempel på en feltmapning angives herunder:
+tilknyttet IT-system i MO. Desuden er det muligt at synkronisere et AD felt til
+et felt på brugerens primærengagement (typisk stillingsbetegnelsen).
+Et eksempel på en feltmapning angives herunder:
 
 .. code-block:: json
 
@@ -234,7 +273,11 @@ tilknyttet IT-system i MO. Et eksempel på en feltmapning angives herunder:
 	},
 	"it_systems": {
 	    "samAccountName": "d2998fa8-9d0f-4a2c-b80e-c754c72ef094"
-	}
+	},
+        "engagements": {
+            "Title": "extension_2"
+        }
+
     }
 
 For adresser angives en synlighed, som kan antage værdien `PUBLIC`, `INTERNAL`,
@@ -261,8 +304,9 @@ at gælde fra 'i dag' og til evig tid.
 Slutteligt skal det nævnes, at implemeneringen af synkroniseringen understøtter
 muligheden for at opnå en betydelig hastighedsforbering ved at tillade direkte adgang
 til LoRa, denne funktion aktiveres med nøglen
-`integrations.ad.ad_mo_sync_direct_lora_speedup` og reducerer kørselstiden med ca.
-50%.
+`integrations.ad.ad_mo_sync_direct_lora_speedup` og reducerer kørselstiden
+betragteligt. Hvis der er få ændringer vil afvilingstiden komme ned på nogle få
+minutter.
 
 MO til AD
 +++++++++
@@ -295,6 +339,7 @@ kan tilføjes efterhånden som integrationen udvikles.
  * ``level2orgunit``: Den oganisatoreiske hovedgruppering (Magistrat, direktørområde,
    eller forvalting) som brugerens primære engagement hører under.
  * ``manager_name``: Navn på leder for brugerens primære engagement.
+ * ``manager_cpr``: CPR på leder for brugerens primære engagement.
  * ``manager_sam``: SamAccountName for leder for brugerens primære engagement.
  * ``manager_mail``: Email på lederen for brugerens primære engagement.
 
@@ -327,7 +372,7 @@ kan se ud som dette:
    }
 
 
-Afvikling af PoerShell templates
+Afvikling af PowerShell templates
 ---------------------------------
 
 Det er muligt at angive PowerShell kode hvor visse værdier angives med abstrakte
@@ -491,6 +536,7 @@ Følgende funktionaliteter har deres eget kommandolinjeværktøj som gør det mu
 anvende dem uden at rette direkte i Python koden:
 
  * ``ad_writer.py``
+ * ``ad_life_cycle.py``
  * ``execute_ad_script.py``
  * ``user_names.py``
 
@@ -559,6 +605,39 @@ De forskellige muligheder gennemgås her en ad gangen:
    ManagerSAM.
 
 
+ad_life_cycle.py
+++++++++++++++++
+
+Dette værktøj kan afhængig af de valgte parametre oprette eller deaktivere AD-konti
+på brugere som henholdsvis findes i MO men ikke i AD, eller findes i AD, men ikke
+har aktive engagementer i MO.
+
+::
+   usage: ad_life_cycle.py [-h]
+                           [--create-ad-accounts] [--disable-ad-accounts]
+                           [--dry-run]
+
+Betydningen af disse parametre angives herunder, det er muligt at afvilke begge
+synkroniseringer i samme kørsel ved at angive begge parametre.
+			   
+ * --create-ad-accounts
+
+   Opret AD brugere til MO brugere som ikke i forvejen findes i AD efter de
+   regler som er angivet i settings-nøglen
+   ``integrations.ad.write.create_user_trees``.
+
+ * --disable-ad-accounts
+
+   Sæt status til Disabled for AD konti hvor den tilhøende MO bruge ikke længere
+   har et aktivt engagement.
+			   
+ * --dry-run
+
+   Programmet vil ikke forsøge at opdatere sit billede af MO, en vil anvende
+   den aktuelt cache'de værdi. Dette kan være nyttigt til udvikling, eller
+   hvis flere integrationer køres umidelbart efter hinanden.
+
+   
 execute_ad_script.py
 ++++++++++++++++++++
 

@@ -1,6 +1,8 @@
 # denne fil skal sources af job-runner.sh
 run_job_date=$(date +"%Y-%m-%d")
 run_job_batch_number=$(($(find "${CRON_BACKUP}" -name ${run_job_date}'*' | wc -l) + 1 ))
+run_job_log_json=${CRON_LOG_JSON:=/dev/null}
+
 run-job-log (){
     LOGLINE="$*"
     [ -n "${BATCH_COMMENT}" ] && LOGLINE="$LOGLINE ! batch-comment $BATCH_COMMENT !"
@@ -29,7 +31,7 @@ run-job-log (){
             COMMA=","
 	done
         echo '}'
-    ) | jq -c . >> ${CRON_LOG_JSON_SINK} || echo could not write to ${CRON_LOG_JSON_SINK}
+    ) | jq -c . | tee -a ${run_job_log_json} >> ${CRON_LOG_JSON_SINK} || echo could not write to ${CRON_LOG_JSON_SINK}
 }
 
 run-job(){
@@ -37,12 +39,21 @@ run-job(){
     # [ ! "$JOB" = "imports" ] && JOB=true # testing
     run-job-log ! job $1 ! job-status starting !
 
+    pm_start=$(prometrics-ts)
+    export JOBTIME=$(prometrics-ts $pm_start)
+    export JOBNAME=mo_${JOB}
+
     $JOB
+
 
     if [ "$?" = "0" ] ; then
         run-job-log ! job $1 ! job-status success !
+        prometrics-job-end
+        JOBTIME=$(prometrics-ts)
+        prometrics-job-success
         return 0
     else
+        prometrics-job-end
         run-job-log ! job $1 ! job-status failed  !
         return 1
     fi

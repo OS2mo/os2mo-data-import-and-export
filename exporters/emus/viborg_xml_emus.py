@@ -13,35 +13,46 @@ These are specfic for Viborg
 
 import time
 from os2mo_helpers.mora_helpers import MoraHelper
-import common_queries as cq
+import exporters.common_queries as cq
 import datetime
 import requests
 import uuid
+import json
 import os
 import io
 import logging
 import collections
+import pathlib
 from xml.sax.saxutils import escape
 
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
-MORA_ROOT_ORG_UNIT_NAME = os.environ.get('MORA_ROOT_ORG_UNIT_NAME', 'Viborg Kommune')
-USERID_ITSYSTEM = os.environ.get('USERID_ITSYSTEM', 'Active Directory')
-EMUS_RESPONSIBILITY_CLASS = os.environ['EMUS_RESPONSIBILITY_CLASS']
-EMUS_FILENAME = os.environ.get('EMUS_FILENAME', 'emus_filename.xml')
+
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
-
-
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(name)s %(message)s',
     level=LOG_LEVEL,
 )
 
 logger = logging.getLogger("xml-export-emus")
+
 for i in logging.root.manager.loggerDict:
     if i in ["mora-helper", "xml-export-emus"]:
         logging.getLogger(i).setLevel(LOG_LEVEL)
     else:
         logging.getLogger(i).setLevel(logging.WARNING)
+
+
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+settings = json.loads(cfg_file.read_text())
+
+MORA_BASE = settings.get("mora.base", 'http://localhost:5000')
+MORA_ROOT_ORG_UNIT_NAME = settings.get("mora.admin_top_unit", 'Viborg Kommune')
+USERID_ITSYSTEM = settings["emus.userid_itsystem"]
+EMUS_RESPONSIBILITY_CLASS = settings["emus.manager_responsibility_class"]
+EMUS_FILENAME = settings.get("emus.outfile_name", 'emus_filename.xml')
+EMUS_DISCARDED_JOB_FUNCTIONS = settings.get("emus.discard_job_functions",[])
+
 
 engagement_counter = collections.Counter()
 
@@ -166,6 +177,7 @@ def build_engagement_row(mh, ou, engagement):
         engagement["person"]["uuid"],
         'e/{}'
     )
+
 
     if "surname" in engagement["person"]:
         firstname = engagement["person"]["givenname"]
@@ -307,6 +319,14 @@ def hourly_paid(engagement):
     return hp
 
 
+def discarded(engagement):
+    jfkey = engagement.get("job_function", {}).get("user_key", "")
+    if jfkey in EMUS_DISCARDED_JOB_FUNCTIONS:
+        logger.debug("%s discarded job function %s", engagement["person"]["uuid"], jfkey)
+        return True
+    return False
+
+
 def engagement_count(mh, ou):
     engagement_counter[ou["uuid"]] += 1
     parent = ou
@@ -332,6 +352,10 @@ def export_e_emus(mh, nodes, emus_file):
         ):
             if hourly_paid(engagement):
                 continue
+
+            elif discarded(engagement):
+                continue
+
             logger.info("adding engagement %s", engagement["uuid"])
             engagement_rows.append(build_engagement_row(mh, ou, engagement))
             engagement_count(mh, ou)

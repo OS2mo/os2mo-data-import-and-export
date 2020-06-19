@@ -1,11 +1,14 @@
 import uuid
 import json
+import pickle
 import pathlib
 import hashlib
 import logging
 import sqlite3
 import datetime
 from pathlib import Path
+
+import xmltodict
 
 from integrations import cpr_mapper
 from integrations.opus import opus_import
@@ -39,7 +42,7 @@ def _read_cpr_mapping():
     return employee_forced_uuids
 
 
-def _read_available_dumps():
+def read_available_dumps():
     dumps = {}
 
     for opus_dump in DUMP_PATH.glob('*.xml'):
@@ -134,7 +137,7 @@ def start_opus_import(importer, ad_reader=None, force=False):
     Start an opus import, run the oldest available dump that
     has not already been imported.
     """
-    dumps = _read_available_dumps()
+    dumps = read_available_dumps()
 
     run_db = Path(SETTINGS['integrations.opus.import.run_db'])
     if not run_db.is_file():
@@ -177,7 +180,7 @@ def start_opus_diff(ad_reader=None):
     Start an opus update, use the oldest available dump that has not
     already been imported.
     """
-    dumps = _read_available_dumps()
+    dumps = read_available_dumps()
     run_db = Path(SETTINGS['integrations.opus.import.run_db'])
 
     employee_mapping = _read_cpr_mapping()
@@ -200,3 +203,80 @@ def start_opus_diff(ad_reader=None):
         diff.start_re_import(xml_file, include_terminations=True)
         logger.info('Ended update')
         _local_db_insert((xml_date, 'Diff update ended: {}'))
+
+
+def read_dump_data(dump_file):
+    cache_file = pathlib.Path.cwd() / 'tmp' / (dump_file.stem + '.p')
+    if not cache_file.is_file():
+        data = xmltodict.parse(dump_file.read_text())['kmd']
+        with open(str(cache_file), 'wb') as f:
+            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
+    else:
+        with open(str(cache_file), 'rb') as f:
+            data = pickle.load(f)
+    return data
+
+
+def compare_employees(original, new, force=False):
+    # Differences is these keys will not be counted as a difference, unless force
+    # is set to true. Notice lastChanged is included here, since we perform a
+    # brute-force comparison and does not care for lastChanged.
+    skip_keys = ['productionNumber', 'entryIntoGroup', 'invoiceRecipient',
+                 '@lastChanged', 'cpr']
+    identical = True
+    for key in new.keys():
+        if key in skip_keys and not force:
+            continue
+        if not original.get(key) == new[key]:
+            identical = False
+            msg = 'Changed {} from {} to {}'
+            print(msg.format(key, original.get(key), new[key]))
+    return identical
+
+
+def update_employee(employee_number, days):
+    from integrations.ad_integration import ad_reader
+
+    employee_mapping = _read_cpr_mapping()
+    ad_read = ad_reader.ADParameterReader()
+    latest_date = None
+
+    current_object = {}
+    cut_date = datetime.datetime.now() - datetime.timedelta(days=days)
+    dumps = read_available_dumps()
+
+    for date in sorted(dumps.keys()):
+        print(date)
+        if date < cut_date:
+            continue
+        dump_file = dumps[date]
+        data = read_dump_data(dump_file)
+
+        employees = data['employee']
+        for employee in employees:
+            if employee['@id'] != employee_number:
+                continue
+
+            if employee == current_object:
+                continue
+            if not compare_employees(current_object, employee):
+                if not latest_date:
+                    latest_date = date - datetime.timedelta(days=1)
+                msg = 'date: {}, lastChanged: {}'
+                print(msg.format(date, employee['@lastChanged']))
+
+                diff = opus_diff_import.OpusDiffImport(
+                    latest_date,
+                    ad_reader=ad_read,
+                    employee_mapping=employee_mapping
+                )
+
+                if current_object:
+                    # If this is not the first edit, we force the lastChanged to that
+                    # of the latest known edit.
+                    employee['@lastChanged'] = latest_date.strftime('%Y-%m-%d')
+                else:
+                    employee['@lastChanged'] = employee['entryDate']
+                diff.import_single_employment(employee)
+                current_object = employee
+                latest_date = date

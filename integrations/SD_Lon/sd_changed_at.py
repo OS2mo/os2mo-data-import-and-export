@@ -4,7 +4,7 @@ import pathlib
 import sqlite3
 import requests
 import datetime
-import sd_payloads
+from integrations.SD_Lon import sd_payloads
 
 from integrations import cpr_mapper
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -242,13 +242,15 @@ class ChangeAtSD(object):
                 logger.warning('Skipping fictional user: {}'.format(cpr))
                 continue
 
-            # TODO: Shold this go in sd_common?
-            given_name = person.get('PersonGivenName', '')
-            sur_name = person.get('PersonSurnameName', '')
-            sd_name = '{} {}'.format(given_name, sur_name)
-
             uuid = None
-            mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
+            old_values = mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
+            if old_values is None:
+                old_values = {}
+
+            # TODO: Shold this go in sd_common?
+            given_name = person.get('PersonGivenName', old_values.get("givenname", ""))
+            sur_name = person.get('PersonSurnameName', old_values.get("surname", ""))
+            sd_name = '{} {}'.format(given_name, sur_name)
 
             if self.ad_reader is not None:
                 ad_info = self.ad_reader.read_user(cpr=cpr)

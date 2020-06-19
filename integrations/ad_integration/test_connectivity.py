@@ -8,6 +8,7 @@ import requests_kerberos
 from winrm import Session
 from integrations.ad_integration import ad_logger
 
+from winrm.exceptions import InvalidCredentialsError
 
 cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
 if not cfg_file.is_file():
@@ -33,6 +34,9 @@ def test_basic_connectivity():
         error = None
     except requests_kerberos.exceptions.KerberosExchangeError as e:
         error = str(e)
+    except InvalidCredentialsError as e:
+        error = 'Credentails not accepted by remmote management server: {}' 
+        error = error.format(e)
     except requests.exceptions.ConnectionError as e:
         error = 'Unable to contact winrm_host {}, message: {}'
         error = error.format(WINRM_HOST, e)
@@ -49,7 +53,11 @@ def test_basic_connectivity():
 
 def test_ad_contact():
     from ad_reader import ADParameterReader
-    ad_reader = ADParameterReader()
+    try:
+        ad_reader = ADParameterReader()
+    except Exception as e:
+        print('Unable to initiate AD-reader: {}'.format(e))
+        return False
     response = ad_reader.read_encoding()
     if 'WindowsCodePage' in response:
         return True
@@ -170,7 +178,7 @@ def perform_write_test():
 
     minumum_expected_fields = {
         SETTINGS['integrations.ad.write.uuid_field']: False,
-        SETTINGS['integrations.ad.write.forvaltning_field']: False,
+        SETTINGS['integrations.ad.write.level2orgunit_field']: False,
         SETTINGS['integrations.ad.write.org_unit_field']: False
     }
 

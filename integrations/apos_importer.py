@@ -639,9 +639,9 @@ class AposImport(object):
         for medarbejder in medarbejdere:
             objectid = int(medarbejder['pathToRoot']['enhed'][-1]['@objectid'])
             person = medarbejder['person']
-            given_name = person['@fornavn'] + ' '
+            given_name = person['@fornavn']
             if person['@mellemnavn']:
-                given_name += person['@mellemnavn']
+                given_name = given_name + ' ' + person['@mellemnavn']
             sur_name = person['@efternavn']
             fra, til = _format_time(medarbejder['gyldighed'])
             bvn = medarbejder['@brugervendtNoegle']

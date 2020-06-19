@@ -13,6 +13,7 @@ Exporters
 .. include:: ../../exporters/readme.rst
 .. include:: ../../exporters/plan2learn/README.rst
 .. include:: ../../exporters/sql_export/README.rst
+.. include:: ../../exporters/emus/README.rst
 
 ###########
 Import tool

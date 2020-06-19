@@ -97,11 +97,22 @@ class MOPrimaryEngagementUpdater(object):
             success = False
         return success
 
+    def _engagements_included_in_primary_calculation(self, engagements):
+        included = []
+        for eng in engagements:
+            # disregard engagements from externals
+            if eng["org_unit"]["uuid"] in SETTINGS.get("integrations.ad.import_ou.mo_unit_uuid",""):
+                logger.warning('disregarding external engagement: {}'.format(eng))
+                continue
+            included.append(eng)
+        return included
+
     def _calculate_rate_and_ids(self, mo_engagement):
         min_type_pri = 9999
         min_id = 9999999
         for eng in mo_engagement:
             logger.debug('Calculate rate, engagement: {}'.format(eng))
+
             employment_id = int(eng['user_key'])
 
             stat = 'Current eng_type, min_id: {}, {}. This rate, eng_pos: {}, {}'
@@ -157,7 +168,7 @@ class MOPrimaryEngagementUpdater(object):
 
     def recalculate_primary(self, no_past=True):
         """
-        Re-calculate primary engagement for the enire history of the current user.
+        Re-calculate primary engagement for the entire history of the current user.
         """
         logger.info('Calculate primary engagement: {}'.format(self.mo_person))
         date_list = self.helper.find_cut_dates(self.mo_person['uuid'],
@@ -173,7 +184,12 @@ class MOPrimaryEngagementUpdater(object):
                     user=self.mo_person['uuid'], at=date, only_primary=True
             )
 
+            mo_engagement = self._engagements_included_in_primary_calculation(mo_engagement)
+            if len(mo_engagement) == 0:
+                continue
+
             logger.debug('MO engagement: {}'.format(mo_engagement))
+
             (min_id, min_type_pri) = self._calculate_rate_and_ids(mo_engagement)
             if (min_id is None) or (min_type_pri is None):
                 # continue

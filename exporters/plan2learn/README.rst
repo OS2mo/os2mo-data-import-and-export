@@ -14,7 +14,13 @@ Forbindelsesoplysninger på ftp-serveren angives i `settings.json` via tre nøgl
  * `exporters.plan2learn.user`
  * `exporters.plan2learn.password`
 
+Værktøjet har mulighed for at anvende to forskellige backends til at hente data:
+de kan hentes fra MO, eller direkte fra LoRa via LoRa-cache-mekanisme som også
+anvendes i andre eksportmoduler. LoRa-cache udgaven er langt den hurtigste og MO
+backenden er hovedsageligt bibeholdt for at kunne foretage en sammenligning mellem
+de to backends med henblik på fejlfinding.
 
+   
 Implementeringsstrategi
 =======================
 
@@ -40,6 +46,9 @@ I dette udtræk eksporteres disse felter:
  * `Navn`: Brugerens fulde navn, ikke opdelt i fornavn og efteranvn
  * `E-mail`: Hvis brugeren har en email i MO, angives den her.
  * `Mobil`: Hvis brugeren har en mobiltelefon i MO, angives den her.
+ * `Stilling`: Stillingsbetegnelse for brugerens primærengagement. Hvis dette
+   engagement har en stillingsbetegnelse skrevet i feltet extension_2 anvendes
+   dette, og ellers anvendes stillingsbetegnelsen fra engagementet.
 
 Mobiltelefon genkenes via en besemt klasse under adressetype, denne klasse er
 for nuværende hårdkodet direkte i python filen, men vil på sigt blive flyttet til

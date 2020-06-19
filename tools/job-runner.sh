@@ -24,7 +24,9 @@ rm tmp/*.p 2>/dev/null || :
 # some logfiles can be truncated after backup as a primitive log rotation
 # they should be appended to BACK_UP_AND_TRUNCATE
 declare -a BACK_UP_AND_TRUNCATE=(
-	${DIPEXAR}/mo_integrations.log
+    ${DIPEXAR}/mo_integrations.log
+    # if the json-log-tee file is present - take that too
+    ${CRON_LOG_JSON}
 )
 
 # files that need to be backed up BEFORE running the jobs
@@ -79,6 +81,18 @@ imports_test_ad_connectivity(){
     )
     echo running imports_test_ad_connectivity
     ${VENV}/bin/python3 integrations/ad_integration/test_connectivity.py  --test-read-settings
+}
+
+imports_test_sd_connectivity(){
+    set -e
+    echo running imports_test_sd_connectivity
+    ${VENV}/bin/python3 integrations/SD_Lon/test_sd_connectivity.py
+}
+
+imports_test_opus_connectivity(){
+    set -e
+    echo running imports_test_ops_connectivity
+    ${VENV}/bin/python3 integrations/opus/test_opus_connectivity.py --test-diff-import
 }
 
 imports_sd_fix_departments(){
@@ -244,13 +258,13 @@ exports_cpr_uuid(){
 exports_viborg_emus(){
     set -e
     echo running viborg_emus
-    ${VENV}/bin/python3 exporters/viborg_xml_emus_sftp.py
+    ${VENV}/bin/python3 exporters/emus/viborg_xml_emus_sftp.py
 }
 
 exports_viborg_eksterne(){
     set -e
     echo "running viborgs eksterne"
-    ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py || exit 1
+    ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py --lora|| exit 1
     $(
         SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
         SETTING_PREFIX="integrations.ad" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -311,7 +325,7 @@ exports_plan2learn(){
 	organisation
 	stillingskode
     )
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py --lora
     
     (
         # get OUT_DIR and EXPORTS_DIR
@@ -352,6 +366,19 @@ exports_actual_state_export(){
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py
 }
 
+exports_os2phonebook_export(){
+    # kører en test-kørsel
+    BACK_UP_AND_TRUNCATE+=(os2phonebook_export.log)
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py sql-export
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py generate-json
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py transfer-json
+}
+
+exports_sync_mo_uuid_to_ad(){
+    BACK_UP_AND_TRUNCATE+=(sync_mo_uuid_to_ad.log)
+    ${VENV}/bin/python3 ${DIPEXAR}/integrations/ad_integration/sync_mo_uuid_to_ad.py --sync-all
+}
+
 exports_test(){
     set -e
     :
@@ -377,6 +404,14 @@ imports(){
 
     if [ "${RUN_CHECK_AD_CONNECTIVITY}" == "true" ]; then
         run-job imports_test_ad_connectivity || return 2
+    fi
+
+    if [ "${RUN_CHECK_SD_CONNECTIVITY}" == "true" ]; then
+        run-job imports_test_sd_connectivity || return 2
+    fi
+
+    if [ "${RUN_CHECK_OPUS_CONNECTIVITY}" == "true" ]; then
+        run-job imports_test_opus_connectivity || return 2
     fi
 
     if [ "${RUN_SD_FIX_DEPARTMENTS}" == "true" ]; then
@@ -457,6 +492,10 @@ exports(){
 
     if [ "${RUN_EXPORTS_OS2MO_PHONEBOOK}" == "true" ]; then
         run-job exports_os2mo_phonebook || return 2
+    fi
+
+    if [ "${RUN_EXPORTS_MO_UUID_TO_AD}" == "true" ]; then
+        run-job exports_sync_mo_uuid_to_ad || return 2
     fi
 
     if [ "${RUN_CPR_UUID}" == "true" ]; then

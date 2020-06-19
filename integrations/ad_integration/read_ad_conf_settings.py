@@ -45,8 +45,18 @@ def _read_primary_ad_settings():
         logger.error(msg)
         raise Exception(msg)
 
+    # 36182 exclude non primary AD-users
+    primary_settings['discriminator.field'] = SETTINGS.get('integrations.ad.discriminator.field')
+    if primary_settings['discriminator.field'] is not None:
+        # if we have a field we MUST have .values and .function
+        primary_settings['discriminator.values'] = SETTINGS['integrations.ad.discriminator.values']
+        primary_settings['discriminator.function'] = SETTINGS['integrations.ad.discriminator.function']
+        if not primary_settings['discriminator.function'] in ["include", "exclude"]:
+            raise ValueError("'ad.discriminator.function' must be include or exclude")
+
     # Settings that do not need to be set, or have defaults
     primary_settings['server'] = None
+    primary_settings['sam_filter'] = SETTINGS.get('integrations.ad.sam_filter', '')
     primary_settings['cpr_separator'] = SETTINGS.get(
         'integrations.ad.cpr_separator', '')
 
@@ -104,7 +114,20 @@ def _read_primary_write_information():
     if missing:
         msg = 'Missing values for AD write {}'.format(missing)
         logger.info(msg)
+        return {}
+
+    # Check for illegal configuration of AD Write.
+    mo_to_ad_fields = SETTINGS.get('integrations.ad_writer.mo_to_ad_fields')
+    ad_field_names = list(mo_to_ad_fields.values()) + [
+        primary_write_settings['org_field'],
+        primary_write_settings['level2orgunit_field'],
+        primary_write_settings['uuid_field']
+    ]
+    if len(ad_field_names) > len(set(ad_field_names)):
+        msg = 'Duplicate AD fieldnames in settings: {}'
+        logger.info(msg.format(sorted(ad_field_names)))
         primary_write_settings = {}
+
     return primary_write_settings
 
 
@@ -151,3 +174,7 @@ def read_settings():
     settings['school'] = _read_school_ad_settings()
     settings['primary_write'] = _read_primary_write_information()
     return settings
+
+
+if __name__ == '__main__':
+    read_settings()

@@ -5,8 +5,8 @@ import logging
 import argparse
 import datetime
 
-import sd_common
-import sd_payloads
+from integrations.SD_Lon import sd_common
+from integrations.SD_Lon import sd_payloads
 
 from os2mo_helpers.mora_helpers import MoraHelper
 
@@ -182,7 +182,7 @@ class MOPrimaryEngagementUpdater(object):
 
     def recalculate_primary(self, no_past=False):
         """
-        Re-calculate primary engagement for the enire history of the current user.
+        Re-calculate primary engagement for the entire history of the current user.
         """
         logger.info('Calculate primary engagement: {}'.format(self.mo_person))
         date_list = self._find_cut_dates(no_past=no_past)
