@@ -369,6 +369,10 @@ exports_sync_mo_uuid_to_ad(){
     ${VENV}/bin/python3 ${DIPEXAR}/integrations/ad_integration/sync_mo_uuid_to_ad.py --sync-all
 }
 
+reports_viborg_managers(){
+    ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
+}
+
 exports_test(){
     set -e
     :
@@ -517,6 +521,11 @@ reports(){
     if [ "${RUN_OPUS_DB_OVERVIEW}" == "true" ]; then
         run-job reports_opus_db_overview || echo "error in reports_opus_db_overview - continuing"
     fi
+
+    if [ "${RUN_VIBORG_MANAGERS}" == "true" ]; then
+        run-job reports_viborg_managers || return 2
+    fi
+
 
 }
 
