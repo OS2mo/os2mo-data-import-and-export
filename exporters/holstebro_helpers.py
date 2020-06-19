@@ -71,6 +71,151 @@ def holstebro_generic_export(mh, nodes, filename):
                 """
 
 
+def export_to_orgviewer(mh, all_nodes):
+
+    # Root must be Holstebro Kommune for org viewer
+    roots = SETTINGS['exports.holstebro.roots']
+    org_root_name = SETTINGS['municipality.name']
+    org_root_uuid = SETTINGS['municipality.uuid']
+
+    data_fields = {'name': 'Location', 'value': '', 'type': 'text'}
+    people = []
+    assignments = []
+
+    # Manually add root org unit "Holstebro Kommune" from settings and
+    # add manager to assignments and people
+    data = {'api_version': '1.0',
+            'chart': {
+                'id': org_root_uuid,
+                'name': org_root_name,
+                'description': '',
+                'parent_id': '',
+                'manager_id': SETTINGS['exports.holstebro.root_manager'],
+                'staff_department': 'N',
+                'dataFields': [data_fields],
+                'children': [],
+                "showChildren": True
+            },
+            'people': people,
+            'assignments': assignments
+            }
+
+    # this is where we start adding children
+    # Create dict with {'parent_uuid': ref to children[]}
+    children_ref = {}
+    children_ref.update({org_root_uuid: data['chart']['children']})
+
+    logger.info(f"Exporting root unit: {org_root_name} to Org. viewer")
+
+    # is this a partial exports
+    export_all = True if len(roots[org_root_uuid]) == 0 else False
+
+    logger.info(f"Exporting {org_root_name} to Org. viewer")
+
+    nodes = all_nodes[org_root_uuid]
+
+    # First create list of all children
+    # then put them in hierarchial order
+
+    for node in PreOrderIter(nodes['root']):
+        # if this is only partial export of org and this org unit is not on the exports list
+        # or is a child of an org unit in the exports list, continue
+        export_node = False
+        node_parent = node
+        while(node_parent != None and export_node is False):
+            export_node = True if node_parent.name in roots[org_root_uuid] else False
+            node_parent = node_parent.parent  # look backwards in hierarchy
+
+        if not export_all and not export_node:
+            continue
+
+        ou = mh.read_ou(node.name)
+
+        if ou['org_unit_level']['name'] == 'Afdelings-niveau':
+            continue
+
+        # find this unit's manager
+        manager = find_org_manager(mh, node)
+
+        # figure out what the parent ou should be
+        # If this is only a partial export org, then add the ou in roots directly under
+        # root ou.
+
+        # Default is root uuid
+        parent_ou_uuid = org_root_uuid
+        if export_all is True:
+            parent_ou_uuid = ou['parent']['uuid'] if ou['parent'] else org_root_uuid
+        elif export_node is True and ou['uuid'] not in roots[org_root_uuid]:
+            parent_ou_uuid = ou['parent']['uuid'] if ou['parent'] else org_root_uuid
+
+        if ou['uuid'] != org_root_uuid:
+            # Do no insert root ou. This has already been added
+            child = {
+                'id': ou['uuid'],
+                'name': ou['name'],
+                'description': '',
+                'parent_id': parent_ou_uuid,
+                'staff_department': 'N',
+                'manager_id': manager['uuid'],
+                'dataFields': [data_fields],
+                'children': [],
+                'showChildren': False
+            }
+
+            logger.info(
+                f"Exporting {ou['name']} to Org. viewer with parent {parent_ou_uuid}")
+
+            # add child to parent ous list of children
+            children_ref[parent_ou_uuid].append(child)
+
+            # add uuid for this ou to children reference dict
+            # and point to this ou's list of children for later addition
+            children_ref.update({ou['uuid']: child['children']})
+
+        # Read all employees in org unit and add them to employee export rows
+        employees = mh.read_organisation_people(
+            node.name, "engagement", False)
+        for uuid, employee in employees.items():
+            address = mh.read_user_address(uuid, username=True, cpr=False)
+
+            # is this employee the manager for the department? Then fetch the parent ou's manager
+            if uuid != manager['uuid']:
+                responsible = manager['uuid']
+            else:
+                parent_manager = find_org_manager(mh, node.parent)
+                responsible = parent_manager['uuid']
+
+            person = {
+                'id': uuid,
+                'name': employee['Navn'],
+                'photo': 'default.png',
+                'main_role': employee['Titel'] if employee['Titel'] is not None else employee['Stillingsbetegnelse'],
+                'function': ''
+            }
+
+            assignment = {
+                "department_id": employee['Org-enhed UUID'],
+                "person_id": uuid,
+                "role": person['main_role'],
+                "id": employee['Engagement UUID']
+            }
+
+            people.append(person)
+            assignments.append(assignment)
+
+    # add pre and postfix to json file
+    js_prefix = "var INPUT_DATA="
+    js_postfix = ";var UPDATED_ON=\"" + datetime.now().strftime("%d-%m-%Y") + "\""
+    filename = SETTINGS['exports.holstebro.org_viewer.filename']
+
+    with open(filename, encoding='utf-8', mode='w') as outfile:
+        outfile.write(js_prefix)
+        json.dump(data, outfile, indent=4, separators=(
+            ',', ': '), ensure_ascii=False)
+        outfile.write(js_postfix)
+        outfile.close()
+
+
 def export_to_intranote(mh, all_nodes, filename):
     fieldnames = ['NY7-niveau',
                   'NY6-niveau',
@@ -418,6 +563,7 @@ class HolstebroHelper(object):
     def __init__(self, mh):
         self.mh = mh
         self.manager_info = self._get_manager_types()
+        self.default_responsibility = self._get_default_responsibility()
 
     def _get_manager_types(self):
         org_uuid = self.mh.read_organisation()
@@ -436,11 +582,20 @@ class HolstebroHelper(object):
         for ml in manager_levels['data']['items']:
             return_dict['manager_levels'].update({ml['name']: ml})
 
-        for mr in manager_levels['data']['items']:
+        for mr in manager_responsibility['data']['items']:
             return_dict['manager_responsibility'].update({mr['uuid']: mr})
         # TODO: Add check for SETTINGS['imports.holstebro.leaders.responsibility'] in responsibility
 
         return return_dict
+
+    def _get_default_responsibility(self):
+        default_responsibility = SETTINGS['imports.holstebro.leaders.responsibility']
+
+        # TODO: check all availresponsibilities against default and assign this
+        # for responsibility in self.manager_info['manager_responsibility']:
+        #    if responsibility == default_responsibility:
+        #        break
+        return default_responsibility
 
     def _get_org_level(self, ou):
         if ou['org_unit_level']['name'] == 'NY5-niveau':
@@ -475,7 +630,7 @@ class HolstebroHelper(object):
             },
             "responsibility": [
                 {
-                    "uuid": SETTINGS['imports.holstebro.leaders.responsibility']
+                    "uuid": self.default_responsibility
                 }
             ],
             "user_key": "HK-AUTO-ASSIGNED",

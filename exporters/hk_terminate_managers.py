@@ -37,7 +37,7 @@ logger = logging.getLogger('LederHierarki')
 @click.option('--prod', 'hostname', required=True, flag_value='https://os2mo.holstebro.dk', help='MO Prod server')
 @click.option('--test', 'hostname', required=True, flag_value='https://os2mo-test.holstebro.dk', help='MO Test server')
 @click.option('--dev', 'hostname', required=True, flag_value='https://os2mo-dev.holstebro.dk', help='MO Dev server')
-def decorate_leaders(hostname):
+def terminate_managers(hostname):
     holstebro_logger.start_logging(SETTINGS['logging.holstebro.leaders_logfile'])
 
     t = time.time()
@@ -53,18 +53,21 @@ def decorate_leaders(hostname):
         if root['name'] == SETTINGS['municipality.name']:
             holstebro_uuid = root['uuid']
 
+    managerHelper = hh.HolstebroHelper(mh)
+
     nodes = mh.read_ou_tree(holstebro_uuid)
 
     logger.info('Read nodes: {}s'.format(time.time() - t))
-    try:
-        logger.info(f"Updating organisation tree for {holstebro_uuid}")
-        hh.update_org_with_hk_managers(mh, nodes)
-        logger.info('Updating hierarchy took: {}s'.format(time.time() - t))
 
-    except Exception as excep:
-        logger.info(f"Export af data fejlede: {excep}")
-        raise
+    for node in PreOrderIter(nodes['root']):
+        ou = mh.read_ou(node.name)
+
+        # Get non-inherited manager, ALWAYS returns 1 or no manager
+        ou_manager = mh.read_ou_manager(ou['uuid'], False)
+
+        if ou_manager != {}:  # no manager, create it
+            managerHelper._terminate_manager(ou_manager['relation_uuid'])
 
 
 if __name__ == '__main__':
-    decorate_leaders()
+    terminate_managers()

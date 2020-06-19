@@ -80,6 +80,7 @@ def export_from_mo(hostname):
         logger.info('Build cache: {}'.format(time.time() - t))
 
     try:
+        """
         logger.info(f"Exporting data to Intranote")
         logger.info("Setting export format to ANSI")
         mh.export_ansi = True
@@ -97,6 +98,12 @@ def export_from_mo(hostname):
         logger.info(f"Exporting data to EssensLMS")
         hh.export_to_essenslms(
             mh, all_nodes, essens_lms_filename)
+        logger.info(f"{essens_lms_filename}: {time.time() - t}")
+        """
+
+        logger.info(f"Exporting data to Org Viewer")
+        hh.export_to_orgviewer(
+            mh, all_nodes)
         logger.info(f"{essens_lms_filename}: {time.time() - t}")
 
     except Exception as excep:
