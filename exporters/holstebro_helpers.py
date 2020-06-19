@@ -669,6 +669,11 @@ class HolstebroHelper(object):
         ou_uuid = ou['uuid']
         manager_uuid = manager['Person UUID']
 
+        # First check that the new manager has active engagements
+        manager_engagements = self.mh.read_user_engagement(manager_uuid)
+
+        has_engagements = True if len(manager_engagements) > 0 else False
+
         # Create list of managers from this Afdelings-niveau
         # update parent ou
         # Get non-inherited manager, ALWAYS returns 1 or no manager
@@ -679,7 +684,11 @@ class HolstebroHelper(object):
                 ou['name'], manager['Navn']))
 
             manager_level = self._get_org_level(ou)
-            self._create_manager(ou_uuid, manager_uuid, manager_level)
+            if has_engagements:
+                self._create_manager(ou_uuid, manager_uuid, manager_level)
+            else:
+                logger.error(
+                    f"Manager with uuid: {manager_uuid} has no active engagements and will not be made manager")
 
         elif ou_manager['uuid'] != manager_uuid:
             logger.info("Manager for {} should be {}".format(
@@ -688,7 +697,20 @@ class HolstebroHelper(object):
             self._terminate_manager(ou_manager['relation_uuid'])
 
             manager_level = self._get_org_level(ou)
-            self._create_manager(ou_uuid, manager_uuid, manager_level)
+            if has_engagements:
+                self._create_manager(ou_uuid, manager_uuid, manager_level)
+            else:
+                logger.error(
+                    f"Manager with uuid: {manager_uuid} has no active engagements and will not be made manager")
+
+        if ou_manager != {} and ou_manager['uuid'] == manager_uuid:
+            # current manager is this ou's manager,
+            # but the manager no longer has active engagements
+            # then remove manager
+            if not has_engagements:
+                logger.info("Manager for {} is {} and has no engagements. Will be terminated.".format(
+                    ou['name'], manager['Navn']))
+                self._terminate_manager(ou_manager['relation_uuid'])
 
     def add_employee(self, employee_info):
         # TODO: add check for data before posting
