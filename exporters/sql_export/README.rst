@@ -31,8 +31,9 @@ For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
    som angiver at en leder kan nedarve sin lederrolle til enheder dybere i
    organisationen.
  * ``exporters.actual_state.type``: Typen af database, i øjeblikket understøttes
-   `SQLite` og `MS-SQL`, samt `MS-SQL-ODBC`.  flere kan tilføjes efter behov. 
- For typen `SQLite` kan brugernavn, password og host være tomme felter.
+   `SQLite`, `Mysql`, `MS-SQL`, samt `MS-SQL-ODBC`.  flere kan tilføjes efter behov.
+   `MS-SQL`-driveren er på vej ud og er erstattet af `MS-SQL-ODBC` i nyere
+   installationer.
  * ``exporters.actual_state_historic.type``: Som ovenfor, men for historisk eksport.
  * ``exporters.actual_state.user``:  Brugernavn for sql bruger.
  * ``exporters.actual_state.password``: Password til sql bruger.
@@ -40,6 +41,8 @@ For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
  * ``exporters.actual_state_historic.db_name``: Navnet på databasen for historisk
    eksport.
  * ``exporters.actual_state.host``: Hostnavn på SQL-serveren.
+
+ For typen `SQLite` kan user, password og host være tomme felter.
 
 
 Eksport af historik

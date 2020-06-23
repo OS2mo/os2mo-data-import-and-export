@@ -51,6 +51,7 @@ class SqlExport(object):
         db_host = self.settings.get('exporters.actual_state.host')
         pw_raw = self.settings.get('exporters.actual_state.password', '')
         pw = urllib.parse.quote_plus(pw_raw)
+        engine_settings = {}
         if db_type == 'SQLite':
             db_string = 'sqlite:///{}.db'.format(db_name)
         elif db_type == 'MS-SQL':
@@ -63,11 +64,15 @@ class SqlExport(object):
                     db_host, db_name, user, pw_raw)
                 )
             db_string = 'mssql+pyodbc:///?odbc_connect={}'.format(quoted)
+        elif db_type == "Mysql":
+            engine_settings={"pool_recycle":3600}
+            db_string = 'mysql+mysqldb://{}:{}@{}/{}'.format(
+                user, pw, db_host, db_name)
 
         else:
             raise Exception('Unknown DB type')
 
-        self.engine = create_engine(db_string)
+        self.engine = create_engine(db_string, **engine_settings)
 
     def perform_export(self, resolve_dar=True, use_pickle=False):
         if self.historic:
