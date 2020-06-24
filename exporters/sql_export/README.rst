@@ -119,6 +119,7 @@ systematisk i det følgende afsnit.
  * ``it_forbindelser``
  * ``ledere``
  * ``leder_ansvar``
+ * ``KLE``
 
 
 facetter
@@ -334,4 +335,23 @@ klasser som tilknyttes en lederrolle.
  * ``lederansvar_titel``: Titlen på klassen for lederansvar.
  * ``startdato``: Startdato for denne rækkes gyldighed.
  * ``slutdato``: Slutdato for denne rækkes gyldighed.
+
+KLE
+---
+
+KLE opmærkning er i MO ikke selvstændige objekter, men er modelleret som en
+binding imellem to klasser, nemlig KLE-Aspekt (f.eks. udførende) og KLE-numre.
+
+ * ``id``: Arbitrært løbenummer, primærnøgle for tabellen.
+ * ``uuid``: KLE-bindingens uuid.
+ * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``.
+ * ``kle_aspekt_uuid``: Klassen for KLE-aspekt, reference til primærnøglen i
+   tabellen ``klasser``.
+ * ``kle_aspekt_titel``: Titlen på KLE-aspektets klasse.
+ * ``kle_nummer_uuid``: Klassen for KLE-nummer, reference til primærnøglen i
+   tabellen ``klasser``.
+ * ``kle_nummer_titel``: Titlen på KLE-nummerets klasse.
+ * ``startdato``: Startdato for denne rækkes gyldighed.
+ * ``slutdato``: Slutdato for denne rækkes gyldighed.
+
 
