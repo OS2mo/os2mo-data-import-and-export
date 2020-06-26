@@ -709,7 +709,7 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
     cat ${CRON_LOG_FILE}
      
 elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
-    if [ -n "$(grep $1\(\) $0)" ]; then
+    if [ "$(type -t $1)" == "function" ]; then
         echo running single job function
         $1
     fi
