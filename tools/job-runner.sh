@@ -231,11 +231,6 @@ exports_mox_stsorgsync(){
     )
 }
 
-exports_os2mo_phonebook(){
-    set -e
-    :
-}
-
 exports_cpr_uuid(){
     set -e
     echo running exports_cpr_uuid
@@ -480,7 +475,7 @@ exports(){
     fi
 
     if [ "${RUN_EXPORTS_OS2MO_PHONEBOOK}" == "true" ]; then
-        run-job exports_os2mo_phonebook || return 2
+        run-job exports_os2phonebook_export || return 2
     fi
 
     if [ "${RUN_EXPORTS_MO_UUID_TO_AD}" == "true" ]; then
