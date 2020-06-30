@@ -62,9 +62,12 @@ class ADParameterReader(AD):
 
 
     def uncached_read_user(self, user=None, cpr=None, ria=None):
-        # Bug, currently this will not work directly with the school domain. Users
-        # will be cached (and can be read by read_user) but will not be returned
-        # directly by this function
+        # read one or more users using cpr-pattern.
+        # if list is passed in ria (read it all) then this is extended
+        # with found users - this way the function replaces the old 
+        # 'read it all' function, so there is now only one function
+        # reading from AD.
+
         logger.debug('Uncached AD read, user {}, cpr {}'.format(user, cpr))
 
         server = random.choice(self.all_settings['primary']['servers'])
@@ -78,11 +81,6 @@ class ADParameterReader(AD):
                 job_title = current_user.get('Title')
                 if job_title and job_title.find('FRATR') == 0:
                     continue  # These are users that has left
-
-                # Viborg - move this to settings
-                #brugertype = current_user.get('xBrugertype')
-                #if brugertype and brugertype.find('Medarbejder') == -1:
-                #    continue
 
                 if not self.is_included(settings, current_user):
                     continue
