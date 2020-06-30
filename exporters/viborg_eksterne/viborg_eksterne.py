@@ -91,7 +91,7 @@ def export_engagement(mh: MoraHelper, filename, lc, lc_historic):
                     manager_object = lc_historic.managers[manager][0]
                     manager_name = lc.users[manager_object['user']]['navn']
 
-                    manager_email_candidates = [x[0] for x in list(filter(
+                    manager_email_candidates = [x[0] for x in filter(
                         lambda x: (
                             x[0]['scope'] == 'E-mail' and
                             x[0]['user'] == manager_object['user']
