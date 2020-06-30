@@ -52,7 +52,7 @@ class ADParameterReader(AD):
 
         return True
 
-    # Hvornår skal vi læse og skirive i hvad?
+    # Hvornår skal vi læse og skrive i hvad?
     # Opdatering af os2mo fra ad: ad_sync: vi læser alle (for i in...) Ny reader og opdater mo
     # Opdatering af ad fra mo (mo_to_ad_sync) skriv kun til det første (og læs kun fra det første)
     # Indlæsning fra Opus og SD: Her læser vi fra 0'eren  - vi skal have fat i object-guid
