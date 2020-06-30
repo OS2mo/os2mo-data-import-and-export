@@ -55,7 +55,7 @@ class ADParameterReader(AD):
     # Hvornår skal vi læse og skrive i hvad?
     # Opdatering af os2mo fra ad: ad_sync: vi læser alle (for i in...) Ny reader og opdater mo
     # Opdatering af ad fra mo (mo_to_ad_sync) skriv kun til det første (og læs kun fra det første)
-    # Indlæsning fra Opus og SD: Her læser vi fra 0'eren  - vi skal have fat i object-guid
+    # Indlæsning fra Opus og SD: Her læser vi fra 0'eren - vi skal have fat i object-guid
     # cpr-uid-map-til rollekatalog skal også kun læse fra 0 (for now....)
     # vi kan teste en del med den, altså: venv/bin/python exporters/cpr_uuid.py --use-ad
     # cpr_mo_ad_map.csv har kun uuider/brugernavne pǻ de linier, hvor den sd-importerede bruger også er i ad.
