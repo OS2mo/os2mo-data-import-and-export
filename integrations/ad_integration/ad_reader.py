@@ -58,7 +58,7 @@ class ADParameterReader(AD):
     # Indlæsning fra Opus og SD: Her læser vi fra 0'eren  - vi skal have fat i object-guid
     # cpr-uid-map-til rollekatalog skal også kun læse fra 0 (for now....)
     # vi kan teste en del med den, altså: venv/bin/python exporters/cpr_uuid.py --use-ad
-    # cpr_mo_ad_map.csv  har kun uuider/brugernavne pǻ de linier, hvor den sd-importerede bruger også er i ad.
+    # cpr_mo_ad_map.csv har kun uuider/brugernavne pǻ de linier, hvor den sd-importerede bruger også er i ad.
 
 
     def uncached_read_user(self, user=None, cpr=None, ria=None):
