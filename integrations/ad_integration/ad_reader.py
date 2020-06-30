@@ -100,7 +100,7 @@ class ADParameterReader(AD):
                 if current_user['SamAccountName'].startswith(settings['sam_filter']):
                     self.results[cpr] = current_user
 
-            if isinstance(ria,list):
+            if ria:
                 ria.extend(response)
 
             return current_user

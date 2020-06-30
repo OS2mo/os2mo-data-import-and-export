@@ -136,7 +136,7 @@ def _read_primary_write_information():
     ]
     if len(ad_field_names) > len(set(ad_field_names)):
         msg = 'Duplicate AD fieldnames in settings: {}'
-        logger.info(msg.format(list(sorted(ad_field_names))))
+        logger.info(msg.format(sorted(ad_field_names)))
         primary_write_settings = {}
 
     return primary_write_settings

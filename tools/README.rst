@@ -237,52 +237,52 @@ Ovenstående sender et payload til lora, som opretter en klasse som ligner neden
 
 .. code-block:: json
 
-    { 
-        "attributter": { 
-        "klasseegenskaber": [ 
-            {
-            "brugervendtnoegle": "test-moxklas", 
-            "titel": "test-moxklas", 
-            "omfang": "EMAIL", 
-            "virkning": { 
-            "from": "1930-01-01 12:02:32", 
-            "to": "infinity"
-            } 
+    {
+      "attributter": {
+        "klasseegenskaber": [
+          {
+            "brugervendtnoegle": "test-moxklas",
+            "titel": "test-moxklas",
+            "omfang": "EMAIL",
+            "virkning": {
+              "from": "1930-01-01 12:02:32",
+              "to": "infinity"
             }
-        ] 
-        }, 
-        "tilstande": { 
-        "klassepubliceret": [{ 
-            "publiceret": "Publiceret", 
-            "virkning": { 
-            "from": "1930-01-01 12:02:32",
-            "to": "infinity"
-            } 
-        }
-        ] 
-        },
-        "relationer": { 
+          }
+        ]
+      },
+      "tilstande": {
+        "klassepubliceret": [
+          {
+            "publiceret": "Publiceret",
+            "virkning": {
+              "from": "1930-01-01 12:02:32",
+              "to": "infinity"
+            }
+          }
+        ]
+      },
+      "relationer": {
         "ansvarlig": [
-        { 
-            "uuid": "8a2ae31b-422a-4374-b3a8-a2ed4ed23c63", 
-            "virkning": { 
-            "from": "1930-01-01 12:02:32",  
-            "to": "infinity"
+          {
+            "uuid": "8a2ae31b-422a-4374-b3a8-a2ed4ed23c63",
+            "virkning": {
+              "from": "1930-01-01 12:02:32",
+              "to": "infinity"
             },
             "objekttype": "organisation"
-        }
+          }
         ],
-       "facet": [ 
-        { 
-            "uuid": "332e8b38-68c3-4457-a5fb-3332216bb7a6", 
-            "virkning": { 
-            "from": "1930-01-01 12:02:32", 
-            "to": "infinity" 
+        "facet": [
+          {
+            "uuid": "332e8b38-68c3-4457-a5fb-3332216bb7a6",
+            "virkning": {
+              "from": "1930-01-01 12:02:32",
+              "to": "infinity"
             }
-        }
-        ] 
-        }
-
+          }
+        ]
+      }
     }
 
 
