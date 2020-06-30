@@ -267,6 +267,8 @@ class ADMOImporter(object):
             if 'status' in mo_user:
                 print('Create user')
                 mo_uuid = self._create_user(ad_user)
+                if not mo_uuid:
+                    continue
             else:
                 mo_uuid = mo_user['uuid']
                 name_changed = (mo_user['givenname'] != ad_user['GivenName'] or
