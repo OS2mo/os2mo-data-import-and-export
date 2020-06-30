@@ -485,14 +485,63 @@ class ChangeAtSD(object):
 
         return org_unit
 
-    def create_new_engagement(self, engagement, status):
+    def read_employment_at(self, EmploymentIdentifier, EffectiveDate):
+        url = 'GetEmployment20111201'
+        params = {
+            'EmploymentIdentifier': EmploymentIdentifier,
+            'EffectiveDate': EffectiveDate.strftime('%d.%m.%Y'),
+            'StatusActiveIndicator': 'true',
+            'DepartmentIndicator': 'true',
+            'EmploymentStatusIndicator': 'true',
+            'ProfessionIndicator': 'true',
+            'WorkingTimeIndicator': 'true',
+            'UUIDIndicator': 'true',
+            'SalaryAgreementIndicator': 'false',
+            'SalaryCodeGroupIndicator': 'false'
+        }
+        response = sd_lookup(url, params=params)
+        return response['Person']
+
+    def create_new_engagement(self, engagement, status, cpr):
         """
         Create a new engagement
         AD integration handled in check for primary engagement.
         """
         user_key, engagement_info = self.engagement_components(engagement)
+        if not len(engagement_info['professions']):
+
+            # I am looking into the possibility that creating AND finishing
+            # an engagement in the past gives the problem that the engagement
+            # is reported to this function without position-info
+
+            # use a local engagement copy so we don't spill to the rest of the program
+            engagement = dict(engagement)
+
+            full_info = self.read_employment_at(
+                engagement["EmploymentIdentifier"],
+                datetime.datetime.strptime(status["ActivationDate"], "%Y-%m-%d").date()
+            )
+
+            # at least check the cpr
+
+            if cpr != full_info["PersonCivilRegistrationIdentifier"]:
+                logger.error("wrong cpr %r for position %r at date %r",
+                    full_info["PersonCivilRegistrationIdentifier"],
+                    engagement["EmploymentIdentifier"],
+                    status["ActivationDate"]
+                )
+                raise ValueError("unexpected cpr, see log")
+
+            full_info_employment = full_info["Employment"]
+            full_info_employment.pop("EmploymentStatus") # we have that already
+
+            # enrich engagement with missing fields
+
+            engagement.update(full_info_employment)
+            user_key, engagement_info = self.engagement_components(engagement)
 
         job_position = engagement_info['professions'][0]['JobPositionIdentifier']
+
         if job_position in self.skip_job_functions:
             logger.info('Skipping {} due to job_pos_id'.format(engagement))
             return None
@@ -754,7 +803,7 @@ class ChangeAtSD(object):
                     self.edit_engagement(engagement, status0=True)
                 else:
                     logger.info('Status 0, create new engagement')
-                    self.create_new_engagement(engagement, status)
+                    self.create_new_engagement(engagement, status, cpr)
                 skip = True
 
             if status['EmploymentStatusCode'] == '1':
@@ -780,14 +829,14 @@ class ChangeAtSD(object):
                     self.edit_engagement(engagement, validity)
                 else:
                     logger.info('Status 1: Create new engagement')
-                    self.create_new_engagement(engagement, status)
+                    self.create_new_engagement(engagement, status, cpr)
                 skip = True
 
             if status['EmploymentStatusCode'] == '3':
                 mo_eng = self._find_engagement(job_id)
                 if not mo_eng:
                     logger.info('Leave for non existent eng., create one')
-                    self.create_new_engagement(engagement, status)
+                    self.create_new_engagement(engagement, status, cpr)
                 logger.info('Create a leave for {} '.format(cpr))
                 self.create_leave(status, job_id)
 
