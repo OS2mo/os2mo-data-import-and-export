@@ -5,7 +5,7 @@ import pathlib
 import argparse
 import urllib.parse
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Index
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lora_cache import LoraCache
@@ -168,6 +168,15 @@ class SqlExport(object):
                 )
                 self.session.add(sql_unit)
         self.session.commit()
+
+        # create supplementary index for quick toplevel lookup
+        # when rewriting whole table this is quicker than maintaining
+        # the index for every row inserted
+        organisatorisk_sti_index = Index(
+            "organisatorisk_sti_index",
+            Enhed.organisatorisk_sti
+        )
+        organisatorisk_sti_index.create(bind=self.engine)
 
         if output:
             for result in self.engine.execute('select * from brugere limit 5'):
