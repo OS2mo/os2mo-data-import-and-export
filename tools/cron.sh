@@ -18,42 +18,6 @@ RUNAS=${RUNAS:-svc_os2mo}
 # Installation type for backup (docker, legacy or none)
 INSTALLATION_TYPE=${INSTALLATION_TYPE:-docker}
 
-# Email configuration, a valid login to Googles SMTP
-SNAIL_USERNAME=slareport@magenta-aps.dk
-SNAIL_PASSWORD=Password1
-
-# Email recipients
-SNAIL_RECIPIENTS=os2mo-ops@magenta-aps.dk
-# SNAIL_RECIPIENTS=emil@magenta.dk
-
-# Source helper functions
-#------------------------
-function generate_mail() {
-    EXIT_CODE=$1
-    SCRIPT_OUTPUT=$2
-    echo "This is an OPS notification email"
-    echo ""
-    echo "Alert received from $(hostname)"
-    echo ""
-    echo "Script ${SCRIPT} exited with code ${EXIT_CODE}"
-    echo ""
-    echo "==== STDOUT ===="
-    echo "${SCRIPT_OUTPUT}"
-}
-
-function send_email() {
-    MAIL_SUBJECT=$1
-    MAIL_BODY=$2
-
-	echo "Sending email"
-    echo "${EMAIL_SUBJECT}"
-    echo ""
-    echo "${EMAIL_BODY}"
-    echo ""
-	echo "${MAIL_BODY}" | s-nail -v -s "${MAIL_SUBJECT}" -S smtp-use-starttls -S ssl-verify=ignore -S smtp-auth=login -S smtp=smtp://smtp.gmail.com -S from=${SNAIL_USERNAME} -S smtp-auth-user=${SNAIL_USERNAME} -S smtp-auth-password=${SNAIL_PASSWORD} ${SNAIL_RECIPIENTS}
-	echo "Send!"
-}
-
 # Preconditions
 #--------------
 # Check if script is set
@@ -70,14 +34,14 @@ fi
 
 # Check if the user exists
 if ! id "${RUNAS}" >/dev/null 2>&1; then
-	echo "Unable to locate the specified runas user: ${RUNAS}"
-	exit 1
+    echo "Unable to locate the specified runas user: ${RUNAS}"
+    exit 1
 fi
 
 # Check for necessary tools
-if ! [ -x "$(command -v s-nail)" ]; then
-    echo "Unable to locate the 's-nail' executable."
-    echo "Try: sudo apt-get install s-nail"
+if ! [ -x "$(command -v jq)" ]; then
+    echo "Unable to locate the 'jq' executable."
+    echo "Try: sudo apt-get install jq"
     exit 1
 fi
 
@@ -129,10 +93,10 @@ elif [ "${INSTALLATION_TYPE}" == "legacy" ]; then
         exit 1
     fi
 elif [ "${INSTALLATION_TYPE}" == "none" ]; then
-	echo "WARNING: No snapshotting configured"
+    echo "WARNING: No snapshotting configured"
 else
-	echo "Unknown installation type: ${INSTALLATION_TYPE}"
-	exit 1
+    echo "Unknown installation type: ${INSTALLATION_TYPE}"
+    exit 1
 fi
 
 # Run script
@@ -141,15 +105,19 @@ export CRON_LOG_FILE=$(mktemp)
 SCRIPT_OUTPUT=$(su --preserve-environment --shell /bin/bash --command "${SCRIPT}" ${RUNAS})
 EXIT_CODE=$?
 
-EMAIL_SUBJECT=${EMAIL_SUBJECT:-"[OS2MO-OPS] OS2MO integration runner"}
-EMAIL_BODY=$(generate_mail "$EXIT_CODE" "$SCRIPT_OUTPUT")
+EVENT_NAMESPACE=magenta/project/os2mo/integration/script
 
-send_email "${EMAIL_SUBJECT}" "${EMAIL_BODY}"
+JSON_FRIENDLY_SCRIPT_OUTPUT=$(echo "${SCRIPT_OUTPUT}" | jq -aRs .)
+DATA="{\"script_executed\": \"${SCRIPT}\", \"exit_code\": ${EXIT_CODE}, \"output\": ${JSON_FRIENDLY_SCRIPT_OUTPUT}}"
+echo "Sending event with payload: ${DATA}"
+
 
 if [ "${EXIT_CODE}" -eq 0 ]; then
-	echo "Script ran succesfully"
+    echo "Script ran succesfully"
+    salt-call event.send ${EVENT_NAMESPACE}/complete data=${DATA}
     exit 0
 else
-	echo "Script has failed to execute"
-	exit ${EXIT_CODE}
+    echo "Script has failed to execute"
+    salt-call event.send ${EVENT_NAMESPACE}/failed data=${DATA}
+    exit ${EXIT_CODE}
 fi
