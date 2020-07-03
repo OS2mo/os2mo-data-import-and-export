@@ -10,15 +10,13 @@
 # Configuration
 #--------------
 # Absolute path to the job-runner.sh script
-SCRIPT=/home/viborg.local/svc_os2mo/CRON/os2mo-data-import-and-export/tools/job-runner.sh
-# SCRIPT=/home/emil/projects/mo/os2mo-data-import-and-export/tools/job-runner.sh
+# SCRIPT=... (must be set via environmental variable).
 
 # Unix service account to run job-runner.sh under
-RUNAS=svc_os2mo
-# RUNAS=emil
+RUNAS=${RUNAS:-svc_os2mo}
 
 # Installation type for backup (docker, legacy or none)
-INSTALLATION_TYPE=docker
+INSTALLATION_TYPE=${INSTALLATION_TYPE:-docker}
 
 # Email configuration, a valid login to Googles SMTP
 SNAIL_USERNAME=slareport@magenta-aps.dk
@@ -58,8 +56,14 @@ function send_email() {
 
 # Preconditions
 #--------------
+# Check if script is set
+if [ -z "${SCRIPT}" ]; then
+    echo "SCRIPT variable not set."
+    exit 1
+fi
+
 # Check if the script exists
-if [ ! -f ${SCRIPT} ]; then
+if [ ! -f "${SCRIPT}" ]; then
     echo "Unable to locate script in specified path: ${SCRIPT}"
     exit 1
 fi
@@ -81,12 +85,11 @@ fi
 #------------------
 if [ "${INSTALLATION_TYPE}" == "docker" ]; then
     # Check preconditions
-    # CONTAINER_NAME="mox_database"
-    CONTAINER_NAME="os2mo_mox-db_1"
-    DATABASE_NAME="mox"
-    HOST_SNAPSHOT_DESTINATION="/opt/docker/os2mo/database_snapshot/os2mo_database.sql"
+    CONTAINER_NAME=${CONTAINER_NAME:-"mox_database"}
+    DATABASE_NAME=${DATABASE_NAME:-"mox"}
+    HOST_SNAPSHOT_DESTINATION=${HOST_SNAPSHOT_DESTINATION:-"/opt/docker/os2mo/database_snapshot/os2mo_database.sql"}
     # DOCKER_SNAPSHOT_DESTINATION="/database_snapshot/os2mo_database.sql"
-    DOCKER_SNAPSHOT_DESTINATION="/tmp/os2mo_database.sql"
+    DOCKER_SNAPSHOT_DESTINATION=${DOCKER_SNAPSHOT_DESTINATION:-"/tmp/os2mo_database.sql"}
     if ! [ -x "$(command -v docker)" ]; then
         echo "Unable to locate the 'docker' executable."
         exit 1
@@ -109,7 +112,7 @@ if [ "${INSTALLATION_TYPE}" == "docker" ]; then
     chmod 755 ${HOST_SNAPSHOT_DESTINATION}
 elif [ "${INSTALLATION_TYPE}" == "legacy" ]; then
     # Check preconditions
-    HOST_SNAPSHOT_DESTINATION="/opt/magenta/snapshots/os2mo_database.sql"
+    HOST_SNAPSHOT_DESTINATION=${HOST_SNAPSHOT_DESTINATION:-"/opt/magenta/snapshots/os2mo_database.sql"}
     if ! [ -x "$(command -v pg_dump)" ]; then
         echo "Unable to locate the 'pg_dump' executable."
         exit 1
@@ -138,7 +141,7 @@ export CRON_LOG_FILE=$(mktemp)
 SCRIPT_OUTPUT=$(su --preserve-environment --shell /bin/bash --command "${SCRIPT}" ${RUNAS})
 EXIT_CODE=$?
 
-EMAIL_SUBJECT="[OS2MO-OPS] OS2MO integration runner"
+EMAIL_SUBJECT=${EMAIL_SUBJECT:-"[OS2MO-OPS] OS2MO integration runner"}
 EMAIL_BODY=$(generate_mail "$EXIT_CODE" "$SCRIPT_OUTPUT")
 
 send_email "${EMAIL_SUBJECT}" "${EMAIL_BODY}"
