@@ -3,9 +3,8 @@
 # Usage:
 # 1. Create the folder /opt/cron/
 # 2. Copy this script to /opt/cron/os2mo-data.sh
-# 3. Modify the below variables according to need
-# 4. Add the script to root's crontab: "05 06 * /opt/cron/os2mo-data.sh"
-# 5. Verify
+# 3. Add the script to root's crontab: "05 06 * SCRIPT=/.../job-runner.sh /opt/cron/os2mo-data.sh"
+# 4. Verify
 
 # Configuration
 #--------------
