@@ -97,8 +97,6 @@ fi
 
 # Run script
 #-----------
-export CRON_LOG_FILE=$(mktemp)
-chown ${RUNAS} ${CRON_LOG_FILE}
 SCRIPT_OUTPUT=$(su --preserve-environment --shell /bin/bash --command "${SCRIPT}" ${RUNAS})
 EXIT_CODE=$?
 
@@ -107,8 +105,6 @@ EVENT_NAMESPACE=magenta/project/os2mo/integration/script
 JSON_FRIENDLY_SCRIPT_OUTPUT=$(echo "${SCRIPT_OUTPUT}" | jq -aRs .)
 DATA="{\"script_executed\": \"${SCRIPT}\", \"exit_code\": ${EXIT_CODE}, \"output\": ${JSON_FRIENDLY_SCRIPT_OUTPUT}}"
 echo "Sending event with payload: ${DATA}"
-
-rm ${CRON_LOG_FILE}
 
 if [ "${EXIT_CODE}" -eq 0 ]; then
     echo "Script ran succesfully"
