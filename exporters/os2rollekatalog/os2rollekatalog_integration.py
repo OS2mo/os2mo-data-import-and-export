@@ -137,12 +137,9 @@ def get_org_units(connector):
                 return None
 
             ad_guid, sam_account_name = get_employee_from_map(person["uuid"])
-            if not sam_account_name:
-                logger.critical(
-                    "Employee {} is manager, "
-                    "but has no associated AD user".format(person["uuid"])
-                )
-                sys.exit(3)
+            if not ad_guid or not sam_account_name:
+                # Only import users who are in AD
+                return {}
 
             return {"uuid": manager["uuid"], "userId": sam_account_name}
 
