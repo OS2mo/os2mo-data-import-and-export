@@ -2,6 +2,7 @@
 
 export PYTHONPATH=$PWD:$PYTHONPATH
 
+# shellcheck disable=SC1091
 source venv/bin/activate
 rm tmp/*.p
 

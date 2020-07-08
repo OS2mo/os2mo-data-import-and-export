@@ -28,7 +28,7 @@ run-job-log (){
         echo '{'
 	COMMA=""
         for K in "${order[@]}"; do 
-            echo $COMMA
+            echo "$COMMA"
             echo "\"$K\"": \""${KWS[$K]}"\"
             COMMA=","
 	done

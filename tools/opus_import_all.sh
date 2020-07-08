@@ -1,4 +1,4 @@
-#/bin/bash
+#!/bin/bash
 
 #
 # get settings and some functions from job-runner.sh
@@ -39,7 +39,7 @@ fi
 #
 
 set +e
-for xml in ${xml_path}/* ; do
+for xml in "${xml_path}"/* ; do
     #set -x
     # root can be hard to kill - a stop file can do it
     # in the root of os2mo-data-import-and-export
@@ -81,7 +81,7 @@ for xml in ${xml_path}/* ; do
 done
 
 # report changedate per logfile
-for i in ${CRON_BACKUP}/*opus-import-all*
+for i in "${CRON_BACKUP}"/*opus-import-all*
 do
     firstline=$(tar -xOf "$i" "${CRON_LOG_FILE#/}"| head --quiet --lines=1 )
     echo "${firstline##*update}: $i"
