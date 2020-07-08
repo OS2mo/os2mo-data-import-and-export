@@ -35,6 +35,6 @@ stages:
     - docker
 
 Test AD Integration:
-  extends: .lint-default
+  extends: .test-default
   script:
     - cd integrations/ad_integration/ && pytest tests/ --ignore=tests/test_ad_writer.py
