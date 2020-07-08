@@ -630,77 +630,42 @@ show_status(){
 
 if [ "${JOB_RUNNER_MODE}" == "running" ] && [ "$#" == "0" ]; then
     (
-        if [ ! -n "${CRON_LOG_JSON_SINK}" ]; then
-            REASON="WARNING: crontab.CRON_LOG_JSON_SINK not specified - no json logging"
-            echo "${REASON}"
-        fi
+        check_warning_condition() {
+            if "$1"; then
+                REASON="WARNING: $2"
+                run-job-log job job-runner pre-check ! job-status warning ! reason "$REASON"
+                echo "${REASON}"
+            fi
+        }
+        check_error_condition() {
+            if "$1"; then
+                REASON="FATAL: $2"
+                run-job-log job job-runner pre-check ! job-status failed ! reason "$REASON"
+                echo "${REASON}"
+                exit 2
+            fi
+        }
 
-        if [ ! -d "${VENV}" ]; then
-            REASON="FATAL: python env not found"
-            run-job-log job job-runner pre-check ! job-status failed ! reason "$REASON"
-            echo "${REASON}"
-            exit 2 # error
-        fi
+        check_warning_condition [ ! -n "${CRON_LOG_JSON_SINK}" ] "crontab.CRON_LOG_JSON_SINK not specified - no json logging"
+        check_warning_condition [ ! -n "${SVC_USER}" ] "Service user not specified"
+        check_warning_condition [ ! -n "${SVC_KEYTAB}" ] "Service keytab not specified"
 
-        if [ ! -n "${SVC_USER}" ]; then
-            REASON="WARNING: Service user not specified"
-            run-job-log job job-runner pre-check ! job-status warning ! reason "$REASON"
-            echo "${REASON}"
-        fi
+        check_error_condition [ ! -n "${VENV}" ] "python env not found"
+        check_error_condition [ -n "${SVC_KEYTAB}" ] && [ ! -f "${SVC_KEYTAB}" ] "FATAL: Service keytab not found"
+        check_error_condition [ ! -n "${CRON_LOG_FILE}" ] "Cron log file not specified"
+        check_error_condition [ ! -n "${CRON_BACKUP}" ] "Backup directory not specified"
+        check_error_condition [ ! -d "${CRON_BACKUP}" ] "Backup directory non existing"
+        check_error_condition [ ! -f "${SNAPSHOT_LORA}" ] "Database snapshot does not exist"
 
-        if [ ! -n "${SVC_KEYTAB}" ]; then
-            REASON="WARNING: Service keytab not specified"
-            run-job-log job job-runner pre-check ! job-status warning ! reason "$REASON"
-            echo "${REASON}"
-        fi
-
-        if [ -n "${SVC_KEYTAB}" ] && [ ! -f "${SVC_KEYTAB}" ]; then
-            REASON="FATAL: Service keytab not found"
-            run-job-log job job-runner pre-check ! job-status failed ! reason "$REASON"
-            echo "${REASON}"
-            exit 2
-        fi
-
-        if [ ! -n "${CRON_LOG_FILE}" ]; then
-            REASON="FATAL: Cron log file not specified"
-            run-job-log job job-runner pre-check ! job-status failed ! reason "$REASON"
-            echo "${REASON}"
-            exit 2
-        fi
-
-        if [ ! -n "${CRON_BACKUP}" ]; then
-            REASON="FATAL: Backup directory not specified"
-            run-job-log job job-runner pre-check ! job-status failed ! reason "$REASON"
-            echo "${REASON}"
-            exit 2
-        fi
-
-        if [ ! -d "${CRON_BACKUP}" ]; then
-            REASON="FATAL: Backup directory non existing"
-            run-job-log job job-runner pre-check ! job-status failed ! reason "$REASON"
-            echo "${REASON}"
-            exit 2
-        fi
-
-        if [ ! -f "${SNAPSHOT_LORA}" ]; then
-            REASON="FATAL: Database snapshot does not exist"
-            run-job-log job job-runner pre-check ! job-status failed ! reason "$REASON"
-            echo "${REASON}"
-            exit 2
-        fi
         if [ -n "${SVC_USER}" ] && [ -n "${SVC_KEYTAB}" ]; then
 
             [ -r "${SVC_KEYTAB}" ] || echo WARNING: cannot read keytab
 
-            kinit "${SVC_USER}" -k -t "${SVC_KEYTAB}" || (
-                REASON="WARNING: not able to refresh kerberos auth - authentication failure"
-                run-job-log job job-runner pre-check ! job-status warning ! reason "$REASON"
-                echo "${REASON}"
-            )
+            if [ ! kinit "${SVC_USER}" -k -t "${SVC_KEYTAB}" ]; then
+                check_warning_condition true "not able to refresh kerberos auth - authentication failure"
+            fi
         else
-            REASON="WARNING: not able to refresh kerberos auth - username or keytab missing"
-            run-job-log job job-runner pre-check ! job-status warning ! reason "$REASON"
-            echo "${REASON}"
+            check_warning_condition true "not able to refresh kerberos auth - username or keytab missing"
         fi
 
         BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
