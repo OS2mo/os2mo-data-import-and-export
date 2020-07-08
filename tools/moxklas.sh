@@ -74,15 +74,13 @@ opret(){
 
 facet_list(){
     echo facet bvn: id
-    (
-    all_facets=$(curl http://localhost:8080/klassifikation/facet\?bvn=\% | jq -r .results[][])
+    all_facets=$(curl http://localhost:8080/klassifikation/facet\?bvn=% | jq -r .results[][])
     for facet in $all_facets; do
-        curl http://localhost:8080/klassifikation/facet/${facet} | jq -r '.["'${facet}'"][] | .registreringer[].attributter[][].brugervendtnoegle + " " + .id'
+        curl "http://localhost:8080/klassifikation/facet/${facet}" | jq -r '.["'"${facet}"'"][] | .registreringer[].attributter[][].brugervendtnoegle + " " + .id' 2>/dev/null
     done
-    ) 2>/dev/null
 }
 
-facet=$(facet_list | grep ${facet} | cut -d" " -f2)
+facet=$(facet_list | grep "${facet}" | cut -d" " -f2)
 #bvn="$2"
 #titel="$3"
 #dry_run="$4"
@@ -90,26 +88,25 @@ dry_run="$1"
 organisation=$(curl http://localhost:8080/organisation/organisation?bvn=% | jq -r .results[][])
 
 
-existing=$(curl http://localhost:8080/klassifikation/klasse?bvn=${bvn} | jq -r .results[][])
+existing=$(curl "http://localhost:8080/klassifikation/klasse?bvn=${bvn}" | jq -r .results[][])
 if [ -n "${existing}" ]; then
     echo "Brugervendt nøgle eksisterer"
     exit 1
 fi
 
-[ -n "${facet}" -a -n "${bvn}" -a -n "${titel}" -a -n "${scope}" -a -z "${dry_run}" ] && (
+if [ -n "${facet}" ] && [ -n "${bvn}" ] && [ -n "${titel}" ] && [ -n "${scope}" ] && [ -z "${dry_run}" ]; then
     facet_class_json "${facet}" "${bvn}" "${titel}" "${organisation}" "${scope}" | opret
-) || (
-
+else
     echo DRY_RUN CHECK: Du har angivet:
 
-    echo bvn: $bvn
-    echo facet: $facet
-    echo titel: $titel
-    echo scope: $scope
+    echo "bvn: $bvn"
+    echo "facet: $facet"
+    echo "titel: $titel"
+    echo "scope: $scope"
 
     echo DRY_RUN CHECK - facetlist
     facet_list
     echo DRY_RUN CHECK - postdata
     facet_class_json "${facet}" "${bvn}" "${titel}" "${organisation}" "${scope}"
     echo DRY_RUN CHECK
-)
+fi
