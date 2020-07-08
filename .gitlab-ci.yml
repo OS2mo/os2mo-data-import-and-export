@@ -41,4 +41,5 @@ Lint shell scripts:
     - apk update
     - apk add git
   script:
-    - git ls-files --exclude='*.sh' --ignored | xargs shellcheck
+    - git config core.quotepath off
+    - git ls-files --exclude='*.sh' --ignored | xargs shellcheck --external-sources --shell=bash
