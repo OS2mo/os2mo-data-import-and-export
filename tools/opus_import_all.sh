@@ -5,28 +5,28 @@
 #
 
 . tools/job-runner.sh
-if [ "$EUID" -ne 0 -o "${JOB_RUNNER_MODE}" != "sourced" ]; then
+if [ "$EUID" -ne 0 ] || [ "${JOB_RUNNER_MODE}" != "sourced" ]; then
     echo this script must be run as user root from the root of the os2mo-data-import-and-export folder
     exit 1
 fi
 
 if [ -z "${SVC_USER}" ]; then
-    echo ${SETTING_PREFIX}.SVC_USER not set in settings file
+    echo "${SETTING_PREFIX}.SVC_USER not set in settings file"
     exit 1
 fi
-run_db=$(SETTING_PREFIX="integrations.opus.import" . tools/prefixed_settings.sh; echo $run_db)
+run_db=$(SETTING_PREFIX="integrations.opus.import" . tools/prefixed_settings.sh; echo "$run_db")
 if [ -z "${run_db}" ]; then
     echo run_db skal i backuppen, og den er ikke defineret
     exit 1
 fi
 
-xml_path=$(SETTING_PREFIX="integrations.opus.import" . tools/prefixed_settings.sh; echo $xml_path)
+xml_path=$(SETTING_PREFIX="integrations.opus.import" . tools/prefixed_settings.sh; echo "$xml_path")
 if [ -z "${xml_path}" ]; then
     echo xml_path for opus files not set in settings file
     exit 1
 fi
 
-municipality_name=$(SETTING_PREFIX="municipality" . tools/prefixed_settings.sh; echo $name)
+municipality_name=$(SETTING_PREFIX="municipality" . tools/prefixed_settings.sh; echo "$municipality_name")
 municipality_name=${municipality_name,,}
 municipality_name=${municipality_name% *kommune}
 if [ -z "${municipality_name}" ]; then
@@ -47,9 +47,10 @@ for xml in ${xml_path}/* ; do
         echo found file \'stop\' - stopping
         exit 0
     fi
-    export BUPFILE="${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S-%N)-opus-import-all.tar"
+    BUPFILE="${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S-%N)-opus-import-all.tar"
+    export BUPFILE
     export municipality_name xml run_db
-    echo using $BUPFILE
+    echo "using $BUPFILE"
     salt-call os2mo.create_db_snapshot installation_type=docker
     su -p -c '(
         kinit ${SVC_USER} -k -t ${SVC_KEYTAB} || exit 1
@@ -69,8 +70,9 @@ for xml in ${xml_path}/* ; do
         [ $(wc -l ${DIPEXAR}/mo_integrations.log | cut -f1 -d" ") -gt 20 ] || STOP=1
         post_backup 
         exit $STOP
-    )' ${SVC_USER} > ${CRON_LOG_FILE} 2>&1
-    if [ ! "$?" = "0" ]; then
+    )' "${SVC_USER}" > "${CRON_LOG_FILE}" 2>&1
+    EXIT_CODE=$?
+    if [ "${EXIT_CODE}" -ne "0" ]; then
         echo subshell returned bad apples
         exit 1
     fi
@@ -80,8 +82,8 @@ done
 # report changedate per logfile
 for i in ${CRON_BACKUP}/*opus-import-all*
 do
-    firstline=$(tar -xOf $i ${CRON_LOG_FILE#/}| head --quiet --lines=1 )
-    echo ${firstline##*update}: $i
+    firstline=$(tar -xOf "$i" "${CRON_LOG_FILE#/}"| head --quiet --lines=1 )
+    echo "${firstline##*update}: $i"
 done
 echo Critical Error betyder at jobbet har været startet efter en uafsluttet kørsel
 echo I så tilfælde stopper programmet uden af lave noget
