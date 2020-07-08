@@ -2,12 +2,6 @@ import time
 import random
 from pathlib import Path
 
-import sys
-from os.path import dirname
-sys.path.append(dirname(__file__) + "/..")
-sys.path.append(dirname(__file__) + "/../../..")
-sys.path.append(dirname(__file__) + "/../../../os2mo_data_import")
-
 from fixture_generator import dummy_data_creator
 
 base = '../..//os2mo_data_import/fixture_generator/navne/'
