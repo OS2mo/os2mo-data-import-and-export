@@ -1,7 +1,7 @@
 #!/bin/bash
 # Script to validate this exporter against the original importer from os2phonebook
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-cd $DIR
+cd "$DIR" || exit
 
 # We need a JQ version with 'walk' (>=1.6)
 # $ wget https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64
