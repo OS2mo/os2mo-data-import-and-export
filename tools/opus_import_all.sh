@@ -52,6 +52,7 @@ for xml in ${xml_path}/* ; do
     export municipality_name xml run_db
     echo "using $BUPFILE"
     salt-call os2mo.create_db_snapshot installation_type=docker
+    # shellcheck disable=SC2016
     su -p -c '(
         kinit ${SVC_USER} -k -t ${SVC_KEYTAB} || exit 1
         STOP=0

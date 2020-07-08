@@ -17,4 +17,5 @@
 export VENV=${VENV:=./venv}
 export SETTING_PREFIX=${SETTING_PREFIX:=crontab}
 export CUSTOMER_SETTINGS=${CUSTOMER_SETTINGS:=/opt/settings/customer-settings.json}
+# shellcheck disable=SC1090
 . <(${VENV}/bin/python tools/prefixed_settings.py)

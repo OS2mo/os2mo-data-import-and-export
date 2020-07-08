@@ -7,6 +7,7 @@ export VENV=${VENV:=$(cd "$(dirname "$0")" || exit; pwd )/../venv}
 export CUSTOMER_SETTINGS=${CUSTOMER_SETTINGS:="${DIPEXAR}/settings/settings.json"}
 SETTINGS_FILE=$(basename "${CUSTOMER_SETTINGS}")
 export SETTINGS_FILE
+# shellcheck source=./tools/prefixed_settings.sh
 SETTING_PREFIX="integrations.ad" source "${DIPEXAR}/tools/prefixed_settings.sh"
 
 # shellcheck disable=SC2154
