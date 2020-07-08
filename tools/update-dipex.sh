@@ -3,9 +3,9 @@
 # os2mo-data-import-and-export-directory
 # installing/upgrading all dependencies
 
-export DIPEXAR=${DIPEXAR:=$(cd $(dirname $0); pwd )/..}
-export VENV=${VENV:=${DIPEXAR}/venv}
-cd ${DIPEXAR}
+export DIPEXAR=${DIPEXAR:=$(cd "$(dirname "$0")" || exit; pwd )/..}
+export VENV=${VENV:="${DIPEXAR}/venv"}
+cd "${DIPEXAR}" || exit
 
 [ -d venv ] || python3 -m venv venv
 [ -d ../backup ] || mkdir ../backup
@@ -16,7 +16,7 @@ cd ${DIPEXAR}
 old_git=$(git show -s --format=%H)
 git pull
 new_git=$(git show -s --format=%H)
-git log --pretty=oneline ${old_git}..${new_git}
+git log --pretty=oneline "${old_git}".."${new_git}"
 
 # TODO: Check if the following packages are installed:
 # * unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev
@@ -25,9 +25,9 @@ git log --pretty=oneline ${old_git}..${new_git}
 # $ pip install --upgrade cython
 
 venv/bin/pip install pip --upgrade
-find . -name 'requirements.*' | grep -v venv/ | while read REQFILE
+find . -name 'requirements.*' | grep -v venv/ | while read -r REQFILE
 do
-    echo installing ${REQFILE}
-    venv/bin/pip install -r $REQFILE --upgrade
+    echo "installing ${REQFILE}"
+    venv/bin/pip install -r "${REQFILE}" --upgrade
 done
 venv/bin/pip install ./os2mo_data_import --upgrade
