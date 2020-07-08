@@ -57,12 +57,12 @@ if [ "${INSTALLATION_TYPE}" == "docker" ]; then
         echo "Unable to locate the 'docker' executable."
         exit 1
     fi
-    if [ ! "$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
+    if [ ! "$(docker ps -q -f name="${CONTAINER_NAME}")" ]; then
         echo "Unable to locate a running mox database container: ${CONTAINER_NAME}"
         exit 1
     fi
     # Create backup
-    docker exec -t ${CONTAINER_NAME} \
+    docker exec -t "${CONTAINER_NAME}" \
         su --shell /bin/bash \
            --command "pg_dump --data-only ${DATABASE_NAME} -f ${DOCKER_SNAPSHOT_DESTINATION}" \
            postgres
@@ -72,7 +72,7 @@ if [ "${INSTALLATION_TYPE}" == "docker" ]; then
         exit 1
     fi
     # docker cp ${CONTAINER_NAME}:${DOCKER_SNAPSHOT_DESTINATION} ${HOST_SNAPSHOT_DESTINATION}
-    chmod 755 ${HOST_SNAPSHOT_DESTINATION}
+    chmod 755 "${HOST_SNAPSHOT_DESTINATION}"
 elif [ "${INSTALLATION_TYPE}" == "legacy" ]; then
     # Check preconditions
     HOST_SNAPSHOT_DESTINATION=${HOST_SNAPSHOT_DESTINATION:-"/opt/magenta/snapshots/os2mo_database.sql"}
@@ -81,7 +81,7 @@ elif [ "${INSTALLATION_TYPE}" == "legacy" ]; then
         exit 1
     fi
     # Ensure the folder exists
-    mkdir -p $(dirname "${HOST_SNAPSHOT_DESTINATION}")
+    mkdir -p "$(dirname "${HOST_SNAPSHOT_DESTINATION}")"
     # Create backup
     su --shell /bin/bash \
         --command "pg_dump --data-only ${DATABASE_NAME} -f ${HOST_SNAPSHOT_DESTINATION}"
@@ -100,8 +100,9 @@ fi
 
 # Run script
 #-----------
-export CRON_LOG_FILE=$(mktemp)
-SCRIPT_OUTPUT=$(su --preserve-environment --shell /bin/bash --command "${SCRIPT}" ${RUNAS})
+CRON_LOG_FILE=$(mktemp)
+export CRON_LOG_FILE
+SCRIPT_OUTPUT=$(su --preserve-environment --shell /bin/bash --command "${SCRIPT}" "${RUNAS}")
 EXIT_CODE=$?
 
 EVENT_NAMESPACE=magenta/project/os2mo/integration/script
@@ -113,10 +114,10 @@ echo "Sending event with payload: ${DATA}"
 
 if [ "${EXIT_CODE}" -eq 0 ]; then
     echo "Script ran succesfully"
-    salt-call event.send ${EVENT_NAMESPACE}/complete data=${DATA}
+    salt-call event.send "${EVENT_NAMESPACE}/complete" data="${DATA}"
     exit 0
 else
     echo "Script has failed to execute"
-    salt-call event.send ${EVENT_NAMESPACE}/failed data=${DATA}
+    salt-call event.send "${EVENT_NAMESPACE}/failed" data="${DATA}"
     exit ${EXIT_CODE}
 fi
