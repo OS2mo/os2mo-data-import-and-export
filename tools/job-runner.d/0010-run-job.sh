@@ -1,6 +1,8 @@
+#!/bin/bash
+
 # denne fil skal sources af job-runner.sh
 run_job_date=$(date +"%Y-%m-%d")
-run_job_batch_number=$(($(find "${CRON_BACKUP}" -name ${run_job_date}'*' | wc -l) + 1 ))
+run_job_batch_number=$(($(find "${CRON_BACKUP}" -name "${run_job_date}"'*' | wc -l) + 1 ))
 run_job_log_json=${CRON_LOG_JSON:=/dev/null}
 
 run-job-log (){
@@ -15,7 +17,7 @@ run-job-log (){
     )
     declare -a order=("time" "date" "batch")
      
-    while read KEY VAL
+    while read -r KEY VAL
     do
         [ -z "$KEY" ] && continue  
         order+=("$KEY") 
@@ -27,34 +29,32 @@ run-job-log (){
 	COMMA=""
         for K in "${order[@]}"; do 
             echo $COMMA
-            echo \"$K\": \""${KWS[$K]}"\"
+            echo "\"$K\"": \""${KWS[$K]}"\"
             COMMA=","
 	done
         echo '}'
-    ) | jq -c . | tee -a ${run_job_log_json} >> ${CRON_LOG_JSON_SINK} || echo could not write to ${CRON_LOG_JSON_SINK}
+    ) | jq -c . | tee -a "${run_job_log_json}" >> "${CRON_LOG_JSON_SINK}" || echo "could not write to ${CRON_LOG_JSON_SINK}"
 }
 
 run-job(){
     JOB=$1
     # [ ! "$JOB" = "imports" ] && JOB=true # testing
-    run-job-log ! job $1 ! job-status starting !
+    run-job-log ! job "$1" ! job-status starting !
 
     pm_start=$(prometrics-ts)
-    export JOBTIME=$(prometrics-ts $pm_start)
+    JOBTIME=$(prometrics-ts "$pm_start")
+    export JOBTIME
     export JOBNAME=mo_${JOB}
 
-    $JOB
-
-
-    if [ "$?" = "0" ] ; then
-        run-job-log ! job $1 ! job-status success !
+    if $JOB; then
+        run-job-log ! job "$1" ! job-status success !
         prometrics-job-end
         JOBTIME=$(prometrics-ts)
         prometrics-job-success
         return 0
     else
         prometrics-job-end
-        run-job-log ! job $1 ! job-status failed  !
+        run-job-log ! job "$1" ! job-status failed  !
         return 1
     fi
 }
