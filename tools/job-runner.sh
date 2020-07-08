@@ -2,9 +2,10 @@
 [ "${BASH_SOURCE[0]}" == "${0}" ] && JOB_RUNNER_MODE=running || JOB_RUNNER_MODE=sourced
 [ "${JOB_RUNNER_MODE}" == "running" ] && set +x
 export JOB_RUNNER_MODE
-export DIPEXAR=${DIPEXAR:=$(realpath -L $(dirname $(realpath -L "${BASH_SOURCE}"))/..)}
+export DIPEXAR=${DIPEXAR:=$(realpath -L "$(dirname "$(realpath -L "${BASH_SOURCE[0]}")")"/..)}
 export CUSTOMER_SETTINGS=${CUSTOMER_SETTINGS:=${DIPEXAR}/settings/settings.json}
-export SETTINGS_FILE=$(basename ${CUSTOMER_SETTINGS})
+SETTINGS_FILE=$(basename "${CUSTOMER_SETTINGS}")
+export SETTINGS_FILE
 export BACKUP_MAX_SECONDS_AGE=${BACKUP_MAX_SECONDS_AGE:=60}
 export VENV=${VENV:=${DIPEXAR}/venv}
 export IMPORTS_OK=false
@@ -13,9 +14,10 @@ export REPORTS_OK=false
 export BACKUP_OK=true
 export LC_ALL="C.UTF-8"
 
-cd ${DIPEXAR}
-source ${DIPEXAR}/tools/prefixed_settings.sh
-cd ${DIPEXAR}
+cd "${DIPEXAR}" || exit
+# shellcheck source=./tools/prefixed_settings.sh
+source "${DIPEXAR}/tools/prefixed_settings.sh"
+cd "${DIPEXAR}" || exit
 
 export PYTHONPATH=$PWD:$PYTHONPATH
 
@@ -36,19 +38,22 @@ declare -a BACK_UP_BEFORE_JOBS=(
     ${SNAPSHOT_LORA}
     $(readlink ${CUSTOMER_SETTINGS})
     $(
-        SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
+        # shellcheck source=./tools/prefixed_settings.sh
+        SETTING_PREFIX="mox_stsorgsync" source "${DIPEXAR}/tools/prefixed_settings.sh"
         # backup mox_stsorgsync config only if file exists
-        [ -f "${MOX_MO_CONFIG}" ] && echo ${MOX_MO_CONFIG}
+        [ -f "${MOX_MO_CONFIG}" ] && echo "${MOX_MO_CONFIG}"
     )
     $(
-        SETTING_PREFIX="integrations.SD_Lon.import" source ${DIPEXAR}/tools/prefixed_settings.sh
+        # shellcheck source=./tools/prefixed_settings.sh
+        SETTING_PREFIX="integrations.SD_Lon.import" source "${DIPEXAR}/tools/prefixed_settings.sh"
         # backup run_db only if file exists - it will not exist on non-SD customers
-        echo ${run_db}
+        echo "${run_db}"
     )
     $(
-        SETTING_PREFIX="integrations.opus.import" source ${DIPEXAR}/tools/prefixed_settings.sh
+        # shellcheck source=./tools/prefixed_settings.sh
+        SETTING_PREFIX="integrations.opus.import" source "${DIPEXAR}/tools/prefixed_settings.sh"
         # backup run_db only if file exists - it will not exist on non-OPUS customers
-        echo ${run_db}
+        echo "${run_db}"
     )
 )
 
@@ -204,8 +209,9 @@ exports_mox_rollekatalog(){
 exports_os2sync(){
     set -e
     BACK_UP_AND_TRUNCATE+=($(
-        SETTING_PREFIX="os2sync" source ${DIPEXAR}/tools/prefixed_settings.sh
-        echo ${log_file}
+        # shellcheck source=./tools/prefixed_settings.sh
+        SETTING_PREFIX="os2sync" source "${DIPEXAR}/tools/prefixed_settings.sh"
+        echo "${log_file}"
     ))
     echo running exports_os2sync
     ${VENV}/bin/python3 -m integrations.os2sync
@@ -215,16 +221,18 @@ exports_mox_stsorgsync(){
     set -e
     MOX_ERR_CODE=0
     BACK_UP_AND_TRUNCATE+=($(
-        SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
-        echo ${LOGFILE}
+        # shellcheck source=./tools/prefixed_settings.sh
+        SETTING_PREFIX="mox_stsorgsync" source "${DIPEXAR}/tools/prefixed_settings.sh"
+        echo "${LOGFILE}"
     ))
     echo running exports_mox_stsorgsync
     (
         # get VENV, MOX_MO_CONFIG and LOGFILE
-        SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
-        ${VENV}/bin/python3 -m mox_stsorgsync >> ${LOGFILE} 2>&1 || MOX_ERR_CODE=1
+        # shellcheck source=./tools/prefixed_settings.sh
+        SETTING_PREFIX="mox_stsorgsync" source "${DIPEXAR}/tools/prefixed_settings.sh"
+        ${VENV}/bin/python3 -m mox_stsorgsync >> "${LOGFILE}" 2>&1 || MOX_ERR_CODE=1
         echo "Last 50 lines from mox_stsorgsyncs log :"
-        tail  -n 50  ${LOGFILE}
+        tail -n 50 "${LOGFILE}"
         echo "last 10 Errors from OS2sync"
         grep ERROR /var/log/os2sync/service.log | tail -n 10
         exit ${MOX_ERR_CODE}
@@ -235,8 +243,9 @@ exports_cpr_uuid(){
     set -e
     echo running exports_cpr_uuid
     (
-        SETTING_PREFIX="cpr.uuid" source ${DIPEXAR}/tools/prefixed_settings.sh
-        ${VENV}/bin/python3 exporters/cpr_uuid.py ${CPR_UUID_FLAGS}
+        # shellcheck source=./tools/prefixed_settings.sh
+        SETTING_PREFIX="cpr.uuid" source "${DIPEXAR}/tools/prefixed_settings.sh"
+        ${VENV}/bin/python3 exporters/cpr_uuid.py "${CPR_UUID_FLAGS}"
     )
 }
 
@@ -249,29 +258,25 @@ exports_viborg_emus(){
 exports_viborg_eksterne(){
     set -e
     echo "running viborgs eksterne"
-    ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py --lora|| exit 1
-    $(
-        SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
-        SETTING_PREFIX="integrations.ad" source ${DIPEXAR}/tools/prefixed_settings.sh
-        SETTING_PREFIX="exports_viborg_eksterne" source ${DIPEXAR}/tools/prefixed_settings.sh
+    ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py --lora || exit 1
+    (
+        # shellcheck source=./tools/prefixed_settings.sh
+        SETTING_PREFIX="mora.folder" source "${DIPEXAR}/tools/prefixed_settings.sh"
+        # shellcheck source=./tools/prefixed_settings.sh
+        SETTING_PREFIX="integrations.ad" source "${DIPEXAR}/tools/prefixed_settings.sh"
+        # shellcheck source=./tools/prefixed_settings.sh
+        SETTING_PREFIX="exports_viborg_eksterne" source "${DIPEXAR}/tools/prefixed_settings.sh"
         system_user="${system_user%%@*}"
-        [ -z "${query_export}" ] && exit 1
-        [ -z "${system_user}" ] && exit 1
-        [ -z "${password}" ] && exit 1
-        [ -z "${destination_smb_share}" ] && exit 1
-        [ -z "${destination_directory}" ] && exit 1
-        [ -z "${outfile_basename}" ] && exit 1
-        [ -z "${workgroup}" ] && exit 1
+        # shellcheck disable=SC2154
+        if [ -z "${query_export}" ] || [ -z "${system_user}" ] || [ -z "${password}" ] || [ -z "${destination_smb_share}" ] || [ -z "${destination_directory}" ] || [ -z "${outfile_basename}" ] || [ -z "${workgroup}" ]; then
+            exit 1
+        fi
 
-        cd ${query_export}
+        cd "${query_export}" || exit
         smbclient -U "${system_user}%${password}"  \
-            ${destination_smb_share} -m SMB2  \
-            -W ${workgroup} --directory ${destination_directory} \
-            -c 'put '${outfile_basename}''
-
-        #smbclient -U "${system_user}%${password}"  \
-        #    ${destination_smb_share} -m SMB2  \
-        #    -W ${workgroup} --directory ${destination_directory} \
+            "${destination_smb_share}" -m SMB2  \
+            -W "${workgroup}" --directory "${destination_directory}" \
+            -c 'put '"${outfile_basename}"''
         #    -c 'del '${outfile_basename}''
     )
 }
@@ -280,22 +285,22 @@ reports_sd_db_overview(){
     set -e
     echo running reports_sd_db_overview
     outfile=$(mktemp)
-    ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py > ${outfile}
-    head -2 ${outfile}
+    ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py > "${outfile}"
+    head -2 "${outfile}"
     echo "..."
-    tail -3 ${outfile}
-    rm ${outfile}
+    tail -3 "${outfile}"
+    rm "${outfile}"
 }
 
 reports_opus_db_overview(){
     set -e
     echo running reports_opus_db_overview
     outfile=$(mktemp)
-    ${VENV}/bin/python3 integrations/opus/db_overview.py > ${outfile}
-    head -4 ${outfile}
+    ${VENV}/bin/python3 integrations/opus/db_overview.py > "${outfile}"
+    head -4 "${outfile}"
     echo "..."
-    tail -3 ${outfile}
-    rm ${outfile}
+    tail -3 "${outfile}"
+    rm "${outfile}"
 }
 
  
@@ -310,16 +315,16 @@ exports_plan2learn(){
 	organisation
 	stillingskode
     )
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py --lora
+    ${VENV}/bin/python3 "${DIPEXAR}/exporters/plan2learn/plan2learn.py" --lora
     
     (
         # get OUT_DIR and EXPORTS_DIR
-        SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
+        # shellcheck source=./tools/prefixed_settings.sh
+        SETTING_PREFIX="mora.folder" source "${DIPEXAR}/tools/prefixed_settings.sh"
 	[ -z "$query_export" ] && exit 1
-	for f in "${CSV_FILES[@]}"
-	do
-	    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/ship_files.py \
-		   ${query_export}/plan2learn_${f}.csv ${f}.csv
+	for f in "${CSV_FILES[@]}"; do
+	    ${VENV}/bin/python3 "${DIPEXAR}/exporters/plan2learn/ship_files.py" \
+		   "${query_export}/plan2learn_${f}.csv" "${f}.csv"
 	done
     )
 }
@@ -329,18 +334,20 @@ exports_queries_ballerup(){
     set -e
     echo appending ballerup exports logfile to BACK_UP_AND_TRUNCATE
     BACK_UP_AND_TRUNCATE+=($(
-        SETTING_PREFIX="exporters.ballerup" source ${DIPEXAR}/tools/prefixed_settings.sh
-        echo ${WORK_DIR}/export.log
+        # shellcheck source=./tools/prefixed_settings.sh
+        SETTING_PREFIX="exporters.ballerup" source "${DIPEXAR}/tools/prefixed_settings.sh"
+        echo "${WORK_DIR}/export.log"
     ))
     echo running exports_queries_ballerup
     (
         # get OUT_DIR and EXPORTS_DIR
-        SETTING_PREFIX="exporters.ballerup" source ${DIPEXAR}/tools/prefixed_settings.sh
+        # shellcheck source=./tools/prefixed_settings.sh
+        SETTING_PREFIX="exporters.ballerup" source "${DIPEXAR}/tools/prefixed_settings.sh"
         [ -z "${EXPORTS_DIR}" ] && echo "EXPORTS_DIR not spec'ed for exports_queries_ballerup" && exit 1
         [ -z "${WORK_DIR}" ] && echo "WORK_DIR not spec'ed for exports_queries_ballerup" && exit 1
         [ -d "${WORK_DIR}" ] || mkdir "${WORK_DIR}"
         cd "${WORK_DIR}"
-        ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
+        ${VENV}/bin/python3 "${DIPEXAR}/exporters/ballerup.py" > "${WORK_DIR}/export.log" 2>&1
         cp "${WORK_DIR}"/*.csv "${EXPORTS_DIR}"
     )
 }
@@ -348,24 +355,24 @@ exports_queries_ballerup(){
 exports_actual_state_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(sql_export.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py
+    ${VENV}/bin/python3 "${DIPEXAR}/exporters/sql_export/sql_export.py"
 }
 
 exports_os2phonebook_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(os2phonebook_export.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py sql-export
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py generate-json
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py transfer-json
+    ${VENV}/bin/python3 "${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py" sql-export
+    ${VENV}/bin/python3 "${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py" generate-json
+    ${VENV}/bin/python3 "${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py" transfer-json
 }
 
 exports_sync_mo_uuid_to_ad(){
     BACK_UP_AND_TRUNCATE+=(sync_mo_uuid_to_ad.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/integrations/ad_integration/sync_mo_uuid_to_ad.py --sync-all
+    ${VENV}/bin/python3 "${DIPEXAR}/integrations/ad_integration/sync_mo_uuid_to_ad.py" --sync-all
 }
 
 reports_viborg_managers(){
-    ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
+    ${VENV}/bin/python3 "${DIPEXAR}/reports/viborg_managers.py"
 }
 
 exports_test(){
@@ -376,8 +383,9 @@ exports_test(){
 
 # read the run-job script et al
 for module in tools/job-runner.d/*.sh; do
-    echo sourcing $module
-    source $module 
+    echo "sourcing $module"
+    # shellcheck disable=SC1090
+    source "$module"
 done
 
 
@@ -531,23 +539,23 @@ pre_truncate_logfiles(){
 
 pre_backup(){
     temp_report=$(mktemp)
-    for f in ${BACK_UP_BEFORE_JOBS[@]}
-    do
+    for f in "${BACK_UP_BEFORE_JOBS[@]}"; do
         FILE_FAILED=false
         # try to append to tar file and report if not found
-        tar -rf $BUPFILE "${f}" > ${temp_report} 2>&1 || FILE_FAILED=true
+        tar -rf "$BUPFILE" "${f}" > "${temp_report}" 2>&1 || FILE_FAILED=true
         if [ "${FILE_FAILED}" = "true" ]; then
             BACKUP_OK=false
-            run-job-log job pre-backup file ! job-status failed ! file $f
+            run-job-log job pre-backup file ! job-status failed ! file "$f"
             echo BACKUP ERROR
-            cat ${temp_report}
+            cat "${temp_report}"
         fi
     done
-    rm ${temp_report}
-    declare -i age=$(stat -c%Y ${BUPFILE})-$(stat -c%Y ${SNAPSHOT_LORA})
+    rm "${temp_report}"
+    age=$(stat -c%Y "${BUPFILE}")-$(stat -c%Y "${SNAPSHOT_LORA}")
+    declare -i age
     if [[ ${age} -gt ${BACKUP_MAX_SECONDS_AGE} ]]; then
         BACKUP_OK=false 
-        run-job-log job pre-backup lora ! job-status failed ! age $age
+        run-job-log job pre-backup lora ! job-status failed ! age "$age"
         echo "ERROR database snapshot is more than ${BACKUP_MAX_SECONDS_AGE} seconds old: $age"
 	return 1
     fi
@@ -555,28 +563,26 @@ pre_backup(){
 
 post_backup(){
     temp_report=$(mktemp)
-    for f in ${BACK_UP_AFTER_JOBS[@]} ${BACK_UP_AND_TRUNCATE[@]}
-    do
+    for f in "${BACK_UP_AFTER_JOBS[@]}" "${BACK_UP_AND_TRUNCATE[@]}"; do
         FILE_FAILED=false
         # try to append to tar file and report if not found
-        tar -rf $BUPFILE "${f}" > ${temp_report} 2>&1 || FILE_FAILED=true
+        tar -rf "$BUPFILE" "${f}" > "${temp_report}" 2>&1 || FILE_FAILED=true
         if [ "${FILE_FAILED}" = "true" ]; then
             BACKUP_OK=false
-            run-job-log job post-backup file ! job-status failed ! file $f
+            run-job-log job post-backup file ! job-status failed ! file "$f"
             echo BACKUP ERROR
-            cat ${temp_report}
+            cat "${temp_report}"
         fi
     done
-    rm ${temp_report}
+    rm "${temp_report}"
     echo
     echo listing preliminary backup archive
-    echo ${BUPFILE}.gz
-    tar -tvf ${BUPFILE}
-    gzip  ${BUPFILE}
+    echo "${BUPFILE}.gz"
+    tar -tvf "${BUPFILE}"
+    gzip  "${BUPFILE}"
 
     echo truncating backed up logfiles
-    for f in ${BACK_UP_AND_TRUNCATE[@]}
-    do
+    for f in "${BACK_UP_AND_TRUNCATE[@]}"; do
         [ -f "${f}" ] && truncate -s 0 "${f}"
     done
 
@@ -587,10 +593,10 @@ post_backup(){
     for oldbup in ${CRON_BACKUP}/????-??-??-??-??-??-cron-backup.tar.gz
     do
         [ "${oldbup}" \< "${bupsave}" ] && (
-            rm -v ${oldbup}
+            rm -v "${oldbup}"
         )
     done
-    echo backup done # do not remove this line
+    echo "backup done" # do not remove this line
 }
 
 show_status(){
@@ -599,8 +605,12 @@ show_status(){
     echo REPORTS_OK=${REPORTS_OK}
     if [ "${1}" = "post_backup" ]; then
         echo BACKUP_OK=${BACKUP_OK}
-        echo
-        [ "${IMPORTS_OK}" = "true" -a "${EXPORTS_OK}" = "true" -a "${REPORTS_OK}" = "true" -a "${BACKUP_OK}" = "true" ] && TOTAL_STATUS=success || TOTAL_STATUS=failed
+        if [ "${IMPORTS_OK}" = "true" ] && [ "${EXPORTS_OK}" = "true" ] && [ "${REPORTS_OK}" = "true" ] && [ "${BACKUP_OK}" = "true" ]; then
+            TOTAL_STATUS=success
+        else
+            TOTAL_STATUS=failed
+        fi
+        echo "${TOTAL_STATUS}"
         run-job-log job job-runner total-status ! job-status $TOTAL_STATUS \
             ! imports-ok ${IMPORTS_OK} ! exports-ok ${EXPORTS_OK} \
             ! reports-ok ${REPORTS_OK} ! backup-ok ${BACKUP_OK}
@@ -610,89 +620,91 @@ show_status(){
     echo Hvilke jobs er slået til/fra/X-ede/udkommenterede :
     echo
     enabled_jobs=$(grep 'crontab.*RUN_.*' settings/settings.json | tr "#\",:" "X ! ")
-    run-job-log job job-runner enabled-jobs ! job-status info ! ${enabled_jobs} 
-    echo ${enabled_jobs} | sed 's/! */\n/g'
+    run-job-log job job-runner enabled-jobs ! job-status info ! "${enabled_jobs}"
+    # shellcheck disable=SC2001
+    echo "${enabled_jobs}" | sed 's/! */\n/g'
     echo
-    run-job-log job job-runner version-info ! job-status info ! git-commit $(git show -s --format=%H)
+    run-job-log job job-runner version-info ! job-status info ! git-commit "$(git show -s --format=%H)"
 }
 
 
-if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
+if [ "${JOB_RUNNER_MODE}" == "running" ] && [ "$#" == "0" ]; then
     (
         if [ ! -n "${CRON_LOG_JSON_SINK}" ]; then
             REASON="WARNING: crontab.CRON_LOG_JSON_SINK not specified - no json logging"
-            echo ${REASON}
+            echo "${REASON}"
         fi
 
         if [ ! -d "${VENV}" ]; then
             REASON="FATAL: python env not found"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
+            run-job-log job job-runner pre-check ! job-status failed ! reason "$REASON"
+            echo "${REASON}"
             exit 2 # error
         fi
 
         if [ ! -n "${SVC_USER}" ]; then
             REASON="WARNING: Service user not specified"
-            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-            echo ${REASON}
+            run-job-log job job-runner pre-check ! job-status warning ! reason "$REASON"
+            echo "${REASON}"
         fi
 
         if [ ! -n "${SVC_KEYTAB}" ]; then
             REASON="WARNING: Service keytab not specified"
-            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-            echo ${REASON}
+            run-job-log job job-runner pre-check ! job-status warning ! reason "$REASON"
+            echo "${REASON}"
         fi
 
-        if [ -n "${SVC_KEYTAB}" -a ! -f "${SVC_KEYTAB}" ]; then
+        if [ -n "${SVC_KEYTAB}" ] && [ ! -f "${SVC_KEYTAB}" ]; then
             REASON="FATAL: Service keytab not found"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
+            run-job-log job job-runner pre-check ! job-status failed ! reason "$REASON"
+            echo "${REASON}"
             exit 2
         fi
 
         if [ ! -n "${CRON_LOG_FILE}" ]; then
             REASON="FATAL: Cron log file not specified"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
+            run-job-log job job-runner pre-check ! job-status failed ! reason "$REASON"
+            echo "${REASON}"
             exit 2
         fi
 
         if [ ! -n "${CRON_BACKUP}" ]; then
             REASON="FATAL: Backup directory not specified"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
+            run-job-log job job-runner pre-check ! job-status failed ! reason "$REASON"
+            echo "${REASON}"
             exit 2
         fi
 
         if [ ! -d "${CRON_BACKUP}" ]; then
             REASON="FATAL: Backup directory non existing"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
+            run-job-log job job-runner pre-check ! job-status failed ! reason "$REASON"
+            echo "${REASON}"
             exit 2
         fi
 
         if [ ! -f "${SNAPSHOT_LORA}" ]; then
             REASON="FATAL: Database snapshot does not exist"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
+            run-job-log job job-runner pre-check ! job-status failed ! reason "$REASON"
+            echo "${REASON}"
             exit 2
         fi
-        if [ -n "${SVC_USER}" -a -n "${SVC_KEYTAB}" ]; then
+        if [ -n "${SVC_USER}" ] && [ -n "${SVC_KEYTAB}" ]; then
 
             [ -r "${SVC_KEYTAB}" ] || echo WARNING: cannot read keytab
 
-            kinit ${SVC_USER} -k -t ${SVC_KEYTAB} || (
+            kinit "${SVC_USER}" -k -t "${SVC_KEYTAB}" || (
                 REASON="WARNING: not able to refresh kerberos auth - authentication failure"
-                run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-                echo ${REASON}
+                run-job-log job job-runner pre-check ! job-status warning ! reason "$REASON"
+                echo "${REASON}"
             )
         else
             REASON="WARNING: not able to refresh kerberos auth - username or keytab missing"
-            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-            echo ${REASON}
+            run-job-log job job-runner pre-check ! job-status warning ! reason "$REASON"
+            echo "${REASON}"
         fi
 
-        export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
+        BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
+        export BUPFILE
 
         pre_backup
         run-job imports && IMPORTS_OK=true
@@ -701,15 +713,15 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
         echo
         show_status
         post_backup
-        show_status post_backup > ${CRON_LOG_FILE}_status
-    ) > ${CRON_LOG_FILE} 2>&1
+        show_status post_backup > "${CRON_LOG_FILE}_status"
+    ) > "${CRON_LOG_FILE}" 2>&1
 
     # write directly on stdout for mail-log
-    cat ${CRON_LOG_FILE}_status
-    cat ${CRON_LOG_FILE}
+    cat "${CRON_LOG_FILE}_status"
+    cat "${CRON_LOG_FILE}"
      
 elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
-    if [ -n "$(grep $1\(\) $0)" ]; then
+    if grep -q "$1"\(\) "$0"; then
         echo running single job function
         $1
     fi

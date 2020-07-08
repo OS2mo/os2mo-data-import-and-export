@@ -42,4 +42,4 @@ Lint shell scripts:
     - apk add git
   script:
     - git config core.quotepath off
-    - git ls-files --exclude='*.sh' --ignored | grep -v job-runner.sh | xargs shellcheck --external-sources --shell=bash
+    - git ls-files --exclude='*.sh' --ignored | xargs shellcheck --external-sources --shell=bash --exclude=SC2031,SC2094
