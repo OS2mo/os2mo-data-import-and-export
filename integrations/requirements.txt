@@ -1,6 +1,1 @@
-xmltodict
-anytree
-pika
-requests_kerberos
-pywinrm[kerberos]
-
+-r requirements/common.txt
