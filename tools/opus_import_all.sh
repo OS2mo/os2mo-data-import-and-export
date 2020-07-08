@@ -11,7 +11,8 @@ if [ "$EUID" -ne 0 ] || [ "${JOB_RUNNER_MODE}" != "sourced" ]; then
 fi
 
 if [ -z "${SVC_USER}" ]; then
-    echo "${SETTING_PREFIX}.SVC_USER not set in settings file"
+    # shellcheck disable=SC2016
+    echo '${SETTING_PREFIX}.SVC_USER not set in settings file'
     exit 1
 fi
 run_db=$(SETTING_PREFIX="integrations.opus.import" . tools/prefixed_settings.sh; echo "$run_db")
