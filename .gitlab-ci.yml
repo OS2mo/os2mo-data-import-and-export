@@ -37,5 +37,5 @@ stages:
 Test AD Integration:
   extends: .test-default
   script:
-    - pip install integrations/requirements/test.txt
+    - pip install -r integrations/requirements/test.txt
     - cd integrations/ad_integration/ && pytest tests/ --ignore=tests/test_ad_writer.py
