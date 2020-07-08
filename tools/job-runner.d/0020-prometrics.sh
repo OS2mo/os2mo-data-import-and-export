@@ -1,9 +1,11 @@
 #!/bin/bash
 prometrics-ts(){
-    declare -i NOW=$(date +%s)
+    NOW=$(date +%s)
+    declare -i NOW
     then=$1
     then=${then:=0}
-    declare -i now=$(($NOW-$then))
+    now=$((NOW - then))
+    declare -i now
     echo $now
 }
 
