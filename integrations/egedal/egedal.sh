@@ -1,3 +1,4 @@
+#!/bin/bash
 export MUNICIPALITY_NAME='Egedal Kommune'
 export MUNICIPALITY_CODE=240
 
