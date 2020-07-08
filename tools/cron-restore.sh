@@ -37,6 +37,7 @@ check_restore_validity(){
 
 # restore lora database
 restore_lora_db(){
+    # shellcheck source=./tools/prefixed_settings.sh
     source "${DIPEXAR}/tools/prefixed_settings.sh"
     tar -xOf "${bupfile}" "${SNAPSHOT_LORA#/}" > "${SNAPSHOT_LORA}" || exit 1
     docker-compose -f "${OS2MO_COMPOSE_YML}" exec mox python3 -m oio_rest truncatedb
@@ -45,8 +46,10 @@ restore_lora_db(){
 
 # restore run-db so import knows where it is at
 restore_sd_run_db(){
+    # shellcheck source=./tools/prefixed_settings.sh
     RUN_DB=$(SETTING_PREFIX="integrations.SD_Lon.import" source "${DIPEXAR}/tools/prefixed_settings.sh"; echo "${run_db}")
     if [ -z "$RUN_DB" ]; then
+        # shellcheck source=./tools/prefixed_settings.sh
         RUN_DB=$(SETTING_PREFIX="integrations.opus.import" source "${DIPEXAR}/tools/prefixed_settings.sh"; echo "${run_db}")
     fi
     if [ -z "$RUN_DB" ]; then
