@@ -1,6 +1,6 @@
 #!/bin/bash
 . tools/job-runner.sh
-if [ "$EUID" -ne 0 -o "${JOB_RUNNER_MODE}" != "sourced" ]; then
+if [ "$EUID" -ne 0 ] || [ "${JOB_RUNNER_MODE}" != "sourced" ]; then
     echo this script must be run as user root from the root of the os2mo-data-import-and-export folder
     exit 1
 fi
@@ -37,22 +37,22 @@ check_restore_validity(){
 
 # restore lora database
 restore_lora_db(){
-    source ${DIPEXAR}/tools/prefixed_settings.sh
-    tar -xOf ${bupfile} "${SNAPSHOT_LORA#/}" > "${SNAPSHOT_LORA}" || exit 1
+    source "${DIPEXAR}/tools/prefixed_settings.sh"
+    tar -xOf "${bupfile}" "${SNAPSHOT_LORA#/}" > "${SNAPSHOT_LORA}" || exit 1
     docker-compose -f "${OS2MO_COMPOSE_YML}" exec mox python3 -m oio_rest truncatedb
-    docker-compose -f "${OS2MO_COMPOSE_YML}" exec -u postgres mox-db bash -c 'psql mox < /database_snapshot/'${SNAPSHOT_LORA##*/}
+    docker-compose -f "${OS2MO_COMPOSE_YML}" exec -u postgres mox-db bash -c 'psql mox < /database_snapshot/'"${SNAPSHOT_LORA##*/}"
 }
 
 # restore run-db so import knows where it is at
 restore_sd_run_db(){
-    RUN_DB=$(SETTING_PREFIX="integrations.SD_Lon.import" source ${DIPEXAR}/tools/prefixed_settings.sh; echo ${run_db})
+    RUN_DB=$(SETTING_PREFIX="integrations.SD_Lon.import" source "${DIPEXAR}/tools/prefixed_settings.sh"; echo "${run_db}")
     if [ -z "$RUN_DB" ]; then
-        RUN_DB=$(SETTING_PREFIX="integrations.opus.import" source ${DIPEXAR}/tools/prefixed_settings.sh; echo ${run_db})
+        RUN_DB=$(SETTING_PREFIX="integrations.opus.import" source "${DIPEXAR}/tools/prefixed_settings.sh"; echo "${run_db}")
     fi
     if [ -z "$RUN_DB" ]; then
         exit 2
     fi
-    tar -xOf ${bupfile} ${RUN_DB#/} > $RUN_DB
+    tar -xOf "${bupfile}" "${RUN_DB#/}" > "$RUN_DB"
 }
 
 # restore the map between cpr and uuid
