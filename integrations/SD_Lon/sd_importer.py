@@ -607,7 +607,14 @@ class SdImport(object):
                 too_deep = self.settings['integrations.SD_Lon.import.too_deep']
                 original_unit = unit
                 while self.nodes[unit].name in too_deep:
-                    unit = self.nodes[unit].parent.uuid
+                    try:
+                        unit = self.nodes[unit].parent.uuid
+                    except Exception:
+                        logger.exception("for original unit: %s", unit)
+                        logger.error("mon %s ikke overholder ny-niveaureglerne?", unit)
+                        print(original_unit)
+                        raise
+                       
                 try:
                     # In a distant future, an employment id will be re-used and
                     # then a more refined version of this code will be needed.
