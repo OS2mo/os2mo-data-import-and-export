@@ -1,4 +1,10 @@
 import unittest
+
+import sys
+from os.path import dirname
+sys.path.append(dirname(__file__) + "/..")
+sys.path.append(dirname(__file__) + "/../../..")
+
 import user_names
 from . name_simulator import create_name
 

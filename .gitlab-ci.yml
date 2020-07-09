@@ -1,0 +1,42 @@
+# SPDX-FileCopyrightText: 2019-2020 Magenta ApS
+# SPDX-License-Identifier: MPL-2.0
+
+################################################################################
+# Changes to this file requires approval from Labs. Please add a person from   #
+# Labs as required approval to your MR if you have any changes.                #
+################################################################################
+
+# For pushing of release images to work, the following envionment variables have
+# to set in the Gitlab UI.
+# RELEASE_REGISTRY_USER
+# RELEASE_REGISTRY_PASSWORD
+
+variables:
+  # Project variables
+  RELEASE_REGISTRY: index.docker.io/magentaaps
+
+
+stages:
+  - lint
+  - build
+  - test
+  - prerelease
+  - release
+
+# Test stage
+############
+
+.test-default:
+  stage: test
+  needs: []
+  image: python:3.5
+  services: []
+  tags:
+    - docker
+
+Test AD Integration:
+  extends: .test-default
+  script:
+    - pip install ./os2mo_data_import --upgrade
+    - pip install -r integrations/requirements/test.txt
+    - cd integrations/ad_integration/ && pytest tests/ --ignore=tests/test_ad_writer.py

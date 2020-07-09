@@ -1,6 +1,7 @@
 import time
 import random
 from pathlib import Path
+
 from fixture_generator import dummy_data_creator
 
 base = '../..//os2mo_data_import/fixture_generator/navne/'
