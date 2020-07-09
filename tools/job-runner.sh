@@ -531,6 +531,10 @@ pre_truncate_logfiles(){
 
 pre_backup(){
     temp_report=$(mktemp)
+
+    # deduplicate
+    BACK_UP_BEFORE_JOBS=($(printf "%s\n" "${BACK_UP_BEFORE_JOBS[@]}" | sort -u))
+
     for f in ${BACK_UP_BEFORE_JOBS[@]}
     do
         FILE_FAILED=false
@@ -555,6 +559,11 @@ pre_backup(){
 
 post_backup(){
     temp_report=$(mktemp)
+
+    # deduplicate
+    BACK_UP_AFTER_JOBS=($(printf "%s\n" "${BACK_UP_AFTER_JOBS[@]}" | sort -u))
+    BACK_UP_AND_TRUNCATE=($(printf "%s\n" "${BACK_UP_AND_TRUNCATE[@]}" | sort -u))
+
     for f in ${BACK_UP_AFTER_JOBS[@]} ${BACK_UP_AND_TRUNCATE[@]}
     do
         FILE_FAILED=false
