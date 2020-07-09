@@ -110,13 +110,6 @@ ooha = [ooha_first, ooha_second, ooha_third, ooha_fourth, ooha_fifth, ooha_sixth
 
 
 class TestUsernameCreation(unittest.TestCase):
-    @classmethod
-    def setUpClass(self):
-        pass
-
-    def setUp(self):
-        pass
-
     def _test_person(self, name, reference, max_level):
         name_creator = user_names.CreateUserNames(occupied_names=set())
         success = True
