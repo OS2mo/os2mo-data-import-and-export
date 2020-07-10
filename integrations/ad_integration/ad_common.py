@@ -13,6 +13,13 @@ logger = logging.getLogger('AdCommon')
 # Is this universal?
 ENCODING = 'cp850'
 
+def ad_minify(text):
+    text = text.replace('\n', '')
+    text = text.replace('\r', '')
+    while text.find('  ') > -1:
+        text = text.replace('  ', ' ')
+    return text
+
 
 class AD(object):
     def __init__(self, all_settings=None):
@@ -113,11 +120,7 @@ class AD(object):
         return boiler_plate
 
     def remove_redundant(self, text):
-        text = text.replace('\n', '')
-        text = text.replace('\r', '')
-        while text.find('  ') > -1:
-            text = text.replace('  ', ' ')
-        return text
+        return ad_minify(text)
 
     def _build_ps(self, ps_script, school, format_rules):
         """
