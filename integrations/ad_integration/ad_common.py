@@ -13,6 +13,13 @@ logger = logging.getLogger('AdCommon')
 # Is this universal?
 ENCODING = 'cp850'
 
+def ad_minify(text):
+    text = text.replace('\n', '')
+    text = text.replace('\r', '')
+    while text.find('  ') > -1:
+        text = text.replace('  ', ' ')
+    return text
+
 
 def ad_minify(text):
     text = text.replace('\n', '')
