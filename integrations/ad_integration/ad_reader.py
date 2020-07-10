@@ -14,22 +14,12 @@ logger = logging.getLogger("AdReader")
 
 class ADParameterReader(AD):
 
-    def __init__(self, skip_school=False, all_settings=None):
-        super().__init__(all_settings=all_settings)
+    def __init__(self, skip_school=False, **kwargs):
+        super().__init__(**kwargs)
 
         if skip_school:
             self.all_settings['school']['read_school'] = False
 
-        if self.all_settings['global']['winrm_host']:
-            self.session = Session(
-                'http://{}:5985/wsman'.format(
-                    self.all_settings['global']['winrm_host']
-                ),
-                transport='kerberos',
-                auth=(None, None)
-            )
-        else:
-            self.session = None
         self.results = {}
 
     def read_encoding(self):
