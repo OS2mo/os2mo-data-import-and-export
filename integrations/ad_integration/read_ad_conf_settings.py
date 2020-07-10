@@ -5,18 +5,9 @@ import logging
 
 logger = logging.getLogger("AdReader")
 
-class LazyDict(dict):
+from utils import LazyDict
 
-    def set_initializer(self, func):
-        self._initializer = func
-
-    def __getitem__(self, item):
-        if not self._initialized:
-            self._initializer()
-            self._initalized = True
-        return super().__getitem__(item)
-
-def load_settings(dicty):
+def load_settings():
     # TODO: Soon we have done this 4 times. Should we make a small settings
     # importer, that will also handle datatype for specific keys?
     cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
@@ -25,7 +16,7 @@ def load_settings(dicty):
     # TODO: This must be clean up, settings should be loaded by __init__
     # and no references should be needed in global scope.
     settings = json.loads(cfg_file.read_text())
-    dicty.update(settings)
+    return settings
 
 SETTINGS = LazyDict()
 SETTINGS.set_initializer(load_settings)

@@ -109,7 +109,7 @@ ooha_sixth = ['oostea', 'oostha', 'ooshoa', 'oohosa', 'ohosta', 'olosta', 'olosh
 ooha = [ooha_first, ooha_second, ooha_third, ooha_fourth, ooha_fifth, ooha_sixth]
 
 
-class TestUsernameCreattion(unittest.TestCase):
+class TestUsernameCreation(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         pass
