@@ -132,12 +132,12 @@ class CreateUserNames(object):
                 username += 'X'
         return username
 
-    def populate_occupied_names(self):
+    def populate_occupied_names(self, all_settings=None):
         """
         Read all usernames from AD and add them to the list of reserved names.
         :return: The amount of added users.
         """
-        reader = ADParameterReader()
+        reader = ADParameterReader(all_settings=all_settings)
         all_users = reader.read_it_all()
         for user in all_users:
             self.occupied_names.add(user['SamAccountName'])

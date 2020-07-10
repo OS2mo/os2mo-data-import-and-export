@@ -14,10 +14,9 @@ logger = logging.getLogger("AdReader")
 
 class ADParameterReader(AD):
 
-    def __init__(self, skip_school=False):
-        super().__init__()
+    def __init__(self, skip_school=False, all_settings=None):
+        super().__init__(all_settings=all_settings)
 
-        self.all_settings = read_ad_conf_settings.read_settings()
         if skip_school:
             self.all_settings['school']['read_school'] = False
 
