@@ -4,10 +4,7 @@ from os.path import dirname
 
 from parameterized import parameterized
 
-sys.path.append(dirname(__file__) + "/..")
-sys.path.append(dirname(__file__) + "/../../..")
-
-from utils import LazyDict
+from ..utils import LazyDict
 
 LOOKUP_KEYS = ["key", "john", "deere"]
 
