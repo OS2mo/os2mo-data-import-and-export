@@ -265,19 +265,18 @@ Et eksempel på en feltmapning angives herunder:
 .. code-block:: json
 
     "integrations.ad.ad_mo_sync_mapping": {
-	"user_addresses": {
-	    "telephoneNumber": ["a6dbb837-5fca-4f05-b369-8476a35e0a95", "INTERNAL"],
-	    "pager": ["d9cd7a04-a992-4b31-9534-f375eba2f1f4 ", "PUBLIC"],
-	    "EmailAddress": ["fbd70da1-ad2e-4373-bb4f-2a431b308bf1", null],
-	    "mobile": ["6e7131a0-de91-4346-8607-9da1b576fc2a ", "PUBLIC"]
-	},
-	"it_systems": {
-	    "samAccountName": "d2998fa8-9d0f-4a2c-b80e-c754c72ef094"
-	},
+        "user_addresses": {
+            "telephoneNumber": ["a6dbb837-5fca-4f05-b369-8476a35e0a95", "INTERNAL"],
+            "pager": ["d9cd7a04-a992-4b31-9534-f375eba2f1f4 ", "PUBLIC"],
+            "EmailAddress": ["fbd70da1-ad2e-4373-bb4f-2a431b308bf1", null],
+            "mobile": ["6e7131a0-de91-4346-8607-9da1b576fc2a ", "PUBLIC"]
+        },
+        "it_systems": {
+            "samAccountName": "d2998fa8-9d0f-4a2c-b80e-c754c72ef094"
+        },
         "engagements": {
             "Title": "extension_2"
         }
-
     }
 
 For adresser angives en synlighed, som kan antage værdien `PUBLIC`, `INTERNAL`,
@@ -299,7 +298,19 @@ Integrationen vil som udgangspunkt ikke synkronisere fra et eventuelt skole AD, 
 mindre nøglen `integrations.ad.skip_school_ad_to_mo` sættes til `false`.
 
 Da AD ikke understøtter gyldighedstider, antages alle informationer uddraget fra AD
-at gælde fra 'i dag' og til evig tid.
+at gælde fra 'i dag' og til evig tid. Den eneste undtagelse til dette er ved
+afslutning af deaktiverede AD brugere.
+
+Deaktiverede AD brugere kan håndteres på forskellige måder.
+Som udgangspunkt synkroniseres de på præcis samme vis som almindelige brugere,
+med mindre nøglen `integrations.ad.ad_mo_sync_disabled` er sat til `false`.
+Hvis dette er tilfælde ophører den automatiske synkronisering, og den nu
+påkrævede nøgle `integrations.ad.ad_mo_sync_finalize_disabled` afgører hvad der
+skal ske i stedet.
+Hvis denne nøgle sættes til `false` fås adfærden hvor intet synkroniseres overhovedet,
+hvis nøglen derimod sættes til `true` vil deaktiverede brugere blive afsluttet.
+Ved afslutning forstås at brugerens AD synkroniserede adresser og it-systemer
+flyttes til fortiden, såfremt de har en åben slutdato.
 
 Slutteligt skal det nævnes, at implemeneringen af synkroniseringen understøtter
 muligheden for at opnå en betydelig hastighedsforbering ved at tillade direkte adgang
@@ -734,4 +745,3 @@ kommandolinjeparametre:
  *   --create-or-update: Opretter og opdaterer bruger fra AD til MO.
  *   --cleanup-removed-users: Fjerne MO brugere som ikke længere er konsulenter i AD.
  *   --full-sync: Kører begge de to ovenstående operationer.
-

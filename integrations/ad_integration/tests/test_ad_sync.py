@@ -1,15 +1,25 @@
 # TODO: Fix imports in module
 import sys
 from datetime import date
+from functools import partial
 from os.path import dirname
+from unittest import TestCase
+
+from parameterized import parameterized
 
 sys.path.append(dirname(__file__))
 sys.path.append(dirname(__file__) + "/..")
 
-from unittest import TestCase
-
-from parameterized import parameterized
 from test_utils import TestADMoSyncMixin, dict_modifier, mo_modifier
+
+
+
+def iso_date(date):
+    return date.strftime("%Y-%m-%d")
+
+
+def today_iso():
+    return iso_date(date.today())
 
 
 class TestADMoSync(TestCase, TestADMoSyncMixin):
@@ -27,7 +37,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                     "mobile": ["mobile_uuid", "SECRET"],
                     # No uuid
                     "floor": ["", None],
-                },
+                }
             }
             return settings
 
@@ -105,7 +115,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                     'create': A new address is created in MO.
                     'edit': The current address in MO is updated.
         """
-        today = date.today().strftime("%Y-%m-%d")
+        today = today_iso()
         mo_values = self.mo_values_func()
         self.settings = self._prepare_settings(
             self._sync_address_mapping_transformer()
@@ -121,25 +131,27 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             ad_values[address_type] = ad_data
             return ad_values
 
-        def seed_mo_addresses():
+        def seed_mo():
             if mo_data is None:
-                return []
-            return [
-                {
-                    "uuid": "address_uuid",
-                    "address_type": {"uuid": address_type_uuid},
-                    "org": {"uuid": "org_uuid"},
-                    "person": {"uuid": mo_values["uuid"]},
-                    "type": "address",
-                    "validity": {"from": today, "to": None},
-                    "value": mo_data,
-                }
-            ]
+                return {"address": []}
+            return {
+                "address": [
+                    {
+                        "uuid": "address_uuid",
+                        "address_type": {"uuid": address_type_uuid},
+                        "org": {"uuid": "org_uuid"},
+                        "person": {"uuid": mo_values["uuid"]},
+                        "type": "address",
+                        "validity": {"from": today, "to": None},
+                        "value": mo_data,
+                    }
+                ]
+            }
 
         self._setup_admosync(
             transform_settings=lambda _: self.settings,
             transform_ad_values=add_ad_data,
-            seed_mo_addresses=seed_mo_addresses,
+            seed_mo=seed_mo,
         )
 
         self.assertEqual(self.ad_sync.mo_post_calls, [])
@@ -162,7 +174,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                         "value": ad_data,
                     },
                     "url": "details/create",
-                },
+                }
             ],
             "edit": [
                 {
@@ -200,7 +212,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
     def test_sync_address_data_multiple(self):
         """Verify address data is synced correctly from AD to MO."""
-        today = date.today().strftime("%Y-%m-%d")
+        today = today_iso()
         mo_values = self.mo_values_func()
 
         # Helper functions to seed admosync mock
@@ -210,23 +222,25 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             ad_values["office"] = "11"
             return ad_values
 
-        def seed_mo_addresses():
-            return [
-                {
-                    "uuid": "address_uuid",
-                    "address_type": {"uuid": "office_uuid"},
-                    "org": {"uuid": "org_uuid"},
-                    "person": {"uuid": mo_values["uuid"]},
-                    "type": "address",
-                    "validity": {"from": today, "to": None},
-                    "value": "42",
-                }
-            ]
+        def seed_mo():
+            return {
+                "address": [
+                    {
+                        "uuid": "address_uuid",
+                        "address_type": {"uuid": "office_uuid"},
+                        "org": {"uuid": "org_uuid"},
+                        "person": {"uuid": mo_values["uuid"]},
+                        "type": "address",
+                        "validity": {"from": today, "to": None},
+                        "value": "42",
+                    }
+                ]
+            }
 
         self._setup_admosync(
             transform_settings=self._sync_address_mapping_transformer(),
             transform_ad_values=add_ad_data,
-            seed_mo_addresses=seed_mo_addresses,
+            seed_mo=seed_mo,
         )
 
         self.assertEqual(self.ad_sync.mo_post_calls, [])
@@ -275,7 +289,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                         },
                         "type": "address",
                         "uuid": "address_uuid",
-                    },
+                    }
                 ],
                 "url": "details/edit",
             },
@@ -293,11 +307,11 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         return add_sync_mapping
 
     @parameterized.expand(
-        [("", "create",), ("username_found", "noop",), ("anything_else", "noop",),]
+        [("", "create"), ("username_found", "noop"), ("anything_else", "noop")]
     )
     def test_sync_itsystem(self, e_username, expected):
         """Verify itsystem data is synced correctly from AD to MO."""
-        today = date.today().strftime("%Y-%m-%d")
+        today = today_iso()
         ad_values = self.ad_values_func()
         mo_values = self.mo_values_func()
 
@@ -360,26 +374,26 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
     )
     def test_sync_engagement(self, do_seed, mo_to_ad, expected):
         """Verify engagement data is synced correctly from AD to MO."""
-        today = date.today().strftime("%Y-%m-%d")
+        today = today_iso()
         ad_values = self.ad_values_func()
         mo_values = self.mo_values_func()
 
-        def seed_engagements():
+        def seed_mo():
             if not do_seed:
-                return []
+                return {"engagement": []}
             element = {
                 "is_primary": True,
                 "uuid": "engagement_uuid",
                 "validity": {"from": "1960-06-29", "to": None},
             }
             element.update(do_seed)
-            return [element]
+            return {"engagement": [element]}
 
         self._setup_admosync(
             transform_settings=self._sync_engagement_mapping_transformer(
                 {key: value for (key, value) in [mo_to_ad]}
             ),
-            seed_engagements=seed_engagements,
+            seed_mo=seed_mo,
         )
 
         self.assertEqual(self.ad_sync.mo_post_calls, [])
@@ -406,3 +420,241 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             ],
         }
         self.assertEqual(self.ad_sync.mo_post_calls, expected_sync[expected])
+
+    @parameterized.expand([(None, "exception"), (False, "noop"), (True, "finalize")])
+    def test_finalization_configuration_error(self, finalize_setting, expected):
+        """Verify expected behavior from sync_disabled settings."""
+
+        def add_sync_mapping(settings):
+            settings["integrations.ad.ad_mo_sync_mapping"] = {
+                "user_addresses": {"email": ["email_uuid", None]}
+            }
+            settings["integrations.ad.ad_mo_sync_disabled"] = False
+            if finalize_setting is not None:
+                settings[
+                    "integrations.ad.ad_mo_sync_finalize_disabled"
+                ] = finalize_setting
+            return settings
+
+        today = today_iso()
+        mo_values = self.mo_values_func()
+
+        # Helper functions to seed admosync mock
+        def add_ad_data(ad_values):
+            ad_values["email"] = "emil@magenta.dk"
+            ad_values["Enabled"] = False
+            return ad_values
+
+        def seed_mo():
+            return {
+                "address": [
+                    {
+                        "uuid": "address_uuid",
+                        "address_type": {"uuid": "office_uuid"},
+                        "org": {"uuid": "org_uuid"},
+                        "person": {"uuid": mo_values["uuid"]},
+                        "type": "address",
+                        "validity": {"from": today, "to": None},
+                        "value": "42",
+                    }
+                ]
+            }
+
+        self._setup_admosync(
+            transform_settings=add_sync_mapping,
+            transform_ad_values=add_ad_data,
+            seed_mo=seed_mo,
+        )
+
+        self.assertEqual(self.ad_sync.mo_post_calls, [])
+
+        def exception(func):
+            with self.assertRaises(Exception):
+                func()
+
+        def finalize_called(expected, func):
+            # Test if function was called
+            def update_called(*args, **kwargs):
+                update_called.called = True
+
+            update_called.called = False
+            # Mock both finalize calls
+            self.ad_sync._finalize_it_system = update_called
+            self.ad_sync._finalize_user_addresses = update_called
+            # Call and verify
+            func()
+            self.assertEqual(update_called.called, expected)
+
+        sync_expected = {
+            "noop": partial(finalize_called, False),
+            "finalize": partial(finalize_called, True),
+            "exception": exception,
+        }
+        # Run full sync against the mocks
+        sync_expected[expected](self.ad_sync.update_all_users)
+
+    @parameterized.expand(
+        [
+            ## Finalize
+            # Today
+            [today_iso(), None, True, "terminate"],
+            [today_iso(), today_iso(), True, "noop"],
+            # 2020-01-01
+            ["2020-01-01", None, True, "terminate"],
+            ["2020-01-01", today_iso(), True, "noop"],
+            ["2020-01-01", "2020-02-01", True, "noop"],  # past
+            ["2020-01-01", "9999-01-01", True, "noop"],  # future
+            ## No finalize
+            # Today
+            [today_iso(), None, False, "noop"],
+            [today_iso(), today_iso(), False, "noop"],
+            # 2020-01-01
+            ["2020-01-01", None, False, "noop"],
+            ["2020-01-01", today_iso(), False, "noop"],
+            ["2020-01-01", "2020-02-01", False, "noop"],  # past
+            ["2020-01-01", "9999-01-01", False, "noop"],  # future
+        ]
+    )
+    def test_finalization_address(self, from_date, to_date, finalize, expected):
+        """Verify expected behavior from sync_disabled settings."""
+
+        def add_sync_mapping(settings):
+            settings["integrations.ad.ad_mo_sync_mapping"] = {
+                "user_addresses": {"email": ["email_uuid", None]}
+            }
+            settings["integrations.ad.ad_mo_sync_disabled"] = False
+            settings["integrations.ad.ad_mo_sync_finalize_disabled"] = finalize
+            return settings
+
+        mo_values = self.mo_values_func()
+
+        # Helper functions to seed admosync mock
+        def add_ad_data(ad_values):
+            ad_values["email"] = "emil@magenta.dk"
+            ad_values["Enabled"] = False
+            return ad_values
+
+        def seed_mo():
+            return {
+                "address": [
+                    {
+                        "uuid": "address_uuid",
+                        "address_type": {"uuid": "email_uuid"},
+                        "org": {"uuid": "org_uuid"},
+                        "person": {"uuid": mo_values["uuid"]},
+                        "type": "address",
+                        "validity": {"from": from_date, "to": to_date},
+                        "value": "42",
+                    }
+                ]
+            }
+
+        self._setup_admosync(
+            transform_settings=add_sync_mapping,
+            transform_ad_values=add_ad_data,
+            seed_mo=seed_mo,
+        )
+
+        self.assertEqual(self.ad_sync.mo_post_calls, [])
+
+        # Run full sync against the mocks
+        self.ad_sync.update_all_users()
+
+        today = today_iso()
+        sync_expected = {
+            "terminate": [
+                {
+                    "force": True,
+                    "payload": {
+                        "type": "address",
+                        "uuid": "address_uuid",
+                        "validity": {"to": today},
+                    },
+                    "url": "details/terminate",
+                }
+            ],
+            "noop": [],
+        }
+        self.assertEqual(self.ad_sync.mo_post_calls, sync_expected[expected])
+
+    @parameterized.expand(
+        [
+            ## Finalize
+            # Today
+            [today_iso(), None, True, "terminate"],
+            [today_iso(), today_iso(), True, "noop"],
+            # 2020-01-01
+            ["2020-01-01", None, True, "terminate"],
+            ["2020-01-01", today_iso(), True, "noop"],
+            ["2020-01-01", "2020-02-01", True, "noop"],  # past
+            ["2020-01-01", "9999-01-01", True, "noop"],  # future
+            ## No finalize
+            # Today
+            [today_iso(), None, False, "noop"],
+            [today_iso(), today_iso(), False, "noop"],
+            # 2020-01-01
+            ["2020-01-01", None, False, "noop"],
+            ["2020-01-01", today_iso(), False, "noop"],
+            ["2020-01-01", "2020-02-01", False, "noop"],  # past
+            ["2020-01-01", "9999-01-01", False, "noop"],  # future
+        ]
+    )
+    def test_finalization_itsystem(self, from_date, to_date, finalize, expected):
+        """Verify expected behavior from sync_disabled settings."""
+
+        def add_sync_mapping(settings):
+            settings["integrations.ad.ad_mo_sync_mapping"] = {
+                "it_systems": {"samAccountName": "it_system_uuid"}
+            }
+            settings["integrations.ad.ad_mo_sync_disabled"] = False
+            settings["integrations.ad.ad_mo_sync_finalize_disabled"] = finalize
+            return settings
+
+        mo_values = self.mo_values_func()
+
+        # Helper functions to seed admosync mock
+        def add_ad_data(ad_values):
+            ad_values["Enabled"] = False
+            return ad_values
+
+        def seed_mo():
+            return {
+                "it": [
+                    {
+                        "itsystem": {
+                            "name": "Active Directory",
+                            "uuid": "it_system_ad_uuid",
+                        },
+                        "uuid": "it_system_uuid",
+                        "validity": {"from": from_date, "to": to_date},
+                    }
+                ]
+            }
+
+        self._setup_admosync(
+            transform_settings=add_sync_mapping,
+            transform_ad_values=add_ad_data,
+            seed_mo=seed_mo,
+        )
+
+        self.assertEqual(self.ad_sync.mo_post_calls, [])
+
+        # Run full sync against the mocks
+        self.ad_sync.update_all_users()
+
+        today = today_iso()
+        sync_expected = {
+            "terminate": [
+                {
+                    "force": True,
+                    "payload": {
+                        "type": "it",
+                        "uuid": "it_system_uuid",
+                        "validity": {"to": today},
+                    },
+                    "url": "details/terminate",
+                }
+            ],
+            "noop": [],
+        }
+        self.assertEqual(self.ad_sync.mo_post_calls, sync_expected[expected])
