@@ -26,15 +26,16 @@ stages:
 # Lint stage
 ############
 
-.test-python:
+.lint-python:
   stage: test
   needs: []
   image: python:3
   services: []
-  pre_script:
+  before_script:
     - pip install -r integrations/requirements/lint.txt
   tags:
     - docker
+
 
 Lint AD Integration:
   extends: .lint-python
@@ -44,21 +45,23 @@ Lint AD Integration:
     - cd integrations/ad_integration/ && python -m isort --check-only tests/*
     - cd integrations/ad_integration/ && python -m isort --check-only utils.py
 
+
 # Test stage
 ############
 
-.test-default:
+.test-python:
   stage: test
   needs: []
   image: python:3.5
   services: []
-  pre_script:
+  before_script:
     - pip install ./os2mo_data_import --upgrade
     - pip install -r integrations/requirements/test.txt
   tags:
     - docker
 
+
 Test AD Integration:
-  extends: .test-default
+  extends: .test-python
   script:
     - cd integrations/ad_integration/ && pytest tests/
