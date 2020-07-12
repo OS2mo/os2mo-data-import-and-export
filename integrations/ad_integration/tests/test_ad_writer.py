@@ -118,7 +118,7 @@ class TestADWriter(TestCase):
             transform_settings = lambda settings: settings
         default_settings = {
             "global": {},
-            "mora.base": "http://localhost:5000",
+            "mora.base": "http://example.org",
             "primary": {
                 "search_base": "search_base",
                 "system_user": "system_user",
