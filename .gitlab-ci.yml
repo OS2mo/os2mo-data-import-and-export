@@ -23,6 +23,27 @@ stages:
   - prerelease
   - release
 
+# Lint stage
+############
+
+.test-python:
+  stage: test
+  needs: []
+  image: python:3
+  services: []
+  pre_script:
+    - pip install -r integrations/requirements/lint.txt
+  tags:
+    - docker
+
+Lint AD Integration:
+  extends: .lint-python
+  script:
+    - cd integrations/ad_integration/ && python -m black --line-length 79 --check tests/*
+    - cd integrations/ad_integration/ && python -m black --line-length 79 --check utils.py
+    - cd integrations/ad_integration/ && python -m isort --check-only tests/*
+    - cd integrations/ad_integration/ && python -m isort --check-only utils.py
+
 # Test stage
 ############
 
@@ -31,12 +52,13 @@ stages:
   needs: []
   image: python:3.5
   services: []
+  pre_script:
+    - pip install ./os2mo_data_import --upgrade
+    - pip install -r integrations/requirements/test.txt
   tags:
     - docker
 
 Test AD Integration:
   extends: .test-default
   script:
-    - pip install ./os2mo_data_import --upgrade
-    - pip install -r integrations/requirements/test.txt
     - cd integrations/ad_integration/ && pytest tests/
