@@ -19,7 +19,7 @@ def dict_modifier(updates):
     return partial(recursive_dict_update, updates=updates)
 
 
-class TestADWriter(ADWriter):
+class ADWriterTestSubclass(ADWriter):
     """Testing subclass of ADWriter."""
 
     def __init__(self, transform_mo_values=None, *args, **kwargs):
@@ -109,7 +109,7 @@ class TestADWriter(ADWriter):
         return self.transform_mo_values(default_mo_values, uuid, read_manager)
 
 
-class TestAdWriter(TestCase):
+class TestADWriter(TestCase):
     def setUp(self):
         self._setup_adwriter()
 
@@ -138,7 +138,7 @@ class TestAdWriter(TestCase):
             "integrations.ad.cpr_separator": "ad_cpr_sep",
         }
         self.settings = transform_settings(default_settings)
-        self.ad_writer = TestADWriter(all_settings=self.settings)
+        self.ad_writer = ADWriterTestSubclass(all_settings=self.settings)
 
     def _verify_identitical_common_code(
         self, num_expected_scripts, num_common_lines=5
