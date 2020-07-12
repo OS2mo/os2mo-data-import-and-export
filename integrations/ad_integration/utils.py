@@ -62,3 +62,15 @@ class LazyDict(Mapping):
     def __len__(self):
         self._run_initializer_if_required()
         return len(self._raw_dict)
+
+
+class AttrDict(dict):
+    """Enable dot.notation access for a dict object.
+
+    Example:
+        script_result = AttrDict({"exit_code": 0})
+        self.assertEqual(script_result.exit_code, 0)
+    """
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
