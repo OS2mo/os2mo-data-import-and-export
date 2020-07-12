@@ -82,13 +82,12 @@ def recursive_dict_update(original, updates):
 
     Example:
         original = {'alfa': {'beta': 2, 'charlie': 3}},
+        updates = {'alfa': {'beta': 4}}
         # Non recursive update
-        updated = {**original, **{'alfa': {'beta': 4}}}
+        updated = {**original, **updates}
         self.assertEqual(updated, {'alfa': {'beta': 4}})
         # Recursive update
-        r_updated = recursive_dict_update(
-            original, {'alfa': {'beta': 4}}
-        )
+        r_updated = recursive_dict_update(original, updates)
         self.assertEqual(r_updated, {'alfa': {'beta': 4, 'charlie': 3}})
 
     Returns:
