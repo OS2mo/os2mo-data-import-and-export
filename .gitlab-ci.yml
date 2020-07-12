@@ -39,4 +39,4 @@ Test AD Integration:
   script:
     - pip install ./os2mo_data_import --upgrade
     - pip install -r integrations/requirements/test.txt
-    - cd integrations/ad_integration/ && pytest tests/ --ignore=tests/test_ad_writer.py
+    - cd integrations/ad_integration/ && pytest tests/
