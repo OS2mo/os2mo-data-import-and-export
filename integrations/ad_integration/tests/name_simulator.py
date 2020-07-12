@@ -1,5 +1,5 @@
-import time
 import random
+import time
 from pathlib import Path
 
 from fixture_generator import dummy_data_creator

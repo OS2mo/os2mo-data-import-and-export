@@ -71,6 +71,7 @@ class AttrDict(dict):
         script_result = AttrDict({"exit_code": 0})
         self.assertEqual(script_result.exit_code, 0)
     """
+
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__

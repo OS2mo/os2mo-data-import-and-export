@@ -1,5 +1,6 @@
-import requests
 from unittest import TestCase
+
+import requests
 
 
 class MOTestMixin(object):
@@ -34,7 +35,7 @@ class MOTestMixin(object):
             dict: The JSON response from MO as a dict or None
         """
         host = self.get_mo_host()
-        url = host + 'service/configuration'
+        url = host + "service/configuration"
         response = requests.get(url)
         if response.status_code != 200:
             return None
@@ -50,7 +51,7 @@ class MOTestMixin(object):
             str: The reason why MO is not reading for testing or None if ready.
         """
         configuration = self._fetch_mo_service_configuration()
-        read_only_key = 'read_only'
+        read_only_key = "read_only"
         if configuration == None:
             return "Unable to reach MO instance"
         elif read_only_key not in configuration:

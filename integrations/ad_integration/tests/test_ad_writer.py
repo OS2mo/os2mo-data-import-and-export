@@ -1,16 +1,17 @@
 # TODO: Fix imports in module
 import sys
 from os.path import dirname
+
 sys.path.append(dirname(__file__) + "/..")
 
 from unittest import TestCase
 
 from utils import AttrDict
+
 from ..ad_writer import ADWriter
 
 
 class TestAdWriter(TestCase):
-
     @classmethod
     def setUpClass(self):
         class TestADWriter(ADWriter):
@@ -20,80 +21,80 @@ class TestAdWriter(TestCase):
 
             def _init_name_creator(self):
                 from user_names import CreateUserNames
+
                 self.name_creator = CreateUserNames(occupied_names=set())
 
             def _create_session(self):
                 def run_ps(ps_script):
                     self.scripts.append(ps_script)
-                    return AttrDict({
-                        'status_code': 0,
-                        'std_out': b'',
-                        'std_err': b'',
-                    })
+                    return AttrDict(
+                        {"status_code": 0, "std_out": b"", "std_err": b"",}
+                    )
 
-                return AttrDict({
-                    'run_ps': run_ps,
-                })
+                return AttrDict({"run_ps": run_ps,})
 
             def _get_retry_exceptions(self):
                 return []
 
-            def read_ad_information_from_mo(self, uuid, read_manager=True, ad_dump=None):
+            def read_ad_information_from_mo(
+                self, uuid, read_manager=True, ad_dump=None
+            ):
                 mo_values = {
-                    'name': ('Martin Lee', 'Gore'),
-                    'full_name': 'Martin Lee Gore',
-                    'employment_number': '101',
-                    'uuid': '7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0',
-                    'end_date': '2089-11-11',
-                    'cpr': '1122334455',
-                    'title': 'Musiker',
-                    'unit': 'Enhed',
-                    'unit_uuid': '101bd9aa-0101-0101-0101-0e6f41f6ebc0',
-                    'unit_user_key': 'Musik',
-                    'unit_public_email': None,
-                    'unit_secure_email': None,
-                    'unit_postal_code': '8210',
-                    'unit_city': 'Aarhus N',
-                    'unit_streetname': 'Fahrenheit 451',
-                    'location': 'Kommune\\Forvalting\\Enhed\\',
-                    'level2orgunit': 'Ingen',
-                    'forvaltning': 'Beskæftigelse, Økonomi & Personale',
-                    'manager_name': None,
-                    'manager_sam': None,
-                    'manager_cpr': None,
-                    'manager_mail': None,
-                    'read_manager': False,
+                    "name": ("Martin Lee", "Gore"),
+                    "full_name": "Martin Lee Gore",
+                    "employment_number": "101",
+                    "uuid": "7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0",
+                    "end_date": "2089-11-11",
+                    "cpr": "1122334455",
+                    "title": "Musiker",
+                    "unit": "Enhed",
+                    "unit_uuid": "101bd9aa-0101-0101-0101-0e6f41f6ebc0",
+                    "unit_user_key": "Musik",
+                    "unit_public_email": None,
+                    "unit_secure_email": None,
+                    "unit_postal_code": "8210",
+                    "unit_city": "Aarhus N",
+                    "unit_streetname": "Fahrenheit 451",
+                    "location": "Kommune\\Forvalting\\Enhed\\",
+                    "level2orgunit": "Ingen",
+                    "forvaltning": "Beskæftigelse, Økonomi & Personale",
+                    "manager_name": None,
+                    "manager_sam": None,
+                    "manager_cpr": None,
+                    "manager_mail": None,
+                    "read_manager": False,
                 }
                 if read_manager:
-                    mo_values.update({
-                        'manager_name': 'Daniel Miller',
-                        'manager_sam': 'DMILL',
-                        'manager_email': 'dmill@spirit.co.uk',
-                        'manager_cpr': '1122334455',
-                    })
+                    mo_values.update(
+                        {
+                            "manager_name": "Daniel Miller",
+                            "manager_sam": "DMILL",
+                            "manager_email": "dmill@spirit.co.uk",
+                            "manager_cpr": "1122334455",
+                        }
+                    )
                 return mo_values
 
         self.settings = {
-            'global': {
+            "global": {},
+            "mora.base": "http://localhost:5000",
+            "primary": {
+                "search_base": "search_base",
+                "system_user": "system_user",
+                "password": "password",
+                "properties": "dummy",
+                "cpr_separator": "cpr_sep",
+                "cpr_field": "cpr_field",
             },
-            'mora.base': 'http://localhost:5000',
-            'primary': {
-                'search_base': 'search_base',
-                'system_user': 'system_user',
-                'password': 'password',
-                'properties': 'dummy',
-                'cpr_separator': 'cpr_sep',
-                'cpr_field': 'cpr_field',
+            "primary_write": {
+                "level2orgunit_field": "level2orgunit_field",
+                "org_field": "org_field",
+                "upn_end": "epn_end",
+                "uuid_field": "uuid_field",
+                "cpr_field": "cpr_field",
             },
-            'primary_write': {
-                'level2orgunit_field': 'level2orgunit_field',
-                'org_field': 'org_field',
-                'upn_end': 'epn_end',
-                'uuid_field': 'uuid_field',
-                'cpr_field': 'cpr_field',
-            },
-            'integrations.ad.write.level2orgunit_type': 'level2orgunit_type',
-            'integrations.ad.cpr_separator': 'ad_cpr_sep',
+            "integrations.ad.write.level2orgunit_type": "level2orgunit_type",
+            "integrations.ad.cpr_separator": "ad_cpr_sep",
         }
 
         self.ad_writer = TestADWriter(all_settings=self.settings)
@@ -114,14 +115,14 @@ class TestAdWriter(TestCase):
         num_common_lines = 5
 
         # Run create user and fetch scripts
-        uuid = 'invalid-provided-and-accepted-due-to-mocking'
+        uuid = "invalid-provided-and-accepted-due-to-mocking"
         self.ad_writer.create_user(mo_uuid=uuid, create_manager=False)
         # Check that scripts were produced
         self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
 
         # Verify that the first 4 lines are identitical for all scripts
         # 1. Convert each script from a string into a list of strings (lines)
-        lines = [x.split('\n') for x in self.ad_writer.scripts]
+        lines = [x.split("\n") for x in self.ad_writer.scripts]
         self.assertGreaterEqual(len(lines[0]), num_common_lines)
         self.assertEqual(len(lines), num_expected_scripts)
         # 2. Get the common lines (first 4 lines) in each script
@@ -139,13 +140,14 @@ class TestAdWriter(TestCase):
         # Check the common lines themselves
         common_ps = [x.strip() for x in common_lines[0]]
         expected_ps = [
-            '',
+            "",
             '$User = "system_user"',
             '$PWord = ConvertTo-SecureString –String "password" –AsPlainText -Force',
             '$TypeName = "System.Management.Automation.PSCredential"',
-            '$UserCredential = New-Object –TypeName $TypeName –ArgumentList $User, $PWord'
+            "$UserCredential = New-Object –TypeName $TypeName –ArgumentList $User, $PWord",
         ]
         self.assertEqual(common_ps, expected_ps)
+
 
 #    def test_create_user_without_manager(self):
 #        self.ad_writer.create_user(mo_uuid='0', create_manager=False)
