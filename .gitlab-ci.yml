@@ -23,6 +23,7 @@ stages:
   - prerelease
   - release
 
+
 # Lint stage
 ############
 
@@ -40,10 +41,9 @@ stages:
 Lint AD Integration:
   extends: .lint-python
   script:
-    - cd integrations/ad_integration/ && python -m black --line-length 79 --check tests/*
-    - cd integrations/ad_integration/ && python -m black --line-length 79 --check utils.py
-    - cd integrations/ad_integration/ && python -m isort --check-only tests/*
-    - cd integrations/ad_integration/ && python -m isort --check-only utils.py
+    - cd integrations/ad_integration/
+    - python -m black --line-length 79 --check tests/* utils.py
+    - python -m isort --check-only tests/* utils.py
 
 
 # Test stage
@@ -64,4 +64,5 @@ Lint AD Integration:
 Test AD Integration:
   extends: .test-python
   script:
-    - cd integrations/ad_integration/ && pytest tests/
+    - cd integrations/ad_integration/
+    - pytest tests/
