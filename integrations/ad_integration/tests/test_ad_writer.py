@@ -4,78 +4,119 @@ from os.path import dirname
 
 sys.path.append(dirname(__file__) + "/..")
 
+from functools import partial
 from unittest import TestCase
 
-from utils import AttrDict
+from parameterized import parameterized
+
+from utils import AttrDict, recursive_dict_update
 
 from ..ad_writer import ADWriter
+from ..user_names import CreateUserNames
+
+
+def dict_modifier(updates):
+    return partial(recursive_dict_update, updates=updates)
+
+
+class TestADWriter(ADWriter):
+    """Testing subclass of ADWriter."""
+
+    def __init__(self, transform_mo_values=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # List of scripts to be executed via run_ps
+        self.scripts = []
+        # Transformer for mo_values return
+        self.transform_mo_values = transform_mo_values
+        if self.transform_mo_values is None:
+            self.transform_mo_values = lambda mo_values, _1, _2: mo_values
+
+    def _init_name_creator(self):
+        """Mocked to pretend no names are occupied.
+
+        This method would normally use ADReader to read usernames from AD.
+        """
+        # Simply leave out the call to populate_occupied_names
+        self.name_creator = CreateUserNames(occupied_names=set())
+
+    def _create_session(self):
+        """Mocked to return a fake-class which writes scripts to self.scripts.
+
+        This method would normally send scripts to powershell via WinRM.
+        """
+
+        def run_ps(ps_script):
+            # Add our script to the list
+            self.scripts.append(ps_script)
+            # Fake the WinRM run_ps return type
+            return AttrDict(
+                {"status_code": 0, "std_out": b"", "std_err": b"",}
+            )
+
+        # Fake the WinRM session object
+        return AttrDict({"run_ps": run_ps,})
+
+    def _get_retry_exceptions(self):
+        """Mocked to return an empty list, i.e. never retry.
+
+        This method would normally return the WinRM transport exception, to
+        cause retrying to happen.
+        """
+        return []
+
+    def read_ad_information_from_mo(
+        self, uuid, read_manager=True, ad_dump=None
+    ):
+        """Mocked to return static values.
+
+        This method would normally connect to MO and fetch the required
+        information.
+        """
+        default_mo_values = {
+            "name": ("Martin Lee", "Gore"),
+            "full_name": "Martin Lee Gore",
+            "employment_number": "101",
+            "uuid": "7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0",
+            "end_date": "2089-11-11",
+            "cpr": "1122334455",
+            "title": "Musiker",
+            "unit": "Enhed",
+            "unit_uuid": "101bd9aa-0101-0101-0101-0e6f41f6ebc0",
+            "unit_user_key": "Musik",
+            "unit_public_email": None,
+            "unit_secure_email": None,
+            "unit_postal_code": "8210",
+            "unit_city": "Aarhus N",
+            "unit_streetname": "Fahrenheit 451",
+            "location": "Kommune\\Forvalting\\Enhed\\",
+            "level2orgunit": "Ingen",
+            "forvaltning": "Beskæftigelse, Økonomi & Personale",
+            "manager_name": None,
+            "manager_sam": None,
+            "manager_cpr": None,
+            "manager_mail": None,
+            "read_manager": False,
+        }
+        if read_manager:
+            default_mo_values.update(
+                {
+                    "manager_name": "Daniel Miller",
+                    "manager_sam": "DMILL",
+                    "manager_email": "dmill@spirit.co.uk",
+                    "manager_cpr": "1122334455",
+                }
+            )
+        return self.transform_mo_values(default_mo_values, uuid, read_manager)
 
 
 class TestAdWriter(TestCase):
-    @classmethod
-    def setUpClass(self):
-        class TestADWriter(ADWriter):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.scripts = []
+    def setUp(self):
+        self._setup_adwriter()
 
-            def _init_name_creator(self):
-                from user_names import CreateUserNames
-
-                self.name_creator = CreateUserNames(occupied_names=set())
-
-            def _create_session(self):
-                def run_ps(ps_script):
-                    self.scripts.append(ps_script)
-                    return AttrDict(
-                        {"status_code": 0, "std_out": b"", "std_err": b"",}
-                    )
-
-                return AttrDict({"run_ps": run_ps,})
-
-            def _get_retry_exceptions(self):
-                return []
-
-            def read_ad_information_from_mo(
-                self, uuid, read_manager=True, ad_dump=None
-            ):
-                mo_values = {
-                    "name": ("Martin Lee", "Gore"),
-                    "full_name": "Martin Lee Gore",
-                    "employment_number": "101",
-                    "uuid": "7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0",
-                    "end_date": "2089-11-11",
-                    "cpr": "1122334455",
-                    "title": "Musiker",
-                    "unit": "Enhed",
-                    "unit_uuid": "101bd9aa-0101-0101-0101-0e6f41f6ebc0",
-                    "unit_user_key": "Musik",
-                    "unit_public_email": None,
-                    "unit_secure_email": None,
-                    "unit_postal_code": "8210",
-                    "unit_city": "Aarhus N",
-                    "unit_streetname": "Fahrenheit 451",
-                    "location": "Kommune\\Forvalting\\Enhed\\",
-                    "level2orgunit": "Ingen",
-                    "forvaltning": "Beskæftigelse, Økonomi & Personale",
-                    "manager_name": None,
-                    "manager_sam": None,
-                    "manager_cpr": None,
-                    "manager_mail": None,
-                    "read_manager": False,
-                }
-                if read_manager:
-                    mo_values.update(
-                        {
-                            "manager_name": "Daniel Miller",
-                            "manager_sam": "DMILL",
-                            "manager_email": "dmill@spirit.co.uk",
-                            "manager_cpr": "1122334455",
-                        }
-                    )
-                return mo_values
-
-        self.settings = {
+    def _setup_adwriter(self, transform_settings=None):
+        if transform_settings is None:
+            transform_settings = lambda settings: settings
+        default_settings = {
             "global": {},
             "mora.base": "http://localhost:5000",
             "primary": {
@@ -96,31 +137,17 @@ class TestAdWriter(TestCase):
             "integrations.ad.write.level2orgunit_type": "level2orgunit_type",
             "integrations.ad.cpr_separator": "ad_cpr_sep",
         }
-
+        self.settings = transform_settings(default_settings)
         self.ad_writer = TestADWriter(all_settings=self.settings)
 
-    def test_common_ps_code(self):
-        """Test ps_script common code (first four lines of each script).
+    def _verify_identitical_common_code(
+        self, num_expected_scripts, num_common_lines=5
+    ):
+        """Verify that common code in all scripts is identitical.
 
-        The common code lines are identical for all writes to the AD.
-
-        Create_user is used as a test-case to provoke the creation of a PS script,
-        but only the common top of the code is actually tested.
+        I.e. that all scripts start with the same num_common_lines lines.
         """
-        # Assert no scripts were produced from initializing ad_writer itself
-        self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
-
-        # Expected outputs
-        num_expected_scripts = 3
-        num_common_lines = 5
-
-        # Run create user and fetch scripts
-        uuid = "invalid-provided-and-accepted-due-to-mocking"
-        self.ad_writer.create_user(mo_uuid=uuid, create_manager=False)
-        # Check that scripts were produced
         self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
-
-        # Verify that the first 4 lines are identitical for all scripts
         # 1. Convert each script from a string into a list of strings (lines)
         lines = [x.split("\n") for x in self.ad_writer.scripts]
         self.assertGreaterEqual(len(lines[0]), num_common_lines)
@@ -136,13 +163,53 @@ class TestAdWriter(TestCase):
         # Check that all zip_lines are identitical
         for zip_line in zip_lines:
             self.assertEqual(len(set(zip_line)), 1)
+        # Return common code
+        return common_lines[0]
 
-        # Check the common lines themselves
-        common_ps = [x.strip() for x in common_lines[0]]
+    @parameterized.expand(
+        [
+            # Test without any changes to settings
+            [dict_modifier({}),],
+            # Test with overridden password
+            [dict_modifier({"primary": {"password": "Password1"}}),],
+            [dict_modifier({"primary": {"password": "Hunter2"}}),],
+            # Test with overridden user
+            [dict_modifier({"primary": {"system_user": "R2D2"}}),],
+            [dict_modifier({"primary": {"system_user": "C-3PO"}}),],
+        ]
+    )
+    def test_common_ps_code(self, settings_transformer):
+        """Test ps_script common code (first five lines of each script).
+
+        The common code lines are identical for all writes to the AD.
+        This is verified by the 'verify_identitical_common_code' method.
+
+        Create_user is used as a test-case to provoke the creation of a PS script,
+        but only the common top of the code is actually tested.
+        """
+        self._setup_adwriter(settings_transformer)
+
+        # Assert no scripts were produced from initializing ad_writer itself
+        self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
+
+        # Expected outputs
+        num_expected_scripts = 3
+
+        # Run create user and fetch scripts
+        uuid = "invalid-provided-and-accepted-due-to-mocking"
+        self.ad_writer.create_user(mo_uuid=uuid, create_manager=False)
+        # Check that scripts were produced
+        self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
+
+        # Verify that the first 4 lines are identitical for all scripts
+        common_ps = self._verify_identitical_common_code(num_expected_scripts)
+        common_ps = [x.strip() for x in common_ps]
         expected_ps = [
             "",
-            '$User = "system_user"',
-            '$PWord = ConvertTo-SecureString –String "password" –AsPlainText -Force',
+            '$User = "' + self.settings["primary"]["system_user"] + '"',
+            '$PWord = ConvertTo-SecureString –String "'
+            + self.settings["primary"]["password"]
+            + '" –AsPlainText -Force',
             '$TypeName = "System.Management.Automation.PSCredential"',
             "$UserCredential = New-Object –TypeName $TypeName –ArgumentList $User, $PWord",
         ]

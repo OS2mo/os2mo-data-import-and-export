@@ -75,3 +75,28 @@ class AttrDict(dict):
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
+
+
+def recursive_dict_update(original, updates):
+    """Recursively update 'original' with keys from 'updates'.
+
+    Example:
+        original = {'alfa': {'beta': 2, 'charlie': 3}},
+        # Non recursive update
+        updated = {**original, **{'alfa': {'beta': 4}}}
+        self.assertEqual(updated, {'alfa': {'beta': 4}})
+        # Recursive update
+        r_updated = recursive_dict_update(
+            original, {'alfa': {'beta': 4}}
+        )
+        self.assertEqual(r_updated, {'alfa': {'beta': 4, 'charlie': 3}})
+
+    Returns:
+        dict: modified 'original'
+    """
+    for key, value in updates.items():
+        if isinstance(value, Mapping):
+            original[key] = recursive_dict_update(original.get(key, {}), value)
+        else:
+            original[key] = value
+    return original
