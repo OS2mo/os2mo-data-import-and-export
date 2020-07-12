@@ -34,7 +34,7 @@ class MOTestMixin(object):
             dict: The JSON response from MO as a dict or None
         """
         host = self.get_mo_host()
-        url = f'{host}/service/configuration'
+        url = host + 'service/configuration'
         response = requests.get(url)
         if response.status_code != 200:
             return None
