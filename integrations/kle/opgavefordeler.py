@@ -3,6 +3,7 @@ import logging
 import os
 import pathlib
 from enum import Enum
+from abc import ABC, abstractmethod
 
 import requests
 
@@ -29,17 +30,12 @@ ASPECT_MAP = {
 }
 
 
-def KLEAnnotationImporter:
+class KLEAnnotationImporter(ABC):
+    """Encapsulate KLE annotation for an organisation from an external source."""
 
-    pass
+    # XXX: This uses a simple inheritance based pattern. We might want to use
+    # something like a Strategy here. However, maybe YAGNI.
 
-
-def CSVImporter(KLEAnnotationImporter):
-
-    pass
-
-
-class OpgavefordelerImporter(KLEAnnotationImporter):
     def __init__(self):
         cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
         if not cfg_file.is_file():
@@ -47,24 +43,22 @@ class OpgavefordelerImporter(KLEAnnotationImporter):
         self.settings = json.loads(cfg_file.read_text())
 
         self.mora_base = self.settings.get("mora.base")
-        self.mora_session = self._get_mora_session(token=os.environ.get("SAML_TOKEN"))
-
-        self.opgavefordeler_url = self.settings.get(
-            "integrations.os2opgavefordeler.url"
-        )
-        self.opgavefordeler_session = self._get_opgavefordeler_session(
-            token=self.settings.get("integrations.os2opgavefordeler.token")
+        self.mora_session = self._get_mora_session(
+            token=os.environ.get("SAML_TOKEN")
         )
         self.org_uuid = self._get_mo_org_uuid()
+
+    @abstractmethod
+    def get_kle_from_source(self, kle_numbers: list) -> list:
+        pass
+
+    @abstractmethod
+    def get_org_unit_info_from_source(self, org_units_uuids: list) -> list:
+        pass
 
     def _get_mora_session(self, token) -> requests.Session:
         s = requests.Session()
         s.headers.update({"SESSION": token})
-        return s
-
-    def _get_opgavefordeler_session(self, token) -> requests.Session:
-        s = requests.Session()
-        s.headers.update({"Authorization": "Basic {}".format(token)})
         return s
 
     def _get_mo_org_uuid(self) -> str:
@@ -99,41 +93,6 @@ class OpgavefordelerImporter(KLEAnnotationImporter):
         logger.info("Found {} items".format(len(items)))
         return items
 
-    def get_kle_from_opgavefordeler(self, kle_numbers: list) -> list:
-        """
-        Get all KLE-number info from OS2opgavefordeler
-
-        This will give information on which unit is 'Ansvarlig' for a certain
-        KLE-number.
-        The API will perform inheritance and deduce the unit logically responsible
-        for a certain number if no unit is directly responsible,
-        so the result is filtered of all duplicates
-        """
-        logger.info("Fetching KLE info from OS2opgavefordeler")
-
-        url = "{}/TopicRouter/api".format(self.opgavefordeler_url)
-        s = self.opgavefordeler_session
-
-        unit_data = []
-        for key in kle_numbers:
-            try:
-                r = s.get(url, params={"kle": key})
-                r.raise_for_status()
-                unit_data.append(r.json())
-            except requests.exceptions.HTTPError:
-                logger.warning("KLE number '{}' not found".format(key))
-
-        seen_keys = set()
-        filtered = []
-        for item in unit_data:
-            key = item["kle"]["number"]
-            if key not in seen_keys:
-                filtered.append(item)
-                seen_keys.add(key)
-
-        logger.info("Found {} items".format(len(filtered)))
-        return filtered
-
     def get_org_units_from_mo(self) -> list:
         """Get a list of all units from OS2mo"""
         logger.info("Fetching all org units from OS2mo")
@@ -144,37 +103,6 @@ class OpgavefordelerImporter(KLEAnnotationImporter):
 
         logger.info("Found {} units".format(len(units)))
         return units
-
-    def get_org_unit_info_from_opgavefordeler(self, org_units_uuids: list) -> list:
-        """
-        Get all org-unit info from OS2opgavefordeler
-
-        This will give information about which KLE-numbers the unit has a
-        'Udførende' and 'Indsigt' relationship with
-
-        Empty results are filtered
-        """
-        logger.info("Fetching org unit info from OS2opgavefordeler")
-        url = "{}/TopicRouter/api/ou/{}"
-        s = self.opgavefordeler_session
-        org_unit_info = {}
-        for uuid in org_units_uuids:
-            try:
-                r = s.get(url.format(self.opgavefordeler_url, uuid))
-                r.raise_for_status()
-                org_unit_info[uuid] = r.json()
-                logger.debug("Adding {}".format(uuid))
-            except requests.exceptions.HTTPError:
-                continue
-
-        def filter_empty(item):
-            info = item[1]
-            return info["INTEREST"] or info["PERFORMING"]
-
-        filtered = list(filter(filter_empty, org_unit_info.items()))
-
-        logger.info("Found {} items".format(len(filtered)))
-        return filtered
 
     def add_indsigt_and_udfoerer(self, org_unit_map: dict, org_unit_info: list):
         """Add 'Indsigt' and 'Udførende' to the org unit map"""
@@ -231,14 +159,6 @@ class OpgavefordelerImporter(KLEAnnotationImporter):
 
         return payloads
 
-    def post_payloads_to_mo(self, payloads: list):
-        """Submit a list of details payloads to OS2mo"""
-        logger.info("Posting payloads to OS2mo ")
-        url = "{}/service/details/create".format(self.mora_base)
-
-        r = requests.post(url, json=payloads, params={"force": 1})
-        r.raise_for_status()
-
     def run(self):
         logger.info("Starting import")
 
@@ -248,12 +168,12 @@ class OpgavefordelerImporter(KLEAnnotationImporter):
 
         # Ansvarlig
         kle_numbers = [item["user_key"] for item in kle_classes]
-        kle_info = self.get_kle_from_opgavefordeler(kle_numbers)
+        kle_info = self.get_kle_from_source(kle_numbers)
         self.add_ansvarlig(org_unit_map, kle_info)
 
         # Indsigt og Udfører
         org_units = self.get_org_units_from_mo()
-        org_unit_info = self.get_org_unit_info_from_opgavefordeler(org_units)
+        org_unit_info = self.get_org_unit_info_from_source(org_units)
         self.add_indsigt_and_udfoerer(org_unit_map, org_unit_info)
 
         # Insert into MO
@@ -262,6 +182,101 @@ class OpgavefordelerImporter(KLEAnnotationImporter):
         self.post_payloads_to_mo(payloads)
 
         logger.info("Done")
+
+    def post_payloads_to_mo(self, payloads: list):
+        """Submit a list of details payloads to OS2mo"""
+        logger.info("Posting payloads to OS2mo ")
+        url = "{}/service/details/create".format(self.mora_base)
+
+        r = requests.post(url, json=payloads, params={"force": 1})
+        r.raise_for_status()
+
+
+class CSVImporter(KLEAnnotationImporter):
+
+    pass
+
+
+class OpgavefordelerImporter(KLEAnnotationImporter):
+    def __init__(self):
+        super().__init__()
+        self.opgavefordeler_url = self.settings.get(
+            "integrations.os2opgavefordeler.url"
+        )
+        self.opgavefordeler_session = self._get_opgavefordeler_session(
+            token=self.settings.get("integrations.os2opgavefordeler.token")
+        )
+
+    def _get_opgavefordeler_session(self, token) -> requests.Session:
+        s = requests.Session()
+        s.headers.update({"Authorization": "Basic {}".format(token)})
+        return s
+
+    def get_kle_from_source(self, kle_numbers: list) -> list:
+        """
+        Get all KLE-number info from OS2opgavefordeler
+
+        This will give information on which unit is 'Ansvarlig' for a certain
+        KLE-number.
+        The API will perform inheritance and deduce the unit logically responsible
+        for a certain number if no unit is directly responsible,
+        so the result is filtered of all duplicates
+        """
+        logger.info("Fetching KLE info from OS2opgavefordeler")
+
+        url = "{}/TopicRouter/api".format(self.opgavefordeler_url)
+        s = self.opgavefordeler_session
+
+        unit_data = []
+        for key in kle_numbers:
+            try:
+                r = s.get(url, params={"kle": key})
+                r.raise_for_status()
+                unit_data.append(r.json())
+            except requests.exceptions.HTTPError:
+                logger.warning("KLE number '{}' not found".format(key))
+
+        seen_keys = set()
+        filtered = []
+        for item in unit_data:
+            key = item["kle"]["number"]
+            if key not in seen_keys:
+                filtered.append(item)
+                seen_keys.add(key)
+
+        logger.info("Found {} items".format(len(filtered)))
+        return filtered
+
+    def get_org_unit_info_from_source(self, org_units_uuids: list) -> list:
+        """
+        Get all org-unit info from OS2opgavefordeler
+
+        This will give information about which KLE-numbers the unit has a
+        'Udførende' and 'Indsigt' relationship with
+
+        Empty results are filtered
+        """
+        logger.info("Fetching org unit info from OS2opgavefordeler")
+        url = "{}/TopicRouter/api/ou/{}"
+        s = self.opgavefordeler_session
+        org_unit_info = {}
+        for uuid in org_units_uuids:
+            try:
+                r = s.get(url.format(self.opgavefordeler_url, uuid))
+                r.raise_for_status()
+                org_unit_info[uuid] = r.json()
+                logger.debug("Adding {}".format(uuid))
+            except requests.exceptions.HTTPError:
+                continue
+
+        def filter_empty(item):
+            info = item[1]
+            return info["INTEREST"] or info["PERFORMING"]
+
+        filtered = list(filter(filter_empty, org_unit_info.items()))
+
+        logger.info("Found {} items".format(len(filtered)))
+        return filtered
 
 
 if __name__ == "__main__":
