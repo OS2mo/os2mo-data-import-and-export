@@ -29,7 +29,17 @@ ASPECT_MAP = {
 }
 
 
-class OpgavefordelerImporter:
+def KLEAnnotationImporter:
+
+    pass
+
+
+def CSVImporter(KLEAnnotationImporter):
+
+    pass
+
+
+class OpgavefordelerImporter(KLEAnnotationImporter):
     def __init__(self):
         cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
         if not cfg_file.is_file():
