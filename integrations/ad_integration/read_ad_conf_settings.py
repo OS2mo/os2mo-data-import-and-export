@@ -5,7 +5,7 @@ import logging
 
 logger = logging.getLogger("AdReader")
 
-from utils import LazyDict
+from integrations.ad_integration.utils import LazyDict
 
 def load_settings():
     # TODO: Soon we have done this 4 times. Should we make a small settings
