@@ -18,9 +18,10 @@ git pull
 new_git=$(git show -s --format=%H)
 git log --pretty=oneline ${old_git}..${new_git}
 
-# TODO: Check if the following packages are installed:
-# * unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev
+# NOTE: If you get an error, check if the following packages are installed:
+# * sudo apt-get install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmysqlclient-dev
 # Required for development
+#
 # You might also need:
 # $ pip install --upgrade cython
 
