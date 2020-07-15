@@ -1,5 +1,5 @@
 from jinja2 import Template
-from utils import dict_map, dict_partition
+from utils import dict_partition
 
 cmdlet_parameters = {
     # https://docs.microsoft.com/en-us/powershell/module/activedirectory/new-aduser
@@ -44,6 +44,11 @@ cmdlet_templates = {
 }
 
 
+def lower_list(listy):
+    """Convert each element in the list to lower-case."""
+    return list(map(lambda x: x.lower(), listy))
+
+
 def prepare_template(cmd, jinja_map, settings):
     # Seed defaults
     jinja_map.setdefault('Name', "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }} - {{ user_sam }}")
@@ -76,6 +81,16 @@ def prepare_template(cmd, jinja_map, settings):
         # If local settings dictates a separator, we add it directly to the
         # power-shell code.
         jinja_map[write_settings['cpr_field']] = "{{ mo_values['cpr'][0:6] }}" + settings['integrations.ad.cpr_separator'] + "{{ mo_values['cpr'][6:10] }}"
+
+    # Check against hardcoded values
+    jinja_keys = lower_list(jinja_map.keys())
+    if 'Credential'.lower() in jinja_keys:
+        raise ValueError("Credential is hardcoded")
+    if 'SamAccountName'.lower() in jinja_keys:
+        raise ValueError("SamAccountName is hardcoded")
+    jinja_map['Credential'] = "$usercredential"
+    jinja_map['SamAccountName'] = "{{ user_sam }}"
+
     return jinja_map
 
 
@@ -96,33 +111,18 @@ def template_create_user(cmd='New-ADUser', jinja_map=None, context=None, setting
     # ad_field --> template
     jinja_map = prepare_template(cmd, jinja_map, settings)
 
-    # Helpers
-    def lower_list(listy):
-        """Convert each element in the list to lower-case."""
-        return list(map(lambda x: x.lower(), listy))
-
-    # Check against hardcoded values
-    jinja_keys = lower_list(jinja_map.keys())
-    if 'Credential'.lower() in jinja_keys:
-        raise ValueError("Credential is hardcoded")
-    if 'SamAccountName'.lower() in jinja_keys:
-        raise ValueError("SamAccountName is hardcoded")
-    jinja_map['Credential'] = "$usercredential"
-    jinja_map['SamAccountName'] = "{{ user_sam }}"
-
-    # Render our Jinja field templates
-    jinja_map_templates = dict_map(lambda x: Template(x), jinja_map)
-    jinja_map_rendered = dict_map(lambda x: x.render(**context), jinja_map_templates)
-
     # Partition rendered attributes by parameters and attributes
     parameter_list = lower_list(cmdlet_parameters[cmd])
     other_attributes, parameters = dict_partition(
         lambda key, _: key.lower() in parameter_list,
-        jinja_map_rendered # jinja_map
+        jinja_map
     )
-    # Generate the command template using pre-rendered snippets
-    # TODO: Consider a template generating a template with takes **context 
-    result = command_template.render(
+
+    # Generate our combined template, by rendering our command template using
+    # the jinja_map templates.
+    combined_template = command_template.render(
         parameters=parameters, other_attributes=other_attributes
     )
-    return result
+
+    # Render the final template using the context
+    return Template(combined_template).render(**context)
