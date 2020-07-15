@@ -283,10 +283,10 @@ class TestADWriter(TestCase):
         expected_content = [
             'Get-ADUser',
             '-Filter \'SamAccountName -eq "mleeg"\'',
-            '-Credential $usercredential',
+            '-Credential "$usercredential"',
             '|',
             'Set-ADUser',
-            '-Credential $usercredential',
+            '-Credential "$usercredential"',
             '-Displayname "Martin Lee Gore"',
             '-GivenName "Martin Lee"',
             '-SurName "Gore"',
