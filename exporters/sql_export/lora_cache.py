@@ -871,7 +871,7 @@ class LoraCache(object):
             while current_unit:
                 location = current_unit['name'] + "\\" + location
                 current_parent = current_unit.get('parent')
-                if current_parent is not None:
+                if current_parent is not None and current_parent in self.units:
                     current_unit = self.units[current_parent][0]
                 else:
                     current_unit = None
