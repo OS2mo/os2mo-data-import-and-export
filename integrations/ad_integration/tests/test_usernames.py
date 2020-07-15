@@ -581,9 +581,7 @@ class TestUsernameCreation(unittest.TestCase):
                 if not user_name[0] == correct_user_name:
                     success = False
                     print(
-                        "Got: {}, expected: {}".format(
-                            user_name, correct_user_name
-                        )
+                        "Got: {}, expected: {}".format(user_name, correct_user_name)
                     )
         return success
 
@@ -627,9 +625,7 @@ class TestUsernameCreation(unittest.TestCase):
         name_creator = user_names.CreateUserNames(occupied_names=set())
         for i in range(1, 88):
             name_creator.create_username(name)
-        with self.assertRaisesRegex(
-            RuntimeError, "Failed to create user name"
-        ):
+        with self.assertRaisesRegex(RuntimeError, "Failed to create user name"):
             name_creator.create_username(name)
 
     def test_dry_run(self):
