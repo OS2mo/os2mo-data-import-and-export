@@ -3,4 +3,4 @@ anytree
 pika
 requests_kerberos
 pywinrm[kerberos]
-
+jinja2
