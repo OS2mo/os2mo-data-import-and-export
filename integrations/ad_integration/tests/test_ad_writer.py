@@ -222,18 +222,29 @@ class TestADWriter(TestCase):
 
     # Jinja to determine if mo_values['employment_number'] is a prime number
     is_prime_jinja = """
+        {#- Aliased to n for readability -#}
         {%- set n = mo_values['employment_number'] | int -%}
+        {#- Negative numbers, zero and one are not primes -#}
         {%- if n <= 1 -%}
             false
         {%- else -%}
+            {#- Using vars as dict allows settings by reference -#}
             {%- set vars = {'is_prime': True} -%}
+
+            {#- Really we only need to check until sqrt(n) -#}
             {%- for i in range(2,n) -%}
-                {%- set divident = (n/i) | int -%}
-                {%- set mod = n - i*divident -%}
-                {%- if mod == 0 -%}
+                {#- We cannot use percentage for modulus -#}
+                {%- set quotient = (n/i) | int -%}
+                {%- set remainder = n - i*quotient -%}
+
+                {#- If it divides without remainder, it is not prime -#}
+                {%- if remainder == 0 -%}
+                    {#- Update is_prime by reference -#}
                     {%- set _ = vars.update({'is_prime': False}) -%}
                 {%- endif -%}
             {%- endfor -%}
+
+            {#- Print whether we found a prime or not -#}
             {%- if vars['is_prime'] -%}
                 true
             {%- else -%}
@@ -267,7 +278,11 @@ class TestADWriter(TestCase):
                 dict_modifier(
                     {
                         "integrations.ad_writer.template_to_ad_fields": {
-                            "street_number": "{{ mo_values['unit_streetname'].split(' ')[-1] }}"
+                            "street_number": """
+                                {%- set street = mo_values['unit_streetname'] -%}
+                                {{ street.split(' ')[-1] }}
+                                {#- Comment used to trim whitespace -#}
+                            """
                         }
                     }
                 ),
