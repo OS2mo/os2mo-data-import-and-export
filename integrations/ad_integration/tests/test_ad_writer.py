@@ -423,7 +423,7 @@ class TestADWriter(TestCase):
             '-SurName "Gore"',
             '-EmployeeNumber "101"',
             "-Replace",
-            '"level2orgunit_field"="Ingen";'
+            '"level2orgunit_field"="Ingen";',
             '"org_field"="Kommune\\Forvalting\\Enhed\\";',
         ]
         for content in expected_content:
