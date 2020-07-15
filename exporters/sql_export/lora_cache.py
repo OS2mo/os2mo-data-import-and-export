@@ -9,7 +9,8 @@ import dateutil
 import lora_utils
 import requests
 import asyncio
-from aiohttp import BasicAuth, ClientSession, TCPConnector
+from aiohttp import ClientSession, TCPConnector
+from functools import wraps
 
 from os2mo_helpers.mora_helpers import MoraHelper
 
@@ -173,9 +174,7 @@ class LoraCache(object):
                     data_list = data['results'][0]
                 else:
                     data_list = []
-                complete_data = complete_data + data_list
-                if len(data_list) == 0:
-                    done = True
+                return data_list
 
         next_index = 0
         parallel = 10
@@ -187,7 +186,12 @@ class LoraCache(object):
                     task = asyncio.ensure_future(_fetch_from_mo(client, next_index, params))
                     tasks.append(task)
                     next_index += results_pr_request
-                await asyncio.gather(*tasks)
+                data_lists = await asyncio.gather(*tasks)
+                for data_list in data_lists:
+                    if len(data_list) == 0:
+                        done = True
+                        break
+                    complete_data = complete_data + data_list
         logger.debug('LoRa læsning færdig. {} elementer, {}s'.format(
             len(complete_data), time.time() - t))
         return complete_data
