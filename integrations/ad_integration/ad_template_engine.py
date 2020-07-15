@@ -26,6 +26,9 @@ cmdlet_templates = {
         {%- endfor -%}
         }
     """,
+    # Update information saved on a user
+    # Notice: Name cannot be updated using Set-ADUser, this must be done
+    # with Rename-AdObject
     # TODO: Consider Replace versus Remove/Clean/Add
     'Set-ADUser': """
         Get-ADUser

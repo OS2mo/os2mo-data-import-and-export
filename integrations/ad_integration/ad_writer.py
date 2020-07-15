@@ -625,19 +625,6 @@ class ADWriter(AD):
         )
         edit_user_string = self.remove_redundant(edit_user_string)
 
-#        edit_user_template = ad_templates.edit_user_template
-#        replace_attributes = self._other_attributes(mo_values, user_sam,
-#                                                    new_user=False)
-#
-#        edit_user_string = edit_user_template.format(
-#            givenname=mo_values['name'][0],
-#            surname=mo_values['name'][1],
-#            sam_account_name=user_sam,
-#            employment_number=mo_values['employment_number']
-#        )
-#        edit_user_string = self.remove_redundant(edit_user_string)
-#        edit_user_string += replace_attributes
-
         server_string = ''
         if self.all_settings['global'].get('servers') is not None:
             server_string = ' -Server {} '.format(
@@ -701,19 +688,6 @@ class ADWriter(AD):
             settings = self.all_settings
         )
         create_user_string = self.remove_redundant(create_user_string)
-
-#        create_user_template = ad_templates.create_user_template
-#        other_attributes = self._other_attributes(mo_values, sam_account_name,
-#                                                  new_user=True)
-#
-#        create_user_string = create_user_template.format(
-#            givenname=mo_values['name'][0],
-#            surname=mo_values['name'][1],
-#            sam_account_name=sam_account_name,
-#            employment_number=mo_values['employment_number']
-#        )
-#        create_user_string = self.remove_redundant(create_user_string)
-#        create_user_string += other_attributes
 
         # Should this go to self._ps_boiler_plate()?
         server_string = ''
