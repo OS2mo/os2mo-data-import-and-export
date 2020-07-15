@@ -257,6 +257,48 @@ class TestADWriter(TestCase):
         for content in expected_content:
             self.assertIn(content, create_user_ps)
 
+    def test_user_edit(self):
+        """Test user edit ps_script code.
+
+        The common code is not tested.
+        """
+        # Assert no scripts were produced from initializing ad_writer itself
+        self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
+
+        # Expected outputs
+        num_expected_scripts = 1
+
+        # Run create user and fetch scripts
+        uuid = "invalid-provided-and-accepted-due-to-mocking"
+        self.ad_writer._find_unique_user = lambda cpr: "mleeg"
+        self.ad_writer.sync_user(mo_uuid=uuid, sync_manager=False)
+        # Check that scripts were produced
+        self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
+
+        # Verify that the first 4 lines are identitical for all scripts
+        self._verify_identitical_common_code(num_expected_scripts)
+
+        # Check that the create user ps looks good
+        create_user_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
+        expected_content = [
+            'Get-ADUser',
+            '-Filter \'SamAccountName -eq "mleeg"\'',
+            '-Credential $usercredential',
+            '|',
+            'Set-ADUser',
+            '-Credential $usercredential',
+            '-Displayname "Martin Lee Gore"',
+            '-GivenName "Martin Lee"',
+            '-SurName "Gore"',
+            '-EmployeeNumber "101"',
+            '-Replace',
+            '"level2orgunit_field"="Ingen";'
+            '"org_field"="Kommune\\Forvalting\\Enhed\\";'
+        ]
+        for content in expected_content:
+            self.assertIn(content, create_user_ps)
+
+
 #    def test_add_manager(self):
 #        user = self.ad_writer.read_ad_information_from_mo(uuid='0', read_manager=True)
 #
