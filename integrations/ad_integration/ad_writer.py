@@ -64,64 +64,6 @@ class ADWriter(AD):
             raise Exception(msg)
         return self.all_settings['primary_write']
 
-    def _other_attributes(self, mo_values, user_sam, new_user=False):
-        school = False  # TODO
-        write_settings = self._get_write_setting(school)
-        if new_user:
-            other_attributes = ' -OtherAttributes @{'
-        else:
-            other_attributes = ' -Replace @{'
-
-        # other_attributes_fields = [
-        #     (write_settings['level2orgunit_field'],
-        #      mo_values['level2orgunit'].replace('&', 'og')),
-        #     (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
-        # ]
-        other_attributes_fields = [
-            (write_settings['level2orgunit_field'],
-             mo_values['level2orgunit']),
-            (write_settings['org_field'], mo_values['location'])
-        ]
-
-        # Add SAM to mo_values
-        mo_values['name_sam'] = '{} - {}'.format(mo_values['full_name'], user_sam)
-
-        # Local fields for MO->AD sync'ing
-        named_sync_fields = self.settings.get(
-            'integrations.ad_writer.mo_to_ad_fields', {})
-
-        for mo_field, ad_field in named_sync_fields.items():
-            other_attributes_fields.append(
-                (ad_field, mo_values[mo_field])
-            )
-
-        # These fields are NEVER updated.
-        if new_user:
-            # This needs extended permissions, do we need it?
-            # other_attributes_fields.append(('pwdLastSet', '0'))
-            other_attributes_fields.append(
-                ('UserPrincipalName',
-                 '{}@{}'.format(user_sam, write_settings['upn_end']))
-            )
-            other_attributes_fields.append(
-                (write_settings['uuid_field'], mo_values['uuid'])
-            )
-            # If local settings dictates a separator, we add it directly to the
-            # power-shell code.
-            ad_cpr = '{}{}{}'.format(
-                mo_values['cpr'][0:6],
-                self.settings['integrations.ad.cpr_separator'],
-                mo_values['cpr'][6:10]
-            )
-            other_attributes_fields.append(
-                (write_settings['cpr_field'], ad_cpr)
-            )
-
-        for field in other_attributes_fields:
-            other_attributes += '"{}"="{}";'.format(field[0], field[1])
-        other_attributes += '}'
-        return other_attributes
-
     def _wait_for_replication(self, sam):
         t_start = time.time()
         logger.debug('Wait for replication of {}'.format(sam))
