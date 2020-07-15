@@ -614,18 +614,29 @@ class ADWriter(AD):
             return (True, 'Nothing to edit', mo_values['read_manager'])
 
         logger.info('Sync compare: {}'.format(mismatch))
-        edit_user_template = ad_templates.edit_user_template
-        replace_attributes = self._other_attributes(mo_values, user_sam,
-                                                    new_user=False)
 
-        edit_user_string = edit_user_template.format(
-            givenname=mo_values['name'][0],
-            surname=mo_values['name'][1],
-            sam_account_name=user_sam,
-            employment_number=mo_values['employment_number']
+        edit_user_string = template_create_user(
+            cmd='Set-ADUser',
+            context = {
+                "mo_values": mo_values,
+                "user_sam": user_sam,
+            },
+            settings = self.all_settings
         )
         edit_user_string = self.remove_redundant(edit_user_string)
-        edit_user_string += replace_attributes
+
+#        edit_user_template = ad_templates.edit_user_template
+#        replace_attributes = self._other_attributes(mo_values, user_sam,
+#                                                    new_user=False)
+#
+#        edit_user_string = edit_user_template.format(
+#            givenname=mo_values['name'][0],
+#            surname=mo_values['name'][1],
+#            sam_account_name=user_sam,
+#            employment_number=mo_values['employment_number']
+#        )
+#        edit_user_string = self.remove_redundant(edit_user_string)
+#        edit_user_string += replace_attributes
 
         server_string = ''
         if self.all_settings['global'].get('servers') is not None:

@@ -29,8 +29,8 @@ cmdlet_templates = {
     # TODO: Consider Replace versus Remove/Clean/Add
     'Set-ADUser': """
         Get-ADUser
-          -Filter 'SamAccountName -eq "{{ user_sam }}"'
-          -Credential $usercredential |
+          -Filter 'SamAccountName -eq "{{ parameters['SamAccountName'] }}"'
+          -Credential "{{ parameters['Credential'] }}" |
         Set-ADUser
         {%- for parameter, value in parameters.items() %}
           -{{ parameter }} "{{ value }}"
