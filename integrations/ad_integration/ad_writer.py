@@ -10,7 +10,7 @@ import argparse
 import ad_logger
 import ad_templates
 
-from ad_template_engine import template_create_user
+from ad_template_engine import template_powershell
 
 from integrations.ad_integration.ad_exceptions import CprNotNotUnique
 from integrations.ad_integration.ad_exceptions import UserNotFoundException
@@ -328,7 +328,7 @@ class ADWriter(AD):
             'end_date': 2089-11-11,
             'cpr': '1122334455',
             'title': 'Musiker',
-            'location': 'Viborg Kommune\Forvalting\Enhed\',
+            'location': 'Viborg Kommune\\Forvalting\\Enhed\\',
             'level2orgunit: 'Beskæftigelse, Økonomi & Personale',
             'manager_sam': 'DMILL'
         }
@@ -615,7 +615,7 @@ class ADWriter(AD):
 
         logger.info('Sync compare: {}'.format(mismatch))
 
-        edit_user_string = template_create_user(
+        edit_user_string = template_powershell(
             cmd='Set-ADUser',
             context = {
                 "mo_values": mo_values,
@@ -680,7 +680,7 @@ class ADWriter(AD):
             logger.error('cpr already in use: {}'.format(mo_values['cpr']))
             raise CprNotNotUnique(mo_values['cpr'])
 
-        create_user_string = template_create_user(
+        create_user_string = template_powershell(
             context = {
                 "mo_values": mo_values,
                 "user_sam": sam_account_name,
