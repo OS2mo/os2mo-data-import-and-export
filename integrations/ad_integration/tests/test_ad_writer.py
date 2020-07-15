@@ -215,34 +215,48 @@ class TestADWriter(TestCase):
         ]
         self.assertEqual(common_ps, expected_ps)
 
+    def test_user_create(self):
+        """Test user create ps_script code.
 
-#    def test_create_user_without_manager(self):
-#        self.ad_writer.create_user(mo_uuid='0', create_manager=False)
-#        create_script = test_responses['ps_script']
-#        create_script = create_script.strip()
-#
-#        lines = create_script.split('\n')
-#        line = lines[4]  # First four lines are common to all scripts
-#
-#        expected_content = [
-#            'New-ADUser',
-#            '-Name "Martin Lee Gore - mlego"',
-#            '-Displayname "Martin Lee Gore"',
-#            '-GivenName "Martin Lee"',
-#            '-SurName "Martin Lee Gore"',
-#            '-SamAccountName "mlego"',
-#            '-EmployeeNumber "101"',
-#            '-Credential $usercredential',
-#            '"xAutoritativForvaltning"="Beskæftigelse, Økonomi og Personale"',
-#            '"xAutoritativOrg"="Kommune\\Forvalting\\Enhed\\"',
-#            ';"xSTSBrugerUUID"="7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0"',
-#            '"xAttrCPR"="1122334455"',
-#            '-Path "OU'
-#        ]
-#
-#        for content in expected_content:
-#            self.assertTrue(line.find(content) > -1)
-#
+        The common code is not tested.
+        """
+        # Assert no scripts were produced from initializing ad_writer itself
+        self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
+
+        # Expected outputs
+        num_expected_scripts = 3
+
+        # Run create user and fetch scripts
+        uuid = "invalid-provided-and-accepted-due-to-mocking"
+        self.ad_writer.create_user(mo_uuid=uuid, create_manager=False)
+        # Check that scripts were produced
+        self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
+
+        # Verify that the first 4 lines are identitical for all scripts
+        self._verify_identitical_common_code(num_expected_scripts)
+
+        # Check that the create user ps looks good
+        create_user_ps = self.ad_writer.scripts[2].split("\n")[5].strip()
+        expected_content = [
+            'New-ADUser',
+            '-Name "Martin Lee Gore - mleeg"',
+            '-Displayname "Martin Lee Gore"',
+            '-GivenName "Martin Lee"',
+            '-SurName "Gore"',
+            '-SamAccountName "mleeg"',
+            '-EmployeeNumber "101"',
+            '-Credential $usercredential',
+            '-OtherAttributes',
+            '"level2orgunit_field"="Ingen";',
+            '"org_field"="Kommune\\Forvalting\\Enhed\\";',
+            '"UserPrincipalName"="mleeg@epn_end";',
+            '"uuid_field"="7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0";',
+            '"cpr_field"="112233ad_cpr_sep4455"',
+            '-Path "search_base"',
+        ]
+        for content in expected_content:
+            self.assertIn(content, create_user_ps)
+
 #    def test_add_manager(self):
 #        user = self.ad_writer.read_ad_information_from_mo(uuid='0', read_manager=True)
 #
