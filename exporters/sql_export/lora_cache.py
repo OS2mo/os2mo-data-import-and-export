@@ -11,6 +11,7 @@ import requests
 import asyncio
 from aiohttp import ClientSession, TCPConnector
 from functools import wraps
+from itertools import chain
 
 from os2mo_helpers.mora_helpers import MoraHelper
 
@@ -149,7 +150,7 @@ class LoraCache(object):
 
         # Default, this can be overwritten in the lines below
         now = datetime.datetime.today()
-        complete_data = []
+        result_data = {}
 
         done = False
 
@@ -174,7 +175,7 @@ class LoraCache(object):
                     data_list = data['results'][0]
                 else:
                     data_list = []
-                return data_list
+                return [foerste_resultat, data_list]
 
         next_index = 0
         parallel = 10
@@ -187,11 +188,15 @@ class LoraCache(object):
                     tasks.append(task)
                     next_index += results_pr_request
                 data_lists = await asyncio.gather(*tasks)
-                for data_list in data_lists:
+                for data_tuple in data_lists:
+                    foerste_resultat, data_list = data_tuple
                     if len(data_list) == 0:
                         done = True
                         break
-                    complete_data = complete_data + data_list
+                    result_data[foerste_resultat] = data_list
+        complete_data = list(chain.from_iterable(
+            result_data[key] for key in sorted(result_data.keys())
+        ))
         logger.debug('LoRa læsning færdig. {} elementer, {}s'.format(
             len(complete_data), time.time() - t))
         return complete_data
