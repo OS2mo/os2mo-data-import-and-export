@@ -8,12 +8,41 @@ import datetime
 import dateutil
 import lora_utils
 import requests
+import asyncio
+from aiohttp import BasicAuth, ClientSession, TCPConnector
 
 from os2mo_helpers.mora_helpers import MoraHelper
 
 logger = logging.getLogger("LoraCache")
 
 DEFAULT_TIMEZONE = dateutil.tz.gettz('Europe/Copenhagen')
+
+
+def async_to_sync(f):
+    """Decorator to run an async function to completion.
+
+    Example:
+
+        @async_to_sync
+        async def sleepy(seconds):
+            await sleep(seconds)
+
+        sleepy(5)
+    
+    Args:
+        f (async function): The async function to wrap and make synchronous.
+
+    Returns:
+        :obj:`sync function`: The syncronhous function wrapping the async one.
+    """
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        loop = asyncio.get_event_loop()
+        future = asyncio.ensure_future(f(*args, **kwargs))
+        return loop.run_until_complete(future)
+
+    return wrapper
 
 
 class LoraCache(object):
@@ -105,7 +134,8 @@ class LoraCache(object):
                 from_date = to_date = None
         return from_date, to_date
 
-    def _perform_lora_lookup(self, url, params, skip_history=False):
+    @async_to_sync
+    async def _perform_lora_lookup(self, url, params, skip_history=False):
         """
         Exctract a complete set of objects in LoRa.
         :param url: The url that should be used to extract data.
@@ -115,37 +145,49 @@ class LoraCache(object):
         t = time.time()
         logger.debug('Start reading {}, params: {}, at t={}'.format(url, params, t))
         results_pr_request = 5000
-        params['list'] = 1
-        params['maximalantalresultater'] = results_pr_request
-        params['foersteresultat'] = 0
 
         # Default, this can be overwritten in the lines below
         now = datetime.datetime.today()
-        params['virkningFra'] = now.strftime('%Y-%m-%d') + " 00:00:00"
-        params['virkningTil'] = now.strftime('%Y-%m-%d') + " 00:00:01"
-        if self.full_history and not skip_history:
-            params['virkningTil'] = 'infinity'
-            if not self.skip_past:
-                params['virkningFra'] = '-infinity'
-
         complete_data = []
 
         done = False
-        while not done:
-            response = requests.get(self.settings['mox.base'] + url, params=params)
-            data = response.json()
-            results = data['results']
-            if results:
-                data_list = data['results'][0]
-            else:
-                data_list = []
-            complete_data = complete_data + data_list
-            if len(data_list) == 0:
-                done = True
-            else:
-                params['foersteresultat'] += results_pr_request
-                logger.debug('Mellemtid, {} læsninger: {}s'.format(
-                    params['foersteresultat'], time.time() - t))
+
+        def update_params(params):
+            params['list'] = 1
+            params['maximalantalresultater'] = results_pr_request
+            params['virkningFra'] = now.strftime('%Y-%m-%d') + " 00:00:00"
+            params['virkningTil'] = now.strftime('%Y-%m-%d') + " 00:00:01"
+            if self.full_history and not skip_history:
+                params['virkningTil'] = 'infinity'
+                if not self.skip_past:
+                    params['virkningFra'] = '-infinity'
+            return params
+
+        async def _fetch_from_mo(client, foersteresultat, params):
+            params = update_params(params)
+            params['foersteresultat'] = foersteresultat
+            async with client.get(self.settings['mox.base'] + url, params=params) as response:
+                data = await response.json()
+                results = data['results']
+                if results:
+                    data_list = data['results'][0]
+                else:
+                    data_list = []
+                complete_data = complete_data + data_list
+                if len(data_list) == 0:
+                    done = True
+
+        next_index = 0
+        parallel = 10
+        connector = TCPConnector(limit=parallel)
+        async with ClientSession(connector=connector) as client:
+            while not done:
+                tasks = []
+                for x in range(parallel):
+                    task = asyncio.ensure_future(_fetch_from_mo(client, next_index, params))
+                    tasks.append(task)
+                    next_index += results_pr_request
+                await asyncio.gather(*tasks)
         logger.debug('LoRa læsning færdig. {} elementer, {}s'.format(
             len(complete_data), time.time() - t))
         return complete_data
