@@ -10,6 +10,8 @@ import argparse
 import ad_logger
 import ad_templates
 
+from ad_template_engine import template_create_user
+
 from integrations.ad_integration.ad_exceptions import CprNotNotUnique
 from integrations.ad_integration.ad_exceptions import UserNotFoundException
 from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
@@ -680,18 +682,27 @@ class ADWriter(AD):
             logger.error('cpr already in use: {}'.format(mo_values['cpr']))
             raise CprNotNotUnique(mo_values['cpr'])
 
-        create_user_template = ad_templates.create_user_template
-        other_attributes = self._other_attributes(mo_values, sam_account_name,
-                                                  new_user=True)
-
-        create_user_string = create_user_template.format(
-            givenname=mo_values['name'][0],
-            surname=mo_values['name'][1],
-            sam_account_name=sam_account_name,
-            employment_number=mo_values['employment_number']
+        create_user_string = template_create_user(
+            context = {
+                "mo_values": mo_values,
+                "user_sam": sam_account_name,
+            },
+            settings = self.all_settings
         )
         create_user_string = self.remove_redundant(create_user_string)
-        create_user_string += other_attributes
+
+#        create_user_template = ad_templates.create_user_template
+#        other_attributes = self._other_attributes(mo_values, sam_account_name,
+#                                                  new_user=True)
+#
+#        create_user_string = create_user_template.format(
+#            givenname=mo_values['name'][0],
+#            surname=mo_values['name'][1],
+#            sam_account_name=sam_account_name,
+#            employment_number=mo_values['employment_number']
+#        )
+#        create_user_string = self.remove_redundant(create_user_string)
+#        create_user_string += other_attributes
 
         # Should this go to self._ps_boiler_plate()?
         server_string = ''
