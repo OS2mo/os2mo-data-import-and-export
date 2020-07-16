@@ -46,7 +46,7 @@ class LoraCache(object):
             try:
                 org_uuid = mh.read_organisation()
                 return org_uuid
-            except requests.exceptions.RequestException as e:
+            except (json.decoder.JSONDecodeError, requests.exceptions.RequestException) as e:
                 logger.error(e)
                 print(e)
                 time.sleep(5)

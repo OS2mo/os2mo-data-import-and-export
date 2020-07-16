@@ -4,6 +4,7 @@ import logging
 import pathlib
 import argparse
 import urllib.parse
+import datetime
 
 from sqlalchemy import create_engine, Index
 from sqlalchemy.orm import sessionmaker
@@ -14,7 +15,8 @@ from exporters.sql_export.sql_table_defs import (
     Facet, Klasse,
     Bruger, Enhed,
     ItSystem, LederAnsvar, KLE,
-    Adresse, Engagement, Rolle, Tilknytning, Orlov, ItForbindelse, Leder
+    Adresse, Engagement, Rolle, Tilknytning, Orlov, ItForbindelse, Leder,
+    Kvittering
 )
 
 LOG_LEVEL = logging.DEBUG
@@ -75,6 +77,10 @@ class SqlExport(object):
         self.engine = create_engine(db_string, **engine_settings)
 
     def perform_export(self, resolve_dar=True, use_pickle=False):
+        def timestamp():
+            return datetime.datetime.now()
+
+        query_time = timestamp()
         if self.historic:
             self.lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
             self.lc.populate_cache(dry_run=use_pickle)
@@ -83,6 +89,8 @@ class SqlExport(object):
             self.lc.populate_cache(dry_run=use_pickle)
             self.lc.calculate_derived_unit_data()
             self.lc.calculate_primary_engagements()
+
+        start_delivery_time = timestamp()
 
         Base.metadata.drop_all(self.engine)
         Base.metadata.create_all(self.engine)
@@ -97,6 +105,9 @@ class SqlExport(object):
         self._add_managers()
         self._add_it_systems()
         self._add_kles()
+
+        end_delivery_time = timestamp()
+        self._add_receipt(query_time, start_delivery_time, end_delivery_time)
 
     def at_exit(self):
         logger.info('*SQL export ended*')
@@ -355,6 +366,20 @@ class SqlExport(object):
         self.session.commit()
         if output:
             for result in self.engine.execute('select * from kle limit 10'):
+                print(result.items())
+
+    def _add_receipt(self, query_time, start_time, end_time, output=False):
+        logger.info('Add Receipt')
+        print('Add Receipt')
+        sql_kvittering = Kvittering(
+            query_tid=query_time,
+            start_levering_tid=start_time,
+            slut_levering_tid=end_time,
+        )
+        self.session.add(sql_kvittering)
+        self.session.commit()
+        if output:
+            for result in self.engine.execute('select * from kvittering limit 10'):
                 print(result.items())
 
     def _add_managers(self, output=False):

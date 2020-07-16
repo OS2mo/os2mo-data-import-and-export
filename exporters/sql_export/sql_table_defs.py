@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Boolean, Integer, String
+from sqlalchemy import Column, ForeignKey, Boolean, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
@@ -195,3 +195,12 @@ class KLE(Base):
     kle_nummer_titel = Column(String(250), nullable=False)
     startdato = Column(String(10))
     slutdato = Column(String(10))
+
+
+class Kvittering(Base):
+    __tablename__ = 'kvittering'
+
+    id = Column(Integer, nullable=False, primary_key=True)
+    query_tid = Column(DateTime)
+    start_levering_tid = Column(DateTime)
+    slut_levering_tid = Column(DateTime)
