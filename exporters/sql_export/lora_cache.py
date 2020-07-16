@@ -38,14 +38,21 @@ class LoraCache(object):
 
         self.full_history = full_history
         self.skip_past = skip_past
+        self.org_uuid = self._read_org_uuid()
 
-        self.mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
-        try:
-            self.org_uuid = self.mh.read_organisation()
-        except requests.exceptions.RequestException as e:
-            logger.error(e)
-            print(e)
-            exit()
+    def _read_org_uuid(self):
+        mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
+        for attempt in range(0, 10):
+            try:
+                org_uuid = mh.read_organisation()
+                return org_uuid
+            except requests.exceptions.RequestException as e:
+                logger.error(e)
+                print(e)
+                time.sleep(5)
+                continue
+        # Unable to read org_uuid, must abort
+        exit()
 
     def _get_effects(self, lora_object, relevant):
         effects = lora_utils.get_effects(
