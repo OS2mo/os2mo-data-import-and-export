@@ -163,9 +163,10 @@ class ADParameterReader(AD):
             logger.debug('Read time: {}'.format(time.time() - t))
 
     def read_user(self, user=None, cpr=None, cache_only=False):
-        """
-        Read all properties of an AD user. The user can be retrived either by cpr
-        or by AD user name.
+        """Read all properties of an AD user.
+
+        The user can be retrived either by cpr or by AD user name.
+
         :param user: The AD username to retrive.
         :param cpr: cpr number of the user to retrive.
         :return: All properties listed in AD for the user.
