@@ -30,8 +30,8 @@ ASPECT_MAP = {
 }
 
 
-class KLEAnnotationImporter(ABC):
-    """Encapsulate KLE annotation for an organisation from an external source."""
+class KLEAnnotationIntegration(ABC):
+    """Import and export of KLE annotation from or to an external source."""
 
     # XXX: This uses a simple inheritance based pattern. We might want to use
     # something like a Strategy here. However, maybe YAGNI.
@@ -47,14 +47,6 @@ class KLEAnnotationImporter(ABC):
             token=os.environ.get("SAML_TOKEN")
         )
         self.org_uuid = self._get_mo_org_uuid()
-
-    @abstractmethod
-    def get_kle_from_source(self, kle_numbers: list) -> list:
-        pass
-
-    @abstractmethod
-    def get_org_unit_info_from_source(self, org_units_uuids: list) -> list:
-        pass
 
     def _get_mora_session(self, token) -> requests.Session:
         s = requests.Session()
@@ -113,6 +105,47 @@ class KLEAnnotationImporter(ABC):
 
         return r.json()
 
+    @abstractmethod
+    def run(self):
+        """Implement this, normally to execute import or export."""
+        pass
+
+
+class KLECSVExporter(KLEAnnotationIntegration):
+    """Export KLE annotation as CSV files bundled in a spreadsheet."""
+
+    def run(self):
+        """Export all org units with annotation."""
+
+        org_unit_uuids = self.get_all_org_units_from_mo()
+
+        for uuid in org_unit_uuids:
+            # TODO: Print properly to CSV format.
+            # This is the "Org" sheet.
+            org_unit = self.get_org_unit_from_mo(uuid)
+            print(uuid, org_unit["name"])
+
+        # TODO: Extract info corresponding to the "Ansvarlig" sheet
+        # TODO: ...
+
+        # TODO: Extract info corresponding to the "Udfoer" sheet
+        # TODO: ...
+
+        # TODO: Extract info corresponding to the "Indsigt" sheet
+        # TODO: ...
+
+
+class KLEAnnotationImporter(KLEAnnotationIntegration, ABC):
+    """Import KLE annotation from external source."""
+
+    @abstractmethod
+    def get_kle_from_source(self, kle_numbers: list) -> list:
+        pass
+
+    @abstractmethod
+    def get_org_unit_info_from_source(self, org_units_uuids: list) -> list:
+        pass
+
     def add_indsigt_and_udfoerer(self, org_unit_map: dict, org_unit_info: list):
         """Add 'Indsigt' and 'Udførende' to the org unit map"""
         logger.info('Adding "Indsigt" and "Udførende"')
@@ -120,8 +153,6 @@ class KLEAnnotationImporter(ABC):
             org_unit_uuid, info = item
             org_unit = org_unit_map.setdefault(org_unit_uuid, {})
             for key in info["PERFORMING"]:
-                # TODO: Is this setdefault not what collections.defaultdict is
-                # for?
                 values = org_unit.setdefault(key, set())
                 values.add(Aspects.Udfoerende)
             for key in info["INTEREST"]:
@@ -203,7 +234,7 @@ class KLEAnnotationImporter(ABC):
         r.raise_for_status()
 
 
-class CSVImporter(KLEAnnotationImporter):
+class KLECSVImporter(KLEAnnotationImporter):
 
     pass
 
