@@ -190,6 +190,50 @@ class AD(object):
         """
         Read all properties of an AD user. The user can be retrived either by cpr
         or by AD user name.
+
+        Example:
+
+            [
+                {
+                    'ObjectGUID': '7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0',
+                    'SID': {
+                        'AccountDomainSid': {
+                            'AccountDomainSid': 'S-x-x-xx-xxxxxxxxxx-xxxxxxxxxx-xxxxxxxxxx',
+                            'BinaryLength': 24,
+                            'Value': 'S-x-x-xx-xxxxxxxxxx-xxxxxxxxxx-xxxxxxxxxx'
+                        },
+                        'BinaryLength': 28,
+                        'Value': 'S-x-x-xx-xxxxxxxxxx-xxxxxxxxxx-xxxxxxxxxx-xxxxx'
+                    },
+                    'PropertyCount': 11,
+                    'PropertyNames': [
+                        'ObjectGUID',
+                        'SID',
+                        'DistinguishedName',
+                        'Enabled',
+                        'GivenName',
+                        'Name',
+                        'ObjectClass',
+                        'SamAccountName',
+                        'Surname',
+                        'UserPrincipalName'
+                        'extensionAttribute1',
+                    ],
+                    'DistinguishedName': 'CN=Martin Lee Gore,OU=Enhed,OU=Musik,DC=lee,DC=lee'
+                    'Enabled': True,
+                    'GivenName': 'Martin Lee',
+                    'Name': 'Martin Lee Gore',
+                    'ObjectClass': 'user',
+                    'SamAccountName': 'mlego',
+                    'Surname': 'Gore',
+                    'UserPrincipalName': 'martinleegore@magenta.dk',
+                    'extensionAttribute1': '1122334455',
+                    'AddedProperties': [],
+                    'ModifiedProperties': [],
+                    'RemovedProperties': [],
+                }
+            ]
+
         :param user: The SamAccountName to retrive.
         :param cpr: cpr number of the user to retrive.
         :param server: Add an explcit server to the query. Mostly needed to check
