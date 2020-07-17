@@ -319,9 +319,14 @@ class LoraCache(object):
                 if 'tilknyttedeenheder' in relationer:
                     unit_uuid = relationer['tilknyttedeenheder'][0]['uuid']
                     user_uuid = None
-                else:
+                elif 'tilknyttedebrugere' in relationer and len(relationer['tilknyttedebrugere']) > 0:
                     user_uuid = relationer['tilknyttedebrugere'][0]['uuid']
                     unit_uuid = None
+                else:
+                    import pprint
+                    print(uuid, "has no relations")
+                    pprint.pprint(address)
+                    continue
 
                 dar_uuid = None
                 value_raw = relationer['adresser'][0]['urn']
