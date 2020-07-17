@@ -198,11 +198,12 @@ class ADParameterReader(AD):
         if cache_only:
             return {}
 
-        # Poulate self.results:
+        # Populate self.results:
         self.uncached_read_user(user=user, cpr=cpr)
 
         logger.debug('Returned info for {}: {}'.format(
-            dict_key, self.results.get(dict_key, {})))
+            dict_key, self.results.get(dict_key, {}))
+        )
         return self.results.get(dict_key, {})
 
 
