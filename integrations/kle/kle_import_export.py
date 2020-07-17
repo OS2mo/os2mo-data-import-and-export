@@ -39,7 +39,7 @@ class KLEAnnotationImporter(ABC):
     def __init__(self):
         cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
         if not cfg_file.is_file():
-            raise Exception("No setting file")
+            raise Exception("No settings file")
         self.settings = json.loads(cfg_file.read_text())
 
         self.mora_base = self.settings.get("mora.base")
@@ -94,7 +94,7 @@ class KLEAnnotationImporter(ABC):
         logger.info("Found {} items".format(len(items)))
         return items
 
-    def get_org_units_from_mo(self) -> list:
+    def get_all_org_units_from_mo(self) -> list:
         """Get a list of all units from OS2mo"""
         logger.info("Fetching all org units from OS2mo")
         url = "{}/service/o/{}/ou".format(self.mora_base, self.org_uuid)
@@ -105,6 +105,15 @@ class KLEAnnotationImporter(ABC):
         logger.info("Found {} units".format(len(units)))
         return units
 
+    def get_org_unit_from_mo(self, uuid) -> dict:
+        url = f"{self.mora_base}/service/ou/{uuid}/".format(
+            self.mora_base, self.org_uuid, uuid
+        )
+        r = requests.get(url)
+        r.raise_for_status()
+
+        return r.json()
+
     def add_indsigt_and_udfoerer(self, org_unit_map: dict, org_unit_info: list):
         """Add 'Indsigt' and 'Udførende' to the org unit map"""
         logger.info('Adding "Indsigt" and "Udførende"')
@@ -112,6 +121,8 @@ class KLEAnnotationImporter(ABC):
             org_unit_uuid, info = item
             org_unit = org_unit_map.setdefault(org_unit_uuid, {})
             for key in info["PERFORMING"]:
+                # TODO: Is this setdefault not what collections.defaultdict is
+                # for?
                 values = org_unit.setdefault(key, set())
                 values.add(Aspects.Udfoerende)
             for key in info["INTEREST"]:
@@ -173,7 +184,7 @@ class KLEAnnotationImporter(ABC):
         self.add_ansvarlig(org_unit_map, kle_info)
 
         # Indsigt og Udfører
-        org_units = self.get_org_units_from_mo()
+        org_units = self.get_all_org_units_from_mo()
         org_unit_info = self.get_org_unit_info_from_source(org_units)
         self.add_indsigt_and_udfoerer(org_unit_map, org_unit_info)
 
@@ -253,7 +264,7 @@ class OpgavefordelerImporter(KLEAnnotationImporter):
         Get all org-unit info from OS2opgavefordeler
 
         This will give information about which KLE-numbers the unit has a
-        'Udførende' and 'Indsigt' relationship with
+        'Udførende' and 'Indsigt' relationship with.
 
         Empty results are filtered
         """
