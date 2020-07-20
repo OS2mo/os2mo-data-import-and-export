@@ -1,13 +1,13 @@
-import time
 import random
+import time
 from pathlib import Path
 
 from fixture_generator import dummy_data_creator
 
-base = '../..//os2mo_data_import/fixture_generator/navne/'
-fornavne = dummy_data_creator._load_names(Path(base + 'fornavne.txt'))
-mellemnavne = dummy_data_creator._load_names(Path(base + 'mellemnavne.txt'))
-efternavne = dummy_data_creator._load_names(Path(base + 'efternavne.txt'))
+base = "../..//os2mo_data_import/fixture_generator/navne/"
+fornavne = dummy_data_creator._load_names(Path(base + "fornavne.txt"))
+mellemnavne = dummy_data_creator._load_names(Path(base + "mellemnavne.txt"))
+efternavne = dummy_data_creator._load_names(Path(base + "efternavne.txt"))
 
 
 def _pick_name_from_list(names):
@@ -37,7 +37,7 @@ def create_name():
     return names
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     t = time.time()
     for i in range(0, 1000):
         create_name()

@@ -62,3 +62,40 @@ class LazyDict(Mapping):
     def __len__(self):
         self._run_initializer_if_required()
         return len(self._raw_dict)
+
+
+class AttrDict(dict):
+    """Enable dot.notation access for a dict object.
+
+    Example:
+        script_result = AttrDict({"exit_code": 0})
+        self.assertEqual(script_result.exit_code, 0)
+    """
+
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
+    __delattr__ = dict.__delitem__
+
+
+def recursive_dict_update(original, updates):
+    """Recursively update 'original' with keys from 'updates'.
+
+    Example:
+        original = {'alfa': {'beta': 2, 'charlie': 3}},
+        updates = {'alfa': {'beta': 4}}
+        # Non recursive update
+        updated = {**original, **updates}
+        self.assertEqual(updated, {'alfa': {'beta': 4}})
+        # Recursive update
+        r_updated = recursive_dict_update(original, updates)
+        self.assertEqual(r_updated, {'alfa': {'beta': 4, 'charlie': 3}})
+
+    Returns:
+        dict: modified 'original'
+    """
+    for key, value in updates.items():
+        if isinstance(value, Mapping):
+            original[key] = recursive_dict_update(original.get(key, {}), value)
+        else:
+            original[key] = value
+    return original

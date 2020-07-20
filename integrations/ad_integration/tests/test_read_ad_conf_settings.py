@@ -11,5 +11,5 @@ import read_ad_conf_settings
 class TestReadADConfSettings(unittest.TestCase):
     def test_lazy_dict_initializer_is_called(self):
         with self.assertRaises(Exception) as context:
-            read_ad_conf_settings.SETTINGS.get('invalid_key')
+            read_ad_conf_settings.SETTINGS.get("invalid_key")
         self.assertTrue("No setting file" in str(context.exception))

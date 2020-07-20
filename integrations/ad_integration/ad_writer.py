@@ -34,13 +34,11 @@ def _random_password(length=12):
 
 
 class ADWriter(AD):
-    def __init__(self, lc=None, lc_historic=None):
-        super().__init__()
+    def __init__(self, lc=None, lc_historic=None, **kwargs):
+        super().__init__(**kwargs)
+        self.opts = dict(**kwargs)
 
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = self.all_settings
         # self.pet = self.settings['integrations.ad.write.primary_types']
 
         self.lc = lc
@@ -48,9 +46,12 @@ class ADWriter(AD):
 
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
+        self._init_name_creator()
+
+    def _init_name_creator(self):
         self.name_creator = CreateUserNames(occupied_names=set())
         logger.info('Reading occupied names')
-        self.name_creator.populate_occupied_names()
+        self.name_creator.populate_occupied_names(**self.opts)
         logger.info('Done reading occupied names')
 
     def _get_write_setting(self, school=False):

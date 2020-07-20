@@ -14,20 +14,49 @@ logger = logging.getLogger('AdCommon')
 ENCODING = 'cp850'
 
 
+def ad_minify(text):
+    text = text.replace('\n', '')
+    text = text.replace('\r', '')
+    while text.find('  ') > -1:
+        text = text.replace('  ', ' ')
+    return text
+
+
 class AD(object):
-    def __init__(self):
-        self.all_settings = read_ad_conf_settings.read_settings()
+    def __init__(self, all_settings=None):
+        self.all_settings = all_settings
+        if self.all_settings is None:
+            self.all_settings = read_ad_conf_settings.read_settings()
+        self.session = self._create_session()
+        self.retry_exceptions = self._get_retry_exceptions()
+        self.results = {}
+
+    def _get_retry_exceptions(self):
+        """Tuple of exceptions which should trigger retrying create_session."""
+        return (WinRMTransportError,)
+
+    def _create_session(self):
+        """Method to create a session for running powershell scripts.
+
+        The returned object should have a run_ps method, which consumes a
+        powershell script, and returns a status object.
+
+        The status object should have a status_code, std_out and std_err
+        attribute, containing the result from executing the powershell script.
+
+        Returns:
+            winrm.Session: if configured, otherwise None
+        """
         if self.all_settings['global']['winrm_host']:
-            self.session = Session(
+            session = Session(
                 'http://{}:5985/wsman'.format(
                     self.all_settings['global']['winrm_host']
                 ),
                 transport='kerberos',
                 auth=(None, None)
             )
-        else:
-            self.session = None
-        self.results = {}
+            return session
+        return None
 
     def _run_ps_script(self, ps_script):
         """
@@ -47,18 +76,12 @@ class AD(object):
             try:
                 r = self.session.run_ps(ps_script)
                 try_again = False
-            except WinRMTransportError:
+            except self.retry_exceptions:
                 logger.error('AD read error: {}'.format(retries))
                 time.sleep(5)
                 retries += 1
                 # The existing session is now dead, create a new.
-                self.session = Session(
-                    'http://{}:5985/wsman'.format(
-                        self.all_settings['global']['winrm_host']
-                    ),
-                    transport='kerberos',
-                    auth=(None, None)
-                )
+                self.session = self._create_session()
 
         # TODO: We will need better error handling than this.
         assert(retries < 10)
@@ -111,11 +134,7 @@ class AD(object):
         return boiler_plate
 
     def remove_redundant(self, text):
-        text = text.replace('\n', '')
-        text = text.replace('\r', '')
-        while text.find('  ') > -1:
-            text = text.replace('  ', ' ')
-        return text
+        return ad_minify(text)
 
     def _build_ps(self, ps_script, school, format_rules):
         """
