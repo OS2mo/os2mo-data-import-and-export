@@ -120,9 +120,9 @@ class KleImporter(object):
             overklasse=overklasse,
             ansvarlig=self.org_uuid)
 
-        return self._insert_lora_klasse(payload, uuid)
+        return self.get_or_create_lora_klasse(payload, uuid)
 
-    def _insert_lora_klasse(self, payload, uuid):
+    def get_or_create_lora_klasse(self, payload, uuid):
         url = '/klassifikation/klasse/{}'
         full_url = self.mox_base + url.format(uuid)
 
@@ -314,7 +314,7 @@ class KleImporter(object):
                 omfang=scope,
                 dato="1910-01-01 00:00:00",
                 ansvarlig=self.org_uuid)
-            self._insert_lora_klasse(payload, uuid)
+            self.get_or_create_lora_klasse(payload, uuid)
 
     def import_kle(self):
         self.set_mo_org_uuid()
