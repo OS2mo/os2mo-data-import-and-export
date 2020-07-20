@@ -22,14 +22,6 @@ def ad_minify(text):
     return text
 
 
-def ad_minify(text):
-    text = text.replace('\n', '')
-    text = text.replace('\r', '')
-    while text.find('  ') > -1:
-        text = text.replace('  ', ' ')
-    return text
-
-
 class AD(object):
     def __init__(self, all_settings=None):
         self.all_settings = all_settings
