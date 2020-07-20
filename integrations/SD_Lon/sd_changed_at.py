@@ -491,6 +491,7 @@ class ChangeAtSD(object):
             'EmploymentIdentifier': EmploymentIdentifier,
             'EffectiveDate': EffectiveDate.strftime('%d.%m.%Y'),
             'StatusActiveIndicator': 'true',
+            'StatusPassiveIndicator': 'true',
             'DepartmentIndicator': 'true',
             'EmploymentStatusIndicator': 'true',
             'ProfessionIndicator': 'true',
@@ -507,38 +508,47 @@ class ChangeAtSD(object):
         Create a new engagement
         AD integration handled in check for primary engagement.
         """
+        # beware - name engagement_info used for engagement in engagement_components
         user_key, engagement_info = self.engagement_components(engagement)
-        if not len(engagement_info['professions']):
+        if not engagement_info['departments'] or not engagement_info["professions"]:
 
             # I am looking into the possibility that creating AND finishing
             # an engagement in the past gives the problem that the engagement
-            # is reported to this function without position-info
+            # is reported to this function without the components needed to create
+            # the engagement in os2mo
 
-            # use a local engagement copy so we don't spill to the rest of the program
+            # to fix the problem we get the information for the employment at the
+            # activation date
+
+            # use a local engagement copy so we don't spill into the rest of the program
             engagement = dict(engagement)
 
-            full_info = self.read_employment_at(
+            activation_date_info = self.read_employment_at(
                 engagement["EmploymentIdentifier"],
                 datetime.datetime.strptime(status["ActivationDate"], "%Y-%m-%d").date()
             )
 
             # at least check the cpr
 
-            if cpr != full_info["PersonCivilRegistrationIdentifier"]:
+            if cpr != activation_date_info["PersonCivilRegistrationIdentifier"]:
                 logger.error("wrong cpr %r for position %r at date %r",
-                    full_info["PersonCivilRegistrationIdentifier"],
+                    activation_date_info["PersonCivilRegistrationIdentifier"],
                     engagement["EmploymentIdentifier"],
                     status["ActivationDate"]
                 )
                 raise ValueError("unexpected cpr, see log")
 
-            full_info_employment = full_info["Employment"]
-            full_info_employment.pop("EmploymentStatus") # we have that already
+            activation_date_engagement = activation_date_info["Employment"]
+            _, activation_date_engagement_info = self.engagement_components(
+                    activation_date_engagement
+            )
 
-            # enrich engagement with missing fields
+            # fill out the missing values
+            if not engagement_info['departments']:
+                engagement_info['departments'] = activation_date_engagement_info["departments"]
 
-            engagement.update(full_info_employment)
-            user_key, engagement_info = self.engagement_components(engagement)
+            if not engagement_info['professions']:
+                engagement_info["professions"] = activation_date_engagement_info["professions"]
 
         job_position = engagement_info['professions'][0]['JobPositionIdentifier']
 
