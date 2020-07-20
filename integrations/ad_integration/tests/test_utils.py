@@ -279,7 +279,7 @@ class TestADMixin(object):
             'ModifiedProperties': [],
             'RemovedProperties': [],
         }
-        transformer_func = person_transformer or self._no_transformation
+        transformer_func = ad_transformer or self._no_transformation
         return transformer_func(default_ad_person, *args, **kwargs)
 
     def _prepare_settings(self, settings_transformer=None):
@@ -312,9 +312,9 @@ class TestADMixin(object):
             "integrations.ad.write.level2orgunit_type": "level2orgunit_type",
             "integrations.ad.cpr_separator": "ad_cpr_sep",
             "integrations.ad.ad_mo_sync_mapping": {},
-            "address.visibility.public": "",
-            "address.visibility.internal": "",
-            "address.visibility.secret": "",
+            "address.visibility.public": "address_visibility_public_uuid",
+            "address.visibility.internal": "address_visibility_internal_uuid",
+            "address.visibility.secret": "address_visibility_secret_uuid",
         }
         transformer_func = settings_transformer or self._no_transformation
         return transformer_func(default_settings)
@@ -333,24 +333,70 @@ from ad_sync import AdMoSync
 
 class AdMoSyncTestSubclass(AdMoSync):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, mo_values_func, ad_values_func, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.mo_values = mo_values_func()
+        self.ad_values = ad_values_func()
+
+        self.mo_post_calls = []
 
     def _setup_mora_helper(self):
+        def _mo_lookup(uuid, url):
+            if url == 'e/{}/details/address':
+                return []
+            else:
+                return {
+                    "items": [self.mo_values]
+                }
+
+        def _mo_post(url, payload, force=True):
+            # Register the call, so we can test against it
+            self.mo_post_calls.append(
+                {
+                    'url': url,
+                    'payload': payload,
+                    'force': force
+                }
+            )
+            print(self.mo_post_calls)
+            # response.text --> "OK"
+            return AttrDict({
+                'text': 'OK',
+            })
+
         return AttrDict({
-            "read_organisation": lambda: 0,
-            "read_classes_in_facet": lambda x: [[{"uuid":""}]],
-            "_mo_lookup": lambda x, y: {"items": []},
+            "read_organisation": lambda: "org_uuid",
+            "read_classes_in_facet": lambda x: [
+                [
+                    {"uuid": "address_visibility_public_uuid"},
+                    {"uuid": "address_visibility_internal_uuid"},
+                    {"uuid": "address_visibility_secret_uuid"},
+                ]
+            ],
+            "_mo_lookup": _mo_lookup,
+            "_mo_post": _mo_post,
         })
 
     def _setup_ad_reader_and_cache_all(self):
-        pass
+        def read_user(cpr, cache_only):
+            # We only support one person in our mocking
+            if cpr != self.mo_values['cpr']:
+                raise ValueError("Not found")
+            # If we got that one person, return it
+            return self.ad_values
+
+        self.ad_reader = AttrDict({
+            "read_user": read_user,
+        })
 
 
 class TestADMoSyncMixin(TestADMixin):
-    def _setup_admosync(self, transform_settings=None, transform_mo_values=None):
+    def _setup_admosync(self, transform_settings=None, transform_mo_values=None, transform_ad_values=None):
         self.settings = self._prepare_settings(transform_settings)
         self.mo_values_func = partial(self._prepare_mo_values, transform_mo_values)
+        self.ad_values_func = partial(self._prepare_get_from_ad, transform_ad_values)
         self.ad_sync = AdMoSyncTestSubclass(
-            all_settings=self.settings
+            all_settings=self.settings,
+            mo_values_func=self.mo_values_func,
+            ad_values_func=self.ad_values_func,
         )
