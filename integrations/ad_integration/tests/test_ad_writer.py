@@ -19,6 +19,13 @@ def dict_modifier(updates):
     return partial(recursive_dict_update, updates=updates)
 
 
+def mo_modifier(updates):
+    def mo_mod(mo_values, uuid, read_manager):
+        return recursive_dict_update(mo_values, updates=updates)
+
+    return mo_mod
+
+
 class ADWriterTestSubclass(ADWriter):
     """Testing subclass of ADWriter."""
 
@@ -49,9 +56,7 @@ class ADWriterTestSubclass(ADWriter):
             # Add our script to the list
             self.scripts.append(ps_script)
             # Fake the WinRM run_ps return type
-            return AttrDict(
-                {"status_code": 0, "std_out": b"", "std_err": b"",}
-            )
+            return AttrDict({"status_code": 0, "std_out": b"", "std_err": b"",})
 
         # Fake the WinRM session object
         return AttrDict({"run_ps": run_ps,})
@@ -64,9 +69,7 @@ class ADWriterTestSubclass(ADWriter):
         """
         return []
 
-    def read_ad_information_from_mo(
-        self, uuid, read_manager=True, ad_dump=None
-    ):
+    def read_ad_information_from_mo(self, uuid, read_manager=True, ad_dump=None):
         """Mocked to return static values.
 
         This method would normally connect to MO and fetch the required
@@ -113,7 +116,7 @@ class TestADWriter(TestCase):
     def setUp(self):
         self._setup_adwriter()
 
-    def _setup_adwriter(self, transform_settings=None):
+    def _setup_adwriter(self, transform_settings=None, transform_mo_values=None):
         if transform_settings is None:
             transform_settings = lambda settings: settings
         default_settings = {
@@ -138,7 +141,9 @@ class TestADWriter(TestCase):
             "integrations.ad.cpr_separator": "ad_cpr_sep",
         }
         self.settings = transform_settings(default_settings)
-        self.ad_writer = ADWriterTestSubclass(all_settings=self.settings)
+        self.ad_writer = ADWriterTestSubclass(
+            all_settings=self.settings, transform_mo_values=transform_mo_values
+        )
 
     def _verify_identitical_common_code(
         self, num_expected_scripts, num_common_lines=5
@@ -215,34 +220,216 @@ class TestADWriter(TestCase):
         ]
         self.assertEqual(common_ps, expected_ps)
 
+    # Jinja to determine if mo_values['employment_number'] is a prime number
+    is_prime_jinja = """
+        {#- Aliased to n for readability -#}
+        {%- set n = mo_values['employment_number'] | int -%}
+        {#- Negative numbers, zero and one are not primes -#}
+        {%- if n <= 1 -%}
+            false
+        {%- else -%}
+            {#- Using vars as dict allows settings by reference -#}
+            {%- set vars = {'is_prime': True} -%}
 
-#    def test_create_user_without_manager(self):
-#        self.ad_writer.create_user(mo_uuid='0', create_manager=False)
-#        create_script = test_responses['ps_script']
-#        create_script = create_script.strip()
-#
-#        lines = create_script.split('\n')
-#        line = lines[4]  # First four lines are common to all scripts
-#
-#        expected_content = [
-#            'New-ADUser',
-#            '-Name "Martin Lee Gore - mlego"',
-#            '-Displayname "Martin Lee Gore"',
-#            '-GivenName "Martin Lee"',
-#            '-SurName "Martin Lee Gore"',
-#            '-SamAccountName "mlego"',
-#            '-EmployeeNumber "101"',
-#            '-Credential $usercredential',
-#            '"xAutoritativForvaltning"="Beskæftigelse, Økonomi og Personale"',
-#            '"xAutoritativOrg"="Kommune\\Forvalting\\Enhed\\"',
-#            ';"xSTSBrugerUUID"="7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0"',
-#            '"xAttrCPR"="1122334455"',
-#            '-Path "OU'
-#        ]
-#
-#        for content in expected_content:
-#            self.assertTrue(line.find(content) > -1)
-#
+            {#- Really we only need to check until sqrt(n) -#}
+            {%- for i in range(2,n) -%}
+                {#- We cannot use percentage for modulus -#}
+                {%- set quotient = (n/i) | int -%}
+                {%- set remainder = n - i*quotient -%}
+
+                {#- If it divides without remainder, it is not prime -#}
+                {%- if remainder == 0 -%}
+                    {#- Update is_prime by reference -#}
+                    {%- set _ = vars.update({'is_prime': False}) -%}
+                {%- endif -%}
+            {%- endfor -%}
+
+            {#- Print whether we found a prime or not -#}
+            {%- if vars['is_prime'] -%}
+                true
+            {%- else -%}
+                false
+            {%- endif -%}
+        {%- endif -%}
+    """
+
+    @parameterized.expand(
+        [
+            # Test without any changes
+            [dict_modifier({}), None, ""],
+            # Test with new employment number
+            [dict_modifier({}), mo_modifier({"employment_number": "42"}), ""],
+            [dict_modifier({}), mo_modifier({"employment_number": "100"}), ""],
+            # Test with added template_field
+            # Simple field lookup
+            [
+                dict_modifier(
+                    {
+                        "integrations.ad_writer.template_to_ad_fields": {
+                            "unit_user_key": "{{ mo_values['unit_user_key'] }}"
+                        }
+                    }
+                ),
+                None,
+                '"unit_user_key"="Musik";',
+            ],
+            # Field lookup and processing
+            [
+                dict_modifier(
+                    {
+                        "integrations.ad_writer.template_to_ad_fields": {
+                            "street_number": """
+                                {%- set street = mo_values['unit_streetname'] -%}
+                                {{ street.split(' ')[-1] }}
+                                {#- Comment used to trim whitespace -#}
+                            """
+                        }
+                    }
+                ),
+                None,
+                '"street_number"="451";',
+            ],
+            # Test if employment number is prime
+            # 101 is prime
+            [
+                dict_modifier(
+                    {
+                        "integrations.ad_writer.template_to_ad_fields": {
+                            "employment_number_is_prime": is_prime_jinja
+                        }
+                    }
+                ),
+                None,
+                '"employment_number_is_prime"="true";',
+            ],
+            # 100 is not prime
+            [
+                dict_modifier(
+                    {
+                        "integrations.ad_writer.template_to_ad_fields": {
+                            "employment_number_is_prime": is_prime_jinja
+                        }
+                    }
+                ),
+                mo_modifier({"employment_number": "100"}),
+                '"employment_number_is_prime"="false";',
+            ],
+            # 263 is prime
+            [
+                dict_modifier(
+                    {
+                        "integrations.ad_writer.template_to_ad_fields": {
+                            "employment_number_is_prime": is_prime_jinja
+                        }
+                    }
+                ),
+                mo_modifier({"employment_number": "263"}),
+                '"employment_number_is_prime"="true";',
+            ],
+            # 267 is not prime
+            [
+                dict_modifier(
+                    {
+                        "integrations.ad_writer.template_to_ad_fields": {
+                            "employment_number_is_prime": is_prime_jinja
+                        }
+                    }
+                ),
+                mo_modifier({"employment_number": "267"}),
+                '"employment_number_is_prime"="false";',
+            ],
+        ]
+    )
+    def test_user_create_custom_fields(
+        self, settings_transformer, mo_transformer, expected
+    ):
+        """Test user create ps_script code.
+
+        The common code is not tested.
+        """
+        self._setup_adwriter(settings_transformer, mo_transformer)
+        # Assert no scripts were produced from initializing ad_writer itself
+        self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
+
+        # Expected outputs
+        num_expected_scripts = 3
+
+        # Run create user and fetch scripts
+        uuid = "invalid-provided-and-accepted-due-to-mocking"
+        self.ad_writer.create_user(mo_uuid=uuid, create_manager=False)
+        # Check that scripts were produced
+        self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
+
+        # Verify that the first 4 lines are identitical for all scripts
+        self._verify_identitical_common_code(num_expected_scripts)
+
+        # Check that the create user ps looks good
+        create_user_ps = self.ad_writer.scripts[2].split("\n")[5].strip()
+
+        mo_values = self.ad_writer.read_ad_information_from_mo(uuid)
+        expected_content = [
+            "New-ADUser",
+            '-Name "Martin Lee Gore - mleeg"',
+            '-Displayname "Martin Lee Gore"',
+            '-GivenName "Martin Lee"',
+            '-SurName "Gore"',
+            '-SamAccountName "mleeg"',
+            '-EmployeeNumber "' + mo_values["employment_number"] + '"',
+            '-Credential "$usercredential"',
+            '-UserPrincipalName "mleeg@epn_end"',
+            "-OtherAttributes",
+            '"level2orgunit_field"="Ingen";',
+            '"org_field"="Kommune\\Forvalting\\Enhed\\";',
+            '"uuid_field"="7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0";',
+            '"cpr_field"="112233ad_cpr_sep4455"',
+            '-Path "search_base"',
+            expected,
+        ]
+        for content in expected_content:
+            self.assertIn(content, create_user_ps)
+
+    def test_user_edit(self):
+        """Test user edit ps_script code.
+
+        The common code is not tested.
+        """
+        # Assert no scripts were produced from initializing ad_writer itself
+        self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
+
+        # Expected outputs
+        num_expected_scripts = 1
+
+        # Run create user and fetch scripts
+        uuid = "invalid-provided-and-accepted-due-to-mocking"
+        self.ad_writer._find_unique_user = lambda cpr: "mleeg"
+        self.ad_writer.sync_user(mo_uuid=uuid, sync_manager=False)
+        # Check that scripts were produced
+        self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
+
+        # Verify that the first 4 lines are identitical for all scripts
+        self._verify_identitical_common_code(num_expected_scripts)
+
+        # Check that the create user ps looks good
+        create_user_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
+        expected_content = [
+            "Get-ADUser",
+            "-Filter 'SamAccountName -eq \"mleeg\"'",
+            '-Credential "$usercredential"',
+            "|",
+            "Set-ADUser",
+            '-Credential "$usercredential"',
+            '-Displayname "Martin Lee Gore"',
+            '-GivenName "Martin Lee"',
+            '-SurName "Gore"',
+            '-EmployeeNumber "101"',
+            "-Replace",
+            '"level2orgunit_field"="Ingen";',
+            '"org_field"="Kommune\\Forvalting\\Enhed\\";',
+        ]
+        for content in expected_content:
+            self.assertIn(content, create_user_ps)
+
+
 #    def test_add_manager(self):
 #        user = self.ad_writer.read_ad_information_from_mo(uuid='0', read_manager=True)
 #

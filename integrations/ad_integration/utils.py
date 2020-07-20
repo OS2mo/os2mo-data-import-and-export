@@ -99,3 +99,40 @@ def recursive_dict_update(original, updates):
         else:
             original[key] = value
     return original
+
+
+def dict_map(func, dicty):
+    """Map the dict values.
+
+    Example:
+        input_dict = {1: 1, 2: 2, 3: 3}
+        output_dict = dict_map(lambda value: value ** 2, input_dict)
+        self.assertEqual(output_dict, {1: 1, 2: 4, 3: 6})
+
+    Returns:
+        dict: A dict where func has been applied to every value.
+    """
+    return {key: func(value) for key, value in dicty.items()}
+
+
+def dict_partition(func, dicty):
+    """Partition the input dict into two using the predicate function.
+
+    Example:
+        input_dict = {0: 'value', 1: 'value': 2: 'value'}
+        odd_dict, even_dict = dict_partition(
+            lambda key, value: value % 2 == 0, input_dict
+        )
+        self.assertEqual(odd_dict, {1: 'value'})
+        self.assertEqual(even_dict, {0: 'value', 2: 'value'})
+
+    Returns:
+        (dict, dict): A dict containing key-value pairs that failed the
+                      predicate and a dict containing the key-value pairs
+                      that passed the predicate.
+    """
+    falsy, truesy = {}, {}
+    for key, value in dicty.items():
+        write_dict = truesy if func(key, value) else falsy
+        write_dict[key] = value
+    return falsy, truesy
