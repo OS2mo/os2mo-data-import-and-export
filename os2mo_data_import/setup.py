@@ -33,5 +33,6 @@ setup(
         "requests",
         "anytree",
         "freezegun",
+        "xmltodict",
     ]
 )
