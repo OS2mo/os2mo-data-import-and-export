@@ -7,26 +7,12 @@ logger = logging.getLogger("AdReader")
 
 from integrations.ad_integration.utils import LazyDict
 
-def load_settings():
-    # TODO: Soon we have done this 4 times. Should we make a small settings
-    # importer, that will also handle datatype for specific keys?
-    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-    if not cfg_file.is_file():
-        raise Exception('No setting file')
-    # TODO: This must be clean up, settings should be loaded by __init__
-    # and no references should be needed in global scope.
-    settings = json.loads(cfg_file.read_text())
-    return settings
 
-SETTINGS = LazyDict()
-SETTINGS.set_initializer(load_settings)
-
-
-def _read_global_settings():
+def _read_global_settings(top_settings):
     global_settings = {}
 
-    global_settings['servers'] = SETTINGS.get('integrations.ad.write.servers')
-    global_settings['winrm_host'] = SETTINGS.get('integrations.ad.winrm_host')
+    global_settings['servers'] = top_settings.get('integrations.ad.write.servers')
+    global_settings['winrm_host'] = top_settings.get('integrations.ad.winrm_host')
     if not global_settings['winrm_host']:
         msg = 'Missing hostname for remote management server'
         logger.error(msg)
@@ -34,13 +20,13 @@ def _read_global_settings():
     return global_settings
 
 
-def _read_primary_ad_settings():
+def _read_primary_ad_settings(top_settings):
     primary_settings = {}
-    primary_settings['search_base'] = SETTINGS.get('integrations.ad.search_base')
-    primary_settings['cpr_field'] = SETTINGS.get('integrations.ad.cpr_field')
-    primary_settings['system_user'] = SETTINGS.get('integrations.ad.system_user')
-    primary_settings['password'] = SETTINGS.get('integrations.ad.password')
-    primary_settings['properties'] = SETTINGS.get('integrations.ad.properties')
+    primary_settings['search_base'] = top_settings.get('integrations.ad.search_base')
+    primary_settings['cpr_field'] = top_settings.get('integrations.ad.cpr_field')
+    primary_settings['system_user'] = top_settings.get('integrations.ad.system_user')
+    primary_settings['password'] = top_settings.get('integrations.ad.password')
+    primary_settings['properties'] = top_settings.get('integrations.ad.properties')
 
     missing = []
     for key, val in primary_settings.items():
@@ -52,7 +38,7 @@ def _read_primary_ad_settings():
         raise Exception(msg)
 
     # 36182 exclude non primary AD-users
-    primary_settings['discriminator.field'] = SETTINGS.get('integrations.ad.discriminator.field')
+    primary_settings['discriminator.field'] = top_settings.get('integrations.ad.discriminator.field')
     if primary_settings['discriminator.field'] is not None:
         # if we have a field we MUST have .values and .function
         primary_settings['discriminator.values'] = SETTINGS['integrations.ad.discriminator.values']
@@ -62,8 +48,8 @@ def _read_primary_ad_settings():
 
     # Settings that do not need to be set, or have defaults
     primary_settings['server'] = None
-    primary_settings['sam_filter'] = SETTINGS.get('integrations.ad.sam_filter', '')
-    primary_settings['cpr_separator'] = SETTINGS.get(
+    primary_settings['sam_filter'] = top_settings.get('integrations.ad.sam_filter', '')
+    primary_settings['cpr_separator'] = top_settings.get(
         'integrations.ad.cpr_separator', '')
 
     # So far false in all known cases, default to false
@@ -73,7 +59,7 @@ def _read_primary_ad_settings():
     return primary_settings
 
 
-def _read_primary_write_information():
+def _read_primary_write_information(top_settings):
     """
     Read the configuration for writing to the primary AD. If anything is missing,
     the AD write will be disabled.
@@ -82,22 +68,22 @@ def _read_primary_write_information():
     primary_write_settings = {}
 
     # Shared with read
-    primary_write_settings['cpr_field'] = SETTINGS.get('integrations.ad.cpr_field')
+    primary_write_settings['cpr_field'] = top_settings.get('integrations.ad.cpr_field')
 
     # Field for writing the uuid of a user, used to sync to STS
-    primary_write_settings['uuid_field'] = SETTINGS.get(
+    primary_write_settings['uuid_field'] = top_settings.get(
         'integrations.ad.write.uuid_field')
 
     # Field for writing the name of the users level2orgunit (eg direktørområde)
-    primary_write_settings['level2orgunit_field'] = SETTINGS.get(
+    primary_write_settings['level2orgunit_field'] = top_settings.get(
         'integrations.ad.write.level2orgunit_field')
 
     # Field for the path to the users unit
-    primary_write_settings['org_field'] = SETTINGS.get(
+    primary_write_settings['org_field'] = top_settings.get(
         'integrations.ad.write.org_unit_field')
 
     # Word to go after @ in UPN
-    primary_write_settings['upn_end'] = SETTINGS.get(
+    primary_write_settings['upn_end'] = top_settings.get(
         'integrations.ad.write.upn_end')
 
     # These are technically speaking not used in this context, but it is needed for
@@ -105,11 +91,11 @@ def _read_primary_write_information():
 
     # Ordered list of primary engagements
     # Obsolete as of January 2020, will be removed.
-    # primary_write_settings['primary_types'] = SETTINGS.get(
+    # primary_write_settings['primary_types'] = top_settings.get(
     # 'integrations.ad.write.primary_types')
 
     # UUID for the unit type considered to be level2orgunit
-    primary_write_settings['level2orgunit_type'] = SETTINGS.get(
+    primary_write_settings['level2orgunit_type'] = top_settings.get(
         'integrations.ad.write.level2orgunit_type')
 
     missing = []
@@ -123,7 +109,7 @@ def _read_primary_write_information():
         return {}
 
     # Check for illegal configuration of AD Write.
-    mo_to_ad_fields = SETTINGS.get('integrations.ad_writer.mo_to_ad_fields')
+    mo_to_ad_fields = top_settings.get('integrations.ad_writer.mo_to_ad_fields')
     ad_field_names = list(mo_to_ad_fields.values()) + [
         primary_write_settings['org_field'],
         primary_write_settings['level2orgunit_field'],
@@ -137,7 +123,7 @@ def _read_primary_write_information():
     return primary_write_settings
 
 
-def _read_school_ad_settings():
+def _read_school_ad_settings(top_settings):
     school_settings = {}
 
     school_settings['search_base'] = os.environ.get('AD_SCHOOL_SEARCH_BASE')
@@ -163,7 +149,7 @@ def _read_school_ad_settings():
 
     # Settings that do not need to be set
     school_settings['server'] = os.environ.get('AD_SCHOOL_SERVER')
-    school_settings['cpr_separator'] = SETTINGS.get(
+    school_settings['cpr_separator'] = top_settings.get(
         'integrations.ad.school_cpr_separator', '')
 
     # So far true in all known cases, default to true
@@ -173,12 +159,28 @@ def _read_school_ad_settings():
     return school_settings
 
 
-def read_settings():
+def _load_settings_from_disk():
+    # TODO: Soon we have done this 4 times. Should we make a small settings
+    # importer, that will also handle datatype for specific keys?
+    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+    if not cfg_file.is_file():
+        raise Exception('No setting file')
+    # TODO: This must be clean up, settings should be loaded by __init__
+    # and no references should be needed in global scope.
+    settings = json.loads(cfg_file.read_text())
+    return settings
+
+
+SETTINGS = LazyDict()
+SETTINGS.set_initializer(_load_settings_from_disk)
+
+
+def read_settings(top_settings=SETTINGS):
     settings = {}
-    settings['global'] = _read_global_settings()
-    settings['primary'] = _read_primary_ad_settings()
-    settings['school'] = _read_school_ad_settings()
-    settings['primary_write'] = _read_primary_write_information()
+    settings['global'] = _read_global_settings(top_settings)
+    settings['primary'] = _read_primary_ad_settings(top_settings)
+    settings['school'] = _read_school_ad_settings(top_settings)
+    settings['primary_write'] = _read_primary_write_information(top_settings)
     return settings
 
 
