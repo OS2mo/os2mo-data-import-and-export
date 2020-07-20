@@ -346,6 +346,10 @@ class TestADMixin(object):
             "integrations.ad.write.level2orgunit_type": "level2orgunit_type",
             "integrations.ad.cpr_field": "cpr_field",
             "integrations.ad.cpr_separator": "ad_cpr_sep",
+            "integrations.ad.ad_mo_sync_mapping": {},
+            "address.visibility.public": "",
+            "address.visibility.internal": "",
+            "address.visibility.secret": "",
         }
         transformer_func = early_settings_transformer or _no_transformation
         return transformer_func(default_settings)
@@ -362,4 +366,31 @@ class TestADWriterMixin(TestADMixin):
         self.ad_writer = ADWriterTestSubclass(
             all_settings=self.settings,
             read_ad_information_from_mo=self.mo_values_func
+        )
+
+
+from ad_sync import AdMoSync
+
+class AdMoSyncTestSubclass(AdMoSync):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def _setup_mora_helper(self):
+        return AttrDict({
+            "read_organisation": lambda: 0,
+            "read_classes_in_facet": lambda x: [[{"uuid":""}]],
+            "_mo_lookup": lambda x, y: {"items": []},
+        })
+
+    def _setup_ad_reader_and_cache_all(self):
+        pass
+
+
+class TestADMoSyncMixin(TestADMixin):
+    def _setup_admosync(self, transform_settings=None, transform_mo_values=None):
+        self.settings = self._prepare_settings(transform_settings)
+        self.mo_values_func = partial(self._prepare_mo_values, transform_mo_values)
+        self.ad_sync = AdMoSyncTestSubclass(
+            all_settings=self.settings
         )
