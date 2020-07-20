@@ -351,6 +351,11 @@ exports_actual_state_export(){
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py
 }
 
+exports_historic_sql_export(){
+    BACK_UP_AND_TRUNCATE+=(sql_export_historic.log)
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --historic
+}
+
 exports_os2phonebook_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(os2phonebook_export.log)
@@ -452,6 +457,10 @@ exports(){
 
     if [ "${RUN_ACTUAL_STATE_EXPORT}" == "true" ]; then
         run-job exports_actual_state_export || return 2
+    fi
+
+    if [ "${RUN_HISTORIC_SQL_EXPORT}" == "true" ]; then
+        run-job exports_historic_sql_export || return 2
     fi
 
     if [ "${RUN_OS2SYNC}" == "true" ]; then
