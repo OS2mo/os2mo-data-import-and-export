@@ -32,7 +32,7 @@ sd = sd_importer.SdImport(
     employee_mapping=employee_mapping
 )
 
-sd.create_ou_tree(create_orphan_container=False)
+sd.create_ou_tree(create_orphan_container=True)
 sd.create_employees()
 
 importer.import_all()
