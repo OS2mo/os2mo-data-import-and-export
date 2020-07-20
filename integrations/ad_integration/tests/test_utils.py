@@ -344,10 +344,12 @@ class AdMoSyncTestSubclass(AdMoSync):
         def _mo_lookup(uuid, url):
             if url == 'e/{}/details/address':
                 return []
-            else:
+            elif url.startswith('o/{}/e?limit='):
                 return {
                     "items": [self.mo_values]
                 }
+            else:
+                raise NotImplemented("Outside mocking")
 
         def _mo_post(url, payload, force=True):
             # Register the call, so we can test against it
@@ -358,7 +360,6 @@ class AdMoSyncTestSubclass(AdMoSync):
                     'force': force
                 }
             )
-            print(self.mo_post_calls)
             # response.text --> "OK"
             return AttrDict({
                 'text': 'OK',
@@ -381,7 +382,7 @@ class AdMoSyncTestSubclass(AdMoSync):
         def read_user(cpr, cache_only):
             # We only support one person in our mocking
             if cpr != self.mo_values['cpr']:
-                raise ValueError("Not found")
+                raise NotImplemented("Outside mocking")
             # If we got that one person, return it
             return self.ad_values
 
