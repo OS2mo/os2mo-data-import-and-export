@@ -15,8 +15,8 @@ logging.basicConfig(
 )
 
 # Facetter
-# Emne: http://clever-gewicht-reduzieren.de/resources/kle/emneplan
-# Funktion: http://clever-gewicht-reduzieren.de/resources/kle/handlingsfacetter
+# Emne: http://api.kle-online.dk/resources/kle/emneplan
+# Funktion: http://api.kle-online.dk/resources/kle/handlingsfacetter
 
 
 class KleImporter(object):
@@ -42,8 +42,7 @@ class KleImporter(object):
         self.mox_base = mox_base
         self.mora_base = mora_base
         self.mo_session = requests.Session()
-        self.mo_session.headers={"SESSION": api_token}
-
+        self.mo_session.headers = {"SESSION": api_token}
 
     def _read_kle_dict(self, facet='emne', local=False):
         """ Read the entire KLE file
@@ -60,7 +59,7 @@ class KleImporter(object):
             with open('integrations/kle/' + navn + '.xml', 'r') as content_file:
                 xml_content = content_file.read()
         else:
-            url = 'http://clever-gewicht-reduzieren.de/resources/kle/'
+            url = 'http://api.kle-online.dk/resources/kle/'
             response = requests.get(url + navn)
             response.encoding = 'utf-8'
             xml_content = response.text
@@ -74,19 +73,36 @@ class KleImporter(object):
             kle_dict = kle_dict['KLE-Handlingsfacetter']['HandlingsfacetKategori']
         return (udgivelses_dato, kle_dict)
 
-    def _create_facet(self, facet_name):
+    def get_or_create_facet(self, facet_name):
         """
         Creates a new facet
         :param facet_name: Name of the new facet
         :return: Returns uuid of the new facet
         """
         url = '/klassifikation/facet'
-        template = payloads.lora_facet(bvn=facet_name, org=self.org_uuid)
-        response = requests.post(self.mox_base + url,
-                                 json=template)
-        return response.json()['uuid']
 
-    def _create_kle_klasse(self, facet, klasse_info, overklasse=None):
+        loraurl = (
+            self.mox_base +
+            '/klassifikation/facet' +
+            "?bvn=" + facet_name
+        )
+
+        lora_all = requests.get(loraurl).json()["results"][0]
+
+        if len(lora_all) > 1:
+            logger.error("Mere end en instans af facetten '%s' fundet" % facet_name)
+            raise RuntimeError("Facet Dublet: %s" % facet_name)
+
+        elif len(lora_all) > 0:
+            return lora_all[0]
+        else:
+
+            template = payloads.lora_facet(bvn=facet_name, org=self.org_uuid)
+            response = requests.post(self.mox_base + url,
+                                     json=template)
+            return response.json()['uuid']
+
+    def get_or_create_klasse(self, facet, klasse_info, overklasse=None):
         """
         Creates a new Klasse based on KLE
         :param facet: uuid for the korresponding facet
@@ -109,11 +125,18 @@ class KleImporter(object):
     def _insert_lora_klasse(self, payload, uuid):
         url = '/klassifikation/klasse/{}'
         full_url = self.mox_base + url.format(uuid)
-        response = requests.put(full_url, json=payload)
-        lora_uuid = response.json()['uuid']
-        assert lora_uuid == uuid
 
-        return lora_uuid
+        response = requests.get(full_url)
+        if response.status_code not in [200, 404]:
+            logger.error("Loraopslag fejlede")
+            response.raise_for_status()
+
+        if response.status_code == 404:
+            response = requests.put(full_url, json=payload)
+            lora_uuid = response.json()['uuid']
+            assert lora_uuid == uuid
+
+        return uuid
 
     def _read_all_hovedgrupper(self, facet='emne'):
         """ Read all Hovedgrupper from KLE
@@ -230,21 +253,21 @@ class KleImporter(object):
         for hoved_index in hovedgrupper:
             hoved_info = self._read_all_from_hovedgruppe(hoved_index)
             # Create hovedgruppe
-            hoved_uuid = self._create_kle_klasse(facet_uuid, hoved_info)
+            hoved_uuid = self.get_or_create_klasse(facet_uuid, hoved_info)
 
             grupper = self._read_all_grupper(hoved_index)
             for gruppe_index in grupper:
                 gruppe_info = self._read_all_from_gruppe(hoved_index, gruppe_index)
                 # Create gruppe
-                gruppe_uuid = self._create_kle_klasse(facet_uuid, gruppe_info,
-                                                      hoved_uuid)
+                gruppe_uuid = self.get_or_create_klasse(facet_uuid, gruppe_info,
+                                                        hoved_uuid)
                 emner = self._read_all_emner(hoved_index, gruppe_index)
                 for emne_index in emner:
                     emne_info = self._read_all_from_emne(hoved_index,
                                                          gruppe_index,
                                                          emne_index)
                     # Create emne
-                    self._create_kle_klasse(facet_uuid, emne_info, gruppe_uuid)
+                    self.get_or_create_klasse(facet_uuid, emne_info, gruppe_uuid)
 
     def _import_handling(self, facet_uuid):
         """
@@ -260,7 +283,7 @@ class KleImporter(object):
         for hoved_index in hovedgrupper:
             hoved_info = self._read_all_from_hovedgruppe(hoved_index,
                                                          facet=facet)
-            hoved_uuid = self._create_kle_klasse(facet_uuid, hoved_info)
+            hoved_uuid = self.get_or_create_klasse(facet_uuid, hoved_info)
 
             grupper = self._read_all_grupper(hoved_index, facet=facet)
             for gruppe_index in grupper:
@@ -268,7 +291,7 @@ class KleImporter(object):
                                                          gruppe_index,
                                                          facet=facet)
                 # Create gruppe
-                self._create_kle_klasse(facet_uuid, gruppe_info, hoved_uuid)
+                self.get_or_create_klasse(facet_uuid, gruppe_info, hoved_uuid)
 
     def set_mo_org_uuid(self):
         mora_base = self.mora_base
@@ -295,9 +318,9 @@ class KleImporter(object):
 
     def import_kle(self):
         self.set_mo_org_uuid()
-        aspect_facet_uuid = self._create_facet('kle_aspect')
+        aspect_facet_uuid = self.get_or_create_facet('kle_aspect')
         self.import_aspect_classes(aspect_facet_uuid)
-        number_facet_uuid = self._create_facet('kle_number')
+        number_facet_uuid = self.get_or_create_facet('kle_number')
         self._import_emne(number_facet_uuid)
         self._import_handling(number_facet_uuid)
 
