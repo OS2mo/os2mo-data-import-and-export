@@ -306,7 +306,9 @@ class KleImporter(object):
             ('Udførende', 'UDFOERENDE', '40e91f7a-d2fc-4e07-8108-4046bde113d0'),
             ('Ansvarlig', 'ANSVARLIG', '4d9d0ff4-017d-4e34-acc4-d403f7b2358c')
         ]:
-            payload = payloads.lora_klasse(
+            payload = payloads.lora_klasse(        self.mo_session.headers={"SESSION": api_token}
+47
+
                 brugervendtnoegle=key,
                 beskrivelse=key,
                 titel=key,
