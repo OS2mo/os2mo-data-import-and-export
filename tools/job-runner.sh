@@ -28,6 +28,8 @@ declare -a BACK_UP_AND_TRUNCATE=(
     # if the json-log-tee file is present - take that too
     ${CRON_LOG_JSON}
 )
+touch ${DIPEXAR}/mo_integrations.log
+
 
 # files that need to be backed up BEFORE running the jobs
 # should be appended to BACK_UP_BEFORE_JOBS NOW - they can't
