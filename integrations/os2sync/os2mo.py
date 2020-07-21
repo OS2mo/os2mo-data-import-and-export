@@ -201,9 +201,28 @@ def addresses_to_orgunit(orgunit, addresses):
 
 
 def kle_to_orgunit(orgunit, kle):
-    """
-    Aspect Udførende goes into Tasks
-    Aspect Ansvarlig goes into ContactForTasks
+    """Collect kle uuids according to kle_aspect.
+    
+    * Aspect "Udførende" goes into "Tasks"
+    * Aspect "Ansvarlig" goes into "ContactForTasks"
+    
+    Example:
+    
+        kles = [
+            {'uuid': 1, 'kle_aspect': [{'scope': 'UDFOERENDE'}]},
+            {'uuid': 2, 'kle_aspect': [{'scope': 'ANSVARLIG'}]},
+            {'uuid': 3, 'kle_aspect': [{'scope': 'ANSVARLIG'}, {'scope': 'UDFOERENDE'}]}
+        ]
+        kle_to_orgunit(orgunit, kles)
+        self.assertEqual(orgunit['Tasks'], [1, 3])
+        self.assertEqual(orgunit['ContactForTasks'], [2, 3])
+    
+    Args:
+        orgunit: The organization unit to enrich with kle information.
+        kle: A list of KLEs.
+    
+    Returns:
+        None
     """
     tasks = []
     contactfortasks = []
