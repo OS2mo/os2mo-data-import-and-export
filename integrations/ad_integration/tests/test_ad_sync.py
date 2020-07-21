@@ -286,20 +286,14 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
     def _sync_itsystem_mapping_transformer(self):
         def add_sync_mapping(settings):
             settings["integrations.ad.ad_mo_sync_mapping"] = {
-                "it_systems": {
-                    "samAccountName": "it_system_uuid"
-                }
+                "it_systems": {"samAccountName": "it_system_uuid"}
             }
             return settings
 
         return add_sync_mapping
 
     @parameterized.expand(
-        [
-            ('','create',),
-            ('username_found','noop',),
-            ('anything_else','noop',),
-        ]
+        [("", "create",), ("username_found", "noop",), ("anything_else", "noop",),]
     )
     def test_sync_itsystem(self, e_username, expected):
         """Verify itsystem data is synced correctly from AD to MO."""
@@ -322,20 +316,20 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
         # Expected outcome
         expected_sync = {
-            'noop': [],
-            'create': [
+            "noop": [],
+            "create": [
                 {
                     "force": True,
                     "payload": {
-                        'type': 'it',
-                        'user_key': ad_values['SamAccountName'],
-                        'itsystem': {'uuid': 'it_system_uuid'},
-                        'person': {'uuid': mo_values['uuid']},
+                        "type": "it",
+                        "user_key": ad_values["SamAccountName"],
+                        "itsystem": {"uuid": "it_system_uuid"},
+                        "person": {"uuid": mo_values["uuid"]},
                         "validity": {"from": today, "to": None},
                     },
                     "url": "details/create",
                 }
-            ]
+            ],
         }
         self.assertEqual(self.ad_sync.mo_post_calls, expected_sync[expected])
 
@@ -351,35 +345,17 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
     @parameterized.expand(
         [
             # Move GivenName into extensions_1
-            (None, (
-                "GivenName", "extension_1"
-            ), "noop"),
-            ({"extension_1": None}, (
-                "GivenName", "extension_1"
-            ), "edit"),
-            ({"extension_1": "OldValue"}, (
-                "GivenName", "extension_1"
-            ), "edit"),
+            (None, ("GivenName", "extension_1"), "noop"),
+            ({"extension_1": None}, ("GivenName", "extension_1"), "edit"),
+            ({"extension_1": "OldValue"}, ("GivenName", "extension_1"), "edit"),
             # Move GivenName into extensions_2
-            (None, (
-                "GivenName", "extension_2"
-            ), "noop"),
-            ({"extension_2": None}, (
-                "GivenName", "extension_2"
-            ), "edit"),
-            ({"extension_2": "OldValue"}, (
-                "GivenName", "extension_2"
-            ), "edit"),
+            (None, ("GivenName", "extension_2"), "noop"),
+            ({"extension_2": None}, ("GivenName", "extension_2"), "edit"),
+            ({"extension_2": "OldValue"}, ("GivenName", "extension_2"), "edit"),
             # Move SamAccountName into extensions_1
-            (None, (
-                "SamAccountName", "extension_1"
-            ), "noop"),
-            ({"extension_1": None}, (
-                "SamAccountName", "extension_1"
-            ), "edit"),
-            ({"extension_1": "OldValue"}, (
-                "SamAccountName", "extension_1"
-            ), "edit"),
+            (None, ("SamAccountName", "extension_1"), "noop"),
+            ({"extension_1": None}, ("SamAccountName", "extension_1"), "edit"),
+            ({"extension_1": "OldValue"}, ("SamAccountName", "extension_1"), "edit"),
         ]
     )
     def test_sync_engagement(self, do_seed, mo_to_ad, expected):
@@ -394,19 +370,16 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             element = {
                 "is_primary": True,
                 "uuid": "engagement_uuid",
-                "validity": {
-                    "from":"1960-06-29",
-                    "to":None
-                }
+                "validity": {"from": "1960-06-29", "to": None},
             }
             element.update(do_seed)
             return [element]
 
         self._setup_admosync(
             transform_settings=self._sync_engagement_mapping_transformer(
-                {key: value for (key,value) in [mo_to_ad]}
+                {key: value for (key, value) in [mo_to_ad]}
             ),
-            seed_engagements=seed_engagements
+            seed_engagements=seed_engagements,
         )
 
         self.assertEqual(self.ad_sync.mo_post_calls, [])
@@ -416,18 +389,20 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
         # Expected outcome
         expected_sync = {
-            'noop': [],
-            'edit': [{
-                "force": True,
-                "payload": {
+            "noop": [],
+            "edit": [
+                {
+                    "force": True,
+                    "payload": {
                         "data": {
                             mo_to_ad[1]: ad_values[mo_to_ad[0]],
                             "validity": {"from": today, "to": None},
                         },
                         "type": "engagement",
                         "uuid": "engagement_uuid",
-                },
-                "url": "details/edit",
-            }]
+                    },
+                    "url": "details/edit",
+                }
+            ],
         }
         self.assertEqual(self.ad_sync.mo_post_calls, expected_sync[expected])

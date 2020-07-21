@@ -341,7 +341,14 @@ class TestADWriterMixin(TestADMixin):
 
 class AdMoSyncTestSubclass(AdMoSync):
     def __init__(
-        self, mo_values_func, mo_addresses_func, mo_e_username_func, mo_engagements_func, ad_values_func, *args, **kwargs
+        self,
+        mo_values_func,
+        mo_addresses_func,
+        mo_e_username_func,
+        mo_engagements_func,
+        ad_values_func,
+        *args,
+        **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.mo_values = mo_values_func()
@@ -376,10 +383,7 @@ class AdMoSyncTestSubclass(AdMoSync):
                 {"url": url, "payload": payload, "force": force}
             )
             # response.text --> "OK"
-            return AttrDict({
-                "text": "OK",
-                "raise_for_status": lambda: None
-            })
+            return AttrDict({"text": "OK", "raise_for_status": lambda: None})
 
         return AttrDict(
             {
@@ -417,7 +421,7 @@ class TestADMoSyncMixin(TestADMixin):
         self.mo_values_func = partial(self._prepare_mo_values, ident)
         self.ad_values_func = partial(self._prepare_get_from_ad, ident)
         self.mo_addresses_func = lambda: []
-        self.mo_e_username_func = lambda: ''
+        self.mo_e_username_func = lambda: ""
         self.mo_engagements_func = lambda: []
 
     def _setup_admosync(
