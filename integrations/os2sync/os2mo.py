@@ -69,7 +69,8 @@ def os2mo_get(url, **params):
 def user_uuids(**kwargs):
     return [
         e["uuid"]
-        for e in os2mo_get("{BASE}/o/{ORG}/e/", limit=9999999, **kwargs).json()["items"]
+        for e in os2mo_get("{BASE}/o/{ORG}/e/", limit=9999999,
+                           **kwargs).json()["items"]
     ]
 
 
@@ -177,7 +178,8 @@ def pruned_tree(uuids=[]):
 def org_unit_uuids(**kwargs):
     return [
         ou["uuid"]
-        for ou in os2mo_get("{BASE}/o/{ORG}/ou", limit=999999, **kwargs).json()["items"]
+        for ou in os2mo_get("{BASE}/o/{ORG}/ou", limit=999999,
+                            **kwargs).json()["items"]
     ]
 
 
@@ -196,6 +198,29 @@ def addresses_to_orgunit(orgunit, addresses):
             orgunit["PhoneNumber"] = a["name"]
         elif a["address_type"]["scope"] == "DAR":
             orgunit["Post"] = a["value"]
+
+
+def kle_to_orgunit(orgunit, kle):
+    """
+    Aspect Udførende goes into Tasks
+    Aspect Ansvarlig goes into ContactForTasks
+    """
+    tasks = []
+    contactfortasks = []
+
+    for k in kle:
+        uuid = k["uuid"]
+        for a in k["kle_aspect"]:
+            if a["scope"] == "UDFOERENDE":
+                tasks.append(uuid)
+            elif a["scope"] == "ANSVARLIG":
+                contactfortasks.append(uuid)
+
+    if len(tasks):
+        orgunit["Tasks"] = list(set(tasks))
+
+    if len(contactfortasks):
+        orgunit["ContactForTasks"] = list(set(contactfortasks))
 
 
 def get_sts_orgunit(uuid):
@@ -222,6 +247,10 @@ def get_sts_orgunit(uuid):
     addresses_to_orgunit(
         sts_org_unit,
         os2mo_get("{BASE}/ou/" + uuid + "/details/address").json(),
+    )
+    kle_to_orgunit(
+        sts_org_unit,
+        os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
     )
 
     # show_all_details(uuid,"ou")
