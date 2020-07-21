@@ -202,44 +202,48 @@ def addresses_to_orgunit(orgunit, addresses):
 
 def kle_to_orgunit(orgunit, kle):
     """Collect kle uuids according to kle_aspect.
-    
+
     * Aspect "Udførende" goes into "Tasks"
     * Aspect "Ansvarlig" goes into "ContactForTasks"
-    
+
     Example:
-    
-        kles = [
-            {'uuid': 1, 'kle_aspect': [{'scope': 'UDFOERENDE'}]},
-            {'uuid': 2, 'kle_aspect': [{'scope': 'ANSVARLIG'}]},
-            {'uuid': 3, 'kle_aspect': [{'scope': 'ANSVARLIG'}, {'scope': 'UDFOERENDE'}]}
-        ]
-        kle_to_orgunit(orgunit, kles)
-        self.assertEqual(orgunit['Tasks'], [1, 3])
-        self.assertEqual(orgunit['ContactForTasks'], [2, 3])
-    
+
+        >>> orgunit={}
+        >>> kles = [
+        ...     {'uuid': 1, 'kle_aspect': [{'scope': 'UDFOERENDE'}]},
+        ...     {'uuid': 2, 'kle_aspect': [{'scope': 'ANSVARLIG'}]},
+        ...     {'uuid': 3, 'kle_aspect': [{'scope': 'ANSVARLIG'},
+        ...                                {'scope': 'UDFOERENDE'}
+        ...     ]}
+        ... ]
+        >>> kle_to_orgunit(orgunit, kles)
+        >>> orgunit
+        {'Tasks': [1, 3], 'ContactForTasks': [2, 3]}
+
+
     Args:
         orgunit: The organization unit to enrich with kle information.
         kle: A list of KLEs.
-    
+
     Returns:
         None
     """
-    tasks = []
-    contactfortasks = []
+    tasks = set()
+    contactfortasks = set()
 
     for k in kle:
         uuid = k["uuid"]
         for a in k["kle_aspect"]:
             if a["scope"] == "UDFOERENDE":
-                tasks.append(uuid)
+                tasks.add(uuid)
             elif a["scope"] == "ANSVARLIG":
-                contactfortasks.append(uuid)
+                contactfortasks.add(uuid)
 
     if len(tasks):
-        orgunit["Tasks"] = list(set(tasks))
+        orgunit["Tasks"] = list(tasks)
 
     if len(contactfortasks):
-        orgunit["ContactForTasks"] = list(set(contactfortasks))
+        orgunit["ContactForTasks"] = list(contactfortasks)
 
 
 def get_sts_orgunit(uuid):
