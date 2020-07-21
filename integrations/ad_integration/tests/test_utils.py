@@ -341,14 +341,18 @@ class TestADWriterMixin(TestADMixin):
 
 class AdMoSyncTestSubclass(AdMoSync):
     def __init__(
-        self, mo_values_func, mo_addresses_func, ad_values_func, *args, **kwargs
+        self, mo_values_func, mo_addresses_func, mo_e_username_func, ad_values_func, *args, **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.mo_values = mo_values_func()
         self.mo_addresses = mo_addresses_func()
         self.ad_values = ad_values_func()
+        self.e_username = mo_e_username_func()
 
         self.mo_post_calls = []
+
+    def _verify_it_systems(self):
+        pass
 
     def _setup_mora_helper(self):
         def _mo_lookup(uuid, url):
@@ -359,13 +363,19 @@ class AdMoSyncTestSubclass(AdMoSync):
             else:
                 raise NotImplemented("Outside mocking")
 
+        def get_e_username(e_uuid, it_system):
+            return self.e_username
+
         def _mo_post(url, payload, force=True):
             # Register the call, so we can test against it
             self.mo_post_calls.append(
                 {"url": url, "payload": payload, "force": force}
             )
             # response.text --> "OK"
-            return AttrDict({"text": "OK",})
+            return AttrDict({
+                "text": "OK",
+                "raise_for_status": lambda: None
+            })
 
         return AttrDict(
             {
@@ -377,6 +387,7 @@ class AdMoSyncTestSubclass(AdMoSync):
                         {"uuid": "address_visibility_secret_uuid"},
                     ]
                 ],
+                "get_e_username": get_e_username,
                 "_mo_lookup": _mo_lookup,
                 "_mo_post": _mo_post,
             }
@@ -402,6 +413,7 @@ class TestADMoSyncMixin(TestADMixin):
         self.mo_values_func = partial(self._prepare_mo_values, ident)
         self.ad_values_func = partial(self._prepare_get_from_ad, ident)
         self.mo_addresses_func = lambda: []
+        self.mo_e_username_func = lambda: ''
 
     def _setup_admosync(
         self,
@@ -409,6 +421,7 @@ class TestADMoSyncMixin(TestADMixin):
         transform_mo_values=None,
         transform_ad_values=None,
         seed_mo_addresses=None,
+        seed_e_username=None,
     ):
         if transform_settings:
             self.settings = self._prepare_settings(transform_settings)
@@ -422,9 +435,13 @@ class TestADMoSyncMixin(TestADMixin):
             )
         if seed_mo_addresses:
             self.mo_addresses_func = seed_mo_addresses
+        if seed_e_username:
+            self.mo_e_username_func = seed_e_username
+
         self.ad_sync = AdMoSyncTestSubclass(
             all_settings=self.settings,
             mo_values_func=self.mo_values_func,
             mo_addresses_func=self.mo_addresses_func,
             ad_values_func=self.ad_values_func,
+            mo_e_username_func=self.mo_e_username_func,
         )

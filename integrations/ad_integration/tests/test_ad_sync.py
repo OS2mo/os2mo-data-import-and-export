@@ -282,3 +282,58 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         ]
         self.assertEqual(len(self.ad_sync.mo_post_calls), 3)
         self.assertEqual(self.ad_sync.mo_post_calls, expected_sync)
+
+    def _sync_itsystem_mapping_transformer(self):
+        def add_sync_mapping(settings):
+            settings["integrations.ad.ad_mo_sync_mapping"] = {
+                "it_systems": {
+                    "samAccountName": "it_system_uuid"
+                }
+            }
+            return settings
+
+        return add_sync_mapping
+
+    @parameterized.expand(
+        [
+            ('','create',),
+            ('username_found','noop',),
+        ]
+    )
+    def test_sync_itsystem(self, e_username, expected):
+        """Verify address data is synced correctly from AD to MO."""
+        today = date.today().strftime("%Y-%m-%d")
+        ad_values = self.ad_values_func()
+        mo_values = self.mo_values_func()
+
+        def get_e_username():
+            return e_username
+
+        self._setup_admosync(
+            transform_settings=self._sync_itsystem_mapping_transformer(),
+            seed_e_username=get_e_username,
+        )
+
+        self.assertEqual(self.ad_sync.mo_post_calls, [])
+
+        # Run full sync against the mocks
+        self.ad_sync.update_all_users()
+
+        # Expected outcome
+        expected_sync = {
+            'noop': [],
+            'create': [
+                {
+                    "force": True,
+                    "payload": {
+                        'type': 'it',
+                        'user_key': ad_values['SamAccountName'],
+                        'itsystem': {'uuid': 'it_system_uuid'},
+                        'person': {'uuid': mo_values['uuid']},
+                        "validity": {"from": today, "to": None},
+                    },
+                    "url": "details/create",
+                }
+            ]
+        }
+        self.assertEqual(self.ad_sync.mo_post_calls, expected_sync[expected])
