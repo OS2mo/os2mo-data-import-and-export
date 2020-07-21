@@ -433,6 +433,15 @@ class AdMoSyncTestSubclass(AdMoSync):
 
 
 class TestADMoSyncMixin(TestADMixin):
+    def _initialize_configuration(self):
+        def ident(x, *args, **kwargs):
+            return x
+
+        self.settings = self._prepare_settings(ident)
+        self.mo_values_func = partial(self._prepare_mo_values, ident)
+        self.ad_values_func = partial(self._prepare_get_from_ad, ident)
+        self.mo_addresses_func = lambda: []
+
     def _setup_admosync(
         self,
         transform_settings=None,
@@ -440,10 +449,18 @@ class TestADMoSyncMixin(TestADMixin):
         transform_ad_values=None,
         seed_mo_addresses=None,
     ):
-        self.settings = self._prepare_settings(transform_settings)
-        self.mo_values_func = partial(self._prepare_mo_values, transform_mo_values)
-        self.ad_values_func = partial(self._prepare_get_from_ad, transform_ad_values)
-        self.mo_addresses_func = seed_mo_addresses or (lambda: [])
+        if transform_settings:
+            self.settings = self._prepare_settings(transform_settings)
+        if transform_mo_values:
+            self.mo_values_func = partial(
+                self._prepare_mo_values, transform_mo_values
+            )
+        if transform_ad_values:
+            self.ad_values_func = partial(
+                self._prepare_get_from_ad, transform_ad_values
+            )
+        if seed_mo_addresses:
+            self.mo_addresses_func = seed_mo_addresses
         self.ad_sync = AdMoSyncTestSubclass(
             all_settings=self.settings,
             mo_values_func=self.mo_values_func,

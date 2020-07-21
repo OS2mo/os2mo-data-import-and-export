@@ -13,7 +13,10 @@ from test_utils import TestADMoSyncMixin, dict_modifier, mo_modifier
 
 
 class TestADMoSync(TestCase, TestADMoSyncMixin):
-    def _sync_mapping_transformer(self):
+    def setUp(self):
+        self._initialize_configuration()
+
+    def _sync_address_mapping_transformer(self):
         def add_sync_mapping(settings):
             settings["integrations.ad.ad_mo_sync_mapping"] = {
                 "user_addresses": {
@@ -29,9 +32,6 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             return settings
 
         return add_sync_mapping
-
-    def setUp(self):
-        self._setup_admosync(transform_settings=self._sync_mapping_transformer(),)
 
     @parameterized.expand(
         [
@@ -105,10 +105,11 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                     'create': A new address is created in MO.
                     'edit': The current address in MO is updated.
         """
-
         today = date.today().strftime("%Y-%m-%d")
         mo_values = self.mo_values_func()
-        self.settings = self._prepare_settings(self._sync_mapping_transformer())
+        self.settings = self._prepare_settings(
+            self._sync_address_mapping_transformer()
+        )
         address_type_setting = self.settings["integrations.ad.ad_mo_sync_mapping"][
             "user_addresses"
         ][address_type]
@@ -199,7 +200,6 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
     def test_sync_address_data_multiple(self):
         """Verify address data is synced correctly from AD to MO."""
-
         today = date.today().strftime("%Y-%m-%d")
         mo_values = self.mo_values_func()
 
@@ -224,7 +224,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             ]
 
         self._setup_admosync(
-            transform_settings=lambda _: self.settings,
+            transform_settings=self._sync_address_mapping_transformer(),
             transform_ad_values=add_ad_data,
             seed_mo_addresses=seed_mo_addresses,
         )
