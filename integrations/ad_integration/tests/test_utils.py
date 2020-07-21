@@ -81,10 +81,46 @@ from utils import AttrDict, recursive_dict_update
 
 
 def dict_modifier(updates):
+    """Wrapper around recursive_dict_update, which provides updates beforehand.
+
+    Example:
+
+        updates = {'action': 'set'}
+
+        function_with_expects_single_argument_transformer(
+            dict_modifier(updates)
+        )
+
+    Args:
+        updates: dictionary with updates to be applied later, when the returned
+                 function is actually called.
+
+    Returns:
+        function: A partially applied recursive_dict_update function, waiting
+                  for the original to apply updates to.
+    """
     return partial(recursive_dict_update, updates=updates)
 
 
 def mo_modifier(updates):
+    """Wrapper around recursive_dict_update, which provides updates beforehand.
+
+    Example:
+
+        updates = {'action': 'set'}
+
+        function_with_expects_mo_values_call(
+            mo_modifier(updates)
+        )
+
+    Args:
+        updates: dictionary with updates to be applied later, when the returned
+                 function is actually called.
+
+    Returns:
+        function: A partially applied recursive_dict_update function, waiting
+                  for the original to apply updates to.
+    """
     def mo_mod(mo_values, *args, **kwargs):
         return recursive_dict_update(mo_values, updates=updates)
 
