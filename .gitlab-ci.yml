@@ -73,3 +73,9 @@ Test lc-for-jobs-db:
   extends: .test-python
   script:
     - python -m unittest discover exporters/sql_export/tests 
+
+
+Test OS2Sync Integration:
+  extends: .test-python
+  script:
+    - python -m doctest integrations/os2sync/os2mo.py
