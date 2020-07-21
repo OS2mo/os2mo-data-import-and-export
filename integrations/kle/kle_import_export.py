@@ -3,6 +3,7 @@ import logging
 import os
 import pathlib
 from enum import Enum
+import collections
 from abc import ABC, abstractmethod
 
 import requests
@@ -106,6 +107,15 @@ class KLEAnnotationIntegration(ABC):
 
         return r.json()
 
+    def get_kle_markup_for_org_unit(self, uuid) -> dict:
+        url = f"{self.mora_base}/service/ou/{uuid}/details/kle".format(
+            self.mora_base, self.org_uuid, uuid
+        )
+        r = requests.get(url)
+        r.raise_for_status()
+
+        return r.json()
+
     @abstractmethod
     def run(self):
         """Implement this, normally to execute import or export."""
@@ -120,20 +130,43 @@ class KLECSVExporter(KLEAnnotationIntegration):
 
         org_unit_uuids = self.get_all_org_units_from_mo()
 
+        # Dictionaries for data to output in CSV files.
+        org_unit_names = {}
+        ansvarlig = collections.defaultdict(list)
+        udfoerende = collections.defaultdict(list)
+        indsigt = collections.defaultdict(list)
+
         for uuid in org_unit_uuids:
-            # TODO: Print properly to CSV format.
-            # This is the "Org" sheet.
+            # Extract necessary infos from each UUID
             org_unit = self.get_org_unit_from_mo(uuid)
-            print(uuid, org_unit["name"])
 
-        # TODO: Extract info corresponding to the "Ansvarlig" sheet
-        # TODO: ...
+            org_unit_names[uuid] = org_unit["name"]
 
-        # TODO: Extract info corresponding to the "Udfoer" sheet
-        # TODO: ...
+            kle_infos = self.get_kle_markup_for_org_unit(uuid)
 
-        # TODO: Extract info corresponding to the "Indsigt" sheet
-        # TODO: ...
+            for kle_info in kle_infos:
+
+                scopes = [a["scope"] for a in kle_info["kle_aspect"]]
+
+                if "UDFOERENDE" in scopes:
+                    udfoerende[uuid].append((
+                        kle_info["kle_number"]["user_key"],
+                        kle_info["kle_number"]["name"]
+                    ))
+                if "ANSVARLIG" in scopes:
+                    ansvarlig[uuid].append((
+                        kle_info["kle_number"]["user_key"],
+                        kle_info["kle_number"]["name"]
+                    ))
+                if "INDSIGT" in scopes:
+                    indsigt[uuid].append((
+                        kle_info["kle_number"]["user_key"],
+                        kle_info["kle_number"]["name"]
+                    ))
+        print("#org units:", len(org_unit_names))
+        print(udfoerende)
+        print(indsigt)
+        print(ansvarlig)
 
 
 class KLEAnnotationImporter(KLEAnnotationIntegration, ABC):
