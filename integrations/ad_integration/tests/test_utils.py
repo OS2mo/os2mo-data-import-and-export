@@ -380,13 +380,21 @@ class TestADWriterMixin(TestADMixin):
 
 class AdMoSyncTestSubclass(AdMoSync):
     def __init__(
-        self, mo_values_func, mo_addresses_func, mo_e_username_func, ad_values_func, *args, **kwargs
+        self,
+        mo_values_func,
+        mo_addresses_func,
+        mo_e_username_func,
+        mo_engagements_func,
+        ad_values_func,
+        *args,
+        **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.mo_values = mo_values_func()
         self.mo_addresses = mo_addresses_func()
         self.ad_values = ad_values_func()
         self.e_username = mo_e_username_func()
+        self.engagements = mo_engagements_func()
 
         self.mo_post_calls = []
 
@@ -399,8 +407,11 @@ class AdMoSyncTestSubclass(AdMoSync):
                 return self.mo_addresses
             elif url.startswith("o/{}/e?limit="):
                 return {"items": [self.mo_values]}
+            elif url.startswith("e/{}/details/engagement"):
+                return self.engagements
             else:
-                raise NotImplemented("Outside mocking")
+                print("Outside mocking", url)
+                raise NotImplemented
 
         def get_e_username(e_uuid, it_system):
             return self.e_username
@@ -411,10 +422,7 @@ class AdMoSyncTestSubclass(AdMoSync):
                 {"url": url, "payload": payload, "force": force}
             )
             # response.text --> "OK"
-            return AttrDict({
-                "text": "OK",
-                "raise_for_status": lambda: None
-            })
+            return AttrDict({"text": "OK", "raise_for_status": lambda: None})
 
         return AttrDict(
             {
@@ -452,7 +460,8 @@ class TestADMoSyncMixin(TestADMixin):
         self.mo_values_func = partial(self._prepare_mo_values, ident)
         self.ad_values_func = partial(self._prepare_get_from_ad, ident)
         self.mo_addresses_func = lambda: []
-        self.mo_e_username_func = lambda: ''
+        self.mo_e_username_func = lambda: ""
+        self.mo_engagements_func = lambda: []
 
     def _setup_admosync(
         self,
@@ -461,6 +470,7 @@ class TestADMoSyncMixin(TestADMixin):
         transform_ad_values=None,
         seed_mo_addresses=None,
         seed_e_username=None,
+        seed_engagements=None,
     ):
         if transform_settings:
             self.settings = self._prepare_settings(transform_settings)
@@ -476,6 +486,8 @@ class TestADMoSyncMixin(TestADMixin):
             self.mo_addresses_func = seed_mo_addresses
         if seed_e_username:
             self.mo_e_username_func = seed_e_username
+        if seed_engagements:
+            self.mo_engagements_func = seed_engagements
 
         self.ad_sync = AdMoSyncTestSubclass(
             all_settings=self.settings,
@@ -483,4 +495,5 @@ class TestADMoSyncMixin(TestADMixin):
             mo_addresses_func=self.mo_addresses_func,
             ad_values_func=self.ad_values_func,
             mo_e_username_func=self.mo_e_username_func,
+            mo_engagements_func=self.mo_engagements_func,
         )
