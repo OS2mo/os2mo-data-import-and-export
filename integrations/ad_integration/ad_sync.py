@@ -42,18 +42,7 @@ class AdMoSync(object):
         self.helper = self._setup_mora_helper()
         self.org = self.helper.read_organisation()
 
-        if 'it_systems' in self.mapping:
-            mo_it_systems = self.helper.read_it_systems()
-
-            for it_system, it_system_uuid in self.mapping['it_systems'].items():
-                found = False
-                for mo_it_system in mo_it_systems:
-                    if mo_it_system['uuid'] == it_system_uuid:
-                        found = True
-                if not found:
-                    msg = '{} with uuid {}, not found in MO'
-                    raise Exception(msg.format(it_system, it_system_uuid))
-
+        self._verify_it_systems()
         self._setup_ad_reader_and_cache_all()
 
         # Possibly get IT-system directly from LoRa for better performance.
@@ -97,6 +86,21 @@ class AdMoSync(object):
             'it_systems': 0,
             'users': set()
         }
+
+    def _verify_it_systems(self):
+        if 'it_systems' not in self.mapping:
+            return
+
+        mo_it_systems = self.helper.read_it_systems()
+
+        for it_system, it_system_uuid in self.mapping['it_systems'].items():
+            found = any(map(
+                lambda mo_it_system: mo_it_system['uuid'] == it_system_uuid,
+                mo_it_systems
+            ))
+            if not found:
+                msg = '{} with uuid {}, not found in MO'
+                raise Exception(msg.format(it_system, it_system_uuid))
 
     def _setup_ad_reader_and_cache_all(self):
         skip_school = self.settings.get('integrations.ad.skip_school_ad_to_mo', True)
