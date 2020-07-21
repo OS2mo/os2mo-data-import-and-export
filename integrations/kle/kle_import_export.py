@@ -4,9 +4,12 @@ import os
 import pathlib
 from enum import Enum
 import collections
+import tempfile
+import csv
 from abc import ABC, abstractmethod
 
 import requests
+import pandas as pd
 
 LOG_FILE = 'opgavefordeler.log'
 
@@ -163,10 +166,50 @@ class KLECSVExporter(KLEAnnotationIntegration):
                         kle_info["kle_number"]["user_key"],
                         kle_info["kle_number"]["name"]
                     ))
-        print("#org units:", len(org_unit_names))
+        org_csv = "/tmp/org_csv.csv"
+        indsigt_csv = "/tmp/indsigt_csv.csv"
+        ansvarlig_csv = "/tmp/ansvarlig_csv.csv"
+        udfoerende_csv = "/tmp/udfoerende_csv.csv"
+
+        with open(org_csv, "w") as org_csv_file:
+            org_writer = csv.writer(org_csv_file, delimiter=";")
+            org_writer.writerow(["UUID", "Navn"])
+            for uuid in org_unit_names:
+                org_writer.writerow([uuid, org_unit_names[uuid]])
+
+        # Write Udførende data.
+        with open(udfoerende_csv, "w") as uf_csv_file:
+            uf_writer = csv.writer(uf_csv_file, delimiter=";")
+            uf_writer.writerow(["UUID", "KLE-nummer", "Navn"])
+            for uuid in udfoerende:
+                for kle_data in udfoerende[uuid]:
+                    uf_writer.writerow([uuid, kle_data[0], kle_data[1]])
+        # Write Ansvarlig data.
+        with open(ansvarlig_csv, "w") as a_csv_file:
+            a_writer = csv.writer(a_csv_file, delimiter=";")
+            a_writer.writerow(["UUID", "KLE-nummer", "Navn"])
+            for uuid in ansvarlig:
+                for kle_data in ansvarlig[uuid]:
+                    a_writer.writerow([uuid, kle_data[0], kle_data[1]])
+        # Write Indsigt data
+        with open(indsigt_csv, "w") as i_csv_file:
+            i_writer = csv.writer(i_csv_file, delimiter=";")
+            i_writer.writerow(["UUID", "KLE-nummer", "Navn"])
+            for uuid in indsigt:
+                for kle_data in indsigt[uuid]:
+                    i_writer.writerow([uuid, kle_data[0], kle_data[1]])
+
+        # Collect in Excel file
+        writer = pd.ExcelWriter('./KLE-Markup.xlsx', engine='xlsxwriter')
+        for f, name in [
+            (org_csv, "Org"), (indsigt_csv, "Indsigt"),
+            (ansvarlig_csv, "Ansvarlig"), (udfoerende_csv, "Udfoerende")
+        ]:
+            df = pd.read_csv(f, delimiter=";")
+            df.to_excel(writer, sheet_name=name)
+        writer.save()
+
         print(udfoerende)
-        print(indsigt)
-        print(ansvarlig)
 
 
 class KLEAnnotationImporter(KLEAnnotationIntegration, ABC):

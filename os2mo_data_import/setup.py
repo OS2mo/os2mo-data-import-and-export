@@ -34,5 +34,7 @@ setup(
         "anytree",
         "freezegun",
         "xmltodict",
+        "openpyxl",
+        "xslxwriter",
     ]
 )
