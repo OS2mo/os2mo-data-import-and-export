@@ -66,13 +66,13 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         #-------------------------
         # No office number in MO
         ('office', None, None, 'noop'),
-        ('office', '+45 70 10 11 55', None, 'create'),
-        ('office', '70 10 11 55', None, 'create'),
-        ('office', '70101155', None, 'create'),
+        ('office', '420', None, 'create'),
+        ('office', '421', None, 'create'),
+        ('office', '11', None, 'create'),
         # Office number already in MO
-        ('office', '70101155', '70101155', 'noop'),
-        ('office', '90909090', '70101155', 'edit'),
-        ('office', '90901111', '70101155', 'edit'),
+        ('office', '420', '420', 'noop'),
+        ('office', '421', '420', 'edit'),
+        ('office', '11', '420', 'edit'),
 
         # Mobile number (SECRET)
         #-----------------------
@@ -98,7 +98,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         ('floor', '2nd', '1st', 'edit'),
         ('floor', '3rd', '1st', 'edit'),
     ])
-    def test_sync_address(self, address_type, ad_data, mo_data, expected):
+    def test_sync_address_data(self, address_type, ad_data, mo_data, expected):
         """Verify address data is synced correctly from AD to MO.
 
         Args:
@@ -191,15 +191,98 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             payload_table = {
                 'noop': lambda: {},  # aka. throw it away
                 'create': lambda: expected_sync[expected][0]['payload'],
-                'edit': lambda: expected_sync[expected][0]['payload'][0]['data'],
+                'edit': lambda: payload_table['create']()[0]['data'],
             }
             # Write the visibility into the table
+            visibility_lower = address_type_visibility.lower()
             payload_table[expected]()['visibility'] = {
-                'uuid': (
-                    'address_visibility_' + 
-                    address_type_visibility.lower() + 
-                    '_uuid'
-                )
+                'uuid': 'address_visibility_' + visibility_lower + '_uuid'
             }
 
         self.assertEqual(self.ad_sync.mo_post_calls, expected_sync[expected])
+
+    def test_sync_address_data_multiple(self):
+        """Verify address data is synced correctly from AD to MO."""
+
+        today = date.today().strftime("%Y-%m-%d")
+        mo_values = self.mo_values_func()
+
+        # Helper functions to seed admosync mock
+        def add_ad_data(ad_values):
+            ad_values['email'] = 'emil@magenta.dk'
+            ad_values['telephone'] = '70101155'
+            ad_values['office'] = '11'
+            return ad_values
+
+        def seed_mo_addresses():
+            return [{
+                'uuid': 'address_uuid',
+                'address_type': {'uuid': 'office_uuid'},
+                'org': {'uuid': 'org_uuid'},
+                'person': {'uuid': mo_values['uuid']},
+                'type': 'address',
+                'validity': {'from': today, 'to': None},
+                'value': '42',
+            }]
+
+        self._setup_admosync(
+            transform_settings=lambda _: self.settings,
+            transform_ad_values=add_ad_data,
+            seed_mo_addresses=seed_mo_addresses,
+        )
+
+        self.assertEqual(self.ad_sync.mo_post_calls, [])
+
+        # Run full sync against the mocks
+        self.ad_sync.update_all_users()
+
+        # Expected outcome
+        expected_sync = [
+            {
+                'force': True,
+                'payload': {
+                    'address_type': {'uuid': 'email_uuid'},
+                    'org': {'uuid': 'org_uuid'},
+                    'person': {'uuid': mo_values['uuid']},
+                    'type': 'address',
+                    'validity': {'from': today, 'to': None},
+                    'value': 'emil@magenta.dk',
+                },
+                'url': 'details/create'
+            },
+            {
+                'force': True,
+                'payload': {
+                    'address_type': {'uuid': 'telephone_uuid'},
+                    'org': {'uuid': 'org_uuid'},
+                    'person': {'uuid': mo_values['uuid']},
+                    'type': 'address',
+                    'validity': {'from': today, 'to': None},
+                    'value': '70101155',
+                    'visibility': {
+                        'uuid': 'address_visibility_public_uuid'
+                    },
+                },
+                'url': 'details/create'
+            },
+            {
+                'force': True,
+                'payload': [
+                    {
+                        'data': {
+                            'address_type': {'uuid': 'office_uuid'},
+                            'validity': {'from': today, 'to': None},
+                            'value': '11',
+                            'visibility': {
+                                'uuid': 'address_visibility_internal_uuid'
+                            },
+                        },
+                        'type': 'address',
+                        'uuid': 'address_uuid'
+                    },
+                ],
+                'url': 'details/edit',
+            },
+        ]
+        self.assertEqual(len(self.ad_sync.mo_post_calls), 3)
+        self.assertEqual(self.ad_sync.mo_post_calls, expected_sync)
