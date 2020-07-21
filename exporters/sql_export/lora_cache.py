@@ -316,7 +316,7 @@ class LoraCache(object):
                     continue
                 relationer = effect[2]['relationer']
 
-                if 'tilknyttedeenheder' in relationer:
+                if 'tilknyttedeenheder' in relationer and len(relationer['tilknyttedeenheder']) > 0:
                     unit_uuid = relationer['tilknyttedeenheder'][0]['uuid']
                     user_uuid = None
                 elif 'tilknyttedebrugere' in relationer and len(relationer['tilknyttedebrugere']) > 0:
