@@ -75,7 +75,7 @@ class KleImporter(object):
 
     def get_or_create_facet(self, facet_name):
         """
-        Creates a new facet
+        Creates a new facet or returns an existing one
         :param facet_name: Name of the new facet
         :return: Returns uuid of the new facet
         """
@@ -89,18 +89,20 @@ class KleImporter(object):
 
         lora_all = requests.get(loraurl).json()["results"][0]
 
-        if len(lora_all) > 1:
+        if len(lora_all) == 1:
+            return lora_all[0]
+
+        elif len(lora_all) == 0:
+            template = payloads.lora_facet(bvn=facet_name, org=self.org_uuid)
+            logger.info("creating facet: %r", template)
+            response = requests.post(self.mox_base + '/klassifikation/facet',
+                                     json=template)
+            return response.json()['uuid']
+
+        else:
             logger.error("Mere end en instans af facetten '%s' fundet" % facet_name)
             raise RuntimeError("Facet Dublet: %s" % facet_name)
 
-        elif len(lora_all) > 0:
-            return lora_all[0]
-        else:
-
-            template = payloads.lora_facet(bvn=facet_name, org=self.org_uuid)
-            response = requests.post(self.mox_base + url,
-                                     json=template)
-            return response.json()['uuid']
 
     def get_or_create_klasse(self, facet, klasse_info, overklasse=None):
         """
@@ -132,6 +134,7 @@ class KleImporter(object):
             response.raise_for_status()
 
         if response.status_code == 404:
+            logger.info("creating lora klasse: %r on %s", payload, uuid)
             response = requests.put(full_url, json=payload)
             lora_uuid = response.json()['uuid']
             assert lora_uuid == uuid
@@ -306,9 +309,7 @@ class KleImporter(object):
             ('Udførende', 'UDFOERENDE', '40e91f7a-d2fc-4e07-8108-4046bde113d0'),
             ('Ansvarlig', 'ANSVARLIG', '4d9d0ff4-017d-4e34-acc4-d403f7b2358c')
         ]:
-            payload = payloads.lora_klasse(        self.mo_session.headers={"SESSION": api_token}
-47
-
+            payload = payloads.lora_klasse(
                 brugervendtnoegle=key,
                 beskrivelse=key,
                 titel=key,
@@ -339,3 +340,4 @@ if __name__ == '__main__':
 
     kle = KleImporter(mox_base, mora_base, api_token)
     kle.import_kle()
+    logger.info("program has ended")
