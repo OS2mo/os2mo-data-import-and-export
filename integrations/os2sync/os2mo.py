@@ -66,6 +66,15 @@ def os2mo_get(url, **params):
         raise
 
 
+def has_kle():
+    try:
+        os2mo_get("{BASE}/o/{ORG}/f/kle_aspect")
+        os2mo_get("{BASE}/o/{ORG}/f/kle_number")
+        return True
+    except requests.exceptions.HTTPError:
+        return False
+
+
 def user_uuids(**kwargs):
     return [
         e["uuid"]
@@ -271,10 +280,12 @@ def get_sts_orgunit(uuid):
         sts_org_unit,
         os2mo_get("{BASE}/ou/" + uuid + "/details/address").json(),
     )
-    kle_to_orgunit(
-        sts_org_unit,
-        os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
-    )
+    # this is set by __main__
+    if settings["OS2MO_HAS_KLE"]:
+        kle_to_orgunit(
+            sts_org_unit,
+            os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
+        )
 
     # show_all_details(uuid,"ou")
     strip_truncate_and_warn(sts_org_unit, sts_org_unit)
