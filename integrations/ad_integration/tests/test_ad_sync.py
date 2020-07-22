@@ -2,6 +2,7 @@
 import sys
 from datetime import date
 from os.path import dirname
+from functools import partial
 
 sys.path.append(dirname(__file__))
 sys.path.append(dirname(__file__) + "/..")
@@ -406,3 +407,144 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             ],
         }
         self.assertEqual(self.ad_sync.mo_post_calls, expected_sync[expected])
+
+    @parameterized.expand(
+        [
+            (None, "exception"),
+            (False, "noop"),
+            (True, "finalize"),
+        ]
+    )
+    def test_configuration_error(self, finalize_setting, expected):
+        """Verify expected behavior from sync_disabled settings."""
+        def add_sync_mapping(settings):
+            settings["integrations.ad.ad_mo_sync_mapping"] = {
+                "user_addresses": {
+                    "email": ["email_uuid", None],
+                },
+            }
+            settings["integrations.ad.ad_mo_sync_disabled"] = False
+            if finalize_setting is not None:
+                settings['integrations.ad.ad_mo_sync_finalize_disabled'] = (
+                    finalize_setting
+                )
+            return settings
+
+        today = date.today().strftime("%Y-%m-%d")
+        mo_values = self.mo_values_func()
+
+        # Helper functions to seed admosync mock
+        def add_ad_data(ad_values):
+            ad_values["email"] = "emil@magenta.dk"
+            ad_values["Enabled"] = False
+            return ad_values
+
+        def seed_mo_addresses():
+            return [
+                {
+                    "uuid": "address_uuid",
+                    "address_type": {"uuid": "office_uuid"},
+                    "org": {"uuid": "org_uuid"},
+                    "person": {"uuid": mo_values["uuid"]},
+                    "type": "address",
+                    "validity": {"from": today, "to": None},
+                    "value": "42",
+                }
+            ]
+
+        self._setup_admosync(
+            transform_settings=add_sync_mapping,
+            transform_ad_values=add_ad_data,
+            seed_mo_addresses=seed_mo_addresses,
+        )
+
+        self.assertEqual(self.ad_sync.mo_post_calls, [])
+
+        def exception(func):
+            with self.assertRaises(Exception):
+                func()
+
+        def finalize_called(expected, func):
+            # Test if function was called
+            def update_called(*args, **kwargs):
+                update_called.called = True
+            update_called.called = False
+            # Mock both finalize calls
+            self.ad_sync._finalize_it_system = update_called
+            self.ad_sync._finalize_user_addresses = update_called
+            # Call and verify
+            func()
+            self.assertEqual(update_called.called, expected)
+
+        sync_expected = {
+            'noop': partial(finalize_called, False),
+            'finalize': partial(finalize_called, True),
+            'exception': exception,
+        }
+        # Run full sync against the mocks
+        sync_expected[expected](self.ad_sync.update_all_users)
+
+    def test_finalization(self):
+        """Verify expected behavior from sync_disabled settings."""
+        def add_sync_mapping(settings):
+            settings["integrations.ad.ad_mo_sync_mapping"] = {
+                "user_addresses": {
+                    "email": ["email_uuid", None],
+                },
+            }
+            settings["integrations.ad.ad_mo_sync_disabled"] = False
+            settings['integrations.ad.ad_mo_sync_finalize_disabled'] = True
+            return settings
+
+        today = date.today().strftime("%Y-%m-%d")
+        mo_values = self.mo_values_func()
+
+        # Helper functions to seed admosync mock
+        def add_ad_data(ad_values):
+            ad_values["email"] = "emil@magenta.dk"
+            ad_values["Enabled"] = False
+            return ad_values
+
+        def seed_mo_addresses():
+            return [
+                {
+                    "uuid": "address_uuid",
+                    "address_type": {"uuid": "email_uuid"},
+                    "org": {"uuid": "org_uuid"},
+                    "person": {"uuid": mo_values["uuid"]},
+                    "type": "address",
+                    "validity": {"from": today, "to": None},
+                    "value": "42",
+                }
+            ]
+
+        self._setup_admosync(
+            transform_settings=add_sync_mapping,
+            transform_ad_values=add_ad_data,
+            seed_mo_addresses=seed_mo_addresses,
+        )
+
+        self.assertEqual(self.ad_sync.mo_post_calls, [])
+
+        # Run full sync against the mocks
+        self.ad_sync.update_all_users()
+        # TODO: This does not seem to work, try it against moratest
+        expected = [
+            {
+                "force": True,
+                "payload": [
+                    {
+                        "data": {
+                            "address_type": {"uuid": "email_uuid"},
+                            "validity": {"from": today, "to": today},
+                            "value": "42",
+                        },
+                        "type": "address",
+                        "uuid": "address_uuid",
+                    }
+                ],
+                "url": "details/edit",
+            }
+        ]
+        self.maxDiff = None
+        self.assertEqual(self.ad_sync.mo_post_calls, expected)

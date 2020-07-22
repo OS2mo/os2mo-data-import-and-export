@@ -22,7 +22,7 @@ logger = logging.getLogger('AdSyncRead')
 # Find them here https://os2mo-test.holstebro.dk/service/o/ORGUUID/f/visibility/
 
 
-# AD has  no concept of temporality, validity is always from now to infinity.
+# AD has no concept of temporality, validity is always from now to infinity.
 VALIDITY = {
     'from':  datetime.strftime(datetime.now(), "%Y-%m-%d"),
     'to': None
@@ -198,7 +198,7 @@ class AdMoSync(object):
         response = self.helper._mo_post('details/create', payload)
         logger.debug('Response: {}'.format(response))
 
-    def _edit_address(self, address_uuid, value, klasse):
+    def _edit_address(self, address_uuid, value, klasse, validity=VALIDITY):
         """
         Edit an exising address to a new value.
         :param address_uuid: uuid of the address object.
@@ -210,7 +210,7 @@ class AdMoSync(object):
                 'type': 'address',
                 'uuid': address_uuid,
                 'data': {
-                    'validity': VALIDITY,
+                    'validity': validity,
                     'value': value,
                     'address_type': {'uuid': klasse[0]}
                 }
@@ -370,12 +370,57 @@ class AdMoSync(object):
                 logger.debug(msg.format(fields_to_edit[field][1],
                                         ad_object[field]))
 
+    def _finalize_it_system(self, uuid, ad_object):
+        pass
+
+    def _finalize_user_addresses(self, uuid, ad_object):
+        fields_to_edit = self._find_existing_ad_address_types(uuid)
+
+        # TODO: This does not seem to work, try it against moratest
+        for field, klasse in self.mapping['user_addresses'].items():
+            if not ad_object.get(field):
+                logger.debug('No such AD field: {}'.format(field))
+                continue
+            if field not in fields_to_edit.keys():
+                continue
+            print(fields_to_edit)
+            self._edit_address(
+                fields_to_edit[field][0],
+                fields_to_edit[field][1],
+                klasse,
+                {
+                    'from':  datetime.strftime(datetime.now(), "%Y-%m-%d"),
+                    'to':  datetime.strftime(datetime.now(), "%Y-%m-%d"),
+                }
+            )
+
     def _update_single_user(self, uuid, ad_object):
         """
         Update all fields for a single user.
         :param uuid: uuid of the user.
         :param ad_object: Dict with the AD information for the user.
         """
+        # Debug log if enabled is not found
+        if 'Enabled' not in ad_object:
+            logger.info('{} not in ad_object'.format("Enabled"))
+
+        # Lookup whether or not to syncronize disabled users
+        sync_disabled = self.settings.get("integrations.ad.ad_mo_sync_disabled", True)
+        # Check whether the current user is disabled or not
+        current_user_is_disabled = ad_object.get('Enabled', True) == False
+        if sync_disabled == False and current_user_is_disabled:
+            finalize_key = 'integrations.ad.ad_mo_sync_finalize_disabled' 
+            if finalize_key not in self.settings:
+                raise Exception("{} not in settings".format(finalize_key))
+            # If configured to finalize
+            if self.settings[finalize_key]:
+                # Set validity end --> today if in the future
+                self._finalize_it_system(uuid, ad_object)
+                self._finalize_user_addresses(uuid, ad_object)
+            # Otherwise do not do anything
+            return
+
+        # Sync the user, whether disabled or not
         if 'it_systems' in self.mapping:
             self._edit_it_system(uuid, ad_object)
 
