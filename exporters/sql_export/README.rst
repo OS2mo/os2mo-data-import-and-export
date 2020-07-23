@@ -204,7 +204,7 @@ Adresser er i MO organisationfunktioner med funktionsnavnet ``Adresse``.
 
 
 engagementer
---------
+------------
 
 Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``.
 
@@ -354,4 +354,20 @@ binding imellem to klasser, nemlig KLE-Aspekt (f.eks. udførende) og KLE-numre.
  * ``startdato``: Startdato for denne rækkes gyldighed.
  * ``slutdato``: Slutdato for denne rækkes gyldighed.
 
+
+Actual state til cron-jobs
+==========================
+
+Jobs kører generelt hurtigere, hvis de anvender en actual state database,
+end hvis de anvender rest-kald imod os2mo.
+
+Derfor findes muligheden for at slå et job til, som genererer en actual
+state database i SQLite-format til brug for cron-jobs.
+
+For at anvende denne eksport er det nødvendigt at oprette enkelt nøgle i
+`settings.json`:
+
+ * ``lc-for-jobs.actual.db_name``: Navnet på filen (eksporten tilsætter self '.db' til navnet)
+
+Databasen vil være read-only under eksporten
 

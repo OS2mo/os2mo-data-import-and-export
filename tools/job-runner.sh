@@ -373,6 +373,11 @@ reports_viborg_managers(){
     ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
 }
 
+exports_lc_for_jobs_db(){
+    BACK_UP_AND_TRUNCATE+=(lc-for-jobs.log)
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lc_for_jobs_db.py sql-export
+}
+
 exports_test(){
     set -e
     :
@@ -454,6 +459,10 @@ exports(){
     [ "${IMPORTS_OK}" == "false" ] \
         && echo ERROR: imports are in error - skipping exports \
         && return 1 # exports depend on imports
+
+    if [ "${RUN_LC_FOR_JOBS_DB_EXPORT}" == "true" ]; then
+        run-job exports_lc_for_jobs_db || return 2
+    fi
 
     if [ "${RUN_ACTUAL_STATE_EXPORT}" == "true" ]; then
         run-job exports_actual_state_export || return 2

@@ -49,7 +49,6 @@
     "emus.userid_itsystem": "angiver hvilket IT-system, man tager brugernavnet fra, default er ``Active Directory",
 
 
-
     "exports_viborg_eksterne.destination_smb_share":"smb-share",
     "exports_viborg_eksterne.destination_directory":"directory-name",
     "exports_viborg_eksterne.workgroup":"Windows-WORKGROUP",
@@ -158,5 +157,9 @@
     "os2sync.top_unit_uuid": "uuid for administrative org top unit in os2mo",
 
     "integrations.os2opgavefordeler.url": "",
-    "integrations.os2opgavefordeler.token": ""
+    "integrations.os2opgavefordeler.token": "",
+
+    "# -- Settings for sql 'actual state db'-based jobs --":"",
+
+    "lc-for-jobs.actual.db_name": "actual-for-jobs"
 }
