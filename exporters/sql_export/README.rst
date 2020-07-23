@@ -367,7 +367,7 @@ state database i SQLite-format til brug for cron-jobs.
 For at anvende denne eksport er det nødvendigt at oprette enkelt nøgle i
 `settings.json`:
 
- * ``lc-for-jobs.actual.db_name``: Navnet på filen (eksporten tilsætter self '.db' til navnet)
+ * ``lc-for-jobs.actual_db_name``: Navnet på filen (eksporten tilsætter selv '.db' til navnet)
 
-Databasen vil være read-only under eksporten
+Databasen vil kun være skrivbar imens den bliver genereret.
 
