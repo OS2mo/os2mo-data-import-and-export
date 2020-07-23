@@ -10,12 +10,25 @@ import pathlib
 
 
 from exporters.sql_export.sql_export import SqlExport
+from sqlalchemy import create_engine
 
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "lc-for-jobs.log"
 
 logger = logging.getLogger("lc-for-jobs")
+
+
+def get_engine(dbpath=None):
+    if dbpath is None:
+        cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
+        if not cfg_file.is_file():
+            raise Exception("No setting file")
+        settings = json.loads(cfg_file.read_text())
+        dbpath = settings["lc-for-jobs.actual_db_name"]
+
+    db_string = "sqlite:///{}.db".format(dbpath)
+    return create_engine(db_string)
 
 
 @click.group()
@@ -26,8 +39,7 @@ def cli():
 
 @cli.command()
 @click.option("--resolve-dar/--no-resolve-dar", default=False)
-@click.option("--historic/--no-historic", default=False)
-def sql_export(resolve_dar, historic):
+def sql_export(resolve_dar):
 
     # Load settings file
     cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
@@ -42,21 +54,13 @@ def sql_export(resolve_dar, historic):
         "exporters.actual_state.db_name": org_settings[
             "lc-for-jobs.actual_db_name"
         ],
-        "exporters.actual_state_historic.db_name": org_settings.get(
-            "lc-for-jobs.historic_db_name", ""
-        ),
         "exporters.actual_state.manager_responsibility_class": org_settings[
             "exporters.actual_state.manager_responsibility_class"
         ]
     }
 
-    # Generate sql export
-
-    if historic and not org_settings["lc-for-jobs.historic.db_name"]:
-        raise ValueError("'lc-for-jobs.historic.db_name' not present in settings file")
-
     sql_export = SqlExport(
-        force_sqlite=True, historic=historic, settings=settings
+        force_sqlite=True, historic=False, settings=settings
     )
     sql_export.perform_export(resolve_dar=resolve_dar, use_pickle=False)
 
