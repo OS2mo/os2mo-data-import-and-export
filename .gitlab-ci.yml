@@ -72,4 +72,4 @@ Test AD Integration:
 Test OS2Sync Integration:
   extends: .test-python
   script:
-    - python -m doctest integrations/os2sync/os2mo.py
+    - python -m unittest discover exporters/sql_export/tests 

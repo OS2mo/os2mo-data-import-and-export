@@ -373,6 +373,17 @@ reports_viborg_managers(){
     ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
 }
 
+exports_lc_for_jobs_db(){
+    BACK_UP_AND_TRUNCATE+=(lc-for-jobs.log)
+    SETTING_PREFIX="lc-for-jobs" source ${DIPEXAR}/tools/prefixed_settings.sh
+    [ -z "${actual_db_name}" ] && echo "actual_db_name not specified" && exit 1
+    db_file="${actual_db_name}.db"
+
+    [ -f "${db_file}" ] && chmod 600 "${db_file}"
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lc_for_jobs_db.py sql-export
+    [ -f "${db_file}" ] && chmod 400 "${db_file}"
+}
+
 exports_test(){
     set -e
     :
@@ -454,6 +465,10 @@ exports(){
     [ "${IMPORTS_OK}" == "false" ] \
         && echo ERROR: imports are in error - skipping exports \
         && return 1 # exports depend on imports
+
+    if [ "${RUN_LC_FOR_JOBS_DB_EXPORT}" == "true" ]; then
+        run-job exports_lc_for_jobs_db || return 2
+    fi
 
     if [ "${RUN_ACTUAL_STATE_EXPORT}" == "true" ]; then
         run-job exports_actual_state_export || return 2
