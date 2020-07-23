@@ -67,3 +67,9 @@ Test AD Integration:
   script:
     - cd integrations/ad_integration/
     - pytest tests/
+
+
+Test lc-for-jobs-db:
+  extends: .test-python
+  script:
+    - python -m unittest discover exporters/sql_export/tests 
