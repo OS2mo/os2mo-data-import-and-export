@@ -6,10 +6,10 @@ from random import choice, randint
 from unittest import TestCase
 
 import requests
+from tests.name_simulator import create_name
 
 from ad_sync import AdMoSync
 from ad_writer import ADWriter
-from tests.name_simulator import create_name
 from user_names import CreateUserNames
 from utils import AttrDict, recursive_dict_update
 
