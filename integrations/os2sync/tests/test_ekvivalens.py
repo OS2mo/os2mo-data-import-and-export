@@ -1,39 +1,52 @@
 import unittest
 from integrations.os2sync import config, __main__
+import tempfile
 import pathlib
 import os
 import json
-import time
 
-config.logformat = "%(message)s"
+config.logformat="%(message)s"
 
 
 class Tests(unittest.TestCase):
     maxDiff = None
 
-    def run_once(self, directory, cache, **overrides):
-        starttime = time.time()
+    def run_once(self, directory, **overrides):
         pd = pathlib.Path(directory)
         log = pd / "log"
         hk = pd / "hk"
-        cache = pd / cache
         config.settings["OS2SYNC_HASH_CACHE"] = str(hk)
         config.settings["MOX_LOG_FILE"] = str(log)
-        config.settings["OS2SYNC_API_URL"] = "stub"
         config.settings.update(overrides)
-        if not cache.exists():
-            __main__.main(config.settings)
-            cache.write_text(hk.read_text())
-            hk.unlink()
+        print(log)
+        if not log.exists():
+            __main__.main()
 
-        endtime = time.time()
-        print("\ntime consumed for", directory, overrides, "is", endtime - starttime)
-        return json.loads(cache.read_text())
+        lines = log.read_text().split("\n")
+
+        results = {"post":{},"delete":{}}
+        for line in lines:
+            if line.startswith("POST"):
+                js = line.split(" ", maxsplit=2)[-1].replace("'",'"')
+                try:
+                    js = json.loads(js)["json"]
+                except:
+                    print(js)
+                    continue
+                if "Positions" in js:
+                    js["Positions"] = sorted(js["Positions"], key=lambda x: x["OrgUnitUuid"])
+                if "Tasks" in js:
+                    js["Tasks"] = sorted(js["Tasks"])
+                if "ContactForTasks" in js:
+                    js["ContactForTasks"] = sorted(js["ContactForTasks"])
+                results["post"].setdefault(js["Uuid"], js)
+
+        return results
 
     def test_ekvivalens(self):
         self.maxDiff = None
-        testdir = "/tmp/os2sync-test"
-        os.makedirs(testdir, exist_ok=True)
-        old = self.run_once(testdir, "old", OS2SYNC_USE_LC_DB=False)
-        new = self.run_once(testdir, "new", OS2SYNC_USE_LC_DB=True)
+        os.makedirs ("/tmp/os2sync-test/new", exist_ok=True)
+        os.makedirs ("/tmp/os2sync-test/old", exist_ok=True)
+        old = self.run_once("/tmp/os2sync-test/old", OS2SYNC_USE_LC_DB=False)
+        new = self.run_once("/tmp/os2sync-test/new", OS2SYNC_USE_LC_DB=True)
         self.assertEqual(old, new)
