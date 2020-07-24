@@ -6,29 +6,16 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import logging
-from integrations.os2sync import os2mo, os2sync, config
+from integrations.os2sync import os2mo, os2sync, config, lcdb_os2mo
 import collections
 import argparse
 import pathlib
 import json
 import datetime
-
-# set warning-level for all loggers
-[
-    logging.getLogger(name).setLevel(logging.WARNING)
-    for name in logging.root.manager.loggerDict
-    if name != config.loggername
-]
+from functools import partial
 
 settings = config.settings
-logging.basicConfig(
-    format='%(levelname)s %(asctime)s %(name)s %(message)s',
-    level=int(settings["MOX_LOG_LEVEL"]),
-    filename=settings["MOX_LOG_FILE"]
-)
-logger = logging.getLogger(config.loggername)
-logger.setLevel(int(settings["MOX_LOG_LEVEL"]))
-
+logger = None # set in main()
 
 def log_mox_config():
     """It is imperative for log-forensics to have as
@@ -52,7 +39,7 @@ def log_mox_counters(counter):
         logger.info("    %s: %r", k, v)
 
 
-def sync_os2sync_orgunits(counter, cherrypicked=[]):
+def sync_os2sync_orgunits(counter, prev_date):
     logger.info("sync_os2sync_orgunits starting")
 
     logger.info("sync_os2sync_orgunits getting "
@@ -65,9 +52,6 @@ def sync_os2sync_orgunits(counter, cherrypicked=[]):
 
     counter["Aktive Orgenheder fundet i OS2MO"] = len(os2mo_uuids_present)
     counter["Orgenheder tidligere"] = len(os2mo_uuids_past)
-
-    logger.info("sync_os2sync_orgunits getting all "
-                "organisational units from os2sync")
 
     logger.info("sync_os2sync_orgunits deleting organisational "
                 "units from os2sync if deleted in os2mo")
@@ -92,15 +76,15 @@ def sync_os2sync_orgunits(counter, cherrypicked=[]):
     return set(allowed_unitids)
 
 
-def sync_os2sync_users(allowed_unitids, counter):
+def sync_os2sync_users(allowed_unitids, counter, prev_date):
 
     logger.info("sync_os2sync_users starting")
-    logger.info("sync_os2sync_users getting list "
-                "of users from os2sync")
 
+    logger.info("sync_os2sync_users getting "
+                "users from os2mo from previous xfer date")
     os2mo_uuids_past = set(os2mo.user_uuids(at=prev_date))
-    logger.info("sync_os2sync_users getting list of users from os2mo")
 
+    logger.info("sync_os2sync_users getting list of users from os2mo")
     os2mo_uuids_present = set(os2mo.user_uuids())
 
     counter["Medarbejdere fundet i OS2Mo"] = len(os2mo_uuids_present)
@@ -132,7 +116,28 @@ def sync_os2sync_users(allowed_unitids, counter):
     logger.info("sync_os2sync_users done")
 
 
-if __name__ == "__main__":
+def main():
+    # set warning-level for all loggers
+    global logger
+    [
+        logging.getLogger(name).setLevel(logging.WARNING)
+        for name in logging.root.manager.loggerDict
+        if name != config.loggername
+    ]
+
+    logging.basicConfig(
+        format=config.logformat,
+        level=int(settings["MOX_LOG_LEVEL"]),
+        filename=settings["MOX_LOG_FILE"]
+    )
+    logger = logging.getLogger(config.loggername)
+    logger.setLevel(int(settings["MOX_LOG_LEVEL"]))
+
+    if settings["OS2SYNC_USE_LC_DB"]:
+        engine = lcdb_os2mo.get_engine()
+        session = lcdb_os2mo.get_session(engine)
+        os2mo.get_sts_user = partial(lcdb_os2mo.get_sts_user, session)
+        os2mo.get_sts_orgunit = partial(lcdb_os2mo.get_sts_orgunit, session)
 
     prev_date = datetime.datetime.now() - datetime.timedelta(days=1)
     hash_cache_file = pathlib.Path(settings["OS2SYNC_HASH_CACHE"])
@@ -141,8 +146,6 @@ if __name__ == "__main__":
         prev_date = datetime.datetime.fromtimestamp(hash_cache_file.stat().st_mtime)
     prev_date = prev_date.strftime("%Y-%m-%d")
 
-    parser = argparse.ArgumentParser(description='Mox Stsorgsync')
-    args = vars(parser.parse_args())
     counter = collections.Counter()
     logger.info("mox_os2sync starting")
     log_mox_config()
@@ -156,8 +159,8 @@ if __name__ == "__main__":
         ]
     settings["OS2MO_HAS_KLE"] = os2mo.has_kle()
 
-    orgunit_uuids = sync_os2sync_orgunits(counter)
-    sync_os2sync_users(orgunit_uuids, counter)
+    orgunit_uuids = sync_os2sync_orgunits(counter, prev_date)
+    sync_os2sync_users(orgunit_uuids, counter, prev_date)
 
     if hash_cache_file:
         hash_cache_file.write_text(json.dumps(os2sync.hash_cache, indent=4))
@@ -165,3 +168,6 @@ if __name__ == "__main__":
     log_mox_counters(counter)
     log_mox_config()
     logger.info("mox_os2sync done")
+
+if __name__ == "__main__":
+    main()
