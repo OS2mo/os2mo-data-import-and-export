@@ -163,15 +163,22 @@ class AdMoSync(object):
             user_addresses = self.helper._mo_lookup(uuid, 'e/{}/details/address')
 
         for field, klasse in self.mapping['user_addresses'].items():
-            found_address = None
-            for address in user_addresses:
-                if not address['address_type']['uuid'] == klasse[0]:
-                    continue
-                if klasse[1] is not None and 'visibility' in address:
-                    if self.visibility[klasse[1]] == address['visibility']['uuid']:
-                        found_address = (address['uuid'], address['value'])
-                else:
-                    found_address = (address['uuid'], address['value'])
+            address_type_uuid, visibility_uuid = klasse
+            potential_matches = user_addresses
+            # Filter out addresses with wrong type
+            def check_address_type_uuid(address):
+                return address['address_type']['uuid'] == address_type_uuid
+            potential_matches = filter(check_address_type_uuid, potential_matches)
+            # Filter out addresses with wrong visibility
+            def check_address_visibility(address):
+                return (
+                    visibility_uuid is None or 'visibility' not in address or
+                    self.visibility[visibility_uuid] == address['visibility']['uuid']
+                )
+            potential_matches = filter(check_address_visibility, potential_matches)
+            # Consume iterator, verifying either 0 or 1 elements are returned
+            found_address = next(potential_matches, None)
+            assert next(potential_matches, None) == None
             if found_address is not None:
                 types_to_edit[field] = found_address
         logger.debug('Existing fields for {}: {}'.format(uuid, types_to_edit))
@@ -358,41 +365,59 @@ class AdMoSync(object):
                 self._create_address(uuid, ad_object[field], klasse)
             else:
                 # This is an existing address
-                if not fields_to_edit[field][1] == ad_object[field]:
+                if not fields_to_edit[field]['value'] == ad_object[field]:
                     msg = 'Value change, MO: {} <> AD: {}'
                     self.stats['addresses'][1] += 1
                     self.stats['users'].add(uuid)
-                    self._edit_address(fields_to_edit[field][0],
+                    self._edit_address(fields_to_edit[field]['uuid'],
                                        ad_object[field],
                                        klasse)
                 else:
                     msg = 'No value change: {}=={}'
-                logger.debug(msg.format(fields_to_edit[field][1],
+                logger.debug(msg.format(fields_to_edit[field]['value'],
                                         ad_object[field]))
 
     def _finalize_it_system(self, uuid, ad_object):
-        pass
+        if 'it_systems' not in self.mapping:
+            return
+
+        # TODO: Fetch current and check validity
+
+        mo_itsystem_uuid = self.mapping['it_systems']['samAccountName']
+        today = datetime.strftime(datetime.now(), "%Y-%m-%d")
+        payload = {
+            'type': 'it',
+            'uuid': mo_itsystem_uuid,
+            'validity': {"to": today}
+        }
+        logger.debug('Finalize payload: {}'.format(payload))
+        response = self.helper._mo_post('details/terminate', payload)
+        logger.debug('Response: {}'.format(response.text))
 
     def _finalize_user_addresses(self, uuid, ad_object):
-        fields_to_edit = self._find_existing_ad_address_types(uuid)
+        if 'user_addresses' not in self.mapping:
+            return
 
-        # TODO: This does not seem to work, try it against moratest
+        fields_to_edit = self._find_existing_ad_address_types(uuid)
         for field, klasse in self.mapping['user_addresses'].items():
             if not ad_object.get(field):
                 logger.debug('No such AD field: {}'.format(field))
                 continue
             if field not in fields_to_edit.keys():
                 continue
-            print(fields_to_edit)
-            self._edit_address(
-                fields_to_edit[field][0],
-                fields_to_edit[field][1],
-                klasse,
-                {
-                    'from':  datetime.strftime(datetime.now(), "%Y-%m-%d"),
-                    'to':  datetime.strftime(datetime.now(), "%Y-%m-%d"),
-                }
-            )
+            # If an end date is already set, do not change.
+            # NOTE: Maybe this should be not set, or in the future?
+            if fields_to_edit[field]['validity']['to'] is not None:
+                continue
+            today = datetime.strftime(datetime.now(), "%Y-%m-%d")
+            payload = {
+                'type': 'address',
+                'uuid': fields_to_edit[field]['uuid'],
+                'validity': {"to": today}
+            }
+            logger.debug('Finalize payload: {}'.format(payload))
+            response = self.helper._mo_post('details/terminate', payload)
+            logger.debug('Response: {}'.format(response.text))
 
     def _update_single_user(self, uuid, ad_object):
         """

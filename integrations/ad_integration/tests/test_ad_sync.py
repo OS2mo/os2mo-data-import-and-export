@@ -528,23 +528,17 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
         # Run full sync against the mocks
         self.ad_sync.update_all_users()
-        # TODO: This does not seem to work, try it against moratest
         expected = [
             {
                 "force": True,
-                "payload": [
-                    {
-                        "data": {
-                            "address_type": {"uuid": "email_uuid"},
-                            "validity": {"from": today, "to": today},
-                            "value": "42",
-                        },
-                        "type": "address",
-                        "uuid": "address_uuid",
-                    }
-                ],
-                "url": "details/edit",
+                "payload": {
+                    "type": "address",
+                    "uuid": "address_uuid",
+                    "validity": {"to": today},
+                },
+                "url": "details/terminate",
             }
         ]
+        # '/details/terminate', {'type': 'it', 'uuid': 'it_system_uuid', 'validity': {'to': '2020-07-24'}}
         self.maxDiff = None
         self.assertEqual(self.ad_sync.mo_post_calls, expected)
