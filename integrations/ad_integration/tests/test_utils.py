@@ -127,10 +127,10 @@ class ADWriterTestSubclass(ADWriter):
             # Add our script to the list
             self.scripts.append(ps_script)
             # Fake the WinRM run_ps return type
-            return AttrDict({"status_code": 0, "std_out": b"", "std_err": b"",})
+            return AttrDict({"status_code": 0, "std_out": b"", "std_err": b""})
 
         # Fake the WinRM session object
-        return AttrDict({"run_ps": run_ps,})
+        return AttrDict({"run_ps": run_ps})
 
     def _get_retry_exceptions(self):
         """Mocked to return an empty list, i.e. never retry.
@@ -363,11 +363,11 @@ class AdMoSyncTestSubclass(AdMoSync):
     def _setup_mora_helper(self):
         def _mo_lookup(uuid, url):
             if url.startswith("e/{}/details/"):
-                slash_index = url.rfind('/')
-                parameters_index = url.rfind('?')
+                slash_index = url.rfind("/")
+                parameters_index = url.rfind("?")
                 if parameters_index == -1:
                     parameters_index = None
-                lookup_type = url[slash_index+1:parameters_index]
+                lookup_type = url[slash_index + 1 : parameters_index]
                 return self.mo_seed[lookup_type]
             elif url.startswith("o/{}/e?limit="):
                 return {"items": [self.mo_values]}
@@ -410,7 +410,7 @@ class AdMoSyncTestSubclass(AdMoSync):
             # If we got that one person, return it
             return self.ad_values
 
-        self.ad_reader = AttrDict({"read_user": read_user,})
+        self.ad_reader = AttrDict({"read_user": read_user})
 
 
 class TestADMoSyncMixin(TestADMixin):
