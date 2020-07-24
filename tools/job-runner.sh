@@ -380,7 +380,7 @@ exports_lc_for_jobs_db(){
     db_file="${actual_db_name}.db"
 
     [ -f "${db_file}" ] && chmod 600 "${db_file}"
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lc_for_jobs_db.py sql-export
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lc_for_jobs_db.py sql-export --resolve-dar
     [ -f "${db_file}" ] && chmod 400 "${db_file}"
 }
 
