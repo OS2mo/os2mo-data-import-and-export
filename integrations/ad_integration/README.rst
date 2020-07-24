@@ -265,19 +265,18 @@ Et eksempel på en feltmapning angives herunder:
 .. code-block:: json
 
     "integrations.ad.ad_mo_sync_mapping": {
-	"user_addresses": {
-	    "telephoneNumber": ["a6dbb837-5fca-4f05-b369-8476a35e0a95", "INTERNAL"],
-	    "pager": ["d9cd7a04-a992-4b31-9534-f375eba2f1f4 ", "PUBLIC"],
-	    "EmailAddress": ["fbd70da1-ad2e-4373-bb4f-2a431b308bf1", null],
-	    "mobile": ["6e7131a0-de91-4346-8607-9da1b576fc2a ", "PUBLIC"]
-	},
-	"it_systems": {
-	    "samAccountName": "d2998fa8-9d0f-4a2c-b80e-c754c72ef094"
-	},
+        "user_addresses": {
+            "telephoneNumber": ["a6dbb837-5fca-4f05-b369-8476a35e0a95", "INTERNAL"],
+            "pager": ["d9cd7a04-a992-4b31-9534-f375eba2f1f4 ", "PUBLIC"],
+            "EmailAddress": ["fbd70da1-ad2e-4373-bb4f-2a431b308bf1", null],
+            "mobile": ["6e7131a0-de91-4346-8607-9da1b576fc2a ", "PUBLIC"]
+        },
+        "it_systems": {
+            "samAccountName": "d2998fa8-9d0f-4a2c-b80e-c754c72ef094"
+        },
         "engagements": {
             "Title": "extension_2"
         }
-
     }
 
 For adresser angives en synlighed, som kan antage værdien `PUBLIC`, `INTERNAL`,

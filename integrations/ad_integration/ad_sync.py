@@ -381,35 +381,56 @@ class AdMoSync(object):
         if 'it_systems' not in self.mapping:
             return
 
-        # TODO: Fetch current and check validity
-
-        mo_itsystem_uuid = self.mapping['it_systems']['samAccountName']
         today = datetime.strftime(datetime.now(), "%Y-%m-%d")
-        payload = {
-            'type': 'it',
-            'uuid': mo_itsystem_uuid,
-            'validity': {"to": today}
+        it_systems = {
+            itsystem['uuid']: itsystem for itsystem in
+                self.helper._mo_lookup(uuid, 'e/{}/details/it')
         }
-        logger.debug('Finalize payload: {}'.format(payload))
-        response = self.helper._mo_post('details/terminate', payload)
-        logger.debug('Response: {}'.format(response.text))
+
+        def check_validity_is_ok(uuid):
+            # NOTE: Maybe this should be not set, or in the future?
+            return it_systems[uuid]['validity']['to'] is None
+
+        # Find fields to terminate
+        it_system_uuids = self.mapping['it_systems'].values()
+        it_system_uuids = filter(check_validity_is_ok, it_system_uuids)
+
+        for uuid in it_system_uuids:
+            payload = {
+                'type': 'it',
+                'uuid': uuid,
+                'validity': {"to": today}
+            }
+            logger.debug('Finalize payload: {}'.format(payload))
+            response = self.helper._mo_post('details/terminate', payload)
+            logger.debug('Response: {}'.format(response.text))
 
     def _finalize_user_addresses(self, uuid, ad_object):
         if 'user_addresses' not in self.mapping:
             return
 
+        today = datetime.strftime(datetime.now(), "%Y-%m-%d")
         fields_to_edit = self._find_existing_ad_address_types(uuid)
-        for field, klasse in self.mapping['user_addresses'].items():
-            if not ad_object.get(field):
+
+        def check_ad_field_exists(field):
+            if field not in ad_object:
                 logger.debug('No such AD field: {}'.format(field))
-                continue
-            if field not in fields_to_edit.keys():
-                continue
-            # If an end date is already set, do not change.
+                return False
+            return True
+
+        def check_field_in_fields_to_edit(field):
+            return field in fields_to_edit.keys()
+
+        def check_validity_is_ok(field):
             # NOTE: Maybe this should be not set, or in the future?
-            if fields_to_edit[field]['validity']['to'] is not None:
-                continue
-            today = datetime.strftime(datetime.now(), "%Y-%m-%d")
+            return fields_to_edit[field]['validity']['to'] is None
+
+        # Find fields to terminate
+        address_fields = self.mapping['user_addresses'].keys()
+        address_fields = filter(check_ad_field_exists, address_fields)
+        address_fields = filter(check_field_in_fields_to_edit, address_fields)
+        address_fields = filter(check_validity_is_ok, address_fields)
+        for field in address_fields:
             payload = {
                 'type': 'address',
                 'uuid': fields_to_edit[field]['uuid'],
