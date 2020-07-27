@@ -298,7 +298,18 @@ Integrationen vil som udgangspunkt ikke synkronisere fra et eventuelt skole AD, 
 mindre nøglen `integrations.ad.skip_school_ad_to_mo` sættes til `false`.
 
 Da AD ikke understøtter gyldighedstider, antages alle informationer uddraget fra AD
-at gælde fra 'i dag' og til evig tid.
+at gælde fra 'i dag' og til evig tid. Den eneste undtagelse til dette er ved
+afslutning af deaktiverede AD brugere.
+
+Deaktiverede AD brugere kan håndteres på forskellige måder. Som udgangspunkt
+synkroniseres de på præcis samme vis som almindelige brugere, med mindre nøglen
+`integrations.ad.ad_mo_sync_disabled` er sat til `false`, i hvilket tilfælde
+de slet ikke synkroniseres overhovedet. Vær opmærksom på at hvis denne nøgle er
+`false` skal nøglen `integrations.ad.ad_mo_sync_finalize_disabled` også sættes.
+Hvis denne sættes `false` fås adfærden hvor intet synkroniseres overhovedet,
+hvorimod at hvis nøglen sættes `true` vil deaktiverede brugere blive afsluttet.
+Ved afslutning forstås at brugerens AD synkroniserede adresser og it-systemer
+flyttes til fortiden, såfremt de har en åben slutdato.
 
 Slutteligt skal det nævnes, at implemeneringen af synkroniseringen understøtter
 muligheden for at opnå en betydelig hastighedsforbering ved at tillade direkte adgang
