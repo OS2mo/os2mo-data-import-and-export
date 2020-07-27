@@ -301,13 +301,14 @@ Da AD ikke understøtter gyldighedstider, antages alle informationer uddraget fr
 at gælde fra 'i dag' og til evig tid. Den eneste undtagelse til dette er ved
 afslutning af deaktiverede AD brugere.
 
-Deaktiverede AD brugere kan håndteres på forskellige måder. Som udgangspunkt
-synkroniseres de på præcis samme vis som almindelige brugere, med mindre nøglen
-`integrations.ad.ad_mo_sync_disabled` er sat til `false`, i hvilket tilfælde
-de slet ikke synkroniseres overhovedet. Vær opmærksom på at hvis denne nøgle er
-`false` skal nøglen `integrations.ad.ad_mo_sync_finalize_disabled` også sættes.
-Hvis denne sættes `false` fås adfærden hvor intet synkroniseres overhovedet,
-hvorimod at hvis nøglen sættes `true` vil deaktiverede brugere blive afsluttet.
+Deaktiverede AD brugere kan håndteres på forskellige måder.
+Som udgangspunkt synkroniseres de på præcis samme vis som almindelige brugere,
+med mindre nøglen `integrations.ad.ad_mo_sync_disabled` er sat til `false`.
+Hvis dette er tilfælde ophører den automatiske synkronisering, og den nu
+påkrævede nøgle `integrations.ad.ad_mo_sync_finalize_disabled` afgører hvad der
+skal ske i stedet.
+Hvis denne nøgle sættes til `false` fås adfærden hvor intet synkroniseres overhovedet,
+hvis nøglen derimod sættes til `true` vil deaktiverede brugere blive afsluttet.
 Ved afslutning forstås at brugerens AD synkroniserede adresser og it-systemer
 flyttes til fortiden, såfremt de har en åben slutdato.
 
