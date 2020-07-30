@@ -1,6 +1,6 @@
 import asyncio
 from functools import partial
-from typing import Any, Sequence, Tuple, TypeVar
+from typing import Any, Sequence, Tuple
 from uuid import UUID
 
 import aiohttp
@@ -76,6 +76,7 @@ class MoxHelper:
             "read_all": self._read_uuid_list,
             "create": self._create,
             "get_or_create": self._get_or_create,
+            "validate": self._validate_payload,
         }
         schema_tasks = []
         for service, obj in service_tuples:
@@ -90,6 +91,7 @@ class MoxHelper:
             task = asyncio.ensure_future(self._fetch_schema(service, obj))
             schema_tasks.append(task)
         # Fetch schemas in 'parallel'
+        # TODO: Consider caching schemas
         self.schemas = dict(await asyncio.gather(*schema_tasks))
 
     @ensure_session
