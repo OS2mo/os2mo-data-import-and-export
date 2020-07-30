@@ -1,102 +1,11 @@
-import asyncio
 import json
 import sys
-from functools import partial
-from uuid import UUID
-from functools import wraps
 
-import aiohttp
 import click
 
-from utils import async_to_sync, dict_map, consume
-from schema import validate_payload
-
-
-def is_uuid(string: str) -> bool:
-    try:
-        UUID(string)
-        return True
-    except ValueError:
-        return False
-
-
-def is_uuid_list(listy: list) -> bool:
-    return all(list(map(is_uuid, listy)))
-
-
-def ensure_session(func):
-    async def _decorator(self, *args, **kwargs):
-        if self.session:
-            return await func(self, session, *args, **kwargs)
-        else:
-            async with aiohttp.ClientSession() as session:
-                return await func(self, session, *args, **kwargs)
-    return _decorator
-
-
-class MoxHelper:
-    def __init__(self, hostname, session=None):
-        self.hostname = hostname
-        self.session = session
-
-    @ensure_session
-    async def _search(self, session, service, obj, params):
-        url = f"{self.hostname}/{service}/{obj}"
-        async with session.get(url, params=params) as response:
-            data = await response.json()
-            return data["results"][0]
-
-    @ensure_session
-    async def _create(self, session, service, obj, payload):
-        validate_payload(payload, obj)
-        url = f"{self.hostname}/{service}/{obj}"
-        async with session.post(url, json=payload) as response:
-            return await response.json()
-
-    async def read_all_facets(self):
-        result = await self._search("klassifikation", "facet", {"bvn": "%"})
-        # Check that we got back valid UUIDs
-        if not is_uuid_list(result):
-            raise ValueError("Endpoint did not return a list of uuids")
-        return result
-
-    async def create_facets(self, facets):
-        for facet in facets:
-            result = await self._create("klassifikation", "facet", facet)
-            print(result)
-
-
-def session_getter(session, base, url, *args, **kwargs):
-    url = f"{base}/{url}"
-    return session.get(url, *args, **kwargs)
-
-
-async def fetch_all_facet_uuids(getter):
-    url = "klassifikation/facet"
-    params = {"bvn": "%"}
-    async with getter(url, params=params) as response:
-        data = await response.json()
-        uuid_list = data["results"][0]
-        # Check that we got back valid UUIDs
-        try:
-            consume(map(UUID, uuid_list))
-        except ValueError:
-            print("Expected UUIDs")
-        return uuid_list
-
-
-async def fetch_facets(getter, uuid_list):
-    url = "klassifikation/facet"
-    params = list(map(lambda uuid: ("uuid", uuid), uuid_list))
-    async with getter(url, params=params) as response:
-        data = await response.json()
-        facet_list = data["results"][0]
-        return facet_list
-
-
-def generate_facet(bvn, org):
-    from payloads import lora_facet
-    return lora_facet(bvn, org)
+from mox_helper import create_mox_helper
+from payloads import lora_facet, lora_klasse
+from utils import async_to_sync, dict_map
 
 
 @click.group(invoke_without_command=True)
@@ -112,7 +21,7 @@ def settings_loader(ctx, settings_file):
     settings_file_from_default = True
     settings = {}
     try:
-        with click.open_file(settings_file, 'rb') as f:
+        with click.open_file(settings_file, "rb") as f:
             settings = json.load(f)
     except FileNotFoundError as exp:
         # Only default file is allowed not to exist
@@ -137,30 +46,54 @@ def cli(ctx, mox_base):
 
 @cli.command()
 @click.pass_context
-@click.option("--facet", help="Number of greetings.")
-@click.option("--bvn", help="The person to greet.")
-@click.option("--title", help="The person to greet.")
-@click.option("--organisation", help="The person to greet.")
-@click.option("--scope", help="The person to greet.")
+@click.option(
+    "--bvn", "--brugervendt-nøgle", required=True, help="The person to greet."
+)
+@click.option("--description", help="The person to greet.")
+@click.option("--title", required=True, help="The person to greet.")
+@click.option("--facet-bvn", required=True, help="The person to greet.")
+@click.option("--org-uuid", "--organisation", help="The person to greet.")
+@click.option("--parent-bvn", help="The person to greet.")
 @async_to_sync
-async def create_class(ctx, facet, bvn, title, organisation, scope):
-    async with aiohttp.ClientSession() as session:
-        getter = partial(session_getter, session, ctx.obj["mox.base"])
-        uuid_list = await fetch_all_facet_uuids(getter)
-        print(uuid_list)
-        facets_list = await fetch_facets(getter, uuid_list)
-        print(json.dumps(facets_list, indent=4))
+async def ensure_class_exists(
+    ctx, bvn, description, title, facet_bvn, org_uuid, parent_bvn
+):
+    mox_helper = await create_mox_helper(ctx.obj["mox.base"])
+    if org_uuid is None:
+        org_uuid = await mox_helper.read_element_organisation_organisation(bvn="%")
+    facet_uuid = await mox_helper.read_element_klassifikation_facet(bvn=facet_bvn)
+    parent_uuid = None
+    if parent_bvn:
+        parent_uuid = await mox_helper.read_element_klassifikation_klasse(
+            bvn=parent_bvn
+        )
+    klasse = lora_klasse(
+        bvn,
+        title,
+        facet_uuid,
+        org_uuid,
+        description=description,
+        overklasse=parent_uuid,
+    )
+    uuid, created = await mox_helper.get_or_create_klassifikation_klasse(klasse)
+    print(uuid, "created" if created else "exists")
 
 
 @cli.command()
 @click.pass_context
-@click.option("--bvn", "--brugervendt-nøgle", required=True, help="The person to greet.")
-@click.option("--org", "--organisation", help="The person to greet.")
+@click.option(
+    "--bvn", "--brugervendt-nøgle", required=True, help="The person to greet."
+)
+@click.option("--description", help="The person to greet.")
+@click.option("--org-uuid", "--organisation", help="The person to greet.")
 @async_to_sync
-async def create_facet(ctx, bvn, org):
-    mox_helper = MoxHelper(ctx.obj["mox.base"])
-    facet = generate_facet(bvn, org)
-    result = await mox_helper.create_facets([facet])
+async def ensure_facet_exists(ctx, bvn, description, org_uuid):
+    mox_helper = await create_mox_helper(ctx.obj["mox.base"])
+    if org_uuid is None:
+        org_uuid = await mox_helper.read_element_organisation_organisation(bvn="%")
+    facet = lora_facet(bvn, org_uuid, description)
+    uuid, created = await mox_helper.get_or_create_klassifikation_facet(facet)
+    print(uuid, "created" if created else "exists")
 
 
 @cli.command()
@@ -201,23 +134,24 @@ def check_connection(
 ):
     """Check whether a connection can be established to mox."""
     output_map = {
-        False: {"exit_code": exit_code_on_error, "message": exit_print_on_error, "color": "red"},
-        True: {"exit_code": exit_code_on_success, "message": exit_print_on_success, "color": "green"},
+        False: {
+            "exit_code": exit_code_on_error,
+            "message": exit_print_on_error,
+            "color": "red",
+        },
+        True: {
+            "exit_code": exit_code_on_success,
+            "message": exit_print_on_success,
+            "color": "green",
+        },
     }
 
     @async_to_sync
     async def is_up():
-        try:
-            async with aiohttp.ClientSession() as session:
-                getter = partial(session_getter, session, ctx.obj["mox.base"])
-                url = "version"
-                async with getter(url) as response:
-                    data = await response.json()
-                    if "lora_version" in data:
-                        return True
-        except Exception:
-            pass
-        return False
+        mox_helper = await create_mox_helper(
+            ctx.obj["mox.base"], generate_methods=False
+        )
+        return await mox_helper.check_connection()
 
     output = output_map[is_up()]
     if output["message"]:

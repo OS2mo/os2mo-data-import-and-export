@@ -1,6 +1,7 @@
 import asyncio
-from functools import wraps
 import collections
+from functools import wraps
+
 
 def async_to_sync(f):
     """Decorator to run an async function to completion.
