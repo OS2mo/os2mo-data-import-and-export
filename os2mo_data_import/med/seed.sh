@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CLI=python mox_util.py cli
+CLI="python mox_util.py cli"
 
 $CLI ensure-facet-exists --bvn hoved_organisation --description Hovedorganisation
 $CLI ensure-facet-exists --bvn faglig_organisation --description "Faglig organisation"

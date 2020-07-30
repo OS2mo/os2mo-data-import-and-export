@@ -59,7 +59,9 @@ def lora_klasse(
     if description:
         attributter["klasseegenskaber"][0]["beskrivelse"] = description
     tilstande = {
-        "klassepubliceret": [{"publiceret": "Publiceret", "virkning": _virkning(dato)}]
+        "klassepubliceret": [
+            {"publiceret": "Publiceret", "virkning": _virkning(dato)}
+        ]
     }
     relationer = {
         "facet": [

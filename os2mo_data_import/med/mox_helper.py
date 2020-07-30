@@ -65,7 +65,9 @@ class MoxHelper:
         async def discover_endpoints():
             async with session.get(url) as response:
                 data = await response.json()
-                service_urls = filter(lambda x: x.endswith("/fields"), data["site-map"])
+                service_urls = filter(
+                    lambda x: x.endswith("/fields"), data["site-map"]
+                )
                 services = map(lambda x: x.replace("/fields", "")[1:], service_urls)
                 service_tuples = map(lambda x: x.split("/"), services)
                 return service_tuples

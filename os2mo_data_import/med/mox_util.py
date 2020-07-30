@@ -1,12 +1,12 @@
 import json
 import sys
+from typing import Tuple
 
 import click
 
 from mox_helper import create_mox_helper
 from payloads import lora_facet, lora_klasse
 from utils import async_to_sync, dict_map
-from typing import Tuple
 
 
 @click.group()
@@ -76,39 +76,54 @@ def print_created(uuid: str, created: bool) -> None:
     The color of the output follows Ansibles changed / unchanged coor scheme.
     """
     output_map = {
-        False: {
-            "message": "exists",
-            "color": "green",
-        },
-        True: {
-            "message": "created",
-            "color": "yellow",
-        }
+        False: {"message": "exists", "color": "green",},
+        True: {"message": "created", "color": "yellow",},
     }
     output = output_map[created]
-    click.secho(uuid + " " + output['message'], fg=output['color'])
+    click.secho(uuid + " " + output["message"], fg=output["color"])
 
 
 @cli.command()
 @click.pass_context
 @click.option(
-    "--bvn", "--brugervendt-nøgle", required=True, help="User key to set on the class."
+    "--bvn",
+    "--brugervendt-nøgle",
+    required=True,
+    help="User key to set on the class.",
 )
 @click.option("--title", required=True, help="Title to set on the class.")
-@click.option("--facet-bvn", required=True, help="User key of the facet to bind the class to.")
+@click.option(
+    "--facet-bvn", required=True, help="User key of the facet to bind the class to."
+)
 @click.option("--description", help="Description to set on the class.")
-@click.option("--org-uuid", "--organisation", help="Organisation to bind the facet to.")
+@click.option(
+    "--org-uuid", "--organisation", help="Organisation to bind the facet to."
+)
 @click.option("--parent-bvn", help="User key of another class to put this under.")
-@click.option("--dry-run", default=False, is_flag=True, help="Dry run and print the generated object.")
+@click.option(
+    "--dry-run",
+    default=False,
+    is_flag=True,
+    help="Dry run and print the generated object.",
+)
 @async_to_sync
 async def ensure_class_exists(
-    ctx, bvn: str, title: str, facet_bvn: str, description: str, org_uuid: str, parent_bvn: str, dry_run: bool
+    ctx,
+    bvn: str,
+    title: str,
+    facet_bvn: str,
+    description: str,
+    org_uuid: str,
+    parent_bvn: str,
+    dry_run: bool,
 ):
     """Ensure the generated class exists in MOX."""
     mox_helper = await create_mox_helper(ctx.obj["mox.base"])
 
     # Fetch default organisation if any, assuming none is set
-    org_uuid = org_uuid or await mox_helper.read_element_organisation_organisation(bvn="%")
+    org_uuid = org_uuid or await mox_helper.read_element_organisation_organisation(
+        bvn="%"
+    )
 
     # Fetch uuids from bvns
     facet_uuid = await mox_helper.read_element_klassifikation_facet(bvn=facet_bvn)
@@ -144,18 +159,32 @@ async def ensure_class_exists(
 @cli.command()
 @click.pass_context
 @click.option(
-    "--bvn", "--brugervendt-nøgle", required=True, help="User key to set on the facet."
+    "--bvn",
+    "--brugervendt-nøgle",
+    required=True,
+    help="User key to set on the facet.",
 )
 @click.option("--description", help="Description to set on the facet.")
-@click.option("--org-uuid", "--organisation", help="Organisation to bind the facet to.")
-@click.option("--dry-run", default=False, is_flag=True, help="Dry run and print the generated object.")
+@click.option(
+    "--org-uuid", "--organisation", help="Organisation to bind the facet to."
+)
+@click.option(
+    "--dry-run",
+    default=False,
+    is_flag=True,
+    help="Dry run and print the generated object.",
+)
 @async_to_sync
-async def ensure_facet_exists(ctx, bvn: str, description: str, org_uuid: str, dry_run: bool):
+async def ensure_facet_exists(
+    ctx, bvn: str, description: str, org_uuid: str, dry_run: bool
+):
     """Ensure the generated facet exists in MOX."""
     mox_helper = await create_mox_helper(ctx.obj["mox.base"])
 
     # Fetch default organisation if any, assuming none is set
-    org_uuid = org_uuid or await mox_helper.read_element_organisation_organisation(bvn="%")
+    org_uuid = org_uuid or await mox_helper.read_element_organisation_organisation(
+        bvn="%"
+    )
 
     # Generate dict
     facet = lora_facet(bvn, org_uuid, description)
