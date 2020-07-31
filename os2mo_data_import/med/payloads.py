@@ -58,6 +58,8 @@ def lora_klasse(
     }
     if description:
         attributter["klasseegenskaber"][0]["beskrivelse"] = description
+    if omfang:
+        attributter["klasseegenskaber"][0]["omfang"] = omfang
     tilstande = {
         "klassepubliceret": [
             {"publiceret": "Publiceret", "virkning": _virkning(dato)}
@@ -67,7 +69,9 @@ def lora_klasse(
         "facet": [
             {"uuid": facet_uuid, "virkning": _virkning(dato), "objekttype": "Facet"}
         ],
-        "overordnetklasse": [{"virkning": _virkning(dato), "objekttype": "Klasse"}],
+        "overordnetklasse": [
+            {"uuid": overklasse, "virkning": _virkning(dato), "objekttype": "Klasse"}
+        ],
         "ansvarlig": [
             {
                 "uuid": org_uuid,
@@ -76,17 +80,12 @@ def lora_klasse(
             }
         ],
     }
+    if overklasse is None:
+        del relationer["overordnetklasse"]
     klasse = {
         "attributter": attributter,
         "relationer": relationer,
         "tilstande": tilstande,
     }
-    if overklasse is not None:
-        klasse["relationer"]["overordnetklasse"][0]["uuid"] = overklasse
-    else:
-        del klasse["relationer"]["overordnetklasse"]
-
-    if omfang:
-        attributter["klasseegenskaber"][0]["omfang"] = omfang
 
     return klasse

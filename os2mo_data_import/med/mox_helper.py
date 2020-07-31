@@ -125,7 +125,7 @@ class MoxHelper:
         self._validate_payload(service, obj, payload)
         url = f"{self.hostname}/{service}/{obj}"
         async with session.post(url, json=payload) as response:
-            return await response.json()["uuid"]
+            return (await response.json())["uuid"]
 
     async def _read_uuid_list(self, service: str, obj: str) -> Sequence[UUIDstr]:
         result = await self._search(service, obj, {"bvn": "%"})
