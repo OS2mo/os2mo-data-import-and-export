@@ -23,10 +23,15 @@ class Klasse(Base):
 class Bruger(Base):
     __tablename__ = "brugere"
 
-    uuid = Column(String(36), nullable=False, primary_key=True)
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
     fornavn = Column(String(250), nullable=True)
     efternavn = Column(String(250), nullable=True)
+    kaldenavn_fornavn = Column(String(250), nullable=True)
+    kaldenavn_efternavn = Column(String(250), nullable=True)
     cpr = Column(String(250), nullable=False)
+    startdato = Column(String(10))
+    slutdato = Column(String(10))
 
 
 class Enhed(Base):

@@ -147,10 +147,11 @@ brugere
  * ``uuid``: Brugerens uuid, primærnøgle for tabellen.
  * ``fornavn``: Brugerens fornavn.
  * ``efternavn``:  Brugerens efternavn.
+ * ``kaldenavn_fornavn``: Fornavnet på brugerens kaldenavn.
+ * ``kaldenavn_efternavn``:  Efternavnet på brugerens kaldenavn.
  * ``cpr``:  Brugerens cpr-nummer.
-
-Brugere regnes af MO til at have evig virkning og eksporteres derfor altid med
-dags-dato værdi, også i et historisk eksport.
+ * ``startdato``: Startdato for denne rækkes gyldighed.
+ * ``slutdato``: Slutdato for denne rækkes gyldighed.
 
 
 enheder
