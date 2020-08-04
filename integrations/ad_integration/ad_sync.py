@@ -119,7 +119,7 @@ class AdMoSync(object):
         """
         logger.info('Read all MO users')
         if self.lc:
-            employees = self.lc.users.values()
+            employees = list(map(lambda x: x[0], self.lc.users.values()))
         else:
             employee_list = self.helper._mo_lookup(
                 self.org, 'o/{}/e?limit=1000000000')
