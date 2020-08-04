@@ -43,7 +43,7 @@ SETTINGS = json.loads(cfg_file.read_text())
 ACTIVE_JOB_FUNCTIONS = []  # Liste over aktive engagementer som skal eksporteres.
 
 
-def export_bruger(mh, nodes, lc_historic):
+def export_bruger(mh, nodes, lc, lc_historic):
     #  fieldnames = ['BrugerId', 'CPR', 'Navn', 'E-mail', 'Mobil', 'Stilling']
     used_cprs = []
 
@@ -54,7 +54,7 @@ def export_bruger(mh, nodes, lc_historic):
 
     rows = []
     for node in PreOrderIter(nodes['root']):
-        if lc_historic:
+        if lc and lc_historic:
             # TODO: If this is to run faster, we need to pre-sort into units,
             # to avoid iterating all engagements for each unit.
             for eng in lc_historic.engagements.values():
@@ -65,7 +65,7 @@ def export_bruger(mh, nodes, lc_historic):
                         continue
 
                     user_uuid = engv['user']
-                    user = lc_historic.users[user_uuid]
+                    user = lc.users[user_uuid][0]
                     name = user['navn']
                     cpr = user['cpr']
                     if cpr in used_cprs:
@@ -223,12 +223,16 @@ def export_engagement(mh, filename, eksporterede_afdelinger, brugere_rows,
 
     err_msg = 'Skipping {}, due to non-allowed engagement type'
     if lc and lc_historic:
-        for employee in lc_historic.users.values():
+        for employee_effects in lc.users.values():
             for eng in lc_historic.engagements.values():
                 # We can consistenly access index 0, the historic export
                 # is for the purpose of catching future engagements, not
                 # to catch all validities
                 engv = eng[0]
+
+                # As this is not the historic cache, there should only be one user
+                employee = employee_effects[0]
+
                 if engv['user'] != employee['uuid']:
                     continue
 
@@ -496,7 +500,7 @@ def main(speedup, dry_run=False):
     # reading this from cache.
     nodes = mh.read_ou_tree(root_unit)
 
-    brugere_rows = export_bruger(mh, nodes, lc_historic)
+    brugere_rows = export_bruger(mh, nodes, lc, lc_historic)
     print('Bruger: {}s'.format(time.time() - t))
     logger.info('Bruger: {}s'.format(time.time() - t))
 

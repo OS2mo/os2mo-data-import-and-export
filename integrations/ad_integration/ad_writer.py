@@ -96,7 +96,7 @@ class ADWriter(AD):
             if uuid not in self.lc.users:
                 raise UserNotFoundException()
 
-            lc_user = self.lc.users[uuid]
+            lc_user = self.lc.users[uuid][0]
             mo_user = {
                 'uuid': uuid,
                 'name': lc_user['navn'],

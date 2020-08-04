@@ -115,7 +115,8 @@ class AdLifeCycle(object):
 
     def disable_ad_accounts(self):
         i = 0
-        for employee in self.lc.users.values():
+        for employee_effects in self.lc.users.values():
+            employee = employee_effects[0]
             # print(employee)
             i = i + 1
             if i % 1000 == 0:
@@ -144,7 +145,9 @@ class AdLifeCycle(object):
         Iterate over all users and create missing AD accounts
         """
         i = 0
-        for employee in self.lc.users.values():
+        for employee_effects in self.lc.users.values():
+            employee = employee_effects[0]
+
             logger.debug('Now testing: {}'.format(employee))
             i = i + 1
             if i % 1000 == 0:
