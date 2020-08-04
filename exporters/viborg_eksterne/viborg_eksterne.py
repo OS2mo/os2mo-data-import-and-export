@@ -6,6 +6,8 @@
 """
 Helper class to make a number of pre-defined queries into MO
 """
+import functools
+
 import time
 import json
 import logging
@@ -62,7 +64,7 @@ def export_engagement(mh: MoraHelper, filename, lc, lc_historic):
 
     logging.info('Reading users')
     if lc:
-        employees = lc.users.values()
+        employees = list(map(lambda x: x[0], lc.users.values()))
     else:
         employees = mh.read_all_users()
 
@@ -85,7 +87,7 @@ def export_engagement(mh: MoraHelper, filename, lc, lc_historic):
 
                 if manager:
                     manager_object = lc_historic.managers[manager][0]
-                    manager_name = lc.users[manager_object['user']]['navn']
+                    manager_name = lc.users[manager_object['user']][0]['navn']
 
                     manager_email = None
                     for address in lc_historic.addresses.values():
