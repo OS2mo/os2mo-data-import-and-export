@@ -144,14 +144,19 @@ class SqlExport(object):
     def _add_users_and_units(self, output=False):
         logger.info('Add users and units')
         print('Add users and units')
-        for user, user_info in self.lc.users.items():
-            sql_user = Bruger(
-                uuid=user,
-                fornavn=user_info['fornavn'],
-                efternavn=user_info['efternavn'],
-                cpr=user_info['cpr']
-            )
-            self.session.add(sql_user)
+        for user, user_effects in self.lc.users.items():
+            for user_info in user_effects:
+                sql_user = Bruger(
+                    uuid=user,
+                    fornavn=user_info['fornavn'],
+                    efternavn=user_info['efternavn'],
+                    kaldenavn_fornavn=user_info['kaldenavn_fornavn'],
+                    kaldenavn_efternavn=user_info['kaldenavn_efternavn'],
+                    cpr=user_info['cpr'],
+                    startdato=user_info['from_date'],
+                    slutdato=user_info['to_date'],
+                )
+                self.session.add(sql_user)
 
         for unit, unit_validities in self.lc.units.items():
             for unit_info in unit_validities:

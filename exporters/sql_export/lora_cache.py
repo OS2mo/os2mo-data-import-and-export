@@ -218,26 +218,48 @@ class LoraCache(object):
         return itsystems
 
     def _cache_lora_users(self):
-        # MO assigns no validity to users, no historic export here.
         params = {'bvn': '%'}
         url = '/organisation/bruger'
-        user_list = self._perform_lora_lookup(url, params, skip_history=True)
+        user_list = self._perform_lora_lookup(url, params)
+
+        relevant = {
+            "attributter": ("brugeregenskaber", "brugerudvidelser"),
+            "relationer": ("tilknyttedepersoner", "tilhoerer"),
+            "tilstande": ("brugergyldighed",),
+        }
 
         users = {}
         for user in user_list:
             uuid = user['id']
-            reg = user['registreringer'][0]
-            cpr = reg['relationer']['tilknyttedepersoner'][0]['urn'][-10:]
-            udv = reg['attributter']['brugerudvidelser'][0]
-            fornavn = udv.get('fornavn', '')
-            efternavn = udv.get('efternavn', '')
-            users[uuid] = {
-                'uuid': uuid,
-                'cpr': cpr,
-                'fornavn': fornavn,
-                'efternavn': efternavn,
-                'navn': '{} {}'.format(fornavn, efternavn)
-            }
+            users[uuid] = []
+
+            effects = list(self._get_effects(user, relevant))
+            for effect in effects:
+                from_date, to_date = self._from_to_from_effect(effect)
+                if from_date is None and to_date is None:
+                    continue
+                reg = effect[2]
+                cpr = reg['relationer']['tilknyttedepersoner'][0]['urn'][-10:]
+                udv = reg['attributter']['brugerudvidelser'][0]
+                fornavn = udv.get('fornavn', '')
+                efternavn = udv.get('efternavn', '')
+                kaldenavn_fornavn = udv.get('kaldenavn_fornavn', '')
+                kaldenavn_efternavn = udv.get('kaldenavn_efternavn', '')
+                users[uuid].append(
+                    {
+                        'uuid': uuid,
+                        'cpr': cpr,
+                        'fornavn': fornavn,
+                        'efternavn': efternavn,
+                        'navn': '{} {}'.format(fornavn, efternavn),
+                        'kaldenavn_fornavn': kaldenavn_fornavn,
+                        'kaldenavn_efternavn': kaldenavn_efternavn,
+                        'kaldenavn': '{} {}'.format(kaldenavn_fornavn,
+                                                    kaldenavn_efternavn),
+                        'from_date': from_date,
+                        'to_date': to_date
+                    }
+                )
         return users
 
     def _cache_lora_units(self):
