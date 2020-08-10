@@ -2,148 +2,20 @@
 import sys
 from os.path import dirname
 
+sys.path.append(dirname(__file__))
 sys.path.append(dirname(__file__) + "/..")
 
-from functools import partial
 from unittest import TestCase
 
 from parameterized import parameterized
 
-from utils import AttrDict, recursive_dict_update
 
-from ..ad_writer import ADWriter
-from ..user_names import CreateUserNames
+from test_utils import TestADWriterMixin, dict_modifier, mo_modifier
 
 
-def dict_modifier(updates):
-    return partial(recursive_dict_update, updates=updates)
-
-
-def mo_modifier(updates):
-    def mo_mod(mo_values, uuid, read_manager):
-        return recursive_dict_update(mo_values, updates=updates)
-
-    return mo_mod
-
-
-class ADWriterTestSubclass(ADWriter):
-    """Testing subclass of ADWriter."""
-
-    def __init__(self, transform_mo_values=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # List of scripts to be executed via run_ps
-        self.scripts = []
-        # Transformer for mo_values return
-        self.transform_mo_values = transform_mo_values
-        if self.transform_mo_values is None:
-            self.transform_mo_values = lambda mo_values, _1, _2: mo_values
-
-    def _init_name_creator(self):
-        """Mocked to pretend no names are occupied.
-
-        This method would normally use ADReader to read usernames from AD.
-        """
-        # Simply leave out the call to populate_occupied_names
-        self.name_creator = CreateUserNames(occupied_names=set())
-
-    def _create_session(self):
-        """Mocked to return a fake-class which writes scripts to self.scripts.
-
-        This method would normally send scripts to powershell via WinRM.
-        """
-
-        def run_ps(ps_script):
-            # Add our script to the list
-            self.scripts.append(ps_script)
-            # Fake the WinRM run_ps return type
-            return AttrDict({"status_code": 0, "std_out": b"", "std_err": b"",})
-
-        # Fake the WinRM session object
-        return AttrDict({"run_ps": run_ps,})
-
-    def _get_retry_exceptions(self):
-        """Mocked to return an empty list, i.e. never retry.
-
-        This method would normally return the WinRM transport exception, to
-        cause retrying to happen.
-        """
-        return []
-
-    def read_ad_information_from_mo(self, uuid, read_manager=True, ad_dump=None):
-        """Mocked to return static values.
-
-        This method would normally connect to MO and fetch the required
-        information.
-        """
-        default_mo_values = {
-            "name": ("Martin Lee", "Gore"),
-            "full_name": "Martin Lee Gore",
-            "employment_number": "101",
-            "uuid": "7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0",
-            "end_date": "2089-11-11",
-            "cpr": "1122334455",
-            "title": "Musiker",
-            "unit": "Enhed",
-            "unit_uuid": "101bd9aa-0101-0101-0101-0e6f41f6ebc0",
-            "unit_user_key": "Musik",
-            "unit_public_email": None,
-            "unit_secure_email": None,
-            "unit_postal_code": "8210",
-            "unit_city": "Aarhus N",
-            "unit_streetname": "Fahrenheit 451",
-            "location": "Kommune\\Forvalting\\Enhed\\",
-            "level2orgunit": "Ingen",
-            "forvaltning": "Beskæftigelse, Økonomi & Personale",
-            "manager_name": None,
-            "manager_sam": None,
-            "manager_cpr": None,
-            "manager_mail": None,
-            "read_manager": False,
-        }
-        if read_manager:
-            default_mo_values.update(
-                {
-                    "manager_name": "Daniel Miller",
-                    "manager_sam": "DMILL",
-                    "manager_email": "dmill@spirit.co.uk",
-                    "manager_cpr": "1122334455",
-                }
-            )
-        return self.transform_mo_values(default_mo_values, uuid, read_manager)
-
-
-class TestADWriter(TestCase):
+class TestADWriter(TestCase, TestADWriterMixin):
     def setUp(self):
         self._setup_adwriter()
-
-    def _setup_adwriter(self, transform_settings=None, transform_mo_values=None):
-        if transform_settings is None:
-            transform_settings = lambda settings: settings
-        default_settings = {
-            "global": {},
-            "mora.base": "http://example.org",
-            "primary": {
-                "search_base": "search_base",
-                "system_user": "system_user",
-                "password": "password",
-                "properties": "dummy",
-                "cpr_separator": "cpr_sep",
-                "cpr_field": "cpr_field",
-            },
-            "primary_write": {
-                "level2orgunit_field": "level2orgunit_field",
-                "org_field": "org_field",
-                "upn_end": "epn_end",
-                "uuid_field": "uuid_field",
-                "cpr_field": "cpr_field",
-            },
-            "integrations.ad.write.level2orgunit_type": "level2orgunit_type",
-            "integrations.ad.cpr_separator": "ad_cpr_sep",
-        }
-        self.settings = transform_settings(default_settings)
-        self.ad_writer = ADWriterTestSubclass(
-            all_settings=self.settings, transform_mo_values=transform_mo_values
-        )
 
     def _verify_identitical_common_code(
         self, num_expected_scripts, num_common_lines=5
@@ -299,7 +171,7 @@ class TestADWriter(TestCase):
                         }
                     }
                 ),
-                None,
+                mo_modifier({"employment_number": "101"}),
                 '"employment_number_is_prime"="true";',
             ],
             # 100 is not prime
@@ -369,19 +241,19 @@ class TestADWriter(TestCase):
         mo_values = self.ad_writer.read_ad_information_from_mo(uuid)
         expected_content = [
             "New-ADUser",
-            '-Name "Martin Lee Gore - mleeg"',
-            '-Displayname "Martin Lee Gore"',
-            '-GivenName "Martin Lee"',
-            '-SurName "Gore"',
-            '-SamAccountName "mleeg"',
+            '-Name "' + mo_values['full_name'] + " - " + mo_values['sam_account_name'] + '"',
+            '-Displayname "' + mo_values['full_name'] + '"',
+            '-GivenName "' + mo_values['name'][0] + '"',
+            '-SurName "' + mo_values['name'][1] + '"',
+            '-SamAccountName "' + mo_values['sam_account_name'] + '"',
             '-EmployeeNumber "' + mo_values["employment_number"] + '"',
             '-Credential "$usercredential"',
-            '-UserPrincipalName "mleeg@epn_end"',
+            '-UserPrincipalName "' + mo_values['sam_account_name'] + '@epn_end"',
             "-OtherAttributes",
             '"level2orgunit_field"="Ingen";',
             '"org_field"="Kommune\\Forvalting\\Enhed\\";',
-            '"uuid_field"="7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0";',
-            '"cpr_field"="112233ad_cpr_sep4455"',
+            '"uuid_field"="' + mo_values['uuid'] + '";',
+            '"cpr_field"="' + mo_values['cpr'][0:6] + 'ad_cpr_sep' + mo_values['cpr'][6:] + '"',
             '-Path "search_base"',
             expected,
         ]
@@ -401,7 +273,6 @@ class TestADWriter(TestCase):
 
         # Run create user and fetch scripts
         uuid = "invalid-provided-and-accepted-due-to-mocking"
-        self.ad_writer._find_unique_user = lambda cpr: "mleeg"
         self.ad_writer.sync_user(mo_uuid=uuid, sync_manager=False)
         # Check that scripts were produced
         self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
@@ -410,24 +281,25 @@ class TestADWriter(TestCase):
         self._verify_identitical_common_code(num_expected_scripts)
 
         # Check that the create user ps looks good
-        create_user_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
+        edit_user_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
+        mo_values = self.ad_writer.read_ad_information_from_mo(uuid)
         expected_content = [
             "Get-ADUser",
-            "-Filter 'SamAccountName -eq \"mleeg\"'",
+            "-Filter 'SamAccountName -eq \"" + mo_values['sam_account_name'] + "\"'",
             '-Credential "$usercredential"',
             "|",
             "Set-ADUser",
             '-Credential "$usercredential"',
-            '-Displayname "Martin Lee Gore"',
-            '-GivenName "Martin Lee"',
-            '-SurName "Gore"',
-            '-EmployeeNumber "101"',
+            '-Displayname "' + mo_values['full_name'] + '"',
+            '-GivenName "' + mo_values['name'][0] + '"',
+            '-SurName "' + mo_values['name'][1] + '"',
+            '-EmployeeNumber "' + mo_values['employment_number'] + '"',
             "-Replace",
             '"level2orgunit_field"="Ingen";',
             '"org_field"="Kommune\\Forvalting\\Enhed\\";',
         ]
         for content in expected_content:
-            self.assertIn(content, create_user_ps)
+            self.assertIn(content, edit_user_ps)
 
 
 #    def test_add_manager(self):

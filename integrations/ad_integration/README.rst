@@ -287,7 +287,7 @@ adresseklasser i MO som AD felterne skal mappes til.
 
 Hvis der for en given bruger er felter i feltmapningen som ikke findes i AD, vil
 disse felter bliver sprunget over, men de øvrige felter vil stadig blive
-sykroniseret.
+synkroniseret.
 
 Selve synkroniseringen foregår ved at programmet først udtrækker samtlige
 medarbejdere fra MO, der itereres hen over denne liste, og information fra AD'et
@@ -305,7 +305,7 @@ Slutteligt skal det nævnes, at implemeneringen af synkroniseringen understøtte
 muligheden for at opnå en betydelig hastighedsforbering ved at tillade direkte adgang
 til LoRa, denne funktion aktiveres med nøglen
 `integrations.ad.ad_mo_sync_direct_lora_speedup` og reducerer kørselstiden
-betragteligt. Hvis der er få ændringer vil afvilingstiden komme ned på nogle få
+betragteligt. Hvis der er få ændringer vil afviklingstiden komme ned på nogle få
 minutter.
 
 MO til AD
