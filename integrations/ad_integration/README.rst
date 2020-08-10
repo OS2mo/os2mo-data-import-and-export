@@ -316,7 +316,7 @@ Slutteligt skal det nævnes, at implemeneringen af synkroniseringen understøtte
 muligheden for at opnå en betydelig hastighedsforbering ved at tillade direkte adgang
 til LoRa, denne funktion aktiveres med nøglen
 `integrations.ad.ad_mo_sync_direct_lora_speedup` og reducerer kørselstiden
-betragteligt. Hvis der er få ændringer vil afvilkingstiden komme ned på nogle få
+betragteligt. Hvis der er få ændringer vil afviklingstiden komme ned på nogle få
 minutter.
 
 MO til AD
@@ -706,4 +706,3 @@ kommandolinjeparametre:
  *   --create-or-update: Opretter og opdaterer bruger fra AD til MO.
  *   --cleanup-removed-users: Fjerne MO brugere som ikke længere er konsulenter i AD.
  *   --full-sync: Kører begge de to ovenstående operationer.
-
