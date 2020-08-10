@@ -1,5 +1,8 @@
 #!/bin/bash
 
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+cd "${DIR}"
+
 CLI="python mox_util.py cli"
 
 $CLI ensure-facet-exists --bvn hoved_organisation --description Hovedorganisation
