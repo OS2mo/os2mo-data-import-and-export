@@ -65,5 +65,5 @@ $CLI ensure-class-exists --bvn LO_3f_green --title "Den Grønne Gruppe" --facet-
 $CLI ensure-class-exists --bvn LO_3f_privat --title "Privat, Service, Hotel & Restauration" --facet-bvn LO_3f_hovedomroede --parent-bvn LO_3f
 
 # Configure MO to utilize newly created facet
-TOP_LEVEL_UUID=$($CLI ensure-facet-exists --bvn hoved_organisation --description Hovedorganisation)
-curl -X POST -H "Content-Type: application/json" --data "{\"org_units\": {\"association_extra_uuid\": \"${TOP_LEVEL_UUID}\"}}" http://localhost:5000/service/configuration
+TOP_LEVEL_UUID=$($CLI ensure-facet-exists --bvn hoved_organisation --description Hovedorganisation | cut -f1 -d' ')
+curl -X POST -H "Content-Type: application/json" --data "{\"org_units\": {\"association_dynamic_facets\": \"${TOP_LEVEL_UUID}\"}}" http://localhost:5000/service/configuration
