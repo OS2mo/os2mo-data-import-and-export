@@ -725,6 +725,7 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
     # write directly on stdout for mail-log
     cat ${CRON_LOG_FILE}_status
     cat ${CRON_LOG_FILE}
+    exit $TOTAL_STATUS
      
 elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
     if [ -n "$(grep $1\(\) $0)" ]; then
