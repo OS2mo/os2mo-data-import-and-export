@@ -371,6 +371,45 @@ kan se ud som dette:
 	"unit": "extensionAttribute2"
    }
 
+Formattet for denne skal læses som: MO felt --> AD felt, altså mappes
+`unit_public_email` fra MO til `extensionAttribute3` i AD.
+
+Som et alternativ til denne direkte 1-til-1 felt-mapning er der mulighed for en
+mere fleksibel mapning vha. `jinja` skabeloner (Se eventuelt her:
+https://jinja.palletsprojects.com/en/2.11.x/templates/ (Engelsk)).
+
+Brug af jinja skabelon for AD feltmapning, kan eksempelvis se ud som dette:
+
+.. code-block:: json
+
+   "integrations.ad_writer.template_to_ad_fields": {
+	"postalCode": "{{ mo_values['unit_postal_code'] }}",
+	"department": "{{ mo_values['unit_user_key'] }}",
+	"streetName": "{{ mo_values['unit_streetname'].split(' ')[0] }}",
+    "extensionAttribute3": "{{ mo_values['unit_public_email']|default('all@afdeling.dk') }}",
+   }
+
+Det er værd at bemærke at begge systemer; `mo_to_ad_fields` og
+`template_to_ad_fields` benytter jinja systemet i maven på eksporteren.
+
+Det er altså ækvivalent at skrive henholdvis:
+
+.. code-block:: json
+
+   "integrations.ad_writer.mo_to_ad_fields": {
+	"unit_postal_code": "postalCode",
+   }
+
+og:
+
+.. code-block:: json
+
+   "integrations.ad_writer.template_to_ad_fields": {
+	"postalCode": "{{ mo_values['unit_postal_code'] }}",
+   }
+
+Da førstnævnte konverteres til sidstnævnte internt i programmet.
+
 
 Afvikling af PowerShell templates
 ---------------------------------
