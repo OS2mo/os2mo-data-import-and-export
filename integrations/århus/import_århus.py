@@ -1,19 +1,21 @@
+import asyncio
 import csv
 import functools
 import hashlib
 import logging
+import os
 import pathlib
-import requests
-
+import sys
+from datetime import datetime, timedelta
 from uuid import UUID
 
-
-import payloads  # File in same folder
-
-from datetime import datetime
+import requests
+from aiohttp import ClientSession, TCPConnector, ClientResponseError
 from chardet.universaldetector import UniversalDetector
 
+import payloads  # File in same folder
 from os2mo_data_import import ImportHelper
+from os2mo_data_import.mox_data_types import Itsystem
 from os2mo_helpers.mora_helpers import MoraHelper
 
 LOG_LEVEL = logging.INFO
@@ -41,6 +43,8 @@ for name in logging.root.manager.loggerDict:
 
 UNIT_DAR = ('Postadresse', 'org_unit_address_type', 'DAR', 'AddressMailUnit', '00000000-0000-0000-0000-000000000000')
 UNIT_EAN = ( 'EAN nummer', 'org_unit_address_type', 'EAN', 'EANUnit', "500b06b0-39bd-4a50-962c-bc6f4ac63411")
+UNIT_CVR = ( 'CVR nummer', 'org_unit_address_type', 'TEXT', 'CVRUnit', "214fff73-0da6-48dc-ad8f-1e380fc3277c")
+UNIT_PNUMBER = ( 'P-nummer', 'org_unit_address_type', 'PNUMBER', 'PNumber', "8363e139-7ac1-4ab8-85cb-913ad443de33")
 UNIT_EMAIL = ( 'Email', 'org_unit_address_type', 'EMAIL', 'EmailUnit', "03300c9a-bd3f-4fad-b3fb-712c3b902d65")
 UNIT_FAX = ('Fax', 'org_unit_address_type', 'PHONE', 'FaxUnit', "d8563d4e-fabf-4704-becf-87292ce889b8")
 UNIT_PHONE = ( 'Telefon', 'org_unit_address_type', 'PHONE', 'PhoneUnit', "adb476ad-0860-4ec0-9df3-95f9fd4915b5")
@@ -50,6 +54,7 @@ PERSON_WORK_PHONE = ( 'Arbejdstelefon', 'employee_address_type', 'PHONE', 'WorkP
 PERSON_MOBILE_PHONE = ( 'Mobiltelefon', 'employee_address_type', 'PHONE', 'MobilePhoneEmployee', "225f5d0b-75f5-4f64-8f43-aede29f958a8")
 
 UNKNOWN_JOB_FUNCTION = ('Ukendt stillingsbetegnelse', 'engagement_job_function', None, None, "80f1d01e-60e1-4eca-9b36-932412de5a3b")
+UNKNOWN_ORG_UNIT_TYPE = ('Ukendt enhedstype', 'org_unit_type', None, None, "01aadec6-ec7e-4cc8-af76-1f582adda8f7")
 
 ADDRESS_TUPLES = [
     ('Export_PDB_orgenhed_ADR.csv', 'ADRUUID', 'OrgenhedUUID', UNIT_DAR),
@@ -57,29 +62,28 @@ ADDRESS_TUPLES = [
     ('Export_PDB_orgenhed_email.csv', 'email', 'OrgenhedUUID', UNIT_EMAIL),
     ('Export_PDB_orgenhed_fax.csv', 'fax', 'OrgenhedUUID', UNIT_FAX),
     ('Export_PDB_orgenhed_tlf.csv', 'tlf', 'OrgenhedUUID', UNIT_PHONE),
-    ('Export_PDB_orgenhed_webadresse.csv', 'webadresse', 'OrgenhedUUID',
-    UNIT_WEB),
+    ('Export_PDB_orgenhed_webadresse.csv', 'webadresse', 'OrgenhedUUID', UNIT_WEB),
     ('Export_PDB_person_email.csv', 'Email', 'PersonUUID', PERSON_EMAIL),
     ('Export_PDB_person_tlf1.csv', 'Telefon', 'PersonUUID', PERSON_WORK_PHONE),
-    ('Export_PDB_person_tlf2.csv', 'Telefon', 'PersonUUID',
-    PERSON_MOBILE_PHONE),
+    ('Export_PDB_person_tlf2.csv', 'Telefon', 'PersonUUID', PERSON_MOBILE_PHONE),
 ]
 
-# General file cache
-CACHE = {}
 
-# Cache for mapping between job_function name and UUID
-JOB_FUNCTION_CACHE = {}
+# Caches for mapping between names and UUIDs
+# The cache is lower-cased to account for inconsistencies
+ORG_UNIT_TYPE_CACHE = {}
 
 
 class ÅrhusImport(object):
     def __init__(self):
-        self.csv_path = pathlib.Path('/home/cm/tmp/aak')
+        csv_path = os.environ['AARHUS_CSV_PATH']
+
+        self.csv_path = pathlib.Path(csv_path)
 
         self.importer = ImportHelper(
             create_defaults=True,
             mox_base='http://localhost:8080',
-            mora_base='http://localhost:5000',
+            mora_base='http://localhost:5002',
             store_integration_data=False,
             seperate_names=True
         )
@@ -140,9 +144,10 @@ class ÅrhusImport(object):
         rows = self._read_csv(filename)
         logger.info("Importing {} engagement types".format(len(rows)))
         for row in rows:
-            logger.debug(row['Engagementstype'])
-            self._import_klasse(row['Engagementstype'], 'engagement_type',
-                                uuid=row['EngagementstypeUUID'])
+            engagementstype = row['Engagementstype']
+            uuid = row['EngagementstypeUUID']
+            self._import_klasse(engagementstype, 'engagement_type',
+                                uuid=uuid)
 
     def _import_unit_types(self):
         filename = 'Export_STAM_UUID_Enhedstype.csv'
@@ -150,9 +155,19 @@ class ÅrhusImport(object):
         rows = self._read_csv(filename)
         logger.info("Importing {} unit types".format(len(rows)))
         for row in rows:
-            logger.debug(row['Enhedstype'])
-            self._import_klasse(row['Enhedstype'], 'org_unit_type',
-                                uuid=row['EnhedstypeUUID'])
+            enhedstype = row['Enhedstype']
+            uuid = row['EnhedstypeUUID']
+            self._import_klasse(enhedstype, 'org_unit_type',
+                                uuid=uuid)
+
+            ORG_UNIT_TYPE_CACHE[enhedstype.lower()] = uuid
+
+        titel, facet, scope, bvn, uuid = UNKNOWN_ORG_UNIT_TYPE
+        self._import_klasse(
+            titel=titel,
+            facet=facet,
+            uuid=uuid
+        )
 
     def _import_job_functions(self):
         filename = 'Export_STAM_UUID_Stillingsbetegnelse.csv'
@@ -163,18 +178,25 @@ class ÅrhusImport(object):
             job_function = row['Stillingsbetegnelse']
             logger.debug(job_function)
             facet = 'engagement_job_function'
+            uuid = row['StillingBetUUID']
             self._import_klasse(job_function,
                                 facet,
-                                uuid=row['StillingBetUUID'],
+                                uuid=uuid,
                                 )
-            JOB_FUNCTION_CACHE[job_function] = row['StillingBetUUID']
+
+        titel, facet, scope, bvn, uuid = UNKNOWN_JOB_FUNCTION
+        self._import_klasse(
+            titel=titel,
+            facet=facet,
+            uuid=uuid
+        )
 
     def _import_remaining_classes(self):
         logger.info("Importing remaining classes")
 
         for clazz in [
             UNIT_DAR, UNIT_EAN, UNIT_EMAIL, UNIT_FAX, UNIT_PHONE, UNIT_WEB,
-            PERSON_EMAIL, PERSON_WORK_PHONE, PERSON_MOBILE_PHONE, UNKNOWN_JOB_FUNCTION
+            PERSON_EMAIL, PERSON_WORK_PHONE, PERSON_MOBILE_PHONE, UNIT_CVR, UNIT_PNUMBER
         ]:
             titel, facet, scope, bvn, uuid = clazz
             self._import_klasse(
@@ -185,13 +207,36 @@ class ÅrhusImport(object):
                 uuid=uuid
             )
 
+    def _import_it_system(self):
+        logger.info("Importing IT system")
+
+        url = '{}/organisation/itsystem'.format(self.importer.mox_base)
+
+        filename = 'Export_STAM_UUID_ITSystem.csv'
+        rows = self._read_csv(filename)
+        logger.info("Parsing {}".format(filename))
+        logger.info("Importing {} IT systems".format(len(rows)))
+        for row in rows:
+            it_system = Itsystem(
+                system_name=row['Name'],
+                user_key=row['Userkey'],
+            )
+            it_system.organisation_uuid = self.org_uuid
+            uuid = row['ITSystemUUID']
+
+            json = it_system.build()
+            r = requests.put('{}/{}'.format(url, uuid), json=json)
+            r.raise_for_status()
+
+
     def _import_users(self):
         filename = 'Export_PDB_person.csv'
         logger.info("Parsing {}".format(filename))
         rows = self._read_csv(filename)
         logger.info('Importing {} users'.format(len(rows)))
         for row in rows:
-            logger.debug('{} {}'.format(row['Fornavn'], row['Efternavn']))
+            # Create 'create' payloads
+            # Create tasks
             self.importer.add_employee(
                 name=(row['Fornavn'], row['Efternavn']),
                 identifier=row['PersonUUID'],
@@ -224,10 +269,12 @@ class ÅrhusImport(object):
             else:
                 from_date = datetime.strptime(row['Startdato'], '%d-%m-%Y')
 
-            if row['Slutdato'] == '31-12-9999':
+            end_date_raw = row.get('Slutdato', row.get('SlutDato'))
+
+            if end_date_raw == '31-12-9999' or end_date_raw == 'NULL':
                 end_date = None
             else:
-                end_date = datetime.strptime(row['Slutdato'], '%d-%m-%Y')
+                end_date = datetime.strptime(end_date_raw, '%d-%m-%Y')
 
             if end_date and from_date and end_date < from_date:
                 logger.warning("End date before start date: {}".format(row))
@@ -247,8 +294,6 @@ class ÅrhusImport(object):
         for org_uuid, history_list in object_history.items():
             object_history[org_uuid] = sorted(history_list, key=lambda x: x['from_date'])
 
-        CACHE[filename] = object_history
-
         return object_history
 
     def _parse_file_with_uuid(self, filename, uuid_field):
@@ -261,202 +306,421 @@ class ÅrhusImport(object):
             return row[uuid_field]
         return self._parse_file(filename, uuid_fn)
 
-    def _initial_import_units(self):
-        unit_info = self._parse_file_with_uuid('Export_PDB_orgenhed.csv', 'OrgenhedUUID')
-        logger.info("Importing {} units".format(len(unit_info)))
-        for uuid, unit in unit_info.items():
-            parent = unit[0]['ParentOrgenhedUUID']
-            if parent not in unit_info:
-                print('Parent not found')
-                parent = None
+    async def post_payloads(self, session, url, payload_lists):
+        async def _post(payload_list):
+            try:
+                if type(payload_list) != list:
+                    payload_list = [payload_list]
+                for payload in payload_list:
+                    async with session.post(url, json=payload) as r:
+                        r.raise_for_status()
+            except ClientResponseError as e:
+                raise
 
-            logger.debug(unit[0]['Enhedsnavn'])
-            self.importer.add_organisation_unit(
-                identifier=uuid,
-                uuid=uuid,
-                name=unit[0]['Enhedsnavn'],
-                user_key=unit[0]['OrgenhedID'],
-                type_ref=unit[0]['Enhedstype'] + 'org_unit_type',
-                date_from=unit[0]['from_date_mo'],
-                date_to=unit[0]['end_date_mo'],
-                parent_ref=parent
+        tasks = []
+        for payload_list in payload_lists:
+            task = asyncio.ensure_future(_post(payload_list))
+            tasks.append(task)
+        await asyncio.gather(*tasks)
+
+    async def submit_payloads(self, payload_lists, url, session):
+        chunk_size = 100
+        for i in range(0, len(payload_lists), chunk_size):
+            print(i)
+            chunk = payload_lists[i:i+chunk_size]
+            await self.post_payloads(session, url, chunk)
+
+    async def _import_employees(self, session):
+        filename = 'Export_PDB_person.csv'
+        logger.info("Parsing {}".format(filename))
+        rows = self._read_csv(filename)
+        logger.info('Importing {} users'.format(len(rows)))
+        create_payloads = []
+        for row in rows:
+            payload = payloads.create_employee(
+                givenname=row['Fornavn'],
+                surname=row['Efternavn'],
+                cpr_no=row['CPR'],
+                uuid=row['PersonUUID']
             )
+            create_payloads.append(payload)
 
-    def _initial_import_addresses(self):
-        logger.info("Importing addresses")
+        create_url = 'http://localhost:5000/service/e/create?force=1'
+        logger.info('Importing {} employees'.format(len(create_payloads)))
+        await self.submit_payloads(create_payloads, create_url, session)
 
-        for address_info in ADDRESS_TUPLES:
-            filename, fieldname, relname, address_type = address_info
+    async def _import_pdb_units(self, session):
+        unit_info = self._parse_file_with_uuid('Export_PDB_orgenhed.csv', 'OrgenhedUUID')
+
+        create_payloads = []
+        edit_payloads = {}
+        edit_payload_count = 0
+        for uuid, units in unit_info.items():
+            first_unit = units[0]
+            parent_uuid = first_unit['ParentOrgenhedUUID']
+            if parent_uuid not in unit_info:
+                logger.info('Parent "{}" not found'.format(parent_uuid))
+                parent_uuid = self.org_uuid
+            payload = payloads.create_org_unit(
+            uuid=uuid,
+                user_key=first_unit['OrgenhedID'],
+                name=first_unit['Enhedsnavn'],
+                parent_uuid=parent_uuid,
+                org_unit_type_uuid=ORG_UNIT_TYPE_CACHE[first_unit['Enhedstype'].lower()],
+                from_date=first_unit['from_date_mo'],
+                to_date=first_unit['end_date_mo'],
+            )
+            create_payloads.append(payload)
+
+            for unit in units[1:]:
+                parent_uuid = unit['ParentOrgenhedUUID']
+                if parent_uuid not in unit_info:
+                    logger.info('Parent "{}" not found'.format(parent_uuid))
+                    parent_uuid = self.org_uuid
+                payload = payloads.edit_org_unit(
+                    uuid=uuid,
+                    user_key=unit['OrgenhedID'],
+                    name=unit['Enhedsnavn'],
+                    org_unit_type_uuid=ORG_UNIT_TYPE_CACHE[unit['Enhedstype'].lower()],
+                    parent_uuid=parent_uuid,
+                    from_date=unit['from_date_mo'],
+                    to_date=unit['end_date_mo'],
+                )
+                edit_payloads.setdefault(uuid, []).append(payload)
+                edit_payload_count += 1
+
+        create_url = 'http://localhost:5000/service/ou/create?force=1'
+        logger.info('Importing {} units'.format(len(create_payloads)))
+        await self.submit_payloads(create_payloads, create_url, session)
+
+        edit_url = 'http://localhost:5000/service/details/edit?force=1'
+        logger.info('Performing {} unit updates'.format(edit_payload_count))
+        await self.submit_payloads(list(edit_payloads.values()), edit_url, session)
+
+    async def _import_los_units(self, session):
+        unit_info = self._parse_file_with_uuid('Export_LOS_orgenhed.csv', uuid_field='LOSUUID')
+
+        parent_map = {
+            item[1][0]['ADM_ENHEDS_ID']: item[0]
+            for item in unit_info.items()
+        }
+
+        def create_payload_dict(unit):
+            parent_ref = unit['ORG_REFERENCE_TIL']
+            parent_uuid = parent_map.get(parent_ref)
+            if not parent_uuid:
+                logger.warning('Parent {} not known'.format(parent_ref))
+                parent_uuid = None
+            if unit['ORG_NIVEAU'] == '1':
+                parent_uuid = self.org_uuid
+
+            org_unit_type_uuid = unit['EnhedstypeUUID']
+            if org_unit_type_uuid == 'NULL':
+                org_unit_type_uuid = UNKNOWN_ORG_UNIT_TYPE[-1]
+
+            return {
+                'uuid': uuid,
+                'user_key': unit['KALDENAVN_KORT'],
+                'name': unit['ADM_ENHEDS_NAVN'],
+                'parent_uuid': parent_uuid,
+                'org_unit_type_uuid': org_unit_type_uuid,
+                'from_date': unit['from_date_mo'],
+                'to_date': unit['end_date_mo']
+            }
+
+        skipped_units = [
+            "616017cb-614d-455f-bcb7-6b950488fd8f",
+            "59f4c3bf-f806-4ba3-8299-e01de4f4703f"
+        ]
+
+        def consolidate_payloads(payload_list):
+            consolidated_payloads = []
+            current_payload = payload_list[0]
+            for payload in payload_list[1:]:
+                current_to_date = datetime.strptime(current_payload['to_date'], "%Y-%m-%d") + timedelta(days=1)
+                new_from_date = datetime.strptime(payload['from_date'], "%Y-%m-%d")
+
+                if (
+                    current_payload['name'] == payload['name'] and
+                    current_payload['user_key'] == payload['user_key'] and
+                    current_payload['parent_uuid'] == payload['parent_uuid'] and
+                    current_payload['org_unit_type_uuid'] == payload['org_unit_type_uuid'] and
+                    current_to_date == new_from_date
+                ):
+                    current_payload['to_date'] = payload['to_date']
+                else:
+                    consolidated_payloads.append(current_payload)
+                    current_payload = payload
+            consolidated_payloads.append(current_payload)
+            return consolidated_payloads
+
+        create_payloads = []
+        edit_payloads = {}
+        edit_payload_count = 0
+        for uuid, units in unit_info.items():
+            if uuid in skipped_units:
+                logger.warning('Skipping {} as it is parentless'.format(uuid))
+                continue
+            payload_dicts = [create_payload_dict(unit) for unit in units]
+
+            payload_dicts = consolidate_payloads(payload_dicts)
+
+            create, *edits = payload_dicts
+
+            create_payloads.append(payloads.create_org_unit(**create))
+            for edit in edits:
+                edit_payloads.setdefault(uuid, []).append(payloads.edit_org_unit(**edit))
+                edit_payload_count += 1
+
+        create_url = 'http://localhost:5000/service/ou/create?force=1'
+        logger.info('Importing {} units'.format(len(create_payloads)))
+        await self.submit_payloads(create_payloads, create_url, session)
+
+
+        edit_url = 'http://localhost:5000/service/details/edit?force=1'
+        logger.info('Performing {} unit updates'.format(edit_payload_count))
+        await self.submit_payloads(list(edit_payloads.values()), edit_url, session)
+
+    async def _import_los_addresses(self, session):
+        unit_info = self._parse_file_with_uuid('Export_LOS_orgenhed.csv', uuid_field='LOSUUID')
+
+        adresses = [
+            (UNIT_DAR, 'AdresseUUID'),
+            (UNIT_CVR, 'CVR'),
+            (UNIT_EAN, 'EAN_LOKATIONS_NR'),
+            (UNIT_PNUMBER, 'PROD_ENHED_NR'),
+        ]
+
+        def create_payload_dict(unit_row, org_unit_uuid, address_type_uuid, value_field):
+            value = unit_row[value_field]
+            if value == 'NULL':
+                value = ''
+
+            # Generate a UUID based on the unit/address_type combo so we
+            # can generate edits for the same object later
+            uuid = self._generate_uuid(org_unit_uuid, value_field)
+
+            return {
+                'uuid': uuid,
+                'value': value,
+                'address_type_uuid': address_type_uuid,
+                'org_unit_uuid': org_unit_uuid,
+                'from_date': unit_row['from_date_mo'],
+                'to_date': unit_row['end_date_mo']
+            }
+
+        def consolidate_payloads(payload_list):
+            consolidated_payloads = []
+            current_payload = payload_list[0]
+            for payload in payload_list[1:]:
+                current_to_date = datetime.strptime(current_payload['to_date'], "%Y-%m-%d") + timedelta(days=1)
+                new_from_date = datetime.strptime(payload['from_date'], "%Y-%m-%d")
+
+                if current_payload['value'] == payload['value'] and current_to_date == new_from_date:
+                    current_payload['to_date'] = payload['to_date']
+                else:
+                    consolidated_payloads.append(current_payload)
+                    current_payload = payload
+            consolidated_payloads.append(current_payload)
+            return consolidated_payloads
+
+        create_payloads = []
+        edit_payloads = {}
+        edit_payload_count = 0
+        for address_type in adresses:
+            address_tuple, address_field = address_type
+            *_, address_type_uuid = address_tuple
+            for uuid, units in unit_info.items():
+                payload_dicts = [
+                    create_payload_dict(unit_row, uuid, address_type_uuid, address_field)
+                    for unit_row in units
+                ]
+
+                payload_dicts = consolidate_payloads(payload_dicts)
+
+                if len(payload_dicts) == 1:
+                    # If there is only a single row with no value, we just skip it
+                    if payload_dicts[0]['value'] is None:
+                        continue
+
+                create, *edits = payload_dicts
+
+                create_payloads.append(payloads.create_address(**create))
+                for edit in edits:
+                    edit_payloads.setdefault(uuid, []).append(payloads.edit_address(**edit))
+                    edit_payload_count += 1
+
+        create_url = 'http://localhost:5000/service/details/create?force=1'
+        logger.info('Importing {} addresses'.format(len(create_payloads)))
+        await self.submit_payloads(create_payloads, create_url, session)
+
+        edit_url = 'http://localhost:5000/service/details/edit?force=1'
+        logger.info('Performing {} address updates'.format(edit_payload_count))
+        await self.submit_payloads(list(edit_payloads.values()), edit_url, session)
+
+    async def _import_addresses(self, session):
+
+        create_payloads = []
+        edit_payloads = {}
+        edit_payload_count = 0
+        for address_tuple in ADDRESS_TUPLES:
+
+            filename, fieldname, relname, address_type = address_tuple
 
             # This is the same format we use when creating the classes earlier
-            address_title, address_facet, *_ = address_type
-            type_ref = address_title + address_facet
+            address_title, address_facet, _, _, address_type_uuid = address_type
 
             def uuid_fn(row):
-                return self._generate_uuid(row[relname], fieldname)
+                return self._generate_uuid(address_title, row[relname], fieldname)
 
             address_info = self._parse_file(filename, uuid_fn)
-            logger.info('Importing {} addresses'.format(len(address_info)))
-            for uuid, address in address_info.items():
-                logger.debug('Importing {} to {}'.format(address[0][fieldname], address[0][relname]))
-                try:
-                    self.importer.add_address_type(
-                        uuid=uuid,
-                        employee=address[0][relname] if relname == 'PersonUUID' else None,
-                        organisation_unit=address[0][relname] if relname == 'OrgenhedUUID' else None,
-                        type_ref=type_ref,
-                        value=address[0][fieldname],
-                        date_from=address[0]['from_date_mo'],
-                        date_to=address[0]['end_date_mo']
-                    )
-                except ReferenceError as e:
-                    logger.warning("{}: {}".format(str(e), address))
 
-    def _initial_import_engagements(self):
+            for uuid, addresses in address_info.items():
+                first_address = addresses[0]
+
+                payload = payloads.create_address(
+                    uuid=uuid,
+                    address_type_uuid=address_type_uuid,
+                    person_uuid=first_address[relname] if relname == 'PersonUUID' else None,
+                    org_unit_uuid=first_address[relname] if relname == 'OrgenhedUUID' else None,
+                    value=first_address[fieldname],
+                    from_date=first_address['from_date_mo'],
+                    to_date=first_address['end_date_mo']
+                )
+                create_payloads.append(payload)
+
+                for address in addresses[1:]:
+                    payload = payloads.edit_address(
+                        uuid=uuid,
+                        address_type_uuid=address_type_uuid,
+                        person_uuid=address[ relname] if relname == 'PersonUUID' else None,
+                        org_unit_uuid=address[ relname] if relname == 'OrgenhedUUID' else None,
+                        value=address[fieldname],
+                        from_date=address['from_date_mo'],
+                        to_date=address['end_date_mo']
+                    )
+                    edit_payloads.setdefault(uuid, []).append(payload)
+                    edit_payload_count += 1
+
+        create_url = 'http://localhost:5000/service/details/create?force=1'
+        logger.info('Importing {} addresses'.format(len(create_payloads)))
+        await self.submit_payloads(create_payloads, create_url, session)
+
+        edit_url = 'http://localhost:5000/service/details/edit?force=1'
+        logger.info('Performing {} address updates'.format(edit_payload_count))
+        await self.submit_payloads(list(edit_payloads.values()), edit_url, session)
+
+    async def _import_engagements(self, session):
 
         def uuid_fn(row):
-            return self._generate_uuid(row['PersonUUID'], row['OrgenhedUUID'], row['Stillingsbetegnelse'])
-
-        def get_job_function_ref(engagement):
-            job_function = engagement['Stillingsbetegnelse']
-            if job_function == 'NULL':
-                job_function = UNKNOWN_JOB_FUNCTION[0]
-            elif job_function not in JOB_FUNCTION_CACHE:
-                logger.warning("Job function {} is not known.".format(job_function))
-                job_function = UNKNOWN_JOB_FUNCTION[0]
-            return job_function + 'engagement_job_function'
+            return self._generate_uuid(row['PersonUUID'], row['OrgenhedUUID'])
 
         engagement_info = self._parse_file('Export_PDB_person_rel.csv', uuid_fn)
 
-        logger.info("Importing {} engagements".format(len(engagement_info)))
+        create_payloads = []
+        edit_payloads = {}
+        edit_payload_count = 0
         for uuid, engagements in engagement_info.items():
-            engagement = engagements[0]
-            engagement_type_ref = engagement['Engagementstype'] + "engagement_type"
-            try:
-                self.importer.add_engagement(
-                    employee=engagement["PersonUUID"],
-                    organisation_unit=engagement["OrgenhedUUID"],
-                    identifier=uuid,
-                    uuid=uuid,
-                    job_function_ref=(get_job_function_ref(engagement)),
-                    engagement_type_ref=engagement_type_ref,
-                    date_from=engagement['from_date_mo'],
-                    date_to=engagement['end_date_mo'],
-                )
-            except KeyError as e:
-                logger.warning("{}: {}".format(str(e), engagement))
+            first_engagement = engagements[0]
+            payload = payloads.create_engagement(
+                uuid=uuid,
+                org_unit_uuid=first_engagement["OrgenhedUUID"],
+                person_uuid=first_engagement['PersonUUID'],
+                job_function_uuid=first_engagement['Stillingsbetegnelse'],
+                engagement_type_uuid=first_engagement['Engagementstype'],
+                from_date=first_engagement['from_date_mo'],
+                to_date=first_engagement['end_date_mo'],
+            )
+            create_payloads.append(payload)
 
-    def _diff_import_units(self):
-        logger.info('Importing historic org unit data')
-
-        unit_info = CACHE['Export_PDB_orgenhed.csv']
-        for uuid, unit_row in unit_info.items():
-            if len(unit_row) == 1:
-                continue
-            for unit in unit_row[1:]:
-                parent = unit['ParentOrgenhedUUID']
-                if parent not in unit_info:
-                    print('Parent not found')
-                    parent = None
-                payload = payloads.edit_org_unit(
-                    user_key=unit['OrgenhedID'],
-                    name=unit['Enhedsnavn'],
-                    unit_uuid=uuid,
-                    parent=parent,
-                    ou_type=unit['Enhedstype']+'org_unit_type',
-                    from_date=unit['from_date_mo'],
-                    to_date=unit['end_date_mo']
-                )
-                response = self.helper._mo_post('details/edit', payload)
-                response.raise_for_status()
-
-    def _diff_import_addresses(self):
-        logger.info('Importing historic address data')
-        for address_info in ADDRESS_TUPLES:
-            filename, fieldname, relname, address_type = address_info
-            address_title, address_facet, _, _, address_type_uuid = address_type
-            address_objects = CACHE[filename]
-
-            for uuid, addresses in address_objects.items():
-                if len(addresses) == 1:
-                    # We've already imported the first row
-                    continue
-                for address in addresses[1:]:
-                    address_args = {
-                        'address_type': {'uuid': address_type_uuid},
-                        'value': address[fieldname],
-                        'validity': {
-                            'from': address['from_date_mo'],
-                            'to': address['end_date_mo']
-                        }
-                    }
-
-                    if relname == "PersonUUID":
-                        address_args['person'] = {'uuid': address[relname]}
-                    elif relname == "OrgenhedUUID":
-                        address_args['org_unit'] = {'uuid': address[relname]}
-
-                    payload = payloads.edit_address(address_args, uuid)
-                    response = self.helper._mo_post('details/edit', payload)
-                    response.raise_for_status()
-
-    def _diff_import_engagements(self):
-        logger.info('Importing historic engagement data')
-
-        engagement_info = CACHE['Export_PDB_person_rel.csv']
-
-        def get_job_function_uuid(engagement):
-            job_function = engagement['Stillingsbetegnelse']
-            if job_function == 'NULL':
-                return UNKNOWN_JOB_FUNCTION[4]
-            return JOB_FUNCTION_CACHE[job_function]
-
-        for uuid, engagements in engagement_info.items():
-            if len(engagements) == 1:
-                continue
             for engagement in engagements[1:]:
                 payload = payloads.edit_engagement(
-                    engagement_uuid=uuid,
-                    job_function_uuid=get_job_function_uuid(engagement),
-                    org_unid_uuid=engagement['OrgenhedUUID'],
+                    uuid=uuid,
+                    job_function_uuid=engagement['Stillingsbetegnelse'],
                     from_date=engagement['from_date_mo'],
-                    to_date=engagement['end_date_mo']
+                    to_date=engagement['end_date_mo'],
                 )
-                response = self.helper._mo_post('details/edit', payload)
-                response.raise_for_status()
+                edit_payloads.setdefault(uuid, []).append(payload)
+                edit_payload_count += 1
 
-    def initial_import(self):
+        create_url = 'http://localhost:5000/service/details/create?force=1'
+        logger.info('Importing {} engagements'.format(len(create_payloads)))
+        await self.submit_payloads(create_payloads, create_url, session)
+
+        edit_url = 'http://localhost:5000/service/details/edit?force=1'
+        logger.info('Performing {} engagement updates'.format(edit_payload_count))
+        await self.submit_payloads(list(edit_payloads.values()), edit_url, session)
+
+    async def _import_it(self, session):
+
+        def uuid_fn(row):
+            return self._generate_uuid(row['User_key'], row['ITSystemUUID'])
+
+        it_rel_info = self._parse_file('Export_ITsystem_rel.csv', uuid_fn)
+
+        def create_payload_dict(uuid, it_rel):
+            return {
+                'uuid': uuid,
+                'user_key': it_rel['User_key'],
+                'person_uuid': it_rel['PersonUUID'],
+                'itsystem_uuid': it_rel['ITSystemUUID'],
+                'from_date': it_rel['from_date_mo'],
+                'to_date': it_rel['end_date_mo'],
+            }
+
+        create_payloads = []
+        edit_payloads = {}
+        edit_payload_count = 0
+        for uuid, it_rels in it_rel_info.items():
+
+            payload_dicts = [create_payload_dict(uuid, it_rel) for it_rel in it_rels]
+
+            create, *edits = payload_dicts
+
+            create_payloads.append(payloads.create_it_rel(**create))
+            for edit in edits:
+                edit_payloads.setdefault(uuid, []).append(payloads.edit_it_rel(**edit))
+                edit_payload_count += 1
+
+
+        create_url = 'http://localhost:5000/service/details/create?force=1'
+        logger.info('Importing {} it relations'.format(len(create_payloads)))
+        await self.submit_payloads(create_payloads, create_url, session)
+
+        edit_url = 'http://localhost:5000/service/details/edit?force=1'
+        logger.info('Performing {} it relation updates'.format(edit_payload_count))
+        await self.submit_payloads(list(edit_payloads.values()), edit_url, session)
+
+
+    async def initial_import(self):
+        # Old sync importer code
         self._import_engagement_types()
         self._import_unit_types()
         self._import_job_functions()
         self._import_remaining_classes()
-        self._import_users()
-        self._initial_import_units()
-        self._initial_import_addresses()
-        self._initial_import_engagements()
-
         self.importer.import_all()
 
-    def diff_import(self):
-        self.helper = MoraHelper(hostname='http://localhost:5000',
-                                 use_cache=False)
-        try:
-            _ = self.helper.read_organisation()
-        except requests.exceptions.RequestException as e:
-            logger.error(e)
-            print(e)
-            exit()
+        self.org_uuid = requests.get('http://localhost:5000/service/o/').json()[0]['uuid']
 
-        self._diff_import_units()
-        self._diff_import_addresses()
-        self._diff_import_engagements()
+        self._import_it_system()
+
+        connector = TCPConnector(limit=20)
+        async with ClientSession(connector=connector) as session:
+            await self._import_employees(session),
+            await self._import_pdb_units(session),
+            await self._import_los_units(session),
+            await self._import_los_addresses(session),
+            await self._import_engagements(session),
+            await self._import_addresses(session),
+            await self._import_it(session),
 
 
 if __name__ == '__main__':
-    r = requests.get('http://localhost:8080/db/truncate')
-    r.raise_for_status()
-    print(r.text)
+    # r = requests.get('http://localhost:8080/db/truncate')
+    # r.raise_for_status()
+    # print(r.text)
 
     århus = ÅrhusImport()
-    århus.initial_import()
-    århus.diff_import()
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(århus.initial_import())
