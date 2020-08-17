@@ -28,15 +28,15 @@ from os2mo_helpers.mora_helpers import MoraHelper
 cfg_file = pathlib.Path.cwd() / 'settings' / 'holstebro.settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
+SETTINGS = json.loads(cfg_file.read_text(encoding='utf-8'))
 
 logger = logging.getLogger('LederHierarki')
 
 
-@click.command()
-@click.option('--prod', 'hostname', required=True, flag_value='https://os2mo.holstebro.dk', help='MO Prod server')
-@click.option('--test', 'hostname', required=True, flag_value='https://os2mo-test.holstebro.dk', help='MO Test server')
-@click.option('--dev', 'hostname', required=True, flag_value='https://os2mo-dev.holstebro.dk', help='MO Dev server')
+@ click.command()
+@ click.option('--prod', 'hostname', required=True, flag_value='https://os2mo.holstebro.dk', help='MO Prod server')
+@ click.option('--test', 'hostname', required=True, flag_value='https://os2mo-test.holstebro.dk', help='MO Test server')
+@ click.option('--dev', 'hostname', required=True, flag_value='https://os2mo-dev.holstebro.dk', help='MO Dev server')
 def decorate_leaders(hostname):
     holstebro_logger.start_logging(SETTINGS['logging.holstebro.leaders_logfile'])
 

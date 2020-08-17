@@ -30,7 +30,7 @@ logger = logging.getLogger('holstebro-helpers')
 cfg_file = pathlib.Path.cwd() / 'settings' / 'holstebro.settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
+SETTINGS = json.loads(cfg_file.read_text(encoding='utf-8'))
 
 
 def holstebro_generic_export(mh, nodes, filename):
@@ -517,24 +517,53 @@ def update_org_with_hk_managers(mh, nodes):
     for node in PreOrderIter(nodes['root']):
         ou = mh.read_ou(node.name)
         # for each ou, check if name contains _leder
-        # if so, check ou for "tilknytninger" and set  this as leader for ou.parent
-        if ou['org_unit_level']['name'] == 'Afdelings-niveau' and ou['name'].count(SETTINGS['imports.holstebro.leaders.manager_extension']) == 1:
+        # if so, check ou for "tilknytninger" and set this as leader for ou.parent
+        if _is_leader_unit(ou):
             # We have an Afdeling with name _leder, find associated employees and make them leaders in the parent ou
             associated_employees = mh.read_organisation_people(
                 node.name, 'association', False)
 
-            if(ou['parent'] != None and len(associated_employees) == 1):
+            # Find the manager if an employee is associated with manager departement
+            manager = {}
+            if len(associated_employees) > 0:
+                # Take the first employees associated with the ou and make them leader
                 manager_uuid = list(associated_employees)[0]
-                managerHelper.update_manager(
-                    ou['parent'], associated_employees[manager_uuid])
+                manager = associated_employees[manager_uuid]
 
-            # This manager is now manager for parent ou
+            if len(associated_employees) > 1:
+                # This is an error. There should be no more than one employeen in manager unit.
+                # Log this as an error.
+                logger.error(
+                    "More than one manager associated with: {}".format(ou['name']))
+
+            if ou['parent'] != None:
+                managerHelper.update_manager(
+                    ou['parent'], manager)
+
+            # This manager is now manager for parent ou - or has been removed
             # if parent ou's name ends with "led-adm", make employee
             # manager for the parent ou's parent as well.
-            if ou['parent']['parent'] != None and ou['parent']['name'].count(SETTINGS['imports.holstebro.leaders.common_management_name']) == 1:
-                manager_uuid = list(associated_employees)[0]
+            if _is_cm_unit(ou):
                 managerHelper.update_manager(
-                    ou['parent']['parent'], associated_employees[manager_uuid])
+                    ou['parent']['parent'], manager)
+
+
+def _is_leader_unit(ou):
+    is_leader_unit = False
+
+    if ou['org_unit_level']['name'] == 'Afdelings-niveau' and ou['name'].count(SETTINGS['imports.holstebro.leaders.manager_extension']) == 1 and ou['name'].count(SETTINGS['imports.holstebro.leaders.manager_prefix_exclude']) == 0:
+        is_leader_unit = True
+
+    return is_leader_unit
+
+
+def _is_cm_unit(ou):
+    is_cm_unit = False
+
+    if ou['parent']['parent'] != None and ou['parent']['name'].count(SETTINGS['imports.holstebro.leaders.common_management_name']) == 1:
+        is_cm_unit = True
+
+    return is_cm_unit
 
 
 def find_org_manager(mh, node):
@@ -667,11 +696,15 @@ class HolstebroHelper(object):
         """
 
         ou_uuid = ou['uuid']
-        manager_uuid = manager['Person UUID']
+        manager_engagements = []
+
+        if manager == {}:
+            manager_uuid = None
+        else:
+            manager_uuid = manager['Person UUID']
+            manager_engagements = self.mh.read_user_engagement(manager_uuid)
 
         # First check that the new manager has active engagements
-        manager_engagements = self.mh.read_user_engagement(manager_uuid)
-
         has_engagements = True if len(manager_engagements) > 0 else False
 
         # Create list of managers from this Afdelings-niveau
@@ -679,37 +712,43 @@ class HolstebroHelper(object):
         # Get non-inherited manager, ALWAYS returns 1 or no manager
         ou_manager = self.mh.read_ou_manager(ou_uuid, False)
 
-        if ou_manager == {}:  # no manager, create it
-            logger.info("Manager for {} should be {}".format(
-                ou['name'], manager['Navn']))
-
-            manager_level = self._get_org_level(ou)
-            if has_engagements:
-                self._create_manager(ou_uuid, manager_uuid, manager_level)
-            else:
-                logger.error(
-                    f"Manager with uuid: {manager_uuid} has no active engagements and will not be made manager")
-
-        elif ou_manager['uuid'] != manager_uuid:
-            logger.info("Manager for {} should be {}".format(
-                ou['name'], manager['Navn']))
-
-            self._terminate_manager(ou_manager['relation_uuid'])
-
-            manager_level = self._get_org_level(ou)
-            if has_engagements:
-                self._create_manager(ou_uuid, manager_uuid, manager_level)
-            else:
-                logger.error(
-                    f"Manager with uuid: {manager_uuid} has no active engagements and will not be made manager")
-
-        if ou_manager != {} and ou_manager['uuid'] == manager_uuid:
-            # current manager is this ou's manager,
-            # but the manager no longer has active engagements
-            # then remove manager
-            if not has_engagements:
-                logger.info("Manager for {} is {} and has no engagements. Will be terminated.".format(
+        if manager_uuid != None:
+            if ou_manager == {}:  # no manager, create it
+                logger.info("Manager for {} should be {}".format(
                     ou['name'], manager['Navn']))
+
+                manager_level = self._get_org_level(ou)
+                if has_engagements:
+                    self._create_manager(ou_uuid, manager_uuid, manager_level)
+                else:
+                    logger.error(
+                        f"Manager with uuid: {manager_uuid} has no active engagements and will not be made manager")
+
+            elif ou_manager['uuid'] != manager_uuid:
+                logger.info("Manager for {} should be {}".format(
+                    ou['name'], manager['Navn']))
+
+                self._terminate_manager(ou_manager['relation_uuid'])
+
+                manager_level = self._get_org_level(ou)
+                if has_engagements:
+                    self._create_manager(ou_uuid, manager_uuid, manager_level)
+                else:
+                    logger.error(
+                        f"Manager with uuid: {manager_uuid} has no active engagements and will not be made manager")
+
+            if ou_manager != {} and ou_manager['uuid'] == manager_uuid:
+                # current manager is this ou's manager,
+                # but the manager no longer has active engagements
+                # then remove manager
+                if not has_engagements:
+                    logger.info("Manager for {} is {} and has no engagements. Will be terminated.".format(
+                        ou['name'], manager['Navn']))
+                    self._terminate_manager(ou_manager['relation_uuid'])
+        else:
+            if ou_manager != {}:
+                logger.info("Manager for {} is {} and but no leader association exists. Will be terminated.".format(
+                    ou['name'], ou_manager['Navn']))
                 self._terminate_manager(ou_manager['relation_uuid'])
 
     def add_employee(self, employee_info):
