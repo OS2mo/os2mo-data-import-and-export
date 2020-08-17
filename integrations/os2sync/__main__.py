@@ -5,19 +5,19 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-import logging
-from integrations.os2sync import os2mo, os2sync, config, lcdb_os2mo
 import collections
-import argparse
-import pathlib
-import json
 import datetime
+import json
+import logging
+import pathlib
 from functools import partial
 
-settings = config.settings
-logger = None # set in main()
+from integrations.os2sync import config, lcdb_os2mo, os2mo, os2sync
 
-def log_mox_config():
+logger = None  # set in main()
+
+
+def log_mox_config(settings):
     """It is imperative for log-forensics to have as
     much configuration as possible logged at program start
     and end.
@@ -116,7 +116,7 @@ def sync_os2sync_users(allowed_unitids, counter, prev_date):
     logger.info("sync_os2sync_users done")
 
 
-def main():
+def main(settings):
     # set warning-level for all loggers
     global logger
     [
@@ -148,7 +148,7 @@ def main():
 
     counter = collections.Counter()
     logger.info("mox_os2sync starting")
-    log_mox_config()
+    log_mox_config(settings)
 
     if hash_cache_file and hash_cache_file.exists():
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
@@ -166,8 +166,10 @@ def main():
         hash_cache_file.write_text(json.dumps(os2sync.hash_cache, indent=4))
 
     log_mox_counters(counter)
-    log_mox_config()
+    log_mox_config(settings)
     logger.info("mox_os2sync done")
 
+
 if __name__ == "__main__":
-    main()
+    settings = config.settings
+    main(settings)

@@ -1,6 +1,6 @@
+import json
 import os
 import pathlib
-import json
 
 # flake8: noqa
 
