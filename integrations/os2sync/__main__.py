@@ -154,6 +154,8 @@ if __name__ == "__main__":
         settings["OS2MO_ORG_UUID"] = os2mo.os2mo_get("{BASE}/o/").json()[0][
             "uuid"
         ]
+    settings["OS2MO_HAS_KLE"] = os2mo.has_kle()
+
     orgunit_uuids = sync_os2sync_orgunits(counter)
     sync_os2sync_users(orgunit_uuids, counter)
 
