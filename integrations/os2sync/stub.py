@@ -1,6 +1,6 @@
 import logging
-from integrations.os2sync.config import loggername
 
+from integrations.os2sync.config import loggername
 
 logger = logging.getLogger(loggername)
 
