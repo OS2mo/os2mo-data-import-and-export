@@ -6,12 +6,13 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-import requests
-import logging
-from integrations.os2sync import config
 import hashlib
 import json
+import logging
 
+import requests
+
+from integrations.os2sync import config
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
