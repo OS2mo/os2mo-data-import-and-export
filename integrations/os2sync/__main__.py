@@ -5,17 +5,18 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-import logging
-from integrations.os2sync import os2mo, os2sync, config, lcdb_os2mo
 import collections
-import argparse
-import pathlib
-import json
 import datetime
+import json
+import logging
+import pathlib
 from functools import partial
 
+from integrations.os2sync import config, lcdb_os2mo, os2mo, os2sync
+
 settings = config.settings
-logger = None # set in main()
+logger = None  # set in main()
+
 
 def log_mox_config():
     """It is imperative for log-forensics to have as
@@ -168,6 +169,7 @@ def main():
     log_mox_counters(counter)
     log_mox_config()
     logger.info("mox_os2sync done")
+
 
 if __name__ == "__main__":
     main()
