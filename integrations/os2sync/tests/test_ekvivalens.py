@@ -38,7 +38,7 @@ class Tests(unittest.TestCase):
                 if "Tasks" in js:
                     js["Tasks"] = sorted(js["Tasks"])
                 if "ContactForTasks" in js:
-                results["post"].setdefault(js["Uuid"], js)
+                    results["post"].setdefault(js["Uuid"], js)
 
         return results
 
