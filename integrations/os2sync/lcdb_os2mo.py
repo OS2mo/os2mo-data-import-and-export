@@ -28,7 +28,7 @@ def has_kle():
     return True
 
 
-scope_to_scope={
+scope_to_scope = {
     "E-mail": "EMAIL",
     "Telefon": "PHONE",
     "DAR": "DAR",
