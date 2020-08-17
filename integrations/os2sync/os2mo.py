@@ -5,10 +5,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-import requests
 import logging
-from integrations.os2sync import config
 
+import requests
+
+from integrations.os2sync import config
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
@@ -70,7 +71,8 @@ def has_kle():
     try:
         os2mo_get("{BASE}/o/{ORG}/f/kle_aspect")
         os2mo_get("{BASE}/o/{ORG}/f/kle_number")
-        os2mo_get("{BASE}/ou/" +
+        os2mo_get(
+            "{BASE}/ou/" +
             settings["OS2MO_TOP_UNIT_UUID"] +
             "/details/kle"
         )
