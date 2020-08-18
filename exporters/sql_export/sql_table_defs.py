@@ -1,16 +1,17 @@
-from sqlalchemy import Column, ForeignKey, Boolean, Integer, String
+from sqlalchemy import Column, ForeignKey, Boolean, Integer, String, DateTime
 from sqlalchemy.ext.declarative import declarative_base
+
 Base = declarative_base()
 
 
 class Facet(Base):
-    __tablename__ = 'facetter'
+    __tablename__ = "facetter"
     uuid = Column(String(36), nullable=False, primary_key=True)
     bvn = Column(String(250), nullable=False)
 
 
 class Klasse(Base):
-    __tablename__ = 'klasser'
+    __tablename__ = "klasser"
 
     uuid = Column(String(36), nullable=False, primary_key=True)
     bvn = Column(String(250), nullable=False)
@@ -20,7 +21,7 @@ class Klasse(Base):
 
 
 class Bruger(Base):
-    __tablename__ = 'brugere'
+    __tablename__ = "brugere"
 
     uuid = Column(String(36), nullable=False, primary_key=True)
     fornavn = Column(String(250), nullable=True)
@@ -29,7 +30,7 @@ class Bruger(Base):
 
 
 class Enhed(Base):
-    __tablename__ = 'enheder'
+    __tablename__ = "enheder"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -37,8 +38,9 @@ class Enhed(Base):
     forældreenhed_uuid = Column(String(36), nullable=True, primary_key=False)
     enhedstype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     enhedstype_titel = Column(String(250), nullable=False)
-    enhedsniveau_uuid = Column(String(36),
-                               nullable=True)  # ForeignKey('klasser.uuid'))
+    enhedsniveau_uuid = Column(
+        String(36), nullable=True
+    )  # ForeignKey('klasser.uuid'))
     enhedsniveau_titel = Column(String(250), nullable=True)
     organisatorisk_sti = Column(String(1000), nullable=True)
     leder_uuid = Column(String(36))
@@ -48,7 +50,7 @@ class Enhed(Base):
 
 
 class Adresse(Base):
-    __tablename__ = 'adresser'
+    __tablename__ = "adresser"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -56,18 +58,19 @@ class Adresse(Base):
     enhed_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
     værdi = Column(String(250), nullable=True)
     dar_uuid = Column(String(36), nullable=True)
-    adressetype_uuid = Column(String(36), ForeignKey('klasser.uuid'))
+    adressetype_uuid = Column(String(36), ForeignKey("klasser.uuid"))
     adressetype_scope = Column(String(250), nullable=False)
     adressetype_titel = Column(String(250), nullable=False)
-    synlighed_uuid = Column(String(36),
-                            nullable=True)  # , ForeignKey('klasser.uuid'))
+    synlighed_uuid = Column(
+        String(36), nullable=True
+    )  # , ForeignKey('klasser.uuid'))
     synlighed_titel = Column(String(250), nullable=True)
     startdato = Column(String(10))
     slutdato = Column(String(10))
 
 
 class Engagement(Base):
-    __tablename__ = 'engagementer'
+    __tablename__ = "engagementer"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -77,8 +80,9 @@ class Engagement(Base):
     arbejdstidsfraktion = Column(Integer)
     engagementstype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     engagementstype_titel = Column(String(250), nullable=False)
-    primærtype_uuid = Column(String(36),
-                             nullable=True)  # , ForeignKey('klasser.uuid'))
+    primærtype_uuid = Column(
+        String(36), nullable=True
+    )  # , ForeignKey('klasser.uuid'))
     primærtype_titel = Column(String(250), nullable=True)
     stillingsbetegnelse_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     stillingsbetegnelse_titel = Column(String(250), nullable=False)
@@ -98,7 +102,7 @@ class Engagement(Base):
 
 
 class Rolle(Base):
-    __tablename__ = 'roller'
+    __tablename__ = "roller"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -111,7 +115,7 @@ class Rolle(Base):
 
 
 class Tilknytning(Base):
-    __tablename__ = 'tilknytninger'
+    __tablename__ = "tilknytninger"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -125,7 +129,7 @@ class Tilknytning(Base):
 
 
 class Orlov(Base):
-    __tablename__ = 'orlover'
+    __tablename__ = "orlover"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -138,14 +142,14 @@ class Orlov(Base):
 
 
 class ItSystem(Base):
-    __tablename__ = 'it_systemer'
+    __tablename__ = "it_systemer"
 
     uuid = Column(String(36), nullable=False, primary_key=True)
     navn = Column(String(250), nullable=False)
 
 
 class ItForbindelse(Base):
-    __tablename__ = 'it_forbindelser'
+    __tablename__ = "it_forbindelser"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -158,7 +162,7 @@ class ItForbindelse(Base):
 
 
 class Leder(Base):
-    __tablename__ = 'ledere'
+    __tablename__ = "ledere"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -173,7 +177,7 @@ class Leder(Base):
 
 
 class LederAnsvar(Base):
-    __tablename__ = 'leder_ansvar'
+    __tablename__ = "leder_ansvar"
 
     id = Column(Integer, nullable=False, primary_key=True)
     leder_uuid = Column(String(36))  # , ForeignKey('ledere.uuid'))
@@ -181,3 +185,26 @@ class LederAnsvar(Base):
     lederansvar_titel = Column(String(250), nullable=False)
     startdato = Column(String(10))
     slutdato = Column(String(10))
+
+
+class KLE(Base):
+    __tablename__ = "kle"
+
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
+    enhed_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
+    kle_aspekt_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
+    kle_aspekt_titel = Column(String(250), nullable=False)
+    kle_nummer_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
+    kle_nummer_titel = Column(String(250), nullable=False)
+    startdato = Column(String(10))
+    slutdato = Column(String(10))
+
+
+class Kvittering(Base):
+    __tablename__ = "kvittering"
+
+    id = Column(Integer, nullable=False, primary_key=True)
+    query_tid = Column(DateTime)
+    start_levering_tid = Column(DateTime)
+    slut_levering_tid = Column(DateTime)

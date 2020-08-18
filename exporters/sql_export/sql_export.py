@@ -4,8 +4,9 @@ import logging
 import pathlib
 import argparse
 import urllib.parse
+import datetime
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, Index
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lora_cache import LoraCache
@@ -13,8 +14,9 @@ from exporters.sql_export.sql_table_defs import (
     Base,
     Facet, Klasse,
     Bruger, Enhed,
-    ItSystem, LederAnsvar,
-    Adresse, Engagement, Rolle, Tilknytning, Orlov, ItForbindelse, Leder
+    ItSystem, LederAnsvar, KLE,
+    Adresse, Engagement, Rolle, Tilknytning, Orlov, ItForbindelse, Leder,
+    Kvittering
 )
 
 LOG_LEVEL = logging.DEBUG
@@ -51,6 +53,7 @@ class SqlExport(object):
         db_host = self.settings.get('exporters.actual_state.host')
         pw_raw = self.settings.get('exporters.actual_state.password', '')
         pw = urllib.parse.quote_plus(pw_raw)
+        engine_settings = {}
         if db_type == 'SQLite':
             db_string = 'sqlite:///{}.db'.format(db_name)
         elif db_type == 'MS-SQL':
@@ -63,13 +66,21 @@ class SqlExport(object):
                     db_host, db_name, user, pw_raw)
                 )
             db_string = 'mssql+pyodbc:///?odbc_connect={}'.format(quoted)
+        elif db_type == "Mysql":
+            engine_settings={"pool_recycle":3600}
+            db_string = 'mysql+mysqldb://{}:{}@{}/{}'.format(
+                user, pw, db_host, db_name)
 
         else:
             raise Exception('Unknown DB type')
 
-        self.engine = create_engine(db_string)
+        self.engine = create_engine(db_string, **engine_settings)
 
     def perform_export(self, resolve_dar=True, use_pickle=False):
+        def timestamp():
+            return datetime.datetime.now()
+
+        query_time = timestamp()
         if self.historic:
             self.lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
             self.lc.populate_cache(dry_run=use_pickle)
@@ -78,6 +89,8 @@ class SqlExport(object):
             self.lc.populate_cache(dry_run=use_pickle)
             self.lc.calculate_derived_unit_data()
             self.lc.calculate_primary_engagements()
+
+        start_delivery_time = timestamp()
 
         Base.metadata.drop_all(self.engine)
         Base.metadata.create_all(self.engine)
@@ -91,6 +104,10 @@ class SqlExport(object):
         self._add_associactions_leaves_and_roles()
         self._add_managers()
         self._add_it_systems()
+        self._add_kles()
+
+        end_delivery_time = timestamp()
+        self._add_receipt(query_time, start_delivery_time, end_delivery_time)
 
     def at_exit(self):
         logger.info('*SQL export ended*')
@@ -162,6 +179,15 @@ class SqlExport(object):
                 )
                 self.session.add(sql_unit)
         self.session.commit()
+
+        # create supplementary index for quick toplevel lookup
+        # when rewriting whole table this is quicker than maintaining
+        # the index for every row inserted
+        organisatorisk_sti_index = Index(
+            "organisatorisk_sti_index",
+            Enhed.organisatorisk_sti
+        )
+        organisatorisk_sti_index.create(bind=self.engine)
 
         if output:
             for result in self.engine.execute('select * from brugere limit 5'):
@@ -319,6 +345,41 @@ class SqlExport(object):
 
             for result in self.engine.execute(
                     'select * from it_forbindelser limit 2'):
+                print(result.items())
+
+    def _add_kles(self, output=False):
+        logger.info('Add KLES')
+        print('Add KLES')
+        for kle, kle_validity in self.lc.kles.items():
+            for kle_info in kle_validity:
+                sql_kle = KLE(
+                    uuid=kle,
+                    enhed_uuid=kle_info['unit'],
+                    kle_aspekt_uuid=kle_info['kle_aspect'],
+                    kle_aspekt_titel=self.lc.classes[kle_info['kle_aspect']]['title'],
+                    kle_nummer_uuid=kle_info['kle_number'],
+                    kle_nummer_titel=self.lc.classes[kle_info['kle_number']]['title'],
+                    startdato=kle_info['from_date'],
+                    slutdato=kle_info['to_date']
+                )
+                self.session.add(sql_kle)
+        self.session.commit()
+        if output:
+            for result in self.engine.execute('select * from kle limit 10'):
+                print(result.items())
+
+    def _add_receipt(self, query_time, start_time, end_time, output=False):
+        logger.info('Add Receipt')
+        print('Add Receipt')
+        sql_kvittering = Kvittering(
+            query_tid=query_time,
+            start_levering_tid=start_time,
+            slut_levering_tid=end_time,
+        )
+        self.session.add(sql_kvittering)
+        self.session.commit()
+        if output:
+            for result in self.engine.execute('select * from kvittering limit 10'):
                 print(result.items())
 
     def _add_managers(self, output=False):

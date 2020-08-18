@@ -31,8 +31,9 @@ For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
    som angiver at en leder kan nedarve sin lederrolle til enheder dybere i
    organisationen.
  * ``exporters.actual_state.type``: Typen af database, i øjeblikket understøttes
-   `SQLite` og `MS-SQL`, samt `MS-SQL-ODBC`.  flere kan tilføjes efter behov. 
- For typen `SQLite` kan brugernavn, password og host være tomme felter.
+   `SQLite`, `Mysql`, `MS-SQL`, samt `MS-SQL-ODBC`.  flere kan tilføjes efter behov.
+   `MS-SQL`-driveren er på vej ud og er erstattet af `MS-SQL-ODBC` i nyere
+   installationer.
  * ``exporters.actual_state_historic.type``: Som ovenfor, men for historisk eksport.
  * ``exporters.actual_state.user``:  Brugernavn for sql bruger.
  * ``exporters.actual_state.password``: Password til sql bruger.
@@ -40,6 +41,8 @@ For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
  * ``exporters.actual_state_historic.db_name``: Navnet på databasen for historisk
    eksport.
  * ``exporters.actual_state.host``: Hostnavn på SQL-serveren.
+
+ For typen `SQLite` kan user, password og host være tomme felter.
 
 
 Eksport af historik
@@ -116,6 +119,7 @@ systematisk i det følgende afsnit.
  * ``it_forbindelser``
  * ``ledere``
  * ``leder_ansvar``
+ * ``KLE``
 
 
 facetter
@@ -331,4 +335,23 @@ klasser som tilknyttes en lederrolle.
  * ``lederansvar_titel``: Titlen på klassen for lederansvar.
  * ``startdato``: Startdato for denne rækkes gyldighed.
  * ``slutdato``: Slutdato for denne rækkes gyldighed.
+
+KLE
+---
+
+KLE opmærkning er i MO ikke selvstændige objekter, men er modelleret som en
+binding imellem to klasser, nemlig KLE-Aspekt (f.eks. udførende) og KLE-numre.
+
+ * ``id``: Arbitrært løbenummer, primærnøgle for tabellen.
+ * ``uuid``: KLE-bindingens uuid.
+ * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``.
+ * ``kle_aspekt_uuid``: Klassen for KLE-aspekt, reference til primærnøglen i
+   tabellen ``klasser``.
+ * ``kle_aspekt_titel``: Titlen på KLE-aspektets klasse.
+ * ``kle_nummer_uuid``: Klassen for KLE-nummer, reference til primærnøglen i
+   tabellen ``klasser``.
+ * ``kle_nummer_titel``: Titlen på KLE-nummerets klasse.
+ * ``startdato``: Startdato for denne rækkes gyldighed.
+ * ``slutdato``: Slutdato for denne rækkes gyldighed.
+
 

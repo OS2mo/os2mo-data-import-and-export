@@ -241,11 +241,6 @@ exports_mox_stsorgsync(){
     )
 }
 
-exports_os2mo_phonebook(){
-    set -e
-    :
-}
-
 exports_cpr_uuid(){
     set -e
     echo running exports_cpr_uuid
@@ -366,6 +361,11 @@ exports_actual_state_export(){
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py
 }
 
+exports_historic_sql_export(){
+    BACK_UP_AND_TRUNCATE+=(sql_export_historic.log)
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --historic
+}
+
 exports_os2phonebook_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(os2phonebook_export.log)
@@ -377,6 +377,10 @@ exports_os2phonebook_export(){
 exports_sync_mo_uuid_to_ad(){
     BACK_UP_AND_TRUNCATE+=(sync_mo_uuid_to_ad.log)
     ${VENV}/bin/python3 ${DIPEXAR}/integrations/ad_integration/sync_mo_uuid_to_ad.py --sync-all
+}
+
+reports_viborg_managers(){
+    ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
 }
 
 exports_test(){
@@ -470,6 +474,10 @@ exports(){
         run-job exports_actual_state_export || return 2
     fi
 
+    if [ "${RUN_HISTORIC_SQL_EXPORT}" == "true" ]; then
+        run-job exports_historic_sql_export || return 2
+    fi
+
     if [ "${RUN_OS2SYNC}" == "true" ]; then
         run-job exports_os2sync || return 2
     fi
@@ -491,7 +499,7 @@ exports(){
     fi
 
     if [ "${RUN_EXPORTS_OS2MO_PHONEBOOK}" == "true" ]; then
-        run-job exports_os2mo_phonebook || return 2
+        run-job exports_os2phonebook_export || return 2
     fi
 
     if [ "${RUN_EXPORTS_MO_UUID_TO_AD}" == "true" ]; then
@@ -532,6 +540,11 @@ reports(){
         run-job reports_opus_db_overview || echo "error in reports_opus_db_overview - continuing"
     fi
 
+    if [ "${RUN_VIBORG_MANAGERS}" == "true" ]; then
+        run-job reports_viborg_managers || return 2
+    fi
+
+
 }
 
 pre_truncate_logfiles(){
@@ -541,6 +554,10 @@ pre_truncate_logfiles(){
 
 pre_backup(){
     temp_report=$(mktemp)
+
+    # deduplicate
+    BACK_UP_BEFORE_JOBS=($(printf "%s\n" "${BACK_UP_BEFORE_JOBS[@]}" | sort -u))
+
     for f in ${BACK_UP_BEFORE_JOBS[@]}
     do
         FILE_FAILED=false
@@ -565,6 +582,11 @@ pre_backup(){
 
 post_backup(){
     temp_report=$(mktemp)
+
+    # deduplicate
+    BACK_UP_AFTER_JOBS=($(printf "%s\n" "${BACK_UP_AFTER_JOBS[@]}" | sort -u))
+    BACK_UP_AND_TRUNCATE=($(printf "%s\n" "${BACK_UP_AND_TRUNCATE[@]}" | sort -u))
+
     for f in ${BACK_UP_AFTER_JOBS[@]} ${BACK_UP_AND_TRUNCATE[@]}
     do
         FILE_FAILED=false
@@ -717,6 +739,7 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
     # write directly on stdout for mail-log
     cat ${CRON_LOG_FILE}_status
     cat ${CRON_LOG_FILE}
+    exit $TOTAL_STATUS
      
 elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
     if [ -n "$(grep $1\(\) $0)" ]; then

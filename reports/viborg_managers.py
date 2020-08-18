@@ -9,6 +9,8 @@
 import os
 import logging
 import datetime
+import pathlib
+import json
 from anytree import PostOrderIter, PreOrderIter
 from os2mo_helpers.mora_helpers import MoraHelper
 
@@ -27,11 +29,15 @@ Rapportens opdrag: Tæl lederes medarbejdere, og den har udviklet sig lidt:
 Rapportens output er en csv-fil, som placeres i os2mo's rapport-directory
   ${QUERY_EXPORT_DIR}
 """
+cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+if not cfg_file.is_file():
+    raise Exception('No setting file')
+settings = json.loads(cfg_file.read_text())
 
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
-MORA_ROOT_ORG_UNIT_NAME = os.environ.get('MORA_ROOT_ORG_UNIT_NAME', 'Viborg Kommune')
+MORA_BASE = settings["mora.base"]
+MORA_ROOT_ORG_UNIT_NAME = settings["municipality.name"]
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
-REPORT_OUTFILE = os.environ.get('REPORT_OUTFILE', 'viborg_managers.csv')
+REPORT_OUTFILE = settings["mora.folder.query_export"]+'/viborg_managers.csv'
 
 
 logging.basicConfig(

@@ -30,19 +30,6 @@ Disable-ADAccount -Credential $usercredential
 """
 
 
-# Create user
-create_user_template = """
-New-ADUser
- -Name "{givenname} {surname} - {sam_account_name}"
- -Displayname "{givenname} {surname}"
- -GivenName "{givenname}"
- -SurName "{surname}"
- -SamAccountName "{sam_account_name}"
- -EmployeeNumber "{employment_number}"
- -Credential $usercredential
-"""
-
-
 # Delete user
 delete_user_template = """
 Get-ADUser -Filter 'SamAccountName -eq \"{username}\"' -Credential $usercredential |
@@ -56,20 +43,6 @@ Get-ADUser -Filter 'SamAccountName -eq \"{user_sam}\"' -Credential $usercredenti
 Set-ADUser -Manager {manager_sam} -Credential $usercredential
 """
 
-
-
-# Update informtion saved on a user
-# Notice: Name cannot be updated using Set-ADUser, this must be done
-# with Rename-AdObject
-edit_user_template = """
-Get-ADUser -Filter 'SamAccountName -eq \"{sam_account_name}\"'
-            -Credential $usercredential |
-Set-ADUser -Credential $usercredential
- -Displayname "{givenname} {surname}"
- -GivenName "{givenname}"
- -SurName "{surname}"
- -EmployeeNumber "{employment_number}"
-"""
 
 rename_user_template = """
 Get-ADUser -Filter 'SamAccountName -eq \"{sam_account_name}\"'

@@ -274,6 +274,7 @@ class MoraHelper(object):
         :param user_cpr: cpr of the wanted user.
         :return: Basic user info
         """
+        user_info = None
         if user_uuid:
             user_info = self._mo_lookup(user_uuid, 'e/{}', at, use_cache)
         if user_cpr:
@@ -286,8 +287,6 @@ class MoraHelper(object):
             if user['total'] == 1:
                 user_info = self._mo_lookup(user['items'][0]['uuid'], 'e/{}',
                                             at, use_cache)
-            else:
-                user_info = None
         return user_info
 
     def terminate_detail(self, mo_type, uuid, from_date):

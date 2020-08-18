@@ -10,6 +10,8 @@ import argparse
 import ad_logger
 import ad_templates
 
+from ad_template_engine import template_powershell
+
 from integrations.ad_integration.ad_exceptions import CprNotNotUnique
 from integrations.ad_integration.ad_exceptions import UserNotFoundException
 from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
@@ -34,13 +36,11 @@ def _random_password(length=12):
 
 
 class ADWriter(AD):
-    def __init__(self, lc=None, lc_historic=None):
-        super().__init__()
+    def __init__(self, lc=None, lc_historic=None, **kwargs):
+        super().__init__(**kwargs)
+        self.opts = dict(**kwargs)
 
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = self.all_settings
         # self.pet = self.settings['integrations.ad.write.primary_types']
 
         self.lc = lc
@@ -48,9 +48,12 @@ class ADWriter(AD):
 
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
+        self._init_name_creator()
+
+    def _init_name_creator(self):
         self.name_creator = CreateUserNames(occupied_names=set())
         logger.info('Reading occupied names')
-        self.name_creator.populate_occupied_names()
+        self.name_creator.populate_occupied_names(**self.opts)
         logger.info('Done reading occupied names')
 
     def _get_write_setting(self, school=False):
@@ -60,64 +63,6 @@ class ADWriter(AD):
             logger.error(msg)
             raise Exception(msg)
         return self.all_settings['primary_write']
-
-    def _other_attributes(self, mo_values, user_sam, new_user=False):
-        school = False  # TODO
-        write_settings = self._get_write_setting(school)
-        if new_user:
-            other_attributes = ' -OtherAttributes @{'
-        else:
-            other_attributes = ' -Replace @{'
-
-        # other_attributes_fields = [
-        #     (write_settings['level2orgunit_field'],
-        #      mo_values['level2orgunit'].replace('&', 'og')),
-        #     (write_settings['org_field'], mo_values['location'].replace('&', 'og'))
-        # ]
-        other_attributes_fields = [
-            (write_settings['level2orgunit_field'],
-             mo_values['level2orgunit']),
-            (write_settings['org_field'], mo_values['location'])
-        ]
-
-        # Add SAM to mo_values
-        mo_values['name_sam'] = '{} - {}'.format(mo_values['full_name'], user_sam)
-
-        # Local fields for MO->AD sync'ing
-        named_sync_fields = self.settings.get(
-            'integrations.ad_writer.mo_to_ad_fields', {})
-
-        for mo_field, ad_field in named_sync_fields.items():
-            other_attributes_fields.append(
-                (ad_field, mo_values[mo_field])
-            )
-
-        # These fields are NEVER updated.
-        if new_user:
-            # This needs extended permissions, do we need it?
-            # other_attributes_fields.append(('pwdLastSet', '0'))
-            other_attributes_fields.append(
-                ('UserPrincipalName',
-                 '{}@{}'.format(user_sam, write_settings['upn_end']))
-            )
-            other_attributes_fields.append(
-                (write_settings['uuid_field'], mo_values['uuid'])
-            )
-            # If local settings dictates a separator, we add it directly to the
-            # power-shell code.
-            ad_cpr = '{}{}{}'.format(
-                mo_values['cpr'][0:6],
-                self.settings['integrations.ad.cpr_separator'],
-                mo_values['cpr'][6:10]
-            )
-            other_attributes_fields.append(
-                (write_settings['cpr_field'], ad_cpr)
-            )
-
-        for field in other_attributes_fields:
-            other_attributes += '"{}"="{}";'.format(field[0], field[1])
-        other_attributes += '}'
-        return other_attributes
 
     def _wait_for_replication(self, sam):
         t_start = time.time()
@@ -325,7 +270,7 @@ class ADWriter(AD):
             'end_date': 2089-11-11,
             'cpr': '1122334455',
             'title': 'Musiker',
-            'location': 'Viborg Kommune\Forvalting\Enhed\',
+            'location': 'Viborg Kommune\\Forvalting\\Enhed\\',
             'level2orgunit: 'Beskæftigelse, Økonomi & Personale',
             'manager_sam': 'DMILL'
         }
@@ -611,18 +556,16 @@ class ADWriter(AD):
             return (True, 'Nothing to edit', mo_values['read_manager'])
 
         logger.info('Sync compare: {}'.format(mismatch))
-        edit_user_template = ad_templates.edit_user_template
-        replace_attributes = self._other_attributes(mo_values, user_sam,
-                                                    new_user=False)
 
-        edit_user_string = edit_user_template.format(
-            givenname=mo_values['name'][0],
-            surname=mo_values['name'][1],
-            sam_account_name=user_sam,
-            employment_number=mo_values['employment_number']
+        edit_user_string = template_powershell(
+            cmd='Set-ADUser',
+            context = {
+                "mo_values": mo_values,
+                "user_sam": user_sam,
+            },
+            settings = self.all_settings
         )
         edit_user_string = self.remove_redundant(edit_user_string)
-        edit_user_string += replace_attributes
 
         server_string = ''
         if self.all_settings['global'].get('servers') is not None:
@@ -679,18 +622,14 @@ class ADWriter(AD):
             logger.error('cpr already in use: {}'.format(mo_values['cpr']))
             raise CprNotNotUnique(mo_values['cpr'])
 
-        create_user_template = ad_templates.create_user_template
-        other_attributes = self._other_attributes(mo_values, sam_account_name,
-                                                  new_user=True)
-
-        create_user_string = create_user_template.format(
-            givenname=mo_values['name'][0],
-            surname=mo_values['name'][1],
-            sam_account_name=sam_account_name,
-            employment_number=mo_values['employment_number']
+        create_user_string = template_powershell(
+            context = {
+                "mo_values": mo_values,
+                "user_sam": sam_account_name,
+            },
+            settings = self.all_settings
         )
         create_user_string = self.remove_redundant(create_user_string)
-        create_user_string += other_attributes
 
         # Should this go to self._ps_boiler_plate()?
         server_string = ''

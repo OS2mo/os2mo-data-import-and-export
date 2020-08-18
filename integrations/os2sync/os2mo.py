@@ -66,10 +66,24 @@ def os2mo_get(url, **params):
         raise
 
 
+def has_kle():
+    try:
+        os2mo_get("{BASE}/o/{ORG}/f/kle_aspect")
+        os2mo_get("{BASE}/o/{ORG}/f/kle_number")
+        os2mo_get("{BASE}/ou/" +
+            settings["OS2MO_TOP_UNIT_UUID"] +
+            "/details/kle"
+        )
+        return True
+    except requests.exceptions.HTTPError:
+        return False
+
+
 def user_uuids(**kwargs):
     return [
         e["uuid"]
-        for e in os2mo_get("{BASE}/o/{ORG}/e/", limit=9999999, **kwargs).json()["items"]
+        for e in os2mo_get("{BASE}/o/{ORG}/e/", limit=9999999,
+                           **kwargs).json()["items"]
     ]
 
 
@@ -177,7 +191,8 @@ def pruned_tree(uuids=[]):
 def org_unit_uuids(**kwargs):
     return [
         ou["uuid"]
-        for ou in os2mo_get("{BASE}/o/{ORG}/ou", limit=999999, **kwargs).json()["items"]
+        for ou in os2mo_get("{BASE}/o/{ORG}/ou", limit=999999,
+                            **kwargs).json()["items"]
     ]
 
 
@@ -196,6 +211,52 @@ def addresses_to_orgunit(orgunit, addresses):
             orgunit["PhoneNumber"] = a["name"]
         elif a["address_type"]["scope"] == "DAR":
             orgunit["Post"] = a["value"]
+
+
+def kle_to_orgunit(orgunit, kle):
+    """Collect kle uuids according to kle_aspect.
+
+    * Aspect "Udførende" goes into "Tasks"
+    * Aspect "Ansvarlig" goes into "ContactForTasks"
+
+    Example:
+
+        >>> orgunit={}
+        >>> kles = [
+        ...     {'uuid': 1, 'kle_aspect': [{'scope': 'UDFOERENDE'}]},
+        ...     {'uuid': 2, 'kle_aspect': [{'scope': 'ANSVARLIG'}]},
+        ...     {'uuid': 3, 'kle_aspect': [{'scope': 'ANSVARLIG'},
+        ...                                {'scope': 'UDFOERENDE'}
+        ...     ]}
+        ... ]
+        >>> kle_to_orgunit(orgunit, kles)
+        >>> orgunit
+        {'Tasks': [1, 3], 'ContactForTasks': [2, 3]}
+
+
+    Args:
+        orgunit: The organization unit to enrich with kle information.
+        kle: A list of KLEs.
+
+    Returns:
+        None
+    """
+    tasks = set()
+    contactfortasks = set()
+
+    for k in kle:
+        uuid = k["uuid"]
+        for a in k["kle_aspect"]:
+            if a["scope"] == "UDFOERENDE":
+                tasks.add(uuid)
+            elif a["scope"] == "ANSVARLIG":
+                contactfortasks.add(uuid)
+
+    if len(tasks):
+        orgunit["Tasks"] = list(tasks)
+
+    if len(contactfortasks):
+        orgunit["ContactForTasks"] = list(contactfortasks)
 
 
 def get_sts_orgunit(uuid):
@@ -223,6 +284,12 @@ def get_sts_orgunit(uuid):
         sts_org_unit,
         os2mo_get("{BASE}/ou/" + uuid + "/details/address").json(),
     )
+    # this is set by __main__
+    if settings["OS2MO_HAS_KLE"]:
+        kle_to_orgunit(
+            sts_org_unit,
+            os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
+        )
 
     # show_all_details(uuid,"ou")
     strip_truncate_and_warn(sts_org_unit, sts_org_unit)
