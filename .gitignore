@@ -7,6 +7,7 @@
 .idea
 *.gz
 *~
+.vscode
 
 # Mac
 .DS_Store
