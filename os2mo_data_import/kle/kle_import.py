@@ -319,6 +319,13 @@ class KleImporter(object):
                 ansvarlig=self.org_uuid)
             self.get_or_create_lora_klasse(payload, uuid)
 
+    def _show_kle(self):
+        """Configure MO to show KLE."""
+        mora_base = self.mora_base
+        payload={"org_units": {"show_kle": true}}
+        r = self.mo_session.post("{}/service/configuration".format(mora_base), json=payload)
+        r.raise_for_status()
+
     def import_kle(self):
         self.set_mo_org_uuid()
         aspect_facet_uuid = self.get_or_create_facet('kle_aspect')
@@ -326,6 +333,7 @@ class KleImporter(object):
         number_facet_uuid = self.get_or_create_facet('kle_number')
         self._import_emne(number_facet_uuid)
         self._import_handling(number_facet_uuid)
+        self._show_kle()
 
 
 if __name__ == '__main__':
