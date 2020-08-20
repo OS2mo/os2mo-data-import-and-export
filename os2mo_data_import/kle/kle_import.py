@@ -322,7 +322,7 @@ class KleImporter(object):
     def _show_kle(self):
         """Configure MO to show KLE."""
         mora_base = self.mora_base
-        payload={"org_units": {"show_kle": true}}
+        payload={"org_units": {"show_kle": True}}
         r = self.mo_session.post("{}/service/configuration".format(mora_base), json=payload)
         r.raise_for_status()
 
