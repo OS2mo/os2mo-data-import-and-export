@@ -700,19 +700,20 @@ class LoraCache(object):
                 rel = effect[2]['relationer']
                 unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
                 kle_number = rel['organisatoriskfunktionstype'][0]['uuid']
-                kle_aspect = rel['opgaver'][0]['uuid']
 
-                kles[uuid].append(
-                    {
-                        'uuid': uuid,
-                        'unit': unit_uuid,
-                        'kle_number': kle_number,
-                        'kle_aspect': kle_aspect,
-                        'user_key': user_key,
-                        'from_date': from_date,
-                        'to_date': to_date
-                    }
-                )
+                for aspekt in rel['opgaver']:
+                    kle_aspect = aspekt['uuid']
+                    kles[uuid].append(
+                        {
+                            'uuid': uuid,
+                            'unit': unit_uuid,
+                            'kle_number': kle_number,
+                            'kle_aspect': kle_aspect,
+                            'user_key': user_key,
+                            'from_date': from_date,
+                            'to_date': to_date
+                        }
+                    )
         return kles
 
     def _cache_lora_managers(self):
