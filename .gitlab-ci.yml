@@ -80,4 +80,5 @@ Test OS2Sync Integration:
   extends: .test-python
   script:
     - python -m doctest integrations/os2sync/os2mo.py
+    - python -m doctest integrations/os2sync/lcdb_os2mo.py
     - python -m isort --check-only integrations/os2sync/*.py

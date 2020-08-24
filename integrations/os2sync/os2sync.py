@@ -29,9 +29,12 @@ session.headers = {
 
 
 def already_xferred(url, params, method):
-    params_hash = hashlib.sha224(
-        (json.dumps(params, sort_keys=True) + method).encode("utf-8")
-    ).hexdigest()
+    if settings["OS2SYNC_API_URL"] == "stub":
+        params_hash = params
+    else:
+        params_hash = hashlib.sha224(
+            (json.dumps(params, sort_keys=True) + method).encode("utf-8")
+        ).hexdigest()
     if hash_cache.get(url) == params_hash:
         return True
     else:
