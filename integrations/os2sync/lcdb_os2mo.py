@@ -73,6 +73,7 @@ def get_sts_user(session, uuid, allowed_unitids):
         Engagement
     ).filter(Engagement.bruger_uuid == uuid).all():
         engagements.append({
+            "uuid": lc_engagement.uuid,
             "org_unit": {"uuid": lc_engagement.enhed_uuid},
             "job_function": {"name": lc_engagement.stillingsbetegnelse_titel}
         })
@@ -110,11 +111,47 @@ def get_top_unit(session, lc_enhed):
     return top_unit
 
 
+def is_ignored(unit, settings):
+    """Determine if unit should be left out of transfer
+
+    Example:
+        >>> from unittest.mock import Mock
+        >>> unit=Mock(enhedsniveau_uuid="1", enhedstype_uuid="2")
+        >>> settings={
+        ... "OS2SYNC_IGNORED_UNIT_LEVELS": ["10","2"],
+        ... "OS2SYNC_IGNORED_UNIT_TYPES":['6','7']}
+        >>> is_ignored(unit, settings)
+        False
+        >>> unit.enhedstype_uuid="6"
+        >>> is_ignored(unit, settings)
+        True
+        >>> unit.enhedstype_uuid="2"
+        >>> is_ignored(unit, settings)
+        False
+        >>> unit.enhedsniveau_uuid="2"
+        >>> is_ignored(unit, settings)
+        True
+
+    Args:
+        unit: The organization unit to enrich with kle information.
+        settings: a dictionary
+
+    Returns:
+        Boolean
+    """
+
+    return (
+        unit.enhedstype_uuid in settings["OS2SYNC_IGNORED_UNIT_TYPES"] or
+        unit.enhedsniveau_uuid in settings["OS2SYNC_IGNORED_UNIT_LEVELS"])
+
+
 def get_sts_orgunit(session, uuid):
     base = session.query(Enhed).filter(Enhed.uuid == uuid).one()
 
-    top_unit = get_top_unit(session, base)
+    if is_ignored(base, settings):
+        return None
 
+    top_unit = get_top_unit(session, base)
     if top_unit != settings["OS2MO_TOP_UNIT_UUID"]:
         # not part of right tree
         return None
