@@ -148,6 +148,7 @@ class SqlExport(object):
             for user_info in user_effects:
                 sql_user = Bruger(
                     uuid=user,
+                    bvn=user_info['user_key'],
                     fornavn=user_info['fornavn'],
                     efternavn=user_info['efternavn'],
                     kaldenavn_fornavn=user_info['kaldenavn_fornavn'],
