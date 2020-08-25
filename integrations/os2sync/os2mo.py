@@ -210,7 +210,7 @@ def addresses_to_orgunit(orgunit, addresses):
         elif a["address_type"]["scope"] == "PHONE":
             orgunit["PhoneNumber"] = a["name"]
         elif a["address_type"]["scope"] == "DAR":
-            orgunit["Post"] = a["value"]
+            orgunit["Post"] = a["name"]
 
 
 def kle_to_orgunit(orgunit, kle):
