@@ -120,11 +120,17 @@ def _read_primary_write_information(top_settings):
 
     # Check for illegal configuration of AD Write.
     mo_to_ad_fields = primary_write_settings['mo_to_ad_fields']
-    ad_field_names = list(mo_to_ad_fields.values()) + [
-        primary_write_settings['org_field'],
-        primary_write_settings['level2orgunit_field'],
-        primary_write_settings['uuid_field']
-    ]
+    template_to_ad_fields = primary_write_settings['template_to_ad_fields']
+    ad_field_names = (
+        list(mo_to_ad_fields.values()) +
+        list(template_to_ad_fields.keys()) + [
+            primary_write_settings['org_field'],
+            primary_write_settings['level2orgunit_field'],
+            primary_write_settings['uuid_field']
+        ]
+    )
+    # Conflicts are case-insensitive
+    ad_field_names = list(map(lambda ad_field: ad_field.lower(), ad_field_names))
     if len(ad_field_names) > len(set(ad_field_names)):
         msg = 'Duplicate AD fieldnames in settings: {}'
         logger.info(msg.format(sorted(ad_field_names)))
