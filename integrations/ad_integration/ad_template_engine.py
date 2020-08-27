@@ -214,29 +214,28 @@ def prepare_settings_based_field_templates(jinja_map, cmd, settings):
         dict: A jinja_map which has been extended with settings based values.
     """
     # Build settings-based templates
-    def _get_write_setting(settings):
+    def _get_setting_type(settings, key):
         # TODO: Currently we ignore school
-        if not settings["primary_write"]:
-            msg = "Trying to enable write access with broken settings."
-            logger.error(msg)
+        try:
+            return settings[key]
+        except KeyError:
+            msg = "Unable to find settings type: " + key
             raise Exception(msg)
-        return settings["primary_write"]
 
-    write_settings = _get_write_setting(settings)
+    write_settings = _get_setting_type(settings, "primary_write")
+    primary_settings = _get_setting_type(settings, "primary")
     jinja_map[
         write_settings["level2orgunit_field"]
     ] = "{{ mo_values['level2orgunit'] }}"
     jinja_map[write_settings["org_field"]] = "{{ mo_values['location'] }}"
 
     # Local fields for MO->AD sync'ing
-    named_sync_fields = settings.get("integrations.ad_writer.mo_to_ad_fields", {})
+    named_sync_fields = write_settings.get("mo_to_ad_fields")
     for mo_field, ad_field in named_sync_fields.items():
         jinja_map[ad_field] = "{{ mo_values[" + mo_field + "] }}"
 
     # Local fields for MO->AD sync'ing
-    named_sync_template_fields = settings.get(
-        "integrations.ad_writer.template_to_ad_fields", {}
-    )
+    named_sync_template_fields = write_settings.get("template_to_ad_fields")
     for ad_field, template in named_sync_template_fields.items():
         jinja_map[ad_field] = template
 
@@ -250,7 +249,7 @@ def prepare_settings_based_field_templates(jinja_map, cmd, settings):
         # power-shell code.
         jinja_map[write_settings["cpr_field"]] = (
             "{{ mo_values['cpr'][0:6] }}"
-            + settings["integrations.ad.cpr_separator"]
+            + primary_settings["cpr_separator"]
             + "{{ mo_values['cpr'][6:10] }}"
         )
 

@@ -219,7 +219,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
 
         The common code is not tested.
         """
-        self._setup_adwriter(settings_transformer, mo_transformer)
+        self._setup_adwriter(None, mo_transformer, settings_transformer)
         # Assert no scripts were produced from initializing ad_writer itself
         self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
 

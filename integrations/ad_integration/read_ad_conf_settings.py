@@ -13,6 +13,7 @@ def _read_global_settings(top_settings):
 
     global_settings['servers'] = top_settings.get('integrations.ad.write.servers')
     global_settings['winrm_host'] = top_settings.get('integrations.ad.winrm_host')
+    global_settings['mora.base'] = top_settings.get('mora.base')
     if not global_settings['winrm_host']:
         msg = 'Missing hostname for remote management server'
         logger.error(msg)
@@ -96,7 +97,8 @@ def _read_primary_write_information(top_settings):
 
     # UUID for the unit type considered to be level2orgunit
     primary_write_settings['level2orgunit_type'] = top_settings.get(
-        'integrations.ad.write.level2orgunit_type')
+        'integrations.ad.write.level2orgunit_type'
+    )
 
     missing = []
 
@@ -108,8 +110,16 @@ def _read_primary_write_information(top_settings):
         logger.info(msg)
         return {}
 
+    # Template fields
+    primary_write_settings['mo_to_ad_fields'] = top_settings.get(
+        'integrations.ad_writer.mo_to_ad_fields', {}
+    )
+    primary_write_settings['template_to_ad_fields'] = top_settings.get(
+        'integrations.ad_writer.template_to_ad_fields', {}
+    )
+
     # Check for illegal configuration of AD Write.
-    mo_to_ad_fields = top_settings.get('integrations.ad_writer.mo_to_ad_fields')
+    mo_to_ad_fields = primary_write_settings['mo_to_ad_fields']
     ad_field_names = list(mo_to_ad_fields.values()) + [
         primary_write_settings['org_field'],
         primary_write_settings['level2orgunit_field'],
