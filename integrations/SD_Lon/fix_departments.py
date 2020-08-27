@@ -333,47 +333,52 @@ class FixDepartments(object):
         # in destination_unit.
         for person in all_people.values():
             cpr = person['PersonCivilRegistrationIdentifier']
-            job_id = person['Employment']['EmploymentIdentifier']
-            msg = 'Checking job-id: {}'
-            print(msg.format(job_id))
-            logger.info(msg.format(job_id))
-            sd_uuid = (person['Employment']['EmploymentDepartment']
-                       ['DepartmentUUIDIdentifier'])
-            if not sd_uuid == unit_uuid:
-                # This employment is not from the current department,
-                # but is inherited from a lower level. Can happen if this
-                # tool is initiated on a level higher than Afdelings-niveau.
-                continue
 
-            mo_person = self.helper.read_user(user_cpr=cpr,
-                                              org_uuid=self.org_uuid)
+            if not isinstance(person['Employment'], list):
+                person['Employment'] = [person['Employment']]
 
-            mo_engagements = self.helper.read_user_engagement(
-                mo_person['uuid'], read_all=True, only_primary=True, skip_past=True
-            )
-
-            # Find the uuid of the relevant engagement and update all current and
-            # future rows.
-            mo_engagement = self._find_engagement(mo_engagements, job_id)
-            for eng in mo_engagements:
-                if not eng['uuid'] == mo_engagement['uuid']:
-                    # This engagement is not relevant for this unit
-                    continue
-                if eng['org_unit']['uuid'] == destination_unit:
-                    # This engagement is already in the correct unit
+            for employment in person['Employment']:
+                job_id = employment['EmploymentIdentifier']
+                msg = 'Checking job-id: {}'
+                print(msg.format(job_id))
+                logger.info(msg.format(job_id))
+                sd_uuid = (employment['EmploymentDepartment']
+                           ['DepartmentUUIDIdentifier'])
+                if not sd_uuid == unit_uuid:
+                    # This employment is not from the current department,
+                    # but is inherited from a lower level. Can happen if this
+                    # tool is initiated on a level higher than Afdelings-niveau.
                     continue
 
-                from_date = datetime.datetime.strptime(
-                    eng['validity']['from'], '%Y-%m-%d')
-                if from_date < validity_date:
-                    eng['validity']['from'] = validity_date.strftime('%Y-%m-%d')
+                mo_person = self.helper.read_user(user_cpr=cpr,
+                                                  org_uuid=self.org_uuid)
 
-                data = {'org_unit': {'uuid': destination_unit},
-                        'validity': eng['validity']}
-                payload = sd_payloads.engagement(data, mo_engagement)
-                logger.debug('Move engagement payload: {}'.format(payload))
-                response = self.helper._mo_post('details/edit', payload)
-                mora_assert(response)
+                mo_engagements = self.helper.read_user_engagement(
+                    mo_person['uuid'], read_all=True, only_primary=True, skip_past=True
+                )
+
+                # Find the uuid of the relevant engagement and update all current and
+                # future rows.
+                mo_engagement = self._find_engagement(mo_engagements, job_id)
+                for eng in mo_engagements:
+                    if not eng['uuid'] == mo_engagement['uuid']:
+                        # This engagement is not relevant for this unit
+                        continue
+                    if eng['org_unit']['uuid'] == destination_unit:
+                        # This engagement is already in the correct unit
+                        continue
+
+                    from_date = datetime.datetime.strptime(
+                        eng['validity']['from'], '%Y-%m-%d')
+                    if from_date < validity_date:
+                        eng['validity']['from'] = validity_date.strftime('%Y-%m-%d')
+
+                    data = {'org_unit': {'uuid': destination_unit},
+                            'validity': eng['validity']}
+                    payload = sd_payloads.engagement(data, mo_engagement)
+                    logger.debug('Move engagement payload: {}'.format(payload))
+                    response = self.helper._mo_post('details/edit', payload)
+                    mora_assert(response)
 
     def get_parent(self, unit_uuid, validity_date):
         """
