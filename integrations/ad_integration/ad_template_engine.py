@@ -4,7 +4,7 @@ from utils import dict_partition, dict_map
 
 # Parameters that should not be quoted
 no_quote_list = [
-#    'Credential'
+    'Credential'
 ]
 
 
