@@ -3,4 +3,6 @@ anytree
 pika
 requests_kerberos
 pywinrm[kerberos]
+pandas
+xlsxwriter
 
