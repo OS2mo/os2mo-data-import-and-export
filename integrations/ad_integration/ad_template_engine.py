@@ -129,6 +129,12 @@ cmdlet_parameters = {
     },
 }
 
+# These may never be emitted in other_attributes
+illegal_attributes = [
+    'Credential',
+    'Name'
+]
+
 
 cmdlet_templates = {
     "New-ADUser": """
@@ -310,6 +316,10 @@ def prepare_template(cmd, jinja_map, settings):
     other_attributes, parameters = dict_partition(
         lambda key, _: key.lower() in parameter_list, jinja_map
     )
+
+    # Drop all illegal attributes
+    for attribute in illegal_attributes:
+        other_attributes.pop(attribute, None)
 
     # Generate our combined template, by rendering our command template using
     # the jinja_map templates.

@@ -301,6 +301,41 @@ class TestADWriter(TestCase, TestADWriterMixin):
         for content in expected_content:
             self.assertIn(content, edit_user_ps)
 
+    def test_user_edit_illegal_attribute(self):
+        """Test user edit ps_script code with illegal attribute.
+
+        The common code is not tested.
+
+        This test simply ensures that the illegal attribute is dropped.
+        """
+        # Assert no scripts were produced from initializing ad_writer itself
+        self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
+
+        settings_transformer = dict_modifier(
+            {
+                "integrations.ad_writer.template_to_ad_fields": {
+                    "Name": "John"
+                }
+            }
+        )
+
+        self._setup_adwriter(settings_transformer)
+        # Expected outputs
+        num_expected_scripts = 1
+
+        # Run create user and fetch scripts
+        uuid = "invalid-provided-and-accepted-due-to-mocking"
+        self.ad_writer.sync_user(mo_uuid=uuid, sync_manager=False)
+        # Check that scripts were produced
+        self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
+
+        # Verify that the first 4 lines are identitical for all scripts
+        self._verify_identitical_common_code(num_expected_scripts)
+
+        # Check that the create user ps looks good
+        edit_user_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
+        self.assertNotIn('"Name"="John"', edit_user_ps)
+
 
 #    def test_add_manager(self):
 #        user = self.ad_writer.read_ad_information_from_mo(uuid='0', read_manager=True)
