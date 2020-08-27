@@ -1,5 +1,5 @@
 from jinja2 import Template
-from utils import dict_partition
+from utils import dict_partition, duplicates
 
 
 cmdlet_parameters = {
@@ -305,6 +305,12 @@ def prepare_template(cmd, jinja_map, settings):
     jinja_map = prepare_settings_based_field_templates(jinja_map, cmd, settings)
     jinja_map = prepare_and_check_login_field_templates(jinja_map)
 
+    # Check against duplicates in jinja_map
+    ad_fields_low = map(lambda ad_field: ad_field.lower(), jinja_map.keys())
+    duplicate_ad_fields = duplicates(ad_fields_low)
+    if duplicate_ad_fields:
+        raise ValueError("Duplicate ad_field: " + ",".join(duplicate_ad_fields))
+
     # Partition rendered attributes by parameters and attributes
     parameter_list = lower_list(cmdlet_parameters[cmd])
     other_attributes, parameters = dict_partition(
@@ -333,8 +339,6 @@ def template_powershell(context, settings, cmd="New-ADUser", jinja_map=None):
     """
     # Set arguments to empty dicts if none
     jinja_map = jinja_map or {}
-    context = context or {}
-    settings = settings or {}
 
     # Acquire the full template, templated itself with all field templates
     full_template = prepare_template(cmd, jinja_map, settings)
