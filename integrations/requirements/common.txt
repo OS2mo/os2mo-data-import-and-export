@@ -4,3 +4,5 @@ pika
 requests_kerberos
 pywinrm[kerberos]
 jinja2
+pandas
+xlsxwriter

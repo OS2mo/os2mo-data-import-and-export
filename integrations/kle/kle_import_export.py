@@ -10,6 +10,8 @@ from abc import ABC, abstractmethod
 
 import requests
 import pandas as pd
+import xlsxwriter
+import xlsxwriter.worksheet
 
 LOG_FILE = 'opgavefordeler.log'
 
@@ -56,6 +58,8 @@ class KLEAnnotationIntegration(ABC):
         s = requests.Session()
         if token is not None:
             s.headers.update({"SESSION": token})
+        s.headers.update({"SESSION": token})
+        s.verify = False
         return s
 
     def _get_mo_org_uuid(self) -> str:
@@ -96,28 +100,10 @@ class KLEAnnotationIntegration(ABC):
         url = "{}/service/o/{}/ou".format(self.mora_base, self.org_uuid)
         r = self.mora_session.get(url)
         r.raise_for_status()
-        units = [unit["uuid"] for unit in r.json()["items"]]
+        units = r.json()["items"]
 
         logger.info("Found {} units".format(len(units)))
         return units
-
-    def get_org_unit_from_mo(self, uuid) -> dict:
-        url = f"{self.mora_base}/service/ou/{uuid}/".format(
-            self.mora_base, self.org_uuid, uuid
-        )
-        r = requests.get(url)
-        r.raise_for_status()
-
-        return r.json()
-
-    def get_kle_markup_for_org_unit(self, uuid) -> dict:
-        url = f"{self.mora_base}/service/ou/{uuid}/details/kle".format(
-            self.mora_base, self.org_uuid, uuid
-        )
-        r = requests.get(url)
-        r.raise_for_status()
-
-        return r.json()
 
     @abstractmethod
     def run(self):
@@ -128,88 +114,157 @@ class KLEAnnotationIntegration(ABC):
 class KLECSVExporter(KLEAnnotationIntegration):
     """Export KLE annotation as CSV files bundled in a spreadsheet."""
 
+    @staticmethod
+    def write_rows(worksheet: xlsxwriter.worksheet.Worksheet, data: list):
+
+        for index, row in enumerate(data):
+            worksheet.write_row(index, 0, row)
+
+    @staticmethod
+    def get_org_unit_validation(column: str):
+        return (
+            '{0}1:{0}1048576'.format(column),
+            {
+                'validate': 'list',
+                'source': '=Org!$B$2:$B$1048576'
+            }
+        )
+
+    @staticmethod
+    def get_kle_validation(column: str):
+        return (
+            '{0}1:{0}1048576'.format(column),
+            {
+                'validate': 'list',
+                'source': '=KLE!$C$2:$C$1048576'
+            }
+        )
+
+    @staticmethod
+    def get_column_width(data, field: str):
+        field_lengths = [len(row[field]) for row in data]
+        return max(field_lengths)
+
+    def add_org_unit_sheet(self, workbook, org_units):
+        worksheet = workbook.add_worksheet(name='Org')
+
+        rows = [
+            (org_unit['uuid'], org_unit['combined'])
+            for org_unit in org_units
+        ]
+
+        worksheet.set_column(0, 0, width=self.get_column_width(org_units, 'uuid'))
+        worksheet.set_column(1, 1, width=self.get_column_width(org_units, 'combined'))
+
+        rows.insert(0, ('UUID', 'Navn'))
+
+        self.write_rows(worksheet, rows)
+
+    def add_kle_sheet(self, workbook: xlsxwriter.Workbook, kle_numbers: list):
+        worksheet = workbook.add_worksheet(name='KLE')
+
+        rows = [
+            (kle['uuid'], kle['user_key'], kle['name'])
+            for kle in kle_numbers
+        ]
+
+        rows.insert(0, ('UUID', 'EmneNr', 'EmneTitel'))
+
+        worksheet.set_column(0, 0, width=self.get_column_width(kle_numbers, 'uuid'))
+        worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers, 'user_key'))
+        worksheet.set_column(2, 2, width=self.get_column_width(kle_numbers, 'name'))
+
+        self.write_rows(worksheet, rows)
+
+    def add_ansvarlig_sheet(self, workbook, kle_numbers, org_units):
+        worksheet = workbook.add_worksheet(name='Ansvarlig')
+
+        def calculate_level(kle_number: str):
+            """
+            We calculate the level, by how many dots are in the key
+            E.g. 00 is 1, 00.01 is 2, 00.01.32 is 3
+            """
+            return str(kle_number.count('.') + 1)
+
+        rows = [
+            (kle['level'], kle['user_key'], kle['name'], '')
+            for kle in kle_numbers
+        ]
+        rows.insert(0, ('Niveau', 'EmneNr', 'EmneTitel', 'EnhedNavn'))
+
+        worksheet.data_validation(
+            *self.get_org_unit_validation(column='D')
+        )
+
+        worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers, 'user_key'))
+        worksheet.set_column(2, 2, width=self.get_column_width(kle_numbers, 'name'))
+        worksheet.set_column(3, 3, width=self.get_column_width(org_units, 'combined'))
+
+        self.write_rows(worksheet, rows)
+
+    def add_indsigt_and_udfoerende_sheet(self, workbook, kle_numbers, org_units):
+        for sheet_name in ['Indsigt', 'Udførende']:
+            worksheet = workbook.add_worksheet(name=sheet_name)
+
+            rows = [
+                ('EnhedNavn', 'KLE')
+            ]
+
+            worksheet.data_validation(*self.get_org_unit_validation('A'))
+            worksheet.data_validation(*self.get_kle_validation('B'))
+
+            worksheet.set_column(0, 0, width=self.get_column_width(org_units,
+                                                                   'combined'))
+            worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers,
+                                                                   'name'))
+
+            self.write_rows(worksheet, rows)
+
+    @staticmethod
+    def convert_org_units(org_units):
+        return [
+            {
+                'combined': "{} - {}".format(unit['name'], unit['uuid']),
+                **unit,
+            }
+            for unit in org_units
+        ]
+
+    @staticmethod
+    def convert_kle_numbers(kle_numbers):
+        def calculate_level(kle_number: str):
+            """
+            We calculate the level, by how many dots are in the key
+            E.g. 00 is 1, 00.01 is 2, 00.01.32 is 3
+            """
+            return str(kle_number.count('.') + 1)
+
+        return [
+            {
+                'level': calculate_level(kle['user_key']),
+                **kle,
+            }
+            for kle in kle_numbers
+        ]
+
     def run(self):
-        """Export all org units with annotation."""
+        xlsx_output = './test.xlsx'
+        workbook = xlsxwriter.Workbook(xlsx_output)
 
-        org_unit_uuids = self.get_all_org_units_from_mo()
+        org_units = sorted(self.convert_org_units(self.get_all_org_units_from_mo()), key=lambda x: x['name'])
+        kle = sorted(self.convert_kle_numbers(self.get_kle_classes_from_mo()), key=lambda x: x['user_key'])
 
-        # Dictionaries for data to output in CSV files.
-        org_unit_names = {}
-        ansvarlig = collections.defaultdict(list)
-        udfoerende = collections.defaultdict(list)
-        indsigt = collections.defaultdict(list)
+        self.add_org_unit_sheet(workbook, org_units)
+        self.add_kle_sheet(workbook, kle)
+        self.add_ansvarlig_sheet(workbook, kle, org_units)
+        self.add_indsigt_and_udfoerende_sheet(workbook, kle, org_units)
 
-        for uuid in org_unit_uuids:
-            # Extract necessary infos from each UUID
-            org_unit = self.get_org_unit_from_mo(uuid)
+        # Bold column headers for all sheets
+        bold = workbook.add_format({'bold': 1})
+        for sheet in workbook.worksheets():
+            sheet.set_row(0, cell_format=bold)
 
-            org_unit_names[uuid] = org_unit["name"]
-
-            kle_infos = self.get_kle_markup_for_org_unit(uuid)
-
-            for kle_info in kle_infos:
-
-                scopes = [a["scope"] for a in kle_info["kle_aspect"]]
-
-                if "UDFOERENDE" in scopes:
-                    udfoerende[uuid].append((
-                        kle_info["kle_number"]["user_key"],
-                        kle_info["kle_number"]["name"]
-                    ))
-                if "ANSVARLIG" in scopes:
-                    ansvarlig[uuid].append((
-                        kle_info["kle_number"]["user_key"],
-                        kle_info["kle_number"]["name"]
-                    ))
-                if "INDSIGT" in scopes:
-                    indsigt[uuid].append((
-                        kle_info["kle_number"]["user_key"],
-                        kle_info["kle_number"]["name"]
-                    ))
-        org_csv = "/tmp/org_csv.csv"
-        indsigt_csv = "/tmp/indsigt_csv.csv"
-        ansvarlig_csv = "/tmp/ansvarlig_csv.csv"
-        udfoerende_csv = "/tmp/udfoerende_csv.csv"
-
-        with open(org_csv, "w") as org_csv_file:
-            org_writer = csv.writer(org_csv_file, delimiter=";")
-            org_writer.writerow(["UUID", "Navn"])
-            for uuid in org_unit_names:
-                org_writer.writerow([uuid, org_unit_names[uuid]])
-
-        # Write Udførende data.
-        with open(udfoerende_csv, "w") as uf_csv_file:
-            uf_writer = csv.writer(uf_csv_file, delimiter=";")
-            uf_writer.writerow(["UUID", "KLE-nummer", "Navn"])
-            for uuid in udfoerende:
-                for kle_data in udfoerende[uuid]:
-                    uf_writer.writerow([uuid, kle_data[0], kle_data[1]])
-        # Write Ansvarlig data.
-        with open(ansvarlig_csv, "w") as a_csv_file:
-            a_writer = csv.writer(a_csv_file, delimiter=";")
-            a_writer.writerow(["UUID", "KLE-nummer", "Navn"])
-            for uuid in ansvarlig:
-                for kle_data in ansvarlig[uuid]:
-                    a_writer.writerow([uuid, kle_data[0], kle_data[1]])
-        # Write Indsigt data
-        with open(indsigt_csv, "w") as i_csv_file:
-            i_writer = csv.writer(i_csv_file, delimiter=";")
-            i_writer.writerow(["UUID", "KLE-nummer", "Navn"])
-            for uuid in indsigt:
-                for kle_data in indsigt[uuid]:
-                    i_writer.writerow([uuid, kle_data[0], kle_data[1]])
-
-        # Collect in Excel file
-        writer = pd.ExcelWriter('./KLE-Markup.xlsx', engine='xlsxwriter')
-        for f, name in [
-            (org_csv, "Org"), (indsigt_csv, "Indsigt"),
-            (ansvarlig_csv, "Ansvarlig"), (udfoerende_csv, "Udfoerende")
-        ]:
-            df = pd.read_csv(f, delimiter=";")
-            df.to_excel(writer, sheet_name=name)
-        writer.save()
-
-        print(udfoerende)
+        workbook.close()
 
 
 class KLEAnnotationImporter(KLEAnnotationIntegration, ABC):
@@ -292,7 +347,8 @@ class KLEAnnotationImporter(KLEAnnotationIntegration, ABC):
 
         # Indsigt og Udfører
         org_units = self.get_all_org_units_from_mo()
-        org_unit_info = self.get_org_unit_info_from_source(org_units)
+        org_unit_uuids = [unit['uuid'] for unit in org_units]
+        org_unit_info = self.get_org_unit_info_from_source(org_unit_uuids)
         self.add_indsigt_and_udfoerer(org_unit_map, org_unit_info)
 
         # Insert into MO
@@ -313,7 +369,22 @@ class KLEAnnotationImporter(KLEAnnotationIntegration, ABC):
 
 class KLECSVImporter(KLEAnnotationImporter):
 
-    pass
+    def get_org_unit_info_from_source(self, org_units_uuids: list) -> list:
+        pass
+
+    def get_kle_from_source(self, kle_numbers: list) -> list:
+        pass
+
+    def run(self):
+
+        # Read sheet
+        xlsx_file = pd.ExcelFile('test.xslx')
+
+        sheets = {
+            sheet_name: xlsx_file.parse(sheet_name)
+            for sheet_name in xlsx_file.sheet_names
+        }
+
 
 
 class OpgavefordelerImporter(KLEAnnotationImporter):
@@ -399,5 +470,11 @@ class OpgavefordelerImporter(KLEAnnotationImporter):
 
 
 if __name__ == "__main__":
-    importer = OpgavefordelerImporter()
+    # importer = OpgavefordelerImporter()
+    # importer.run()
+
+    # exporter = KLECSVExporter()
+    # exporter.run()
+
+    importer = KLECSVImporter()
     importer.run()
