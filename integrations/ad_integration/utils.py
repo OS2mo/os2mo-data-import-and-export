@@ -112,7 +112,7 @@ def dict_map(func, dicty):
     Returns:
         dict: A dict where func has been applied to every value.
     """
-    return {key: func(value) for key, value in dicty.items()}
+    return {key: func(value, key=key) for key, value in dicty.items()}
 
 
 def dict_partition(func, dicty):
