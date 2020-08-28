@@ -219,7 +219,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
 
         The common code is not tested.
         """
-        self._setup_adwriter(settings_transformer, mo_transformer)
+        self._setup_adwriter(None, mo_transformer, settings_transformer)
         # Assert no scripts were produced from initializing ad_writer itself
         self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
 
@@ -301,6 +301,25 @@ class TestADWriter(TestCase, TestADWriterMixin):
         for content in expected_content:
             self.assertIn(content, edit_user_ps)
 
+    def test_duplicate_ad_field_entries(self):
+        """Test user edit ps_script code.
+
+        The common code is not tested.
+        """
+        # These keys conflict, and thus, no primary_write settings are emitted
+        settings_transformer = dict_modifier(
+            {
+                "integrations.ad_writer.template_to_ad_fields": {
+                    "Name": "{{ mo_values['unit'] }}"
+                },
+                "integrations.ad_writer.mo_to_ad_fields": {
+                    "unit": "name"
+                }
+            }
+        )
+        self._setup_adwriter(early_transform_settings=settings_transformer)
+        self.assertEqual(self.settings['primary_write'], {})
+
     def test_non_overwritten_default(self):
         """Test that a mistake in overriding a default results in an error."""
         # Assert no scripts were produced from initializing ad_writer itself
@@ -317,7 +336,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
                 },
             }
         )
-        self._setup_adwriter(settings_transformer)
+        self._setup_adwriter(early_transform_settings=settings_transformer)
 
         # Run create user and fetch scripts
         uuid = "invalid-provided-and-accepted-due-to-mocking"
