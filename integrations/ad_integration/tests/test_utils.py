@@ -173,13 +173,14 @@ class ADWriterTestSubclass(ADWriter):
         raise NotImplemented("Should be overridden in __init__")
 
 
+def _no_transformation(default, *args, **kwargs):
+    return default
+
+
 class TestADMixin(object):
     # Useful for local testing
     generate_dynamic_person = True
     default_person = None
-
-    def _no_transformation(self, default, *args, **kwargs):
-        return default
 
     def _prepare_dynamic_person(self):
         import uuid
@@ -254,7 +255,7 @@ class TestADMixin(object):
                 "level2orgunit": "Ingen",
                 "forvaltning": "Beskæftigelse, Økonomi & Personale",
             })
-            transformer_func = person_transformer or self._no_transformation
+            transformer_func = person_transformer or _no_transformation
             self.default_person = transformer_func(default_person, *args, **kwargs)
         return self.default_person
 
@@ -271,7 +272,7 @@ class TestADMixin(object):
 #            del person['manager_cpr']
 #           person["read_manager"] = False
 
-        transformer_func = mo_values_transformer or self._no_transformation
+        transformer_func = mo_values_transformer or _no_transformation
         return transformer_func(person, *args, **kwargs)
 
     def _prepare_get_from_ad(self, ad_transformer, *args, **kwargs):
@@ -315,49 +316,50 @@ class TestADMixin(object):
             'ModifiedProperties': [],
             'RemovedProperties': [],
         }
-        transformer_func = person_transformer or self._no_transformation
+        transformer_func = person_transformer or _no_transformation
         return transformer_func(default_ad_person, *args, **kwargs)
 
-    def _prepare_settings(self, settings_transformer=None):
+    def _prepare_settings(self, early_settings_transformer=None):
         """Load default settings for AD tests.
 
         Args:
-            settings_transformer: Function to transform settings.
+            early_settings_transformer: Function to transform settings.
 
         Returns:
             dict: Default settings after transformation.
         """
         default_settings = {
-            "global": {},
+            "integrations.ad.winrm_host": "dummy",
+            "integrations.ad.search_base": "search_base",
+            "integrations.ad.cpr_field": "cpr_field",
+            "integrations.ad.cpr_seperator": "cpr_sep",
+            # "integrations.ad.sam_filter": "sam_filter",
+            "integrations.ad.system_user": "system_user",
+            "integrations.ad.password": "password",
+            "integrations.ad.properties": "properties",
             "mora.base": "http://example.org",
-            "primary": {
-                "search_base": "search_base",
-                "system_user": "system_user",
-                "password": "password",
-                "properties": "dummy",
-                "cpr_separator": "cpr_sep",
-                "cpr_field": "cpr_field",
-            },
-            "primary_write": {
-                "level2orgunit_field": "level2orgunit_field",
-                "org_field": "org_field",
-                "upn_end": "epn_end",
-                "uuid_field": "uuid_field",
-                "cpr_field": "cpr_field",
-            },
+            "integrations.ad.write.uuid_field": "uuid_field",
+            "integrations.ad.write.level2orgunit_field": "level2orgunit_field",
+            "integrations.ad.write.org_unit_field": "org_field",
+            "integrations.ad.write.upn_end": "epn_end",
+            "integrations.ad.write.org_unit_field": "org_field",
             "integrations.ad.write.level2orgunit_type": "level2orgunit_type",
+            "integrations.ad.cpr_field": "cpr_field",
             "integrations.ad.cpr_separator": "ad_cpr_sep",
         }
-        transformer_func = settings_transformer or self._no_transformation
+        transformer_func = early_settings_transformer or _no_transformation
         return transformer_func(default_settings)
 
 
 class TestADWriterMixin(TestADMixin):
-    def _setup_adwriter(self, transform_settings=None, transform_mo_values=None):
-        self.settings = self._prepare_settings(transform_settings)
+    def _setup_adwriter(self, late_transform_settings=None, transform_mo_values=None, early_transform_settings=None):
+        from integrations.ad_integration.read_ad_conf_settings import read_settings
+        transformer_func = late_transform_settings or _no_transformation
+        self.settings = transformer_func(read_settings(
+            self._prepare_settings(early_transform_settings)
+        ))
         self.mo_values_func = partial(self._prepare_mo_values, transform_mo_values)
         self.ad_writer = ADWriterTestSubclass(
-            all_settings=self.settings, read_ad_information_from_mo=self.mo_values_func
+            all_settings=self.settings,
+            read_ad_information_from_mo=self.mo_values_func
         )
-
-
