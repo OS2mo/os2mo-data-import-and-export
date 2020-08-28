@@ -1,5 +1,11 @@
 from jinja2 import Template
-from utils import dict_partition
+from utils import dict_partition, duplicates, dict_map
+
+
+# Parameters that should not be quoted
+no_quote_list = [
+    'Credential'
+]
 
 
 cmdlet_parameters = {
@@ -129,16 +135,22 @@ cmdlet_parameters = {
     },
 }
 
+# These may never be emitted in other_attributes
+illegal_attributes = [
+    'Credential',
+    'Name'
+]
+
 
 cmdlet_templates = {
     "New-ADUser": """
         New-ADUser
         {%- for parameter, value in parameters.items() %}
-          -{{ parameter }} "{{ value }}"
+          -{{ parameter }} {{ value }}
         {%- endfor %}
           -OtherAttributes @{
         {%- for attribute, value in other_attributes.items() -%}
-            "{{ attribute }}"="{{ value }}";
+            "{{ attribute }}"={{ value }};
         {%- endfor -%}
         }
     """,
@@ -148,15 +160,15 @@ cmdlet_templates = {
     # TODO: Consider Replace versus Remove/Clean/Add
     "Set-ADUser": """
         Get-ADUser
-          -Filter 'SamAccountName -eq "{{ parameters['SamAccountName'] }}"'
-          -Credential "{{ parameters['Credential'] }}" |
+          -Filter 'SamAccountName -eq {{ parameters['SamAccountName'] }}'
+          -Credential {{ parameters['Credential'] }} |
         Set-ADUser
         {%- for parameter, value in parameters.items() %}
-          -{{ parameter }} "{{ value }}"
+          -{{ parameter }} {{ value }}
         {%- endfor %}
           -Replace @{
         {%- for attribute, value in other_attributes.items() -%}
-            "{{ attribute }}"="{{ value }}";
+            "{{ attribute }}"={{ value }};
         {%- endfor -%}
         }
     """,
@@ -304,11 +316,28 @@ def prepare_template(cmd, jinja_map, settings):
     jinja_map = prepare_settings_based_field_templates(jinja_map, cmd, settings)
     jinja_map = prepare_and_check_login_field_templates(jinja_map)
 
+    # Check against duplicates in jinja_map
+    ad_fields_low = map(lambda ad_field: ad_field.lower(), jinja_map.keys())
+    duplicate_ad_fields = duplicates(ad_fields_low)
+    if duplicate_ad_fields:
+        raise ValueError("Duplicate ad_field: " + ",".join(duplicate_ad_fields))
+
+    # Put quotes around all values outside the no_quote_list
+    def quotes_wrap(value, key):
+        if key.lower() in lower_list(no_quote_list):
+            return value
+        return '"{}"'.format(value)
+    jinja_map = dict_map(quotes_wrap, jinja_map)
+
     # Partition rendered attributes by parameters and attributes
     parameter_list = lower_list(cmdlet_parameters[cmd])
     other_attributes, parameters = dict_partition(
         lambda key, _: key.lower() in parameter_list, jinja_map
     )
+
+    # Drop all illegal attributes
+    for attribute in illegal_attributes:
+        other_attributes.pop(attribute, None)
 
     # Generate our combined template, by rendering our command template using
     # the jinja_map templates.
@@ -332,8 +361,6 @@ def template_powershell(context, settings, cmd="New-ADUser", jinja_map=None):
     """
     # Set arguments to empty dicts if none
     jinja_map = jinja_map or {}
-    context = context or {}
-    settings = settings or {}
 
     # Acquire the full template, templated itself with all field templates
     full_template = prepare_template(cmd, jinja_map, settings)
