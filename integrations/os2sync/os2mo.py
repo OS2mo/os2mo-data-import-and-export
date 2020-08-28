@@ -129,7 +129,7 @@ def addresses_to_user(user, addresses):
         settings["OS2SYNC_PHONE_SCOPE_CLASSES"]
     )
     if phone:
-        user["Phone"] = phone["Value"]
+        user["PhoneNumber"] = phone["Value"]
 
     # find email using prioritized/empty list of address_type uuids
     email = chose_visible_prioritized_address(
