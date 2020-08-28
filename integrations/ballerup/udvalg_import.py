@@ -5,7 +5,6 @@ import logging
 import hashlib
 import requests
 import datetime
-import os
 import pathlib
 import json
 
