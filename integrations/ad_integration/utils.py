@@ -136,3 +136,18 @@ def dict_partition(func, dicty):
         write_dict = truesy if func(key, value) else falsy
         write_dict[key] = value
     return falsy, truesy
+
+
+def duplicates(iterable):
+    """Return set of duplicates from iterable.
+
+    Example:
+        input_list = [1, 5, 2, 4, 2, 1]
+        dup_set = duplicates(input_list)
+        self.assertEqual(dup_set, {1, 2})
+
+    Returns:
+        set: A set of the elements which are duplicates.
+    """
+    seen = set()
+    return set(x for x in iterable if x in seen or seen.add(x))
