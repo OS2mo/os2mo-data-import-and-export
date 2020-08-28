@@ -46,7 +46,7 @@ class ADWriter(AD):
         self.lc = lc
         self.lc_historic = lc_historic
 
-        self.helper = MoraHelper(hostname=self.settings['mora.base'],
+        self.helper = MoraHelper(hostname=self.settings['global']['mora.base'],
                                  use_cache=False)
         self._init_name_creator()
 
@@ -116,7 +116,7 @@ class ADWriter(AD):
         ad_info = []
         if ad_dump is not None:
             for user in ad_dump:
-                if user.get(self.settings['integrations.ad.cpr_field']) == cpr:
+                if user.get(self.settings['primary']['cpr_field']) == cpr:
                     ad_info.append(user)
         else:
             ad_info = self.get_from_ad(cpr=cpr)
