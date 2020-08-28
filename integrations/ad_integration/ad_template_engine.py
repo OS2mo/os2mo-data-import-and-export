@@ -1,5 +1,11 @@
 from jinja2 import Template
-from utils import dict_partition
+from utils import dict_partition, dict_map
+
+
+# Parameters that should not be quoted
+no_quote_list = [
+    'Credential'
+]
 
 
 cmdlet_parameters = {
@@ -134,11 +140,11 @@ cmdlet_templates = {
     "New-ADUser": """
         New-ADUser
         {%- for parameter, value in parameters.items() %}
-          -{{ parameter }} "{{ value }}"
+          -{{ parameter }} {{ value }}
         {%- endfor %}
           -OtherAttributes @{
         {%- for attribute, value in other_attributes.items() -%}
-            "{{ attribute }}"="{{ value }}";
+            "{{ attribute }}"={{ value }};
         {%- endfor -%}
         }
     """,
@@ -148,15 +154,15 @@ cmdlet_templates = {
     # TODO: Consider Replace versus Remove/Clean/Add
     "Set-ADUser": """
         Get-ADUser
-          -Filter 'SamAccountName -eq "{{ parameters['SamAccountName'] }}"'
-          -Credential "{{ parameters['Credential'] }}" |
+          -Filter 'SamAccountName -eq {{ parameters['SamAccountName'] }}'
+          -Credential {{ parameters['Credential'] }} |
         Set-ADUser
         {%- for parameter, value in parameters.items() %}
-          -{{ parameter }} "{{ value }}"
+          -{{ parameter }} {{ value }}
         {%- endfor %}
           -Replace @{
         {%- for attribute, value in other_attributes.items() -%}
-            "{{ attribute }}"="{{ value }}";
+            "{{ attribute }}"={{ value }};
         {%- endfor -%}
         }
     """,
@@ -304,6 +310,13 @@ def prepare_template(cmd, jinja_map, settings):
     jinja_map = prepare_default_field_templates(jinja_map)
     jinja_map = prepare_settings_based_field_templates(jinja_map, cmd, settings)
     jinja_map = prepare_and_check_login_field_templates(jinja_map)
+
+    # Put quotes around all values outside the no_quote_list
+    def quotes_wrap(value, key):
+        if key.lower() in lower_list(no_quote_list):
+            return value
+        return '"{}"'.format(value)
+    jinja_map = dict_map(quotes_wrap, jinja_map)
 
     # Partition rendered attributes by parameters and attributes
     parameter_list = lower_list(cmdlet_parameters[cmd])
