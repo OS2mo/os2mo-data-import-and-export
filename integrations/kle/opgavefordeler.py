@@ -49,7 +49,8 @@ class OpgavefordelerImporter:
 
     def _get_mora_session(self, token) -> requests.Session:
         s = requests.Session()
-        s.headers.update({"SESSION": token})
+        if token is not None:
+            s.headers.update({"SESSION": token})
         return s
 
     def _get_opgavefordeler_session(self, token) -> requests.Session:
@@ -63,7 +64,7 @@ class OpgavefordelerImporter:
         :return:
         """
         logger.info("Fetching Organisation UUID from OS2mo")
-        r = requests.get("{}/service/o/".format(self.mora_base))
+        r = self.mora_session.get("{}/service/o/".format(self.mora_base))
         r.raise_for_status()
         return r.json()[0]["uuid"]
 
@@ -71,7 +72,7 @@ class OpgavefordelerImporter:
         """Get all of the kle_number 'klasse' objects from OS2mo"""
         logger.info("Fetching KLE numbers from OS2mo")
         url = "{}/service/o/{}/f/kle_number"
-        r = requests.get(url.format(self.mora_base, self.org_uuid))
+        r = self.mora_session.get(url.format(self.mora_base, self.org_uuid))
         r.raise_for_status()
 
         items = r.json()["data"]["items"]
@@ -82,7 +83,7 @@ class OpgavefordelerImporter:
         """Get all of the kle_aspect 'klasse' objects from OS2mo"""
         logger.info("Fetching KLE aspect classes from OS2mo")
         url = "{}/service/o/{}/f/kle_aspect"
-        r = requests.get(url.format(self.mora_base, self.org_uuid))
+        r = self.mora_session.get(url.format(self.mora_base, self.org_uuid))
         r.raise_for_status()
 
         items = r.json()["data"]["items"]
@@ -128,7 +129,7 @@ class OpgavefordelerImporter:
         """Get a list of all units from OS2mo"""
         logger.info("Fetching all org units from OS2mo")
         url = "{}/service/o/{}/ou".format(self.mora_base, self.org_uuid)
-        r = requests.get(url)
+        r = self.mora_session.get(url)
         r.raise_for_status()
         units = [unit["uuid"] for unit in r.json()["items"]]
 
@@ -226,7 +227,7 @@ class OpgavefordelerImporter:
         logger.info("Posting payloads to OS2mo ")
         url = "{}/service/details/create".format(self.mora_base)
 
-        r = requests.post(url, json=payloads, params={"force": 1})
+        r = self.mora_session.post(url, json=payloads, params={"force": 1})
         r.raise_for_status()
 
     def run(self):
