@@ -421,109 +421,27 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         }
         self.assertEqual(self.ad_sync.mo_post_calls, expected_sync[expected])
 
-    @parameterized.expand([(None, "exception"), (False, "noop"), (True, "finalize")])
-    def test_finalization_configuration_error(self, finalize_setting, expected):
-        """Verify expected behavior from sync_disabled settings."""
-
-        def add_sync_mapping(settings):
-            settings["integrations.ad.ad_mo_sync_mapping"] = {
-                "user_addresses": {"email": ["email_uuid", None]}
-            }
-            settings["integrations.ad.ad_mo_sync_disabled"] = False
-            if finalize_setting is not None:
-                settings[
-                    "integrations.ad.ad_mo_sync_finalize_disabled"
-                ] = finalize_setting
-            return settings
-
-        today = today_iso()
-        mo_values = self.mo_values_func()
-
-        # Helper functions to seed admosync mock
-        def add_ad_data(ad_values):
-            ad_values["email"] = "emil@magenta.dk"
-            ad_values["Enabled"] = False
-            return ad_values
-
-        def seed_mo():
-            return {
-                "address": [
-                    {
-                        "uuid": "address_uuid",
-                        "address_type": {"uuid": "office_uuid"},
-                        "org": {"uuid": "org_uuid"},
-                        "person": {"uuid": mo_values["uuid"]},
-                        "type": "address",
-                        "validity": {"from": today, "to": None},
-                        "value": "42",
-                    }
-                ]
-            }
-
-        self._setup_admosync(
-            transform_settings=add_sync_mapping,
-            transform_ad_values=add_ad_data,
-            seed_mo=seed_mo,
-        )
-
-        self.assertEqual(self.ad_sync.mo_post_calls, [])
-
-        def exception(func):
-            with self.assertRaises(Exception):
-                func()
-
-        def finalize_called(expected, func):
-            # Test if function was called
-            def update_called(*args, **kwargs):
-                update_called.called = True
-
-            update_called.called = False
-            # Mock both finalize calls
-            self.ad_sync._finalize_it_system = update_called
-            self.ad_sync._finalize_user_addresses = update_called
-            # Call and verify
-            func()
-            self.assertEqual(update_called.called, expected)
-
-        sync_expected = {
-            "noop": partial(finalize_called, False),
-            "finalize": partial(finalize_called, True),
-            "exception": exception,
-        }
-        # Run full sync against the mocks
-        sync_expected[expected](self.ad_sync.update_all_users)
-
     @parameterized.expand(
         [
             ## Finalize
             # Today
-            [today_iso(), None, True, "terminate"],
-            [today_iso(), today_iso(), True, "noop"],
+            [today_iso(), None, "terminate"],
+            [today_iso(), today_iso(), "noop"],
             # 2020-01-01
-            ["2020-01-01", None, True, "terminate"],
-            ["2020-01-01", today_iso(), True, "noop"],
-            ["2020-01-01", "2020-02-01", True, "noop"],  # past
-            ["2020-01-01", "9999-01-01", True, "noop"],  # future
-            ## No finalize
-            # Today
-            [today_iso(), None, False, "noop"],
-            [today_iso(), today_iso(), False, "noop"],
-            # 2020-01-01
-            ["2020-01-01", None, False, "noop"],
-            ["2020-01-01", today_iso(), False, "noop"],
-            ["2020-01-01", "2020-02-01", False, "noop"],  # past
-            ["2020-01-01", "9999-01-01", False, "noop"],  # future
+            ["2020-01-01", None, "terminate"],
+            ["2020-01-01", today_iso(), "noop"],
+            ["2020-01-01", "2020-02-01", "noop"],  # past
+            ["2020-01-01", "9999-01-01", "noop"],  # future
         ]
     )
-    def test_finalization_address(self, from_date, to_date, finalize, expected):
+    def test_finalization_address(self, from_date, to_date, expected):
         """Verify expected behavior from sync_disabled settings."""
 
         def add_sync_mapping(settings):
             settings["integrations.ad.ad_mo_sync_mapping"] = {
                 "user_addresses": {"email": ["email_uuid", None]}
             }
-            settings["integrations.ad.ad_mo_sync_disabled"] = False
-            settings["integrations.ad.ad_mo_sync_finalize_disabled"] = finalize
+            settings["integrations.ad.ad_mo_sync_terminate_disabled"] = True
             return settings
 
         mo_values = self.mo_values_func()
@@ -581,33 +499,23 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         [
             ## Finalize
             # Today
-            [today_iso(), None, True, "terminate"],
-            [today_iso(), today_iso(), True, "noop"],
+            [today_iso(), None, "terminate"],
+            [today_iso(), today_iso(), "noop"],
             # 2020-01-01
-            ["2020-01-01", None, True, "terminate"],
-            ["2020-01-01", today_iso(), True, "noop"],
-            ["2020-01-01", "2020-02-01", True, "noop"],  # past
-            ["2020-01-01", "9999-01-01", True, "noop"],  # future
-            ## No finalize
-            # Today
-            [today_iso(), None, False, "noop"],
-            [today_iso(), today_iso(), False, "noop"],
-            # 2020-01-01
-            ["2020-01-01", None, False, "noop"],
-            ["2020-01-01", today_iso(), False, "noop"],
-            ["2020-01-01", "2020-02-01", False, "noop"],  # past
-            ["2020-01-01", "9999-01-01", False, "noop"],  # future
+            ["2020-01-01", None, "terminate"],
+            ["2020-01-01", today_iso(), "noop"],
+            ["2020-01-01", "2020-02-01", "noop"],  # past
+            ["2020-01-01", "9999-01-01", "noop"],  # future
         ]
     )
-    def test_finalization_itsystem(self, from_date, to_date, finalize, expected):
+    def test_finalization_itsystem(self, from_date, to_date, expected):
         """Verify expected behavior from sync_disabled settings."""
 
         def add_sync_mapping(settings):
             settings["integrations.ad.ad_mo_sync_mapping"] = {
                 "it_systems": {"samAccountName": "it_system_uuid"}
             }
-            settings["integrations.ad.ad_mo_sync_disabled"] = False
-            settings["integrations.ad.ad_mo_sync_finalize_disabled"] = finalize
+            settings["integrations.ad.ad_mo_sync_terminate_disabled"] = True
             return settings
 
         mo_values = self.mo_values_func()
