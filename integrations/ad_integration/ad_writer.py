@@ -11,7 +11,10 @@ import argparse
 import ad_logger
 import ad_templates
 
-from ad_template_engine import template_powershell
+from ad_template_engine import template_powershell, prepare_field_templates
+from jinja2 import Template
+
+from utils import dict_map, dict_filter, lower_list
 
 from integrations.ad_integration.ad_exceptions import CprNotNotUnique
 from integrations.ad_integration.ad_exceptions import UserNotFoundException
@@ -20,7 +23,8 @@ from integrations.ad_integration.ad_exceptions import ReplicationFailedException
 from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException
 from integrations.ad_integration.ad_exceptions import SamAccountNameNotUnique
 from integrations.ad_integration.ad_exceptions import (
-    ManagerNotUniqueFromCprException)
+    ManagerNotUniqueFromCprException
+)
 
 from ad_common import AD
 from user_names import CreateUserNames
@@ -125,7 +129,6 @@ class ADWriter(AD):
         self.opts = dict(**kwargs)
 
         self.settings = self.all_settings
-        # self.pet = self.settings['integrations.ad.write.primary_types']
 
         # Setup datasource for getting MO data.
         # TODO: Create a factory instead of this hackery?
@@ -206,6 +209,8 @@ class ADWriter(AD):
         return ad_info
 
     def _find_unit_info(self, eng_org_unit):
+        write_settings = self._get_write_setting(False)
+
         level2orgunit = 'Ingen'
         unit_info = {}
         if self.lc:
@@ -218,9 +223,9 @@ class ADWriter(AD):
             parent_uuid = self.lc.units[eng_org_unit][0]['uuid']
             while parent_uuid is not None:
                 parent_unit = self.lc.units[parent_uuid][0]
-                if self.settings['integrations.ad.write.level2orgunit_type'] in (
-                        parent_unit['unit_type'],
-                        parent_unit['level']
+                if write_settings['level2orgunit_type'] in (
+                    parent_unit['unit_type'],
+                    parent_unit['level']
                 ):
                     level2orgunit = parent_unit['name']
                 parent_uuid = parent_unit['parent']
@@ -237,9 +242,9 @@ class ADWriter(AD):
                 current_level = current_unit['org_unit_level']
                 if current_level is None:
                     current_level = {'uuid': None}
-                if self.settings['integrations.ad.write.level2orgunit_type'] in (
-                        current_type['uuid'],
-                        current_level['uuid']
+                if write_settings['level2orgunit_type'] in (
+                    current_type['uuid'],
+                    current_level['uuid']
                 ):
                     level2orgunit = current_unit['name']
                 current_unit = current_unit['parent']
@@ -520,7 +525,7 @@ class ADWriter(AD):
             msg = 'Value for {} is None-type replace to string None'
             logger.debug(msg.format(ad_field))
             value = 'None'
-        if not ad.get(ad_field) == value:
+        if ad.get(ad_field) != value:
             msg = '{}: AD value: {}, does not match MO value: {}'
             logger.info(msg.format(ad_field, ad.get(ad_field), value))
             mismatch = {
@@ -538,26 +543,39 @@ class ADWriter(AD):
         user_ad_info = self._find_ad_user(mo_values['cpr'], ad_dump)
         assert(len(user_ad_info) == 1)
         ad = user_ad_info[0]
-        # Todo: Why is this not generated along with all other info in mo_values?
+        user_sam = ad['SamAccountName']
+        # TODO: Why is this not generated along with all other info in mo_values?
         mo_values['name_sam'] = '{} - {}'.format(mo_values['full_name'],
                                                  ad['SamAccountName'])
+
+        fields = prepare_field_templates("Set-ADUser", settings=self.all_settings)
+
+        def to_lower(string):
+            return string.lower()
+
+        ad = dict_map(ad, key_func=to_lower)
+        fields = dict_map(fields, key_func=to_lower)
+
+        never_compare = lower_list(['Credential', 'Manager'])
+        fields = dict_filter(lambda key, value: key not in never_compare, fields)
+
+        context = {
+            "mo_values": mo_values,
+            "user_sam": user_sam,
+        }
+        def render_field_template(template):
+            return Template(template.strip('"')).render(**context)
+
+        # Build context and render template to get comparision value
+        # NOTE: This results in rendering the template twice, once here and
+        #       once inside the powershell render call.
+        #       We should probably restructure this, such that we only render
+        #       the template once, potentially rendering a dict of results.
+        # TODO: Make the above mentioned change.
+        fields = dict_map(fields, value_func=render_field_template)
         mismatch = {}
-        mismatch.update(self._cf(write_settings['level2orgunit_field'],
-                                 mo_values['level2orgunit'], ad))
-        mismatch.update(self._cf(write_settings['org_field'],
-                                 mo_values['location'], ad))
-        mismatch.update(self._cf('Name', mo_values['name_sam'], ad))
-        mismatch.update(self._cf('DisplayName', mo_values['full_name'], ad))
-        mismatch.update(self._cf('GivenName', mo_values['name'][0], ad))
-        mismatch.update(self._cf('Surname', mo_values['name'][1], ad))
-        mismatch.update(self._cf('EmployeeNumber',
-                                 mo_values['employment_number'], ad))
-
-        named_sync_fields = self.settings.get(
-            'integrations.ad_writer.mo_to_ad_fields', {})
-
-        for mo_field, ad_field in named_sync_fields.items():
-            mismatch.update(self._cf(ad_field, mo_values[mo_field], ad))
+        for ad_field, rendered_value in fields.items():
+            mismatch.update(self._cf(ad_field, rendered_value, ad))
 
         if mo_values.get('manager_cpr'):
             manager_ad_info = self._find_ad_user(mo_values['manager_cpr'], ad_dump)
@@ -573,7 +591,8 @@ class ADWriter(AD):
         """
         school = False  # TODO
         mo_values = self.read_ad_information_from_mo(
-            mo_uuid, ad_dump=ad_dump, read_manager=sync_manager)
+            mo_uuid, ad_dump=ad_dump, read_manager=sync_manager
+        )
 
         if mo_values is None:
             return (False, 'No active engagments')
@@ -591,7 +610,7 @@ class ADWriter(AD):
 
         logger.debug('Sync compare: {}'.format(mismatch))
 
-        if 'Name' in mismatch:
+        if 'name' in mismatch:
             logger.info('Rename user:')
             # Todo: This code is a duplicate of code 15 lines further down...
             rename_user_template = ad_templates.rename_user_template
@@ -618,7 +637,7 @@ class ADWriter(AD):
             # Todo: In principle we should ask all DCs, bu this will happen
             # very rarely, performance is not of great importance
             time.sleep(10)
-            del mismatch['Name']
+            del mismatch['name']
 
         if not mismatch:
             logger.info('Nothing to edit')

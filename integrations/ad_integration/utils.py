@@ -31,7 +31,7 @@ class LazyDict(Mapping):
 
     def is_initialized(self):
         """Check whether the LazyDict has already been initialized.
-        
+
         Returns:
             bool: Whether the LazyDict has run the initializer.
         """
@@ -39,7 +39,7 @@ class LazyDict(Mapping):
 
     def _run_initializer_if_required(self):
         """Helper method called on access to run initializer.
-        
+
         Throws ValueError if the LazyDict has no initializer configured.
         Throws ValueError if the LazyDict has already been initialized.
 
@@ -101,18 +101,38 @@ def recursive_dict_update(original, updates):
     return original
 
 
-def dict_map(func, dicty):
+def dict_map(dicty, key_func=None, value_func=None, func=None):
     """Map the dict values.
 
     Example:
         input_dict = {1: 1, 2: 2, 3: 3}
-        output_dict = dict_map(lambda value: value ** 2, input_dict)
+        output_dict = dict_map(input_dict, value_func=lambda value: value ** 2)
         self.assertEqual(output_dict, {1: 1, 2: 4, 3: 6})
 
     Returns:
         dict: A dict where func has been applied to every value.
     """
-    return {key: func(value, key=key) for key, value in dicty.items()}
+    def identity(x):
+        return x
+
+    def tuple_identity(x, y):
+        return (x,y)
+
+    def help_call(func):
+        def inner(x, **kwargs):
+            try:
+                return func(x, **kwargs)
+            except TypeError:
+                return func(x)
+        return inner
+
+    key_func = help_call(key_func or identity)
+    value_func = help_call(value_func or identity)
+    func = func or tuple_identity
+    return dict([
+        func(key_func(key, value=value), value_func(value, key=key))
+        for key, value in dicty.items()
+    ])
 
 
 def dict_partition(func, dicty):
@@ -138,6 +158,10 @@ def dict_partition(func, dicty):
     return falsy, truesy
 
 
+def dict_filter(func, dicty):
+    return dict_partition(func, dicty)[1]
+
+
 def duplicates(iterable):
     """Return set of duplicates from iterable.
 
@@ -151,3 +175,19 @@ def duplicates(iterable):
     """
     seen = set()
     return set(x for x in iterable if x in seen or seen.add(x))
+
+
+def lower_list(listy):
+    """Convert each element in the list to lower-case.
+
+    Example:
+        result = lower_list(['Alfa', 'BETA', 'gamma'])
+        self.assertEqual(result, ['alfa', 'beta', 'gamma'])
+
+    Args:
+        listy: The list of strings to force into lowercase.
+
+    Returns:
+        list: A list where all contained the strings are lowercase.
+    """
+    return list(map(lambda x: x.lower(), listy))

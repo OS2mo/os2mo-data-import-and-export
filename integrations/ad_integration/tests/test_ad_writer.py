@@ -44,13 +44,23 @@ class TestADWriter(TestCase, TestADWriterMixin):
     @parameterized.expand(
         [
             # Test without any changes to settings
-            [dict_modifier({}),],
+            [
+                dict_modifier({}),
+            ],
             # Test with overridden password
-            [dict_modifier({"primary": {"password": "Password1"}}),],
-            [dict_modifier({"primary": {"password": "Hunter2"}}),],
+            [
+                dict_modifier({"primary": {"password": "Password1"}}),
+            ],
+            [
+                dict_modifier({"primary": {"password": "Hunter2"}}),
+            ],
             # Test with overridden user
-            [dict_modifier({"primary": {"system_user": "R2D2"}}),],
-            [dict_modifier({"primary": {"system_user": "C-3PO"}}),],
+            [
+                dict_modifier({"primary": {"system_user": "R2D2"}}),
+            ],
+            [
+                dict_modifier({"primary": {"system_user": "C-3PO"}}),
+            ],
         ]
     )
     def test_common_ps_code(self, settings_transformer):
@@ -130,6 +140,18 @@ class TestADWriter(TestCase, TestADWriterMixin):
             # Test with new employment number
             [dict_modifier({}), mo_modifier({"employment_number": "42"}), ""],
             [dict_modifier({}), mo_modifier({"employment_number": "100"}), ""],
+            # Test mo_to_ad_fields
+            [
+                dict_modifier(
+                    {
+                        "integrations.ad_writer.mo_to_ad_fields": {
+                            "unit_user_key": "unit_user_key"
+                        }
+                    }
+                ),
+                None,
+                '"unit_user_key"="Musik";',
+            ],
             # Test with added template_field
             # Simple field lookup
             [
@@ -349,6 +371,37 @@ class TestADWriter(TestCase, TestADWriterMixin):
         with self.assertRaises(ValueError):
             self.ad_writer.sync_user(mo_uuid=uuid, sync_manager=False)
 
+    def test_user_edit_illegal_parameter(self):
+        """Test user edit ps_script code with illegal parameter
+
+        The common code is not tested.
+
+        This test simply ensures that the illegal parameter is dropped.
+        """
+        # Assert no scripts were produced from initializing ad_writer itself
+        self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
+        import ad_template_engine
+
+        ad_template_engine.illegal_parameters["Set-ADUser"].append("Displayname")
+
+        settings_transformer = dict_modifier({})
+        self._setup_adwriter(settings_transformer)
+        # Expected outputs
+        num_expected_scripts = 1
+
+        # Run create user and fetch scripts
+        uuid = "invalid-provided-and-accepted-due-to-mocking"
+        self.ad_writer.sync_user(mo_uuid=uuid, sync_manager=False)
+        # Check that scripts were produced
+        self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
+
+        # Verify that the first 4 lines are identitical for all scripts
+        self._verify_identitical_common_code(num_expected_scripts)
+
+        # Check that the create user ps looks good
+        edit_user_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
+        self.assertNotIn("Displayname", edit_user_ps)
+
     def test_user_edit_illegal_attribute(self):
         """Test user edit ps_script code with illegal attribute.
 
@@ -380,50 +433,162 @@ class TestADWriter(TestCase, TestADWriterMixin):
         edit_user_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
         self.assertNotIn('"Name"="John"', edit_user_ps)
 
+    @parameterized.expand(
+        [
+            # Verify different employment numbers
+            [
+                dict_modifier({}),
+                mo_modifier({"employment_number": "267"}),
+                dict_modifier({}),
+            ],
+            [
+                dict_modifier({}),
+                mo_modifier({"employment_number": "42"}),
+                dict_modifier({}),
+            ],
+            # Test mo_to_ad_fields
+            [
+                dict_modifier(
+                    {
+                        "integrations.ad_writer.mo_to_ad_fields": {"unit": "Name"},
+                    }
+                ),
+                mo_modifier({"employment_number": "42"}),
+                dict_modifier(
+                    {
+                        "name": ("John Deere", "Enhed"),
+                    }
+                ),
+            ],
+            [
+                dict_modifier(
+                    {
+                        "integrations.ad_writer.mo_to_ad_fields": {
+                            "unit": "Name",
+                            "employment_number": "extension_field2",
+                        },
+                    }
+                ),
+                mo_modifier({"employment_number": "42"}),
+                dict_modifier(
+                    {
+                        "name": ("John Deere", "Enhed"),
+                        "extension_field2": (None, "42"),
+                    }
+                ),
+            ],
+            # Test template_to_ad_fields
+            [
+                dict_modifier(
+                    {
+                        "integrations.ad_writer.template_to_ad_fields": {
+                            "adjusted_number": "{{ mo_values['employment_number']|int + 5 }}",
+                        },
+                    }
+                ),
+                mo_modifier({"employment_number": "42"}),
+                dict_modifier(
+                    {
+                        "adjusted_number": (None, "47"),
+                    }
+                ),
+            ],
+            # Test template_to_ad_fields
+            [
+                dict_modifier(
+                    {
+                        "integrations.ad_writer.template_to_ad_fields": {
+                            "adjusted_number": "{{ mo_values['employment_number']|int + 5 }}",
+                            "Enabled": "Invalid",
+                        },
+                    }
+                ),
+                mo_modifier(
+                    {
+                        "employment_number": "42",
+                    }
+                ),
+                dict_modifier(
+                    {
+                        "adjusted_number": (None, "47"),
+                        "enabled": (True, "Invalid"),
+                    }
+                ),
+            ],
+        ]
+    )
+    def test_sync_compare(
+        self, settings_transformer, mo_transformer, expected_transformer
+    ):
+        self._setup_adwriter(None, mo_transformer, settings_transformer)
 
-#    def test_add_manager(self):
-#        user = self.ad_writer.read_ad_information_from_mo(uuid='0', read_manager=True)
-#
-#        self.ad_writer.add_manager_to_user('MGORE', manager_sam=user['manager_sam'])
-#        manager_script = test_responses['ps_script']
-#        manager_script = manager_script.strip()
-#        lines = manager_script.split('\n')
-#        line = lines[4].strip()  # First four lines are common to all scripts
-#
-#        expected_line = ("Get-ADUser -Filter 'SamAccountName -eq \"MGORE\"'" +
-#                         " -Credential $usercredential |Set-ADUser -Manager DMILL" +
-#                         " -Credential $usercredential")
-#        self.assertTrue(line == expected_line)
-#
-#    def test_set_password(self):
-#        password = 'password'
-#        self.ad_writer.set_user_password('MGORE', password)
-#        line = self._read_non_common_line()
-#
-#        expected_line = (
-#            "Get-ADUser -Filter 'SamAccountName -eq \"MGORE\"' -Credential" +
-#            " $usercredential |Set-ADAccountPassword -Reset -NewPassword" +
-#            " (ConvertTo-SecureString -AsPlainText \"{}\" -Force)" +
-#            " -Credential $usercredential"
-#        ).format(password)
-#        self.assertTrue(line == expected_line)
-#
-#    def test_sync(self):
-#        user_ad_info = {
-#            'SamAccountName': 'MGORE'
-#        }
-#        self.ad_writer.sync_user(mo_uuid='0', user_ad_info=user_ad_info,
-#                                 sync_manager=False)
-#        line = self._read_non_common_line()
-#
-#        expected_content = [
-#            "Get-ADUser -Filter 'SamAccountName -eq \"MGORE\"' -Credential $usercredential |",
-#            'Set-ADUser -Credential $usercredential -Displayname "Martin Lee Gore"',
-#            '-GivenName "Martin Lee" -SurName "Martin Lee Gore" -EmployeeNumber \"101\"',
-#            "-Replace @{",
-#            '"xAutoritativForvaltning"="Beskæftigelse, Økonomi og Personale"',
-#            '"xAutoritativOrg"="Kommune\\Forvalting\\Enhed\\"'
-#        ]
-#
-#        for content in expected_content:
-#            self.assertTrue(line.find(content) > -1)
+        uuid = "invalid-provided-and-accepted-due-to-mocking"
+        mo_values = self.ad_writer.read_ad_information_from_mo(uuid)
+        mo_values["manager_cpr"] = None
+        ad_values = self._prepare_get_from_ad(lambda x: x)
+        ad_values["Name"] = "John Deere"
+
+        def find_ad_user(cpr, ad_dump):
+            return [ad_values]
+
+        self.ad_writer._find_ad_user = find_ad_user
+
+        mismatch = self.ad_writer._sync_compare(mo_values, None)
+        expected = {
+            "level2orgunit_field": (None, "Ingen"),
+            "org_field": (None, "Kommune\\Forvalting\\Enhed\\"),
+            "name": (ad_values["Name"], mo_values["name_sam"]),
+            "displayname": (None, " ".join(mo_values["name"])),
+            "givenname": (ad_values["GivenName"], mo_values["name"][0]),
+            "surname": (None, mo_values["name"][1]),
+            "employeenumber": (None, mo_values["employment_number"]),
+        }
+        expected = expected_transformer(expected)
+        self.assertEqual(mismatch, expected)
+
+        # Apply changes to AD, and check _sync_compare returns nothing
+        ad_keys = ad_values.keys()
+        for lower_ad_key, changeset in expected.items():
+            cased_ad_key = next(
+                filter(lambda ad_key: ad_key.lower() == lower_ad_key, ad_keys),
+                lower_ad_key
+            )
+            ad_values[cased_ad_key] = changeset[1]
+        mismatch = self.ad_writer._sync_compare(mo_values, None)
+        self.assertEqual(mismatch, {})
+
+
+    def test_add_manager(self):
+        mo_values = self.ad_writer.read_ad_information_from_mo(uuid='0', read_manager=True)
+        self.ad_writer.add_manager_to_user('MGORE', manager_sam=mo_values['manager_sam'])
+        # Expected outputs
+        num_expected_scripts = 1
+        self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
+        # Verify that the first 4 lines are identitical for all scripts
+        self._verify_identitical_common_code(num_expected_scripts)
+        # Check that the create user ps looks good
+        add_manager_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
+
+        expected_line = ("Get-ADUser -Filter 'SamAccountName -eq \"MGORE\"'" +
+                         " -Credential $usercredential |Set-ADUser -Manager " + mo_values['manager_sam'] +
+                         " -Credential $usercredential")
+        self.assertEqual(add_manager_ps, expected_line)
+
+    def test_set_password(self):
+        password = 'password'
+        self.ad_writer.set_user_password('MGORE', password)
+        # Expected outputs
+        num_expected_scripts = 1
+        self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
+        # Verify that the first 4 lines are identitical for all scripts
+        self._verify_identitical_common_code(num_expected_scripts)
+        # Check that the create user ps looks good
+        set_password_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
+
+        expected_line = (
+            "Get-ADUser -Filter 'SamAccountName -eq \"MGORE\"' -Credential" +
+            " $usercredential |Set-ADAccountPassword -Reset -NewPassword" +
+            " (ConvertTo-SecureString -AsPlainText \"{}\" -Force)" +
+            " -Credential $usercredential"
+        ).format(password)
+        self.assertEqual(set_password_ps, expected_line)

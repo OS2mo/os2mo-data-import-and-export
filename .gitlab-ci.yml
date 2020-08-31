@@ -42,12 +42,8 @@ Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
-    - python -m black --line-length 85 --check tests/* utils.py
-    - python -m isort --check-only tests/* utils.py
-
-
-
-
+    - python -m black --line-length 85 --check --diff tests/* utils.py ad_template_engine.py
+    - python -m isort --check-only tests/* utils.py ad_template_engine.py
 
 
 # Test stage
@@ -59,8 +55,11 @@ Lint AD Integration:
   image: python:3.5
   services: []
   before_script:
+    - apt-get update && apt-get install -y unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev-compat
+    - find . -name 'requirements.*' | grep -v venv/ | xargs -l1 pip install -r
+    - pip install -r ./integrations/requirements/common.txt
+    - pip install -r ./integrations/requirements/test.txt
     - pip install ./os2mo_data_import --upgrade
-    - pip install -r integrations/requirements/test.txt
   tags:
     - docker
 
@@ -75,4 +74,5 @@ Test AD Integration:
 Test OS2Sync Integration:
   extends: .test-python
   script:
+    - cp settings/kommune-andeby.json settings/settings.json
     - python -m doctest integrations/os2sync/os2mo.py
