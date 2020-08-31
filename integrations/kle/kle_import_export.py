@@ -2,16 +2,10 @@ import json
 import logging
 import os
 import pathlib
-from enum import Enum
-import collections
-import tempfile
-import csv
 from abc import ABC, abstractmethod
+from enum import Enum
 
 import requests
-import pandas as pd
-import xlsxwriter
-import xlsxwriter.worksheet
 
 LOG_FILE = 'opgavefordeler.log'
 
@@ -105,178 +99,100 @@ class KLEAnnotationIntegration(ABC):
         logger.info("Found {} units".format(len(units)))
         return units
 
+    def post_payloads_to_mo(self, payloads: list):
+        """Submit a list of details payloads to OS2mo"""
+        logger.info("Posting payloads to OS2mo ")
+        url = "{}/service/details/create".format(self.mora_base)
+
+        r = self.mora_session.post(url, json=payloads, params={"force": 1})
+        r.raise_for_status()
+
     @abstractmethod
     def run(self):
         """Implement this, normally to execute import or export."""
         pass
 
 
-class KLECSVExporter(KLEAnnotationIntegration):
-    """Export KLE annotation as CSV files bundled in a spreadsheet."""
-
-    @staticmethod
-    def write_rows(worksheet: xlsxwriter.worksheet.Worksheet, data: list):
-
-        for index, row in enumerate(data):
-            worksheet.write_row(index, 0, row)
-
-    @staticmethod
-    def get_org_unit_validation(column: str):
-        return (
-            '{0}1:{0}1048576'.format(column),
-            {
-                'validate': 'list',
-                'source': '=Org!$B$2:$B$1048576'
-            }
+class OpgavefordelerImporter(KLEAnnotationIntegration):
+    def __init__(self):
+        super().__init__()
+        self.opgavefordeler_url = self.settings.get(
+            "integrations.os2opgavefordeler.url"
+        )
+        self.opgavefordeler_session = self._get_opgavefordeler_session(
+            token=self.settings.get("integrations.os2opgavefordeler.token")
         )
 
-    @staticmethod
-    def get_kle_validation(column: str):
-        return (
-            '{0}1:{0}1048576'.format(column),
-            {
-                'validate': 'list',
-                'source': '=KLE!$C$2:$C$1048576'
-            }
-        )
+    def _get_opgavefordeler_session(self, token) -> requests.Session:
+        s = requests.Session()
+        s.headers.update({"Authorization": "Basic {}".format(token)})
+        return s
 
-    @staticmethod
-    def get_column_width(data, field: str):
-        field_lengths = [len(row[field]) for row in data]
-        return max(field_lengths)
-
-    def add_org_unit_sheet(self, workbook, org_units):
-        worksheet = workbook.add_worksheet(name='Org')
-
-        rows = [
-            (org_unit['uuid'], org_unit['combined'])
-            for org_unit in org_units
-        ]
-
-        worksheet.set_column(0, 0, width=self.get_column_width(org_units, 'uuid'))
-        worksheet.set_column(1, 1, width=self.get_column_width(org_units, 'combined'))
-
-        rows.insert(0, ('UUID', 'Navn'))
-
-        self.write_rows(worksheet, rows)
-
-    def add_kle_sheet(self, workbook: xlsxwriter.Workbook, kle_numbers: list):
-        worksheet = workbook.add_worksheet(name='KLE')
-
-        rows = [
-            (kle['uuid'], kle['user_key'], kle['name'])
-            for kle in kle_numbers
-        ]
-
-        rows.insert(0, ('UUID', 'EmneNr', 'EmneTitel'))
-
-        worksheet.set_column(0, 0, width=self.get_column_width(kle_numbers, 'uuid'))
-        worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers, 'user_key'))
-        worksheet.set_column(2, 2, width=self.get_column_width(kle_numbers, 'name'))
-
-        self.write_rows(worksheet, rows)
-
-    def add_ansvarlig_sheet(self, workbook, kle_numbers, org_units):
-        worksheet = workbook.add_worksheet(name='Ansvarlig')
-
-        def calculate_level(kle_number: str):
-            """
-            We calculate the level, by how many dots are in the key
-            E.g. 00 is 1, 00.01 is 2, 00.01.32 is 3
-            """
-            return str(kle_number.count('.') + 1)
-
-        rows = [
-            (kle['level'], kle['user_key'], kle['name'], '')
-            for kle in kle_numbers
-        ]
-        rows.insert(0, ('Niveau', 'EmneNr', 'EmneTitel', 'EnhedNavn'))
-
-        worksheet.data_validation(
-            *self.get_org_unit_validation(column='D')
-        )
-
-        worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers, 'user_key'))
-        worksheet.set_column(2, 2, width=self.get_column_width(kle_numbers, 'name'))
-        worksheet.set_column(3, 3, width=self.get_column_width(org_units, 'combined'))
-
-        self.write_rows(worksheet, rows)
-
-    def add_indsigt_and_udfoerende_sheet(self, workbook, kle_numbers, org_units):
-        for sheet_name in ['Indsigt', 'Udførende']:
-            worksheet = workbook.add_worksheet(name=sheet_name)
-
-            rows = [
-                ('EnhedNavn', 'KLE')
-            ]
-
-            worksheet.data_validation(*self.get_org_unit_validation('A'))
-            worksheet.data_validation(*self.get_kle_validation('B'))
-
-            worksheet.set_column(0, 0, width=self.get_column_width(org_units,
-                                                                   'combined'))
-            worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers,
-                                                                   'name'))
-
-            self.write_rows(worksheet, rows)
-
-    @staticmethod
-    def convert_org_units(org_units):
-        return [
-            {
-                'combined': "{} - {}".format(unit['name'], unit['uuid']),
-                **unit,
-            }
-            for unit in org_units
-        ]
-
-    @staticmethod
-    def convert_kle_numbers(kle_numbers):
-        def calculate_level(kle_number: str):
-            """
-            We calculate the level, by how many dots are in the key
-            E.g. 00 is 1, 00.01 is 2, 00.01.32 is 3
-            """
-            return str(kle_number.count('.') + 1)
-
-        return [
-            {
-                'level': calculate_level(kle['user_key']),
-                **kle,
-            }
-            for kle in kle_numbers
-        ]
-
-    def run(self):
-        xlsx_output = './test.xlsx'
-        workbook = xlsxwriter.Workbook(xlsx_output)
-
-        org_units = sorted(self.convert_org_units(self.get_all_org_units_from_mo()), key=lambda x: x['name'])
-        kle = sorted(self.convert_kle_numbers(self.get_kle_classes_from_mo()), key=lambda x: x['user_key'])
-
-        self.add_org_unit_sheet(workbook, org_units)
-        self.add_kle_sheet(workbook, kle)
-        self.add_ansvarlig_sheet(workbook, kle, org_units)
-        self.add_indsigt_and_udfoerende_sheet(workbook, kle, org_units)
-
-        # Bold column headers for all sheets
-        bold = workbook.add_format({'bold': 1})
-        for sheet in workbook.worksheets():
-            sheet.set_row(0, cell_format=bold)
-
-        workbook.close()
-
-
-class KLEAnnotationImporter(KLEAnnotationIntegration, ABC):
-    """Import KLE annotation from external source."""
-
-    @abstractmethod
     def get_kle_from_source(self, kle_numbers: list) -> list:
-        pass
+        """
+        Get all KLE-number info from OS2opgavefordeler
 
-    @abstractmethod
+        This will give information on which unit is 'Ansvarlig' for a certain
+        KLE-number.
+        The API will perform inheritance and deduce the unit logically responsible
+        for a certain number if no unit is directly responsible,
+        so the result is filtered of all duplicates
+        """
+        logger.info("Fetching KLE info from OS2opgavefordeler")
+
+        url = "{}/TopicRouter/api".format(self.opgavefordeler_url)
+        s = self.opgavefordeler_session
+
+        unit_data = []
+        for key in kle_numbers:
+            try:
+                r = s.get(url, params={"kle": key})
+                r.raise_for_status()
+                unit_data.append(r.json())
+            except requests.exceptions.HTTPError:
+                logger.warning("KLE number '{}' not found".format(key))
+
+        seen_keys = set()
+        filtered = []
+        for item in unit_data:
+            key = item["kle"]["number"]
+            if key not in seen_keys:
+                filtered.append(item)
+                seen_keys.add(key)
+
+        logger.info("Found {} items".format(len(filtered)))
+        return filtered
+
     def get_org_unit_info_from_source(self, org_units_uuids: list) -> list:
-        pass
+        """
+        Get all org-unit info from OS2opgavefordeler
+
+        This will give information about which KLE-numbers the unit has a
+        'Udførende' and 'Indsigt' relationship with.
+
+        Empty results are filtered
+        """
+        logger.info("Fetching org unit info from OS2opgavefordeler")
+        url = "{}/TopicRouter/api/ou/{}"
+        s = self.opgavefordeler_session
+        org_unit_info = {}
+        for uuid in org_units_uuids:
+            try:
+                r = s.get(url.format(self.opgavefordeler_url, uuid))
+                r.raise_for_status()
+                org_unit_info[uuid] = r.json()
+                logger.debug("Adding {}".format(uuid))
+            except requests.exceptions.HTTPError:
+                continue
+
+        def filter_empty(item):
+            info = item[1]
+            return info["INTEREST"] or info["PERFORMING"]
+
+        filtered = list(filter(filter_empty, org_unit_info.items()))
+
+        logger.info("Found {} items".format(len(filtered)))
+        return filtered
 
     def add_indsigt_and_udfoerer(self, org_unit_map: dict, org_unit_info: list):
         """Add 'Indsigt' and 'Udførende' to the org unit map"""
@@ -358,123 +274,7 @@ class KLEAnnotationImporter(KLEAnnotationIntegration, ABC):
 
         logger.info("Done")
 
-    def post_payloads_to_mo(self, payloads: list):
-        """Submit a list of details payloads to OS2mo"""
-        logger.info("Posting payloads to OS2mo ")
-        url = "{}/service/details/create".format(self.mora_base)
-
-        r = self.mora_session.post(url, json=payloads, params={"force": 1})
-        r.raise_for_status()
-
-
-class KLECSVImporter(KLEAnnotationImporter):
-
-    def get_org_unit_info_from_source(self, org_units_uuids: list) -> list:
-        pass
-
-    def get_kle_from_source(self, kle_numbers: list) -> list:
-        pass
-
-    def run(self):
-
-        # Read sheet
-        xlsx_file = pd.ExcelFile('test.xslx')
-
-        sheets = {
-            sheet_name: xlsx_file.parse(sheet_name)
-            for sheet_name in xlsx_file.sheet_names
-        }
-
-
-
-class OpgavefordelerImporter(KLEAnnotationImporter):
-    def __init__(self):
-        super().__init__()
-        self.opgavefordeler_url = self.settings.get(
-            "integrations.os2opgavefordeler.url"
-        )
-        self.opgavefordeler_session = self._get_opgavefordeler_session(
-            token=self.settings.get("integrations.os2opgavefordeler.token")
-        )
-
-    def _get_opgavefordeler_session(self, token) -> requests.Session:
-        s = requests.Session()
-        s.headers.update({"Authorization": "Basic {}".format(token)})
-        return s
-
-    def get_kle_from_source(self, kle_numbers: list) -> list:
-        """
-        Get all KLE-number info from OS2opgavefordeler
-
-        This will give information on which unit is 'Ansvarlig' for a certain
-        KLE-number.
-        The API will perform inheritance and deduce the unit logically responsible
-        for a certain number if no unit is directly responsible,
-        so the result is filtered of all duplicates
-        """
-        logger.info("Fetching KLE info from OS2opgavefordeler")
-
-        url = "{}/TopicRouter/api".format(self.opgavefordeler_url)
-        s = self.opgavefordeler_session
-
-        unit_data = []
-        for key in kle_numbers:
-            try:
-                r = s.get(url, params={"kle": key})
-                r.raise_for_status()
-                unit_data.append(r.json())
-            except requests.exceptions.HTTPError:
-                logger.warning("KLE number '{}' not found".format(key))
-
-        seen_keys = set()
-        filtered = []
-        for item in unit_data:
-            key = item["kle"]["number"]
-            if key not in seen_keys:
-                filtered.append(item)
-                seen_keys.add(key)
-
-        logger.info("Found {} items".format(len(filtered)))
-        return filtered
-
-    def get_org_unit_info_from_source(self, org_units_uuids: list) -> list:
-        """
-        Get all org-unit info from OS2opgavefordeler
-
-        This will give information about which KLE-numbers the unit has a
-        'Udførende' and 'Indsigt' relationship with.
-
-        Empty results are filtered
-        """
-        logger.info("Fetching org unit info from OS2opgavefordeler")
-        url = "{}/TopicRouter/api/ou/{}"
-        s = self.opgavefordeler_session
-        org_unit_info = {}
-        for uuid in org_units_uuids:
-            try:
-                r = s.get(url.format(self.opgavefordeler_url, uuid))
-                r.raise_for_status()
-                org_unit_info[uuid] = r.json()
-                logger.debug("Adding {}".format(uuid))
-            except requests.exceptions.HTTPError:
-                continue
-
-        def filter_empty(item):
-            info = item[1]
-            return info["INTEREST"] or info["PERFORMING"]
-
-        filtered = list(filter(filter_empty, org_unit_info.items()))
-
-        logger.info("Found {} items".format(len(filtered)))
-        return filtered
-
 
 if __name__ == "__main__":
-    # importer = OpgavefordelerImporter()
-    # importer.run()
-
-    # exporter = KLECSVExporter()
-    # exporter.run()
-
-    importer = KLECSVImporter()
+    importer = OpgavefordelerImporter()
     importer.run()

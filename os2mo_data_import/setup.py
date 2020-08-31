@@ -35,6 +35,6 @@ setup(
         "freezegun",
         "xmltodict",
         "openpyxl",
-        "xslxwriter",
+        "xlsxwriter",
     ]
 )

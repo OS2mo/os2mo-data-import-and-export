@@ -6,3 +6,4 @@ pywinrm[kerberos]
 jinja2
 pandas
 xlsxwriter
+xlrd

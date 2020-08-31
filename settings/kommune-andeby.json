@@ -158,5 +158,7 @@
     "os2sync.top_unit_uuid": "uuid for administrative org top unit in os2mo",
 
     "integrations.os2opgavefordeler.url": "",
-    "integrations.os2opgavefordeler.token": ""
+    "integrations.os2opgavefordeler.token": "",
+
+    "integrations.kle_xlsx.file_path": ""
 }
