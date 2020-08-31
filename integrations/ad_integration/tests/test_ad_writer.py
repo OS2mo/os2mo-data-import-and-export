@@ -8,8 +8,6 @@ sys.path.append(dirname(__file__) + "/..")
 from unittest import TestCase
 
 from parameterized import parameterized
-
-
 from test_utils import TestADWriterMixin, dict_modifier, mo_modifier
 
 
@@ -241,19 +239,27 @@ class TestADWriter(TestCase, TestADWriterMixin):
         mo_values = self.ad_writer.read_ad_information_from_mo(uuid)
         expected_content = [
             "New-ADUser",
-            '-Name "' + mo_values['full_name'] + " - " + mo_values['sam_account_name'] + '"',
-            '-Displayname "' + mo_values['full_name'] + '"',
-            '-GivenName "' + mo_values['name'][0] + '"',
-            '-SurName "' + mo_values['name'][1] + '"',
-            '-SamAccountName "' + mo_values['sam_account_name'] + '"',
+            '-Name "'
+            + mo_values["full_name"]
+            + " - "
+            + mo_values["sam_account_name"]
+            + '"',
+            '-Displayname "' + mo_values["full_name"] + '"',
+            '-GivenName "' + mo_values["name"][0] + '"',
+            '-SurName "' + mo_values["name"][1] + '"',
+            '-SamAccountName "' + mo_values["sam_account_name"] + '"',
             '-EmployeeNumber "' + mo_values["employment_number"] + '"',
-            '-Credential $usercredential',
-            '-UserPrincipalName "' + mo_values['sam_account_name'] + '@epn_end"',
+            "-Credential $usercredential",
+            '-UserPrincipalName "' + mo_values["sam_account_name"] + '@epn_end"',
             "-OtherAttributes",
             '"level2orgunit_field"="Ingen";',
             '"org_field"="Kommune\\Forvalting\\Enhed\\";',
-            '"uuid_field"="' + mo_values['uuid'] + '";',
-            '"cpr_field"="' + mo_values['cpr'][0:6] + 'ad_cpr_sep' + mo_values['cpr'][6:] + '"',
+            '"uuid_field"="' + mo_values["uuid"] + '";',
+            '"cpr_field"="'
+            + mo_values["cpr"][0:6]
+            + "ad_cpr_sep"
+            + mo_values["cpr"][6:]
+            + '"',
             '-Path "search_base"',
             expected,
         ]
@@ -285,15 +291,15 @@ class TestADWriter(TestCase, TestADWriterMixin):
         mo_values = self.ad_writer.read_ad_information_from_mo(uuid)
         expected_content = [
             "Get-ADUser",
-            "-Filter 'SamAccountName -eq \"" + mo_values['sam_account_name'] + "\"'",
-            '-Credential $usercredential',
+            "-Filter 'SamAccountName -eq \"" + mo_values["sam_account_name"] + "\"'",
+            "-Credential $usercredential",
             "|",
             "Set-ADUser",
-            '-Credential $usercredential',
-            '-Displayname "' + mo_values['full_name'] + '"',
-            '-GivenName "' + mo_values['name'][0] + '"',
-            '-SurName "' + mo_values['name'][1] + '"',
-            '-EmployeeNumber "' + mo_values['employment_number'] + '"',
+            "-Credential $usercredential",
+            '-Displayname "' + mo_values["full_name"] + '"',
+            '-GivenName "' + mo_values["name"][0] + '"',
+            '-SurName "' + mo_values["name"][1] + '"',
+            '-EmployeeNumber "' + mo_values["employment_number"] + '"',
             "-Replace",
             '"level2orgunit_field"="Ingen";',
             '"org_field"="Kommune\\Forvalting\\Enhed\\";',
@@ -312,13 +318,11 @@ class TestADWriter(TestCase, TestADWriterMixin):
                 "integrations.ad_writer.template_to_ad_fields": {
                     "Name": "{{ mo_values['unit'] }}"
                 },
-                "integrations.ad_writer.mo_to_ad_fields": {
-                    "unit": "name"
-                }
+                "integrations.ad_writer.mo_to_ad_fields": {"unit": "name"},
             }
         )
         self._setup_adwriter(early_transform_settings=settings_transformer)
-        self.assertEqual(self.settings['primary_write'], {})
+        self.assertEqual(self.settings["primary_write"], {})
 
     def test_non_overwritten_default(self):
         """Test that a mistake in overriding a default results in an error."""
@@ -356,11 +360,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
         self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
 
         settings_transformer = dict_modifier(
-            {
-                "integrations.ad_writer.template_to_ad_fields": {
-                    "Name": "John"
-                }
-            }
+            {"integrations.ad_writer.template_to_ad_fields": {"Name": "John"}}
         )
 
         self._setup_adwriter(settings_transformer)
@@ -379,6 +379,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
         # Check that the create user ps looks good
         edit_user_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
         self.assertNotIn('"Name"="John"', edit_user_ps)
+
 
 #    def test_add_manager(self):
 #        user = self.ad_writer.read_ad_information_from_mo(uuid='0', read_manager=True)

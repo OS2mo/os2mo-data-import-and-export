@@ -22,7 +22,7 @@ logger = logging.getLogger('AdSyncRead')
 # Find them here https://os2mo-test.holstebro.dk/service/o/ORGUUID/f/visibility/
 
 
-# AD has  no concept of temporality, validity is always from now to infinity.
+# AD has no concept of temporality, validity is always from now to infinity.
 VALIDITY = {
     'from':  datetime.strftime(datetime.now(), "%Y-%m-%d"),
     'to': None
@@ -163,15 +163,22 @@ class AdMoSync(object):
             user_addresses = self.helper._mo_lookup(uuid, 'e/{}/details/address')
 
         for field, klasse in self.mapping['user_addresses'].items():
-            found_address = None
-            for address in user_addresses:
-                if not address['address_type']['uuid'] == klasse[0]:
-                    continue
-                if klasse[1] is not None and 'visibility' in address:
-                    if self.visibility[klasse[1]] == address['visibility']['uuid']:
-                        found_address = (address['uuid'], address['value'])
-                else:
-                    found_address = (address['uuid'], address['value'])
+            address_type_uuid, visibility_uuid = klasse
+            potential_matches = user_addresses
+            # Filter out addresses with wrong type
+            def check_address_type_uuid(address):
+                return address['address_type']['uuid'] == address_type_uuid
+            potential_matches = filter(check_address_type_uuid, potential_matches)
+            # Filter out addresses with wrong visibility
+            def check_address_visibility(address):
+                return (
+                    visibility_uuid is None or 'visibility' not in address or
+                    self.visibility[visibility_uuid] == address['visibility']['uuid']
+                )
+            potential_matches = filter(check_address_visibility, potential_matches)
+            # Consume iterator, verifying either 0 or 1 elements are returned
+            found_address = next(potential_matches, None)
+            assert next(potential_matches, None) == None
             if found_address is not None:
                 types_to_edit[field] = found_address
         logger.debug('Existing fields for {}: {}'.format(uuid, types_to_edit))
@@ -198,7 +205,7 @@ class AdMoSync(object):
         response = self.helper._mo_post('details/create', payload)
         logger.debug('Response: {}'.format(response))
 
-    def _edit_address(self, address_uuid, value, klasse):
+    def _edit_address(self, address_uuid, value, klasse, validity=VALIDITY):
         """
         Edit an exising address to a new value.
         :param address_uuid: uuid of the address object.
@@ -210,7 +217,7 @@ class AdMoSync(object):
                 'type': 'address',
                 'uuid': address_uuid,
                 'data': {
-                    'validity': VALIDITY,
+                    'validity': validity,
                     'value': value,
                     'address_type': {'uuid': klasse[0]}
                 }
@@ -358,17 +365,80 @@ class AdMoSync(object):
                 self._create_address(uuid, ad_object[field], klasse)
             else:
                 # This is an existing address
-                if not fields_to_edit[field][1] == ad_object[field]:
+                if not fields_to_edit[field]['value'] == ad_object[field]:
                     msg = 'Value change, MO: {} <> AD: {}'
                     self.stats['addresses'][1] += 1
                     self.stats['users'].add(uuid)
-                    self._edit_address(fields_to_edit[field][0],
+                    self._edit_address(fields_to_edit[field]['uuid'],
                                        ad_object[field],
                                        klasse)
                 else:
                     msg = 'No value change: {}=={}'
-                logger.debug(msg.format(fields_to_edit[field][1],
+                logger.debug(msg.format(fields_to_edit[field]['value'],
                                         ad_object[field]))
+
+    def _finalize_it_system(self, uuid, ad_object):
+        if 'it_systems' not in self.mapping:
+            return
+
+        today = datetime.strftime(datetime.now(), "%Y-%m-%d")
+        it_systems = {
+            itsystem['uuid']: itsystem for itsystem in
+                self.helper._mo_lookup(uuid, 'e/{}/details/it')
+        }
+
+        def check_validity_is_ok(uuid):
+            # NOTE: Maybe this should be not set, or in the future?
+            return it_systems[uuid]['validity']['to'] is None
+
+        # Find fields to terminate
+        it_system_uuids = self.mapping['it_systems'].values()
+        it_system_uuids = filter(check_validity_is_ok, it_system_uuids)
+
+        for uuid in it_system_uuids:
+            payload = {
+                'type': 'it',
+                'uuid': uuid,
+                'validity': {"to": today}
+            }
+            logger.debug('Finalize payload: {}'.format(payload))
+            response = self.helper._mo_post('details/terminate', payload)
+            logger.debug('Response: {}'.format(response.text))
+
+    def _finalize_user_addresses(self, uuid, ad_object):
+        if 'user_addresses' not in self.mapping:
+            return
+
+        today = datetime.strftime(datetime.now(), "%Y-%m-%d")
+        fields_to_edit = self._find_existing_ad_address_types(uuid)
+
+        def check_ad_field_exists(field):
+            if field not in ad_object:
+                logger.debug('No such AD field: {}'.format(field))
+                return False
+            return True
+
+        def check_field_in_fields_to_edit(field):
+            return field in fields_to_edit.keys()
+
+        def check_validity_is_ok(field):
+            # NOTE: Maybe this should be not set, or in the future?
+            return fields_to_edit[field]['validity']['to'] is None
+
+        # Find fields to terminate
+        address_fields = self.mapping['user_addresses'].keys()
+        address_fields = filter(check_ad_field_exists, address_fields)
+        address_fields = filter(check_field_in_fields_to_edit, address_fields)
+        address_fields = filter(check_validity_is_ok, address_fields)
+        for field in address_fields:
+            payload = {
+                'type': 'address',
+                'uuid': fields_to_edit[field]['uuid'],
+                'validity': {"to": today}
+            }
+            logger.debug('Finalize payload: {}'.format(payload))
+            response = self.helper._mo_post('details/terminate', payload)
+            logger.debug('Response: {}'.format(response.text))
 
     def _update_single_user(self, uuid, ad_object):
         """
@@ -376,6 +446,23 @@ class AdMoSync(object):
         :param uuid: uuid of the user.
         :param ad_object: Dict with the AD information for the user.
         """
+        # Debug log if enabled is not found
+        if 'Enabled' not in ad_object:
+            logger.info('{} not in ad_object'.format("Enabled"))
+
+        # Lookup whether or not to terminate disabled users
+        terminate_disabled = self.settings.get(
+            "integrations.ad.ad_mo_sync_terminate_disabled", False
+        )
+        # Check whether the current user is disabled or not
+        current_user_is_disabled = ad_object.get('Enabled', True) == False
+        if terminate_disabled and current_user_is_disabled:
+            # Set validity end --> today if in the future
+            self._finalize_it_system(uuid, ad_object)
+            self._finalize_user_addresses(uuid, ad_object)
+            return
+
+        # Sync the user, whether disabled or not
         if 'it_systems' in self.mapping:
             self._edit_it_system(uuid, ad_object)
 
