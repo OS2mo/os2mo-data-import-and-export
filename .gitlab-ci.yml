@@ -33,7 +33,6 @@ stages:
   image: python:3
   services: []
   before_script:
-    - apt-get install -y unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmysqlclient-dev
     - pip install -r integrations/requirements/lint.txt
   tags:
     - docker
@@ -43,12 +42,10 @@ Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
-    - python -m black --line-length 85 --check tests/* utils.py ad_template_engine.py
+    - python -m black --line-length 85 tests/* utils.py ad_template_engine.py
+    - apt-get update && apt-get install -y git
+    - git diff
     - python -m isort --check-only tests/* utils.py
-
-
-
-
 
 
 # Test stage
@@ -60,6 +57,7 @@ Lint AD Integration:
   image: python:3.5
   services: []
   before_script:
+    - apt-get update && apt-get install -y unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmysqlclient-dev
     - find . -name 'requirements.*' | grep -v venv/ | xargs -l1 pip install -r
     - pip install ./os2mo_data_import --upgrade
   tags:
