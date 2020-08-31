@@ -59,7 +59,6 @@ Lint AD Integration:
     - find . -name 'requirements.*' | grep -v venv/ | xargs -l1 pip install -r
     - pip install -r ./integrations/requirements/common.txt
     - pip install -r ./integrations/requirements/test.txt
-    - pip install -r ./integrations/requirements/lint.txt
     - pip install ./os2mo_data_import --upgrade
   tags:
     - docker
