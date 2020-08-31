@@ -8,7 +8,6 @@ import json
 import logging
 import pathlib
 
-
 from exporters.sql_export.sql_export import SqlExport
 from sqlalchemy import create_engine
 
