@@ -361,17 +361,25 @@ def export_to_essenslms(mh, all_nodes, filename):
                     else:
                         ou_role = f"{org_path}:User"
 
-                    row = {'name': employee['Navn'],
-                           'handle': f"{employee['User Key']}".lstrip('0'),
-                           'email': address['E-mail'] if 'E-mail' in address else '',
-                           'ou_roles': ou_role.replace("\\", "/"),
-                           'user_roles': 'Holstebro',
-                           'locale': 'da',
-                           'tmp_password': 'true',
-                           'password': 'abcd1234'
-                           }
+                    handle = f"{employee['User Key']}".lstrip('0')
 
-                    rows.append(row)
+                    # For essenslms, only add employees with key less than max value from settingsfile
+                    # if user key is not a digit, always add it.
+                    if not handle.isdigit() or int(handle) < SETTINGS['exports.holstebro.essenslms.max_user_key']:
+                        row = {'name': employee['Navn'],
+                               'handle': handle,
+                               'email': address['E-mail'] if 'E-mail' in address else '',
+                               'ou_roles': ou_role.replace("\\", "/"),
+                               'user_roles': 'Holstebro',
+                               'locale': 'da',
+                               'tmp_password': 'true',
+                               'password': 'abcd1234'
+                               }
+
+                        rows.append(row)
+                    else:
+                        logger.debug(
+                            f"User not exported to essenslms. Uuid and userkey: {uuid}, {handle}")
 
     my_options = {"extrasaction": "ignore",
                   "delimiter": ",",
