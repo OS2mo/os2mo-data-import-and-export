@@ -126,6 +126,7 @@ def mo_modifier(updates):
         function: A partially applied recursive_dict_update function, waiting
                   for the original to apply updates to.
     """
+
     def mo_mod(mo_values, *args, **kwargs):
         return recursive_dict_update(mo_values, updates=updates)
 
@@ -365,12 +366,19 @@ class TestADMixin(object):
 
 
 class TestADWriterMixin(TestADMixin):
-    def _setup_adwriter(self, late_transform_settings=None, transform_mo_values=None, early_transform_settings=None):
-        from integrations.ad_integration.read_ad_conf_settings import read_settings
+    def _setup_adwriter(
+        self,
+        late_transform_settings=None,
+        transform_mo_values=None,
+        early_transform_settings=None,
+    ):
+        from integrations.ad_integration.read_ad_conf_settings import \
+            read_settings
+
         transformer_func = late_transform_settings or _no_transformation
-        self.settings = transformer_func(read_settings(
-            self._prepare_settings(early_transform_settings)
-        ))
+        self.settings = transformer_func(
+            read_settings(self._prepare_settings(early_transform_settings))
+        )
         self.mo_values_func = partial(self._prepare_mo_values, transform_mo_values)
         self.ad_writer = ADWriterTestSubclass(
             all_settings=self.settings,
@@ -382,20 +390,18 @@ class AdMoSyncTestSubclass(AdMoSync):
     def __init__(
         self,
         mo_values_func,
-        mo_addresses_func,
         mo_e_username_func,
-        mo_engagements_func,
         ad_values_func,
+        mo_seed_func,
         *args,
         **kwargs
     ):
         super().__init__(*args, **kwargs)
         self.mo_values = mo_values_func()
-        self.mo_addresses = mo_addresses_func()
         self.ad_values = ad_values_func()
         self.e_username = mo_e_username_func()
-        self.engagements = mo_engagements_func()
 
+        self.mo_seed = mo_seed_func()
         self.mo_post_calls = []
 
     def _verify_it_systems(self):
@@ -403,12 +409,15 @@ class AdMoSyncTestSubclass(AdMoSync):
 
     def _setup_mora_helper(self):
         def _mo_lookup(uuid, url):
-            if url == "e/{}/details/address":
-                return self.mo_addresses
+            if url.startswith("e/{}/details/"):
+                slash_index = url.rfind("/")
+                parameters_index = url.rfind("?")
+                if parameters_index == -1:
+                    parameters_index = None
+                lookup_type = url[slash_index + 1 : parameters_index]
+                return self.mo_seed[lookup_type]
             elif url.startswith("o/{}/e?limit="):
                 return {"items": [self.mo_values]}
-            elif url.startswith("e/{}/details/engagement"):
-                return self.engagements
             else:
                 print("Outside mocking", url)
                 raise NotImplemented
@@ -459,18 +468,16 @@ class TestADMoSyncMixin(TestADMixin):
         self.settings = self._prepare_settings(ident)
         self.mo_values_func = partial(self._prepare_mo_values, ident)
         self.ad_values_func = partial(self._prepare_get_from_ad, ident)
-        self.mo_addresses_func = lambda: []
         self.mo_e_username_func = lambda: ""
-        self.mo_engagements_func = lambda: []
+        self.mo_seed_func = lambda: {}
 
     def _setup_admosync(
         self,
         transform_settings=None,
         transform_mo_values=None,
         transform_ad_values=None,
-        seed_mo_addresses=None,
         seed_e_username=None,
-        seed_engagements=None,
+        seed_mo=None,
     ):
         if transform_settings:
             self.settings = self._prepare_settings(transform_settings)
@@ -482,18 +489,15 @@ class TestADMoSyncMixin(TestADMixin):
             self.ad_values_func = partial(
                 self._prepare_get_from_ad, transform_ad_values
             )
-        if seed_mo_addresses:
-            self.mo_addresses_func = seed_mo_addresses
         if seed_e_username:
             self.mo_e_username_func = seed_e_username
-        if seed_engagements:
-            self.mo_engagements_func = seed_engagements
+        if seed_mo:
+            self.mo_seed_func = seed_mo
 
         self.ad_sync = AdMoSyncTestSubclass(
             all_settings=self.settings,
             mo_values_func=self.mo_values_func,
-            mo_addresses_func=self.mo_addresses_func,
             ad_values_func=self.ad_values_func,
             mo_e_username_func=self.mo_e_username_func,
-            mo_engagements_func=self.mo_engagements_func,
+            mo_seed_func=self.mo_seed_func,
         )
