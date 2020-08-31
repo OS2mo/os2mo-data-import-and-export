@@ -28,7 +28,7 @@ stages:
 ############
 
 .lint-python:
-  stage: test
+  stage: lint
   needs: []
   image: python:3
   services: []
@@ -49,8 +49,8 @@ Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
-    - python -m black --diff --line-length 85 --check tests/* utils.py
-    - python -m isort --diff --check-only tests/* utils.py
+    - python -m black --diff --line-length 85 --check tests/* utils.py ad_template_engine.py
+    - python -m isort --diff --check-only tests/* utils.py ad_template_engine.py
 
 
 Lint SetAlias Tool:
@@ -98,7 +98,10 @@ Test OS2Sync Integration:
   extends: .test-python
   script:
     - cp settings/kommune-andeby.json settings/settings.json
+<<<<<<< HEAD
     - export PYTHONPATH=$PWD:$PYTHONPATH
+=======
+>>>>>>> ad11557... [#35937] Rework _sync_compare and fix CI issues
     - python -m doctest integrations/os2sync/os2mo.py
 
 
