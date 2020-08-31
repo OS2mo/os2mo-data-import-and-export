@@ -35,7 +35,7 @@ class AdMoSync(object):
 
         self.settings = all_settings
         if self.settings is None:
-            self.settings = read_ad_conf_settings.read_settings()
+            self.settings = read_ad_conf_settings.SETTINGS
 
         self.mapping = self.settings['integrations.ad.ad_mo_sync_mapping']
 
