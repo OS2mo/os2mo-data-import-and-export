@@ -33,6 +33,7 @@ stages:
   image: python:3
   services: []
   before_script:
+    - apt-get install -y unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmysqlclient-dev
     - pip install -r integrations/requirements/lint.txt
   tags:
     - docker
