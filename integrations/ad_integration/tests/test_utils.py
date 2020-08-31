@@ -6,6 +6,7 @@ from random import choice, randint
 from unittest import TestCase
 
 import requests
+from integrations.ad_integration.read_ad_conf_settings import read_settings
 
 from ad_sync import AdMoSync
 from ad_writer import ADWriter
@@ -382,8 +383,6 @@ class TestADWriterMixin(TestADMixin):
         transform_mo_values=None,
         early_transform_settings=None,
     ):
-        from integrations.ad_integration.read_ad_conf_settings import read_settings
-
         transformer_func = late_transform_settings or _no_transformation
         self.settings = transformer_func(
             read_settings(self._prepare_settings(early_transform_settings))

@@ -1,6 +1,6 @@
 from jinja2 import Template
-from utils import dict_partition, duplicates, dict_map
 
+from utils import dict_map, dict_partition, duplicates
 
 # Parameters that should not be quoted
 no_quote_list = ["Credential"]
