@@ -1,6 +1,17 @@
+import time
+import uuid
+from datetime import datetime
+from functools import partial
+from random import choice, randint
 from unittest import TestCase
 
 import requests
+
+from ad_sync import AdMoSync
+from ad_writer import ADWriter
+from tests.name_simulator import create_name
+from user_names import CreateUserNames
+from utils import AttrDict, recursive_dict_update
 
 
 class MOTestMixin(object):
@@ -74,12 +85,6 @@ class MOTestCase(TestCase, MOTestMixin):
             self.skipTest(status)
 
 
-from ad_writer import ADWriter
-from user_names import CreateUserNames
-from functools import partial
-from utils import AttrDict, recursive_dict_update
-
-
 def dict_modifier(updates):
     """Wrapper around recursive_dict_update, which provides updates beforehand.
 
@@ -136,7 +141,9 @@ class ADWriterTestSubclass(ADWriter):
         self.scripts = []
         # Transformer for mo_values return
         self.read_ad_information_from_mo = read_ad_information_from_mo
-        self._find_unique_user = lambda cpr: read_ad_information_from_mo('')['sam_account_name']
+        self._find_unique_user = lambda cpr: read_ad_information_from_mo("")[
+            "sam_account_name"
+        ]
 
     def _init_name_creator(self):
         """Mocked to pretend no names are occupied.
@@ -183,18 +190,11 @@ class TestADMixin(object):
     default_person = None
 
     def _prepare_dynamic_person(self):
-        import uuid
-        from tests.name_simulator import create_name
-
         def random_date():
-            from datetime import datetime
-            from random import randint
-            import time
             unixtime = randint(1, int(time.time()))
-            return datetime.fromtimestamp(unixtime).strftime('%d%m%y')
+            return datetime.fromtimestamp(unixtime).strftime("%d%m%y")
 
         def random_digit():
-            from random import choice
             return choice("0123456789")
 
         def random_digits(num_digits):
@@ -233,28 +233,33 @@ class TestADMixin(object):
                 default_person = self._prepare_dynamic_person()
             # Add computed fields
             sam_account_name = CreateUserNames(occupied_names=set()).create_username(
-                list(default_person['name'])
+                list(default_person["name"])
             )[0]
-            default_person.update(**{
-                'full_name': " ".join(default_person["name"]),
-                "sam_account_name": sam_account_name,
-                "manager_sam": default_person["manager_name"][0],
-                "manager_email": default_person["manager_name"][0] + "@magenta.dk",
-            })
+            default_person.update(
+                **{
+                    "full_name": " ".join(default_person["name"]),
+                    "sam_account_name": sam_account_name,
+                    "manager_sam": default_person["manager_name"][0],
+                    "manager_email": default_person["manager_name"][0]
+                    + "@magenta.dk",
+                }
+            )
             # Add static fields
-            default_person.update(**{
-                "end_date": "2089-11-11",
-                "title": "Musiker",
-                "unit": "Enhed",
-                "unit_uuid": "101bd9aa-0101-0101-0101-0e6f41f6ebc0",
-                "unit_user_key": "Musik",
-                "unit_postal_code": "8210",
-                "unit_city": "Aarhus N",
-                "unit_streetname": "Fahrenheit 451",
-                "location": "Kommune\\Forvalting\\Enhed\\",
-                "level2orgunit": "Ingen",
-                "forvaltning": "Beskæftigelse, Økonomi & Personale",
-            })
+            default_person.update(
+                **{
+                    "end_date": "2089-11-11",
+                    "title": "Musiker",
+                    "unit": "Enhed",
+                    "unit_uuid": "101bd9aa-0101-0101-0101-0e6f41f6ebc0",
+                    "unit_user_key": "Musik",
+                    "unit_postal_code": "8210",
+                    "unit_city": "Aarhus N",
+                    "unit_streetname": "Fahrenheit 451",
+                    "location": "Kommune\\Forvalting\\Enhed\\",
+                    "level2orgunit": "Ingen",
+                    "forvaltning": "Beskæftigelse, Økonomi & Personale",
+                }
+            )
             transformer_func = person_transformer or _no_transformation
             self.default_person = transformer_func(default_person, *args, **kwargs)
         return self.default_person
@@ -262,15 +267,15 @@ class TestADMixin(object):
     def _prepare_mo_values(self, mo_values_transformer=None, *args, **kwargs):
         person = self._prepare_person()
         # Convert raw person data into mo_values data
-        person['name'] = [" ".join(person['name'][:-1]), person['name'][-1]]
-        person['manager_name'] = " ".join(person['manager_name'])
+        person["name"] = [" ".join(person["name"][:-1]), person["name"][-1]]
+        person["manager_name"] = " ".join(person["manager_name"])
 
-#        if not read_manager:
-#            del person['manager_name']
-#            del person['manager_sam']
-#            del person['manager_email']
-#            del person['manager_cpr']
-#           person["read_manager"] = False
+        #        if not read_manager:
+        #            del person['manager_name']
+        #            del person['manager_sam']
+        #            del person['manager_email']
+        #            del person['manager_cpr']
+        #           person["read_manager"] = False
 
         transformer_func = mo_values_transformer or _no_transformation
         return transformer_func(person, *args, **kwargs)
@@ -279,44 +284,48 @@ class TestADMixin(object):
         person = self._prepare_person()
         # Convert raw person data into ad_values data
         default_ad_person = {
-            'ObjectGUID': person['uuid'],
-            'SID': {
-                'AccountDomainSid': {
-                    'AccountDomainSid': 'S-x-x-xx-xxxxxxxxxx-xxxxxxxxxx-xxxxxxxxxx',
-                    'BinaryLength': 24,
-                    'Value': 'S-x-x-xx-xxxxxxxxxx-xxxxxxxxxx-xxxxxxxxxx'
+            "ObjectGUID": person["uuid"],
+            "SID": {
+                "AccountDomainSid": {
+                    "AccountDomainSid": "S-x-x-xx-xxxxxxxxxx-xxxxxxxxxx-xxxxxxxxxx",
+                    "BinaryLength": 24,
+                    "Value": "S-x-x-xx-xxxxxxxxxx-xxxxxxxxxx-xxxxxxxxxx",
                 },
-                'BinaryLength': 28,
-                'Value': 'S-x-x-xx-xxxxxxxxxx-xxxxxxxxxx-xxxxxxxxxx-xxxxx'
+                "BinaryLength": 28,
+                "Value": "S-x-x-xx-xxxxxxxxxx-xxxxxxxxxx-xxxxxxxxxx-xxxxx",
             },
-            'PropertyCount': 11,
-            'PropertyNames': [
-                'ObjectGUID',
-                'SID',
-                'DistinguishedName',
-                'Enabled',
-                'GivenName',
-                'Name',
-                'ObjectClass',
-                'SamAccountName',
-                'Surname',
-                'UserPrincipalName'
-                'extensionAttribute1',
+            "PropertyCount": 11,
+            "PropertyNames": [
+                "ObjectGUID",
+                "SID",
+                "DistinguishedName",
+                "Enabled",
+                "GivenName",
+                "Name",
+                "ObjectClass",
+                "SamAccountName",
+                "Surname",
+                "UserPrincipalName" "extensionAttribute1",
             ],
-            'DistinguishedName': 'CN=' + person['full_name'] + ',OU=' + person['unit'] + ',DC=lee',
-            'Enabled': True,
-            'GivenName': person['name'][:-1],
-            'Name': person["full_name"],
-            'ObjectClass': 'user',
-            'SamAccountName': person['sam_account_name'],
-            'GivenName': person['name'][-1:],
-            'UserPrincipalName': "_".join(person["full_name"]).lower() + '@magenta.dk',
-            'extensionAttribute1': person["cpr"],
-            'AddedProperties': [],
-            'ModifiedProperties': [],
-            'RemovedProperties': [],
+            "DistinguishedName": "CN="
+            + person["full_name"]
+            + ",OU="
+            + person["unit"]
+            + ",DC=lee",
+            "Enabled": True,
+            "GivenName": person["name"][:-1],
+            "Name": person["full_name"],
+            "ObjectClass": "user",
+            "SamAccountName": person["sam_account_name"],
+            "GivenName": person["name"][-1:],
+            "UserPrincipalName": "_".join(person["full_name"]).lower()
+            + "@magenta.dk",
+            "extensionAttribute1": person["cpr"],
+            "AddedProperties": [],
+            "ModifiedProperties": [],
+            "RemovedProperties": [],
         }
-        transformer_func = person_transformer or _no_transformation
+        transformer_func = ad_transformer or _no_transformation
         return transformer_func(default_ad_person, *args, **kwargs)
 
     def _prepare_settings(self, early_settings_transformer=None):
@@ -346,6 +355,10 @@ class TestADMixin(object):
             "integrations.ad.write.level2orgunit_type": "level2orgunit_type",
             "integrations.ad.cpr_field": "cpr_field",
             "integrations.ad.cpr_separator": "ad_cpr_sep",
+            "integrations.ad.ad_mo_sync_mapping": {},
+            "address.visibility.public": "address_visibility_public_uuid",
+            "address.visibility.internal": "address_visibility_internal_uuid",
+            "address.visibility.secret": "address_visibility_secret_uuid",
         }
         transformer_func = early_settings_transformer or _no_transformation
         return transformer_func(default_settings)
@@ -361,5 +374,126 @@ class TestADWriterMixin(TestADMixin):
         self.mo_values_func = partial(self._prepare_mo_values, transform_mo_values)
         self.ad_writer = ADWriterTestSubclass(
             all_settings=self.settings,
-            read_ad_information_from_mo=self.mo_values_func
+            read_ad_information_from_mo=self.mo_values_func,
+        )
+
+
+class AdMoSyncTestSubclass(AdMoSync):
+    def __init__(
+        self,
+        mo_values_func,
+        mo_addresses_func,
+        mo_e_username_func,
+        mo_engagements_func,
+        ad_values_func,
+        *args,
+        **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        self.mo_values = mo_values_func()
+        self.mo_addresses = mo_addresses_func()
+        self.ad_values = ad_values_func()
+        self.e_username = mo_e_username_func()
+        self.engagements = mo_engagements_func()
+
+        self.mo_post_calls = []
+
+    def _verify_it_systems(self):
+        pass
+
+    def _setup_mora_helper(self):
+        def _mo_lookup(uuid, url):
+            if url == "e/{}/details/address":
+                return self.mo_addresses
+            elif url.startswith("o/{}/e?limit="):
+                return {"items": [self.mo_values]}
+            elif url.startswith("e/{}/details/engagement"):
+                return self.engagements
+            else:
+                print("Outside mocking", url)
+                raise NotImplemented
+
+        def get_e_username(e_uuid, it_system):
+            return self.e_username
+
+        def _mo_post(url, payload, force=True):
+            # Register the call, so we can test against it
+            self.mo_post_calls.append(
+                {"url": url, "payload": payload, "force": force}
+            )
+            # response.text --> "OK"
+            return AttrDict({"text": "OK", "raise_for_status": lambda: None})
+
+        return AttrDict(
+            {
+                "read_organisation": lambda: "org_uuid",
+                "read_classes_in_facet": lambda x: [
+                    [
+                        {"uuid": "address_visibility_public_uuid"},
+                        {"uuid": "address_visibility_internal_uuid"},
+                        {"uuid": "address_visibility_secret_uuid"},
+                    ]
+                ],
+                "get_e_username": get_e_username,
+                "_mo_lookup": _mo_lookup,
+                "_mo_post": _mo_post,
+            }
+        )
+
+    def _setup_ad_reader_and_cache_all(self):
+        def read_user(cpr, cache_only):
+            # We only support one person in our mocking
+            if cpr != self.mo_values["cpr"]:
+                raise NotImplemented("Outside mocking")
+            # If we got that one person, return it
+            return self.ad_values
+
+        self.ad_reader = AttrDict({"read_user": read_user,})
+
+
+class TestADMoSyncMixin(TestADMixin):
+    def _initialize_configuration(self):
+        def ident(x, *args, **kwargs):
+            return x
+
+        self.settings = self._prepare_settings(ident)
+        self.mo_values_func = partial(self._prepare_mo_values, ident)
+        self.ad_values_func = partial(self._prepare_get_from_ad, ident)
+        self.mo_addresses_func = lambda: []
+        self.mo_e_username_func = lambda: ""
+        self.mo_engagements_func = lambda: []
+
+    def _setup_admosync(
+        self,
+        transform_settings=None,
+        transform_mo_values=None,
+        transform_ad_values=None,
+        seed_mo_addresses=None,
+        seed_e_username=None,
+        seed_engagements=None,
+    ):
+        if transform_settings:
+            self.settings = self._prepare_settings(transform_settings)
+        if transform_mo_values:
+            self.mo_values_func = partial(
+                self._prepare_mo_values, transform_mo_values
+            )
+        if transform_ad_values:
+            self.ad_values_func = partial(
+                self._prepare_get_from_ad, transform_ad_values
+            )
+        if seed_mo_addresses:
+            self.mo_addresses_func = seed_mo_addresses
+        if seed_e_username:
+            self.mo_e_username_func = seed_e_username
+        if seed_engagements:
+            self.mo_engagements_func = seed_engagements
+
+        self.ad_sync = AdMoSyncTestSubclass(
+            all_settings=self.settings,
+            mo_values_func=self.mo_values_func,
+            mo_addresses_func=self.mo_addresses_func,
+            ad_values_func=self.ad_values_func,
+            mo_e_username_func=self.mo_e_username_func,
+            mo_engagements_func=self.mo_engagements_func,
         )

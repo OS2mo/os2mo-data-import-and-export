@@ -8,6 +8,7 @@ import ad_logger
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
 
+from integrations.ad_integration import read_ad_conf_settings
 
 logger = logging.getLogger('AdSyncRead')
 
@@ -29,37 +30,20 @@ VALIDITY = {
 
 
 class AdMoSync(object):
-    def __init__(self):
+    def __init__(self, all_settings=None):
         logger.info('AD Sync Started')
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+
+        self.settings = all_settings
+        if self.settings is None:
+            self.settings = read_ad_conf_settings.SETTINGS
+
         self.mapping = self.settings['integrations.ad.ad_mo_sync_mapping']
 
-        self.helper = MoraHelper(hostname=self.settings['mora.base'],
-                                 use_cache=False)
+        self.helper = self._setup_mora_helper()
         self.org = self.helper.read_organisation()
 
-        if 'it_systems' in self.mapping:
-            mo_it_systems = self.helper.read_it_systems()
-
-            for it_system, it_system_uuid in self.mapping['it_systems'].items():
-                found = False
-                for mo_it_system in mo_it_systems:
-                    if mo_it_system['uuid'] == it_system_uuid:
-                        found = True
-                if not found:
-                    msg = '{} with uuid {}, not found in MO'
-                    raise Exception(msg.format(it_system, it_system_uuid))
-
-        skip_school = self.settings.get('integrations.ad.skip_school_ad_to_mo', True)
-        logger.info('Skip school domain: {}'.format(skip_school))
-        self.ad_reader = ad_reader.ADParameterReader(skip_school=skip_school)
-        print('Retrive AD dump')
-        self.ad_reader.cache_all()
-        print('Done')
-        logger.info('Done with AD caching')
+        self._verify_it_systems()
+        self._setup_ad_reader_and_cache_all()
 
         # Possibly get IT-system directly from LoRa for better performance.
         lora_speedup = self.settings.get(
@@ -102,6 +86,34 @@ class AdMoSync(object):
             'it_systems': 0,
             'users': set()
         }
+
+    def _verify_it_systems(self):
+        if 'it_systems' not in self.mapping:
+            return
+
+        mo_it_systems = self.helper.read_it_systems()
+
+        for it_system, it_system_uuid in self.mapping['it_systems'].items():
+            found = any(map(
+                lambda mo_it_system: mo_it_system['uuid'] == it_system_uuid,
+                mo_it_systems
+            ))
+            if not found:
+                msg = '{} with uuid {}, not found in MO'
+                raise Exception(msg.format(it_system, it_system_uuid))
+
+    def _setup_ad_reader_and_cache_all(self):
+        skip_school = self.settings.get('integrations.ad.skip_school_ad_to_mo', True)
+        logger.info('Skip school domain: {}'.format(skip_school))
+        self.ad_reader = ad_reader.ADParameterReader(skip_school=skip_school)
+        print('Retrive AD dump')
+        self.ad_reader.cache_all()
+        print('Done')
+        logger.info('Done with AD caching')
+
+    def _setup_mora_helper(self):
+        return MoraHelper(hostname=self.settings['mora.base'],
+                          use_cache=False)
 
     def _read_mo_classes(self):
         """

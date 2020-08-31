@@ -42,8 +42,8 @@ def _read_primary_ad_settings(top_settings):
     primary_settings['discriminator.field'] = top_settings.get('integrations.ad.discriminator.field')
     if primary_settings['discriminator.field'] is not None:
         # if we have a field we MUST have .values and .function
-        primary_settings['discriminator.values'] = SETTINGS['integrations.ad.discriminator.values']
-        primary_settings['discriminator.function'] = SETTINGS['integrations.ad.discriminator.function']
+        primary_settings['discriminator.values'] = top_settings['integrations.ad.discriminator.values']
+        primary_settings['discriminator.function'] = top_settings['integrations.ad.discriminator.function']
         if not primary_settings['discriminator.function'] in ["include", "exclude"]:
             raise ValueError("'ad.discriminator.function' must be include or exclude")
 
