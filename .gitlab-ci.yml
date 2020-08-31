@@ -57,7 +57,9 @@ Lint AD Integration:
   before_script:
     - apt-get update && apt-get install -y unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev-compat
     - find . -name 'requirements.*' | grep -v venv/ | xargs -l1 pip install -r
-    - find . -name 'requirements' | xargs find | grep -v venv/ | grep ".txt" | xargs -l1 pip install -r
+    - pip install -r ./integrations/requirements/common.txt
+    - pip install -r ./integrations/requirements/test.txt
+    - pip install -r ./integrations/requirements/lint.txt
     - pip install ./os2mo_data_import --upgrade
   tags:
     - docker
