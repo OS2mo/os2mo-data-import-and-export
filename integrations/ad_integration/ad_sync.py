@@ -450,20 +450,16 @@ class AdMoSync(object):
         if 'Enabled' not in ad_object:
             logger.info('{} not in ad_object'.format("Enabled"))
 
-        # Lookup whether or not to syncronize disabled users
-        sync_disabled = self.settings.get("integrations.ad.ad_mo_sync_disabled", True)
+        # Lookup whether or not to terminate disabled users
+        terminate_disabled = self.settings.get(
+            "integrations.ad.ad_mo_sync_terminate_disabled", False
+        )
         # Check whether the current user is disabled or not
         current_user_is_disabled = ad_object.get('Enabled', True) == False
-        if sync_disabled == False and current_user_is_disabled:
-            finalize_key = 'integrations.ad.ad_mo_sync_finalize_disabled' 
-            if finalize_key not in self.settings:
-                raise Exception("{} not in settings".format(finalize_key))
-            # If configured to finalize
-            if self.settings[finalize_key]:
-                # Set validity end --> today if in the future
-                self._finalize_it_system(uuid, ad_object)
-                self._finalize_user_addresses(uuid, ad_object)
-            # Otherwise do not do anything
+        if terminate_disabled and current_user_is_disabled:
+            # Set validity end --> today if in the future
+            self._finalize_it_system(uuid, ad_object)
+            self._finalize_user_addresses(uuid, ad_object)
             return
 
         # Sync the user, whether disabled or not
