@@ -59,8 +59,8 @@ Lint AD Integration:
   image: python:3.5
   services: []
   before_script:
+    - find . -name 'requirements.*' | grep -v venv/ | xargs -l1 pip install -r
     - pip install ./os2mo_data_import --upgrade
-    - pip install -r integrations/requirements/test.txt
   tags:
     - docker
 
