@@ -279,20 +279,15 @@ def is_ignored(unit, settings):
         Boolean
     """
 
-    if unit.get(
-        "org_unit_level"
-    ) and unit["org_unit_level"]["uuid"] in settings[
-        "OS2SYNC_IGNORED_UNIT_LEVELS"
-    ]:
-        return True
-    if unit.get(
-        "org_unit_type"
-    ) and unit["org_unit_type"]["uuid"] in settings[
-        "OS2SYNC_IGNORED_UNIT_TYPES"
-    ]:
-        return True
-
-    return False
+    return (
+        unit.get("org_unit_level") and unit["org_unit_level"]["uuid"] in settings[
+            "OS2SYNC_IGNORED_UNIT_LEVELS"
+        ]
+    ) or (
+        unit.get("org_unit_type") and unit["org_unit_type"]["uuid"] in settings[
+            "OS2SYNC_IGNORED_UNIT_TYPES"
+        ]
+    )
 
 
 def get_sts_orgunit(uuid):
