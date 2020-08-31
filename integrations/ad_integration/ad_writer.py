@@ -41,7 +41,6 @@ class ADWriter(AD):
         self.opts = dict(**kwargs)
 
         self.settings = self.all_settings
-        # self.pet = self.settings['integrations.ad.write.primary_types']
 
         self.lc = lc
         self.lc_historic = lc_historic
@@ -130,6 +129,8 @@ class ADWriter(AD):
         return ad_info
 
     def _find_unit_info(self, eng_org_unit):
+        write_settings = self._get_write_setting(False)
+
         level2orgunit = 'Ingen'
         unit_info = {}
         if self.lc:
@@ -142,9 +143,9 @@ class ADWriter(AD):
             parent_uuid = self.lc.units[eng_org_unit][0]['uuid']
             while parent_uuid is not None:
                 parent_unit = self.lc.units[parent_uuid][0]
-                if self.settings['integrations.ad.write.level2orgunit_type'] in (
-                        parent_unit['unit_type'],
-                        parent_unit['level']
+                if write_settings['level2orgunit_type'] in (
+                    parent_unit['unit_type'],
+                    parent_unit['level']
                 ):
                     level2orgunit = parent_unit['name']
                 parent_uuid = parent_unit['parent']
@@ -161,9 +162,9 @@ class ADWriter(AD):
                 current_level = current_unit['org_unit_level']
                 if current_level is None:
                     current_level = {'uuid': None}
-                if self.settings['integrations.ad.write.level2orgunit_type'] in (
-                        current_type['uuid'],
-                        current_level['uuid']
+                if write_settings['level2orgunit_type'] in (
+                    current_type['uuid'],
+                    current_level['uuid']
                 ):
                     level2orgunit = current_unit['name']
                 current_unit = current_unit['parent']
@@ -451,7 +452,7 @@ class ADWriter(AD):
             msg = 'Value for {} is None-type replace to string None'
             logger.debug(msg.format(ad_field))
             value = 'None'
-        if not ad.get(ad_field) == value:
+        if ad.get(ad_field) != value:
             msg = '{}: AD value: {}, does not match MO value: {}'
             logger.info(msg.format(ad_field, ad.get(ad_field), value))
             mismatch = {
@@ -484,11 +485,14 @@ class ADWriter(AD):
         mismatch.update(self._cf('EmployeeNumber',
                                  mo_values['employment_number'], ad))
 
-        named_sync_fields = self.settings.get(
-            'integrations.ad_writer.mo_to_ad_fields', {})
-
+        named_sync_fields = write_settings['mo_to_ad_fields']
         for mo_field, ad_field in named_sync_fields.items():
             mismatch.update(self._cf(ad_field, mo_values[mo_field], ad))
+
+        template_sync_fields = write_settings['template_to_ad_fields']
+        for ad_field, template in template_sync_fields.items():
+            # TODO: Evaluate field template here to find mo_value?
+            mismatch[ad_field] = (ad.get(ad_field), 'force_resync')
 
         if mo_values.get('manager_cpr'):
             manager_ad_info = self._find_ad_user(mo_values['manager_cpr'], ad_dump)
@@ -504,7 +508,8 @@ class ADWriter(AD):
         """
         school = False  # TODO
         mo_values = self.read_ad_information_from_mo(
-            mo_uuid, ad_dump=ad_dump, read_manager=sync_manager)
+            mo_uuid, ad_dump=ad_dump, read_manager=sync_manager
+        )
 
         if mo_values is None:
             return (False, 'No active engagments')
