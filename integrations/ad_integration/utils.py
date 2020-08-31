@@ -31,7 +31,7 @@ class LazyDict(Mapping):
 
     def is_initialized(self):
         """Check whether the LazyDict has already been initialized.
-        
+
         Returns:
             bool: Whether the LazyDict has run the initializer.
         """
@@ -39,7 +39,7 @@ class LazyDict(Mapping):
 
     def _run_initializer_if_required(self):
         """Helper method called on access to run initializer.
-        
+
         Throws ValueError if the LazyDict has no initializer configured.
         Throws ValueError if the LazyDict has already been initialized.
 
