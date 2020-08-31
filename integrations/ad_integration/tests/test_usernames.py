@@ -646,7 +646,7 @@ class TestUsernameCreation(unittest.TestCase):
         exception.
         """
         name_creator = user_names.CreateUserNames(occupied_names=set())
-        for i in range(0, 2500):
+        for i in range(0, 250):
             name = create_name()
             name_creator.create_username(name)
 
