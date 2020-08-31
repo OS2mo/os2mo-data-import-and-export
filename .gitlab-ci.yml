@@ -42,7 +42,7 @@ Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
-    - python -m black --line-length 85 --check tests/* utils.py
+    - python -m black --line-length 85 --check tests/* utils.py ad_template_engine.py
     - python -m isort --check-only tests/* utils.py
 
 

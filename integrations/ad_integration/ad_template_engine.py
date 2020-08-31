@@ -3,9 +3,7 @@ from utils import dict_partition, duplicates, dict_map
 
 
 # Parameters that should not be quoted
-no_quote_list = [
-    'Credential'
-]
+no_quote_list = ["Credential"]
 
 
 cmdlet_parameters = {
@@ -136,10 +134,7 @@ cmdlet_parameters = {
 }
 
 # These may never be emitted in other_attributes
-illegal_attributes = [
-    'Credential',
-    'Name'
-]
+illegal_attributes = ["Credential", "Name"]
 
 
 cmdlet_templates = {
@@ -327,6 +322,7 @@ def prepare_template(cmd, jinja_map, settings):
         if key.lower() in lower_list(no_quote_list):
             return value
         return '"{}"'.format(value)
+
     jinja_map = dict_map(quotes_wrap, jinja_map)
 
     # Partition rendered attributes by parameters and attributes

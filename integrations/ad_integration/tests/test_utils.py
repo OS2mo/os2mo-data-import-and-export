@@ -372,8 +372,7 @@ class TestADWriterMixin(TestADMixin):
         transform_mo_values=None,
         early_transform_settings=None,
     ):
-        from integrations.ad_integration.read_ad_conf_settings import \
-            read_settings
+        from integrations.ad_integration.read_ad_conf_settings import read_settings
 
         transformer_func = late_transform_settings or _no_transformation
         self.settings = transformer_func(
