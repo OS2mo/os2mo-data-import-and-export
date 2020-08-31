@@ -13,7 +13,6 @@ sys.path.append(dirname(__file__) + "/..")
 from test_utils import TestADMoSyncMixin, dict_modifier, mo_modifier
 
 
-
 def iso_date(date):
     return date.strftime("%Y-%m-%d")
 

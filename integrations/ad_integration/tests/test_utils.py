@@ -126,6 +126,7 @@ def mo_modifier(updates):
         function: A partially applied recursive_dict_update function, waiting
                   for the original to apply updates to.
     """
+
     def mo_mod(mo_values, *args, **kwargs):
         return recursive_dict_update(mo_values, updates=updates)
 
@@ -365,12 +366,19 @@ class TestADMixin(object):
 
 
 class TestADWriterMixin(TestADMixin):
-    def _setup_adwriter(self, late_transform_settings=None, transform_mo_values=None, early_transform_settings=None):
-        from integrations.ad_integration.read_ad_conf_settings import read_settings
+    def _setup_adwriter(
+        self,
+        late_transform_settings=None,
+        transform_mo_values=None,
+        early_transform_settings=None,
+    ):
+        from integrations.ad_integration.read_ad_conf_settings import \
+            read_settings
+
         transformer_func = late_transform_settings or _no_transformation
-        self.settings = transformer_func(read_settings(
-            self._prepare_settings(early_transform_settings)
-        ))
+        self.settings = transformer_func(
+            read_settings(self._prepare_settings(early_transform_settings))
+        )
         self.mo_values_func = partial(self._prepare_mo_values, transform_mo_values)
         self.ad_writer = ADWriterTestSubclass(
             all_settings=self.settings,
