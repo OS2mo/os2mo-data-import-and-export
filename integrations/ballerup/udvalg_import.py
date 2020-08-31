@@ -5,6 +5,9 @@ import logging
 import hashlib
 import requests
 import datetime
+import pathlib
+import json
+
 from anytree import Node
 from logging.handlers import RotatingFileHandler
 from chardet.universaldetector import UniversalDetector
@@ -13,6 +16,7 @@ INFO_LEVEL = 20
 LOG_FILE = 'udvalg.log'
 BASE_URL = 'http://localhost:5000/service/'
 CACHE = {}
+SESSION = None 
 
 logger = logging.getLogger()
 log_format = logging.Formatter(
@@ -28,12 +32,14 @@ activity_log_handler.setLevel(INFO_LEVEL)
 logger.addHandler(activity_log_handler)
 
 
+
+
 def _find_class(find_facet, find_class):
     if find_class in CACHE:
         return CACHE[find_class]
     uuid = None
     url = BASE_URL + 'o/{}/f/{}'
-    response = requests.get(url.format(ROOT, find_facet)).json()
+    response = SESSION.get(url.format(ROOT, find_facet)).json()
     for actual_class in response['data']['items']:
         if actual_class['name'] == find_class:
             uuid = actual_class['uuid']
@@ -46,13 +52,13 @@ def _mo_lookup(uuid, details=''):
         url = BASE_URL + 'e/{}'
     else:
         url = BASE_URL + 'e/{}/details/' + details
-    response = requests.get(url.format(uuid))
+    response = SESSION.get(url.format(uuid))
     return(response.json())
 
 
 def _find_org():
     url = BASE_URL + 'o'
-    response = requests.get(url).json()
+    response = SESSION.get(url).json()
     assert(len(response) == 1)
     uuid = response[0]['uuid']
     return(uuid)
@@ -60,12 +66,12 @@ def _find_org():
 
 def _search_mo_name(name, user_key):
     url = BASE_URL + 'o/{}/e?query={}'
-    response = requests.get(url.format(ROOT, name))
+    response = SESSION.get(url.format(ROOT, name))
     result = response.json()
     if len(result['items']) == 1:
         return result['items'][0]['uuid']
     # Did not succeed with simple search, try user_Key
-    response = requests.get(url.format(ROOT, user_key))
+    response = SESSION.get(url.format(ROOT, user_key))
     result = response.json()
     for employee in result['items']:
         uuid = employee['uuid']
@@ -127,7 +133,7 @@ def _create_mo_ou(name, parent, org_type, bvn):
 
     url = BASE_URL + 'ou/create'
     params = {'force': 1}
-    response = requests.post(url, json=payload, params=params)
+    response = SESSION.post(url, json=payload, params=params)
     uuid = response.json()
     return uuid
 
@@ -151,7 +157,7 @@ def _create_mo_association(user, org_unit, association_type, from_string):
         ]
         url = BASE_URL + 'details/create'
         params = {'force': 1}
-        response = requests.post(url, json=payload, params=params)
+        response = SESSION.post(url, json=payload, params=params)
         response.raise_for_status()
         uuid = response.json()
         return uuid
@@ -179,7 +185,7 @@ def _create_mo_role(user, org_unit, role_type, from_string):
         ]
         url = BASE_URL + 'details/create'
         params = {'force': 1}
-        response = requests.post(url, json=payload, params=params)
+        response = SESSION.post(url, json=payload, params=params)
         response.raise_for_status()
         uuid = response.json()
         return uuid
@@ -266,6 +272,16 @@ def create_tree(file_name):
 
 if __name__ == '__main__':
     logger.info('Program started')
+
+    settingsfile = pathlib.Path("settings") / "settings.json"
+    settings = json.loads(settingsfile.read_text())
+
+
+    SESSION = requests.Session()
+    if settings.get("crontab.SAML_TOKEN", None) is not None:
+        SESSION.headers["SESSION"] = settings["crontab.SAML_TOKEN"]
+
+
     ROOT = _find_org()
 
     orgtyper_file = '/opt/customer/dataimport/ballerup_udvalg/OrgTyper.csv'
