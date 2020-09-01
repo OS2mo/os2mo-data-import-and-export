@@ -221,6 +221,7 @@ def kle_to_orgunit(orgunit, kle):
 
     Example:
 
+        >>> import json
         >>> orgunit={}
         >>> kles = [
         ...     {'uuid': 1, 'kle_aspect': [{'scope': 'UDFOERENDE'}]},
@@ -230,9 +231,8 @@ def kle_to_orgunit(orgunit, kle):
         ...     ]}
         ... ]
         >>> kle_to_orgunit(orgunit, kles)
-        >>> orgunit
-        {'Tasks': [1, 3], 'ContactForTasks': [2, 3]}
-
+        >>> json.dumps(orgunit, sort_keys=True)
+        {'ContactForTasks': [2, 3], 'Tasks': [1, 3]}
 
     Args:
         orgunit: The organization unit to enrich with kle information.
