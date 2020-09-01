@@ -245,7 +245,7 @@ def kle_to_orgunit(orgunit, kle):
     contactfortasks = set()
 
     for k in kle:
-        uuid = k["uuid"]
+        uuid = k['kle_number']["uuid"]
         for a in k["kle_aspect"]:
             if a["scope"] == "UDFOERENDE":
                 tasks.add(uuid)
