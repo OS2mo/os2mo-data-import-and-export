@@ -5,10 +5,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-import requests
 import logging
-from integrations.os2sync import config
 
+import requests
+
+from integrations.os2sync import config
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
@@ -70,7 +71,8 @@ def has_kle():
     try:
         os2mo_get("{BASE}/o/{ORG}/f/kle_aspect")
         os2mo_get("{BASE}/o/{ORG}/f/kle_number")
-        os2mo_get("{BASE}/ou/" +
+        os2mo_get(
+            "{BASE}/ou/" +
             settings["OS2MO_TOP_UNIT_UUID"] +
             "/details/kle"
         )
@@ -123,6 +125,9 @@ def addresses_to_user(user, addresses):
         if a["address_type"]["scope"] == "DAR":
             user["Location"] = a["name"]
 
+    phones = sorted(phones, key=lambda phone: phone["uuid"])
+    emails = sorted(emails, key=lambda email: email["uuid"])
+
     # find phone using prioritized/empty list of address_type uuids
     phone = chose_visible_prioritized_address(
         phones,
@@ -141,7 +146,7 @@ def addresses_to_user(user, addresses):
 
 
 def engagements_to_user(user, engagements, allowed_unitids):
-    for e in engagements:
+    for e in sorted(engagements, key=lambda e: e["job_function"]["name"] + e["uuid"]):
         if e["org_unit"]["uuid"] in allowed_unitids:
             user["Positions"].append(
                 {
@@ -173,19 +178,6 @@ def get_sts_user(uuid, allowed_unitids):
     # show_all_details(uuid,"e")
     strip_truncate_and_warn(sts_user, sts_user)
     return sts_user
-
-
-def pruned_tree(uuids=[]):
-    retval = list(uuids)
-    for uuid in uuids:
-        parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
-        if not parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
-            while parent.get("parent"):
-                if parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
-                    break
-                retval.append(parent["uuid"])
-                parent = parent["parent"]
-    return retval
 
 
 def org_unit_uuids(**kwargs):
