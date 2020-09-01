@@ -207,6 +207,7 @@ class TestADMixin(object):
         dynamic_person = {
             "uuid": str(uuid.uuid4()),
             "name": create_name(),
+            "alias": create_name(),
             "cpr": gen_cpr(),
             "employment_number": random_digits(4),
             "read_manager": True,
@@ -219,6 +220,7 @@ class TestADMixin(object):
         static_person = {
             "uuid": "7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0",
             "name": ("Martin", "Lee", "Gore"),
+            "alias": ("Depeche", "Mode"),
             "employment_number": "101",
             "cpr": "1122334455",
             "read_manager": True,
@@ -269,6 +271,7 @@ class TestADMixin(object):
         person = self._prepare_person()
         # Convert raw person data into mo_values data
         person["name"] = [" ".join(person["name"][:-1]), person["name"][-1]]
+        person["alias"] = [" ".join(person["alias"][:-1]), person["alias"][-1]]
         person["manager_name"] = " ".join(person["manager_name"])
 
         #        if not read_manager:
