@@ -295,7 +295,8 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             },
         ]
         self.assertEqual(len(self.ad_sync.mo_post_calls), 3)
-        self.assertEqual(self.ad_sync.mo_post_calls, expected_sync)
+        for expected_block in expected_sync:
+            self.assertIn(expected_block, self.ad_sync.mo_post_calls)
 
     def _sync_itsystem_mapping_transformer(self):
         def add_sync_mapping(settings):
