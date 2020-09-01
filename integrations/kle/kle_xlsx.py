@@ -7,11 +7,12 @@ import xlsxwriter.worksheet
 
 from integrations.kle.kle_import_export import (
     KLEAnnotationIntegration,
-    Aspects, ASPECT_MAP)
+    Aspects,
+    ASPECT_MAP,
+)
 
 
 class KLEXLSXIntegration(KLEAnnotationIntegration, ABC):
-
     def __init__(self):
         super().__init__()
 
@@ -31,20 +32,14 @@ class KLEXLSXExporter(KLEXLSXIntegration):
     def get_org_unit_validation(column: str):
         return (
             '{0}1:{0}1048576'.format(column),
-            {
-                'validate': 'list',
-                'source': '=Org!$B$2:$B$1048576'
-            }
+            {'validate': 'list', 'source': '=Org!$B$2:$B$1048576'},
         )
 
     @staticmethod
     def get_kle_validation(column: str):
         return (
             '{0}1:{0}1048576'.format(column),
-            {
-                'validate': 'list',
-                'source': '=KLE!$C$2:$C$1048576'
-            }
+            {'validate': 'list', 'source': '=KLE!$C$2:$C$1048576'},
         )
 
     @staticmethod
@@ -55,10 +50,7 @@ class KLEXLSXExporter(KLEXLSXIntegration):
     def add_org_unit_sheet(self, workbook, org_units):
         worksheet = workbook.add_worksheet(name='Org')
 
-        rows = [
-            (org_unit['uuid'], org_unit['combined'])
-            for org_unit in org_units
-        ]
+        rows = [(org_unit['uuid'], org_unit['combined']) for org_unit in org_units]
 
         worksheet.set_column(0, 0, width=self.get_column_width(org_units, 'uuid'))
         worksheet.set_column(1, 1, width=self.get_column_width(org_units, 'combined'))
@@ -70,10 +62,7 @@ class KLEXLSXExporter(KLEXLSXIntegration):
     def add_kle_sheet(self, workbook: xlsxwriter.Workbook, kle_numbers: list):
         worksheet = workbook.add_worksheet(name='KLE')
 
-        rows = [
-            (kle['uuid'], kle['user_key'], kle['name'])
-            for kle in kle_numbers
-        ]
+        rows = [(kle['uuid'], kle['user_key'], kle['name']) for kle in kle_numbers]
 
         rows.insert(0, ('UUID', 'EmneNr', 'EmneTitel'))
 
@@ -93,15 +82,10 @@ class KLEXLSXExporter(KLEXLSXIntegration):
             """
             return str(kle_number.count('.') + 1)
 
-        rows = [
-            (kle['level'], kle['user_key'], kle['name'], '')
-            for kle in kle_numbers
-        ]
+        rows = [(kle['level'], kle['user_key'], kle['name'], '') for kle in kle_numbers]
         rows.insert(0, ('Niveau', 'EmneNr', 'EmneTitel', 'EnhedNavn'))
 
-        worksheet.data_validation(
-            *self.get_org_unit_validation(column='D')
-        )
+        worksheet.data_validation(*self.get_org_unit_validation(column='D'))
 
         worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers, 'user_key'))
         worksheet.set_column(2, 2, width=self.get_column_width(kle_numbers, 'name'))
@@ -113,17 +97,15 @@ class KLEXLSXExporter(KLEXLSXIntegration):
         for sheet_name in ['Indsigt', 'Udførende']:
             worksheet = workbook.add_worksheet(name=sheet_name)
 
-            rows = [
-                ('EnhedNavn', 'KLE')
-            ]
+            rows = [('EnhedNavn', 'KLE')]
 
             worksheet.data_validation(*self.get_org_unit_validation('A'))
             worksheet.data_validation(*self.get_kle_validation('B'))
 
-            worksheet.set_column(0, 0, width=self.get_column_width(org_units,
-                                                                   'combined'))
-            worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers,
-                                                                   'name'))
+            worksheet.set_column(
+                0, 0, width=self.get_column_width(org_units, 'combined')
+            )
+            worksheet.set_column(1, 1, width=self.get_column_width(kle_numbers, 'name'))
 
             self.write_rows(worksheet, rows)
 
@@ -157,8 +139,14 @@ class KLEXLSXExporter(KLEXLSXIntegration):
     def run(self):
         workbook = xlsxwriter.Workbook(self.xlsx_file)
 
-        org_units = sorted(self.convert_org_units(self.get_all_org_units_from_mo()), key=lambda x: x['name'])
-        kle = sorted(self.convert_kle_numbers(self.get_kle_classes_from_mo()), key=lambda x: x['user_key'])
+        org_units = sorted(
+            self.convert_org_units(self.get_all_org_units_from_mo()),
+            key=lambda x: x['name'],
+        )
+        kle = sorted(
+            self.convert_kle_numbers(self.get_kle_classes_from_mo()),
+            key=lambda x: x['user_key'],
+        )
 
         self.add_org_unit_sheet(workbook, org_units)
         self.add_kle_sheet(workbook, kle)
@@ -174,8 +162,16 @@ class KLEXLSXExporter(KLEXLSXIntegration):
 
 
 class KLEXLSXImporter(KLEXLSXIntegration):
-
-    def handle_sheet(self, sheet, org_unit_field, kle_field, data_map, org_unit_map, kle_map, kle_aspect):
+    def handle_sheet(
+        self,
+        sheet,
+        org_unit_field,
+        kle_field,
+        data_map,
+        org_unit_map,
+        kle_map,
+        kle_aspect,
+    ):
         for row in sheet.iterrows():
             index, data = row
 
@@ -210,7 +206,7 @@ class KLEXLSXImporter(KLEXLSXIntegration):
             data_map=data_map,
             org_unit_map=org_unit_map,
             kle_map=kle_map,
-            kle_aspect=Aspects.Ansvarlig
+            kle_aspect=Aspects.Ansvarlig,
         )
         self.handle_sheet(
             sheets['Indsigt'],
@@ -219,7 +215,7 @@ class KLEXLSXImporter(KLEXLSXIntegration):
             data_map=data_map,
             org_unit_map=org_unit_map,
             kle_map=kle_map,
-            kle_aspect=Aspects.Indsigt
+            kle_aspect=Aspects.Indsigt,
         )
         self.handle_sheet(
             sheets['Udførende'],
@@ -228,7 +224,7 @@ class KLEXLSXImporter(KLEXLSXIntegration):
             data_map=data_map,
             org_unit_map=org_unit_map,
             kle_map=kle_map,
-            kle_aspect=Aspects.Udfoerende
+            kle_aspect=Aspects.Udfoerende,
         )
 
         payloads = self.generate_payloads(data_map)

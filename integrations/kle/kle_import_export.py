@@ -10,10 +10,7 @@ import requests
 LOG_FILE = 'opgavefordeler.log'
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO,
-    filename=LOG_FILE
-)
+logging.basicConfig(level=logging.INFO, filename=LOG_FILE)
 
 
 class Aspects(Enum):
@@ -43,9 +40,7 @@ class KLEAnnotationIntegration(ABC):
         self.settings = json.loads(cfg_file.read_text())
 
         self.mora_base = self.settings.get("mora.base")
-        self.mora_session = self._get_mora_session(
-            token=os.environ.get("SAML_TOKEN")
-        )
+        self.mora_session = self._get_mora_session(token=os.environ.get("SAML_TOKEN"))
         self.org_uuid = self._get_mo_org_uuid()
 
     def _get_mora_session(self, token) -> requests.Session:
