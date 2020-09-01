@@ -6,20 +6,26 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-import requests
-import logging
-from integrations.os2sync import config
 import hashlib
 import json
+import logging
+
+import requests
+
+from integrations.os2sync import config
 
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
 hash_cache = {}
 session = requests.Session()
+
+
 if settings["OS2SYNC_API_URL"] == "stub":
     from integrations.os2sync import stub
     session = stub.Session()
+
+
 session.verify = settings["OS2SYNC_CA_BUNDLE"]
 session.headers = {
     "User-Agent": "os2mo-data-import-and-export",
@@ -28,9 +34,12 @@ session.headers = {
 
 
 def already_xferred(url, params, method):
-    params_hash = hashlib.sha224(
-        (json.dumps(params, sort_keys=True) + method).encode("utf-8")
-    ).hexdigest()
+    if settings["OS2SYNC_API_URL"] == "stub":
+        params_hash = params
+    else:
+        params_hash = hashlib.sha224(
+            (json.dumps(params, sort_keys=True) + method).encode("utf-8")
+        ).hexdigest()
     if hash_cache.get(url) == params_hash:
         return True
     else:
