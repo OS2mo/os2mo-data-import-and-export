@@ -11,6 +11,7 @@ import ad_logger
 import ad_templates
 
 from ad_template_engine import template_powershell
+from jinja2 import Template
 
 from integrations.ad_integration.ad_exceptions import CprNotNotUnique
 from integrations.ad_integration.ad_exceptions import UserNotFoundException
@@ -19,7 +20,8 @@ from integrations.ad_integration.ad_exceptions import ReplicationFailedException
 from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException
 from integrations.ad_integration.ad_exceptions import SamAccountNameNotUnique
 from integrations.ad_integration.ad_exceptions import (
-    ManagerNotUniqueFromCprException)
+    ManagerNotUniqueFromCprException
+)
 
 from ad_common import AD
 from user_names import CreateUserNames
@@ -470,6 +472,7 @@ class ADWriter(AD):
         user_ad_info = self._find_ad_user(mo_values['cpr'], ad_dump)
         assert(len(user_ad_info) == 1)
         ad = user_ad_info[0]
+        user_sam = ad['SamAccountName']
         # Todo: Why is this not generated along with all other info in mo_values?
         mo_values['name_sam'] = '{} - {}'.format(mo_values['full_name'],
                                                  ad['SamAccountName'])
@@ -491,8 +494,18 @@ class ADWriter(AD):
 
         template_sync_fields = write_settings['template_to_ad_fields']
         for ad_field, template in template_sync_fields.items():
-            # TODO: Evaluate field template here to find mo_value?
-            mismatch[ad_field] = (ad.get(ad_field), 'force_resync')
+            # Build context and render template to get comparision value
+            # NOTE: This results in rendering the template twice, once here and
+            #       once inside the powershell render call.
+            #       We should probably restructure this, such that we only render
+            #       the template once, potentially rendering a dict of results.
+            # TODO: Make the above mentioned change.
+            context = {
+                "mo_values": mo_values,
+                "user_sam": user_sam,
+            }
+            mo_result = Template(template).render(**context)
+            mismatch[ad_field] = (ad.get(ad_field), mo_result)
 
         if mo_values.get('manager_cpr'):
             manager_ad_info = self._find_ad_user(mo_values['manager_cpr'], ad_dump)

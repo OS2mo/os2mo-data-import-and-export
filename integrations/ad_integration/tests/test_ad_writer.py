@@ -391,6 +391,101 @@ class TestADWriter(TestCase, TestADWriterMixin):
         self.assertNotIn('"Name"="John"', edit_user_ps)
 
 
+
+    @parameterized.expand(
+        [
+            # Verify different employment numbers
+            [
+                dict_modifier({}),
+                mo_modifier({"employment_number": "267"}),
+                dict_modifier({}),
+            ],
+            [
+                dict_modifier({}),
+                mo_modifier({"employment_number": "42"}),
+                dict_modifier({}),
+            ],
+            # Test mo_to_ad_fields
+            [
+                dict_modifier({
+                    "integrations.ad_writer.mo_to_ad_fields": {"unit": "name"},
+                }),
+                mo_modifier({"employment_number": "42"}),
+                dict_modifier({
+                    "name": (None, "Enhed"),
+                }),
+            ],
+            [
+                dict_modifier({
+                    "integrations.ad_writer.mo_to_ad_fields": {
+                        "unit": "name",
+                        "employment_number": "extension_field2",
+                    },
+                }),
+                mo_modifier({"employment_number": "42"}),
+                dict_modifier({
+                    "name": (None, "Enhed"),
+                    "extension_field2": (None, "42"),
+                }),
+            ],
+            # Test template_to_ad_fields
+            [
+                dict_modifier({
+                    "integrations.ad_writer.template_to_ad_fields": {
+                        "adjusted_number": "{{ mo_values['employment_number']|int + 5 }}",
+                    },
+                }),
+                mo_modifier({"employment_number": "42"}),
+                dict_modifier({
+                    "adjusted_number": (None, "47"),
+                }),
+            ],
+            # Test template_to_ad_fields
+            [
+                dict_modifier({
+                    "integrations.ad_writer.template_to_ad_fields": {
+                        "adjusted_number": "{{ mo_values['employment_number']|int + 5 }}",
+                        "Enabled": "Invalid",
+                    },
+                }),
+                mo_modifier({
+                    "employment_number": "42",
+                }),
+                dict_modifier({
+                    "adjusted_number": (None, "47"),
+                    "Enabled": (True, "Invalid"),
+                }),
+            ],
+        ]
+    )
+    def test_sync_compare(
+        self, settings_transformer, mo_transformer, expected_transformer
+    ):
+        self._setup_adwriter(None, mo_transformer, settings_transformer)
+
+        uuid = "invalid-provided-and-accepted-due-to-mocking"
+        mo_values = self.ad_writer.read_ad_information_from_mo(uuid)
+        mo_values['manager_cpr'] = None
+        ad_values = self._prepare_get_from_ad(lambda x: x)
+
+        def find_ad_user(cpr, ad_dump):
+            return [ad_values]
+        self.ad_writer._find_ad_user = find_ad_user
+
+        mismatch = self.ad_writer._sync_compare(mo_values, None)
+        expected = {
+            'level2orgunit_field': (None, 'Ingen'),
+            'org_field': (None, 'Kommune\\Forvalting\\Enhed\\'),
+            'Name': (ad_values['Name'], mo_values['name_sam']),
+            'DisplayName': (None, " ".join(mo_values['name'])),
+            'GivenName': (ad_values['GivenName'], mo_values["name"][0]),
+            'Surname': (None, mo_values["name"][1]),
+            'EmployeeNumber': (None, mo_values['employment_number'])
+        }
+        expected = expected_transformer(expected)
+        self.assertEqual(mismatch, expected)
+
+
 #    def test_add_manager(self):
 #        user = self.ad_writer.read_ad_information_from_mo(uuid='0', read_manager=True)
 #
