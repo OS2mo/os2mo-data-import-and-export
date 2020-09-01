@@ -1,6 +1,7 @@
 import logging
-from integrations.os2sync.config import loggername
+import json
 
+from integrations.os2sync.config import loggername
 
 logger = logging.getLogger(loggername)
 
@@ -19,5 +20,5 @@ class Session:
         return self
 
     def post(self, *args, **kwargs):
-        logger.info("POST %r %r", args, kwargs)
+        logger.info("POST %r %r", args, json.dumps(kwargs))
         return self
