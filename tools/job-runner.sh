@@ -538,34 +538,6 @@ pre_truncate_logfiles(){
     [ -f "udvalg.log" ] && truncate -s 0 "udvalg.log" 
 }
 
-pre_backup(){
-    temp_report=$(mktemp)
-
-    # deduplicate
-    BACK_UP_BEFORE_JOBS=($(printf "%s\n" "${BACK_UP_BEFORE_JOBS[@]}" | sort -u))
-
-    for f in ${BACK_UP_BEFORE_JOBS[@]}
-    do
-        FILE_FAILED=false
-        # try to append to tar file and report if not found
-        tar -rf $BUPFILE "${f}" > ${temp_report} 2>&1 || FILE_FAILED=true
-        if [ "${FILE_FAILED}" = "true" ]; then
-            BACKUP_OK=false
-            run-job-log job pre-backup file ! job-status failed ! file $f
-            echo BACKUP ERROR
-            cat ${temp_report}
-        fi
-    done
-    rm ${temp_report}
-    declare -i age=$(stat -c%Y ${BUPFILE})-$(stat -c%Y ${SNAPSHOT_LORA})
-    if [[ ${age} -gt ${BACKUP_MAX_SECONDS_AGE} ]]; then
-        BACKUP_OK=false 
-        run-job-log job pre-backup lora ! job-status failed ! age $age
-        echo "ERROR database snapshot is more than ${BACKUP_MAX_SECONDS_AGE} seconds old: $age"
-	return 1
-    fi
-}
-
 post_backup(){
     temp_report=$(mktemp)
 
@@ -655,19 +627,6 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
             echo ${REASON}
         fi
 
-        if [ ! -n "${SVC_KEYTAB}" ]; then
-            REASON="WARNING: Service keytab not specified"
-            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-            echo ${REASON}
-        fi
-
-        if [ -n "${SVC_KEYTAB}" -a ! -f "${SVC_KEYTAB}" ]; then
-            REASON="FATAL: Service keytab not found"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
-            exit 2
-        fi
-
         if [ ! -n "${CRON_LOG_FILE}" ]; then
             REASON="FATAL: Cron log file not specified"
             run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
@@ -689,37 +648,13 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
             exit 2
         fi
 
-        if [ ! -f "${SNAPSHOT_LORA}" ]; then
-            REASON="FATAL: Database snapshot does not exist"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
-            exit 2
-        fi
-        if [ -n "${SVC_USER}" -a -n "${SVC_KEYTAB}" ]; then
-
-            [ -r "${SVC_KEYTAB}" ] || echo WARNING: cannot read keytab
-
-            kinit ${SVC_USER} -k -t ${SVC_KEYTAB} || (
-                REASON="WARNING: not able to refresh kerberos auth - authentication failure"
-                run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-                echo ${REASON}
-            )
-        else
-            REASON="WARNING: not able to refresh kerberos auth - username or keytab missing"
-            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-            echo ${REASON}
-        fi
-
         export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
-        pre_backup
         run-job imports && IMPORTS_OK=true
         run-job exports && EXPORTS_OK=true
         run-job reports && REPORTS_OK=true
         echo
         show_status
-        post_backup
-        show_status post_backup > ${CRON_LOG_FILE}_status
     ) > ${CRON_LOG_FILE} 2>&1
 
     # write directly on stdout for mail-log
@@ -734,5 +669,5 @@ elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
     fi
 elif [ "${JOB_RUNNER_MODE}" == "sourced" ]; then
     # export essential functions
-    export -f pre_backup post_backup reports_opus_db_overview reports_sd_db_overview
+    export -f post_backup reports_opus_db_overview reports_sd_db_overview
 fi
