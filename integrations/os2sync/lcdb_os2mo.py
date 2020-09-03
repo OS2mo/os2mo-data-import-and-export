@@ -111,11 +111,47 @@ def get_top_unit(session, lc_enhed):
     return top_unit
 
 
+def is_ignored(unit, settings):
+    """Determine if unit should be left out of transfer
+
+    Example:
+        >>> from unittest.mock import Mock
+        >>> unit=Mock(enhedsniveau_uuid="1", enhedstype_uuid="2")
+        >>> settings={
+        ... "OS2SYNC_IGNORED_UNIT_LEVELS": ["10","2"],
+        ... "OS2SYNC_IGNORED_UNIT_TYPES":['6','7']}
+        >>> is_ignored(unit, settings)
+        False
+        >>> unit.enhedstype_uuid="6"
+        >>> is_ignored(unit, settings)
+        True
+        >>> unit.enhedstype_uuid="2"
+        >>> is_ignored(unit, settings)
+        False
+        >>> unit.enhedsniveau_uuid="2"
+        >>> is_ignored(unit, settings)
+        True
+
+    Args:
+        unit: The organization unit to enrich with kle information.
+        settings: a dictionary
+
+    Returns:
+        Boolean
+    """
+
+    return (
+        unit.enhedstype_uuid in settings["OS2SYNC_IGNORED_UNIT_TYPES"] or
+        unit.enhedsniveau_uuid in settings["OS2SYNC_IGNORED_UNIT_LEVELS"])
+
+
 def get_sts_orgunit(session, uuid):
     base = session.query(Enhed).filter(Enhed.uuid == uuid).one()
 
-    top_unit = get_top_unit(session, base)
+    if is_ignored(base, settings):
+        return None
 
+    top_unit = get_top_unit(session, base)
     if top_unit != settings["OS2MO_TOP_UNIT_UUID"]:
         # not part of right tree
         return None
@@ -152,13 +188,8 @@ def get_sts_orgunit(session, uuid):
     lc_kles = session.query(KLE).filter(KLE.enhed_uuid == uuid).all()
     for lc_kle in lc_kles:
         mokles.setdefault(lc_kle.uuid, {
-            "kle_aspect": [],
-            "kle_number":{
-                "uuid": lc_kle.kle_nummer_uuid,
-                # only correct when used for sorting  
-                # and I only use it for that
-                "user_key": lc_kle.kle_nummer_titel
-            }
+            "uuid": lc_kle.uuid,
+            "kle_aspect": []
         })
         mokles[lc_kle.uuid]["kle_aspect"].append(
             {"scope": scope_to_scope[lc_kle.kle_aspekt_titel]}

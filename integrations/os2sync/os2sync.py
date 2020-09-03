@@ -14,18 +14,13 @@ import requests
 
 from integrations.os2sync import config
 
-
 settings = config.settings
 logger = logging.getLogger(config.loggername)
 hash_cache = {}
 session = requests.Session()
-
-
 if settings["OS2SYNC_API_URL"] == "stub":
     from integrations.os2sync import stub
     session = stub.Session()
-
-
 session.verify = settings["OS2SYNC_CA_BUNDLE"]
 session.headers = {
     "User-Agent": "os2mo-data-import-and-export",

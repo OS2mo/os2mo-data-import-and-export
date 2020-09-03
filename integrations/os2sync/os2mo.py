@@ -146,7 +146,10 @@ def addresses_to_user(user, addresses):
 
 
 def engagements_to_user(user, engagements, allowed_unitids):
-    for e in sorted(engagements, key=lambda e: e["job_function"]["name"] + e["uuid"]):
+    for e in sorted(
+        engagements,
+        key=lambda e: e["job_function"]["name"] + e["uuid"]
+    ):
         if e["org_unit"]["uuid"] in allowed_unitids:
             user["Positions"].append(
                 {
@@ -208,23 +211,22 @@ def addresses_to_orgunit(orgunit, addresses):
 def kle_to_orgunit(orgunit, kle):
     """Collect kle uuids according to kle_aspect.
 
-    All aspects go to 'tasks' see mail in #29537#38
+    * Aspect "Udførende" goes into "Tasks"
+    * Aspect "Ansvarlig" goes into "ContactForTasks"
 
     Example:
 
         >>> orgunit={}
         >>> kles = [
-        ...     {'kle_aspect': [{'scope': 'UDFOERENDE'
-        ...     }], 'kle_number':{'uuid':'1', 'user_key': 'A'}},
-        ...     {'kle_aspect': [{'scope': 'ANSVARLIG'
-        ...     }], 'kle_number':{'uuid':'2', 'user_key':'C'}},
-        ...     {'kle_aspect': [
-        ...         {'scope': 'ANSVARLIG'},{'scope': 'UDFOERENDE'}
-        ...     ], 'kle_number':{'uuid':'3', 'user_key': 'B'}}
+        ...     {'uuid': 1, 'kle_aspect': [{'scope': 'UDFOERENDE'}]},
+        ...     {'uuid': 2, 'kle_aspect': [{'scope': 'ANSVARLIG'}]},
+        ...     {'uuid': 3, 'kle_aspect': [{'scope': 'ANSVARLIG'},
+        ...                                {'scope': 'UDFOERENDE'}
+        ...     ]}
         ... ]
         >>> kle_to_orgunit(orgunit, kles)
         >>> orgunit
-        {'Tasks': ['1', '3', '2']}
+        {'Tasks': [1, 3], 'ContactForTasks': [2, 3]}
 
 
     Args:
@@ -234,28 +236,65 @@ def kle_to_orgunit(orgunit, kle):
     Returns:
         None
     """
-    tasks = []
-    # contactfortasks = []
+    tasks = set()
+    contactfortasks = set()
 
-    for k in sorted(kle, key=lambda k: k['kle_number']['user_key']):
-        uuid = k['kle_number']["uuid"]
+    for k in kle:
+        uuid = k["uuid"]
         for a in k["kle_aspect"]:
-            if not uuid in tasks:
-                tasks.append(uuid)
-            # if a["scope"] == "UDFOERENDE":
-            #    tasks.append(uuid)
-            # elif a["scope"] == "ANSVARLIG":
-            #    contactfortasks.append(uuid)
+            if a["scope"] == "UDFOERENDE":
+                tasks.add(uuid)
+            elif a["scope"] == "ANSVARLIG":
+                contactfortasks.add(uuid)
 
     if len(tasks):
-        orgunit["Tasks"] = tasks
+        orgunit["Tasks"] = list(sorted(tasks))
 
-    # if len(contactfortasks):
-    #     orgunit["ContactForTasks"] = contactfortasks
+    if len(contactfortasks):
+        orgunit["ContactForTasks"] = list(sorted(contactfortasks))
+
+
+def is_ignored(unit, settings):
+    """Determine if unit should be left out of transfer
+
+    Example:
+        >>> settings={
+        ... "OS2SYNC_IGNORED_UNIT_LEVELS": ["10","2"],
+        ... "OS2SYNC_IGNORED_UNIT_TYPES":['6','7']}
+        >>> unit={"org_unit_level":{"uuid":"1"}, "org_unit_type":{"uuid":"5"}}
+        >>> is_ignored(unit, settings)
+        False
+        >>> unit={"org_unit_level":{"uuid":"2"}, "org_unit_type":{"uuid":"5"}}
+        >>> is_ignored(unit, settings)
+        True
+        >>> unit={"org_unit_level":{"uuid":"1"}, "org_unit_type":{"uuid":"6"}}
+        >>> is_ignored(unit, settings)
+        True
+
+    Args:
+        unit: The organization unit to enrich with kle information.
+        settings: a dictionary
+
+    Returns:
+        Boolean
+    """
+
+    return (
+        unit.get("org_unit_level") and unit["org_unit_level"]["uuid"] in settings[
+            "OS2SYNC_IGNORED_UNIT_LEVELS"
+        ]
+    ) or (
+        unit.get("org_unit_type") and unit["org_unit_type"]["uuid"] in settings[
+            "OS2SYNC_IGNORED_UNIT_TYPES"
+        ]
+    )
 
 
 def get_sts_orgunit(uuid):
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
+
+    if is_ignored(base, settings):
+        return None
 
     if not parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
         while parent.get("parent"):
