@@ -240,7 +240,10 @@ class LoraCache(object):
                     continue
                 reg = effect[2]
                 cpr = reg['relationer']['tilknyttedepersoner'][0]['urn'][-10:]
+                egenskaber = reg['attributter']['brugeregenskaber'][0]
                 udv = reg['attributter']['brugerudvidelser'][0]
+
+                user_key = egenskaber.get('brugervendtnoegle', '')
                 fornavn = udv.get('fornavn', '')
                 efternavn = udv.get('efternavn', '')
                 kaldenavn_fornavn = udv.get('kaldenavn_fornavn', '')
@@ -249,6 +252,7 @@ class LoraCache(object):
                     {
                         'uuid': uuid,
                         'cpr': cpr,
+                        'user_key': user_key,
                         'fornavn': fornavn,
                         'efternavn': efternavn,
                         'navn': '{} {}'.format(fornavn, efternavn),

@@ -25,6 +25,7 @@ class Bruger(Base):
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
+    bvn = Column(String(250), nullable=False)
     fornavn = Column(String(250), nullable=True)
     efternavn = Column(String(250), nullable=True)
     kaldenavn_fornavn = Column(String(250), nullable=True)
