@@ -25,6 +25,8 @@ settings = {
         "OS2SYNC_MUNICIPALITY": top_settings["municipality.cvr"],
         "OS2SYNC_XFER_CPR": top_settings["os2sync.xfer_cpr"],
         "OS2SYNC_USE_LC_DB": top_settings.get("os2sync.use_lc_db", False),
+        "OS2SYNC_IGNORED_UNIT_LEVELS": top_settings.get("os2sync.ignored.unit_levels",[]),
+        "OS2SYNC_IGNORED_UNIT_TYPES": top_settings.get("os2sync.ignored.unit_types",[]),
 }
 logformat = '%(levelname)s %(asctime)s %(name)s %(message)s'
 loggername = "os2sync"
