@@ -152,7 +152,7 @@ def get_sts_orgunit(session, uuid):
     lc_kles = session.query(KLE).filter(KLE.enhed_uuid == uuid).all()
     for lc_kle in lc_kles:
         mokles.setdefault(lc_kle.uuid, {
-            "kle_aspect": []
+            "kle_aspect": [],
             "kle_number":{
                 "uuid": lc_kle.kle_nummer_uuid,
                 # only correct when used for sorting  
