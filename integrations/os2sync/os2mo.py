@@ -216,22 +216,23 @@ def addresses_to_orgunit(orgunit, addresses):
 def kle_to_orgunit(orgunit, kle):
     """Collect kle uuids according to kle_aspect.
 
-    * Aspect "Udførende" goes into "Tasks"
-    * Aspect "Ansvarlig" goes into "ContactForTasks"
+    All aspects go to 'tasks' see mail in #29537#38
 
     Example:
 
         >>> orgunit={}
         >>> kles = [
-        ...     {'uuid': 1, 'kle_aspect': [{'scope': 'UDFOERENDE'}]},
-        ...     {'uuid': 2, 'kle_aspect': [{'scope': 'ANSVARLIG'}]},
-        ...     {'uuid': 3, 'kle_aspect': [{'scope': 'ANSVARLIG'},
-        ...                                {'scope': 'UDFOERENDE'}
-        ...     ]}
+        ...     {'kle_aspect': [{'scope': 'UDFOERENDE'
+        ...     }], 'kle_number':{'uuid':'1', 'user_key': 'A'}},
+        ...     {'kle_aspect': [{'scope': 'ANSVARLIG'
+        ...     }], 'kle_number':{'uuid':'2', 'user_key':'C'}},
+        ...     {'kle_aspect': [
+        ...         {'scope': 'ANSVARLIG'},{'scope': 'UDFOERENDE'}
+        ...     ], 'kle_number':{'uuid':'3', 'user_key': 'B'}}
         ... ]
         >>> kle_to_orgunit(orgunit, kles)
         >>> orgunit
-        {'Tasks': [1, 3], 'ContactForTasks': [2, 3]}
+        {'Tasks': ['1', '3', '2']}
 
 
     Args:
@@ -241,22 +242,24 @@ def kle_to_orgunit(orgunit, kle):
     Returns:
         None
     """
-    tasks = set()
-    contactfortasks = set()
+    tasks = []
+    # contactfortasks = []
 
-    for k in kle:
+    for k in sorted(kle, key=lambda k: k['kle_number']['user_key']):
         uuid = k['kle_number']["uuid"]
         for a in k["kle_aspect"]:
-            if a["scope"] == "UDFOERENDE":
-                tasks.add(uuid)
-            elif a["scope"] == "ANSVARLIG":
-                contactfortasks.add(uuid)
+            if not uuid in tasks:
+                tasks.append(uuid)
+            # if a["scope"] == "UDFOERENDE":
+            #    tasks.append(uuid)
+            # elif a["scope"] == "ANSVARLIG":
+            #    contactfortasks.append(uuid)
 
     if len(tasks):
-        orgunit["Tasks"] = list(tasks)
+        orgunit["Tasks"] = tasks
 
-    if len(contactfortasks):
-        orgunit["ContactForTasks"] = list(contactfortasks)
+    # if len(contactfortasks):
+    #     orgunit["ContactForTasks"] = contactfortasks
 
 
 def get_sts_orgunit(uuid):
