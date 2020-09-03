@@ -208,3 +208,14 @@ class Kvittering(Base):
     query_tid = Column(DateTime)
     start_levering_tid = Column(DateTime)
     slut_levering_tid = Column(DateTime)
+
+
+class Enhedssammenkobling(Base):
+    __tablename__ = "enhedssammenkobling"
+
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
+    enhed1_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
+    enhed2_uuid  = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
+    startdato = Column(String(10))
+    slutdato = Column(String(10))

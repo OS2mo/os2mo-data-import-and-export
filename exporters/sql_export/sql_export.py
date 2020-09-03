@@ -16,7 +16,7 @@ from exporters.sql_export.sql_table_defs import (
     Bruger, Enhed,
     ItSystem, LederAnsvar, KLE,
     Adresse, Engagement, Rolle, Tilknytning, Orlov, ItForbindelse, Leder,
-    Kvittering
+    Kvittering, Enhedssammenkobling
 )
 
 LOG_LEVEL = logging.DEBUG
@@ -105,6 +105,7 @@ class SqlExport(object):
         self._add_managers()
         self._add_it_systems()
         self._add_kles()
+        self._add_related()
 
         end_delivery_time = timestamp()
         self._add_receipt(query_time, start_delivery_time, end_delivery_time)
@@ -380,6 +381,24 @@ class SqlExport(object):
         self.session.commit()
         if output:
             for result in self.engine.execute('select * from kvittering limit 10'):
+                print(result.items())
+
+    def _add_related(self, output=False):
+        logger.info('Add Enhedssammenkobling')
+        print('Add Enhedssammenkobling')
+        for related, related_validity in self.lc.related.items():
+            for related_info in related_validity:
+                sql_related = Enhedssammenkobling(
+                    uuid=related,
+                    enhed1_uuid=related_info['unit1_uuid'],
+                    enhed2_uuid=related_info['unit2_uuid'],
+                    startdato=related_info['from_date'],
+                    slutdato=related_info['to_date']
+                )
+                self.session.add(sql_related)
+        self.session.commit()
+        if output:
+            for result in self.engine.execute('select * from enhedssammenkobling limit 10'):
                 print(result.items())
 
     def _add_managers(self, output=False):
