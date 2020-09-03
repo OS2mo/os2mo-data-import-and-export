@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import re
 import json
 import time
@@ -35,6 +36,89 @@ def _random_password(length=12):
     return password
 
 
+class MODataSource(ABC):
+
+    @abstractmethod
+    def read_user(self, uuid):
+        """Read a user from MO using the provided uuid.
+
+        Throws UserNotFoundException if the user cannot be found.
+
+        Args:
+            uuid: UUID for the user to lookup.
+
+        Returns:
+            dict: A dict with the users data.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_email_address(self, uuid):
+        """Read a users email address using the provided uuid.
+
+        Args:
+            uuid: UUID for the user to lookup.
+
+        Returns:
+            dict: A dict of email address, potentially empty.
+        """
+        raise NotImplementedError
+
+
+class LoraCacheSource(MODataSource):
+    """LoraCache implementation of the MODataSource interface."""
+
+    def __init__(self, lc, lc_historic):
+        self.lc = lc
+        self.lc_historic = lc_historic
+
+    def read_user(self, uuid):
+        if uuid not in self.lc.users:
+            raise UserNotFoundException()
+
+        lc_user = self.lc.users[uuid][0]
+        mo_user = {
+            'uuid': uuid,
+            'name': lc_user['navn'],
+            'surname': lc_user['efternavn'],
+            'givenname': lc_user['fornavn'],
+            'alias': lc_user['kaldenavn'],
+            'alias_givenname': lc_user['kaldenavn_fornavn'],
+            'alias_surname': lc_user['kaldenavn_efternavn'],
+            'cpr_no': lc_user['cpr']
+        }
+
+        return mo_user
+
+    def get_email_address(self, uuid):
+        mail_dict = {}
+        for addr in self.lc.addresses.values():
+            if addr[0]['user'] == uuid:
+                mail_dict = addr[0]
+        return mail_dict
+
+
+class MORESTSource(MODataSource):
+    """MO REST implementation of the MODataSource interface."""
+
+    def __init__(self, settings):
+        self.helper = MoraHelper(
+            hostname=settings['global']['mora.base'], use_cache=False
+        )
+
+    def read_user(self, uuid):
+        mo_user = self.helper.read_user(user_uuid=uuid)
+        if 'uuid' not in mo_user:
+            raise UserNotFoundException()
+        else:
+            assert(mo_user['uuid'] == uuid)
+        return mo_user
+
+    def get_email_address(self, uuid):
+        mail_dict = self.helper.get_e_address(uuid, scope='EMAIL')
+        return mail_dict
+
+
 class ADWriter(AD):
     def __init__(self, lc=None, lc_historic=None, **kwargs):
         super().__init__(**kwargs)
@@ -43,11 +127,21 @@ class ADWriter(AD):
         self.settings = self.all_settings
         # self.pet = self.settings['integrations.ad.write.primary_types']
 
+        # Setup datasource for getting MO data.
+        # TODO: Create a factory instead of this hackery?
+        # Default to using MORESTSource as data source
+        self.datasource = MORESTSource(self.settings)
+        # Use LoraCacheSource if LoraCache is provided
+        if lc:
+            self.datasource = LoraCacheSource(lc, lc_historic)
+        # NOTE: These should be eliminated when all uses are gone
+        # NOTE: Once fully utilized, tests should be able to just implement a
+        #       MODataSource for all their mocking needs.
         self.lc = lc
         self.lc_historic = lc_historic
-
         self.helper = MoraHelper(hostname=self.settings['global']['mora.base'],
                                  use_cache=False)
+
         self._init_name_creator()
 
     def _init_name_creator(self):
@@ -92,25 +186,7 @@ class ADWriter(AD):
         logger.info('replication_finished: {}s'.format(time.time() - t_start))
 
     def _read_user(self, uuid):
-        if self.lc:
-            if uuid not in self.lc.users:
-                raise UserNotFoundException()
-
-            lc_user = self.lc.users[uuid]
-            mo_user = {
-                'uuid': uuid,
-                'name': lc_user['navn'],
-                'surname': lc_user['efternavn'],
-                'givenname': lc_user['fornavn'],
-                'cpr_no': lc_user['cpr']
-            }
-        else:
-            mo_user = self.helper.read_user(user_uuid=uuid)
-            if 'uuid' not in mo_user:
-                raise UserNotFoundException()
-            else:
-                assert(mo_user['uuid'] == uuid)
-        return mo_user
+        return self.datasource.read_user(uuid)
 
     def _find_ad_user(self, cpr, ad_dump):
         ad_info = []
@@ -378,14 +454,7 @@ class ADWriter(AD):
             manager_info['name'] = mo_manager_user['name']
             manager_info['cpr'] = mo_manager_user['cpr_no']
 
-            if self.lc:
-                manager_mail_dict = {}
-                for addr in self.lc.addresses.values():
-                    if addr[0]['user'] == manager_uuid:
-                        manager_mail_dict = addr[0]
-            else:
-                manager_mail_dict = self.helper.get_e_address(manager_uuid,
-                                                              scope='EMAIL')
+            manager_mail_dict = self.datasource.get_email_address(manager_uuid)
             if manager_mail_dict:
                 manager_info['mail'] = manager_mail_dict['value']
 
