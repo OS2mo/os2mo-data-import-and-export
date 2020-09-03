@@ -742,6 +742,41 @@ class LoraCache(object):
                     )
         return kles
 
+    def _cache_lora_related(self):
+        params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Relateret Enhed'}
+        url = '/organisation/organisationfunktion'
+        related_list = self._perform_lora_lookup(url, params)
+        related = {}
+        for relate in related_list:
+            uuid = relate['id']
+            related[uuid] = []
+
+            relevant = {
+                'relationer': ('tilknyttedeenheder',),
+                'attributter': ()
+            }
+
+            effects = self._get_effects(relate, relevant)
+            for effect in effects:
+                from_date, to_date = self._from_to_from_effect(effect)
+                if from_date is None and to_date is None:
+                    continue
+
+                rel = effect[2]['relationer']
+                unit1_uuid = rel['tilknyttedeenheder'][0]['uuid']
+                unit2_uuid = rel['tilknyttedeenheder'][1]['uuid']
+
+                related[uuid].append(
+                    {
+                        'uuid': uuid,
+                        'unit1_uuid': unit1_uuid,
+                        'unit2_uuid': unit2_uuid,
+                        'from_date': from_date,
+                        'to_date': to_date
+                    }
+                )
+        return related
+
     def _cache_lora_managers(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Leder'}
         url = '/organisation/organisationfunktion'
@@ -902,6 +937,7 @@ class LoraCache(object):
             itsystems_file = 'tmp/itsystems_historic.p'
             it_connections_file = 'tmp/it_connections_historic.p'
             kles_file = 'tmp/kles_historic.p'
+            related_file = 'tmp/related_historic.p'
         else:
             facets_file = 'tmp/facets.p'
             classes_file = 'tmp/classes.p'
@@ -916,6 +952,7 @@ class LoraCache(object):
             itsystems_file = 'tmp/itsystems.p'
             it_connections_file = 'tmp/it_connections.p'
             kles_file = 'tmp/kles.p'
+            related_file = 'tmp/related.p'
 
         if dry_run:
             logger.info('LoRa cache dry run - no actual read')
@@ -948,6 +985,8 @@ class LoraCache(object):
                 self.it_connections = pickle.load(f)
             with open(kles_file, 'rb') as f:
                 self.kles = pickle.load(f)
+            with open(related_file, 'rb') as f:
+                self.related = pickle.load(f)
             return
 
         t = time.time()
@@ -1051,6 +1090,16 @@ class LoraCache(object):
         with open(kles_file, 'wb') as f:
             pickle.dump(self.kles, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.kles), len(self.kles)/dt))
+
+        t = time.time()
+        logger.info('Læs enhedssammenkobling')
+        self.related = self._cache_lora_related()
+        dt = time.time() - t
+        with open(related_file, 'wb') as f:
+            pickle.dump(self.related, f, pickle.HIGHEST_PROTOCOL)
+        logger.info(msg.format(dt, len(self.related), len(self.related)/dt))
+
+
         # Here we should de-activate read-only mode
 
 
