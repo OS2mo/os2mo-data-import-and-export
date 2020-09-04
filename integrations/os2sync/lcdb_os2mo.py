@@ -149,6 +149,7 @@ def get_sts_orgunit(session, uuid):
     base = session.query(Enhed).filter(Enhed.uuid == uuid).one()
 
     if is_ignored(base, settings):
+        logger.info("Ignoring %r", base)
         return None
 
     top_unit = get_top_unit(session, base)
