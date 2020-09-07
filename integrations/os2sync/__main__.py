@@ -139,6 +139,7 @@ def main(settings):
         os2mo.get_sts_user = partial(lcdb_os2mo.get_sts_user, session)
         os2mo.get_sts_orgunit = partial(lcdb_os2mo.get_sts_orgunit, session)
 
+    os2sync.hash_cache = {}
     prev_date = datetime.datetime.now() - datetime.timedelta(days=1)
     hash_cache_file = pathlib.Path(settings["OS2SYNC_HASH_CACHE"])
 
