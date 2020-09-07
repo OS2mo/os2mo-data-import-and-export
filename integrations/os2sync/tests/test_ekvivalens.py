@@ -19,8 +19,7 @@ class Tests(unittest.TestCase):
         cache = pd / cache
         config.settings["OS2SYNC_HASH_CACHE"] = str(hk)
         config.settings["MOX_LOG_FILE"] = str(log)
-        # set this in settings file
-        # config.settings["OS2SYNC_API_URL"] = "stub"
+        # set this in settings file instead
         # config.settings["OS2SYNC_API_URL"] = "stub"
         config.settings.update(overrides)
         if not cache.exists():
