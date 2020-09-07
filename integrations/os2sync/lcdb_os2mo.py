@@ -151,7 +151,6 @@ def get_sts_orgunit(session, uuid):
     if is_ignored(base, settings):
         logger.info("Ignoring %s (%s, %s)", base.uuid, base.enhedsniveau_titel,
                     base.enhedstype_titel)
-        return None
 
     top_unit = get_top_unit(session, base)
     if top_unit != settings["OS2MO_TOP_UNIT_UUID"]:
