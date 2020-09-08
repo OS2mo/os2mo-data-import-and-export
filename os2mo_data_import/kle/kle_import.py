@@ -243,7 +243,7 @@ class KleImporter(object):
         }
         return emne_info
 
-    def _import_emne(self, facet_uuid):
+    def _import_emne(self, kle_hoved, kle_gruppe, kle_emne):
         """
         Read all classes from the KLE facet 'emneplan'
         :param facet_uuid: UUID of the facet the classes are created under
@@ -256,13 +256,13 @@ class KleImporter(object):
         for hoved_index in hovedgrupper:
             hoved_info = self._read_all_from_hovedgruppe(hoved_index)
             # Create hovedgruppe
-            hoved_uuid = self.get_or_create_klasse(facet_uuid, hoved_info)
+            hoved_uuid = self.get_or_create_klasse(kle_hoved, hoved_info)
 
             grupper = self._read_all_grupper(hoved_index)
             for gruppe_index in grupper:
                 gruppe_info = self._read_all_from_gruppe(hoved_index, gruppe_index)
                 # Create gruppe
-                gruppe_uuid = self.get_or_create_klasse(facet_uuid, gruppe_info,
+                gruppe_uuid = self.get_or_create_klasse(kle_gruppe, gruppe_info,
                                                         hoved_uuid)
                 emner = self._read_all_emner(hoved_index, gruppe_index)
                 for emne_index in emner:
@@ -270,9 +270,9 @@ class KleImporter(object):
                                                          gruppe_index,
                                                          emne_index)
                     # Create emne
-                    self.get_or_create_klasse(facet_uuid, emne_info, gruppe_uuid)
+                    self.get_or_create_klasse(kle_emne, emne_info, gruppe_uuid)
 
-    def _import_handling(self, facet_uuid):
+    def _import_handling(self, kle_hoved, kle_gruppe):
         """
         Import the classes from the KLE facet 'handlingsfacetter'
         :param facet_uuid: UUID of the facet the classes are created under
@@ -286,7 +286,7 @@ class KleImporter(object):
         for hoved_index in hovedgrupper:
             hoved_info = self._read_all_from_hovedgruppe(hoved_index,
                                                          facet=facet)
-            hoved_uuid = self.get_or_create_klasse(facet_uuid, hoved_info)
+            hoved_uuid = self.get_or_create_klasse(kle_hoved, hoved_info)
 
             grupper = self._read_all_grupper(hoved_index, facet=facet)
             for gruppe_index in grupper:
@@ -294,7 +294,7 @@ class KleImporter(object):
                                                          gruppe_index,
                                                          facet=facet)
                 # Create gruppe
-                self.get_or_create_klasse(facet_uuid, gruppe_info, hoved_uuid)
+                self.get_or_create_klasse(kle_gruppe, gruppe_info, hoved_uuid)
 
     def set_mo_org_uuid(self):
         mora_base = self.mora_base
@@ -328,13 +328,21 @@ class KleImporter(object):
 
     def import_kle(self):
         self.set_mo_org_uuid()
+
         aspect_facet_uuid = self.get_or_create_facet('kle_aspect')
         self.import_aspect_classes(aspect_facet_uuid)
-        number_facet_uuid = self.get_or_create_facet('kle_number')
-        self._import_emne(number_facet_uuid)
-        self._import_handling(number_facet_uuid)
-        self._show_kle()
 
+        number_facet_uuid = self.get_or_create_facet('kle_number')
+        self._import_emne(number_facet_uuid, number_facet_uuid, number_facet_uuid)
+        self._import_handling(number_facet_uuid, number_facet_uuid)
+
+        hoved_facet_uuid = self.get_or_create_facet('kle_hovedgruppe')
+        gruppe_facet_uuid = self.get_or_create_facet('kle_gruppe')
+        emne_facet_uuid = self.get_or_create_facet('kle_emne')
+        self._import_emne(hoved_facet_uuid, gruppe_facet_uuid, emne_facet_uuid)
+        self._import_handling(hoved_facet_uuid, gruppe_facet_uuid)
+
+        self._show_kle()
 
 if __name__ == '__main__':
     cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
