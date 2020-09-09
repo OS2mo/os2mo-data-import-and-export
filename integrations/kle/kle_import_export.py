@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import pathlib
+from abc import ABC, abstractmethod
 from enum import Enum
 
 import requests
@@ -9,10 +10,7 @@ import requests
 LOG_FILE = 'opgavefordeler.log'
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.INFO,
-    filename=LOG_FILE
-)
+logging.basicConfig(level=logging.INFO, filename=LOG_FILE)
 
 
 class Aspects(Enum):
@@ -29,33 +27,28 @@ ASPECT_MAP = {
 }
 
 
-class OpgavefordelerImporter:
+class KLEAnnotationIntegration(ABC):
+    """Import and export of KLE annotation from or to an external source."""
+
+    # XXX: This uses a simple inheritance based pattern. We might want to use
+    # something like a Strategy here. However, maybe YAGNI.
+
     def __init__(self):
         cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
         if not cfg_file.is_file():
-            raise Exception("No setting file")
+            raise Exception("No settings file")
         self.settings = json.loads(cfg_file.read_text())
 
         self.mora_base = self.settings.get("mora.base")
         self.mora_session = self._get_mora_session(token=os.environ.get("SAML_TOKEN"))
-
-        self.opgavefordeler_url = self.settings.get(
-            "integrations.os2opgavefordeler.url"
-        )
-        self.opgavefordeler_session = self._get_opgavefordeler_session(
-            token=self.settings.get("integrations.os2opgavefordeler.token")
-        )
         self.org_uuid = self._get_mo_org_uuid()
 
     def _get_mora_session(self, token) -> requests.Session:
         s = requests.Session()
         if token is not None:
             s.headers.update({"SESSION": token})
-        return s
-
-    def _get_opgavefordeler_session(self, token) -> requests.Session:
-        s = requests.Session()
-        s.headers.update({"Authorization": "Basic {}".format(token)})
+        s.headers.update({"SESSION": token})
+        s.verify = False
         return s
 
     def _get_mo_org_uuid(self) -> str:
@@ -90,7 +83,47 @@ class OpgavefordelerImporter:
         logger.info("Found {} items".format(len(items)))
         return items
 
-    def get_kle_from_opgavefordeler(self, kle_numbers: list) -> list:
+    def get_all_org_units_from_mo(self) -> list:
+        """Get a list of all units from OS2mo"""
+        logger.info("Fetching all org units from OS2mo")
+        url = "{}/service/o/{}/ou".format(self.mora_base, self.org_uuid)
+        r = self.mora_session.get(url)
+        r.raise_for_status()
+        units = r.json()["items"]
+
+        logger.info("Found {} units".format(len(units)))
+        return units
+
+    def post_payloads_to_mo(self, payloads: list):
+        """Submit a list of details payloads to OS2mo"""
+        logger.info("Posting payloads to OS2mo ")
+        url = "{}/service/details/create".format(self.mora_base)
+
+        r = self.mora_session.post(url, json=payloads, params={"force": 1})
+        r.raise_for_status()
+
+    @abstractmethod
+    def run(self):
+        """Implement this, normally to execute import or export."""
+        pass
+
+
+class OpgavefordelerImporter(KLEAnnotationIntegration):
+    def __init__(self):
+        super().__init__()
+        self.opgavefordeler_url = self.settings.get(
+            "integrations.os2opgavefordeler.url"
+        )
+        self.opgavefordeler_session = self._get_opgavefordeler_session(
+            token=self.settings.get("integrations.os2opgavefordeler.token")
+        )
+
+    def _get_opgavefordeler_session(self, token) -> requests.Session:
+        s = requests.Session()
+        s.headers.update({"Authorization": "Basic {}".format(token)})
+        return s
+
+    def get_kle_from_source(self, kle_numbers: list) -> list:
         """
         Get all KLE-number info from OS2opgavefordeler
 
@@ -125,23 +158,12 @@ class OpgavefordelerImporter:
         logger.info("Found {} items".format(len(filtered)))
         return filtered
 
-    def get_org_units_from_mo(self) -> list:
-        """Get a list of all units from OS2mo"""
-        logger.info("Fetching all org units from OS2mo")
-        url = "{}/service/o/{}/ou".format(self.mora_base, self.org_uuid)
-        r = self.mora_session.get(url)
-        r.raise_for_status()
-        units = [unit["uuid"] for unit in r.json()["items"]]
-
-        logger.info("Found {} units".format(len(units)))
-        return units
-
-    def get_org_unit_info_from_opgavefordeler(self, org_units_uuids: list) -> list:
+    def get_org_unit_info_from_source(self, org_units_uuids: list) -> list:
         """
         Get all org-unit info from OS2opgavefordeler
 
         This will give information about which KLE-numbers the unit has a
-        'Udførende' and 'Indsigt' relationship with
+        'Udførende' and 'Indsigt' relationship with.
 
         Empty results are filtered
         """
@@ -222,14 +244,6 @@ class OpgavefordelerImporter:
 
         return payloads
 
-    def post_payloads_to_mo(self, payloads: list):
-        """Submit a list of details payloads to OS2mo"""
-        logger.info("Posting payloads to OS2mo ")
-        url = "{}/service/details/create".format(self.mora_base)
-
-        r = self.mora_session.post(url, json=payloads, params={"force": 1})
-        r.raise_for_status()
-
     def run(self):
         logger.info("Starting import")
 
@@ -239,12 +253,13 @@ class OpgavefordelerImporter:
 
         # Ansvarlig
         kle_numbers = [item["user_key"] for item in kle_classes]
-        kle_info = self.get_kle_from_opgavefordeler(kle_numbers)
+        kle_info = self.get_kle_from_source(kle_numbers)
         self.add_ansvarlig(org_unit_map, kle_info)
 
         # Indsigt og Udfører
-        org_units = self.get_org_units_from_mo()
-        org_unit_info = self.get_org_unit_info_from_opgavefordeler(org_units)
+        org_units = self.get_all_org_units_from_mo()
+        org_unit_uuids = [unit['uuid'] for unit in org_units]
+        org_unit_info = self.get_org_unit_info_from_source(org_unit_uuids)
         self.add_indsigt_and_udfoerer(org_unit_map, org_unit_info)
 
         # Insert into MO

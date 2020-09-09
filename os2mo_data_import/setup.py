@@ -33,5 +33,8 @@ setup(
         "requests",
         "anytree",
         "freezegun",
+        "xmltodict",
+        "openpyxl",
+        "xlsxwriter",
     ]
 )

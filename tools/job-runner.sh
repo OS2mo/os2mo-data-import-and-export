@@ -184,7 +184,7 @@ imports_opgavefordeler(){
         "${DIPEXAR}/opgavefordeler.log"
     )
     echo running imports_opgavefordeler
-    "${VENV}/bin/python3" integrations/kle/opgavefordeler.py
+    "${VENV}/bin/python3" integrations/kle/kle_import_export.py
 }
 
 exports_mox_rollekatalog(){
