@@ -464,23 +464,42 @@ class FixDepartments(object):
         for unit in reversed(branch):
             self.fix_department_at_single_date(unit[1], date)
 
+
+    def sd_uuid_from_short_code(self, shortname, validity_date):
+        validity = {
+            'from_date': validity_date.strftime('%d.%m.%Y'),
+            'to_date': validity_date.strftime('%d.%m.%Y')
+        }
+        department = self.get_department(validity, shortname=shortname)[0]
+        return department["DepartmentUUIDIdentifier"]
+
+
+
     def _cli(self):
         """
         Command line interface to sync SD departent information to MO.
         """
         parser = argparse.ArgumentParser(description='Department updater')
-        parser.add_argument('--department-uuid', nargs=1, required=True,
+        parser.add_argument('--department-uuid', nargs="+", required=True,
                             metavar='UUID of the department to update')
         args = vars(parser.parse_args())
 
         today = datetime.datetime.today()
-        department_uuid = args.get('department_uuid')[0]
 
         # Use a future date to be sure that the unit exists in SD.
         fix_date = today + datetime.timedelta(weeks=80)
-        self.fix_or_create_branch(department_uuid, fix_date)
 
-        self.fix_NY_logic(department_uuid, today)
+        for some_id in args.get('department_uuid'):
+
+            if len(some_id) == 4:
+                department_uuid = self.sd_uuid_from_short_code(some_id, fix_date)
+            else:
+                department_uuid = some_id
+
+
+            self.fix_or_create_branch(department_uuid, fix_date)
+
+            self.fix_NY_logic(department_uuid, today)
 
 
 if __name__ == '__main__':
