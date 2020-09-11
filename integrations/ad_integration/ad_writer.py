@@ -712,8 +712,8 @@ class ADWriter(AD):
 
         if mo_values.get('manager_cpr'):
             manager_ad_info = self._find_ad_user(mo_values['manager_cpr'], ad_dump)
-            if not ad['Manager'] == manager_ad_info[0]['DistinguishedName']:
-                mismatch['manager'] = (ad['Manager'],
+            if not ad['manager'] == manager_ad_info[0]['DistinguishedName']:
+                mismatch['manager'] = (ad['manager'],
                                        manager_ad_info[0]['DistinguishedName'])
                 logger.info('Manager should be updated')
         return mismatch
