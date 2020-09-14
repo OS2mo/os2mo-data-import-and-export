@@ -248,8 +248,11 @@ exports_cpr_uuid(){
 
 exports_viborg_emus(){
     set -e
+    BACK_UP_AND_TRUNCATE+=(
+        emus_log.txt
+    )
     echo running viborg_emus
-    ${VENV}/bin/python3 exporters/emus/viborg_xml_emus_sftp.py
+    ${VENV}/bin/python3 exporters/emus/lcdb_viborg_xml_emus_sftp.py
 }
 
 exports_viborg_eksterne(){

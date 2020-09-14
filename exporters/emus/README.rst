@@ -84,7 +84,8 @@ Programmet er afhængig af følgende indstillinger i ``settings.json``
  * ``emus.sftp_key_path`` angiver den nøgle, man anvender got at forbinde sig til sftp-serveren
  * ``emus.sftp_user`` angiver den sftp-user, man forbinder som
  * ``emus.userid_itsystem`` angiver hvilket IT-system, man tager brugernavnet fra, default er ``Active Directory``.
- * ``mora.admin_top_unit`` angiver roden af det organisatoriske træ, der skal overføres
+ * ``emus.engagement_types`` angiver en liste af engagementstypeklasser, som  kommer med (UUIDer på for eksempel: "Medarbejder (månedsløn)")
+ * ``mora.admin_top_unit`` uuid, angiver roden af det organisatoriske træ, der skal overføres
  * ``mora.base`` styrer hvilken OS2MO, der tilgås
  * ``mora.folder.query_export`` angiver det sted, hvor kopien af rapporten skal lægges - dette skal være det output-dir, som kan nås igennem OS2MO.
 
