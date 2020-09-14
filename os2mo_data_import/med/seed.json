@@ -1,0 +1,230 @@
+{
+  "AC": {
+    "children": {
+      "AC_Arkitekt": {
+        "children": {},
+        "description": "Forbundet Arkitekter og Designere",
+        "title": "Forbundet Arkitekter og Designere"
+      },
+      "AC_Arkitektforbundet": {
+        "children": {},
+        "description": "Arkitektforbundet",
+        "title": "Arkitektforbundet"
+      },
+      "AC_BF": {
+        "children": {},
+        "description": "BF - Bibliotekarforbundet",
+        "title": "BF - Bibliotekarforbundet"
+      },
+      "AC_DDL": {
+        "children": {},
+        "description": "DDL - Den Danske Landinspektørforening",
+        "title": "DDL - Den Danske Landinspektørforening"
+      },
+      "AC_DJ": {
+        "children": {},
+        "description": "DJ  - Dansk Journalistforbund",
+        "title": "DJ  - Dansk Journalistforbund"
+      },
+      "AC_DJOEF": {
+        "children": {},
+        "description": "Djøf - Danmarks Jurist- og Økonomforbund",
+        "title": "Djøf - Danmarks Jurist- og Økonomforbund"
+      },
+      "AC_DM": {
+        "children": {},
+        "description": "DM - Dansk Magisterforening",
+        "title": "DM - Dansk Magisterforening"
+      },
+      "AC_DMpF": {
+        "children": {},
+        "description": "DMpF - Dansk Musikpædagogisk Forening",
+        "title": "DMpF - Dansk Musikpædagogisk Forening"
+      },
+      "AC_DP": {
+        "children": {},
+        "description": "DP - Dansk Psykologforening",
+        "title": "DP - Dansk Psykologforening"
+      },
+      "AC_Ergoterapeut": {
+        "children": {},
+        "description": "Ergoterapeutforeningen",
+        "title": "Ergoterapeutforeningen"
+      },
+      "AC_FAOD": {
+        "children": {},
+        "description": "FAOD - Forbundet af arkitekter og designere",
+        "title": "FAOD - Forbundet af arkitekter og designere"
+      },
+      "AC_FaKD": {
+        "children": {},
+        "description": "FaKD - Foreningen af kliniske diætister",
+        "title": "FaKD - Foreningen af kliniske diætister"
+      },
+      "AC_Fysioterapeut": {
+        "children": {},
+        "description": "Danske Fysioterapeuter",
+        "title": "Danske Fysioterapeuter"
+      },
+      "AC_IDA": {
+        "children": {},
+        "description": "IDA - Ingeniørforeningen i Danmark",
+        "title": "IDA - Ingeniørforeningen i Danmark"
+      },
+      "AC_JA": {
+        "children": {},
+        "description": "JA - Jordbrugsakademikernes Forbund",
+        "title": "JA - Jordbrugsakademikernes Forbund"
+      },
+      "AC_Kommunikation": {
+        "children": {},
+        "description": "Forbundet Kommunikation og Sprog",
+        "title": "Forbundet Kommunikation og Sprog"
+      },
+      "AC_Maskinmester": {
+        "children": {},
+        "description": "Maskinmestrenes Forening",
+        "title": "Maskinmestrenes Forening"
+      },
+      "AC_NA": {
+        "children": {},
+        "description": "Ej relevant",
+        "title": "Ej relevant"
+      },
+      "AC_PD": {
+        "children": {},
+        "description": "PD - Dansk Farmaceutforening/Pharma Danmark",
+        "title": "PD - Dansk Farmaceutforening/Pharma Danmark"
+      },
+      "AC_Skov": {
+        "children": {},
+        "description": "Danske Skov- og Landskabsingeniører",
+        "title": "Danske Skov- og Landskabsingeniører"
+      },
+      "AC_TF": {
+        "children": {},
+        "description": "TF - Tandlægeforeningen",
+        "title": "TF - Tandlægeforeningen"
+      }
+    },
+    "description": "AC (Akademikerne)",
+    "title": "AC (Akademikerne)"
+  },
+  "FTF": {
+    "children": {
+      "FTF_DLF": {
+        "children": {},
+        "description": "DLF - Danmarks Lærerforening",
+        "title": "DLF - Danmarks Lærerforening"
+      },
+      "FTF_DMF": {
+        "children": {},
+        "description": "DMF - Dansk Musiker Forbund",
+        "title": "DMF - Dansk Musiker Forbund"
+      },
+      "FTF_DS": {
+        "children": {},
+        "description": "DS - Dansk Socialrådgiverforening",
+        "title": "DS - Dansk Socialrådgiverforening"
+      },
+      "FTF_DSR": {
+        "children": {},
+        "description": "DSR - Dansk Sygeplejeråd",
+        "title": "DSR - Dansk Sygeplejeråd"
+      },
+      "FTF_Kost": {
+        "children": {},
+        "description": "Kost- og ernæringsforbundet",
+        "title": "Kost- og ernæringsforbundet"
+      },
+      "FTF_LO_BUPL": {
+        "children": {},
+        "description": "BUPL - Børne- og Ungdomspædagogernes Landsforbund",
+        "title": "BUPL - Børne- og Ungdomspædagogernes Landsforbund"
+      },
+      "FTF_NA": {
+        "children": {},
+        "description": "Ej relevant",
+        "title": "Ej relevant"
+      },
+      "FTF_PFF": {
+        "children": {},
+        "description": "PFF - Pædagogernes Forhandlingsfællesskab",
+        "title": "PFF - Pædagogernes Forhandlingsfællesskab"
+      },
+      "FTF_Tand": {
+        "children": {},
+        "description": "Danske Tandplejere",
+        "title": "Danske Tandplejere"
+      }
+    },
+    "description": "FTF",
+    "title": "FTF"
+  },
+  "LO": {
+    "children": {
+      "LO_ElForbund": {
+        "children": {},
+        "description": "Dansk El-forbund",
+        "title": "Dansk El-forbund"
+      },
+      "LO_FOA": {
+        "children": {},
+        "description": "FOA - Fag og Arbejde",
+        "title": "FOA - Fag og Arbejde"
+      },
+      "LO_HK": {
+        "children": {},
+        "description": "HK Kommunal",
+        "title": "HK Kommunal"
+      },
+      "LO_Konstruktoerforeningen": {
+        "children": {},
+        "description": "Konstruktørforeningen",
+        "title": "Konstruktørforeningen"
+      },
+      "LO_Kost": {
+        "children": {},
+        "description": "Kost & Ernæringsforbundet",
+        "title": "Kost & Ernæringsforbundet"
+      },
+      "LO_Malerforbundet": {
+        "children": {},
+        "description": "Malerforbundet i Danmark",
+        "title": "Malerforbundet i Danmark"
+      },
+      "LO_Metal": {
+        "children": {},
+        "description": "Dansk Metal",
+        "title": "Dansk Metal"
+      },
+      "LO_NA": {
+        "children": {},
+        "description": "Ej relevant",
+        "title": "Ej relevant"
+      },
+      "LO_SL": {
+        "children": {},
+        "description": "SL - Socialpædagogerne",
+        "title": "SL - Socialpædagogerne"
+      },
+      "LO_TIB": {
+        "children": {},
+        "description": "Forbundet Træ, Industri og Byg i Danmark",
+        "title": "Forbundet Træ, Industri og Byg i Danmark"
+      },
+      "LO_TL": {
+        "children": {},
+        "description": "TL - Teknisk Landsforbund",
+        "title": "TL - Teknisk Landsforbund"
+      },
+      "LO_ThreeF": {
+        "children": {},
+        "description": "3F - Fagligt Fælles Forbund",
+        "title": "3F - Fagligt Fælles Forbund"
+      }
+    },
+    "description": "Landsorganisationen i Danmark",
+    "title": "LO"
+  }
+}

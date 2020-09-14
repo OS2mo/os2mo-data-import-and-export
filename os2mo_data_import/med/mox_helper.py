@@ -48,7 +48,7 @@ class MoxHelper:
 
     @ensure_session
     async def check_connection(self, session: aiosession) -> bool:
-        url = f"{self.hostname}/version"
+        url = self.hostname + "/version"
         try:
             async with session.get(url) as response:
                 data = await response.json()
@@ -60,7 +60,7 @@ class MoxHelper:
 
     @ensure_session
     async def generate_methods(self, session: aiosession) -> None:
-        url = f"{self.hostname}/site-map"
+        url = self.hostname + "/site-map"
 
         async def discover_endpoints():
             async with session.get(url) as response:
@@ -100,7 +100,7 @@ class MoxHelper:
     async def _fetch_schema(
         self, session: aiosession, service: str, obj: str
     ) -> Tuple[Tuple[str, str], str]:
-        url = f"{self.hostname}/{service}/{obj}/schema"
+        url = self.hostname + "/" + service + "/" + obj + "/schema"
         async with session.get(url) as response:
             data = await response.json()
             return (service, obj), data
@@ -113,7 +113,7 @@ class MoxHelper:
     async def _search(
         self, session: aiosession, service: str, obj: str, params: Any
     ) -> Sequence[str]:
-        url = f"{self.hostname}/{service}/{obj}"
+        url = self.hostname + "/" + service + "/" + obj
         async with session.get(url, params=params) as response:
             data = await response.json()
             return data["results"][0]
@@ -123,7 +123,7 @@ class MoxHelper:
         self, session: aiosession, service: str, obj: str, payload: Any
     ) -> UUIDstr:
         self._validate_payload(service, obj, payload)
-        url = f"{self.hostname}/{service}/{obj}"
+        url = self.hostname + "/" + service + "/" + obj
         async with session.post(url, json=payload) as response:
             return (await response.json())["uuid"]
 
