@@ -1,0 +1,10 @@
+[
+    {
+        "bvn": "hovedorg",
+        "description": "Hovedorganisation"
+    },
+    {
+        "bvn": "fagorg",
+        "description": "Fagorganisation"
+    }
+]
