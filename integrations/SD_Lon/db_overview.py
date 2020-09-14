@@ -1,7 +1,7 @@
 import json
 import pathlib
 import sqlite3
-
+from datetime import datetime
 # TODO: Soon we have done this 4 times. Should we make a small settings
 # importer, that will also handle datatype for specicic keys?
 cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
@@ -25,6 +25,7 @@ class DBOverview(object):
         for row in rows:
             status = 'id: {}, from: {}, to: {}, status: {}'
             print(status.format(row[0], row[1], row[2], row[3]))
+         
 
     def read_current_status(self):
         conn = sqlite3.connect(self.run_db, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -35,6 +36,8 @@ class DBOverview(object):
         row = c.fetchone()
         if 'Running' in row[3]:
             status = (False, 'Not ready to run')
+        elif row[2] < datetime.now().replace(hour=0, minute=0, second=0, microsecond=0):
+            status = (False, 'Not up to date')
         else:
             status = (True, 'Status ok')
         return status
@@ -62,6 +65,9 @@ if __name__ == '__main__':
     # print(db_overview.delete_last_row(force=True))
     # print(db_overview.delete_last_row(force=True))
     db_overview.read_db_content()
-    print(db_overview.read_current_status())
+    status, msg = db_overview.read_current_status()
+    print(status, msg)
+    if status==False:
+        raise Exception('Fejl!')
 
     # print(db_overview.delete_last_row())
