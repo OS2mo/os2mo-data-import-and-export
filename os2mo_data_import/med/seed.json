@@ -226,5 +226,10 @@
     },
     "description": "Landsorganisationen i Danmark",
     "title": "LO"
+  },
+  "na2": {
+    "children": {},
+    "description": "Ej relevant",
+    "title": "Ej relevant"
   }
 }

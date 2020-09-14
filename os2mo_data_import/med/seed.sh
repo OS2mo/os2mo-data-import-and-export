@@ -13,14 +13,17 @@ CLI="python mox_util.py cli"
 # }
 # Note: BVNs must be globally unique, and valid variable names
 SOURCE=$(cat "seed.json")
+SOURCE_LAYERS=$(cat "layers.json")
 
 echo "Creating layer facets"
-$CLI ensure-facet-exists --bvn hovedorg --description Hovedorganisation
-$CLI ensure-facet-exists --bvn fagorg --description Fagorganisation
-
 declare -A LAYERS
-LAYERS[1]="hovedorg"
-LAYERS[2]="fagorg"
+NUM_LAYERS=$(echo ${SOURCE_LAYERS} | jq ".|length")
+for i in $(seq 0 $((NUM_LAYERS - 1))); do
+   BVN=$(echo ${SOURCE_LAYERS} | jq -r ".[${i}].bvn")
+   DESCRIPTION=$(echo ${SOURCE_LAYERS} | jq -r ".[${i}].description")
+   $CLI ensure-facet-exists --bvn "${BVN}" --description "${DESCRIPTION}"
+   LAYERS[${i}]="${BVN}"
+done
 
 printarr() { declare -n __p="$1"; for k in "${!__p[@]}"; do printf "%s=%s\n" "$k" "${__p[$k]}" ; done ;  } 
 printarr LAYERS
@@ -58,9 +61,9 @@ create_tree()
 }
 
 echo "Creating class tree"
-create_tree "." "" 1
+create_tree "." "" 0
 
 # Configure MO to utilize newly created facet
-TOP_LEVEL_UUID=$($CLI ensure-facet-exists --bvn hovedorg --description Hovedorganisation | cut -f1 -d' ')
+TOP_LEVEL_UUID=$($CLI ensure-facet-exists --bvn "${LAYERS[0]}" | cut -f1 -d' ')
 curl -X POST -H "Content-Type: application/json" --data "{\"org_units\": {\"association_dynamic_facets\": \"${TOP_LEVEL_UUID}\"}}" http://localhost:5000/service/configuration
 curl -X POST -H "Session: ${SAML_TOKEN}" -H "Content-Type: application/json" --data "{\"org_units\": {\"association_dynamic_facets\": \"${TOP_LEVEL_UUID}\"}}" http://localhost:5000/service/configuration
