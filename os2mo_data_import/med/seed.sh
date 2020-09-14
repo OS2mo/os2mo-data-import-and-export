@@ -15,12 +15,12 @@ CLI="python mox_util.py cli"
 SOURCE=$(cat "seed.json")
 
 echo "Creating layer facets"
-$CLI ensure-facet-exists --bvn hovedorganisation --description Hovedorganisation
-$CLI ensure-facet-exists --bvn fagorganisation --description Fagorganisation
+$CLI ensure-facet-exists --bvn hovedorg --description Hovedorganisation
+$CLI ensure-facet-exists --bvn fagorg --description Fagorganisation
 
 declare -A LAYERS
-LAYERS[1]="hovedorganisation"
-LAYERS[2]="fagorganisation"
+LAYERS[1]="hovedorg"
+LAYERS[2]="fagorg"
 
 printarr() { declare -n __p="$1"; for k in "${!__p[@]}"; do printf "%s=%s\n" "$k" "${__p[$k]}" ; done ;  } 
 printarr LAYERS
@@ -41,9 +41,9 @@ create_tree()
     #echo "${PARENT} - ${NUM_KEYS}"
     while IFS= read -r KEY; do
         local BVN=$KEY
-        local TITLE=$(echo "${FILTERED}" | jq ".${BVN}.title")
+        local TITLE=$(echo "${FILTERED}" | jq -r ".${BVN}.title")
         echo "Creating '${BVN}' - '${TITLE}' on layer ${LAYER}"
-        local DESCRIPTION=$(echo "${FILTERED}" | jq ".${BVN}.description")
+        local DESCRIPTION=$(echo "${FILTERED}" | jq -r ".${BVN}.description")
         if [ -z ${PARENT_BVN} ]; then
             ${CLI} ensure-class-exists --bvn "${BVN}" --title "${TITLE}" --description "${DESCRIPTION}" --facet-bvn "${PARENT_FACET}"
         else
@@ -61,5 +61,6 @@ echo "Creating class tree"
 create_tree "." "" 1
 
 # Configure MO to utilize newly created facet
-TOP_LEVEL_UUID=$($CLI ensure-facet-exists --bvn hovedorganisation --description Hovedorganisation | cut -f1 -d' ')
+TOP_LEVEL_UUID=$($CLI ensure-facet-exists --bvn hovedorg --description Hovedorganisation | cut -f1 -d' ')
 curl -X POST -H "Content-Type: application/json" --data "{\"org_units\": {\"association_dynamic_facets\": \"${TOP_LEVEL_UUID}\"}}" http://localhost:5000/service/configuration
+curl -X POST -H "Session: ${SAML_TOKEN}" -H "Content-Type: application/json" --data "{\"org_units\": {\"association_dynamic_facets\": \"${TOP_LEVEL_UUID}\"}}" http://localhost:5000/service/configuration
