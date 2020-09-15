@@ -151,6 +151,8 @@ def main():
                 _, _, eng_org_unit, eng_uuid = lcs.find_primary_engagement(uuid)
             except NoActiveEngagementsException:
                 raise SkipUser
+            return mo_user, eng_org_unit, eng_uuid
+
         ds_equivalence("get_manager_uuid", uuid_to_args)
 
     def adwriter_equivalence():
