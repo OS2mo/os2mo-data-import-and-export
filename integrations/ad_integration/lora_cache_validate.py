@@ -54,8 +54,15 @@ class ADWriterX(ADWriter):
 def return_exception(method, *args, **kwargs):
     try:
         return method(*args, **kwargs)
+    except TypeError as exp:
+        print(exp)
+        return exp
     except Exception as exp:
         return exp
+
+
+class SkipUser(Exception):
+    pass
 
 
 def equivalence_generator(lc_variant, mo_variant, users):
@@ -63,10 +70,17 @@ def equivalence_generator(lc_variant, mo_variant, users):
         print("Testing equivalence (" + method_name + ")")
         uuid_transformer = uuid_transformer or (lambda uuid: [uuid])
         differences = 0
+        skipped = 0
+        transformer_errors = 0
         for user_uuid in users:
             try:
                 transformed = uuid_transformer(user_uuid)
-            except Exception:
+            except SkipUser:
+                skipped += 1
+                continue
+            except Exception as exp:
+                print(type(exp), exp)
+                transformer_errors += 1
                 continue
             lc_value = return_exception(getattr(lc_variant, method_name), *transformed)
             mo_value = return_exception(getattr(mo_variant, method_name), *transformed)
@@ -74,7 +88,11 @@ def equivalence_generator(lc_variant, mo_variant, users):
             if difference:
                 pprint(difference, indent=2)
                 differences += 1
-        return differences
+        print(differences, "differences")
+        print(skipped, "skipped")
+        print(transformer_errors, "transformer errors")
+        print(len(users), "total")
+        print()
     return test_equivalence
 
 
@@ -84,6 +102,8 @@ def main():
     from operator import itemgetter
     morahelper = mora_helpers.MoraHelper("http://localhost:5000")
     users = list(map(itemgetter('uuid'), morahelper.read_all_users()))
+    print(len(users), "users")
+    print()
 
     print("Populating LoraCache")
     lc = LoraCache(resolve_dar=False, full_history=False)
@@ -91,11 +111,13 @@ def main():
     print("Calculating LoraCache values")
     lc.calculate_derived_unit_data()
     lc.calculate_primary_engagements()
+    print()
 
     print("Populating historic LoraCache")
     lc_historic = LoraCache(resolve_dar=False, full_history=True,
                             skip_past=False)
     lc_historic.populate_cache(dry_run=False, skip_associations=True)
+    print()
 
     def datasource_equivalence():
         print("Datasource equivalence testing")
@@ -105,14 +127,18 @@ def main():
 
         #ds_equivalence("read_user")
         #ds_equivalence("get_email_address")
-        ds_equivalence("find_primary_engagement")
+        #ds_equivalence("find_primary_engagement")
 
         # XXX: NOT EQUIVALENT
+        from integrations.ad_integration.ad_exceptions import NoActiveEngagementsException
         def uuid_to_args(uuid):
-            mo_user = lcs.read_user(user_uuid)
-            _, _, eng_org_unit, eng_uuid = lcs.find_primary_engagement(user_uuid)
+            mo_user = lcs.read_user(uuid)
+            try:
+                _, _, eng_org_unit, eng_uuid = lcs.find_primary_engagement(uuid)
+            except NoActiveEngagementsException:
+                raise SkipUser
             return mo_user, eng_org_unit, eng_uuid
-        #ds_equivalence("get_manager_uuid", uuid_to_args)
+        ds_equivalence("get_manager_uuid", uuid_to_args)
 
     def adwriter_equivalence():
         print("ADWriter equivalence testing")
