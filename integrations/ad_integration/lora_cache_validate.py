@@ -58,7 +58,7 @@ def return_exception(method, *args, **kwargs):
         return exp
 
 
-def equivalence_generator(lc_variant, mo_variant):
+def equivalence_generator(lc_variant, mo_variant, users):
     def test_equivalence(method_name, uuid_transformer=None):
         print("Testing equivalence (" + method_name + ")")
         uuid_transformer = uuid_transformer or (lambda uuid: [uuid])
@@ -101,10 +101,10 @@ def main():
         print("Datasource equivalence testing")
         mrs = MORESTSource({'global': {'mora.base': 'http://localhost:5000'}})
         lcs = LoraCacheSource(lc, lc_historic, mrs)
-        ds_equivalence = equivalence_generator(lcs, mrs)
+        ds_equivalence = equivalence_generator(lcs, mrs, users)
 
-        ds_equivalence("read_user")
-        ds_equivalence("get_email_address")
+        #ds_equivalence("read_user")
+        #ds_equivalence("get_email_address")
         ds_equivalence("find_primary_engagement")
 
         # XXX: NOT EQUIVALENT
@@ -112,7 +112,7 @@ def main():
             mo_user = lcs.read_user(user_uuid)
             _, _, eng_org_unit, eng_uuid = lcs.find_primary_engagement(user_uuid)
             return mo_user, eng_org_unit, eng_uuid
-        ds_equivalence("get_manager_uuid", uuid_to_args)
+        #ds_equivalence("get_manager_uuid", uuid_to_args)
 
     def adwriter_equivalence():
         print("ADWriter equivalence testing")
@@ -144,12 +144,12 @@ def main():
 
         lc_writer = ADWriterX(lc=lc, lc_historic=lc_historic, all_settings=settings)
         mrs_writer = ADWriterX(all_settings=settings)
-        aw_equivalence = equivalence_generator(lc_writer, mrs_writer)
+        aw_equivalence = equivalence_generator(lc_writer, mrs_writer, users)
 
         aw_equivalence("read_ad_information_from_mo")
 
-    # datasource_equivalence()
-    adwriter_equivalence()
+    datasource_equivalence()
+    # adwriter_equivalence()
 
 
 if __name__ == '__main__':
