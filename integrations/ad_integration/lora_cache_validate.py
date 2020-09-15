@@ -57,8 +57,6 @@ def return_exception(method, *args, **kwargs):
     except TypeError as exp:
         print(exp)
         return exp
-    except Exception as exp:
-        return exp
 
 
 class SkipUser(Exception):
@@ -95,6 +93,20 @@ def equivalence_generator(lc_variant, mo_variant, users):
         print(transformer_errors, "transformer errors")
         print(total, "total")
         print()
+=======
+        for user_uuid in users:
+            try:
+                transformed = uuid_transformer(user_uuid)
+            except Exception:
+                continue
+            lc_value = return_exception(getattr(lc_variant, method_name), *transformed)
+            mo_value = return_exception(getattr(mo_variant, method_name), *transformed)
+            difference = DeepDiff(lc_value, mo_value)
+            if difference:
+                pprint(difference, indent=2)
+                differences += 1
+        return differences
+>>>>>>> 64f054a... Added equivalence testing, fixed equivalence issues
     return test_equivalence
 
 
@@ -139,7 +151,6 @@ def main():
                 _, _, eng_org_unit, eng_uuid = lcs.find_primary_engagement(uuid)
             except NoActiveEngagementsException:
                 raise SkipUser
-            return mo_user, eng_org_unit, eng_uuid
         ds_equivalence("get_manager_uuid", uuid_to_args)
 
     def adwriter_equivalence():
