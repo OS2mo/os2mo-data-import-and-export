@@ -82,16 +82,18 @@ def equivalence_generator(lc_variant, mo_variant, users):
                 print(type(exp), exp)
                 transformer_errors += 1
                 continue
-            lc_value = return_exception(getattr(lc_variant, method_name), *transformed)
             mo_value = return_exception(getattr(mo_variant, method_name), *transformed)
-            difference = DeepDiff(lc_value, mo_value)
+            lc_value = return_exception(getattr(lc_variant, method_name), *transformed)
+            difference = DeepDiff(mo_value, lc_value)
             if difference:
                 pprint(difference, indent=2)
                 differences += 1
+        total = len(users)
+        print(total - differences - skipped - transformer_errors, "ok")
         print(differences, "differences")
         print(skipped, "skipped")
         print(transformer_errors, "transformer errors")
-        print(len(users), "total")
+        print(total, "total")
         print()
     return test_equivalence
 
