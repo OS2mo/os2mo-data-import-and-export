@@ -14,7 +14,7 @@ import ad_templates
 from ad_template_engine import template_powershell, prepare_field_templates
 from jinja2 import Template
 
-from utils import dict_map, dict_filter, lower_list
+from utils import dict_map, dict_exclude, lower_list, dict_subset
 
 from utils import dict_exclude, dict_subset
 
@@ -119,9 +119,9 @@ class LoraCacheSource(MODataSource):
             'name': lc_user['navn'],
             'surname': lc_user['efternavn'],
             'givenname': lc_user['fornavn'],
-            'nickname': lc_user['kaldenavn'].strip(),
-            'nickname_givenname': lc_user['kaldenavn_fornavn'].strip(),
-            'nickname_surname': lc_user['kaldenavn_efternavn'].strip(),
+            'nickname': lc_user['kaldenavn'],
+            'nickname_givenname': lc_user['kaldenavn_fornavn'],
+            'nickname_surname': lc_user['kaldenavn_efternavn'],
             'cpr_no': lc_user['cpr']
         }
         return mo_user
@@ -343,6 +343,7 @@ class ADWriter(AD):
         return ad_info
 
     def _find_unit_info(self, eng_org_unit):
+        # TODO: Convert to datasource
         write_settings = self._get_write_setting(False)
 
         level2orgunit = 'Ingen'
@@ -393,6 +394,7 @@ class ADWriter(AD):
         return unit_info
 
     def _read_user_addresses(self, eng_org_unit):
+        # TODO: Convert to datasource
         addresses = {}
         if self.lc:
             email = []
@@ -438,6 +440,7 @@ class ADWriter(AD):
         return addresses
 
     def _find_end_date(self, uuid):
+        # TODO: Convert to datasource
         end_date = '1800-01-01'
         # Now, calculate final end date for any primary engagement
         if self.lc_historic is not None:
@@ -493,43 +496,11 @@ class ADWriter(AD):
         logger.info('Read information for {}'.format(uuid))
         mo_user = self._read_user(uuid)
 
-        force_mo = False
-        no_active_engagements = True
-        if self.lc:
-            for eng in self.lc.engagements.values():
-                if eng[0]['user'] == uuid:
-                    no_active_engagements = False
-                    if eng[0]['primary_boolean']:
-                        found_primary = True
-                        employment_number = eng[0]['user_key']
-                        title = self.lc.classes[eng[0]['job_function']]['title']
-                        eng_org_unit = eng[0]['unit']
-                        eng_uuid = eng[0]['uuid']
-            if no_active_engagements:
-                for eng in self.lc_historic.engagements.values():
-                    if eng[0]['user'] == uuid:
-                        logger.info('Found future engagement')
-                        force_mo = True
-
-        if force_mo or not self.lc:
-            engagements = self.helper.read_user_engagement(
-                uuid, calculate_primary=True, read_all=True, skip_past=True)
-            found_primary = False
-            for engagement in engagements:
-                no_active_engagements = False
-                if engagement['is_primary']:
-                    found_primary = True
-                    employment_number = engagement['user_key']
-                    title = engagement['job_function']['name']
-                    eng_org_unit = engagement['org_unit']['uuid']
-                    eng_uuid = engagement['uuid']
-
-        if no_active_engagements:
+        try:
+            employment_number, title, eng_org_unit, eng_uuid = self.datasource.find_primary_engagement(uuid)
+        except NoActiveEngagementsException:
             logger.info('No active engagements found')
             return None
-
-        if not found_primary:
-            raise NoPrimaryEngagementException('User: {}'.format(uuid))
 
         end_date = self._find_end_date(uuid)
 
@@ -556,37 +527,12 @@ class ADWriter(AD):
             'cpr': None
         }
         if read_manager:
-            if self.lc:
-                try:
-                    manager_uuid = self.lc.managers[
-                        self.lc.units[eng_org_unit][0]['acting_manager_uuid']
-                    ][0]['user']
-
-                    parent_uuid = self.lc.units[eng_org_unit][0]['parent']
-                    while manager_uuid == mo_user['uuid']:
-                        if parent_uuid is None:
-                            logger.info('This person has no manager!')
-                            read_manager = False
-                            break
-
-                        msg = 'Self manager, keep searching: {}!'
-                        logger.info(msg.format(mo_user))
-                        parent_unit = self.lc.units[parent_uuid][0]
-                        manager_uuid = self.lc.managers[
-                            parent_unit['acting_manager_uuid']][0]['user']
-
-                        parent_uuid = self.lc.units[parent_uuid][0]['parent']
-                except KeyError:
-                    # TODO: Report back that manager was not found!
-                    logger.info('No managers found')
-                    read_manager = False
-            else:
-                try:
-                    manager = self.helper.read_engagement_manager(eng_uuid)
-                    manager_uuid = manager['uuid']
-                except KeyError:
-                    logger.info('No managers found')
-                    read_manager = False
+            manager_uuid = self.datasource.get_manager_uuid(
+                mo_user, eng_org_unit, eng_uuid
+            )
+            if manager_uuid is None:
+                logger.info('No managers found')
+                read_manager = False
 
         if read_manager:
             mo_manager_user = self._read_user(manager_uuid)
@@ -690,7 +636,7 @@ class ADWriter(AD):
         fields = dict_map(fields, key_func=to_lower)
 
         never_compare = lower_list(['Credential', 'Manager'])
-        fields = dict_filter(lambda key, value: key not in never_compare, fields)
+        fields = dict_exclude(fields, never_compare)
 
         context = {
             "mo_values": mo_values,

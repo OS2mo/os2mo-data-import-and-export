@@ -165,11 +165,16 @@ def dict_filter(func, dicty):
 
 
 def dict_exclude(dicty, keys):
-    return dict_filter(lambda key, value: key not in keys, dicty)
-
+    return dict_filter(
+        lambda key, value: key not in keys,
+        dicty
+    )
 
 def dict_subset(dicty, keys):
-    return dict_filter(lambda key, value: key in keys, dicty)
+    return dict_filter(
+        lambda key, value: key in keys,
+        dicty
+    )
 
 
 def duplicates(iterable):

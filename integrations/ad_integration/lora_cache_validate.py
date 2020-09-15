@@ -1,6 +1,5 @@
 from deepdiff import DeepDiff
 from pprint import pprint
-from time import monotonic
 
 from user_names import CreateUserNames
 from utils import AttrDict, recursive_dict_update
@@ -55,57 +54,26 @@ class ADWriterX(ADWriter):
 def return_exception(method, *args, **kwargs):
     try:
         return method(*args, **kwargs)
-    except TypeError as exp:
-        print(exp)
-        return exp
     except Exception as exp:
         return exp
 
 
-class SkipUser(Exception):
-    pass
-
-
-def equivalence_generator(lc_variant, mo_variant, users):
+def equivalence_generator(lc_variant, mo_variant):
     def test_equivalence(method_name, uuid_transformer=None):
         print("Testing equivalence (" + method_name + ")")
         uuid_transformer = uuid_transformer or (lambda uuid: [uuid])
         differences = 0
-        skipped = 0
-        transformer_errors = 0
-        mo_time = 0
-        lc_time = 0
         for user_uuid in users:
             try:
                 transformed = uuid_transformer(user_uuid)
-            except SkipUser:
-                skipped += 1
+            except Exception:
                 continue
-            except Exception as exp:
-                print(type(exp), exp)
-                transformer_errors += 1
-                continue
-            start_time = monotonic()
-            mo_value = return_exception(getattr(mo_variant, method_name), *transformed)
-            middle_time = monotonic()
             lc_value = return_exception(getattr(lc_variant, method_name), *transformed)
-            end_time = monotonic()
-            mo_time += (middle_time - start_time)
-            lc_time += (end_time - middle_time)
-            difference = DeepDiff(mo_value, lc_value)
+            mo_value = return_exception(getattr(mo_variant, method_name), *transformed)
+            difference = DeepDiff(lc_value, mo_value)
             if difference:
-                print(user_uuid)
                 pprint(difference, indent=2)
                 differences += 1
-        total = len(users)
-        print(total - differences - skipped - transformer_errors, "ok")
-        print(differences, "differences")
-        print(skipped, "skipped")
-        print(transformer_errors, "transformer errors")
-        print(total, "total")
-        print(mo_time, "seconds (MO)")
-        print(lc_time, "seconds (LC)")
-        print()
         return differences
     return test_equivalence
 
@@ -116,8 +84,6 @@ def main():
     from operator import itemgetter
     morahelper = mora_helpers.MoraHelper("http://localhost:5000")
     users = list(map(itemgetter('uuid'), morahelper.read_all_users()))
-    print(len(users), "users")
-    print()
 
     print("Populating LoraCache")
     lc = LoraCache(resolve_dar=False, full_history=False)
@@ -125,50 +91,40 @@ def main():
     print("Calculating LoraCache values")
     lc.calculate_derived_unit_data()
     lc.calculate_primary_engagements()
-    print()
 
     print("Populating historic LoraCache")
     lc_historic = LoraCache(resolve_dar=False, full_history=True,
                             skip_past=False)
     lc_historic.populate_cache(dry_run=False, skip_associations=True)
-    print()
 
     def datasource_equivalence():
         print("Datasource equivalence testing")
         mrs = MORESTSource({'global': {'mora.base': 'http://localhost:5000'}})
         lcs = LoraCacheSource(lc, lc_historic, mrs)
-        ds_equivalence = equivalence_generator(lcs, mrs, users)
-
-        from integrations.ad_integration.ad_exceptions import NoActiveEngagementsException
-        def uuid_to_args(uuid):
-            mo_user = lcs.read_user(uuid)
-            try:
-                _, _, _, eng_uuid = lcs.find_primary_engagement(uuid)
-            except NoActiveEngagementsException:
-                raise SkipUser
-            return mo_user, eng_uuid
+        ds_equivalence = equivalence_generator(lcs, mrs)
 
         ds_equivalence("read_user")
         ds_equivalence("get_email_address")
         ds_equivalence("find_primary_engagement")
+
+        # XXX: NOT EQUIVALENT
+        def uuid_to_args(uuid):
+            mo_user = lcs.read_user(user_uuid)
+            _, _, eng_org_unit, eng_uuid = lcs.find_primary_engagement(user_uuid)
+            return mo_user, eng_org_unit, eng_uuid
         ds_equivalence("get_manager_uuid", uuid_to_args)
 
     def adwriter_equivalence():
         print("ADWriter equivalence testing")
         settings = {
-            "integrations.ad": [
-                {
-                    "cpr_field": "cpr_field",
-                    "cpr_seperator": "cpr_sep",
-                    "system_user": "system_user",
-                    "password": "password",
-                    "properties": [],
-                    "search_base": "search_base",
-                    "integrations.ad.ad_mo_sync_mapping": {},
-                }
-            ],
             "integrations.ad.winrm_host": "dummy",
+            "integrations.ad.search_base": "search_base",
+            "integrations.ad.cpr_field": "cpr_field",
+            "integrations.ad.cpr_seperator": "cpr_sep",
             # "integrations.ad.sam_filter": "sam_filter",
+            "integrations.ad.system_user": "system_user",
+            "integrations.ad.password": "password",
+            "integrations.ad.properties": "properties",
             "mora.base": "http://localhost:5000",
             "integrations.ad.write.uuid_field": "uuid_field",
             "integrations.ad.write.level2orgunit_field": "level2orgunit_field",
@@ -176,6 +132,9 @@ def main():
             "integrations.ad.write.upn_end": "epn_end",
             "integrations.ad.write.org_unit_field": "org_field",
             "integrations.ad.write.level2orgunit_type": "level2orgunit_type",
+            "integrations.ad.cpr_field": "cpr_field",
+            "integrations.ad.cpr_separator": "ad_cpr_sep",
+            "integrations.ad.ad_mo_sync_mapping": {},
             "address.visibility.public": "address_visibility_public_uuid",
             "address.visibility.internal": "address_visibility_internal_uuid",
             "address.visibility.secret": "address_visibility_secret_uuid",
@@ -185,7 +144,7 @@ def main():
 
         lc_writer = ADWriterX(lc=lc, lc_historic=lc_historic, all_settings=settings)
         mrs_writer = ADWriterX(all_settings=settings)
-        aw_equivalence = equivalence_generator(lc_writer, mrs_writer, users)
+        aw_equivalence = equivalence_generator(lc_writer, mrs_writer)
 
         aw_equivalence("read_ad_information_from_mo")
 

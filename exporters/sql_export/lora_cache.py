@@ -274,11 +274,11 @@ class LoraCache(object):
                         'user_key': user_key,
                         'fornavn': fornavn,
                         'efternavn': efternavn,
-                        'navn': '{} {}'.format(fornavn, efternavn),
+                        'navn': ' '.join([fornavn, efternavn]).strip(),
                         'kaldenavn_fornavn': kaldenavn_fornavn,
                         'kaldenavn_efternavn': kaldenavn_efternavn,
-                        'kaldenavn': '{} {}'.format(kaldenavn_fornavn,
-                                                    kaldenavn_efternavn),
+                        'kaldenavn': ' '.join([kaldenavn_fornavn,
+                                               kaldenavn_efternavn]).strip(),
                         'from_date': from_date,
                         'to_date': to_date
                     }
