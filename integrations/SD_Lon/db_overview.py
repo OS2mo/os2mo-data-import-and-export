@@ -67,6 +67,6 @@ if __name__ == '__main__':
 
     status, msg = db_overview.read_current_status()
     print(status, msg)
-    if status==False:
+    if not status:
         raise Exception("Job is already running or dates don't match!")
     # print(db_overview.delete_last_row())
