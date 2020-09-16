@@ -536,7 +536,7 @@ reports(){
         && return 1 # reports depend on imports
 
     if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
-        run-job reports_sd_db_overview || echo "error in reports_sd_db_overview - continuing"
+        run-job reports_sd_db_overview || return 2
     fi
     
     if [ "${RUN_OPUS_DB_OVERVIEW}" == "true" ]; then
