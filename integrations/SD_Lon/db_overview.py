@@ -33,9 +33,16 @@ class DBOverview(object):
         query = 'select * from runs order by id desc limit 1'
         c.execute(query)
         row = c.fetchone()
+        from datetime import date
+        from datetime import datetime
+
+        today = date.today()
+        midnight = datetime.min.time()
+        midnight_today = datetime.combine(today, midnight)
+
         if 'Running' in row[3]:
             status = (False, 'Not ready to run')
-        elif row[2] < datetime.now().replace(hour=0, minute=0, second=0, microsecond=0):
+        elif row[2] < midnight_today:
             status = (False, 'Not up to date')
         else:
             status = (True, 'Status ok')
