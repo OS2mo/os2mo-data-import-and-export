@@ -32,21 +32,16 @@ class DBOverview(object):
 
         query = 'select * from runs order by id desc limit 1'
         c.execute(query)
-        row = c.fetchone()
-        from datetime import date
-        from datetime import datetime
-
         today = date.today()
         midnight = datetime.min.time()
         midnight_today = datetime.combine(today, midnight)
 
-        if 'Running' in row[3]:
-            status = (False, 'Not ready to run')
-        elif row[2] < midnight_today:
-            status = (False, 'Not up to date')
-        else:
-            status = (True, 'Status ok')
-        return status
+        _, from, _, status = c.fetchone()
+	if 'Running' in status:
+	    return (False, 'Not ready to run')
+        if from < midnight_today:
+	    return (False, 'Not up to date')
+	return (True, 'Status ok')
 
     def delete_last_row(self, force=False):
         current_status = self.read_current_status()
