@@ -1,6 +1,7 @@
 import json
 import pathlib
 import sqlite3
+from datetime import date
 from datetime import datetime
 # TODO: Soon we have done this 4 times. Should we make a small settings
 # importer, that will also handle datatype for specicic keys?
