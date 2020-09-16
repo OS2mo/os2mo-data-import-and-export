@@ -281,10 +281,12 @@ reports_sd_db_overview(){
     echo running reports_sd_db_overview
     outfile=$(mktemp)
     ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py > ${outfile}
+    local STATUS = $?
     head -2 ${outfile}
     echo "..."
     tail -3 ${outfile}
     rm ${outfile}
+    return $STATUS
 }
 
 reports_opus_db_overview(){
