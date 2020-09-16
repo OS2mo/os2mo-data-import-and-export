@@ -25,7 +25,6 @@ class DBOverview(object):
         for row in rows:
             status = 'id: {}, from: {}, to: {}, status: {}'
             print(status.format(row[0], row[1], row[2], row[3]))
-         
 
     def read_current_status(self):
         conn = sqlite3.connect(self.run_db, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -65,9 +64,9 @@ if __name__ == '__main__':
     # print(db_overview.delete_last_row(force=True))
     # print(db_overview.delete_last_row(force=True))
     db_overview.read_db_content()
+
     status, msg = db_overview.read_current_status()
     print(status, msg)
     if status==False:
-        raise Exception('Fejl!')
-
+        raise Exception('Job is already running or dates don\'t match!')
     # print(db_overview.delete_last_row())
