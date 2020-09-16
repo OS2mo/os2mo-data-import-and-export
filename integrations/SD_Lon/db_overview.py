@@ -38,11 +38,11 @@ class DBOverview(object):
         midnight_today = datetime.combine(today, midnight)
 
         _, from_time, _, status = c.fetchone()
-	if 'Running' in status:
-	    return (False, 'Not ready to run')
-	if from_time < midnight_today:
-	    return (False, 'Not up to date')
-	return (True, 'Status ok')
+        if 'Running' in status:
+            return (False, 'Not ready to run')
+        if from_time < midnight_today:
+            return (False, 'Not up to date')
+        return (True, 'Status ok')
 
     def delete_last_row(self, force=False):
         current_status = self.read_current_status()
