@@ -37,10 +37,10 @@ class DBOverview(object):
         midnight = datetime.min.time()
         midnight_today = datetime.combine(today, midnight)
 
-        _, from, _, status = c.fetchone()
+        _, from_time, _, status = c.fetchone()
 	if 'Running' in status:
 	    return (False, 'Not ready to run')
-        if from < midnight_today:
+	if from_time < midnight_today:
 	    return (False, 'Not up to date')
 	return (True, 'Status ok')
 
