@@ -3,70 +3,67 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "${DIR}"
 
+# CLI="echo python mox_util.py cli"
 CLI="python mox_util.py cli"
+# Format of the source file is a recursive tree, with entries:
+# "BVN": {
+#     "title": "Class title",
+#     "description": "Class description",
+#     "children": {...} // dict of entries alike this one
+# }
+# Note: BVNs must be globally unique, and valid variable names
+SOURCE=$(cat "seed.json")
+SOURCE_LAYERS=$(cat "layers.json")
 
-$CLI ensure-facet-exists --bvn hoved_organisation --description Hovedorganisation
-$CLI ensure-facet-exists --bvn faglig_organisation --description "Faglig organisation"
-
-$CLI ensure-class-exists --bvn DA --title "DA" --description "Dansk Arbejdsgiverforening" --facet-bvn hoved_organisation
-
-declare -A DA
-
-DA[DA_asfalt]="Asfaltindustrien/Drivkraft Danmark"
-DA[DA_byggeri]="Dansk Byggeri"
-DA[DA_erhverv]="Dansk Erhverv Arbejdsgiver"
-DA[DA_textil]="Dansk Textil & Beklædning"
-DA[DA_maler]="Danske Malermestre"
-DA[DA_medier]="Danske Mediers Arbejdsgiverforening"
-DA[DA_DI]="DI - Organisation for erhvervslivet"
-DA[DA_green]="Foreningen af Danske Virksomheder i Grønland"
-DA[DA_grakom]="Grakom Arbejdsgivere"
-DA[DA_horesta]="Horesta Arbejdsgiver"
-DA[DA_rederi]="DanskeRederier"
-DA[DA_sama]="SAMA - Sammenslutningen af mindre Arbejdsgiverforeninger i Danmark"
-DA[DA_tekniq]="TEKNIQ Installatørernes Organisation"
-
-for BVN in "${!DA[@]}"; do
-    TITLE="${DA[$BVN]}"
-    $CLI ensure-class-exists --bvn ${BVN} --title "${TITLE}" --facet-bvn faglig_organisation --parent-bvn DA
+echo "Creating layer facets"
+declare -A LAYERS
+NUM_LAYERS=$(echo ${SOURCE_LAYERS} | jq ".|length")
+for i in $(seq 0 $((NUM_LAYERS - 1))); do
+   BVN=$(echo ${SOURCE_LAYERS} | jq -r ".[${i}].bvn")
+   DESCRIPTION=$(echo ${SOURCE_LAYERS} | jq -r ".[${i}].description")
+   $CLI ensure-facet-exists --bvn "${BVN}" --description "${DESCRIPTION}"
+   LAYERS[${i}]="${BVN}"
 done
 
-$CLI ensure-class-exists --bvn LO --title "LO" --description "Landsorganisationen i Danmark" --facet-bvn hoved_organisation
+printarr() { declare -n __p="$1"; for k in "${!__p[@]}"; do printf "%s=%s\n" "$k" "${__p[$k]}" ; done ;  } 
+printarr LAYERS
+echo ""
 
-declare -A LO
-LO[LO_blik]="Blik og Rørarbejderforbundet i Danmark"
-LO[LO_daf]="Dansk Artist Forbund (DAF)"
-LO[LO_el]="Dansk EL-Forbund"
-LO[LO_kosmetik]="Dansk Frisør og Kosmetiker Forbund"
-LO[LO_service]="Dansk Funktionærforbund - Serviceforbundet"
-LO[LO_djf]="Dansk Jernbaneforbund (DJF)"
-LO[LO_metal]="Dansk Metal"
-LO[LO_3f]="Fagligt Fælles Forbund (3F)"
-LO[LO_foa]="FOA - Fag og Arbejde"
-LO[LO_jail]="Fængselsforbundet i Danmark"
-LO[LO_hk]="HK/Danmark"
-LO[LO_korporal]="Hærens Konstabel- og Korporalforening"
-LO[LO_spiller]="Håndbold Spiller Foreningen"
-LO[LO_maler]="Malerforbundet i Danmark"
-LO[LO_nnf]="Fødevareforbundet NNF"
-LO[LO_sl]="Socialpædagogernes Landsforbund (SL)"
-LO[LO_spf]="Spillerforeningen (SPF)"
-LO[LO_tl]="Teknisk Landsforbund (TL)"
+create_tree()
+{
+    local FILTER=$1
+    local PARENT_BVN=$2
+    local LAYER=$3
+    local PARENT_FACET="${LAYERS[$LAYER]}"
+    local FILTERED=$(echo "${SOURCE}" | jq "${FILTER}")
+    local NUM_KEYS=$(echo "${FILTERED}" | jq "keys|length")
+    if [ "${NUM_KEYS}" -eq 0 ]; then
+       return
+    fi
+    local KEYS=$(echo "${FILTERED}" | jq -r "keys | .[]")
+    #echo "${PARENT} - ${NUM_KEYS}"
+    while IFS= read -r KEY; do
+        local BVN=$KEY
+        local TITLE=$(echo "${FILTERED}" | jq -r ".${BVN}.title")
+        echo "Creating '${BVN}' - '${TITLE}' on layer ${LAYER}"
+        local DESCRIPTION=$(echo "${FILTERED}" | jq -r ".${BVN}.description")
+        if [ -z ${PARENT_BVN} ]; then
+            ${CLI} ensure-class-exists --bvn "${BVN}" --title "${TITLE}" --description "${DESCRIPTION}" --facet-bvn "${PARENT_FACET}"
+        else
+            ${CLI} ensure-class-exists --bvn "${BVN}" --title "${TITLE}" --description "${DESCRIPTION}" --facet-bvn "${PARENT_FACET}" --parent-bvn "${PARENT_BVN}"
+        fi
+        local NEW_FILTER=$(echo "${FILTER}.${BVN}.children" | sed "s/\.\./\./g")
+        # echo "${NEW_FILTER}"
+        local NEW_LAYER=$((LAYER + 1))
+        create_tree "${NEW_FILTER}" "${BVN}" "${NEW_LAYER}"
+    done <<< "$KEYS"
+    echo ""
+}
 
-for BVN in "${!LO[@]}"; do
-  TITLE="${LO[$BVN]}"
-  $CLI ensure-class-exists --bvn ${BVN} --title "${TITLE}" --facet-bvn faglig_organisation --parent-bvn LO
-done
-
-$CLI ensure-facet-exists --bvn LO_3f_hovedomroede --description "3F Hovedområde"
-
-$CLI ensure-class-exists --bvn LO_3f_industri --title "Industrigruppen" --facet-bvn LO_3f_hovedomroede --parent-bvn LO_3f
-$CLI ensure-class-exists --bvn LO_3f_transport --title "Transportgruppen" --facet-bvn LO_3f_hovedomroede --parent-bvn LO_3f
-$CLI ensure-class-exists --bvn LO_3f_offentlig --title "Den Offentlige Gruppe" --facet-bvn LO_3f_hovedomroede --parent-bvn LO_3f
-$CLI ensure-class-exists --bvn LO_3f_bygge --title "Byggegruppen" --facet-bvn LO_3f_hovedomroede --parent-bvn LO_3f
-$CLI ensure-class-exists --bvn LO_3f_green --title "Den Grønne Gruppe" --facet-bvn LO_3f_hovedomroede --parent-bvn LO_3f
-$CLI ensure-class-exists --bvn LO_3f_privat --title "Privat, Service, Hotel & Restauration" --facet-bvn LO_3f_hovedomroede --parent-bvn LO_3f
+echo "Creating class tree"
+create_tree "." "" 0
 
 # Configure MO to utilize newly created facet
-TOP_LEVEL_UUID=$($CLI ensure-facet-exists --bvn hoved_organisation --description Hovedorganisation | cut -f1 -d' ')
+TOP_LEVEL_UUID=$($CLI ensure-facet-exists --bvn "${LAYERS[0]}" | cut -f1 -d' ')
 curl -X POST -H "Content-Type: application/json" --data "{\"org_units\": {\"association_dynamic_facets\": \"${TOP_LEVEL_UUID}\"}}" http://localhost:5000/service/configuration
+curl -X POST -H "Session: ${SAML_TOKEN}" -H "Content-Type: application/json" --data "{\"org_units\": {\"association_dynamic_facets\": \"${TOP_LEVEL_UUID}\"}}" http://localhost:5000/service/configuration
