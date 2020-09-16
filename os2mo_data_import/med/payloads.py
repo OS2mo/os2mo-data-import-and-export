@@ -42,6 +42,7 @@ def lora_klasse(
     titel,
     facet_uuid,
     org_uuid,
+    org_unit_uuid=None,
     description=None,
     dato=None,
     omfang=None,
@@ -79,9 +80,18 @@ def lora_klasse(
                 "objekttype": "Organisation",
             }
         ],
+        "ejer": [
+            {
+                "uuid": org_unit_uuid,
+                "virkning": _virkning(dato),
+                "objekttype": "OrganisationEnhed",
+            }
+        ],
     }
     if overklasse is None:
         del relationer["overordnetklasse"]
+    if org_unit_uuid is None:
+        del relationer["ejer"]
     klasse = {
         "attributter": attributter,
         "relationer": relationer,

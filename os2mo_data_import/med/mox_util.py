@@ -97,7 +97,10 @@ def print_created(uuid: str, created: bool) -> None:
 )
 @click.option("--description", help="Description to set on the class.")
 @click.option(
-    "--org-uuid", "--organisation", help="Organisation to bind the facet to."
+    "--org-uuid", "--organisation", help="Organisation to bind the class to."
+)
+@click.option(
+    "--org-unit-uuid", "--organisation-unit", help="Organisation Unit to own the class."
 )
 @click.option("--parent-bvn", help="User key of another class to put this under.")
 @click.option(
@@ -114,6 +117,7 @@ async def ensure_class_exists(
     facet_bvn: str,
     description: str,
     org_uuid: str,
+    org_unit_uuid: str,
     parent_bvn: str,
     dry_run: bool,
 ):
@@ -139,6 +143,7 @@ async def ensure_class_exists(
         title,
         facet_uuid,
         org_uuid,
+        org_unit_uuid=org_unit_uuid,
         description=description,
         overklasse=parent_uuid,
     )
