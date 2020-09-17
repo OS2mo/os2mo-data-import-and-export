@@ -151,13 +151,9 @@ def get_sts_orgunit(session, uuid):
     mokles = {}
     lc_kles = session.query(KLE).filter(KLE.enhed_uuid == uuid).all()
     for lc_kle in lc_kles:
-        mokles.setdefault(lc_kle.uuid, {
-            "uuid": lc_kle.uuid,
-            "kle_aspect": []
-        })
-        mokles[lc_kle.uuid]["kle_aspect"].append(
-            {"scope": scope_to_scope[lc_kle.kle_aspekt_titel]}
-        )
+        mokles[lc_kle.uuid] = {
+            "kle_number": {"uuid": lc_kle.kle_nummer_uuid},
+        }
     os2mo.kle_to_orgunit(sts_org_unit, mokles.values())
     os2mo.strip_truncate_and_warn(sts_org_unit, sts_org_unit)
 
