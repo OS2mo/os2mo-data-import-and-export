@@ -19,4 +19,3 @@ mo_end_time $(date +%s)
 mo_return_code $2
 EOF
 }
-
