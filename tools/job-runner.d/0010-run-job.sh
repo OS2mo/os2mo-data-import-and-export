@@ -35,27 +35,18 @@ run-job-log (){
 }
 
 run-job(){
-    JOB=$1
-    # [ ! "$JOB" = "imports" ] && JOB=true # testing
+    local JOB=$1
     run-job-log ! job $1 ! job-status starting !
 
-    pm_start=$(prometrics-ts)
-
+    prometrics-job-start mo_${JOB}
     $JOB
+    JOB_STATUS=$?
+    prometrics-job-end mo_${JOB} ${JOB_STATUS}
 
-    export JOBTIME=$(prometrics-ts $pm_start)
-    export JOBNAME=mo_${JOB}
-
-    if [ "$?" = "0" ] ; then
-        run-job-log ! job $1 ! job-status success !
-        prometrics-job-end
-        JOBTIME=$(prometrics-ts)
-        prometrics-job-success
-        return 0
+    if [ "$JOB_STATUS" = "0" ] ; then
+        run-job-log ! job $JOB ! job-status success !
     else
-        prometrics-job-end
-        run-job-log ! job $1 ! job-status failed  !
-        return 1
+        run-job-log ! job $JOB ! job-status failed !
     fi
+    return $JOB_STATUS
 }
-

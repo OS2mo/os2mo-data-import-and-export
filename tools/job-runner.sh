@@ -187,6 +187,12 @@ imports_opgavefordeler(){
     "${VENV}/bin/python3" integrations/kle/kle_import_export.py
 }
 
+imports_dummy(){
+    set -e
+    echo "Running imports_dummy"
+}
+
+
 exports_mox_rollekatalog(){
     set -e
     export MOX_ROLLE_MAPPING="${DIPEXAR}/cpr_mo_ad_map.csv"
@@ -300,6 +306,10 @@ reports_opus_db_overview(){
     rm ${outfile}
 }
 
+reports_dummy(){
+    set -e
+    echo "Running reports_dummy"
+}
  
 
 exports_plan2learn(){
@@ -391,6 +401,12 @@ exports_test(){
     :
 }
 
+exports_dummy(){
+    set -e
+    echo "Running exports_dummy"
+}
+
+
 
 # read the run-job script et al
 for module in tools/job-runner.d/*.sh; do
@@ -460,6 +476,10 @@ imports(){
     if [ "${RUN_OPGAVEFORDELER}" == "true" ]; then
         run-job imports_opgavefordeler || return 2
     fi
+
+    if [ "${RUN_IMPORTS_DUMMY}" == "true" ]; then
+        run-job imports_dummy || return 2
+    fi
 }
 
 # exports may also be interdependent: -e
@@ -525,7 +545,9 @@ exports(){
         run-job exports_test || return 2
     fi
 
-
+    if [ "${RUN_EXPORTS_DUMMY}" == "true" ]; then
+        run-job exports_dummy || return 2
+    fi
 }
 
 # reports are typically not interdependent
@@ -547,7 +569,9 @@ reports(){
         run-job reports_viborg_managers || return 2
     fi
 
-
+    if [ "${RUN_REPORTS_DUMMY}" == "true" ]; then
+        run-job reports_dummy || return 2
+    fi
 }
 
 pre_truncate_logfiles(){
