@@ -3,8 +3,9 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "${DIR}"
 
+MOX_URL="${MOX_URL:-'http://localhost:8080'}"
 # CLI="echo python mox_util.py cli"
-CLI="python mox_util.py cli"
+CLI="python mox_util.py cli --mox-base ${MOX_URL}"
 # Format of the source file is a recursive tree, with entries:
 # "BVN": {
 #     "title": "Class title",
@@ -65,5 +66,6 @@ create_tree "." "" 0
 
 # Configure MO to utilize newly created facet
 TOP_LEVEL_UUID=$($CLI ensure-facet-exists --bvn "${LAYERS[0]}" | cut -f1 -d' ')
-curl -X POST -H "Content-Type: application/json" --data "{\"org_units\": {\"association_dynamic_facets\": \"${TOP_LEVEL_UUID}\"}}" http://localhost:5000/service/configuration
-curl -X POST -H "Session: ${SAML_TOKEN}" -H "Content-Type: application/json" --data "{\"org_units\": {\"association_dynamic_facets\": \"${TOP_LEVEL_UUID}\"}}" http://localhost:5000/service/configuration
+MORA_URL="${MORA_URL:-'http://localhost:5000'}"
+curl -X POST -H "Content-Type: application/json" --data "{\"org_units\": {\"association_dynamic_facets\": \"${TOP_LEVEL_UUID}\"}}" ${MORA_URL}/service/configuration
+curl -X POST -H "Session: ${SAML_TOKEN}" -H "Content-Type: application/json" --data "{\"org_units\": {\"association_dynamic_facets\": \"${TOP_LEVEL_UUID}\"}}" ${MORA_URL}/service/configuration
