@@ -1,7 +1,8 @@
 import json
 import pathlib
 import sqlite3
-
+from datetime import date
+from datetime import datetime
 # TODO: Soon we have done this 4 times. Should we make a small settings
 # importer, that will also handle datatype for specicic keys?
 cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
@@ -32,12 +33,16 @@ class DBOverview(object):
 
         query = 'select * from runs order by id desc limit 1'
         c.execute(query)
-        row = c.fetchone()
-        if 'Running' in row[3]:
-            status = (False, 'Not ready to run')
-        else:
-            status = (True, 'Status ok')
-        return status
+        today = date.today()
+        midnight = datetime.min.time()
+        midnight_today = datetime.combine(today, midnight)
+
+        _, from_time, _, status = c.fetchone()
+        if 'Running' in status:
+            return (False, 'Not ready to run')
+        if from_time < midnight_today:
+            return (False, 'Not up to date')
+        return (True, 'Status ok')
 
     def delete_last_row(self, force=False):
         current_status = self.read_current_status()
@@ -62,6 +67,9 @@ if __name__ == '__main__':
     # print(db_overview.delete_last_row(force=True))
     # print(db_overview.delete_last_row(force=True))
     db_overview.read_db_content()
-    print(db_overview.read_current_status())
 
+    status, msg = db_overview.read_current_status()
+    print(status, msg)
+    if not status:
+        raise Exception("Job is already running or dates don't match!")
     # print(db_overview.delete_last_row())

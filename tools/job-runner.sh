@@ -281,10 +281,12 @@ reports_sd_db_overview(){
     echo running reports_sd_db_overview
     outfile=$(mktemp)
     ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py > ${outfile}
+    local STATUS=$?
     head -2 ${outfile}
     echo "..."
     tail -3 ${outfile}
     rm ${outfile}
+    return $STATUS
 }
 
 reports_opus_db_overview(){
@@ -534,7 +536,7 @@ reports(){
         && return 1 # reports depend on imports
 
     if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
-        run-job reports_sd_db_overview || echo "error in reports_sd_db_overview - continuing"
+        run-job reports_sd_db_overview || return 2
     fi
     
     if [ "${RUN_OPUS_DB_OVERVIEW}" == "true" ]; then
