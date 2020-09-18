@@ -83,7 +83,7 @@ class SqlExport(object):
         trunc_tables=dict(Base.metadata.tables)
         trunc_tables.pop("kvittering")
 
-        Base.metadata.drop_all(self.engine, tables=trunc_tables.values() )
+        Base.metadata.drop_all(self.engine, tables=trunc_tables.values())
         Base.metadata.create_all(self.engine)
         Session = sessionmaker(bind=self.engine, autoflush=False)
         self.session = Session()
