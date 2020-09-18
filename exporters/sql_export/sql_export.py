@@ -89,7 +89,9 @@ class SqlExport(object):
         self.session = Session()
 
         query_time = timestamp()
-        self._add_receipt(query_time)
+        kvittering = self._add_receipt(query_time)
+      
+
 
         if self.historic:
             self.lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
@@ -101,7 +103,7 @@ class SqlExport(object):
             self.lc.calculate_primary_engagements()
 
         start_delivery_time = timestamp()
-        self._update_receipt(query_time, start_delivery_time)
+        self._update_receipt(kvittering, start_delivery_time)
 
         self._add_classification()
         self._add_users_and_units()
@@ -115,7 +117,7 @@ class SqlExport(object):
         self._add_related()
 
         end_delivery_time = timestamp()
-        self._update_receipt(query_time, start_delivery_time, end_delivery_time)
+        self._update_receipt(kvittering, start_delivery_time, end_delivery_time)
 
     def at_exit(self):
         logger.info('*SQL export ended*')
@@ -410,11 +412,11 @@ class SqlExport(object):
         if output:
             for result in self.engine.execute('select * from kvittering limit 10'):
                 print(result.items())
+        return sql_kvittering
 
-    def _update_receipt(self, query_time, start_time=None, end_time=None, output=False):
+    def _update_receipt(self, sql_kvittering, start_time=None, end_time=None, output=False):
         logger.info('Update Receipt')
         print('Update Receipt')
-        sql_kvittering = self.session.query(Kvittering).filter(Kvittering.query_tid==query_time).first()
         sql_kvittering.start_levering_tid=start_time
         sql_kvittering.slut_levering_tid=end_time
         self.session.commit()
