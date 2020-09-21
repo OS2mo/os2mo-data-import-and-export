@@ -1,7 +1,14 @@
 FROM python:3
 
-RUN apt-get update && apt-get -y install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev
-RUN apt-get update && apt-get -y install jq
+RUN apt-get update && apt-get -y install  \
+    unixodbc-dev \ 
+    freetds-dev \
+    unixodbc \
+    tdsodbc \
+    libkrb5-dev \
+    libmariadb-dev \
+    jq
+
 
 ADD . /app
 WORKDIR /app
