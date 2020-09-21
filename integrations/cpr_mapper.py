@@ -10,8 +10,12 @@ def employee_mapper(filename:str) -> dict:
     ...      _ = tmpfile.write('0101701111;1034f987-555a-4183-bad1-2c5846117cee;;\\n')
     ...      _ = tmpfile.write('1103701234;a9077886-db39-400a-b3c4-8b73933790d2;;\\n')
     ...      tmpfile.flush()
-    ...      employee_mapper(tmpfile.name)
-    {'0101701111': '1034f987-555a-4183-bad1-2c5846117cee', '1103701234': 'a9077886-db39-400a-b3c4-8b73933790d2'}
+    ...      expected = {
+    ...         '0101701111': '1034f987-555a-4183-bad1-2c5846117cee',
+    ...         '1103701234': 'a9077886-db39-400a-b3c4-8b73933790d2'
+    ...      }
+    ...      employee_mapper(tmpfile.name) == expected
+    True
     """
     with open(filename) as csvfile:
         reader = csv.DictReader(csvfile, delimiter=';')

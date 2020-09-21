@@ -12,13 +12,14 @@ def dict_map(dicty, key_fun=None, value_fun=None, tuple_fun=None):
     """Map the dict values.
 
     Example:
+        >>> dts = lambda dicty: sorted(dicty.items())
         >>> dicty = {1: 1, 2: 2, 3: 3}
-        >>> dict_map(dicty, value_fun=lambda value: value ** 2)
-        {1: 1, 2: 4, 3: 9}
-        >>> dict_map(dicty, key_fun=lambda key: key + 2)
-        {3: 1, 4: 2, 5: 3}
-        >>> dict_map(dicty, tuple_fun=lambda key, value: (key + 2, value ** 2))
-        {3: 1, 4: 4, 5: 9}
+        >>> dts(dict_map(dicty, value_fun=lambda value: value ** 2))
+        [(1, 1), (2, 4), (3, 9)]
+        >>> dts(dict_map(dicty, key_fun=lambda key: key + 2))
+        [(3, 1), (4, 2), (5, 3)]
+        >>> dts(dict_map(dicty, tuple_fun=lambda key, value: (key + 2, value ** 2)))
+        [(3, 1), (4, 4), (5, 9)]
 
     Returns:
         dict: A dict where func has been applied to every value.
@@ -39,8 +40,9 @@ def build_children_map(parent_map):
 
     Example:
         >>> parent_map = {1: None, 2: 1, 3: 2, 4: 1, 5: 2}
-        >>> build_children_map(parent_map)
-        {None: [1], 1: [2, 4], 2: [3, 5]}
+        >>> expected = {None: [1], 1: [2, 4], 2: [3, 5]}
+        >>> build_children_map(parent_map) == expected
+        True
 
     Args:
         parent_map: dict from id to parent id
@@ -62,8 +64,9 @@ def recursive_build_tree(children_map, entry=None):
 
     Example:
         >>> children_map = {None: [1], 1: [2, 4], 2: [3, 5]}
-        >>> recursive_build_tree(children_map)
-        {1: {2: {3: {}, 5: {}}, 4: {}}}
+        >>> expected = {1: {2: {3: {}, 5: {}}, 4: {}}}
+        >>> recursive_build_tree(children_map) == expected
+        True
 
     Args:
         children_map: dict from parent-id to list of children
@@ -83,8 +86,9 @@ def recursive_build_tree(children_map, entry=None):
 def build_tree(parent_map):
     """
     >>> parent_map = {1: None, 2: 1, 3: 2, 4: 1, 5: 2}
-    >>> build_tree(parent_map)
-    {1: {2: {3: {}, 5: {}}, 4: {}}}
+    >>> expected = {1: {2: {3: {}, 5: {}}, 4: {}}}
+    >>> build_tree(parent_map) == expected
+    True
     """
     children_map = build_children_map(parent_map)
     return recursive_build_tree(children_map)

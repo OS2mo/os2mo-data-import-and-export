@@ -276,7 +276,7 @@ Filtrering af organisationsenheder
 ==================================
 Den valgfrie nøgle :code:`integrations.opus.units.filter_ids` kan sættes for
 at filtrere udvalgte organisationenheder og deres tilhørende underliggende
-organisationsenheder fra før selve importen kører.
+organisationsenheder fra, før selve importen kører.
 
-Nølgen skal være en liste indeholende OPUS ID'er for de organisationsenheder,
+Nølgen skal være en liste indeholdende OPUS ID'er for de organisationsenheder,
 som ønskes filtreret fra.
