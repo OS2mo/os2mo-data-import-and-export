@@ -10,9 +10,10 @@ RUN apt-get update && apt-get -y install  \
     jq
 
 
-ADD . /app
-WORKDIR /app
-
+COPY ./os2mo_data_import/med/requirements.txt app/os2mo_data_import/med/requirements.txt
 RUN pip install -r /app/os2mo_data_import/med/requirements.txt
+
+COPY . /app
+WORKDIR /app
 
 CMD ["/bin/bash", "/app/os2mo_data_import/med/seed.sh"]
