@@ -152,6 +152,8 @@ class OpusImport(object):
         else:
             self.units = data['orgUnit'][1:]
 
+        self.units = opus_helpers.filter_units(self.units)
+
         self.employees = data['employee']
 
         municipality_code = int(data['orgUnit'][0]['@client'])

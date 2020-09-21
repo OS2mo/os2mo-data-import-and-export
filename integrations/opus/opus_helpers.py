@@ -6,6 +6,7 @@ import hashlib
 import logging
 import sqlite3
 import datetime
+from operator import itemgetter
 from pathlib import Path
 
 import xmltodict
@@ -280,3 +281,49 @@ def update_employee(employee_number, days):
                 diff.import_single_employment(employee)
                 current_object = employee
                 latest_date = date
+
+
+def filter_units(units, filter_ids):
+    """
+    Filter units such that no unit with a parent-id in filter_ids exist.
+
+    Example:
+        >>> units = [(1, None), (2, 1), (3, 1), (4, 2), (5, 2), (6, 3), (7, 5)]
+        >>> tup_to_unit = lambda tup: {'@id': tup[0], 'parentOrgUnit': tup[1]}
+        >>> units = list(map(tup_to_unit, units))
+        >>> get_ids = lambda units: list(map(itemgetter('@id'), units))
+        >>> get_ids(filter_units(units, [1]))
+        []
+        >>> get_ids(filter_units(units, [2]))
+        [1, 3, 6]
+        >>> get_ids(filter_units(units, [3]))
+        [1, 2, 4, 5, 7]
+        >>> get_ids(filter_units(units, [3, 5]))
+        [1, 2, 4]
+        >>> get_ids(filter_units(units, [3, 7]))
+        [1, 2, 4, 5]
+
+    Args:
+        units: List of units
+        filter_ids: List of unit IDs to filter parents on
+
+    Returns:
+        list: List of units, with some filtered out
+    """
+
+    def get_parent(parent_map, entry):
+        """Build a list of parents."""
+        parent = parent_map.get(entry, None)
+        if parent is None:
+            return [entry]
+        return [entry] + get_parent(parent_map, parent)
+
+    parent_map = dict(map(itemgetter("@id", "parentOrgUnit"), units))
+    filter_set = set(filter_ids)
+
+    def is_disjoint_from_filter_ids(unit):
+        """Test for overlap between parents and filter_set."""
+        parent_set = set(get_parent(parent_map, unit['@id']))
+        return parent_set.isdisjoint(filter_set)
+
+    return list(filter(is_disjoint_from_filter_ids, units))
