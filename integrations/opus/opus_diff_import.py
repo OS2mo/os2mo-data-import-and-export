@@ -64,6 +64,7 @@ class OpusDiffImport(object):
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
+        self.filter_ids = self.settings.get('integrations.opus.units.filter_ids', []),
 
         self.session = Session()
         self.employee_forced_uuids = employee_mapping
@@ -143,7 +144,7 @@ class OpusDiffImport(object):
     def parser(self, target_file):
         data = xmltodict.parse(target_file.read_text())['kmd']
         self.units = data['orgUnit'][1:]
-        self.units = opus_helpers.filter_units(self.units)
+        self.units = opus_helpers.filter_units(self.units, self.filter_ids)
         self.employees = data['employee']
         return True
 
