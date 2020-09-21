@@ -67,6 +67,14 @@ Lint SDLoen Integration:
     - python -m isort --diff --check-only sd_cli.py
 
 
+Lint OPUS Org Tree Print:
+  extends: .lint-python
+  script:
+    - cd integrations/opus/org_tree_print/
+    - python -m black --diff --line-length 85 --check *.py
+    - python -m isort --diff --check-only *.py
+
+
 # Test stage
 ############
 
@@ -118,3 +126,16 @@ Test SDLoen Integration:
     - python integrations/SD_Lon/sd_cli.py --help
     # - cp settings/kommune-andeby.json settings/settings.json
     # - pytest integrations/SD_Lon/tests/
+
+
+
+Test CPR Mapper:
+  extends: .test-python
+  script:
+    - python -m doctest -v integrations/cpr_mapper.py
+
+
+Test OPUS Org Tree Print:
+  extends: .test-python
+  script:
+    - python -m doctest -v integrations/opus/org_tree_print/main.py
