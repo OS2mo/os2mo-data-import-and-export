@@ -901,7 +901,7 @@ class LoraCache(object):
 
         # Start looking entries up in DAR
         # TODO: Refactor and use dawa_queue async from os2phonebook
-        no_hit = 0
+        hit = 0
         for dar_uuid in dar_uuids:
             for addrtype in ('adresser', 'adgangsadresser'):
                 logger.debug('Looking up dar: {}'.format(dar_uuid))
@@ -914,7 +914,7 @@ class LoraCache(object):
                 address_data = r.json()
                 r.raise_for_status()
                 if address_data:
-                    no_hit += 1
+                    hit += 1
                     dar_cache[dar_uuid] = address_data[0]
                     break
 
@@ -925,7 +925,7 @@ class LoraCache(object):
                     address['value'] = dar_cache[dar_uuid].get('betegnelse')
 
         total_dar = len(self.dar_map)
-        logger.info('Total dar: {}, no-hit: {}'.format(total_dar, no_hit))
+        logger.info('Total dar: {}, no-hit: {}'.format(total_dar, total_dar - hit))
         return dar_cache
 
     def populate_cache(self, dry_run=False, skip_associations=False):
