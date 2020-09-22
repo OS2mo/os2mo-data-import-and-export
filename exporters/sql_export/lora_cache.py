@@ -8,6 +8,7 @@ import datetime
 import dateutil
 import lora_utils
 import requests
+from collections import defaultdict
 
 from os2mo_helpers.mora_helpers import MoraHelper
 
@@ -31,10 +32,9 @@ class LoraCache(object):
             'relationer': ('tilknyttedeorganisationer', 'tilhoerer')
         }
 
+        self.dar_map = None
         if resolve_dar:
-            self.dar_cache = {}
-        else:
-            self.dar_cache = None
+            self.dar_map = defaultdict(list)
 
         self.full_history = full_history
         self.skip_past = skip_past
@@ -327,8 +327,6 @@ class LoraCache(object):
         }
         address_list = self._perform_lora_lookup(url, params)
 
-        total_dar = 0
-        no_hit = 0
         addresses = {}
         logger.info('Performing DAR lookup, this might take a while...')
         for address in address_list:
@@ -380,34 +378,13 @@ class LoraCache(object):
                     skip_len = len('urn:text:')
                     value = urllib.parse.unquote(value_raw[skip_len:])
                 elif address_type == 'DAR':
-                    # print('Total dar: {}, no-hit: {}'.format(total_dar, no_hit))
-
                     scope = 'DAR'
                     skip_len = len('urn:dar:')
                     dar_uuid = value_raw[skip_len:]
-                    total_dar += 1
+                    value = None
 
-                    if self.dar_cache is None:
-                        value = None
-                    else:
-                        if self.dar_cache.get(dar_uuid) is None:
-                            self.dar_cache[dar_uuid] = {}
-                            no_hit += 1
-                            for addrtype in ('adresser', 'adgangsadresser'):
-                                logger.debug('Looking up dar: {}'.format(dar_uuid))
-                                adr_url = 'https://dawa.aws.dk/{}'.format(addrtype)
-                                # 'historik/adresser', 'historik/adgangsadresser'
-                                params = {'id': dar_uuid, 'struktur': 'mini'}
-                                # Note: Dar accepts up to 10 simultanious
-                                # connections, consider grequests.
-                                r = requests.get(url=adr_url, params=params)
-                                address_data = r.json()
-                                r.raise_for_status()
-                                if address_data:
-                                    self.dar_cache[dar_uuid] = address_data[0]
-                                    break
-                                self.dar_cache[dar_uuid] = {'betegelse': 'skip dar'}
-                        value = self.dar_cache[dar_uuid].get('betegnelse')
+                    if self.dar_map is not None:
+                        self.dar_map[dar_uuid].append(uuid)
                 else:
                     print('Ny type: {}'.format(address_type))
                     msg = 'Unknown addresse type: {}, value: {}'
@@ -436,7 +413,6 @@ class LoraCache(object):
                         'to_date': to_date
                     }
                 )
-        logger.info('Total dar: {}, no-hit: {}'.format(total_dar, no_hit))
         return addresses
 
     def _cache_lora_engagements(self):
@@ -916,6 +892,42 @@ class LoraCache(object):
             self.units[unit][0]['manager_uuid'] = manager_uuid
             self.units[unit][0]['acting_manager_uuid'] = acting_manager_uuid
 
+    def _cache_dar(self):
+        # Initialize cache for entries we cannot lookup
+        dar_cache = {
+            dar_uuid: {'betegelse': 'skip dar'}
+            for dar_uuid in self.dar_map.keys()
+        }
+
+        # Start looking entries up in DAR
+        # TODO: Refactor and use dawa_queue async from os2phonebook
+        no_hit = 0
+        for dar_uuid in self.dar_map.keys():
+            for addrtype in ('adresser', 'adgangsadresser'):
+                logger.debug('Looking up dar: {}'.format(dar_uuid))
+                adr_url = 'https://dawa.aws.dk/{}'.format(addrtype)
+                # 'historik/adresser', 'historik/adgangsadresser'
+                params = {'id': dar_uuid, 'struktur': 'mini'}
+                # Note: Dar accepts up to 10 simultanious
+                # connections, consider grequests.
+                r = requests.get(url=adr_url, params=params)
+                address_data = r.json()
+                r.raise_for_status()
+                if address_data:
+                    no_hit += 1
+                    dar_cache[dar_uuid] = address_data[0]
+                    break
+
+        # Update all addresses with betegnelse
+        for dar_uuid, uuid_list in self.dar_map.items():
+            for uuid in uuid_list:
+                for address in self.addresses[uuid]:
+                    address['value'] = dar_cache[dar_uuid].get('betegnelse')
+
+        total_dar = len(self.dar_map)
+        logger.info('Total dar: {}, no-hit: {}'.format(total_dar, no_hit))
+        return dar_cache
+
     def populate_cache(self, dry_run=False, skip_associations=False):
         """
         Perform the actual data import.
@@ -1098,6 +1110,14 @@ class LoraCache(object):
         with open(related_file, 'wb') as f:
             pickle.dump(self.related, f, pickle.HIGHEST_PROTOCOL)
         logger.info(msg.format(dt, len(self.related), len(self.related)/dt))
+
+        t = time.time()
+        logger.info('Læs dar')
+        self.dar_cache = self._cache_dar()
+        dt = time.time() - t
+        #with open(cache_file, 'wb') as f:
+        #    pickle.dump(self.dar_cache, f, pickle.HIGHEST_PROTOCOL)
+        logger.info(msg.format(dt, len(self.dar_cache), len(self.dar_cache)/dt))
 
 
         # Here we should de-activate read-only mode
