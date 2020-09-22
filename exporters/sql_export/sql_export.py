@@ -16,7 +16,7 @@ from exporters.sql_export.sql_table_defs import (
     Bruger, Enhed,
     ItSystem, LederAnsvar, KLE,
     Adresse, Engagement, Rolle, Tilknytning, Orlov, ItForbindelse, Leder,
-    Kvittering, Enhedssammenkobling
+    Kvittering, Enhedssammenkobling, DARAdresse
 )
 
 LOG_LEVEL = logging.DEBUG
@@ -100,6 +100,7 @@ class SqlExport(object):
         self._add_classification()
         self._add_users_and_units()
         self._add_addresses()
+        self._add_dar_addresses()
         self._add_engagements()
         self._add_associactions_leaves_and_roles()
         self._add_managers()
@@ -268,6 +269,21 @@ class SqlExport(object):
         self.session.commit()
         if output:
             for result in self.engine.execute('select * from adresser limit 10'):
+                print(result.items())
+
+    def _add_dar_addresses(self, output=False):
+        logger.info('Add DAR addresses')
+        print('Add DAR addresses')
+        for address, address_info in self.lc.dar_cache.items():
+            sql_address = DARAdresse(
+                uuid=address,
+                **{key: value for key, value in address_info.items()
+                   if key in DARAdresse.__table__.columns.keys() and key != "id"}
+            )
+            self.session.add(sql_address)
+        self.session.commit()
+        if output:
+            for result in self.engine.execute('select * from dar_adresser limit 10'):
                 print(result.items())
 
     def _add_associactions_leaves_and_roles(self, output=False):

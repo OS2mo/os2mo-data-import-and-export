@@ -63,7 +63,7 @@ class Adresse(Base):
     bruger_uuid = Column(String(36), nullable=True)  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
     værdi = Column(String(250), nullable=True)
-    dar_uuid = Column(String(36), nullable=True)
+    dar_uuid = Column(String(36), nullable=True) # , ForeignKey('dar_adresser.uuid'))
     adressetype_uuid = Column(String(36), ForeignKey("klasser.uuid"))
     adressetype_scope = Column(String(250), nullable=False)
     adressetype_titel = Column(String(250), nullable=False)
@@ -225,3 +225,20 @@ class Enhedssammenkobling(Base):
     enhed2_uuid  = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
     startdato = Column(String(10))
     slutdato = Column(String(10))
+
+
+class DARAdresse(Base):
+    __tablename__ = "dar_adresser"
+
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
+    vejkode = Column(String(8))
+    vejnavn = Column(String(250))
+    husnr = Column(String(8))
+    etage = Column(String(16))
+    dør = Column(String(8))
+    postnr = Column(String(8))
+    postnrnavn = Column(String(250))
+    kommunekode = Column(String(8))
+    adgangsadresseid = Column(String(36))
+    betegnelse = Column(String(250))
