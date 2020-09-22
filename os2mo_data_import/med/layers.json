@@ -1,10 +1,10 @@
 [
     {
-        "bvn": "hovedorg",
-        "description": "Hovedorganisation"
+        "bvn": "medarbejder_organisation",
+        "description": "Hovedorganisation / Faglig organisation"
     },
     {
-        "bvn": "fagorg",
-        "description": "Fagorganisation"
+        "bvn": "medarbejder_under_organisation",
+        "description": "Underorganisation"
     }
 ]
