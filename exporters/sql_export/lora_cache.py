@@ -894,15 +894,15 @@ class LoraCache(object):
 
     def _cache_dar(self):
         # Initialize cache for entries we cannot lookup
-        dar_cache = {
-            dar_uuid: {'betegelse': 'skip dar'}
-            for dar_uuid in self.dar_map.keys()
-        }
+        dar_uuids = self.dar_map.keys()
+        dar_cache = dict(map(
+            lambda dar_uuid: (dar_uuid, {'betegnelse': 'skip dar'}), dar_uuids
+        ))
 
         # Start looking entries up in DAR
         # TODO: Refactor and use dawa_queue async from os2phonebook
         no_hit = 0
-        for dar_uuid in self.dar_map.keys():
+        for dar_uuid in dar_uuids:
             for addrtype in ('adresser', 'adgangsadresser'):
                 logger.debug('Looking up dar: {}'.format(dar_uuid))
                 adr_url = 'https://dawa.aws.dk/{}'.format(addrtype)
