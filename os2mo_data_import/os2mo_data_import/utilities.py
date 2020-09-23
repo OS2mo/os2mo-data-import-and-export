@@ -18,7 +18,8 @@ from os2mo_data_import.mora_data_types import (
     OrganisationUnitType,
     TerminationType,
     EngagementTerminationType,
-    EmployeeType
+    EmployeeType, EngagementType,
+    AssociationType
 )
 
 from os2mo_data_import.mox_data_types import (
@@ -465,35 +466,41 @@ class ImportUtility(object):
             encode_integration=False
         )
 
-        if 'uuid' in payload and payload['uuid'] in self.existing_uuids:
-            logger.info('Re-import employee {}'.format(payload['uuid']))
-            re_import = 'NO'
-        else:
-            re_import = 'NEW'
-            logger.info('New employee, uuid {}'.format(payload.get('uuid')))
+        # if 'uuid' in payload and payload['uuid'] in self.existing_uuids:
+        #     logger.info('Re-import employee {}'.format(payload['uuid']))
+        #     re_import = 'NO'
+        # else:
+        #     re_import = 'NEW'
+        #     logger.info('New employee, uuid {}'.format(payload.get('uuid')))
+
+        re_import = 'NEW'
 
         # We unconditionally create or update the user, this should
         # ensure that we are always updated with correct current information.
-        mora_resource = "service/e/create"
-        uuid = self.insert_mora_data(
-            resource=mora_resource,
-            data=integration_data
-        )
+        # mora_resource = "service/e/create"
+        # uuid = self.insert_mora_data(
+        #     resource=mora_resource,
+        #     data=integration_data
+        # )
+        #
+        # if 'uuid' in integration_data:
+        #     assert (uuid == integration_data['uuid'])
 
-        if 'uuid' in integration_data:
-            assert (uuid == integration_data['uuid'])
+        if not payload['uuid']:
+            raise Exception('No UUID for employee')
+        uuid = payload['uuid']
 
         # Add uuid to the inserted employee map
         self.inserted_employee_map[reference] = uuid
 
-        data = {}
-        data['it'] = self._get_detail(uuid, 'it')
-        data['role'] = self._get_detail(uuid, 'role')
-        data['leave'] = self._get_detail(uuid, 'leave')
-        data['address'] = self._get_detail(uuid, 'address')
-        data['manager'] = self._get_detail(uuid, 'manager')
-        data['engagement'] = self._get_detail(uuid, 'engagement')
-        data['association'] = self._get_detail(uuid, 'association')
+        # data = {}
+        # data['it'] = self._get_detail(uuid, 'it')
+        # data['role'] = self._get_detail(uuid, 'role')
+        # data['leave'] = self._get_detail(uuid, 'leave')
+        # data['address'] = self._get_detail(uuid, 'address')
+        # data['manager'] = self._get_detail(uuid, 'manager')
+        # data['engagement'] = self._get_detail(uuid, 'engagement')
+        # data['association'] = self._get_detail(uuid, 'association')
 
         # In case of en explicit termination, we terminate the employee or
         # employment and return imidiately.
@@ -519,6 +526,9 @@ class ImportUtility(object):
             additional_payload = []
             for detail in details:
 
+                if not isinstance(detail, EngagementType) or not isinstance(detail, AssociationType):
+                    continue
+
                 if not detail.date_from:
                     detail.date_from = self.date_from
 
@@ -532,12 +542,13 @@ class ImportUtility(object):
                     continue
 
                 # If we do not have existing data, the new data should be imported
-                if len(data[detail_payload['type']]) == 0 and re_import == 'NO':
-                    re_import = 'UPDATE'
-                elif data[detail_payload['type']]:
-                    found_hit = self._payload_compare(detail_payload, data)
-                    if not found_hit:
-                        re_import = 'YES'
+                # if len(data[detail_payload['type']]) == 0 and re_import == 'NO':
+                #     re_import = 'UPDATE'
+                # elif data[detail_payload['type']]:
+                #     found_hit = self._payload_compare(detail_payload, data)
+                #     if not found_hit:
+                #         re_import = 'YES'
+
                 additional_payload.append(detail_payload)
 
             for item in additional_payload:

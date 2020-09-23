@@ -488,8 +488,8 @@ class ImportHelper(object):
         :param kwargs kwargs: :class:`os2mo_data_import.mora_data_types.ManagerType`
         """
 
-        if employee not in self.employees:
-            raise ReferenceError("Employee does not exist")
+        # if employee not in self.employees:
+        #     raise ReferenceError("Employee does not exist")
 
         if organisation_unit not in self.organisation_units:
             raise ReferenceError("Organisation unit does not exist")
@@ -645,46 +645,46 @@ class ImportHelper(object):
             #. Employees objects
         """
 
-        # Insert Organisation
-        logger.info('Will now import organisation')
-        self.store.import_organisation(*self.organisation)
+        # # Insert Organisation
+        # logger.info('Will now import organisation')
+        # self.store.import_organisation(*self.organisation)
+        #
+        # # Insert Klassifikation
+        # logger.info('Will now import klassifikation')
+        # self.store.import_klassifikation(*self.klassifikation)
+        #
+        # # Insert Facet
+        # logger.info('Will now import facet')
+        # for identifier, facet in self.facet_objects.items():
+        #     self.store.import_facet(identifier, facet)
+        #
+        # # Insert Klasse
+        # logger.info('Will now import klasse')
+        # for identifier, klasse in self.klasse_objects.items():
+        #     self.store.import_klasse(identifier, klasse)
+        #
+        # # Insert Itsystem
+        # logger.info('Will now import IT-systems')
+        # for identifier, itsystem in self.itsystems.items():
+        #     self.store.import_itsystem(identifier, itsystem)
 
-        # Insert Klassifikation
-        logger.info('Will now import klassifikation')
-        self.store.import_klassifikation(*self.klassifikation)
-
-        # Insert Facet
-        logger.info('Will now import facet')
-        for identifier, facet in self.facet_objects.items():
-            self.store.import_facet(identifier, facet)
-
-        # Insert Klasse
-        logger.info('Will now import klasse')
-        for identifier, klasse in self.klasse_objects.items():
-            self.store.import_klasse(identifier, klasse)
-
-        # Insert Itsystem
-        logger.info('Will now import IT-systems')
-        for identifier, itsystem in self.itsystems.items():
-            self.store.import_itsystem(identifier, itsystem)
-
-        # Insert Organisation Units
-        logger.info('Will now import org units')
-        re_run = True
-        while re_run:
-            re_run = False
-            identifiers = list(self.organisation_units.keys())
-            for identifier in identifiers:
-                org_unit = self.organisation_units[identifier]
-                # Test if the parent unit is in the map, if it is not, perform
-                # an integration data based import from MO.
-                # If the parent was not there, run once more to check if higher
-                # levels of parents also needs to be imported.
-                if self.test_org_unit_refs(identifier, org_unit):
-                    re_run = True
-
-        for identifier, org_unit in self.organisation_units.items():
-            self.import_organisation_units_recursively(identifier, org_unit)
+        # # Insert Organisation Units
+        # logger.info('Will now import org units')
+        # re_run = True
+        # while re_run:
+        #     re_run = False
+        #     identifiers = list(self.organisation_units.keys())
+        #     for identifier in identifiers:
+        #         org_unit = self.organisation_units[identifier]
+        #         # Test if the parent unit is in the map, if it is not, perform
+        #         # an integration data based import from MO.
+        #         # If the parent was not there, run once more to check if higher
+        #         # levels of parents also needs to be imported.
+        #         if self.test_org_unit_refs(identifier, org_unit):
+        #             re_run = True
+        #
+        # for identifier, org_unit in self.organisation_units.items():
+        #     self.import_organisation_units_recursively(identifier, org_unit)
 
         # Insert Employees
         logger.info('Will now import employees')

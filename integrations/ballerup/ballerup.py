@@ -12,9 +12,9 @@ from os2mo_data_import import ImportHelper
 from integrations import apos_importer
 
 
-MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'APOS Import')
-MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:5000')
-MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:80')
+MUNICIPALTY_NAME = os.environ.get('MUNICIPALITY_NAME', 'Ballerup Kommune')
+MOX_BASE = os.environ.get('MOX_BASE', 'http://localhost:8080')
+MORA_BASE = os.environ.get('MORA_BASE', 'http://localhost:5000')
 MUNICIPALTY_CODE = os.environ.get('MUNICIPALITY_NAME', 0)
 
 ean_file = '/opt/customer/dataimport/ballerup_udvalg/ean.csv'
@@ -42,7 +42,7 @@ apos_import = apos_importer.AposImport(
     ean=ean_rows
 )
 
-apos_import.create_facetter_and_klasser()
+# apos_import.create_facetter_and_klasser()
 
 # Org træ
 apos_import.create_ou_tree('b78993bb-d67f-405f-acc0-27653bd8c116')
@@ -50,7 +50,9 @@ apos_import.create_ou_tree('b78993bb-d67f-405f-acc0-27653bd8c116')
 # SD træ
 apos_import.create_ou_tree('945bb286-9753-4f77-9082-a67a5d7bdbaf')
 
-apos_import.create_managers_and_associatins()
+apos_import.create_managers()
+
+apos_import.create_associations()
 
 apos_import.add_all_missing_employees()
 

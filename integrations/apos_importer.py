@@ -774,14 +774,19 @@ class AposImport(object):
             org_units = remaining_org_units
             nodes.update(new)
 
-    def create_managers_and_associatins(self):
-        """ Create org_funcs, at the momen this means managers """
-        # units = self.org.OrganisationUnit.export()
+    def create_managers(self):
+        """ Create managers """
         units = self.importer.export('organisation_unit')
         for unit in units:
             self.get_ou_functions(unit)
-            self.create_associations_for_ou(unit)
         logger.info('Finished creating managers')
+
+    def create_associations(self):
+        """ Create associations """
+        units = self.importer.export('organisation_unit')
+        for unit in units:
+            self.create_associations_for_ou(unit)
+        logger.info('Finished creating associations')
 
     def add_all_missing_employees(self):
         """
