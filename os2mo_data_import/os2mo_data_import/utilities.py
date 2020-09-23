@@ -111,11 +111,12 @@ class ImportUtility(object):
         else:
             organisation_uuid = integration_data.get('uuid', None)
 
-        self.organisation_uuid = self.insert_mox_data(
-            resource=resource,
-            data=payload,
-            uuid=organisation_uuid
-        )
+        self.organisation_uuid = organisation_uuid
+        # self.organisation_uuid = self.insert_mox_data(
+        #     resource=resource,
+        #     data=payload,
+        #     uuid=organisation_uuid
+        # )
 
         # Global validity
         self.date_from = organisation.date_from
@@ -151,11 +152,12 @@ class ImportUtility(object):
 
         klassifikation_uuid = integration_data.get('uuid', None)
 
-        self.klassifikation_uuid = self.insert_mox_data(
-            resource=resource,
-            data=payload,
-            uuid=klassifikation_uuid
-        )
+        self.klassifikation_uuid = klassifikation_uuid
+        # self.klassifikation_uuid = self.insert_mox_data(
+        #     resource=resource,
+        #     data=payload,
+        #     uuid=klassifikation_uuid
+        # )
 
         return self.klassifikation_uuid
 
@@ -193,11 +195,12 @@ class ImportUtility(object):
 
         facet_uuid = integration_data.get('uuid', None)
 
-        self.inserted_facet_map[reference] = self.insert_mox_data(
-            resource=resource,
-            data=payload,
-            uuid=facet_uuid
-        )
+        self.inserted_facet_map[reference] = facet_uuid
+        # self.inserted_facet_map[reference] = self.insert_mox_data(
+        #     resource=resource,
+        #     data=payload,
+        #     uuid=facet_uuid
+        # )
 
         return self.inserted_facet_map[reference]
 
@@ -254,11 +257,12 @@ class ImportUtility(object):
         klasse.integration_data = integration_data
         payload = klasse.build()
 
-        import_uuid = self.insert_mox_data(
-            resource="klassifikation/klasse",
-            data=payload,
-            uuid=klasse_uuid
-        )
+        import_uuid = klasse_uuid
+        # import_uuid = self.insert_mox_data(
+        #     resource="klassifikation/klasse",
+        #     data=payload,
+        #     uuid=klasse_uuid
+        # )
         assert(uuid is None or import_uuid == str(klasse_uuid))
         self.inserted_klasse_map[reference] = import_uuid
 
@@ -298,11 +302,12 @@ class ImportUtility(object):
         itsystem.integration_data = integration_data
         payload = itsystem.build()
 
-        self.inserted_itsystem_map[reference] = self.insert_mox_data(
-            resource=resource,
-            data=payload,
-            uuid=itsystem_uuid
-        )
+        self.inserted_itsystem_map[reference] = itsystem_uuid
+        # self.inserted_itsystem_map[reference] = self.insert_mox_data(
+        #     resource=resource,
+        #     data=payload,
+        #     uuid=itsystem_uuid
+        # )
 
         return self.inserted_itsystem_map[reference]
 
@@ -384,15 +389,16 @@ class ImportUtility(object):
 
         logger.debug('Unit payload: {}'.format(payload))
 
-        uuid = self.insert_mora_data(
-            resource=resource,
-            data=payload
-        )
-
-        if 'uuid' in payload:
-            assert (uuid == payload['uuid'])
-        if not uuid:
-            raise ConnectionError("Something went wrong")
+        uuid = payload['uuid']
+        # uuid = self.insert_mora_data(
+        #     resource=resource,
+        #     data=payload
+        # )
+        #
+        # if 'uuid' in payload:
+        #     assert (uuid == payload['uuid'])
+        # if not uuid:
+        #     raise ConnectionError("Something went wrong")
 
         # Add to the inserted map
         self.inserted_org_unit_map[reference] = uuid
@@ -435,10 +441,10 @@ class ImportUtility(object):
                 self._terminate_details(item['uuid'], 'address')
         if re_import in ('YES', 'NEW'):
             logger.info('Re-import unit: {}'.format(re_import))
-            self.insert_mora_data(
-                resource="service/details/create",
-                data=details_payload
-            )
+            # self.insert_mora_data(
+            #     resource="service/details/create",
+            #     data=details_payload
+            # )
 
         return uuid
 
@@ -526,7 +532,7 @@ class ImportUtility(object):
             additional_payload = []
             for detail in details:
 
-                if not isinstance(detail, EngagementType) or not isinstance(detail, AssociationType):
+                if not isinstance(detail, EngagementType) and not isinstance(detail, AssociationType):
                     continue
 
                 if not detail.date_from:

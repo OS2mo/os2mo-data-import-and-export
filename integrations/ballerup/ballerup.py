@@ -42,7 +42,7 @@ apos_import = apos_importer.AposImport(
     ean=ean_rows
 )
 
-# apos_import.create_facetter_and_klasser()
+apos_import.create_facetter_and_klasser()
 
 # Org træ
 apos_import.create_ou_tree('b78993bb-d67f-405f-acc0-27653bd8c116')
