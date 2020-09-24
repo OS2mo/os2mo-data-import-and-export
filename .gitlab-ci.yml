@@ -81,4 +81,5 @@ Test OS2Sync Integration:
 Test SDLoen Integration:
   extends: .test-python
   script:
+    - source tools/job-runner.sh
     - pytest integrations/SD_Lon/tests/
