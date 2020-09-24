@@ -38,6 +38,7 @@ unit_parent = {
     "name": "A-sdm1",
     "uuid": "12345-11-11-11-12345",
     "org_unit_type": {"uuid": "uuid-a"},
+    "org_unit_level": {"uuid": "uuid-b"},
     "user_key": "user-key-11111",
 }
 
@@ -63,7 +64,13 @@ mox_cfg = {
         "SD_PASSWORD": "",
         "BASE_URL": "",
         "INSTITUTION_IDENTIFIER": "",
-    }
+    },
+    "sd_unit_levels": {
+        "Afdelings-niveau": "uuid-b"
+    },
+    "arbtid_by_uuid": {
+        "uuid-tr-arbejdstidsplaner": "Arbejdstidsplaner",
+    },
 }
 
 
@@ -107,6 +114,7 @@ class Tests(unittest.TestCase):
                 "name": "A-sdm2",
                 # "uuid": "12345-22-22-22-12345",
                 "org_unit_type": {"uuid": "uuid-a"},
+                "org_unit_level": {"uuid": "uuid-b"},
                 "user_key": "user-key-22222",
             },
             parent=unit_parent
@@ -253,6 +261,7 @@ class Tests(unittest.TestCase):
                 "name": "A-sdm2",
                 # "uuid": "12345-22-22-22-12345",
                 "org_unit_type": {"uuid": "uuid-a"},
+                "org_unit_level": {"uuid": "uuid-b"},
                 "user_key": "user-key-22222",
             },
             parent=unit_parent
