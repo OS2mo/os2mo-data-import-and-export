@@ -6,10 +6,8 @@ from os2mo_data_import import ImportHelper
 from integrations.SD_Lon import sd_importer
 from integrations.ad_integration import ad_reader
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-settings = json.loads(cfg_file.read_text())
+from integrations.lazy_settings import get_settings
+settings = get_settings()
 
 cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
 if not cpr_map.is_file():

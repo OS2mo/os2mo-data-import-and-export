@@ -5,16 +5,24 @@ from .utils import LazyDict
 
 
 def _load_settings_from_disk():
-    # TODO: Soon we have done this 4 times. Should we make a small settings
-    # importer, that will also handle datatype for specific keys?
+    # TODO: Handle run schema against settings.json
+    # TODO: Handle datatype for specific keys?
     cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
     if not cfg_file.is_file():
-        raise Exception('No setting file')
-    # TODO: This must be clean up, settings should be loaded by __init__
-    # and no references should be needed in global scope.
-    settings = json.loads(cfg_file.read_text())
+        print("No settings file")
+        exit(1)
+
+    try:
+        settings = json.loads(cfg_file.read_text())
+    except json.decoder.JSONDecodeError as e:
+        print('Syntax error in settings file: {}'.format(e))
+        exit(1)
     return settings
 
 
-SETTINGS = LazyDict()
-SETTINGS.set_initializer(_load_settings_from_disk)
+_SETTINGS = LazyDict()
+_SETTINGS.set_initializer(_load_settings_from_disk)
+
+
+def get_settings():
+    return _SETTINGS

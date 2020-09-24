@@ -3,9 +3,10 @@ import json
 import pathlib
 import logging
 
-logger = logging.getLogger("AdReader")
+from integrations.lazy_settings import get_settings
 
-from integrations.lazy_settings import SETTINGS
+
+logger = logging.getLogger("AdReader")
 
 
 def _read_global_settings(top_settings):
@@ -175,7 +176,9 @@ def _read_school_ad_settings(top_settings):
     return school_settings
 
 
-def read_settings(top_settings=SETTINGS):
+def read_settings(top_settings=None):
+    if top_settings is None:
+        top_settings = get_settings()
     settings = {}
     settings['global'] = _read_global_settings(top_settings)
     settings['primary'] = _read_primary_ad_settings(top_settings)

@@ -40,11 +40,8 @@ for i in logging.root.manager.loggerDict:
     else:
         logging.getLogger(i).setLevel(logging.WARNING)
 
-
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-settings = json.loads(cfg_file.read_text())
+from integrations.lazy_settings import get_settings
+settings = get_settings()
 
 MORA_BASE = settings.get("mora.base", 'http://localhost:5000')
 MORA_ROOT_ORG_UNIT_NAME = settings.get("mora.admin_top_unit", 'Viborg Kommune')

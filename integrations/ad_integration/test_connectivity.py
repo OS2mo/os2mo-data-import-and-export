@@ -10,12 +10,10 @@ from integrations.ad_integration import ad_logger
 
 from winrm.exceptions import InvalidCredentialsError
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
 # TODO: This must be clean up, settings should be loaded by __init__
 # and no references should be needed in global scope.
-SETTINGS = json.loads(cfg_file.read_text())
+from integrations.lazy_settings import get_settings
+SETTINGS = get_settings()
 WINRM_HOST = SETTINGS.get('integrations.ad.winrm_host')
 if not (WINRM_HOST):
     raise Exception('WINRM_HOST is missing')

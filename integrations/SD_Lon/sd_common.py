@@ -9,13 +9,14 @@ import xmltodict
 from pathlib import Path
 logger = logging.getLogger("sdCommon")
 
-from integrations.lazy_settings import SETTINGS
+from integrations.lazy_settings import get_settings
 
 
 def sd_lookup(url, params={}, use_cache=True):
-    INSTITUTION_IDENTIFIER = SETTINGS['integrations.SD_Lon.institution_identifier']
-    SD_USER = SETTINGS['integrations.SD_Lon.sd_user']
-    SD_PASSWORD = SETTINGS['integrations.SD_Lon.sd_password']
+    settings = get_settings()
+    INSTITUTION_IDENTIFIER = settings['integrations.SD_Lon.institution_identifier']
+    SD_USER = settings['integrations.SD_Lon.sd_user']
+    SD_PASSWORD = settings['integrations.SD_Lon.sd_password']
 
     if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
         raise Exception('Credentials missing')

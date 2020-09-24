@@ -10,6 +10,7 @@ import lora_utils
 import requests
 
 from os2mo_helpers.mora_helpers import MoraHelper
+from integrations.lazy_settings import get_settings
 
 logger = logging.getLogger("LoraCache")
 
@@ -22,10 +23,7 @@ class LoraCache(object):
         msg = 'Start LoRa cache, resolve dar: {}, full_history: {}'
         logger.info(msg.format(resolve_dar, full_history))
 
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = get_settings()
 
         self.additional = {
             'relationer': ('tilknyttedeorganisationer', 'tilhoerer')

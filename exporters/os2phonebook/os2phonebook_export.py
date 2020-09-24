@@ -21,6 +21,8 @@ from exporters.sql_export.sql_table_defs import (
 from sqlalchemy import create_engine, event, or_
 from sqlalchemy.orm import sessionmaker
 
+from integrations.lazy_settings import get_settings
+
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "os2phonebook_export.log"
@@ -110,10 +112,7 @@ def cli():
 @click.option("--force-sqlite/--no-force-sqlite", default=False)
 def sql_export(resolve_dar, historic, use_pickle, force_sqlite):
     # Load settings file
-    cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-    if not cfg_file.is_file():
-        raise Exception("No setting file")
-    settings = json.loads(cfg_file.read_text())
+    settings = get_settings()
     # Override settings
     settings["exporters.actual_state.type"] = "SQLite"
     settings["exporters.actual_state_historic.type"] = "SQLite"
@@ -550,10 +549,7 @@ async def transfer_json():
     # Load settings file
     settings = None
     with elapsedtime("loading_settings"):
-        cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-        if not cfg_file.is_file():
-            raise Exception("No setting file")
-        settings = json.loads(cfg_file.read_text())
+        settings = get_settings()
     # Load JSON
     employee_map = {}
     org_unit_map = {}

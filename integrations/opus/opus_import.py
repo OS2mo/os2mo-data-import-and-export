@@ -37,10 +37,8 @@ class OpusImport(object):
         """ If import first is False, the first unit will be skipped """
         self.org_uuid = None
 
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        from integrations.lazy_settings import get_settings
+        self.settings = get_settings()
 
         self.importer = importer
         self.import_first = import_first

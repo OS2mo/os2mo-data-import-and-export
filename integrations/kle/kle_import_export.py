@@ -7,6 +7,8 @@ from enum import Enum
 
 import requests
 
+from integrations.lazy_settings import get_settings
+
 LOG_FILE = 'opgavefordeler.log'
 
 logger = logging.getLogger(__name__)
@@ -34,10 +36,7 @@ class KLEAnnotationIntegration(ABC):
     # something like a Strategy here. However, maybe YAGNI.
 
     def __init__(self):
-        cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-        if not cfg_file.is_file():
-            raise Exception("No settings file")
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = get_settings()
 
         self.mora_base = self.settings.get("mora.base")
         self.mora_session = self._get_mora_session(token=os.environ.get("SAML_TOKEN"))

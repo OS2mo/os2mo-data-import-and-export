@@ -337,10 +337,8 @@ class KleImporter(object):
 
 
 if __name__ == '__main__':
-    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-    if not cfg_file.is_file():
-        raise Exception('No setting file')
-    settings = json.loads(cfg_file.read_text())
+    from integrations.lazy_settings import get_settings
+    settings = get_settings()
 
     mora_base = settings['mora.base']
     mox_base = settings['mox.base']

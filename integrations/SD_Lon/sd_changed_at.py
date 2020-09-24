@@ -978,12 +978,9 @@ def initialize_changed_at(from_date, run_db, force=False):
 
 
 if __name__ == '__main__':
-    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-    if not cfg_file.is_file():
-        raise Exception('No settings file')
-    # TODO: This must be clean up, settings should be loaded by __init__
-    # and no references should be needed in global scope.
-    SETTINGS = json.loads(cfg_file.read_text())
+    from integrations.lazy_settings import get_settings
+    SETTINGS = get_settings()
+
     RUN_DB = SETTINGS['integrations.SD_Lon.import.run_db']
 
     # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?

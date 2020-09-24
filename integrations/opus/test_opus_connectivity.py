@@ -10,14 +10,8 @@ from os2mo_helpers.mora_helpers import MoraHelper
 
 class TestOpusConnectivity(object):
     def __init__(self):
-        cfg_file = Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        try:
-            self.settings = json.loads(cfg_file.read_text())
-        except json.decoder.JSONDecodeError as e:
-            print('Syntax error in settings file: {}'.format(e))
-            exit(1)
+        from integrations.lazy_settings import get_settings
+        self.settings = get_settings()
 
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)

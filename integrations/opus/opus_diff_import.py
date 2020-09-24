@@ -58,12 +58,9 @@ EMPLOYEE_ADDRESS_CHECKS = {
 class OpusDiffImport(object):
     def __init__(self, latest_date, ad_reader, employee_mapping={}):
         logger.info('Opus diff importer __init__ started')
-        # TODO: Soon we have done this 4 times. Should we make a small settings
-        # importer, that will also handle datatype for specicic keys?
-        cfg_file = Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+
+        from integrations.lazy_settings import get_settings
+        self.settings = get_settings()
 
         self.session = Session()
         self.employee_forced_uuids = employee_mapping
@@ -895,10 +892,8 @@ if __name__ == '__main__':
     from integrations.opus.opus_helpers import start_opus_diff
     from integrations.opus.opus_exceptions import RunDBInitException
 
-    cfg_file = Path.cwd() / 'settings' / 'settings.json'
-    if not cfg_file.is_file():
-        raise Exception('No setting file')
-    SETTINGS = json.loads(cfg_file.read_text())
+    from integrations.lazy_settings import get_settings
+    SETTINGS = get_settings()
 
     ad_reader = ad_reader.ADParameterReader()
 

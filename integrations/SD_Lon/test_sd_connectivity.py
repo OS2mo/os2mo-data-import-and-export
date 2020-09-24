@@ -5,14 +5,8 @@ from uuid import UUID
 
 class TestSdConnectivity(object):
     def __init__(self):
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        try:
-            self.settings = json.loads(cfg_file.read_text())
-        except json.decoder.JSONDecodeError as e:
-            print('Syntax error in settings file: {}'.format(e))
-            exit(1)
+        from integrations.lazy_settings import get_settings
+        self.settings = get_settings()
 
     def _check_existens_of_keys(self):
         print('Check for tilstedeværlse af konfigurationsøgler')

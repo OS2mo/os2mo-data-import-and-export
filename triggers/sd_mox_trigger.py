@@ -75,8 +75,8 @@ def mo_request(service, method="get", **params):
 
 
 def read_config(app):
-    cfg_file = custpath / "settings" / "settings.json"
-    cfg = json.loads(cfg_file.read_text())
+    from integrations.lazy_settings import get_settings
+    cfg = get_settings()
 
     sdmox_config.update({
         "AMQP_USER": cfg["integrations.SD_Lon.sd_mox.AMQP_USER"],

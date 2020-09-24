@@ -9,10 +9,10 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration.ad_reader import ADParameterReader
 
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-settings = json.loads(cfg_file.read_text())
+from integrations.lazy_settings import get_settings
+settings = get_settings()
+
+
 MORA_BASE = settings['mora.base']
 
 LOG_LEVEL = logging.DEBUG

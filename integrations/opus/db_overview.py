@@ -9,12 +9,8 @@ import sqlite3
 
 class DBOverview(object):
     def __init__(self):
-        # TODO: Soon we have done this 4 times. Should we make a small settings
-        # importer, that will also handle datatype for specicic keys?
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        from integrations.lazy_settings import get_settings
+        self.settings = get_settings()
 
     def read_db_content(self):
         conn = sqlite3.connect(self.settings['integrations.opus.import.run_db'],

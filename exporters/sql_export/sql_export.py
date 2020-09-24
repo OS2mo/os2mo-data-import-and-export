@@ -19,6 +19,8 @@ from exporters.sql_export.sql_table_defs import (
     Kvittering, Enhedssammenkobling
 )
 
+from integrations.lazy_settings import get_settings
+
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'sql_export.log'
 
@@ -456,10 +458,7 @@ def cli():
 
     args = vars(parser.parse_args())
 
-    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-    if not cfg_file.is_file():
-        raise Exception('No setting file')
-    settings = json.loads(cfg_file.read_text())
+    settings = get_settings()
 
     sql_export = SqlExport(
         force_sqlite=args.get('force_sqlite'),

@@ -18,12 +18,8 @@ from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_exceptions import RedundantForceException
 from integrations.opus.opus_exceptions import ImporterrunNotCompleted
 
-# TODO: Soon we have done this 4 times. Should we make a small settings
-# importer, that will also handle datatype for specicic keys?
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
+from integrations.lazy_settings import get_settings
+SETTINGS = get_settings()
 
 DUMP_PATH = Path(SETTINGS['integrations.opus.import.xml_path'])
 START_DATE = datetime.datetime(2019, 1, 1, 0, 0)

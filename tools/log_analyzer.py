@@ -4,8 +4,8 @@ import requests
 
 from os2mo_helpers.mora_helpers import MoraHelper
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-settings = json.loads(cfg_file.read_text())
+from integrations.lazy_settings import get_settings
+settings = get_settings()
 
 helper = MoraHelper(hostname=settings['mora.base'])
 ORG = helper.read_organisation()

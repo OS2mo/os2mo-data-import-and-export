@@ -9,10 +9,8 @@ from integrations.SD_Lon.sd_common import sd_lookup
 
 class TestMoAgainsSd(object):
     def __init__(self):
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        from integrations.lazy_settings import get_settings
+        self.settings = get_settings()
         self.date = datetime.now()
 
         self.helper = MoraHelper(hostname=self.settings['mora.base'],

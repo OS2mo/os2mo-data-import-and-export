@@ -22,10 +22,8 @@ parser.add_argument('--days', nargs=1, type=int, metavar='Days to go back',
 
 args = vars(parser.parse_args())
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
+from integrations.lazy_settings import get_settings
+SETTINGS = get_settings()
 
 ad_reader = ad_reader.ADParameterReader()
 

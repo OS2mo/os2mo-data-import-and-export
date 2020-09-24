@@ -17,11 +17,8 @@ import requests
 
 from os2mo_tools import mo_api
 
-
-cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-if not cfg_file.is_file():
-    raise Exception("No setting file")
-SETTINGS = json.loads(cfg_file.read_text())
+from integrations.lazy_settings import get_settings
+SETTINGS = get_settings()
 
 logger = logging.getLogger(__name__)
 

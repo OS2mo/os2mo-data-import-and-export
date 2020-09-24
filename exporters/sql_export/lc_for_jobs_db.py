@@ -11,6 +11,8 @@ import pathlib
 from exporters.sql_export.sql_export import SqlExport
 from sqlalchemy import create_engine
 
+from integrations.lazy_settings import get_settings
+
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "lc-for-jobs.log"
@@ -20,10 +22,7 @@ logger = logging.getLogger("lc-for-jobs")
 
 def get_engine(dbpath=None):
     if dbpath is None:
-        cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-        if not cfg_file.is_file():
-            raise Exception("No setting file")
-        settings = json.loads(cfg_file.read_text())
+        settings = get_settings()
         dbpath = settings["lc-for-jobs.actual_db_name"]
 
     db_string = "sqlite:///{}.db".format(dbpath)
@@ -41,10 +40,7 @@ def cli():
 def sql_export(resolve_dar):
 
     # Load settings file
-    cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-    if not cfg_file.is_file():
-        raise Exception("No setting file")
-    org_settings = json.loads(cfg_file.read_text())
+    org_settings = get_settings()
 
     # Override settings
     settings = {

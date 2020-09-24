@@ -39,10 +39,8 @@ class SdImport(object):
     def __init__(self, importer, ad_info=None, org_only=False, org_id_prefix=None,
                  manager_rows=[], super_unit=None, employee_mapping={}):
 
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        from integrations.lazy_settings import get_settings
+        self.settings = get_settings()
 
         self.base_url = 'https://service.sd.dk/sdws/'
         self.double_employment = []

@@ -4,8 +4,9 @@ import pathlib
 
 from chardet.universaldetector import UniversalDetector
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-settings = json.loads(cfg_file.read_text())
+from integrations.lazy_settings import get_settings
+
+settings = get_settings()
 
 log_file = pathlib.Path.cwd() / 'mo_integrations_initial_import.log'
 log_text = log_file.read_text()
