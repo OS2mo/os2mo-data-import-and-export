@@ -45,8 +45,17 @@ RUN_DB = SETTINGS['integrations.SD_Lon.import.run_db']
 
 
 class ChangeAtSD(object):
-    def __init__(self, from_date, to_date=None):
-        self.settings = SETTINGS
+    def _load_forced_uuids(self):
+        cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
+        if not cpr_map.is_file():
+            logger.error('Did not find cpr mapping')
+            raise Exception('Did not find cpr mapping')
+
+        logger.info('Found cpr mapping')
+        return cpr_mapper.employee_mapper(str(cpr_map))
+
+    def __init__(self, from_date, to_date=None, settings=None):
+        self.settings = settings or SETTINGS
 
         if self.settings[
                 'integrations.SD_Lon.job_function'] == 'JobPositionIdentifier':
@@ -59,13 +68,7 @@ class ChangeAtSD(object):
         else:
             raise exceptions.JobfunctionSettingsIsWrongException()
 
-        cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
-        if not cpr_map.is_file():
-            logger.error('Did not find cpr mapping')
-            raise Exception('Did not find cpr mapping')
-
-        logger.info('Found cpr mapping')
-        self.employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
+        self.employee_forced_uuids = self._load_forced_uuids()
         self.department_fixer = FixDepartments()
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
@@ -73,7 +76,7 @@ class ChangeAtSD(object):
         # List of job_functions that should be ignored.
         self.skip_job_functions = self.settings.get('skip_job_functions', [])
 
-        use_ad = SETTINGS.get('integrations.SD_Lon.use_ad_integration', True)
+        use_ad = self.settings.get('integrations.SD_Lon.use_ad_integration', True)
         if use_ad:
             logger.info('AD integration in use')
             self.ad_reader = ad_reader.ADParameterReader()
