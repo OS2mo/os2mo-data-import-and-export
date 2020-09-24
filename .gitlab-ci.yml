@@ -81,5 +81,5 @@ Test OS2Sync Integration:
 Test SDLoen Integration:
   extends: .test-python
   script:
-    - source tools/job-runner.sh
+    - export PYTHONPATH=$PWD:$PYTHONPATH
     - pytest integrations/SD_Lon/tests/
