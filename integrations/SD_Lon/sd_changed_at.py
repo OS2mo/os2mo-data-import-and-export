@@ -33,17 +33,6 @@ for name in logging.root.manager.loggerDict:
         logging.getLogger(name).setLevel(logging.ERROR)
 
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No settings file')
-# TODO: This must be clean up, settings should be loaded by __init__
-# and no references should be needed in global scope.
-SETTINGS = json.loads(cfg_file.read_text())
-RUN_DB = SETTINGS['integrations.SD_Lon.import.run_db']
-
-# TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
-
-
 class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):
         self.settings = SETTINGS
@@ -989,6 +978,16 @@ def initialize_changed_at(from_date, run_db, force=False):
 
 
 if __name__ == '__main__':
+    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+    if not cfg_file.is_file():
+        raise Exception('No settings file')
+    # TODO: This must be clean up, settings should be loaded by __init__
+    # and no references should be needed in global scope.
+    SETTINGS = json.loads(cfg_file.read_text())
+    RUN_DB = SETTINGS['integrations.SD_Lon.import.run_db']
+
+    # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
+
     logging.basicConfig(
         format='%(levelname)s %(asctime)s %(name)s %(message)s',
         level=LOG_LEVEL,

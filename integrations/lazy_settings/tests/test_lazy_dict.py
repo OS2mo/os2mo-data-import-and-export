@@ -1,10 +1,9 @@
-import sys
 import unittest
-from os.path import dirname
 
 from parameterized import parameterized
 
 from ..utils import LazyDict
+
 
 LOOKUP_KEYS = ["key", "john", "deere"]
 

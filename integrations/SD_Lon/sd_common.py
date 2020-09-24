@@ -9,22 +9,17 @@ import xmltodict
 from pathlib import Path
 logger = logging.getLogger("sdCommon")
 
-# TODO: Soon we have done this 4 times. Should we make a small settings
-# importer, that will also handle datatype for specicic keys?
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
-
-INSTITUTION_IDENTIFIER = SETTINGS['integrations.SD_Lon.institution_identifier']
-SD_USER = SETTINGS['integrations.SD_Lon.sd_user']
-SD_PASSWORD = SETTINGS['integrations.SD_Lon.sd_password']
-
-if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
-    raise Exception('Credentials missing')
+from integrations.lazy_settings import SETTINGS
 
 
 def sd_lookup(url, params={}, use_cache=True):
+    INSTITUTION_IDENTIFIER = SETTINGS['integrations.SD_Lon.institution_identifier']
+    SD_USER = SETTINGS['integrations.SD_Lon.sd_user']
+    SD_PASSWORD = SETTINGS['integrations.SD_Lon.sd_password']
+
+    if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
+        raise Exception('Credentials missing')
+
     logger.info('Retrive: {}'.format(url))
     logger.debug('Params: {}'.format(params))
 
