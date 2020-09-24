@@ -37,6 +37,7 @@ class Tests(unittest.TestCase):
             "mox.base": "",
             "integrations.SD_Lon.import.too_deep": "",
             "integrations.SD_Lon.monthly_hourly_divide": 80000,
+            "integrations.SD_Lon.no_salary_minimum_id": 9000,
         }
 
     @parameterized.expand([
@@ -83,10 +84,10 @@ class Tests(unittest.TestCase):
         engagement = {
             "EmploymentIdentifier": "BIGAL",
             "EmploymentDepartment": [{
-                "DepartmentUUIDIdentifier": ""
+                "DepartmentUUIDIdentifier": "uuid-c"
             }],
             "Profession": [{
-                "JobPositionIdentifier": ""
+                "JobPositionIdentifier": 200
             }],
         }
         status = {
@@ -97,5 +98,4 @@ class Tests(unittest.TestCase):
         cpr = ""
         changed_at.create_new_engagement(engagement, status, cpr)
 
-
-
+        sd_payloads_mock.create_engagement.assert_called_once()
