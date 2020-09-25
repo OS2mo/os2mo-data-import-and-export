@@ -208,7 +208,7 @@ def get_users(connector):
             continue
 
         payload = {
-            "extUuid": ad_guid,
+            "extUuid": employee['uuid'],
             "userId": sam_account_name,
             "name": employee["name"],
             "email": get_employee_email(*e_connectors),
