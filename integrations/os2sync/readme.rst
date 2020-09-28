@@ -19,13 +19,13 @@ fælles parametre
  * ``mora.base``: Beskriver OS2MO's adresse
  * ``crontab.SAML_TOKEN``: api token for service-adgang til OS2MO
  * ``municipality.cvr`` : Kommunens CVR-nummer
- * ``crontab.RUN_OS2SYNC``: Bestemmer om jobbet skal køres i cron (true/false) 
+ * ``crontab.RUN_OS2SYNC``: Bestemmer om jobbet skal køres i cron (true/false)
 
 
 os2syncs parametre
 ------------------
 
- * ``os2sync.log_file``: logfil, typisk 
+ * ``os2sync.log_file``: logfil, typisk
    '/home/bruger/CRON/os2sync.log'
  * ``os2sync.log_level``: Loglevel, numerisk efter pythons logging-modul,
     typisk 10, som betyder at alt kommer ud
