@@ -9,7 +9,7 @@ import click
 from mox_helper import create_mox_helper
 from payloads import lora_facet, lora_klasse
 from utils import async_to_sync, dict_map
-from more_itertools import flatten
+from more_itertools import flatten, bucket
 
 
 @click.group()
@@ -151,7 +151,7 @@ async def ensure_class_exists(
         org_unit_uuid=org_unit_uuid,
         description=description,
         scope=scope,
-        overklasse=parent_uuid,
+        parent_uuid=parent_uuid,
     )
 
     # Print for dry run
@@ -308,6 +308,20 @@ async def bulk_ensure(
         return dict(await asyncio.gather(*tasks))
     facet_map = await construct_facet_bvn_to_uuid_map(required_facets)
 
+    # Find all unique parent bvns used by the classes, and translate to UUIDs
+    required_parents = set({
+        clazz["parent"] for clazz in classes if "parent" in clazz
+    })
+    async def construct_parent_bvn_to_uuid_map(parent_bvns):
+        async def create_bvn_to_uuid_tuple(parent_bvn):
+            return (
+                parent_bvn,
+                await mox_helper.read_element_klassifikation_klasse(bvn=parent_bvn)
+            )
+        tasks = list(map(create_bvn_to_uuid_tuple, parent_bvns))
+        return dict(await asyncio.gather(*tasks))
+    parent_map = await construct_parent_bvn_to_uuid_map(required_parents)
+
     # Translate class facet to facet_uuid
     def class_facet_to_facet_uuid(clazz):
         facet_bvn = clazz.pop('facet')
@@ -315,25 +329,52 @@ async def bulk_ensure(
         return clazz
     classes = map(class_facet_to_facet_uuid, classes)
 
-    # Translate class json to lora_klasse
-    classes = map(lambda clazz: lora_klasse(**clazz), classes)
+    # Translate class parent to parent_uuid
+    def class_parent_to_parent_uuid(clazz):
+        parent_bvn = clazz.pop('parent', None)
+        if parent_bvn:
+            clazz['parent_uuid'] = parent_map[parent_bvn]
+        return clazz
+    classes = map(class_parent_to_parent_uuid, classes)
 
-    # Prepare to output
-    classes = list(classes)
+    # Partition into buckets by layer
+    def set_layer(clazz):
+        if "__layer__" not in clazz:
+            clazz["__layer__"] = 1
+        return clazz
+    classes = map(set_layer, classes)
+    buckets = bucket(classes, key=itemgetter('__layer__'))
+    layers = sorted(list(buckets))
+    for layer in layers:
+        classes = buckets[layer]
 
-    # Print for dry run
-    if dry_run:
-        for clazz in classes:
-            mox_helper.validate_klassifikation_klasse(clazz)
-            message = json.dumps(clazz, indent=4, sort_keys=True)
-            click.secho(message, fg="green")
-        return
+        # Remove the layer key
+        def remove_key(key):
+            def worker(clazz):
+                del clazz[key]
+                return clazz
+            return worker
+        classes = map(remove_key("__layer__"), classes)
 
-    # POST for non-dry
-    tasks = list(map(mox_helper.get_or_create_klassifikation_klasse, classes))
-    results = await asyncio.gather(*tasks)
-    for uuid, created in results:
-        print_created(uuid, created)
+        # Translate class json to lora_klasse
+        classes = map(lambda clazz: lora_klasse(**clazz), classes)
+
+        # Prepare to output
+        classes = list(classes)
+
+        # Print for dry run
+        if dry_run:
+            for clazz in classes:
+                mox_helper.validate_klassifikation_klasse(clazz)
+                message = json.dumps(clazz, indent=4, sort_keys=True)
+                click.secho(message, fg="green")
+            return
+
+        # POST for non-dry
+        tasks = list(map(mox_helper.get_or_create_klassifikation_klasse, classes))
+        results = await asyncio.gather(*tasks)
+        for uuid, created in results:
+            print_created(uuid, created)
 
 
 @cli.command()
