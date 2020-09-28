@@ -240,8 +240,48 @@ def kle_to_orgunit(orgunit, kle):
         orgunit["Tasks"] = list(sorted(tasks))
 
 
+def is_ignored(unit, settings):
+    """Determine if unit should be left out of transfer
+
+    Example:
+        >>> settings={
+        ... "OS2SYNC_IGNORED_UNIT_LEVELS": ["10","2"],
+        ... "OS2SYNC_IGNORED_UNIT_TYPES":['6','7']}
+        >>> unit={"org_unit_level":{"uuid":"1"}, "org_unit_type":{"uuid":"5"}}
+        >>> is_ignored(unit, settings)
+        False
+        >>> unit={"org_unit_level":{"uuid":"2"}, "org_unit_type":{"uuid":"5"}}
+        >>> is_ignored(unit, settings)
+        True
+        >>> unit={"org_unit_level":{"uuid":"1"}, "org_unit_type":{"uuid":"6"}}
+        >>> is_ignored(unit, settings)
+        True
+
+    Args:
+        unit: The organization unit to enrich with kle information.
+        settings: a dictionary
+
+    Returns:
+        Boolean
+    """
+
+    return (
+        unit.get("org_unit_level") and unit["org_unit_level"]["uuid"] in settings[
+            "OS2SYNC_IGNORED_UNIT_LEVELS"
+        ]
+    ) or (
+        unit.get("org_unit_type") and unit["org_unit_type"]["uuid"] in settings[
+            "OS2SYNC_IGNORED_UNIT_TYPES"
+        ]
+    )
+
+
 def get_sts_orgunit(uuid):
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
+
+    if is_ignored(base, settings):
+        logger.info("Ignoring %r", base)
+        return None
 
     if not parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
         while parent.get("parent"):
