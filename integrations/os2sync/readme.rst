@@ -48,4 +48,7 @@ os2syncs parametre
     der skal ignoreres i overførslen
  * ``os2sync.ignored.unit_types``: liste af unit-type-klasser,
     der skal ignoreres i overførslen
+ * ``os2sync.autowash``: sletning uden filter. Normalt slettes kun afdelinger
+    i os2sync, som er forsvundet fra OS2MO. Med autowash slettes alt i os2syncs version af 
+    den administrative org, som ikke vil blive overført fra os2mo.
 
