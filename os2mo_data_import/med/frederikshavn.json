@@ -1,0 +1,59 @@
+{
+  "facets": [
+    {
+      "medarbejder_organisation": {
+        "description": "Hovedorganisation / Faglig organisation"
+      },
+      "medarbejder_under_organisation": {
+        "description": "Underorganisation"
+      }
+    }
+  ],
+  "classes": [
+    {
+      "__apply_to_all__": {
+        "facet": "association_type"
+      },
+      "assoc_LR_leader": {
+        "title": "LR, formand"
+      },
+      "assoc_LR": {
+        "title": "LR"
+      },
+      "assoc_FTR_leader": {
+        "title": "FTR, næstformand"
+      },
+      "assoc_FTR": {
+        "title": "FTR"
+      },
+      "assoc_TR_leader": {
+        "title": "TR, næstformand"
+      },
+      "assoc_TR": {
+        "title": "TR"
+      },
+      "assoc_AMR_leader": {
+        "title": "AMR, næstformand"
+      },
+      "assoc_AMR": {
+        "title": "AMR"
+      },
+      "assoc_Medarb_rep_leader": {
+        "title": "Medarb.rep, næstformand"
+      },
+      "assoc_Medarb_rep": {
+        "title": "Medarb.rep"
+      },
+      "assoc_NA": {
+        "title": "Ej relevant"
+      }
+    },
+    {
+      "DocUnit": {
+        "title": "Documentadresse",
+        "scope": "WWW",
+        "facet": "org_unit_address_type"
+      }
+    }
+  ]
+}

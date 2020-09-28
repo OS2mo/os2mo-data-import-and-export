@@ -1,12 +1,15 @@
 import json
 import sys
+import asyncio
 from typing import Tuple
+from operator import itemgetter
 
 import click
 
 from mox_helper import create_mox_helper
 from payloads import lora_facet, lora_klasse
 from utils import async_to_sync, dict_map
+from more_itertools import flatten
 
 
 @click.group()
@@ -96,6 +99,7 @@ def print_created(uuid: str, created: bool) -> None:
     "--facet-bvn", required=True, help="User key of the facet to bind the class to."
 )
 @click.option("--description", help="Description to set on the class.")
+@click.option("--scope", help="Scope for the class.")
 @click.option(
     "--org-uuid", "--organisation", help="Organisation to bind the class to."
 )
@@ -116,6 +120,7 @@ async def ensure_class_exists(
     title: str,
     facet_bvn: str,
     description: str,
+    scope: str,
     org_uuid: str,
     org_unit_uuid: str,
     parent_bvn: str,
@@ -145,6 +150,7 @@ async def ensure_class_exists(
         org_uuid,
         org_unit_uuid=org_unit_uuid,
         description=description,
+        scope=scope,
         overklasse=parent_uuid,
     )
 
@@ -202,6 +208,132 @@ async def ensure_facet_exists(
     # POST for non-dry
     uuid, created = await mox_helper.get_or_create_klassifikation_facet(facet)
     print_created(uuid, created)
+
+
+@cli.command()
+@click.pass_context
+@click.option(
+    "--dry-run",
+    default=False,
+    is_flag=True,
+    help="Dry run and print the generated object.",
+)
+@click.argument("filename", required=True, type=click.Path(exists=True))
+@async_to_sync
+async def bulk_ensure(
+    ctx,
+    dry_run: bool,
+    filename: str,
+):
+    """Ensure the entries in the json file exists in MOX.
+
+    Currently only bulk loads classes
+    """
+    mox_helper = await create_mox_helper(ctx.obj["mox.base"])
+
+    # Load file and fetch
+    with open(filename) as json_file:
+        data = json.load(json_file)
+
+    # Construct classes by applies __apply_to_all__ to all elements within a
+    # single block of classes and flattening the structure to be a simple
+    # list of classes
+    def construct_entry(bvn, item, apply_to_all):
+        return {**item, **apply_to_all, "bvn": bvn}
+
+    def construct_block(block):
+        apply_to_all = block.pop('__apply_to_all__', {})
+        classes = map(
+            lambda entry: construct_entry(*entry, apply_to_all),
+            block.items()
+        )
+        return classes
+
+    facets = []
+    if 'facets' in data:
+        facets = flatten(map(construct_block, data['facets']))
+        facets = list(facets)
+
+    classes = []
+    if 'classes' in data:
+        classes = flatten(map(construct_block, data['classes']))
+        classes = list(classes)
+
+    # Fetch default organisation
+    org_uuid = None
+    org_uuid = org_uuid or await mox_helper.read_element_organisation_organisation(
+        bvn="%"
+    )
+    def enrich_with_org_unit(entry):
+        entry['org_uuid'] = org_uuid
+        return entry
+
+    # Enrich facets with default organisation
+    facets = map(enrich_with_org_unit, facets)
+
+    # Translate facet json to lora_facet
+    facets = map(lambda facet: lora_facet(**facet), facets)
+
+    # Prepare to output
+    facets = list(facets)
+
+    # Print for dry run
+    if dry_run:
+        for facet in facets:
+            mox_helper.validate_klassifikation_facet(facet)
+            message = json.dumps(facet, indent=4, sort_keys=True)
+            click.secho(message, fg="green")
+        return
+
+    # POST for non-dry
+    tasks = list(map(mox_helper.get_or_create_klassifikation_facet, facets))
+    results = await asyncio.gather(*tasks)
+    for uuid, created in results:
+        print_created(uuid, created)
+
+    # Enrich classes with default organisation
+    classes = map(enrich_with_org_unit, classes)
+    classes = list(classes)
+
+    # Find all unique facet bvns used by the classes, and translate to UUIDs
+    required_facets = set(map(itemgetter("facet"), classes))
+
+    async def construct_facet_bvn_to_uuid_map(facet_bvns):
+        async def create_bvn_to_uuid_tuple(facet_bvn):
+            return (
+                facet_bvn,
+                await mox_helper.read_element_klassifikation_facet(bvn=facet_bvn)
+            )
+        tasks = list(map(create_bvn_to_uuid_tuple, facet_bvns))
+        return dict(await asyncio.gather(*tasks))
+    facet_map = await construct_facet_bvn_to_uuid_map(required_facets)
+
+    # Translate class facet to facet_uuid
+    def class_facet_to_facet_uuid(clazz):
+        facet_bvn = clazz.pop('facet')
+        clazz['facet_uuid'] = facet_map[facet_bvn]
+        return clazz
+    classes = map(class_facet_to_facet_uuid, classes)
+
+    # Translate class json to lora_klasse
+    classes = map(lambda clazz: lora_klasse(**clazz), classes)
+
+    # Prepare to output
+    classes = list(classes)
+
+    # Print for dry run
+    if dry_run:
+        for clazz in classes:
+            mox_helper.validate_klassifikation_klasse(clazz)
+            message = json.dumps(clazz, indent=4, sort_keys=True)
+            click.secho(message, fg="green")
+        return
+
+    # POST for non-dry
+    tasks = list(map(mox_helper.get_or_create_klassifikation_klasse, classes))
+    results = await asyncio.gather(*tasks)
+    for uuid, created in results:
+        print_created(uuid, created)
 
 
 @cli.command()
