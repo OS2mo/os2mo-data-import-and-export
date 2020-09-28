@@ -146,7 +146,8 @@ def addresses_to_user(user, addresses):
 
 
 def engagements_to_user(user, engagements, allowed_unitids):
-    for e in sorted(engagements, key=lambda e: e["job_function"]["name"] + e["uuid"]):
+    for e in sorted(engagements,
+                    key=lambda e: e["job_function"]["name"] + e["uuid"]):
         if e["org_unit"]["uuid"] in allowed_unitids:
             user["Positions"].append(
                 {
@@ -220,7 +221,7 @@ def kle_to_orgunit(orgunit, kle):
         ... ]
         >>> kle_to_orgunit(orgunit, kles)
         >>> orgunit
-        {'Tasks': [3, 4]}
+        {'Tasks': ['3', '4']}
 
 
     Args:
