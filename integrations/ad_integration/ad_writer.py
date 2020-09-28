@@ -198,14 +198,7 @@ class LoraCacheSource(MODataSource):
             parent_uuid = org_uuid_parent(eng_org_unit)
             while manager_uuid == mo_user['uuid']:
                 if parent_uuid is None:
-<<<<<<< HEAD
-                    break
-=======
                     return manager_uuid
-
-                msg = 'Self manager, keep searching: {}!'
-                logger.info(msg.format(mo_user))
->>>>>>> 96223e6... [#36355] Fix ADWriter get_manager_uuid
                 manager_uuid = org_uuid_to_manager(parent_uuid)
                 parent_uuid = org_uuid_parent(parent_uuid)
             return manager_uuid
@@ -536,7 +529,7 @@ class ADWriter(AD):
         }
         if read_manager:
             manager_uuid = self.datasource.get_manager_uuid(
-                mo_user, eng_org_unit, eng_uuid
+                mo_user, eng_uuid
             )
             if manager_uuid is None:
                 logger.info('No managers found')

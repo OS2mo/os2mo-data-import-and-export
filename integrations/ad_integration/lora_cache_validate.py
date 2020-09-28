@@ -137,10 +137,10 @@ def main():
         def uuid_to_args(uuid):
             mo_user = lcs.read_user(uuid)
             try:
-                _, _, eng_org_unit, eng_uuid = lcs.find_primary_engagement(uuid)
+                _, _, _, eng_uuid = lcs.find_primary_engagement(uuid)
             except NoActiveEngagementsException:
                 raise SkipUser
-            return mo_user, eng_org_unit, eng_uuid
+            return mo_user, eng_uuid
         ds_equivalence("get_manager_uuid", uuid_to_args)
 
     def adwriter_equivalence():
