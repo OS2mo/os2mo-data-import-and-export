@@ -50,9 +50,9 @@ def sql_export(resolve_dar):
     settings = {
         "exporters.actual_state.type": "SQLite",
         "exporters.actual_state_historic.type": "SQLite",
-        "exporters.actual_state.db_name": org_settings[
-            "lc-for-jobs.actual_db_name"
-        ],
+        "exporters.actual_state.db_name": org_settings.get(
+            "lc-for-jobs.actual_db_name", "ActualState"
+        ),
         "exporters.actual_state.manager_responsibility_class": org_settings[
             "exporters.actual_state.manager_responsibility_class"
         ]
