@@ -340,7 +340,7 @@ class LoraCache(object):
                     continue
                 relationer = effect[2]['relationer']
 
-                if 'tilknyttedeenheder' in relationer:
+                if 'tilknyttedeenheder' in relationer and len(relationer['tilknyttedeenheder']) > 0:
                     unit_uuid = relationer['tilknyttedeenheder'][0]['uuid']
                     user_uuid = None
                 elif 'tilknyttedebrugere' in relationer and len(relationer['tilknyttedebrugere']) > 0:
@@ -429,9 +429,9 @@ class LoraCache(object):
         engagement_list = self._perform_lora_lookup(url, params)
         for engagement in engagement_list:
             uuid = engagement['id']
-            engagements[uuid] = []
 
             effects = self._get_effects(engagement, relevant)
+            engagement_effects = []
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 if from_date is None and to_date is None:
@@ -465,8 +465,7 @@ class LoraCache(object):
                 try:
                     job_function = rel['opgaver'][0]['uuid']
                 except:
-                    print(engagement)
-                    raise
+                    continue
 
                 user_uuid = rel['tilknyttedebrugere'][0]['uuid']
                 unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
@@ -493,7 +492,7 @@ class LoraCache(object):
                     'udvidelse_10': udvidelser.get('udvidelse_10')
                 }
 
-                engagements[uuid].append(
+                engagement_effects.append(
                     {
                         'uuid': uuid,
                         'user': user_uuid,
@@ -508,6 +507,8 @@ class LoraCache(object):
                         'to_date': to_date
                     }
                 )
+            if engagement_effects:
+                engagements[uuid] = engagement_effects
         return engagements
 
     def _cache_lora_associations(self):
@@ -783,7 +784,10 @@ class LoraCache(object):
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 rel = effect[2]['relationer']
-                user_uuid = rel['tilknyttedebrugere'][0]['uuid']
+                try:
+                    user_uuid = rel['tilknyttedebrugere'][0]['uuid']
+                except:
+                    user_uuid = None
                 unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
                 manager_type = rel['organisatoriskfunktionstype'][0]['uuid']
                 manager_responsibility = []
