@@ -80,6 +80,7 @@ Test OS2Sync Integration:
 
 Test SDLoen Integration:
   extends: .test-python
+  image: python:3
   script:
     - export PYTHONPATH=$PWD:$PYTHONPATH
     - pytest integrations/SD_Lon/tests/
