@@ -37,7 +37,7 @@ class Tests(unittest.TestCase):
             "mox.base": "",
             "integrations.SD_Lon.import.too_deep": "",
             "integrations.SD_Lon.monthly_hourly_divide": 80000,
-            "integrations.SD_Lon.no_salary_minimum_id": 9000,
+            "integrations.SD_Lon.no_salary_minimum_id": 5000,
         }
 
     @parameterized.expand([
@@ -58,15 +58,25 @@ class Tests(unittest.TestCase):
     @patch('integrations.SD_Lon.sd_changed_at.MoraHelper')
     @patch('integrations.SD_Lon.sd_changed_at.MOPrimaryEngagementUpdater')
     @patch('integrations.SD_Lon.sd_changed_at.FixDepartments')
-    def test_construct_object(self, fix_dep_mock, mo_primary_mock, mora_helper_mock, primary_types_mock):
+    def test_construct_object(self, *args):
         self._setup_change_at_sd(clazz=ChangeAtSDTestSubclass)
 
+    @parameterized.expand([
+        # job_identifier is compared with no_salary_minimum_id
+        ["200", False],
+        ["4999", False],
+        ["5000", True],
+        ["5001", True],
+        ["10000", True],
+    ])
     @patch('integrations.SD_Lon.sd_changed_at.sd_payloads', autospec=True)
     @patch('integrations.SD_Lon.sd_changed_at.primary_types')
     @patch('integrations.SD_Lon.sd_changed_at.MoraHelper', autospec=True)
     @patch('integrations.SD_Lon.sd_changed_at.MOPrimaryEngagementUpdater')
     @patch('integrations.SD_Lon.sd_changed_at.FixDepartments')
-    def test_construct_object(self, fix_dep_mock, mo_primary_mock, mora_helper_mock, primary_types_mock, sd_payloads_mock):
+    def test_construct_object(self, job_position_identifier, expected, *args):
+        _, _, mora_helper_mock, _, sd_payloads_mock = args
+
         mora_helper_mock.return_value.read_ou.return_value = {
             "org_unit_level": {
                 "user_key": "IHaveNoIdea",
@@ -87,7 +97,7 @@ class Tests(unittest.TestCase):
                 "DepartmentUUIDIdentifier": "uuid-c"
             }],
             "Profession": [{
-                "JobPositionIdentifier": "200"
+                "JobPositionIdentifier": job_position_identifier
             }],
         }
         status = {
@@ -97,10 +107,9 @@ class Tests(unittest.TestCase):
         }
         cpr = ""
         result = changed_at.create_new_engagement(engagement, status, cpr)
-        self.assertIsNone(result)
-        sd_payloads_mock.create_engagement.assert_not_called()
-
-        engagement['Profession'][0]['JobPositionIdentifier'] = "10000"
-        result = changed_at.create_new_engagement(engagement, status, cpr)
-        self.assertTrue(result)
-        sd_payloads_mock.create_engagement.assert_called_once()
+        if expected:
+            self.assertTrue(result)
+            sd_payloads_mock.create_engagement.assert_called_once()
+        else:
+            self.assertIsNone(result)
+            sd_payloads_mock.create_engagement.assert_not_called()
