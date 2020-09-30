@@ -81,4 +81,4 @@ Test OS2Sync Integration:
 Test db_overview:
   extends: .test-python
   script:
-    -python integrations/SD_lon/tests/test_db_overview.py
+    - python integrations/SD_lon/tests/test_db_overview.py
