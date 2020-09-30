@@ -80,6 +80,8 @@ Test OS2Sync Integration:
 
 Test SDLoen Integration:
   extends: .test-python
+  # Required, as a bug discovered by the parameterized package and community
+  # in unittest is not fixed in python versions prior to 3.7
   image: python:3
   script:
     - export PYTHONPATH=$PWD:$PYTHONPATH
