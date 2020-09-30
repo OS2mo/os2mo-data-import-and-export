@@ -81,5 +81,6 @@ Test OS2Sync Integration:
 Test db_overview:
   extends: .test-python
   script:
+    - cp settings/kommune-andeby.json settings/settings.json
     - export PYTHONPATH=$PWD:$PYTHONPATH
     - python integrations/SD_Lon/tests/test_db_overview.py
