@@ -1,37 +1,35 @@
-import unittest
-from unittest.mock import MagicMock, patch
-from integrations.SD_Lon.db_overview import DBOverview
-from datetime import date, datetime, timedelta
 import sqlite3
+import unittest
+from datetime import date, datetime, timedelta
+from unittest.mock import MagicMock, patch
+
+from parameterized import parameterized
+
+from integrations.SD_Lon.db_overview import DBOverview
+
 sqlite3.connect = MagicMock(name='sqlite3.connect')
 
+
 class Test_db_overview(unittest.TestCase):
+    def setUp(self):
+        self.db_overview = DBOverview()
 
     def test_db_call(self):
-        db_overview = DBOverview()
-        db_overview.read_db_content()
+        self.db_overview.read_db_content()
         sqlite3.connect.assert_called()
-    
-    def test_date_now(self):
-        db_overview = DBOverview()
-        sqlite3.connect.return_value.cursor.return_value.fetchone.return_value = (datetime.now(),'Lorem Ipsum')
-        status, msg = db_overview.read_current_status()
-        self.assertTrue(status)
-        self.assertEqual(msg,'Status ok')
-        
-    def test_date_yesterday(self):
-        db_overview = DBOverview()
-        sqlite3.connect.return_value.cursor.return_value.fetchone.return_value = (datetime.now()-timedelta(days=1),'Lorem Ipsum')
-        status, msg = db_overview.read_current_status()
-        self.assertFalse(status)
-        self.assertEqual(msg,'Not up to date')
 
-    def test_running(self):
-        db_overview = DBOverview()
-        sqlite3.connect.return_value.cursor.return_value.fetchone.return_value = (datetime.now(),'Running')
-        status, msg = db_overview.read_current_status()
-        self.assertFalse(status)
-        self.assertEqual(msg,'Not ready to run')
+    @parameterized.expand([
+        [(datetime.now(), 'Lorem Ipsum'), (True, 'Status ok')],
+        [(datetime.now() - timedelta(days=1), 'Lorem Ipsum'), (False, 'Not up to date')],
+        [(datetime.now(), 'Running'), (False, 'Not ready to run')],
+    ])
+    def test_read_current_status(self, fixture_row, expected):
+        sqlite3.connect.return_value.cursor.return_value.fetchone.return_value = fixture_row
+        status, message = self.db_overview.read_current_status()
+        expected_status, expected_message = expected
+        self.assertEqual(status, expected_status)
+        self.assertEqual(message, expected_message)
+
 
 if __name__ == '__main__':
     unittest.main()
