@@ -606,12 +606,13 @@ class ChangeAtSD(object):
             engagement_type = self.engagement_types.get('engagement_type' + job_position)
             logger.info('Non-nummeric id. Job pos id: {}'.format(job_position))
 
+            job_position_integer = int(job_position)
             no_salary_minimum = self.settings['integrations.SD_Lon.no_salary_minimum_id']
-            if job_position < no_salary_minimum:
+            if job_position_integer < no_salary_minimum:
                 message = 'No salary employee, with bad job_position id'
                 logger.warning(message)
                 print(message)
-                return
+                return None
 
         extension_field = self.settings.get('integrations.SD_Lon.employment_field')
         if extension_field is not None:
@@ -645,6 +646,8 @@ class ChangeAtSD(object):
         if also_edit:
             # This will take of the extra entries
             self.edit_engagement(engagement)
+
+        return True
 
     def _terminate_engagement(self, from_date, job_id):
         mo_engagement = self._find_engagement(job_id)

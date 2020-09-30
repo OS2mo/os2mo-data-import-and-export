@@ -87,7 +87,7 @@ class Tests(unittest.TestCase):
                 "DepartmentUUIDIdentifier": "uuid-c"
             }],
             "Profession": [{
-                "JobPositionIdentifier": 200
+                "JobPositionIdentifier": "200"
             }],
         }
         status = {
@@ -96,6 +96,11 @@ class Tests(unittest.TestCase):
             "EmploymentStatusCode": "",
         }
         cpr = ""
-        changed_at.create_new_engagement(engagement, status, cpr)
+        result = changed_at.create_new_engagement(engagement, status, cpr)
+        self.assertIsNone(result)
+        sd_payloads_mock.create_engagement.assert_not_called()
 
+        engagement['Profession'][0]['JobPositionIdentifier'] = "10000"
+        result = changed_at.create_new_engagement(engagement, status, cpr)
+        self.assertTrue(result)
         sd_payloads_mock.create_engagement.assert_called_once()
