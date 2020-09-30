@@ -47,11 +47,13 @@ if not cfg_file.is_file():
 settings = json.loads(cfg_file.read_text())
 
 MORA_BASE = settings.get("mora.base", 'http://localhost:5000')
-MORA_ROOT_ORG_UNIT_NAME = settings.get("mora.admin_top_unit", 'Viborg Kommune')
+MORA_ROOT_ORG_UNIT_UUID = settings.get("mora.admin_top_unit")
 USERID_ITSYSTEM = settings["emus.userid_itsystem"]
 EMUS_RESPONSIBILITY_CLASS = settings["emus.manager_responsibility_class"]
 EMUS_FILENAME = settings.get("emus.outfile_name", 'emus_filename.xml')
-EMUS_DISCARDED_JOB_FUNCTIONS = settings.get("emus.discard_job_functions",[])
+EMUS_DISCARDED_JOB_FUNCTIONS = settings.get("emus.discard_job_functions", [])
+EMUS_ALLOWED_ENGAGEMENT_TYPES = settings.get("emus.engagement_types", [])
+EMUS_USE_LC_DB = settings.get("emus.use_lc_db", [])
 
 
 engagement_counter = collections.Counter()
@@ -178,7 +180,6 @@ def build_engagement_row(mh, ou, engagement):
         'e/{}'
     )
 
-
     if "surname" in engagement["person"]:
         firstname = engagement["person"]["givenname"]
         lastname = engagement["person"]["surname"]
@@ -195,6 +196,7 @@ def build_engagement_row(mh, ou, engagement):
     _email = mh.get_e_address(engagement["person"]["uuid"], "EMAIL")
 
     row = {
+        'personUUID': engagement["person"]["uuid"],
         # employee_id is tjenestenr by default
         'employee_id': engagement.get("user_key", ''),
         # client is 1 by default
@@ -228,7 +230,7 @@ def get_manager_dates(mh, person):
     startdate = '9999-12-31'
     enddate = '0000-00-00'
     for engagement in mh.read_user_engagement(person["uuid"], read_all=True):
-        if engagement["validity"].get("to") and enddate is not '':
+        if engagement["validity"].get("to") and enddate != '':
             # Enddate is finite, check if it is later than current
             if engagement["validity"]["to"] > enddate:
                 enddate = engagement["validity"]["to"]
@@ -239,7 +241,7 @@ def get_manager_dates(mh, person):
             startdate = engagement["validity"]["from"]
 
     assert startdate < '9999-12-31'
-    assert enddate is '' or enddate > '0000-00-00'
+    assert enddate == '' or enddate > '0000-00-00'
     return startdate, enddate
 
 
@@ -286,6 +288,7 @@ def build_manager_rows(mh, ou, manager):
             responsibility["name"]
         )
         row = {
+            'personUUID': person["uuid"],
             'employee_id': person["uuid"],
             'client': "540",
             'entryDate': entrydate,
@@ -321,8 +324,14 @@ def hourly_paid(engagement):
 
 def discarded(engagement):
     jfkey = engagement.get("job_function", {}).get("user_key", "")
+    etuuid = engagement["engagement_type"]["uuid"]
+    if etuuid not in EMUS_ALLOWED_ENGAGEMENT_TYPES:
+        logger.debug("%s discarded engagement_type %s",
+                     engagement["person"]["uuid"], etuuid)
+        return True
     if jfkey in EMUS_DISCARDED_JOB_FUNCTIONS:
-        logger.debug("%s discarded job function %s", engagement["person"]["uuid"], jfkey)
+        logger.debug("%s discarded job function %s",
+                     engagement["person"]["uuid"], jfkey)
         return True
     return False
 
@@ -336,7 +345,7 @@ def engagement_count(mh, ou):
 
 
 def export_e_emus(mh, nodes, emus_file):
-    fieldnames = ['entryDate', 'leaveDate', 'cpr', 'firstName',
+    fieldnames = ['personUUID', 'entryDate', 'leaveDate', 'cpr', 'firstName',
                   'lastName', 'workPhone', 'workContract', 'workContractText',
                   'positionId', 'position', "orgUnit", 'email', "username"]
     manager_rows = []
@@ -392,21 +401,12 @@ def export_e_emus(mh, nodes, emus_file):
 
 def main(
     emus_xml_file,
-    root_org_unit_name=MORA_ROOT_ORG_UNIT_NAME,
+    root_org_unit_uuid=MORA_ROOT_ORG_UNIT_UUID,
     mh=MoraHelper(),
     t=time.time(),
 ):
-    root_org_unit_uuid = None
-    org = mh.read_organisation()
-    roots = mh.read_top_units(org)
-    for root in roots:
-        logger.debug("checking if %s is %s", root["name"], root_org_unit_name)
-        if root['name'] == root_org_unit_name:
-            root_org_unit_uuid = root['uuid']
-            break
-
     if not root_org_unit_uuid:
-        logger.error("%s not found in root-ous", root_org_unit_name)
+        logger.error("root_org_unit_uuid must be specified")
         exit(1)
 
     logger.warning("caching all ou's,"
