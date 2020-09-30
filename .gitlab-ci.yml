@@ -81,5 +81,6 @@ Test OS2Sync Integration:
 Test SDLoen Integration:
   extends: .test-python
   script:
+    - cp settings/kommune-andeby.json settings/settings.json
     - export PYTHONPATH=$PWD:$PYTHONPATH
     - pytest integrations/SD_Lon/tests/

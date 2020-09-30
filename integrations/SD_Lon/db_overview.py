@@ -31,16 +31,16 @@ class DBOverview(object):
         conn = sqlite3.connect(self.run_db, detect_types=sqlite3.PARSE_DECLTYPES)
         c = conn.cursor()
 
-        query = 'select * from runs order by id desc limit 1'
+        query = 'SELECT to_time, status FROM runs ORDER BY id DESC LIMIT 1'
         c.execute(query)
         today = date.today()
         midnight = datetime.min.time()
         midnight_today = datetime.combine(today, midnight)
 
-        _, from_time, _, status = c.fetchone()
+        to_time, status = c.fetchone()
         if 'Running' in status:
             return (False, 'Not ready to run')
-        if from_time < midnight_today:
+        if to_time < midnight_today:
             return (False, 'Not up to date')
         return (True, 'Status ok')
 
