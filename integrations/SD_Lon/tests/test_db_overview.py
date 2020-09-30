@@ -14,10 +14,6 @@ class Test_db_overview(unittest.TestCase):
     def setUp(self):
         self.db_overview = DBOverview()
 
-    def test_db_call(self):
-        self.db_overview.read_db_content()
-        sqlite3.connect.assert_called()
-
     @parameterized.expand([
         [(datetime.now(), 'Lorem Ipsum'), (True, 'Status ok')],
         [(datetime.now() - timedelta(days=1), 'Lorem Ipsum'), (False, 'Not up to date')],
