@@ -603,7 +603,7 @@ class ChangeAtSD(object):
             engagement_type = self.engagement_types.get('timeløn')
         else:  # This happens if EmploymentID is not a number
             # Will fail if a new job position emerges
-            engagement_type = self.engagement_types.get(job_position)
+            engagement_type = self.engagement_types.get('engagement_type' + job_position)
             logger.info('Non-nummeric id. Job pos id: {}'.format(job_position))
 
             no_salary_minimum = self.settings['integrations.SD_Lon.no_salary_minimum_id']
