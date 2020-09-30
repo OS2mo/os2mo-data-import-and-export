@@ -78,7 +78,7 @@ Test OS2Sync Integration:
     - python -m doctest integrations/os2sync/os2mo.py
 
 
- Test db_overview:
+Test db_overview:
   extends: .test-python
   script:
     -python integrations/SD_lon/tests/test_db_overview.py
