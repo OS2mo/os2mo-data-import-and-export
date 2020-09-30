@@ -33,13 +33,18 @@ for name in logging.root.manager.loggerDict:
         logging.getLogger(name).setLevel(logging.ERROR)
 
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No settings file')
-# TODO: This must be clean up, settings should be loaded by __init__
-# and no references should be needed in global scope.
-SETTINGS = json.loads(cfg_file.read_text())
-RUN_DB = SETTINGS['integrations.SD_Lon.import.run_db']
+SETTINGS = None
+def load_settings():
+    global SETTINGS
+    if SETTINGS is not None:
+        return
+    # TODO: Soon we have done this 4 times. Should we make a small settings
+    # importer, that will also handle datatype for specicic keys?
+    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+    if not cfg_file.is_file():
+        raise Exception('No setting file')
+    SETTINGS = json.loads(cfg_file.read_text())
+
 
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
 
@@ -1015,6 +1020,7 @@ if __name__ == '__main__':
         SETTINGS['integrations.SD_Lon.global_from_date'],
         '%Y-%m-%d'
     )
+    RUN_DB = SETTINGS['integrations.SD_Lon.import.run_db']
 
     if init:
         run_db = pathlib.Path(RUN_DB)

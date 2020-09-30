@@ -10,13 +10,19 @@ from integrations.SD_Lon import sd_payloads
 
 from os2mo_helpers.mora_helpers import MoraHelper
 
-# TODO: Soon we have done this 4 times. Should we make a small settings
-# importer, that will also handle datatype for specicic keys?
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
-MORA_BASE = SETTINGS['mora.base']
+
+SETTINGS = None
+def load_settings():
+    global SETTINGS
+    if SETTINGS is not None:
+        return
+    # TODO: Soon we have done this 4 times. Should we make a small settings
+    # importer, that will also handle datatype for specicic keys?
+    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+    if not cfg_file.is_file():
+        raise Exception('No setting file')
+    SETTINGS = json.loads(cfg_file.read_text())
+
 
 logger = logging.getLogger("updatePrimaryEngagements")
 LOG_LEVEL = logging.DEBUG
@@ -25,6 +31,9 @@ LOG_FILE = 'calculate_primary.log'
 
 class MOPrimaryEngagementUpdater(object):
     def __init__(self):
+        load_settings()
+        MORA_BASE = SETTINGS['mora.base']
+
         self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
         self.org_uuid = self.helper.read_organisation()
 
