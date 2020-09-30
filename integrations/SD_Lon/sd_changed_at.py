@@ -1020,6 +1020,7 @@ if __name__ == '__main__':
         SETTINGS['integrations.SD_Lon.global_from_date'],
         '%Y-%m-%d'
     )
+    load_settings()
     RUN_DB = SETTINGS['integrations.SD_Lon.import.run_db']
 
     if init:
