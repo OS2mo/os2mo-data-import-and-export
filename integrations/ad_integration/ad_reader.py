@@ -63,7 +63,6 @@ class ADParameterReader(AD):
     # vi kan teste en del med den, altså: venv/bin/python exporters/cpr_uuid.py --use-ad
     # cpr_mo_ad_map.csv har kun uuider/brugernavne pǻ de linier, hvor den sd-importerede bruger også er i ad.
 
-
     def uncached_read_user(self, user=None, cpr=None, ria=None):
         # read one or more users using cpr-pattern.
         # if list is passed in ria (read it all) then this is extended
@@ -76,7 +75,6 @@ class ADParameterReader(AD):
 
         server = random.choice(self.all_settings['primary']['servers'])
         response = self.get_from_ad(user=user, cpr=cpr, server=server)
-
 
         users_by_cpr = {}
         for user in response:

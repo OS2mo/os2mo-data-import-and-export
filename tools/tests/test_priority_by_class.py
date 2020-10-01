@@ -68,3 +68,4 @@ class Tests(unittest.TestCase):
         candidates = [v[0] for v in self.lc.addresses.values()]
         chosen = lc_choose_public_address(candidates, ['ra865555-58b5-327d-e7dc-2990b0d28ff9'], self.lc)
         self.assertEqual(chosen["uuid"], "1ff12bd9-7a5a-4837-9137-cb126c53f6ea")
+        pass
