@@ -28,7 +28,7 @@ class AdLifeCycle(object):
                                  use_cache=False)
         self.org = self.helper.read_organisation()
 
-        self.ad_reader = ad_reader.ADParameterReader(skip_school=True)
+        self.ad_reader = ad_reader.ADParameterReader()
 
         self.stats = {
             'critical_errors': 0,
