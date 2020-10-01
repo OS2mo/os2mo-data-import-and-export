@@ -11,7 +11,7 @@ CLI="python mox_util.py cli --mox-base ${MOX_URL}"
 ${CLI} bulk-ensure frederikshavn.json
 
 # Configure MO to utilize newly created facet
-TOP_LEVEL_UUID=$($CLI ensure-facet-exists --bvn "medarbejder_organisation" | cut -f1 -d' ')
+TOP_LEVEL_UUID=$($CLI ensure-facet-exists --bvn "medarbejder_organisation3" | cut -f1 -d' ')
 echo "${TOP_LEVEL_UUID}"
 curl -X POST -H "Content-Type: application/json" --data "{\"org_units\": {\"association_dynamic_facets\": \"${TOP_LEVEL_UUID}\"}}" ${MORA_URL}/service/configuration
 curl -X POST -H "Session: ${SAML_TOKEN}" -H "Content-Type: application/json" --data "{\"org_units\": {\"association_dynamic_facets\": \"${TOP_LEVEL_UUID}\"}}" ${MORA_URL}/service/configuration
