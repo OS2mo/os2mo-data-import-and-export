@@ -1,235 +1,269 @@
 {
-  "ac2": {
-    "children": {
+  "facets": [
+    {
+      "medarbejder_organisation": {
+        "description": "Hovedorganisation / Faglig organisation"
+      },
+      "medarbejder_under_organisation": {
+        "description": "Underorganisation"
+      }
+    }
+  ],
+  "classes": [
+    {
+      "__apply_to_all__": {
+        "facet": "association_type"
+      },
+      "assoc_LR_leader": {
+        "title": "LR, formand"
+      },
+      "assoc_LR": {
+        "title": "LR"
+      },
+      "assoc_FTR_leader": {
+        "title": "FTR, næstformand"
+      },
+      "assoc_FTR": {
+        "title": "FTR"
+      },
+      "assoc_TR_leader": {
+        "title": "TR, næstformand"
+      },
+      "assoc_TR": {
+        "title": "TR"
+      },
+      "assoc_AMR_leader": {
+        "title": "AMR, næstformand"
+      },
+      "assoc_AMR": {
+        "title": "AMR"
+      },
+      "assoc_Medarb_rep_leader": {
+        "title": "Medarb.rep, næstformand"
+      },
+      "assoc_Medarb_rep": {
+        "title": "Medarb.rep"
+      },
+      "assoc_NA": {
+        "title": "Ej relevant"
+      }
+    },
+    {
+      "DocUnit": {
+        "title": "Documentadresse",
+        "scope": "WWW",
+        "facet": "org_unit_address_type"
+      }
+    },
+    {
+      "__apply_to_all__": {
+        "facet": "medarbejder_organisation"
+      },
+      "na2": {
+        "description": "Ej relevant",
+        "title": "Ej relevant"
+      },
+      "lo2": {
+        "description": "Landsorganisationen i Danmark",
+        "title": "LO"
+      },
+      "ftf2": {
+        "description": "FTF",
+        "title": "FTF"
+      },
+      "ac2": {
+        "description": "AC (Akademikerne)",
+        "title": "AC (Akademikerne)"
+      }
+    },
+    {
+      "__apply_to_all__": {
+        "__layer__": 2,
+        "facet": "medarbejder_under_organisation",
+        "parent": "ac2"
+      },
       "ac2_Arkitekt": {
-        "children": {},
         "description": "Forbundet Arkitekter og Designere",
         "title": "Forbundet Arkitekter og Designere"
       },
       "ac2_Arkitektforbundet": {
-        "children": {},
         "description": "Arkitektforbundet",
         "title": "Arkitektforbundet"
       },
       "ac2_BF": {
-        "children": {},
         "description": "BF - Bibliotekarforbundet",
         "title": "BF - Bibliotekarforbundet"
       },
       "ac2_DDL": {
-        "children": {},
         "description": "DDL - Den Danske Landinspektørforening",
         "title": "DDL - Den Danske Landinspektørforening"
       },
       "ac2_DJ": {
-        "children": {},
         "description": "DJ  - Dansk Journalistforbund",
         "title": "DJ  - Dansk Journalistforbund"
       },
       "ac2_DJOEF": {
-        "children": {},
         "description": "Djøf - Danmarks Jurist- og Økonomforbund",
         "title": "Djøf - Danmarks Jurist- og Økonomforbund"
       },
       "ac2_DM": {
-        "children": {},
         "description": "DM - Dansk Magisterforening",
         "title": "DM - Dansk Magisterforening"
       },
       "ac2_DMpF": {
-        "children": {},
         "description": "DMpF - Dansk Musikpædagogisk Forening",
         "title": "DMpF - Dansk Musikpædagogisk Forening"
       },
       "ac2_DP": {
-        "children": {},
         "description": "DP - Dansk Psykologforening",
         "title": "DP - Dansk Psykologforening"
       },
       "ac2_Ergoterapeut": {
-        "children": {},
         "description": "Ergoterapeutforeningen",
         "title": "Ergoterapeutforeningen"
       },
       "ac2_FAOD": {
-        "children": {},
         "description": "FAOD - Forbundet af arkitekter og designere",
         "title": "FAOD - Forbundet af arkitekter og designere"
       },
       "ac2_FaKD": {
-        "children": {},
         "description": "FaKD - Foreningen af kliniske diætister",
         "title": "FaKD - Foreningen af kliniske diætister"
       },
       "ac2_Fysioterapeut": {
-        "children": {},
         "description": "Danske Fysioterapeuter",
         "title": "Danske Fysioterapeuter"
       },
       "ac2_IDA": {
-        "children": {},
         "description": "IDA - Ingeniørforeningen i Danmark",
         "title": "IDA - Ingeniørforeningen i Danmark"
       },
       "ac2_JA": {
-        "children": {},
         "description": "JA - Jordbrugsakademikernes Forbund",
         "title": "JA - Jordbrugsakademikernes Forbund"
       },
       "ac2_Kommunikation": {
-        "children": {},
         "description": "Forbundet Kommunikation og Sprog",
         "title": "Forbundet Kommunikation og Sprog"
       },
       "ac2_Maskinmester": {
-        "children": {},
         "description": "Maskinmestrenes Forening",
         "title": "Maskinmestrenes Forening"
       },
       "ac2_NA": {
-        "children": {},
         "description": "Ej relevant",
         "title": "Ej relevant"
       },
       "ac2_PD": {
-        "children": {},
         "description": "PD - Dansk Farmaceutforening/Pharma Danmark",
         "title": "PD - Dansk Farmaceutforening/Pharma Danmark"
       },
       "ac2_Skov": {
-        "children": {},
         "description": "Danske Skov- og Landskabsingeniører",
         "title": "Danske Skov- og Landskabsingeniører"
       },
       "ac2_TF": {
-        "children": {},
         "description": "TF - Tandlægeforeningen",
         "title": "TF - Tandlægeforeningen"
       }
     },
-    "description": "AC (Akademikerne)",
-    "title": "AC (Akademikerne)"
-  },
-  "ftf2": {
-    "children": {
+    {
+      "__apply_to_all__": {
+        "__layer__": 2,
+        "facet": "medarbejder_under_organisation",
+        "parent": "ftf2"
+      },
       "ftf2_DLF": {
-        "children": {},
         "description": "DLF - Danmarks Lærerforening",
         "title": "DLF - Danmarks Lærerforening"
       },
       "ftf2_DMF": {
-        "children": {},
         "description": "DMF - Dansk Musiker Forbund",
         "title": "DMF - Dansk Musiker Forbund"
       },
       "ftf2_DS": {
-        "children": {},
         "description": "DS - Dansk Socialrådgiverforening",
         "title": "DS - Dansk Socialrådgiverforening"
       },
       "ftf2_DSR": {
-        "children": {},
         "description": "DSR - Dansk Sygeplejeråd",
         "title": "DSR - Dansk Sygeplejeråd"
       },
       "ftf2_Kost": {
-        "children": {},
         "description": "Kost- og ernæringsforbundet",
         "title": "Kost- og ernæringsforbundet"
       },
       "ftf2_LO_BUPL": {
-        "children": {},
         "description": "BUPL - Børne- og Ungdomspædagogernes Landsforbund",
         "title": "BUPL - Børne- og Ungdomspædagogernes Landsforbund"
       },
       "ftf2_NA": {
-        "children": {},
         "description": "Ej relevant",
         "title": "Ej relevant"
       },
       "ftf2_PFF": {
-        "children": {},
         "description": "PFF - Pædagogernes Forhandlingsfællesskab",
         "title": "PFF - Pædagogernes Forhandlingsfællesskab"
       },
       "ftf2_Tand": {
-        "children": {},
         "description": "Danske Tandplejere",
         "title": "Danske Tandplejere"
       }
     },
-    "description": "FTF",
-    "title": "FTF"
-  },
-  "lo2": {
-    "children": {
+    {
+      "__apply_to_all__": {
+        "__layer__": 2,
+        "facet": "medarbejder_under_organisation",
+        "parent": "lo2"
+      },
       "lo2_ElForbund": {
-        "children": {},
         "description": "Dansk El-forbund",
         "title": "Dansk El-forbund"
       },
       "lo2_FOA": {
-        "children": {},
         "description": "FOA - Fag og Arbejde",
         "title": "FOA - Fag og Arbejde"
       },
       "lo2_HK": {
-        "children": {},
         "description": "HK Kommunal",
         "title": "HK Kommunal"
       },
       "lo2_Konstruktoerforeningen": {
-        "children": {},
         "description": "Konstruktørforeningen",
         "title": "Konstruktørforeningen"
       },
       "lo2_Kost": {
-        "children": {},
         "description": "Kost & Ernæringsforbundet",
         "title": "Kost & Ernæringsforbundet"
       },
       "lo2_Malerforbundet": {
-        "children": {},
         "description": "Malerforbundet i Danmark",
         "title": "Malerforbundet i Danmark"
       },
       "lo2_Metal": {
-        "children": {},
         "description": "Dansk Metal",
         "title": "Dansk Metal"
       },
       "lo2_NA": {
-        "children": {},
         "description": "Ej relevant",
         "title": "Ej relevant"
       },
       "lo2_SL": {
-        "children": {},
         "description": "SL - Socialpædagogerne",
         "title": "SL - Socialpædagogerne"
       },
       "lo2_TIB": {
-        "children": {},
         "description": "Forbundet Træ, Industri og Byg i Danmark",
         "title": "Forbundet Træ, Industri og Byg i Danmark"
       },
       "lo2_TL": {
-        "children": {},
         "description": "TL - Teknisk Landsforbund",
         "title": "TL - Teknisk Landsforbund"
       },
       "lo2_ThreeF": {
-        "children": {},
         "description": "3F - Fagligt Fælles Forbund",
         "title": "3F - Fagligt Fælles Forbund"
       }
-    },
-    "description": "Landsorganisationen i Danmark",
-    "title": "LO"
-  },
-  "na2": {
-    "children": {},
-    "description": "Ej relevant",
-    "title": "Ej relevant"
-  }
+    }
+  ]
 }
