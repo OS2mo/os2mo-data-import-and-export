@@ -14,14 +14,6 @@ logger = logging.getLogger("AdReader")
 
 class ADParameterReader(AD):
 
-    def __init__(self, skip_school=False, **kwargs):
-        super().__init__(**kwargs)
-
-        if skip_school:
-            self.all_settings['school']['read_school'] = False
-
-        self.results = {}
-
     def read_encoding(self):
         """
         Read the character encoding of the Power Shell session.
@@ -30,40 +22,16 @@ class ADParameterReader(AD):
         response = self._run_ps_script(ps_script)
         return response
 
-    def read_it_all(self, school=False):
-        # TODO: Contains duplicated code
-        settings = self._get_setting(school)
-        bp = self._ps_boiler_plate(school)
-        get_command = "get-aduser -Filter '*'"
-
-        server_string = ''
-        if self.all_settings['global'].get('servers') is not None:
-            server_string = ' -Server {} '.format(
-                random.choice(self.all_settings['global']['servers'])
-            )
-
-        command_end = (' | ConvertTo-Json  | ' +
-                       ' % {$_.replace("ø","&oslash;")} | ' +
-                       '% {$_.replace("Ø","&Oslash;")} ')
-
-        ps_script = (
-            self._build_user_credential(school) +
-            get_command +
-            server_string +
-            bp['complete'] +
-            self._properties(school) +
-            bp['get_ad_object'] +
-            command_end
-        )
-
-        response = self._run_ps_script(ps_script)
+    def read_it_all(self):
+        settings = self._get_setting()
+        response = self.cache_all()
         users = [
             user
             for user in response
             if self.is_included(settings, user)
         ]
-
         return users
+
 
     def is_included(self, settings, user):
         """ include/exclude users depending on settings
@@ -84,52 +52,35 @@ class ADParameterReader(AD):
 
         return True
 
+    # Hvornår skal vi læse og skrive i hvad?
+    # Opdatering af os2mo fra ad: ad_sync: vi læser alle (for i in...) Ny reader og opdater mo
+    # Opdatering af ad fra mo (mo_to_ad_sync) skriv kun til det første (og læs kun fra det første)
+    # Indlæsning fra Opus og SD: Her læser vi fra 0'eren - vi skal have fat i object-guid
+    # cpr-uid-map-til rollekatalog skal også kun læse fra 0 (for now....)
+    # vi kan teste en del med den, altså: venv/bin/python exporters/cpr_uuid.py --use-ad
+    # cpr_mo_ad_map.csv har kun uuider/brugernavne pǻ de linier, hvor den sd-importerede bruger også er i ad.
 
-    def uncached_read_user(self, user=None, cpr=None):
-        # Bug, currently this will not work directly with the school domain. Users
-        # will be cached (and can be read by read_user) but will not be returned
-        # directly by this function
+
+    def uncached_read_user(self, user=None, cpr=None, ria=None):
+        # read one or more users using cpr-pattern.
+        # if list is passed in ria (read it all) then this is extended
+        # with found users - this way the function replaces the old 
+        # 'read it all' function, so there is now only one function
+        # reading from AD.
+
         logger.debug('Uncached AD read, user {}, cpr {}'.format(user, cpr))
 
-        if self.all_settings['school']['read_school']:
-            settings = self._get_setting(school=True)
-            # response = self._get_from_ad(user=user, cpr=cpr, school=True)
-            response = self.get_from_ad(user=user, cpr=cpr, school=True,
-                                        server=settings['server'])
-            for current_user in response:
-
-                # Viborg special case
-                job_title = current_user.get('Title')
-                if job_title and job_title.find('FRATR') == 0:
-                    continue  # These are users that has left
-
-                # Viborg special case?
-                if 'mail' in current_user:
-                    current_user['EmailAddress'] = current_user['mail']
-                    del current_user['mail']
-
-                school_cpr = current_user[settings['cpr_field']].replace(
-                    settings['cpr_separator'], '')
-
-                self.results[school_cpr] = current_user
-
-                self.results[current_user['SamAccountName']] = current_user
-
-        response = self.get_from_ad(user=user, cpr=cpr, school=False)
+        server = random.choice(self.all_settings['primary']['servers'])
+        response = self.get_from_ad(user=user, cpr=cpr, server=server)
         current_user = {}
         try:
             for current_user in response:
-                settings = self._get_setting(school=False)
+                settings = self._get_setting()
 
                 # Viborg special case
                 job_title = current_user.get('Title')
                 if job_title and job_title.find('FRATR') == 0:
                     continue  # These are users that has left
-
-                # Viborg - move this to settings
-                #brugertype = current_user.get('xBrugertype')
-                #if brugertype and brugertype.find('Medarbejder') == -1:
-                #    continue
 
                 if not self.is_included(settings, current_user):
                     continue
@@ -151,20 +102,25 @@ class ADParameterReader(AD):
                 else:
                     if current_user['SamAccountName'].startswith(settings['sam_filter']):
                         self.results[cpr] = current_user
+            if ria:
+                ria.extend(response)
 
             return current_user
         except Exception:
             logger.error('Response from uncached_read_user: {}'.format(response))
             raise
 
+
     def cache_all(self):
         logger.info('Caching all users')
         t = time.time()
+        return_value=[]
         for i in range(1, 32):
             day = str(i).zfill(2)
-            self.uncached_read_user(cpr='{}*'.format(day))
+            self.uncached_read_user(cpr='{}*'.format(day), ria=return_value)
             logger.debug(len(self.results))
             logger.debug('Read time: {}'.format(time.time() - t))
+        return return_value
 
     def read_user(self, user=None, cpr=None, cache_only=False):
         """Read all properties of an AD user.
@@ -206,11 +162,10 @@ if __name__ == '__main__':
     #import pickle
     #with open("mypickle.p","bw") as f:
     #    f.write(pickle.dumps(ad_reader.read_it_all()))
-
     everything = ad_reader.read_it_all()
     for user in everything:
-        print('Name: {}, Sam: {}, Manager: {}, CPR: {}'.format(
-            user['Name'], user['SamAccountName'], user.get('Manager'), user.get("extensionAttribute1")))
-        if user['SamAccountName'] == 'asdfasdf':
+        print('Name: {}, Sam: {}, Manager: {} CPR: {}'.format(
+            user['Name'], user['SamAccountName'], user.get('Manager'), "cpr: " + str(user.get('xAttrCPR'))))
+        if user['SamAccountName'] == 'johndoe':
             for key in sorted(user.keys()):
                 print('{}: {}'.format(key, user[key]))
