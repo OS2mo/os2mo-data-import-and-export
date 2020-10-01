@@ -13,9 +13,16 @@ from winrm.exceptions import InvalidCredentialsError
 cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
-# TODO: This must be clean up, settings should be loaded by __init__
-# and no references should be needed in global scope.
+
 SETTINGS = json.loads(cfg_file.read_text())
+
+if not isinstance(SETTINGS.get('integrations.ad'), list):
+    raise Exception('integrations.ad skal angives som en liste af dicts (settings)')
+
+if len(SETTINGS.get('integrations.ad')) < 1:
+    raise Exception('integrations.ad skal indeholde mindst 1 AD (settings)')
+
+
 WINRM_HOST = SETTINGS.get('integrations.ad.winrm_host')
 if not (WINRM_HOST):
     raise Exception('WINRM_HOST is missing')
@@ -35,7 +42,7 @@ def test_basic_connectivity():
     except requests_kerberos.exceptions.KerberosExchangeError as e:
         error = str(e)
     except InvalidCredentialsError as e:
-        error = 'Credentails not accepted by remmote management server: {}' 
+        error = 'Credentails not accepted by remote management server: {}'
         error = error.format(e)
     except requests.exceptions.ConnectionError as e:
         error = 'Unable to contact winrm_host {}, message: {}'
@@ -51,10 +58,10 @@ def test_basic_connectivity():
         return False
 
 
-def test_ad_contact():
+def test_ad_contact(index):
     from ad_reader import ADParameterReader
     try:
-        ad_reader = ADParameterReader()
+        ad_reader = ADParameterReader(index=index)
     except Exception as e:
         print('Unable to initiate AD-reader: {}'.format(e))
         return False
@@ -67,13 +74,13 @@ def test_ad_contact():
         return False
 
 
-def test_full_ad_read():
+def test_full_ad_read(index):
     """
     Test that we can read actual users from AD. This ensures suitable rights
     to access cpr-information in AD.
     """
     from ad_reader import ADParameterReader
-    ad_reader = ADParameterReader()
+    ad_reader = ADParameterReader(index=index)
 
     ad_reader.uncached_read_user(cpr='3111*')
     if ad_reader.results:
@@ -93,11 +100,9 @@ def test_full_ad_read():
     }
     # Run through a set of users and test encoding and cpr-separator.
     for user in ad_reader.results.values():
-        cpr = user[SETTINGS['integrations.ad.cpr_field']]
-
-        # Notice, separator is read straight from settings file not via
-        # read_conf_settings, default behaviour must be kept synchronized.
-        separator = SETTINGS.get('integrations.ad.cpr_separator', '')
+        cprfield = ad_reader.all_settings["primary"]["cpr_field"]
+        cpr = user[cprfield]
+        separator = ad_reader.all_settings["primary"]["cpr_separator"]
 
         cpr_ok = False
         if separator == '' and len(cpr) == 10:
@@ -118,9 +123,9 @@ def test_full_ad_read():
 
     for test_value in test_chars.values():
         if not test_value:
-            print('Did find any occurances of special char: {}'.format(test_chars))
-            print('(all should be True for success)')
-            return False
+            print('Finding occurences of special chars: {}'.format(test_chars))
+            print('(The more True the better)')
+            break
 
     return True
 
@@ -135,26 +140,32 @@ def test_ad_write_settings():
 
 
 def perform_read_test():
+
     print('Test basic connectivity (Kerberos)')
+    status = "Success"
     basic_connection = test_basic_connectivity()
     if not basic_connection:
         print('Unable to connect to management server')
         exit(1)
 
-    print('Test AD contact')
-    ad_connection = test_ad_contact()
-    if not ad_connection:
-        print('Unable to connect to AD')
-        exit(1)
+    for index in range(len(SETTINGS["integrations.ad"])):
+        print('Test AD {} contact'.format(index))
+        ad_connection = test_ad_contact(index)
+        if not ad_connection:
+            print('Unable to connect to AD {}'.format(index))
+            status = "Failure!!"
+            continue
 
-    print('Test ability to read from AD')
-    full_ad_read = test_full_ad_read()
-    if not full_ad_read:
-        print('Unable to read users from AD correctly')
-        exit(1)
+        print('Test ability to read from AD {}'.format(index))
+        full_ad_read = test_full_ad_read(index)
+        if not full_ad_read:
+            print('Unable to read users from AD {} correctly'.format(index))
+            status = "Failure!!!"
+            continue
 
-    print('Success')
-    exit(0)
+    print(status)
+    if status != "Success":
+        exit(1)
 
 
 def perform_write_test():
@@ -208,12 +219,11 @@ def perform_write_test():
                 minumum_expected_fields[prop] = True
 
     if False in minumum_expected_fields.values():
-        print('An import field is now found on the tested users')
+        print('An import field is not found on the tested users')
         print(minumum_expected_fields)
         exit(1)
     else:
         print('Test of AD fields for writing is a success')
-        exit(0)
 
 
 def cli():
@@ -231,6 +241,7 @@ def cli():
         perform_read_test()
 
     if args.get('test_write_settings'):
+        perform_read_test()
         perform_write_test()
 
 

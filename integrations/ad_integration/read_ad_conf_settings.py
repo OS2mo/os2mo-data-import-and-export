@@ -11,9 +11,9 @@ from integrations.ad_integration.utils import LazyDict
 def _read_global_settings(top_settings):
     global_settings = {}
 
-    global_settings['servers'] = top_settings.get('integrations.ad.write.servers')
-    global_settings['winrm_host'] = top_settings.get('integrations.ad.winrm_host')
     global_settings['mora.base'] = top_settings.get('mora.base')
+    global_settings['servers'] = top_settings.get('integrations.ad')[0]['servers']
+    global_settings['winrm_host'] = top_settings.get('integrations.ad.winrm_host')
     if not global_settings['winrm_host']:
         msg = 'Missing hostname for remote management server'
         logger.error(msg)
@@ -21,13 +21,20 @@ def _read_global_settings(top_settings):
     return global_settings
 
 
-def _read_primary_ad_settings(top_settings):
+def _read_primary_ad_settings(top_settings, index=0):
     primary_settings = {}
-    primary_settings['search_base'] = top_settings.get('integrations.ad.search_base')
-    primary_settings['cpr_field'] = top_settings.get('integrations.ad.cpr_field')
-    primary_settings['system_user'] = top_settings.get('integrations.ad.system_user')
-    primary_settings['password'] = top_settings.get('integrations.ad.password')
-    primary_settings['properties'] = top_settings.get('integrations.ad.properties')
+    primary_settings['servers'] = top_settings.get(
+        'integrations.ad')[index]['servers']
+    primary_settings['search_base'] = top_settings.get(
+        'integrations.ad')[index]["search_base"]
+    primary_settings['cpr_field'] = top_settings.get(
+        'integrations.ad')[index]["cpr_field"]
+    primary_settings['system_user'] = top_settings.get(
+        'integrations.ad')[index]["system_user"]
+    primary_settings['password'] = top_settings.get(
+        'integrations.ad')[index]['password']
+    primary_settings['properties'] = top_settings.get(
+        'integrations.ad')[index]["properties"]
 
     missing = []
     for key, val in primary_settings.items():
@@ -39,20 +46,29 @@ def _read_primary_ad_settings(top_settings):
         raise Exception(msg)
 
     # 36182 exclude non primary AD-users
-    primary_settings['discriminator.field'] = top_settings.get('integrations.ad.discriminator.field')
-    if primary_settings['discriminator.field'] is not None:
+    primary_settings["discriminator.field"] = top_settings.get(
+        "integrations.ad")[index].get("discriminator.field")
+    if primary_settings["discriminator.field"] is not None:
         # if we have a field we MUST have .values and .function
-        primary_settings['discriminator.values'] = top_settings['integrations.ad.discriminator.values']
-        primary_settings['discriminator.function'] = top_settings['integrations.ad.discriminator.function']
-        if not primary_settings['discriminator.function'] in ["include", "exclude"]:
-            raise ValueError("'ad.discriminator.function' must be include or exclude")
+        primary_settings["discriminator.values"] = top_settings[
+            "integrations.ad"][index]["discriminator.values"]
+        primary_settings["discriminator.function"] = top_settings[
+            "integrations.ad"][index]["discriminator.function"]
+        if not primary_settings["discriminator.function"] in ["include", "exclude"]:
+            raise ValueError("'ad.discriminator.function'" +
+                " must be include or exclude for AD %d" % index
+            )
 
     # Settings that do not need to be set, or have defaults
     primary_settings['server'] = None
-    primary_settings['sam_filter'] = top_settings.get('integrations.ad.sam_filter', '')
-    primary_settings['caseless_samname'] = top_settings.get('integrations.ad.caseless_samname', '')
+    primary_settings['caseless_samname'] = top_settings.get(
+        'integrations.ad')[index].get('caseless_samname', True)
+    primary_settings['sam_filter'] = top_settings.get(
+        "integrations.ad")[index].get("sam_filter", '')
     primary_settings['cpr_separator'] = top_settings.get(
-        'integrations.ad.cpr_separator', '')
+        'integrations.ad')[index].get('cpr_separator', '')
+    primary_settings['ad_mo_sync_mapping'] = top_settings.get(
+        'integrations.ad')[index].get('ad_mo_sync_mapping', {})
 
     # So far false in all known cases, default to false
     # get_ad_object = os.environ.get('AD_GET_AD_OBJECT', 'False')
@@ -70,7 +86,8 @@ def _read_primary_write_information(top_settings):
     primary_write_settings = {}
 
     # Shared with read
-    primary_write_settings['cpr_field'] = top_settings.get('integrations.ad.cpr_field')
+    primary_write_settings['cpr_field'] = top_settings.get(
+        'integrations.ad')[0]['cpr_field']
 
     # Field for writing the uuid of a user, used to sync to STS
     primary_write_settings['uuid_field'] = top_settings.get(
@@ -91,11 +108,6 @@ def _read_primary_write_information(top_settings):
     # These are technically speaking not used in this context, but it is needed for
     # AD write and can benifit from the automated check.
 
-    # Ordered list of primary engagements
-    # Obsolete as of January 2020, will be removed.
-    # primary_write_settings['primary_types'] = top_settings.get(
-    # 'integrations.ad.write.primary_types')
-
     # UUID for the unit type considered to be level2orgunit
     primary_write_settings['level2orgunit_type'] = top_settings.get(
         'integrations.ad.write.level2orgunit_type'
@@ -104,9 +116,9 @@ def _read_primary_write_information(top_settings):
     missing = []
 
     for key, val in primary_write_settings.items():
-        if not val:
+        if val is None:
             missing.append(key)
-    if missing:
+    if len(missing) > 0:
         msg = 'Missing values for AD write {}'.format(missing)
         logger.info(msg)
         return {}
@@ -140,7 +152,8 @@ def _read_primary_write_information(top_settings):
     return primary_write_settings
 
 
-def _read_school_ad_settings(top_settings):
+def _NEVER_read_school_ad_settings():
+    raise RuntimeError("NEVER call this - it is obsolete")
     school_settings = {}
 
     school_settings['search_base'] = os.environ.get('AD_SCHOOL_SEARCH_BASE')
@@ -192,11 +205,10 @@ SETTINGS = LazyDict()
 SETTINGS.set_initializer(_load_settings_from_disk)
 
 
-def read_settings(top_settings=SETTINGS):
+def read_settings(top_settings=SETTINGS, index=0):
     settings = {}
     settings['global'] = _read_global_settings(top_settings)
-    settings['primary'] = _read_primary_ad_settings(top_settings)
-    settings['school'] = _read_school_ad_settings(top_settings)
+    settings['primary'] = _read_primary_ad_settings(top_settings, index)
     settings['primary_write'] = _read_primary_write_information(top_settings)
     return settings
 
