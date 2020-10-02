@@ -32,9 +32,7 @@ class LoraCache(object):
             'relationer': ('tilknyttedeorganisationer', 'tilhoerer')
         }
 
-        self.dar_map = None
-        if resolve_dar:
-            self.dar_map = defaultdict(list)
+        self.dar_map = defaultdict(list)
 
         self.full_history = full_history
         self.skip_past = skip_past
