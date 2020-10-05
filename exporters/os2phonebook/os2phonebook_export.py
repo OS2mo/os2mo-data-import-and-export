@@ -82,8 +82,7 @@ def cli():
 
 
 @cli.command()
-@async_to_sync
-async def generate_json():
+def generate_json():
     # TODO: Async database access
     engine = get_engine()
     # Prepare session
@@ -329,23 +328,23 @@ async def generate_json():
         }
         return filtered_map
 
-    async def enrich_org_units_with_addresses(org_unit_map):
+    def enrich_org_units_with_addresses(org_unit_map):
         # Enrich with adresses
         queryset = session.query(Adresse).filter(Adresse.enhed_uuid != None)
 
-        return await address_helper(
+        return address_helper(
             queryset, org_unit_map, lambda address: address.enhed_uuid
         )
 
-    async def enrich_employees_with_addresses(employee_map):
+    def enrich_employees_with_addresses(employee_map):
         # Enrich with adresses
         queryset = session.query(Adresse).filter(Adresse.bruger_uuid != None)
 
-        return await address_helper(
+        return address_helper(
             queryset, employee_map, lambda address: address.bruger_uuid
         )
 
-    async def address_helper(queryset, entry_map, address_to_uuid):
+    def address_helper(queryset, entry_map, address_to_uuid):
         da_address_types = {
             "DAR": "DAR",
             "Telefon": "PHONE",
@@ -431,6 +430,8 @@ async def generate_json():
     # Filter off employees without engagements, assoications and management
     with elapsedtime("filter_employees"):
         employee_map = filter_employees(employee_map)
+    with elapsedtime("enrich_employees_with_addresses"):
+        employee_map = enrich_employees_with_addresses(employee_map)
 
     # Org Units
     # ----------
@@ -445,15 +446,8 @@ async def generate_json():
         org_unit_map = enrich_org_units_with_management(org_unit_map)
     with elapsedtime("enrich_org_units_with_kles"):
         org_unit_map = enrich_org_units_with_kles(org_unit_map)
-
-    # Both
-    # -----
-    # Fire all HTTP requests in parallel (for both employees and org units)
-    with elapsedtime("enrich_x_with_addresses"):
-        employee_map, org_unit_map = await asyncio.gather(
-            enrich_employees_with_addresses(employee_map),
-            enrich_org_units_with_addresses(org_unit_map),
-        )
+    with elapsedtime("enrich_org_units_with_addresses"):
+        org_unit_map = enrich_org_units_with_addresses(org_unit_map)
 
     print("Processing took", query_counter.count, "queries")
 
