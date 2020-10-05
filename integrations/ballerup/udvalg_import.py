@@ -116,6 +116,16 @@ def generate_uuid(value, org_name):
     return value_uuid
 
 
+def _mo_post(url, payload, params):
+    try:
+        response = SESSION.post(url, json=payload, params=params)
+        response.raise_for_status()
+        return response
+    except requests.RequestException:
+        logger.exception('Failed on {} with {}'.format(url, payload))
+        raise
+
+
 def _create_mo_ou(name, parent, org_type, bvn):
     uuid = generate_uuid(bvn, ROOT)
     ou_type = _find_class(find_facet='org_unit_type', find_class=org_type)
@@ -133,7 +143,7 @@ def _create_mo_ou(name, parent, org_type, bvn):
 
     url = BASE_URL + 'ou/create'
     params = {'force': 1}
-    response = SESSION.post(url, json=payload, params=params)
+    response = _mo_post(url, payload, params)
     uuid = response.json()
     return uuid
 
@@ -157,8 +167,7 @@ def _create_mo_association(user, org_unit, association_type, from_string):
         ]
         url = BASE_URL + 'details/create'
         params = {'force': 1}
-        response = SESSION.post(url, json=payload, params=params)
-        response.raise_for_status()
+        response = _mo_post(url, payload, params)
         uuid = response.json()
         return uuid
     else:
@@ -185,8 +194,7 @@ def _create_mo_role(user, org_unit, role_type, from_string):
         ]
         url = BASE_URL + 'details/create'
         params = {'force': 1}
-        response = SESSION.post(url, json=payload, params=params)
-        response.raise_for_status()
+        response = _mo_post(url, payload, params)
         uuid = response.json()
         return uuid
     else:
