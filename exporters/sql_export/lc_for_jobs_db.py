@@ -24,7 +24,9 @@ def get_engine(dbpath=None):
         if not cfg_file.is_file():
             raise Exception("No setting file")
         settings = json.loads(cfg_file.read_text())
-        dbpath = settings["lc-for-jobs.actual_db_name"]
+        dbpath = settings.get(
+            "lc-for-jobs.actual_db_name", "ActualState"
+        )
 
     db_string = "sqlite:///{}.db".format(dbpath)
     return create_engine(db_string)

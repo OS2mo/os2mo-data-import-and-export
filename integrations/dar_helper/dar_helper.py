@@ -104,7 +104,10 @@ async def dar_fetch(uuids, addrtype="adresser", chunk_size=150, client=None):
             dict: Map from UUID to DAR reply.
             set: Set of UUIDs of entries which were not found.
     """
-    if len(uuids) <= 150:
+    num_uuids = len(uuids)
+    if num_uuids == 0:
+        return dict(), set()
+    elif num_uuids <= 150:
         return await dar_fetch_non_chunked(uuids, addrtype, client=client)
     else:
         return await dar_fetch_chunked(uuids, addrtype, chunk_size, client=client)
