@@ -39,7 +39,7 @@ def cli():
 
 
 @cli.command()
-@click.option("--resolve-dar/--no-resolve-dar", default=False)
+@click.option("--resolve-dar/--no-resolve-dar", default=True)
 def sql_export(resolve_dar):
 
     # Load settings file

@@ -4,6 +4,7 @@ import logging
 import pathlib
 import time
 from functools import wraps
+from operator import attrgetter
 
 import click
 from aiohttp import BasicAuth, ClientSession, TCPConnector
@@ -17,11 +18,13 @@ from exporters.sql_export.sql_table_defs import (
     Leder,
     Tilknytning,
     KLE,
+    DARAdresse
 )
 from sqlalchemy import create_engine, event, or_
 from sqlalchemy.orm import sessionmaker
 
 from integrations.dar_helper.dar_helper import dar_fetch
+from integrations.dar_helper.utils import async_to_sync
 
 
 LOG_LEVEL = logging.DEBUG
@@ -70,33 +73,6 @@ class elapsedtime(object):
             "seconds",
             ")",
         )
-
-
-def async_to_sync(f):
-    """Decorator to run an async function to completion.
-
-    Example:
-
-        @async_to_sync
-        async def sleepy(seconds):
-            await sleep(seconds)
-
-        sleepy(5)
-    
-    Args:
-        f (async function): The async function to wrap and make synchronous.
-
-    Returns:
-        :obj:`sync function`: The syncronhous function wrapping the async one.
-    """
-
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        loop = asyncio.get_event_loop()
-        future = asyncio.ensure_future(f(*args, **kwargs))
-        return loop.run_until_complete(future)
-
-    return wrapper
 
 
 @click.group()
@@ -415,12 +391,11 @@ async def generate_json():
         for address in queryset.all():
             process_address(address)
 
-        uuids = list(dawa_queue.keys())
-        result, missing = await dar_fetch(uuids)
-        for dar_uuid, reply in result:
-            if "betegnelse" not in reply:
-                continue
-            value = reply["betegnelse"]
+        uuids = set(dawa_queue.keys())
+        queryset = session.query(DARAdresse).filter(DARAdresse.uuid.in_(uuids))
+        betegnelser = map(attrgetter('betegnelse'), queryset.all())
+        betegnelser = filter(lambda x: x is not None, betegnelser)
+        for value in betegnelser:
             for address in dawa_queue[dar_uuid]:
                 entry_uuid = address_to_uuid(address)
                 atype = da_address_types[address.adressetype_scope]
@@ -433,6 +408,9 @@ async def generate_json():
                 entry_map[entry_uuid]["addresses"][atype].append(
                     formatted_address
                 )
+
+        found = set(map(attrgetter('uuid'), queryset.all()))
+        missing = uuids - found
         if missing:
             print(missing, "not found in DAWA")
 
