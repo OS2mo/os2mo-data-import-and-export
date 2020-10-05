@@ -254,8 +254,11 @@ def get_manager_dates(session, bruger):
         if engagement.startdato < startdate:
             startdate = engagement.startdato
 
-    assert startdate < '9999-12-31'
-    assert enddate == '' or enddate > '0000-00-00'
+    # difference from before, since lcdb has no past
+    # assert startdate < '9999-12-31'
+    # assert enddate == '' or enddate > '0000-00-00'
+    if startdate == '9999-12-31':
+        return None, None
     return startdate, enddate
 
 
@@ -273,6 +276,9 @@ def build_manager_rows(session, settings, ou, manager):
     lastname = bruger.efternavn
 
     entrydate, leavedate = get_manager_dates(session, bruger)
+    if entrydate is None:
+        logger.info("skipping manager %s with no current employment", manager.uuid)
+        return []
 
     username = session.query(ItForbindelse.brugernavn).filter(and_(
         ItForbindelse.bruger_uuid == bruger.uuid,
