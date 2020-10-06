@@ -16,6 +16,8 @@ logger = logging.getLogger("LoraCache")
 
 DEFAULT_TIMEZONE = dateutil.tz.gettz('Europe/Copenhagen')
 
+PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
+
 
 class LoraCache(object):
 
@@ -338,7 +340,7 @@ class LoraCache(object):
                     continue
                 relationer = effect[2]['relationer']
 
-                if 'tilknyttedeenheder' in relationer:
+                if 'tilknyttedeenheder' in relationer and len(relationer['tilknyttedeenheder']) > 0:
                     unit_uuid = relationer['tilknyttedeenheder'][0]['uuid']
                     user_uuid = None
                 elif 'tilknyttedebrugere' in relationer and len(relationer['tilknyttedebrugere']) > 0:
@@ -427,9 +429,9 @@ class LoraCache(object):
         engagement_list = self._perform_lora_lookup(url, params)
         for engagement in engagement_list:
             uuid = engagement['id']
-            engagements[uuid] = []
 
             effects = self._get_effects(engagement, relevant)
+            engagement_effects = []
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 if from_date is None and to_date is None:
@@ -460,7 +462,10 @@ class LoraCache(object):
                 if primær:
                     primary_type = primær[0]['uuid']
 
-                job_function = rel['opgaver'][0]['uuid']
+                try:
+                    job_function = rel['opgaver'][0]['uuid']
+                except:
+                    continue
 
                 user_uuid = rel['tilknyttedebrugere'][0]['uuid']
                 unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
@@ -487,7 +492,7 @@ class LoraCache(object):
                     'udvidelse_10': udvidelser.get('udvidelse_10')
                 }
 
-                engagements[uuid].append(
+                engagement_effects.append(
                     {
                         'uuid': uuid,
                         'user': user_uuid,
@@ -502,6 +507,8 @@ class LoraCache(object):
                         'to_date': to_date
                     }
                 )
+            if engagement_effects:
+                engagements[uuid] = engagement_effects
         return engagements
 
     def _cache_lora_associations(self):
@@ -777,7 +784,10 @@ class LoraCache(object):
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 rel = effect[2]['relationer']
-                user_uuid = rel['tilknyttedebrugere'][0]['uuid']
+                try:
+                    user_uuid = rel['tilknyttedebrugere'][0]['uuid']
+                except:
+                    user_uuid = None
                 unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
                 manager_type = rel['organisatoriskfunktionstype'][0]['uuid']
                 manager_responsibility = []
@@ -1009,9 +1019,9 @@ class LoraCache(object):
         dt = time.time() - t
         elements = len(self.classes) + len(self.facets)
         with open(facets_file, 'wb') as f:
-            pickle.dump(self.facets, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.facets, f, PICKLE_PROTOCOL)
         with open(classes_file, 'wb') as f:
-            pickle.dump(self.classes, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.classes, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, elements, elements/dt))
 
         t = time.time()
@@ -1019,7 +1029,7 @@ class LoraCache(object):
         self.users = self._cache_lora_users()
         dt = time.time() - t
         with open(users_file, 'wb') as f:
-            pickle.dump(self.users, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.users, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.users), len(self.users)/dt))
 
         t = time.time()
@@ -1027,7 +1037,7 @@ class LoraCache(object):
         self.units = self._cache_lora_units()
         dt = time.time() - t
         with open(units_file, 'wb') as f:
-            pickle.dump(self.units, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.units, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.units), len(self.units)/dt))
 
         t = time.time()
@@ -1035,7 +1045,7 @@ class LoraCache(object):
         self.addresses = self._cache_lora_address()
         dt = time.time() - t
         with open(addresses_file, 'wb') as f:
-            pickle.dump(self.addresses, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.addresses, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.addresses), len(self.addresses)/dt))
 
         t = time.time()
@@ -1043,7 +1053,7 @@ class LoraCache(object):
         self.engagements = self._cache_lora_engagements()
         dt = time.time() - t
         with open(engagements_file, 'wb') as f:
-            pickle.dump(self.engagements, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.engagements, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.engagements), len(self.engagements)/dt))
 
         t = time.time()
@@ -1051,7 +1061,7 @@ class LoraCache(object):
         self.managers = self._cache_lora_managers()
         dt = time.time() - t
         with open(managers_file, 'wb') as f:
-            pickle.dump(self.managers, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.managers, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.managers), len(self.managers)/dt))
 
         if not skip_associations:
@@ -1060,7 +1070,7 @@ class LoraCache(object):
             self.associations = self._cache_lora_associations()
             dt = time.time() - t
             with open(associations_file, 'wb') as f:
-                pickle.dump(self.associations, f, pickle.HIGHEST_PROTOCOL)
+                pickle.dump(self.associations, f, PICKLE_PROTOCOL)
                 logger.info(msg.format(dt, len(self.associations),
                                        len(self.associations)/dt))
 
@@ -1069,7 +1079,7 @@ class LoraCache(object):
         self.leaves = self._cache_lora_leaves()
         dt = time.time() - t
         with open(leaves_file, 'wb') as f:
-            pickle.dump(self.leaves, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.leaves, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.leaves), len(self.leaves)/dt))
 
         t = time.time()
@@ -1078,7 +1088,7 @@ class LoraCache(object):
         self.roles = self._cache_lora_roles()
         dt = time.time() - t
         with open(roles_file, 'wb') as f:
-            pickle.dump(self.roles, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.roles, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.roles), len(self.roles)/dt))
 
         t = time.time()
@@ -1088,9 +1098,9 @@ class LoraCache(object):
         elements = len(self.itsystems) + len(self.it_connections)
         dt = time.time() - t
         with open(itsystems_file, 'wb') as f:
-            pickle.dump(self.itsystems, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.itsystems, f, PICKLE_PROTOCOL)
         with open(it_connections_file, 'wb') as f:
-            pickle.dump(self.it_connections, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.it_connections, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, elements, elements/dt))
 
         t = time.time()
@@ -1098,7 +1108,7 @@ class LoraCache(object):
         self.kles = self._cache_lora_kles()
         dt = time.time() - t
         with open(kles_file, 'wb') as f:
-            pickle.dump(self.kles, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.kles, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.kles), len(self.kles)/dt))
 
         t = time.time()
