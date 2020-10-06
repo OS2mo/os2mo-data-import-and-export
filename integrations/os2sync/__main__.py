@@ -39,7 +39,7 @@ def log_mox_counters(counter):
         logger.info("    %s: %r", k, v)
 
 
-def sync_os2sync_orgunits(counter, prev_date):
+def sync_os2sync_orgunits(settings, counter, prev_date):
     logger.info("sync_os2sync_orgunits starting")
 
     logger.info("sync_os2sync_orgunits getting "
@@ -70,13 +70,16 @@ def sync_os2sync_orgunits(counter, prev_date):
             allowed_unitids.append(i)
             counter["Orgenheder som opdateres i OS2Sync"] += 1
             os2sync.upsert_orgunit(sts_orgunit)
+        elif settings["OS2SYNC_AUTOWASH"]:
+            counter["Orgenheder som slettes i OS2Sync"] += 1
+            os2sync.delete_orgunit(i)
 
     logger.info("sync_os2sync_orgunits done")
 
     return set(allowed_unitids)
 
 
-def sync_os2sync_users(allowed_unitids, counter, prev_date):
+def sync_os2sync_users(settings, allowed_unitids, counter, prev_date):
 
     logger.info("sync_os2sync_users starting")
 
@@ -103,6 +106,9 @@ def sync_os2sync_users(allowed_unitids, counter, prev_date):
     logger.info("sync_os2sync_users upserting os2sync users")
 
     for i in os2mo_uuids_present:
+        # medarbejdere er allerede omfattet af autowash
+        # fordi de ikke får nogen 'Positions' hvis de ikke
+        # har en ansættelse i en af allowed_unitids
         sts_user = os2mo.get_sts_user(i, allowed_unitids)
 
         if not sts_user["Positions"]:
@@ -159,8 +165,8 @@ def main(settings):
         ]
     settings["OS2MO_HAS_KLE"] = os2mo.has_kle()
 
-    orgunit_uuids = sync_os2sync_orgunits(counter, prev_date)
-    sync_os2sync_users(orgunit_uuids, counter, prev_date)
+    orgunit_uuids = sync_os2sync_orgunits(settings, counter, prev_date)
+    sync_os2sync_users(settings, orgunit_uuids, counter, prev_date)
 
     if hash_cache_file:
         hash_cache_file.write_text(json.dumps(os2sync.hash_cache, indent=4))
