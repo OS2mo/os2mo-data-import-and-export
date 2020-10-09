@@ -145,8 +145,12 @@ class ADParameterReader(AD):
 
                 self.results[current_user['SamAccountName']] = current_user
 
-                if current_user['SamAccountName'].startswith(settings['sam_filter']):
-                    self.results[cpr] = current_user
+                if settings.get("caseless_samname", False):
+                    if current_user['SamAccountName'].startswith(settings['sam_filter']):
+                        self.results[cpr] = current_user
+                else:
+                    if current_user['SamAccountName'].lower().startswith(settings['sam_filter'].lower()):
+                        self.results[cpr] = current_user
 
             return current_user
         except Exception:
