@@ -83,6 +83,8 @@ def read_config(app):
         "AMQP_PASSWORD": cfg["integrations.SD_Lon.sd_mox.AMQP_PASSWORD"],
         "AMQP_HOST": cfg["integrations.SD_Lon.sd_mox.AMQP_HOST"],
         "AMQP_PORT": cfg["integrations.SD_Lon.sd_mox.AMQP_PORT"],
+        "AMQP_CHECK_WAITTIME": cfg.get("integrations.SD_Lon.sd_mox.AMQP_CHECK_WAITTIME",3),
+        "AMQP_CHECK_RETRIES": cfg.get("integrations.SD_Lon.sd_mox.AMQP_CHECK_RETRIES", 6),
         "VIRTUAL_HOST": cfg["integrations.SD_Lon.sd_mox.VIRTUAL_HOST"],
         "OS2MO_SERVICE": cfg["mora.base"] + "/service/",
         "OS2MO_TOKEN": cfg.get("crontab.SAML_TOKEN"),
