@@ -227,7 +227,7 @@ async def generate_json():
     org_unit_map = {}
     org_unit_queue = set()
 
-    def queue_org_unit(uuid):
+    def queue_org_unit(uuid=None):
         if uuid is None:
             return
         org_unit_queue.add(uuid)
@@ -242,6 +242,7 @@ async def generate_json():
                 add_org_unit(enhed)
 
     def add_org_unit(enhed):
+        # Assuming it has already been added, do not readd
         if enhed.uuid in org_unit_map:
             return
 
@@ -262,15 +263,14 @@ async def generate_json():
                 "WWW": [],
             },
         }
-        if unit["parent"]:
-            # Add parent to queue for bulk fetching later
-            queue_org_unit(enhed.forældreenhed_uuid)
-
         org_unit_map[enhed.uuid] = unit
 
-    def fetch_employees(employee_map):
-        for employee in session.query(Bruger).all():
-            phonebook_entry = {
+        # Add parent to queue for bulk fetching later (if any)
+        queue_org_unit(enhed.forældreenhed_uuid)
+
+    def fetch_employees():
+        def employee_to_dict(employee):
+            return {
                 "uuid": employee.uuid,
                 "surname": employee.efternavn,
                 "givenname": employee.fornavn,
@@ -284,10 +284,15 @@ async def generate_json():
                     "EMAIL": [],
                     "EAN": [],
                     "PNUMBER": [],
-                    "WWW": [],
-                },
+                    "WWW": []
+                }
             }
-            employee_map[employee.uuid] = phonebook_entry
+
+        def create_uuid_tuple(entry):
+            return entry["uuid"], entry
+
+        employees = map(employee_to_dict, session.query(Bruger).all())
+        employee_map = dict(map(create_uuid_tuple, employees))
         return employee_map
 
     def enrich_employees_with_engagements(employee_map):
@@ -347,6 +352,11 @@ async def generate_json():
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
+            if leder.bruger_uuid not in employee_map:
+                logger.error(
+                    "Leder not found in employee map: " + enhed.uuid
+                )
+                continue
             employee_map[leder.bruger_uuid]["management"].append(leder_entry)
         return employee_map
 
@@ -494,9 +504,9 @@ async def generate_json():
 
     # Employees
     # ----------
-    employee_map = {}
+    employee_map = None
     with elapsedtime("fetch_employees"):
-        employee_map = fetch_employees(employee_map)
+        employee_map = fetch_employees()
     # NOTE: These 3 queries can run in parallel
     with elapsedtime("enrich_employees_with_engagements"):
         employee_map = enrich_employees_with_engagements(employee_map)
