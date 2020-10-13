@@ -18,8 +18,10 @@ from exporters.sql_export.sql_table_defs import (
     Tilknytning,
     KLE,
 )
-from sqlalchemy import create_engine, event, or_
-from sqlalchemy.orm import sessionmaker
+
+from sqlalchemy import or_
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 LOG_LEVEL = logging.DEBUG
@@ -131,35 +133,34 @@ def sql_export(resolve_dar, historic, use_pickle, force_sqlite):
 async def generate_json():
     # TODO: Async database access
     db_string = "sqlite:///{}.db".format("tmp/OS2mo_ActualState")
-    engine = create_engine(db_string)
-    # Prepare session
-    Session = sessionmaker(bind=engine, autoflush=False)
-    session = Session()
-    # Count number of queries
-    def query_counter(*_):
-        query_counter.count += 1
+    from sqlalchemy.ext.asyncio import create_async_engine
+    from sqlalchemy.ext.asyncio import AsyncSession
 
-    query_counter.count = 0
-    event.listen(engine, "before_cursor_execute", query_counter)
+    engine = create_async_engine(db_string)
+    session = AsyncSession(engine)
+
+    # Print number of employees
+    from sqlalchemy import select
+    from sqlalchemy import func
+    stmt = select(func.count(Bruger.id))
+    total_number_of_employees = (await session.execute(stmt)).scalar()
+    print("Total employees:", total_number_of_employees)
+
     # Count number of http requests
     def request_counter():
         request_counter.count += 1
 
     request_counter.count = 0
 
-    # Print number of employees
-    total_number_of_employees = session.query(Bruger).count()
-    print("Total employees:", total_number_of_employees)
-
-    def enrich_org_units_with_engagements(org_unit_map):
+    async def enrich_org_units_with_engagements():
         # Enrich with engagements
-        queryset = (
-            session.query(Engagement, Bruger)
+        stmt = (
+            select([Engagement, Bruger])
             .filter(Engagement.bruger_uuid == Bruger.uuid)
-            .all()
         )
+        async_result = await session.stream(stmt)
 
-        for engagement, bruger in queryset:
+        async for engagement, bruger in async_result:
             if engagement.enhed_uuid not in org_unit_map:
                 continue
             engagement_entry = {
@@ -168,16 +169,15 @@ async def generate_json():
                 "uuid": bruger.uuid,
             }
             org_unit_map[engagement.enhed_uuid]["engagements"].append(engagement_entry)
-        return org_unit_map
 
-    def enrich_org_units_with_associations(org_unit_map):
-        queryset = (
-            session.query(Tilknytning, Bruger)
+    async def enrich_org_units_with_associations():
+        stmt = (
+            select([Tilknytning, Bruger])
             .filter(Tilknytning.bruger_uuid == Bruger.uuid)
-            .all()
         )
+        async_result = await session.stream(stmt)
 
-        for tilknytning, bruger in queryset:
+        async for tilknytning, bruger in async_result:
             if tilknytning.enhed_uuid not in org_unit_map:
                 continue
             association_entry = {
@@ -188,14 +188,14 @@ async def generate_json():
             org_unit_map[tilknytning.enhed_uuid]["associations"].append(
                 association_entry
             )
-        return org_unit_map
 
-    def enrich_org_units_with_management(org_unit_map):
-        queryset = (
-            session.query(Leder, Bruger).filter(Leder.bruger_uuid == Bruger.uuid).all()
+    async def enrich_org_units_with_management():
+        stmt = (
+            select([Leder, Bruger]).filter(Leder.bruger_uuid == Bruger.uuid)
         )
+        async_result = await session.stream(stmt)
 
-        for leder, bruger in queryset:
+        async for leder, bruger in async_result:
             if leder.enhed_uuid not in org_unit_map:
                 continue
             management_entry = {
@@ -204,14 +204,15 @@ async def generate_json():
                 "uuid": bruger.uuid,
             }
             org_unit_map[leder.enhed_uuid]["management"].append(management_entry)
-        return org_unit_map
 
-    def enrich_org_units_with_kles(org_unit_map):
-        queryset = (
-            session.query(KLE).all()
+    async def enrich_org_units_with_kles():
+        stmt = (
+            select([KLE])
         )
+        async_result = await session.stream(stmt)
 
-        for kle in queryset:
+        async for row in async_result:
+            kle = row[0]
             if kle.enhed_uuid not in org_unit_map:
                 continue
             if kle.kle_aspekt_titel != 'Udførende':
@@ -222,7 +223,6 @@ async def generate_json():
                 "uuid": kle.uuid,
             }
             org_unit_map[kle.enhed_uuid]["kles"].append(kle_entry)
-        return org_unit_map
 
     org_unit_map = {}
     org_unit_queue = set()
@@ -232,13 +232,15 @@ async def generate_json():
             return
         org_unit_queue.add(uuid)
 
-    def fetch_parent_org_units():
+    async def fetch_parent_org_units():
         # We trust that heirarchies are somewhat shallow, and thus a query per layer is okay.
         while org_unit_queue:
             query_queue = list(org_unit_queue)
             org_unit_queue.clear()
-            queryset = session.query(Enhed).filter(Enhed.uuid.in_(query_queue)).all()
-            for enhed in queryset:
+            stmt = select([Enhed]).filter(Enhed.uuid.in_(query_queue))
+            async_result = await session.stream(stmt)
+            async for row in async_result:
+                enhed = row[0]
                 add_org_unit(enhed)
 
     def add_org_unit(enhed):
@@ -268,8 +270,13 @@ async def generate_json():
 
         org_unit_map[enhed.uuid] = unit
 
-    def fetch_employees(employee_map):
-        for employee in session.query(Bruger).all():
+    async def fetch_employees():
+        employee_map = {}
+        stmt = select([Bruger])
+        async_result = await session.stream(stmt)
+
+        async for row in async_result:
+            employee = row[0]
             phonebook_entry = {
                 "uuid": employee.uuid,
                 "surname": employee.efternavn,
@@ -290,38 +297,37 @@ async def generate_json():
             employee_map[employee.uuid] = phonebook_entry
         return employee_map
 
-    def enrich_employees_with_engagements(employee_map):
+    async def enrich_employees_with_engagements():
         # Enrich with engagements
-        queryset = (
-            session.query(Engagement, Enhed)
+        stmt = (
+            select([Engagement, Enhed])
             .filter(Engagement.enhed_uuid == Enhed.uuid)
-            .all()
         )
+        async_result = await session.stream(stmt)
 
-        for _, enhed in queryset:
+        async for _, enhed in async_result:
             add_org_unit(enhed)
 
-        for engagement, enhed in queryset:
+        async for engagement, enhed in async_result:
             engagement_entry = {
                 "title": engagement.stillingsbetegnelse_titel,
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
             employee_map[engagement.bruger_uuid]["engagements"].append(engagement_entry)
-        return employee_map
 
-    def enrich_employees_with_associations(employee_map):
+    async def enrich_employees_with_associations():
         # Enrich with associations
-        queryset = (
-            session.query(Tilknytning, Enhed)
+        stmt = (
+            select([Tilknytning, Enhed])
             .filter(Tilknytning.enhed_uuid == Enhed.uuid)
-            .all()
         )
+        async_result = await session.stream(stmt)
 
-        for _, enhed in queryset:
+        async for _, enhed in async_result:
             add_org_unit(enhed)
 
-        for tilknytning, enhed in queryset:
+        async for tilknytning, enhed in async_result:
             tilknytning_entry = {
                 "title": tilknytning.tilknytningstype_titel,
                 "name": enhed.navn,
@@ -330,25 +336,24 @@ async def generate_json():
             employee_map[tilknytning.bruger_uuid]["associations"].append(
                 tilknytning_entry
             )
-        return employee_map
 
-    def enrich_employees_with_management(employee_map):
+    async def enrich_employees_with_management():
         # Enrich with management
-        queryset = (
-            session.query(Leder, Enhed).filter(Leder.enhed_uuid == Enhed.uuid).all()
+        stmt = (
+            select([Leder, Enhed]).filter(Leder.enhed_uuid == Enhed.uuid)
         )
+        async_result = await session.stream(stmt)
 
-        for _, enhed in queryset:
+        async for _, enhed in async_result:
             add_org_unit(enhed)
 
-        for leder, enhed in queryset:
+        async for leder, enhed in async_result:
             leder_entry = {
                 "title": leder.ledertype_titel,
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
             employee_map[leder.bruger_uuid]["management"].append(leder_entry)
-        return employee_map
 
     def filter_employees(employee_map):
         def filter_function(phonebook_entry):
@@ -382,21 +387,21 @@ async def generate_json():
 
     async def enrich_org_units_with_addresses(org_unit_map):
         # Enrich with adresses
-        queryset = session.query(Adresse).filter(Adresse.enhed_uuid != None)
+        stmt = select([Adresse]).filter(Adresse.enhed_uuid != None)
 
         return await address_helper(
-            queryset, org_unit_map, lambda address: address.enhed_uuid
+            stmt, org_unit_map, lambda address: address.enhed_uuid
         )
 
     async def enrich_employees_with_addresses(employee_map):
         # Enrich with adresses
-        queryset = session.query(Adresse).filter(Adresse.bruger_uuid != None)
+        stmt = select([Adresse]).filter(Adresse.bruger_uuid != None)
 
         return await address_helper(
-            queryset, employee_map, lambda address: address.bruger_uuid
+            stmt, employee_map, lambda address: address.bruger_uuid
         )
 
-    async def address_helper(queryset, entry_map, address_to_uuid):
+    async def address_helper(stmt, entry_map, address_to_uuid):
         da_address_types = {
             "DAR": "DAR",
             "Telefon": "PHONE",
@@ -432,14 +437,17 @@ async def generate_json():
 
             entry_map[entry_uuid]["addresses"][atype].append(formatted_address)
 
-        queryset = queryset.filter(
+        stmt = stmt.filter(
             # Only include address types we care about
             Adresse.adressetype_scope.in_(da_address_types.keys())
         ).filter(
             # Do not include secret addresses
             or_(Adresse.synlighed_titel == None, Adresse.synlighed_titel != "Hemmelig")
         )
-        for address in queryset.all():
+        async_result = await session.stream(stmt)
+
+        async for row in async_result:
+            address = row[0]
             process_address(address)
 
         async def process_dawa(keys, client):
@@ -492,35 +500,38 @@ async def generate_json():
 
         return entry_map
 
-    # Employees
-    # ----------
-    employee_map = {}
-    with elapsedtime("fetch_employees"):
-        employee_map = fetch_employees(employee_map)
-    # NOTE: These 3 queries can run in parallel
-    with elapsedtime("enrich_employees_with_engagements"):
-        employee_map = enrich_employees_with_engagements(employee_map)
-    with elapsedtime("enrich_employees_with_associations"):
-        employee_map = enrich_employees_with_associations(employee_map)
-    with elapsedtime("enrich_employees_with_management"):
-        employee_map = enrich_employees_with_management(employee_map)
-    # Filter off employees without engagements, assoications and management
-    with elapsedtime("filter_employees"):
-        employee_map = filter_employees(employee_map)
+    with elapsedtime("query_time"):
+        # 0.144 before asyncio
+        # 0.205 after asyncio (without gather)
+        # 0.087 after asyncio (with gather)
 
-    # Org Units
-    # ----------
-    with elapsedtime("fetch_parent_org_units"):
-        fetch_parent_org_units()
-    # NOTE: These 3 queries can run in parallel
-    with elapsedtime("enrich_org_units_with_engagements"):
-        org_unit_map = enrich_org_units_with_engagements(org_unit_map)
-    with elapsedtime("enrich_org_units_with_associations"):
-        org_unit_map = enrich_org_units_with_associations(org_unit_map)
-    with elapsedtime("enrich_org_units_with_management"):
-        org_unit_map = enrich_org_units_with_management(org_unit_map)
-    with elapsedtime("enrich_org_units_with_kles"):
-        org_unit_map = enrich_org_units_with_kles(org_unit_map)
+        # Employees
+        # ----------
+        with elapsedtime("fetch_employees"):
+            employee_map = await fetch_employees()
+
+        asyncio.gather(*[
+            enrich_employees_with_engagements(),
+            enrich_employees_with_associations(),
+            enrich_employees_with_management(),
+        ])
+
+        # Filter off employees without engagements, assoications and management
+        with elapsedtime("filter_employees"):
+            employee_map = filter_employees(employee_map)
+
+        # Org Units
+        # ----------
+        with elapsedtime("fetch_parent_org_units"):
+            await fetch_parent_org_units()
+
+        # NOTE: These 3 queries can run in parallel
+        asyncio.gather(*[
+            enrich_org_units_with_engagements(),
+            enrich_org_units_with_associations(),
+            enrich_org_units_with_management(),
+            enrich_org_units_with_kles(),
+        ])
 
     # Both
     # -----
@@ -531,7 +542,6 @@ async def generate_json():
             enrich_org_units_with_addresses(org_unit_map),
         )
 
-    print("Processing took", query_counter.count, "queries")
     print("Processing took", request_counter.count, "requests")
 
     # Write files
