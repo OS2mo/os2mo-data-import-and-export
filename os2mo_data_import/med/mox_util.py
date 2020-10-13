@@ -291,10 +291,6 @@ async def bulk_ensure(
     for uuid, created in results:
         print_created(uuid, created)
 
-    # Enrich classes with default organisation
-    classes = map(enrich_with_org_unit, classes)
-    classes = list(classes)
-
     # Find all unique facet bvns used by the classes, and translate to UUIDs
     required_facets = set(map(itemgetter("facet"), classes))
 
@@ -308,45 +304,53 @@ async def bulk_ensure(
         return dict(await asyncio.gather(*tasks))
     facet_map = await construct_facet_bvn_to_uuid_map(required_facets)
 
-    # Find all unique parent bvns used by the classes, and translate to UUIDs
-    required_parents = set({
-        clazz["parent"] for clazz in classes if "parent" in clazz
-    })
-    async def construct_parent_bvn_to_uuid_map(parent_bvns):
-        async def create_bvn_to_uuid_tuple(parent_bvn):
-            return (
-                parent_bvn,
-                await mox_helper.read_element_klassifikation_klasse(bvn=parent_bvn)
-            )
-        tasks = list(map(create_bvn_to_uuid_tuple, parent_bvns))
-        return dict(await asyncio.gather(*tasks))
-    parent_map = await construct_parent_bvn_to_uuid_map(required_parents)
+    async def enrich_classes(classes):
+        # Find all unique parent bvns used by the classes, and translate to UUIDs
+        required_parents = set({
+            clazz["parent"] for clazz in classes if "parent" in clazz
+        })
+        async def construct_parent_bvn_to_uuid_map(parent_bvns):
+            async def create_bvn_to_uuid_tuple(parent_bvn):
+                return (
+                    parent_bvn,
+                    await mox_helper.read_element_klassifikation_klasse(bvn=parent_bvn)
+                )
+            tasks = list(map(create_bvn_to_uuid_tuple, parent_bvns))
+            return dict(await asyncio.gather(*tasks))
+        parent_map = await construct_parent_bvn_to_uuid_map(required_parents)
 
-    # Translate class facet to facet_uuid
-    def class_facet_to_facet_uuid(clazz):
-        facet_bvn = clazz.pop('facet')
-        clazz['facet_uuid'] = facet_map[facet_bvn]
-        return clazz
-    classes = map(class_facet_to_facet_uuid, classes)
+        # Enrich classes with default organisation
+        classes = map(enrich_with_org_unit, classes)
 
-    # Translate class parent to parent_uuid
-    def class_parent_to_parent_uuid(clazz):
-        parent_bvn = clazz.pop('parent', None)
-        if parent_bvn:
-            clazz['parent_uuid'] = parent_map[parent_bvn]
-        return clazz
-    classes = map(class_parent_to_parent_uuid, classes)
+        # Translate class facet to facet_uuid
+        def class_facet_to_facet_uuid(clazz):
+            facet_bvn = clazz.pop('facet')
+            clazz['facet_uuid'] = facet_map[facet_bvn]
+            return clazz
+        classes = map(class_facet_to_facet_uuid, classes)
+
+        # Translate class parent to parent_uuid
+        def class_parent_to_parent_uuid(clazz):
+            parent_bvn = clazz.pop('parent', None)
+            if parent_bvn:
+                clazz['parent_uuid'] = parent_map[parent_bvn]
+            return clazz
+        classes = map(class_parent_to_parent_uuid, classes)
+
+        return classes
 
     # Partition into buckets by layer
     def set_layer(clazz):
         if "__layer__" not in clazz:
             clazz["__layer__"] = 1
         return clazz
+
     classes = map(set_layer, classes)
     buckets = bucket(classes, key=itemgetter('__layer__'))
     layers = sorted(list(buckets))
     for layer in layers:
-        classes = buckets[layer]
+        classes = list(buckets[layer])
+        classes = await enrich_classes(classes)
 
         # Remove the layer key
         def remove_key(key):
