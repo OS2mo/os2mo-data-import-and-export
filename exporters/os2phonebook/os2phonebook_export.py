@@ -137,16 +137,16 @@ async def generate_json():
     engine = create_async_engine(db_string)
     session = AsyncSession(engine)
 
-    # Print number of employees
-    stmt = select(func.count(Bruger.id))
-    total_number_of_employees = (await session.execute(stmt)).scalar()
-    print("Total employees:", total_number_of_employees)
-
     # Count number of http requests
     def request_counter():
         request_counter.count += 1
 
     request_counter.count = 0
+
+    # Print number of employees
+    stmt = select(func.count(Bruger.id))
+    total_number_of_employees = (await session.execute(stmt)).scalar()
+    print("Total employees:", total_number_of_employees)
 
     async def enrich_org_units_with_engagements():
         # Enrich with engagements
