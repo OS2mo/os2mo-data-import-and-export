@@ -18,7 +18,8 @@ from exporters.sql_export.sql_table_defs import (
     Tilknytning,
     KLE,
 )
-
+from sqlalchemy import select
+from sqlalchemy import func
 from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -133,15 +134,10 @@ def sql_export(resolve_dar, historic, use_pickle, force_sqlite):
 async def generate_json():
     # TODO: Async database access
     db_string = "sqlite:///{}.db".format("tmp/OS2mo_ActualState")
-    from sqlalchemy.ext.asyncio import create_async_engine
-    from sqlalchemy.ext.asyncio import AsyncSession
-
     engine = create_async_engine(db_string)
     session = AsyncSession(engine)
 
     # Print number of employees
-    from sqlalchemy import select
-    from sqlalchemy import func
     stmt = select(func.count(Bruger.id))
     total_number_of_employees = (await session.execute(stmt)).scalar()
     print("Total employees:", total_number_of_employees)
