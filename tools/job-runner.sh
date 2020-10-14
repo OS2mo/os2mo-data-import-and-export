@@ -417,6 +417,7 @@ for module in tools/job-runner.d/*.sh; do
     source $module 
 done
 
+prometrics-git
 
 # imports are typically interdependent: -e
 imports(){
