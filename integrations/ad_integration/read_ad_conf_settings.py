@@ -50,6 +50,7 @@ def _read_primary_ad_settings(top_settings):
     # Settings that do not need to be set, or have defaults
     primary_settings['server'] = None
     primary_settings['sam_filter'] = top_settings.get('integrations.ad.sam_filter', '')
+    primary_settings['caseless_samname'] = top_settings.get('integrations.ad.caseless_samname', '')
     primary_settings['cpr_separator'] = top_settings.get(
         'integrations.ad.cpr_separator', '')
 
