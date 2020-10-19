@@ -84,6 +84,8 @@ class MoxHelper:
             "create": self._create,
             "get_or_create": self._get_or_create,
             "validate": self._validate_payload,
+            "update": self._update,
+            "search": self._search,
         }
         # Generate each method for each service / object
         service_method_map = product(service_tuples, method_map.items())
@@ -127,6 +129,16 @@ class MoxHelper:
         self._validate_payload(service, obj, payload)
         url = self.hostname + "/" + service + "/" + obj
         async with session.post(url, json=payload) as response:
+            return (await response.json())["uuid"]
+
+    @ensure_session
+    async def _update(
+        self, session: aiosession, service: str, obj: str,uuid:str, payload: Any
+    ) -> UUIDstr:
+        self._validate_payload(service, obj, payload)
+        url = self.hostname + "/" + service + "/" + obj + "/" + uuid
+      
+        async with session.patch(url, json=payload) as response:
             return (await response.json())["uuid"]
 
     async def _read_uuid_list(self, service: str, obj: str) -> Sequence[UUIDstr]:
