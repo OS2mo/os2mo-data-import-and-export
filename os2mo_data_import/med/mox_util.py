@@ -2,11 +2,12 @@ import asyncio
 import json
 import sys
 from datetime import datetime
+from functools import partial
 from operator import itemgetter
 from typing import Tuple
 
 import click
-from more_itertools import bucket, flatten
+from more_itertools import bucket, flatten, unzip
 from mox_helper import create_mox_helper
 from payloads import lora_facet, lora_klasse
 from utils import async_to_sync, dict_map
@@ -214,7 +215,7 @@ async def ensure_class_value(
     try:
         uuid = await mox_helper.read_element_klassifikation_klasse({"bvn": bvn})
     except:
-        message=f"No class with bvn={bvn} was found."
+        message="No class with bvn={} was found.".format(bvn)
         click.secho(message, fg="red")    
         return
 
