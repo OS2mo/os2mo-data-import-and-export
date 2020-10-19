@@ -103,7 +103,7 @@ def export_engagement(mh: MoraHelper, filename, lc, lc_historic):
 
                     chosen = lc_choose_public_address(
                         manager_email_candidates,
-                        SETTINGS.get("exports_viborg_eksterne.email.priority",[]),
+                        SETTINGS.get("exports_viborg_eksterne.email.priority", []),
                         lc # for class lookup
                     )
 
