@@ -1,15 +1,15 @@
+import asyncio
 import json
 import sys
-import asyncio
-from typing import Tuple
+from datetime import datetime
 from operator import itemgetter
+from typing import Tuple
 
 import click
-
+from more_itertools import bucket, flatten
 from mox_helper import create_mox_helper
 from payloads import lora_facet, lora_klasse
 from utils import async_to_sync, dict_map
-from more_itertools import flatten, bucket
 
 
 @click.group()
@@ -25,7 +25,7 @@ def settings_loader(ctx, settings_file: str):
 
     This command-level only serves to load settings files for the lower command
     levels, so please refer to the `cli` level for the actual functionality.
-    
+
     Please run: python mox_util.py cli
     """
     #    # Not available until click 8
@@ -76,13 +76,26 @@ def cli(ctx, mox_base: str):
 def print_created(uuid: str, created: bool) -> None:
     """Output uuid followed by created or exists.
 
-    The color of the output follows Ansibles changed / unchanged coor scheme.
+    The color of the output follows Ansibles changed / unchanged color scheme.
     """
     output_map = {
         False: {"message": "exists", "color": "green",},
         True: {"message": "created", "color": "yellow",},
     }
     output = output_map[created]
+    click.secho(uuid + " " + output["message"], fg=output["color"])
+
+
+def print_changed(uuid: str, changed: bool) -> None:
+    """Output uuid followed by not changed or changed.
+
+    The color of the output follows Ansibles changed / unchanged color scheme.
+    """
+    output_map = {
+        False: {"message": "unchanged", "color": "green",},
+        True: {"message": "changed", "color": "yellow",},
+    }
+    output = output_map[changed]
     click.secho(uuid + " " + output["message"], fg=output["color"])
 
 
@@ -164,6 +177,90 @@ async def ensure_class_exists(
     # POST for non-dry
     uuid, created = await mox_helper.get_or_create_klassifikation_klasse(klasse)
     print_created(uuid, created)
+
+
+# ensure class value
+@cli.command()
+@click.pass_context
+@click.option(
+    "--bvn",
+    "--brugervendt-nøgle",
+    required=True,
+    help="User key to set on the class.",
+)
+@click.option("--variable", required=True,  help="variable to be checked/updated")
+@click.option(
+    "--new_value",required=True, help="Value which should be checked/updated."
+)
+@click.option("--description", help="Description to set on the class.")
+@click.option(
+    "--dry-run",
+    default=False,
+    is_flag=True,
+    help="Dry run and print the generated object.",
+)
+@async_to_sync
+async def ensure_class_value(
+    ctx,
+    bvn: str,
+    variable: str,
+    new_value: str,
+    description: str,
+    dry_run: bool,
+):
+    """Ensures values"""
+    mox_helper = await create_mox_helper(ctx.obj["mox.base"])
+
+    try:
+        uuid = await mox_helper.read_element_klassifikation_klasse({"bvn": bvn})
+    except:
+        message=f"No class with bvn={bvn} was found."
+        click.secho(message, fg="red")    
+        return
+
+    klasse = await mox_helper.search_klassifikation_klasse({"UUID": uuid})
+    klasse = klasse[0]['registreringer'][0]
+    klasse = {item: klasse.get(item) for item in ('attributter', 'relationer', 'tilstande')}
+
+    virkning = {
+        "from": datetime.now().strftime('%Y-%m-%d'),
+        "to": "infinity"
+    }
+
+    def check_value(variable, new_value, o):
+        """Recurse through object to ensure correct value "new_value" in "variable"."""
+        seeded_check_value = partial(check_value, variable, new_value)
+        if isinstance(o, dict):
+            if variable in o:
+                if o[variable] == new_value:
+                    return o, False
+                o[variable] = new_value
+                o['virkning'] = virkning
+                return o, True
+            keys, values = unzip(o.items())
+            values, changed = unzip(map(seeded_check_value, values))
+            return dict(zip(keys, values)), any(changed)
+        elif isinstance(o, list):
+            values, changed = unzip(map(seeded_check_value, o))
+            return list(values), any(changed)
+        elif isinstance(o, tuple):
+            values, changed = unzip(map(seeded_check_value, o))
+            return tuple(values), any(changed)
+        else:
+            return o, False
+
+    klasse, changed = check_value(variable, new_value, klasse)
+    # Print for dry run
+    if dry_run:
+        mox_helper.validate_klassifikation_klasse(klasse)
+        message = json.dumps(klasse, indent=4, sort_keys=True)
+        click.secho(message, fg="green")
+        return
+
+    # POST for non-dry
+    if changed:
+        uuid = await mox_helper.update_klassifikation_klasse(uuid, klasse)
+    print_changed(uuid, changed)
 
 
 @cli.command()
