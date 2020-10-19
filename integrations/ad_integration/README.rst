@@ -51,7 +51,7 @@ Fælles parametre
  * ``integrations.ad.winrm_host``: Hostname på remote mangagent server
 
 For hvert ad angives
------------
+--------------------
 
  * ``search_base``: Search base, eksempelvis
    'OU=enheder,DC=kommune,DC=local'
