@@ -475,6 +475,8 @@ class ADWriter(AD):
             'read_manager': read_manager,
             'name': (mo_user['givenname'], mo_user['surname']),
             'full_name': '{} {}'.format(mo_user['givenname'], mo_user['surname']),
+            'alias': (mo_user['alias_givenname'], mo_user['alias_surname']),
+            'full_alias': '{} {}'.format(mo_user['alias_givenname'], mo_user['alias_surname']),
             'employment_number': employment_number,
             'end_date': end_date,
             'uuid': uuid,
