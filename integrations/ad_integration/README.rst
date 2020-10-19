@@ -45,8 +45,6 @@ indbyggede betydning:
  * Alle AD'er anvendes af ad_sync til opdatering af og skabelse af adresser, itsystemer 
 
 
-
-
 Fælles parametre
 ----------------
 
