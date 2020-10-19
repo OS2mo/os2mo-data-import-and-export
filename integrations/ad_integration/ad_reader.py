@@ -114,7 +114,7 @@ class ADParameterReader(AD):
     def cache_all(self):
         logger.info('Caching all users')
         t = time.time()
-        return_value=[]
+        return_value = []
         for i in range(1, 32):
             day = str(i).zfill(2)
             self.uncached_read_user(cpr='{}*'.format(day), ria=return_value)
