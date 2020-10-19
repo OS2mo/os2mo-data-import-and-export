@@ -166,7 +166,7 @@ def get_e_address(e_uuid, scope, mh):
     if scope == "PHONE":
         priority_list = settings.get("emus.phone.priority", [])
     elif scope == "EMAIL":
-        priority_list = settings.get("emus.email.priority",[])
+        priority_list = settings.get("emus.email.priority", [])
     else:
         priority_list = []
 
