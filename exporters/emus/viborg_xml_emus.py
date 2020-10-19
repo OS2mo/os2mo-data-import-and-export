@@ -27,8 +27,6 @@ from xml.sax.saxutils import escape
 from tools.priority_by_class import choose_public_address
 
 
-
-
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
 logging.basicConfig(
     format='%(levelname)s %(asctime)s %(name)s %(message)s',
