@@ -162,15 +162,9 @@ def get_e_address(e_uuid, scope, mh):
         if address['address_type']['scope'] == scope:
             candidates.append(address)
     if scope == "PHONE":
-<<<<<<< 55228f8e6e2ffaa73d34b6262febd76ef1bc5945
         priority_list = settings.get("emus.phone.priority", [])
     elif scope == "EMAIL":
         priority_list = settings.get("emus.email.priority", [])
-=======
-        priority_list = settings.get("emus.phone.priority",[])
-    elif scope == "EMAIL":
-        priority_list = settings.get("emus.email.priority",[])
->>>>>>> multiple-ad-changes
     else:
         priority_list = []
 
