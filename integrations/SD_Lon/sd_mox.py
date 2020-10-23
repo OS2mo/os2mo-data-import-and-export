@@ -42,6 +42,8 @@ class sdMox(object):
             self.virtual_host = cfg["VIRTUAL_HOST"]
             self.amqp_host = cfg["AMQP_HOST"]
             self.amqp_port = cfg["AMQP_PORT"]
+            self.amqp_check_waittime = cfg["AMQP_CHECK_WAITTIME"]
+            self.amqp_check_retries = cfg["AMQP_CHECK_RETRIES"]
         except Exception:
             raise SdMoxError("SD AMQP credentials mangler")
 
@@ -374,8 +376,18 @@ class sdMox(object):
         return unit_uuid
 
     def check_unit(self, **payload):
-        time.sleep(8.5)
-        unit, errors = self._check_department(**payload)
+        """ Try to have the unit retrieved and compared to the
+        values at hand for as many times
+        as specified in self.amqp_check_retries and return the unit.
+
+        Raise an sdMoxError if the unit could not be found or did not have
+        the expected attribute values. This error will be shown in the UI
+        """
+        for i in range(self.amqp_check_retries):
+            time.sleep(self.amqp_check_waittime)
+            unit, errors = self._check_department(**payload)
+            if unit is not None:
+                break
         if unit is None:
             raise SdMoxError("Afdeling ikke fundet: %s" % payload["unit_uuid"])
         elif errors:

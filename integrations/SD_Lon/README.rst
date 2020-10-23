@@ -499,6 +499,8 @@ og udgøres af disse settings:
  * ``integrations.SD_Lon.sd_mox.AMQP_HOST``: AMQP host aftalt med SD
  * ``integrations.SD_Lon.sd_mox.AMQP_PORT``: AMQP port aftalt med SD
  * ``integrations.SD_Lon.sd_mox.AMQP_PASSWORD``: AMQP password aftalt med SD
+ * ``integrations.SD_Lon.sd_mox.AMQP_CHECK_RETRIES``: Antal gange man prøver at validere de via AMQP overførte ændringer (default: 6)
+ * ``integrations.SD_Lon.sd_mox.AMQP_CHECK_WAITTIME``: Ventetid før hvert forsøg på validering (default: 3)
  * ``integrations.SD_Lon.sd_mox.VIRTUAL_HOST``: Virtuel host aftalt med SD
 
 Dernæst beskriver ``integrations.SD_Lon.sd_mox.TRIGGERED_UUIDS`` en liste af 
