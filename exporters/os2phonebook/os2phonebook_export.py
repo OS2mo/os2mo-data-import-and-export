@@ -242,7 +242,7 @@ async def generate_json():
                 add_org_unit(enhed)
 
     def add_org_unit(enhed):
-        # Assuming it has already been added, do not readd
+        # Assuming it has already been added, do not read
         if enhed.uuid in org_unit_map:
             return
 
