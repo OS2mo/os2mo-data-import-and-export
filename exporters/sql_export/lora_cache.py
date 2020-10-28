@@ -11,6 +11,7 @@ import requests
 from collections import defaultdict
 
 from os2mo_helpers.mora_helpers import MoraHelper
+from integrations.dar_helper import dar_helper
 
 logger = logging.getLogger("LoraCache")
 
@@ -906,25 +907,17 @@ class LoraCache(object):
         dar_cache = dict(map(
             lambda dar_uuid: (dar_uuid, {'betegnelse': 'skip dar'}), dar_uuids
         ))
+        total_dar = len(dar_uuids)
 
         # Start looking entries up in DAR
-        # TODO: Refactor and use dawa_queue async from os2phonebook
-        hit = 0
-        for dar_uuid in dar_uuids:
-            for addrtype in ('adresser', 'adgangsadresser'):
-                logger.debug('Looking up dar: {}'.format(dar_uuid))
-                adr_url = 'https://dawa.aws.dk/{}'.format(addrtype)
-                # 'historik/adresser', 'historik/adgangsadresser'
-                params = {'id': dar_uuid, 'struktur': 'mini'}
-                # Note: Dar accepts up to 10 simultanious
-                # connections, consider grequests.
-                r = requests.get(url=adr_url, params=params)
-                address_data = r.json()
-                r.raise_for_status()
-                if address_data:
-                    hit += 1
-                    dar_cache[dar_uuid] = address_data[0]
-                    break
+        dar_addresses, missing = dar_helper.sync_dar_fetch(dar_uuids)
+        dar_adgange, missing = dar_helper.sync_dar_fetch(
+            list(missing), addrtype="adgangsadresser"
+        )
+        total_missing = len(missing)
+
+        dar_cache.update(dar_addresses)
+        dar_cache.update(dar_adgange)
 
         # Update all addresses with betegnelse
         for dar_uuid, uuid_list in self.dar_map.items():
@@ -932,8 +925,7 @@ class LoraCache(object):
                 for address in self.addresses[uuid]:
                     address['value'] = dar_cache[dar_uuid].get('betegnelse')
 
-        total_dar = len(self.dar_map)
-        logger.info('Total dar: {}, no-hit: {}'.format(total_dar, total_dar - hit))
+        logger.info('Total dar: {}, no-hit: {}'.format(total_dar, total_missing))
         return dar_cache
 
     def populate_cache(self, dry_run=False, skip_associations=False):

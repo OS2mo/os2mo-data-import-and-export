@@ -4,11 +4,12 @@ import logging
 import pathlib
 import time
 from functools import wraps
+from operator import attrgetter
 
 import click
 from aiohttp import BasicAuth, ClientSession, TCPConnector
 
-from exporters.sql_export.sql_export import SqlExport
+from exporters.sql_export.lc_for_jobs_db import get_engine
 from exporters.sql_export.sql_table_defs import (
     Adresse,
     Bruger,
@@ -17,9 +18,13 @@ from exporters.sql_export.sql_table_defs import (
     Leder,
     Tilknytning,
     KLE,
+    DARAdresse
 )
 from sqlalchemy import create_engine, event, or_
 from sqlalchemy.orm import sessionmaker
+
+from integrations.dar_helper.dar_helper import dar_fetch
+from integrations.dar_helper.utils import async_to_sync
 
 
 LOG_LEVEL = logging.DEBUG
@@ -70,33 +75,6 @@ class elapsedtime(object):
         )
 
 
-def async_to_sync(f):
-    """Decorator to run an async function to completion.
-
-    Example:
-
-        @async_to_sync
-        async def sleepy(seconds):
-            await sleep(seconds)
-
-        sleepy(5)
-    
-    Args:
-        f (async function): The async function to wrap and make synchronous.
-
-    Returns:
-        :obj:`sync function`: The syncronhous function wrapping the async one.
-    """
-
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        loop = asyncio.get_event_loop()
-        future = asyncio.ensure_future(f(*args, **kwargs))
-        return loop.run_until_complete(future)
-
-    return wrapper
-
-
 @click.group()
 def cli():
     # Solely used for command grouping
@@ -104,34 +82,9 @@ def cli():
 
 
 @cli.command()
-@click.option("--resolve-dar/--no-resolve-dar", default=False)
-@click.option("--historic/--no-historic", default=False)
-@click.option("--use-pickle/--no-use-pickle", default=False)
-@click.option("--force-sqlite/--no-force-sqlite", default=False)
-def sql_export(resolve_dar, historic, use_pickle, force_sqlite):
-    # Load settings file
-    cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-    if not cfg_file.is_file():
-        raise Exception("No setting file")
-    settings = json.loads(cfg_file.read_text())
-    # Override settings
-    settings["exporters.actual_state.type"] = "SQLite"
-    settings["exporters.actual_state_historic.type"] = "SQLite"
-    settings["exporters.actual_state.db_name"] = "tmp/OS2mo_ActualState"
-    settings["exporters.actual_state_historic.db_name"] = "tmp/OS2mo_historic"
-    # Generate sql export
-    sql_export = SqlExport(
-        force_sqlite=force_sqlite, historic=historic, settings=settings
-    )
-    sql_export.perform_export(resolve_dar=resolve_dar, use_pickle=use_pickle)
-
-
-@cli.command()
-@async_to_sync
-async def generate_json():
+def generate_json():
     # TODO: Async database access
-    db_string = "sqlite:///{}.db".format("tmp/OS2mo_ActualState")
-    engine = create_engine(db_string)
+    engine = get_engine()
     # Prepare session
     Session = sessionmaker(bind=engine, autoflush=False)
     session = Session()
@@ -141,11 +94,6 @@ async def generate_json():
 
     query_counter.count = 0
     event.listen(engine, "before_cursor_execute", query_counter)
-    # Count number of http requests
-    def request_counter():
-        request_counter.count += 1
-
-    request_counter.count = 0
 
     # Print number of employees
     total_number_of_employees = session.query(Bruger).count()
@@ -380,23 +328,23 @@ async def generate_json():
         }
         return filtered_map
 
-    async def enrich_org_units_with_addresses(org_unit_map):
+    def enrich_org_units_with_addresses(org_unit_map):
         # Enrich with adresses
         queryset = session.query(Adresse).filter(Adresse.enhed_uuid != None)
 
-        return await address_helper(
+        return address_helper(
             queryset, org_unit_map, lambda address: address.enhed_uuid
         )
 
-    async def enrich_employees_with_addresses(employee_map):
+    def enrich_employees_with_addresses(employee_map):
         # Enrich with adresses
         queryset = session.query(Adresse).filter(Adresse.bruger_uuid != None)
 
-        return await address_helper(
+        return address_helper(
             queryset, employee_map, lambda address: address.bruger_uuid
         )
 
-    async def address_helper(queryset, entry_map, address_to_uuid):
+    def address_helper(queryset, entry_map, address_to_uuid):
         da_address_types = {
             "DAR": "DAR",
             "Telefon": "PHONE",
@@ -442,53 +390,28 @@ async def generate_json():
         for address in queryset.all():
             process_address(address)
 
-        async def process_dawa(keys, client):
-            # TODO: Go through different addrtypes
-            addrtype = "adresser"
-            missing = set(keys)
-            request_counter()
-            url = "https://dawa.aws.dk/" + addrtype
-            params = {"id": "|".join(keys), "struktur": "mini"}
-            async with client.get(url, params=params) as response:
-                if response.status != 200:
-                    print(response.status)
-                    raise Exception("BAD")
-                body = await response.json()
-                for reply in body:
-                    if "betegnelse" not in reply:
-                        continue
-                    dar_uuid = reply["id"]
-                    missing.remove(dar_uuid)
-                    value = reply["betegnelse"]
-                    for address in dawa_queue[dar_uuid]:
-                        entry_uuid = address_to_uuid(address)
-                        atype = da_address_types[address.adressetype_scope]
+        uuids = set(dawa_queue.keys())
+        queryset = session.query(DARAdresse).filter(DARAdresse.uuid.in_(uuids))
+        betegnelser = map(attrgetter('betegnelse'), queryset.all())
+        betegnelser = filter(lambda x: x is not None, betegnelser)
+        for value in betegnelser:
+            for address in dawa_queue[dar_uuid]:
+                entry_uuid = address_to_uuid(address)
+                atype = da_address_types[address.adressetype_scope]
 
-                        formatted_address = {
-                            "description": address.adressetype_titel,
-                            "value": value,
-                        }
+                formatted_address = {
+                    "description": address.adressetype_titel,
+                    "value": value,
+                }
 
-                        entry_map[entry_uuid]["addresses"][atype].append(
-                            formatted_address
-                        )
-            if missing:
-                print(missing, "not found in DAWA")
+                entry_map[entry_uuid]["addresses"][atype].append(
+                    formatted_address
+                )
 
-        tasks = []
-        chunk_size = 150
-        # DAWA only accepts:
-        # * 30 requests per second per IP
-        # * 10 concurrent connections per IP
-        # Thus we limit our connections to 10 here.
-        connector = TCPConnector(limit=10)
-        async with ClientSession(connector=connector) as client:
-            data = list(dawa_queue.keys())
-            chunks = [data[x : x + chunk_size] for x in range(0, len(data), chunk_size)]
-            for chunk in chunks:
-                task = asyncio.ensure_future(process_dawa(chunk, client))
-                tasks.append(task)
-            await asyncio.gather(*tasks)
+        found = set(map(attrgetter('uuid'), queryset.all()))
+        missing = uuids - found
+        if missing:
+            print(missing, "not found in DAWA")
 
         return entry_map
 
@@ -507,6 +430,8 @@ async def generate_json():
     # Filter off employees without engagements, assoications and management
     with elapsedtime("filter_employees"):
         employee_map = filter_employees(employee_map)
+    with elapsedtime("enrich_employees_with_addresses"):
+        employee_map = enrich_employees_with_addresses(employee_map)
 
     # Org Units
     # ----------
@@ -521,18 +446,10 @@ async def generate_json():
         org_unit_map = enrich_org_units_with_management(org_unit_map)
     with elapsedtime("enrich_org_units_with_kles"):
         org_unit_map = enrich_org_units_with_kles(org_unit_map)
-
-    # Both
-    # -----
-    # Fire all HTTP requests in parallel (for both employees and org units)
-    with elapsedtime("enrich_x_with_addresses"):
-        employee_map, org_unit_map = await asyncio.gather(
-            enrich_employees_with_addresses(employee_map),
-            enrich_org_units_with_addresses(org_unit_map),
-        )
+    with elapsedtime("enrich_org_units_with_addresses"):
+        org_unit_map = enrich_org_units_with_addresses(org_unit_map)
 
     print("Processing took", query_counter.count, "queries")
-    print("Processing took", request_counter.count, "requests")
 
     # Write files
     # ------------
