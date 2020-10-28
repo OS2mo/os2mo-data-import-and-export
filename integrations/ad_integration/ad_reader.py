@@ -24,33 +24,36 @@ class ADParameterReader(AD):
 
     def read_it_all(self):
         settings = self._get_setting()
-        response = self.cache_all()
-        users = [
-            user
-            for user in response
-            if self.is_included(settings, user)
-        ]
-        return users
+        return self.cache_all()
 
 
-    def is_included(self, settings, user):
-        """ include/exclude users depending on settings
-        in order to (#36182) identify primary ad user so
-        we only return one user per cpr number
+    def first_included(self, settings, users):
         """
-        discrim_field = settings["discriminator.field"]
-        if discrim_field is not None and discrim_field in user:
-            value_found = False
-            for i in settings["discriminator.values"]:
-                value_found = i in user[discrim_field]
-                if value_found:
-                    break
-            if settings["discriminator.function"] == "include":
-                return value_found
-            elif settings["discriminator.function"] == "exclude":
-                return not value_found
+            include: given a list of users, return the first one that is included
+            exclude: given a list of users, return the first one that is not excluded
+        """
+        discrim_field = settings.get("discriminator.field")
 
-        return True
+        if not discrim_field:
+            included = users
+        else:
+            included = []
+
+        for v in settings.get("discriminator.values", []):
+            for user in users:
+                if not discrim_field in user:
+                    value_found = False
+                else:
+                    value_found = v in user[discrim_field]
+                if settings["discriminator.function"] == "include" and value_found:
+                    included.append(user)
+                elif settings["discriminator.function"] == "exclude" and not value_found:
+                    included.append(user)
+
+        if included:
+            return included[0]
+        else:
+            return {}
 
     # Hvornår skal vi læse og skrive i hvad?
     # Opdatering af os2mo fra ad: ad_sync: vi læser alle (for i in...) Ny reader og opdater mo
@@ -67,43 +70,38 @@ class ADParameterReader(AD):
         # with found users - this way the function replaces the old 
         # 'read it all' function, so there is now only one function
         # reading from AD.
+        settings = self._get_setting()
 
         logger.debug('Uncached AD read, user {}, cpr {}'.format(user, cpr))
 
         server = random.choice(self.all_settings['primary']['servers'])
         response = self.get_from_ad(user=user, cpr=cpr, server=server)
-        current_user = {}
+
+
+        users_by_cpr = {}
+        for user in response:
+            users_by_cpr.setdefault(user[settings['cpr_field']], []).append(user)
         try:
-            for current_user in response:
-                settings = self._get_setting()
+            for userlist in users_by_cpr.values():
 
-                # Viborg special case
-                job_title = current_user.get('Title')
-                if job_title and job_title.find('FRATR') == 0:
-                    continue  # These are users that has left
+                current_user = self.first_included(settings,  userlist)
 
-                if not self.is_included(settings, current_user):
-                    continue
+                if current_user:
 
-                # This will result in an error further down
-                # but is left in order to have comparable errors
-                # to previous runs
-                if not current_user:
-                    current_user = {}
+                    cpr = current_user[settings['cpr_field']].replace(
+                        settings['cpr_separator'], '')
 
-                cpr = current_user[settings['cpr_field']].replace(
-                    settings['cpr_separator'], '')
+                    self.results[current_user['SamAccountName']] = current_user
 
-                self.results[current_user['SamAccountName']] = current_user
+                    if settings.get("caseless_samname", False):
+                        if current_user['SamAccountName'].lower().startswith(settings['sam_filter'].lower()):
+                            self.results[cpr] = current_user
+                    else:
+                        if current_user['SamAccountName'].startswith(settings['sam_filter']):
+                            self.results[cpr] = current_user
 
-                if settings.get("caseless_samname", False):
-                    if current_user['SamAccountName'].lower().startswith(settings['sam_filter'].lower()):
-                        self.results[cpr] = current_user
-                else:
-                    if current_user['SamAccountName'].startswith(settings['sam_filter']):
-                        self.results[cpr] = current_user
-            if ria:
-                ria.extend(response)
+                    if ria:
+                        ria.append(current_user)
 
             return current_user
         except Exception:
