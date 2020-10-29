@@ -558,9 +558,9 @@ class ADWriter(AD):
 
         mo_values = {
             'read_manager': read_manager,
-            'name': (mo_user['givenname'], mo_user['surname']).strip(),
+            'name': (mo_user['givenname'], mo_user['surname']),
             'full_name': '{} {}'.format(mo_user['givenname'], mo_user['surname']).strip(),
-            'nickname': (mo_user['nickname_givenname'], mo_user['nickname_surname']).strip(),
+            'nickname': (mo_user['nickname_givenname'], mo_user['nickname_surname']),
             'full_nickname': '{} {}'.format(mo_user['nickname_givenname'], mo_user['nickname_surname']).strip(),
             'employment_number': employment_number,
             'end_date': end_date,
