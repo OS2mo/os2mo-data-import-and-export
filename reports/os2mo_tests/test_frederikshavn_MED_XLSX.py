@@ -20,7 +20,7 @@ class Tests_xlxs(unittest.TestCase):
         f = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
         self.xlsfilename = f.name
 
-        self.data = [{"Navn": f"fornavn efternavn",
+        self.data = [{"Navn": "fornavn efternavn",
                       "Email": "email@email.com",
                       "Tilknytningstype": "Formand",
                       "Enhed": "Testenhed"

@@ -107,7 +107,7 @@ class Report_MED:
             else:
                 email = ''
             # Hardcoded format som det skal stå i excel filen.
-            data.append({"Navn": f"{row.Bruger.fornavn} {row.Bruger.efternavn}",
+            data.append({"Navn": "{} {}".format(row.Bruger.fornavn, row.Bruger.efternavn),
                          "Email": email,
                          "Tilknytningstype": row.Tilknytning.tilknytningstype_titel,
                          "Enhed": row.Enhed.navn
