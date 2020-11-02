@@ -3,7 +3,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 # Dette job skal læse alle brugere der har tilknytning til Medarbejder-organisationen og skrive en raport i en xlsx fil.
-# Det er lavet til Frederikshavns kommune der gerne vil se navn, email, tilknytning og 
+# Det er lavet til Frederikshavns kommune der gerne vil se navn, email, rolle samt udvalg.
 import json
 import logging
 import pathlib
@@ -13,6 +13,8 @@ import xlsxwriter.worksheet
 from exporters.sql_export.lc_for_jobs_db import get_engine
 from exporters.sql_export.sql_table_defs import (Adresse, Bruger, Enhed,
                                                  Tilknytning)
+                                                 
+from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
 settings = json.loads((pathlib.Path(".") / "settings/settings.json").read_text())
@@ -32,6 +34,7 @@ settings = json.loads((pathlib.Path(".") / "settings/settings.json").read_text()
 
 def get_session(engine):
     return sessionmaker(bind=engine, autoflush=False)()
+
 
 class XLSXExporter():
     # Lånt og tilrettet fra os2mo-data-import-and-export/integrations/kle/kle_xlsx.py
@@ -88,21 +91,27 @@ class Report_MED:
 
         # Så slår vi op i databasen på alle de relevante tabeller og knytter dem sammen med filtre.
         # Desuden filtreres på uuid'erne fundet ovenfor, samt adressetype så vi kun får email.
-        query = self.session.query(Enhed, Tilknytning, Bruger, Adresse)\
+        query = self.session.query(Enhed, Tilknytning, Bruger)\
             .filter(Enhed.uuid == Tilknytning.enhed_uuid)\
             .filter(Tilknytning.enhed_uuid.in_(enhedslisten))\
             .filter(Tilknytning.bruger_uuid == Bruger.uuid)\
-            .filter(Bruger.uuid == Adresse.bruger_uuid)\
-            .filter(Adresse.adressetype_titel == 'Email')\
-            .order_by(Bruger.efternavn)\
-            .all()
+            .order_by(Bruger.efternavn)
 
-        # Hardcoded format som det skal stå i excel filen.
-        data = [{"Navn": f"{row.Bruger.fornavn} {row.Bruger.efternavn}",
-                 "Email": row.Adresse.værdi,
-                 "Tilknytningstype": row.Tilknytning.tilknytningstype_titel,
-                 "Enhed": row.Enhed.navn
-                 } for row in query]
+        data = []
+        for row in query.all():
+            email = self.session.query(Adresse).filter(
+                Adresse.bruger_uuid == row.Bruger.uuid,
+                or_(Adresse.synlighed_titel == None, Adresse.synlighed_titel != "Hemmelig")).first()
+            if email is not None:
+                email = email.værdi
+            else:
+                email = ''
+            # Hardcoded format som det skal stå i excel filen.
+            data.append({"Navn": f"{row.Bruger.fornavn} {row.Bruger.efternavn}",
+                         "Email": email,
+                         "Tilknytningstype": row.Tilknytning.tilknytningstype_titel,
+                         "Enhed": row.Enhed.navn
+                         })
 
         return data
 
