@@ -299,7 +299,7 @@ class LoraCache(object):
                 else:
                     parent = parent_raw
 
-                if 'niveau' in relationer:
+                if 'niveau' in relationer and len(relationer['niveau']) > 0:
                     level = relationer['niveau'][0]['uuid']
                 else:
                     level = None
