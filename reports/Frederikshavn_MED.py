@@ -17,7 +17,6 @@ from exporters.sql_export.sql_table_defs import (Adresse, Bruger, Enhed,
 from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
-settings = json.loads((pathlib.Path(".") / "settings/settings.json").read_text())
 
 # logger = logging.getLogger("Frederikshavn_MED")
 # for name in logging.root.manager.loggerDict:
@@ -117,6 +116,7 @@ class Report_MED:
 
 
 if __name__ == '__main__':
+    settings = json.loads((pathlib.Path(".") / "settings/settings.json").read_text())
 
     session = get_session(get_engine())
     data = Report_MED(session).run()
