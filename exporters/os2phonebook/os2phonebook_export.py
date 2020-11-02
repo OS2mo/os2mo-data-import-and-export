@@ -197,6 +197,9 @@ async def generate_json():
 
         for leder, bruger in queryset:
             if leder.enhed_uuid not in org_unit_map:
+                logger.error(
+                    "Leder not found in org_unit_map: " + str(leder.enhed_uuid)
+                )
                 continue
             management_entry = {
                 "title": leder.ledertype_titel,
@@ -340,23 +343,28 @@ async def generate_json():
     def enrich_employees_with_management(employee_map):
         # Enrich with management
         queryset = (
-            session.query(Leder, Enhed).filter(Leder.enhed_uuid == Enhed.uuid).all()
+            session.query(Leder, Enhed).filter(
+                Leder.enhed_uuid == Enhed.uuid
+            ).filter(
+                # Filter vacant leders
+                Leder.bruger_uuid != None
+            ).all()
         )
 
         for _, enhed in queryset:
             add_org_unit(enhed)
 
         for leder, enhed in queryset:
+            if leder.bruger_uuid not in employee_map:
+                logger.error(
+                    "Leder not found in employee map: " + str(leder.bruger_uuid)
+                )
+                continue
             leder_entry = {
                 "title": leder.ledertype_titel,
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-            if leder.bruger_uuid not in employee_map:
-                logger.error(
-                    "Leder not found in employee map: " + enhed.uuid
-                )
-                continue
             employee_map[leder.bruger_uuid]["management"].append(leder_entry)
         return employee_map
 
