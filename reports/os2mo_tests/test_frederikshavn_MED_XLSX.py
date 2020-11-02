@@ -19,12 +19,13 @@ class Tests_xlxs(unittest.TestCase):
     def setUp(self):
         f = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
         self.xlsfilename = f.name
-
-        self.data = [{"Navn": "fornavn efternavn",
-                      "Email": "email@email.com",
-                      "Tilknytningstype": "Formand",
-                      "Enhed": "Testenhed"
-                      }]
+        import collections
+        self.data = [collections.OrderedDict()]
+        self.data[0]["Navn"] =  "fornavn efternavn"
+        self.data[0]["Email"] =  "email@email.com"
+        self.data[0]["Tilknytningstype"] =  "Formand"
+        self.data[0]["Enhed"] =  "Testenhed"
+        
         workbook = xlsxwriter.Workbook(self.xlsfilename)
         excel = XLSXExporter(self.xlsfilename)
         excel.add_sheet(workbook, 'MED', self.data)
