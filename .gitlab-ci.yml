@@ -87,6 +87,7 @@ Lint OPUS Org Tree Print:
     - apt-get update && apt-get install -y build-essential unixodbc unixodbc-dev freetds-dev tdsodbc libkrb5-dev libmariadb-dev-compat libmariadb-dev
     - pip install ./os2mo_data_import --upgrade
     - find . -name 'requirements.*' | grep -v venv/ | xargs -t -n1 pip install -r
+    - pip install pytest
   tags:
     - docker
 
