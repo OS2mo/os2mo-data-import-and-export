@@ -89,8 +89,7 @@ Lint OPUS Org Tree Print:
     - pip install -r ./integrations/requirements/common.txt
     - pip install -r ./integrations/requirements/test.txt
     - pip install ./os2mo_data_import --upgrade
-    - pip install -r integrations/requirements/test.txt
-    - pip install -r exporters/os2phonebook/requirements.txt
+    - find . -name 'requirements.*' | grep -v venv/ | xargs -t -n1 venv/bin/pip install -r
   tags:
     - docker
 
