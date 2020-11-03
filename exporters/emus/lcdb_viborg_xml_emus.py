@@ -127,7 +127,11 @@ def export_ou_emus(session, nodes, emus_file=sys.stdout):
                         ou.uuid)
             continue
 
-        manager_uuid = ou.leder_uuid or ''
+        manager = session.query(Leder).filter(
+            Leder.uuid == ou.leder_uuid
+        ).first()
+
+        manager_uuid = manager.bruger_uuid if manager else ''
         street_address = session.query(Adresse).filter(and_(
             Adresse.adressetype_titel == 'Postadresse',
             Adresse.enhed_uuid == ou.uuid,
