@@ -176,7 +176,7 @@ def perform_write_test():
     logger.info('Check for availability of needed fields - find some test users')
     print('Check for availability of needed fields - find some test users')
 
-    minumum_expected_fields = {
+    minimum_expected_fields = {
         SETTINGS['integrations.ad.write.uuid_field']: False,
         SETTINGS['integrations.ad.write.level2orgunit_field']: False,
         SETTINGS['integrations.ad.write.org_unit_field']: False
@@ -185,7 +185,7 @@ def perform_write_test():
     while len(user_info_list) < 10:
         i = i + 1
         if i > 31:
-            msg = 'Cannot find 10 users - unable to test for avaiable fields'
+            msg = 'Cannot find 10 users - unable to test for available fields'
             print(msg)
             logger.error(msg)
             exit(1)
@@ -194,7 +194,7 @@ def perform_write_test():
         user_info = ad_reader.get_from_ad(cpr=str(i).zfill(2) + '*')
         user_info_list = user_info_list + user_info
 
-    msg = 'Found more than 10 users ({}) - now test for avaiable fields'
+    msg = 'Found more than 10 users ({}) - now test for available fields'
     print(msg.format(len(user_info_list)))
     logger.info(msg.format(len(user_info_list)))
 
@@ -204,12 +204,12 @@ def perform_write_test():
             exit(1)
 
         for prop in user['PropertyNames']:
-            if prop in minumum_expected_fields:
-                minumum_expected_fields[prop] = True
+            if prop in minimum_expected_fields:
+                minimum_expected_fields[prop] = True
 
-    if False in minumum_expected_fields.values():
+    if False in minimum_expected_fields.values():
         print('An import field is now found on the tested users')
-        print(minumum_expected_fields)
+        print(minimum_expected_fields)
         exit(1)
     else:
         print('Test of AD fields for writing is a success')
