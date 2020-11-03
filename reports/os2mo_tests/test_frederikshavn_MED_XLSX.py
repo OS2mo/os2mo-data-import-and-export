@@ -1,31 +1,20 @@
-import unittest
 import tempfile
+import unittest
+
+from exporters.sql_export.sql_table_defs import (Adresse, Base, Bruger, Enhed,
+                                                 Tilknytning)
 from openpyxl import load_workbook
 from reports.Frederikshavn_MED import *
-from sqlalchemy import create_engine, Index
-
-from exporters.sql_export.lora_cache import LoraCache
-from exporters.sql_export.sql_table_defs import (
-    Base,
-    Facet, Klasse,
-    Bruger, Enhed,
-    ItSystem, LederAnsvar, KLE,
-    Adresse, Engagement, Rolle, Tilknytning, Orlov, ItForbindelse, Leder,
-    Kvittering, Enhedssammenkobling, DARAdresse
-)
+from sqlalchemy import create_engine
 
 
 class Tests_xlxs(unittest.TestCase):
     def setUp(self):
         f = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
         self.xlsfilename = f.name
-        import collections
-        self.data = [collections.OrderedDict()]
-        self.data[0]["Navn"] =  "fornavn efternavn"
-        self.data[0]["Email"] =  "email@email.com"
-        self.data[0]["Tilknytningstype"] =  "Formand"
-        self.data[0]["Enhed"] =  "Testenhed"
-        
+        self.data = [["Navn", "Email", 'Tilknytningstype', 'Enhed'], [
+            "Fornavn Efternavn", "email@email.com", "Formand", 'Testenhed']]
+
         workbook = xlsxwriter.Workbook(self.xlsfilename)
         excel = XLSXExporter(self.xlsfilename)
         excel.add_sheet(workbook, 'MED', self.data)
@@ -37,7 +26,7 @@ class Tests_xlxs(unittest.TestCase):
         header = [i[0].value for i in ws.columns]
         content = [i[1].value for i in ws.columns]
         self.assertEqual(header, ['Navn', 'Email', 'Tilknytningstype', 'Enhed'])
-        self.assertEqual(content, ['fornavn efternavn',
+        self.assertEqual(content, ['Fornavn Efternavn',
                                    'email@email.com', 'Formand', 'Testenhed'])
 
 
@@ -45,6 +34,7 @@ class Tests_db(unittest.TestCase):
     def setUp(self):
         self.engine = get_engine(dbpath=':memory:')
         self.session = get_session(self.engine)
+        # Sikrer at der startes fra en tom database
         Base.metadata.drop_all(self.engine)
 
         # Lav tables via tabledefs fra LoraCache og fyld dataen ind
@@ -79,17 +69,13 @@ class Tests_db(unittest.TestCase):
 
     def test_data(self):
         hoved_enhed = self.session.query(Enhed).all()
-        data = Report_MED(self.session).run()
-        print(data)
-        self.assertEqual(data[0]['Navn'], "fornavn efternavn")
-        self.assertEqual(data[0]['Email'], "")
-        self.assertEqual(data[0]['Tilknytningstype'], "titel")
-        self.assertEqual(data[0]['Enhed'], "Under-MED")
+        data = Report_MED(self.session, "Hoved-MED").run()
+        self.assertEqual(data[0], ["Navn", "Email", "Tilknytningstype",  "Enhed"])
 
-        self.assertEqual(data[1]['Navn'], "fornavn2 efternavn2")
-        self.assertEqual(data[1]['Email'], "")
-        self.assertEqual(data[1]['Tilknytningstype'], "titel2")
-        self.assertEqual(data[1]['Enhed'], "Under-under-MED")
+        self.assertEqual(data[1], ["fornavn efternavn", "", "titel", "Under-MED"])
+
+        self.assertEqual(data[2], ["fornavn2 efternavn2",
+                                   "", "titel2", "Under-under-MED"])
 
 
 if __name__ == '__main__':
