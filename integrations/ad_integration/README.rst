@@ -198,7 +198,7 @@ skal være sat når programmet afvikles:
  * ``integrations.ad.write.uuid_field``: Navnet på det felt i AD, hvor MOs
    bruger-uuid skrives.
  * ``integrations.ad.write.level2orgunit_field``: Navnet på det felt i AD, hvor MO
-   skriver navnet på den oganisatoreiske hovedgruppering (Magistrat, direktørområde,
+   skriver navnet på den organisatoriske hovedgruppering (Magistrat, direktørområde,
    eller forvalting) hvor medarbejderen har sin primære ansættelse.
  * ``integrations.ad.write.org_unit_field``: Navnet på det felt i AD, hvor MO
    skriver enhedshierakiet for den enhed, hvor medarbejderen har sin primære
@@ -439,7 +439,7 @@ for øjeblikket understøttes disse variable:
 
 Hvis et script indeholder andre nøgler på formen %OS2MO_ ... % vil der returneres
 en fejlmeddelelse (exception hvis det afvikles som en integration), med mindre
-disse variale er udkommenteret.
+disse variable er udkommenteret.
 
 Integrationen forventer at scripts befinder sig i mappen `scripts` i en undermappe
 til integrationen selv, og alle scripts skal have en `ps_template` som filendelse.
@@ -625,7 +625,7 @@ De forskellige muligheder gennemgås her en ad gangen:
 
    Eksempel: python ad_writer-py --sync-user 4931ddb6-5084-45d6-9fb2-52ff33998005
 
-   Synkroiser oplysninger fra MO til en allerede eksisterende AD konto.
+   Synkroniser oplysninger fra MO til en allerede eksisterende AD konto.
 
  * --delete-user User_SAM
 
