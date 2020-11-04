@@ -47,7 +47,7 @@ for xml in ${xml_path}/* ; do
     )
     declare -a BACK_UP_AFTER_JOBS=(${CRON_LOG_FILE})
     sudo docker exec -t mox_database su --shell /bin/bash --command "pg_dump --data-only mox -f /database_snapshot/os2mo_database.sql" postgres
-    pre_backup || STOP=1
+    pre_backup || exit 1
     ${VENV}/bin/python3 integrations/opus/opus_diff_import.py
     # due to somewhat arbitrary return value from script above
     [ $(wc -l ${DIPEXAR}/mo_integrations.log | cut -f1 -d" ") -gt 20 ] || STOP=true
