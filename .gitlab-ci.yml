@@ -86,6 +86,7 @@ Lint OPUS Org Tree Print:
   before_script:
     - pip install ./os2mo_data_import --upgrade
     - pip install -r integrations/requirements/test.txt
+    - pip install -r exporters/requirements.txt
   tags:
     - docker
 
@@ -146,6 +147,5 @@ Test SDLoen Integration:
 Test Reports:
   extends: .test-python
   script:
-    - pip install -r reports/requirements/test.txt
     - python -m pytest reports/os2mo_tests/test_frederikshavn_MED_XLSX.py
     
