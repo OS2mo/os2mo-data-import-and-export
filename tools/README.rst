@@ -77,7 +77,27 @@ for at komme tilbage til en veldefineret tilstand.
 
 Der kan være mere konfiguration nødvendig for de enkelte jobs - se disse for detaljer
 
-Kørsel af jobs
+Mountpoints
+^^^^^^^^^^^
+Tilvejebringelse (og afslutning) af mountpoints styres af et script, cronhook.sh, som kaldes før og efter
+job-runner.sh. Dette script afvilker scripts i cronhook.pre.d og cronhook.post.d, hvis de er slået til i settings
+Sripts her afvikles i alfabetisk orden, og de bør hver især brokke sig over de settings de mangler
+
+For at mounte opus-filer ind fra et windows share anvendes følgende settings:
+
+* cronhook.mount_opus_on: true/ false
+* cronhook.mount_opus_share - en windows unc-sti
+* cronhook.mount_opus_mountpoint - det mounpoint hvor sharet mountet
+* cronhook.mount_opus_username - brugernavn til sharet
+* cronhook.mount_opus_password - password til sharet
+
+For at unmounte efter kørslen sættes denne setting, men lad være med det.
+Det besværliggør fejlfinding, hvis ikke der hele tiden er kontakt til filerne
+
+* cronhook.unmount_opus_on: true/false
+
+
+Korsel af jobs
 ^^^^^^^^^^^^^^
 
 job-runner.sh er ikke et smart program. Dert er til gengæld simpelt.: Job-afviklingen foregår i 3 afdelinger: imports, exports og reports.
