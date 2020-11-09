@@ -14,7 +14,7 @@ import os
 import csv
 import codecs
 import logging
-import requests
+import aiohttp
 import datetime
 from anytree import Node
 
@@ -43,14 +43,14 @@ class MoraHelper(object):
                          'Efternavn': name[name.rfind(' '):]}
         return splitted_name
 
-    def _read_node_path(self, node):
+    async def _read_node_path(self, node):
         """ Find the full path for a given node
         :param node: The node to find the path for
         :return: List with full path for the node
         """
         path = []
         for sub_node in node.path:
-            ou = self.read_ou(sub_node.name)
+            ou = await self.read_ou(sub_node.name)
             path += [ou['name']]
         return path
 
@@ -91,19 +91,19 @@ class MoraHelper(object):
                              encoding='cp1252') as csvfile:
                 csvfile.write(lines)
 
-    def _create_path_dict(self, fieldnames, node, org_types=None):
+    async def _create_path_dict(self, fieldnames, node, org_types=None):
         """ Create a dict with a MO-path to a given node.
         :param fieldnames: The headline for each level of the path.
         :node: The node to find the path for.
         :return: A dict with headlines as keys and nodes as values.
         """
-        ou = self.read_ou(node.name)
+        ou = await self.read_ou(node.name)
         ou_type = ou['org_unit_type']['name']
 
         if org_types and (ou_type not in org_types):
             return None
 
-        path = self._read_node_path(node)
+        path = await self._read_node_path(node)
         path_dict = {}
         i = 0
         for element in path:
@@ -111,7 +111,7 @@ class MoraHelper(object):
             i += 1
         return path_dict
 
-    def _mo_lookup(self, uuid, url, at=None, validity=None, only_primary=False,
+    async def _mo_lookup(self, uuid, url, at=None, validity=None, only_primary=False,
                    use_cache=None, calculate_primary=False):
         # TODO: at-value is currently not part of cache key
         if use_cache is None:
@@ -133,27 +133,27 @@ class MoraHelper(object):
             logger.debug("cache hit: %s", cache_id)
             return_dict = self.cache[cache_id]
         else:
-            if SAML_TOKEN is None:
-                response = requests.get(full_url, params=params)
-                if response.status_code == 401:
-                    msg = 'Missing SAML token'
-                    logger.error(msg)
-                    raise requests.exceptions.RequestException(msg)
-                return_dict = response.json()
-            else:
-                header = {"SESSION": SAML_TOKEN}
-                response = requests.get(
-                    full_url,
-                    headers=header,
-                    params=params
-                )
-                if response.status_code == 401:
-                    msg = 'SAML token not accepted'
-                    logger.error(msg)
-                    raise requests.exceptions.RequestException(msg)
-
-                return_dict = response.json()
-            self.cache[cache_id] = return_dict
+            async with aiohttp.ClientSession() as session:
+                if SAML_TOKEN is None:
+                    async with session.get(full_url, params=params) as response:
+                        if response.status == 401:
+                            msg = 'Missing SAML token'
+                            logger.error(msg)
+                            raise ValueError(msg)
+                        return_dict = await response.json()
+                else:
+                    header = {"SESSION": SAML_TOKEN}
+                    async with session.get(
+                            full_url,
+                            headers=header,
+                            params=params
+                    ) as response:
+                        if response.status_code == 401:
+                            msg = 'SAML token not accepted'
+                            logger.error(msg)
+                            raise ValueError(msg)
+                        return_dict = await response.json()
+                self.cache[cache_id] = return_dict
         return return_dict
 
     def _mo_post(self, url, payload, force=True):
@@ -176,15 +176,15 @@ class MoraHelper(object):
         )
         return response
 
-    def read_organisation(self):
+    async def read_organisation(self):
         """ Read the main Organisation, all OU's will have this as root.
         Currently reads only one, theroretically more than root org can exist.
         :return: UUID of root organisation
         """
-        org_id = self._mo_lookup(uuid=None, url='o/')
+        org_id = await self._mo_lookup(uuid=None, url='o/')
         return org_id[0]['uuid']
 
-    def read_all_users(self, limit=None):
+    async def read_all_users(self, limit=None):
         """
         Return a list of all employees in MO.
         :param limit: If set, only less large sub-set wll be retrived,
@@ -192,32 +192,32 @@ class MoraHelper(object):
         :return: List af all employees.
         """
         logger.info('Read all MO users')
-        org = self.read_organisation()
+        org = await self.read_organisation()
         if limit is None:
             limit = 100000000
-        employee_list = self._mo_lookup(org, 'o/{}/e?limit=' + str(limit))
+        employee_list = await self._mo_lookup(org, 'o/{}/e?limit=' + str(limit))
         employees = employee_list['items']
         logger.info('Done reading all MO users')
         return employees
 
-    def read_it_systems(self):
+    async def read_it_systems(self):
         """ Read the main Organisation, all OU's will have this as root.
         Currently reads only one, theroretically more than root org can exist.
         :return: UUID of root organisation
         """
-        org_id = self.read_organisation()
-        it_systems = self._mo_lookup(org_id, url='o/{}/it/')
+        org_id = await self.read_organisation()
+        it_systems = await self._mo_lookup(org_id, url='o/{}/it/')
         return it_systems
 
-    def read_ou(self, uuid, at=None, use_cache=None):
+    async def read_ou(self, uuid, at=None, use_cache=None):
         """ Return a dict with the data available about an OU
         :param uuid: The UUID of the OU
         :return: Dict with the information about the OU
         """
-        org_enhed = self._mo_lookup(uuid, 'ou/{}', at, use_cache)
+        org_enhed = await self._mo_lookup(uuid, 'ou/{}', at, use_cache)
         return org_enhed
 
-    def read_ou_address(self, uuid, at=None, use_cache=None, scope="DAR",
+    async def read_ou_address(self, uuid, at=None, use_cache=None, scope="DAR",
                         return_all=False):
         """ Return a dict with the data available about an OU
         :param uuid: The UUID of the OU
@@ -226,7 +226,7 @@ class MoraHelper(object):
         :return: Dict (or list) with the information about the OU
         """
         return_list = []
-        addresses = self._mo_lookup(uuid, 'ou/{}/details/address', at, use_cache)
+        addresses = await self._mo_lookup(uuid, 'ou/{}/details/address', at, use_cache)
 
         for address in addresses:
             return_address = {}
@@ -249,19 +249,19 @@ class MoraHelper(object):
                 return_value = {}
         return return_value
 
-    def read_classes_in_facet(self, facet, use_cache=False):
+    async def read_classes_in_facet(self, facet, use_cache=False):
         """ Return all classes belong to a given facet.
         :param facet: The facet to be returned.
         :return: List of classes in the facet and the uuid of the facet.
         """
-        org_uuid = self.read_organisation()
+        org_uuid = await self.read_organisation()
         url = 'o/' + org_uuid + '/f/{}/'
-        class_list = self._mo_lookup(facet, url, use_cache=False)
+        class_list = await self._mo_lookup(facet, url, use_cache=False)
         classes = class_list['data']['items']
         facet_uuid = class_list['uuid']
         return (classes, facet_uuid)
 
-    def read_user(self, user_uuid=None, user_cpr=None, at=None, use_cache=None,
+    async def read_user(self, user_uuid=None, user_cpr=None, at=None, use_cache=None,
                   org_uuid=None):
         """
         Read basic info for a user. Either uuid or cpr must be given.
@@ -271,16 +271,16 @@ class MoraHelper(object):
         """
         user_info = None
         if user_uuid:
-            user_info = self._mo_lookup(user_uuid, 'e/{}', at, use_cache)
+            user_info = await self._mo_lookup(user_uuid, 'e/{}', at, use_cache)
         if user_cpr:
             if not org_uuid:
-                org_uuid = self.read_organisation()
-            user = self._mo_lookup(user_cpr, 'o/' + org_uuid + '/e?query={}',
+                org_uuid = await self.read_organisation()
+            user = await self._mo_lookup(user_cpr, 'o/' + org_uuid + '/e?query={}',
                                    at, use_cache)
             assert user['total'] < 2  # Only a single person can be found from cpr
 
             if user['total'] == 1:
-                user_info = self._mo_lookup(user['items'][0]['uuid'], 'e/{}',
+                user_info = await self._mo_lookup(user['items'][0]['uuid'], 'e/{}',
                                             at, use_cache)
         return user_info
 
@@ -300,7 +300,7 @@ class MoraHelper(object):
         logger.info("Terminate detail %s", payload)
         # self._mo_post('details/terminate', payload):
 
-    def read_user_engagement(self, user, at=None, read_all=False, skip_past=False,
+    async def read_user_engagement(self, user, at=None, read_all=False, skip_past=False,
                              only_primary=False, use_cache=None,
                              calculate_primary=False):
         """
@@ -312,7 +312,7 @@ class MoraHelper(object):
         :return: List of the users engagements.
         """
         if not read_all:
-            engagements = self._mo_lookup(user, 'e/{}/details/engagement',
+            engagements = await self._mo_lookup(user, 'e/{}/details/engagement',
                                           at, only_primary=only_primary,
                                           use_cache=use_cache,
                                           calculate_primary=calculate_primary)
@@ -324,7 +324,7 @@ class MoraHelper(object):
 
             engagements = []
             for validity in validity_times:
-                engagement = self._mo_lookup(user, 'e/{}/details/engagement',
+                engagement = await self._mo_lookup(user, 'e/{}/details/engagement',
                                              validity=validity,
                                              only_primary=only_primary,
                                              use_cache=False,
@@ -332,7 +332,7 @@ class MoraHelper(object):
                 engagements = engagements + engagement
         return engagements
 
-    def read_user_association(self, user, at=None, read_all=False,
+    async def read_user_association(self, user, at=None, read_all=False,
                               only_primary=False, use_cache=None):
         """
         Read associations for a user.
@@ -340,20 +340,20 @@ class MoraHelper(object):
         :return: List of the users associations.
         """
         if not read_all:
-            associations = self._mo_lookup(user, 'e/{}/details/association',
+            associations = await self._mo_lookup(user, 'e/{}/details/association',
                                            at, only_primary=only_primary,
                                            use_cach=use_cache)
         else:
             associations = []
             for validity in ['past', 'present', 'future']:
-                association = self._mo_lookup(user, 'e/{}/details/association',
+                association = await self._mo_lookup(user, 'e/{}/details/association',
                                               validity=validity,
                                               only_primary=only_primary,
                                               use_cache=False)
                 associations = associations + association
         return associations
 
-    def read_user_address(self, user, username=False, cpr=False,
+    async def read_user_address(self, user, username=False, cpr=False,
                           at=None, use_cache=None, phone_type=None):
         """
         Read phone number and email from user
@@ -361,7 +361,7 @@ class MoraHelper(object):
         :param phone_type: Optionally add a specific phone_type class.
         :return: Dict witn phone number and email (if they exists in MO)
         """
-        addresses = self._mo_lookup(user, 'e/{}/details/address', at, use_cache)
+        addresses = await self._mo_lookup(user, 'e/{}/details/address', at, use_cache)
         return_address = {}
         for address in addresses:
             if address['address_type']['scope'] == 'PHONE':
@@ -374,38 +374,38 @@ class MoraHelper(object):
             if address['address_type']['scope'] == 'EMAIL':
                 return_address['E-mail'] = address['name']
         if username or cpr:
-            personal_info = self._mo_lookup(user, 'e/{}')
+            personal_info = await self._mo_lookup(user, 'e/{}')
             if username:
                 return_address['Brugernavn'] = personal_info['user_key']
             if cpr:
                 return_address['CPR-Nummer'] = personal_info['cpr_no']
         return return_address
 
-    def read_user_manager_status(self, user):
+    async def read_user_manager_status(self, user):
         """ Returns True of user has responsibility:
         'Personale: ansættelse/afskedigelse'
         :param user: UUID of the wanted user
         :return: True if person is manager accoring to above mentioned rule
         """
-        manager_functions = self._mo_lookup(user, 'e/{}/details/manager')
+        manager_functions = await self._mo_lookup(user, 'e/{}/details/manager')
         for manager_function in manager_functions:
             for responsibility in manager_function['responsibility']:
                 if responsibility['name'] == PRIMARY_RESPONSIBILITY:
                     return True
         return False
 
-    def read_user_roller(self, user):
+    async def read_user_roller(self, user):
         """ Returns the role of the user
         :param user: UUID of the wanted user
         :return: The roles for the user
         """
-        roles = self._mo_lookup(user, 'e/{}/details/role')
+        roles = await self._mo_lookup(user, 'e/{}/details/role')
         role_types = []
         for role in roles:
             role_types.append(role['role_type']['name'])
         return role_types
 
-    def read_engagement_manager(self, engagement_uuid):
+    async def read_engagement_manager(self, engagement_uuid):
         """
         Read the manager corresponding to a given engagement.
         If the engagement user is not a manager, the manager will be the (possibly
@@ -423,7 +423,7 @@ class MoraHelper(object):
         user = relationer['tilknyttedebrugere'][0]
         unit = relationer['tilknyttedeenheder'][0]
 
-        unit_manager = self.read_ou_manager(unit['uuid'], inherit=True)
+        unit_manager = await self.read_ou_manager(unit['uuid'], inherit=True)
         if unit_manager is None:
             raise Exception('Unable to find manager')
 
@@ -431,19 +431,19 @@ class MoraHelper(object):
             # In this case the engagement is not manager for itself
             user_manager = unit_manager
         else:
-            mo_unit = self.read_ou(unit['uuid'])
+            mo_unit = await self.read_ou(unit['uuid'])
             while unit_manager['uuid'] == user['uuid']:
                 if mo_unit['parent'] is None:
                     # Self manager!
                     break
                 parent_uuid = mo_unit['parent']['uuid']
-                unit_manager = self.read_ou_manager(parent_uuid, inherit=True)
-                mo_unit = self.read_ou(parent_uuid)
+                unit_manager = await self.read_ou_manager(parent_uuid, inherit=True)
+                mo_unit = await self.read_ou(parent_uuid)
             user_manager = unit_manager
 
         return user_manager
 
-    def read_ou_manager(self, unit_uuid, inherit=False):
+    async def read_ou_manager(self, unit_uuid, inherit=False):
         """
         Read the manager of an organisation.
         Currently an exception will be raised if an ou has more than
@@ -453,10 +453,10 @@ class MoraHelper(object):
         """
         manager_list = {}
         if inherit:
-            managers = self._mo_lookup(unit_uuid,
+            managers = await self._mo_lookup(unit_uuid,
                                        'ou/{}/details/manager?inherit_manager=1')
         else:
-            managers = self._mo_lookup(unit_uuid, 'ou/{}/details/manager')
+            managers = await self._mo_lookup(unit_uuid, 'ou/{}/details/manager')
         # Iterate over all managers, use uuid as key, if more than one
         # distinct uuid shows up in list, rasie an error
         for manager in managers:
@@ -490,7 +490,7 @@ class MoraHelper(object):
             # raise Exception('Too many managers')
         return manager
 
-    def read_organisation_people(self, org_uuid, person_type='engagement',
+    async def read_organisation_people(self, org_uuid, person_type='engagement',
                                  split_name=True, read_all=False, skip_past=False):
         """ Read all employees in an ou. If the same employee is listed
         more than once, only the latest listing will be included.
@@ -500,7 +500,7 @@ class MoraHelper(object):
         """
         person_list = {}
         if not read_all:
-            all_persons = self._mo_lookup(org_uuid, 'ou/{}/details/' + person_type)
+            all_persons = await self._mo_lookup(org_uuid, 'ou/{}/details/' + person_type)
         else:
             if skip_past:
                 validity_times = ['present', 'future']
@@ -509,7 +509,7 @@ class MoraHelper(object):
 
             all_persons = []
             for validity in validity_times:
-                persons = self._mo_lookup(org_uuid, 'ou/{}/details/' + person_type,
+                persons = await self._mo_lookup(org_uuid, 'ou/{}/details/' + person_type,
                                           validity=validity)
                 all_persons = all_persons + persons
 
@@ -547,16 +547,16 @@ class MoraHelper(object):
             person_list[uuid] = data
         return person_list
 
-    def read_top_units(self, organisation, use_cache=False):
+    async def read_top_units(self, organisation, use_cache=False):
         """ Read the ous tha refers directoly to the organisation
         :param organisation: UUID of the organisation
         :return: List of UUIDs of the root OUs in the organisation
         """
         url = 'o/{}/children'
-        units = self._mo_lookup(organisation, url, use_cache=use_cache)
+        units = await self._mo_lookup(organisation, url, use_cache=use_cache)
         return units
 
-    def read_ou_tree(self, org, nodes={}, parent=None):
+    async def read_ou_tree(self, org, nodes={}, parent=None):
         """ Recursively find all sub-ou's beneath current node
         :param org: The organisation to start the tree from
         :param nodes: Dict with all modes in the tree
@@ -564,7 +564,7 @@ class MoraHelper(object):
         :return: A dict with all nodes in tree, top node is named 'root'
         """
         url = 'ou/{}/children'
-        units = self._mo_lookup(org, url)
+        units = await self._mo_lookup(org, url)
 
         if parent is None:
             nodes['root'] = Node(org)
@@ -573,15 +573,15 @@ class MoraHelper(object):
             uuid = unit['uuid']
             nodes[uuid] = Node(uuid, parent=parent)
             if unit['child_count'] > 0:
-                nodes = self.read_ou_tree(uuid, nodes, nodes[uuid])
+                nodes = await self.read_ou_tree(uuid, nodes, nodes[uuid])
         return nodes
 
-    def find_cut_dates(self, uuid, no_past=False):
+    async def find_cut_dates(self, uuid, no_past=False):
         """
         Run throgh entire history of a user and return a list of dates with
         changes in the engagement.
         """
-        mo_engagement = self.read_user_engagement(
+        mo_engagement = await self.read_user_engagement(
             user=uuid,
             only_primary=True,
             read_all=True,
@@ -610,14 +610,14 @@ class MoraHelper(object):
         logger.debug('List of cut-dates: {}'.format(date_list))
         return date_list
 
-    def get_e_username(self, e_uuid, id_it_system):
-        for its in self._mo_lookup(e_uuid, 'e/{}/details/it'):
+    async def get_e_username(self, e_uuid, id_it_system):
+        for its in (await self._mo_lookup(e_uuid, 'e/{}/details/it')):
             if its['itsystem']["user_key"] == id_it_system:
                 return its['user_key']
         return ''
 
-    def get_e_address(self, e_uuid, scope):
-        for address in self._mo_lookup(e_uuid, 'e/{}/details/address'):
+    async def get_e_address(self, e_uuid, scope):
+        for address in (await self._mo_lookup(e_uuid, 'e/{}/details/address')):
             if address['address_type']['scope'] == scope:
                 return address
         return {}

@@ -4,8 +4,53 @@ import pathlib
 import logging
 import argparse
 import datetime
+import asyncio
 
-from integrations.SD_Lon import sd_common
+from operator import itemgetter
+
+
+async def primary_types(helper):
+    """
+    Read the engagement types from MO and match them up against the four
+    known types in the SD->MO import.
+    :param helper: An instance of mora-helpers.
+    :return: A dict matching up the engagement types with LoRa class uuids.
+    """
+    # These constants are global in all SD municipalities (because they are created
+    # by the SD->MO importer.
+    PRIMARY = 'primary'
+    NO_SALARY = 'non-primary'
+    NON_PRIMARY = 'non-primary'
+    FIXED_PRIMARY = 'explicitly-primary'
+
+    logger.info('Read primary types')
+    primary = None
+    no_salary = None
+    non_primary = None
+    fixed_primary = None
+
+    primary_types = await helper.read_classes_in_facet('primary_type')
+    for primary_type in primary_types[0]:
+        if primary_type['user_key'] == PRIMARY:
+            primary = primary_type['uuid']
+        if primary_type['user_key'] == NON_PRIMARY:
+            non_primary = primary_type['uuid']
+        if primary_type['user_key'] == NO_SALARY:
+            no_salary = primary_type['uuid']
+        if primary_type['user_key'] == FIXED_PRIMARY:
+            fixed_primary = primary_type['uuid']
+
+    type_uuids = {
+        'primary': primary,
+        'non_primary': non_primary,
+        'no_salary': no_salary,
+        'fixed_primary': fixed_primary
+    }
+    if None in type_uuids.values():
+        raise Exception('Missing primary types: {}'.format(type_uuids))
+    return type_uuids
+
+
 from integrations.SD_Lon import sd_payloads
 
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -26,19 +71,19 @@ LOG_FILE = 'calculate_primary.log'
 class MOPrimaryEngagementUpdater(object):
     def __init__(self):
         self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
-        self.org_uuid = self.helper.read_organisation()
 
-        self.mo_person = None
+    async def setup(self):
+        self.org_uuid = await self.helper.read_organisation()
 
         # Keys are; fixed_primary, primary no_salary non-primary
-        self.primary_types = sd_common.primary_types(self.helper)
+        self.primary_types = await primary_types(self.helper)
         self.primary = [
             self.primary_types['fixed_primary'],
             self.primary_types['primary'],
             self.primary_types['no_salary']
         ]
 
-    def set_current_person(self, cpr=None, uuid=None, mo_person=None):
+    async def set_current_person(self, cpr=None, uuid=None, mo_person=None):
         """
         Set a new person as the current user. Either a cpr-number or
         an uuid should be given, not both.
@@ -48,21 +93,18 @@ class MOPrimaryEngagementUpdater(object):
         :return: True if current user is valid, otherwise False.
         """
         if uuid:
-            mo_person = self.helper.read_user(user_uuid=uuid)
+            mo_person = await self.helper.read_user(user_uuid=uuid)
         elif cpr:
-            mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
+            mo_person = await self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
         elif mo_person:
             pass
         else:
             mo_person = None
         # print('Read user: {}s'.format(time.time() - t))
         if mo_person:
-            self.mo_person = mo_person
-            success = True
+            return True, mo_person
         else:
-            self.mo_person = None
-            success = False
-        return success
+            return False, None
 
     def _calculate_rate_and_ids(self, mo_engagement, no_past):
         max_rate = 0
@@ -101,14 +143,14 @@ class MOPrimaryEngagementUpdater(object):
         logger.debug('Min id: {}, Max rate: {}'.format(min_id, max_rate))
         return (min_id, max_rate)
 
-    def _find_cut_dates(self, no_past=False):
+    async def _find_cut_dates(self, no_past=False, mo_person=None):
         """
         Run throgh entire history of current user and return a list of dates with
         changes in the engagement.
         """
-        uuid = self.mo_person['uuid']
+        uuid = mo_person['uuid']
 
-        mo_engagement = self.helper.read_user_engagement(
+        mo_engagement = await self.helper.read_user_engagement(
             user=uuid,
             only_primary=True,
             read_all=True,
@@ -131,33 +173,33 @@ class MOPrimaryEngagementUpdater(object):
         # print('Find cut dates: {}s'.format(time.time() - t))
         return date_list
 
-    def _read_engagement(self, date):
-        mo_engagement = self.helper.read_user_engagement(
-            user=self.mo_person['uuid'],
-            at=date,
+    async def _read_engagement(self, date, mo_person=None):
+        mo_engagement = await self.helper.read_user_engagement(
+            user=mo_person['uuid'],
+            at=str(date),
             only_primary=True,  # Do not read extended info from MO.
             use_cache=False
         )
         return mo_engagement
 
-    def check_all_for_primary(self):
+    async def check_all_for_primary(self):
         """
         Check all users for the existence of primary engagements.
         :return: TODO
         """
         # TODO: This is a seperate function in AD Sync! Change to mora_helpers!
         count = 0
-        all_users = self.helper.read_all_users()
+        all_users = await self.helper.read_all_users()
         for user in all_users:
             if count % 250 == 0:
                 print('{}/{}'.format(count, len(all_users)))
             count += 1
 
-            self.set_current_person(uuid=user['uuid'])
-            date_list = self._find_cut_dates()
+            success, mo_person = await self.set_current_person(uuid=user['uuid'])
+            date_list = await self._find_cut_dates(mo_person=mo_person)
             for i in range(0, len(date_list) - 1):
                 date = date_list[i]
-                mo_engagement = self._read_engagement(date)
+                mo_engagement = await self._read_engagement(date, mo_person=mo_person)
                 primary_count = 0
                 for eng in mo_engagement:
                     if eng['engagement_type']['uuid'] in self.primary:
@@ -180,19 +222,19 @@ class MOPrimaryEngagementUpdater(object):
                 # print('Correct')
                 pass
 
-    def recalculate_primary(self, no_past=False):
+    async def recalculate_primary(self, no_past=False, mo_person=None):
         """
         Re-calculate primary engagement for the entire history of the current user.
         """
-        logger.info('Calculate primary engagement: {}'.format(self.mo_person))
-        date_list = self._find_cut_dates(no_past=no_past)
+        logger.info('Calculate primary engagement: {}'.format(mo_person))
+        date_list = await self._find_cut_dates(no_past=no_past, mo_person=mo_person)
         number_of_edits = 0
 
         for i in range(0, len(date_list) - 1):
             date = date_list[i]
             logger.info('Recalculate primary, date: {}'.format(date))
 
-            mo_engagement = self._read_engagement(date)
+            mo_engagement = await self._read_engagement(date, mo_person=mo_person)
             # print('Read engagements {}: {}s'.format(i, time.time() - t))
 
             logger.debug('MO engagement: {}'.format(mo_engagement))
@@ -297,31 +339,40 @@ class MOPrimaryEngagementUpdater(object):
                     number_of_edits += 1
                 else:
                     logger.debug('No edit, primary type not changed.')
-        return_dict = {self.mo_person['uuid']: number_of_edits}
+        return_dict = {mo_person['uuid']: number_of_edits}
         return return_dict
 
-    def recalculate_all(self, no_past=False):
+    async def recalculate_all(self, no_past=False):
         """
         Recalculate all primary engagements
         :return: TODO
         """
-        all_users = self.helper.read_all_users()
-        edit_status = {}
-        for user in all_users:
+        all_users = await self.helper.read_all_users()
+        all_users = map(itemgetter('uuid'), all_users)
+
+        async def create_task(user_uuid):
             t = time.time()
-            self.set_current_person(uuid=user['uuid'])
-            status = self.recalculate_primary(no_past=no_past)
+            success, mo_person = await self.set_current_person(uuid=user_uuid)
+            if success:
+                status = await self.recalculate_primary(no_past=no_past, mo_person=mo_person)
+                logger.debug('Time for primary calculation: {}'.format(time.time() - t))
+                return status
+            return {}
+
+        tasks = list(map(create_task, all_users))
+        statusses = await asyncio.gather(*tasks)
+        edit_status = {}
+        for status in statusses:
             edit_status.update(status)
-            logger.debug('Time for primary calculation: {}'.format(time.time() - t))
         print('Total edits: {}'.format(sum(edit_status.values())))
 
-    def _cli(self):
+    async def _cli(self):
         parser = argparse.ArgumentParser(description='Calculate Primary')
         group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument('--check-all-for-primary',  action='store_true',
                            help='Check all users for a primary engagement')
         group.add_argument('--recalculate-all',  action='store_true',
-                           help='Recalculate all all users')
+                           help='Recalculate all users')
         group.add_argument('--recalculate-user', nargs=1, metavar='MO_uuid',
                            help='Recalculate primaries for a user')
 
@@ -331,17 +382,24 @@ class MOPrimaryEngagementUpdater(object):
             print('Recalculate user')
             t = time.time()
             uuid = args.get('recalculate_user')[0]
-            self.set_current_person(uuid=uuid)
-            self.recalculate_primary()
-            print('Time for primary calculation: {}'.format(time.time() - t))
+            success, mo_person = await self.set_current_person(uuid=uuid)
+            if success:
+                await self.recalculate_primary(mo_person=mo_person)
+                print('Time for primary calculation: {}'.format(time.time() - t))
 
         if args.get('check_all_for_primary'):
             print('Check all for primary')
-            self.check_all_for_primary()
+            await self.check_all_for_primary()
 
         if args.get('recalculate_all'):
             print('Check all for primary')
-            self.recalculate_all(no_past=True)
+            await self.recalculate_all(no_past=True)
+
+
+async def main():
+    updater = MOPrimaryEngagementUpdater()
+    await updater.setup()
+    await updater._cli()
 
 
 if __name__ == '__main__':
@@ -357,6 +415,5 @@ if __name__ == '__main__':
         level=LOG_LEVEL,
         filename=LOG_FILE
     )
-
-    updater = MOPrimaryEngagementUpdater()
-    updater._cli()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
