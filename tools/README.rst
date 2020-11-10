@@ -96,6 +96,8 @@ Det besværliggør fejlfinding, hvis ikke der hele tiden er kontakt til filerne
 
 * cronhook.unmount_opus_on: true/false
 
+Husk at mountpoints på windows ofte indeholder $-tegnet. Et sådan skal i settings escapes som \\$ 
+
 
 Korsel af jobs
 ^^^^^^^^^^^^^^

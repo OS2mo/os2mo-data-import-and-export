@@ -90,17 +90,18 @@ imports_test_sd_connectivity(){
 imports_test_opus_connectivity(){
     set -e
     (
-    	echo testing opus mountpoint settings
         SETTING_PREFIX="cronhook" source ${DIPEXAR}/tools/prefixed_settings.sh
         set -x
-        if [ "${mount_opus_on}" = "true" ] ; then 
+        if [ "${mount_opus_on}" = "true" ] ; then
+            echo testing opus mountpoint settings
             mountpoint ${mount_opus_mountpoint} || exit 1
+            (
+                # hvis opus er mountet, skal xml_path, hvor man læser opus fra være == mountpointet
+                SETTING_PREFIX="integrations.opus.import" source ${DIPEXAR}/tools/prefixed_settings.sh
+                [ ! "${mount_opus_mountpoint}" = "${xml_path}" ] && echo "xml-path skal være == mountpoint" && exit 1
+                exit 0
+            )
         fi
-        (
-            SETTING_PREFIX="integrations.opus.import" source ${DIPEXAR}/tools/prefixed_settings.sh
-            [ ! "${mount_opus_mountpoint}" = "${xml_path}" ] && echo "xml-path skal være == mountpoint" && exit 1
-            exit 0
-        )
     ) || return 1
     echo running imports_test_ops_connectivity
     ${VENV}/bin/python3 integrations/opus/test_opus_connectivity.py --test-diff-import
