@@ -91,7 +91,6 @@ imports_test_opus_connectivity(){
     set -e
     (
         SETTING_PREFIX="cronhook" source ${DIPEXAR}/tools/prefixed_settings.sh
-        set -x
         if [ "${mount_opus_on}" = "true" ] ; then
             echo testing opus mountpoint settings
             mountpoint ${mount_opus_mountpoint} || exit 1
