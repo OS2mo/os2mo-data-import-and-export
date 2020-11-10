@@ -1,3 +1,4 @@
+import click
 import json
 import pathlib
 from enum import Enum
@@ -7,13 +8,7 @@ from more_itertools import flatten
 from datetime import datetime
 
 from os2mo_helpers.mora_helpers import MoraHelper
-from integrations.SD_Lon.sd_common import sd_lookup, primary_types
-
-
-def starfilter(predicate, iterable):
-    for tup in iterable:
-        if predicate(*tup):
-           yield tup
+from integrations.SD_Lon.sd_common import sd_lookup
 
 
 class EmploymentStatus(Enum):
@@ -78,6 +73,7 @@ class TestMoAgainsSd(object):
                                  use_cache=False)
 
     def _compare_dates(self, sd_employment, mo_engagement):
+        """Check dates for discrepancies."""
         status = EmploymentStatus(sd_employment['EmploymentStatus']['EmploymentStatusCode'])
         # TODO, we should also consider to check for actual date_values.
         # This would need a loop that finds the entire validity of the engagement
@@ -95,6 +91,7 @@ class TestMoAgainsSd(object):
         raise NotImplemented(msg)
 
     def _compare_salary(self, sd_employment, mo_engagement):
+        """Check salary status for discrepancies."""
         mo_no_salary = (mo_engagement['primary']['user_key'] == 'status0')
         sd_status = EmploymentStatus(
             sd_employment['EmploymentStatus']['EmploymentStatusCode']
@@ -104,12 +101,22 @@ class TestMoAgainsSd(object):
         return "salary", is_ok
 
     def _compare_job_function(self, sd_employment, mo_engagement):
+        """Check job function for discrepancies."""
         mo_job_function_id = mo_engagement['job_function']['user_key']
         sd_job_position_id = sd_employment['Profession']['JobPositionIdentifier']
         is_ok = (mo_job_function_id == sd_job_position_id)
         return "job_function", is_ok
 
     def _compare_employments(self, sd_employment, mo_engagement):
+        """Check a single employment pair for discrepancies.
+
+        Returns a tuple; id, dictionary on the following form:
+
+        employment_id, {
+            "check_name": False
+            ...
+        }
+        """
         employment_id = sd_employment['EmploymentIdentifier']
         if mo_engagement is None:
             return employment_id, {'no_match': False}
@@ -122,6 +129,22 @@ class TestMoAgainsSd(object):
         return employment_id, status_checks
 
     def check_user(self, mo_uuid):
+        """Check a single employee for discrepancies.
+
+        Returns a tuple; uuid, dictionary on the following form:
+
+        user_uuid, {
+            'uuid': user_uuid,
+            'employments': {
+                'employment_id': {
+                    "check_name": False,
+                    ...
+                },
+                ...
+            },
+            'all_ok': False # Boolean for whether all employments were all ok
+        }
+        """
         mo_user = self.helper.read_user(user_uuid=mo_uuid)
         mo_engagements = self.helper.read_user_engagement(
             user=mo_uuid, read_all=True
@@ -175,6 +198,8 @@ class TestMoAgainsSd(object):
             employment_id = sd_employment['EmploymentIdentifier']
             return sd_employment, condensed_engagements.get(employment_id)
 
+        # NOTE: Currently we only find entries in SD that are not in MO,
+        #       Not entries in MO that are not in SD
         pairs = map(create_mo_pair, employments)
 	# check_status has the format of employment_id --> dict,
         # where the resulting dict has the format of check_name --> bool,
@@ -190,6 +215,29 @@ class TestMoAgainsSd(object):
         }
 
     def check_department(self, department_uuid):
+        """Check all employees in an organisation for discrepancies.
+
+        Returns a tuple; uuid, dictionary on the following form:
+
+        department_uuid, {
+            'uuid': department_uuid,
+            'users': {
+                'user_uuid': {
+                    'uuid': user_uuid,
+                    'employments': {
+                        'employment_id': {
+                            "check_name": False,
+                            ...
+                        },
+                        ...
+                    },
+                    'all_ok': False
+                },
+                ...
+            },
+            'all_ok': False # Boolean for whether all users were all ok
+        }
+        """
         employees = self.helper.read_organisation_people(
             department_uuid, read_all=True
         )
@@ -201,38 +249,72 @@ class TestMoAgainsSd(object):
         }
 
     def _print_status(self, name, status):
-        print(name, " " * (20 - len(name)), u'\u2713' if status else 'x')
+        print(name + ":", " " * (20 - len(name)), u'\u2713' if status else 'x')
 
     def print_user_result(self, test_result):
         """Pretty-print a result from check_user."""
-        print("*" * 45)
-        print("Checking {}".format(test_result['uuid']))
-        for engagement_id, checks in test_result['employments'].items():
+        print("*" * 55)
+        print("Checking employee: {}".format(test_result['uuid']))
+        for engagement_id, checks in sorted(test_result['employments'].items()):
             print("Checking engagement: {}".format(engagement_id))
-            for key, status_check in checks.items():
+            for key, status_check in sorted(checks.items()):
                 self._print_status(key, status_check)
             print()
         print("-" * 26)
         self._print_status("all_ok", test_result['all_ok'])
-        print("*" * 45)
+        print("*" * 55)
 
     def print_department_result(self, test_result):
-        print("Checking {}".format(test_result['uuid']))
+        print("Checking department {}".format(test_result['uuid']))
         print()
-        for user_result in test_result['users'].values():
+        for user_uuid, user_result in sorted(test_result['users'].items()):
             self.print_user_result(user_result)
         print()
-        self._print_status("all_ok", test_result['all_ok'])
+        self._print_status("department_all_ok", test_result['all_ok'])
+
+
+@click.group()
+@click.option('--json/--no-json', default=False, help="Output as JSON.")
+@click.pass_context
+def cli(ctx, json):
+    """MO to SD equivalence testing utility.
+
+    Compares MO against SD to find discrepancies in the data.
+    """
+    # ensure that ctx.obj exists and is a dict, no matter how it is called.
+    ctx.ensure_object(dict)
+    ctx.obj['JSON'] = json
+
+
+@cli.command()
+@click.option('--uuid', type=click.UUID, help="UUID of the user to check.", required=True)
+@click.pass_context
+# Example UUID: 'fadfcc38-5d42-4857-a950-0adc65babb13'
+def check_user(ctx, uuid):
+    """Check a single employee."""
+    tester = TestMoAgainsSd()
+    _, test_result = tester.check_user(str(uuid))
+
+    if ctx.obj['JSON']:
+        print(json.dumps(test_result, indent=4, sort_keys=True))
+    else:
+        tester.print_user_result(test_result)
+
+
+@cli.command()
+@click.option('--uuid', type=click.UUID, help="UUID of the organisation to check.", required=True)
+@click.pass_context
+# Example UUID: 'ea5a237a-8f8b-4300-9a00-000006180002'
+def check_department(ctx, uuid):
+    """Check all employees in an organisation."""
+    tester = TestMoAgainsSd()
+    _, test_result = tester.check_department(str(uuid))
+
+    if ctx.obj['JSON']:
+        print(json.dumps(test_result, indent=4, sort_keys=True))
+    else:
+        tester.print_department_result(test_result)
 
 
 if __name__ == '__main__':
-    tester = TestMoAgainsSd()
-
-    import json
-    _, test_result = tester.check_user('fadfcc38-5d42-4857-a950-0adc65babb13')
-    print(json.dumps(test_result, indent=4))
-    tester.print_user_result(test_result)
-
-    _, test_result = tester.check_department('ea5a237a-8f8b-4300-9a00-000006180002')
-    print(json.dumps(test_result, indent=4))
-    tester.print_department_result(test_result)
+    cli()
