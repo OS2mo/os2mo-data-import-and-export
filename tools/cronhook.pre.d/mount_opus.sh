@@ -8,6 +8,3 @@
 /bin/mountpoint $mount_opus_mountpoint && echo "mountpoint is already mounted but not on ${mount_opus_share}" && exit 1
 echo mounting opus
 /bin/mount -vt cifs "${mount_opus_share}" "$mount_opus_mountpoint" -o "username=${mount_opus_username},password=${mount_opus_password}" > /dev/null
-
-
-
