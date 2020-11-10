@@ -26,7 +26,6 @@ class ADParameterReader(AD):
         settings = self._get_setting()
         return self.cache_all()
 
-
     def first_included(self, settings, users):
         """
             include: given a list of users, return the first one that is included
