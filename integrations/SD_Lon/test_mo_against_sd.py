@@ -4,6 +4,7 @@ import pathlib
 from enum import Enum
 from itertools import starmap
 from more_itertools import flatten
+from operator import itemgetter
 
 from datetime import datetime
 
@@ -190,6 +191,12 @@ class TestMoAgainsSd(object):
             'EffectiveDate': self.date.strftime('%d.%m.%Y')
         }
         sd_employments_response = sd_lookup('GetEmployment20111201', params)
+        if 'Person' not in sd_employments_response:
+            return mo_uuid, {
+                'uuid': mo_uuid,
+                'employments': {'Person not found in SD': {}},
+                'all_ok': False,
+            }
         employments = sd_employments_response['Person']['Employment']
         if not isinstance(employments, list):
             employments = [employments]
@@ -248,6 +255,37 @@ class TestMoAgainsSd(object):
             'all_ok': all(user['all_ok'] for user in users.values()),
         }
 
+    def check_all(self, limit):
+        """Check limit/all employees in an MO instance for discrepancies.
+
+        Returns a dictionary on the following form:
+
+        {
+            'users': {
+                'user_uuid': {
+                    'uuid': user_uuid,
+                    'employments': {
+                        'employment_id': {
+                            "check_name": False,
+                            ...
+                        },
+                        ...
+                    },
+                    'all_ok': False
+                },
+                ...
+            },
+            'all_ok': False # Boolean for whether all users were all ok
+        }
+        """
+        employees = self.helper.read_all_users(limit=limit)
+        employees = map(itemgetter('uuid'), employees)
+        users = dict(map(self.check_user, employees))
+        return {
+            'users': users,
+            'all_ok': all(user['all_ok'] for user in users.values()),
+        }
+
     def _print_status(self, name, status):
         print(name + ":", " " * (20 - len(name)), u'\u2713' if status else 'x')
 
@@ -264,13 +302,16 @@ class TestMoAgainsSd(object):
         self._print_status("all_ok", test_result['all_ok'])
         print("*" * 55)
 
-    def print_department_result(self, test_result):
-        print("Checking department {}".format(test_result['uuid']))
-        print()
+    def print_all_result(self, test_result):
         for user_uuid, user_result in sorted(test_result['users'].items()):
             self.print_user_result(user_result)
         print()
-        self._print_status("department_all_ok", test_result['all_ok'])
+        self._print_status("total_all_ok", test_result['all_ok'])
+
+    def print_department_result(self, test_result):
+        print("Checking department {}".format(test_result['uuid']))
+        print()
+        self.print_all_result(test_result)
 
 
 @click.group()
@@ -314,6 +355,20 @@ def check_department(ctx, uuid):
         print(json.dumps(test_result, indent=4, sort_keys=True))
     else:
         tester.print_department_result(test_result)
+
+
+@cli.command()
+@click.option('--limit', type=click.INT, help="Number of employees to check. 0 --> All.", default=5)
+@click.pass_context
+def check_all(ctx, limit):
+    """Check all employees in an organisation."""
+    tester = TestMoAgainsSd()
+    test_result = tester.check_all(limit)
+
+    if ctx.obj['JSON']:
+        print(json.dumps(test_result, indent=4, sort_keys=True))
+    else:
+        tester.print_all_result(test_result)
 
 
 if __name__ == '__main__':
