@@ -1,14 +1,14 @@
-import click
 import json
 import pathlib
+from datetime import datetime
 from enum import Enum
 from itertools import starmap
-from more_itertools import flatten
 from operator import itemgetter
 
-from datetime import datetime
-
+import click
+from more_itertools import flatten
 from os2mo_helpers.mora_helpers import MoraHelper
+
 from integrations.SD_Lon.sd_common import sd_lookup
 
 
@@ -361,7 +361,7 @@ def check_department(ctx, uuid):
 @click.option('--limit', type=click.INT, help="Number of employees to check. 0 --> All.", default=5)
 @click.pass_context
 def check_all(ctx, limit):
-    """Check all employees in an organisation."""
+    """Check limit/all employees in an MO instance."""
     tester = TestMoAgainsSd()
     test_result = tester.check_all(limit)
 
