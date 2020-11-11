@@ -39,8 +39,9 @@ def _find_class(find_facet, find_class):
         return CACHE[find_class]
     uuid = None
     url = BASE_URL + 'o/{}/f/{}'
-    response = SESSION.get(url.format(ROOT, find_facet)).json()
+    response = SESSION.get(url.format(ROOT, find_facet))
     response.raise_for_status()
+    response = response.json()
     for actual_class in response['data']['items']:
         if actual_class['name'] == find_class:
             uuid = actual_class['uuid']
@@ -60,8 +61,9 @@ def _mo_lookup(uuid, details=''):
 
 def _find_org():
     url = BASE_URL + 'o'
-    response = SESSION.get(url).json()
+    response = SESSION.get(url)
     response.raise_for_status()
+    response = response.json()
     assert(len(response) == 1)
     uuid = response[0]['uuid']
     return(uuid)
