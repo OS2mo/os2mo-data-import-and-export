@@ -1,25 +1,20 @@
-import click
 import json
-import pathlib
 import logging
-
+import pathlib
 from itertools import starmap
+from operator import itemgetter
 
+import click
 from os2mo_helpers.mora_helpers import MoraHelper
-from integrations.ad_integration import ad_reader
-from integrations.ad_integration import ad_logger
-from integrations.ad_integration import ad_writer
+
 from exporters.sql_export.lora_cache import LoraCache
-
-from integrations.ad_integration.ad_exceptions import (
-    NoPrimaryEngagementException,
-)
-
+from integrations.ad_integration import ad_logger, ad_reader, ad_writer
+from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException
 
 logger = logging.getLogger("CreateAdUsers")
 
 
-class AdLifeCycle(object):
+class AdLifeCycle:
     def __init__(self, use_cached_mo=False):
         logger.info("AD Sync Started")
         cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
@@ -37,39 +32,34 @@ class AdLifeCycle(object):
         logger.info("Done with AD caching")
 
         # This is a potentially slow step (since it may read LoraCache)
+        logger.info("Retrive LoRa dump")
         self._update_lora_cache(dry_run=use_cached_mo)
+        logger.info("Done")
 
         # Create a set of users with engagements for faster filtering
         engagements = self.lc_historic.engagements.values()
-        self.users_with_engagements = set(
-            map(lambda eng: eng[0]["user"], engagements)
-        )
+        self.users_with_engagements = set(map(lambda eng: eng[0]["user"], engagements))
 
         # This is a slow step (since ADWriter reads all SAM names in __init__)
         logger.info("Retrieve AD Writer name list")
-        self.ad_writer = ad_writer.ADWriter(
-            lc=self.lc, lc_historic=self.lc_historic
-        )
+        self.ad_writer = ad_writer.ADWriter(lc=self.lc, lc_historic=self.lc_historic)
         logger.info("Done with AD Writer init")
 
-        logger.info("__init__() done")
+        logger.debug("__init__() done")
 
     def _update_lora_cache(self, dry_run=False):
         """
         Read all information from AD and LoRa.
         :param dry_run: If True, LoRa dump will be read from cache.
         """
-        logger.info("Retrive LoRa dump")
         self.lc = LoraCache(resolve_dar=False, full_history=False)
         self.lc.populate_cache(dry_run=dry_run, skip_associations=True)
+        self.lc.calculate_derived_unit_data()
         self.lc.calculate_primary_engagements()
         self.lc_historic = LoraCache(
             resolve_dar=False, full_history=True, skip_past=True
         )
-        self.lc_historic.populate_cache(
-            dry_run=dry_run, skip_associations=True
-        )
-        logger.info("Done")
+        self.lc_historic.populate_cache(dry_run=dry_run, skip_associations=True)
 
     def _gen_stats(self):
         return {
@@ -85,7 +75,7 @@ class AdLifeCycle(object):
             (
                 employment_number,
                 title,
-                eng_org_unit,
+                eng_org_unit_uuid,
                 eng_uuid,
             ) = self.ad_writer.datasource.find_primary_engagement(user["uuid"])
         except NoActiveEngagementsException:
@@ -94,8 +84,8 @@ class AdLifeCycle(object):
             )
             return False
 
-        logger.info("Primary found, now find org unit location")
-        unit = self.lc.units[eng_uuid][0]
+        logger.debug("Primary found, now find org unit location")
+        unit = self.lc.units[eng_org_unit_uuid][0]
         while True:
             if unit["uuid"] in self.roots:
                 return True
@@ -103,13 +93,15 @@ class AdLifeCycle(object):
                 return False
             unit = self.lc.units[unit["parent"]][0]
 
-    def gen_filtered_employees(self, filters):
+    def _gen_filtered_employees(self, filters):
         employees = self.lc.users.values()
         total_employees = len(employees)
 
         def print_progress(i, employee):
+            i = i + 1
             logger.debug("Now testing ({}): {}".format(i, employee))
-            if i % 1000 == 0:
+            if i % 1000 == 0 or i == total_employees:
+                logger.info("Progress: {}/{}".format(i, total_employees))
                 print("Progress: {}/{}".format(i, total_employees))
             return employee
 
@@ -125,22 +117,18 @@ class AdLifeCycle(object):
     def disable_ad_accounts(self):
         """Iterate over all users and disable non-active AD accounts."""
 
-        def user_not_in_ad(employee):
+        def filter_user_not_in_ad(employee):
             cpr = employee["cpr"]
             response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
             if not response:
-                logger.info(
-                    "User {} does not have an AD account".format(employee)
-                )
+                logger.debug("User {} does not have an AD account".format(employee))
                 return False
             return True
 
-        def user_has_engagements(employee):
+        def filter_user_has_engagements(employee):
             # Check the user does not have a valid engagement:
             if employee["uuid"] in self.users_with_engagements:
-                logger.info(
-                    "User {} is active - do not touch".format(employee)
-                )
+                logger.debug("User {} is active - do not touch".format(employee))
                 return False
             return True
 
@@ -148,16 +136,14 @@ class AdLifeCycle(object):
         employees = self._gen_filtered_employees(
             [
                 # Remove users that does not exist in AD
-                user_not_in_ad,
+                filter_user_not_in_ad,
                 # Remove users that have active engagements
-                user_has_engagements,
+                filter_user_has_engagements,
             ]
         )
         # Employees now contain only employees which should be disabled
         for employee in employees:
-            logger.info(
-                "This user has no active engagemens, we should disable"
-            )
+            logger.debug("This user has no active engagemens, we should disable")
             # This user has an AD account, but no engagements - disable
             cpr = employee["cpr"]
             response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
@@ -165,11 +151,9 @@ class AdLifeCycle(object):
             status = True
             message = "dry-run"
             if not dry_run:
-                status, message = self.ad_writer.enable_user(
-                    username=sam, enable=False
-                )
+                status, message = self.ad_writer.enable_user(username=sam, enable=False)
             if status:
-                logger.info("Disabled: {}".format(sam))
+                logger.debug("Disabled: {}".format(sam))
                 stats["disabled_users"] += 1
             else:
                 logger.warning("enable_user call failed!")
@@ -181,17 +165,17 @@ class AdLifeCycle(object):
     def create_ad_accounts(self, dry_run=False):
         """Iterate over all users and create missing AD accounts."""
 
-        def user_already_in_ad(employee):
+        def filter_user_already_in_ad(employee):
             cpr = employee["cpr"]
             response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
             if response:
-                logger.info("User {} is already in AD".format(employee))
+                logger.debug("User {} is already in AD".format(employee))
                 return False
             return True
 
-        def filter_engagements(employee):
+        def filter_user_without_engagements(employee):
             if employee["uuid"] not in self.users_with_engagements:
-                logger.info(
+                logger.debug(
                     "User {} has no active engagements - skip".format(employee)
                 )
                 return False
@@ -201,16 +185,16 @@ class AdLifeCycle(object):
         employees = self._gen_filtered_employees(
             [
                 # Remove users that already exist in AD
-                filter_ad_response,
+                filter_user_already_in_ad,
                 # Remove users that have no active engagements at all
-                filter_engagements,
+                filter_user_without_engagements,
                 # Check if the user is in a create-user sub-tree
                 self._find_user_unit_tree,
             ]
         )
         # Employees now contain only employees which should be created
         for employee in employees:
-            logger.info("Create account for {}".format(employee))
+            logger.debug("Create account for {}".format(employee))
             try:
                 # Create user without manager to avoid risk of failing
                 # if manager is not yet in AD. The manager will be attached
@@ -222,7 +206,7 @@ class AdLifeCycle(object):
                         employee["uuid"], create_manager=False
                     )
                 if status:
-                    logger.info("New username: {}".format(message))
+                    logger.debug("New username: {}".format(message))
                     stats["created_users"] += 1
                     stats["users"].add(employee["uuid"])
                 else:
@@ -274,9 +258,7 @@ def write_stats(stats):
     help="Use cached LoRa data, if false cache is refreshed.",
     type=click.BOOL,
 )
-def ad_life_cycle(
-    create_ad_accounts, disable_ad_accounts, dry_run, use_cached_mo
-):
+def ad_life_cycle(create_ad_accounts, disable_ad_accounts, dry_run, use_cached_mo):
     """Create or disable users."""
     logger.debug(
         "Running ad_life_cycle with: {}".format(
