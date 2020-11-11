@@ -40,6 +40,7 @@ def _find_class(find_facet, find_class):
     uuid = None
     url = BASE_URL + 'o/{}/f/{}'
     response = SESSION.get(url.format(ROOT, find_facet)).json()
+    response.raise_for_status()
     for actual_class in response['data']['items']:
         if actual_class['name'] == find_class:
             uuid = actual_class['uuid']
@@ -53,12 +54,14 @@ def _mo_lookup(uuid, details=''):
     else:
         url = BASE_URL + 'e/{}/details/' + details
     response = SESSION.get(url.format(uuid))
+    response.raise_for_status()
     return(response.json())
 
 
 def _find_org():
     url = BASE_URL + 'o'
     response = SESSION.get(url).json()
+    response.raise_for_status()
     assert(len(response) == 1)
     uuid = response[0]['uuid']
     return(uuid)
@@ -72,6 +75,7 @@ def _search_mo_name(name, user_key):
         return result['items'][0]['uuid']
     # Did not succeed with simple search, try user_Key
     response = SESSION.get(url.format(ROOT, user_key))
+    response.raise_for_status()
     result = response.json()
     for employee in result['items']:
         uuid = employee['uuid']
@@ -134,6 +138,7 @@ def _create_mo_ou(name, parent, org_type, bvn):
     url = BASE_URL + 'ou/create'
     params = {'force': 1}
     response = SESSION.post(url, json=payload, params=params)
+    response.raise_for_status()
     uuid = response.json()
     return uuid
 
