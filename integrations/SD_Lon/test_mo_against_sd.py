@@ -12,6 +12,14 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.SD_Lon.sd_common import sd_lookup
 
 
+def progress_iterator(elements, outputter, mod=10):
+    total = len(elements)
+    for i, element in enumerate(elements, start=1):
+        if i == 1 or i % mod == 0 or i == total:
+            outputter("{}/{}".format(i, total))
+        yield element
+
+
 class EmploymentStatus(Enum):
     """Corresponds to EmploymentStatusCode from SD.
 
@@ -88,8 +96,10 @@ class TestMoAgainsSd(object):
             is_ok = (mo_engagement['validity']['to'] < self.date)
             # If false, should have been terminated
             return "dates_past", is_ok
+        if status == EmploymentStatus.AnsatUdenLoen:
+            return "status0", True
         msg = 'Unhandled status, fix this program: ' + str(status)
-        raise NotImplemented(msg)
+        raise NotImplementedError(msg)
 
     def _compare_salary(self, sd_employment, mo_engagement):
         """Check salary status for discrepancies."""
@@ -245,17 +255,19 @@ class TestMoAgainsSd(object):
             'all_ok': False # Boolean for whether all users were all ok
         }
         """
+        outputter = print if progress else lambda msg: None
         employees = self.helper.read_organisation_people(
             department_uuid, read_all=True
-        )
-        users = dict(map(self.check_user, employees.keys()))
+        ).keys()
+        employees = progress_iterator(employees, outputter)
+        users = dict(map(self.check_user, employees))
         return department_uuid, {
             'uuid': department_uuid,
             'users': users,
             'all_ok': all(user['all_ok'] for user in users.values()),
         }
 
-    def check_all(self, limit):
+    def check_all(self, limit, progress):
         """Check limit/all employees in an MO instance for discrepancies.
 
         Returns a dictionary on the following form:
@@ -278,7 +290,9 @@ class TestMoAgainsSd(object):
             'all_ok': False # Boolean for whether all users were all ok
         }
         """
+        outputter = print if progress else lambda msg: None
         employees = self.helper.read_all_users(limit=limit)
+        employees = progress_iterator(employees, outputter)
         employees = map(itemgetter('uuid'), employees)
         users = dict(map(self.check_user, employees))
         return {
@@ -316,15 +330,17 @@ class TestMoAgainsSd(object):
 
 @click.group()
 @click.option('--json/--no-json', default=False, help="Output as JSON.")
+@click.option('--progress/--no-progress', default=False, help="Print progress.")
 @click.pass_context
-def cli(ctx, json):
+def cli(ctx, json, progress):
     """MO to SD equivalence testing utility.
 
     Compares MO against SD to find discrepancies in the data.
     """
     # ensure that ctx.obj exists and is a dict, no matter how it is called.
     ctx.ensure_object(dict)
-    ctx.obj['JSON'] = json
+    ctx.obj['json'] = json
+    ctx.obj['progress'] = progress
 
 
 @cli.command()
@@ -336,7 +352,7 @@ def check_user(ctx, uuid):
     tester = TestMoAgainsSd()
     _, test_result = tester.check_user(str(uuid))
 
-    if ctx.obj['JSON']:
+    if ctx.obj['json']:
         print(json.dumps(test_result, indent=4, sort_keys=True))
     else:
         tester.print_user_result(test_result)
@@ -349,9 +365,9 @@ def check_user(ctx, uuid):
 def check_department(ctx, uuid):
     """Check all employees in an organisation."""
     tester = TestMoAgainsSd()
-    _, test_result = tester.check_department(str(uuid))
+    _, test_result = tester.check_department(str(uuid), ctx.obj['progress'])
 
-    if ctx.obj['JSON']:
+    if ctx.obj['json']:
         print(json.dumps(test_result, indent=4, sort_keys=True))
     else:
         tester.print_department_result(test_result)
@@ -363,9 +379,9 @@ def check_department(ctx, uuid):
 def check_all(ctx, limit):
     """Check limit/all employees in an MO instance."""
     tester = TestMoAgainsSd()
-    test_result = tester.check_all(limit)
+    test_result = tester.check_all(limit, ctx.obj['progress'])
 
-    if ctx.obj['JSON']:
+    if ctx.obj['json']:
         print(json.dumps(test_result, indent=4, sort_keys=True))
     else:
         tester.print_all_result(test_result)
