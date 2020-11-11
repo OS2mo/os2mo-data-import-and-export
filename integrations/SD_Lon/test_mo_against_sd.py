@@ -255,11 +255,11 @@ class TestMoAgainsSd(object):
             'all_ok': False # Boolean for whether all users were all ok
         }
         """
-        outputter = print if progress else lambda msg: None
         employees = self.helper.read_organisation_people(
             department_uuid, read_all=True
         ).keys()
-        employees = progress_iterator(employees, outputter)
+        if progress:
+            employees = progress_iterator(employees, print)
         users = dict(map(self.check_user, employees))
         return department_uuid, {
             'uuid': department_uuid,
@@ -290,9 +290,9 @@ class TestMoAgainsSd(object):
             'all_ok': False # Boolean for whether all users were all ok
         }
         """
-        outputter = print if progress else lambda msg: None
         employees = self.helper.read_all_users(limit=limit)
-        employees = progress_iterator(employees, outputter)
+        if progress:
+            employees = progress_iterator(employees, print)
         employees = map(itemgetter('uuid'), employees)
         users = dict(map(self.check_user, employees))
         return {
