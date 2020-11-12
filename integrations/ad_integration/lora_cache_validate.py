@@ -86,6 +86,7 @@ def equivalence_generator(lc_variant, mo_variant, users):
             lc_value = return_exception(getattr(lc_variant, method_name), *transformed)
             difference = DeepDiff(mo_value, lc_value)
             if difference:
+                print(user_uuid)
                 pprint(difference, indent=2)
                 differences += 1
         total = len(users)
