@@ -95,7 +95,6 @@ def read_config(app):
         "sd_unit_levels":[],
         "arbtid_by_uuid":{},
     })
-
     sdmox_config["sd_common"] = {
         "USE_PICKLE_CACHE": False,  # force no caching for sd
         "SD_USER": cfg["integrations.SD_Lon.sd_user"],
@@ -108,8 +107,12 @@ def read_config(app):
 def get_sdMox():
     """ instantiate integration object
     """
-    mora_org = mo_request("o").json()[0]["uuid"]
+    mora_org = sdmox_config.get("ORG_UUID")
+    if mora_org is None:
+        mora_org = sdmox_config.setdefault("ORG_UUID", mo_request("o").json()[0]["uuid"])
+
     logger.warn(mora_org)
+
     classes = {
         i["user_key"]: i["uuid"]
         for i in mo_request("o/" + mora_org + "/f/org_unit_level/"
@@ -147,7 +150,19 @@ def is_sd_triggered(p):
 def ou_before_create(data):
     """ An ou is about to be created
     """
+    mora_org = sdmox_config.get("ORG_UUID")
+    if mora_org is None:
+        mora_org = sdmox_config.setdefault("ORG_UUID", mo_request("o").json()[0]["uuid"])
+
+    if (
+        # we will never create at top level
+        not data["request"]["parent"]
+        or mora_org == data["request"]["parent"]["uuid"]
+    ):
+        return
+
     parent = mo_request("ou/" + data["request"]["parent"]["uuid"]).json()
+
     if not is_sd_triggered(parent):
         return
 
