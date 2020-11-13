@@ -905,7 +905,7 @@ class LoraCache(object):
         # Initialize cache for entries we cannot lookup
         dar_uuids = self.dar_map.keys()
         dar_cache = dict(map(
-            lambda dar_uuid: (dar_uuid, {'betegnelse': 'skip dar'}), dar_uuids
+            lambda dar_uuid: (dar_uuid, {'betegnelse': None}), dar_uuids
         ))
         total_dar = len(dar_uuids)
 
