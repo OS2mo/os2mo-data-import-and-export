@@ -68,6 +68,7 @@ Lint AD Integration:
 Test LoraCache Exporter:
   extends: .test-python
   script:
+    - pip install -r exporters/sql_export/tests/requirements.txt
     - pytest exporters/sql_export/tests/
 
 

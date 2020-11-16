@@ -27,10 +27,7 @@ class LoraCache(object):
         logger.info(msg.format(resolve_dar, full_history))
         self.resolve_dar = resolve_dar
 
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = self._load_settings()
 
         self.additional = {
             'relationer': ('tilknyttedeorganisationer', 'tilhoerer')
@@ -41,6 +38,12 @@ class LoraCache(object):
         self.full_history = full_history
         self.skip_past = skip_past
         self.org_uuid = self._read_org_uuid()
+
+    def _load_settings(self):
+        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+        if not cfg_file.is_file():
+            raise Exception('No setting file')
+        return json.loads(cfg_file.read_text())
 
     def _read_org_uuid(self):
         mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
