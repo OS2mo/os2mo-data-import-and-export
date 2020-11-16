@@ -341,6 +341,12 @@ For adresser angives en synlighed, som kan antage værdien `PUBLIC`, `INTERNAL`,
 offentlig, intern, hemmelig, eller ikke angivet. UUID'er er på de tilhørende
 adresseklasser i MO som AD felterne skal mappes til.
 
+Hvis der findes flere adresser i MO med samme type og synlighed, springer
+programmet den givne adresse over, og skriver en advarsel i loggen. Det
+forventes herefter at brugeren af programmet løser denne situation, enten ved
+at sikre unikheden direkte, eller ved oprettelse af en speciel adresseklasse
+som udelukkende benyttes af AD, hvormed unikheden sikres ad den vej.
+
 Hvis der for en given bruger er felter i feltmapningen som ikke findes i AD, vil
 disse felter bliver sprunget over, men de øvrige felter vil stadig blive
 synkroniseret.
