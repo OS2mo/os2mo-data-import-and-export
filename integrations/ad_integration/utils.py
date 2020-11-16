@@ -112,11 +112,12 @@ def dict_map(dicty, key_func=None, value_func=None, func=None):
     Returns:
         dict: A dict where func has been applied to every value.
     """
+
     def identity(x):
         return x
 
     def tuple_identity(x, y):
-        return (x,y)
+        return (x, y)
 
     def help_call(func):
         def inner(x, **kwargs):
@@ -124,15 +125,18 @@ def dict_map(dicty, key_func=None, value_func=None, func=None):
                 return func(x, **kwargs)
             except TypeError:
                 return func(x)
+
         return inner
 
     key_func = help_call(key_func or identity)
     value_func = help_call(value_func or identity)
     func = func or tuple_identity
-    return dict([
-        func(key_func(key, value=value), value_func(value, key=key))
-        for key, value in dicty.items()
-    ])
+    return dict(
+        [
+            func(key_func(key, value=value), value_func(value, key=key))
+            for key, value in dicty.items()
+        ]
+    )
 
 
 def dict_partition(func, dicty):
@@ -163,16 +167,11 @@ def dict_filter(func, dicty):
 
 
 def dict_exclude(dicty, keys):
-    return dict_filter(
-        lambda key, value: key not in keys,
-        dicty
-    )
+    return dict_filter(lambda key, value: key not in keys, dicty)
+
 
 def dict_subset(dicty, keys):
-    return dict_filter(
-        lambda key, value: key in keys,
-        dicty
-    )
+    return dict_filter(lambda key, value: key in keys, dicty)
 
 
 def duplicates(iterable):
