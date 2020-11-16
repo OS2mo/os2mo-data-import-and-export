@@ -70,7 +70,7 @@ OnPayroll = [
 ]
 
 
-class TestMoAgainsSd(object):
+class TestMOAgainstSd(object):
     def __init__(self):
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
@@ -349,7 +349,7 @@ def cli(ctx, json, progress):
 # Example UUID: 'fadfcc38-5d42-4857-a950-0adc65babb13'
 def check_user(ctx, uuid):
     """Check a single employee."""
-    tester = TestMoAgainsSd()
+    tester = TestMOAgainstSd()
     _, test_result = tester.check_user(str(uuid))
 
     if ctx.obj['json']:
@@ -364,7 +364,7 @@ def check_user(ctx, uuid):
 # Example UUID: 'ea5a237a-8f8b-4300-9a00-000006180002'
 def check_department(ctx, uuid):
     """Check all employees in an organisation."""
-    tester = TestMoAgainsSd()
+    tester = TestMOAgainstSd()
     _, test_result = tester.check_department(str(uuid), ctx.obj['progress'])
 
     if ctx.obj['json']:
@@ -378,7 +378,7 @@ def check_department(ctx, uuid):
 @click.pass_context
 def check_all(ctx, limit):
     """Check limit/all employees in an MO instance."""
-    tester = TestMoAgainsSd()
+    tester = TestMOAgainstSd()
     test_result = tester.check_all(limit, ctx.obj['progress'])
 
     if ctx.obj['json']:
