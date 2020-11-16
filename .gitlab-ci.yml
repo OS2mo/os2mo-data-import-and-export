@@ -91,7 +91,7 @@ Test LoraCache Exporter:
   extends: .test-python
   script:
     - cd integrations/ad_integration/
-    - pytest tests/
+    - pytest tests/ --ignore tests/test_ad_writer.py
 
 
 Test OS2Sync Integration:
@@ -102,6 +102,7 @@ Test OS2Sync Integration:
     - python -m doctest integrations/os2sync/os2mo.py
 
 
+# Breaks, not ready for CI
 .Test SDLoen Integration:
   extends: .test-python
   script:
