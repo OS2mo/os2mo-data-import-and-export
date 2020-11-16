@@ -25,6 +25,7 @@ class LoraCache(object):
     def __init__(self, resolve_dar=True, full_history=False, skip_past=False):
         msg = 'Start LoRa cache, resolve dar: {}, full_history: {}'
         logger.info(msg.format(resolve_dar, full_history))
+        self.resolve_dar = resolve_dar
 
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
@@ -920,16 +921,18 @@ class LoraCache(object):
             lambda dar_uuid: (dar_uuid, {'betegnelse': None}), dar_uuids
         ))
         total_dar = len(dar_uuids)
+        total_missing = total_dar
 
         # Start looking entries up in DAR
-        dar_addresses, missing = dar_helper.sync_dar_fetch(dar_uuids)
-        dar_adgange, missing = dar_helper.sync_dar_fetch(
-            list(missing), addrtype="adgangsadresser"
-        )
-        total_missing = len(missing)
+        if self.resolve_dar:
+            dar_addresses, missing = dar_helper.sync_dar_fetch(dar_uuids)
+            dar_adgange, missing = dar_helper.sync_dar_fetch(
+                list(missing), addrtype="adgangsadresser"
+            )
+            total_missing = len(missing)
 
-        dar_cache.update(dar_addresses)
-        dar_cache.update(dar_adgange)
+            dar_cache.update(dar_addresses)
+            dar_cache.update(dar_adgange)
 
         # Update all addresses with betegnelse
         for dar_uuid, uuid_list in self.dar_map.items():
