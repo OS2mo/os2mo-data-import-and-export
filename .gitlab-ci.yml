@@ -65,6 +65,12 @@ Lint AD Integration:
     - docker
 
 
+Test LoraCache Exporter:
+  extends: .test-python
+  script:
+    - pytest exporters/sql_export/tests/
+
+
 Test AD Integration:
   extends: .test-python
   script:
