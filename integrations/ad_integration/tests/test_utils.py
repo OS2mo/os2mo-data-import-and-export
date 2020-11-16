@@ -6,6 +6,7 @@ from random import choice, randint
 from unittest import TestCase
 
 import requests
+from integrations.ad_integration.read_ad_conf_settings import read_settings
 
 from ad_sync import AdMoSync
 from ad_writer import ADWriter
@@ -164,10 +165,20 @@ class ADWriterTestSubclass(ADWriter):
             # Add our script to the list
             self.scripts.append(ps_script)
             # Fake the WinRM run_ps return type
-            return AttrDict({"status_code": 0, "std_out": b"", "std_err": b"",})
+            return AttrDict(
+                {
+                    "status_code": 0,
+                    "std_out": b"",
+                    "std_err": b"",
+                }
+            )
 
         # Fake the WinRM session object
-        return AttrDict({"run_ps": run_ps,})
+        return AttrDict(
+            {
+                "run_ps": run_ps,
+            }
+        )
 
     def _get_retry_exceptions(self):
         """Mocked to return an empty list, i.e. never retry.
@@ -375,9 +386,6 @@ class TestADWriterMixin(TestADMixin):
         transform_mo_values=None,
         early_transform_settings=None,
     ):
-        from integrations.ad_integration.read_ad_conf_settings import \
-            read_settings
-
         transformer_func = late_transform_settings or _no_transformation
         self.settings = transformer_func(
             read_settings(self._prepare_settings(early_transform_settings))
@@ -460,7 +468,11 @@ class AdMoSyncTestSubclass(AdMoSync):
             # If we got that one person, return it
             return self.ad_values
 
-        self.ad_reader = AttrDict({"read_user": read_user,})
+        self.ad_reader = AttrDict(
+            {
+                "read_user": read_user,
+            }
+        )
 
 
 class TestADMoSyncMixin(TestADMixin):
