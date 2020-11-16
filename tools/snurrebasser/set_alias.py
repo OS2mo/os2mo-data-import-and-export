@@ -20,7 +20,7 @@ def async_to_sync(f):
             await sleep(seconds)
 
         sleepy(5)
-    
+
     Args:
         f (async function): The async function to wrap and make synchronous.
 
@@ -99,7 +99,9 @@ async def set_aliases(edit_payload, client, mo_url):
 
 @click.command()
 @click.option(
-    "--query", help="Search query to find employees.", show_default=True,
+    "--query",
+    help="Search query to find employees.",
+    show_default=True,
 )
 @click.option(
     "--uuid",
