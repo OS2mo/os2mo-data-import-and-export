@@ -13,14 +13,18 @@ import ad_templates
 
 from ad_template_engine import template_powershell
 
+from utils import dict_exclude, dict_subset
+
 from integrations.ad_integration.ad_exceptions import CprNotNotUnique
 from integrations.ad_integration.ad_exceptions import UserNotFoundException
 from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
 from integrations.ad_integration.ad_exceptions import ReplicationFailedException
+from integrations.ad_integration.ad_exceptions import NoActiveEngagementsException
 from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException
 from integrations.ad_integration.ad_exceptions import SamAccountNameNotUnique
 from integrations.ad_integration.ad_exceptions import (
-    ManagerNotUniqueFromCprException)
+    ManagerNotUniqueFromCprException
+)
 
 from ad_common import AD
 from user_names import CreateUserNames
@@ -64,13 +68,43 @@ class MODataSource(ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def find_primary_engagement(self, uuid):
+        """Find the primary engagement for the provided uuid user.
+
+        Args:
+            uuid: UUID for the user to find primary engagement for.
+
+        Returns:
+            tuple(string, string, string, string):
+                employment_number: Identifier for the engagement.
+                title: Title of the job function for the engagement
+                eng_org_unit: UUID of the organisation unit for the engagement
+                eng_uuid: UUID of the found engagement
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_manager_uuid(self, mo_user, eng_uuid):
+        """Get UUID of the relevant manager for the user.
+
+        Args:
+            mo_user: MO user object, as returned by read_user.
+            eng_uuid: UUID of the engagement, as returned by find_primary_engagement.
+
+        Returns:
+            str: A UUID string for the manager
+        """
+        raise NotImplementedError
+
 
 class LoraCacheSource(MODataSource):
     """LoraCache implementation of the MODataSource interface."""
 
-    def __init__(self, lc, lc_historic):
+    def __init__(self, lc, lc_historic, mo_rest_source):
         self.lc = lc
         self.lc_historic = lc_historic
+        self.mo_rest_source = mo_rest_source
 
     def read_user(self, uuid):
         if uuid not in self.lc.users:
@@ -82,20 +116,90 @@ class LoraCacheSource(MODataSource):
             'name': lc_user['navn'],
             'surname': lc_user['efternavn'],
             'givenname': lc_user['fornavn'],
-            'alias': lc_user['kaldenavn'],
-            'alias_givenname': lc_user['kaldenavn_fornavn'],
-            'alias_surname': lc_user['kaldenavn_efternavn'],
+            'nickname': lc_user['kaldenavn'],
+            'nickname_givenname': lc_user['kaldenavn_fornavn'],
+            'nickname_surname': lc_user['kaldenavn_efternavn'],
             'cpr_no': lc_user['cpr']
         }
-
         return mo_user
 
     def get_email_address(self, uuid):
         mail_dict = {}
         for addr in self.lc.addresses.values():
-            if addr[0]['user'] == uuid:
+            if addr[0]['user'] == uuid and addr[0]['scope'] == 'E-mail':
                 mail_dict = addr[0]
-        return mail_dict
+        return dict_subset(mail_dict, ['uuid', 'value'])
+
+    def find_primary_engagement(self, uuid):
+        def filter_for_user(engagements):
+            return filter(
+                lambda eng: eng[0]['user'] == uuid, engagements
+            )
+        def filter_primary(engagements):
+            return filter(
+                lambda eng: eng[0]['primary_boolean'], engagements
+            )
+
+        user_engagements = list(filter_for_user(self.lc.engagements.values()))
+        # No user engagements
+        if not user_engagements:
+            # But we may still have future engagements
+            future_engagement = next(
+                filter_for_user(self.lc_historic.engagements.values()), None
+            )
+            # We do not have any engagements at all
+            if future_engagement is None:
+                raise NoActiveEngagementsException()
+            # We have future engagements, but LoraCache does not handle that.
+            # Delegate to MORESTSource
+            logger.info('Found future engagement')
+            return self.mo_rest_source.find_primary_engagement(uuid)
+
+        primary_engagement = next(filter_primary(user_engagements), None)
+        if primary_engagement is None:
+            raise NoPrimaryEngagementException('User: {}'.format(uuid))
+
+        primary_engagement = primary_engagement[0]
+        employment_number = primary_engagement['user_key']
+        title = self.lc.classes[primary_engagement['job_function']]['title']
+        eng_org_unit = primary_engagement['unit']
+        eng_uuid = primary_engagement['uuid']
+        return employment_number, title, eng_org_unit, eng_uuid
+
+    def get_manager_uuid(self, mo_user, eng_uuid):
+        def org_uuid_parent(org_uuid):
+            parent_uuid = self.lc.units[org_uuid][0]['parent']
+            return parent_uuid
+
+        def org_uuid_to_manager(org_uuid):
+            org_unit = self.lc.units[org_uuid][0]
+            manager_uuid = self.lc.managers[
+                org_unit['acting_manager_uuid']
+            ][0]['user']
+            return manager_uuid
+
+        try:
+            # Compatibility to mimic MORESTSource behaviour
+            # MORESTSource does an engagement lookup in the present, using
+            # the org uuid from that and fails if it doesn't find anything
+            engagement = self.lc.engagements[eng_uuid][0]
+            eng_org_unit = engagement['unit']
+            manager_uuid = org_uuid_to_manager(eng_org_unit)
+            if manager_uuid is None:
+                raise Exception("Unable to find manager")
+            # We found a manager directly
+            if manager_uuid != mo_user['uuid']:
+                return manager_uuid
+            # Self manager, find a manager above us, if possible
+            parent_uuid = org_uuid_parent(eng_org_unit)
+            while manager_uuid == mo_user['uuid']:
+                if parent_uuid is None:
+                    break
+                manager_uuid = org_uuid_to_manager(parent_uuid)
+                parent_uuid = org_uuid_parent(parent_uuid)
+            return manager_uuid
+        except KeyError as exp:
+            return None
 
 
 class MORESTSource(MODataSource):
@@ -112,11 +216,43 @@ class MORESTSource(MODataSource):
             raise UserNotFoundException()
         else:
             assert(mo_user['uuid'] == uuid)
+        exclude_fields = ['org', 'user_key']
+        mo_user = dict_exclude(mo_user, exclude_fields)
         return mo_user
 
     def get_email_address(self, uuid):
         mail_dict = self.helper.get_e_address(uuid, scope='EMAIL')
-        return mail_dict
+        return dict_subset(mail_dict, ['uuid', 'value'])
+
+    def find_primary_engagement(self, uuid):
+        def filter_primary(engagements):
+            return filter(
+                lambda eng: eng['is_primary'], engagements
+            )
+
+        user_engagements = self.helper.read_user_engagement(
+            uuid, calculate_primary=True, read_all=True, skip_past=True
+        )
+        if not user_engagements:
+            raise NoActiveEngagementsException()
+
+        primary_engagement = next(filter_primary(user_engagements), None)
+        if primary_engagement is None:
+            raise NoPrimaryEngagementException('User: {}'.format(uuid))
+
+        employment_number = primary_engagement['user_key']
+        title = primary_engagement['job_function']['name']
+        eng_org_unit = primary_engagement['org_unit']['uuid']
+        eng_uuid = primary_engagement['uuid']
+        return employment_number, title, eng_org_unit, eng_uuid
+
+    def get_manager_uuid(self, mo_user, eng_uuid):
+        try:
+            manager = self.helper.read_engagement_manager(eng_uuid)
+            manager_uuid = manager['uuid']
+            return manager_uuid
+        except KeyError:
+            return None
 
 
 class ADWriter(AD):
@@ -125,15 +261,14 @@ class ADWriter(AD):
         self.opts = dict(**kwargs)
 
         self.settings = self.all_settings
-        # self.pet = self.settings['integrations.ad.write.primary_types']
 
         # Setup datasource for getting MO data.
         # TODO: Create a factory instead of this hackery?
         # Default to using MORESTSource as data source
         self.datasource = MORESTSource(self.settings)
         # Use LoraCacheSource if LoraCache is provided
-        if lc:
-            self.datasource = LoraCacheSource(lc, lc_historic)
+        if lc and lc_historic:
+            self.datasource = LoraCacheSource(lc, lc_historic, self.datasource)
         # NOTE: These should be eliminated when all uses are gone
         # NOTE: Once fully utilized, tests should be able to just implement a
         #       MODataSource for all their mocking needs.
