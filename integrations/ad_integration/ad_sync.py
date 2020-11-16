@@ -141,7 +141,9 @@ class AdMoSync(object):
             potential_matches = filter(check_address_visibility, potential_matches)
             # Consume iterator, verifying either 0 or 1 elements are returned
             found_address = next(potential_matches, None)
-            assert next(potential_matches, None) == None
+            if next(potential_matches, None):
+                logger.warning('Multiple addresses found, not syncing for {}: {}'.format(uuid, field))
+                continue
             if found_address is not None:
                 types_to_edit[field] = found_address
         logger.debug('Existing fields for {}: {}'.format(uuid, types_to_edit))

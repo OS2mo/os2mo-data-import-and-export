@@ -209,10 +209,9 @@ def perform_write_test():
             if prop in minimum_expected_fields:
                 minimum_expected_fields[prop] = True
 
-    if False in minumum_expected_fields.values():
-        print('An import field is not found on the tested users')
-        print(minumum_expected_fields)
-        exit(1)
+    if not all(minimum_expected_fields.values()):
+        print('An import field is now found on the tested users')
+        print(minimum_expected_fields)
     else:
         print('Test of AD fields for writing is a success')
 

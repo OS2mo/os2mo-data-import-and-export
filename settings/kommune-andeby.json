@@ -159,6 +159,7 @@
     "os2sync.email_scope_classes": [],
     "os2sync.api_url" : "/url-to-os2sync-api",
     "os2sync.top_unit_uuid": "uuid for administrative org top unit in os2mo",
+    "os2sync.xfer_cpr": "xfer_cpr",
 
     "integrations.os2opgavefordeler.url": "",
     "integrations.os2opgavefordeler.token": "",

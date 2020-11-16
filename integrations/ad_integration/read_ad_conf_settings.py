@@ -191,7 +191,7 @@ def _NEVER_read_school_ad_settings():
         if not val:
             missing.append(key)
     if missing:
-        msg = 'Missing values for {}, skiping school AD'.format(missing)
+        msg = 'Missing values for {}, skipping school AD'.format(missing)
         logger.info(msg)
         school_settings['read_school'] = False
     else:
