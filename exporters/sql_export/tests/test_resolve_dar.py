@@ -6,7 +6,6 @@ from uuid import uuid4
 import pytest
 from hypothesis import given
 from hypothesis.strategies import booleans, lists, uuids
-from parameterized import parameterized
 
 import exporters.sql_export.lora_cache
 from exporters.sql_export.lora_cache import LoraCache
