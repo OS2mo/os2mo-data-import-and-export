@@ -296,7 +296,7 @@ def generate_json():
 
     def enrich_employees_with_associations(employee_map):
         def gen_association(tilknytning, enhed):
-            return tilknytning.bruger_uuid, {
+            return {
                 "title": tilknytning.tilknytningstype_titel,
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
