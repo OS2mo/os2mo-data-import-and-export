@@ -106,9 +106,11 @@ def generate_json():
             .filter(Engagement.bruger_uuid == Bruger.uuid)
             .all()
         )
-
         for engagement, bruger in queryset:
             if engagement.enhed_uuid not in org_unit_map:
+                logger.error(
+                    "Engagement not found in org_unit_map: " + str(engagement.enhed_uuid)
+                )
                 continue
             engagement_entry = {
                 "title": engagement.stillingsbetegnelse_titel,
@@ -127,6 +129,9 @@ def generate_json():
 
         for tilknytning, bruger in queryset:
             if tilknytning.enhed_uuid not in org_unit_map:
+                logger.error(
+                    "Tilknytning not found in org_unit_map: " + str(tilknytning.enhed_uuid)
+                )
                 continue
             association_entry = {
                 "title": tilknytning.tilknytningstype_titel,
@@ -164,6 +169,9 @@ def generate_json():
 
         for kle in queryset:
             if kle.enhed_uuid not in org_unit_map:
+                logger.error(
+                    "KLE not found in org_unit_map: " + str(kle.enhed_uuid)
+                )
                 continue
             if kle.kle_aspekt_titel != 'Udførende':
                 continue
@@ -258,6 +266,12 @@ def generate_json():
             add_org_unit(enhed)
 
         for engagement, enhed in queryset:
+            if engagement.bruger_uuid not in employee_map:
+                logger.error(
+                    "Engagement not found in employee_map: " + str(engagement.bruger_uuid)
+                )
+                continue
+
             engagement_entry = {
                 "title": engagement.stillingsbetegnelse_titel,
                 "name": enhed.navn,
@@ -278,6 +292,11 @@ def generate_json():
             add_org_unit(enhed)
 
         for tilknytning, enhed in queryset:
+            if tilknytning.bruger_uuid not in employee_map:
+                logger.error(
+                    "Tilknytning not found in employee_map: " + str(tilknytning.bruger_uuid)
+                )
+                continue
             tilknytning_entry = {
                 "title": tilknytning.tilknytningstype_titel,
                 "name": enhed.navn,
