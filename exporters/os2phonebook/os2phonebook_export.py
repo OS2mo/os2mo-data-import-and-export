@@ -120,63 +120,60 @@ def generate_json():
             return True
         return filter_missing_entry
 
+    def enrich_org_unit_with_x(org_unit_map, entry_type, entry_gen, entries):
+        def gen_entry(x, bruger):
+            return x.enhed_uuid, entry_gen(x, bruger)
+        missing_entry_filter = missing_entry_builder(
+            org_unit_map, entry_type.capitalize()
+        )
+
+        entries = starmap(gen_entry, entries)
+        entries = filter(missing_entry_filter, entries)
+        for unit_uuid, entry in entries:
+            org_unit_map[unit_uuid][entry_type].append(entry)
+        return org_unit_map
 
     def enrich_org_units_with_engagements(org_unit_map):
         def gen_engagement(engagement, bruger):
-            return engagement.enhed_uuid, {
+            return {
                 "title": engagement.stillingsbetegnelse_titel,
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-        missing_entry_filter = missing_entry_builder(org_unit_map, "Engagement")
-
-        # Enrich with engagements
-        engagements = (
-            session.query(Engagement, Bruger)
-            .filter(Engagement.bruger_uuid == Bruger.uuid)
-            .all()
+        engagements = session.query(Engagement, Bruger).filter(
+            Engagement.bruger_uuid == Bruger.uuid
+        ).all()
+        return enrich_org_unit_with_x(
+            org_unit_map, "engagements", gen_engagement, engagements
         )
-        engagements = starmap(gen_engagement, engagements)
-        engagements = filter(missing_entry_filter, engagements)
-        for unit_uuid, engagement in engagements:
-            org_unit_map[unit_uuid]["engagements"].append(engagement)
-        return org_unit_map
 
     def enrich_org_units_with_associations(org_unit_map):
         def gen_association(tilknytning, bruger):
-            return tilknytning.enhed_uuid, {
+            return {
                 "title": tilknytning.tilknytningstype_titel,
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-        missing_entry_filter = missing_entry_builder(org_unit_map, "Association")
-
         associations = session.query(Tilknytning, Bruger).filter(
             Tilknytning.bruger_uuid == Bruger.uuid
         ).all()
-        associations = starmap(gen_association, associations)
-        associations = filter(missing_entry_filter, associations)
-        for unit_uuid, association in associations:
-            org_unit_map[unit_uuid]["associations"].append(association)
-        return org_unit_map
+        return enrich_org_unit_with_x(
+            org_unit_map, "associations", gen_association, associations
+        )
 
     def enrich_org_units_with_management(org_unit_map):
         def gen_management(leder, bruger):
-            return leder.enhed_uuid, {
+            return {
                 "title": leder.ledertype_titel,
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-        missing_entry_filter = missing_entry_builder(org_unit_map, "Management")
-
         managements = session.query(Leder, Bruger).filter(
             Leder.bruger_uuid == Bruger.uuid
         ).all()
-        managements = starmap(gen_management, managements)
-        managements = filter(missing_entry_filter, managements)
-        for unit_uuid, management in managements:
-            org_unit_map[unit_uuid]["management"].append(management)
-        return org_unit_map
+        return enrich_org_unit_with_x(
+            org_unit_map, "management", gen_management, managements
+        )
 
     def enrich_org_units_with_kles(org_unit_map):
         def gen_kle(kle):
@@ -266,29 +263,36 @@ def generate_json():
         employee_map = dict(map(create_uuid_tuple, employees))
         return employee_map
 
+    def enrich_employees_with_x(employee_map, entry_type, entry_gen, entries):
+        def gen_entry(x, enhed):
+            return x.bruger_uuid, entry_gen(x, enhed)
+        missing_entry_filter = missing_entry_builder(
+            employee_map, entry_type.capitalize()
+        )
+        # Add org-units to queue as side-effect
+        entries = side_effect(
+            lambda x_enhed: add_org_unit(x_enhed[1]),
+            entries
+        )
+        entries = starmap(gen_entry, entries)
+        entries = filter(missing_entry_filter, entries)
+        for bruger_uuid, entry in entries:
+            employee_map[bruger_uuid][entry_type].append(entry)
+        return employee_map
+
     def enrich_employees_with_engagements(employee_map):
         def gen_engagement(engagement, enhed):
-            return engagement.bruger_uuid, {
+            return {
                 "title": engagement.stillingsbetegnelse_titel,
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-        missing_entry_filter = missing_entry_builder(employee_map, "Engagement")
-
-        # Enrich with engagements
         engagements = session.query(Engagement, Enhed).filter(
             Engagement.enhed_uuid == Enhed.uuid
         ).all()
-        # Add org-units to queue as side-effect
-        engagements = side_effect(
-            lambda x_enhed: add_org_unit(x_enhed[1]),
-            engagements
+        return enrich_employees_with_x(
+            employee_map, "engagements", gen_engagement, engagements
         )
-        engagements = starmap(gen_engagement, engagements)
-        engagements = filter(missing_entry_filter, engagements)
-        for bruger_uuid, engagement in engagements:
-            employee_map[bruger_uuid]["engagements"].append(engagement)
-        return employee_map
 
     def enrich_employees_with_associations(employee_map):
         def gen_association(tilknytning, enhed):
@@ -297,49 +301,29 @@ def generate_json():
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-        missing_entry_filter = missing_entry_builder(employee_map, "Association")
-
-        # Enrich with associations
         associations = session.query(Tilknytning, Enhed).filter(
             Tilknytning.enhed_uuid == Enhed.uuid
         ).all()
-        # Add org-units to queue as side-effect
-        associations = side_effect(
-            lambda x_enhed: add_org_unit(x_enhed[1]),
-            associations
+        return enrich_employees_with_x(
+            employee_map, "associations", gen_association, associations
         )
-        associations = starmap(gen_association, associations)
-        associations = filter(missing_entry_filter, associations)
-        for bruger_uuid, association in associations:
-            employee_map[bruger_uuid]["associations"].append(association)
-        return employee_map
 
     def enrich_employees_with_management(employee_map):
         def gen_management(leder, enhed):
-            return leder.bruger_uuid, {
+            return {
                 "title": leder.ledertype_titel,
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-        missing_entry_filter = missing_entry_builder(employee_map, "Management")
-
-        # Enrich with management
         managements = session.query(Leder, Enhed).filter(
             Leder.enhed_uuid == Enhed.uuid
         ).filter(
             # Filter vacant leders
             Leder.bruger_uuid != None
         ).all()
-        # Add org-units to queue as side-effect
-        managements = side_effect(
-            lambda x_enhed: add_org_unit(x_enhed[1]),
-            managements
+        return enrich_employees_with_x(
+            employee_map, "management", gen_management, managements
         )
-        managements = starmap(gen_management, managements)
-        managements = filter(missing_entry_filter, managements)
-        for bruger_uuid, management in managements:
-            employee_map[bruger_uuid]["management"].append(management)
-        return employee_map
 
     def filter_employees(employee_map):
         def filter_function(phonebook_entry):
