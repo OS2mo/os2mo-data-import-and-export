@@ -202,4 +202,4 @@ def lower_list(listy):
     Returns:
         list: A list where all contained the strings are lowercase.
     """
-    return list(map(lambda x: x.lower(), listy))
+    return [x.lower() for x in listy]
