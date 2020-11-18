@@ -50,6 +50,15 @@ Desuden er det nødvendigt at angive adressen på MO og LoRa i variablerne:
  * ``mox.base``
  * ``mora.base``
 
+Brug af integrationen
+=====================
+De forskellige underprogrammer kan alle tilgåes igennem ét hoved program,
+nemlig ``sd_cli``, ved kørsel af dette program vises underprogrammerne, og
+deres parametre og formål kan udforskes. Kør blot:
+```
+python integrations/SD_Lon/sd_cli.py --help
+```
+
 Detaljer om importen
 ====================
 Udtræk fra SD Løn foregår som udgangspunkt via disse webservices:
