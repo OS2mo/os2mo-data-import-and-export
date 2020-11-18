@@ -236,7 +236,7 @@ hjælpeværktøjer:
  * ``test_sd_connectivity.py``: Et lille værktøj som tester at den lokale
    ``settings.json`` indeholder de nødvendige nøgler. Desuden tester programmet
    for en række potentielle fejl, eksempevis om felterne har gyldige værdier
-   og om det er muligt at kotakte SD Løn med de angivne brugeroplysinger.
+   og om det er muligt at kontakte SD Løn med de angivne brugeroplysinger.
 
  * ``test_mo_against_sd.py``: Et værktøj som tester udvalgte personers engagementer
    mod SD løn of checker at MO og SD er løn har samme opfattelse af om personens

@@ -100,6 +100,7 @@ class SdImport(object):
                 resp = row.get('ansvar')
                 self._add_klasse(resp, resp, 'responsibility')
 
+        # TODO: Use a for-loop, structure the data in a dictionary?
         self._add_klasse('leder_type', 'Leder', 'manager_type')
 
         self._add_klasse('Enhed', 'Enhed', 'org_unit_type')

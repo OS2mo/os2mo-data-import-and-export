@@ -1,20 +1,21 @@
+import click
 import json
 import pathlib
 import sqlite3
 from datetime import date
 from datetime import datetime
-# TODO: Soon we have done this 4 times. Should we make a small settings
-# importer, that will also handle datatype for specicic keys?
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
-RUN_DB = SETTINGS['integrations.SD_Lon.import.run_db']
 
 
 class DBOverview(object):
     def __init__(self):
-        self.run_db = RUN_DB
+        # TODO: Soon we have done this 48 times. Should we make a small settings
+        # importer, that will also handle datatype for specicic keys?
+        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+        if not cfg_file.is_file():
+            raise Exception('No setting file')
+        settings = json.loads(cfg_file.read_text())
+
+        self.run_db = settings['integrations.SD_Lon.import.run_db']
 
     def read_db_content(self):
         conn = sqlite3.connect(self.run_db, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -61,15 +62,19 @@ class DBOverview(object):
         return 'Deleted last row'
 
 
-if __name__ == '__main__':
+@click.command()
+def read_rundb():
+    """Load the run_db and print current status."""
     db_overview = DBOverview()
-
-    # print(db_overview.delete_last_row(force=True))
-    # print(db_overview.delete_last_row(force=True))
     db_overview.read_db_content()
-
     status, msg = db_overview.read_current_status()
     print(status, msg)
+
     if not status:
         raise Exception("Job is already running or dates don't match!")
-    # print(db_overview.delete_last_row())
+    # TODO: If this is a common action, make a command for it?
+    # print(db_overview.delete_last_row(force=True))
+
+
+if __name__ == '__main__':
+    read_rundb()
