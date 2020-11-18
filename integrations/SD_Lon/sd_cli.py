@@ -1,4 +1,5 @@
 import click
+
 from calculate_primary import calculate_primary
 from db_overview import read_rundb
 from fix_departments import unit_fixer
