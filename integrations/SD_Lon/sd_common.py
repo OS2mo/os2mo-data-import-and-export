@@ -11,7 +11,7 @@ from pathlib import Path
 logger = logging.getLogger("sdCommon")
 
 
-@lru_cache
+@lru_cache(maxsize=None)
 def load_settings():
     # TODO: Soon we have done this 4 times. Should we make a small settings
     # importer, that will also handle datatype for specicic keys?

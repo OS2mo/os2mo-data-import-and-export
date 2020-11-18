@@ -37,7 +37,7 @@ for name in logging.root.manager.loggerDict:
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
 
 
-@lru_cache
+@lru_cache(maxsize=None)
 def load_settings():
     cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
     if not cfg_file.is_file():
