@@ -109,7 +109,7 @@ Test AD Integration:
     - pytest tests/ --ignore tests/test_ad_sync.py
 
 
-Test OS2Sync Integration:
+.Test OS2Sync Integration:
   extends: .test-python
   script:
     - cp settings/kommune-andeby.json settings/settings.json
