@@ -70,6 +70,12 @@ class AdLifeCycle:
             "users": set(),
         }
 
+    def _is_user_in_ad(self, employee):
+        """Check if the given employee is found in AD."""
+        cpr = employee["cpr"]
+        response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
+        return bool(response)
+
     def _find_user_unit_tree(self, user):
         try:
             (
@@ -118,9 +124,8 @@ class AdLifeCycle:
         """Iterate over all users and disable non-active AD accounts."""
 
         def filter_user_not_in_ad(employee):
-            cpr = employee["cpr"]
-            response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
-            if not response:
+            in_ad = self._is_user_in_ad(employee)
+            if not in_ad:
                 logger.debug("User {} does not have an AD account".format(employee))
                 return False
             return True
@@ -166,9 +171,8 @@ class AdLifeCycle:
         """Iterate over all users and create missing AD accounts."""
 
         def filter_user_already_in_ad(employee):
-            cpr = employee["cpr"]
-            response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
-            if response:
+            in_ad = self._is_user_in_ad(employee)
+            if id_ad:
                 logger.debug("User {} is already in AD".format(employee))
                 return False
             return True
