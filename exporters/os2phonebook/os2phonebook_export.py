@@ -4,7 +4,7 @@ import logging
 import pathlib
 import time
 from itertools import starmap
-from functools import wraps
+from functools import wraps, partial
 from operator import attrgetter
 
 import click
@@ -79,6 +79,7 @@ class elapsedtime(object):
 
 def apply_tuple(func):
     """Wrap a function to apply its arguments to itself."""
+    @wraps(func)
     def wrapped(tup):
         return func(*tup)
     return wrapped
@@ -108,30 +109,48 @@ def generate_json():
     total_number_of_employees = session.query(Bruger).count()
     print("Total employees:", total_number_of_employees)
 
-    def missing_entry_builder(entry_map, entry_type):
-        """Build a filter which reject entries that cannot be written."""
-        @apply_tuple
-        def filter_missing_entry(unit_uuid, entry):
-            if unit_uuid not in entry_map:
-                logger.error(
-                    entry_type + " not found in map: " + str(unit_uuid)
-                )
-                return False
-            return True
-        return filter_missing_entry
+    def filter_missing_entry(entry_map, entry_type, unit_uuid, entry):
+        if unit_uuid not in entry_map:
+            logger.error(
+                entry_type + " not found in map: " + str(unit_uuid)
+            )
+            return False
+        return True
 
     def enrich_org_unit_with_x(org_unit_map, entry_type, entry_gen, entries):
         def gen_entry(x, bruger):
             return x.enhed_uuid, entry_gen(x, bruger)
-        missing_entry_filter = missing_entry_builder(
-            org_unit_map, entry_type.capitalize()
-        )
+        # Bind two arguments so the function only takes unit_uuid, entry.
+        # Then apply_tuple to the function takes a tuple(unit_uuid, entry).
+        missing_entry_filter = apply_tuple(partial(
+            filter_missing_entry, org_unit_map, entry_type.capitalize()
+        ))
 
         entries = starmap(gen_entry, entries)
         entries = filter(missing_entry_filter, entries)
         for unit_uuid, entry in entries:
             org_unit_map[unit_uuid][entry_type].append(entry)
         return org_unit_map
+
+    def enrich_employees_with_x(employee_map, entry_type, entry_gen, entries):
+        def gen_entry(x, enhed):
+            return x.bruger_uuid, entry_gen(x, enhed)
+        # Bind two arguments so the function only takes unit_uuid, entry.
+        # Then apply_tuple to the function takes a tuple(unit_uuid, entry).
+        missing_entry_filter = apply_tuple(partial(
+            filter_missing_entry, employee_map, entry_type.capitalize()
+        ))
+
+        # Add org-units to queue as side-effect
+        entries = side_effect(
+            lambda x_enhed: add_org_unit(x_enhed[1]),
+            entries
+        )
+        entries = starmap(gen_entry, entries)
+        entries = filter(missing_entry_filter, entries)
+        for bruger_uuid, entry in entries:
+            employee_map[bruger_uuid][entry_type].append(entry)
+        return employee_map
 
     def enrich_org_units_with_engagements(org_unit_map):
         def gen_engagement(engagement, bruger):
@@ -182,7 +201,11 @@ def generate_json():
                 # "name": kle.kle_aspekt_titel,
                 "uuid": kle.uuid,
             }
-        missing_entry_filter = missing_entry_builder(org_unit_map, "KLE")
+        # Bind two arguments so the function only takes unit_uuid, entry.
+        # Then apply_tuple to the function takes a tuple(unit_uuid, entry).
+        missing_entry_filter = apply_tuple(partial(
+            filter_missing_entry, org_unit_map, "KLE"
+        ))
 
         kles = session.query(KLE).all()
         kles = filter(lambda kle: kle.kle_aspekt_titel == 'Udførende', kles)
@@ -261,23 +284,6 @@ def generate_json():
 
         employees = map(employee_to_dict, session.query(Bruger).all())
         employee_map = dict(map(create_uuid_tuple, employees))
-        return employee_map
-
-    def enrich_employees_with_x(employee_map, entry_type, entry_gen, entries):
-        def gen_entry(x, enhed):
-            return x.bruger_uuid, entry_gen(x, enhed)
-        missing_entry_filter = missing_entry_builder(
-            employee_map, entry_type.capitalize()
-        )
-        # Add org-units to queue as side-effect
-        entries = side_effect(
-            lambda x_enhed: add_org_unit(x_enhed[1]),
-            entries
-        )
-        entries = starmap(gen_entry, entries)
-        entries = filter(missing_entry_filter, entries)
-        for bruger_uuid, entry in entries:
-            employee_map[bruger_uuid][entry_type].append(entry)
         return employee_map
 
     def enrich_employees_with_engagements(employee_map):
