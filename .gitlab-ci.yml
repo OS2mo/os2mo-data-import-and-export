@@ -59,6 +59,13 @@ Lint SetAlias Tool:
     - python -m black --diff --line-length 85 --check tools/snurrebasser/set_alias.py
     - python -m isort --diff --check-only tools/snurrebasser/set_alias.py
 
+Lint SDLoen Integration:
+  extends: .lint-python
+  script:
+    - cd integrations/SDLon/
+    - python -m black --diff --line-length 85 --check sd_cli.py
+    - python -m isort --diff --check-only sd_cli.py
+
 
 # Test stage
 ############
@@ -107,6 +114,6 @@ Test SDLoen Integration:
   extends: .test-python
   script:
     - export PYTHONPATH=$PWD:$PYTHONPATH
-    - python integrations/SD_LON/sd_cli.py --help
+    - python integrations/SD_Lon/sd_cli.py --help
     # - cp settings/kommune-andeby.json settings/settings.json
     # - pytest integrations/SD_Lon/tests/

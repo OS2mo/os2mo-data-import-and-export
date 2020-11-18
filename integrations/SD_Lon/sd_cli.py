@@ -1,12 +1,11 @@
 import click
-
+from calculate_primary import calculate_primary
+from db_overview import read_rundb
+from fix_departments import unit_fixer
+from sd_changed_at import changed_at
+from sync_job_id import sync_jobid
 from test_mo_against_sd import cli as mo_against_sd
 from test_sd_connectivity import check_connectivity
-from fix_departments import unit_fixer
-from db_overview import read_rundb
-from sync_job_id import sync_jobid
-from calculate_primary import calculate_primary
-from sd_changed_at import changed_at
 
 
 @click.group()
@@ -24,5 +23,5 @@ SDTool.add_command(calculate_primary)
 SDTool.add_command(changed_at)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     SDTool()
