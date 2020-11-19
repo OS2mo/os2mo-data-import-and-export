@@ -97,10 +97,11 @@ class ADParameterReader(AD):
                         if current_user['SamAccountName'].startswith(settings['sam_filter']):
                             self.results[cpr] = current_user
 
-                    if ria:
+                    if ria is not None:
                         ria.append(current_user)
 
-            return current_user
+                return current_user
+
         except Exception:
             logger.error('Response from uncached_read_user: {}'.format(response))
             raise
