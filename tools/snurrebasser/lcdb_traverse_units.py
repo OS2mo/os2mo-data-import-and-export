@@ -121,8 +121,8 @@ class SnurreBasse:
         }
         logger.info('Edit unit: {}'.format(payload))
         response = self.helper._mo_post('details/edit', payload)
-        if response.status_code == 400:
-            assert(response.text.find('raise to a new registration') > 0)
+        if response.status_code == 400 and response.text.find('raise to a new registration') > 0:
+            pass
         else:
             response.raise_for_status()
 
