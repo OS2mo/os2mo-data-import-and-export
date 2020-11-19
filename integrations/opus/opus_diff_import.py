@@ -760,9 +760,9 @@ class OpusDiffImport(object):
             employee_mo_uuid = self.create_user(employee)
         else:
             employee_mo_uuid = mo_user['uuid']
-            if employee.get('firstName') == None :
+            if employee.get('firstName') is None:
                 employee.update({'firstName': mo_user['givenname']})
-            if employee.get('lastName') == None :
+            if employee.get('lastName') is None:
                 employee.update({'lastName': mo_user['surname']})
             if not ((employee['firstName'] == mo_user['givenname']) and
                     (employee['lastName'] == mo_user['surname'])):
