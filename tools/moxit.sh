@@ -56,7 +56,8 @@ ITSYSTEM
 )}
 
 opret(){
-    curl --header "Content-Type: application/json" -X PUT http://localhost:8080/organisation/itsystem/${UUID} -d @-
+    uuid=${1}
+    curl --header "Content-Type: application/json" -X PUT http://localhost:8080/organisation/itsystem/${uuid} -d @-
 }
 
 #bvn="$1"
@@ -71,12 +72,13 @@ if [ -n "${existing}" ]; then
     exit 1
 fi
 
-[ -n "${bvn}" -a -n "${titel}" -a -z "${dry_run}" ] && (
-    itsystem_json "${bvn}" "${titel}" "${organisation}" | opret
+[ -n "${bvn}" -a -n "${titel}" -a -n "${uuid}" -a -z "${dry_run}" ] && (
+    itsystem_json "${bvn}" "${titel}" "${organisation}" | opret ${uuid}
 ) || (
 
     echo DRY_RUN CHECK: Du har angivet:
 
+    echo uuid: $uuid
     echo bvn: $bvn
     echo titel: $titel
 
