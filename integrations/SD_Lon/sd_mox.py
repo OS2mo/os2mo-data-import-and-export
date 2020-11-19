@@ -345,7 +345,7 @@ class sdMox(object):
     def move_unit(self, unit_name, unit_code, parent, unit_level, unit_uuid=None,
                   test_run=True):
 
-        code_errors = self._validate_unit_code(unit_code)
+        code_errors = self._validate_unit_code(unit_code, can_exist=True)
         if code_errors:
             raise SdMoxError(", ".join(code_errors))
 
