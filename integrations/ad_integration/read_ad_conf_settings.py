@@ -28,7 +28,8 @@ def _read_primary_ad_settings(top_settings):
     primary_settings['system_user'] = top_settings.get('integrations.ad.system_user')
     primary_settings['password'] = top_settings.get('integrations.ad.password')
     primary_settings['properties'] = top_settings.get('integrations.ad.properties')
-
+    primary_settings['method'] = top_settings.get("integrations.ad.method", "kerberos")
+    
     missing = []
     for key, val in primary_settings.items():
         if val is None:
