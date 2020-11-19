@@ -172,7 +172,7 @@ class AdLifeCycle:
 
         def filter_user_already_in_ad(employee):
             in_ad = self._is_user_in_ad(employee)
-            if id_ad:
+            if in_ad:
                 logger.debug("User {} is already in AD".format(employee))
                 return False
             return True

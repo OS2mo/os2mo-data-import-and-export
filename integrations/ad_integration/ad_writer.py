@@ -116,9 +116,9 @@ class LoraCacheSource(MODataSource):
             'name': lc_user['navn'],
             'surname': lc_user['efternavn'],
             'givenname': lc_user['fornavn'],
-            'nickname': lc_user['kaldenavn'],
-            'nickname_givenname': lc_user['kaldenavn_fornavn'],
-            'nickname_surname': lc_user['kaldenavn_efternavn'],
+            'alias': lc_user['kaldenavn'],
+            'alias_givenname': lc_user['kaldenavn_fornavn'],
+            'alias_surname': lc_user['kaldenavn_efternavn'],
             'cpr_no': lc_user['cpr']
         }
         return mo_user
