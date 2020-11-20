@@ -63,25 +63,6 @@ def _find_org():
     uuid = response[0]['uuid']
     return uuid
 
-
-def _search_mo_name(name, user_key):
-    url = BASE_URL + 'o/{}/e?query={}'
-    response = SESSION.get(url.format(ROOT, name))
-    result = response.json()
-    if len(result['items']) == 1:
-        return result['items'][0]['uuid']
-    # Did not succeed with simple search, try user_Key
-    response = SESSION.get(url.format(ROOT, user_key))
-    result = response.json()
-    for employee in result['items']:
-        uuid = employee['uuid']
-        mo_user = _mo_lookup(uuid)
-        if mo_user['user_key'] == user_key:
-            return(employee['uuid'])
-    # Still no success, give up and return None
-    return None
-
-
 def _load_csv(file_name):
     rows = []
     detector = UniversalDetector()
@@ -124,7 +105,7 @@ def _create_mo_ou(name, parent, org_type, bvn):
     payload = {
         'uuid': uuid,
         'user_key': str(bvn),
-        'name':  name,
+        'name': '{} {}'.format(org_type, name),
         'org_unit_type': {'uuid': ou_type},
         'parent': {'uuid': parent},
         'validity': {'from': '1930-01-01',
@@ -213,8 +194,7 @@ def create_udvalg(nodes, file_name):
             role_type = None
 
         org_id = int(row['Id'])
-        uuid = _search_mo_name(row['Fornavn'] + ' ' + row['Efternavn'],
-                               row['BrugerID'])
+        uuid = row['BrugerUUID']
         try:
             from_string = datetime.datetime.strftime(
                 datetime.datetime.strptime(row['StartDato'], '%d-%b-%y'),
@@ -239,9 +219,9 @@ def create_udvalg(nodes, file_name):
 
         else:
             logger.warning(
-                'Error: {} {}, bvn: {}'.format(row['Fornavn'],
+                'Error: {} {}, UUID: {}'.format(row['Fornavn'],
                                                row['Efternavn'],
-                                               row['BrugerID'])
+                                               row['BrugerUUID'])
             )
     return nodes
 
