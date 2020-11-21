@@ -15,6 +15,21 @@ LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'calculate_primary.log'
 
 
+def setup_logging():
+    detail_logging = ('mora-helper', 'updatePrimaryEngagements', 'sdCommon')
+    for name in logging.root.manager.loggerDict:
+        if name in detail_logging:
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
+
+
 class MOPrimaryEngagementUpdater(object):
     def __init__(self):
         # TODO: Soon we have done this 42 times. Should we make a small settings
@@ -322,6 +337,8 @@ class MOPrimaryEngagementUpdater(object):
 @click.option("--recalculate-user", type=click.UUID, help="Recalculate one user")
 def calculate_primary(check_all, recalculate_all, recalculate_user):
     """Tool to work with primary engagement(s)."""
+    setup_logging()
+
     num_set = sum(map(bool, [check_all, recalculate_all, recalculate_user]))
     if num_set == 0:
         raise click.ClickException("Please provide atleast one argument")
@@ -346,16 +363,4 @@ def calculate_primary(check_all, recalculate_all, recalculate_user):
 
 
 if __name__ == '__main__':
-    detail_logging = ('mora-helper', 'updatePrimaryEngagements', 'sdCommon')
-    for name in logging.root.manager.loggerDict:
-        if name in detail_logging:
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format='%(levelname)s %(asctime)s %(name)s %(message)s',
-        level=LOG_LEVEL,
-        filename=LOG_FILE
-    )
     calculate_primary()

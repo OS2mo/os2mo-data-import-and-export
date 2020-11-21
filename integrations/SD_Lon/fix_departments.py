@@ -18,13 +18,20 @@ LOG_FILE = 'fix_sd_departments.log'
 
 logger = logging.getLogger('fixDepartments')
 
-detail_logging = ('sdCommon', 'fixDepartments')
-for name in logging.root.manager.loggerDict:
-    if name in detail_logging:
-        logging.getLogger(name).setLevel(LOG_LEVEL)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
 
+def setup_logging():
+    detail_logging = ('sdCommon', 'fixDepartments')
+    for name in logging.root.manager.loggerDict:
+        if name in detail_logging:
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
 
 
 class FixDepartments(object):
@@ -481,6 +488,8 @@ class FixDepartments(object):
 @click.option('--department-uuid', 'uuids', multiple=True, type=click.UUID, help="UUID of the department to update")
 def unit_fixer(short_names, uuids):
     """Sync SD department information to MO."""
+    setup_logging()
+
     unit_fixer = FixDepartments()
 
     today = datetime.datetime.today()
@@ -501,9 +510,4 @@ def unit_fixer(short_names, uuids):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        format='%(levelname)s %(asctime)s %(name)s %(message)s',
-        level=LOG_LEVEL,
-        filename=LOG_FILE
-    )
     unit_fixer()

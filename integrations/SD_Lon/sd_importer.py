@@ -85,69 +85,84 @@ class SdImport(object):
             self.add_people()
 
         self.info = self._read_department_info()
-        manager_levels = [
-            # XXX: Why 1040, 1035 and 1030?
-            ('manager_1040', 'Leder'),
-            ('manager_1035', 'Chef'),
-            ('manager_1030', 'Direktør')
-        ]
-        for klasse_id, klasse in manager_levels:
-            self._add_klasse(klasse_id, klasse, 'manager_level')
 
-        if not self.manager_rows:
-            self._add_klasse('Lederansvar', 'Lederansvar', 'responsibility')
-        else:
-            for row in self.manager_rows:
+        self.add_classes(manager_rows)
+
+    def _add_classes(self, manager_rows):
+        # Format is facet -> list of entries
+        # Entries are tuples on the format '(klasse_id, klasse, scope)'
+        classes = {
+            'manager_type': [
+                ('leder_type', 'Leder'),
+            ],
+            'org_unit_type': [
+                ('Enhed', 'Enhed'),
+            ],
+            'org_unit_address_type': [
+               ('Pnummer', 'Pnummer', 'PNUMBER'),
+               ('AddressMailUnit', 'Postadresse', 'DAR'),
+               ('AdresseReturUnit', 'Returadresse', 'DAR'),
+               ('AdresseHenvendelseUnit', 'Henvendelsessted', 'DAR'),
+               ('PhoneUnit', 'Telefon', 'PHONE'),
+               ('EmailUnit', 'Email', 'EMAIL'),
+            ],
+            'employee_address_type': [
+               ('AdressePostEmployee', 'Postadresse', 'DAR'),
+               ('PhoneEmployee', 'Telefon', 'PHONE'),
+               ('MobilePhoneEmployee', 'Mobiltelefon', 'PHONE'),
+               ('LocationEmployee', 'Lokation', 'TEXT'),
+               ('EmailEmployee', 'Email', 'EMAIL'),
+            ],
+            'leave_type': [
+                ('Orlov', 'Orlov'),
+            ],
+            'engagement_type': [
+                ('månedsløn', 'Medarbejder (månedsløn)'),
+                ('timeløn', 'Medarbejder (timeløn)'),
+            ],
+            'primary_type': [
+               ('Ansat', 'Ansat', '3000'),
+               ('status0', 'Ansat - Ikke i løn', '1000'),
+               ('non-primary', 'Ikke-primær ansættelse', '0'),
+               ('explicitly-primary', 'Manuelt primær ansættelse', '5000'),
+            ],
+            'association_type': [
+                ('SD-medarbejder', 'SD-medarbejder'),
+            ],
+            'visibility': [
+               ('Ekstern', 'Må vises eksternt', 'PUBLIC'),
+               ('Intern', 'Må vises internt', 'INTERNAL'),
+               ('Hemmelig', 'Hemmelig', 'SECRET'),
+            ],
+            'manager_level': [
+                # XXX: Why 1040, 1035 and 1030?
+                ('manager_1040', 'Leder'),
+                ('manager_1035', 'Chef'),
+                ('manager_1030', 'Direktør')
+            ],
+            'responsibility': [
+                ('Lederansvar', 'Lederansvar'),
+            ],
+        }
+
+        # If specified manager_rows override default one
+        if self.manager_rows:
+            def transform_row(row):
                 resp = row.get('ansvar')
-                self._add_klasse(resp, resp, 'responsibility')
+                return resp, resp
 
-        # TODO: Use a for-loop, structure the data in a dictionary?
-        self._add_klasse('leder_type', 'Leder', 'manager_type')
+            classes['responsibilty'] = list(
+                map(transform_row, self.manager_rows)
+            )
 
-        self._add_klasse('Enhed', 'Enhed', 'org_unit_type')
-
-        self._add_klasse('Pnummer', 'Pnummer',
-                         'org_unit_address_type', 'PNUMBER')
-        self._add_klasse('AddressMailUnit', 'Postadresse',
-                         'org_unit_address_type', 'DAR')
-        self._add_klasse('AdresseReturUnit', 'Returadresse',
-                         'org_unit_address_type', 'DAR')
-        self._add_klasse('AdresseHenvendelseUnit', 'Henvendelsessted',
-                         'org_unit_address_type', 'DAR')
-        self._add_klasse('PhoneUnit', 'Telefon',
-                         'org_unit_address_type', 'PHONE')
-        self._add_klasse('EmailUnit', 'Email',
-                         'org_unit_address_type', 'EMAIL')
-
-        self._add_klasse('AdressePostEmployee', 'Postadresse',
-                         'employee_address_type', 'DAR')
-        self._add_klasse('PhoneEmployee', 'Telefon',
-                         'employee_address_type', 'PHONE')
-        self._add_klasse('MobilePhoneEmployee', 'Mobiltelefon',
-                         'employee_address_type', 'PHONE')
-        self._add_klasse('LocationEmployee', 'Lokation',
-                         'employee_address_type', 'TEXT')
-        self._add_klasse('EmailEmployee', 'Email',
-                         'employee_address_type', 'EMAIL')
-        self._add_klasse('Orlov', 'Orlov', 'leave_type')
-
-        self._add_klasse('månedsløn', 'Medarbejder (månedsløn)',
-                         'engagement_type')
-        self._add_klasse('timeløn', 'Medarbejder (timeløn)',
-                         'engagement_type')
-
-        self._add_klasse('Ansat', 'Ansat', 'primary_type', '3000')
-        self._add_klasse('status0', 'Ansat - Ikke i løn', 'primary_type', '1000')
-        self._add_klasse('non-primary', 'Ikke-primær ansættelse',
-                         'primary_type', '0')
-        self._add_klasse('explicitly-primary', 'Manuelt primær ansættelse',
-                         'primary_type', '5000')
-
-        self._add_klasse('SD-medarbejder', 'SD-medarbejder', 'association_type')
-
-        self._add_klasse('Ekstern', 'Må vises eksternt', 'visibility', 'PUBLIC')
-        self._add_klasse('Intern', 'Må vises internt', 'visibility', 'INTERNAL')
-        self._add_klasse('Hemmelig', 'Hemmelig', 'visibility', 'SECRET')
+        for facet, klasses in classes.items():
+            for klass in klasses:
+                if len(klass) == 3:
+                    klasse_id, klasse, scope = klass
+                else:
+                    klasse_id, klasse = klass
+                    scope = 'TEXT'
+                self._add_klasse(klasse_id, klasse, facet, scope)
 
     def _update_ad_map(self, cpr):
         logger.debug('Update cpr{}'.format(cpr))
@@ -717,8 +732,18 @@ class SdImport(object):
 
 @click.group()
 def cli():
-    pass
+    for name in logging.root.manager.loggerDict:
+        if name in ('sdImport', 'sdCommon', 'AdReader', 'moImporterMoraTypes',
+                    'moImporterMoxTypes', 'moImporterUtilities', 'moImporterHelpers'):
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
 
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE,
+    )
 
 
 @cli.command()
@@ -827,17 +852,4 @@ def import_user(cpr):
 
 
 if __name__ == "__main__":
-    for name in logging.root.manager.loggerDict:
-        if name in ('sdImport', 'sdCommon', 'AdReader', 'moImporterMoraTypes',
-                    'moImporterMoxTypes', 'moImporterUtilities', 'moImporterHelpers'):
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format='%(levelname)s %(asctime)s %(name)s %(message)s',
-        level=LOG_LEVEL,
-        filename=LOG_FILE
-    )
-
     cli()

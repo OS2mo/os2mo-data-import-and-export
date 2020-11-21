@@ -28,13 +28,22 @@ LOG_FILE = 'mo_integrations.log'
 
 logger = logging.getLogger("sdChangedAt")
 
-detail_logging = ('sdCommon', 'sdChangedAt', 'updatePrimaryEngagements',
-                  'fixDepartments')
-for name in logging.root.manager.loggerDict:
-    if name in detail_logging:
-        logging.getLogger(name).setLevel(LOG_LEVEL)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
+
+def setup_logging():
+    detail_logging = ('sdCommon', 'sdChangedAt', 'updatePrimaryEngagements',
+                      'fixDepartments')
+    for name in logging.root.manager.loggerDict:
+        if name in detail_logging:
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
+
 
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
 
@@ -986,6 +995,8 @@ def initialize_changed_at(from_date, run_db, force=False):
 @click.command()
 def changed_at():
     """Tool to delta synchronize with MO with SD."""
+    setup_logging()
+
     settings = load_settings()
     run_db = settings['integrations.SD_Lon.import.run_db']
 
@@ -1049,9 +1060,4 @@ def changed_at():
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        format='%(levelname)s %(asctime)s %(name)s %(message)s',
-        level=LOG_LEVEL,
-        filename=LOG_FILE
-    )
     changed_at()
