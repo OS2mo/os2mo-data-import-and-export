@@ -15,18 +15,6 @@ LOG_FILE = 'sync_job_id.log'
 
 logger = logging.getLogger('sdSyncJobId')
 
-for name in logging.root.manager.loggerDict:
-    if name in ('sdSyncJobId', 'sdCommon', 'mora-helper'):
-        logging.getLogger(name).setLevel(LOG_LEVEL)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
-
-logging.basicConfig(
-    format='%(levelname)s %(asctime)s %(name)s %(message)s',
-    level=LOG_LEVEL,
-    filename=LOG_FILE
-)
-
 
 class JobIdSync(object):
     def __init__(self):
@@ -255,4 +243,16 @@ def sync_jobid(job_pos_id, title, sync_all):
 
 
 if __name__ == '__main__':
+    for name in logging.root.manager.loggerDict:
+        if name in ('sdSyncJobId', 'sdCommon', 'mora-helper'):
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
+
     sync_jobid()

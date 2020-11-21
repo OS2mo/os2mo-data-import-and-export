@@ -6,19 +6,25 @@ import logging
 import hashlib
 import requests
 import xmltodict
-from functools import lru_cache
+from enum import Enum
+from functools import lru_cache, wraps
 from pathlib import Path
 logger = logging.getLogger("sdCommon")
 
 
 @lru_cache(maxsize=None)
 def load_settings():
-    # TODO: Soon we have done this 4 times. Should we make a small settings
-    # importer, that will also handle datatype for specicic keys?
     cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
     if not cfg_file.is_file():
-        raise Exception('No setting file')
-    settings = json.loads(cfg_file.read_text())
+        raise Exception('No settings file: ' + str(cfg_file))
+    # TODO: This must be clean up, settings should be loaded by __init__
+    # and no references should be needed in global scope.
+    return json.loads(cfg_file.read_text())
+
+
+@lru_cache(maxsize=None)
+def sd_lookup_settings():
+    settings = load_settings()
 
     institution_identifier = settings['integrations.SD_Lon.institution_identifier']
     if not institution_identifier:
@@ -35,45 +41,89 @@ def load_settings():
     return institution_identifier, sd_user, sd_password
 
 
-def sd_lookup(url, params={}, use_cache=True):
-    logger.info('Retrive: {}'.format(url))
-    logger.debug('Params: {}'.format(params))
+def _sd_lookup_cache(func):
+    # We need a cache dir to exist before we can proceed
+    cache_dir = Path('tmp/')
+    if not cache_dir.is_dir():
+        raise Exception('Folder for temporary files does not exist')
 
-    institution_identifier, sd_user, sd_password = load_settings()
+    def create_hex_digest(full_url, payload):
+        """Create a reproducible hex digest from url and payloads."""
+        hasher = hashlib.sha256()
+
+        for key, value in sorted(payload.items()):
+            hasher.update((str(key) + str(value)).encode())
+        hasher.update(full_url.encode())
+
+        return hasher.hexdigest()
+
+    def write_response(cache_file, response):
+        """Write response to disk."""
+        with open(str(cache_file), 'wb') as f:
+            pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
+
+    def read_response(cache_file):
+        """Read response from disk."""
+        with open(str(cache_file), 'rb') as f:
+            response = pickle.load(f)
+        return response
+
+    @wraps(func)
+    def wrapper(full_url, payload, auth, use_cache=True):
+        # Short-circuit as noop, if no caching is requested
+        if use_cache == False:
+            return func(full_url, payload, auth)
+
+        # Create digest and find filename
+        lookup_id = create_hex_digest(full_url, payload)
+        cache_file = Path('tmp/sd_' + lookup_id + '.p')
+
+        # If cache file was found, use it
+        if cache_file.is_file():
+            response = read_response(cache_file)
+            logger.info('This SD lookup was found in cache: {}'.format(lookup_id))
+            print(full_url, "read from cache")
+        else:  # No cache
+            response = func(full_url, payload, auth)
+            write_response(cache_file, response)
+            print(full_url, "requested from SD")
+        return response
+    return wrapper
+
+
+@_sd_lookup_cache
+def _sd_request(full_url, payload, auth):
+    """Fire the actual request against SD.
+
+    Annotation only calls this if we did not hit the cache.
+    """
+    return requests.get(
+        full_url,
+        params=payload,
+        auth=auth,
+    )
+
+
+def sd_lookup(url, params={}, use_cache=True):
+    """Fire a requests against SD.
+
+    Utilizes _sd_request to fire the actual request, which in turn utilize
+    _sd_lookup_cache for caching.
+    """
+    logger.info('Retrieve: {}'.format(url))
+    logger.debug('Params: {}'.format(params))
 
     BASE_URL = 'https://service.sd.dk/sdws/'
     full_url = BASE_URL + url
+
+    institution_identifier, sd_user, sd_password = sd_lookup_settings()
 
     payload = {
         'InstitutionIdentifier': institution_identifier,
     }
     payload.update(params)
-    m = hashlib.sha256()
-
-    keys = sorted(payload.keys())
-    for key in keys:
-        m.update((str(key) + str(payload[key])).encode())
-    m.update(full_url.encode())
-    lookup_id = m.hexdigest()
-
-    cache_dir = Path('tmp/')
-    if not cache_dir.is_dir():
-        raise Exception('Folder for temporary files does not exist')
-
-    cache_file = Path('tmp/sd_' + lookup_id + '.p')
-
-    if cache_file.is_file() and use_cache:
-        with open(str(cache_file), 'rb') as f:
-            response = pickle.load(f)
-        logger.info('This SD lookup was found in cache: {}'.format(lookup_id))
-    else:
-        response = requests.get(
-            full_url,
-            params=payload,
-            auth=(sd_user, sd_password)
-        )
-        with open(str(cache_file), 'wb') as f:
-            pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
+    auth=(sd_user, sd_password)
+    response = _sd_request(full_url, payload, auth, use_cache=use_cache)
 
     dict_response = xmltodict.parse(response.text)
 
@@ -115,6 +165,7 @@ def generate_uuid(value, org_id_prefix, org_name=None):
     """
     Code almost identical to this also lives in the Opus importer.
     """
+    # TODO: Refactor to avoid duplication
     if org_id_prefix:
         base_hash = hashlib.md5(org_id_prefix.encode())
     else:
@@ -170,3 +221,55 @@ def primary_types(helper):
     if None in type_uuids.values():
         raise Exception('Missing primary types: {}'.format(type_uuids))
     return type_uuids
+
+
+class EmploymentStatus(Enum):
+    """Corresponds to EmploymentStatusCode from SD.
+
+    Employees usually start in AnsatUdenLoen, and then change to AnsatMedLoen.
+    This will usually happen once they actually have their first day at work.
+
+    From AnsatMedLoen they can somewhat freely transfer to the other statusses.
+    This includes transfering back to AnsatMedLoen from any other status.
+
+    Note for instance, that it is entirely possible to be Ophoert and then get
+    hired back, and thus go from Ophoert to AnsatMedLoen.
+
+    There is only one terminal state, namely Slettet, wherefrom noone will
+    return. This state is invoked from status 7-8-9 after a few years.
+
+    Status Doed will probably only migrate to status slettet, but there are no
+    guarantees given.
+    """
+    # This status most likely represent not yet being at work
+    AnsatUdenLoen = '0'
+
+    # These statusses represent being at work
+    AnsatMedLoen = '1'
+    Overlov = '3'
+
+    # These statusses represent being let go
+    Migreret = '7'
+    Ophoert = '8'
+    Doed = '9'
+
+    # This status is the special terminal state
+    Slettet = 'S'
+
+
+Employeed = [
+    EmploymentStatus.AnsatUdenLoen,
+    EmploymentStatus.AnsatMedLoen,
+    EmploymentStatus.Overlov
+]
+LetGo = [
+    EmploymentStatus.Migreret,
+    EmploymentStatus.Ophoert,
+    EmploymentStatus.Doed
+]
+OnPayroll = [
+    EmploymentStatus.AnsatMedLoen,
+    EmploymentStatus.Overlov
+]
+
+

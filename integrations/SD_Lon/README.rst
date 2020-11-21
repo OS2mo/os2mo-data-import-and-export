@@ -291,10 +291,10 @@ Tjekliste for fuldt import
 Overordnet foregår opstart af en ny SD import efter dette mønster:
 
 1. Kør importværktøjet med fuld historik (dette er standard opførsel).
-2. Kør en inledende ChangedAt for at hente alle kendte fremtidige ændringer og
+2. Kør en indledende ChangedAt for at hente alle kendte fremtidige ændringer og
    intitialisere den lokale database over kørsler.
 3. Kør sd_changed_at.py periodisk (eksempelvis dagligt).
-4. Eventuelt synkroisering af stillingsbetegnelser.
+4. Eventuelt synkronisering af stillingsbetegnelser.
 5. Eventuelt synkronisering fra AD.
    
 1. Kør importværktøjet
@@ -318,10 +318,10 @@ Importen kan derefter køres med disse trin:
 
 .. code-block:: python
 
-    sd = sd_importer.SdImport(
-	importer,
-        ad_info=None,
-	manager_rows=None
+   sd = sd_importer.SdImport(
+       importer,
+       ad_info=None,
+	   manager_rows=None
    )
 
    sd.create_ou_tree(
@@ -344,8 +344,8 @@ undertræet med den pågældende uuid i SD som vil blive importeret. Det er i
 Importen vil nu blive afviklet og nogle timer senere vil MO være populeret med
 værdierne fra SD Løn som de ser ud dags dato.
 
-2. Kør en inledende ChangedAt
------------------------------
+2. Kør en indledende ChangedAt
+------------------------------
 I SD Løn importeres i udgangspunktet kun nuværende og forhenværende medarbejdere og
 engagementer, fremtidige ændringer skal hentes i en seperat process. Denne process
 håndteres af programmet `sd_changed_at.py` (som også anvendes til efterfølgende

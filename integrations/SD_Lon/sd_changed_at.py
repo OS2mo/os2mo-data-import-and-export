@@ -17,6 +17,8 @@ from integrations.SD_Lon import exceptions
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import calc_employment_id
+from integrations.SD_Lon.sd_common import load_settings
+
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater
 
@@ -35,14 +37,6 @@ for name in logging.root.manager.loggerDict:
         logging.getLogger(name).setLevel(logging.ERROR)
 
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
-
-
-@lru_cache(maxsize=None)
-def load_settings():
-    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-    if not cfg_file.is_file():
-        raise Exception('No settings file')
-    return json.loads(cfg_file.read_text())
 
 
 class ChangeAtSD(object):

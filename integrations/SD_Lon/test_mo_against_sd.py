@@ -1,7 +1,6 @@
 import json
 import pathlib
 from datetime import datetime
-from enum import Enum
 from itertools import starmap
 from operator import itemgetter
 
@@ -9,7 +8,8 @@ import click
 from more_itertools import flatten
 from os2mo_helpers.mora_helpers import MoraHelper
 
-from integrations.SD_Lon.sd_common import sd_lookup
+from integrations.SD_Lon.sd_common import load_settings
+from integrations.SD_Lon.sd_common import sd_lookup, LetGo, OnPayroll, EmploymentStatus
 
 
 def progress_iterator(elements, outputter, mod=10):
@@ -20,62 +20,10 @@ def progress_iterator(elements, outputter, mod=10):
         yield element
 
 
-class EmploymentStatus(Enum):
-    """Corresponds to EmploymentStatusCode from SD.
-
-    Employees usually start in AnsatUdenLoen, and then change to AnsatMedLoen.
-    This will usually happen once they actually have their first day at work.
-
-    From AnsatMedLoen they can somewhat freely transfer to the other statusses.
-    This includes transfering back to AnsatMedLoen from any other status.
-
-    Note for instance, that it is entirely possible to be Ophoert and then get
-    hired back, and thus go from Ophoert to AnsatMedLoen.
-
-    There is only one terminal state, namely Slettet, wherefrom noone will
-    return. This state is invoked from status 7-8-9 after a few years.
-
-    Status Doed will probably only migrate to status slettet, but there are no
-    guarantees given.
-    """
-    # This status most likely represent not yet being at work
-    AnsatUdenLoen = '0'
-
-    # These statusses represent being at work
-    AnsatMedLoen = '1'
-    Overlov = '3'
-
-    # These statusses represent being let go
-    Migreret = '7'
-    Ophoert = '8'
-    Doed = '9'
-
-    # This status is the special terminal state
-    Slettet = 'S'
-
-
-Employeed = [
-    EmploymentStatus.AnsatUdenLoen,
-    EmploymentStatus.AnsatMedLoen,
-    EmploymentStatus.Overlov
-]
-LetGo = [
-    EmploymentStatus.Migreret,
-    EmploymentStatus.Ophoert,
-    EmploymentStatus.Doed
-]
-OnPayroll = [
-    EmploymentStatus.AnsatMedLoen,
-    EmploymentStatus.Overlov
-]
-
 
 class TestMOAgainstSd(object):
     def __init__(self):
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = load_settings()
         self.date = datetime.now()
 
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
