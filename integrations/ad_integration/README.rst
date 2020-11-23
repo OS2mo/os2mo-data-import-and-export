@@ -176,7 +176,8 @@ Hvis man i dette tilfælde sætter ``integrations.ad.discriminator.function``
 til ``include`` vil kontoen opfattes som primær hvis 'Medarbejder' også findes i
 ``integrations.ad.discriminator.values``
 
-Opfattes mere end en konto som primær sættes programmet til at fejle.
+Opfattes mere end en konto som primær tages den første, man støder på - 
+I så tilfælde fungerer ``integrations.ad.discriminator.values`` som en prioriteret liste
 
 Findes nøglen ``integrations.ad.discriminator.field``, skal de andre to nøgler
 også være der. Findes den ikke, opfattes alle AD-konti som primære.
