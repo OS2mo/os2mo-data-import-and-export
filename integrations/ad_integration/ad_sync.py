@@ -115,7 +115,11 @@ class AdMoSync(object):
                             'uuid': addr[0]['uuid'],
                             'address_type': {'uuid': addr[0]['adresse_type']},
                             'visibility': {'uuid': addr[0]['visibility']},
-                            'value': addr[0]['value']
+                            'value': addr[0]['value'],
+                            'validity': {
+                                "from": addr[0]['from_date'],
+                                "to": addr[0]['to_date']
+                            }
                         }
                     )
         else:
@@ -342,7 +346,7 @@ class AdMoSync(object):
 
         today = datetime.strftime(datetime.now(), "%Y-%m-%d")
         it_systems = {
-            itsystem['uuid']: itsystem for itsystem in
+            it['itsystem']['uuid']: it for it in
                 self.helper._mo_lookup(uuid, 'e/{}/details/it')
         }
 
@@ -357,7 +361,7 @@ class AdMoSync(object):
         for uuid in it_system_uuids:
             payload = {
                 'type': 'it',
-                'uuid': uuid,
+                'uuid': it_systems[uuid]["uuid"],
                 'validity': {"to": today}
             }
             logger.debug('Finalize payload: {}'.format(payload))
