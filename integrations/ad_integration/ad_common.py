@@ -9,17 +9,46 @@ from winrm.exceptions import WinRMTransportError
 from integrations.ad_integration import ad_exceptions
 from integrations.ad_integration import read_ad_conf_settings
 
-logger = logging.getLogger('AdCommon')
+logger = logging.getLogger("AdCommon")
 # Is this universal?
-ENCODING = 'cp850'
+ENCODING = "cp850"
 
 
 def ad_minify(text):
-    text = text.replace('\n', '')
-    text = text.replace('\r', '')
-    while text.find('  ') > -1:
-        text = text.replace('  ', ' ')
+    text = text.replace("\n", "")
+    text = text.replace("\r", "")
+    while text.find("  ") > -1:
+        text = text.replace("  ", " ")
     return text
+
+
+def generate_ntlm_session(hostname, system_user, password):
+    """Method to create a ntlm session for running powershell scripts.
+
+    Returns:
+        winrm.Session
+    """
+    session = Session(
+        "https://{}:5986/wsman".format(hostname),
+        transport="ntlm",
+        auth=(system_user, password),
+        server_cert_validation="ignore",
+    )
+    return session
+
+
+def generate_kerberos_session(hostname):
+    """Method to create a kerberos session for running powershell scripts.
+
+    Returns:
+        winrm.Session
+    """
+    session = Session(
+        "http://{}:5985/wsman".format(hostname),
+        transport="kerberos",
+        auth=(None, None),
+    )
+    return session
 
 
 class AD(object):
@@ -45,18 +74,22 @@ class AD(object):
         attribute, containing the result from executing the powershell script.
 
         Returns:
-            winrm.Session: if configured, otherwise None
+            winrm.Session
         """
-        if self.all_settings['global']['winrm_host']:
-            session = Session(
-                'http://{}:5985/wsman'.format(
-                    self.all_settings['global']['winrm_host']
-                ),
-                transport='kerberos',
-                auth=(None, None)
+
+        if self.all_settings["primary"]["method"] == "ntlm":
+            session = generate_ntlm_session(
+                self.all_settings["global"]["winrm_host"],
+                self.all_settings["primary"]["system_user"],
+                self.all_settings["primary"]["password"],
             )
-            return session
-        return None
+        elif self.all_settings["primary"]["method"] == "kerberos":
+            session = generate_kerberos_session(
+                self.all_settings["global"]["winrm_host"]
+            )
+        else:
+            raise ValueError("Unknown WinRM method" + str(self.all_settings["primary"]["method"]))
+        return session
 
     def _run_ps_script(self, ps_script):
         """
@@ -65,7 +98,7 @@ class AD(object):
         :param ps_script: The power shell script to run.
         :return: A dictionary with the returned parameters.
         """
-        logger.debug('Attempting to run script: {}'.format(ps_script))
+        logger.debug("Attempting to run script: {}".format(ps_script))
         response = {}
         if not self.session:
             return response
@@ -77,23 +110,23 @@ class AD(object):
                 r = self.session.run_ps(ps_script)
                 try_again = False
             except self.retry_exceptions:
-                logger.error('AD read error: {}'.format(retries))
+                logger.error("AD read error: {}".format(retries))
                 time.sleep(5)
                 retries += 1
                 # The existing session is now dead, create a new.
                 self.session = self._create_session()
 
         # TODO: We will need better error handling than this.
-        assert(retries < 10)
+        assert retries < 10
 
         if r.status_code == 0:
             if r.std_out:
                 output = r.std_out.decode(ENCODING)
-                output = output.replace('&Oslash;', 'Ø')
-                output = output.replace('&oslash;', 'ø')
+                output = output.replace("&Oslash;", "Ø")
+                output = output.replace("&oslash;", "ø")
                 response = json.loads(output)
         else:
-            print('Error: {}'.format(r.std_err))
+            print("Error: {}".format(r.std_err))
             response = r.std_err
         return response
 
@@ -109,27 +142,27 @@ class AD(object):
         #     server = ' -Server {} '.format(settings['server'])
 
         # TODO: Are these really different?
-        path = ''
-        search_base = ''
-        if settings['search_base']:
-            path = ' -Path "{}" '.format(settings['search_base'])
-            search_base = ' -SearchBase "{}" '.format(settings['search_base'])
+        path = ""
+        search_base = ""
+        if settings["search_base"]:
+            path = ' -Path "{}" '.format(settings["search_base"])
+            search_base = ' -SearchBase "{}" '.format(settings["search_base"])
 
-        get_ad_object = ''
+        get_ad_object = ""
         # TODO: When do we need this?
         # if settings['get_ad_object']:
         #    get_ad_object = ' | Get-ADObject'
 
-        credentials = ' -Credential $usercredential'
+        credentials = " -Credential $usercredential"
 
         boiler_plate = {
             # 'server': server,
-            'path': path,
-            'get_ad_object': get_ad_object,
-            'search_base': search_base,
-            'credentials': credentials,
+            "path": path,
+            "get_ad_object": get_ad_object,
+            "search_base": search_base,
+            "credentials": credentials,
             # 'complete': server + search_base + credentials
-            'complete': search_base + credentials
+            "complete": search_base + credentials,
         }
         return boiler_plate
 
@@ -172,10 +205,10 @@ class AD(object):
     def _properties(self):
         settings = self._get_setting()
         # properties = ' -Properties *'
-        properties = ' -Properties '
-        for item in settings['properties']:
-            properties += item + ','
-        properties = properties[:-1] + ' '  # Remove trailing comma, add space
+        properties = " -Properties "
+        for item in settings["properties"]:
+            properties += item + ","
+        properties = properties[:-1] + " "  # Remove trailing comma, add space
         return properties
 
     def _find_unique_user(self, cpr):
@@ -185,13 +218,13 @@ class AD(object):
         user_ad_info = self.get_from_ad(cpr=cpr)
 
         if len(user_ad_info) == 1:
-            user_sam = user_ad_info[0]['SamAccountName']
+            user_sam = user_ad_info[0]["SamAccountName"]
         elif len(user_ad_info) == 0:
-            msg = 'Found no account for {}'.format(cpr)
+            msg = "Found no account for {}".format(cpr)
             logger.error(msg)
             raise ad_exceptions.UserNotFoundException(msg)
         else:
-            msg = 'Too many SamAccounts for {}'.format(cpr)
+            msg = "Too many SamAccounts for {}".format(cpr)
             logger.error(msg)
             raise ad_exceptions.CprNotNotUnique(msg)
         return user_sam
@@ -259,33 +292,33 @@ class AD(object):
 
         if cpr:
             # For wild-card searches, we do a litteral search.
-            if cpr.find('*') > -1:
+            if cpr.find("*") > -1:
                 dict_key = cpr
             else:
                 # For direct cpr-search we obey the local separator setting.
-                dict_key = '{}{}{}'.format(
-                    cpr[0:6],
-                    settings['cpr_separator'],
-                    cpr[6:10]
+                dict_key = "{}{}{}".format(
+                    cpr[0:6], settings["cpr_separator"], cpr[6:10]
                 )
 
-            field = settings['cpr_field']
-            ps_template = "get-aduser -Filter '" + field + " -like \"{}\"'"
+            field = settings["cpr_field"]
+            ps_template = "get-aduser -Filter '" + field + ' -like "{}"\''
 
         get_command = ps_template.format(dict_key)
 
-        server_string = ''
+        server_string = ""
         if server:
-            server_string = ' -Server {}'.format(server)
+            server_string = " -Server {}".format(server)
         else:
-            if self.all_settings['global'].get('servers') is not None:
-                server_string = ' -Server {}'.format(
-                    random.choice(self.all_settings['global']['servers'])
+            if self.all_settings["global"].get("servers") is not None:
+                server_string = " -Server {}".format(
+                    random.choice(self.all_settings["global"]["servers"])
                 )
 
-        command_end = (' | ConvertTo-Json  | ' +
-                       ' % {$_.replace("ø","&oslash;")} | ' +
-                       '% {$_.replace("Ø","&Oslash;")} ')
+        command_end = (
+            " | ConvertTo-Json  | "
+            + ' % {$_.replace("ø","&oslash;")} | '
+            + '% {$_.replace("Ø","&Oslash;")} '
+        )
 
         ps_script = (
             self._build_user_credential() +

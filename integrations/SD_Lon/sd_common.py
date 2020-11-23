@@ -89,12 +89,12 @@ def calc_employment_id(employment):
 
 
 def mora_assert(response):
-    """ Check response is as expected """
-    assert response.status_code in (200, 201, 400, 404)
+    """Check response is as expected."""
+    assert response.status_code in (200, 201, 400, 404), response.status_code
     if response.status_code == 400:
         # Check actual response
-        assert response.text.find('not give raise to a new registration') > 0
-        logger.debug('Requst had no effect')
+        assert response.text.find('not give raise to a new registration') > 0, response.text
+        logger.debug('Request had no effect')
     return None
 
 

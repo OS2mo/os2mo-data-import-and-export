@@ -414,7 +414,7 @@ class ChangeAtSD(object):
         components['working_time'] = working_time
 
         # Employment date is not used for anyting
-        components['employment_date'] = engagement_info.get('EmploymentDate')
+        # components['employment_date'] = engagement_info.get('EmploymentDate')
         return job_id, components
 
     def create_leave(self, status, job_id):
@@ -687,6 +687,7 @@ class ChangeAtSD(object):
                                                              read_all=True)
             logger.debug('User associations: {}'.format(associations))
             current_association = None
+            # TODO: This is a filter + next
             for association in associations:
                 if association['user_key'] == job_id:
                     current_association = association['uuid']
@@ -772,6 +773,7 @@ class ChangeAtSD(object):
 
         mo_eng = self._find_engagement(job_id)
         if not mo_eng:
+            # Should have been created at an earlier status-code
             logger.error('Engagement {} has never existed!'.format(job_id))
             return
 
@@ -871,12 +873,10 @@ class ChangeAtSD(object):
             job_id, eng = self.engagement_components(engagement)
             logger.info('Update Job id: {}'.format(job_id))
             logger.debug('SD Engagement: {}'.format(engagement))
-            skip = False
             # If status is present, we have a potential creation
             if eng['status_list']:
-                skip = self._handle_status_chages(cpr, engagement)
-            if skip:
-                continue
+                if self._handle_status_chages(cpr, engagement):
+                    continue
             self.edit_engagement(engagement)
 
     def update_all_employments(self):
@@ -923,16 +923,15 @@ class ChangeAtSD(object):
                         logger.warning(
                             'Employment deleted or ended before initial import.'
                         )
-                    else:
-                        logger.warning('This person should be in MO, but is not')
-                        self.update_changed_persons(cpr=cpr)
-                        self.mo_person = self.helper.read_user(
-                            user_cpr=cpr,
-                            org_uuid=self.org_uuid
-                        )
-                        self.updater.set_current_person(mo_person=self.mo_person)
-
-            if self.mo_person:
+                        continue
+                    logger.warning('This person should be in MO, but is not')
+                    self.update_changed_persons(cpr=cpr)
+                    self.mo_person = self.helper.read_user(
+                        user_cpr=cpr,
+                        org_uuid=self.org_uuid
+                    )
+                    self.updater.set_current_person(mo_person=self.mo_person)
+            else:  # if self.mo_person:
                 self.mo_engagement = self.helper.read_user_engagement(
                     self.mo_person['uuid'],
                     read_all=True,

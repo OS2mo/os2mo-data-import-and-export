@@ -7,12 +7,12 @@ CLI="venv/bin/python os2mo_data_import/med/mox_util.py cli --mox-base ${MOX_URL}
 
 # Organisation Unit Types
 #------------------------
-${CLI} ensure-class-exists --bvn "HO-MED" --title "Hoved-MED" --facet-bvn "org_unit_type"
-${CLI} ensure-class-exists --bvn "FÆ-MED" --title "Fælles-MED" --facet-bvn "org_unit_type"
-${CLI} ensure-class-exists --bvn "FA-MED" --title "Fag-MED" --facet-bvn "org_unit_type"
-${CLI} ensure-class-exists --bvn "OM-MED" --title "Område-MED" --facet-bvn "org_unit_type"
-${CLI} ensure-class-exists --bvn "LO-MED" --title "Lokal-MED" --facet-bvn "org_unit_type"
-${CLI} ensure-class-exists --bvn "PE-MED" --title "Personalemøder med MED-status" --facet-bvn "org_unit_type"
+${CLI} ensure-class-exists --bvn "HOV-MED" --title "Hoved-MED" --facet-bvn "org_unit_type"
+${CLI} ensure-class-exists --bvn "FÆL-MED" --title "Fælles-MED" --facet-bvn "org_unit_type"
+${CLI} ensure-class-exists --bvn "FAG-MED" --title "Fag-MED" --facet-bvn "org_unit_type"
+${CLI} ensure-class-exists --bvn "OMR-MED" --title "Område-MED" --facet-bvn "org_unit_type"
+${CLI} ensure-class-exists --bvn "LOK-MED" --title "Lokal-MED" --facet-bvn "org_unit_type"
+${CLI} ensure-class-exists --bvn "PER-MED" --title "Personalemøder med MED-status" --facet-bvn "org_unit_type"
 
 # Association Types
 #------------------
