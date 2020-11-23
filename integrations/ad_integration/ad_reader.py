@@ -100,7 +100,6 @@ class ADParameterReader(AD):
                     if ria is not None:
                         ria.append(current_user)
 
-                return current_user
 
         except Exception:
             logger.error('Response from uncached_read_user: {}'.format(response))
