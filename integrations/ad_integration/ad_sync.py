@@ -352,6 +352,8 @@ class AdMoSync(object):
 
         def check_validity_is_ok(uuid):
             # NOTE: Maybe this should be not set, or in the future?
+            if not uuid in it_systems:
+                return False
             return it_systems[uuid]['validity']['to'] is None
 
         # Find fields to terminate
@@ -390,7 +392,8 @@ class AdMoSync(object):
 
         # Find fields to terminate
         address_fields = self.mapping['user_addresses'].keys()
-        address_fields = filter(check_ad_field_exists, address_fields)
+        # we terminate even if somebody has removed the field from AD 
+        # address_fields = filter(check_ad_field_exists, address_fields)
         address_fields = filter(check_field_in_fields_to_edit, address_fields)
         address_fields = filter(check_validity_is_ok, address_fields)
         for field in address_fields:
