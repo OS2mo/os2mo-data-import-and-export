@@ -100,6 +100,7 @@ def generate_uuid(value, org_name):
 def _create_mo_ou(name, parent, org_type, bvn):
     uuid = generate_uuid(bvn, ROOT)
     ou_type = _find_class(find_facet='org_unit_type', find_class=org_type)
+    ou_level = _find_class(find_facet='org_unit_level', find_class='MED-enhed')
     if parent == 'root':
         parent = ROOT
     payload = {
@@ -107,6 +108,7 @@ def _create_mo_ou(name, parent, org_type, bvn):
         'user_key': str(bvn),
         'name': '{} {}'.format(org_type, name),
         'org_unit_type': {'uuid': ou_type},
+        'org_unit_level':{'uuid': ou_level},
         'parent': {'uuid': parent},
         'validity': {'from': '1930-01-01',
                      'to':  None}
