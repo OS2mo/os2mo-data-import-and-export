@@ -3,11 +3,13 @@ import json
 import logging
 import pathlib
 import time
-from functools import wraps
+from itertools import starmap
+from functools import wraps, partial
 from operator import attrgetter
 
 import click
 from aiohttp import BasicAuth, ClientSession, TCPConnector
+from more_itertools import side_effect
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
 from exporters.sql_export.sql_table_defs import (
@@ -75,6 +77,14 @@ class elapsedtime(object):
         )
 
 
+def apply_tuple(func):
+    """Wrap a function to apply its arguments to itself."""
+    @wraps(func)
+    def wrapped(tup):
+        return func(*tup)
+    return wrapped
+
+
 @click.group()
 def cli():
     # Solely used for command grouping
@@ -99,80 +109,110 @@ def generate_json():
     total_number_of_employees = session.query(Bruger).count()
     print("Total employees:", total_number_of_employees)
 
-    def enrich_org_units_with_engagements(org_unit_map):
-        # Enrich with engagements
-        queryset = (
-            session.query(Engagement, Bruger)
-            .filter(Engagement.bruger_uuid == Bruger.uuid)
-            .all()
-        )
+    def filter_missing_entry(entry_map, entry_type, unit_uuid, entry):
+        if unit_uuid not in entry_map:
+            logger.error(
+                entry_type + " not found in map: " + str(unit_uuid)
+            )
+            return False
+        return True
 
-        for engagement, bruger in queryset:
-            if engagement.enhed_uuid not in org_unit_map:
-                continue
-            engagement_entry = {
+    def enrich_org_unit_with_x(org_unit_map, entry_type, entry_gen, entries):
+        def gen_entry(x, bruger):
+            return x.enhed_uuid, entry_gen(x, bruger)
+        # Bind two arguments so the function only takes unit_uuid, entry.
+        # Then apply_tuple to the function takes a tuple(unit_uuid, entry).
+        missing_entry_filter = apply_tuple(partial(
+            filter_missing_entry, org_unit_map, entry_type.capitalize()
+        ))
+
+        entries = starmap(gen_entry, entries)
+        entries = filter(missing_entry_filter, entries)
+        for unit_uuid, entry in entries:
+            org_unit_map[unit_uuid][entry_type].append(entry)
+        return org_unit_map
+
+    def enrich_employees_with_x(employee_map, entry_type, entry_gen, entries):
+        def gen_entry(x, enhed):
+            return x.bruger_uuid, entry_gen(x, enhed)
+        # Bind two arguments so the function only takes unit_uuid, entry.
+        # Then apply_tuple to the function takes a tuple(unit_uuid, entry).
+        missing_entry_filter = apply_tuple(partial(
+            filter_missing_entry, employee_map, entry_type.capitalize()
+        ))
+
+        # Add org-units to queue as side-effect
+        entries = side_effect(
+            lambda x_enhed: add_org_unit(x_enhed[1]),
+            entries
+        )
+        entries = starmap(gen_entry, entries)
+        entries = filter(missing_entry_filter, entries)
+        for bruger_uuid, entry in entries:
+            employee_map[bruger_uuid][entry_type].append(entry)
+        return employee_map
+
+    def enrich_org_units_with_engagements(org_unit_map):
+        def gen_engagement(engagement, bruger):
+            return {
                 "title": engagement.stillingsbetegnelse_titel,
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-            org_unit_map[engagement.enhed_uuid]["engagements"].append(engagement_entry)
-        return org_unit_map
-
-    def enrich_org_units_with_associations(org_unit_map):
-        queryset = (
-            session.query(Tilknytning, Bruger)
-            .filter(Tilknytning.bruger_uuid == Bruger.uuid)
-            .all()
+        engagements = session.query(Engagement, Bruger).filter(
+            Engagement.bruger_uuid == Bruger.uuid
+        ).all()
+        return enrich_org_unit_with_x(
+            org_unit_map, "engagements", gen_engagement, engagements
         )
 
-        for tilknytning, bruger in queryset:
-            if tilknytning.enhed_uuid not in org_unit_map:
-                continue
-            association_entry = {
+    def enrich_org_units_with_associations(org_unit_map):
+        def gen_association(tilknytning, bruger):
+            return {
                 "title": tilknytning.tilknytningstype_titel,
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-            org_unit_map[tilknytning.enhed_uuid]["associations"].append(
-                association_entry
-            )
-        return org_unit_map
-
-    def enrich_org_units_with_management(org_unit_map):
-        queryset = (
-            session.query(Leder, Bruger).filter(Leder.bruger_uuid == Bruger.uuid).all()
+        associations = session.query(Tilknytning, Bruger).filter(
+            Tilknytning.bruger_uuid == Bruger.uuid
+        ).all()
+        return enrich_org_unit_with_x(
+            org_unit_map, "associations", gen_association, associations
         )
 
-        for leder, bruger in queryset:
-            if leder.enhed_uuid not in org_unit_map:
-                logger.error(
-                    "Leder not found in org_unit_map: " + str(leder.enhed_uuid)
-                )
-                continue
-            management_entry = {
+    def enrich_org_units_with_management(org_unit_map):
+        def gen_management(leder, bruger):
+            return {
                 "title": leder.ledertype_titel,
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-            org_unit_map[leder.enhed_uuid]["management"].append(management_entry)
-        return org_unit_map
-
-    def enrich_org_units_with_kles(org_unit_map):
-        queryset = (
-            session.query(KLE).all()
+        managements = session.query(Leder, Bruger).filter(
+            Leder.bruger_uuid == Bruger.uuid
+        ).all()
+        return enrich_org_unit_with_x(
+            org_unit_map, "management", gen_management, managements
         )
 
-        for kle in queryset:
-            if kle.enhed_uuid not in org_unit_map:
-                continue
-            if kle.kle_aspekt_titel != 'Udførende':
-                continue
-            kle_entry = {
+    def enrich_org_units_with_kles(org_unit_map):
+        def gen_kle(kle):
+            return kle.enhed_uuid, {
                 "title": kle.kle_nummer_titel,
                 # "name": kle.kle_aspekt_titel,
                 "uuid": kle.uuid,
             }
-            org_unit_map[kle.enhed_uuid]["kles"].append(kle_entry)
+        # Bind two arguments so the function only takes unit_uuid, entry.
+        # Then apply_tuple to the function takes a tuple(unit_uuid, entry).
+        missing_entry_filter = apply_tuple(partial(
+            filter_missing_entry, org_unit_map, "KLE"
+        ))
+
+        kles = session.query(KLE).all()
+        kles = filter(lambda kle: kle.kle_aspekt_titel == 'Udførende', kles)
+        kles = map(gen_kle, kles)
+        kles = filter(missing_entry_filter, kles)
+        for unit_uuid, kle in kles:
+            org_unit_map[unit_uuid]["kles"].append(kle)
         return org_unit_map
 
     org_unit_map = {}
@@ -247,74 +287,49 @@ def generate_json():
         return employee_map
 
     def enrich_employees_with_engagements(employee_map):
-        # Enrich with engagements
-        queryset = (
-            session.query(Engagement, Enhed)
-            .filter(Engagement.enhed_uuid == Enhed.uuid)
-            .all()
-        )
-
-        for _, enhed in queryset:
-            add_org_unit(enhed)
-
-        for engagement, enhed in queryset:
-            engagement_entry = {
+        def gen_engagement(engagement, enhed):
+            return {
                 "title": engagement.stillingsbetegnelse_titel,
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-            employee_map[engagement.bruger_uuid]["engagements"].append(engagement_entry)
-        return employee_map
-
-    def enrich_employees_with_associations(employee_map):
-        # Enrich with associations
-        queryset = (
-            session.query(Tilknytning, Enhed)
-            .filter(Tilknytning.enhed_uuid == Enhed.uuid)
-            .all()
+        engagements = session.query(Engagement, Enhed).filter(
+            Engagement.enhed_uuid == Enhed.uuid
+        ).all()
+        return enrich_employees_with_x(
+            employee_map, "engagements", gen_engagement, engagements
         )
 
-        for _, enhed in queryset:
-            add_org_unit(enhed)
-
-        for tilknytning, enhed in queryset:
-            tilknytning_entry = {
+    def enrich_employees_with_associations(employee_map):
+        def gen_association(tilknytning, enhed):
+            return {
                 "title": tilknytning.tilknytningstype_titel,
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-            employee_map[tilknytning.bruger_uuid]["associations"].append(
-                tilknytning_entry
-            )
-        return employee_map
-
-    def enrich_employees_with_management(employee_map):
-        # Enrich with management
-        queryset = (
-            session.query(Leder, Enhed).filter(
-                Leder.enhed_uuid == Enhed.uuid
-            ).filter(
-                # Filter vacant leders
-                Leder.bruger_uuid != None
-            ).all()
+        associations = session.query(Tilknytning, Enhed).filter(
+            Tilknytning.enhed_uuid == Enhed.uuid
+        ).all()
+        return enrich_employees_with_x(
+            employee_map, "associations", gen_association, associations
         )
 
-        for _, enhed in queryset:
-            add_org_unit(enhed)
-
-        for leder, enhed in queryset:
-            if leder.bruger_uuid not in employee_map:
-                logger.error(
-                    "Leder not found in employee map: " + str(leder.bruger_uuid)
-                )
-                continue
-            leder_entry = {
+    def enrich_employees_with_management(employee_map):
+        def gen_management(leder, enhed):
+            return {
                 "title": leder.ledertype_titel,
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-            employee_map[leder.bruger_uuid]["management"].append(leder_entry)
-        return employee_map
+        managements = session.query(Leder, Enhed).filter(
+            Leder.enhed_uuid == Enhed.uuid
+        ).filter(
+            # Filter vacant leders
+            Leder.bruger_uuid != None
+        ).all()
+        return enrich_employees_with_x(
+            employee_map, "management", gen_management, managements
+        )
 
     def filter_employees(employee_map):
         def filter_function(phonebook_entry):
