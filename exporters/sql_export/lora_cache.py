@@ -240,9 +240,21 @@ class LoraCache(object):
                 if from_date is None and to_date is None:
                     continue
                 reg = effect[2]
-                cpr = reg['relationer']['tilknyttedepersoner'][0]['urn'][-10:]
-                egenskaber = reg['attributter']['brugeregenskaber'][0]
-                udv = reg['attributter']['brugerudvidelser'][0]
+
+                tilknyttedepersoner = reg['relationer']['tilknyttedepersoner']
+                if len(tilknyttedepersoner) == 0:
+                    continue
+                cpr = tilknyttedepersoner[0]['urn'][-10:]
+
+                egenskaber = reg['attributter']['brugeregenskaber']
+                if len(egenskaber) == 0:
+                    continue
+                egenskaber = egenskaber[0]
+
+                udv = reg['attributter']['brugerudvidelser']
+                if len(udv) == 0:
+                    continue
+                udv = udv[0]
 
                 user_key = egenskaber.get('brugervendtnoegle', '')
                 fornavn = udv.get('fornavn', '')
