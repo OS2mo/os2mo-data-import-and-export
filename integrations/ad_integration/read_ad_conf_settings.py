@@ -22,19 +22,29 @@ def _read_global_settings(top_settings):
 
 
 def _read_primary_ad_settings(top_settings, index=0):
+
     primary_settings = {}
-    primary_settings['servers'] = top_settings.get(
-        'integrations.ad')[index]['servers']
-    primary_settings['search_base'] = top_settings.get(
-        'integrations.ad')[index]["search_base"]
-    primary_settings['cpr_field'] = top_settings.get(
-        'integrations.ad')[index]["cpr_field"]
-    primary_settings['system_user'] = top_settings.get(
-        'integrations.ad')[index]["system_user"]
-    primary_settings['password'] = top_settings.get(
-        'integrations.ad')[index]['password']
-    primary_settings['properties'] = top_settings.get(
-        'integrations.ad')[index]["properties"]
+
+    if top_settings.get('integrations.ad') is None:
+        raise Exception("integration.ad settings not found")
+
+    if len(top_settings['integrations.ad']) < (index + 1):
+        raise Exception("ad index %d not found" % index)
+
+    primary_settings['servers'] = top_settings[
+        'integrations.ad'][index].get('servers')
+    primary_settings['search_base'] = top_settings[
+        'integrations.ad'][index].get("search_base")
+    primary_settings['cpr_field'] = top_settings[
+        'integrations.ad'][index].get("cpr_field")
+    primary_settings['system_user'] = top_settings[
+        'integrations.ad'][index].get("system_user")
+    primary_settings['password'] = top_settings[
+        'integrations.ad'][index].get('password')
+    primary_settings['properties'] = top_settings[
+        'integrations.ad'][index].get("properties")
+    primary_settings['method'] = top_settings[
+        'integrations.ad'][index].get("method", "kerberos")
 
     missing = []
     for key, val in primary_settings.items():
