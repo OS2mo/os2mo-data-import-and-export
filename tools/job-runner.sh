@@ -296,35 +296,23 @@ exports_viborg_eksterne(){
     )
 }
 
-reports_sd_db_overview(){
+exports_ad_life_cycle(){
     set -e
-    echo running reports_sd_db_overview
-    outfile=$(mktemp)
-    ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py > ${outfile}
-    local STATUS=$?
-    head -2 ${outfile}
-    echo "..."
-    tail -3 ${outfile}
-    rm ${outfile}
-    return $STATUS
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/AD_life_cycle.log"
+    )
+    echo "running exports_ad_life_cycle"
+    ${VENV}/bin/python3 integrations/ad_integration/ad_life_cycle.py --create-ad-accounts
 }
 
-reports_opus_db_overview(){
+exports_mo_to_ad_sync(){
     set -e
-    echo running reports_opus_db_overview
-    outfile=$(mktemp)
-    ${VENV}/bin/python3 integrations/opus/db_overview.py > ${outfile}
-    head -4 ${outfile}
-    echo "..."
-    tail -3 ${outfile}
-    rm ${outfile}
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/mo_to_ad_sync.log"
+    )
+    echo "running exports_mo_to_ad_sync"
+    ${VENV}/bin/python3 integrations/ad_integration/mo_to_ad_sync.py
 }
-
-reports_dummy(){
-    set -e
-    echo "Running reports_dummy"
-}
- 
 
 exports_plan2learn(){
     set -e
@@ -349,7 +337,6 @@ exports_plan2learn(){
 	done
     )
 }
-
 
 exports_queries_ballerup(){
     set -e
@@ -394,10 +381,6 @@ exports_sync_mo_uuid_to_ad(){
     ${VENV}/bin/python3 ${DIPEXAR}/integrations/ad_integration/sync_mo_uuid_to_ad.py --sync-all
 }
 
-reports_viborg_managers(){
-    ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
-}
-
 exports_lc_for_jobs_db(){
     BACK_UP_AND_TRUNCATE+=(lc-for-jobs.log)
     SETTING_PREFIX="lc-for-jobs" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -419,6 +402,39 @@ exports_dummy(){
     echo "Running exports_dummy"
 }
 
+
+reports_viborg_managers(){
+    ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
+}
+
+reports_sd_db_overview(){
+    set -e
+    echo running reports_sd_db_overview
+    outfile=$(mktemp)
+    ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py > ${outfile}
+    local STATUS=$?
+    head -2 ${outfile}
+    echo "..."
+    tail -3 ${outfile}
+    rm ${outfile}
+    return $STATUS
+}
+
+reports_opus_db_overview(){
+    set -e
+    echo running reports_opus_db_overview
+    outfile=$(mktemp)
+    ${VENV}/bin/python3 integrations/opus/db_overview.py > ${outfile}
+    head -4 ${outfile}
+    echo "..."
+    tail -3 ${outfile}
+    rm ${outfile}
+}
+
+reports_dummy(){
+    set -e
+    echo "Running reports_dummy"
+}
 
 
 # read the run-job script et al
@@ -545,6 +561,14 @@ exports(){
     if [ "${RUN_CPR_UUID}" == "true" ]; then
         # this particular report is not allowed to fail
         run-job exports_cpr_uuid || return 2
+    fi
+
+    if [ "${RUN_EXPORTS_AD_LIFE_CYCLE}" == "true" ]; then
+        run-job exports_ad_life_cycle || return 2
+    fi
+
+    if [ "${RUN_EXPORTS_MO_TO_AD_SYNC}" == "true" ]; then
+        run-job exports_mo_to_ad_sync || return 2
     fi
 
     if [ "${RUN_MOX_ROLLE}" == "true" ]; then
