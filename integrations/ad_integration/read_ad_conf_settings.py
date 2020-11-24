@@ -31,6 +31,7 @@ def _read_primary_ad_settings(top_settings, index=0):
     if len(top_settings['integrations.ad']) < (index + 1):
         raise Exception("ad index %d not found" % index)
 
+    # settings that must be in place
     primary_settings['servers'] = top_settings[
         'integrations.ad'][index].get('servers')
     primary_settings['search_base'] = top_settings[
@@ -43,30 +44,31 @@ def _read_primary_ad_settings(top_settings, index=0):
         'integrations.ad'][index].get('password')
     primary_settings['properties'] = top_settings[
         'integrations.ad'][index].get("properties")
-    primary_settings['method'] = top_settings[
-        'integrations.ad'][index].get("method", "kerberos")
 
     missing = []
     for key, val in primary_settings.items():
         if val is None:
             missing.append(key)
-    if missing:
-        msg = 'Missing values for {}'.format(missing)
-        logger.error(msg)
-        raise Exception(msg)
 
     # 36182 exclude non primary AD-users
-    primary_settings["discriminator.field"] = top_settings.get(
-        "integrations.ad")[index].get("discriminator.field")
+    primary_settings["discriminator.field"] = top_settings[
+        "integrations.ad"][index].get("discriminator.field")
     if primary_settings["discriminator.field"] is not None:
+
         # if we have a field we MUST have .values and .function
         primary_settings["discriminator.values"] = top_settings[
-            "integrations.ad"][index]["discriminator.values"]
+            "integrations.ad"][index].get("discriminator.values")
+        if primary_settings["discriminator.values"] is None:
+            missing.append("discriminator.values")
+
         primary_settings["discriminator.function"] = top_settings[
-            "integrations.ad"][index]["discriminator.function"]
+            "integrations.ad"][index].get("discriminator.function")
+        if primary_settings["discriminator.function"] is None:
+            missing.append("discriminator.function")
+
         if not primary_settings["discriminator.function"] in ["include", "exclude"]:
             raise ValueError("'ad.discriminator.function'" +
-                " must be include or exclude for AD %d" % index
+                " must be 'include' or 'exclude' for AD %d" % index
             )
 
     # Settings that do not need to be set, or have defaults
@@ -79,11 +81,19 @@ def _read_primary_ad_settings(top_settings, index=0):
         'integrations.ad')[index].get('cpr_separator', '')
     primary_settings['ad_mo_sync_mapping'] = top_settings.get(
         'integrations.ad')[index].get('ad_mo_sync_mapping', {})
+    primary_settings['method'] = top_settings[
+        'integrations.ad'][index].get("method", "kerberos")
 
     # So far false in all known cases, default to false
     # get_ad_object = os.environ.get('AD_GET_AD_OBJECT', 'False')
     # primary_settings['get_ad_object'] = get_ad_object.lower() == 'true'
     primary_settings['get_ad_object'] = False
+
+    if missing:
+        msg = 'Missing settings in AD {}: {}'.format(index, missing)
+        logger.error(msg)
+        raise Exception(msg)
+
     return primary_settings
 
 
