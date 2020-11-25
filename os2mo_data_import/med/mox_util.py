@@ -249,8 +249,23 @@ async def ensure_class_value(
             return tuple(values), any(changed)
         else:
             return o, False
+    if variable == 'ejer':
+        try:
+            old_owner = klasse.get('relationer').get('ejer')[0].get('uuid')
+            changed = (old_owner != new_value)
+        except IndexError:
+            changed = True
 
-    klasse, changed = check_value(variable, new_value, klasse)
+        if changed:
+            klasse['relationer']['ejer'] = [
+                {
+                    "uuid": new_value,
+                    "virkning": virkning,
+                    "objekttype": "OrganisationEnhed",
+                }
+            ]
+    else:
+        klasse, changed = check_value(variable, new_value, klasse)
     # Print for dry run
     if dry_run:
         mox_helper.validate_klassifikation_klasse(klasse)
