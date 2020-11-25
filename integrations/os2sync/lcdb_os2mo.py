@@ -46,7 +46,7 @@ def get_sts_user(session, uuid, allowed_unitids):
 
     sts_user = {
         "Uuid": uuid,
-        "UserId": uuid,
+        "UserId": base.bvn,
         "Positions": [],
         "Person": {"Name": base.fornavn + " " + base.efternavn, "Cpr": base.cpr},
     }
