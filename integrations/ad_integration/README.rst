@@ -35,44 +35,43 @@ at AD er sat op med cpr-numre på medarbejdere samt en servicebruger som har
 rettigheder til at læse dette felt. Desuden skal et antal variable være sat i
 ``settings.json``
 
+Det er muligt at anvende flere AD til udlæsning af adresser og itsystemer til OS2MO
+Således er ``integrations.ad`` i ``settings.json`` et array med følgende 
+indbyggede betydning:
+ 
+ * Første AD i listen (index 0) anvendes til skrivning (hvis skrivning er aktiveret) 
+   og til integrationer, som endnu ikke er forberedt for flere ad'er.
+
+ * Alle AD'er anvendes af ad_sync til opdatering af og skabelse af adresser, itsystemer 
+
+
 Fælles parametre
 ----------------
 
  * ``integrations.ad.winrm_host``: Hostname på remote mangagent server
 
-Standard AD
------------
+For hvert ad angives
+--------------------
 
- * ``integrations.ad.search_base``: Search base, eksempelvis
+ * ``search_base``: Search base, eksempelvis
    'OU=enheder,DC=kommune,DC=local'
- * ``integrations.ad.cpr_field``: Navnet på feltet i AD som indeholder cpr nummer.
- * ``integrations.ad.cpr_separator``: Angiver en eventuel separator mellem
+ * ``cpr_field``: Navnet på feltet i AD som indeholder cpr nummer.
+ * ``cpr_separator``: Angiver en eventuel separator mellem
    fødselsdato og løbenumre i cpr-feltet i AD. Hvis der ikke er en separator,
    angives en tom streng.
- * ``integrations.ad.sam_filter``: Hvis denne værdi er sat, vil kun det være muligt
+ * ``sam_filter``: Hvis denne værdi er sat, vil kun det være muligt
    at cpr-fremsøge medarbejder som har denne værdi foranstillet i SAM-navn.
    Funktionen muliggør at skelne mellem brugere og servicebrugere som har samme
    cpr-nummer.
- * ``integrations.ad.system_user``: Navnet på den systembruger som har rettighed til
+ * ``caseless_samname``: Hvis denne værdi er ``true`` (Default) vil sam_filter 
+   ikke se forskel på store og små bogstaver.
+ * ``system_user``: Navnet på den systembruger som har rettighed til
    at læse fra AD.
- * ``integrations.ad.password``: Password til samme systembruger.
- * ``integrations.ad.properties``: Liste over felter som skal læses fra AD. Angives
+ * ``password``: Password til samme systembruger.
+ * ``properties``: Liste over felter som skal læses fra AD. Angives
    som en liste i json-filen.
+ * ``servers`` - domain controllere for denne ad.
 
-
-Skole AD
---------
-
-Hvis der ønskes integration til et AD til skoleområdet, udover det almindelige
-administrative AD, skal disse parametre desuden angives som miljøvariable. Hvis de
-ikke er til stede ved afviklingen, vil integrationen ikke forsøge at tilgå et
-skole AD.
-
- * ``AD_SCHOOL_SEARCH_BASE``
- * ``AD_SCHOOL_CPR_FIELD``
- * ``AD_SCHOOL_SYSTEM_USER``
- * ``AD_SCHOOLE_PASSWORD``
- * ``AD_SCHOOL_PROPERTIES``
 
 Test af opsætningen
 -------------------
@@ -177,7 +176,8 @@ Hvis man i dette tilfælde sætter ``integrations.ad.discriminator.function``
 til ``include`` vil kontoen opfattes som primær hvis 'Medarbejder' også findes i
 ``integrations.ad.discriminator.values``
 
-Opfattes mere end en konto som primær sættes programmet til at fejle.
+Opfattes mere end en konto som primær tages den første, man støder på - 
+I så tilfælde fungerer ``integrations.ad.discriminator.values`` som en prioriteret liste
 
 Findes nøglen ``integrations.ad.discriminator.field``, skal de andre to nøgler
 også være der. Findes den ikke, opfattes alle AD-konti som primære.
@@ -259,12 +259,16 @@ Programmet opdaterer alle værdier i MO i henhold til den feltmapning som er ang
 i `settings.json`. Det er muligt at synkronisere adresseoplysninger, samt at
 oprette et IT-system på brugeren, hvis brugeren findes i AD, men endnu ikke har et
 tilknyttet IT-system i MO. Desuden er det muligt at synkronisere et AD felt til
-et felt på brugerens primærengagement (typisk stillingsbetegnelsen).
+et felt på brugerens primærengagement (typisk stillingsbetegnelsen). 
+Husk at efterfølgende AD kan overskrive. Derfor:
+Anvend ikke samme klasser, itsystemer eller extensionfelter i flere af 
+de specificerede AD'er
+
 Et eksempel på en feltmapning angives herunder:
 
 .. code-block:: json
 
-    "integrations.ad.ad_mo_sync_mapping": {
+    "ad_mo_sync_mapping": {
         "user_addresses": {
             "telephoneNumber": ["a6dbb837-5fca-4f05-b369-8476a35e0a95", "INTERNAL"],
             "pager": ["d9cd7a04-a992-4b31-9534-f375eba2f1f4 ", "PUBLIC"],

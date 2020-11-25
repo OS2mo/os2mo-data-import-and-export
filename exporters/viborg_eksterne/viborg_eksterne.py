@@ -80,6 +80,8 @@ def export_engagement(mh: MoraHelper, filename, lc, lc_historic):
             ):
                 engv = eng[0]  # Historic information is here to catch future
                 # engagements, not to use the actual historic information
+                #if engv['user'] != employee['uuid']:
+                #    continue
                 if engv['engagement_type'] in disallowed_engagement_types:
                     continue
 
