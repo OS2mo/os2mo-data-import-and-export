@@ -204,6 +204,9 @@ def addresses_to_orgunit(orgunit, addresses):
             orgunit["PhoneNumber"] = a["name"]
         elif a["address_type"]["scope"] == "DAR":
             orgunit["Post"] = a["name"]
+        elif a["address_type"]["scope"] == "PNUMBER":
+            orgunit["Location"] = a["name"]
+
 
 
 def kle_to_orgunit(orgunit, kle):
