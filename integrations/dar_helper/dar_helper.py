@@ -46,9 +46,9 @@ async def dar_fetch_non_chunked(uuids, addrtype, client=None):
         response.raise_for_status()
         body = await response.json()
 
-        found_uuids = set(map(itemgetter("id"), body))
-        result = dict(zip(found_uuids, body))
+        result = {addr['id']: addr for addr in body}
 
+        found_uuids = set(map(itemgetter("id"), body))
         missing = set(uuids) - found_uuids
 
         return result, missing
