@@ -11,6 +11,7 @@ from integrations.SD_Lon import sd_payloads
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import mora_assert
+from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.exceptions import NoCurrentValdityException
 
 LOG_LEVEL = logging.DEBUG
@@ -37,12 +38,7 @@ def setup_logging():
 class FixDepartments(object):
     def __init__(self):
         logger.info('Start program')
-        # TODO: Soon we have done this 4 times. Should we make a small settings
-        # importer, that will also handle datatype for specicic keys?
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = load_settings()
 
         self.institution_uuid = self.get_institution()
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
@@ -51,6 +47,10 @@ class FixDepartments(object):
         try:
             self.org_uuid = self.helper.read_organisation()
         except requests.exceptions.RequestException as e:
+            logger.error(e)
+            print(e)
+            exit()
+        except json.decoder.JSONDecodeError as e:
             logger.error(e)
             print(e)
             exit()
