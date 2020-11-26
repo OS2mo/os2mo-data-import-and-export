@@ -894,11 +894,28 @@ class ChangeAtSD(object):
                 return False
             return True
 
+        def skip_initial_deleted(employment_info):
+            emp_status = employment_info['EmploymentStatus']
+            if isinstance(emp_status, list):
+                code = emp_status[0]['EmploymentStatusCode']
+            else:
+                code = emp_status['EmploymentStatusCode']
+            code = EmploymentStatus(code)
+            if code in LetGo:
+                # NOTE: I think we should still import Migreret and Ophørt,
+                #       as you might change from that to Ansat later.
+                logger.warning(
+                    'Employment deleted or ended before initial import.'
+                )
+                return False
+            return True
+
         employments_changed = progress_iterator(employments_changed, print)
         employments_changed = filter(skip_fictional_users, employments_changed)
 
         for employment in employments_changed:
             cpr = employment['PersonCivilRegistrationIdentifier']
+            sd_engagement = ensure_list(employment['Employment'])
 
             logger.info('---------------------')
             logger.info('We are now updating {}'.format(cpr))
@@ -906,29 +923,18 @@ class ChangeAtSD(object):
             logger.debug('To date: {}'.format(self.to_date))
             logger.debug('Employment: {}'.format(employment))
 
-            sd_engagement = ensure_list(employment['Employment'])
-
-            self.mo_person = self.helper.read_user(user_cpr=cpr,
-                                                   org_uuid=self.org_uuid)
+            self.mo_person = self.helper.read_user(
+                user_cpr=cpr, org_uuid=self.org_uuid
+            )
             self.updater.set_current_person(mo_person=self.mo_person)
 
             if not self.mo_person:
+                sd_engagement = filter(skip_initial_deleted, sd_engagement)
                 for employment_info in sd_engagement:
-                    emp_status = employment_info['EmploymentStatus']
-                    if isinstance(emp_status, list):
-                        code = emp_status[0]['EmploymentStatusCode']
-                    else:
-                        code = emp_status['EmploymentStatusCode']
-                    if code in ('S', '7', '8'):
-                        logger.warning(
-                            'Employment deleted or ended before initial import.'
-                        )
-                        continue
                     logger.warning('This person should be in MO, but is not')
                     self.update_changed_persons(cpr=cpr)
                     self.mo_person = self.helper.read_user(
-                        user_cpr=cpr,
-                        org_uuid=self.org_uuid
+                        user_cpr=cpr, org_uuid=self.org_uuid
                     )
                     self.updater.set_current_person(mo_person=self.mo_person)
             else:  # if self.mo_person:
