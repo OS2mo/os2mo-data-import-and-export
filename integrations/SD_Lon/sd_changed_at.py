@@ -29,6 +29,20 @@ LOG_FILE = 'mo_integrations.log'
 logger = logging.getLogger("sdChangedAt")
 
 
+def ensure_list(element):
+    if not isinstance(element, list):
+        return [element]
+    return element
+
+
+def progress_iterator(elements, outputter, mod=10):
+    total = len(elements)
+    for i, element in enumerate(elements, start=1):
+        if i == 1 or i % mod == 0 or i == total:
+            outputter("{}/{}".format(i, total))
+        yield element
+
+
 def setup_logging():
     detail_logging = ('sdCommon', 'sdChangedAt', 'updatePrimaryEngagements',
                       'fixDepartments')
@@ -182,9 +196,7 @@ class ChangeAtSD(object):
             })
         response = sd_lookup(url, params)
 
-        employment_response = response.get('Person', [])
-        if not isinstance(employment_response, list):
-            employment_response = [employment_response]
+        employment_response = ensure_list(response.get('Person', []))
 
         return employment_response
 
@@ -204,9 +216,7 @@ class ChangeAtSD(object):
         }
         url = 'GetPersonChangedAtDate20111201'
         response = sd_lookup(url, params=params)
-        person_changed = response.get('Person', [])
-        if not isinstance(person_changed, list):
-            person_changed = [person_changed]
+        person_changed = ensure_list(response.get('Person', []))
         return person_changed
 
     def read_person(self, cpr):
@@ -220,10 +230,7 @@ class ChangeAtSD(object):
         }
         url = 'GetPerson20111201'
         response = sd_lookup(url, params=params)
-        person = response.get('Person', [])
-
-        if not isinstance(person, list):
-            person = [person]
+        person = ensure_list(response.get('Person', []))
         return person
 
     def update_changed_persons(self, cpr=None):
@@ -393,24 +400,16 @@ class ChangeAtSD(object):
         job_id = engagement_info['EmploymentIdentifier']
 
         components = {}
-        status_list = engagement_info.get('EmploymentStatus', [])
-        if not isinstance(status_list, list):
-            status_list = [status_list]
+        status_list = ensure_list(engagement_info.get('EmploymentStatus', []))
         components['status_list'] = status_list
 
-        professions = engagement_info.get('Profession', [])
-        if not isinstance(professions, list):
-            professions = [professions]
+        professions = ensure_list(engagement_info.get('Profession', []))
         components['professions'] = professions
 
-        departments = engagement_info.get('EmploymentDepartment', [])
-        if not isinstance(departments, list):
-            departments = [departments]
+        departments = ensure_list(engagement_info.get('EmploymentDepartment', []))
         components['departments'] = departments
 
-        working_time = engagement_info.get('WorkingTime', [])
-        if not isinstance(working_time, list):
-            working_time = [working_time]
+        working_time = ensure_list(engagement_info.get('WorkingTime', []))
         components['working_time'] = working_time
 
         # Employment date is not used for anyting
@@ -888,15 +887,18 @@ class ChangeAtSD(object):
             )
         )
 
-        i = 0
-        for employment in employments_changed:
-            print('{}/{}'.format(i, len(employments_changed)))
-            i = i + 1
-
+        def skip_fictional_users(employment):
             cpr = employment['PersonCivilRegistrationIdentifier']
             if cpr[-4:] == '0000':
                 logger.warning('Skipping fictional user: {}'.format(cpr))
-                continue
+                return False
+            return True
+
+        employments_changed = progress_iterator(employments_changed, print)
+        employments_changed = filter(skip_fictional_users, employments_changed)
+
+        for employment in employments_changed:
+            cpr = employment['PersonCivilRegistrationIdentifier']
 
             logger.info('---------------------')
             logger.info('We are now updating {}'.format(cpr))
@@ -904,9 +906,7 @@ class ChangeAtSD(object):
             logger.debug('To date: {}'.format(self.to_date))
             logger.debug('Employment: {}'.format(employment))
 
-            sd_engagement = employment['Employment']
-            if not isinstance(sd_engagement, list):
-                sd_engagement = [sd_engagement]
+            sd_engagement = ensure_list(employment['Employment'])
 
             self.mo_person = self.helper.read_user(user_cpr=cpr,
                                                    org_uuid=self.org_uuid)
