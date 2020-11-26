@@ -52,12 +52,10 @@ class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):
         self.settings = load_settings()
 
-        if self.settings[
-                'integrations.SD_Lon.job_function'] == 'JobPositionIdentifier':
+        if self.settings['integrations.SD_Lon.job_function'] == 'JobPositionIdentifier':
             logger.info('Read settings. JobPositionIdentifier for job_functions')
             self.use_jpi = True
-        elif self.settings[
-                'integrations.SD_Lon.job_function'] == 'EmploymentName':
+        elif self.settings['integrations.SD_Lon.job_function'] == 'EmploymentName':
             logger.info('Read settings. Do not update job_functions')
             self.use_jpi = False
         else:
@@ -95,7 +93,6 @@ class ChangeAtSD(object):
             logger.error(e)
             print(e)
             exit()
-        self.employment_response = None
 
         self.mo_person = None      # Updated continously with the person currently
         self.mo_engagement = None  # being processed.
@@ -150,47 +147,46 @@ class ChangeAtSD(object):
         assert response.status_code == 201
         return response.json()
 
-    def read_employment_changed(self):
-        if not self.employment_response:  # Caching, we need to get of this
-            if self.to_date is not None:
-                url = 'GetEmploymentChangedAtDate20111201'
-                params = {
-                    # 'EmploymentIdentifier': '',
-                    'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
-                    'DeactivationDate': self.to_date.strftime('%d.%m.%Y'),
-                    'StatusActiveIndicator': 'true',
-                    'DepartmentIndicator': 'true',
-                    'EmploymentStatusIndicator': 'true',
-                    'ProfessionIndicator': 'true',
-                    'WorkingTimeIndicator': 'true',
-                    'UUIDIndicator': 'true',
-                    'StatusPassiveIndicator': 'true',
-                    'SalaryAgreementIndicator': 'false',
-                    'SalaryCodeGroupIndicator': 'false'
-                }
-                response = sd_lookup(url, params=params)
-            else:
-                url = 'GetEmploymentChanged20111201'
-                params = {
-                    # 'EmploymentIdentifier': '',
-                    'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
-                    'DeactivationDate': '31.12.9999',
-                    'DepartmentIndicator': 'true',
-                    'EmploymentStatusIndicator': 'true',
-                    'ProfessionIndicator': 'true',
-                    'WorkingTimeIndicator': 'true',
-                    'UUIDIndicator': 'true',
-                    'SalaryAgreementIndicator': 'false',
-                    'SalaryCodeGroupIndicator': 'false'
-                }
-            response = sd_lookup(url, params)
+    @lru_cache(maxsize=None)
+    def read_employment_changed(self, from_date=None, to_date=None, employment_identifier=None):
+        from_date = from_date or self.from_date
+        to_date = to_date or self.to_date
 
-            employment_response = response.get('Person', [])
-            if not isinstance(employment_response, list):
-                employment_response = [employment_response]
+        params = {
+            'ActivationDate': from_date.strftime('%d.%m.%Y'),
+            'DepartmentIndicator': 'true',
+            'EmploymentStatusIndicator': 'true',
+            'ProfessionIndicator': 'true',
+            'WorkingTimeIndicator': 'true',
+            'UUIDIndicator': 'true',
+            'StatusPassiveIndicator': 'true',
+            'SalaryAgreementIndicator': 'false',
+            'SalaryCodeGroupIndicator': 'false'
+        }
+        if employment_identifier:
+            params.update({
+                'EmploymentIdentifier': employment_identifier,
+            })
 
-            self.employment_response = employment_response
-        return self.employment_response
+        if to_date is not None:
+            url = 'GetEmploymentChangedAtDate20111201'
+            params.update({
+                'DeactivationDate': to_date.strftime('%d.%m.%Y'),
+                'StatusActiveIndicator': 'true',
+                'StatusPassiveIndicator': 'true',
+            })
+        else:
+            url = 'GetEmploymentChanged20111201'
+            params.update({
+                'DeactivationDate': '31.12.9999',
+            })
+        response = sd_lookup(url, params)
+
+        employment_response = response.get('Person', [])
+        if not isinstance(employment_response, list):
+            employment_response = [employment_response]
+
+        return employment_response
 
     def read_person_changed(self):
         if self.to_date is None:
@@ -993,7 +989,8 @@ def initialize_changed_at(from_date, run_db, force=False):
 
 
 @click.command()
-def changed_at():
+@click.option('--init', is_flag=True, type=click.BOOL, default=False, help="Initialize a new rundb")
+def changed_at(init):
     """Tool to delta synchronize with MO with SD."""
     setup_logging()
 
@@ -1002,15 +999,14 @@ def changed_at():
 
     logger.info('***************')
     logger.info('Program started')
-    init = False
-
-    from_date = datetime.datetime.strptime(
-        settings['integrations.SD_Lon.global_from_date'],
-        '%Y-%m-%d'
-    )
 
     if init:
         run_db = pathlib.Path(run_db)
+
+        from_date = datetime.datetime.strptime(
+            settings['integrations.SD_Lon.global_from_date'],
+            '%Y-%m-%d'
+        )
         initialize_changed_at(from_date, run_db, force=True)
         exit()
 
