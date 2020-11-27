@@ -790,7 +790,7 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
 elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
     if [ -n "$(grep $1\(\) $0)" ]; then
         echo running single job function
-        $1
+        run-job $1
     fi
 elif [ "${JOB_RUNNER_MODE}" == "sourced" ]; then
     # export essential functions
