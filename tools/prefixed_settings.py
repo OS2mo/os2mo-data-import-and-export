@@ -15,6 +15,9 @@ import pathlib
 def extract_prefixed_envvars(settings, prefix):
     if not prefix.endswith("."):
         prefix += "."
+    if prefix == "integrations.ad.":
+        prefix = ""
+        settings = settings["integrations.ad"][0]
     environment = []
     prefixlen = len(prefix)
     for k, v in settings.items():
