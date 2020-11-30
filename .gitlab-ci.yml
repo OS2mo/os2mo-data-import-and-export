@@ -45,7 +45,7 @@ Lint LoraCache Integration:
     - python -m isort --diff --check-only exporters/sql_export/tests/*.py
 
 
-.Lint AD Integration:
+Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
@@ -87,7 +87,7 @@ Test LoraCache Exporter:
     - pytest exporters/sql_export/tests/
 
 
-.Test AD Integration:
+Test AD Integration:
   extends: .test-python
   script:
     - cd integrations/ad_integration/
