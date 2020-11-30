@@ -3,6 +3,8 @@ import pathlib
 import logging
 from datetime import datetime
 
+from more_itertools import only
+
 import ad_reader as adreader
 import ad_logger
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -140,12 +142,13 @@ class AdMoSync(object):
                 )
             potential_matches = filter(check_address_visibility, potential_matches)
             # Consume iterator, verifying either 0 or 1 elements are returned
-            found_address = next(potential_matches, None)
-            if next(potential_matches, None):
+            try:
+                found_address = only(potential_matches)
+                if found_address is not None:
+                    types_to_edit[field] = found_address
+            except ValueError:
                 logger.warning('Multiple addresses found, not syncing for {}: {}'.format(uuid, field))
                 continue
-            if found_address is not None:
-                types_to_edit[field] = found_address
         logger.debug('Existing fields for {}: {}'.format(uuid, types_to_edit))
         return types_to_edit
 
