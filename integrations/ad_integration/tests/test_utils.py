@@ -353,14 +353,19 @@ class TestADMixin(object):
             dict: Default settings after transformation.
         """
         default_settings = {
+            "integrations.ad": [{
+                "cpr_field": "cpr_field",
+                "cpr_seperator": "cpr_sep",
+
+                "system_user": "system_user",
+                "password": "password",
+                "properties": [],
+
+                "search_base": "search_base",
+                "integrations.ad.ad_mo_sync_mapping": {},
+            }],
             "integrations.ad.winrm_host": "dummy",
-            "integrations.ad.search_base": "search_base",
-            "integrations.ad.cpr_field": "cpr_field",
-            "integrations.ad.cpr_seperator": "cpr_sep",
             # "integrations.ad.sam_filter": "sam_filter",
-            "integrations.ad.system_user": "system_user",
-            "integrations.ad.password": "password",
-            "integrations.ad.properties": "properties",
             "mora.base": "http://example.org",
             "integrations.ad.write.uuid_field": "uuid_field",
             "integrations.ad.write.level2orgunit_field": "level2orgunit_field",
@@ -368,9 +373,6 @@ class TestADMixin(object):
             "integrations.ad.write.upn_end": "epn_end",
             "integrations.ad.write.org_unit_field": "org_field",
             "integrations.ad.write.level2orgunit_type": "level2orgunit_type",
-            "integrations.ad.cpr_field": "cpr_field",
-            "integrations.ad.cpr_separator": "ad_cpr_sep",
-            "integrations.ad.ad_mo_sync_mapping": {},
             "address.visibility.public": "address_visibility_public_uuid",
             "address.visibility.internal": "address_visibility_internal_uuid",
             "address.visibility.secret": "address_visibility_secret_uuid",
