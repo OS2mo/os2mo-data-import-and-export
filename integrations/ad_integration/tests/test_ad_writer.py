@@ -44,13 +44,23 @@ class TestADWriter(TestCase, TestADWriterMixin):
     @parameterized.expand(
         [
             # Test without any changes to settings
-            [dict_modifier({}),],
+            [
+                dict_modifier({}),
+            ],
             # Test with overridden password
-            [dict_modifier({"primary": {"password": "Password1"}}),],
-            [dict_modifier({"primary": {"password": "Hunter2"}}),],
+            [
+                dict_modifier({"primary": {"password": "Password1"}}),
+            ],
+            [
+                dict_modifier({"primary": {"password": "Hunter2"}}),
+            ],
             # Test with overridden user
-            [dict_modifier({"primary": {"system_user": "R2D2"}}),],
-            [dict_modifier({"primary": {"system_user": "C-3PO"}}),],
+            [
+                dict_modifier({"primary": {"system_user": "R2D2"}}),
+            ],
+            [
+                dict_modifier({"primary": {"system_user": "C-3PO"}}),
+            ],
         ]
     )
     def test_common_ps_code(self, settings_transformer):

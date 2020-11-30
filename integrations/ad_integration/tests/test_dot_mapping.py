@@ -9,14 +9,22 @@ from ..utils import AttrDict
 
 class TestDotMapping(unittest.TestCase):
     @parameterized.expand(
-        [(0,), ("value",), (3.14,),]
+        [
+            (0,),
+            ("value",),
+            (3.14,),
+        ]
     )
     def test_getattr_static(self, value):
         attr_dict = AttrDict({"status": value})
         self.assertEqual(attr_dict.status, value)
 
     @parameterized.expand(
-        [(0,), ("value",), (3.14,),]
+        [
+            (0,),
+            ("value",),
+            (3.14,),
+        ]
     )
     def test_setattr_static(self, value):
         attr_dict = AttrDict({})
@@ -24,7 +32,11 @@ class TestDotMapping(unittest.TestCase):
         self.assertEqual(attr_dict.status, value)
 
     @parameterized.expand(
-        [(0,), ("value",), (3.14,),]
+        [
+            (0,),
+            ("value",),
+            (3.14,),
+        ]
     )
     def test_delattr_static(self, value):
         attr_dict = AttrDict({"status": value})
@@ -32,14 +44,40 @@ class TestDotMapping(unittest.TestCase):
         self.assertEqual(attr_dict, {})
 
     @parameterized.expand(
-        [("exit_code", 0,), ("key", "value",), ("PI", 3.14,),]
+        [
+            (
+                "exit_code",
+                0,
+            ),
+            (
+                "key",
+                "value",
+            ),
+            (
+                "PI",
+                3.14,
+            ),
+        ]
     )
     def test_getattr_dynamic(self, key, value):
         attr_dict = AttrDict({key: value})
         self.assertEqual(getattr(attr_dict, key), value)
 
     @parameterized.expand(
-        [("exit_code", 0,), ("key", "value",), ("PI", 3.14,),]
+        [
+            (
+                "exit_code",
+                0,
+            ),
+            (
+                "key",
+                "value",
+            ),
+            (
+                "PI",
+                3.14,
+            ),
+        ]
     )
     def test_setattr_dynamic(self, key, value):
         attr_dict = AttrDict({})
@@ -47,7 +85,20 @@ class TestDotMapping(unittest.TestCase):
         self.assertEqual(attr_dict[key], value)
 
     @parameterized.expand(
-        [("exit_code", 0,), ("key", "value",), ("PI", 3.14,),]
+        [
+            (
+                "exit_code",
+                0,
+            ),
+            (
+                "key",
+                "value",
+            ),
+            (
+                "PI",
+                3.14,
+            ),
+        ]
     )
     def test_delattr_dynamic(self, key, value):
         attr_dict = AttrDict({key: value})

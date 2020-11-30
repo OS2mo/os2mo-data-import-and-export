@@ -45,7 +45,7 @@ Lint LoraCache Integration:
     - python -m isort --diff --check-only exporters/sql_export/tests/*.py
 
 
-.Lint AD Integration:
+Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
@@ -69,8 +69,11 @@ Lint SetAlias Tool:
   image: python:3
   services: []
   before_script:
+    - apt-get update && apt-get install -y unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev-compat
+    - find . -name 'requirements.*' | grep -v venv/ | xargs -l1 pip install -r
+    - pip install -r ./integrations/requirements/common.txt
+    - pip install -r ./integrations/requirements/test.txt
     - pip install ./os2mo_data_import --upgrade
-    - pip install -r integrations/requirements/test.txt
   tags:
     - docker
 
@@ -84,11 +87,11 @@ Test LoraCache Exporter:
     - pytest exporters/sql_export/tests/
 
 
-.Test AD Integration:
+Test AD Integration:
   extends: .test-python
   script:
     - cd integrations/ad_integration/
-    - pytest tests/
+    - pytest tests/ --ignore tests/test_ad_sync.py --ignore tests/test_ad_writer.py
 
 
 Test OS2Sync Integration:
@@ -99,6 +102,7 @@ Test OS2Sync Integration:
     - python -m doctest integrations/os2sync/os2mo.py
 
 
+# Breaks, not ready for CI
 .Test SDLoen Integration:
   extends: .test-python
   script:

@@ -6,6 +6,7 @@ from random import choice, randint
 from unittest import TestCase
 
 import requests
+from integrations.ad_integration.read_ad_conf_settings import read_settings
 
 from ad_sync import AdMoSync
 from ad_writer import ADWriter
@@ -164,10 +165,20 @@ class ADWriterTestSubclass(ADWriter):
             # Add our script to the list
             self.scripts.append(ps_script)
             # Fake the WinRM run_ps return type
-            return AttrDict({"status_code": 0, "std_out": b"", "std_err": b"",})
+            return AttrDict(
+                {
+                    "status_code": 0,
+                    "std_out": b"",
+                    "std_err": b"",
+                }
+            )
 
         # Fake the WinRM session object
-        return AttrDict({"run_ps": run_ps,})
+        return AttrDict(
+            {
+                "run_ps": run_ps,
+            }
+        )
 
     def _get_retry_exceptions(self):
         """Mocked to return an empty list, i.e. never retry.
@@ -342,14 +353,19 @@ class TestADMixin(object):
             dict: Default settings after transformation.
         """
         default_settings = {
+            "integrations.ad": [
+                {
+                    "cpr_field": "cpr_field",
+                    "cpr_seperator": "cpr_sep",
+                    "system_user": "system_user",
+                    "password": "password",
+                    "properties": [],
+                    "search_base": "search_base",
+                    "integrations.ad.ad_mo_sync_mapping": {},
+                }
+            ],
             "integrations.ad.winrm_host": "dummy",
-            "integrations.ad.search_base": "search_base",
-            "integrations.ad.cpr_field": "cpr_field",
-            "integrations.ad.cpr_seperator": "cpr_sep",
             # "integrations.ad.sam_filter": "sam_filter",
-            "integrations.ad.system_user": "system_user",
-            "integrations.ad.password": "password",
-            "integrations.ad.properties": "properties",
             "mora.base": "http://example.org",
             "integrations.ad.write.uuid_field": "uuid_field",
             "integrations.ad.write.level2orgunit_field": "level2orgunit_field",
@@ -357,9 +373,6 @@ class TestADMixin(object):
             "integrations.ad.write.upn_end": "epn_end",
             "integrations.ad.write.org_unit_field": "org_field",
             "integrations.ad.write.level2orgunit_type": "level2orgunit_type",
-            "integrations.ad.cpr_field": "cpr_field",
-            "integrations.ad.cpr_separator": "ad_cpr_sep",
-            "integrations.ad.ad_mo_sync_mapping": {},
             "address.visibility.public": "address_visibility_public_uuid",
             "address.visibility.internal": "address_visibility_internal_uuid",
             "address.visibility.secret": "address_visibility_secret_uuid",
@@ -375,9 +388,6 @@ class TestADWriterMixin(TestADMixin):
         transform_mo_values=None,
         early_transform_settings=None,
     ):
-        from integrations.ad_integration.read_ad_conf_settings import \
-            read_settings
-
         transformer_func = late_transform_settings or _no_transformation
         self.settings = transformer_func(
             read_settings(self._prepare_settings(early_transform_settings))
@@ -460,7 +470,11 @@ class AdMoSyncTestSubclass(AdMoSync):
             # If we got that one person, return it
             return self.ad_values
 
-        self.ad_reader = AttrDict({"read_user": read_user,})
+        self.ad_reader = AttrDict(
+            {
+                "read_user": read_user,
+            }
+        )
 
 
 class TestADMoSyncMixin(TestADMixin):
