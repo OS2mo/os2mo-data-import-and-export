@@ -353,17 +353,17 @@ class TestADMixin(object):
             dict: Default settings after transformation.
         """
         default_settings = {
-            "integrations.ad": [{
-                "cpr_field": "cpr_field",
-                "cpr_seperator": "cpr_sep",
-
-                "system_user": "system_user",
-                "password": "password",
-                "properties": [],
-
-                "search_base": "search_base",
-                "integrations.ad.ad_mo_sync_mapping": {},
-            }],
+            "integrations.ad": [
+                {
+                    "cpr_field": "cpr_field",
+                    "cpr_seperator": "cpr_sep",
+                    "system_user": "system_user",
+                    "password": "password",
+                    "properties": [],
+                    "search_base": "search_base",
+                    "integrations.ad.ad_mo_sync_mapping": {},
+                }
+            ],
             "integrations.ad.winrm_host": "dummy",
             # "integrations.ad.sam_filter": "sam_filter",
             "mora.base": "http://example.org",
