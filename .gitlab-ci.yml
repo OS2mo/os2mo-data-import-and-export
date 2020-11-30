@@ -53,6 +53,13 @@ Lint LoraCache Integration:
     - python -m isort --diff --check-only tests/* utils.py
 
 
+Lint SetAlias Tool:
+  extends: .lint-python
+  script:
+    - python -m black --diff --line-length 85 --check tools/snurrebasser/set_alias.py
+    - python -m isort --diff --check-only tools/snurrebasser/set_alias.py
+
+
 # Test stage
 ############
 
