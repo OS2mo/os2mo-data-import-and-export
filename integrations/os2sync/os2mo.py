@@ -225,7 +225,7 @@ def kle_to_orgunit(orgunit, kle):
         ... ]
         >>> kle_to_orgunit(orgunit, kles)
         >>> json.dumps(orgunit, sort_keys=True)
-        '{"ContactForTasks": [2, 3], "Tasks": [1, 3]}'
+        '{"Tasks": ["3", "4"]}'
 
     Args:
         orgunit: The organization unit to enrich with kle information.
