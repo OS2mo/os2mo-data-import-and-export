@@ -8,6 +8,8 @@ import datetime
 import dateutil
 import lora_utils
 import requests
+from operator import itemgetter
+from itertools import starmap
 from collections import defaultdict
 
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -874,24 +876,43 @@ class LoraCache(object):
             print(msg)
             return
 
-        responsibility_class = self.settings[
-            'exporters.actual_state.manager_responsibility_class']
+        responsibility_class = self.settings.get(
+            'exporters.actual_state.manager_responsibility_class', None
+        )
         for unit, unit_validities in self.units.items():
             assert(len(unit_validities)) == 1
             unit_info = unit_validities[0]
             manager_uuid = None
             acting_manager_uuid = None
 
-            # Find a direct manager, if possible
-            for manager, manager_validities in self.managers.items():
-                assert(len(manager_validities)) == 1
-                manager_info = manager_validities[0]
+            def find_manager_for_org_unit(org_unit):
+                def to_manager_info(manager_uuid, manager_validities):
+                    assert(len(manager_validities)) == 1
+                    manager_info = manager_validities[0]
+                    return manager_uuid, manager_info
 
-                if manager_info['unit'] == unit:
-                    for resp in manager_info['manager_responsibility']:
-                        if resp == responsibility_class:
-                            manager_uuid = manager
-                            acting_manager_uuid = manager
+                def filter_invalid_managers(tup):
+                    manager_uuid, manager_info = tup
+                    # Wrong unit
+                    if manager_info['unit'] != org_unit:
+                        return False
+                    # No resonsibility class
+                    if responsibility_class is None:
+                        return True
+                    # Check responsability
+                    return any(
+                        resp == responsibility_class
+                        for resp in manager_info['manager_responsibility']
+                    )
+
+                managers = self.managers.items()
+                managers = starmap(to_manager_info, managers)
+                managers = filter(filter_invalid_managers, managers)
+                managers = map(itemgetter(0), managers)
+                return next(managers, None)
+
+            # Find a direct manager, if possible
+            manager_uuid = acting_manager_uuid = find_manager_for_org_unit(unit)
 
             location = ''
             current_unit = unit_info
@@ -905,12 +926,7 @@ class LoraCache(object):
 
                 # Find the acting manager.
                 if acting_manager_uuid is None:
-                    for manager, manager_validities in self.managers.items():
-                        manager_info = manager_validities[0]
-                        if manager_info['unit'] == current_parent:
-                            for resp in manager_info['manager_responsibility']:
-                                if resp == responsibility_class:
-                                    acting_manager_uuid = manager
+                    acting_manager_uuid = find_manager_for_org_unit(current_parent)
             location = location[:-1]
 
             self.units[unit][0]['location'] = location
