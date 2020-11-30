@@ -29,7 +29,7 @@ class SyncMoUuidToAd(AD):
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
 
-        self.helper = MoraHelper(hostname=self.settings['mora.base'],
+        self.helper = MoraHelper(hostname=self.all_settings['global']['mora.base'],
                                  use_cache=False)
         try:
             self.org_uuid = self.helper.read_organisation()
@@ -66,8 +66,8 @@ class SyncMoUuidToAd(AD):
 
         for user in all_users:
             self.stats['attempted_users'] += 1
-            cpr = user.get(self.settings['integrations.ad.cpr_field'])
-            separator = self.settings.get('integrations.ad.cpr_separator', '')
+            cpr = user.get(self.all_settings['primary']['cpr_field'])
+            separator = self.all_settings['primary'].get('cpr_separator', '')
             if separator:
                 cpr = cpr.replace(separator, '')
             mo_uuid = self._search_mo_cpr(cpr)
@@ -78,16 +78,16 @@ class SyncMoUuidToAd(AD):
             expected_mo_uuid = user.get(
                 self.settings['integrations.ad.write.uuid_field'])
             if expected_mo_uuid == mo_uuid:
-                logger.info('uuid for {} correct in AD'.format(user['DisplayName']))
+                logger.info('uuid for {} correct in AD'.format(user))
                 continue
 
             server_string = ''
-            if self.settings.get('integrations.ad.write.servers') is not None:
+            if self.all_settings['global'].get('servers'):
                 server_string = ' -Server {} '.format(
-                    random.choice(self.settings['integrations.ad.write.servers'])
+                    random.choice(self.all_settings['global'].get('servers'))
                 )
 
-            logger.info('Need to sync {}'.format(user['DisplayName']))
+            logger.info('Need to sync {}'.format(user))
             ps_script = (
                 self._build_user_credential() +
                 "Get-ADUser " + server_string + " -Filter 'SamAccountName -eq \"" +

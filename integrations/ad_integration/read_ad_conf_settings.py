@@ -12,7 +12,7 @@ def _read_global_settings(top_settings):
     global_settings = {}
 
     global_settings['mora.base'] = top_settings.get('mora.base')
-    global_settings['servers'] = top_settings.get('integrations.ad')[0]['servers']
+    global_settings['servers'] = top_settings.get('integrations.ad')[0].get('servers', [])
     global_settings['winrm_host'] = top_settings.get('integrations.ad.winrm_host')
     if not global_settings['winrm_host']:
         msg = 'Missing hostname for remote management server'
@@ -32,8 +32,6 @@ def _read_primary_ad_settings(top_settings, index=0):
         raise Exception("ad index %d not found" % index)
 
     # settings that must be in place
-    primary_settings['servers'] = top_settings[
-        'integrations.ad'][index].get('servers')
     primary_settings['search_base'] = top_settings[
         'integrations.ad'][index].get("search_base")
     primary_settings['cpr_field'] = top_settings[
@@ -72,7 +70,9 @@ def _read_primary_ad_settings(top_settings, index=0):
             )
 
     # Settings that do not need to be set, or have defaults
-    primary_settings['server'] = None
+    #primary_settings['server'] = None
+    primary_settings['servers'] = top_settings[
+        'integrations.ad'][index].get('servers', [])
     primary_settings['caseless_samname'] = top_settings.get(
         'integrations.ad')[index].get('caseless_samname', True)
     primary_settings['sam_filter'] = top_settings.get(

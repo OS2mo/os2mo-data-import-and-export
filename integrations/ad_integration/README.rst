@@ -245,7 +245,7 @@ oprette AD brugere og skrive information fra MO til relevante felter.
 Hvis denne funktionalitet skal benyttes, er der brug for yderligere parametre som
 skal være sat når programmet afvikles:
 
- * ``integrations.ad.write.servers``: Liste med de DC'ere som findes i kommunens AD.
+ * ``servers`` fra ``integrations.ad[0]``: Liste med de DC'ere som findes i kommunens AD.
    Denne liste anvendes til at sikre at replikering er færdiggjort før der skrives
    til en nyoprettet bruger.
  * ``integrations.ad.write.uuid_field``: Navnet på det felt i AD, hvor MOs
