@@ -125,7 +125,8 @@ class ADParameterReader(AD):
         The user can be retrived either by cpr or by AD user name.
 
         :param user: The AD username to retrive.
-        :param cpr: cpr number of the user to retrive.
+        :param cpr: CPR number of the user to retrive.
+        :param cache_only: Return {} if user is not already cached
         :return: All properties listed in AD for the user.
         """
         logger.debug('Cached AD read, user {}, cpr {}'.format(user, cpr))
