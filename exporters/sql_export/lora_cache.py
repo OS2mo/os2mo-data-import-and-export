@@ -25,11 +25,9 @@ class LoraCache(object):
     def __init__(self, resolve_dar=True, full_history=False, skip_past=False):
         msg = 'Start LoRa cache, resolve dar: {}, full_history: {}'
         logger.info(msg.format(resolve_dar, full_history))
+        self.resolve_dar = resolve_dar
 
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = self._load_settings()
 
         self.additional = {
             'relationer': ('tilknyttedeorganisationer', 'tilhoerer')
@@ -40,6 +38,12 @@ class LoraCache(object):
         self.full_history = full_history
         self.skip_past = skip_past
         self.org_uuid = self._read_org_uuid()
+
+    def _load_settings(self):
+        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+        if not cfg_file.is_file():
+            raise Exception('No setting file')
+        return json.loads(cfg_file.read_text())
 
     def _read_org_uuid(self):
         mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
@@ -920,16 +924,18 @@ class LoraCache(object):
             lambda dar_uuid: (dar_uuid, {'betegnelse': None}), dar_uuids
         ))
         total_dar = len(dar_uuids)
+        total_missing = total_dar
 
         # Start looking entries up in DAR
-        dar_addresses, missing = dar_helper.sync_dar_fetch(dar_uuids)
-        dar_adgange, missing = dar_helper.sync_dar_fetch(
-            list(missing), addrtype="adgangsadresser"
-        )
-        total_missing = len(missing)
+        if self.resolve_dar:
+            dar_addresses, missing = dar_helper.sync_dar_fetch(dar_uuids)
+            dar_adgange, missing = dar_helper.sync_dar_fetch(
+                list(missing), addrtype="adgangsadresser"
+            )
+            total_missing = len(missing)
 
-        dar_cache.update(dar_addresses)
-        dar_cache.update(dar_adgange)
+            dar_cache.update(dar_addresses)
+            dar_cache.update(dar_adgange)
 
         # Update all addresses with betegnelse
         for dar_uuid, uuid_list in self.dar_map.items():

@@ -38,16 +38,19 @@ stages:
     - docker
 
 
-Lint AD Integration:
+Lint LoraCache Integration:
+  extends: .lint-python
+  script:
+    - python -m black --diff --line-length 85 --check exporters/sql_export/tests/*.py
+    - python -m isort --diff --check-only exporters/sql_export/tests/*.py
+
+
+.Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
-    - python -m black --line-length 85 --check tests/* utils.py
-    - python -m isort --check-only tests/* utils.py
-
-
-
-
+    - python -m black --diff --line-length 85 --check tests/* utils.py
+    - python -m isort --diff --check-only tests/* utils.py
 
 
 # Test stage
@@ -56,7 +59,7 @@ Lint AD Integration:
 .test-python:
   stage: test
   needs: []
-  image: python:3.5
+  image: python:3
   services: []
   before_script:
     - pip install ./os2mo_data_import --upgrade
@@ -65,20 +68,29 @@ Lint AD Integration:
     - docker
 
 
-Test AD Integration:
+Test LoraCache Exporter:
+  extends: .test-python
+  script:
+    - apt update && apt install -y unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev cifs-utils
+    - pip install -r exporters/sql_export/tests/requirements.txt
+    - export PYTHONPATH=$PWD:$PYTHONPATH
+    - pytest exporters/sql_export/tests/
+
+
+.Test AD Integration:
   extends: .test-python
   script:
     - cd integrations/ad_integration/
     - pytest tests/
 
 
-Test OS2Sync Integration:
+.Test OS2Sync Integration:
   extends: .test-python
   script:
     - python -m doctest integrations/os2sync/os2mo.py
 
 
-Test SDLoen Integration:
+.Test SDLoen Integration:
   extends: .test-python
   script:
     - cp settings/kommune-andeby.json settings/settings.json
