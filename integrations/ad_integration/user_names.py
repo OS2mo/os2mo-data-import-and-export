@@ -176,7 +176,7 @@ class CreateUserNames(object):
 
         for permutation_counter in range(2, 10):
             for prioritation in range(0, 6):
-                if final_user_name is not '':
+                if final_user_name != '':
                     break
                 i = 0
                 for combi in self.combinations[prioritation]:
