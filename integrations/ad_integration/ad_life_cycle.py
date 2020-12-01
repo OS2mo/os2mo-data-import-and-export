@@ -27,7 +27,7 @@ class AdLifeCycle:
 
         # This is a slow step (since ADReader reads all users)
         logger.info("Retrieve AD dump")
-        self.ad_reader = ad_reader.ADParameterReader(skip_school=True)
+        self.ad_reader = ad_reader.ADParameterReader()
         self.ad_reader.cache_all()
         logger.info("Done with AD caching")
 
@@ -69,6 +69,12 @@ class AdLifeCycle:
             "disabled_users": 0,
             "users": set(),
         }
+
+    def _is_user_in_ad(self, employee):
+        """Check if the given employee is found in AD."""
+        cpr = employee["cpr"]
+        response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
+        return bool(response)
 
     def _find_user_unit_tree(self, user):
         try:
@@ -118,9 +124,8 @@ class AdLifeCycle:
         """Iterate over all users and disable non-active AD accounts."""
 
         def filter_user_not_in_ad(employee):
-            cpr = employee["cpr"]
-            response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
-            if not response:
+            in_ad = self._is_user_in_ad(employee)
+            if not in_ad:
                 logger.debug("User {} does not have an AD account".format(employee))
                 return False
             return True
@@ -166,9 +171,8 @@ class AdLifeCycle:
         """Iterate over all users and create missing AD accounts."""
 
         def filter_user_already_in_ad(employee):
-            cpr = employee["cpr"]
-            response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
-            if response:
+            in_ad = self._is_user_in_ad(employee)
+            if in_ad:
                 logger.debug("User {} is already in AD".format(employee))
                 return False
             return True
