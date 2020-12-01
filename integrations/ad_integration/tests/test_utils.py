@@ -359,12 +359,13 @@ class TestADMixin(object):
             "integrations.ad": [
                 {
                     "cpr_field": "cpr_field",
-                    "cpr_seperator": "cpr_sep",
+                    "cpr_separator": "ad_cpr_sep",
                     "system_user": "system_user",
                     "password": "password",
                     "properties": [],
                     "search_base": "search_base",
                     "integrations.ad.ad_mo_sync_mapping": {},
+                    "servers": ["server123"],
                 }
             ],
             "integrations.ad.winrm_host": "dummy",
