@@ -23,7 +23,6 @@ def today_iso():
 
 class TestADMoSync(TestCase, TestADMoSyncMixin):
     def setUp(self):
-        self.maxDiff = None
         self._initialize_configuration()
 
     def _sync_address_mapping_transformer(self):
