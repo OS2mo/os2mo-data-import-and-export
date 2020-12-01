@@ -551,16 +551,19 @@ class TestADWriter(TestCase, TestADWriterMixin):
         for lower_ad_key, changeset in expected.items():
             cased_ad_key = next(
                 filter(lambda ad_key: ad_key.lower() == lower_ad_key, ad_keys),
-                lower_ad_key
+                lower_ad_key,
             )
             ad_values[cased_ad_key] = changeset[1]
         mismatch = self.ad_writer._sync_compare(mo_values, None)
         self.assertEqual(mismatch, {})
 
-
     def test_add_manager(self):
-        mo_values = self.ad_writer.read_ad_information_from_mo(uuid='0', read_manager=True)
-        self.ad_writer.add_manager_to_user('MGORE', manager_sam=mo_values['manager_sam'])
+        mo_values = self.ad_writer.read_ad_information_from_mo(
+            uuid="0", read_manager=True
+        )
+        self.ad_writer.add_manager_to_user(
+            "MGORE", manager_sam=mo_values["manager_sam"]
+        )
         # Expected outputs
         num_expected_scripts = 1
         self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
@@ -569,14 +572,17 @@ class TestADWriter(TestCase, TestADWriterMixin):
         # Check that the create user ps looks good
         add_manager_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
 
-        expected_line = ("Get-ADUser -Filter 'SamAccountName -eq \"MGORE\"'" +
-                         " -Credential $usercredential |Set-ADUser -Manager " + mo_values['manager_sam'] +
-                         " -Credential $usercredential")
+        expected_line = (
+            "Get-ADUser -Filter 'SamAccountName -eq \"MGORE\"'"
+            + " -Credential $usercredential |Set-ADUser -Manager "
+            + mo_values["manager_sam"]
+            + " -Credential $usercredential"
+        )
         self.assertEqual(add_manager_ps, expected_line)
 
     def test_set_password(self):
-        password = 'password'
-        self.ad_writer.set_user_password('MGORE', password)
+        password = "password"
+        self.ad_writer.set_user_password("MGORE", password)
         # Expected outputs
         num_expected_scripts = 1
         self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
@@ -586,9 +592,9 @@ class TestADWriter(TestCase, TestADWriterMixin):
         set_password_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
 
         expected_line = (
-            "Get-ADUser -Filter 'SamAccountName -eq \"MGORE\"' -Credential" +
-            " $usercredential |Set-ADAccountPassword -Reset -NewPassword" +
-            " (ConvertTo-SecureString -AsPlainText \"{}\" -Force)" +
-            " -Credential $usercredential"
+            "Get-ADUser -Filter 'SamAccountName -eq \"MGORE\"' -Credential"
+            + " $usercredential |Set-ADAccountPassword -Reset -NewPassword"
+            + ' (ConvertTo-SecureString -AsPlainText "{}" -Force)'
+            + " -Credential $usercredential"
         ).format(password)
         self.assertEqual(set_password_ps, expected_line)

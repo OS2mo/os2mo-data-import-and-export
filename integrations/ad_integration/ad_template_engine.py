@@ -362,7 +362,8 @@ def prepare_template(cmd, settings, jinja_map=None):
         )
     command_template = Template(cmdlet_templates[cmd])
     parameters, other_attributes = filter_illegal(
-        cmd, *partition_templates(
+        cmd,
+        *partition_templates(
             cmd, quote_templates(prepare_field_templates(cmd, settings))
         )
     )

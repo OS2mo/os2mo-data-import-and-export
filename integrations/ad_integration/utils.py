@@ -112,6 +112,7 @@ def dict_map(dicty, key_func=None, value_func=None, func=None):
     Returns:
         dict: A dict where func has been applied to every value.
     """
+
     def identity(x):
         return x
 
@@ -124,6 +125,7 @@ def dict_map(dicty, key_func=None, value_func=None, func=None):
                 return func(x, **kwargs)
             except TypeError:
                 return func(x)
+
         return inner
 
     key_func = help_call(key_func or identity)
@@ -165,16 +167,11 @@ def dict_filter(func, dicty):
 
 
 def dict_exclude(dicty, keys):
-    return dict_filter(
-        lambda key, value: key not in keys,
-        dicty
-    )
+    return dict_filter(lambda key, value: key not in keys, dicty)
+
 
 def dict_subset(dicty, keys):
-    return dict_filter(
-        lambda key, value: key in keys,
-        dicty
-    )
+    return dict_filter(lambda key, value: key in keys, dicty)
 
 
 def duplicates(iterable):
