@@ -90,9 +90,6 @@ class SqlExport(object):
 
         query_time = timestamp()
         kvittering = self._add_receipt(query_time)
-      
-
-
         if self.historic:
             self.lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
             self.lc.populate_cache(dry_run=use_pickle)
