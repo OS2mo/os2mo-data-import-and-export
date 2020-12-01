@@ -590,8 +590,15 @@ class MoraHelper(object):
 
         dates = set()
         for eng in mo_engagement:
-            dates.add(datetime.datetime.strptime(eng['validity']['from'],
-                                                 '%Y-%m-%d'))
+
+            # no love in python for dates like 1900
+            earliest_fromdate=datetime.datetime(1930,1,1)
+            fromdate = datetime.datetime.strptime(eng['validity']['from'],
+                                                 '%Y-%m-%d')
+            if fromdate < earliest_fromdate:
+                fromdate = earliest_fromdate
+            dates.add(fromdate)
+
             if eng['validity']['to']:
                 to = datetime.datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
                 day_after = to + datetime.timedelta(days=1)

@@ -1,11 +1,18 @@
+import functools
 import json
 import logging
 import os
 import pathlib
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from enum import Enum
+import datetime
 
 import requests
+from sqlalchemy.orm import sessionmaker
+
+from exporters.sql_export.lc_for_jobs_db import get_engine
+from exporters.sql_export.sql_table_defs import KLE
 
 LOG_FILE = 'opgavefordeler.log'
 
@@ -27,6 +34,10 @@ ASPECT_MAP = {
 }
 
 
+def get_session(engine):
+    return sessionmaker(bind=engine, autoflush=False)()
+
+
 class KLEAnnotationIntegration(ABC):
     """Import and export of KLE annotation from or to an external source."""
 
@@ -42,6 +53,14 @@ class KLEAnnotationIntegration(ABC):
         self.mora_base = self.settings.get("mora.base")
         self.mora_session = self._get_mora_session(token=os.environ.get("SAML_TOKEN"))
         self.org_uuid = self._get_mo_org_uuid()
+
+        kle_classes = self.get_kle_classes_from_mo()
+        self.kle_uuid_map = {item["user_key"]: item["uuid"] for item in kle_classes}
+
+        aspect_classes = self.get_aspect_classes_from_mo()
+        self.aspect_map = {
+            ASPECT_MAP[clazz["scope"]]: clazz["uuid"] for clazz in aspect_classes
+        }
 
     def _get_mora_session(self, token) -> requests.Session:
         s = requests.Session()
@@ -117,24 +136,51 @@ class OpgavefordelerImporter(KLEAnnotationIntegration):
         self.opgavefordeler_session = self._get_opgavefordeler_session(
             token=self.settings.get("integrations.os2opgavefordeler.token")
         )
+        self.lc_session = get_session(get_engine())
 
     def _get_opgavefordeler_session(self, token) -> requests.Session:
         s = requests.Session()
         s.headers.update({"Authorization": "Basic {}".format(token)})
         return s
 
-    def get_kle_from_source(self, kle_numbers: list) -> list:
-        """
-        Get all KLE-number info from OS2opgavefordeler
+    def get_kle_info_from_opgavefordeler(self, kle_numbers: list) -> list:
+        """Get all KLE-number info from OS2opgavefordeler
 
         This will give information on which unit is 'Ansvarlig' for a certain
         KLE-number.
         The API will perform inheritance and deduce the unit logically responsible
         for a certain number if no unit is directly responsible,
         so the result is filtered of all duplicates
+
+        The resulting data has one entry per KLE-number and is on the form:
+        [
+          {
+            "kle": {
+              "number": "81",
+              "name": "Kommunens personale"
+            },
+            "org": {
+              "manager": {
+                "name": "...",
+                "email": "...",
+                "esdhId": "c162842f-8036-411c-95ac-9c81042e9530",
+                "esdhName": null,
+                "initials": "...",
+                "jobTitle": "..."
+              },
+              "businessKey": "99e2521a-c52d-4dfa-838f-b205184f3c00",
+              "name": "...",
+              "esdhId": "99e2521a-c52d-4dfa-838f-b205184f3c00",
+              "esdhName": "...",
+              "email": null,
+              "phone": null,
+              "foreignKeys": {}
+            },
+            "employee": null
+          },
+        ]
         """
         logger.info("Fetching KLE info from OS2opgavefordeler")
-
         url = "{}/TopicRouter/api".format(self.opgavefordeler_url)
         s = self.opgavefordeler_session
 
@@ -158,14 +204,29 @@ class OpgavefordelerImporter(KLEAnnotationIntegration):
         logger.info("Found {} items".format(len(filtered)))
         return filtered
 
-    def get_org_unit_info_from_source(self, org_units_uuids: list) -> list:
-        """
-        Get all org-unit info from OS2opgavefordeler
+    def get_org_unit_info_from_opgavefordeler(self, org_units_uuids: list) -> list:
+        """Get all org-unit info from OS2opgavefordeler
 
         This will give information about which KLE-numbers the unit has a
         'Udførende' and 'Indsigt' relationship with.
 
         Empty results are filtered
+
+        The resulting data is on the form:
+        [
+          [
+            "5d6fe93d-2cf0-4bc7-b29a-68c14f9ae681",
+            {
+              "PERFORMING": [
+                "15"
+              ],
+              "INTEREST": [
+                "15"
+              ]
+            }
+          ],
+          ...
+        ]
         """
         logger.info("Fetching org unit info from OS2opgavefordeler")
         url = "{}/TopicRouter/api/ou/{}"
@@ -189,83 +250,258 @@ class OpgavefordelerImporter(KLEAnnotationIntegration):
         logger.info("Found {} items".format(len(filtered)))
         return filtered
 
-    def add_indsigt_and_udfoerer(self, org_unit_map: dict, org_unit_info: list):
-        """Add 'Indsigt' and 'Udførende' to the org unit map"""
-        logger.info('Adding "Indsigt" and "Udførende"')
-        for item in org_unit_info:
-            org_unit_uuid, info = item
-            org_unit = org_unit_map.setdefault(org_unit_uuid, {})
-            for key in info["PERFORMING"]:
-                values = org_unit.setdefault(key, set())
-                values.add(Aspects.Udfoerende)
-            for key in info["INTEREST"]:
-                values = org_unit.setdefault(key, set())
-                values.add(Aspects.Indsigt)
+    def get_ansvarlig_tuples(self):
+        """Fetch KLE info from opgavefordeler and generate list of tuples
+        mapping org unit uuids to KLE number uuids for the 'ansvarlig' aspect"""
 
-    def add_ansvarlig(self, org_unit_map: dict, kle_info: list):
-        """Add ansvarlig to the org unit map"""
-        logger.info('Adding "Ansvarlig"')
-        for item in kle_info:
-            key = item["kle"]["number"]
-            org_unit_uuid = item["org"]["businessKey"]
-            org_unit = org_unit_map.setdefault(org_unit_uuid, {})
-            values = org_unit.setdefault(key, set())
-            values.add(Aspects.Ansvarlig)
+        opgavefordeler_ansvarlig = self.get_kle_info_from_opgavefordeler(
+            list(self.kle_uuid_map.keys())
+        )
+        return [
+            (item["org"]["businessKey"], self.kle_uuid_map.get(item["kle"]["number"]))
+            for item in opgavefordeler_ansvarlig
+        ]
 
-    def create_payloads(
-        self, org_unit_map: dict, kle_classes: list, aspect_classes: list
-    ) -> list:
-        """Given the org unit map, create a list of OS2mo payloads"""
-        logger.info("Creating payloads")
+    def get_indsigt_and_udfoerende_tuples(self):
+        """Fetch Org unit info from opgavefordeler and generate lists of tuples
+        mapping org unit uuids to KLE number uuids for the 'indsigt' and
+        'udfoerende' aspects"""
 
-        kle_uuid_map = {item["user_key"]: item["uuid"] for item in kle_classes}
-        aspect_map = {
-            ASPECT_MAP[clazz["scope"]]: clazz["uuid"] for clazz in aspect_classes
+        org_unit_uuids = [unit["uuid"] for unit in self.get_all_org_units_from_mo()]
+        org_unit_info = self.get_org_unit_info_from_opgavefordeler(org_unit_uuids)
+
+        indsigt = [
+            (org_unit_uuid, self.kle_uuid_map.get(kle))
+            for org_unit_uuid, info in org_unit_info
+            for kle in info.get("INTEREST")
+            if kle in self.kle_uuid_map
+        ]
+
+        udfoerende = [
+            (org_unit_uuid, self.kle_uuid_map.get(kle))
+            for org_unit_uuid, info in org_unit_info
+            for kle in info.get("PERFORMING")
+            if kle in self.kle_uuid_map
+        ]
+
+        return indsigt, udfoerende
+
+    def build_org_unit_maps(self):
+        """Build a map of opgavefordeler data
+
+        For each of Ansvarlig, Indsigt and Udførende, generate a map between
+        org units and KLE-numbers they are associated to
+        """
+
+        def tuple_list_to_dict(d: dict, t: tuple):
+            org_uuid, kle_uuid = t
+            d.setdefault(org_uuid, []).append(kle_uuid)
+            return d
+
+        ansvarlig = self.get_ansvarlig_tuples()
+        indsigt, udfoerende = self.get_indsigt_and_udfoerende_tuples()
+
+        ansvarlig, indsigt, udfoerende = map(
+            lambda x: functools.reduce(tuple_list_to_dict, x, dict()),
+            [ansvarlig, indsigt, udfoerende],
+        )
+
+        return ansvarlig, indsigt, udfoerende
+
+    def build_delete_payload(self, mo_uuid):
+        return {
+            "uuid": mo_uuid,
+            "validity": {"from": "1920-01-01", "to": str(datetime.date.today())},
+            "type": "kle",
         }
-        payloads = []
-        for unit, info in org_unit_map.items():
-            for number, aspects in info.items():
 
-                kle_uuid = kle_uuid_map.get(number)
-                if not kle_uuid:
-                    logger.warning("KLE number '{}' doesn't exist".format(number))
-                    continue
+    def build_create_payload(self, org_unit_uuid, kle_number, kle_aspects):
+        kle_payload = self.build_kle_payload(org_unit_uuid, kle_number, kle_aspects)
 
-                aspects_uuids = [aspect_map[aspect] for aspect in aspects]
+        payload = {
+            **kle_payload,
+            "type": "kle",
+        }
+        return payload
 
-                payload = {
-                    "type": "kle",
-                    "org_unit": {"uuid": unit},
-                    "kle_aspect": [{"uuid": uuid} for uuid in aspects_uuids],
-                    "kle_number": {"uuid": kle_uuid_map[number]},
-                    "validity": {"from": "1920-01-01", "to": None},
+    def build_edit_payload(self, org_unit_uuid, kle_number, kle_aspects, obj_uuid):
+        kle_payload = self.build_kle_payload(org_unit_uuid, kle_number, kle_aspects)
+
+        payload = {
+            "data": {
+                **kle_payload,
+            },
+            "uuid": obj_uuid,
+            "type": "kle",
+        }
+        return payload
+
+    def build_kle_payload(self, org_unit_uuid, kle_uuid, kle_aspects):
+
+        aspects_uuids = [self.aspect_map[aspect] for aspect in kle_aspects]
+
+        payload = {
+            "org_unit": {"uuid": org_unit_uuid},
+            "kle_aspect": [{"uuid": uuid} for uuid in aspects_uuids],
+            "kle_number": {"uuid": kle_uuid},
+            "validity": {"from": "1920-01-01", "to": None},
+        }
+        return payload
+
+    def convert_mo_kle_to_org_unit_map(self, mo_kle):
+        """Convert KLE objects from SQL cache to a similar org_unit_map
+        format as Opgavefordeler data, with added OS2mo object UUIDs
+
+        The general structure is listed below
+
+        {
+            <ORG_UNIT_UUID>: {
+                <KLE_NUMBER_UUID>: (
+                    <MO_OBJECT_UUID>,
+                    {
+                        Aspects.XXX,
+                        Aspects.YYY,
+                    }
+                ),
+                ...
+            },
+            ...
+        }
+        """
+
+        org_unit_map = {}
+
+        aspect_map = {
+            'Udførende': Aspects.Udfoerende,
+            'Indsigt': Aspects.Indsigt,
+            'Ansvarlig': Aspects.Ansvarlig,
+        }
+
+        for row in mo_kle:
+            org_unit = org_unit_map.setdefault(row.enhed_uuid, {})
+            _, aspects = org_unit.setdefault(row.kle_nummer_uuid, (row.uuid, set()))
+            aspect = aspect_map[row.kle_aspekt_titel]
+            aspects.add(aspect)
+
+        return org_unit_map
+
+    def convert_opgavefordeler_to_org_unit_map(
+        self, ansvarlig: dict, indsigt: dict, udfoerende: dict
+    ):
+        """Convert the three aspect mappings to a map between org unit uuids,
+        kle uuids and the associated aspects
+        {
+            <ORG_UNIT_UUID>: {
+                <KLE_NUMBER_UUID>: {
+                    Aspects.XXX,
+                    Aspects.YYY,
                 }
-                payloads.append(payload)
+                ...
+            },
+            ...
+        }
+        """
+        aspect_maps = {
+            Aspects.Ansvarlig: ansvarlig,
+            Aspects.Indsigt: indsigt,
+            Aspects.Udfoerende: udfoerende,
+        }
 
-        return payloads
+        org_unit_map = {}
+        for aspect, aspect_map in aspect_maps.items():
+            for org_uuid, kle_uuids in aspect_map.items():
+                for kle_uuid in kle_uuids:
+                    org_unit_map.setdefault(org_uuid, {}).setdefault(
+                        kle_uuid, set()
+                    ).add(aspect)
+
+        return org_unit_map
+
+    def create_diff(self, ansvarlig, indsigt, udfoerende):
+        """Compare Opgavefordeler data with existing OS2mo data and
+        determine what should be deleted, created and updated"""
+
+        mo_kle = self.lc_session.query(KLE).all()
+        mo_kle_org_unit_map = self.convert_mo_kle_to_org_unit_map(mo_kle)
+
+        org_unit_map = self.convert_opgavefordeler_to_org_unit_map(
+            ansvarlig, indsigt, udfoerende
+        )
+
+        # Compare every existing OS2mo KLE object with opgavefordeler
+        # to see if an entry exists for every org_unit/kle_number pair.
+        # If no longer in map, mark object UUID for deletion
+        deleted_uuids = {
+            row.uuid
+            for row in mo_kle
+            if not org_unit_map.get(row.enhed_uuid, {}).get(row.kle_nummer_uuid)
+        }
+        deleted = [self.build_delete_payload(uuid) for uuid in deleted_uuids]
+
+        new = []
+        updated = []
+
+        # Compare every org_unit/kle_number pair in opgavefordeler map, with
+        # OS2mo data.
+        # If no data exists in OS2mo, mark as new
+        # If data exists, but is different set of aspects, mark as update
+        # else skip
+        for unit, kle_info in org_unit_map.items():
+            for kle_number, aspects in kle_info.items():
+                mo_info_tuple = mo_kle_org_unit_map.get(unit, {}).get(kle_number)
+                if not mo_info_tuple:
+                    # New object
+                    new.append(self.build_create_payload(unit, kle_number, aspects))
+                else:
+                    mo_obj_uuid, mo_aspects = mo_info_tuple
+                    if mo_aspects != aspects:
+                        # Updated object
+                        updated.append(
+                            self.build_edit_payload(
+                                unit, kle_number, aspects, mo_obj_uuid
+                            )
+                        )
+
+        return deleted, new, updated
+
+    def handle_new(self, create_payloads: list):
+        """Create KLE org functions"""
+
+        logger.info("{} new KLE objects".format(len(create_payloads)))
+        url = "{}/service/details/create".format(self.mora_base)
+
+        r = self.mora_session.post(url, json=create_payloads, params={"force": 1})
+        r.raise_for_status()
+
+    def handle_update(self, edit_payloads: list):
+        """Edit existing KLE org functions"""
+        logger.info("{} updated KLE objects".format(len(edit_payloads)))
+        url = "{}/service/details/edit".format(self.mora_base)
+
+        r = self.mora_session.post(url, json=edit_payloads, params={"force": 1})
+        r.raise_for_status()
+
+    def handle_delete(self, delete_payloads: list):
+        """Terminate KLE org functions"""
+
+        logger.info("{} KLE objects to be terminated".format(len(delete_payloads)))
+        url = "{}/service/details/terminate".format(self.mora_base)
+
+        r = self.mora_session.post(url, json=delete_payloads, params={"force": 1})
+        r.raise_for_status()
 
     def run(self):
         logger.info("Starting import")
 
-        # Map of org_units to KLE-numbers, divided in the three sub-categories
-        org_unit_map = {}
-        kle_classes = self.get_kle_classes_from_mo()
+        # Generate a map of data from opgavefordeler
+        ansvarlig, indsigt, udfoerende = self.build_org_unit_maps()
 
-        # Ansvarlig
-        kle_numbers = [item["user_key"] for item in kle_classes]
-        kle_info = self.get_kle_from_source(kle_numbers)
-        self.add_ansvarlig(org_unit_map, kle_info)
+        # Generate a diff towards OS2mo
+        deleted, new, updated = self.create_diff(ansvarlig, indsigt, udfoerende)
 
-        # Indsigt og Udfører
-        org_units = self.get_all_org_units_from_mo()
-        org_unit_uuids = [unit['uuid'] for unit in org_units]
-        org_unit_info = self.get_org_unit_info_from_source(org_unit_uuids)
-        self.add_indsigt_and_udfoerer(org_unit_map, org_unit_info)
-
-        # Insert into MO
-        aspect_classes = self.get_aspect_classes_from_mo()
-        payloads = self.create_payloads(org_unit_map, kle_classes, aspect_classes)
-        self.post_payloads_to_mo(payloads)
+        self.handle_new(new)
+        self.handle_update(updated)
+        self.handle_delete(deleted)
 
         logger.info("Done")
 

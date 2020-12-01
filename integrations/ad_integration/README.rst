@@ -20,8 +20,9 @@ Integrationen går via i alt tre maskiner:
 
  2. En remote management server som den lokale server kan kommunikere med via
     Windows Remote Management (WinRM). Denne kommunikation autentificeres via
-    Kerberos. Der findes en vejledning til opsætning:
+    Kerberos. Der findes en vejledning til opsætning med kerberos her:
     https://os2mo.readthedocs.io/en/latest/_static/AD%20-%20OS2MO%20ops%C3%A6tnings%20guide.pdf
+    Alternativt kan der autentificeres med ntlm over https. Denne opsætning beskrives herunder.
 
  3. AD serveren.
 
@@ -30,69 +31,120 @@ remote management serveren som afvikler dem mod AD serveren. Denne omvej hænger
 sammen med, at MO afvikles fra et Linux miljø, hvorimod PowerShell kommunikation
 med AD bedst afvikles fra et Windows miljø. 
 
-For at kunne afvikle integrationen kræves der udover den nævnte opsætning af Keberos,
+For at kunne afvikle integrationen kræves der udover den nævnte opsætning af enten Kerberos eller ntlm,
 at AD er sat op med cpr-numre på medarbejdere samt en servicebruger som har
 rettigheder til at læse dette felt. Desuden skal et antal variable være sat i
 ``settings.json``
+
+Det er muligt at anvende flere AD til udlæsning af adresser og itsystemer til OS2MO
+Således er ``integrations.ad`` i ``settings.json`` et array med følgende 
+indbyggede betydning:
+ 
+ * Første AD i listen (index 0) anvendes til skrivning (hvis skrivning er aktiveret) 
+   og til integrationer, som endnu ikke er forberedt for flere ad'er.
+
+ * Alle AD'er anvendes af ad_sync til opdatering af og skabelse af adresser, itsystemer 
+
+Opsætning af ntlm over https
+----------------------------
+For at kunne autentificere med ntlm over https kræver det at settingsfilen indeholder brugernavn og password
+til en systembruger fra et domæne - modsat lokalt oprettet bruger - samt metoden 'ntlm'. Se bekrivelsen af parametre herunder. Brugeren skal desuden have 
+administratorrettigheder på windowsserveren, samt rettigheder til at læse og evt. skrive i AD.
+Dette gælder også feltet der indeholder CPR numre der kan være indstillet til 'confidential'. 
+I så fald skal rettigheden gives gennem programmet ldp. 
+For at sætte winrm op med https vha. et SelfSignedCertificate kan man følge nedenstående:
+Erstat "Computernavn" med serverens Hostname.
+
+1. I powershell som administrator køres
+
+.. code-block:: powershell
+
+  New-SelfSignedCertificate -DnsName "Computernavn" -CertStoreLocation Cert:\LocalMachine\My
+
+Det giver et 'thumbprint' i stil med "54B8571D6D0C0C89473ED5470A45EDC5A68AA2C3"
+
+2. Dette sættes ind i følgende kommando i en kommandoprompt (ikke powershell) også som administrator:
+
+.. code-block:: 
+
+  winrm create winrm/config/Listener?Address=*+Transport=HTTPS @{Hostname="Computernavn"; CertificateThumbprint="54B8571D6D0C0C89473ED5470A45EDC5A68AA2C3"}
+
+
+derefter i administrator powershell igen:
+
+.. code-block:: powershell
+
+  netsh advfirewall firewall add rule name="WinRM-HTTPS" dir=in localport=5986 protocol=TCP action=allow
+  winrm quickconfig -q
+  winrm quickconfig -transport:http
+  $enableArgs=@{Force=$true}
+  try {
+    $command=Get-Command Enable-PSRemoting
+    if($command.Parameters.Keys -contains "skipnetworkprofilecheck"){
+        $enableArgs.skipnetworkprofilecheck=$true
+    }
+  }
+  catch {
+    $global:error.RemoveAt(0)
+  }
+  Enable-PSRemoting @enableArgs
+  winrm set winrm/config/client/auth '@{Basic="true"}'
+  winrm set winrm/config/service/auth '@{Basic="true"}'
+  winrm set winrm/config/service '@{AllowUnencrypted="false"}'
+
+Nu skulle der være adgang til winrm med ntlm, krypteret med https, via port 5986.
+
+
 
 Fælles parametre
 ----------------
 
  * ``integrations.ad.winrm_host``: Hostname på remote mangagent server
 
-Standard AD
------------
+For hvert ad angives
+--------------------
 
- * ``integrations.ad.search_base``: Search base, eksempelvis
+ * ``search_base``: Search base, eksempelvis
    'OU=enheder,DC=kommune,DC=local'
- * ``integrations.ad.cpr_field``: Navnet på feltet i AD som indeholder cpr nummer.
- * ``integrations.ad.cpr_separator``: Angiver en eventuel separator mellem
+ * ``cpr_field``: Navnet på feltet i AD som indeholder cpr nummer.
+ * ``cpr_separator``: Angiver en eventuel separator mellem
    fødselsdato og løbenumre i cpr-feltet i AD. Hvis der ikke er en separator,
    angives en tom streng.
- * ``integrations.ad.sam_filter``: Hvis denne værdi er sat, vil kun det være muligt
+ * ``sam_filter``: Hvis denne værdi er sat, vil kun det være muligt
    at cpr-fremsøge medarbejder som har denne værdi foranstillet i SAM-navn.
    Funktionen muliggør at skelne mellem brugere og servicebrugere som har samme
    cpr-nummer.
- * ``integrations.ad.system_user``: Navnet på den systembruger som har rettighed til
+ * ``caseless_samname``: Hvis denne værdi er ``true`` (Default) vil sam_filter 
+   ikke se forskel på store og små bogstaver.
+ * ``system_user``: Navnet på den systembruger som har rettighed til
    at læse fra AD.
- * ``integrations.ad.password``: Password til samme systembruger.
- * ``integrations.ad.properties``: Liste over felter som skal læses fra AD. Angives
+ * ``password``: Password til samme systembruger.
+ * ``properties``: Liste over felter som skal læses fra AD. Angives
    som en liste i json-filen.
+ * ``method``: Metode til autentificering - enten ntlm eller kerberos. Hvis denne ikke er angivet anvendes kerberos.
+ * ``servers`` - domain controllere for denne ad.
 
-
-Skole AD
---------
-
-Hvis der ønskes integration til et AD til skoleområdet, udover det almindelige
-administrative AD, skal disse parametre desuden angives som miljøvariable. Hvis de
-ikke er til stede ved afviklingen, vil integrationen ikke forsøge at tilgå et
-skole AD.
-
- * ``AD_SCHOOL_SEARCH_BASE``
- * ``AD_SCHOOL_CPR_FIELD``
- * ``AD_SCHOOL_SYSTEM_USER``
- * ``AD_SCHOOLE_PASSWORD``
- * ``AD_SCHOOL_PROPERTIES``
 
 Test af opsætningen
 -------------------
 
 Der følger med AD integrationen et lille program, ``test_connectivity.py`` som tester
-om der er oprettet de nødvendige Kerberos tokens og konfiguration. Programmet
-afvikles med en af to parametre:
+om der kan læses fra eller skrives til AD, og dermed at autentificering er konfigureret korrekt.
+Programmet afvikles med en af to parametre:
 
  * ``--test-read-settings``
  * ``--test-write-settings``
 
 En test af læsning foregår i flere trin:
- * Der testes for om Remote Management serveren kan nås og autentificeres med et
-   kereros token.
+ * Der testes for om Remote Management serveren kan nås og autentificeres med metoden
+   specificeret i settings - enten Kerberos (standard) eller med ntlm.
  * Der testes om det er muligt af afvikle en triviel kommando på AD serveren.
  * Der testes for, at en søgning på alle cpr-numre fra 31. november returnerer
    nul resultater.
  * Der testes for, at en søging på cpr-numre fra den 30. i alle måneder returnerer
-   mindst et resultat. Hvis der ikke returneres nogen, er fejlen efter sandsynligt
-   en manglende rettighed til at læse cpr-nummer feltet.
+   mindst et resultat. Hvis der ikke returneres nogen, er fejlen sandsynligvis
+   en manglende rettighed til at læse feltet med cpr-nummer i AD. Dette kan bla. skyldes
+   at rettigheder til confidential attributes skal sættes i ldp programmet.
  * Der testes om de returnerede svar indeholder mindst et eksempel på disse tegn:
    æ, ø, å, @ som en test af at tegnsættet er korrekt sat op.
 
@@ -164,11 +216,11 @@ Nogle steder har man flere konti med samme cprnummer i AD'et.
 For at vælge den primære, som opdaterer / opdateres fra MO,
 kan man anvende et sæt nøgler i settingsfilen:
 
-  * ``integrations.ad.discriminator.field`` et felt i det pågældende AD, som bruges til at
-afgøre hvorvidt denne konto er den primære
-  * ``integrations.ad.discriminator.values`` et sæt strenge,
-som matches imod ``integrations.ad.discriminator field``
-  * ``integrations.ad.discriminator.function`` kan være 'include' eller 'exclude'
+* ``integrations.ad.discriminator.field`` et felt i det pågældende AD, som bruges til at
+  afgøre hvorvidt denne konto er den primære
+* ``integrations.ad.discriminator.values`` et sæt strenge,
+  som matches imod ``integrations.ad.discriminator field``
+* ``integrations.ad.discriminator.function`` kan være 'include' eller 'exclude'
 
 Man definerer et felt, som indeholder en indikator for om kontoen er den primære,
 det kunnne f.x være et felt, man kaldte xBrugertype, som kunne indeholde "Medarbejder".
@@ -177,7 +229,8 @@ Hvis man i dette tilfælde sætter ``integrations.ad.discriminator.function``
 til ``include`` vil kontoen opfattes som primær hvis 'Medarbejder' også findes i
 ``integrations.ad.discriminator.values``
 
-Opfattes mere end en konto som primær sættes programmet til at fejle.
+Opfattes mere end en konto som primær tages den første, man støder på - 
+I så tilfælde fungerer ``integrations.ad.discriminator.values`` som en prioriteret liste
 
 Findes nøglen ``integrations.ad.discriminator.field``, skal de andre to nøgler
 også være der. Findes den ikke, opfattes alle AD-konti som primære.
@@ -192,13 +245,13 @@ oprette AD brugere og skrive information fra MO til relevante felter.
 Hvis denne funktionalitet skal benyttes, er der brug for yderligere parametre som
 skal være sat når programmet afvikles:
 
- * ``integrations.ad.write.servers``: Liste med de DC'ere som findes i kommunens AD.
+ * ``servers`` fra ``integrations.ad[0]``: Liste med de DC'ere som findes i kommunens AD.
    Denne liste anvendes til at sikre at replikering er færdiggjort før der skrives
    til en nyoprettet bruger.
  * ``integrations.ad.write.uuid_field``: Navnet på det felt i AD, hvor MOs
    bruger-uuid skrives.
  * ``integrations.ad.write.level2orgunit_field``: Navnet på det felt i AD, hvor MO
-   skriver navnet på den oganisatoreiske hovedgruppering (Magistrat, direktørområde,
+   skriver navnet på den organisatoriske hovedgruppering (Magistrat, direktørområde,
    eller forvalting) hvor medarbejderen har sin primære ansættelse.
  * ``integrations.ad.write.org_unit_field``: Navnet på det felt i AD, hvor MO
    skriver enhedshierakiet for den enhed, hvor medarbejderen har sin primære
@@ -259,12 +312,16 @@ Programmet opdaterer alle værdier i MO i henhold til den feltmapning som er ang
 i `settings.json`. Det er muligt at synkronisere adresseoplysninger, samt at
 oprette et IT-system på brugeren, hvis brugeren findes i AD, men endnu ikke har et
 tilknyttet IT-system i MO. Desuden er det muligt at synkronisere et AD felt til
-et felt på brugerens primærengagement (typisk stillingsbetegnelsen).
+et felt på brugerens primærengagement (typisk stillingsbetegnelsen). 
+Husk at efterfølgende AD kan overskrive. Derfor:
+Anvend ikke samme klasser, itsystemer eller extensionfelter i flere af 
+de specificerede AD'er
+
 Et eksempel på en feltmapning angives herunder:
 
 .. code-block:: json
 
-    "integrations.ad.ad_mo_sync_mapping": {
+    "ad_mo_sync_mapping": {
         "user_addresses": {
             "telephoneNumber": ["a6dbb837-5fca-4f05-b369-8476a35e0a95", "INTERNAL"],
             "pager": ["d9cd7a04-a992-4b31-9534-f375eba2f1f4 ", "PUBLIC"],
@@ -283,6 +340,12 @@ For adresser angives en synlighed, som kan antage værdien `PUBLIC`, `INTERNAL`,
 `SECRET` eller `null` som angiver at synligheden i MO sættes til henholdsvis
 offentlig, intern, hemmelig, eller ikke angivet. UUID'er er på de tilhørende
 adresseklasser i MO som AD felterne skal mappes til.
+
+Hvis der findes flere adresser i MO med samme type og synlighed, springer
+programmet den givne adresse over, og skriver en advarsel i loggen. Det
+forventes herefter at brugeren af programmet løser denne situation, enten ved
+at sikre unikheden direkte, eller ved oprettelse af en speciel adresseklasse
+som udelukkende benyttes af AD, hvormed unikheden sikres ad den vej.
 
 Hvis der for en given bruger er felter i feltmapningen som ikke findes i AD, vil
 disse felter bliver sprunget over, men de øvrige felter vil stadig blive
@@ -439,7 +502,7 @@ for øjeblikket understøttes disse variable:
 
 Hvis et script indeholder andre nøgler på formen %OS2MO_ ... % vil der returneres
 en fejlmeddelelse (exception hvis det afvikles som en integration), med mindre
-disse variale er udkommenteret.
+disse variable er udkommenteret.
 
 Integrationen forventer at scripts befinder sig i mappen `scripts` i en undermappe
 til integrationen selv, og alle scripts skal have en `ps_template` som filendelse.
@@ -625,7 +688,7 @@ De forskellige muligheder gennemgås her en ad gangen:
 
    Eksempel: python ad_writer-py --sync-user 4931ddb6-5084-45d6-9fb2-52ff33998005
 
-   Synkroiser oplysninger fra MO til en allerede eksisterende AD konto.
+   Synkroniser oplysninger fra MO til en allerede eksisterende AD konto.
 
  * --delete-user User_SAM
 

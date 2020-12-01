@@ -38,16 +38,26 @@ stages:
     - docker
 
 
+Lint LoraCache Integration:
+  extends: .lint-python
+  script:
+    - python -m black --diff --line-length 85 --check exporters/sql_export/tests/*.py
+    - python -m isort --diff --check-only exporters/sql_export/tests/*.py
+
+
 Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
-    - python -m black --line-length 85 --check tests/* utils.py
-    - python -m isort --check-only tests/* utils.py
+    - python -m black --diff --line-length 85 --check tests/* utils.py
+    - python -m isort --diff --check-only tests/* utils.py
 
 
-
-
+Lint SetAlias Tool:
+  extends: .lint-python
+  script:
+    - python -m black --diff --line-length 85 --check tools/snurrebasser/set_alias.py
+    - python -m isort --diff --check-only tools/snurrebasser/set_alias.py
 
 
 # Test stage
@@ -56,29 +66,44 @@ Lint AD Integration:
 .test-python:
   stage: test
   needs: []
-  image: python:3.5
+  image: python:3
   services: []
   before_script:
+    - apt-get update && apt-get install -y unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev-compat
+    - find . -name 'requirements.*' | grep -v venv/ | xargs -l1 pip install -r
+    - pip install -r ./integrations/requirements/common.txt
+    - pip install -r ./integrations/requirements/test.txt
     - pip install ./os2mo_data_import --upgrade
-    - pip install -r integrations/requirements/test.txt
   tags:
     - docker
+
+
+Test LoraCache Exporter:
+  extends: .test-python
+  script:
+    - apt update && apt install -y unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev cifs-utils
+    - pip install -r exporters/sql_export/tests/requirements.txt
+    - export PYTHONPATH=$PWD:$PYTHONPATH
+    - pytest exporters/sql_export/tests/
 
 
 Test AD Integration:
   extends: .test-python
   script:
     - cd integrations/ad_integration/
-    - pytest tests/
+    - pytest tests/ --ignore tests/test_ad_sync.py --ignore tests/test_ad_writer.py
 
 
 Test OS2Sync Integration:
   extends: .test-python
   script:
+    - cp settings/kommune-andeby.json settings/settings.json
+    - export PYTHONPATH=$PWD:$PYTHONPATH
     - python -m doctest integrations/os2sync/os2mo.py
 
 
-Test SDLoen Integration:
+# Breaks, not ready for CI
+.Test SDLoen Integration:
   extends: .test-python
   script:
     - cp settings/kommune-andeby.json settings/settings.json

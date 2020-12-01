@@ -19,8 +19,6 @@ cd ${DIPEXAR}
 
 export PYTHONPATH=$PWD:$PYTHONPATH
 
-rm tmp/*.p 2>/dev/null || :
-
 # some logfiles can be truncated after backup as a primitive log rotation
 # they should be appended to BACK_UP_AND_TRUNCATE
 declare -a BACK_UP_AND_TRUNCATE=(
@@ -91,6 +89,19 @@ imports_test_sd_connectivity(){
 
 imports_test_opus_connectivity(){
     set -e
+    (
+        SETTING_PREFIX="cronhook" source ${DIPEXAR}/tools/prefixed_settings.sh
+        if [ "${mount_opus_on}" = "true" ] ; then
+            echo testing opus mountpoint settings
+            mountpoint ${mount_opus_mountpoint} || exit 1
+            (
+                # hvis opus er mountet, skal xml_path, hvor man læser opus fra være == mountpointet
+                SETTING_PREFIX="integrations.opus.import" source ${DIPEXAR}/tools/prefixed_settings.sh
+                [ ! "${mount_opus_mountpoint}" = "${xml_path}" ] && echo "xml-path skal være == mountpoint" && exit 1
+                exit 0
+            )
+        fi
+    ) || return 1
     echo running imports_test_ops_connectivity
     ${VENV}/bin/python3 integrations/opus/test_opus_connectivity.py --test-diff-import
 }
@@ -259,7 +270,7 @@ exports_viborg_eksterne(){
     set -e
     echo "running viborgs eksterne"
     ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py --lora|| exit 1
-    $(
+    (
         SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
         SETTING_PREFIX="integrations.ad" source ${DIPEXAR}/tools/prefixed_settings.sh
         SETTING_PREFIX="exports_viborg_eksterne" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -374,7 +385,6 @@ exports_historic_sql_export(){
 exports_os2phonebook_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(os2phonebook_export.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py sql-export
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py generate-json
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py transfer-json
 }
@@ -413,10 +423,11 @@ exports_dummy(){
 
 # read the run-job script et al
 for module in tools/job-runner.d/*.sh; do
-    echo sourcing $module
+    #echo sourcing $module
     source $module 
 done
 
+prometrics-git
 
 # imports are typically interdependent: -e
 imports(){
@@ -681,6 +692,8 @@ show_status(){
 
 if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
     (
+        # Dette er den sektion, der kaldes fra CRON (ingen argumenter)
+
         if [ ! -n "${CRON_LOG_JSON_SINK}" ]; then
             REASON="WARNING: crontab.CRON_LOG_JSON_SINK not specified - no json logging"
             echo ${REASON}
@@ -754,6 +767,9 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
             echo ${REASON}
         fi
 
+        # Vi sletter lora-cache-picklefiler og andet inden vi kører cronjobbet
+        rm tmp/*.p 2>/dev/null || :
+
         export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
         pre_backup
@@ -774,7 +790,7 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
 elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
     if [ -n "$(grep $1\(\) $0)" ]; then
         echo running single job function
-        $1
+        run-job $1
     fi
 elif [ "${JOB_RUNNER_MODE}" == "sourced" ]; then
     # export essential functions

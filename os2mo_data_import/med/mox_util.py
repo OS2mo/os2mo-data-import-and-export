@@ -1,15 +1,16 @@
+import asyncio
 import json
 import sys
-import asyncio
-from typing import Tuple
+from datetime import datetime
+from functools import partial
 from operator import itemgetter
+from typing import Tuple
 
 import click
-
+from more_itertools import bucket, flatten, unzip
 from mox_helper import create_mox_helper
 from payloads import lora_facet, lora_klasse
 from utils import async_to_sync, dict_map
-from more_itertools import flatten, bucket
 
 
 @click.group()
@@ -25,7 +26,7 @@ def settings_loader(ctx, settings_file: str):
 
     This command-level only serves to load settings files for the lower command
     levels, so please refer to the `cli` level for the actual functionality.
-    
+
     Please run: python mox_util.py cli
     """
     #    # Not available until click 8
@@ -76,13 +77,26 @@ def cli(ctx, mox_base: str):
 def print_created(uuid: str, created: bool) -> None:
     """Output uuid followed by created or exists.
 
-    The color of the output follows Ansibles changed / unchanged coor scheme.
+    The color of the output follows Ansibles changed / unchanged color scheme.
     """
     output_map = {
         False: {"message": "exists", "color": "green",},
         True: {"message": "created", "color": "yellow",},
     }
     output = output_map[created]
+    click.secho(uuid + " " + output["message"], fg=output["color"])
+
+
+def print_changed(uuid: str, changed: bool) -> None:
+    """Output uuid followed by not changed or changed.
+
+    The color of the output follows Ansibles changed / unchanged color scheme.
+    """
+    output_map = {
+        False: {"message": "unchanged", "color": "green",},
+        True: {"message": "changed", "color": "yellow",},
+    }
+    output = output_map[changed]
     click.secho(uuid + " " + output["message"], fg=output["color"])
 
 
@@ -164,6 +178,105 @@ async def ensure_class_exists(
     # POST for non-dry
     uuid, created = await mox_helper.get_or_create_klassifikation_klasse(klasse)
     print_created(uuid, created)
+
+
+# ensure class value
+@cli.command()
+@click.pass_context
+@click.option(
+    "--bvn",
+    "--brugervendt-nøgle",
+    required=True,
+    help="User key to set on the class.",
+)
+@click.option("--variable", required=True,  help="variable to be checked/updated")
+@click.option(
+    "--new_value",required=True, help="Value which should be checked/updated."
+)
+@click.option("--description", help="Description to set on the class.")
+@click.option(
+    "--dry-run",
+    default=False,
+    is_flag=True,
+    help="Dry run and print the generated object.",
+)
+@async_to_sync
+async def ensure_class_value(
+    ctx,
+    bvn: str,
+    variable: str,
+    new_value: str,
+    description: str,
+    dry_run: bool,
+):
+    """Ensures values"""
+    mox_helper = await create_mox_helper(ctx.obj["mox.base"])
+
+    try:
+        uuid = await mox_helper.read_element_klassifikation_klasse({"bvn": bvn})
+    except:
+        message="No class with bvn={} was found.".format(bvn)
+        click.secho(message, fg="red")    
+        return
+
+    klasse = await mox_helper.search_klassifikation_klasse({"UUID": uuid})
+    klasse = klasse[0]['registreringer'][0]
+    klasse = {item: klasse.get(item) for item in ('attributter', 'relationer', 'tilstande')}
+
+    virkning = {
+        "from": datetime.now().strftime('%Y-%m-%d'),
+        "to": "infinity"
+    }
+
+    def check_value(variable, new_value, o):
+        """Recurse through object to ensure correct value "new_value" in "variable"."""
+        seeded_check_value = partial(check_value, variable, new_value)
+        if isinstance(o, dict):
+            if variable in o:
+                if o[variable] == new_value:
+                    return o, False
+                o[variable] = new_value
+                o['virkning'] = virkning
+                return o, True
+            keys, values = unzip(o.items())
+            values, changed = unzip(map(seeded_check_value, values))
+            return dict(zip(keys, values)), any(changed)
+        elif isinstance(o, list):
+            values, changed = unzip(map(seeded_check_value, o))
+            return list(values), any(changed)
+        elif isinstance(o, tuple):
+            values, changed = unzip(map(seeded_check_value, o))
+            return tuple(values), any(changed)
+        else:
+            return o, False
+    if variable == 'ejer':
+        try:
+            old_owner = klasse.get('relationer').get('ejer')[0].get('uuid')
+            changed = (old_owner != new_value)
+        except IndexError:
+            changed = True
+
+        if changed:
+            klasse['relationer']['ejer'] = [
+                {
+                    "uuid": new_value,
+                    "virkning": virkning,
+                    "objekttype": "OrganisationEnhed",
+                }
+            ]
+    else:
+        klasse, changed = check_value(variable, new_value, klasse)
+    # Print for dry run
+    if dry_run:
+        mox_helper.validate_klassifikation_klasse(klasse)
+        message = json.dumps(klasse, indent=4, sort_keys=True)
+        click.secho(message, fg="green")
+        return
+
+    # POST for non-dry
+    if changed:
+        uuid = await mox_helper.update_klassifikation_klasse(uuid, klasse)
+    print_changed(uuid, changed)
 
 
 @cli.command()
@@ -291,10 +404,6 @@ async def bulk_ensure(
     for uuid, created in results:
         print_created(uuid, created)
 
-    # Enrich classes with default organisation
-    classes = map(enrich_with_org_unit, classes)
-    classes = list(classes)
-
     # Find all unique facet bvns used by the classes, and translate to UUIDs
     required_facets = set(map(itemgetter("facet"), classes))
 
@@ -308,45 +417,53 @@ async def bulk_ensure(
         return dict(await asyncio.gather(*tasks))
     facet_map = await construct_facet_bvn_to_uuid_map(required_facets)
 
-    # Find all unique parent bvns used by the classes, and translate to UUIDs
-    required_parents = set({
-        clazz["parent"] for clazz in classes if "parent" in clazz
-    })
-    async def construct_parent_bvn_to_uuid_map(parent_bvns):
-        async def create_bvn_to_uuid_tuple(parent_bvn):
-            return (
-                parent_bvn,
-                await mox_helper.read_element_klassifikation_klasse(bvn=parent_bvn)
-            )
-        tasks = list(map(create_bvn_to_uuid_tuple, parent_bvns))
-        return dict(await asyncio.gather(*tasks))
-    parent_map = await construct_parent_bvn_to_uuid_map(required_parents)
+    async def enrich_classes(classes):
+        # Find all unique parent bvns used by the classes, and translate to UUIDs
+        required_parents = set({
+            clazz["parent"] for clazz in classes if "parent" in clazz
+        })
+        async def construct_parent_bvn_to_uuid_map(parent_bvns):
+            async def create_bvn_to_uuid_tuple(parent_bvn):
+                return (
+                    parent_bvn,
+                    await mox_helper.read_element_klassifikation_klasse(bvn=parent_bvn)
+                )
+            tasks = list(map(create_bvn_to_uuid_tuple, parent_bvns))
+            return dict(await asyncio.gather(*tasks))
+        parent_map = await construct_parent_bvn_to_uuid_map(required_parents)
 
-    # Translate class facet to facet_uuid
-    def class_facet_to_facet_uuid(clazz):
-        facet_bvn = clazz.pop('facet')
-        clazz['facet_uuid'] = facet_map[facet_bvn]
-        return clazz
-    classes = map(class_facet_to_facet_uuid, classes)
+        # Enrich classes with default organisation
+        classes = map(enrich_with_org_unit, classes)
 
-    # Translate class parent to parent_uuid
-    def class_parent_to_parent_uuid(clazz):
-        parent_bvn = clazz.pop('parent', None)
-        if parent_bvn:
-            clazz['parent_uuid'] = parent_map[parent_bvn]
-        return clazz
-    classes = map(class_parent_to_parent_uuid, classes)
+        # Translate class facet to facet_uuid
+        def class_facet_to_facet_uuid(clazz):
+            facet_bvn = clazz.pop('facet')
+            clazz['facet_uuid'] = facet_map[facet_bvn]
+            return clazz
+        classes = map(class_facet_to_facet_uuid, classes)
+
+        # Translate class parent to parent_uuid
+        def class_parent_to_parent_uuid(clazz):
+            parent_bvn = clazz.pop('parent', None)
+            if parent_bvn:
+                clazz['parent_uuid'] = parent_map[parent_bvn]
+            return clazz
+        classes = map(class_parent_to_parent_uuid, classes)
+
+        return classes
 
     # Partition into buckets by layer
     def set_layer(clazz):
         if "__layer__" not in clazz:
             clazz["__layer__"] = 1
         return clazz
+
     classes = map(set_layer, classes)
     buckets = bucket(classes, key=itemgetter('__layer__'))
     layers = sorted(list(buckets))
     for layer in layers:
-        classes = buckets[layer]
+        classes = list(buckets[layer])
+        classes = await enrich_classes(classes)
 
         # Remove the layer key
         def remove_key(key):

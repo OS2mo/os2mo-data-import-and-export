@@ -18,8 +18,15 @@ git pull
 new_git=$(git show -s --format=%H)
 git log --pretty=oneline ${old_git}..${new_git}
 
+#Send git_info to prometheus
+source tools/job-runner.sh
+prometrics-git
+
+#Add githooks
+find .git/hooks -type l -exec rm {} \; && find .githooks -type f -exec ln -sf ../../{} .git/hooks/ \;
+
 # NOTE: If you get an error, check if the following packages are installed:
-# * sudo apt-get install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmysqlclient-dev
+# * sudo apt-get install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmysqlclient-dev cifs-utils
 # Required for development
 #
 # You might also need:

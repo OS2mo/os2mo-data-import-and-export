@@ -1,5 +1,6 @@
 import asyncio
 from functools import partial
+from itertools import product
 from typing import Any, Sequence, Tuple
 from uuid import UUID
 
@@ -63,37 +64,40 @@ class MoxHelper:
         url = self.hostname + "/site-map"
 
         async def discover_endpoints():
+            def build_service_tuple(url):
+                # The URLs have the following format: /service/obj/fields
+                leading_slash, service, obj, fields_suffix = url.split("/")
+                return service, obj
+
             async with session.get(url) as response:
                 data = await response.json()
+                # Find all service urls in the site-map
                 service_urls = filter(
                     lambda x: x.endswith("/fields"), data["site-map"]
                 )
-                services = map(lambda x: x.replace("/fields", "")[1:], service_urls)
-                service_tuples = map(lambda x: x.split("/"), services)
-                return service_tuples
+                return map(build_service_tuple, service_urls)
 
-        service_tuples = await discover_endpoints()
+        service_tuples = list(await discover_endpoints())
         method_map = {
             "read_element": self._read_element,
             "read_all": self._read_uuid_list,
             "create": self._create,
             "get_or_create": self._get_or_create,
             "validate": self._validate_payload,
+            "update": self._update,
+            "search": self._search,
         }
-        schema_tasks = []
-        for service, obj in service_tuples:
-            # Generate each method for each service / object
-            for prefix, method in method_map.items():
-                setattr(
-                    self,
-                    "_".join([prefix, service, obj]),
-                    partial(method, service, obj),
-                )
-            # Fetch schemas for each endpoint
-            task = asyncio.ensure_future(self._fetch_schema(service, obj))
-            schema_tasks.append(task)
-        # Fetch schemas in 'parallel'
-        # TODO: Consider caching schemas
+        # Generate each method for each service / object
+        service_method_map = product(service_tuples, method_map.items())
+        for (service, obj), (prefix, method) in service_method_map:
+            method_name = "_".join([prefix, service, obj])
+            setattr(self, method_name, partial(method, service, obj))
+        # Fetch schemas for each endpoint in 'parallel'
+        # TODO: Consider caching schemas on disk
+        schema_tasks = map(
+            lambda tup: asyncio.ensure_future(self._fetch_schema(*tup)),
+            service_tuples
+        )
         self.schemas = dict(await asyncio.gather(*schema_tasks))
 
     @ensure_session
@@ -125,6 +129,16 @@ class MoxHelper:
         self._validate_payload(service, obj, payload)
         url = self.hostname + "/" + service + "/" + obj
         async with session.post(url, json=payload) as response:
+            return (await response.json())["uuid"]
+
+    @ensure_session
+    async def _update(
+        self, session: aiosession, service: str, obj: str,uuid:str, payload: Any
+    ) -> UUIDstr:
+        self._validate_payload(service, obj, payload)
+        url = self.hostname + "/" + service + "/" + obj + "/" + uuid
+      
+        async with session.patch(url, json=payload) as response:
             return (await response.json())["uuid"]
 
     async def _read_uuid_list(self, service: str, obj: str) -> Sequence[UUIDstr]:
@@ -164,3 +178,12 @@ async def create_mox_helper(*args, generate_methods=True, **kwargs):
     if generate_methods:
         await mox_helper.generate_methods()
     return mox_helper
+
+
+if __name__ == "__main__":
+    async def run():
+        mox = await create_mox_helper("http://localhost:8080")
+        print(await mox.check_connection())
+
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(run())

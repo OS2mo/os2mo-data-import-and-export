@@ -1,0 +1,8 @@
+#!/bin/bash
+#
+echo $@
+
+#Send git_info to prometheus
+source tools/job-runner.sh
+prometrics-git
+

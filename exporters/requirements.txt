@@ -1,9 +1,5 @@
 -r os2phonebook/requirements.txt
+-r sql_export/requirements.txt
 click
-pymssql
 anytree
-sqlalchemy
-mysqlclient
-pyodbc
 git+https://github.com/magenta-aps/spsftp
-git+https://github.com/magenta-aps/lora-utils.git@master#egg=lora_utils
