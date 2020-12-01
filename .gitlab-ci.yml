@@ -28,7 +28,7 @@ stages:
 ############
 
 .lint-python:
-  stage: test
+  stage: lint
   needs: []
   image: python:3
   services: []
