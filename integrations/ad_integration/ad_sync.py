@@ -455,7 +455,7 @@ class AdMoSync(object):
                 'users': set()
             }
 
-            ad_reader = adreader.ADParameterReader(self.settings, index=index)
+            ad_reader = adreader.ADParameterReader(index=index)
             print('Retrive AD dump')
             ad_reader.cache_all()
             print('Done')
