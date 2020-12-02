@@ -264,11 +264,11 @@ def prepare_and_check_login_field_templates(jinja_map):
     """
     # Check against hardcoded values, as these will be forcefully overridden.
     jinja_keys = lower_list(jinja_map.keys())
-    if "Credential".lower() in jinja_keys:
+    if "credential" in jinja_keys:
         raise ValueError("Credential is hardcoded")
-    if "SamAccountName".lower() in jinja_keys:
+    if "samaccountname" in jinja_keys:
         raise ValueError("SamAccountName is hardcoded")
-    if "Manager".lower() in jinja_keys:
+    if "manager" in jinja_keys:
         raise ValueError("Manager is handled uniquely")
     # Do the forceful override
     jinja_map["Credential"] = "$usercredential"
