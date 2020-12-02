@@ -50,6 +50,15 @@ Desuden er det nødvendigt at angive adressen på MO og LoRa i variablerne:
  * ``mox.base``
  * ``mora.base``
 
+Brug af integrationen
+=====================
+De forskellige underprogrammer kan alle tilgåes igennem ét hoved program,
+nemlig ``sd_cli``, ved kørsel af dette program vises underprogrammerne, og
+deres parametre og formål kan udforskes. Kør blot:
+```
+python integrations/SD_Lon/sd_cli.py --help
+```
+
 Detaljer om importen
 ====================
 Udtræk fra SD Løn foregår som udgangspunkt via disse webservices:
@@ -236,7 +245,7 @@ hjælpeværktøjer:
  * ``test_sd_connectivity.py``: Et lille værktøj som tester at den lokale
    ``settings.json`` indeholder de nødvendige nøgler. Desuden tester programmet
    for en række potentielle fejl, eksempevis om felterne har gyldige værdier
-   og om det er muligt at kotakte SD Løn med de angivne brugeroplysinger.
+   og om det er muligt at kontakte SD Løn med de angivne brugeroplysinger.
 
  * ``test_mo_against_sd.py``: Et værktøj som tester udvalgte personers engagementer
    mod SD løn of checker at MO og SD er løn har samme opfattelse af om personens

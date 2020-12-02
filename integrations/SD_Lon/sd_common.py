@@ -6,33 +6,46 @@ import logging
 import hashlib
 import requests
 import xmltodict
+from functools import lru_cache
 from pathlib import Path
 logger = logging.getLogger("sdCommon")
 
-# TODO: Soon we have done this 4 times. Should we make a small settings
-# importer, that will also handle datatype for specicic keys?
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
 
-INSTITUTION_IDENTIFIER = SETTINGS['integrations.SD_Lon.institution_identifier']
-SD_USER = SETTINGS['integrations.SD_Lon.sd_user']
-SD_PASSWORD = SETTINGS['integrations.SD_Lon.sd_password']
+@lru_cache(maxsize=None)
+def load_settings():
+    # TODO: Soon we have done this 4 times. Should we make a small settings
+    # importer, that will also handle datatype for specicic keys?
+    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+    if not cfg_file.is_file():
+        raise Exception('No setting file')
+    settings = json.loads(cfg_file.read_text())
 
-if not (INSTITUTION_IDENTIFIER and SD_USER and SD_PASSWORD):
-    raise Exception('Credentials missing')
+    institution_identifier = settings['integrations.SD_Lon.institution_identifier']
+    if not institution_identifier:
+        raise ValueError("Missing setting, institution_identifier")
+
+    sd_user = settings['integrations.SD_Lon.sd_user']
+    if not sd_user:
+        raise ValueError("Missing setting, sd_user")
+
+    sd_password = settings['integrations.SD_Lon.sd_password']
+    if not sd_password:
+        raise ValueError("Missing setting, sd_password")
+
+    return institution_identifier, sd_user, sd_password
 
 
 def sd_lookup(url, params={}, use_cache=True):
     logger.info('Retrive: {}'.format(url))
     logger.debug('Params: {}'.format(params))
 
+    institution_identifier, sd_user, sd_password = load_settings()
+
     BASE_URL = 'https://service.sd.dk/sdws/'
     full_url = BASE_URL + url
 
     payload = {
-        'InstitutionIdentifier': INSTITUTION_IDENTIFIER,
+        'InstitutionIdentifier': institution_identifier,
     }
     payload.update(params)
     m = hashlib.sha256()
@@ -57,7 +70,7 @@ def sd_lookup(url, params={}, use_cache=True):
         response = requests.get(
             full_url,
             params=payload,
-            auth=(SD_USER, SD_PASSWORD)
+            auth=(sd_user, sd_password)
         )
         with open(str(cache_file), 'wb') as f:
             pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)

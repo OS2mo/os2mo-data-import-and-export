@@ -1,9 +1,11 @@
+import click
 import json
 import logging
 import pathlib
 import sqlite3
 import requests
 import datetime
+from functools import lru_cache
 from integrations.SD_Lon import sd_payloads
 
 from integrations import cpr_mapper
@@ -32,21 +34,20 @@ for name in logging.root.manager.loggerDict:
     else:
         logging.getLogger(name).setLevel(logging.ERROR)
 
-
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No settings file')
-# TODO: This must be clean up, settings should be loaded by __init__
-# and no references should be needed in global scope.
-SETTINGS = json.loads(cfg_file.read_text())
-RUN_DB = SETTINGS['integrations.SD_Lon.import.run_db']
-
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
+
+
+@lru_cache(maxsize=None)
+def load_settings():
+    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+    if not cfg_file.is_file():
+        raise Exception('No settings file')
+    return json.loads(cfg_file.read_text())
 
 
 class ChangeAtSD(object):
     def __init__(self, from_date, to_date=None):
-        self.settings = SETTINGS
+        self.settings = load_settings()
 
         if self.settings[
                 'integrations.SD_Lon.job_function'] == 'JobPositionIdentifier':
@@ -73,7 +74,7 @@ class ChangeAtSD(object):
         # List of job_functions that should be ignored.
         self.skip_job_functions = self.settings.get('skip_job_functions', [])
 
-        use_ad = SETTINGS.get('integrations.SD_Lon.use_ad_integration', True)
+        use_ad = self.settings.get('integrations.SD_Lon.use_ad_integration', True)
         if use_ad:
             logger.info('AD integration in use')
             self.ad_reader = ad_reader.ADParameterReader()
@@ -946,7 +947,8 @@ class ChangeAtSD(object):
 
 
 def _local_db_insert(insert_tuple):
-    conn = sqlite3.connect(SETTINGS['integrations.SD_Lon.import.run_db'],
+    settings = load_settings()
+    conn = sqlite3.connect(settings['integrations.SD_Lon.import.run_db'],
                            detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
     query = 'insert into runs (from_date, to_date, status) values (?, ?, ?)'
@@ -987,27 +989,27 @@ def initialize_changed_at(from_date, run_db, force=False):
     _local_db_insert((from_date, from_date, 'Initial import: {}'))
 
 
-if __name__ == '__main__':
-    logging.basicConfig(
-        format='%(levelname)s %(asctime)s %(name)s %(message)s',
-        level=LOG_LEVEL,
-        filename=LOG_FILE
-    )
+@click.command()
+def changed_at():
+    """Tool to delta synchronize with MO with SD."""
+    settings = load_settings()
+    run_db = settings['integrations.SD_Lon.import.run_db']
+
     logger.info('***************')
     logger.info('Program started')
     init = False
 
     from_date = datetime.datetime.strptime(
-        SETTINGS['integrations.SD_Lon.global_from_date'],
+        settings['integrations.SD_Lon.global_from_date'],
         '%Y-%m-%d'
     )
 
     if init:
-        run_db = pathlib.Path(RUN_DB)
+        run_db = pathlib.Path(run_db)
         initialize_changed_at(from_date, run_db, force=True)
         exit()
 
-    conn = sqlite3.connect(RUN_DB, detect_types=sqlite3.PARSE_DECLTYPES)
+    conn = sqlite3.connect(run_db, detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
 
     query = 'select * from runs order by id desc limit 1'
@@ -1050,3 +1052,12 @@ if __name__ == '__main__':
     # sd_updater.mo_person = sd_updater.helper.read_user(user_cpr=cpr,
     #                                                    org_uuid=sd_updater.org_uuid)
     # sd_updater.recalculate_primary()
+
+
+if __name__ == '__main__':
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
+    changed_at()

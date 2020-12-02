@@ -1,9 +1,11 @@
+import click
 import json
 import pathlib
 import logging
 import requests
 import datetime
-import argparse
+from functools import partial
+from itertools import chain
 from integrations.SD_Lon import sd_payloads
 
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -465,7 +467,7 @@ class FixDepartments(object):
             self.fix_department_at_single_date(unit[1], date)
 
 
-    def sd_uuid_from_short_code(self, shortname, validity_date):
+    def sd_uuid_from_short_code(self, validity_date, shortname):
         validity = {
             'from_date': validity_date.strftime('%d.%m.%Y'),
             'to_date': validity_date.strftime('%d.%m.%Y')
@@ -474,32 +476,28 @@ class FixDepartments(object):
         return department["DepartmentUUIDIdentifier"]
 
 
+@click.command()
+@click.option('--department-short-name', 'short_names', multiple=True, type=click.STRING, help="Shortname of the department to update")
+@click.option('--department-uuid', 'uuids', multiple=True, type=click.UUID, help="UUID of the department to update")
+def unit_fixer(short_names, uuids):
+    """Sync SD department information to MO."""
+    unit_fixer = FixDepartments()
 
-    def _cli(self):
-        """
-        Command line interface to sync SD departent information to MO.
-        """
-        parser = argparse.ArgumentParser(description='Department updater')
-        parser.add_argument('--department-uuid', nargs="+", required=True,
-                            metavar='UUID of the department to update')
-        args = vars(parser.parse_args())
+    today = datetime.datetime.today()
+    # Use a future date to be sure that the unit exists in SD.
+    # XXX: Why 80 weeks instead of 1 day?
+    fix_date = today + datetime.timedelta(weeks=80)
 
-        today = datetime.datetime.today()
+    # Translate short_names to uuids
+    short_name_uuids = map(
+        partial(unit_fixer.sd_uuid_from_short_code, fix_date), short_names
+    )
+    # Convert UUIDs to strings
+    department_uuids = map(str, uuids)
 
-        # Use a future date to be sure that the unit exists in SD.
-        fix_date = today + datetime.timedelta(weeks=80)
-
-        for some_id in args.get('department_uuid'):
-
-            if len(some_id) == 4:
-                department_uuid = self.sd_uuid_from_short_code(some_id, fix_date)
-            else:
-                department_uuid = some_id
-
-
-            self.fix_or_create_branch(department_uuid, fix_date)
-
-            self.fix_NY_logic(department_uuid, today)
+    for department_uuid in chain(short_name_uuids, department_uuids):
+        unit_fixer.fix_or_create_branch(department_uuid, fix_date)
+        unit_fixer.fix_NY_logic(department_uuid, today)
 
 
 if __name__ == '__main__':
@@ -508,10 +506,4 @@ if __name__ == '__main__':
         level=LOG_LEVEL,
         filename=LOG_FILE
     )
-    unit_fixer = FixDepartments()
-    # uruk = 'cf9864bf-1ed8-4800-9600-000001290002'
-    # today = datetime.datetime.today()
-    # print(unit_fixer.get_all_parents(uruk, from_date))
-    # print(unit_fixer.get_all_parents(uruk, today))
-    # unit_fixer.fix_or_create_branch(uruk, today)
-    unit_fixer._cli()
+    unit_fixer()
