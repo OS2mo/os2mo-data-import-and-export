@@ -282,7 +282,10 @@ class TestADMixin(object):
         person = self._prepare_person()
         # Convert raw person data into mo_values data
         person["name"] = [" ".join(person["name"][:-1]), person["name"][-1]]
-        person["nickname"] = [" ".join(person["nickname"][:-1]), person["nickname"][-1]]
+        person["nickname"] = [
+            " ".join(person["nickname"][:-1]),
+            person["nickname"][-1],
+        ]
         person["manager_name"] = " ".join(person["manager_name"])
 
         #        if not read_manager:
