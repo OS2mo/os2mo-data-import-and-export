@@ -322,7 +322,7 @@ class MOPrimaryEngagementUpdater(object):
 @click.option("--recalculate-user", type=click.UUID, help="Recalculate one user")
 def calculate_primary(check_all, recalculate_all, recalculate_user):
     """Tool to work with primary engagement(s)."""
-    num_set = sum(map(bool, [check_all, recalculate_all]))
+    num_set = sum(map(bool, [check_all, recalculate_all, recalculate_user]))
     if num_set == 0:
         raise click.ClickException("Please provide atleast one argument")
     if num_set > 1:
