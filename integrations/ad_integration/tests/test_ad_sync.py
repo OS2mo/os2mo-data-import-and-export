@@ -119,9 +119,9 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         self.settings = self._prepare_settings(
             self._sync_address_mapping_transformer()
         )
-        address_type_setting = self.settings["integrations.ad"][0]["ad_mo_sync_mapping"][
-            "user_addresses"
-        ][address_type]
+        address_type_setting = self.settings["integrations.ad"][0][
+            "ad_mo_sync_mapping"
+        ]["user_addresses"][address_type]
         address_type_uuid = address_type_setting[0]
         address_type_visibility = address_type_setting[1]
 
