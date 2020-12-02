@@ -86,7 +86,7 @@ class SdImport(object):
 
         self.info = self._read_department_info()
 
-        self.add_classes(manager_rows)
+        self._add_classes(manager_rows)
 
     def _add_classes(self, manager_rows):
         # Format is facet -> list of entries
