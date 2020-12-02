@@ -147,5 +147,6 @@ def output_tree(filename):
     tree = build_tree(parent_map)
     print_tree(tree, print_map)
 
+
 if __name__ == "__main__":
     output_tree()
