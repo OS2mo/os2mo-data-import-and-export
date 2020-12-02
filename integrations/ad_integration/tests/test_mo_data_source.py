@@ -47,9 +47,9 @@ class TestLoraCacheSource(TestCase):
                 "name": "some_name some_lastname",
                 "surname": "some_lastname",
                 "givenname": "some_name",
-                "alias": "some_alias some_lastname_alias",
-                "alias_givenname": "some_alias",
-                "alias_surname": "some_lastname_alias",
+                "nickname": "some_alias some_lastname_alias",
+                "nickname_givenname": "some_alias",
+                "nickname_surname": "some_lastname_alias",
                 "cpr_no": "some_cpr",
             },
         )

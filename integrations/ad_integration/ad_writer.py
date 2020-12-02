@@ -116,9 +116,9 @@ class LoraCacheSource(MODataSource):
             'name': lc_user['navn'],
             'surname': lc_user['efternavn'],
             'givenname': lc_user['fornavn'],
-            'alias': lc_user['kaldenavn'],
-            'alias_givenname': lc_user['kaldenavn_fornavn'],
-            'alias_surname': lc_user['kaldenavn_efternavn'],
+            'nickname': lc_user['kaldenavn'].strip(),
+            'nickname_givenname': lc_user['kaldenavn_fornavn'].strip(),
+            'nickname_surname': lc_user['kaldenavn_efternavn'].strip(),
             'cpr_no': lc_user['cpr']
         }
         return mo_user
@@ -607,10 +607,10 @@ class ADWriter(AD):
 
         mo_values = {
             'read_manager': read_manager,
-            'name': (mo_user['givenname'], mo_user['surname']),
-            'full_name': '{} {}'.format(mo_user['givenname'], mo_user['surname']),
-            'alias': (mo_user['alias_givenname'], mo_user['alias_surname']),
-            'full_alias': '{} {}'.format(mo_user['alias_givenname'], mo_user['alias_surname']),
+            'name': (mo_user['givenname'], mo_user['surname']).strip(),
+            'full_name': '{} {}'.format(mo_user['givenname'], mo_user['surname']).strip(),
+            'nickname': (mo_user['nickname_givenname'], mo_user['nickname_surname']).strip(),
+            'full_nickname': '{} {}'.format(mo_user['nickname_givenname'], mo_user['nickname_surname']).strip(),
             'employment_number': employment_number,
             'end_date': end_date,
             'uuid': uuid,
