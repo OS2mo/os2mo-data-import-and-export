@@ -254,7 +254,7 @@ class ChangeAtSD(object):
             if old_values is None:
                 old_values = {}
 
-            # TODO: Shold this go in sd_common?
+            # TODO: Should this go in sd_common?
             given_name = person.get('PersonGivenName', old_values.get("givenname", ""))
             sur_name = person.get('PersonSurnameName', old_values.get("surname", ""))
             sd_name = '{} {}'.format(given_name, sur_name)
