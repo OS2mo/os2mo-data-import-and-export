@@ -99,7 +99,7 @@ Test AD Integration:
   script:
     - cp settings/kommune-andeby.json settings/settings.json
     - export PYTHONPATH=$PWD:$PYTHONPATH
-    - pytest integrations/ad_integration/tests/ --ignore tests/test_ad_writer.py
+    - pytest integrations/ad_integration/tests/ --ignore integrations/ad_integration/tests/test_ad_writer.py
 
 
 Test OS2Sync Integration:
