@@ -10,7 +10,7 @@ from parameterized import parameterized
 sys.path.append(dirname(__file__))
 sys.path.append(dirname(__file__) + "/..")
 
-from test_utils import TestADMoSyncMixin, dict_modifier, mo_modifier
+from tests.test_utils import TestADMoSyncMixin, dict_modifier, mo_modifier
 
 
 def iso_date(date):
@@ -27,7 +27,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
     def _sync_address_mapping_transformer(self):
         def add_sync_mapping(settings):
-            settings["integrations.ad.ad_mo_sync_mapping"] = {
+            settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {
                 "user_addresses": {
                     # Different visibility
                     "email": ["email_uuid", None],
@@ -119,7 +119,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         self.settings = self._prepare_settings(
             self._sync_address_mapping_transformer()
         )
-        address_type_setting = self.settings["integrations.ad.ad_mo_sync_mapping"][
+        address_type_setting = self.settings["integrations.ad"][0]["ad_mo_sync_mapping"][
             "user_addresses"
         ][address_type]
         address_type_uuid = address_type_setting[0]
@@ -299,7 +299,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
     def _sync_itsystem_mapping_transformer(self):
         def add_sync_mapping(settings):
-            settings["integrations.ad.ad_mo_sync_mapping"] = {
+            settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {
                 "it_systems": {"samAccountName": "it_system_uuid"}
             }
             return settings
@@ -349,7 +349,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
     def _sync_engagement_mapping_transformer(self, mo_to_ad):
         def add_sync_mapping(settings):
-            settings["integrations.ad.ad_mo_sync_mapping"] = {
+            settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {
                 "engagements": mo_to_ad
             }
             return settings
@@ -438,10 +438,10 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         """Verify expected behavior from sync_disabled settings."""
 
         def add_sync_mapping(settings):
-            settings["integrations.ad.ad_mo_sync_mapping"] = {
+            settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {
                 "user_addresses": {"email": ["email_uuid", None]}
             }
-            settings["integrations.ad.ad_mo_sync_terminate_disabled"] = True
+            settings["integrations.ad"][0]["ad_mo_sync_terminate_disabled"] = True
             return settings
 
         mo_values = self.mo_values_func()
@@ -512,10 +512,10 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         """Verify expected behavior from sync_disabled settings."""
 
         def add_sync_mapping(settings):
-            settings["integrations.ad.ad_mo_sync_mapping"] = {
+            settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {
                 "it_systems": {"samAccountName": "it_system_uuid"}
             }
-            settings["integrations.ad.ad_mo_sync_terminate_disabled"] = True
+            settings["integrations.ad"][0]["ad_mo_sync_terminate_disabled"] = True
             return settings
 
         mo_values = self.mo_values_func()

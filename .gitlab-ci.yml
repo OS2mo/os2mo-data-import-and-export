@@ -97,8 +97,9 @@ Test LoraCache Exporter:
 Test AD Integration:
   extends: .test-python
   script:
-    - cd integrations/ad_integration/
-    - pytest tests/ --ignore tests/test_ad_writer.py
+    - cp settings/kommune-andeby.json settings/settings.json
+    - export PYTHONPATH=$PWD:$PYTHONPATH
+    - pytest integrations/ad_integration/tests/ --ignore tests/test_ad_writer.py
 
 
 Test OS2Sync Integration:

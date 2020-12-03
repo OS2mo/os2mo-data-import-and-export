@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fixture_generator import dummy_data_creator
 
-base = "../..//os2mo_data_import/fixture_generator/navne/"
+base = "os2mo_data_import/fixture_generator/navne/"
 fornavne = dummy_data_creator._load_names(Path(base + "fornavne.txt"))
 mellemnavne = dummy_data_creator._load_names(Path(base + "mellemnavne.txt"))
 efternavne = dummy_data_creator._load_names(Path(base + "efternavne.txt"))
