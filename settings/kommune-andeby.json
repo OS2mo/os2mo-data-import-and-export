@@ -106,28 +106,30 @@
     "#integrations.SD_Lon.sd_mox.TR_ARBEJDSTIDSPLANER": "uuid-for-class",
     "#integrations.SD_Lon.sd_mox.TR_DANNES_IKKE": "uuid-for-class",
     "integrations.ad.winrm_host": "hostname",
-    "integrations.ad.cpr_field": "cprfield",
-    "integrations.ad.system_user": "user@DOMAIN",
-    "integrations.ad.password": "",
-    "integrations.ad.search_base":"OU=xxx,DC=yyy,DC=zzz",
-    "integrations.ad.properties": [
-        "liste",
-        "af",
-        "navne-på-ad-properties"
-    ],
-    "integrations.ad.ad_mo_sync_mapping": {
-        "user_addresses":{
-            "example1": ["uuid-for-class", "INTERNAL|PUBLIC|SECRET"],
-            "example2": ["uuid-for-class", "INTERNAL|PUBLIC|SECRET"],
-            "example3": ["uuid-for-class", "INTERNAL|PUBLIC|SECRET"]
+    "integrations.ad": [{
+        "cpr_field": "cprfield",
+        "system_user": "user@DOMAIN",
+        "password": "",
+        "search_base":"OU=xxx,DC=yyy,DC=zzz",
+        "properties": [
+            "liste",
+            "af",
+            "navne-på-ad-properties"
+        ],
+        "ad_mo_sync_mapping": {
+            "user_addresses":{
+                "example1": ["uuid-for-class", "INTERNAL|PUBLIC|SECRET"],
+                "example2": ["uuid-for-class", "INTERNAL|PUBLIC|SECRET"],
+                "example3": ["uuid-for-class", "INTERNAL|PUBLIC|SECRET"]
+            },
+            "it_systems":{
+               "samAccountName": ""
+            }
         },
-        "it_systems":{
-           "samAccountName": ""
-        }
-    },
-    "integrations.ad.ad_mo_sync_direct_lora_speedup": false,
-    "integrations.ad.skip_school_ad_to_mo": false,
-
+        "ad_mo_sync_direct_lora_speedup": false,
+        "skip_school_ad_to_mo": false
+    
+    }], 
     "integrations.opus.import.run_db": "/path/to/CRON/run_db.sqlite",
     "integrations.opus.import.xml_path": "/path-to/customer-dumps",
     "integrations.opus.eng_types_primary_order": [],
