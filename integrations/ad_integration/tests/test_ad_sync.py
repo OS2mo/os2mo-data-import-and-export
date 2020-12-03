@@ -116,7 +116,9 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         """
         today = today_iso()
         mo_values = self.mo_values_func()
-        self.settings = self._prepare_settings(self._sync_address_mapping_transformer())
+        self.settings = self._prepare_settings(
+            self._sync_address_mapping_transformer()
+        )
         address_type_setting = self.settings["integrations.ad"][0][
             "ad_mo_sync_mapping"
         ]["user_addresses"][address_type]
@@ -280,7 +282,9 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                             "address_type": {"uuid": "office_uuid"},
                             "validity": {"from": today, "to": None},
                             "value": "11",
-                            "visibility": {"uuid": "address_visibility_internal_uuid"},
+                            "visibility": {
+                                "uuid": "address_visibility_internal_uuid"
+                            },
                         },
                         "type": "address",
                         "uuid": "address_uuid",
