@@ -35,7 +35,9 @@ def setup_sd_changed_at():
     start_date = today
 
     # TODO: Consider interfacing these off in seperate methods inside ChangeAtSD
-    with patch("integrations.SD_Lon.sd_changed_at.primary_types", autospec=True) as pt:
+    with patch(
+        "integrations.SD_Lon.sd_changed_at.primary_types", autospec=True
+    ) as pt:
         with patch(
             "integrations.SD_Lon.sd_changed_at.MOPrimaryEngagementUpdater",
             autospec=True,
@@ -130,7 +132,10 @@ class Test_sd_changed_at(unittest.TestCase):
         last_name = "Deere"
 
         _, read_person_result = self.read_person_fixture(
-            cpr=cpr, first_name=first_name, last_name=last_name, employment_id="01337"
+            cpr=cpr,
+            first_name=first_name,
+            last_name=last_name,
+            employment_id="01337",
         )
 
         sd_updater = setup_sd_changed_at()
@@ -245,7 +250,10 @@ class Test_sd_changed_at(unittest.TestCase):
                                         ("ActivationDate", "2020-11-10"),
                                         ("DeactivationDate", "9999-12-31"),
                                         ("DepartmentIdentifier", department_id),
-                                        ("DepartmentUUIDIdentifier", department_uuid),
+                                        (
+                                            "DepartmentUUIDIdentifier",
+                                            department_uuid,
+                                        ),
                                     ]
                                 ),
                             ),
@@ -396,9 +404,13 @@ class Test_sd_changed_at(unittest.TestCase):
 
             self.assertFalse(sd_updater.create_new_engagement.called)
             sd_updater.update_all_employments()
-            sd_updater.create_new_engagement.assert_called_with(engagement, status, cpr)
+            sd_updater.create_new_engagement.assert_called_with(
+                engagement, status, cpr
+            )
         elif status == "S":  # Deletes call terminante engagement
-            morahelper.read_user_engagement.return_value = [{"user_key": employment_id}]
+            morahelper.read_user_engagement.return_value = [
+                {"user_key": employment_id}
+            ]
             sd_updater._terminate_engagement = MagicMock()
 
             status = read_employment_result[0]["Employment"]["EmploymentStatus"]
@@ -463,7 +475,7 @@ class Test_sd_changed_at(unittest.TestCase):
             },
         )
 
-    def test_create_new_engagement(self):
+    def test_terminate_engagement(self):
 
         employment_id = "01337"
 

@@ -9,14 +9,15 @@ import xmltodict
 from enum import Enum
 from functools import lru_cache, wraps
 from pathlib import Path
+
 logger = logging.getLogger("sdCommon")
 
 
 @lru_cache(maxsize=None)
 def load_settings():
-    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+    cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
     if not cfg_file.is_file():
-        raise Exception('No settings file: ' + str(cfg_file))
+        raise Exception("No settings file: " + str(cfg_file))
     # TODO: This must be clean up, settings should be loaded by __init__
     # and no references should be needed in global scope.
     return json.loads(cfg_file.read_text())
@@ -26,15 +27,15 @@ def load_settings():
 def sd_lookup_settings():
     settings = load_settings()
 
-    institution_identifier = settings['integrations.SD_Lon.institution_identifier']
+    institution_identifier = settings["integrations.SD_Lon.institution_identifier"]
     if not institution_identifier:
         raise ValueError("Missing setting, institution_identifier")
 
-    sd_user = settings['integrations.SD_Lon.sd_user']
+    sd_user = settings["integrations.SD_Lon.sd_user"]
     if not sd_user:
         raise ValueError("Missing setting, sd_user")
 
-    sd_password = settings['integrations.SD_Lon.sd_password']
+    sd_password = settings["integrations.SD_Lon.sd_password"]
     if not sd_password:
         raise ValueError("Missing setting, sd_password")
 
@@ -43,9 +44,9 @@ def sd_lookup_settings():
 
 def _sd_lookup_cache(func):
     # We need a cache dir to exist before we can proceed
-    cache_dir = Path('tmp/')
+    cache_dir = Path("tmp/")
     if not cache_dir.is_dir():
-        raise Exception('Folder for temporary files does not exist')
+        raise Exception("Folder for temporary files does not exist")
 
     def create_hex_digest(full_url, payload):
         """Create a reproducible hex digest from url and payloads."""
@@ -59,12 +60,12 @@ def _sd_lookup_cache(func):
 
     def write_response(cache_file, response):
         """Write response to disk."""
-        with open(str(cache_file), 'wb') as f:
+        with open(str(cache_file), "wb") as f:
             pickle.dump(response, f, pickle.HIGHEST_PROTOCOL)
 
     def read_response(cache_file):
         """Read response from disk."""
-        with open(str(cache_file), 'rb') as f:
+        with open(str(cache_file), "rb") as f:
             response = pickle.load(f)
         return response
 
@@ -76,18 +77,19 @@ def _sd_lookup_cache(func):
 
         # Create digest and find filename
         lookup_id = create_hex_digest(full_url, payload)
-        cache_file = Path('tmp/sd_' + lookup_id + '.p')
+        cache_file = Path("tmp/sd_" + lookup_id + ".p")
 
         # If cache file was found, use it
         if cache_file.is_file():
             response = read_response(cache_file)
-            logger.info('This SD lookup was found in cache: {}'.format(lookup_id))
+            logger.info("This SD lookup was found in cache: {}".format(lookup_id))
             print(full_url, "read from cache")
         else:  # No cache
             response = func(full_url, payload, auth)
             write_response(cache_file, response)
             print(full_url, "requested from SD")
         return response
+
     return wrapper
 
 
@@ -110,19 +112,19 @@ def sd_lookup(url, params={}, use_cache=True):
     Utilizes _sd_request to fire the actual request, which in turn utilize
     _sd_lookup_cache for caching.
     """
-    logger.info('Retrieve: {}'.format(url))
-    logger.debug('Params: {}'.format(params))
+    logger.info("Retrieve: {}".format(url))
+    logger.debug("Params: {}".format(params))
 
-    BASE_URL = 'https://service.sd.dk/sdws/'
+    BASE_URL = "https://service.sd.dk/sdws/"
     full_url = BASE_URL + url
 
     institution_identifier, sd_user, sd_password = sd_lookup_settings()
 
     payload = {
-        'InstitutionIdentifier': institution_identifier,
+        "InstitutionIdentifier": institution_identifier,
     }
     payload.update(params)
-    auth=(sd_user, sd_password)
+    auth = (sd_user, sd_password)
     response = _sd_request(full_url, payload, auth, use_cache=use_cache)
 
     dict_response = xmltodict.parse(response.text)
@@ -130,24 +132,21 @@ def sd_lookup(url, params={}, use_cache=True):
     if url in dict_response:
         xml_response = dict_response[url]
     else:
-        msg = 'SD api error, envelope: {}'
-        logger.error(msg.format(dict_response['Envelope']))
-        raise Exception(msg.format(dict_response['Envelope']))
-    logger.debug('Done with {}'.format(url))
+        msg = "SD api error, envelope: {}"
+        logger.error(msg.format(dict_response["Envelope"]))
+        raise Exception(msg.format(dict_response["Envelope"]))
+    logger.debug("Done with {}".format(url))
     return xml_response
 
 
 def calc_employment_id(employment):
-    employment_id = employment['EmploymentIdentifier']
+    employment_id = employment["EmploymentIdentifier"]
     try:
         employment_number = int(employment_id)
     except ValueError:  # Job id is not a number?
         employment_number = 999999
 
-    employment_id = {
-        'id': employment_id,
-        'value': employment_number
-    }
+    employment_id = {"id": employment_id, "value": employment_number}
     return employment_id
 
 
@@ -156,8 +155,10 @@ def mora_assert(response):
     assert response.status_code in (200, 201, 400, 404), response.status_code
     if response.status_code == 400:
         # Check actual response
-        assert response.text.find('not give raise to a new registration') > 0, response.text
-        logger.debug('Request had no effect')
+        assert (
+            response.text.find("not give raise to a new registration") > 0
+        ), response.text
+        logger.debug("Request had no effect")
     return None
 
 
@@ -190,36 +191,36 @@ def primary_types(helper):
     """
     # These constants are global in all SD municipalities (because they are created
     # by the SD->MO importer.
-    PRIMARY = 'Ansat'
-    NO_SALARY = 'status0'
-    NON_PRIMARY = 'non-primary'
-    FIXED_PRIMARY = 'explicitly-primary'
+    PRIMARY = "Ansat"
+    NO_SALARY = "status0"
+    NON_PRIMARY = "non-primary"
+    FIXED_PRIMARY = "explicitly-primary"
 
-    logger.info('Read primary types')
+    logger.info("Read primary types")
     primary = None
     no_salary = None
     non_primary = None
     fixed_primary = None
 
-    primary_types = helper.read_classes_in_facet('primary_type')
+    primary_types = helper.read_classes_in_facet("primary_type")
     for primary_type in primary_types[0]:
-        if primary_type['user_key'] == PRIMARY:
-            primary = primary_type['uuid']
-        if primary_type['user_key'] == NON_PRIMARY:
-            non_primary = primary_type['uuid']
-        if primary_type['user_key'] == NO_SALARY:
-            no_salary = primary_type['uuid']
-        if primary_type['user_key'] == FIXED_PRIMARY:
-            fixed_primary = primary_type['uuid']
+        if primary_type["user_key"] == PRIMARY:
+            primary = primary_type["uuid"]
+        if primary_type["user_key"] == NON_PRIMARY:
+            non_primary = primary_type["uuid"]
+        if primary_type["user_key"] == NO_SALARY:
+            no_salary = primary_type["uuid"]
+        if primary_type["user_key"] == FIXED_PRIMARY:
+            fixed_primary = primary_type["uuid"]
 
     type_uuids = {
-        'primary': primary,
-        'non_primary': non_primary,
-        'no_salary': no_salary,
-        'fixed_primary': fixed_primary
+        "primary": primary,
+        "non_primary": non_primary,
+        "no_salary": no_salary,
+        "fixed_primary": fixed_primary,
     }
     if None in type_uuids.values():
-        raise Exception('Missing primary types: {}'.format(type_uuids))
+        raise Exception("Missing primary types: {}".format(type_uuids))
     return type_uuids
 
 
@@ -241,33 +242,27 @@ class EmploymentStatus(Enum):
     Status Doed will probably only migrate to status slettet, but there are no
     guarantees given.
     """
+
     # This status most likely represent not yet being at work
-    AnsatUdenLoen = '0'
+    AnsatUdenLoen = "0"
 
     # These statusses represent being at work
-    AnsatMedLoen = '1'
-    Overlov = '3'
+    AnsatMedLoen = "1"
+    Overlov = "3"
 
     # These statusses represent being let go
-    Migreret = '7'
-    Ophoert = '8'
-    Doed = '9'
+    Migreret = "7"
+    Ophoert = "8"
+    Doed = "9"
 
     # This status is the special terminal state
-    Slettet = 'S'
+    Slettet = "S"
 
 
 Employeed = [
     EmploymentStatus.AnsatUdenLoen,
     EmploymentStatus.AnsatMedLoen,
-    EmploymentStatus.Overlov
+    EmploymentStatus.Overlov,
 ]
-LetGo = [
-    EmploymentStatus.Migreret,
-    EmploymentStatus.Ophoert,
-    EmploymentStatus.Doed
-]
-OnPayroll = [
-    EmploymentStatus.AnsatMedLoen,
-    EmploymentStatus.Overlov
-]
+LetGo = [EmploymentStatus.Migreret, EmploymentStatus.Ophoert, EmploymentStatus.Doed]
+OnPayroll = [EmploymentStatus.AnsatMedLoen, EmploymentStatus.Overlov]
