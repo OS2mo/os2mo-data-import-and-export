@@ -8,6 +8,8 @@ import datetime
 from functools import lru_cache
 from integrations.SD_Lon import sd_payloads
 
+from more_itertools import only
+
 from integrations import cpr_mapper
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration import ad_reader
@@ -362,7 +364,6 @@ class ChangeAtSD:
         return validity
 
     def _find_engagement(self, job_id):
-        relevant_engagement = None
         try:
             user_key = str(int(job_id)).zfill(5)
         except ValueError:  # We will end here, if int(job_id) fails
@@ -374,13 +375,15 @@ class ChangeAtSD:
             )
         )
 
-        for mo_eng in self.mo_engagement:
-            if mo_eng['user_key'] == user_key:
-                relevant_engagement = mo_eng
+        relevant_engagements = filter(
+            lambda mo_eng: mo_eng['user_key'] == user_key, self.mo_engagement
+        )
+        relevant_engagement = only(relevant_engagements)
 
         if relevant_engagement is None:
-            msg = 'Fruitlessly searched for {} in {}'.format(job_id,
-                                                             self.mo_engagement)
+            msg = 'Fruitlessly searched for {} in {}'.format(
+                job_id, self.mo_engagement
+            )
             logger.info(msg)
         return relevant_engagement
 
