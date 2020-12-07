@@ -275,7 +275,11 @@ class OpusImport(object):
 
         logger.debug('Employee object: {}'.format(employee))
         if 'cpr' in employee:
-            cpr = employee['cpr']['#text']
+            cpr = employee.get('cpr')
+            # The <cpr> element in the XML can some times have an attribute,
+            # causing the element to be parsed to a dict, rather than a string
+            if isinstance(cpr, dict):
+                cpr = employee['cpr']['#text']
             if employee['firstName'] is None and employee['lastName'] is None:
                 # Service user, skip
                 logger.info('Skipped {}, we think it is a serviceuser'.format(cpr))
