@@ -121,10 +121,13 @@ en gyldig konfiguration i ``settings.json``. De påkrævede nøgler er:
  * ``municipality.name``: Navnet på kommunen.
  * ``crontab.SAML_TOKEN``: saml token til forbindelse til OS2MO
 
-Til at hjælpe med afviklingen af importen, findes en hjælpefunktion i
-``opus_helpers.py`` som afvikler selve importen og initialiserer databasen i
-``opus.import.run_db`` korrekt. Dette modul forventer at finde en cpr-mapning og
-vil fejle hvis ikke filen ``settings/cpr_uuid_map.csv`` eksisterer.
+Til at hjælpe med afviklingen af importen, findes et CLI i
+``opus_cli.py`` som kan benyttes til at køre den initielle import, køre en
+diff-import og opdatere en enkelt bruger.
+
+For hjælp til at bruge programmet, køres::
+
+    python integrations/opus/opus_cli.py --help
 
 Førstegangsimport (initialindlæsning)
 -------------------------------------
