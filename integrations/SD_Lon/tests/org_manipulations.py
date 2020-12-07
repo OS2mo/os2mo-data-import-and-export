@@ -5,14 +5,15 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+import datetime
 import os
 import sys
-import psycopg2
 import unittest
-import datetime
+
+import psycopg2
+from os2mo_helpers.mora_helpers import MoraHelper
 
 from os2mo_data_import import ImportHelper
-from os2mo_helpers.mora_helpers import MoraHelper
 
 sys.path.append("../SD_Lon")
 import sd_importer  # noqa

@@ -7,7 +7,8 @@
 #
 
 import unittest
-from integrations.SD_Lon.sd import SD, CFG_PREFIX
+
+from integrations.SD_Lon.sd import CFG_PREFIX, SD
 
 
 class Tests(unittest.TestCase):
