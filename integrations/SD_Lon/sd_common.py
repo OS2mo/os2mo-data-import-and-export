@@ -271,5 +271,3 @@ OnPayroll = [
     EmploymentStatus.AnsatMedLoen,
     EmploymentStatus.Overlov
 ]
-
-

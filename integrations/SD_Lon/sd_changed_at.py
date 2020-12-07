@@ -62,9 +62,9 @@ def setup_logging():
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
 
 
-class ChangeAtSD(object):
-    def __init__(self, from_date, to_date=None):
-        self.settings = load_settings()
+class ChangeAtSD:
+    def __init__(self, from_date, to_date=None, settings=None):
+        self.settings = settings or load_settings()
 
         if self.settings['integrations.SD_Lon.job_function'] == 'JobPositionIdentifier':
             logger.info('Read settings. JobPositionIdentifier for job_functions')
@@ -83,8 +83,7 @@ class ChangeAtSD(object):
         logger.info('Found cpr mapping')
         self.employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
         self.department_fixer = FixDepartments()
-        self.helper = MoraHelper(hostname=self.settings['mora.base'],
-                                 use_cache=False)
+        self.helper = self._get_mora_helper(self.settings['mora.base'])
 
         # List of job_functions that should be ignored.
         self.skip_job_functions = self.settings.get('skip_job_functions', [])
@@ -143,6 +142,9 @@ class ChangeAtSD(object):
         self.leave_uuid = facet_info[0][0]['uuid']
         facet_info = self.helper.read_classes_in_facet('association_type')
         self.association_uuid = facet_info[0][0]['uuid']
+
+    def _get_mora_helper(self, mora_base):
+        return MoraHelper(hostname=mora_base, use_cache=False)
 
     def _add_profession_to_lora(self, profession):
         """
@@ -249,21 +251,19 @@ class ChangeAtSD(object):
                 logger.warning('Skipping fictional user: {}'.format(cpr))
                 continue
 
-            uuid = None
             old_values = mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
-            if old_values is None:
-                old_values = {}
+            old_values = old_values or {}
 
             # TODO: Should this go in sd_common?
             given_name = person.get('PersonGivenName', old_values.get("givenname", ""))
             sur_name = person.get('PersonSurnameName', old_values.get("surname", ""))
             sd_name = '{} {}'.format(given_name, sur_name)
 
+            ad_info = {}
             if self.ad_reader is not None:
                 ad_info = self.ad_reader.read_user(cpr=cpr)
-            else:
-                ad_info = {}
 
+            uuid = None
             if mo_person:
                 if mo_person['name'] == sd_name:
                     continue
@@ -291,16 +291,13 @@ class ChangeAtSD(object):
 
             return_uuid = self.helper._mo_post('e/create', payload).json()
             logger.info('Created or updated employee {} with uuid {}'.format(
-                sd_name,
-                return_uuid
+                sd_name, return_uuid
             ))
 
             sam_account = ad_info.get('SamAccountName', None)
             if (not mo_person) and sam_account:
                 payload = sd_payloads.connect_it_system_to_user(
-                    sam_account,
-                    self.ad_uuid,
-                    return_uuid
+                    sam_account, self.ad_uuid, return_uuid
                 )
                 logger.debug('Connect it-system: {}'.format(payload))
                 response = self.helper._mo_post('details/create', payload)
@@ -793,7 +790,7 @@ class ChangeAtSD(object):
         self._edit_engagement_profession(engagement, mo_eng)
         self._edit_engagement_worktime(engagement, mo_eng)
 
-    def _handle_status_chages(self, cpr, engagement):
+    def _handle_status_changes(self, cpr, engagement):
         skip = False
         # The EmploymentStatusCode can take a number of magical values.
         # that must be handled seperately.
@@ -803,8 +800,8 @@ class ChangeAtSD(object):
             code = status['EmploymentStatusCode']
 
             if code not in ('0', '1', '3', '7', '8', '9', 'S'):
-                logger.error('Unkown status code {}!'.format(status))
-                1/0
+                logger.error('Unknown status code {}!'.format(status))
+                raise ValueError("Unknown status code")
 
             if status['EmploymentStatusCode'] == '0':
                 logger.info('Status 0. Cpr: {}, job: {}'.format(cpr, job_id))
@@ -874,7 +871,7 @@ class ChangeAtSD(object):
             logger.debug('SD Engagement: {}'.format(engagement))
             # If status is present, we have a potential creation
             if eng['status_list']:
-                if self._handle_status_chages(cpr, engagement):
+                if self._handle_status_changes(cpr, engagement):
                     continue
             self.edit_engagement(engagement)
 
