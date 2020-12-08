@@ -1,11 +1,9 @@
 from jinja2 import Template
-from utils import dict_partition, duplicates, dict_map
 
+from utils import dict_map, dict_partition, duplicates, lower_list
 
 # Parameters that should not be quoted
-no_quote_list = [
-    'Credential'
-]
+no_quote_list = ["Credential"]
 
 
 cmdlet_parameters = {
@@ -135,12 +133,15 @@ cmdlet_parameters = {
     },
 }
 
-# These may never be emitted in other_attributes
-illegal_attributes = [
-    'Credential',
-    'Name'
-]
-
+# These may never be emitted in parameters / other_attributes
+illegal_parameters = {
+    "New-ADUser": ["Manager"],
+    "Set-ADUser": ["Manager", "Name"],
+}
+illegal_attributes = {
+    "New-ADUser": ["Credential", "Name"],
+    "Set-ADUser": ["Credential", "Name"],
+}
 
 cmdlet_templates = {
     "New-ADUser": """
@@ -173,22 +174,6 @@ cmdlet_templates = {
         }
     """,
 }
-
-
-def lower_list(listy):
-    """Convert each element in the list to lower-case.
-
-    Example:
-        result = lower_list(['Alfa', 'BETA', 'gamma'])
-        self.assertEqual(result, ['alfa', 'beta', 'gamma'])
-
-    Args:
-        listy: The list of strings to force into lowercase.
-
-    Returns:
-        list: A list where all contained the strings are lowercase.
-    """
-    return list(map(lambda x: x.lower(), listy))
 
 
 def prepare_default_field_templates(jinja_map):
@@ -244,7 +229,7 @@ def prepare_settings_based_field_templates(jinja_map, cmd, settings):
     # Local fields for MO->AD sync'ing
     named_sync_fields = write_settings.get("mo_to_ad_fields")
     for mo_field, ad_field in named_sync_fields.items():
-        jinja_map[ad_field] = "{{ mo_values[" + mo_field + "] }}"
+        jinja_map[ad_field] = "{{ mo_values['" + mo_field + "'] }}"
 
     # Local fields for MO->AD sync'ing
     named_sync_template_fields = write_settings.get("template_to_ad_fields")
@@ -279,10 +264,12 @@ def prepare_and_check_login_field_templates(jinja_map):
     """
     # Check against hardcoded values, as these will be forcefully overridden.
     jinja_keys = lower_list(jinja_map.keys())
-    if "Credential".lower() in jinja_keys:
+    if "credential" in jinja_keys:
         raise ValueError("Credential is hardcoded")
-    if "SamAccountName".lower() in jinja_keys:
+    if "samaccountname" in jinja_keys:
         raise ValueError("SamAccountName is hardcoded")
+    if "manager" in jinja_keys:
+        raise ValueError("Manager is handled uniquely")
     # Do the forceful override
     jinja_map["Credential"] = "$usercredential"
     jinja_map["SamAccountName"] = "{{ user_sam }}"
@@ -290,28 +277,24 @@ def prepare_and_check_login_field_templates(jinja_map):
     return jinja_map
 
 
-def prepare_template(cmd, jinja_map, settings):
-    """Build a complete powershell command template.
+def prepare_field_templates(cmd, settings, jinja_map=None):
+    """Build a finalized map of parameters and attributes.
 
     Args:
         cmd: command to generate template for.
-        jinja_map: dictionary from ad field names to jinja template strings.
         settings: dictionary containing settings from settings.json
+        jinja_map: dictionary from ad field names to jinja template strings.
 
     Returns:
-        str: A jinja template string produced by templating the command
-             template with all the field templates.
-    """
-    # Load command template via cmd
-    # cmd = 'Set-ADUser'
-    cmd_options = cmdlet_templates.keys()
-    if cmd not in cmd_options:
-        raise ValueError(
-            "prepare_template cmd must be one of: " + ",".join(cmd_options)
-        )
-    command_template = Template(cmdlet_templates[cmd])
+        tuple(dict, dict):
+            parameters: a dict of parameter key, value pairs
+            other_attributes: a dict of attribute key, value pairs
 
+            Both dicts have the same format, namely:
+                field_name -> jinja template for the field
+    """
     # Load field templates (ad_field --> template)
+    jinja_map = jinja_map or {}
     jinja_map = prepare_default_field_templates(jinja_map)
     jinja_map = prepare_settings_based_field_templates(jinja_map, cmd, settings)
     jinja_map = prepare_and_check_login_field_templates(jinja_map)
@@ -321,26 +304,72 @@ def prepare_template(cmd, jinja_map, settings):
     duplicate_ad_fields = duplicates(ad_fields_low)
     if duplicate_ad_fields:
         raise ValueError("Duplicate ad_field: " + ",".join(duplicate_ad_fields))
+    return jinja_map
 
+
+def quote_templates(jinja_map):
     # Put quotes around all values outside the no_quote_list
     def quotes_wrap(value, key):
         if key.lower() in lower_list(no_quote_list):
             return value
         return '"{}"'.format(value)
-    jinja_map = dict_map(quotes_wrap, jinja_map)
 
+    jinja_map = dict_map(jinja_map, value_func=quotes_wrap)
+    return jinja_map
+
+
+def partition_templates(cmd, jinja_map):
     # Partition rendered attributes by parameters and attributes
     parameter_list = lower_list(cmdlet_parameters[cmd])
     other_attributes, parameters = dict_partition(
         lambda key, _: key.lower() in parameter_list, jinja_map
     )
+    return parameters, other_attributes
 
-    # Drop all illegal attributes
-    for attribute in illegal_attributes:
+
+def filter_illegal(cmd, parameters, other_attributes):
+
+    # Drop all illegal parameters and attributes
+    # Parameters
+    for parameter in illegal_parameters[cmd]:
+        parameters.pop(parameter, None)
+        parameters.pop(parameter.lower(), None)
+    # Attributes
+    for attribute in illegal_attributes[cmd]:
         other_attributes.pop(attribute, None)
+        other_attributes.pop(attribute.lower(), None)
+
+    return parameters, other_attributes
+
+
+def prepare_template(cmd, settings, jinja_map=None):
+    """Build a complete powershell command template.
+
+    Args:
+        cmd: command to generate template for.
+        settings: dictionary containing settings from settings.json
+        jinja_map: dictionary from ad field names to jinja template strings.
+
+    Returns:
+        str: A jinja template string produced by templating the command
+             template with all the field templates.
+    """
+    # Load command template via cmd
+    cmd_options = cmdlet_templates.keys()
+    if cmd not in cmd_options:
+        raise ValueError(
+            "prepare_template cmd must be one of: " + ",".join(cmd_options)
+        )
+    command_template = Template(cmdlet_templates[cmd])
+    parameters, other_attributes = filter_illegal(
+        cmd,
+        *partition_templates(
+            cmd, quote_templates(prepare_field_templates(cmd, settings))
+        )
+    )
 
     # Generate our combined template, by rendering our command template using
-    # the jinja_map templates.
+    # the field templates templates.
     combined_template = command_template.render(
         parameters=parameters, other_attributes=other_attributes
     )
@@ -351,19 +380,16 @@ def template_powershell(context, settings, cmd="New-ADUser", jinja_map=None):
     """Build a complete powershell command.
 
     Args:
-        cmd: command to generate template for. Defaults to 'New-ADUser'.
-        jinja_map: dictionary from ad field names to jinja template strings.
         context: dictionary used for jinja templating context.
         settings: dictionary containing settings from settings.json
+        cmd: command to generate template for. Defaults to 'New-ADUser'.
+        jinja_map: dictionary from ad field names to jinja template strings.
 
     Returns:
         str: An executable powershell script.
     """
-    # Set arguments to empty dicts if none
-    jinja_map = jinja_map or {}
-
     # Acquire the full template, templated itself with all field templates
-    full_template = prepare_template(cmd, jinja_map, settings)
+    full_template = prepare_template(cmd, settings)
 
     # Render the final template using the context
     return Template(full_template).render(**context)
