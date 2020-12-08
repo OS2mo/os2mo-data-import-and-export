@@ -1,7 +1,7 @@
 import unittest
 from collections import OrderedDict
-from datetime import date, datetime, timedelta
-from unittest.mock import MagicMock, patch
+from datetime import date, timedelta
+from unittest.mock import MagicMock, patch, call
 
 import hypothesis.strategies as st
 import xmltodict
@@ -559,7 +559,6 @@ class Test_sd_changed_at(unittest.TestCase):
 
         _mo_post = morahelper._mo_post
         _mo_post.return_value = AttrDict({"status_code": 201, "text": lambda: "OK"})
-        from unittest.mock import call
 
         self.assertFalse(_mo_post.called)
         sd_updater.update_all_employments()

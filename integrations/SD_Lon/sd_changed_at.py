@@ -91,12 +91,12 @@ class ChangeAtSD:
         self.skip_job_functions = self.settings.get('skip_job_functions', [])
 
         use_ad = self.settings.get('integrations.SD_Lon.use_ad_integration', True)
+        self.ad_reader = None
         if use_ad:
             logger.info('AD integration in use')
             self.ad_reader = ad_reader.ADParameterReader()
         else:
             logger.info('AD integration not in use')
-            self.ad_reader = None
 
         self.updater = MOPrimaryEngagementUpdater()
         self.from_date = from_date
@@ -205,9 +205,8 @@ class ChangeAtSD:
         return employment_response
 
     def read_person_changed(self):
-        if self.to_date is None:
-            deactivate_date = '31.12.9999'
-        else:
+        deactivate_date = '31.12.9999'
+        if self.to_date:
             deactivate_date = self.to_date.strftime('%d.%m.%Y')
         params = {
             'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
@@ -579,17 +578,15 @@ class ChangeAtSD:
         except (KeyError, IndexError):
             emp_name = 'Ukendt'
 
+        job_function = emp_name
         if self.use_jpi:
             job_function = job_position
-        else:
-            job_function = emp_name
 
         self._update_professions(job_function)
 
+        primary = self.primary_types['non_primary']
         if status['EmploymentStatusCode'] == '0':
             primary = self.primary_types['no_salary']
-        else:
-            primary = self.primary_types['non_primary']
 
         split = self.settings['integrations.SD_Lon.monthly_hourly_divide']
         employment_id = calc_employment_id(engagement)
@@ -603,10 +600,9 @@ class ChangeAtSD:
             logger.info('Non-nummeric id. Job pos id: {}'.format(job_position))
 
         extension_field = self.settings.get('integrations.SD_Lon.employment_field')
+        extension = {}
         if extension_field is not None:
             extension = {extension_field: emp_name}
-        else:
-            extension = {}
 
         payload = sd_payloads.create_engagement(
             org_unit=org_unit,
@@ -686,7 +682,7 @@ class ChangeAtSD:
                                                              read_all=True)
             logger.debug('User associations: {}'.format(associations))
             current_association = None
-            # TODO: This is a filter + next
+            # TODO: This is a filter + next (only?)
             for association in associations:
                 if association['user_key'] == job_id:
                     current_association = association['uuid']
@@ -714,26 +710,23 @@ class ChangeAtSD:
         for profession_info in engagement_info['professions']:
             logger.info('Change profession of engagement {}'.format(job_id))
             job_position = profession_info['JobPositionIdentifier']
+            emp_name = profession_info['JobPositionIdentifier']
             if 'EmploymentName' in profession_info:
                 emp_name = profession_info['EmploymentName']
-            else:
-                emp_name = profession_info['JobPositionIdentifier']
             validity = self._validity(profession_info, mo_eng['validity']['to'],
                                       cut=True)
             if validity is None:
                 continue
 
+            job_function = emp_name
             if self.use_jpi:
                 job_function = job_position
-            else:
-                job_function = emp_name
             logger.debug('Employment name: {}'.format(job_function))
 
             ext_field = self.settings.get('integrations.SD_Lon.employment_field')
+            extention = {}
             if ext_field is not None:
                 extention = {ext_field: emp_name}
-            else:
-                extention = {}
 
             self._update_professions(job_function)
             job_function_uuid = self.job_functions.get(job_function)
@@ -969,16 +962,15 @@ def initialize_changed_at(from_date, run_db, force=False):
         logger.error('Local base not correctly initialized')
         if not force:
             raise Exception('Local base not correctly initialized')
-        else:
-            logger.info('Force is true, create new db')
-            conn = sqlite3.connect(str(run_db))
-            c = conn.cursor()
-            c.execute("""
-              CREATE TABLE runs (id INTEGER PRIMARY KEY,
-                from_date timestamp, to_date timestamp, status text)
-            """)
-            conn.commit()
-            conn.close()
+        logger.info('Force is true, create new db')
+        conn = sqlite3.connect(str(run_db))
+        c = conn.cursor()
+        c.execute("""
+          CREATE TABLE runs (id INTEGER PRIMARY KEY,
+            from_date timestamp, to_date timestamp, status text)
+        """)
+        conn.commit()
+        conn.close()
 
     _local_db_insert((from_date, from_date, 'Running since {}'))
 
@@ -1024,12 +1016,11 @@ def changed_at(init):
         print('Critical error')
         logging.error('Previous ChangedAt run did not return!')
         raise Exception('Previous ChangedAt run did not return!')
-    else:
-        time_diff = datetime.datetime.now() - row[2]
-        if time_diff < datetime.timedelta(days=1):
-            print('Critical error')
-            logging.error('Re-running ChangedAt too early!')
-            raise Exception('Re-running ChangedAt too early!')
+    time_diff = datetime.datetime.now() - row[2]
+    if time_diff < datetime.timedelta(days=1):
+        print('Critical error')
+        logging.error('Re-running ChangedAt too early!')
+        raise Exception('Re-running ChangedAt too early!')
 
     # Row[2] contains end_date of last run, this will be the from_date for this run.
     from_date = row[2]
