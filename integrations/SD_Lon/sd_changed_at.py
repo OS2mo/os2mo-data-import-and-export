@@ -776,10 +776,8 @@ class ChangeAtSD:
             logger.error('Engagement {} has never existed!'.format(job_id))
             return
 
-        if not validity:
-            validity = mo_eng['validity']
+        validity = validity or mo_eng['validity']
 
-        data = {}
         if status0:
             logger.info('Setting {} to status0'.format(job_id))
             data = {'primary_type': {'uuid': self.primary_types['non_primary']},
@@ -856,15 +854,15 @@ class ChangeAtSD:
                 logger.info('Terminate {}, job_id {} '.format(cpr, job_id))
                 success = self._terminate_engagement(from_date, job_id)
                 if not success:
-                    logger.error('Problem wit job-id: {}'.format(job_id))
+                    logger.error('Problem with job-id: {}'.format(job_id))
                     skip = True
 
             if status['EmploymentStatusCode'] in ('S', '9'):
-                skip = True
                 for mo_eng in self.mo_engagement:
                     if mo_eng['user_key'] == job_id:
                         logger.info('Status S, 9: Terminate {}'.format(job_id))
                         self._terminate_engagement(status['ActivationDate'], job_id)
+                skip = True
         return skip
 
     def _update_user_employments(self, cpr, sd_engagement):
@@ -873,9 +871,8 @@ class ChangeAtSD:
             logger.info('Update Job id: {}'.format(job_id))
             logger.debug('SD Engagement: {}'.format(engagement))
             # If status is present, we have a potential creation
-            if eng['status_list']:
-                if self._handle_status_changes(cpr, engagement):
-                    continue
+            if eng['status_list'] and self._handle_status_changes(cpr, engagement):
+                continue
             self.edit_engagement(engagement)
 
     def update_all_employments(self):
