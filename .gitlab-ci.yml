@@ -79,8 +79,8 @@ Lint Reports:
   script:
     - python -m black --diff --line-length 85 --check reports/Frederikshavn_MED.py
     - python -m black --diff --line-length 85 --check reports/os2mo_tests/test_frederikshavn_MED_XLSX.py
-    - python -m isort --diff --check-only reports/Frederikshavn_MED.py
-    - python -m isort --diff --check-only reports/os2mo_tests/test_frederikshavn_MED_XLSX.py
+    - python -m isort --profile black --check-only reports/Frederikshavn_MED.py
+    - python -m isort --profile black --check-only reports/os2mo_tests/test_frederikshavn_MED_XLSX.py
 
 
 

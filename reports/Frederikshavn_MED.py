@@ -14,8 +14,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import (Adresse, Bruger, Enhed,
-                                                 Tilknytning)
+from exporters.sql_export.sql_table_defs import Adresse, Bruger, Enhed, Tilknytning
 
 logger = logging.getLogger("Frederikshavn_MED")
 for name in logging.root.manager.loggerDict:
@@ -24,7 +23,8 @@ for name in logging.root.manager.loggerDict:
     else:
         logging.getLogger(name).setLevel(logging.ERROR)
 logging.basicConfig(
-    format="%(levelname)s %(asctime)s %(name)s %(message)s", level=logging.DEBUG
+    format="%(levelname)s %(asctime)s %(name)s %(message)s",
+    level=logging.DEBUG,
 )
 
 
