@@ -1,6 +1,8 @@
 import click
 from datetime import date
 
+from more_itertools import unzip, flatten
+
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.SD_Lon.sd_common import sd_lookup, mora_assert
 from integrations.SD_Lon.sd_common import primary_types
@@ -41,16 +43,8 @@ def fetch_user_employments(cpr):
     return employments
 
 
-
 def fixup(ctx, mo_employees):
-    mora_helper = ctx['mora_helper']
-    primary = primary_types(mora_helper)
-
-    if ctx['progress']:
-        mo_employees = progress_iterator(mo_employees, print)
-
-    payloads = []
-    for mo_employee in mo_employees:
+    def fetch_mo_engagements(mo_employee):
         mo_uuid = mo_employee['uuid']
         mo_engagements = mora_helper.read_user_engagement(
             user=mo_uuid, read_all=True
@@ -60,33 +54,77 @@ def fixup(ctx, mo_employees):
             mo_engagements
         )
         mo_dict = dict(map(lambda mo_engagement: (mo_engagement['user_key'], mo_engagement), no_salary_mo_engagements))
-        if not mo_dict:
-            continue
+        return mo_dict
 
-        sd_employments = fetch_user_employments(mo_employee["cpr_no"])
+    def fetch_sd_employments(mo_employee):
+        mo_cpr = mo_employee["cpr_no"]
+        sd_employments = fetch_user_employments(mo_cpr)
         sd_dict = dict(map(lambda sd_employment: (sd_employment['EmploymentIdentifier'], sd_employment), sd_employments))
+        return sd_dict
 
+    def fetch_pairs(mo_employee):
+        try:
+            mo_dict = fetch_mo_engagements(mo_employee)
+            if not mo_dict:
+                return None
+            sd_dict = fetch_sd_employments(mo_employee)
+            return mo_dict, sd_dict
+        except Exception as exp:
+            print(mo_employee)
+            print(exp)
+            return None
+
+    def process_tuples(mo_dict, sd_dict):
         # Find intersection
-        common_entries = mo_dict.keys() & sd_dict.keys()
-        # TODO: Report non-intersected
-        pairs = {x: (mo_dict[x], sd_dict[x]) for x in common_entries}
-        
-        for key, (mo_engagement, sd_employment) in pairs.items():
-            mo_no_salary = (mo_engagement['primary']['user_key'] == 'status0')
+        common_keys = mo_dict.keys() & sd_dict.keys()
+        for key in common_keys:
+            yield (key, mo_dict[key], sd_dict[key])
 
-            sd_status = sd_employment['EmploymentStatus']['EmploymentStatusCode']
-            sd_no_salary = (sd_status == "0")
-            if mo_no_salary and not sd_no_salary:
-                data = {
-                    'validity': mo_engagement['validity'],
-                    'primary': {'uuid': primary['non_primary']},
-                }
-                payload = sd_payloads.engagement(data, mo_engagement)
-                payloads.append(payload)
-                print("Fixing", key)
+    def sd_not_status_0(work_tuple):
+        key, mo_engagement, sd_employment = work_tuple
+        sd_status = sd_employment['EmploymentStatus']['EmploymentStatusCode']
+        return sd_status != "0"
 
-    print(len(payloads))
-    return
+    def generate_payload(work_tuple):
+        key, mo_engagement, sd_employment = work_tuple
+        print("Fixing", key)
+        data = {
+            'validity': mo_engagement['validity'],
+            'primary': {'uuid': primary['non_primary']},
+        }
+        payload = sd_payloads.engagement(data, mo_engagement)
+        return payload
+
+
+    mora_helper = ctx['mora_helper']
+    primary = primary_types(mora_helper)
+
+    if ctx['progress']:
+        mo_employees = progress_iterator(mo_employees, print)
+
+    # Dict pair is an iterator of (dict, dict) tuples or None
+    # First dict is a mapping from employment_id to mo_engagement
+    # Second dict is a mapping from employment_id to sd_engagement
+    dict_pairs = map(fetch_pairs, mo_employees)
+    # Remove all the None's from dict_pairs
+    dict_pairs = filter(None.__ne__, dict_pairs)
+
+    # Convert dict_pairs into an iterator of three tuples:
+    # (key, mo_engagement, sd_employment)
+    # 'key' is the shared employment_id
+    work_tuples = flatten(map(process_tuples, *unzip(dict_pairs)))
+    # Filter all tuples, where the sd_employment has status 0
+    work_tuples = filter(sd_not_status_0, work_tuples)
+    # At this point, we have a tuple of items which need to be updated / fixed
+
+    # Convert all the remaining tuples to MO payloads
+    payloads = map(generate_payload, work_tuples)
+    #payloads = list(payloads)
+
+    #import json
+    #print(json.dumps(payloads, indent=4))
+    #print(len(payloads))
+    #return
 
     for payload in payloads:
         response = mora_helper._mo_post('details/edit', payload)
