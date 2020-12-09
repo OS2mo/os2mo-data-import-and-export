@@ -573,7 +573,7 @@ class Test_sd_changed_at(unittest.TestCase):
                         "uuid": "mo_engagement_uuid",
                         "data": {
                             "validity": {"from": "2020-11-10", "to": "2021-02-09"},
-                            "primary_type": {"uuid": "non_primary_uuid"},
+                            "primary": {"uuid": "non_primary_uuid"},
                         },
                     },
                 ),

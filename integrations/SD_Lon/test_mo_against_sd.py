@@ -166,7 +166,7 @@ class TestMOAgainstSd(object):
         # NOTE: Currently we only find entries in SD that are not in MO,
         #       Not entries in MO that are not in SD
         pairs = map(create_mo_pair, employments)
-	# check_status has the format of employment_id --> dict,
+        # check_status has the format of employment_id --> dict,
         # where the resulting dict has the format of check_name --> bool,
         # where the boolean is whether the check passed or not
         check_status = dict(starmap(self._compare_employments, pairs))

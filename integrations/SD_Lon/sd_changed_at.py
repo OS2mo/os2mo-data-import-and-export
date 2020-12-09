@@ -773,7 +773,7 @@ class ChangeAtSD:
 
         if status0:
             logger.info('Setting {} to status0'.format(job_id))
-            data = {'primary_type': {'uuid': self.primary_types['non_primary']},
+            data = {'primary': {'uuid': self.primary_types['non_primary']},
                     'validity': validity}
             payload = sd_payloads.engagement(data, mo_eng)
             logger.debug('Status0 payload: {}'.format(payload))
@@ -818,7 +818,7 @@ class ChangeAtSD:
                     logger.debug('Validity for edit: {}'.format(validity))
                     data = {
                         'validity': validity,
-                        'primary_type': {'uuid': self.primary_types['non_primary']},
+                        'primary': {'uuid': self.primary_types['non_primary']},
                     }
                     payload = sd_payloads.engagement(data, mo_eng)
                     logger.debug('Edit status 1, payload: {}'.format(payload))
