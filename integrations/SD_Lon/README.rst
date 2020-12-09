@@ -303,13 +303,13 @@ En indledende import køres ved at oprette en instans af ImportHelper_ ImportHel
 
 .. code-block:: python
 
-   importer = ImportHelper(
-       create_defaults=True,
-       mox_base=MOX_BASE,
-       mora_base=MORA_BASE,
-       store_integration_data=False,
-       seperate_names=True
-   )
+    importer = ImportHelper(
+        create_defaults=True,
+        mox_base=MOX_BASE,
+        mora_base=MORA_BASE,
+        store_integration_data=False,
+        seperate_names=True
+    )
 			       
 Hverken importen eller efterfølgende synkronisering med ChangedAt anvender
 integrationsdata, og det er derfor valgfrit om vil anvende dette.
@@ -318,20 +318,20 @@ Importen kan derefter køres med disse trin:
 
 .. code-block:: python
 
-   sd = sd_importer.SdImport(
-       importer,
-       ad_info=None,
-	   manager_rows=None
-   )
+    sd = sd_importer.SdImport(
+        importer,
+        ad_info=None,
+        manager_rows=None
+    )
 
-   sd.create_ou_tree(
-       create_orphan_container=False,
-       sub_tree=None,
-       super_unit=None
-   )
-   sd.create_employees()
+    sd.create_ou_tree(
+        create_orphan_container=False,
+        sub_tree=None,
+        super_unit=None
+    )
+    sd.create_employees()
 
-   importer.import_all()
+    importer.import_all()
 
 Hvor der i dette tilfælde ikke angives ledere eller en AD integration. Disse to
 punkter diskuteres under punkterne `Ledere i SD Løn`_ og
