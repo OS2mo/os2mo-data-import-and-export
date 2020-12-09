@@ -365,7 +365,7 @@ exports_actual_state_export(){
 }
 
 exports_historic_sql_export(){
-    BACK_UP_AND_TRUNCATE+=(sql_export_historic.log)
+    BACK_UP_AND_TRUNCATE+=(sql_export.log)
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --historic
 }
 
