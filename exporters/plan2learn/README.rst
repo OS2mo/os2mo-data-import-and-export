@@ -50,9 +50,9 @@ I dette udtræk eksporteres disse felter:
    engagement har en stillingsbetegnelse skrevet i feltet extension_2 anvendes
    dette, og ellers anvendes stillingsbetegnelsen fra engagementet.
 
-Mobiltelefon genkenes via en besemt klasse under adressetype, denne klasse er
-for nuværende hårdkodet direkte i python filen, men vil på sigt blive flyttet til
-`settings.json`.
+E-mail og mobiltelefon genkenes via bestemte klasse under adressetype, disse
+klasse er for nuværende hårdkodet direkte i python filen, men vil på sigt
+blive flyttet til `settings.json`.
    
 Kun personer med ansættelsestype Timeløn eller Månedsløn inkluderes i udtrækket.
 Disse typer genkendes via en liste med de to uuid'er på typerne, for nuværende er
@@ -64,7 +64,6 @@ Organisation
 ============
 
 I dette udtræk eksporteres disse felter:
-
 
  * `AfdelingsID`: Afdelingens uuid i MO.
  * `Afdelingsnavn`: Afdelingens navn.

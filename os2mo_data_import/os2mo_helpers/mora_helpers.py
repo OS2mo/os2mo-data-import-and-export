@@ -354,7 +354,7 @@ class MoraHelper(object):
         return associations
 
     def read_user_address(self, user, username=False, cpr=False,
-                          at=None, use_cache=None, phone_type=None):
+                          at=None, use_cache=None, phone_type=None, email_type=None):
         """
         Read phone number and email from user
         :param user: UUID of the wanted user
@@ -372,7 +372,11 @@ class MoraHelper(object):
                         return_address['Telefon'] = address['name']
 
             if address['address_type']['scope'] == 'EMAIL':
-                return_address['E-mail'] = address['name']
+                if email_type is None:
+                    return_address['E-mail'] = address['name']
+                else:
+                    if address['address_type']['uuid'] == email_type:
+                        return_address['E-mail'] = address['name']
         if username or cpr:
             personal_info = self._mo_lookup(user, 'e/{}')
             if username:
