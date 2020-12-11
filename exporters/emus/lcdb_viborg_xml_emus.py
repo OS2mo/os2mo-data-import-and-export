@@ -355,7 +355,7 @@ def hourly_paid(engagement):
 
 
 def discarded(settings, engagement):
-    jfkey = engagement.stillingsbetegnelse_titel
+    jfkey = engagement.stillingsbetegnelse_uuid
     etuuid = engagement.engagementstype_uuid
     if etuuid not in settings["EMUS_ALLOWED_ENGAGEMENT_TYPES"]:
         logger.debug("%s discarded engagement_type %s",
