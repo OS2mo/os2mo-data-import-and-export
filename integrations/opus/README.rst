@@ -279,4 +279,5 @@ at filtrere udvalgte organisationenheder og deres tilhørende underliggende
 organisationsenheder fra, før selve importen kører.
 
 Nølgen skal være en liste indeholdende OPUS ID'er for de organisationsenheder,
-som ønskes filtreret fra.
+som ønskes filtreret fra. OPUS ID findes i OPUS filen 
+:code:`<orgUnit id="350" client="813" lastChanged="2020-09-16">`
