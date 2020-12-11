@@ -336,7 +336,7 @@ def hourly_paid(engagement):
 
 
 def discarded(engagement):
-    jfkey = engagement.get("job_function", {}).get("user_key", "")
+    jfkey = engagement.get("job_function", {}).get("uuid", "")
     etuuid = engagement["engagement_type"]["uuid"]
     if etuuid not in EMUS_ALLOWED_ENGAGEMENT_TYPES:
         logger.debug("%s discarded engagement_type %s",
