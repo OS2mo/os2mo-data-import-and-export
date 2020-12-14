@@ -44,7 +44,6 @@ def sd_lookup_settings():
 
 
 def _sd_lookup_cache(func):
-
     def create_hex_digest(full_url, payload):
         """Create a reproducible hex digest from url and payloads."""
         hasher = hashlib.sha256()
