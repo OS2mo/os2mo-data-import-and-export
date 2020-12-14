@@ -681,7 +681,7 @@ class SdImport(object):
                 self.double_employment.append(cpr)
 
             # If we do not have a list of managers, we take the manager,
-            # information fro the job_function_code.
+            # information from the job_function_code.
             if not self.manager_rows:
                 # These job functions will normally (but necessarily)
                 #  correlate to a manager position
