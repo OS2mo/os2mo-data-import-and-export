@@ -543,7 +543,7 @@ class SdImport(object):
             )
 
             # Job_position_id: Klassificeret liste over stillingstyper.
-            # job_name: Fritiksfelt med stillingsbetegnelser.
+            # job_name: Fritekstfelt med stillingsbetegnelser.
             job_position_id = employment['Profession']['JobPositionIdentifier']
             if job_position_id in self.skip_job_functions:
                 continue
