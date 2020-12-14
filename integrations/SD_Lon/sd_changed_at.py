@@ -8,7 +8,7 @@ import datetime
 from functools import lru_cache
 from integrations.SD_Lon import sd_payloads
 
-from more_itertools import only
+from more_itertools import only, last
 
 from integrations import cpr_mapper
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -377,7 +377,7 @@ class ChangeAtSD:
         relevant_engagements = filter(
             lambda mo_eng: mo_eng['user_key'] == user_key, self.mo_engagement
         )
-        relevant_engagement = only(relevant_engagements)
+        relevant_engagement = last(relevant_engagements, None)
 
         if relevant_engagement is None:
             msg = 'Fruitlessly searched for {} in {}'.format(
