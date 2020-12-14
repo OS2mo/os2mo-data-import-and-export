@@ -1,4 +1,4 @@
-#
+##
 # Copyright (c) 2017-2018, Magenta ApS
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
@@ -92,7 +92,8 @@ class MoraHelper:
                 csvfile.write(lines)
 
     def _create_path_dict(self, fieldnames, node, org_types=None):
-        """ Create a dict with a MO-path to a given node.
+        """Create a dict with a MO-path to a given node.
+
         :param fieldnames: The headline for each level of the path.
         :node: The node to find the path for.
         :return: A dict with headlines as keys and nodes as values.
@@ -184,6 +185,7 @@ class MoraHelper:
 
     def read_organisation(self):
         """Read the main Organisation, all OU's will have this as root.
+
         Currently reads only one, theroretically more than root org can exist.
         :return: UUID of root organisation
         """
@@ -191,8 +193,8 @@ class MoraHelper:
         return org_id[0]['uuid']
 
     def read_all_users(self, limit=None):
-        """
-        Return a list of all employees in MO.
+        """Return a list of all employees in MO.
+
         :param limit: If set, only less large sub-set wll be retrived,
         mainly usefull for testing.
         :return: List af all employees.
@@ -207,7 +209,8 @@ class MoraHelper:
         return employees
 
     def read_it_systems(self):
-        """ Read the main Organisation, all OU's will have this as root.
+        """Read the main Organisation, all OU's will have this as root.
+
         Currently reads only one, theroretically more than root org can exist.
         :return: UUID of root organisation
         """
@@ -216,7 +219,8 @@ class MoraHelper:
         return it_systems
 
     def read_ou(self, uuid, at=None, use_cache=None):
-        """ Return a dict with the data available about an OU
+        """Return a dict with the data available about an OU.
+
         :param uuid: The UUID of the OU
         :return: Dict with the information about the OU
         """
@@ -225,7 +229,8 @@ class MoraHelper:
 
     def read_ou_address(self, uuid, at=None, use_cache=None, scope="DAR",
                         return_all=False):
-        """ Return a dict with the data available about an OU
+        """Return a dict with the data available about an OU.
+
         :param uuid: The UUID of the OU
         :param return_all: If True the response will be a list of dicts
         rather than a dict, and all adresses will be returned.
@@ -256,7 +261,8 @@ class MoraHelper:
         return return_value
 
     def read_classes_in_facet(self, facet, use_cache=False):
-        """ Return all classes belong to a given facet.
+        """Return all classes belong to a given facet.
+
         :param facet: The facet to be returned.
         :return: List of classes in the facet and the uuid of the facet.
         """
@@ -269,8 +275,8 @@ class MoraHelper:
 
     def read_user(self, user_uuid=None, user_cpr=None, at=None, use_cache=None,
                   org_uuid=None):
-        """
-        Read basic info for a user. Either uuid or cpr must be given.
+        """Read basic info for a user. Either uuid or cpr must be given.
+
         :param user_uuid: UUID of the wanted user.
         :param user_cpr: cpr of the wanted user.
         :return: Basic user info
@@ -291,7 +297,8 @@ class MoraHelper:
         return user_info
 
     def terminate_detail(self, mo_type, uuid, from_date):
-        """ Terminate a specific MO detail.
+        """Terminate a specific MO detail.
+
         :param mo_type: The MO type to terminate (association, role, engagement, etc)
         :param uuid: Object to terminate.
         :param from_date: Date to terminate from.
@@ -309,8 +316,8 @@ class MoraHelper:
     def read_user_engagement(self, user, at=None, read_all=False, skip_past=False,
                              only_primary=False, use_cache=None,
                              calculate_primary=False):
-        """
-        Read engagements for a user.
+        """Read engagements for a user.
+
         :param user: UUID of the wanted user.
         :read_all: Read all engagements, not only the present ones.
         :skip_past: Even if read_all is true, do not read the past.
@@ -340,8 +347,8 @@ class MoraHelper:
 
     def read_user_association(self, user, at=None, read_all=False,
                               only_primary=False, use_cache=None):
-        """
-        Read associations for a user.
+        """Read associations for a user.
+
         :param user: UUID of the wanted user.
         :return: List of the users associations.
         """
@@ -361,8 +368,8 @@ class MoraHelper:
 
     def read_user_address(self, user, username=False, cpr=False,
                           at=None, use_cache=None, phone_type=None, email_type=None):
-        """
-        Read phone number and email from user
+        """Read phone number and email from user.
+
         :param user: UUID of the wanted user
         :param phone_type: Optionally add a specific phone_type class.
         :return: Dict witn phone number and email (if they exists in MO)
@@ -631,3 +638,9 @@ class MoraHelper:
             if address['address_type']['scope'] == scope:
                 return address
         return {}
+
+    def get_e_itsystem(self, e_uuid, it_system_uuid):
+        for its in self._mo_lookup(e_uuid, 'e/{}/details/it'):
+            if its['itsystem']["uuid"] == id_it_system:
+                yield its
+        return ''

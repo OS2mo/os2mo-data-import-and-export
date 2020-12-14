@@ -2,6 +2,7 @@ import json
 import pathlib
 import logging
 from datetime import datetime
+from operator import itemgetter
 
 from more_itertools import only
 
@@ -92,7 +93,7 @@ class AdMoSync(object):
         """
         logger.info('Read all MO users')
         if self.lc:
-            employees = list(map(lambda x: x[0], self.lc.users.values()))
+            employees = list(map(itemgetter(0), self.lc.users.values()))
         else:
             employee_list = self.helper._mo_lookup(
                 self.org, 'o/{}/e?limit=1000000000')
@@ -291,32 +292,57 @@ class AdMoSync(object):
                     else:
                         logger.info('{} not in ad_object'.format(ad_field))
 
+    def _create_it_system(self, person_uuid, ad_username, mo_itsystem_uuid):
+        payload = {
+            "type": "it",
+            "user_key": ad_username,
+            "itsystem": {"uuid": mo_itsystem_uuid},
+            "person": {"uuid": person_uuid},
+            "validity": VALIDITY
+        }
+        logger.debug("Create it system payload: {}".format(payload))
+        response = self.helper._mo_post("details/create", payload)
+        logger.debug("Response: {}".format(response.text))
+        response.raise_for_status()
+
+    def _update_it_system(self, ad_username, binding_uuid):
+        payload = {
+            "type": "it",
+            "data": {
+                "user_key": ad_username,
+                "validity": VALIDITY
+            },
+            "uuid": binding_uuid,
+        }
+        logger.debug("Update it system payload: {}".format(payload))
+        response = self.helper._mo_post("details/edit", payload)
+        logger.debug("Response: {}".format(response.text))
+        response.raise_for_status()
+
     def _edit_it_system(self, uuid, ad_object):
-        mo_itsystem_uuid = self.mapping['it_systems']['samAccountName']
+        mo_itsystem_uuid = self.mapping["it_systems"]["samAccountName"]
         if self.lc:
-            username = ''
-            for it in self.lc.it_connections.values():
-                if it[0]['user'] == uuid:
-                    if it[0]['itsystem'] == mo_itsystem_uuid:
-                        username = it[0]['username']
+            it_systems = map(itemgetter(0), self.lc.it_connections.values())
+            it_systems = filter(lambda it: it["user"] == uuid, it_systems)
+            it_systems = filter(lambda it: it["itsystem"] == mo_itsystem_uuid, it_systems)
+            it_systems = map(itemgetter("username", "uuid"), it_systems)
         else:
-            username = self.helper.get_e_username(uuid, 'Active Directory')
-        # If username is blank, we have found a user that needs to be assiged to an
-        # IT-system.
-        if username == '':
-            payload = {
-                'type': 'it',
-                'user_key': ad_object['SamAccountName'],
-                'itsystem': {'uuid': mo_itsystem_uuid},
-                'person': {'uuid': uuid},
-                'validity': VALIDITY
-            }
-            logger.debug('Create it system payload: {}'.format(payload))
-            response = self.helper._mo_post('details/create', payload)
-            self.stats['it_systems'] += 1
-            self.stats['users'].add(uuid)
-            logger.debug('Response: {}'.format(response.text))
-            response.raise_for_status()
+            it_systems = self.helper.get_e_itsystem(uuid, mo_itsystem_uuid)
+            it_systems = map(itemgetter("user_key", "uuid"), it_systems)
+        # Here it_systems is a 2 tuple (mo_username, binding_uuid)
+        mo_username, binding_uuid = only(it_systems, ("", ""))
+        # Username currently in AD
+        ad_username = ad_object["SamAccountName"]
+
+        # If mo_username is blank, we found a user who needs a new entry created
+        if mo_username == "":
+            self._create_it_system(uuid, ad_username, mo_itsystem_uuid)
+            self.stats["it_systems"] += 1
+            self.stats["users"].add(uuid)
+        elif mo_username != ad_username:  # We need to update the mo_username
+            self._update_it_system(ad_username, binding_uuid)
+            self.stats["it_systems"] += 1
+            self.stats["users"].add(uuid)
 
     def _edit_user_addresses(self, uuid, ad_object):
         fields_to_edit = self._find_existing_ad_address_types(uuid)
