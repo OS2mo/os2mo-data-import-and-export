@@ -44,10 +44,6 @@ def sd_lookup_settings():
 
 
 def _sd_lookup_cache(func):
-    # We need a cache dir to exist before we can proceed
-    cache_dir = Path("tmp/")
-    if not cache_dir.is_dir():
-        raise Exception("Folder for temporary files does not exist")
 
     def create_hex_digest(full_url, payload):
         """Create a reproducible hex digest from url and payloads."""
@@ -75,6 +71,11 @@ def _sd_lookup_cache(func):
         # Short-circuit as noop, if no caching is requested
         if use_cache == False:
             return func(full_url, payload, auth)
+
+        # We need a cache dir to exist before we can proceed
+        cache_dir = Path("tmp/")
+        if not cache_dir.is_dir():
+            raise Exception("Folder for temporary files does not exist")
 
         # Create digest and find filename
         lookup_id = create_hex_digest(full_url, payload)
