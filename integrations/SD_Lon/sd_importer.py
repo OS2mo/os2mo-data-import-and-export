@@ -568,7 +568,7 @@ class SdImport(object):
                     'Non-nummeric id. Job pos id: {}'.format(job_position_id))
 
             if occupation_rate == max_rate and employment_id['value'] == min_id:
-                assert(exactly_one_primary is False)
+                assert(exactly_one_primary is False), "More than one primary found"
                 primary_type_ref = 'Ansat'
                 exactly_one_primary = True
             else:
