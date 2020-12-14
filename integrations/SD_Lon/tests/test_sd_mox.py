@@ -9,8 +9,8 @@ import datetime
 import unittest
 
 import freezegun
-import xmltodict
 
+import xmltodict
 from integrations.SD_Lon import sd_mox
 
 xml_create = """<?xml version="1.0" encoding="utf-8"?>

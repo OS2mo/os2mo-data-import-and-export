@@ -11,15 +11,15 @@ import sys
 import unittest
 
 import psycopg2
+
+import sd_importer  # noqa
+from integration_test_helpers import _count  # noqa
+from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 
-from os2mo_data_import import ImportHelper
-
 sys.path.append("../SD_Lon")
-import sd_importer  # noqa
 
 sys.path.append("../../os2mo_data_import/long_tests")
-from integration_test_helpers import _count  # noqa
 
 MUNICIPALTY_NAME = os.environ.get("MUNICIPALITY_NAME")
 MUNICIPALTY_CODE = os.environ.get("MUNICIPALITY_CODE")

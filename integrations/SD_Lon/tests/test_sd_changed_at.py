@@ -1,12 +1,11 @@
 import unittest
 from collections import OrderedDict
 from datetime import date, timedelta
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, call, patch
 
 import hypothesis.strategies as st
 import xmltodict
 from hypothesis import given
-
 from integrations.ad_integration.utils import AttrDict
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 

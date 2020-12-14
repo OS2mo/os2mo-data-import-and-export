@@ -9,6 +9,7 @@ from functools import lru_cache, wraps
 from pathlib import Path
 
 import requests
+
 import xmltodict
 
 logger = logging.getLogger("sdCommon")
