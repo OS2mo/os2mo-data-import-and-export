@@ -105,18 +105,16 @@ class Report_MED:
         # Nu laves en liste med lister hvori data placeres. For hver bruger laves et opslag for at finde email.
         data = []
         for i, row in enumerate(query.all()):
-            email = (
-                self.session.query(Adresse)
-                .filter(
-                    Adresse.bruger_uuid == row.Bruger.uuid,
-                    Adresse.adressetype_titel == "Email",
-                    or_(
-                        Adresse.synlighed_titel == None,
-                        Adresse.synlighed_titel != "Hemmelig",
-                    ),
-                )
-                .first()
-            )
+            email = self.session.query(
+                Adresse
+            ).filter(
+                Adresse.bruger_uuid == row.Bruger.uuid,
+                Adresse.adressetype_titel == "Email",
+                or_(
+                    Adresse.synlighed_titel == None,
+                    Adresse.synlighed_titel != "Hemmelig",
+                ),
+            ).first()
             if email is not None:
                 email = email.værdi
             else:

@@ -76,11 +76,8 @@ Lint OPUS Org Tree Print:
 
 Lint Reports:
   extends: .lint-python
-  script:
-    - python -m black --diff --line-length 85 --check reports/Frederikshavn_MED.py
-    - python -m black --diff --line-length 85 --check reports/os2mo_tests/test_frederikshavn_MED_XLSX.py
-    - python -m isort --profile black --check-only reports/Frederikshavn_MED.py
-    - python -m isort --profile black --check-only reports/os2mo_tests/test_frederikshavn_MED_XLSX.py
+    - python -m black --diff --line-length 85 --check reports/Frederikshavn_MED.py reports/os2mo_tests/test_frederikshavn_MED_XLSX.py
+    - python -m isort --profile black --check-only reports/Frederikshavn_MED.py reports/os2mo_tests/test_frederikshavn_MED_XLSX.py
 
 
 
@@ -159,4 +156,3 @@ Test Reports:
   script:
     - pip install -r reports/requirements/test.txt
     - python -m pytest reports/os2mo_tests/test_frederikshavn_MED_XLSX.py
-    
