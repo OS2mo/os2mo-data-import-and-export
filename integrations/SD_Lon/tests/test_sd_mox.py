@@ -9,7 +9,6 @@ import datetime
 import unittest
 
 import freezegun
-
 import xmltodict
 from integrations.SD_Lon import sd_mox
 

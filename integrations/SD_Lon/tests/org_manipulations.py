@@ -11,11 +11,11 @@ import sys
 import unittest
 
 import psycopg2
-
-import sd_importer  # noqa
 from integration_test_helpers import _count  # noqa
 from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
+
+import sd_importer  # noqa
 
 sys.path.append("../SD_Lon")
 
