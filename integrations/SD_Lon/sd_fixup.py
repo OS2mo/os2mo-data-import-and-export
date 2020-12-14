@@ -119,12 +119,6 @@ def fixup(ctx, mo_employees):
 
     # Convert all the remaining tuples to MO payloads
     payloads = map(generate_payload, work_tuples)
-    #payloads = list(payloads)
-
-    #import json
-    #print(json.dumps(payloads, indent=4))
-    #print(len(payloads))
-    #return
 
     for payload in payloads:
         response = mora_helper._mo_post('details/edit', payload)
