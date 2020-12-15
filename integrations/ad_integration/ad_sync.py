@@ -95,9 +95,7 @@ class AdMoSync(object):
         if self.lc:
             employees = list(map(itemgetter(0), self.lc.users.values()))
         else:
-            employee_list = self.helper._mo_lookup(
-                self.org, 'o/{}/e?limit=1000000000')
-            employees = employee_list['items']
+            employees = self.helper.read_all_users()
         logger.info('Done reading all MO users')
         return employees
 
@@ -126,7 +124,7 @@ class AdMoSync(object):
                         }
                     )
         else:
-            user_addresses = self.helper._mo_lookup(uuid, 'e/{}/details/address')
+            user_addresses = self.helper.get_e_addresses(uuid)
 
         for field, klasse in self.mapping['user_addresses'].items():
             address_type_uuid, visibility_uuid = klasse
@@ -260,8 +258,9 @@ class AdMoSync(object):
                 logger.debug('Response: {}'.format(response.text))
         else:
             print('No cache')
-            user_engagements = self.helper._mo_lookup(
-                uuid, 'e/{}/details/engagement?calculate_primary=1')
+            user_engagements = self.helper.read_user_engagement(
+                uuid, calculate_primary=True, read_all=True
+            )
             for eng in user_engagements:
                 if not eng['is_primary']:
                     continue
@@ -327,7 +326,7 @@ class AdMoSync(object):
             it_systems = filter(lambda it: it["itsystem"] == mo_itsystem_uuid, it_systems)
             it_systems = map(itemgetter("username", "uuid"), it_systems)
         else:
-            it_systems = self.helper.get_e_itsystem(uuid, mo_itsystem_uuid)
+            it_systems = self.helper.get_e_itsystems(uuid, mo_itsystem_uuid)
             it_systems = map(itemgetter("user_key", "uuid"), it_systems)
         # Here it_systems is a 2 tuple (mo_username, binding_uuid)
         mo_username, binding_uuid = only(it_systems, ("", ""))
@@ -378,7 +377,7 @@ class AdMoSync(object):
         today = datetime.strftime(datetime.now(), "%Y-%m-%d")
         it_systems = {
             it['itsystem']['uuid']: it for it in
-                self.helper._mo_lookup(uuid, 'e/{}/details/it')
+            self.helper.get_e_itsystems(uuid)
         }
 
         def check_validity_is_ok(uuid):

@@ -633,14 +633,23 @@ class MoraHelper:
                 return its['user_key']
         return ''
 
-    def get_e_address(self, e_uuid, scope):
-        for address in self._mo_lookup(e_uuid, 'e/{}/details/address'):
-            if address['address_type']['scope'] == scope:
-                return address
-        return {}
+    def get_e_addresses(self, e_uuid, scope=None):
+        addresses = self._mo_lookup(e_uuid, 'e/{}/details/address')
+        if scope:
+            addresses = filter(
+                lambda address: address['address_type']['scope'] == scope,
+                addresses
+            )
+        return list(addresses)
 
-    def get_e_itsystem(self, e_uuid, it_system_uuid):
-        for its in self._mo_lookup(e_uuid, 'e/{}/details/it'):
-            if its['itsystem']["uuid"] == id_it_system:
-                yield its
-        return ''
+    def get_e_address(self, e_uuid, scope):
+        return only(self.get_addresses(e_uuid, scope), {})
+
+    def get_e_itsystems(self, e_uuid, it_system_uuid=None):
+        it_systems = self._mo_lookup(e_uuid, 'e/{}/details/it')
+        if it_system_uuid:
+            it_systems = filter(
+                lambda its: its['itsystem']["uuid"] == it_system_uuid,
+                it_systems
+            )
+        return list(it_systems)
