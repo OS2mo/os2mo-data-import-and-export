@@ -458,7 +458,7 @@ class AdMoSyncTestSubclass(AdMoSync):
                 "read_user_engagement": get_e_details("engagement"),
                 "get_e_addresses": get_e_details("address"),
                 "get_e_username": get_e_username,
-                "get_e_itsystems": get_e_details("it_system"),
+                "get_e_itsystems": get_e_details("it"),
                 "_mo_post": _mo_post,
             }
         )

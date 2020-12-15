@@ -318,9 +318,14 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         def get_e_username():
             return e_username
 
+        def seed_mo():
+            return {
+                "it": []
+            }
+
         self._setup_admosync(
             transform_settings=self._sync_itsystem_mapping_transformer(),
-            seed_e_username=get_e_username,
+            seed_e_username=get_e_username, seed_mo=seed_mo,
         )
 
         self.assertEqual(self.ad_sync.mo_post_calls, [])
@@ -512,10 +517,10 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         """Verify expected behavior from sync_disabled settings."""
 
         def add_sync_mapping(settings):
-            settings["integrations.ad.ad_mo_sync_mapping"] = {
+            settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {
                 "it_systems": {"samAccountName": "it_system_uuid"}
             }
-            settings["integrations.ad.ad_mo_sync_terminate_disabled"] = True
+            settings["integrations.ad"][0]["ad_mo_sync_terminate_disabled"] = True
             return settings
 
         mo_values = self.mo_values_func()
@@ -533,6 +538,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                             "name": "Active Directory",
                             "uuid": "it_system_ad_uuid",
                         },
+                        "user_key": "username",
                         "uuid": "it_system_uuid",
                         "validity": {"from": from_date, "to": to_date},
                     }
