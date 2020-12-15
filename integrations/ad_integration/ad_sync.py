@@ -10,6 +10,7 @@ import ad_reader as adreader
 import ad_logger
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
+from utils import apply, progress_iterator
 
 from integrations.ad_integration import read_ad_conf_settings
 
@@ -468,6 +469,37 @@ class AdMoSync(object):
         if 'user_addresses' in self.mapping:
             self._edit_user_addresses(uuid, ad_object)
 
+    def _setup_ad_reader_and_cache_all(self, index):
+        ad_reader = adreader.ADParameterReader(index=index)
+        print('Retrive AD dump')
+        ad_reader.cache_all()
+        print('Done')
+        logger.info('Done with AD caching')
+        return ad_reader
+
+    def _verify_it_systems(self):
+        """Verify that all configured it-systems exist."""
+        if 'it_systems' not in self.mapping:
+            return
+
+        # Set of UUIDs of all it_systems in MO
+        mo_it_systems = set(
+            map(itemgetter('uuid'), self.helper.read_it_systems())
+        )
+
+        @apply
+        def filter_found(it_system, it_system_uuid):
+            return it_system_uuid not in mo_it_systems
+
+        # List of tuples (name, uuid) of it-systems configured in settings
+        configured_it_systems = self.mapping['it_systems'].items()
+        # Remove all the ones that exist in MO
+        configured_it_systems = filter(filter_found, configured_it_systems)
+
+        for it_system, it_system_uuid in configured_it_systems:
+            msg = '{} with uuid {}, not found in MO'
+            raise Exception(msg.format(it_system, it_system_uuid))
+
     def update_all_users(self):
         # Iterate over all AD's 
         for index, _ in enumerate(self.settings["integrations.ad"]):
@@ -480,28 +512,13 @@ class AdMoSync(object):
                 'users': set()
             }
 
-            ad_reader = adreader.ADParameterReader(index=index)
-            print('Retrive AD dump')
-            ad_reader.cache_all()
-            print('Done')
-            logger.info('Done with AD caching')
+            ad_reader = self._setup_ad_reader_and_cache_all(index=index)
 
             # move to read_conf_settings og valider på tværs af alle-ad'er
             # så vi ikke overskriver addresser, itsystemer og extensionfelter 
             # fra et ad med  med værdier fra et andet
             self.mapping = ad_reader._get_setting()['ad_mo_sync_mapping']
-
-            if 'it_systems' in self.mapping:
-                mo_it_systems = self.helper.read_it_systems()
-
-                for it_system, it_system_uuid in self.mapping['it_systems'].items():
-                    found = False
-                    for mo_it_system in mo_it_systems:
-                        if mo_it_system['uuid'] == it_system_uuid:
-                            found = True
-                    if not found:
-                        msg = '{} with uuid {}, not found in MO'
-                        raise Exception(msg.format(it_system, it_system_uuid))
+            self._verify_it_systems()
 
             used_mo_fields = []
 
@@ -512,23 +529,24 @@ class AdMoSync(object):
                         raise Exception(msg.format(mo_combi))
                     used_mo_fields.append(mo_combi)
 
-            # Iterate over all users and sync AD informations to MO.
-            i = 0
-            employees = self._read_all_mo_users()
-            for employee in employees:
-                i = i + 1
-                if i % 100 == 0:
-                    print('Progress: {}/{}'.format(i, len(employees)))
-                # logger.info('Start sync of {}'.format(employee['uuid']))
+            def employee_to_cpr_uuid(employee):
+                """Convert an employee to a tuple (cpr, uuid)."""
+                uuid = employee['uuid']
                 if 'cpr' in employee:
                     cpr = employee['cpr']
                 else:
-                    user = self.helper.read_user(employee['uuid'])
-                    cpr = user['cpr_no']
+                    cpr = self.helper.read_user(uuid)['cpr_no']
+                return cpr, uuid
+
+            # Iterate over all users and sync AD informations to MO.
+            employees = self._read_all_mo_users()
+            employees = progress_iterator(employees)
+            employees = map(employee_to_cpr_uuid, employees)
+            for cpr, uuid in employees:
                 response = ad_reader.read_user(cpr=cpr, cache_only=True)
                 if response:
-                    self._update_single_user(employee['uuid'], response)
-                #logger.info('End sync of {}'.format(employee['uuid']))
+                    self._update_single_user(uuid, response)
+
             logger.info('Stats: {}'.format(self.stats))
         self.stats['users'] = 'Written in log file'
         print(self.stats)

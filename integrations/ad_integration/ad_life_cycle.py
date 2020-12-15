@@ -1,7 +1,6 @@
 import json
 import logging
 import pathlib
-from itertools import starmap
 from operator import itemgetter
 
 import click
@@ -10,6 +9,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
 from integrations.ad_integration import ad_logger, ad_reader, ad_writer
 from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException
+from integrations.ad_integration.utils import progress_iterator
 
 logger = logging.getLogger("CreateAdUsers")
 
@@ -101,20 +101,9 @@ class AdLifeCycle:
 
     def _gen_filtered_employees(self, filters):
         employees = self.lc.users.values()
-        total_employees = len(employees)
-
-        def print_progress(i, employee):
-            i = i + 1
-            logger.debug("Now testing ({}): {}".format(i, employee))
-            if i % 1000 == 0 or i == total_employees:
-                logger.info("Progress: {}/{}".format(i, total_employees))
-                print("Progress: {}/{}".format(i, total_employees))
-            return employee
-
+        employees = progress_iterator(employees, mod=1000)
         # From employee_effects --> employees
         employees = map(itemgetter(0), employees)
-        # No-transform, called for side-effect
-        employees = starmap(print_progress, enumerate(employees))
         # Apply requested filters
         for filter_func in filters:
             employees = filter(filter_func, employees)
