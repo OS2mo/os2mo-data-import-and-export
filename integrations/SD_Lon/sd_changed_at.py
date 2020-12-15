@@ -8,7 +8,8 @@ import datetime
 from functools import lru_cache
 from integrations.SD_Lon import sd_payloads
 
-from more_itertools import only, last
+from more_itertools import only, last, pairwise
+import pandas as pd
 
 from integrations import cpr_mapper
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -985,7 +986,9 @@ def initialize_changed_at(from_date, run_db, force=False):
 
 @click.command()
 @click.option('--init', is_flag=True, type=click.BOOL, default=False, help="Initialize a new rundb")
-def changed_at(init):
+@click.option('--one-day', is_flag=True, type=click.BOOL, default=False,
+              help="Only import changes for the next missing day")
+def changed_at(init, one_day):
     """Tool to delta synchronize with MO with SD."""
     setup_logging()
 
@@ -1024,29 +1027,33 @@ def changed_at(init):
 
     # Row[2] contains end_date of last run, this will be the from_date for this run.
     from_date = row[2]
-    to_date = from_date + datetime.timedelta(days=1)
-    _local_db_insert((from_date, to_date, 'Running since {}'))
 
-    logger.info('Start ChangedAt module')
-    sd_updater = ChangeAtSD(from_date, to_date)
+    def generate_date_tuples(from_date, to_date):
+        date_range = pd.date_range(from_date, to_date)
+        mapped_dates = map(lambda date: date.to_pydatetime(), date_range)
+        return pairwise(mapped_dates)
 
-    logger.info('Update changed persons')
-    sd_updater.update_changed_persons()
+    to_date = datetime.date.today()
+    if one_day:
+        to_date = from_date + datetime.timedelta(days=1)
+    dates = generate_date_tuples(from_date, to_date)
 
-    logger.info('Update all emploments')
-    sd_updater.update_all_employments()
+    for from_date, to_date in dates:
+        logger.info('Importing {} to {}'.format(from_date, to_date))
+        _local_db_insert((from_date, to_date, 'Running since {}'))
 
-    _local_db_insert((from_date, to_date, 'Update finished: {}'))
+        logger.info('Start ChangedAt module')
+        sd_updater = ChangeAtSD(from_date, to_date)
+
+        logger.info('Update changed persons')
+        sd_updater.update_changed_persons()
+
+        logger.info('Update all employments')
+        sd_updater.update_all_employments()
+
+        _local_db_insert((from_date, to_date, 'Update finished: {}'))
+
     logger.info('Program stopped.')
-
-    # from_date = datetime.datetime(2019, 9, 26, 0, 0)
-    # to_date = datetime.datetime(2019, 9, 27, 0, 0)
-    # sd_updater = ChangeAtSD(from_date, to_date)
-
-    # cpr = ''
-    # sd_updater.mo_person = sd_updater.helper.read_user(user_cpr=cpr,
-    #                                                    org_uuid=sd_updater.org_uuid)
-    # sd_updater.recalculate_primary()
 
 
 if __name__ == '__main__':
