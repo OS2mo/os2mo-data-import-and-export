@@ -76,6 +76,7 @@ Lint OPUS Org Tree Print:
 
 Lint Reports:
   extends: .lint-python
+  script:
     - python -m black --diff --line-length 85 --check eports/Frederikshavn_MED.py reports/XLSXExporter.py reports/os2mo_tests/test_frederikshavn_MED_XLSX.py reports/os2mo_tests/test_XLSXExporter.py 
     - python -m isort --profile black --check-only reports/XLSXExporter.py reports/os2mo_tests/test_frederikshavn_MED_XLSX.py reports/os2mo_tests/test_XLSXExporter.py 
 
