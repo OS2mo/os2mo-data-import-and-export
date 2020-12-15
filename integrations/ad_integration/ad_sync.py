@@ -437,7 +437,7 @@ class AdMoSync(object):
             response = self.helper._mo_post('details/terminate', payload)
             logger.debug('Response: {}'.format(response.text))
 
-    def _update_single_user(self, uuid, ad_object):
+    def _update_single_user(self, uuid, ad_object, terminate_disabled):
         """
         Update all fields for a single user.
         :param uuid: uuid of the user.
@@ -447,10 +447,6 @@ class AdMoSync(object):
         if 'Enabled' not in ad_object:
             logger.info('{} not in ad_object'.format("Enabled"))
 
-        # Lookup whether or not to terminate disabled users
-        terminate_disabled = self.settings.get(
-            "integrations.ad.ad_mo_sync_terminate_disabled", False
-        )
         # Check whether the current user is disabled or not
         current_user_is_disabled = ad_object.get('Enabled', True) == False
         if terminate_disabled and current_user_is_disabled:
@@ -538,6 +534,11 @@ class AdMoSync(object):
                     cpr = self.helper.read_user(uuid)['cpr_no']
                 return cpr, uuid
 
+            # Lookup whether or not to terminate disabled users
+            terminate_disabled = ad_reader._get_setting().get(
+                "ad_mo_sync_terminate_disabled", False
+            )
+
             # Iterate over all users and sync AD informations to MO.
             employees = self._read_all_mo_users()
             employees = progress_iterator(employees)
@@ -545,7 +546,7 @@ class AdMoSync(object):
             for cpr, uuid in employees:
                 response = ad_reader.read_user(cpr=cpr, cache_only=True)
                 if response:
-                    self._update_single_user(uuid, response)
+                    self._update_single_user(uuid, response, terminate_disabled)
 
             logger.info('Stats: {}'.format(self.stats))
         self.stats['users'] = 'Written in log file'
