@@ -536,7 +536,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                     {
                         "itsystem": {
                             "name": "Active Directory",
-                            "uuid": "it_system_ad_uuid",
+                            "uuid": "it_system_uuid",
                         },
                         "user_key": "username",
                         "uuid": "it_system_uuid",
