@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 
+import xlsxwriter
 from openpyxl import load_workbook
 from sqlalchemy import create_engine
 
@@ -12,40 +13,13 @@ from exporters.sql_export.sql_table_defs import (
     Tilknytning,
 )
 from reports.Frederikshavn_MED import *
-
-
-class Tests_xlxs(unittest.TestCase):
-    def setUp(self):
-        f = tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False)
-        self.xlsfilename = f.name
-        self.data = [
-            ["Navn", "Email", "Tilknytningstype", "Enhed"],
-            ["Fornavn Efternavn", "email@email.com", "Formand", "Testenhed"],
-        ]
-
-        workbook = xlsxwriter.Workbook(self.xlsfilename)
-        excel = XLSXExporter(self.xlsfilename)
-        excel.add_sheet(workbook, "MED", self.data)
-        workbook.close()
-
-    def test_read(self):
-        wb = load_workbook(filename=self.xlsfilename)
-        ws = wb["MED"]
-        header = [i[0].value for i in ws.columns]
-        content = [i[1].value for i in ws.columns]
-        self.assertEqual(header, ["Navn", "Email", "Tilknytningstype", "Enhed"])
-        self.assertEqual(
-            content, ["Fornavn Efternavn", "email@email.com", "Formand", "Testenhed"]
-        )
+from reports.XLSXExporter import XLSXExporter
 
 
 class Tests_db(unittest.TestCase):
     def setUp(self):
         self.engine = get_engine(dbpath=":memory:")
-        self.session = get_session(self.engine)
-        # Sikrer at der startes fra en tom database
-        Base.metadata.drop_all(self.engine)
-
+        self.session = sessionmaker(bind=self.engine, autoflush=False)()
         # Lav tables via tabledefs fra LoraCache og fyld dataen ind
         Base.metadata.create_all(self.engine)
         enhed = Enhed(navn="Hoved-MED", uuid="E1", enhedstype_titel="org_unit_type")
@@ -112,13 +86,13 @@ class Tests_db(unittest.TestCase):
 
     def test_data(self):
         hoved_enhed = self.session.query(Enhed).all()
-        data = Report_MED(self.session, "Hoved-MED").run()
-        self.assertEqual(data[0], ["Navn", "Email", "Tilknytningstype", "Enhed"])
+        data = list_MED_members(self.session, "Hoved-MED")
+        self.assertEqual(data[0], ("Navn", "Email", "Tilknytningstype", "Enhed"))
 
-        self.assertEqual(data[1], ["fornavn efternavn", "", "titel", "Under-MED"])
+        self.assertEqual(data[1], ("fornavn efternavn", None, "titel", "Under-MED"))
 
         self.assertEqual(
-            data[2], ["fornavn2 efternavn2", "", "titel2", "Under-under-MED"]
+            data[2], ("fornavn2 efternavn2", None, "titel2", "Under-under-MED")
         )
 
 
