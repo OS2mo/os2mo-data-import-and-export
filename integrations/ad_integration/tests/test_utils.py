@@ -426,9 +426,6 @@ class AdMoSyncTestSubclass(AdMoSync):
 
     def _setup_mora_helper(self):
 
-        def get_e_username(e_uuid, it_system):
-            return self.e_username
-
         def get_e_details(detail_type):
             return lambda *args, **kwargs: self.mo_seed[detail_type]
 
@@ -457,7 +454,6 @@ class AdMoSyncTestSubclass(AdMoSync):
                 "read_all_users": lambda: [self.mo_values],
                 "read_user_engagement": get_e_details("engagement"),
                 "get_e_addresses": get_e_details("address"),
-                "get_e_username": get_e_username,
                 "get_e_itsystems": get_e_details("it"),
                 "_mo_post": _mo_post,
             }
