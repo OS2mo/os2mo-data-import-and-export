@@ -1,6 +1,6 @@
 import xlsxwriter
 import xlsxwriter.worksheet
-
+from operator import itemgetter
 
 class XLSXExporter:
     """Exporter for writing xlsx files with autofilters and columnwidts ajusted to its content.
@@ -20,7 +20,7 @@ class XLSXExporter:
 
     @staticmethod
     def get_column_width(data, field: int):
-        data = filter(lambda x: x[field], data)
+        data = filter(itemgetter(field), data)
         field_length = max(len(row[field]) for row in data)
         return field_length
 
