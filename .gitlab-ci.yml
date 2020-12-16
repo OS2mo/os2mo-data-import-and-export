@@ -81,7 +81,6 @@ Lint Reports:
     - python -m isort --profile black --check-only reports/XLSXExporter.py reports/os2mo_tests/test_frederikshavn_MED_XLSX.py reports/os2mo_tests/test_XLSXExporter.py 
 
 
-
 # Test stage
 ############
 
@@ -156,4 +155,4 @@ Test Reports:
   extends: .test-python
   script:
     - pip install -r reports/requirements/test.txt
-    - python -m pytest reports/os2mo_tests/ --ignore reports/os2mo_tests/test_viborg_managers.py
+    - pytest reports/os2mo_tests/ --ignore reports/os2mo_tests/test_viborg_managers.py

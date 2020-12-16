@@ -3,7 +3,7 @@ import xlsxwriter.worksheet
 
 
 class XLSXExporter:
-    """Exporter for writing xlsx files with autofilters and columnwidts ajusted to its content
+    """Exporter for writing xlsx files with autofilters and columnwidts ajusted to its content.
 
     Accepts data in lists of lists where first lists contains the title of the columns, eg:
     [["Navn", "Email", "Tilknytningstype", "Enhed"]
@@ -27,7 +27,7 @@ class XLSXExporter:
         worksheet = workbook.add_worksheet(name=sheet)
         worksheet.autofilter("A1:D51")
 
-        for index, key in enumerate(data[0]):
+        for index, _ in enumerate(data[0]):
             worksheet.set_column(
                 index,
                 index,

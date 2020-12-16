@@ -30,7 +30,7 @@ logging.basicConfig(
 
 
 def list_MED_members(session, org_name: str) -> list:
-    """Lists all members in organisation
+    """Lists all members in organisation.
 
     returns a list of tuples with titles as first element and data on members in subsequent lists
     [("Navn", "Email", "Tilknytningstype", "Enhed"),
@@ -50,7 +50,7 @@ def list_MED_members(session, org_name: str) -> list:
         return set(enheder[0] for enheder in under_enheder)
 
     under_enheder = find_children(set([hoved_enhed]))
-    alle_MED_enheder = under_enheder.copy()
+    alle_MED_enheder = under_enheder
     # Så længe der kan findes nye underenheder lægges de i alle_MED_enheder
     while under_enheder:
         under_enheder = find_children(under_enheder)
@@ -87,7 +87,6 @@ def list_MED_members(session, org_name: str) -> list:
     )
     data = query.all()
     data = list(prepend(("Navn", "Email", "Tilknytningstype", "Enhed"), data))
-
     return data
 
 
