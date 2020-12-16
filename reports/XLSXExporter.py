@@ -19,7 +19,8 @@ class XLSXExporter:
             worksheet.write_row(index, 0, row)
 
     @staticmethod
-    def get_column_width(data, field: str):
+    def get_column_width(data, field: int):
+        data = filter(lambda x: x[field], data)
         field_length = max(len(row[field]) for row in data)
         return field_length
 
@@ -27,11 +28,11 @@ class XLSXExporter:
         worksheet = workbook.add_worksheet(name=sheet)
         worksheet.autofilter("A1:D51")
 
-        for index, _ in enumerate(data[0]):
+        for index in range(len(data[0])):
             worksheet.set_column(
                 index,
                 index,
-                width=max(len(val[index]) for val in data if val[index]),
+                width=self.get_column_width(data, index),
             )
 
         bold = workbook.add_format({"bold": 1})

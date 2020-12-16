@@ -154,5 +154,6 @@ Test SDLoen Integration:
 Test Reports:
   extends: .test-python
   script:
+    - export PYTHONPATH=$PWD:$PYTHONPATH
     - pip install -r reports/requirements/test.txt
     - pytest reports/os2mo_tests/ --ignore reports/os2mo_tests/test_viborg_managers.py
