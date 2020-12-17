@@ -1,6 +1,7 @@
+from operator import itemgetter
+
 import xlsxwriter
 import xlsxwriter.worksheet
-from operator import itemgetter
 
 
 class XLSXExporter:
