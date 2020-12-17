@@ -420,7 +420,7 @@ class MoraHelper(object):
         """
         user_manager = None
 
-        url = 'http://localhost:8080//organisation/organisationfunktion/{}'
+        url = 'http://localhost:8080/organisation/organisationfunktion/{}'
         response = requests.get(url.format(engagement_uuid))
         data = response.json()
         relationer = data[engagement_uuid][0]['registreringer'][0]['relationer']
