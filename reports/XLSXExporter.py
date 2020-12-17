@@ -2,6 +2,7 @@ import xlsxwriter
 import xlsxwriter.worksheet
 from operator import itemgetter
 
+
 class XLSXExporter:
     """Exporter for writing xlsx files with autofilters and columnwidts ajusted to its content.
 
