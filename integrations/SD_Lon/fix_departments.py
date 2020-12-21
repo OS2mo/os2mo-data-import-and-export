@@ -11,6 +11,7 @@ from integrations.SD_Lon import sd_payloads
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import mora_assert
+from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.exceptions import NoCurrentValdityException
 
 LOG_LEVEL = logging.DEBUG
@@ -18,24 +19,26 @@ LOG_FILE = 'fix_sd_departments.log'
 
 logger = logging.getLogger('fixDepartments')
 
-detail_logging = ('sdCommon', 'fixDepartments')
-for name in logging.root.manager.loggerDict:
-    if name in detail_logging:
-        logging.getLogger(name).setLevel(LOG_LEVEL)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
 
+def setup_logging():
+    detail_logging = ('sdCommon', 'fixDepartments')
+    for name in logging.root.manager.loggerDict:
+        if name in detail_logging:
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
 
 
 class FixDepartments(object):
     def __init__(self):
         logger.info('Start program')
-        # TODO: Soon we have done this 4 times. Should we make a small settings
-        # importer, that will also handle datatype for specicic keys?
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = load_settings()
 
         self.institution_uuid = self.get_institution()
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
@@ -44,6 +47,10 @@ class FixDepartments(object):
         try:
             self.org_uuid = self.helper.read_organisation()
         except requests.exceptions.RequestException as e:
+            logger.error(e)
+            print(e)
+            exit()
+        except json.decoder.JSONDecodeError as e:
             logger.error(e)
             print(e)
             exit()
@@ -481,6 +488,8 @@ class FixDepartments(object):
 @click.option('--department-uuid', 'uuids', multiple=True, type=click.UUID, help="UUID of the department to update")
 def unit_fixer(short_names, uuids):
     """Sync SD department information to MO."""
+    setup_logging()
+
     unit_fixer = FixDepartments()
 
     today = datetime.datetime.today()
@@ -501,9 +510,4 @@ def unit_fixer(short_names, uuids):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        format='%(levelname)s %(asctime)s %(name)s %(message)s',
-        level=LOG_LEVEL,
-        filename=LOG_FILE
-    )
     unit_fixer()

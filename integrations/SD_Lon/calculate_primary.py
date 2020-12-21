@@ -15,14 +15,24 @@ LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'calculate_primary.log'
 
 
+def setup_logging():
+    detail_logging = ('mora-helper', 'updatePrimaryEngagements', 'sdCommon')
+    for name in logging.root.manager.loggerDict:
+        if name in detail_logging:
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
+
+
 class MOPrimaryEngagementUpdater(object):
     def __init__(self):
-        # TODO: Soon we have done this 42 times. Should we make a small settings
-        # importer, that will also handle datatype for specicic keys?
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        settings = json.loads(cfg_file.read_text())
+        settings = sd_common.load_settings()
         mora_base = settings['mora.base']
 
         self.helper = MoraHelper(hostname=mora_base, use_cache=False)
@@ -51,17 +61,9 @@ class MOPrimaryEngagementUpdater(object):
             mo_person = self.helper.read_user(user_uuid=uuid)
         elif cpr:
             mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
-        elif mo_person:
-            pass
-        else:
-            mo_person = None
         # print('Read user: {}s'.format(time.time() - t))
-        if mo_person:
-            self.mo_person = mo_person
-            success = True
-        else:
-            self.mo_person = None
-            success = False
+        self.mo_person = mo_person
+        success = mo_person is not None
         return success
 
     def _calculate_rate_and_ids(self, mo_engagement, no_past):
@@ -229,21 +231,21 @@ class MOPrimaryEngagementUpdater(object):
                     logger.info('Status 0, no update of primary')
                     continue
 
-                if date_list[i + 1] == datetime.datetime(9999, 12, 30, 0, 0):
+                to = datetime.datetime.strftime(
+                    date_list[i + 1] - datetime.timedelta(days=1), "%Y-%m-%d"
+                )
+                if to == "9999-12-30":
                     to = None
-                else:
-                    to = datetime.datetime.strftime(
-                        date_list[i + 1] - datetime.timedelta(days=1), "%Y-%m-%d"
-                    )
                 validity = {
                     'from': datetime.datetime.strftime(date, "%Y-%m-%d"),
                     'to': to
                 }
 
                 if 'user_key' not in eng:
-                    break
+                    break  # Why break instead of continue?!
+
                 try:
-                    # non-integer user keys should universially be status0
+                    # non-integer user keys should universally be status0
                     employment_id = int(eng['user_key'])
                 except ValueError:
                     logger.warning('Engagement type not status0. Will fix.')
@@ -322,6 +324,8 @@ class MOPrimaryEngagementUpdater(object):
 @click.option("--recalculate-user", type=click.UUID, help="Recalculate one user")
 def calculate_primary(check_all, recalculate_all, recalculate_user):
     """Tool to work with primary engagement(s)."""
+    setup_logging()
+
     num_set = sum(map(bool, [check_all, recalculate_all, recalculate_user]))
     if num_set == 0:
         raise click.ClickException("Please provide atleast one argument")
@@ -346,16 +350,4 @@ def calculate_primary(check_all, recalculate_all, recalculate_user):
 
 
 if __name__ == '__main__':
-    detail_logging = ('mora-helper', 'updatePrimaryEngagements', 'sdCommon')
-    for name in logging.root.manager.loggerDict:
-        if name in detail_logging:
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format='%(levelname)s %(asctime)s %(name)s %(message)s',
-        level=LOG_LEVEL,
-        filename=LOG_FILE
-    )
     calculate_primary()

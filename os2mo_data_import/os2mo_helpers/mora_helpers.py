@@ -24,7 +24,7 @@ PRIMARY_RESPONSIBILITY = 'Personale: ansættelse/afskedigelse'
 logger = logging.getLogger("mora-helper")
 
 
-class MoraHelper(object):
+class MoraHelper:
     def __init__(self, hostname='http://localhost', export_ansi=True,
                  use_cache=True):
         self.host = hostname + '/service/'
@@ -176,8 +176,14 @@ class MoraHelper(object):
         )
         return response
 
+    def check_connection(self):
+        """Check that a connection can be established to MO."""
+        # Really any endpoint could be used here
+        response = self._mo_lookup(uuid=None, url='configuration')
+        return "read_only" in response
+
     def read_organisation(self):
-        """ Read the main Organisation, all OU's will have this as root.
+        """Read the main Organisation, all OU's will have this as root.
         Currently reads only one, theroretically more than root org can exist.
         :return: UUID of root organisation
         """

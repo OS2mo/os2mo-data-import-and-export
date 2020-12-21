@@ -15,17 +15,19 @@ LOG_FILE = 'sync_job_id.log'
 
 logger = logging.getLogger('sdSyncJobId')
 
-for name in logging.root.manager.loggerDict:
-    if name in ('sdSyncJobId', 'sdCommon', 'mora-helper'):
-        logging.getLogger(name).setLevel(LOG_LEVEL)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
 
-logging.basicConfig(
-    format='%(levelname)s %(asctime)s %(name)s %(message)s',
-    level=LOG_LEVEL,
-    filename=LOG_FILE
-)
+def setup_logging():
+    for name in logging.root.manager.loggerDict:
+        if name in ('sdSyncJobId', 'sdCommon', 'mora-helper'):
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
 
 
 class JobIdSync(object):
@@ -200,31 +202,6 @@ class JobIdSync(object):
 
         return 'Job position updated'
 
-    def _cli(self):
-        parser = argparse.ArgumentParser(description='JobIdentifier Sync')
-        parser.add_argument('--job-pos-id', nargs=1, required=False,
-                            metavar='SD_Job_position_ID')
-        parser.add_argument('--titel', nargs=1, required=False, metavar='Titel')
-
-        parser.add_argument('--sync-all',  action='store_true')
-
-        args = vars(parser.parse_args())
-
-        if args['job_pos_id'] is not None:
-            job_pos_id = args.get('job_pos_id')[0]
-            print(job_pos_id)
-            title = args.get('titel')
-            if title is None:
-                print(self.sync_from_sd(job_pos_id))
-            else:
-                print(self.sync_manually(job_pos_id, title[0]))
-
-        elif args['sync_all']:
-            self.sync_all_from_sd()
-
-        else:
-            print('No arguments given (-h for help)')
-
 
 @click.command()
 @click.option('--job-pos-id', type=click.STRING, help="Synchronize the provided job identifier.")
@@ -232,6 +209,8 @@ class JobIdSync(object):
 @click.option('--sync-all', is_flag=True, type=click.BOOL, help="Synchronize all job identifiers.")
 def sync_jobid(job_pos_id, title, sync_all):
     """Job Position Synchronize tool."""
+    setup_logging()
+
     if job_pos_id is None and sync_all is None:
         raise click.ClickException(
             "Either job-pos-id or sync-all must be given"

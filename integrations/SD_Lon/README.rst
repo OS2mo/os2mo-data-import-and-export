@@ -291,10 +291,10 @@ Tjekliste for fuldt import
 Overordnet foregår opstart af en ny SD import efter dette mønster:
 
 1. Kør importværktøjet med fuld historik (dette er standard opførsel).
-2. Kør en inledende ChangedAt for at hente alle kendte fremtidige ændringer og
+2. Kør en indledende ChangedAt for at hente alle kendte fremtidige ændringer og
    intitialisere den lokale database over kørsler.
 3. Kør sd_changed_at.py periodisk (eksempelvis dagligt).
-4. Eventuelt synkroisering af stillingsbetegnelser.
+4. Eventuelt synkronisering af stillingsbetegnelser.
 5. Eventuelt synkronisering fra AD.
    
 1. Kør importværktøjet
@@ -303,13 +303,13 @@ En indledende import køres ved at oprette en instans af ImportHelper_ ImportHel
 
 .. code-block:: python
 
-   importer = ImportHelper(
-       create_defaults=True,
-       mox_base=MOX_BASE,
-       mora_base=MORA_BASE,
-       store_integration_data=False,
-       seperate_names=True
-   )
+    importer = ImportHelper(
+        create_defaults=True,
+        mox_base=MOX_BASE,
+        mora_base=MORA_BASE,
+        store_integration_data=False,
+        seperate_names=True
+    )
 			       
 Hverken importen eller efterfølgende synkronisering med ChangedAt anvender
 integrationsdata, og det er derfor valgfrit om vil anvende dette.
@@ -319,19 +319,19 @@ Importen kan derefter køres med disse trin:
 .. code-block:: python
 
     sd = sd_importer.SdImport(
-	importer,
+        importer,
         ad_info=None,
-	manager_rows=None
-   )
+        manager_rows=None
+    )
 
-   sd.create_ou_tree(
-       create_orphan_container=False,
-       sub_tree=None,
-       super_unit=None
-   )
-   sd.create_employees()
+    sd.create_ou_tree(
+        create_orphan_container=False,
+        sub_tree=None,
+        super_unit=None
+    )
+    sd.create_employees()
 
-   importer.import_all()
+    importer.import_all()
 
 Hvor der i dette tilfælde ikke angives ledere eller en AD integration. Disse to
 punkter diskuteres under punkterne `Ledere i SD Løn`_ og
@@ -344,8 +344,8 @@ undertræet med den pågældende uuid i SD som vil blive importeret. Det er i
 Importen vil nu blive afviklet og nogle timer senere vil MO være populeret med
 værdierne fra SD Løn som de ser ud dags dato.
 
-2. Kør en inledende ChangedAt
------------------------------
+2. Kør en indledende ChangedAt
+------------------------------
 I SD Løn importeres i udgangspunktet kun nuværende og forhenværende medarbejdere og
 engagementer, fremtidige ændringer skal hentes i en seperat process. Denne process
 håndteres af programmet `sd_changed_at.py` (som også anvendes til efterfølgende

@@ -631,45 +631,25 @@ class ImportHelper(object):
             re_run = False
         return re_run
 
-    def import_all(self):
-        """
-        The import method begins importing all objects
-        obtained from the maps in the following order:
-
-            #. Organisation object
-            #. Klassifikation object (auto)
-            #. Facet objects
-            #. Klasse objects
-
-            #. OrganisationUnit objects
-            #. Employees objects
-        """
-
-        # Insert Organisation
-        logger.info('Will now import organisation')
+    def _import_organisation(self):
         self.store.import_organisation(*self.organisation)
 
-        # Insert Klassifikation
-        logger.info('Will now import klassifikation')
+    def _import_klassifikation(self):
         self.store.import_klassifikation(*self.klassifikation)
 
-        # Insert Facet
-        logger.info('Will now import facet')
+    def _import_facets(self):
         for identifier, facet in self.facet_objects.items():
             self.store.import_facet(identifier, facet)
 
-        # Insert Klasse
-        logger.info('Will now import klasse')
+    def _import_classes(self):
         for identifier, klasse in self.klasse_objects.items():
             self.store.import_klasse(identifier, klasse)
 
-        # Insert Itsystem
-        logger.info('Will now import IT-systems')
+    def _import_itsystems(self):
         for identifier, itsystem in self.itsystems.items():
             self.store.import_itsystem(identifier, itsystem)
 
-        # Insert Organisation Units
-        logger.info('Will now import org units')
+    def _import_org_units(self):
         re_run = True
         while re_run:
             re_run = False
@@ -686,13 +666,53 @@ class ImportHelper(object):
         for identifier, org_unit in self.organisation_units.items():
             self.import_organisation_units_recursively(identifier, org_unit)
 
-        # Insert Employees
-        logger.info('Will now import employees')
+    def _import_employees(self):
         for identifier, employee in self.employees.items():
-
             details = self.employee_details.get(identifier)
             self.store.import_employee(
                 reference=identifier,
                 employee=employee,
                 details=details
             )
+
+    def import_all(self):
+        """
+        The import method begins importing all objects
+        obtained from the maps in the following order:
+
+            #. Organisation object
+            #. Klassifikation object (auto)
+            #. Facet objects
+            #. Klasse objects
+
+            #. OrganisationUnit objects
+            #. Employees objects
+        """
+
+        # Insert Organisation
+        logger.info('Will now import organisation')
+        self._import_organisation()
+
+        # Insert Klassifikation
+        logger.info('Will now import klassifikation')
+        self._import_klassifikation()
+
+        # Insert Facet
+        logger.info('Will now import facet')
+        self._import_facets()
+
+        # Insert Klasse
+        logger.info('Will now import klasse')
+        self._import_classes()
+
+        # Insert Itsystem
+        logger.info('Will now import IT-systems')
+        self._import_itsystems()
+
+        # Insert Organisation Units
+        logger.info('Will now import org units')
+        self._import_org_units()
+
+        # Insert Employees
+        logger.info('Will now import employees')
+        self._import_employees()

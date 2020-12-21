@@ -7,7 +7,8 @@
 #
 
 import unittest
-from integrations.SD_Lon.sd import SD, CFG_PREFIX
+
+from integrations.SD_Lon.sd import CFG_PREFIX, SD
 
 
 class Tests(unittest.TestCase):
@@ -28,12 +29,15 @@ class Tests(unittest.TestCase):
         sd = SD.create(config)
         # but sd takes away the prefix
 
-        self.assertEqual({
-            "USE_PICKLE_CACHE": False,
-            "INSTITUTION_IDENTIFIER": "x",
-            "SD_USER": "y",
-            "SD_PASSWORD": "1",
-            "BASE_URL": "2",
-        }, sd.config)
+        self.assertEqual(
+            {
+                "USE_PICKLE_CACHE": False,
+                "INSTITUTION_IDENTIFIER": "x",
+                "SD_USER": "y",
+                "SD_PASSWORD": "1",
+                "BASE_URL": "2",
+            },
+            sd.config,
+        )
 
         self.assertEqual(sd.use_cache, False)
