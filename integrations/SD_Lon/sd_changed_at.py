@@ -606,7 +606,6 @@ class ChangeAtSD:
             logger.info('Non-nummeric id. Job pos id: {}'.format(job_position))
 
         no_salary_minimum = self.settings.get('integrations.SD_Lon.no_salary_minimum_id', None)
-
         if no_salary_minimum is not None:
             if int(job_position) < no_salary_minimum:
                 message = 'No salary employee, with bad job_position id'

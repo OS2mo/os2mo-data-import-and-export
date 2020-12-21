@@ -652,30 +652,35 @@ class Test_sd_changed_at(unittest.TestCase):
             self.assertEqual(between, 1)
 
     @given(job_function=st.text(), exception=st.just(JobfunctionSettingsIsWrongException))
+        job_function=st.text(),
+        exception=st.just(JobfunctionSettingsIsWrongException),
+    )
     @example(job_function="JobPositionIdentifier", exception=None)
     @example(job_function="EmploymentName", exception=None)
     def test_job_function_configuration(self, job_function, exception):
         """Test that job_function only has two valid values."""
         if exception:
             with self.assertRaises(exception):
-                setup_sd_changed_at({
-                    "integrations.SD_Lon.job_function": job_function
-                })
+                setup_sd_changed_at(
+                    {"integrations.SD_Lon.job_function": job_function}
+                )
         else:
-            setup_sd_changed_at({
-                "integrations.SD_Lon.job_function": job_function
-            })
+            setup_sd_changed_at({"integrations.SD_Lon.job_function": job_function})
 
     @given(job_position=st.integers(), no_salary_minimum=st.integers())
-    @patch('integrations.SD_Lon.sd_changed_at.sd_payloads', autospec=True)
-    def test_construct_object(self, sd_payloads_mock, job_position, no_salary_minimum):
+    @patch("integrations.SD_Lon.sd_changed_at.sd_payloads", autospec=True)
+    def test_construct_object(
+        self, sd_payloads_mock, job_position, no_salary_minimum
+    ):
         expected = no_salary_minimum is not None
         expected = expected and job_position < no_salary_minimum
         expected = not expected
 
-        sd_updater = setup_sd_changed_at({
-            "integrations.SD_Lon.no_salary_minimum_id": no_salary_minimum,
-        })
+        sd_updater = setup_sd_changed_at(
+            {
+                "integrations.SD_Lon.no_salary_minimum_id": no_salary_minimum,
+            }
+        )
         sd_updater.apply_NY_logic = lambda org_unit, user_key, validity: org_unit
         sd_updater._add_profession_to_lora = lambda profession: {
             "uuid": "profession_uuid"
@@ -696,12 +701,8 @@ class Test_sd_changed_at(unittest.TestCase):
         }
         engagement = {
             "EmploymentIdentifier": "BIGAL",
-            "EmploymentDepartment": [{
-                "DepartmentUUIDIdentifier": "uuid-c"
-            }],
-            "Profession": [{
-                "JobPositionIdentifier": str(job_position)
-            }],
+            "EmploymentDepartment": [{"DepartmentUUIDIdentifier": "uuid-c"}],
+            "Profession": [{"JobPositionIdentifier": str(job_position)}],
         }
         status = {
             "ActivationDate": "",
