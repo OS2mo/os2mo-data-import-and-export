@@ -1,5 +1,5 @@
-from functools import wraps
 from collections.abc import Mapping
+from functools import wraps
 
 
 class LazyDict(Mapping):
