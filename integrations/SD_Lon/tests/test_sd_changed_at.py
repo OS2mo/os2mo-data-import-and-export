@@ -17,6 +17,9 @@ class ChangeAtSDTest(ChangeAtSD):
 
         super().__init__(*args, **kwargs)
 
+    def _read_forced_uuids(self):
+        return {}
+
     def _get_mora_helper(self, mora_base):
         return self.morahelper_mock
 
@@ -308,9 +311,11 @@ def read_employment_fixture(cpr, employment_id, job_id, job_title, status="1"):
 
 
 class Test_sd_changed_at(unittest.TestCase):
+    @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
     @patch("integrations.SD_Lon.sd_common._sd_request")
-    def test_read_person(self, sd_request):
+    def test_read_person(self, sd_request, sd_settings):
         """Test that read_person does the expected transformation."""
+        sd_settings.return_value = ("", "", "")
 
         cpr = "0101709999"
         sd_reply, expected_read_person_result = read_person_fixture(
@@ -358,8 +363,10 @@ class Test_sd_changed_at(unittest.TestCase):
         )
 
     @given(status=st.sampled_from(["1", "S"]))
+    @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
     @patch("integrations.SD_Lon.sd_common._sd_request")
-    def test_read_employment_changed(self, sd_request, status):
+    def test_read_employment_changed(self, sd_request, sd_settings, status):
+        sd_settings.return_value = ("", "", "")
 
         sd_reply, expected_read_employment_result = read_employment_fixture(
             cpr="0101709999",

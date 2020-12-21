@@ -6,6 +6,7 @@ import sqlite3
 import requests
 import datetime
 from functools import lru_cache
+from operator import itemgetter
 from integrations.SD_Lon import sd_payloads
 
 from more_itertools import only, last, pairwise
@@ -79,13 +80,7 @@ class ChangeAtSD:
         else:
             raise exceptions.JobfunctionSettingsIsWrongException()
 
-        cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
-        if not cpr_map.is_file():
-            logger.error('Did not find cpr mapping')
-            raise Exception('Did not find cpr mapping')
-
-        logger.info('Found cpr mapping')
-        self.employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
+        self.employee_forced_uuids = self._read_forced_uuids()
         self.department_fixer = FixDepartments()
         self.helper = self._get_mora_helper(self.settings['mora.base'])
 
@@ -136,10 +131,9 @@ class ChangeAtSD:
         logger.info('Read engagement types')
         # The Opus diff-import contains a slightly more abstrac def to do this
         engagement_types = self.helper.read_classes_in_facet('engagement_type')
-        self.engagement_types = {}
-        for engagement_type in engagement_types[0]:
-            self.engagement_types[
-                engagement_type['user_key']] = engagement_type['uuid']
+        self.engagement_types = dict(map(
+            itemgetter('user_key', 'uuid'), engagement_types[0]
+        ))
 
         logger.info('Read leave types')
         facet_info = self.helper.read_classes_in_facet('leave_type')
@@ -149,6 +143,16 @@ class ChangeAtSD:
 
     def _get_mora_helper(self, mora_base):
         return MoraHelper(hostname=mora_base, use_cache=False)
+
+    def _read_forced_uuids(self):
+        cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
+        if not cpr_map.is_file():
+            logger.error('Did not find cpr mapping')
+            raise Exception('Did not find cpr mapping')
+
+        logger.info('Found cpr mapping')
+        employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
+        return employee_forced_uuids
 
     def _add_profession_to_lora(self, profession):
         """
