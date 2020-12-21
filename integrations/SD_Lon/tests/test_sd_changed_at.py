@@ -3,6 +3,8 @@ from collections import OrderedDict
 from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, call, patch
 
+from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
+
 import hypothesis.strategies as st
 import xmltodict
 from hypothesis import example, given
@@ -24,7 +26,7 @@ class ChangeAtSDTest(ChangeAtSD):
         return self.morahelper_mock
 
 
-def setup_sd_changed_at():
+def setup_sd_changed_at(updates=None):
     settings = {
         "integrations.SD_Lon.job_function": "JobPositionIdentifier",
         "integrations.SD_Lon.use_ad_integration": False,
@@ -32,6 +34,8 @@ def setup_sd_changed_at():
         "mora.base": "dummy",
         "mox.base": "dummy",
     }
+    if updates:
+        settings.update(updates)
 
     today = date.today()
     start_date = today
@@ -646,3 +650,68 @@ class Test_sd_changed_at(unittest.TestCase):
             self.assertEqual(type(from_date), datetime)
             self.assertEqual(type(to_date), datetime)
             self.assertEqual(between, 1)
+
+    @given(job_function=st.text(), exception=st.just(JobfunctionSettingsIsWrongException))
+    @example(job_function="JobPositionIdentifier", exception=None)
+    @example(job_function="EmploymentName", exception=None)
+    def test_job_function_configuration(self, job_function, exception):
+        """Test that job_function only has two valid values."""
+        if exception:
+            with self.assertRaises(exception):
+                setup_sd_changed_at({
+                    "integrations.SD_Lon.job_function": job_function
+                })
+        else:
+            setup_sd_changed_at({
+                "integrations.SD_Lon.job_function": job_function
+            })
+
+    @given(job_position=st.integers(), no_salary_minimum=st.integers())
+    @patch('integrations.SD_Lon.sd_changed_at.sd_payloads', autospec=True)
+    def test_construct_object(self, sd_payloads_mock, job_position, no_salary_minimum):
+        expected = no_salary_minimum is not None
+        expected = expected and job_position < no_salary_minimum
+        expected = not expected
+
+        sd_updater = setup_sd_changed_at({
+            "integrations.SD_Lon.no_salary_minimum_id": no_salary_minimum,
+        })
+        sd_updater.apply_NY_logic = lambda org_unit, user_key, validity: org_unit
+        sd_updater._add_profession_to_lora = lambda profession: {
+            "uuid": "profession_uuid"
+        }
+
+        morahelper = sd_updater.morahelper_mock
+        morahelper.read_ou.return_value = {
+            "org_unit_level": {
+                "user_key": "IHaveNoIdea",
+            },
+            "uuid": "uuid-a",
+        }
+        _mo_post = morahelper._mo_post
+        _mo_post.return_value = AttrDict({"status_code": 201, "text": lambda: "OK"})
+
+        sd_updater.mo_person = {
+            "uuid": "uuid-b",
+        }
+        engagement = {
+            "EmploymentIdentifier": "BIGAL",
+            "EmploymentDepartment": [{
+                "DepartmentUUIDIdentifier": "uuid-c"
+            }],
+            "Profession": [{
+                "JobPositionIdentifier": str(job_position)
+            }],
+        }
+        status = {
+            "ActivationDate": "",
+            "DeactivationDate": "",
+            "EmploymentStatusCode": "",
+        }
+        cpr = ""
+        result = sd_updater.create_new_engagement(engagement, status, cpr)
+        self.assertEqual(result, expected)
+        if expected:
+            sd_payloads_mock.create_engagement.assert_called_once()
+        else:
+            sd_payloads_mock.create_engagement.assert_not_called()
