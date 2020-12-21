@@ -67,6 +67,14 @@ Lint SDLoen Integration:
     - python -m isort --diff --check-only sd_cli.py
 
 
+Lint OPUS Org Tree Print:
+  extends: .lint-python
+  script:
+    - cd integrations/opus/org_tree_print/
+    - python -m black --diff --line-length 85 --check *.py
+    - python -m isort --diff --check-only *.py
+
+
 # Test stage
 ############
 
@@ -108,7 +116,25 @@ Test OS2Sync Integration:
     - export PYTHONPATH=$PWD:$PYTHONPATH
     - python -m doctest integrations/os2sync/os2mo.py
 
+Test CPR Mapper:
+  extends: .test-python
+  script:
+    - python -m doctest -v integrations/cpr_mapper.py
 
+
+Test OPUS Org Tree Print:
+  extends: .test-python
+  script:
+    - pip install -r integrations/opus/org_tree_print/requirements.txt
+    - python -m doctest -v integrations/opus/org_tree_print/main.py
+
+
+Test OPUS Helpers:
+  extends: .test-python
+  script:
+    - cp settings/kommune-andeby.json settings/settings.json
+    - python -m doctest -v integrations/opus/opus_helpers.py
+    
 # Breaks, not ready for CI
 Test SDLoen Integration:
   extends: .test-python
