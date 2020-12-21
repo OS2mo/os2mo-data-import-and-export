@@ -345,7 +345,7 @@ class ADWriter(AD):
 
     def _find_unit_info(self, eng_org_unit):
         # TODO: Convert to datasource
-        write_settings = self._get_write_setting(False)
+        write_settings = self._get_write_setting()
 
         level2orgunit = 'Ingen'
         unit_info = {}
