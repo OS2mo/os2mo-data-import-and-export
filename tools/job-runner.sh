@@ -381,6 +381,15 @@ exports_sync_mo_uuid_to_ad(){
     ${VENV}/bin/python3 ${DIPEXAR}/integrations/ad_integration/sync_mo_uuid_to_ad.py --sync-all
 }
 
+reports_viborg_managers(){
+    ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
+}
+
+reports_MED_medlemmer(){
+    BACK_UP_AND_TRUNCATE+=('Frederikshavn_MED.log')
+    ${VENV}/bin/python3 ${DIPEXAR}/reports/Frederikshavn_MED.py
+}
+
 exports_lc_for_jobs_db(){
     BACK_UP_AND_TRUNCATE+=(lc-for-jobs.log)
     SETTING_PREFIX="lc-for-jobs" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -605,6 +614,10 @@ reports(){
 
     if [ "${RUN_VIBORG_MANAGERS}" == "true" ]; then
         run-job reports_viborg_managers || return 2
+    fi
+
+    if [ "${RUN_MED_MEDLEMMER}" == "true" ]; then
+        run-job reports_MED_medlemmer || return 2
     fi
 
     if [ "${RUN_REPORTS_DUMMY}" == "true" ]; then

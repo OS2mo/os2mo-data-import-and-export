@@ -74,6 +74,12 @@ Lint OPUS Org Tree Print:
     - python -m black --diff --line-length 85 --check *.py
     - python -m isort --diff --check-only *.py
 
+Lint Reports:
+  extends: .lint-python
+  script:
+    - python -m black --diff --line-length 85 --check reports/Frederikshavn_MED.py reports/XLSXExporter.py reports/os2mo_tests/test_frederikshavn_MED_XLSX.py reports/os2mo_tests/test_XLSXExporter.py 
+    - python -m isort --profile black --check-only reports/XLSXExporter.py reports/os2mo_tests/test_frederikshavn_MED_XLSX.py reports/os2mo_tests/test_XLSXExporter.py 
+
 
 # Test stage
 ############
@@ -144,3 +150,10 @@ Test SDLoen Integration:
     - python integrations/SD_Lon/sd_cli.py --help
     # - cp settings/kommune-andeby.json settings/settings.json
     # - pytest integrations/SD_Lon/tests/
+
+Test Reports:
+  extends: .test-python
+  script:
+    - export PYTHONPATH=$PWD:$PYTHONPATH
+    - pip install -r reports/requirements/test.txt
+    - pytest reports/os2mo_tests/ --ignore reports/os2mo_tests/test_viborg_managers.py

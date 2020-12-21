@@ -1,0 +1,6 @@
+sqlalchemy
+xlsxwriter
+git+https://github.com/magenta-aps/lora-utils.git@master#egg=lora_utils
+click
+aiohttp
+more_itertools
