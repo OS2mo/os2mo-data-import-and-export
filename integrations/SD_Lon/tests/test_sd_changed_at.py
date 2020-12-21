@@ -651,7 +651,7 @@ class Test_sd_changed_at(unittest.TestCase):
             self.assertEqual(type(to_date), datetime)
             self.assertEqual(between, 1)
 
-    @given(job_function=st.text(), exception=st.just(JobfunctionSettingsIsWrongException))
+    @given(
         job_function=st.text(),
         exception=st.just(JobfunctionSettingsIsWrongException),
     )
