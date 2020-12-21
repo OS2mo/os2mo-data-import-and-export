@@ -224,6 +224,7 @@ def apply(func):
     Returns:
         wrapped function: Which has its one argument applied.
     """
+
     @wraps(func)
     def applied(tup):
         return func(*tup)

@@ -425,7 +425,6 @@ class AdMoSyncTestSubclass(AdMoSync):
         pass
 
     def _setup_mora_helper(self):
-
         def get_e_details(detail_type):
             return lambda *args, **kwargs: self.mo_seed[detail_type]
 
@@ -468,7 +467,7 @@ class AdMoSyncTestSubclass(AdMoSync):
             return self.ad_values
 
         def get_settings():
-            return self.settings['integrations.ad'][0]
+            return self.settings["integrations.ad"][0]
 
         ad_reader = AttrDict(
             {

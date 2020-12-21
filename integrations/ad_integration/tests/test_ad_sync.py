@@ -306,14 +306,16 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
         return add_sync_mapping
 
-    @parameterized.expand([
-        ("", "djjohn", "create"),
-        ("", "dijon", "create"),
-        ("djjohn", "djjohn", "noop"),
-        ("djjohn", "dijon", "edit"),
-        ("anything_else", "djjohn", "edit"),
-        ("anything_else", "dijon", "edit"),
-    ])
+    @parameterized.expand(
+        [
+            ("", "djjohn", "create"),
+            ("", "dijon", "create"),
+            ("djjohn", "djjohn", "noop"),
+            ("djjohn", "dijon", "edit"),
+            ("anything_else", "djjohn", "edit"),
+            ("anything_else", "dijon", "edit"),
+        ]
+    )
     def test_sync_itsystem(self, mo_username, ad_username, expected):
         """Verify itsystem data is synced correctly from AD to MO."""
         today = today_iso()
@@ -333,7 +335,9 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                         "uuid": "it_system_uuid",
                         "validity": {"from": from_date, "to": to_date},
                     }
-                ] if mo_username != "" else []
+                ]
+                if mo_username != ""
+                else []
             }
 
         def set_ad_name(ad_values):
