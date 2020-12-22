@@ -992,7 +992,7 @@ def gen_date_pairs(from_date, one_day=False):
         return pairwise(mapped_dates)
 
     to_date = datetime.date.today()
-    if from_date > to_date:
+    if from_date >= to_date:
         return iter(())
     if one_day:
         to_date = from_date + datetime.timedelta(days=1)

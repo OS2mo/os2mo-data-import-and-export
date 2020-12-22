@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, call, patch
 
 import hypothesis.strategies as st
 import xmltodict
-from hypothesis import given
+from hypothesis import given, example
 from integrations.ad_integration.utils import AttrDict
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD, gen_date_pairs
 
@@ -612,13 +612,16 @@ class Test_sd_changed_at(unittest.TestCase):
     @given(
         from_date=st.dates(date(1970, 1, 1), date(2060, 1, 1)), one_day=st.booleans()
     )
+    @example(
+        from_date=date.today(), one_day=True
+    )
     def test_date_tuples(self, from_date, one_day):
         def num_days_between(start, end):
             delta = end - start
             return delta.days
 
         today = date.today()
-        if from_date > today:
+        if from_date >= today:
             # Cannot synchronize into the future
             num_expected_intervals = 0
         elif one_day:
