@@ -7,7 +7,7 @@ import hypothesis.strategies as st
 import xmltodict
 from hypothesis import given
 from integrations.ad_integration.utils import AttrDict
-from integrations.SD_Lon.sd_changed_at import ChangeAtSD
+from integrations.SD_Lon.sd_changed_at import ChangeAtSD, gen_date_pairs
 
 
 class ChangeAtSDTest(ChangeAtSD):
@@ -608,3 +608,26 @@ class Test_sd_changed_at(unittest.TestCase):
                 ),
             ]
         )
+
+    @given(from_date=st.dates(date(1970, 1, 1), date(2060, 1, 1)), one_day=st.booleans())
+    def test_date_tuples(self, from_date, one_day):
+        def num_days_between(start, end):
+            delta = end - start
+            return delta.days
+
+        today = date.today()
+        if from_date > today:
+            # Cannot synchronize into the future
+            num_expected_intervals = 0
+        elif one_day:
+            # one_day should always produce exactly one interval
+            num_expected_intervals = 1
+        else:
+            num_expected_intervals = num_days_between(from_date, today)
+
+        dates = list(gen_date_pairs(from_date, one_day))
+        self.assertEqual(len(dates), num_expected_intervals)
+        # We always expect intervals to be exactly one day long
+        for from_date, to_date in dates:
+            between = num_days_between(from_date, to_date)
+            self.assertEqual(between, 1)
