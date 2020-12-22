@@ -206,7 +206,7 @@ class OpusDiffImport(object):
 
     def _find_engagement(self, bvn, present=False):
         info = {}
-        resource = '/organisation/organisationfunktion?bvn={}'.format(bvn)
+        resource = '/organisation/organisationfunktion?bvn={}&funktionsnavn=Engagement'.format(bvn)
         if present:
             resource += '&gyldighed=Aktiv'
         response = self.session.get(url=self.settings['mox.base'] + resource)
