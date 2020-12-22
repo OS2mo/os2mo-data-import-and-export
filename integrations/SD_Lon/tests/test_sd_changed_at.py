@@ -1,6 +1,6 @@
 import unittest
 from collections import OrderedDict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, call, patch
 
 import hypothesis.strategies as st
@@ -628,9 +628,14 @@ class Test_sd_changed_at(unittest.TestCase):
         else:
             num_expected_intervals = num_days_between(from_date, today)
 
-        dates = list(gen_date_pairs(from_date, one_day))
+        # Construct datetime at from_date midnight
+        from_datetime = datetime.combine(from_date, datetime.min.time())
+
+        dates = list(gen_date_pairs(from_datetime, one_day))
         self.assertEqual(len(dates), num_expected_intervals)
         # We always expect intervals to be exactly one day long
         for from_date, to_date in dates:
             between = num_days_between(from_date, to_date)
+            self.assertEqual(type(from_date), datetime)
+            self.assertEqual(type(to_date), datetime)
             self.assertEqual(between, 1)
