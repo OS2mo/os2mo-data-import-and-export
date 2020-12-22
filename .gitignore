@@ -27,6 +27,7 @@ tmp
 
 # Workspace
 overflow
+.hypothesis/
 
 #default output filenames
 emus_filename.xml

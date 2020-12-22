@@ -947,7 +947,7 @@ def _local_db_insert(insert_tuple):
     conn = sqlite3.connect(settings['integrations.SD_Lon.import.run_db'],
                            detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
-    query = 'insert into runs (from_date, to_date, status) values (?, ?, ?)'
+    query = 'INSERT INTO runs (from_date, to_date, status) VALUES (?, ?, ?)'
     final_tuple = (
         insert_tuple[0],
         insert_tuple[1],
@@ -984,6 +984,22 @@ def initialize_changed_at(from_date, run_db, force=False):
     _local_db_insert((from_date, from_date, 'Initial import: {}'))
 
 
+def gen_date_pairs(from_date, one_day=False):
+
+    def generate_date_tuples(from_date, to_date):
+        date_range = pd.date_range(from_date, to_date)
+        mapped_dates = map(lambda date: date.to_pydatetime(), date_range)
+        return pairwise(mapped_dates)
+
+    to_date = datetime.date.today()
+    if from_date >= to_date:
+        return iter(())
+    if one_day:
+        to_date = from_date + datetime.timedelta(days=1)
+    dates = generate_date_tuples(from_date, to_date)
+    return dates
+
+
 @click.command()
 @click.option('--init', is_flag=True, type=click.BOOL, default=False, help="Initialize a new rundb")
 @click.option('--one-day', is_flag=True, type=click.BOOL, default=False,
@@ -1011,32 +1027,17 @@ def changed_at(init, one_day):
     conn = sqlite3.connect(run_db, detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
 
-    query = 'select * from runs order by id desc limit 1'
+    # To date from last entries, becomes from_date for current entry
+    query = 'SELECT to_date, status FROM runs ORDER BY id DESC LIMIT 1'
     c.execute(query)
-    row = c.fetchone()
+    from_date, status = c.fetchone()
 
-    if 'Running' in row[3]:
+    if 'Running' in status:
         print('Critical error')
         logging.error('Previous ChangedAt run did not return!')
         raise Exception('Previous ChangedAt run did not return!')
-    time_diff = datetime.datetime.now() - row[2]
-    if time_diff < datetime.timedelta(days=1):
-        print('Critical error')
-        logging.error('Re-running ChangedAt too early!')
-        raise Exception('Re-running ChangedAt too early!')
 
-    # Row[2] contains end_date of last run, this will be the from_date for this run.
-    from_date = row[2]
-
-    def generate_date_tuples(from_date, to_date):
-        date_range = pd.date_range(from_date, to_date)
-        mapped_dates = map(lambda date: date.to_pydatetime(), date_range)
-        return pairwise(mapped_dates)
-
-    to_date = datetime.date.today()
-    if one_day:
-        to_date = from_date + datetime.timedelta(days=1)
-    dates = generate_date_tuples(from_date, to_date)
+    dates = gen_date_pairs(from_date)
 
     for from_date, to_date in dates:
         logger.info('Importing {} to {}'.format(from_date, to_date))
