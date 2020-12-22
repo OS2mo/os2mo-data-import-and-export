@@ -1027,7 +1027,8 @@ def changed_at(init, one_day):
     conn = sqlite3.connect(run_db, detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
 
-    query = 'SELECT from_date, status FROM runs ORDER BY id DESC LIMIT 1'
+    # To date from last entries, becomes from_date for current entry
+    query = 'SELECT to_date, status FROM runs ORDER BY id DESC LIMIT 1'
     c.execute(query)
     from_date, status = c.fetchone()
 
