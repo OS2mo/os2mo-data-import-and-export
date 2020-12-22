@@ -984,7 +984,7 @@ def initialize_changed_at(from_date, run_db, force=False):
     _local_db_insert((from_date, from_date, 'Initial import: {}'))
 
 
-def gen_date_pairs(from_date, one_day=False):
+def gen_date_pairs(from_date: datetime, one_day: bool = False):
 
     def generate_date_tuples(from_date, to_date):
         date_range = pd.date_range(from_date, to_date)
@@ -992,7 +992,7 @@ def gen_date_pairs(from_date, one_day=False):
         return pairwise(mapped_dates)
 
     to_date = datetime.date.today()
-    if from_date >= to_date:
+    if from_date.date() >= to_date:
         return iter(())
     if one_day:
         to_date = from_date + datetime.timedelta(days=1)
