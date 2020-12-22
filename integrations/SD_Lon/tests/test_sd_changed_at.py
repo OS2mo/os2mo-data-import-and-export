@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, call, patch
 
 import hypothesis.strategies as st
 import xmltodict
-from hypothesis import given, example
+from hypothesis import example, given
 from integrations.ad_integration.utils import AttrDict
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD, gen_date_pairs
 
