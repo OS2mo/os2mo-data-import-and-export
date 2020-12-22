@@ -612,9 +612,7 @@ class Test_sd_changed_at(unittest.TestCase):
     @given(
         from_date=st.dates(date(1970, 1, 1), date(2060, 1, 1)), one_day=st.booleans()
     )
-    @example(
-        from_date=date.today(), one_day=True
-    )
+    @example(from_date=date.today(), one_day=True)
     def test_date_tuples(self, from_date, one_day):
         def num_days_between(start, end):
             delta = end - start
