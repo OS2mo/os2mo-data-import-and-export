@@ -1,97 +1,94 @@
 from operator import itemgetter
 from unittest import TestCase
 
-from parameterized import parameterized
-
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.priority_by_class import lc_choose_public_address
+from parameterized import parameterized
 
 
 class LC:
     classes = {
         # Visibility
-        '90b11c00-0000-0000-0000-000000000000': {
-            'scope': 'PUBLIC',
+        "90b11c00-0000-0000-0000-000000000000": {
+            "scope": "PUBLIC",
         },
-        '5ec4e100-0000-0000-0000-000000000000': {
-            'scope': 'SECRET',
+        "5ec4e100-0000-0000-0000-000000000000": {
+            "scope": "SECRET",
         },
         # Scope
-        '0ff1ce00-0000-0000-0000-000000000000': {
-            'scope': 'OFFICE',
+        "0ff1ce00-0000-0000-0000-000000000000": {
+            "scope": "OFFICE",
         },
-        'e111a110-0000-0000-0000-000000000000': {
-            'scope': 'EMAIL',
+        "e111a110-0000-0000-0000-000000000000": {
+            "scope": "EMAIL",
         },
-        '911011e0-0000-0000-0000-000000000000': {
-            'scope': 'PHONE',
+        "911011e0-0000-0000-0000-000000000000": {
+            "scope": "PHONE",
         },
-        'deadbeef-0000-0000-0000-000000000000': {
-            'scope': 'STEAK',
+        "deadbeef-0000-0000-0000-000000000000": {
+            "scope": "STEAK",
         },
     }
 
     addresses = {
         # Email - Secret
-        '11111111-1111-1111-1111-111111111111': [
+        "11111111-1111-1111-1111-111111111111": [
             {
-                'uuid': '11111111-1111-1111-1111-111111111111',
-                'adresse_type': 'e111a110-0000-0000-0000-000000000000',
-                'value': 'emailsecret@example.com',
-                'visibility': "5ec4e100-0000-0000-0000-000000000000",
+                "uuid": "11111111-1111-1111-1111-111111111111",
+                "adresse_type": "e111a110-0000-0000-0000-000000000000",
+                "value": "emailsecret@example.com",
+                "visibility": "5ec4e100-0000-0000-0000-000000000000",
             },
         ],
         # Office - Unset
-        '22222222-2222-2222-2222-222222222222': [
+        "22222222-2222-2222-2222-222222222222": [
             {
-                'uuid': '22222222-2222-2222-2222-222222222222',
-                'adresse_type': "0ff1ce00-0000-0000-0000-000000000000",
-                'value': '231',
-                'visibility': None,
+                "uuid": "22222222-2222-2222-2222-222222222222",
+                "adresse_type": "0ff1ce00-0000-0000-0000-000000000000",
+                "value": "231",
+                "visibility": None,
             },
         ],
         # Phone - Public
-        '33333333-3333-3333-3333-333333333333': [
+        "33333333-3333-3333-3333-333333333333": [
             {
-                'uuid': '33333333-3333-3333-3333-333333333333',
-                'adresse_type': '911011e0-0000-0000-0000-000000000000',
-                'value': '+45 88888888',
-                'visibility': '90b11c00-0000-0000-0000-000000000000',
+                "uuid": "33333333-3333-3333-3333-333333333333",
+                "adresse_type": "911011e0-0000-0000-0000-000000000000",
+                "value": "+45 88888888",
+                "visibility": "90b11c00-0000-0000-0000-000000000000",
             },
         ],
         # Phone - Secret
-        '44444444-4444-4444-4444-444444444444': [
+        "44444444-4444-4444-4444-444444444444": [
             {
-                'uuid': '44444444-4444-4444-4444-444444444444',
-                'adresse_type': '911011e0-0000-0000-0000-000000000000',
-                'value': '+45 70101155',
-                'visibility': "5ec4e100-0000-0000-0000-000000000000",
+                "uuid": "44444444-4444-4444-4444-444444444444",
+                "adresse_type": "911011e0-0000-0000-0000-000000000000",
+                "value": "+45 70101155",
+                "visibility": "5ec4e100-0000-0000-0000-000000000000",
             },
         ],
         # Phone - Unset
-        '55555555-5555-5555-5555-555555555555': [
+        "55555555-5555-5555-5555-555555555555": [
             {
-                'uuid': '55555555-5555-5555-5555-555555555555',
-                'adresse_type': '911011e0-0000-0000-0000-000000000000',
-                'value': '+45 116111',
-                'visibility': None,
+                "uuid": "55555555-5555-5555-5555-555555555555",
+                "adresse_type": "911011e0-0000-0000-0000-000000000000",
+                "value": "+45 116111",
+                "visibility": None,
             },
         ],
         # Email - Public
-        '66666666-6666-6666-6666-666666666666': [
+        "66666666-6666-6666-6666-666666666666": [
             {
-                'uuid': '66666666-6666-6666-6666-666666666666',
-                'adresse_type': 'e111a110-0000-0000-0000-000000000000',
-                'value': 'emailpublic@example.com',
-                'visibility': '90b11c00-0000-0000-0000-000000000000',
+                "uuid": "66666666-6666-6666-6666-666666666666",
+                "adresse_type": "e111a110-0000-0000-0000-000000000000",
+                "value": "emailpublic@example.com",
+                "visibility": "90b11c00-0000-0000-0000-000000000000",
             },
         ],
-
     }
 
 
 class PriorityByClassTests(TestCase):
-
     def setUp(self):
         self.lc = LC()
         self.candidates = list(map(itemgetter(0), self.lc.addresses.values()))
@@ -100,50 +97,51 @@ class PriorityByClassTests(TestCase):
         candidates = self.candidates
         if reverse:
             candidates = reversed(candidates)
-        return lc_choose_public_address(
-            candidates, priority, self.lc
-        )['uuid']
+        return lc_choose_public_address(candidates, priority, self.lc)["uuid"]
 
-    @parameterized.expand([
-        ## No priority, we expect first valid element
-        # First valid is 2, reversed it is 4
-        [[], "2", "6"],
-
-        ## Priority invalid class, we expect first valid element
-        # First valid is 2, reversed it is 4
-        [['cafebabe-0000-0000-0000-000000000000'], "2", "6"],
-
-        ## Priority not found, we expect first valid element
-        # First valid is 2, reversed it is 4
-        [['deadbeef-0000-0000-0000-000000000000'], "2", "6"],
-
-        ## Priority found (Phone) (2 matches), we expect first of type
-        [['911011e0-0000-0000-0000-000000000000'], "3", "5"],
-
-        ## Priority found (Office) (1 match), we expect first of type
-        [['0ff1ce00-0000-0000-0000-000000000000'], "2", "2"],
-
-        ## Priority found (Email) (1 match), we expect first of type
-        [['e111a110-0000-0000-0000-000000000000'], "6", "6"],
-
-        ## Priority found (Phone + Office) (3 matches), we expect first of phone
-        [[
-            '911011e0-0000-0000-0000-000000000000', 
-            '0ff1ce00-0000-0000-0000-000000000000'
-        ], "3", "5"],
-
-        ## Priority found (Unknown + Office) (1 matches), we expect first of office
-        [[
-            'deadbeef-0000-0000-0000-000000000000',
-            '0ff1ce00-0000-0000-0000-000000000000'
-        ], "2", "2"]
-    ])
+    @parameterized.expand(
+        [
+            ## No priority, we expect first valid element
+            # First valid is 2, reversed it is 4
+            [[], "2", "6"],
+            ## Priority invalid class, we expect first valid element
+            # First valid is 2, reversed it is 4
+            [["cafebabe-0000-0000-0000-000000000000"], "2", "6"],
+            ## Priority not found, we expect first valid element
+            # First valid is 2, reversed it is 4
+            [["deadbeef-0000-0000-0000-000000000000"], "2", "6"],
+            ## Priority found (Phone) (2 matches), we expect first of type
+            [["911011e0-0000-0000-0000-000000000000"], "3", "5"],
+            ## Priority found (Office) (1 match), we expect first of type
+            [["0ff1ce00-0000-0000-0000-000000000000"], "2", "2"],
+            ## Priority found (Email) (1 match), we expect first of type
+            [["e111a110-0000-0000-0000-000000000000"], "6", "6"],
+            ## Priority found (Phone + Office) (3 matches), we expect first of phone
+            [
+                [
+                    "911011e0-0000-0000-0000-000000000000",
+                    "0ff1ce00-0000-0000-0000-000000000000",
+                ],
+                "3",
+                "5",
+            ],
+            ## Priority found (Unknown + Office) (1 matches), we expect first of office
+            [
+                [
+                    "deadbeef-0000-0000-0000-000000000000",
+                    "0ff1ce00-0000-0000-0000-000000000000",
+                ],
+                "2",
+                "2",
+            ],
+        ]
+    )
     def test_computed_match(self, priority, standard, reverse):
         """We expect to get the first valid entry."""
-        uuid_format = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+        uuid_format = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
         # Check with candidate as is
         chosen = self.get_candidate_uuid(priority)
-        self.assertEqual(chosen, uuid_format.replace('x', standard))
+        self.assertEqual(chosen, uuid_format.replace("x", standard))
         # Check with reversed candidates
         chosen = self.get_candidate_uuid(priority, reverse=True)
-        self.assertEqual(chosen, uuid_format.replace('x', reverse))
+        self.assertEqual(chosen, uuid_format.replace("x", reverse))

@@ -1,7 +1,9 @@
 from more_itertools import first
 
 
-def choose_public_address_helper(candidates, prioritized_classes, scope_getter, address_type_getter):
+def choose_public_address_helper(
+    candidates, prioritized_classes, scope_getter, address_type_getter
+):
     """Pick the most desirable valid candidate address.
 
     An address candidate is considered valid if its visibility is PUBLIC or UNSET.
@@ -31,10 +33,7 @@ def choose_public_address_helper(candidates, prioritized_classes, scope_getter, 
             bool: True for candidates with PUBLIC or UNSET visibility.
                   False otherwise.
         """
-        return (
-            candidate["visibility"] is None or
-            scope_getter(candidate) == "PUBLIC"
-        )
+        return candidate["visibility"] is None or scope_getter(candidate) == "PUBLIC"
 
     def determine_candidate_desirability(candidate):
         """Predicate for determining desirability of an address candidate.
@@ -70,24 +69,30 @@ def choose_public_address_helper(candidates, prioritized_classes, scope_getter, 
 
 def mora_choose_public_address(candidates, prioritized_classes):
     """See choose_public_address_helper."""
+
     def scope_getter(candidate):
         return candidate["visibility"]["scope"]
 
     def address_type_getter(candidate):
-        return candidate["address_type"]["uuid"] 
+        return candidate["address_type"]["uuid"]
 
-    return choose_public_address_helper(candidates, prioritized_classes, scope_getter, address_type_getter)
+    return choose_public_address_helper(
+        candidates, prioritized_classes, scope_getter, address_type_getter
+    )
 
 
 def lc_choose_public_address(candidates, prioritized_classes, lc):
     """See choose_public_address_helper."""
+
     def scope_getter(candidate):
         return lc.classes[candidate["visibility"]]["scope"]
 
     def address_type_getter(candidate):
         return candidate["adresse_type"]
 
-    return choose_public_address_helper(candidates, prioritized_classes, scope_getter, address_type_getter)
+    return choose_public_address_helper(
+        candidates, prioritized_classes, scope_getter, address_type_getter
+    )
 
 
 def choose_public_address(candidates, prioritized_classes):
