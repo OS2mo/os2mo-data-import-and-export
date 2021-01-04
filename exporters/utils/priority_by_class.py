@@ -50,9 +50,10 @@ def choose_public_address_helper(candidates, prioritized_classes, scope_getter, 
         """
         address_type_uuid = address_type_getter(candidate)
         try:
-            return prioritized_classes.index(address_type_uuid)
+            priority = prioritized_classes.index(address_type_uuid)
         except ValueError:
-            return len(prioritized_classes)
+            priority = len(prioritized_classes)
+        return priority
 
     # Filter candidates to only keep valid ones
     candidates = filter(filter_by_visibility, candidates)

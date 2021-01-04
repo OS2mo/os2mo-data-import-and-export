@@ -1,48 +1,92 @@
 from operator import itemgetter
 from unittest import TestCase
 
+from parameterized import parameterized
+
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.priority_by_class import lc_choose_public_address
 
 
 class LC:
     classes = {
-        'aad0b1a0-e658-0aac-0a52-368bc5ec5b80': {
+        # Visibility
+        '90b11c00-0000-0000-0000-000000000000': {
             'scope': 'PUBLIC',
         },
-        'fa865555-58b5-327d-e7dc-2990b0d28ff9':{
+        '5ec4e100-0000-0000-0000-000000000000': {
+            'scope': 'SECRET',
+        },
+        # Scope
+        '0ff1ce00-0000-0000-0000-000000000000': {
+            'scope': 'OFFICE',
+        },
+        'e111a110-0000-0000-0000-000000000000': {
             'scope': 'EMAIL',
         },
-        '9ff8b38d-9f43-a74f-f28b-ebf5761d2e3a': {
-            'scope': 'SECRET',
-        }
+        '911011e0-0000-0000-0000-000000000000': {
+            'scope': 'PHONE',
+        },
+        'deadbeef-0000-0000-0000-000000000000': {
+            'scope': 'STEAK',
+        },
     }
 
     addresses = {
-        '2ff12bd9-7a5a-4837-9137-cb126c53f6ea': [
+        # Email - Secret
+        '11111111-1111-1111-1111-111111111111': [
             {
-                'uuid': '2ff12bd9-7a5a-4837-9137-cb126c53f6ea',
-                'adresse_type': 'fa865555-58b5-327d-e7dc-2990b0d28ff9',
+                'uuid': '11111111-1111-1111-1111-111111111111',
+                'adresse_type': 'e111a110-0000-0000-0000-000000000000',
                 'value': 'emailsecret@example.com',
-                'visibility': "9ff8b38d-9f43-a74f-f28b-ebf5761d2e3a"
-            }
+                'visibility': "5ec4e100-0000-0000-0000-000000000000",
+            },
         ],
-        '3ff12bd9-7a5a-4837-9137-cb126c53f6ea': [
+        # Office - Unset
+        '22222222-2222-2222-2222-222222222222': [
             {
-                'uuid': '3ff12bd9-7a5a-4837-9137-cb126c53f6ea',
-                'adresse_type': 'fa865555-58b5-327d-e7dc-2990b0d28ff9',
+                'uuid': '22222222-2222-2222-2222-222222222222',
+                'adresse_type': "0ff1ce00-0000-0000-0000-000000000000",
+                'value': '231',
+                'visibility': None,
+            },
+        ],
+        # Phone - Public
+        '33333333-3333-3333-3333-333333333333': [
+            {
+                'uuid': '33333333-3333-3333-3333-333333333333',
+                'adresse_type': '911011e0-0000-0000-0000-000000000000',
+                'value': '+45 88888888',
+                'visibility': '90b11c00-0000-0000-0000-000000000000',
+            },
+        ],
+        # Phone - Secret
+        '44444444-4444-4444-4444-444444444444': [
+            {
+                'uuid': '44444444-4444-4444-4444-444444444444',
+                'adresse_type': '911011e0-0000-0000-0000-000000000000',
+                'value': '+45 70101155',
+                'visibility': "5ec4e100-0000-0000-0000-000000000000",
+            },
+        ],
+        # Phone - Unset
+        '55555555-5555-5555-5555-555555555555': [
+            {
+                'uuid': '55555555-5555-5555-5555-555555555555',
+                'adresse_type': '911011e0-0000-0000-0000-000000000000',
+                'value': '+45 116111',
+                'visibility': None,
+            },
+        ],
+        # Email - Public
+        '66666666-6666-6666-6666-666666666666': [
+            {
+                'uuid': '66666666-6666-6666-6666-666666666666',
+                'adresse_type': 'e111a110-0000-0000-0000-000000000000',
                 'value': 'emailpublic@example.com',
-                'visibility': "aad0b1a0-e658-0aac-0a52-368bc5ec5b80"
-            }
+                'visibility': '90b11c00-0000-0000-0000-000000000000',
+            },
         ],
-        '1ff12bd9-7a5a-4837-9137-cb126c53f6ea': [
-            {
-                'uuid': '1ff12bd9-7a5a-4837-9137-cb126c53f6ea',
-                'adresse_type': 'ra865555-58b5-327d-e7dc-2990b0d28ff9',
-                'value': 'emailunknown@example.com',
-                'visibility': None
-            }
-        ],
+
     }
 
 
@@ -52,26 +96,54 @@ class PriorityByClassTests(TestCase):
         self.lc = LC()
         self.candidates = list(map(itemgetter(0), self.lc.addresses.values()))
 
-    def test_lc_find_all_with_no_list(self):
+    def get_candidate_uuid(self, priority, reverse=False):
+        candidates = self.candidates
+        if reverse:
+            candidates = reversed(candidates)
+        return lc_choose_public_address(
+            candidates, priority, self.lc
+        )['uuid']
+
+    @parameterized.expand([
+        ## No priority, we expect first valid element
+        # First valid is 2, reversed it is 4
+        [[], "2", "6"],
+
+        ## Priority invalid class, we expect first valid element
+        # First valid is 2, reversed it is 4
+        [['cafebabe-0000-0000-0000-000000000000'], "2", "6"],
+
+        ## Priority not found, we expect first valid element
+        # First valid is 2, reversed it is 4
+        [['deadbeef-0000-0000-0000-000000000000'], "2", "6"],
+
+        ## Priority found (Phone) (2 matches), we expect first of type
+        [['911011e0-0000-0000-0000-000000000000'], "3", "5"],
+
+        ## Priority found (Office) (1 match), we expect first of type
+        [['0ff1ce00-0000-0000-0000-000000000000'], "2", "2"],
+
+        ## Priority found (Email) (1 match), we expect first of type
+        [['e111a110-0000-0000-0000-000000000000'], "6", "6"],
+
+        ## Priority found (Phone + Office) (3 matches), we expect first of phone
+        [[
+            '911011e0-0000-0000-0000-000000000000', 
+            '0ff1ce00-0000-0000-0000-000000000000'
+        ], "3", "5"],
+
+        ## Priority found (Unknown + Office) (1 matches), we expect first of office
+        [[
+            'deadbeef-0000-0000-0000-000000000000',
+            '0ff1ce00-0000-0000-0000-000000000000'
+        ], "2", "2"]
+    ])
+    def test_computed_match(self, priority, standard, reverse):
         """We expect to get the first valid entry."""
-        # First entry is invalid (2f...), thus we expect to get second entry
-        chosen = lc_choose_public_address(self.candidates, [], self.lc)
-        self.assertEqual(chosen["uuid"], '3ff12bd9-7a5a-4837-9137-cb126c53f6ea')
-
-        # Last entry (first after reverse) is valid, thus we expect to get that
-        chosen = lc_choose_public_address(reversed(self.candidates), [], self.lc)
-        self.assertEqual(chosen["uuid"], '1ff12bd9-7a5a-4837-9137-cb126c53f6ea')
-        
-    def test_lc_find_all_with_list(self):
-        """We expect to get the most desirable entry."""
-        # Most desirable is third entry, we expect to get that
-        chosen = lc_choose_public_address(
-            self.candidates, ['ra865555-58b5-327d-e7dc-2990b0d28ff9'], self.lc
-        )
-        self.assertEqual(chosen["uuid"], "1ff12bd9-7a5a-4837-9137-cb126c53f6ea")
-
-        # Most desirable is first entry, we expect to get that
-        chosen = lc_choose_public_address(
-            reversed(self.candidates), ['ra865555-58b5-327d-e7dc-2990b0d28ff9'], self.lc
-        )
-        self.assertEqual(chosen["uuid"], '1ff12bd9-7a5a-4837-9137-cb126c53f6ea')
+        uuid_format = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+        # Check with candidate as is
+        chosen = self.get_candidate_uuid(priority)
+        self.assertEqual(chosen, uuid_format.replace('x', standard))
+        # Check with reversed candidates
+        chosen = self.get_candidate_uuid(priority, reverse=True)
+        self.assertEqual(chosen, uuid_format.replace('x', reverse))
