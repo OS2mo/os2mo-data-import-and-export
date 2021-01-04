@@ -1,12 +1,21 @@
 import json
+import pathlib
 from collections import ChainMap
 from functools import partial
 from operator import attrgetter
 
-from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import ItForbindelse
+import click
+import requests
 from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker
+
+from exporters.sql_export.lc_for_jobs_db import get_engine
+from exporters.sql_export.sql_table_defs import ItForbindelse
+
+
+def get_settings():
+    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+    return json.loads(cfg_file.read_text())
 
 
 def find_duplicate_it_connections(session):
@@ -51,7 +60,15 @@ def construct_duplicate_dict(session, duplicate_entry):
     return row_dict
 
 
-def main():
+@click.command()
+@click.option(
+    '--delete',
+    is_flag=True,
+    default=False,
+    type=click.BOOL,
+    help="Delete found items from LoRa",
+)
+def main(delete):
     engine = get_engine()
 
     # Prepare session
@@ -65,8 +82,20 @@ def main():
     # One combined dict from id --> uuid (for rows to be deleted)
     output = dict(ChainMap(*duplicate_maps))
 
-    # Output delete-map
-    print(json.dumps(output, indent=4, sort_keys=True))
+    if delete:
+        settings = get_settings()
+        delete_from_lora(settings['mox.base'], output.values())
+    else:
+        # Output delete-map
+        print(json.dumps(output, indent=4, sort_keys=True))
+
+
+def delete_from_lora(mox_base, duplicate_items):
+    for uuid in duplicate_items:
+        r = requests.delete(
+            '{}/organisation/organisationfunktion/{}'.format(mox_base, uuid)
+        )
+        r.raise_for_status()
 
 
 if __name__ == "__main__":
