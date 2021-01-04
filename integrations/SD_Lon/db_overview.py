@@ -10,7 +10,7 @@ from integrations.SD_Lon.sd_common import load_settings
 class DBOverview(object):
     def __init__(self, settings=None):
         settings = settings or load_settings()
-        self.run_db = settings['integrations.SD_Lon.import.run_db']
+        self.run_db = settings["integrations.SD_Lon.import.run_db"]
 
     def read_db_content(self):
         conn = sqlite3.connect(self.run_db, detect_types=sqlite3.PARSE_DECLTYPES)

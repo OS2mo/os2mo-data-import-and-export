@@ -3,12 +3,11 @@ from collections import OrderedDict
 from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, call, patch
 
-from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
-
 import hypothesis.strategies as st
 import xmltodict
 from hypothesis import example, given
 from integrations.ad_integration.utils import AttrDict
+from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD, gen_date_pairs
 
 
