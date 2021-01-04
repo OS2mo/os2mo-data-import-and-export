@@ -1,6 +1,6 @@
-import uuid
-import json
 import pathlib
+import json
+import uuid
 import hashlib
 import logging
 import argparse
@@ -10,6 +10,7 @@ import requests
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration import payloads
+from integrations.ad_integration import read_ad_conf_settings
 from integrations.ad_integration.ad_reader import ADParameterReader
 
 # Set up a real logger!
@@ -33,10 +34,14 @@ logging.basicConfig(
 
 class ADMOImporter(object):
     def __init__(self):
+        all_settings = read_ad_conf_settings.read_settings()
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
+
+        self.global_ad_settings = all_settings['global']
+        self.primary_ad_settings = all_settings['primary']
 
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
@@ -95,7 +100,7 @@ class ADMOImporter(object):
         """
         Find or create Klasse.
         Return the uuid of a given Klasse. If it does not exist, it will be created.
-        :param klassenavn: String with the user key of the Klasse.
+        :param bvn: String with the user key of the Klasse.
         :param facet: String with the name of the Facet for the Klasse.
         :return: uuid of the Klasse
         """
@@ -173,7 +178,7 @@ class ADMOImporter(object):
         :param ad_user: The ad_object to use as template for MO.
         :return: uuid of the the user.
         """
-        cpr_raw = ad_user.get(self.settings['integrations.ad.cpr_field'])
+        cpr_raw = ad_user.get(self.primary_ad_settings['cpr_field'])
         if cpr_raw is None:
             return None
         cpr = cpr_raw.replace('-', '')
