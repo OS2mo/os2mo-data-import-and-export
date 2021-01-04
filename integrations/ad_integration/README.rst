@@ -747,6 +747,10 @@ synkroniseringer i samme kørsel ved at angive begge parametre.
    den aktuelt cache'de værdi. Dette kan være nyttigt til udvikling, eller
    hvis flere integrationer køres umidelbart efter hinanden.
 
+Det er værd at bemærke at brugerne som laves med ad_life_cycle *ikke* oprettes med
+relaterede data, de vil altså fremstå f.eks. uden adresser. Deres relaterede data
+kan tilførsel vha. ``ad_sync`` programmet.
+
    
 execute_ad_script.py
 ++++++++++++++++++++
