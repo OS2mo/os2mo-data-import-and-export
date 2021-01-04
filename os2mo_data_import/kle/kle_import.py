@@ -34,7 +34,7 @@ class KleImporter(object):
     necessary with seperate templates for the various levels.
     """
 
-    def __init__(self, mox_base, mora_base, api_token):
+    def __init__(self, mox_base, mora_base, api_token=None):
         """
         Init function
         :para hostname: hostname for the rest interface
@@ -42,7 +42,8 @@ class KleImporter(object):
         self.mox_base = mox_base
         self.mora_base = mora_base
         self.mo_session = requests.Session()
-        self.mo_session.headers = {"SESSION": api_token}
+        if api_token:
+            self.mo_session.headers = {"SESSION": api_token}
 
     def _read_kle_dict(self, facet='emne', local=False):
         """ Read the entire KLE file
@@ -344,7 +345,7 @@ if __name__ == '__main__':
 
     mora_base = settings['mora.base']
     mox_base = settings['mox.base']
-    api_token = settings['crontab.SAML_TOKEN']
+    api_token = settings.get('crontab.SAML_TOKEN')
 
     kle = KleImporter(mox_base, mora_base, api_token)
     kle.import_kle()
