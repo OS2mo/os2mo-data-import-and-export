@@ -38,11 +38,17 @@
       "assoc_AMR": {
         "title": "AMR"
       },
+      "assoc_FTR_AMR": {
+        "title": "(F)TR og AMR"
+      },
       "assoc_Medarb_rep_leader": {
         "title": "Medarb.rep, næstformand"
       },
       "assoc_Medarb_rep": {
         "title": "Medarb.rep"
+      },
+      "assoc_Medarb_rep_AMR": {
+        "title": "Medarb.rep og AMR"
       },
       "assoc_NA": {
         "title": "Ej relevant"
