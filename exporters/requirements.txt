@@ -1,5 +1,6 @@
 -r os2phonebook/requirements.txt
 -r sql_export/requirements.txt
+-r utils/requirements.txt
 click
 anytree
 git+https://github.com/magenta-aps/spsftp

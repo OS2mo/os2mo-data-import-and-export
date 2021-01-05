@@ -44,14 +44,12 @@ Lint LoraCache Integration:
     - python -m black --diff --line-length 85 --check exporters/sql_export/tests/*.py
     - python -m isort --diff --check-only exporters/sql_export/tests/*.py
 
-
 Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
     - python -m black --diff --line-length 85 --check tests/* utils.py ad_template_engine.py
     - python -m isort --diff --check-only tests/* utils.py ad_template_engine.py
-
 
 Lint SetAlias Tool:
   extends: .lint-python
@@ -66,7 +64,6 @@ Lint SDLoen Integration:
     - python -m black --diff --line-length 85 --check db_overview.py sd_cli.py sd_common.py tests/*
     - python -m isort --diff --check-only db_overview.py sd_cli.py sd_common.py tests/*
 
-
 Lint OPUS Org Tree Print:
   extends: .lint-python
   script:
@@ -79,6 +76,13 @@ Lint Reports:
   script:
     - python -m black --diff --line-length 85 --check reports/Frederikshavn_MED.py reports/XLSXExporter.py reports/os2mo_tests/test_frederikshavn_MED_XLSX.py reports/os2mo_tests/test_XLSXExporter.py 
     - python -m isort --profile black --check-only reports/XLSXExporter.py reports/os2mo_tests/test_frederikshavn_MED_XLSX.py reports/os2mo_tests/test_XLSXExporter.py 
+
+Lint Exporter Utils:
+  extends: .lint-python
+  script:
+    - cd exporters/utils/
+    - python -m black --diff --line-length 85 --check *.py tests/*.py
+    - python -m isort --diff --check-only *.py tests/*.py
 
 
 # Test stage
@@ -107,13 +111,11 @@ Test LoraCache Exporter:
     - export PYTHONPATH=$PWD:$PYTHONPATH
     - pytest exporters/sql_export/tests/
 
-
 Test AD Integration:
   extends: .test-python
   script:
     - cd integrations/ad_integration/
     - pytest tests/ --ignore tests/test_ad_sync.py
-
 
 Test OS2Sync Integration:
   extends: .test-python
@@ -127,13 +129,11 @@ Test CPR Mapper:
   script:
     - python -m doctest -v integrations/cpr_mapper.py
 
-
 Test OPUS Org Tree Print:
   extends: .test-python
   script:
     - pip install -r integrations/opus/org_tree_print/requirements.txt
     - python -m doctest -v integrations/opus/org_tree_print/main.py
-
 
 Test OPUS Helpers:
   extends: .test-python
@@ -157,3 +157,10 @@ Test Reports:
     - export PYTHONPATH=$PWD:$PYTHONPATH
     - pip install -r reports/requirements/test.txt
     - pytest reports/os2mo_tests/ --ignore reports/os2mo_tests/test_viborg_managers.py
+
+Test Exporter Utils:
+  extends: .test-python
+  script:
+    - export PYTHONPATH=$PWD:$PYTHONPATH
+    - pip install -r exporters/utils/requirements.txt
+    - pytest exporters/utils/tests/

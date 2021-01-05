@@ -372,19 +372,3 @@ terminate_orgfunc.py
 Et tool, som terminerer ALLE brugeres adresser og it-forbindelser. Det er jo ikke særligt smart
 at køre sådan et, for så skal man oprette dem allesammen igen. Det er imidlertid nødvendigt, 
 hvis man er Viborg og tidligere har brugt Skole-AD eller man ændrer feltmapning
-
-
-priority_by_class.py
-====================
-
-En samling af funktioner til prioritering af klasser i os2mo
-
-funktionerne choose_public_address og lc_choose_public_address modtager et sæt addressekandidater
-og afleverer den første PUBLIC (eller uden visibility), som den finder på vejen igennem en pririteret liste af klasser.
-Hvis der ikke medsendes en prioriteret liste, tages bare den første PUBLIC adresse, den finder i kandidaterne eller en uden visibility.
-
-De anvendes pt af viborgs_eksterne og emus og de lister, man kan angive er:
-
-* ``emus.email.priority``
-* ``emus.phone.priority``
-* ``exports_viborg_eksterne.email.priority``

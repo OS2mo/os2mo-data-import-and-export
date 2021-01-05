@@ -10,6 +10,7 @@ import logging
 import requests
 
 from integrations.os2sync import config
+from exporters.utils.priority_by_class import choose_public_address
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
@@ -89,60 +90,29 @@ def user_uuids(**kwargs):
     ]
 
 
-def chose_visible_prioritized_address(candidates, prioritized_classes):
-    chosen = None
-    # find candidate using prioritized list if available
-    for cls in prioritized_classes:
-        if chosen:
-            break
-        for candidate in candidates:
-            if (
-                candidate["address_type"]["uuid"] == cls
-                and candidate.get("visibility",
-                                  {"scope": "PUBLIC"})["scope"] == "PUBLIC"
-            ):
-                chosen = {"Value": candidate["name"],
-                          "Uuid": candidate["uuid"]}
-
-    if not prioritized_classes and len(candidates):
-        for candidate in reversed(candidates):
-            if candidate.get("visibility",
-                             {"scope": "PUBLIC"})["scope"] == "PUBLIC":
-                chosen = {"Value": candidate["name"],
-                          "Uuid": candidate["uuid"]}
-                break
-
-    return chosen
-
-
 def addresses_to_user(user, addresses):
+    # TODO: This looks like bucketing (more_itertools.bucket)
     emails, phones = [], []
-    for a in addresses:
-        if a["address_type"]["scope"] == "EMAIL":
-            emails.append(a)
-        if a["address_type"]["scope"] == "PHONE":
-            phones.append(a)
-        if a["address_type"]["scope"] == "DAR":
-            user["Location"] = a["name"]
+    for address in addresses:
+        if address["address_type"]["scope"] == "EMAIL":
+            emails.append(address)
+        if address["address_type"]["scope"] == "PHONE":
+            phones.append(address)
+        if address["address_type"]["scope"] == "DAR":
+            user["Location"] = address["name"]
 
     phones = sorted(phones, key=lambda phone: phone["uuid"])
     emails = sorted(emails, key=lambda email: email["uuid"])
 
     # find phone using prioritized/empty list of address_type uuids
-    phone = chose_visible_prioritized_address(
-        phones,
-        settings["OS2SYNC_PHONE_SCOPE_CLASSES"]
-    )
+    phone = choose_public_address(phones, settings["OS2SYNC_PHONE_SCOPE_CLASSES"])
     if phone:
-        user["PhoneNumber"] = phone["Value"]
+        user["PhoneNumber"] = phone["name"]
 
     # find email using prioritized/empty list of address_type uuids
-    email = chose_visible_prioritized_address(
-        emails,
-        settings["OS2SYNC_EMAIL_SCOPE_CLASSES"]
-    )
+    email = choose_public_address(emails, settings["OS2SYNC_EMAIL_SCOPE_CLASSES"])
     if email:
-        user["Email"] = email["Value"]
+        user["Email"] = email["name"]
 
 
 def engagements_to_user(user, engagements, allowed_unitids):
