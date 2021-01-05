@@ -254,6 +254,10 @@ class SqlExport(object):
                 if address_info['visibility'] is not None:
                     visibility_text = self.lc.classes[
                         address_info['visibility']]['title']
+                visibility_scope = None
+                if address_info['visibility'] is not None:
+                    visibility_scope = self.lc.classes[
+                        address_info['visibility']]['scope']
 
                 sql_address = Adresse(
                     uuid=address,
@@ -263,10 +267,12 @@ class SqlExport(object):
                     dar_uuid=address_info['dar_uuid'],
                     adressetype_uuid=address_info['adresse_type'],
                     adressetype_scope=address_info['scope'],
-                    synlighed_uuid=address_info['visibility'],
-                    synlighed_titel=visibility_text,
                     adressetype_titel=self.lc.classes[
-                        address_info['adresse_type']]['title'],
+                        address_info['adresse_type']
+                    ]['title'],
+                    synlighed_uuid=address_info['visibility'],
+                    synlighed_scope=visibility_scope,
+                    synlighed_titel=visibility_text,
                     startdato=address_info['from_date'],
                     slutdato=address_info['to_date']
                 )

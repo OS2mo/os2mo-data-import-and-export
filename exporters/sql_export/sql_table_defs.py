@@ -70,6 +70,7 @@ class Adresse(Base):
     synlighed_uuid = Column(
         String(36), nullable=True
     )  # , ForeignKey('klasser.uuid'))
+    synlighed_scope = Column(String(250), nullable=True)
     synlighed_titel = Column(String(250), nullable=True)
     startdato = Column(String(10))
     slutdato = Column(String(10))
