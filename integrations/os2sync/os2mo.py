@@ -101,9 +101,6 @@ def addresses_to_user(user, addresses):
         if address["address_type"]["scope"] == "DAR":
             user["Location"] = address["name"]
 
-    phones = sorted(phones, key=lambda phone: phone["uuid"])
-    emails = sorted(emails, key=lambda email: email["uuid"])
-
     # find phone using prioritized/empty list of address_type uuids
     phone = choose_public_address(phones, settings["OS2SYNC_PHONE_SCOPE_CLASSES"])
     if phone:
