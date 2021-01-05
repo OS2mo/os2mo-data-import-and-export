@@ -27,6 +27,7 @@ from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
 from exporters.sql_export.sql_table_defs import (Adresse, Bruger, ItSystem,
                                                  Engagement, Enhed, Leder,
                                                  LederAnsvar, ItForbindelse)
+from exporters.utils.priority_by_class import lcdb_choose_public_address
 
 
 logging.basicConfig(
@@ -163,7 +164,7 @@ def export_ou_emus(session, nodes, emus_file=sys.stdout):
 
     last_changed = datetime.datetime.now().strftime("%Y-%m-%d")
     logger.info("writing %d ou rows to file", len(engagement_counter))
-    for r in rows:
+    for r in sorted(rows, key=lambda r: r['uuid']):
         empls = engagement_counter[r["uuid"]]
         if empls == 0:
             logger.debug("empty department skipped: %s (%s)",
@@ -184,6 +185,26 @@ def export_ou_emus(session, nodes, emus_file=sys.stdout):
             emus_file.write("</orgUnit>\n")
 
 
+def get_e_address(e_uuid, scope, session, settings):
+    candidates = session.query(Adresse).filter(and_(
+        Adresse.adressetype_scope == scope,
+        Adresse.bruger_uuid == e_uuid,
+    )).all()
+
+    if scope == "Telefon":
+        priority_list = settings["EMUS_PHONE_PRIORITY"]
+    elif scope == "E-mail":
+        priority_list = settings["EMUS_EMAIL_PRIORITY"]
+    else:
+        priority_list = []
+
+    address = lcdb_choose_public_address(candidates, priority_list)
+    if address is not None:
+        return address
+    else:
+        return {} # like mora_helpers
+
+
 def build_engagement_row(session, settings, ou, engagement):
     entrydate = engagement.startdato
     leavedate = engagement.slutdato
@@ -200,21 +221,15 @@ def build_engagement_row(session, settings, ou, engagement):
         ItForbindelse.it_system_uuid == settings["username-itsystem-uuid"]
     )).limit(1).scalar()
 
-    _phone = session.query(Adresse.værdi).filter(and_(
-        Adresse.adressetype_titel == 'Telefon',
-        Adresse.bruger_uuid == engagement.bruger_uuid,
-        Adresse.synlighed_uuid not in settings[
-            "EMUS_DISCARDED_ADDRESS_VISIBILITY_CLASSES"
-        ]
-    )).limit(1).scalar()
+    _phone_obj = get_e_address(engagement.bruger_uuid, 'Telefon', session, settings)
+    _phone = None
+    if _phone_obj:
+        _phone = _phone_obj.værdi
 
-    _email = session.query(Adresse.værdi).filter(and_(
-        Adresse.adressetype_titel == 'Email',
-        Adresse.bruger_uuid == engagement.bruger_uuid,
-        Adresse.synlighed_uuid not in settings[
-            "EMUS_DISCARDED_ADDRESS_VISIBILITY_CLASSES"
-        ]
-    )).limit(1).scalar()
+    _email_obj = get_e_address(engagement.bruger_uuid, 'E-mail', session, settings)
+    _email = None
+    if _email_obj:
+        _email = _email_obj.værdi
 
     row = {
         'personUUID': engagement.bruger_uuid,
@@ -241,9 +256,10 @@ def build_engagement_row(session, settings, ou, engagement):
 
 def get_manager_dates(session, bruger):
     """Man kan tydeligvis ikke regne med at chefens datoer
-    på lederobjektet er korrekte. Derfore ser vi lige på
+    på lederobjektet er korrekte. Derfor ser vi lige på
     om chefen fortsat er ansat, inden vi rapporterer.
     """
+    # TODO: XXX: Hvorfor kan man ikke det, og burde vi ikke fikse det?
     startdate = '9999-12-31'
     enddate = '0000-00-00'
     for engagement in session.query(Engagement).filter(
@@ -290,21 +306,15 @@ def build_manager_rows(session, settings, ou, manager):
         ItForbindelse.it_system_uuid == settings["username-itsystem-uuid"]
     )).limit(1).scalar()
 
-    _phone = session.query(Adresse.værdi).filter(and_(
-        Adresse.adressetype_titel == 'Telefon',
-        Adresse.bruger_uuid == bruger.uuid,
-        Adresse.synlighed_uuid not in settings[
-            "EMUS_DISCARDED_ADDRESS_VISIBILITY_CLASSES"
-        ]
-    )).limit(1).scalar()
+    _phone_obj = get_e_address(bruger.uuid, 'Telefon', session, settings)
+    _phone = None
+    if _phone_obj:
+        _phone = _phone_obj.værdi
 
-    _email = session.query(Adresse.værdi).filter(and_(
-        Adresse.adressetype_titel == 'Email',
-        Adresse.bruger_uuid == bruger.uuid,
-        Adresse.synlighed_uuid not in settings[
-            "EMUS_DISCARDED_ADDRESS_VISIBILITY_CLASSES"
-        ]
-    )).limit(1).scalar()
+    _email_obj = get_e_address(bruger.uuid, 'E-mail', session, settings)
+    _email = None
+    if _email_obj:
+        _email = _email_obj.værdi
 
     # manipulate each responsibility row into a manager row
     # empty a couple of fields, change client and employee_id
@@ -416,7 +426,7 @@ def export_e_emus(session, settings, nodes, emus_file):
                 len(engagement_rows), len(manager_rows))
 
     last_changed = datetime.datetime.now().strftime("%Y-%m-%d")
-    for r in rows:
+    for r in sorted(rows, key=lambda r: r["employee_id"]):
         emus_file.write("<employee id=\"%s\" client=\"%s\" lastChanged=\"%s\">\n" % (
             r["employee_id"],
             r["client"],
