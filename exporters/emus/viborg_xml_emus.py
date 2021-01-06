@@ -42,6 +42,7 @@ for i in logging.root.manager.loggerDict:
         logging.getLogger(i).setLevel(logging.WARNING)
 
 
+# TODO: Refactor this
 cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
@@ -49,12 +50,10 @@ settings = json.loads(cfg_file.read_text())
 
 MORA_BASE = settings.get("mora.base", 'http://localhost:5000')
 MORA_ROOT_ORG_UNIT_UUID = settings.get("mora.admin_top_unit")
-USERID_ITSYSTEM = settings["emus.userid_itsystem"]
 EMUS_RESPONSIBILITY_CLASS = settings["emus.manager_responsibility_class"]
 EMUS_FILENAME = settings.get("emus.outfile_name", 'emus_filename.xml')
 EMUS_DISCARDED_JOB_FUNCTIONS = settings.get("emus.discard_job_functions", [])
 EMUS_ALLOWED_ENGAGEMENT_TYPES = settings.get("emus.engagement_types", [])
-EMUS_USE_LC_DB = settings.get("emus.use_lc_db", [])
 
 
 engagement_counter = collections.Counter()
@@ -128,7 +127,7 @@ def export_ou_emus(mh, nodes, emus_file):
 
     last_changed = datetime.datetime.now().strftime("%Y-%m-%d")
     logger.info("writing %d ou rows to file", len(engagement_counter))
-    for r in rows:
+    for r in sorted(rows, key=lambda r: r['uuid']):
         empls = engagement_counter[r["uuid"]]
         if empls == 0:
             logger.debug("empty department skipped: %s (%s)",
@@ -401,7 +400,7 @@ def export_e_emus(mh, nodes, emus_file):
     logger.info("writing %d engagement rows and %d manager rows to file",
                 len(engagement_rows), len(manager_rows))
     last_changed = datetime.datetime.now().strftime("%Y-%m-%d")
-    for r in rows:
+    for r in sorted(rows, key=lambda r: r["employee_id"]):
         emus_file.write("<employee id=\"%s\" client=\"%s\" lastChanged=\"%s\">\n" % (
             r["employee_id"],
             r["client"],
