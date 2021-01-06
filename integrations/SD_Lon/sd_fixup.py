@@ -1,20 +1,13 @@
 import click
 from datetime import date
 
-from more_itertools import unzip, flatten
+from more_itertools import unzip, flatten, spy
 
 from os2mo_helpers.mora_helpers import MoraHelper
+from exporters.utils.progress import print_progress_iterator
 from integrations.SD_Lon.sd_common import sd_lookup, mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon import sd_payloads
-
-
-def progress_iterator(elements, outputter, mod=10):
-    total = len(elements)
-    for i, element in enumerate(elements, start=1):
-        if i == 1 or i % mod == 0 or i == total:
-            outputter("{}/{}".format(i, total))
-        yield element
 
 
 def fetch_user_employments(cpr):
@@ -100,7 +93,7 @@ def fixup(ctx, mo_employees):
     primary = primary_types(mora_helper)
 
     if ctx['progress']:
-        mo_employees = progress_iterator(mo_employees, print)
+        mo_employees = print_progress_iterator(mo_employees)
 
     # Dict pair is an iterator of (dict, dict) tuples or None
     # First dict is a mapping from employment_id to mo_engagement

@@ -11,6 +11,7 @@ from integrations.SD_Lon import sd_payloads
 from more_itertools import only, last, pairwise
 import pandas as pd
 
+from exporters.utils.progress import print_progress_iterator
 from integrations import cpr_mapper
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration import ad_reader
@@ -36,14 +37,6 @@ def ensure_list(element):
     if not isinstance(element, list):
         return [element]
     return element
-
-
-def progress_iterator(elements, outputter, mod=10):
-    total = len(elements)
-    for i, element in enumerate(elements, start=1):
-        if i == 1 or i % mod == 0 or i == total:
-            outputter("{}/{}".format(i, total))
-        yield element
 
 
 def setup_logging():
@@ -901,7 +894,7 @@ class ChangeAtSD:
                 return False
             return True
 
-        employments_changed = progress_iterator(employments_changed, print)
+        employments_changed = print_progress_iterator(employments_changed)
         employments_changed = filter(skip_fictional_users, employments_changed)
 
         for employment in employments_changed:

@@ -8,17 +8,9 @@ import click
 from more_itertools import flatten
 from os2mo_helpers.mora_helpers import MoraHelper
 
+from exporters.utils.progress import print_progress_iterator
 from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.sd_common import sd_lookup, LetGo, OnPayroll, EmploymentStatus
-
-
-def progress_iterator(elements, outputter, mod=10):
-    total = len(elements)
-    for i, element in enumerate(elements, start=1):
-        if i == 1 or i % mod == 0 or i == total:
-            outputter("{}/{}".format(i, total))
-        yield element
-
 
 
 class TestMOAgainstSd(object):
@@ -207,7 +199,7 @@ class TestMOAgainstSd(object):
             department_uuid, read_all=True
         ).keys()
         if progress:
-            employees = progress_iterator(employees, print)
+            employees = print_progress_iterator(employees)
         users = dict(map(self.check_user, employees))
         return department_uuid, {
             'uuid': department_uuid,
@@ -240,7 +232,7 @@ class TestMOAgainstSd(object):
         """
         employees = self.helper.read_all_users(limit=limit)
         if progress:
-            employees = progress_iterator(employees, print)
+            employees = print_progress_iterator(employees)
         employees = map(itemgetter('uuid'), employees)
         users = dict(map(self.check_user, employees))
         return {
