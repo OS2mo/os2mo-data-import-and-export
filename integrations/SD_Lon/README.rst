@@ -485,7 +485,7 @@ OS2MO's integration til SD-mox involverer brug af SD-løns AMQP-kø
 til afsendelse af ændringer og oprettelser, hvorimod læsning og verifikation foregår
 via SD's webinterface.
 
-Integrationen er synkron,  udført med triggere (se https://os2mo.readthedocs.io/en/latest/dev/triggers.html), 
+Integrationen er synkron, udført med triggere (se https://os2mo.readthedocs.io/en/latest/dev/triggers.html), 
 således at forstå at man får svar umiddelbart i forbindelse med sin handling, som er en af
 
 1. oprettelse af organisatiorisk enhed
@@ -543,7 +543,7 @@ Der er dog visse begræsninger i input, som gennemgås nedenfor.
 Der er en forsinkelse på 8.5 sekunder i brugerinterfacet mellem afsendelse imod SD
 og modtagelse af kvitteringen for ændringerne. Det er ikke SD, som har den forsinkelse; 
 Den er indført i OS2MO fordi vi ikke får kvitteringen for ændringen direkte fra SD,
-men først ser den via at opslag på webinterfacet, og ei er nødt til at vente til vi 
+men først ser den via at opslag på webinterfacet, og vi er nødt til at vente til vi 
 forventer at SD er faldet til ro efter en ændring.
 
 
