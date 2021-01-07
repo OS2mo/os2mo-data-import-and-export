@@ -140,7 +140,14 @@ class TestMOAgainstSd(object):
             'SalaryCodeGroupIndicator': 'false',
             'EffectiveDate': self.date.strftime('%d.%m.%Y')
         }
-        sd_employments_response = sd_lookup('GetEmployment20111201', params)
+        try:
+            sd_employments_response = sd_lookup('GetEmployment20111201', params)
+        except Exception as exp:
+            return mo_uuid, {
+                'uuid': mo_uuid,
+                'employments': {'Exception from SD': str(exp)},
+                'all_ok': False,
+            }
         if 'Person' not in sd_employments_response:
             return mo_uuid, {
                 'uuid': mo_uuid,
@@ -166,12 +173,12 @@ class TestMOAgainstSd(object):
             'uuid': mo_uuid,
             'employments': check_status,
             'all_ok': all(
-	        # collapse the check_status to a list of booleans
+            # collapse the check_status to a list of booleans
                 flatten(checks.values() for checks in check_status.values())
             )
         }
 
-    def check_department(self, department_uuid):
+    def check_department(self, department_uuid, progress, filter_ok):
         """Check all employees in an organisation for discrepancies.
 
         Returns a tuple; uuid, dictionary on the following form:
@@ -200,14 +207,17 @@ class TestMOAgainstSd(object):
         ).keys()
         if progress:
             employees = print_progress_iterator(employees)
-        users = dict(map(self.check_user, employees))
+        users = map(self.check_user, employees)
+        if filter_ok:
+           users = filter(lambda tup: not tup[1]['all_ok'], users)
+        users = dict(users)
         return department_uuid, {
             'uuid': department_uuid,
             'users': users,
             'all_ok': all(user['all_ok'] for user in users.values()),
         }
 
-    def check_all(self, limit, progress):
+    def check_all(self, limit, progress, filter_ok):
         """Check limit/all employees in an MO instance for discrepancies.
 
         Returns a dictionary on the following form:
@@ -234,7 +244,10 @@ class TestMOAgainstSd(object):
         if progress:
             employees = print_progress_iterator(employees)
         employees = map(itemgetter('uuid'), employees)
-        users = dict(map(self.check_user, employees))
+        users = map(self.check_user, employees)
+        if filter_ok:
+           users = filter(lambda tup: not tup[1]['all_ok'], users)
+        users = dict(users)
         return {
             'users': users,
             'all_ok': all(user['all_ok'] for user in users.values()),
@@ -271,8 +284,9 @@ class TestMOAgainstSd(object):
 @click.group()
 @click.option('--json/--no-json', default=False, help="Output as JSON.")
 @click.option('--progress/--no-progress', default=False, help="Print progress.")
+@click.option('--filter-ok/--no-filter-ok', default=False, help="Filter all_ok entries.")
 @click.pass_context
-def cli(ctx, json, progress):
+def cli(ctx, json, progress, filter_ok):
     """MO to SD equivalence testing utility.
 
     Compares MO against SD to find discrepancies in the data.
@@ -281,6 +295,7 @@ def cli(ctx, json, progress):
     ctx.ensure_object(dict)
     ctx.obj['json'] = json
     ctx.obj['progress'] = progress
+    ctx.obj['filter_ok'] = filter_ok
 
 
 @cli.command()
@@ -305,7 +320,7 @@ def check_user(ctx, uuid):
 def check_department(ctx, uuid):
     """Check all employees in an organisation."""
     tester = TestMOAgainstSd()
-    _, test_result = tester.check_department(str(uuid), ctx.obj['progress'])
+    _, test_result = tester.check_department(str(uuid), ctx.obj['progress'], ctx.obj['filter_ok'])
 
     if ctx.obj['json']:
         print(json.dumps(test_result, indent=4, sort_keys=True))
@@ -319,7 +334,7 @@ def check_department(ctx, uuid):
 def check_all(ctx, limit):
     """Check limit/all employees in an MO instance."""
     tester = TestMOAgainstSd()
-    test_result = tester.check_all(limit, ctx.obj['progress'])
+    test_result = tester.check_all(limit, ctx.obj['progress'], ctx.obj['filter_ok'])
 
     if ctx.obj['json']:
         print(json.dumps(test_result, indent=4, sort_keys=True))
