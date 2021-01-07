@@ -51,7 +51,7 @@ def generate_kerberos_session(hostname):
     return session
 
 
-class AD(object):
+class AD:
     def __init__(self, all_settings=None, index=0):
         self.all_settings = all_settings
         if self.all_settings is None:

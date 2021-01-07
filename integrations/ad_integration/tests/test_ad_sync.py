@@ -307,20 +307,47 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         return add_sync_mapping
 
     @parameterized.expand(
-        [("", "create"), ("username_found", "noop"), ("anything_else", "noop")]
+        [
+            ("", "djjohn", "create"),
+            ("", "dijon", "create"),
+            ("djjohn", "djjohn", "noop"),
+            ("djjohn", "dijon", "edit"),
+            ("anything_else", "djjohn", "edit"),
+            ("anything_else", "dijon", "edit"),
+        ]
     )
-    def test_sync_itsystem(self, e_username, expected):
+    def test_sync_itsystem(self, mo_username, ad_username, expected):
         """Verify itsystem data is synced correctly from AD to MO."""
         today = today_iso()
-        ad_values = self.ad_values_func()
         mo_values = self.mo_values_func()
 
-        def get_e_username():
-            return e_username
+        def seed_mo():
+            from_date = "1970-01-01"
+            to_date = "9999-12-31"
+            return {
+                "it": [
+                    {
+                        "itsystem": {
+                            "name": "Active Directory",
+                            "uuid": "it_system_uuid",
+                        },
+                        "user_key": mo_username,
+                        "uuid": "it_system_uuid",
+                        "validity": {"from": from_date, "to": to_date},
+                    }
+                ]
+                if mo_username != ""
+                else []
+            }
+
+        def set_ad_name(ad_values):
+            ad_values["SamAccountName"] = ad_username
+            return ad_values
 
         self._setup_admosync(
             transform_settings=self._sync_itsystem_mapping_transformer(),
-            seed_e_username=get_e_username,
+            transform_ad_values=set_ad_name,
+            seed_mo=seed_mo,
         )
 
         self.assertEqual(self.ad_sync.mo_post_calls, [])
@@ -331,12 +358,26 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         # Expected outcome
         expected_sync = {
             "noop": [],
+            "edit": [
+                {
+                    "force": True,
+                    "payload": {
+                        "type": "it",
+                        "data": {
+                            "user_key": ad_username,
+                            "validity": {"from": today, "to": None},
+                        },
+                        "uuid": "it_system_uuid",
+                    },
+                    "url": "details/edit",
+                }
+            ],
             "create": [
                 {
                     "force": True,
                     "payload": {
                         "type": "it",
-                        "user_key": ad_values["SamAccountName"],
+                        "user_key": ad_username,
                         "itsystem": {"uuid": "it_system_uuid"},
                         "person": {"uuid": mo_values["uuid"]},
                         "validity": {"from": today, "to": None},
@@ -512,13 +553,11 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         """Verify expected behavior from sync_disabled settings."""
 
         def add_sync_mapping(settings):
-            settings["integrations.ad.ad_mo_sync_mapping"] = {
+            settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {
                 "it_systems": {"samAccountName": "it_system_uuid"}
             }
-            settings["integrations.ad.ad_mo_sync_terminate_disabled"] = True
+            settings["integrations.ad"][0]["ad_mo_sync_terminate_disabled"] = True
             return settings
-
-        mo_values = self.mo_values_func()
 
         # Helper functions to seed admosync mock
         def add_ad_data(ad_values):
@@ -531,8 +570,9 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                     {
                         "itsystem": {
                             "name": "Active Directory",
-                            "uuid": "it_system_ad_uuid",
+                            "uuid": "it_system_uuid",
                         },
+                        "user_key": "username",
                         "uuid": "it_system_uuid",
                         "validity": {"from": from_date, "to": to_date},
                     }

@@ -425,22 +425,8 @@ class AdMoSyncTestSubclass(AdMoSync):
         pass
 
     def _setup_mora_helper(self):
-        def _mo_lookup(uuid, url):
-            if url.startswith("e/{}/details/"):
-                slash_index = url.rfind("/")
-                parameters_index = url.rfind("?")
-                if parameters_index == -1:
-                    parameters_index = None
-                lookup_type = url[slash_index + 1 : parameters_index]
-                return self.mo_seed[lookup_type]
-            elif url.startswith("o/{}/e?limit="):
-                return {"items": [self.mo_values]}
-            else:
-                print("Outside mocking", url)
-                raise NotImplemented
-
-        def get_e_username(e_uuid, it_system):
-            return self.e_username
+        def get_e_details(detail_type):
+            return lambda *args, **kwargs: self.mo_seed[detail_type]
 
         def _mo_post(url, payload, force=True):
             # Register the call, so we can test against it
@@ -449,6 +435,9 @@ class AdMoSyncTestSubclass(AdMoSync):
             )
             # response.text --> "OK"
             return AttrDict({"text": "OK", "raise_for_status": lambda: None})
+
+        def read_user(uuid):
+            return self.mo_values
 
         return AttrDict(
             {
@@ -460,13 +449,16 @@ class AdMoSyncTestSubclass(AdMoSync):
                         {"uuid": "address_visibility_secret_uuid"},
                     ]
                 ],
-                "get_e_username": get_e_username,
-                "_mo_lookup": _mo_lookup,
+                "read_user": read_user,
+                "read_all_users": lambda: [self.mo_values],
+                "read_user_engagement": get_e_details("engagement"),
+                "get_e_addresses": get_e_details("address"),
+                "get_e_itsystems": get_e_details("it"),
                 "_mo_post": _mo_post,
             }
         )
 
-    def _setup_ad_reader_and_cache_all(self):
+    def _setup_ad_reader_and_cache_all(self, index):
         def read_user(cpr, cache_only):
             # We only support one person in our mocking
             if cpr != self.mo_values["cpr"]:
@@ -474,11 +466,16 @@ class AdMoSyncTestSubclass(AdMoSync):
             # If we got that one person, return it
             return self.ad_values
 
-        self.ad_reader = AttrDict(
+        def get_settings():
+            return self.settings["integrations.ad"][0]
+
+        ad_reader = AttrDict(
             {
+                "_get_setting": get_settings,
                 "read_user": read_user,
             }
         )
+        return ad_reader
 
 
 class TestADMoSyncMixin(TestADMixin):

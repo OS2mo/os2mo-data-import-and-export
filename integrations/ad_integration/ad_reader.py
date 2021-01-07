@@ -23,6 +23,7 @@ class ADParameterReader(AD):
         return response
 
     def read_it_all(self):
+        # XXX: What's the point of reading settings here?
         settings = self._get_setting()
         return self.cache_all()
 
