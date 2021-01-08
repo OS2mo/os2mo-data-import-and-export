@@ -931,13 +931,14 @@ class ChangeAtSD:
             self.mo_person = self.helper.read_user(
                 user_cpr=cpr, org_uuid=self.org_uuid
             )
+            logger.debug(str(self.mo_person))
             self.updater.set_current_person(mo_person=self.mo_person)
 
             if not self.mo_person:
                 sd_engagement = filter(skip_initial_deleted, sd_engagement)
                 for employment_info in sd_engagement:
+                    logger.warning('This person should be in MO, but is not')
                     try:
-                        logger.warning('This person should be in MO, but is not')
                         self.update_changed_persons(cpr=cpr)
                         self.mo_person = self.helper.read_user(
                             user_cpr=cpr, org_uuid=self.org_uuid
