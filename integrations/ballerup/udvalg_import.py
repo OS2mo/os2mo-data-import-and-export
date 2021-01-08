@@ -1,5 +1,6 @@
 import uuid
 import csv
+import datetime
 import pickle
 import logging
 import hashlib
@@ -127,13 +128,14 @@ def _create_mo_ou(name, parent, org_type, bvn):
     ou_type = _find_class(find_facet='org_unit_type', find_class=org_type)
     if parent == 'root':
         parent = ROOT
+    today = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
     payload = {
         'uuid': uuid,
         'user_key': str(bvn),
         'name': '{} {}'.format(org_type, name),
         'org_unit_type': {'uuid': ou_type},
         'parent': {'uuid': parent},
-        'validity': {'from': '1930-01-01',
+        'validity': {'from': today,
                      'to':  None}
     }
 
