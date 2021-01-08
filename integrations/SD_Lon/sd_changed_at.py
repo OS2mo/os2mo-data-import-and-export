@@ -906,7 +906,7 @@ class ChangeAtSD:
             else:
                 code = emp_status['EmploymentStatusCode']
             code = EmploymentStatus(code)
-            if code in LetGo:
+            if code in EmploymentStatus.LetGo:
                 # NOTE: I think we should still import Migreret and Ophørt,
                 #       as you might change from that to Ansat later.
                 logger.warning(
