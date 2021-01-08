@@ -145,7 +145,7 @@ def export_ou_emus(session, nodes, emus_file=sys.stdout):
         phone = session.query(Adresse.værdi).filter(and_(
             Adresse.adressetype_titel == 'Telefon',
             Adresse.enhed_uuid == ou.uuid,
-        )).one_or_none()
+        )).scalar()
 
         row = {
             'uuid': ou.uuid,

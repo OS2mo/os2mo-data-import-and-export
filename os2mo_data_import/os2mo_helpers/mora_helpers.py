@@ -17,6 +17,7 @@ import logging
 import requests
 import datetime
 from anytree import Node
+from more_itertools import only
 
 SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
 PRIMARY_RESPONSIBILITY = 'Personale: ansættelse/afskedigelse'
