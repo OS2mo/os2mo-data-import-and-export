@@ -21,6 +21,7 @@ from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import load_settings
+from integrations.SD_Lon.sd_common import EmploymentStatus, LetGo
 
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater
@@ -922,12 +923,17 @@ class ChangeAtSD:
             if not self.mo_person:
                 sd_engagement = filter(skip_initial_deleted, sd_engagement)
                 for employment_info in sd_engagement:
-                    logger.warning('This person should be in MO, but is not')
-                    self.update_changed_persons(cpr=cpr)
-                    self.mo_person = self.helper.read_user(
-                        user_cpr=cpr, org_uuid=self.org_uuid
-                    )
-                    self.updater.set_current_person(mo_person=self.mo_person)
+                    try:
+                        logger.warning('This person should be in MO, but is not')
+                        self.update_changed_persons(cpr=cpr)
+                        self.mo_person = self.helper.read_user(
+                            user_cpr=cpr, org_uuid=self.org_uuid
+                        )
+                        self.updater.set_current_person(mo_person=self.mo_person)
+                    except Exception as exp:
+                        logger.error(
+                            "Unable to find person in MO, SD error: " + str(exp)
+                        )
             else:  # if self.mo_person:
                 self.mo_engagement = self.helper.read_user_engagement(
                     self.mo_person['uuid'],
