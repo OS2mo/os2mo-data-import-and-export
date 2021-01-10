@@ -21,6 +21,7 @@ from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import load_settings
+from integrations.SD_Lon.sd_common import EmploymentStatus, LetGo
 
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater

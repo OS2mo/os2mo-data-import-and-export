@@ -127,7 +127,7 @@ def export_ou_emus(mh, nodes, emus_file):
 
     last_changed = datetime.datetime.now().strftime("%Y-%m-%d")
     logger.info("writing %d ou rows to file", len(engagement_counter))
-    for r in sorted(rows, key=lambda r: r['uuid']):
+    for r in rows:
         empls = engagement_counter[r["uuid"]]
         if empls == 0:
             logger.debug("empty department skipped: %s (%s)",
@@ -400,7 +400,7 @@ def export_e_emus(mh, nodes, emus_file):
     logger.info("writing %d engagement rows and %d manager rows to file",
                 len(engagement_rows), len(manager_rows))
     last_changed = datetime.datetime.now().strftime("%Y-%m-%d")
-    for r in sorted(rows, key=lambda r: r["employee_id"]):
+    for r in rows:
         emus_file.write("<employee id=\"%s\" client=\"%s\" lastChanged=\"%s\">\n" % (
             r["employee_id"],
             r["client"],
