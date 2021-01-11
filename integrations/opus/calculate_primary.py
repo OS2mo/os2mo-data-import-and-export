@@ -201,9 +201,10 @@ class MOPrimaryEngagementUpdater(object):
 
             fixed = None
             for eng in mo_engagement:
-                if eng['primary']['uuid'] == self.primary_types['fixed_primary']:
-                    logger.info('Engagment {} is fixed primary'.format(eng['uuid']))
-                    fixed = eng['uuid']
+                if eng['primary']:
+                    if eng['primary']['uuid'] == self.primary_types['fixed_primary']:
+                        logger.info('Engagment {} is fixed primary'.format(eng['uuid']))
+                        fixed = eng['uuid']
 
             exactly_one_primary = False
             for eng in mo_engagement:
