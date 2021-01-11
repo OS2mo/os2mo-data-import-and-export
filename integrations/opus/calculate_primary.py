@@ -113,7 +113,11 @@ class MOPrimaryEngagementUpdater(object):
         for eng in mo_engagement:
             logger.debug('Calculate rate, engagement: {}'.format(eng))
 
-            employment_id = int(eng['user_key'])
+            try:
+                employment_id = int(eng['user_key'])
+            except ValueError:
+                logger.debug("Skippning engangement with non-integer employment_id: {}".format(eng['user_key']))
+                continue
 
             stat = 'Current eng_type, min_id: {}, {}. This rate, eng_pos: {}, {}'
             logger.debug(stat.format(min_type_pri, min_id,
@@ -214,7 +218,11 @@ class MOPrimaryEngagementUpdater(object):
                     'to': to
                 }
 
-                employment_id = int(eng['user_key'])
+                try:
+                    employment_id = int(eng['user_key'])
+                except ValueError:
+                    logger.debug("Skippning engangement with non-integer employment_id: {}".format(eng['user_key']))
+                    continue
                 if eng['engagement_type'] in self.eng_types_order:
                     type_pri = self.eng_types_order.index(eng['engagement_type'])
                 else:
