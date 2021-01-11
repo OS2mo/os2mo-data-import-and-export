@@ -644,7 +644,7 @@ class MoraHelper:
         return list(addresses)
 
     def get_e_address(self, e_uuid, scope):
-        return only(self.get_addresses(e_uuid, scope), {})
+        return only(self.get_e_addresses(e_uuid, scope), {})
 
     def get_e_itsystems(self, e_uuid, it_system_uuid=None):
         it_systems = self._mo_lookup(e_uuid, 'e/{}/details/it')
