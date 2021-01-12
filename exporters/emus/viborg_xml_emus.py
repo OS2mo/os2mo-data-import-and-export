@@ -156,10 +156,7 @@ def get_e_username(e_uuid, id_it_system, mh):
 
 
 def get_e_address(e_uuid, scope, mh):
-    candidates = []
-    for address in mh._mo_lookup(e_uuid, 'e/{}/details/address'):
-        if address['address_type']['scope'] == scope:
-            candidates.append(address)
+    candidates = mh.get_e_addresses(e_uuid, scope)
     if scope == "PHONE":
         priority_list = settings.get("emus.phone.priority", [])
     elif scope == "EMAIL":
