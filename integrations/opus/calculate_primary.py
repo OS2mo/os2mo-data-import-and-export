@@ -116,7 +116,7 @@ class MOPrimaryEngagementUpdater(object):
             try:
                 employment_id = int(eng['user_key'])
             except ValueError:
-                logger.debug("Skippning engangement with non-integer employment_id: {}".format(eng['user_key']))
+                logger.warning("Skippning engangement with non-integer employment_id: {}".format(eng['user_key']))
                 continue
 
             stat = 'Current eng_type, min_id: {}, {}. This rate, eng_pos: {}, {}'
@@ -222,7 +222,7 @@ class MOPrimaryEngagementUpdater(object):
                 try:
                     employment_id = int(eng['user_key'])
                 except ValueError:
-                    logger.debug("Skippning engangement with non-integer employment_id: {}".format(eng['user_key']))
+                    logger.warning("Skippning engangement with non-integer employment_id: {}".format(eng['user_key']))
                     continue
                 if eng['engagement_type'] in self.eng_types_order:
                     type_pri = self.eng_types_order.index(eng['engagement_type'])
