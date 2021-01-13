@@ -330,7 +330,9 @@ exports_queries_ballerup(){
         [ -d "${WORK_DIR}" ] || mkdir "${WORK_DIR}"
         cd "${WORK_DIR}"
         ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
+        local STATUS=$?
         cp "${WORK_DIR}"/*.csv "${EXPORTS_DIR}"
+        return $STATUS
     )
 }
 
@@ -374,7 +376,9 @@ exports_lc_for_jobs_db(){
 
     [ -f "${db_file}" ] && chmod 600 "${db_file}"
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lc_for_jobs_db.py sql-export --resolve-dar
+    local STATUS=$?    
     [ -f "${db_file}" ] && chmod 400 "${db_file}"
+    return $STATUS
 }
 
 exports_dummy(){
@@ -402,10 +406,12 @@ reports_opus_db_overview(){
     echo running reports_opus_db_overview
     outfile=$(mktemp)
     ${VENV}/bin/python3 integrations/opus/db_overview.py > ${outfile}
+    local STATUS=$?
     head -4 ${outfile}
     echo "..."
     tail -3 ${outfile}
     rm ${outfile}
+    return $STATUS
 }
 
 reports_dummy(){
