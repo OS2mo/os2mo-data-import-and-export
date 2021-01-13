@@ -13,6 +13,7 @@ import pathlib
 import json
 from anytree import PostOrderIter, PreOrderIter
 from os2mo_helpers.mora_helpers import MoraHelper
+from exporters.utils.priority_by_class import choose_public_address
 
 """
 Rapportens opdrag: Tæl lederes medarbejdere, og den har udviklet sig lidt:
