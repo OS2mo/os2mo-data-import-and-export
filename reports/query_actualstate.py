@@ -2,11 +2,8 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Dette job skal læse alle brugere der har tilknytning til Medarbejder-organisationen og skrive en raport i en xlsx fil.
-# Det er lavet til Frederikshavns kommune der gerne vil se navn, email, rolle samt udvalg.
-import json
-import logging
-import pathlib
+# Program to fetch data from an actualstate sqlitedatabase, written for creating excel-reports with XLSXExporte.py
+# See customers/Frederikshavn/Frederikshavn_reports.py for an example
 
 import xlsxwriter
 from more_itertools import prepend
@@ -23,22 +20,12 @@ from exporters.sql_export.sql_table_defs import (
 )
 from reports.XLSXExporter import XLSXExporter
 
-logger = logging.getLogger("Frederikshavn_MED")
-for name in logging.root.manager.loggerDict:
-    if name in ("Frederikshavn_MED",):
-        logging.getLogger(name).setLevel(logging.DEBUG)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
-logging.basicConfig(
-    format="%(levelname)s %(asctime)s %(name)s %(message)s",
-    level=logging.DEBUG,
-)
-
 
 def set_of_org_units(session, org_name: str) -> set:
+    """Find all uuids of org_units under the organisation  :code:`org_name`. """
 
     hoved_enhed = session.query(Enhed.uuid).filter(Enhed.navn == org_name).one()[0]
-    # Find under-enheder og læg deres uuid'er i 2 sæt, et til at finde de næste underenheder og et til at samle alle
+    # Find all children of the unit and collect in a set
     def find_children(enheder):
         """Return a set of children under :code:`enheder`."""
         under_enheder = (
@@ -51,7 +38,7 @@ def set_of_org_units(session, org_name: str) -> set:
 
     under_enheder = find_children(set([hoved_enhed]))
     alle_enheder = under_enheder
-    # Så længe der kan findes nye underenheder lægges de i alle_enheder
+    # Update the set with any new units
     while under_enheder:
         under_enheder = find_children(under_enheder)
         alle_enheder.update(under_enheder)
@@ -60,9 +47,9 @@ def set_of_org_units(session, org_name: str) -> set:
 
 
 def list_MED_members(session, org_name: str) -> list:
-    """Lists all members in organisation.
+    """Lists all "tilknyntninger" to an organisation.
 
-    returns a list of tuples with titles as first element and data on members in subsequent lists
+    Returns a list of tuples with titles as first element and data on members in subsequent tuples
     [("Navn", "Email", "Tilknytningstype", "Enhed"),
      ("Fornavn Efternavn", "email@example.com", "Formand", "Enhed")]
     """
@@ -101,16 +88,13 @@ def list_MED_members(session, org_name: str) -> list:
 
 
 def list_employees(session, org_name: str) -> list:
-    """Lists all members in organisation.
+    """Lists all employees in organisation.
 
-    returns a list of tuples with titles as first element and data on members in subsequent lists
-    [("Navn", "Email", "Tilknytningstype", "Enhed"),
-     ("Fornavn Efternavn", "email@example.com", "Formand", "Enhed")]
+    Returns a list of tuples with titles as first element and data on employees in subsequent tuples
+    [(Navn", "cpr", "Email", "Telefon", "Enhed", "Stilling"),
+     ("Fornavn Efternavn", 0123456789,  "email@example.com", "12345678", "Enhedsnavn", "Stillingsbetegnelse")]
     """
     alle_enheder = set_of_org_units(session, org_name)
-
-    # Så slår vi op i databasen på alle de relevante tabeller og knytter dem sammen med filtre.
-    # Desuden filtreres på uuid'erne fundet ovenfor.
 
     Emails = (
         session.query(Adresse.værdi, Adresse.bruger_uuid)
@@ -162,22 +146,13 @@ def list_employees(session, org_name: str) -> list:
 
 def run_report(reporttype, sheetname: str, org_name: str, xlsx_file: str):
 
-    # Lav sqlalchemy session - databasenavnet hentes fra settings
+    # Make a sqlalchemy session - Name of database is read from settings
     session = sessionmaker(bind=get_engine(), autoflush=False)()
-    # Udfør query mod databasen
+    # Make the query
     data = reporttype(session, org_name)
 
-    # Skriv data i en xlsx fil
+    # write data as excel file
     workbook = xlsxwriter.Workbook(xlsx_file)
     excel = XLSXExporter(xlsx_file)
     excel.add_sheet(workbook, sheetname, data)
     workbook.close()
-
-
-if __name__ == "__main__":
-    # Læs fra settings
-    settings = json.loads((pathlib.Path(".") / "settings/settings.json").read_text())
-    org_name = settings["report.MED_org_name"]
-    xlsx_file = settings["report.MED_members_file"]
-    run_report(list_MED_members, "MED", org_name, xlsx_file)
-    run_report(list_employees, "Ansatte", "Frederikshavn Kommune", "Ansatte.xlsx")

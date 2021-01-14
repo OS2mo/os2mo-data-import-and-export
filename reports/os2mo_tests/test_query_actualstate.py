@@ -13,7 +13,13 @@ from exporters.sql_export.sql_table_defs import (
     Enhed,
     Tilknytning,
 )
-from reports.Frederikshavn_MED import *
+from reports.query_actualstate import (
+    get_engine,
+    list_employees,
+    list_MED_members,
+    sessionmaker,
+    set_of_org_units,
+)
 from reports.XLSXExporter import XLSXExporter
 
 

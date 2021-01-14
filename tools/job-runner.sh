@@ -363,9 +363,9 @@ reports_viborg_managers(){
     ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
 }
 
-reports_MED_medlemmer(){
-    BACK_UP_AND_TRUNCATE+=('Frederikshavn_MED.log')
-    ${VENV}/bin/python3 ${DIPEXAR}/reports/Frederikshavn_MED.py
+reports_frederikshavn(){
+    BACK_UP_AND_TRUNCATE+=(Frederikshavn_reports.log)
+    ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/Frederikshavn_reports.py
 }
 
 exports_lc_for_jobs_db(){
