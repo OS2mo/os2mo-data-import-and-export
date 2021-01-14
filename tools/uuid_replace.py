@@ -9,6 +9,7 @@ from tqdm import tqdm
 from more_itertools import flatten
 
 
+# TODO: Consider moving this to exporters/utils/uuid_test.py
 def is_valid_uuid(uuid_to_test, version=None):
     """Check if uuid_to_test is a valid UUID.
 
@@ -67,7 +68,10 @@ def transform(input, jsonmap, output):
         """A naive version of multiple_replace that does not handle interference.
 
         The interference is not a problem here as we strictly control the
-        replacements, and only provide UUIDs.
+        replacements, and only provide UUIDs, which are unique and non-conflicting
+        by design.
+
+        This version runs faster than the regex version, which is why it is used.
         """
         return reduce(
             lambda text, change: text.replace(*change), changes.items(), line
@@ -75,7 +79,7 @@ def transform(input, jsonmap, output):
 
     click.echo("Running multistring replacement...")
     input_lines = tqdm(input_lines)
-    output_lines = map(partial(multiple_replace_run, mapping), input_lines)
+    output_lines = map(partial(multiple_replace, mapping), input_lines)
     output_lines = list(output_lines)
     click.echo("OK")
 
