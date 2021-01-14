@@ -6,7 +6,6 @@ from uuid import UUID
 import click
 from more_itertools import flatten
 
-from exporters.utils.multiple_replace import multiple_replace
 from integrations.ad_integration.utils import progress_iterator
 
 
@@ -66,6 +65,13 @@ def transform(input, jsonmap, output):
 
     click.echo("Running multistring replacement...")
     input_lines = progress_iterator(input_lines)
+
+    from functools import reduce
+    def multiple_replace(changes, line):
+        return reduce(
+            lambda text, change: text.replace(*change), changes, line
+        )
+
     output_lines = map(partial(multiple_replace, mapping), input_lines)
     output_lines = list(output_lines)
     click.echo("OK")
