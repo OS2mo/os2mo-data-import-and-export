@@ -4,9 +4,8 @@ from functools import partial
 from uuid import UUID
 
 import click
+from tqdm import tqdm
 from more_itertools import flatten
-
-from integrations.ad_integration.utils import progress_iterator
 
 
 def is_valid_uuid(uuid_to_test, version=None):
@@ -64,7 +63,7 @@ def transform(input, jsonmap, output):
     click.echo("OK")
 
     click.echo("Running multistring replacement...")
-    input_lines = progress_iterator(input_lines)
+    input_lines = tqdm(input_lines)
 
     from functools import reduce
     def multiple_replace(changes, line):
