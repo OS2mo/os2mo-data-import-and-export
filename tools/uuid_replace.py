@@ -45,17 +45,30 @@ def transform(input, jsonmap, output):
     JSONMAP is a json file containing key-value pairs of UUIDs, the key being
     the original UUID and the value being the UUID to replace it with.
     """
+    click.echo("Loading JSONMAP UUIDs...", nl=False)
     mapping = json.load(jsonmap)
+    click.echo("OK")
+
     # Verify that keys and values are all valid UUIDs
+    click.echo("Verifying JSONMAP UUIDs...", nl=False)
     entries = flatten(mapping.items())
     entries = filterfalse(is_valid_uuid, entries)
     for entry in entries:
         raise click.ClickException("Found non-UUID value in jsonmap: " + entry)
+    click.echo("OK")
 
     # Read the entire input, do multiple replace, and write entire output
+    click.echo("Loading input file...", nl=False)
     input_string = input.read()
+    click.echo("OK")
+
+    click.echo("Running multistring replacement...", nl=False)
     output_string = multiple_replace(input_string, mapping)
+    click.echo("OK")
+
+    click.echo("Writing output file...", nl=False)
     output.write(output_string)
+    click.echo("OK")
 
 
 if __name__ == "__main__":
