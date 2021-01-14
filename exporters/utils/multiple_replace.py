@@ -2,6 +2,25 @@ import re
 from more_itertools import unzip
 
 
+def multiple_replace_compile(replacement_dict):
+    # Replacing empty string is a mess
+    keys = replacement_dict.keys()
+    assert "" not in keys, "Cannot replace empty string"
+
+    # Make a regex pattern, which matches all (escaped) keys
+    escaped_keys = map(re.escape, keys)
+    pattern = re.compile("|".join(escaped_keys))
+
+    return pattern
+
+
+def multiple_replace_run(pattern, replacement_dict, string):
+    # For each match, replace found key with corresponding value
+    return pattern.sub(
+        lambda x: replacement_dict.get(x.group(0), ''), string
+    )
+
+
 def multiple_replace(replacement_dict, string):
     """Make multiple replacements in string.
 
@@ -17,15 +36,5 @@ def multiple_replace(replacement_dict, string):
     Returns:
         Modified string, with all replacements made.
     """
-    # Replacing empty string is a mess
-    keys = replacement_dict.keys()
-    assert "" not in keys, "Cannot replace empty string"
-
-    # Make a regex pattern, which matches all (escaped) keys
-    escaped_keys = map(re.escape, keys)
-    pattern = re.compile("|".join(escaped_keys))
-
-    # For each match, replace found key with corresponding value
-    return pattern.sub(
-        lambda x: replacement_dict.get(x.group(0), ''), string
-    )
+    pattern = multiple_replace_compile(replacement_dict)
+    return multiple_replace_run(pattern, replacement_dict, string)

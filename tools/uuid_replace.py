@@ -7,6 +7,8 @@ import click
 from tqdm import tqdm
 from more_itertools import flatten
 
+from exporters.utils.multiple_replace import multiple_replace
+
 
 def is_valid_uuid(uuid_to_test, version=None):
     """Check if uuid_to_test is a valid UUID.
@@ -65,13 +67,8 @@ def transform(input, jsonmap, output):
     click.echo("Running multistring replacement...")
     input_lines = tqdm(input_lines)
 
-    from functools import reduce
-    def multiple_replace(changes, line):
-        return reduce(
-            lambda text, change: text.replace(*change), changes, line
-        )
-
-    output_lines = map(partial(multiple_replace, mapping), input_lines)
+    pattern = multiple_replace_compile(mapping)
+    output_lines = map(partial(multiple_replace_run, pattern, mapping), input_lines)
     output_lines = list(output_lines)
     click.echo("OK")
 
