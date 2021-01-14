@@ -14,7 +14,13 @@ from sqlalchemy import case, literal_column, or_
 from sqlalchemy.orm import Bundle, sessionmaker
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import Adresse, Bruger, Enhed, Tilknytning, Engagement
+from exporters.sql_export.sql_table_defs import (
+    Adresse,
+    Bruger,
+    Engagement,
+    Enhed,
+    Tilknytning,
+)
 from reports.XLSXExporter import XLSXExporter
 
 logger = logging.getLogger("Frederikshavn_MED")
@@ -28,7 +34,8 @@ logging.basicConfig(
     level=logging.DEBUG,
 )
 
-def set_of_org_units(session, org_name:str) -> set:
+
+def set_of_org_units(session, org_name: str) -> set:
 
     hoved_enhed = session.query(Enhed.uuid).filter(Enhed.navn == org_name).one()[0]
     # Find under-enheder og læg deres uuid'er i 2 sæt, et til at finde de næste underenheder og et til at samle alle
@@ -119,7 +126,7 @@ def list_employees(session, org_name: str) -> list:
     Phonenr = (
         session.query(Adresse.værdi, Adresse.bruger_uuid)
         .filter(
-                Adresse.adressetype_titel == "Telefon",
+            Adresse.adressetype_titel == "Telefon",
             or_(
                 Adresse.synlighed_titel == None,
                 Adresse.synlighed_titel != "Hemmelig",
@@ -134,8 +141,7 @@ def list_employees(session, org_name: str) -> list:
             Emails.c.værdi,
             Phonenr.c.værdi,
             Enhed.navn,
-            Engagement.stillingsbetegnelse_titel
-            
+            Engagement.stillingsbetegnelse_titel,
         )
         .filter(
             Enhed.uuid == Engagement.enhed_uuid,
@@ -147,13 +153,15 @@ def list_employees(session, org_name: str) -> list:
         .order_by(Bruger.efternavn)
     )
     data = query.all()
-    data = list(prepend(("Navn", "cpr", "Email", "Telefon", "Enhed", "Stilling"), data))
-    
+    data = list(
+        prepend(("Navn", "cpr", "Email", "Telefon", "Enhed", "Stilling"), data)
+    )
+
     return data
 
 
-def run_report(reporttype, sheetname: str, org_name:str,  xlsx_file: str):
-    
+def run_report(reporttype, sheetname: str, org_name: str, xlsx_file: str):
+
     # Lav sqlalchemy session - databasenavnet hentes fra settings
     session = sessionmaker(bind=get_engine(), autoflush=False)()
     # Udfør query mod databasen
@@ -171,5 +179,5 @@ if __name__ == "__main__":
     settings = json.loads((pathlib.Path(".") / "settings/settings.json").read_text())
     org_name = settings["report.MED_org_name"]
     xlsx_file = settings["report.MED_members_file"]
-    run_report(list_MED_members, 'MED', org_name, xlsx_file)
-    run_report(list_employees, 'Ansatte', 'Frederikshavn Kommune', 'Ansatte.xlsx')
+    run_report(list_MED_members, "MED", org_name, xlsx_file)
+    run_report(list_employees, "Ansatte", "Frederikshavn Kommune", "Ansatte.xlsx")

@@ -17,7 +17,14 @@ class Tests_xlxs(unittest.TestCase):
         ]
         self.employees = [
             ("Navn", "Email", "Afdeling", "Stilling", "Tlf", "CPR"),
-            ("Fornavn Efternavn", "email@example.com", "Afdeling TEST", "Tester", "00000000", "123456-1234"),
+            (
+                "Fornavn Efternavn",
+                "email@example.com",
+                "Afdeling TEST",
+                "Tester",
+                "00000000",
+                "123456-1234",
+            ),
         ]
 
         workbook = xlsxwriter.Workbook(self.xlsfilename)
@@ -38,6 +45,7 @@ class Tests_xlxs(unittest.TestCase):
             content,
             ["Fornavn Efternavn", "email@example.com", "Formand", "Testenhed"],
         )
+
     def test_read_EMP(self):
         wb = load_workbook(filename=self.xlsfilename)
         ws = wb["EMP"]
@@ -45,8 +53,17 @@ class Tests_xlxs(unittest.TestCase):
         # first cell in each column contains a header, second contains data
         header = [i[0].value for i in ws.columns]
         content = [i[1].value for i in ws.columns]
-        self.assertEqual(header, ["Navn", "Email", "Afdeling", "Stilling", "Tlf", "CPR"])
+        self.assertEqual(
+            header, ["Navn", "Email", "Afdeling", "Stilling", "Tlf", "CPR"]
+        )
         self.assertEqual(
             content,
-            ["Fornavn Efternavn", "email@example.com", "Afdeling TEST", "Tester", "00000000", "123456-1234"],
+            [
+                "Fornavn Efternavn",
+                "email@example.com",
+                "Afdeling TEST",
+                "Tester",
+                "00000000",
+                "123456-1234",
+            ],
         )

@@ -9,6 +9,7 @@ from exporters.sql_export.sql_table_defs import (
     Adresse,
     Base,
     Bruger,
+    Engagement,
     Enhed,
     Tilknytning,
 )
@@ -43,7 +44,7 @@ class Tests_db(unittest.TestCase):
             efternavn="efternavn",
             uuid="b1",
             bvn="b1bvn",
-            cpr="cpr",
+            cpr="cpr1",
         )
         self.session.add(bruger)
         tilknytning = Tilknytning(
@@ -54,6 +55,16 @@ class Tests_db(unittest.TestCase):
             tilknytningstype_titel="titel",
         )
         self.session.add(tilknytning)
+        engagement = Engagement(
+            uuid="Eng1",
+            bvn="Eng1bvn",
+            engagementstype_titel="test1",
+            primærtype_titel="?",
+            bruger_uuid="b1",
+            enhed_uuid="E3",
+            stillingsbetegnelse_titel="tester1",
+        )
+        self.session.add(engagement)
         bruger = Bruger(
             fornavn="fornavn2",
             efternavn="efternavn2",
@@ -70,13 +81,32 @@ class Tests_db(unittest.TestCase):
             tilknytningstype_titel="titel2",
         )
         self.session.add(tilknytning)
+        engagement = Engagement(
+            uuid="Eng2",
+            bvn="Eng2bvn",
+            engagementstype_titel="test2",
+            primærtype_titel="?",
+            bruger_uuid="b2",
+            enhed_uuid="E2",
+            stillingsbetegnelse_titel="tester2",
+        )
+        self.session.add(engagement)
         adresse = Adresse(
             uuid="A1",
             bruger_uuid="b1",
-            adressetype_scope="scope",
+            adressetype_scope="EMAIL",
             adressetype_titel="Email",
             værdi="test@email.dk",
             synlighed_titel="Hemmelig",
+        )
+        self.session.add(adresse)
+        adresse = Adresse(
+            uuid="A2",
+            bruger_uuid="b1",
+            adressetype_scope="PHONE",
+            adressetype_titel="Telefon",
+            værdi="12345678",
+            synlighed_titel="",
         )
         self.session.add(adresse)
         self.session.commit()
@@ -84,7 +114,7 @@ class Tests_db(unittest.TestCase):
     def tearDown(self):
         Base.metadata.drop_all(self.engine)
 
-    def test_data(self):
+    def test_MED_data(self):
         hoved_enhed = self.session.query(Enhed).all()
         data = list_MED_members(self.session, "Hoved-MED")
         self.assertEqual(data[0], ("Navn", "Email", "Tilknytningstype", "Enhed"))
@@ -93,6 +123,34 @@ class Tests_db(unittest.TestCase):
 
         self.assertEqual(
             data[2], ("fornavn2 efternavn2", None, "titel2", "Under-under-MED")
+        )
+
+    def test_set_of_org_units(self):
+        alle_enheder = set_of_org_units(self.session, "Hoved-MED")
+        self.assertEqual(alle_enheder, set(["E2", "E3"]))
+
+    def test_EMP_data(self):
+        hoved_enhed = self.session.query(Enhed).all()
+        data = list_employees(self.session, "Hoved-MED")
+        self.assertEqual(
+            data[0], ("Navn", "cpr", "Email", "Telefon", "Enhed", "Stilling")
+        )
+
+        self.assertEqual(
+            data[1],
+            (
+                "fornavn efternavn",
+                "cpr1",
+                None,
+                "12345678",
+                "Under-under-MED",
+                "tester1",
+            ),
+        )
+
+        self.assertEqual(
+            data[2],
+            ("fornavn2 efternavn2", "cpr2", None, None, "Under-MED", "tester2"),
         )
 
 
