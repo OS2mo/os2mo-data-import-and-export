@@ -1,11 +1,13 @@
 import json
 from itertools import filterfalse
+from functools import partial
 from uuid import UUID
 
 import click
 from more_itertools import flatten
 
 from exporters.utils.multiple_replace import multiple_replace
+from integrations.ad_integration.utils import progress_iterator
 
 
 def is_valid_uuid(uuid_to_test, version=None):
@@ -59,15 +61,18 @@ def transform(input, jsonmap, output):
 
     # Read the entire input, do multiple replace, and write entire output
     click.echo("Loading input file...", nl=False)
-    input_string = input.read()
+    input_lines = input.readlines()
     click.echo("OK")
 
-    click.echo("Running multistring replacement...", nl=False)
-    output_string = multiple_replace(input_string, mapping)
+    click.echo("Running multistring replacement...")
+    input_lines = progress_iterator(input_lines)
+    output_lines = map(partial(multiple_replace, mapping), input_lines)
+    output_lines = list(output_lines)
     click.echo("OK")
 
     click.echo("Writing output file...", nl=False)
-    output.write(output_string)
+    for output_line in output_lines:
+        output.write(output_line + "\n")
     click.echo("OK")
 
 

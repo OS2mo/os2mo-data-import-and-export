@@ -14,14 +14,14 @@ class MultipleReplaceTests(TestCase):
     def test_no_replace(self, text):
         """Test that no replace array yields noop."""
         self.assertEqual(
-            multiple_replace(text, {}), text
+            multiple_replace({}, text), text
         )
 
     @given(st.text())
     def test_empty_string_replace(self, text):
         """Test that no replace array yields noop."""
         with self.assertRaises(AssertionError):
-            multiple_replace(text, {"": "spam"})
+            multiple_replace({"": "spam"}, text)
 
     @given(st.text(), st.text(min_size=1), st.text())
     @example("I like tea", "tea", "coffee")  # --> I like coffee
@@ -31,7 +31,7 @@ class MultipleReplaceTests(TestCase):
         event("new_text == text: " + str(new_text == text))
 
         self.assertEqual(
-            multiple_replace(text, {before: after}),
+            multiple_replace({before: after}, text),
             new_text
         )
 
@@ -49,7 +49,7 @@ class MultipleReplaceTests(TestCase):
         )
         self.assertEqual(new_text, "spam spam spam")
 
-        text = multiple_replace(text, dict(changes))
+        text = multiple_replace(dict(changes), text)
         self.assertEqual(text, "love eating spam")
 
     @given(st.text(), st.dictionaries(st.text(min_size=1), st.text()))
@@ -69,6 +69,6 @@ class MultipleReplaceTests(TestCase):
         event("new_text == text: " + str(new_text == text))
 
         self.assertEqual(
-            multiple_replace(text, changes),
+            multiple_replace(changes, text),
             new_text
         )

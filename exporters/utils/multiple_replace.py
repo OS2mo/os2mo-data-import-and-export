@@ -2,7 +2,7 @@ import re
 from more_itertools import unzip
 
 
-def multiple_replace(string, replacement_dict):
+def multiple_replace(replacement_dict, string):
     """Make multiple replacements in string.
 
     Example:
