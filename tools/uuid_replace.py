@@ -1,13 +1,12 @@
 import json
 from itertools import filterfalse
 from functools import partial
+from functools import reduce
 from uuid import UUID
 
 import click
 from tqdm import tqdm
 from more_itertools import flatten
-
-from exporters.utils.multiple_replace import multiple_replace
 
 
 def is_valid_uuid(uuid_to_test, version=None):
@@ -64,11 +63,19 @@ def transform(input, jsonmap, output):
     input_lines = input.readlines()
     click.echo("OK")
 
+    def multiple_replace(changes, line):
+        """A naive version of multiple_replace that does not handle interference.
+
+        The interference is not a problem here as we strictly control the
+        replacements, and only provide UUIDs.
+        """
+        return reduce(
+            lambda text, change: text.replace(*change), changes.items(), line
+        )
+
     click.echo("Running multistring replacement...")
     input_lines = tqdm(input_lines)
-
-    pattern = multiple_replace_compile(mapping)
-    output_lines = map(partial(multiple_replace_run, pattern, mapping), input_lines)
+    output_lines = map(partial(multiple_replace_run, mapping), input_lines)
     output_lines = list(output_lines)
     click.echo("OK")
 
