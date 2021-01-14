@@ -28,17 +28,10 @@ logging.basicConfig(
     level=logging.DEBUG,
 )
 
+def set_of_org_units(session, org_name:str) -> set:
 
-def list_MED_members(session, org_name: str) -> list:
-    """Lists all members in organisation.
-
-    returns a list of tuples with titles as first element and data on members in subsequent lists
-    [("Navn", "Email", "Tilknytningstype", "Enhed"),
-     ("Fornavn Efternavn", "email@example.com", "Formand", "Enhed")]
-    """
-    # Find MED organisation
     hoved_enhed = session.query(Enhed.uuid).filter(Enhed.navn == org_name).one()[0]
-    # Find under-enheder og læg deres uuid'er i et 2 sæt, et til at finde de næste underenheder og et til at samle alle
+    # Find under-enheder og læg deres uuid'er i 2 sæt, et til at finde de næste underenheder og et til at samle alle
     def find_children(enheder):
         """Return a set of children under :code:`enheder`."""
         under_enheder = (
@@ -50,14 +43,24 @@ def list_MED_members(session, org_name: str) -> list:
         return set(enheder[0] for enheder in under_enheder)
 
     under_enheder = find_children(set([hoved_enhed]))
-    alle_MED_enheder = under_enheder
-    # Så længe der kan findes nye underenheder lægges de i alle_MED_enheder
+    alle_enheder = under_enheder
+    # Så længe der kan findes nye underenheder lægges de i alle_enheder
     while under_enheder:
         under_enheder = find_children(under_enheder)
-        alle_MED_enheder.update(under_enheder)
-    # Så slår vi op i databasen på alle de relevante tabeller og knytter dem sammen med filtre.
-    # Desuden filtreres på uuid'erne fundet ovenfor.
+        alle_enheder.update(under_enheder)
 
+    return alle_enheder
+
+
+def list_MED_members(session, org_name: str) -> list:
+    """Lists all members in organisation.
+
+    returns a list of tuples with titles as first element and data on members in subsequent lists
+    [("Navn", "Email", "Tilknytningstype", "Enhed"),
+     ("Fornavn Efternavn", "email@example.com", "Formand", "Enhed")]
+    """
+
+    alle_MED_enheder = set_of_org_units(session, org_name)
     Emails = (
         session.query(Adresse.værdi, Adresse.bruger_uuid)
         .filter(
@@ -97,25 +100,7 @@ def list_employees(session, org_name: str) -> list:
     [("Navn", "Email", "Tilknytningstype", "Enhed"),
      ("Fornavn Efternavn", "email@example.com", "Formand", "Enhed")]
     """
-    # Find MED organisation
-    hoved_enhed = session.query(Enhed.uuid).filter(Enhed.navn == org_name).one()[0]
-    # Find under-enheder og læg deres uuid'er i et 2 sæt, et til at finde de næste underenheder og et til at samle alle
-    def find_children(enheder):
-        """Return a set of children under :code:`enheder`."""
-        under_enheder = (
-            session.query(Enhed.uuid)
-            .filter(Enhed.forældreenhed_uuid.in_(enheder))
-            .all()
-        )
-        # query returns a list of tuples like [(uuid2,),(uuid2,)], so extract the first item in each.
-        return set(enheder[0] for enheder in under_enheder)
-
-    under_enheder = find_children(set([hoved_enhed]))
-    alle_enheder = under_enheder
-    # Så længe der kan findes nye underenheder lægges de i alle_enheder
-    while under_enheder:
-        under_enheder = find_children(under_enheder)
-        alle_enheder.update(under_enheder)
+    alle_enheder = set_of_org_units(session, org_name)
 
     # Så slår vi op i databasen på alle de relevante tabeller og knytter dem sammen med filtre.
     # Desuden filtreres på uuid'erne fundet ovenfor.
@@ -171,10 +156,10 @@ def run_report(reporttype, sheetname: str, org_name:str,  xlsx_file: str):
     
     # Lav sqlalchemy session - databasenavnet hentes fra settings
     session = sessionmaker(bind=get_engine(), autoflush=False)()
-    # Udtræk MED medlemmer fra databasen
+    # Udfør query mod databasen
     data = reporttype(session, org_name)
 
-    # Skriv MED medlemmernes data i en xlsx fil
+    # Skriv data i en xlsx fil
     workbook = xlsxwriter.Workbook(xlsx_file)
     excel = XLSXExporter(xlsx_file)
     excel.add_sheet(workbook, sheetname, data)
