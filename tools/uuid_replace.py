@@ -77,15 +77,12 @@ def transform(input, jsonmap, output):
             lambda text, change: text.replace(*change), changes.items(), line
         )
 
-    click.echo("Running multistring replacement...")
+    click.echo("Starting multistring replacement and output writing...")
     input_lines = tqdm(input_lines)
     output_lines = map(partial(multiple_replace, mapping), input_lines)
-    output_lines = list(output_lines)
-    click.echo("OK")
 
-    click.echo("Writing output file...", nl=False)
     for output_line in output_lines:
-        output.write(output_line + "\n")
+        output.write(output_line)
     click.echo("OK")
 
 
