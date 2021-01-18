@@ -99,7 +99,7 @@ def list_employees(session, org_name: str) -> list:
     Emails = (
         session.query(Adresse.værdi, Adresse.bruger_uuid)
         .filter(
-            Adresse.adressetype_titel == "Email",
+            Adresse.adressetype_titel == "AD-Email",
             or_(
                 Adresse.synlighed_titel == None,
                 Adresse.synlighed_titel != "Hemmelig",
@@ -110,7 +110,7 @@ def list_employees(session, org_name: str) -> list:
     Phonenr = (
         session.query(Adresse.værdi, Adresse.bruger_uuid)
         .filter(
-            Adresse.adressetype_titel == "Telefon",
+            Adresse.adressetype_titel == "AD-Telefonnummer",
             or_(
                 Adresse.synlighed_titel == None,
                 Adresse.synlighed_titel != "Hemmelig",
@@ -138,7 +138,10 @@ def list_employees(session, org_name: str) -> list:
     )
     data = query.all()
     data = list(
-        prepend(("Navn", "cpr", "Email", "Telefon", "Enhed", "Stilling"), data)
+        prepend(
+            ("Navn", "cpr", "AD-Email", "AD-Telefonnummer", "Enhed", "Stilling"),
+            data,
+        )
     )
 
     return data

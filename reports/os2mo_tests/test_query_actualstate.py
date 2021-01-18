@@ -107,10 +107,19 @@ class Tests_db(unittest.TestCase):
         )
         self.session.add(adresse)
         adresse = Adresse(
+            uuid="A1",
+            bruger_uuid="b1",
+            adressetype_scope="EMAIL",
+            adressetype_titel="AD-Email",
+            værdi="AD-email@email.dk",
+            synlighed_titel="Offentlig",
+        )
+        self.session.add(adresse)
+        adresse = Adresse(
             uuid="A2",
             bruger_uuid="b1",
             adressetype_scope="PHONE",
-            adressetype_titel="Telefon",
+            adressetype_titel="AD-Telefonnummer",
             værdi="12345678",
             synlighed_titel="",
         )
@@ -139,7 +148,8 @@ class Tests_db(unittest.TestCase):
         hoved_enhed = self.session.query(Enhed).all()
         data = list_employees(self.session, "Hoved-MED")
         self.assertEqual(
-            data[0], ("Navn", "cpr", "Email", "Telefon", "Enhed", "Stilling")
+            data[0],
+            ("Navn", "cpr", "AD-Email", "AD-Telefonnummer", "Enhed", "Stilling"),
         )
 
         self.assertEqual(
@@ -147,7 +157,7 @@ class Tests_db(unittest.TestCase):
             (
                 "fornavn efternavn",
                 "cpr1",
-                None,
+                "AD-email@email.dk",
                 "12345678",
                 "Under-under-MED",
                 "tester1",

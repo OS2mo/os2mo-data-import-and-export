@@ -28,7 +28,7 @@ class XLSXExporter:
 
     def add_sheet(self, workbook, sheet: str, data: list):
         worksheet = workbook.add_worksheet(name=sheet)
-        worksheet.autofilter("A1:D51")
+        worksheet.autofilter(0, 0, len(data), len(data[0]) - 1)
 
         for index in range(len(data[0])):
             worksheet.set_column(
