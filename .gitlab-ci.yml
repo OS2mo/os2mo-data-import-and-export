@@ -38,6 +38,12 @@ stages:
     - docker
 
 
+Lint Customers files:
+  extends: .lint-python
+  script:
+    - python -m black --diff --line-length 85 --check customers/
+    - python -m isort --profile black --diff --check-only customers/
+
 Lint LoraCache Integration:
   extends: .lint-python
   script:
@@ -74,8 +80,8 @@ Lint OPUS Org Tree Print:
 Lint Reports:
   extends: .lint-python
   script:
-    - python -m black --diff --line-length 85 --check reports/Frederikshavn_MED.py reports/XLSXExporter.py reports/os2mo_tests/test_frederikshavn_MED_XLSX.py reports/os2mo_tests/test_XLSXExporter.py 
-    - python -m isort --profile black --check-only reports/XLSXExporter.py reports/os2mo_tests/test_frederikshavn_MED_XLSX.py reports/os2mo_tests/test_XLSXExporter.py 
+    - python -m black --diff --line-length 85 --check reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py 
+    - python -m isort --profile black --check-only reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py 
 
 Lint Exporter Utils:
   extends: .lint-python
