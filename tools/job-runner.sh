@@ -589,8 +589,8 @@ reports(){
         run-job reports_viborg_managers || return 2
     fi
 
-    if [ "${RUN_MED_MEDLEMMER}" == "true" ]; then
-        run-job reports_MED_medlemmer || return 2
+    if [ "${RUN_REPORTS_FREDERIKSHAVN}" == "true" ]; then
+        run-job reports_frederikshavn || return 2
     fi
 
     if [ "${RUN_REPORTS_DUMMY}" == "true" ]; then
