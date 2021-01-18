@@ -67,13 +67,11 @@ show_git_commit(){
 }
 
 imports_mox_db_clear(){
-    set -e
     echo running imports_mox_db_clear
     ${VENV}/bin/python3 tools/clear_mox_tables.py
 }
 
 imports_test_ad_connectivity(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/test_connectivity.log"
     )
@@ -82,13 +80,11 @@ imports_test_ad_connectivity(){
 }
 
 imports_test_sd_connectivity(){
-    set -e
     echo running imports_test_sd_connectivity
     ${VENV}/bin/python3 integrations/SD_Lon/test_sd_connectivity.py
 }
 
 imports_test_opus_connectivity(){
-    set -e
     (
         SETTING_PREFIX="cronhook" source ${DIPEXAR}/tools/prefixed_settings.sh
         if [ "${mount_opus_on}" = "true" ] ; then
@@ -107,7 +103,6 @@ imports_test_opus_connectivity(){
 }
 
 imports_sd_fix_departments(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/fix_sd_departments.log"
     )
@@ -116,7 +111,6 @@ imports_sd_fix_departments(){
 }
 
 imports_sd_changed_at(){
-    set -e
     echo running imports_sd_changed_at
     BACK_UP_AFTER_JOBS+=(
         ${DIPEXAR}/cpr_mo_ad_map.csv
@@ -126,7 +120,6 @@ imports_sd_changed_at(){
 }
 
 imports_opus_diff_import(){
-    set -e
     echo running opus_diff_import
     BACK_UP_AFTER_JOBS+=(
         ${DIPEXAR}/cpr_mo_ad_map.csv
@@ -148,7 +141,6 @@ imports_sd_update_primary(){
 
 
 imports_ad_sync(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/ad_mo_sync.log"
     )
@@ -157,13 +149,11 @@ imports_ad_sync(){
 }
 
 imports_ballerup_apos(){
-    set -e
     echo running imports_ballerup_apos
     ${VENV}/bin/python3 integrations/ballerup/ballerup.py
 }
 
 imports_ballerup_udvalg(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/udvalg.log"
     )
@@ -172,7 +162,6 @@ imports_ballerup_udvalg(){
 }
 
 imports_ad_group_into_mo(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/external_ad_users.log"
     )
@@ -181,7 +170,6 @@ imports_ad_group_into_mo(){
 }
 
 imports_kle_online(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/kle_online.log"
     )
@@ -190,7 +178,6 @@ imports_kle_online(){
 }
 
 imports_opgavefordeler(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/opgavefordeler.log"
     )
@@ -199,13 +186,11 @@ imports_opgavefordeler(){
 }
 
 imports_dummy(){
-    set -e
     echo "Running imports_dummy"
 }
 
 
 exports_mox_rollekatalog(){
-    set -e
     export MOX_ROLLE_MAPPING="${DIPEXAR}/cpr_mo_ad_map.csv"
     export MOX_ROLLE_OS2MO_API_KEY=$SAML_TOKEN
     export MOX_ROLLE_LOG_FILE="${DIPEXAR}/exports_mox_rollekatalog.log"
@@ -219,7 +204,6 @@ exports_mox_rollekatalog(){
 }
 
 exports_os2sync(){
-    set -e
     BACK_UP_AND_TRUNCATE+=($(
         SETTING_PREFIX="os2sync" source ${DIPEXAR}/tools/prefixed_settings.sh
         echo ${log_file}
@@ -229,7 +213,6 @@ exports_os2sync(){
 }
 
 exports_mox_stsorgsync(){
-    set -e
     MOX_ERR_CODE=0
     BACK_UP_AND_TRUNCATE+=($(
         SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -249,7 +232,6 @@ exports_mox_stsorgsync(){
 }
 
 exports_cpr_uuid(){
-    set -e
     echo running exports_cpr_uuid
     (
         SETTING_PREFIX="cpr.uuid" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -258,7 +240,6 @@ exports_cpr_uuid(){
 }
 
 exports_viborg_emus(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         emus_log.txt
     )
@@ -267,7 +248,6 @@ exports_viborg_emus(){
 }
 
 exports_viborg_eksterne(){
-    set -e
     echo "running viborgs eksterne"
     ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py --lora|| exit 1
     (
@@ -297,7 +277,6 @@ exports_viborg_eksterne(){
 }
 
 exports_ad_life_cycle(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/AD_life_cycle.log"
     )
@@ -306,7 +285,6 @@ exports_ad_life_cycle(){
 }
 
 exports_mo_to_ad_sync(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/mo_to_ad_sync.log"
     )
@@ -315,7 +293,6 @@ exports_mo_to_ad_sync(){
 }
 
 exports_plan2learn(){
-    set -e
     echo "running exports_plan2learn"
     declare -a CSV_FILES=(
 	bruger
@@ -339,7 +316,6 @@ exports_plan2learn(){
 }
 
 exports_queries_ballerup(){
-    set -e
     echo appending ballerup exports logfile to BACK_UP_AND_TRUNCATE
     BACK_UP_AND_TRUNCATE+=($(
         SETTING_PREFIX="exporters.ballerup" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -354,7 +330,9 @@ exports_queries_ballerup(){
         [ -d "${WORK_DIR}" ] || mkdir "${WORK_DIR}"
         cd "${WORK_DIR}"
         ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
+        local STATUS=$?
         cp "${WORK_DIR}"/*.csv "${EXPORTS_DIR}"
+        return $STATUS
     )
 }
 
@@ -398,16 +376,12 @@ exports_lc_for_jobs_db(){
 
     [ -f "${db_file}" ] && chmod 600 "${db_file}"
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lc_for_jobs_db.py sql-export --resolve-dar
+    local STATUS=$?    
     [ -f "${db_file}" ] && chmod 400 "${db_file}"
-}
-
-exports_test(){
-    set -e
-    :
+    return $STATUS
 }
 
 exports_dummy(){
-    set -e
     echo "Running exports_dummy"
 }
 
@@ -417,7 +391,6 @@ reports_viborg_managers(){
 }
 
 reports_sd_db_overview(){
-    set -e
     echo running reports_sd_db_overview
     outfile=$(mktemp)
     ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py > ${outfile}
@@ -430,18 +403,18 @@ reports_sd_db_overview(){
 }
 
 reports_opus_db_overview(){
-    set -e
     echo running reports_opus_db_overview
     outfile=$(mktemp)
     ${VENV}/bin/python3 integrations/opus/db_overview.py > ${outfile}
+    local STATUS=$?
     head -4 ${outfile}
     echo "..."
     tail -3 ${outfile}
     rm ${outfile}
+    return $STATUS
 }
 
 reports_dummy(){
-    set -e
     echo "Running reports_dummy"
 }
 
