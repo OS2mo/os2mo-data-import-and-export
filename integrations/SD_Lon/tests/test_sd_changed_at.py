@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, call, patch
 import hypothesis.strategies as st
 import xmltodict
 from hypothesis import example, given
+from parameterized import parameterized
 from integrations.ad_integration.utils import AttrDict
 from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD, gen_date_pairs
@@ -430,18 +431,30 @@ class Test_sd_changed_at(unittest.TestCase):
                 status["ActivationDate"], employment_id
             )
 
-    def test_create_new_engagement(self):
+    @parameterized.expand([
+        ["07777", "monthly pay"],
+        ["90000", "hourly pay"],
+        ["C3-P0", "employment pay"],
+    ])
+    def test_create_new_engagement(self, employment_id, engagement_type):
 
         cpr = "0101709999"
+        job_id = "1234"
 
         _, read_employment_result = read_employment_fixture(
             cpr=cpr,
-            employment_id="01337",
-            job_id="1234",
+            employment_id=employment_id,
+            job_id=job_id,
             job_title="EDB-Mand",
         )
 
         sd_updater = setup_sd_changed_at()
+
+        sd_updater.engagement_types = {
+            'månedsløn': 'monthly pay',
+            'timeløn': 'hourly pay',
+            'engagement_type' + job_id: 'employment pay'
+        }
 
         morahelper = sd_updater.morahelper_mock
 
@@ -480,8 +493,8 @@ class Test_sd_changed_at(unittest.TestCase):
                 "person": {"uuid": "user_uuid"},
                 "job_function": {"uuid": "profession_uuid"},
                 "primary": {"uuid": "non_primary_uuid"},
-                "engagement_type": {"uuid": None},
-                "user_key": "01337",
+                "engagement_type": {"uuid": engagement_type},
+                "user_key": employment_id,
                 "fraction": 0,
                 "validity": {"from": "2020-11-10", "to": "2021-02-09"},
             },
@@ -528,19 +541,30 @@ class Test_sd_changed_at(unittest.TestCase):
             },
         )
 
-    def test_update_all_employments_editing(self):
+    @parameterized.expand([
+        ["07777", "monthly pay"],
+        ["90000", "hourly pay"],
+        ["C3-P0", "employment pay"],
+    ])
+    def test_update_all_employments_editing(self, employment_id, engagement_type):
 
         cpr = "0101709999"
-        employment_id = "01337"
+        job_id = "1234"
 
         _, read_employment_result = read_employment_fixture(
             cpr=cpr,
             employment_id=employment_id,
-            job_id="1234",
+            job_id=job_id,
             job_title="EDB-Mand",
         )
 
         sd_updater = setup_sd_changed_at()
+        sd_updater.engagement_types = {
+            'månedsløn': 'monthly pay',
+            'timeløn': 'hourly pay',
+            'engagement_type' + job_id: 'employment pay'
+        }
+
         sd_updater.read_employment_changed = lambda: read_employment_result
         # Load noop NY logic
         sd_updater.apply_NY_logic = lambda org_unit, user_key, validity: org_unit
@@ -572,7 +596,7 @@ class Test_sd_changed_at(unittest.TestCase):
         self.assertFalse(_mo_post.called)
         sd_updater.update_all_employments()
         # We expect the exact following 4 calls to have been made
-        self.assertEqual(len(_mo_post.mock_calls), 4)
+        self.assertEqual(len(_mo_post.mock_calls), 5)
         _mo_post.assert_has_calls(
             [
                 call(
@@ -604,6 +628,17 @@ class Test_sd_changed_at(unittest.TestCase):
                         "uuid": "mo_engagement_uuid",
                         "data": {
                             "job_function": {"uuid": "profession_uuid"},
+                            "validity": {"from": "2020-11-10", "to": None},
+                        },
+                    },
+                ),
+                call(
+                    "details/edit",
+                    {
+                        "type": "engagement",
+                        "uuid": "mo_engagement_uuid",
+                        "data": {
+                            "engagement_type": {"uuid": engagement_type},
                             "validity": {"from": "2020-11-10", "to": None},
                         },
                     },

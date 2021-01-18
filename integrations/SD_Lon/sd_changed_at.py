@@ -121,12 +121,11 @@ class ChangeAtSD:
         facet_info = self.helper.read_classes_in_facet('engagement_job_function')
         job_functions = facet_info[0]
         self.job_function_facet = facet_info[1]
-        self.job_functions = {}
-        for job in job_functions:
-            if self.use_jpi:
-                self.job_functions[job['user_key']] = job['uuid']
-            else:
-                self.job_functions[job['name']] = job['uuid']
+        # Map from user-key to uuid if jpi, name to uuid otherwise
+        job_function_mapper = itemgetter('name', 'uuid')
+        if self.use_jpi:
+            job_function_mapper = itemgetter('user_key', 'uuid')
+        self.job_functions = dict(map(job_function_mapper, job_functions))
 
         logger.info('Read engagement types')
         # The Opus diff-import contains a slightly more abstrac def to do this
@@ -594,33 +593,32 @@ class ChangeAtSD:
         if status['EmploymentStatusCode'] == '0':
             primary = self.primary_types['no_salary']
 
-        split = self.settings['integrations.SD_Lon.monthly_hourly_divide']
-        employment_id = calc_employment_id(engagement)
-        if employment_id['value'] < split:
-            engagement_type = self.engagement_types.get('månedsløn')
-        elif (split - 1) < employment_id['value'] < 999999:
-            engagement_type = self.engagement_types.get('timeløn')
-        else:  # This happens if EmploymentID is not a number
-            # Will fail if a new job position emerges
-            engagement_type = self.engagement_types.get("engagement_type" + job_position)
-            logger.info('Non-nummeric id. Job pos id: {}'.format(job_position))
+        engagement_type = self.determine_engagement_type(engagement, job_position)
 
+        # Do not create engagements for users with too low of a job_position
+        # XXX: Should this check that the engagement is no salary?
         no_salary_minimum = self.settings.get('integrations.SD_Lon.no_salary_minimum_id', None)
         if no_salary_minimum is not None:
-            if int(job_position) < no_salary_minimum:
-                message = 'No salary employee, with bad job_position id'
-                logger.warning(message)
-                return False
+            try:
+                job_position_int = int(job_position)
+                if job_position_int < no_salary_minimum:
+                    message = 'No salary employee, with bad job_position id'
+                    logger.warning(message)
+                    return False
+            # Failed to parse to integer, no worries, keep going
+            except ValueError:
+                pass
 
         extension_field = self.settings.get('integrations.SD_Lon.employment_field')
         extension = {}
         if extension_field is not None:
             extension = {extension_field: emp_name}
 
+        job_function_uuid = self.job_functions.get(job_function)
         payload = sd_payloads.create_engagement(
             org_unit=org_unit,
             mo_person=self.mo_person,
-            job_function=self.job_functions.get(job_function),
+            job_function=job_function_uuid,
             engagement_type=engagement_type,
             primary=primary,
             user_key=user_key,
@@ -720,6 +718,38 @@ class ChangeAtSD:
             response = self.helper._mo_post('details/edit', payload)
             mora_assert(response)
 
+    def determine_engagement_type(self, engagement, job_position):
+        split = self.settings['integrations.SD_Lon.monthly_hourly_divide']
+        employment_id = calc_employment_id(engagement)
+        if employment_id['value'] < split:
+            return self.engagement_types.get('månedsløn')
+        # TODO: Is the first condition not implied by not hitting the above case?
+        if (split - 1) < employment_id['value'] < 999999:
+            return self.engagement_types.get('timeløn')
+        # This happens if EmploymentID is not a number
+        # Will fail if a new job position emerges
+        logger.info('Non-nummeric id. Job pos id: {}'.format(job_position))
+        return self.engagement_types.get("engagement_type" + job_position)
+
+    def _edit_engagement_type(self, engagement, mo_eng):
+        job_id, engagement_info = self.engagement_components(engagement)
+        for profession_info in engagement_info['professions']:
+            logger.info('Change engagement type of engagement {}'.format(job_id))
+            job_position = profession_info['JobPositionIdentifier']
+
+            validity = self._validity(profession_info, mo_eng['validity']['to'],
+                                      cut=True)
+            if validity is None:
+                continue
+
+            engagement_type = self.determine_engagement_type(engagement, job_position)
+            data = {'engagement_type': {'uuid': engagement_type},
+                    'validity': validity}
+            payload = sd_payloads.engagement(data, mo_eng)
+            logger.debug('Update engagement type payload: {}'.format(payload))
+            response = self.helper._mo_post('details/edit', payload)
+            mora_assert(response)
+
     def _edit_engagement_profession(self, engagement, mo_eng):
         job_id, engagement_info = self.engagement_components(engagement)
         for profession_info in engagement_info['professions']:
@@ -797,6 +827,7 @@ class ChangeAtSD:
 
         self._edit_engagement_department(engagement, mo_eng)
         self._edit_engagement_profession(engagement, mo_eng)
+        self._edit_engagement_type(engagement, mo_eng)
         self._edit_engagement_worktime(engagement, mo_eng)
 
     def _handle_status_changes(self, cpr, engagement):
