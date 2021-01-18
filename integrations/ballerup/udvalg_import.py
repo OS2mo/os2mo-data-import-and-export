@@ -255,7 +255,7 @@ def create_tree(file_name):
         new = {}
         remaining_nodes = []
         for row in rows:
-            org_type = row['OrgType'].strip()
+            org_type = 'Prisme'
             id_nr = int(row['Id'])
             parent = int(row['ParentID']) if row['ParentID'] else None
             if parent is None:
@@ -291,9 +291,7 @@ if __name__ == '__main__':
 
     ROOT = _find_org()
 
-    orgtyper_file = '/opt/customer/dataimport/ballerup_udvalg/OrgTyper.csv'
-    amr_medlemmer_file = '/opt/customer/dataimport/ballerup_udvalg/AMR-medlemmer.csv'
-    med_medlemmer_file = '/opt/customer/dataimport/ballerup_udvalg/MED-medlemmer.csv'
+    orgtyper_file = '/opt/customer/dataimport/ballerup_udvalg/Organisationshieraki 28-10-2020-1.csv'
 
     if True:
         nodes = create_tree(orgtyper_file)
@@ -303,10 +301,6 @@ if __name__ == '__main__':
     with open('nodes.p', 'rb') as f:
         nodes = pickle.load(f)
 
-    logger.info('Create AMR')
-    nodes = create_udvalg(nodes, amr_medlemmer_file)
-    logger.info('Create MED')
-    nodes = create_udvalg(nodes, med_medlemmer_file)
 
     # root = min(nodes.keys())
     # from anytree import RenderTree
