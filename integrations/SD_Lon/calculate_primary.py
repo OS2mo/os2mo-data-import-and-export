@@ -6,7 +6,7 @@ import logging
 import datetime
 
 from tqdm import tqdm
-from more_itertools import ilen
+from more_itertools import ilen, pairwise
 
 from integrations.SD_Lon import sd_common
 from integrations.SD_Lon import sd_payloads
@@ -160,56 +160,62 @@ class MOPrimaryEngagementUpdater(object):
         """
         Re-calculate primary engagement for the entire history of the current user.
         """
+        def remove_past(eng):
+            if no_past and eng['validity']['to']:
+                to = datetime.datetime.strptime(
+                    eng['validity']['to'], '%Y-%m-%d'
+                )
+                if to < datetime.datetime.now():
+                    return False
+            return True
+
         logger.info('Calculate primary engagement: {}'.format(self.mo_person))
         uuid = self.mo_person['uuid']
         date_list = self.helper.find_cut_dates(uuid, no_past=no_past)
         number_of_edits = 0
 
-        for i in range(0, len(date_list) - 1):
-            date = date_list[i]
+        for date, next_date in pairwise(date_list):
             logger.info('Recalculate primary, date: {}'.format(date))
 
-            mo_engagement = self._read_engagement(date)
+            mo_engagements = self._read_engagement(date)
             # print('Read engagements {}: {}s'.format(i, time.time() - t))
 
-            logger.debug('MO engagement: {}'.format(mo_engagement))
-            (min_id, max_rate) = self._calculate_rate_and_ids(mo_engagement, no_past)
+            logger.debug('MO engagement: {}'.format(mo_engagements))
+            (min_id, max_rate) = self._calculate_rate_and_ids(mo_engagements, no_past)
             if (min_id is None) or (max_rate is None):
                 continue
 
-            fixed = None
-            for eng in mo_engagement:
-                if no_past and eng['validity']['to']:
-                    to = datetime.datetime.strptime(
-                        eng['validity']['to'], '%Y-%m-%d')
-                    if to < datetime.datetime.now():
-                        continue
+            mo_engagements = list(filter(remove_past, mo_engagements))
 
+            # Enrich engagements with primary, if required
+            # TODO: It would seem this happens for leaves, should we make a
+            #       special type for this?
+            # XXX: This should probably not be done as a side-effect!
+            for eng in mo_engagements:
                 if not eng['primary']:
-                    # Todo: It would seem this happens for leaves, should we make
-                    # a special type for this?
                     eng['primary'] = {'uuid': self.primary_types['non_primary']}
 
+            # XXX: Should we detect and handle multiple fixed primary engagements,
+            # or just pick the last one here, and why the last one??
+            fixed = None
+            for eng in mo_engagements:
                 if eng['primary']['uuid'] == self.primary_types['fixed_primary']:
-                    logger.info('Engagment {} is fixed primary'.format(eng['uuid']))
+                    logger.info('Engagement {} is fixed primary'.format(eng['uuid']))
                     fixed = eng['uuid']
 
-            exactly_one_primary = False
-            for eng in mo_engagement:
-                if no_past and eng['validity']['to']:
-                    to = datetime.datetime.strptime(
-                        eng['validity']['to'], '%Y-%m-%d')
-                    if to < datetime.datetime.now():
-                        continue
-
+            def remove_no_salary(eng):
                 if eng['primary']['uuid'] == self.primary_types['no_salary']:
                     logger.info('Status 0, no update of primary')
-                    continue
+                    return False
+                return True
 
+            exactly_one_primary = False
+            mo_engagements = filter(remove_no_salary, mo_engagements)
+            for eng in mo_engagements:
                 to = datetime.datetime.strftime(
-                    date_list[i + 1] - datetime.timedelta(days=1), "%Y-%m-%d"
+                    next_date - datetime.timedelta(days=1), "%Y-%m-%d"
                 )
-                if date_list[i + 1] == datetime.datetime(9999, 12, 30, 0, 0):
+                if next_date == datetime.datetime(9999, 12, 30, 0, 0):
                     to = None
                 validity = {
                     'from': datetime.datetime.strftime(date, "%Y-%m-%d"),
@@ -221,6 +227,7 @@ class MOPrimaryEngagementUpdater(object):
 
                 try:
                     # non-integer user keys should universally be status0
+                    # XXX: So why are they not? - Is this invariant being broken??
                     employment_id = int(eng['user_key'])
                 except ValueError:
                     logger.warning('Engagement type not status0. Will fix.')
@@ -233,15 +240,17 @@ class MOPrimaryEngagementUpdater(object):
                     response = self.helper._mo_post('details/edit', payload)
                     assert response.status_code == 200
                     logger.info('Status0 fixed')
+                    # XXX: If we are counting number of edits, why do we not count 
+                    #      this edit here??
                     continue
 
-                occupation_rate = 0
-                if eng['fraction']:
-                    occupation_rate = eng['fraction']
+                occupation_rate = eng.get('fraction', 0)
+                logger.debug('Current rate and id: {}, {}'.format(
+                    occupation_rate, employment_id
+                ))
 
-                logger.debug('Current rate and id: {}, {}'.format(occupation_rate,
-                                                                  employment_id))
-
+                # XXX: These conditions are not equivalent, and as such we may end
+                #      up in a situation where the employee gets no primary at all!
                 if occupation_rate == max_rate and employment_id == min_id:
                     assert(exactly_one_primary is False)
                     logger.debug('Primary is: {}'.format(employment_id))
@@ -252,7 +261,9 @@ class MOPrimaryEngagementUpdater(object):
                     current_type = self.primary_types['non_primary']
 
                 if fixed is not None and eng['uuid'] != fixed:
-                    # A fixed primary exits, but this is not it.
+                    # A fixed primary exists, but this is not it.
+                    # XXX: Really it could be if multiple fixed exists, it just does
+                    #      not happen to be 'the last one' for some ordering.
                     logger.debug('Manual override, this is not primary!')
                     current_type = self.primary_types['non_primary']
                 if eng['uuid'] == fixed:
