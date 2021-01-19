@@ -15,9 +15,11 @@ import collections
 import datetime
 import requests
 from xml.sax.saxutils import escape
+from functools import partial
 
 from exporters.emus import config
 
+from tqdm import tqdm
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import and_
 
@@ -121,7 +123,7 @@ def export_ou_emus(session, nodes, emus_file=sys.stdout):
                   'longName', 'street', 'zipCode', 'city', 'phoneNumber']
 
     rows = []
-    for node in PreOrderIter(nodes['root']):
+    for node in tqdm(PreOrderIter(nodes['root']), total=len(nodes), desc="export ou"):
         ou = node.unit
         if not engagement_counter[ou.uuid]:
             logger.info("skipping dept %s with no non-hourly-paid employees",
@@ -388,19 +390,16 @@ def export_e_emus(session, settings, nodes, emus_file):
         ItSystem.navn == "Active Directory"
     ).scalar()
 
-    for node in PreOrderIter(nodes['root']):
+    for node in tqdm(PreOrderIter(nodes['root']), total=len(nodes), desc="export e"):
         ou = node.unit
 
         # normal engagements - original export
-        for engagement in session.query(Engagement).filter(
+        engagements = session.query(Engagement).filter(
             Engagement.enhed_uuid == ou.uuid
-        ).all():
-            if hourly_paid(engagement):
-                continue
-
-            elif discarded(settings, engagement):
-                continue
-
+        ).all()
+        engagements = filter(hourly_paid, engagements)
+        engagements = filter(partial(discarded, settings), engagements)
+        for engagement in engagements:
             logger.info("adding engagement %s", engagement.uuid)
             engagement_rows.append(build_engagement_row(session, settings,
                                                         ou, engagement))
