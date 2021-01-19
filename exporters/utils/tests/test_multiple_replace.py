@@ -1,21 +1,17 @@
-from unittest import TestCase
 from functools import reduce
+from unittest import TestCase
 
-from hypothesis import given, example, assume, event
 import hypothesis.strategies as st
-from parameterized import parameterized
-
 from exporters.utils.multiple_replace import multiple_replace
+from hypothesis import assume, event, example, given
+from parameterized import parameterized
 
 
 class MultipleReplaceTests(TestCase):
-
     @given(st.text())
     def test_no_replace(self, text):
         """Test that no replace array yields noop."""
-        self.assertEqual(
-            multiple_replace({}, text), text
-        )
+        self.assertEqual(multiple_replace({}, text), text)
 
     @given(st.text())
     def test_empty_string_replace(self, text):
@@ -30,10 +26,7 @@ class MultipleReplaceTests(TestCase):
         new_text = text.replace(before, after)
         event("new_text == text: " + str(new_text == text))
 
-        self.assertEqual(
-            multiple_replace({before: after}, text),
-            new_text
-        )
+        self.assertEqual(multiple_replace({before: after}, text), new_text)
 
     def test_replace_multiple_interference(self):
         """Test that multiple replacement does not necessarily work as str.replace.
@@ -44,9 +37,7 @@ class MultipleReplaceTests(TestCase):
         text = "I love eating"
         changes = [("I", "love"), ("love", "eating"), ("eating", "spam")]
 
-        new_text = reduce(
-            lambda text, change: text.replace(*change), changes, text
-        )
+        new_text = reduce(lambda text, change: text.replace(*change), changes, text)
         self.assertEqual(new_text, "spam spam spam")
 
         text = multiple_replace(dict(changes), text)
@@ -68,7 +59,4 @@ class MultipleReplaceTests(TestCase):
         )
         event("new_text == text: " + str(new_text == text))
 
-        self.assertEqual(
-            multiple_replace(changes, text),
-            new_text
-        )
+        self.assertEqual(multiple_replace(changes, text), new_text)

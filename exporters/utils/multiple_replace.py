@@ -1,4 +1,5 @@
 import re
+
 from more_itertools import unzip
 
 
@@ -43,9 +44,7 @@ def multiple_replace_run(pattern, replacement_dict, string):
         Modified string, with all replacements made.
     """
     # For each match, replace found key with corresponding value
-    return pattern.sub(
-        lambda x: replacement_dict.get(x.group(0), ''), string
-    )
+    return pattern.sub(lambda x: replacement_dict.get(x.group(0), ""), string)
 
 
 def multiple_replace(replacement_dict, string):

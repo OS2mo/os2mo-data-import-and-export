@@ -1,12 +1,11 @@
 import json
+from functools import partial, reduce
 from itertools import filterfalse
-from functools import partial
-from functools import reduce
 from uuid import UUID
 
 import click
-from tqdm import tqdm
 from more_itertools import flatten
+from tqdm import tqdm
 
 
 # TODO: Consider moving this to exporters/utils/uuid_test.py
