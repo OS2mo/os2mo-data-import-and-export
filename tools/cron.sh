@@ -46,7 +46,7 @@ fi
 # Database snapshot
 #------------------
 if [ "${INSTALLATION_TYPE}" == "docker" ]; then
-    bash ${DIR}/backup.sh
+    bash ${BACKUP_SCRIPT}
     EXIT_CODE=$?
     if [ ${EXIT_CODE} -ne 0 ]; then
         exit 1
