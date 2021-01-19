@@ -49,7 +49,6 @@ if [ "${INSTALLATION_TYPE}" == "docker" ]; then
     bash ${DIR}/backup.sh
     EXIT_CODE=$?
     if [ ${EXIT_CODE} -ne 0 ]; then
-        echo "Creating backup failed!"
         exit 1
     fi
 elif [ "${INSTALLATION_TYPE}" == "legacy" ]; then
