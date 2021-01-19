@@ -16,6 +16,8 @@ import codecs
 import logging
 import requests
 import datetime
+from operator import itemgetter
+
 from anytree import Node
 from more_itertools import only
 
@@ -595,34 +597,47 @@ class MoraHelper:
         return nodes
 
     def find_cut_dates(self, uuid, no_past=False):
+        """Find dates with changes in engagement history.
+
+        Run throgh entire history of a user and return a list of dates.
+
+        Args:
+            uuid: UUID of the user to find changes for.
+            no_past: Do not read engagements in the past.
+
+        Returns:
+            list: List of dates with changes in engagement history.
         """
-        Run throgh entire history of a user and return a list of dates with
-        changes in the engagement.
-        """
-        mo_engagement = self.read_user_engagement(
+        def get_from_date(validity):
+            fromdate = datetime.datetime.strptime(
+                validity['from'], '%Y-%m-%d'
+            )
+            # Python has no love in for dates like 1900
+            # Thus we clamp the from date to 1930 if it is before then
+            earliest_fromdate = datetime.datetime(1930, 1, 1)
+            return max(fromdate, earliest_fromdate)
+
+        def get_to_date(validity):
+            if validity['to']:
+                to = datetime.datetime.strptime(
+                    validity['to'], '%Y-%m-%d'
+                )
+                day_after = to + datetime.timedelta(days=1)
+                return day_after
+            return datetime.datetime(9999, 12, 30, 0, 0)
+
+        mo_engagements = self.read_user_engagement(
             user=uuid,
             only_primary=True,
             read_all=True,
             skip_past=no_past
         )
+        validities = map(itemgetter('validity'), mo_engagements)
 
         dates = set()
-        for eng in mo_engagement:
-
-            # no love in python for dates like 1900
-            earliest_fromdate=datetime.datetime(1930,1,1)
-            fromdate = datetime.datetime.strptime(eng['validity']['from'],
-                                                 '%Y-%m-%d')
-            if fromdate < earliest_fromdate:
-                fromdate = earliest_fromdate
-            dates.add(fromdate)
-
-            if eng['validity']['to']:
-                to = datetime.datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
-                day_after = to + datetime.timedelta(days=1)
-                dates.add(day_after)
-            else:
-                dates.add(datetime.datetime(9999, 12, 30, 0, 0))
+        for validity in validities:
+            dates.add(get_from_date(validity))
+            dates.add(get_to_date(validity))
 
         date_list = sorted(list(dates))
         logger.debug('List of cut-dates: {}'.format(date_list))

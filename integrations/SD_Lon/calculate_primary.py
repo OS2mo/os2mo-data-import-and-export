@@ -5,10 +5,14 @@ import pathlib
 import logging
 import datetime
 
+from tqdm import tqdm
+from more_itertools import ilen
+
 from integrations.SD_Lon import sd_common
 from integrations.SD_Lon import sd_payloads
 
 from os2mo_helpers.mora_helpers import MoraHelper
+
 
 logger = logging.getLogger("updatePrimaryEngagements")
 LOG_LEVEL = logging.DEBUG
@@ -103,36 +107,6 @@ class MOPrimaryEngagementUpdater(object):
         logger.debug('Min id: {}, Max rate: {}'.format(min_id, max_rate))
         return (min_id, max_rate)
 
-    def _find_cut_dates(self, no_past=False):
-        """
-        Run throgh entire history of current user and return a list of dates with
-        changes in the engagement.
-        """
-        uuid = self.mo_person['uuid']
-
-        mo_engagement = self.helper.read_user_engagement(
-            user=uuid,
-            only_primary=True,
-            read_all=True,
-            skip_past=no_past
-        )
-
-        dates = set()
-        for eng in mo_engagement:
-            dates.add(datetime.datetime.strptime(eng['validity']['from'],
-                                                 '%Y-%m-%d'))
-            if eng['validity']['to']:
-                to = datetime.datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
-                day_after = to + datetime.timedelta(days=1)
-                dates.add(day_after)
-            else:
-                dates.add(datetime.datetime(9999, 12, 30, 0, 0))
-
-        date_list = sorted(list(dates))
-        logger.debug('List of cut-dates: {}'.format(date_list))
-        # print('Find cut dates: {}s'.format(time.time() - t))
-        return date_list
-
     def _read_engagement(self, date):
         mo_engagement = self.helper.read_user_engagement(
             user=self.mo_person['uuid'],
@@ -148,46 +122,47 @@ class MOPrimaryEngagementUpdater(object):
         :return: TODO
         """
         # TODO: This is a seperate function in AD Sync! Change to mora_helpers!
-        count = 0
         all_users = self.helper.read_all_users()
-        for user in all_users:
-            if count % 250 == 0:
-                print('{}/{}'.format(count, len(all_users)))
-            count += 1
-
+        for user in tqdm(all_users):
             self.set_current_person(uuid=user['uuid'])
-            date_list = self._find_cut_dates()
-            for i in range(0, len(date_list) - 1):
-                date = date_list[i]
-                mo_engagement = self._read_engagement(date)
-                primary_count = 0
-                for eng in mo_engagement:
-                    if eng['engagement_type']['uuid'] in self.primary:
-                        primary_count += 1
+
+            # List of cut dates, excluding the very last one
+            date_list = self.helper.find_cut_dates(uuid=user['uuid'])
+            date_list = date_list[:-1]
+            # Map all our dates, to their corresponding engagements.
+            mo_engagements = list(map(self._read_engagement, date_list))
+            # Only keep engagements, which are primary
+            primary_mo_engagements = filter(
+                lambda eng: eng['engagement_type']['uuid'] in self.primary,
+                mo_engagements
+            )
+            # Count number of primary engagements in the iterator
+            primary_count = ilen(primary_mo_engagements)
+
             if primary_count == 0:
                 print('No primary for {} at {}'.format(user['uuid'], date))
             elif primary_count > 1:
                 # This will typically happen because of both a primary and a status0
                 logger.info('{} has more than one primary'.format(user['uuid']))
-                extra_primary_count = 0
-                for eng in mo_engagement:
-                    if eng['engagement_type']['uuid'] in self.primary[0:2]:
-                        extra_primary_count += 1
+                extra_primary_mo_engagements = filter(
+                    lambda eng: eng['engagement_type']['uuid'] in self.primary[0:2],
+                    mo_engagements
+                )
+                extra_primary_count = ilen(extra_primary_mo_engagements)
                 if extra_primary_count == 1:
                     logger.info('Only one primary was different from status 0')
-                if extra_primary_count > 1:
-                    print('Too many primaries for {} at {}'.format(user['uuid'],
-                                                                   date))
-            else:
-                # print('Correct')
-                pass
+                elif extra_primary_count > 1:
+                    print('Too many primaries for {} at {}'.format(
+                        user['uuid'], date
+                    ))
 
     def recalculate_primary(self, no_past=False):
         """
         Re-calculate primary engagement for the entire history of the current user.
         """
         logger.info('Calculate primary engagement: {}'.format(self.mo_person))
-        date_list = self._find_cut_dates(no_past=no_past)
+        uuid = self.mo_person['uuid']
+        date_list = self.helper.find_cut_dates(uuid, no_past=no_past)
         number_of_edits = 0
 
         for i in range(0, len(date_list) - 1):
@@ -234,7 +209,7 @@ class MOPrimaryEngagementUpdater(object):
                 to = datetime.datetime.strftime(
                     date_list[i + 1] - datetime.timedelta(days=1), "%Y-%m-%d"
                 )
-                if to == "9999-12-30":
+                if date_list[i + 1] == datetime.datetime(9999, 12, 30, 0, 0):
                     to = None
                 validity = {
                     'from': datetime.datetime.strftime(date, "%Y-%m-%d"),
