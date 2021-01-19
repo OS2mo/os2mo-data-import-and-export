@@ -52,7 +52,7 @@ def multiple_replace(replacement_dict, string):
     """Make multiple replacements in string.
 
     Example:
-        >>> multiple_replace("I like tea", {"like": "love", "tea": "coffee"})
+        >>> multiple_replace({"like": "love", "tea": "coffee"}, "I like tea")
         I love coffee
 
     Args:
