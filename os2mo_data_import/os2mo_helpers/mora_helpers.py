@@ -14,12 +14,14 @@ import os
 import csv
 import codecs
 import logging
-import requests
+import aiohttp
+import asyncio
 import datetime
 from operator import itemgetter
 
 from anytree import Node
-from more_itertools import only
+from more_itertools import only, flatten
+from integrations.dar_helper.utils import async_to_sync
 
 SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
 PRIMARY_RESPONSIBILITY = 'Personale: ansættelse/afskedigelse'
@@ -34,6 +36,8 @@ class MoraHelper:
         self.cache = {}
         self.default_cache = use_cache
         self.export_ansi = export_ansi
+
+        self.session = aiohttp.ClientSession()
 
     def _split_name(self, name):
         """ Split a name into first and last name.
@@ -115,8 +119,13 @@ class MoraHelper:
             i += 1
         return path_dict
 
-    def _mo_lookup(self, uuid, url, at=None, validity=None, only_primary=False,
-                   use_cache=None, calculate_primary=False):
+    @async_to_sync
+    async def _mo_lookup(self, *args, **kwargs):
+        return await self._a_mo_lookup(*args, **kwargs)
+
+    async def _a_mo_lookup(self, uuid, url, at=None, validity=None,
+                           only_primary=False, use_cache=None,
+                           calculate_primary=False):
         # TODO: at-value is currently not part of cache key
         if use_cache is None:
             use_cache = self.default_cache
@@ -127,7 +136,7 @@ class MoraHelper:
         if only_primary:
             params['only_primary_uuid'] = 1
         if at:
-            params['at'] = at
+            params['at'] = at.isoformat()
         elif validity:
             params['validity'] = validity
 
@@ -138,29 +147,28 @@ class MoraHelper:
             return_dict = self.cache[cache_id]
         else:
             if SAML_TOKEN is None:
-                response = requests.get(full_url, params=params)
-                if response.status_code == 401:
-                    msg = 'Missing SAML token'
-                    logger.error(msg)
-                    raise requests.exceptions.RequestException(msg)
-                return_dict = response.json()
+                async with self.session.get(full_url, params=params) as response:
+                    if response.status == 401:
+                        msg = 'Missing SAML token'
+                        logger.error(msg)
+                        raise ValueError(msg)
+                    return_dict = await response.json()
             else:
                 header = {"SESSION": SAML_TOKEN}
-                response = requests.get(
-                    full_url,
-                    headers=header,
-                    params=params
-                )
-                if response.status_code == 401:
-                    msg = 'SAML token not accepted'
-                    logger.error(msg)
-                    raise requests.exceptions.RequestException(msg)
-
-                return_dict = response.json()
+                async with self.session.get(full_url, headers=header, params=params) as response:
+                    if response.status == 401:
+                        msg = 'SAML token not accepted'
+                        logger.error(msg)
+                        raise ValueError(msg)
+                    return_dict = await response.json()
             self.cache[cache_id] = return_dict
         return return_dict
 
-    def _mo_post(self, url, payload, force=True):
+    @async_to_sync
+    async def _mo_post(self, *args, **kwargs):
+        return await self._a_mo_post(*args, **kwargs)
+
+    async def _a_mo_post(self, url, payload, force=True):
         if force:
             params = {'force': 1}
         else:
@@ -172,13 +180,8 @@ class MoraHelper:
             header = None
 
         full_url = self.host + url
-        response = requests.post(
-            full_url,
-            headers=header,
-            params=params,
-            json=payload
-        )
-        return response
+        async with self.session.get(full_url, headers=header, params=params, json=payload) as response:
+            return await response.text()
 
     def check_connection(self):
         """Check that a connection can be established to MO."""
@@ -186,16 +189,24 @@ class MoraHelper:
         response = self._mo_lookup(uuid=None, url='configuration')
         return "read_only" in response
 
-    def read_organisation(self):
+    @async_to_sync
+    async def read_organisation(self):
+        return await self.a_read_organisation()
+
+    async def a_read_organisation(self):
         """Read the main Organisation, all OU's will have this as root.
 
         Currently reads only one, theroretically more than root org can exist.
         :return: UUID of root organisation
         """
-        org_id = self._mo_lookup(uuid=None, url='o/')
+        org_id = await self._a_mo_lookup(uuid=None, url='o/')
         return org_id[0]['uuid']
 
-    def read_all_users(self, limit=None):
+    @async_to_sync
+    async def read_all_users(self, *args, **kwargs):
+        return await self.a_read_all_users(*args, **kwargs)
+
+    async def a_read_all_users(self, limit=None):
         """Return a list of all employees in MO.
 
         :param limit: If set, only less large sub-set wll be retrived,
@@ -203,10 +214,10 @@ class MoraHelper:
         :return: List af all employees.
         """
         logger.info('Read all MO users')
-        org = self.read_organisation()
+        org = await self.a_read_organisation()
         if limit is None or limit == 0:
             limit = 100000000
-        employee_list = self._mo_lookup(org, 'o/{}/e?limit=' + str(limit))
+        employee_list = await self._a_mo_lookup(org, 'o/{}/e?limit=' + str(limit))
         employees = employee_list['items']
         logger.info('Done reading all MO users')
         return employees
@@ -316,7 +327,11 @@ class MoraHelper:
         logger.info("Terminate detail %s", payload)
         # self._mo_post('details/terminate', payload):
 
-    def read_user_engagement(self, user, at=None, read_all=False, skip_past=False,
+    @async_to_sync
+    async def read_user_engagement(self, *args, **kwargs):
+        return await self.a_read_user_engagement(*args, **kwargs)
+
+    async def a_read_user_engagement(self, user, at=None, read_all=False, skip_past=False,
                              only_primary=False, use_cache=None,
                              calculate_primary=False):
         """Read engagements for a user.
@@ -328,7 +343,7 @@ class MoraHelper:
         :return: List of the users engagements.
         """
         if not read_all:
-            engagements = self._mo_lookup(user, 'e/{}/details/engagement',
+            engagements = await self._a_mo_lookup(user, 'e/{}/details/engagement',
                                           at, only_primary=only_primary,
                                           use_cache=use_cache,
                                           calculate_primary=calculate_primary)
@@ -338,14 +353,14 @@ class MoraHelper:
             else:
                 validity_times = ['past', 'present', 'future']
 
-            engagements = []
+            tasks = []
             for validity in validity_times:
-                engagement = self._mo_lookup(user, 'e/{}/details/engagement',
+                tasks.append(self._a_mo_lookup(user, 'e/{}/details/engagement',
                                              validity=validity,
                                              only_primary=only_primary,
                                              use_cache=False,
-                                             calculate_primary=calculate_primary)
-                engagements = engagements + engagement
+                                             calculate_primary=calculate_primary))
+            engagements = flatten(await asyncio.gather(*tasks))
         return engagements
 
     def read_user_association(self, user, at=None, read_all=False,
@@ -436,6 +451,7 @@ class MoraHelper:
         """
         user_manager = None
 
+        # XXX: Why is this here, this is for MOX?!
         url = 'http://localhost:8080/organisation/organisationfunktion/{}'
         response = requests.get(url.format(engagement_uuid))
         data = response.json()
@@ -596,7 +612,11 @@ class MoraHelper:
                 nodes = self.read_ou_tree(uuid, nodes, nodes[uuid])
         return nodes
 
-    def find_cut_dates(self, uuid, no_past=False):
+    @async_to_sync
+    async def find_cut_dates(self, *args, **kwargs):
+        return self.a_find_cut_dates(*args, **kwargs)
+
+    async def a_find_cut_dates(self, uuid, no_past=False):
         """Find dates with changes in engagement history.
 
         Run throgh entire history of a user and return a list of dates.
@@ -626,7 +646,7 @@ class MoraHelper:
                 return day_after
             return datetime.datetime(9999, 12, 30, 0, 0)
 
-        mo_engagements = self.read_user_engagement(
+        mo_engagements = await self.a_read_user_engagement(
             user=uuid,
             only_primary=True,
             read_all=True,

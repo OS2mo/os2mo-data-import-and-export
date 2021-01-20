@@ -1,15 +1,29 @@
+import asyncio
 import datetime
 import logging
 from abc import ABC, abstractmethod
 from functools import lru_cache, partial
+from operator import itemgetter
 
 from exporters.utils.load_settings import load_settings
-from more_itertools import ilen, pairwise, flatten
+from more_itertools import ilen, pairwise, flatten, chunked
 from os2mo_helpers.mora_helpers import MoraHelper
 from tqdm import tqdm
+from integrations.dar_helper.utils import async_to_sync
 
 LOGGER_NAME = "updatePrimaryEngagements"
 logger = logging.getLogger(LOGGER_NAME)
+
+
+def asyncio_concurrency(concurrency=10):
+    def decorator(function):
+        semaphore = asyncio.Semaphore(concurrency)
+
+        async def wrapper(*args, **kwargs):
+            async with semaphore:
+                return await function(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 def edit_engagement(data, mo_engagement_uuid):
@@ -54,14 +68,14 @@ class MOPrimaryEngagementUpdater(ABC):
             )
         return mo_person
 
-    def _read_engagement(self, user_uuid, date):
-        mo_engagement = self.helper.read_user_engagement(
+    async def _read_engagement(self, user_uuid, date):
+        mo_engagements = await self.helper.a_read_user_engagement(
             user=user_uuid,
             at=date,
             only_primary=True,  # Do not read extended info from MO.
             use_cache=False,
         )
-        return mo_engagement
+        return mo_engagements
 
     @abstractmethod
     def _find_primary_types(self):
@@ -79,14 +93,15 @@ class MOPrimaryEngagementUpdater(ABC):
     def _is_primary(self, employment_id, eng, min_id, impl_specific):
         raise NotImplementedError
 
-    def check_user(self, user_uuid):
+    async def check_user(self, user_uuid):
         # List of cut dates, excluding the very last one
-        date_list = self.helper.find_cut_dates(uuid=user_uuid)
+        date_list = await self.helper.a_find_cut_dates(uuid=user_uuid)
         date_list = date_list[:-1]
         # Map all our dates, to their corresponding engagements.
-        mo_engagements = list(flatten(
-            map(partial(self._read_engagement, user_uuid), date_list)
+        mo_engagement_tasks = list(map(
+            partial(self._read_engagement, user_uuid), date_list
         ))
+        mo_engagements = list(flatten(await asyncio.gather(*mo_engagement_tasks)))
         # Only keep engagements, which are primary
         primary_mo_engagements = filter(
             lambda eng: eng["engagement_type"]["uuid"] in self.primary,
@@ -217,16 +232,24 @@ class MOPrimaryEngagementUpdater(ABC):
         return_dict = {user_uuid: number_of_edits}
         return return_dict
 
-    def check_all(self):
+    @async_to_sync
+    async def check_all(self):
         """
         Check all users for the existence of primary engagements.
         :return: TODO
         """
         print("Reading all users from MO...")
-        all_users = self.helper.read_all_users()
+        all_users = await self.helper.a_read_all_users()
+        user_count = len(all_users)
         print("OK")
-        for user in tqdm(all_users):
-            self.check_user(user["uuid"])
+        all_user_uuids = map(itemgetter('uuid'), all_users)
+
+        # Only run 10 check user calls in parallel
+        check_user_helper = asyncio_concurrency(50)(self.check_user)
+        all_user_check_tasks = map(check_user_helper, all_user_uuids)
+        results = asyncio.as_completed(all_user_check_tasks)
+        for coro in tqdm(results, total=user_count):
+            await coro
 
     def recalculate_all(self, no_past=False):
         """
