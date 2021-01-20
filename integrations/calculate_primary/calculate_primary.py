@@ -61,26 +61,17 @@ def calculate_primary(
     # Acquire the configured updater
     updater = get_engagement_updater(integration)
 
-    # Count number of flags which are set
-    num_set = sum(
-        map(bool, [check_all, check_user, recalculate_all, recalculate_user])
-    )
-    if num_set == 0:
-        raise click.ClickException("Please provide one option flag")
-    if num_set > 1:
-        raise click.ClickException("Flags are mutually exclusive")
-
     # Run the specified operation
     if check_all:
         print("Check all")
         updater.check_all()
-    elif check_user:
+    if check_user:
         print("Check user")
         updater.check_user(check_user)
-    elif recalculate_all:
+    if recalculate_all:
         print("Recalculate all")
         updater.recalculate_all(no_past=True)
-    elif recalculate_user:
+    if recalculate_user:
         print("Recalculate user")
         updater.recalculate_primary(recalculate_user)
 
