@@ -141,7 +141,7 @@ imports_sd_update_primary(){
         "${DIPEXAR}/calculate_primary.log"
     )
     echo updating primary engagements
-    ${VENV}/bin/python3 integrations/SD_Lon/calculate_primary.py --recalculate-all || (
+    ${VENV}/bin/python3 integrations/calculate_primary/calculate_primary.py --integration SD --recalculate-all || (
         # denne fejl skal ikke stoppe afviklingen, da en afbrudt kørsel blot kan gentages
         echo FEJL i updating primary engagements, men kører videre
     )
