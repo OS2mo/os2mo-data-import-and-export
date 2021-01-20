@@ -1,3 +1,6 @@
+from med.payloads import lora_klasse
+
+
 def create_org_unit(department, name, org, unit_type, from_date):
     payload = {
         'uuid': department['DepartmentUUIDIdentifier'],
@@ -156,48 +159,24 @@ def edit_klasse_title(titel):
 
 
 def profession(profession, org, job_function_facet):
-    validity = {
-        'from': '1930-01-01',
-        'to': 'infinity'
-    }
+    klasse = lora_klasse(
+        bvn=profession,
+        title=profession,
+        facet_uuid=job_function_facet,
+        org_uuid=org,
+        scope="TEXT",
+        dato="1930-01-01"
+    )
+    return klasse
 
-    properties = {
-        'brugervendtnoegle': profession,
-        'titel':  profession,
-        'omfang': 'TEXT',
-        "virkning": validity
-    }
-    attributter = {
-        'klasseegenskaber': [properties]
-    }
-    relationer = {
-        'ansvarlig': [
-            {
-                'objekttype': 'organisation',
-                'uuid': org,
-                'virkning': validity
-            }
-        ],
-        'facet': [
-            {
-                'objekttype': 'facet',
-                'uuid': job_function_facet,
-                'virkning': validity
-            }
-        ]
-    }
-    tilstande = {
-        'klassepubliceret': [
-            {
-                'publiceret': 'Publiceret',
-                'virkning': validity
-            }
-        ]
-    }
 
-    payload = {
-        "attributter": attributter,
-        "relationer": relationer,
-        "tilstande": tilstande
-    }
-    return payload
+def engagement_type(engagement_type_ref, job_position_id, org, engagement_type_facet):
+    klasse = lora_klasse(
+        bvn=engagement_type_ref,
+        title=job_position_id,
+        facet_uuid=engagement_type_facet,
+        org_uuid=org,
+        scope="TEXT",
+        dato="1930-01-01"
+    )
+    return klasse

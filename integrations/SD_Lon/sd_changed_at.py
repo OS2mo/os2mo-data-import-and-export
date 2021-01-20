@@ -130,6 +130,7 @@ class ChangeAtSD:
         logger.info('Read engagement types')
         # The Opus diff-import contains a slightly more abstrac def to do this
         engagement_types = self.helper.read_classes_in_facet('engagement_type')
+        self.engagement_type_facet = engagement_types[1]
         self.engagement_types = dict(map(
             itemgetter('user_key', 'uuid'), engagement_types[0]
         ))
@@ -152,23 +153,6 @@ class ChangeAtSD:
         logger.info('Found cpr mapping')
         employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
         return employee_forced_uuids
-
-    def _add_profession_to_lora(self, profession):
-        """
-        Add a new job_function type to LoRa. This does not depend on self.use_jpi,
-        since the argument is just af string. If self.use_jpi is true, the string
-        will be the SD JobPositionIdentifier, otherwise it will be the actual job
-        name.
-        :param prefession: The job_position to be created.
-        """
-        payload = sd_payloads.profession(profession, self.org_uuid,
-                                         self.job_function_facet)
-        response = requests.post(
-            url=self.settings['mox.base'] + '/klassifikation/klasse',
-            json=payload
-        )
-        assert response.status_code == 201
-        return response.json()
 
     @lru_cache(maxsize=None)
     def read_employment_changed(self, from_date=None, to_date=None, employment_identifier=None):
@@ -391,14 +375,74 @@ class ChangeAtSD:
             logger.info(msg)
         return relevant_engagement
 
-    # Possibly this should be generalized to also be able to add engagement_types
-    def _update_professions(self, emp_name):
+    def _create_class(self, payload):
+        """Create a new class using the provided class payload.
+
+        Args:
+            payload: A class created using sd_payloads.* via lora_klasse
+
+        Returns:
+            uuid of the newly created class.
+        """
+        response = requests.post(
+            url=self.settings['mox.base'] + '/klassifikation/klasse',
+            json=payload
+        )
+        assert response.status_code == 201
+        return response.json()['uuid']
+
+    def _fetch_engagement_type(self, engagement_type_ref):
+        """Fetch an engagement type UUID, create if missing.
+
+        Args:
+            engagement_type_ref: String of the expected engagement_type name
+
+        Returns:
+            uuid of the engagement type or None if it could not be created.
+        """
+        # Attempt to fetch the engagement type
+        engagement_type_ref = 'engagement_type' + job_position
+        engagement_type_uuid = self.engagement_types.get(engagement_type_ref)
+        if engagement_type_uuid:
+            return engagement_type_uuid
+        # Could not fetch, attempt to create it
+        logger.warning(
+            "Missing engagement_type: {} (now creating)".format(engagement_type_ref)
+        )
+        payload = sd_payloads.engagement_type(
+            engagement_type_ref, job_position, self.org_uuid, self.engagement_type_facet
+        )
+        engagement_type_uuid = self._create_class(payload)
+        self.engagement_types[engagement_type_ref] = engagement_type_uuid
+        return engagement_type_uuid
+
+    def _fetch_professions(self, emp_name):
+        """Fetch an job function UUID, create if missing.
+
+        This function does not depend on self.use_jpi, as the argument is just a
+        string. If self.use_jpi is true, the string will be the SD
+        JobPositionIdentifier, otherwise it will be the actual job name.
+
+        Args:
+            emp_name: Overloaded job identifier string / employment name.
+
+        Returns:
+            uuid of the job function or None if it could not be created.
+        """
         # Add new profssions to LoRa
         job_uuid = self.job_functions.get(emp_name)
-        if job_uuid is None:
-            response = self._add_profession_to_lora(emp_name)
-            uuid = response['uuid']
-            self.job_functions[emp_name] = uuid
+        if job_uuid:
+            return job_uuid
+        # Could not fetch, attempt to create it
+        logger.warning(
+            "Missing engagement_type: {} (now creating)".format(engagement_type_ref)
+        )
+        payload = sd_payloads.profession(
+            profession, self.org_uuid, self.job_function_facet
+        )
+        job_uuid = self._create_class(payload)
+        self.job_functions[emp_name] = job_uuid
+        return job_uuid
 
     def engagement_components(self, engagement_info):
         job_id = engagement_info['EmploymentIdentifier']
@@ -587,13 +631,16 @@ class ChangeAtSD:
         if self.use_jpi:
             job_function = job_position
 
-        self._update_professions(job_function)
+        # Called for to ensure job_function exists
+        self._fetch_professions(job_function)
 
         primary = self.primary_types['non_primary']
         if status['EmploymentStatusCode'] == '0':
             primary = self.primary_types['no_salary']
 
         engagement_type = self.determine_engagement_type(engagement, job_position)
+        if engagement_type is None:
+            return False
 
         # Do not create engagements for users with too low of a job_position
         # XXX: Should this check that the engagement is no salary?
@@ -729,7 +776,7 @@ class ChangeAtSD:
         # This happens if EmploymentID is not a number
         # Will fail if a new job position emerges
         logger.info('Non-nummeric id. Job pos id: {}'.format(job_position))
-        return self.engagement_types.get("engagement_type" + job_position)
+        return self._fetch_engagement_type(job_position)
 
     def _edit_engagement_type(self, engagement, mo_eng):
         job_id, engagement_info = self.engagement_components(engagement)
@@ -743,6 +790,8 @@ class ChangeAtSD:
                 continue
 
             engagement_type = self.determine_engagement_type(engagement, job_position)
+            if engagement_type is None:
+                continue
             data = {'engagement_type': {'uuid': engagement_type},
                     'validity': validity}
             payload = sd_payloads.engagement(data, mo_eng)
@@ -773,8 +822,7 @@ class ChangeAtSD:
             if ext_field is not None:
                 extention = {ext_field: emp_name}
 
-            self._update_professions(job_function)
-            job_function_uuid = self.job_functions.get(job_function)
+            job_function_uuid = self._fetch_professions(job_function)
 
             data = {'job_function': {'uuid': job_function_uuid},
                     'validity': validity}
