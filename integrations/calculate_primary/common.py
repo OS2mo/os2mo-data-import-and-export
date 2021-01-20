@@ -1,10 +1,10 @@
 import datetime
 import logging
 from abc import ABC, abstractmethod
-from functools import lru_cache
+from functools import lru_cache, partial
 
 from exporters.utils.load_settings import load_settings
-from more_itertools import ilen, pairwise
+from more_itertools import ilen, pairwise, flatten
 from os2mo_helpers.mora_helpers import MoraHelper
 from tqdm import tqdm
 
@@ -84,9 +84,9 @@ class MOPrimaryEngagementUpdater(ABC):
         date_list = self.helper.find_cut_dates(uuid=user_uuid)
         date_list = date_list[:-1]
         # Map all our dates, to their corresponding engagements.
-        mo_engagements = list(
+        mo_engagements = list(flatten(
             map(partial(self._read_engagement, user_uuid), date_list)
-        )
+        ))
         # Only keep engagements, which are primary
         primary_mo_engagements = filter(
             lambda eng: eng["engagement_type"]["uuid"] in self.primary,
@@ -102,7 +102,7 @@ class MOPrimaryEngagementUpdater(ABC):
             extra_primary_mo_engagements = mo_engagements
             for filter_func in self.check_filters:
                 extra_primary_mo_engagements = filter(
-                    filter_func, extra_primary_mo_engagements
+                    partial(filter_func, user_uuid), extra_primary_mo_engagements
                 )
             extra_primary_count = ilen(extra_primary_mo_engagements)
 
@@ -127,11 +127,13 @@ class MOPrimaryEngagementUpdater(ABC):
             # Filter unwanted engagements
             mo_engagements = self._read_engagement(user_uuid, date)
             for filter_func in self.calculate_filters:
-                mo_engagements = filter(filter_func, mo_engagements)
+                mo_engagements = filter(
+                    partial(filter_func, user_uuid, no_past), mo_engagements
+                )
             mo_engagements = list(mo_engagements)
 
             # If no engagements are left, there is no work to do here
-            if len(mo_engagement) == 0:
+            if len(mo_engagements) == 0:
                 continue
             logger.debug("MO engagements: {}".format(mo_engagements))
 
@@ -220,16 +222,20 @@ class MOPrimaryEngagementUpdater(ABC):
         Check all users for the existence of primary engagements.
         :return: TODO
         """
+        print("Reading all users from MO...")
         all_users = self.helper.read_all_users()
+        print("OK")
         for user in tqdm(all_users):
-            check_user(user["uuid"])
+            self.check_user(user["uuid"])
 
     def recalculate_all(self, no_past=False):
         """
         Recalculate all primary engagements
         :return: TODO
         """
+        print("Reading all users from MO...")
         all_users = self.helper.read_all_users()
+        print("OK")
         edit_status = {}
         for user in tqdm(all_users):
             status = self.recalculate_primary(user["uuid"], no_past=no_past)
