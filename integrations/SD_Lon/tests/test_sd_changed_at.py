@@ -38,7 +38,7 @@ def setup_sd_changed_at():
         "integrations.SD_Lon.sd_changed_at.primary_types", autospec=True
     ) as pt:
         with patch(
-            "integrations.SD_Lon.sd_changed_at.MOPrimaryEngagementUpdater",
+            "integrations.SD_Lon.sd_changed_at.SDPrimaryEngagementUpdater",
             autospec=True,
         ) as pu:
             with patch(

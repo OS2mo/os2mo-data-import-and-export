@@ -13,7 +13,7 @@ from integrations import dawa_helper
 from integrations.opus import payloads
 from integrations.opus import opus_helpers
 from os2mo_helpers.mora_helpers import MoraHelper
-from integrations.opus.calculate_primary import MOPrimaryEngagementUpdater
+from integrations.opus.calculate_primary import OPUSPrimaryEngagementUpdater
 from integrations.opus.opus_exceptions import UnknownOpusUnit
 from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
 
@@ -78,7 +78,7 @@ class OpusDiffImport(object):
             logger.error(e)
             print(e)
             exit()
-        self.updater = MOPrimaryEngagementUpdater()
+        self.updater = OPUSPrimaryEngagementUpdater()
 
         self.engagement_types, _ = self._find_classes('engagement_type')
         self.unit_types, self.unit_type_facet = self._find_classes('org_unit_type')
@@ -801,8 +801,7 @@ class OpusDiffImport(object):
             self.update_engagement(eng, employee)
 
         self.update_manager_status(employee_mo_uuid, employee)
-        self.updater.set_current_person(cpr=cpr)
-        self.updater.recalculate_primary()
+        self.updater.recalculate_primary(employee_mo_uuid)
 
     def terminate_detail(self, uuid, detail_type='engagement', end_date=None):
         if end_date is None:

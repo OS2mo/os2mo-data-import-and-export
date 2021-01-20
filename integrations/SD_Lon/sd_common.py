@@ -1,7 +1,5 @@
 import hashlib
-import json
 import logging
-import pathlib
 import pickle
 import uuid
 from enum import Enum
@@ -11,17 +9,9 @@ from pathlib import Path
 import requests
 import xmltodict
 
+from exporters.utils.load_settings import load_settings
+
 logger = logging.getLogger("sdCommon")
-
-
-@lru_cache(maxsize=None)
-def load_settings():
-    cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-    if not cfg_file.is_file():
-        raise Exception("No settings file: " + str(cfg_file))
-    # TODO: This must be clean up, settings should be loaded by __init__
-    # and no references should be needed in global scope.
-    return json.loads(cfg_file.read_text())
 
 
 @lru_cache(maxsize=None)
