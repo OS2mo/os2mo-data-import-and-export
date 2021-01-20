@@ -30,7 +30,8 @@ from integrations.SD_Lon.sync_job_id import JobIdSync
 
 from integrations.SD_Lon.db_overview import DBOverview
 from integrations.SD_Lon.fix_departments import FixDepartments
-from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater
+from integrations.calculate_primary.common import LOGGER_NAME
+from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
 
 
 LOG_LEVEL = logging.DEBUG
@@ -46,7 +47,7 @@ def ensure_list(element):
 
 
 def setup_logging():
-    detail_logging = ('sdCommon', 'sdChangedAt', 'updatePrimaryEngagements',
+    detail_logging = ('sdCommon', 'sdChangedAt', LOGGER_NAME,
                       'fixDepartments', 'sdSyncJobId')
     for name in logging.root.manager.loggerDict:
         if name in detail_logging:
@@ -93,7 +94,7 @@ class ChangeAtSD:
         else:
             logger.info('AD integration not in use')
 
-        self.updater = MOPrimaryEngagementUpdater()
+        self.updater = SDPrimaryEngagementUpdater()
         self.from_date = from_date
         self.to_date = to_date
 
@@ -1046,9 +1047,6 @@ class ChangeAtSD:
             self.mo_person = self.helper.read_user(
                 user_cpr=cpr, org_uuid=self.org_uuid
             )
-            logger.debug(str(self.mo_person))
-            self.updater.set_current_person(mo_person=self.mo_person)
-
             if not self.mo_person:
                 sd_engagement = filter(skip_initial_deleted, sd_engagement)
                 for employment_info in sd_engagement:
@@ -1058,7 +1056,6 @@ class ChangeAtSD:
                         self.mo_person = self.helper.read_user(
                             user_cpr=cpr, org_uuid=self.org_uuid
                         )
-                        self.updater.set_current_person(mo_person=self.mo_person)
                     except Exception as exp:
                         logger.error(
                             "Unable to find person in MO, SD error: " + str(exp)
@@ -1071,10 +1068,9 @@ class ChangeAtSD:
                     use_cache=False
                 )
                 self._update_user_employments(cpr, sd_engagement)
-                self.updater.set_current_person(uuid=self.mo_person['uuid'])
 
                 # Re-calculate primary after all updates for user has been performed.
-                self.updater.recalculate_primary()
+                self.updater.recalculate_primary(self.mo_person['uuid'])
 
 
 def _local_db_insert(insert_tuple):
