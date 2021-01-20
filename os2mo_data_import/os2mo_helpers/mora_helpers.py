@@ -15,11 +15,13 @@ import logging
 import os
 
 import requests
+import aiohttp
 import datetime
 from operator import itemgetter
 
 from anytree import Node
 from more_itertools import only
+from integrations.dar_helper.utils import async_to_sync
 
 SAML_TOKEN = os.environ.get("SAML_TOKEN", None)
 PRIMARY_RESPONSIBILITY = "Personale: ansættelse/afskedigelse"
@@ -172,7 +174,11 @@ class MoraHelper:
                 return {}
         return return_dict
 
-    def _mo_post(self, url, payload, force=True):
+    @async_to_sync
+    async def _mo_post(self, url, payload, force=True):
+        return await self._a_mo_post(url, payload, force=force)
+
+    async def _a_mo_post(self, url, payload, force=True):
         if force:
             params = {"force": 1}
         else:
@@ -472,7 +478,8 @@ class MoraHelper:
         """
         user_manager = None
 
-        url = "http://localhost:8080/organisation/organisationfunktion/{}"
+        # XXX: Why is this here, this is for MOX?!
+        url = 'http://localhost:8080/organisation/organisationfunktion/{}'
         response = requests.get(url.format(engagement_uuid))
         data = response.json()
         relationer = data[engagement_uuid][0]["registreringer"][0]["relationer"]
