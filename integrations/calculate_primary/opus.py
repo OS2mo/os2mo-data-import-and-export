@@ -1,4 +1,5 @@
-from integrations.calculate_primary.common import logger
+from integrations.calculate_primary.common import (MOPrimaryEngagementUpdater,
+                                                   logger)
 
 
 class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
