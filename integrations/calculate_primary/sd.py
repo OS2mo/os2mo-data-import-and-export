@@ -1,3 +1,5 @@
+import datetime
+
 from integrations.calculate_primary.common import (MOPrimaryEngagementUpdater,
                                                    logger)
 from integrations.SD_Lon import sd_common
@@ -8,18 +10,18 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         super().__init__()
         self.check_filters = [
             # Filter out no_salary primary, such that only fixed and primary is left
-            lambda eng: eng["engagement_type"]["uuid"]
+            lambda user_uuid, eng: eng["engagement_type"]["uuid"]
             != primary[3]
         ]
 
-        def remove_past(eng):
+        def remove_past(user_uuid, no_past, eng):
             if no_past and eng["validity"]["to"]:
                 to = datetime.datetime.strptime(eng["validity"]["to"], "%Y-%m-%d")
                 if to < datetime.datetime.now():
                     return False
             return True
 
-        def remove_no_salary(eng):
+        def remove_no_salary(user_uuid, no_past, eng):
             if eng["primary"]["uuid"] == self.primary_types["no_salary"]:
                 logger.info("Status 0, no update of primary")
                 return False
@@ -34,9 +36,9 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         # Keys are; fixed_primary, primary no_salary non-primary
         primary_types = sd_common.primary_types(self.helper)
         primary = [
-            self.primary_types["fixed_primary"],
-            self.primary_types["primary"],
-            self.primary_types["no_salary"],
+            primary_types["fixed_primary"],
+            primary_types["primary"],
+            primary_types["no_salary"],
         ]
         return primary_types, primary
 
