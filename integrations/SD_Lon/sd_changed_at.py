@@ -652,20 +652,6 @@ class ChangeAtSD:
         if engagement_type is None:
             return False
 
-        # Do not create engagements for users with too low of a job_position
-        # XXX: Should this check that the engagement is no salary?
-        no_salary_minimum = self.settings.get('integrations.SD_Lon.no_salary_minimum_id', None)
-        if no_salary_minimum is not None:
-            try:
-                job_position_int = int(job_position)
-                if job_position_int < no_salary_minimum:
-                    message = 'No salary employee, with bad job_position id'
-                    logger.warning(message)
-                    return False
-            # Failed to parse to integer, no worries, keep going
-            except ValueError:
-                pass
-
         extension_field = self.settings.get('integrations.SD_Lon.employment_field')
         extension = {}
         if extension_field is not None:
@@ -780,11 +766,24 @@ class ChangeAtSD:
         employment_id = calc_employment_id(engagement)
         if employment_id['value'] < split:
             return self.engagement_types.get('månedsløn')
-        # TODO: Is the first condition not implied by not hitting the above case?
+        # XXX: Is the first condition not implied by not hitting the above case?
         if (split - 1) < employment_id['value'] < 999999:
             return self.engagement_types.get('timeløn')
         # This happens if EmploymentID is not a number
-        # Will fail if a new job position emerges
+        # XXX: Why are we checking against 999999 instead of checking the type?
+        # Once we get here, we know that it is a no-salary employee
+
+        # We should not create engagements (or engagement_types) for engagements
+        # with too low of a job_position id compared to no_salary_minimum_id.
+        no_salary_minimum = self.settings.get('integrations.SD_Lon.no_salary_minimum_id', None)
+        if no_salary_minimum is not None and int(job_position) < no_salary_minimum:
+            message = 'No salary employee, with too low job_position id'
+            logger.warning(message)
+            # Returning none will propagate the failure, so we continue
+            return None
+
+        # We need a special engagement type for the engagement.
+        # We will try to fetch and try to create it if we cannot find it.
         logger.info('Non-nummeric id. Job pos id: {}'.format(job_position))
         return self._fetch_engagement_type(job_position)
 
