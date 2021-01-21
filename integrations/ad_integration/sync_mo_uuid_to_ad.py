@@ -1,18 +1,18 @@
-import json
-import random
-import pathlib
-import logging
-import requests
 import argparse
+import json
+import logging
+import pathlib
+import random
 
+import requests
 from ad_common import AD
-from integrations.ad_integration import ad_reader
-from integrations.ad_integration import ad_logger
 from os2mo_helpers.mora_helpers import MoraHelper
+from tqdm import tqdm
+
+from integrations.ad_integration import ad_logger, ad_reader
 
 LOG_FILE = 'sync_mo_uuid_to_ad.log'
 logger = logging.getLogger('MoUuidAdSync')
-
 
 class SyncMoUuidToAd(AD):
     """
@@ -64,7 +64,7 @@ class SyncMoUuidToAd(AD):
 
         logger.info('Will now attempt to sync {} users'.format(len(all_users)))
 
-        for user in all_users:
+        for user in tqdm(all_users):
             self.stats['attempted_users'] += 1
             cpr = user.get(self.all_settings['primary']['cpr_field'])
             separator = self.all_settings['primary'].get('cpr_separator', '')
@@ -78,7 +78,7 @@ class SyncMoUuidToAd(AD):
             expected_mo_uuid = user.get(
                 self.settings['integrations.ad.write.uuid_field'])
             if expected_mo_uuid == mo_uuid:
-                logger.info('uuid for {} correct in AD'.format(user))
+                logger.debug('uuid for {} correct in AD'.format(user))
                 continue
 
             server_string = ''
@@ -87,7 +87,7 @@ class SyncMoUuidToAd(AD):
                     random.choice(self.all_settings['global'].get('servers'))
                 )
 
-            logger.info('Need to sync {}'.format(user))
+            logger.debug('Need to sync {}'.format(user))
             ps_script = (
                 self._build_user_credential() +
                 "Get-ADUser " + server_string + " -Filter 'SamAccountName -eq \"" +
@@ -100,31 +100,44 @@ class SyncMoUuidToAd(AD):
             logger.debug('PS-script: {}'.format(ps_script))
             response = self._run_ps_script(ps_script)
             logger.debug('Response: {}'.format(response))
+            if response: 
+                msg= 'Unexpected response: {}'.format(response)
+                logger.exception(msg)
+                raise Exception(msg)
             self.stats['updated'] += 1
         print(self.stats)
+        logger.info(self.stats)
 
     def sync_one(self, cprno):
-        all_users = [self.reader.read_user(cpr=cprno)]
-        if len(all_users) == 1:
-            self.perform_sync(all_users)
+        user = self.reader.read_user(cpr=cprno)
+        if user:
+            self.perform_sync([user])
         else:
-            logger.exception("user not found")
+            msg = "User not found"
+            logger.exception(msg)
+            raise Exception(msg)
 
     def cli(self):
         """
         Command line interface for the AD writer class.
         """
         parser = argparse.ArgumentParser(description='SyncMoUuidToAd')
+        parser.add_argument('--debug', default="false", help="(true/false) Set logging level to debug, default is false")
         group = parser.add_mutually_exclusive_group(required=True)
         group.add_argument('--sync-all', action='store_true')
         group.add_argument('--sync-cpr', nargs=1, required=False)
         args = vars(parser.parse_args())
+        logger.level = logging.INFO
+        if args.get('debug').lower() == "true":
+            logger.level=logging.DEBUG
         logger.info(args)
+
         if args.get('sync_all'):
             self.perform_sync()
         if args.get('sync_cpr'):
             self.sync_one(args["sync_cpr"][0])
-
+            
+        logger.info("Sync done")
 
 if __name__ == '__main__':
     sync = SyncMoUuidToAd()
