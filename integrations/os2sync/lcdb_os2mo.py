@@ -178,6 +178,7 @@ def get_sts_orgunit(session, uuid):
         address = {
             "address_type": {
                 "uuid": lc_address.adressetype_uuid,
+                "user_key": lc_address.adressetype_bvn,
                 "scope": scope_to_scope[lc_address.adressetype_scope]},
             "name": lc_address.værdi,
             "value": lc_address.dar_uuid,

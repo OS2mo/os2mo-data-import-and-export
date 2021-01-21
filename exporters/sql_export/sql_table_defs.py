@@ -65,6 +65,7 @@ class Adresse(Base):
     værdi = Column(String(250), nullable=True)
     dar_uuid = Column(String(36), nullable=True) # , ForeignKey('dar_adresser.uuid'))
     adressetype_uuid = Column(String(36), ForeignKey("klasser.uuid"))
+    adressetype_bvn = Column(String(250), nullable=False)
     adressetype_scope = Column(String(250), nullable=False)
     adressetype_titel = Column(String(250), nullable=False)
     synlighed_uuid = Column(
