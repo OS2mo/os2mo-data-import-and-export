@@ -4,6 +4,9 @@ import json
 import pathlib
 import logging
 import argparse
+from functools import partial
+
+from tqdm import tqdm
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration.ad_reader import ADParameterReader
@@ -37,51 +40,53 @@ logging.basicConfig(
 
 
 def create_mapping(helper, use_ad):
-    t0 = time.time()
-    org = helper.read_organisation()
+    def cache_ad_reader():
+        print("Caching all users from AD...")
+        t0 = time.time()
+        if use_ad:
+            ad_reader = ADParameterReader()
+            ad_reader.cache_all(print_progress=True)
+        logger.info('All users cached, time: {:.0f}s'.format(time.time() - t0))
+        print("OK")
+        return ad_reader
 
-    if use_ad:
-        ad_reader = ADParameterReader()
-        ad_reader.cache_all()
-    logger.info('All users cached, time: {:.0f}s'.format(time.time() - t0))
+    def to_user_dict(employee):
+        uuid = employee['uuid']
+        cpr = employee['cpr_no']
 
-    mapping = []
-
-    i = 0
-    employees = helper.read_all_users()
-
-    # Restart timing for more accurate estimation of remaining
-    t0 = time.time()
-
-    for i in range(0, len(employees)):
-        if i % 50 == 1:
-            delta_t = time.time() - t0
-            estimated_time = delta_t * len(employees) / i
-            time_left = estimated_time - delta_t
-            msg = '{}/{}, expected total: {:.0f}s, left: {:.0f}s'
-            logger.debug(msg.format(i, len(employees), estimated_time, time_left))
-            print(msg.format(i, len(employees), estimated_time, time_left))
-
-        uuid = employees[i]['uuid']
-        mo_user = helper.read_user(uuid, org_uuid=org)
-        cpr = mo_user['cpr_no']
-
-        user = {  # AD properties will be overwritten if available
+        # AD properties will be enriched if available
+        return {
             'cpr': cpr,
             'mo_uuid': uuid,
             'ad_guid': None,
             'sam_account_name': None
         }
 
-        if use_ad:
-            ad_info = ad_reader.read_user(cpr=cpr, cache_only=True)
-            if ad_info:
-                user['ad_guid'] = ad_info['ObjectGuid']
-                user['sam_account_name'] = ad_info['SamAccountName']
+    def enrich_user_dict_from_ad(ad_reader, user_dict):
+        ad_info = ad_reader.read_user(cpr=user_dict['cpr'], cache_only=True)
+        if ad_info:
+            user_dict.update({
+                'ad_guid': ad_info['ObjectGuid'],
+                'sam_account_name': ad_info['SamAccountName']
+            })
+        return user_dict
 
-        mapping.append(user)
+    print("Fetching all users from MO...")
+    employees = helper.read_all_users()
+    total = len(employees)
+    print("OK")
 
-    return mapping
+    employees = map(to_user_dict, employees)
+
+    if use_ad:
+        ad_reader = cache_ad_reader()
+        employees = map(partial(enrich_user_dict_from_ad, ad_reader), employees)
+
+    print("Processing all...")
+    employees = tqdm(employees, total=total)
+    employees = list(employees)
+    print("OK")
+    return employees
 
 
 def main(use_ad):

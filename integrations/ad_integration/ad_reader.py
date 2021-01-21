@@ -3,6 +3,8 @@ import random
 import logging
 from winrm import Session
 
+from tqdm import tqdm
+
 from integrations.ad_integration.ad_common import AD
 from integrations.ad_integration import read_ad_conf_settings
 
@@ -109,11 +111,14 @@ class ADParameterReader(AD):
             raise
 
 
-    def cache_all(self):
+    def cache_all(self, print_progress=False):
         logger.info('Caching all users')
         t = time.time()
         return_value = []
-        for i in range(1, 32):
+        date_range = range(1, 32)
+        if print_progress:
+            date_range = tqdm(date_range)
+        for i in date_range:
             day = str(i).zfill(2)
             self.uncached_read_user(cpr='{}*'.format(day), ria=return_value)
             logger.debug(len(self.results))

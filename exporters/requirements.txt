@@ -3,4 +3,5 @@
 -r utils/requirements.txt
 click
 anytree
+tqdm
 git+https://github.com/magenta-aps/spsftp

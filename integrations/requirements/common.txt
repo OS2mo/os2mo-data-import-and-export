@@ -8,3 +8,4 @@ pandas
 xlsxwriter
 xlrd
 more_itertools
+tqdm
