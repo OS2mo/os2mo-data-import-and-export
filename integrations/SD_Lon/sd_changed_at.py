@@ -11,6 +11,7 @@ from integrations.SD_Lon import sd_payloads
 
 from more_itertools import only, last, pairwise
 import pandas as pd
+from tqdm import tqdm
 
 from integrations import cpr_mapper
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -24,6 +25,7 @@ from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.sd_common import EmploymentStatus, LetGo
 
+from integrations.SD_Lon.db_overview import DBOverview
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater
 
@@ -38,14 +40,6 @@ def ensure_list(element):
     if not isinstance(element, list):
         return [element]
     return element
-
-
-def progress_iterator(elements, outputter, mod=10):
-    total = len(elements)
-    for i, element in enumerate(elements, start=1):
-        if i == 1 or i % mod == 0 or i == total:
-            outputter("{}/{}".format(i, total))
-        yield element
 
 
 def setup_logging():
@@ -83,6 +77,7 @@ class ChangeAtSD:
         self.employee_forced_uuids = self._read_forced_uuids()
         self.department_fixer = FixDepartments()
         self.helper = self._get_mora_helper(self.settings['mora.base'])
+        self.job_sync = self._get_job_sync(self.settings)
 
         # List of job_functions that should be ignored.
         self.skip_job_functions = self.settings.get('skip_job_functions', [])
@@ -143,6 +138,9 @@ class ChangeAtSD:
 
     def _get_mora_helper(self, mora_base):
         return MoraHelper(hostname=mora_base, use_cache=False)
+
+    def _get_job_sync(self, settings):
+        return JobIdSync(settings)
 
     def _read_forced_uuids(self):
         cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
@@ -234,7 +232,7 @@ class ChangeAtSD:
             person_changed = self.read_person_changed()
 
         logger.info('Number of changed persons: {}'.format(len(person_changed)))
-        for person in person_changed:
+        for person in tqdm(person_changed, desc="update persons"):
             cpr = person['PersonCivilRegistrationIdentifier']
             logger.debug('Updating: {}'.format(cpr))
             if cpr[-4:] == '0000':
@@ -391,7 +389,37 @@ class ChangeAtSD:
         assert response.status_code == 201
         return response.json()['uuid']
 
-    def _fetch_engagement_type(self, engagement_type_ref):
+    def _create_engagement_type(self, engagement_type_ref, job_position):
+        # Could not fetch, attempt to create it
+        logger.warning(
+            "Missing engagement_type: {} (now creating)".format(engagement_type_ref)
+        )
+        payload = sd_payloads.engagement_type(
+            engagement_type_ref, job_position, self.org_uuid, self.engagement_type_facet
+        )
+        engagement_type_uuid = self._create_class(payload)
+        self.engagement_types[engagement_type_ref] = engagement_type_uuid
+
+        self.sync_job.sync_from_sd(job_position)
+
+        return engagement_type_uuid
+
+    def _create_professions(self, job_function, job_position):
+        # Could not fetch, attempt to create it
+        logger.warning(
+            "Missing profession: {} (now creating)".format(job_function)
+        )
+        payload = sd_payloads.profession(
+            job_function, self.org_uuid, self.job_function_facet
+        )
+        job_uuid = self._create_class(payload)
+        self.job_functions[job_function] = job_uuid
+
+        self.sync_job.sync_from_sd(job_position)
+
+        return job_uuid
+
+    def _fetch_engagement_type(self, job_position):
         """Fetch an engagement type UUID, create if missing.
 
         Args:
@@ -405,18 +433,9 @@ class ChangeAtSD:
         engagement_type_uuid = self.engagement_types.get(engagement_type_ref)
         if engagement_type_uuid:
             return engagement_type_uuid
-        # Could not fetch, attempt to create it
-        logger.warning(
-            "Missing engagement_type: {} (now creating)".format(engagement_type_ref)
-        )
-        payload = sd_payloads.engagement_type(
-            engagement_type_ref, job_position, self.org_uuid, self.engagement_type_facet
-        )
-        engagement_type_uuid = self._create_class(payload)
-        self.engagement_types[engagement_type_ref] = engagement_type_uuid
-        return engagement_type_uuid
+        return self._create_engagement_type(engagement_type_ref, job_position)
 
-    def _fetch_professions(self, emp_name):
+    def _fetch_professions(self, job_function, job_position):
         """Fetch an job function UUID, create if missing.
 
         This function does not depend on self.use_jpi, as the argument is just a
@@ -430,19 +449,10 @@ class ChangeAtSD:
             uuid of the job function or None if it could not be created.
         """
         # Add new profssions to LoRa
-        job_uuid = self.job_functions.get(emp_name)
+        job_uuid = self.job_functions.get(job_function)
         if job_uuid:
             return job_uuid
-        # Could not fetch, attempt to create it
-        logger.warning(
-            "Missing engagement_type: {} (now creating)".format(engagement_type_ref)
-        )
-        payload = sd_payloads.profession(
-            profession, self.org_uuid, self.job_function_facet
-        )
-        job_uuid = self._create_class(payload)
-        self.job_functions[emp_name] = job_uuid
-        return job_uuid
+        return self._create_professions(job_function, job_position)
 
     def engagement_components(self, engagement_info):
         job_id = engagement_info['EmploymentIdentifier']
@@ -632,7 +642,7 @@ class ChangeAtSD:
             job_function = job_position
 
         # Called for to ensure job_function exists
-        self._fetch_professions(job_function)
+        self._fetch_professions(job_function, job_position)
 
         primary = self.primary_types['non_primary']
         if status['EmploymentStatusCode'] == '0':
@@ -822,7 +832,7 @@ class ChangeAtSD:
             if ext_field is not None:
                 extention = {ext_field: emp_name}
 
-            job_function_uuid = self._fetch_professions(job_function)
+            job_function_uuid = self._fetch_professions(job_function, job_position)
 
             data = {'job_function': {'uuid': job_function_uuid},
                     'validity': validity}
@@ -994,7 +1004,7 @@ class ChangeAtSD:
                 return False
             return True
 
-        employments_changed = progress_iterator(employments_changed, print)
+        employments_changed = tqdm(employments_changed, desc="update employments")
         employments_changed = filter(skip_fictional_users, employments_changed)
 
         for employment in employments_changed:
@@ -1101,9 +1111,10 @@ def gen_date_pairs(from_date: datetime, one_day: bool = False):
 
 @click.command()
 @click.option('--init', is_flag=True, type=click.BOOL, default=False, help="Initialize a new rundb")
+@click.option('--force', is_flag=True, type=click.BOOL, default=False, help="Ignore previously unfinished runs")
 @click.option('--one-day', is_flag=True, type=click.BOOL, default=False,
               help="Only import changes for the next missing day")
-def changed_at(init, one_day):
+def changed_at(init, force, one_day):
     """Tool to delta synchronize with MO with SD."""
     setup_logging()
 
@@ -1123,18 +1134,17 @@ def changed_at(init, one_day):
         initialize_changed_at(from_date, run_db, force=True)
         exit()
 
-    conn = sqlite3.connect(run_db, detect_types=sqlite3.PARSE_DECLTYPES)
-    c = conn.cursor()
-
+    db_overview = DBOverview()
     # To date from last entries, becomes from_date for current entry
-    query = 'SELECT to_date, status FROM runs ORDER BY id DESC LIMIT 1'
-    c.execute(query)
-    from_date, status = c.fetchone()
+    from_date, status = db_overview.read_last_line("to_date", "status")
 
-    if 'Running' in status:
-        print('Critical error')
-        logging.error('Previous ChangedAt run did not return!')
-        raise Exception('Previous ChangedAt run did not return!')
+    if "Running" in status:
+        if force:
+            db_overview.delete_last_row()
+            from_date, status = db_overview.read_last_line("to_date", "status")
+        else:
+            logging.error('Previous ChangedAt run did not return!')
+            raise click.ClickException('Previous ChangedAt run did not return!')
 
     dates = gen_date_pairs(from_date)
 

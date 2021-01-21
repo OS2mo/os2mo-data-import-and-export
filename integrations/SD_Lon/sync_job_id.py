@@ -9,6 +9,7 @@ import sd_payloads
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import mora_assert
+from integrations.SD_Lon.sd_common import load_settings
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'sync_job_id.log'
@@ -30,23 +31,21 @@ def setup_logging():
     )
 
 
-class JobIdSync(object):
-    def __init__(self):
+class JobIdSync:
+    def __init__(self, settings=None):
         logger.info('Start sync')
         atexit.register(self.at_exit)
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+
+        self.settings = settings or load_settings()
 
         helper = MoraHelper(hostname=self.settings['mora.base'], use_cache=False)
         self.engagement_types = helper.read_classes_in_facet('engagement_type')
 
-        if self.settings[
-                'integrations.SD_Lon.job_function'] == 'JobPositionIdentifier':
+        if self.settings['integrations.SD_Lon.job_function'] == 'JobPositionIdentifier':
             logger.info('Read settings. Update job_functions and engagment types')
             self.job_function_types = helper.read_classes_in_facet(
-                'engagement_job_function')
+                'engagement_job_function'
+            )
             self.update_job_functions = True
         else:
             logger.info('Read settings. Do not update job_functions')

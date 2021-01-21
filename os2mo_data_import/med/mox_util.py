@@ -186,8 +186,11 @@ async def ensure_class_exists(
 @click.option(
     "--bvn",
     "--brugervendt-nøgle",
-    required=True,
-    help="User key to set on the class.",
+    help="User key for the class.",
+)
+@click.option(
+    "--uuid",
+    help="UUID for the class.",
 )
 @click.option("--variable", required=True,  help="variable to be checked/updated")
 @click.option(
@@ -204,6 +207,7 @@ async def ensure_class_exists(
 async def ensure_class_value(
     ctx,
     bvn: str,
+    uuid: str,
     variable: str,
     new_value: str,
     description: str,
@@ -212,12 +216,15 @@ async def ensure_class_value(
     """Ensures values"""
     mox_helper = await create_mox_helper(ctx.obj["mox.base"])
 
-    try:
-        uuid = await mox_helper.read_element_klassifikation_klasse({"bvn": bvn})
-    except:
-        message="No class with bvn={} was found.".format(bvn)
-        click.secho(message, fg="red")    
-        return
+    if bvn:
+        try:
+            uuid = await mox_helper.read_element_klassifikation_klasse({"bvn": bvn})
+        except:
+            message="No class with bvn={} was found.".format(bvn)
+            click.secho(message, fg="red")
+            return
+    if uuid is None:
+        raise click.ClickException("Must provide either bvn or UUID")
 
     klasse = await mox_helper.search_klassifikation_klasse({"UUID": uuid})
     klasse = klasse[0]['registreringer'][0]
