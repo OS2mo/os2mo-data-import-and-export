@@ -17,6 +17,11 @@ class ChangeAtSDTest(ChangeAtSD):
         self.morahelper_mock = MagicMock()
         self.morahelper_mock.read_organisation.return_value = "org_uuid"
 
+        self._get_job_sync = MagicMock()
+
+        self._create_class = MagicMock()
+        self._create_class.return_value = "new_class_uuid"
+
         super().__init__(*args, **kwargs)
 
     def _read_forced_uuids(self):
@@ -460,9 +465,6 @@ class Test_sd_changed_at(unittest.TestCase):
 
         # Load noop NY logic
         sd_updater.apply_NY_logic = lambda org_unit, user_key, validity: org_unit
-        sd_updater._add_profession_to_lora = lambda profession: {
-            "uuid": "profession_uuid"
-        }
         # Set globally shared state x(
         sd_updater.mo_person = {"uuid": "user_uuid"}
         # Set primary types
@@ -484,6 +486,13 @@ class Test_sd_changed_at(unittest.TestCase):
             }
         )
         self.assertFalse(_mo_post.called)
+
+        sd_updater._create_engagement_type = MagicMock()
+        sd_updater._create_engagement_type.return_value = "new_engagement_type_uuid"
+
+        sd_updater._create_professions = MagicMock()
+        sd_updater._create_professions.return_value = "new_profession_uuid"
+
         sd_updater.create_new_engagement(engagement, status, cpr)
         _mo_post.assert_called_with(
             "details/create",
@@ -491,7 +500,7 @@ class Test_sd_changed_at(unittest.TestCase):
                 "type": "engagement",
                 "org_unit": {"uuid": "department_uuid"},
                 "person": {"uuid": "user_uuid"},
-                "job_function": {"uuid": "profession_uuid"},
+                "job_function": {"uuid": "new_profession_uuid"},
                 "primary": {"uuid": "non_primary_uuid"},
                 "engagement_type": {"uuid": engagement_type},
                 "user_key": employment_id,
@@ -499,6 +508,8 @@ class Test_sd_changed_at(unittest.TestCase):
                 "validity": {"from": "2020-11-10", "to": "2021-02-09"},
             },
         )
+        sd_updater._create_engagement_type.assert_not_called()
+        sd_updater._create_professions.assert_called_once()
 
     def test_terminate_engagement(self):
 
@@ -568,9 +579,6 @@ class Test_sd_changed_at(unittest.TestCase):
         sd_updater.read_employment_changed = lambda: read_employment_result
         # Load noop NY logic
         sd_updater.apply_NY_logic = lambda org_unit, user_key, validity: org_unit
-        sd_updater._add_profession_to_lora = lambda profession: {
-            "uuid": "profession_uuid"
-        }
 
         morahelper = sd_updater.morahelper_mock
         morahelper.read_user.return_value.__getitem__.return_value = "user_uuid"
@@ -592,8 +600,14 @@ class Test_sd_changed_at(unittest.TestCase):
 
         _mo_post = morahelper._mo_post
         _mo_post.return_value = AttrDict({"status_code": 201, "text": lambda: "OK"})
-
         self.assertFalse(_mo_post.called)
+
+        sd_updater._create_engagement_type = MagicMock()
+        sd_updater._create_engagement_type.return_value = "new_engagement_type_uuid"
+
+        sd_updater._create_professions = MagicMock()
+        sd_updater._create_professions.return_value = "new_profession_uuid"
+
         sd_updater.update_all_employments()
         # We expect the exact following 4 calls to have been made
         self.assertEqual(len(_mo_post.mock_calls), 5)
@@ -627,7 +641,7 @@ class Test_sd_changed_at(unittest.TestCase):
                         "type": "engagement",
                         "uuid": "mo_engagement_uuid",
                         "data": {
-                            "job_function": {"uuid": "profession_uuid"},
+                            "job_function": {"uuid": "new_profession_uuid"},
                             "validity": {"from": "2020-11-10", "to": None},
                         },
                     },
@@ -653,6 +667,8 @@ class Test_sd_changed_at(unittest.TestCase):
                 ),
             ]
         )
+        sd_updater._create_engagement_type.assert_not_called()
+        sd_updater._create_professions.assert_called_once()
 
     @given(
         from_date=st.dates(date(1970, 1, 1), date(2060, 1, 1)), one_day=st.booleans()
@@ -716,9 +732,6 @@ class Test_sd_changed_at(unittest.TestCase):
             }
         )
         sd_updater.apply_NY_logic = lambda org_unit, user_key, validity: org_unit
-        sd_updater._add_profession_to_lora = lambda profession: {
-            "uuid": "profession_uuid"
-        }
 
         morahelper = sd_updater.morahelper_mock
         morahelper.read_ou.return_value = {
@@ -750,3 +763,36 @@ class Test_sd_changed_at(unittest.TestCase):
             sd_payloads_mock.create_engagement.assert_called_once()
         else:
             sd_payloads_mock.create_engagement.assert_not_called()
+
+    @given(job_id=st.integers(min_value=0), engagement_exists=st.booleans())
+    def test_fetch_engagement_type(self, job_id, engagement_exists):
+        """Test that fetch_engagement_type only calls create when class is missing.
+
+        This is done by creating the class if engagement_exists is set.
+        I assume this works the same for _fetch_professions as they are similar.
+        """
+        sd_updater = setup_sd_changed_at()
+        sd_updater.engagement_types = {
+            'månedsløn': 'monthly pay',
+            'timeløn': 'hourly pay',
+        }
+
+        self.assertEqual(len(sd_updater.engagement_types), 2)
+        if engagement_exists:
+            sd_updater.engagement_types['engagement_type' + str(job_id)] = 'old_engagement_type_uuid'
+            self.assertEqual(len(sd_updater.engagement_types), 3)
+        else:
+            self.assertEqual(len(sd_updater.engagement_types), 2)
+
+        engagement_type_uuid = sd_updater._fetch_engagement_type(str(job_id))
+
+        if engagement_exists:
+            self.assertEqual(len(sd_updater.engagement_types), 3)
+            sd_updater._create_class.assert_not_called()
+            self.assertEqual(engagement_type_uuid, 'old_engagement_type_uuid')
+        else:
+            self.assertEqual(len(sd_updater.engagement_types), 3)
+            sd_updater._create_class.assert_called_once()
+            sd_updater.job_sync.sync_from_sd.assert_called_once()
+            self.assertIn("engagement_type" + str(job_id), sd_updater.engagement_types)
+            self.assertEqual(engagement_type_uuid, 'new_class_uuid')

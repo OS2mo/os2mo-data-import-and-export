@@ -402,7 +402,7 @@ class ChangeAtSD:
         engagement_type_uuid = self._create_class(payload)
         self.engagement_types[engagement_type_ref] = engagement_type_uuid
 
-        self.sync_job.sync_from_sd(job_position)
+        self.job_sync.sync_from_sd(job_position)
 
         return engagement_type_uuid
 
@@ -417,7 +417,7 @@ class ChangeAtSD:
         job_uuid = self._create_class(payload)
         self.job_functions[job_function] = job_uuid
 
-        self.sync_job.sync_from_sd(job_position)
+        self.job_sync.sync_from_sd(job_position)
 
         return job_uuid
 
@@ -643,9 +643,6 @@ class ChangeAtSD:
         if self.use_jpi:
             job_function = job_position
 
-        # Called for to ensure job_function exists
-        self._fetch_professions(job_function, job_position)
-
         primary = self.primary_types['non_primary']
         if status['EmploymentStatusCode'] == '0':
             primary = self.primary_types['no_salary']
@@ -659,7 +656,8 @@ class ChangeAtSD:
         if extension_field is not None:
             extension = {extension_field: emp_name}
 
-        job_function_uuid = self.job_functions.get(job_function)
+        job_function_uuid = self._fetch_professions(job_function, job_position)
+
         payload = sd_payloads.create_engagement(
             org_unit=org_unit,
             mo_person=self.mo_person,
