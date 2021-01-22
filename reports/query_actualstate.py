@@ -58,7 +58,18 @@ def list_MED_members(session, org_name: str) -> list:
     Emails = (
         session.query(Adresse.værdi, Adresse.bruger_uuid)
         .filter(
-            Adresse.adressetype_titel == "Email",
+            Adresse.adressetype_titel == "AD-Email",
+            or_(
+                Adresse.synlighed_titel == None,
+                Adresse.synlighed_titel != "Hemmelig",
+            ),
+        )
+        .subquery()
+    )
+    Phonenr = (
+        session.query(Adresse.værdi, Adresse.bruger_uuid)
+        .filter(
+            Adresse.adressetype_titel == "AD-Telefonnummer",
             or_(
                 Adresse.synlighed_titel == None,
                 Adresse.synlighed_titel != "Hemmelig",
@@ -71,19 +82,26 @@ def list_MED_members(session, org_name: str) -> list:
         session.query(
             Bruger.fornavn + " " + Bruger.efternavn,
             Emails.c.værdi,
+            Phonenr.c.værdi,
             Tilknytning.tilknytningstype_titel,
             Enhed.navn,
+            Enhed.enhedstype_titel,
+            
         )
         .filter(
             Enhed.uuid == Tilknytning.enhed_uuid,
             Tilknytning.enhed_uuid.in_(alle_MED_enheder),
             Tilknytning.bruger_uuid == Bruger.uuid,
+            
+
         )
         .join(Emails, Emails.c.bruger_uuid == Bruger.uuid, isouter=True)
+        .join(Phonenr, Phonenr.c.bruger_uuid == Bruger.uuid, isouter=True)
+
         .order_by(Bruger.efternavn)
     )
     data = query.all()
-    data = list(prepend(("Navn", "Email", "Tilknytningstype", "Enhed"), data))
+    data = list(prepend(("Navn", "AD-Email", "AD-Telefonnummer", "Tilknytningstype", "Enhed"), data))
     return data
 
 
