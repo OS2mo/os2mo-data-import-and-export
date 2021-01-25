@@ -150,7 +150,19 @@ class MOPrimaryEngagementUpdater(ABC):
         # Create dicts from cut_dates --> primary_counts
         return dict(zip(date_list, primary_counts))
 
-    def _check_user_outputter(self, user_uuid):
+    def _check_user_outputter(self, check_filters, user_uuid):
+        """Check the users primary engagement(s).
+
+        Args:
+            user_uuid: UUID of the user to check.
+
+        Returns:
+            Generator of output 4-tuples:
+                outputter: Function to output strings to
+                string: The base output string
+                user_uuid: User UUID for the output string
+                date: Date for the output string
+        """
         def to_output(p_count, fp_count):
             p_count = min(p_count, 2)
             fp_count = min(fp_count, 2)
@@ -162,22 +174,28 @@ class MOPrimaryEngagementUpdater(ABC):
             }
             p_table = {
                 0: lambda fp_count: (print, "No primary"),
-                1: lambda fp_count: (noop, None),
+                1: lambda fp_count: (noop, ""),
                 2: lambda fp_count: fp_table[fp_count],
             }
             return p_table[p_count](fp_count)
 
         user_results = self._check_user(
-            self.check_filters, user_uuid
+            check_filters, user_uuid
         )
         for date, (p_count, fp_count) in user_results.items():
             outputter, string = to_output(p_count, fp_count)
             yield outputter, string, user_uuid, date
 
-    def check_user(self, user_uuid):
-        outputs = self._check_user_outputter(user_uuid)
+    def _check_user_strings(self, check_filters, user_uuid):
+        outputs = self._check_user_outputter(check_filters, user_uuid)
         for outputter, string, user_uuid, date in outputs:
-            outputter(string + " for {} at {}".format(user_uuid, date))
+            final_string = string + " for {} at {}".format(user_uuid, date.date())
+            yield outputter, final_string
+
+    def check_user(self, user_uuid):
+        outputs = self._check_user_strings(self.check_filters, user_uuid)
+        for outputter, string in outputs:
+            outputter(string)
 
     def recalculate_primary(self, user_uuid, no_past=False):
         """

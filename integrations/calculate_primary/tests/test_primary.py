@@ -251,7 +251,7 @@ class Test_check_user(TestCase):
         )
 
         outputter, strings, user_uuids, dates = unzip(
-            self.updater._check_user_outputter('user_uuid')
+            self.updater._check_user_outputter([], 'user_uuid')
         )
         from ..common import noop, logger
 
@@ -259,9 +259,20 @@ class Test_check_user(TestCase):
             print, noop, logger.info, logger.info, print
         ])
         self.assertEqual(list(strings), [
-            "No primary", None, "All primaries are special",
+            "No primary", "", "All primaries are special",
             'Only one non-special primary',
             "Too many primaries"
         ])
         self.assertEqual(list(user_uuids), ['user_uuid'] * 5)
         self.assertEqual(list(dates), list(map(itemgetter(0), fixture_data)))
+
+        outputter, final_strings = unzip(
+            self.updater._check_user_strings([], 'user_uuid')
+        )
+        self.assertEqual(list(final_strings), [
+            'No primary for user_uuid at 1931-01-01',
+            ' for user_uuid at 1932-01-01',
+            'All primaries are special for user_uuid at 1933-01-01',
+            'Only one non-special primary for user_uuid at 1934-01-01',
+            'Too many primaries for user_uuid at 1935-01-01'
+        ])

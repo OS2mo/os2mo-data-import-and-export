@@ -658,7 +658,7 @@ class MoraHelper:
             no_past: Do not read engagements in the past.
 
         Returns:
-            list: List of dates with changes in engagement history.
+            list: List of datetimes with changes in engagement history.
         """
         def get_from_date(validity):
             fromdate = datetime.datetime.strptime(
