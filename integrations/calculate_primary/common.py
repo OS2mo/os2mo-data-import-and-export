@@ -154,6 +154,7 @@ class MOPrimaryEngagementUpdater(ABC):
         """Check the users primary engagement(s).
 
         Args:
+            check_filters: A list of predicate functions from (user_uuid, eng).
             user_uuid: UUID of the user to check.
 
         Returns:
@@ -187,12 +188,33 @@ class MOPrimaryEngagementUpdater(ABC):
             yield outputter, string, user_uuid, date
 
     def _check_user_strings(self, check_filters, user_uuid):
+        """Check the users primary engagement(s).
+
+        Args:
+            check_filters: A list of predicate functions from (user_uuid, eng).
+            user_uuid: UUID of the user to check.
+
+        Returns:
+            Generator of output 2-tuples:
+                outputter: Function to output strings to
+                string: Formatted output string
+        """
         outputs = self._check_user_outputter(check_filters, user_uuid)
         for outputter, string, user_uuid, date in outputs:
             final_string = string + " for {} at {}".format(user_uuid, date.date())
             yield outputter, final_string
 
     def check_user(self, user_uuid):
+        """Check the users primary engagement(s).
+
+        Prints messages to stdout / log as side-effect.
+
+        Args:
+            user_uuid: UUID of the user to check.
+
+        Returns:
+            None
+        """
         outputs = self._check_user_strings(self.check_filters, user_uuid)
         for outputter, string in outputs:
             outputter(string)
