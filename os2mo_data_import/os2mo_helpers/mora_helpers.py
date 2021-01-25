@@ -651,7 +651,7 @@ class MoraHelper:
     def find_cut_dates(self, uuid, no_past=False):
         """Find dates with changes in engagement history.
 
-        Run throgh entire history of a user and return a list of dates.
+        Run through entire history of a user and return a list of dates.
 
         Args:
             uuid: UUID of the user to find changes for.

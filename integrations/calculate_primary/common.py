@@ -28,8 +28,6 @@ class MOPrimaryEngagementUpdater(ABC):
         self.check_filters = []
         self.calculate_filters = []
 
-        # self.primary_types is a dict with all classes in the primary facet.
-        # self.primary is an ordered list of classes that can considered to be primary.
         self.primary_types, self.primary = self._find_primary_types()
 
     @lru_cache(maxsize=None)
@@ -67,6 +65,16 @@ class MOPrimaryEngagementUpdater(ABC):
 
     @abstractmethod
     def _find_primary_types(self):
+        """Find primary classes for the underlying implementation.
+
+        Returns:
+            2-tuple:
+                primary_types: a dict from indirect primary names to UUIDs.
+                    The used names are 'fixed_primary', 'primary' and 'non_primary',
+                    as such these names should be keys in the dictionary.
+                primary: a list of UUIDs that can considered to be primary.
+                    Should be a subset of the values in primary_types.
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -81,26 +89,19 @@ class MOPrimaryEngagementUpdater(ABC):
     def _is_primary(self, employment_id, eng, min_id, impl_specific):
         raise NotImplementedError
 
-    def _check_user(self, user_uuid, check_filters):
-        """Check the users primary engagement(s).
+    def _count_primary_engagements(self, check_filters, user_uuid, mo_engagements):
+        """Count number of primaries.
 
         Args:
-            user_uuid: UUID of the user to check.
             check_filters: A list of predicate functions from (user_uuid, eng).
+            user_uuid: UUID of the user to who owns the engagements.
+            engagements: A list of MO engagements to count primaries from.
 
         Returns:
             2-tuple:
                 primary_count: Number of primaries found.
                 filtered_primary_count: Number of primaries passing check_filters.
         """
-        # List of cut dates, excluding the very last one
-        date_list = self.helper.find_cut_dates(uuid=user_uuid)
-        date_list = date_list[:-1]
-        # Map all our dates, to their corresponding engagements.
-        mo_engagements = flatten(
-            map(partial(self._read_engagement, user_uuid), date_list)
-        )
-
         # Count number of primary engagements, by filtering on self.primary
         primary_mo_engagements = list(filter(
             lambda eng: eng["engagement_type"]["uuid"] in self.primary,
@@ -118,21 +119,50 @@ class MOPrimaryEngagementUpdater(ABC):
 
         return primary_count, filtered_primary_count
 
-    def check_user(self, user_uuid):
-        primary_count, filtered_primary_count = self._check_user(
-            user_uuid, self.check_filters
+    def _check_user(self, check_filters, user_uuid):
+        """Check the users primary engagement(s).
+
+        Args:
+            check_filters: A list of predicate functions from (user_uuid, eng).
+            user_uuid: UUID of the user to check.
+
+        Returns:
+            Dictionary:
+                key: Date at which the value is valid.
+                value: A 2-tuple, from _count_primary_engagements.
+        """
+        # List of cut dates, excluding the very last one
+        date_list = self.helper.find_cut_dates(uuid=user_uuid)
+        date_list = date_list[:-1]
+        # Map all our dates, to their corresponding engagements.
+        mo_engagements = map(
+            partial(self._count_primary_engagements, check_filters, user_uuid),
+            map(
+                partial(self._read_engagement, user_uuid), date_list
+            )
         )
-        if primary_count == 0:
-            print("No primary for {}".format(user_uuid))
-        elif primary_count == 1:
-            pass  # Intention noop
-        else:
-            if filtered_primary_count == 0:
-                logger.info("All primaries are special for {}".format(user_uuid))
-            elif filtered_primary_count == 1:
-                logger.info("Only one non-special primary for {}".format(user_uuid))
+        return dict(zip(date_list, mo_engagements))
+
+    def check_user(self, user_uuid):
+        user_results = self._check_user(
+            self.check_filters, user_uuid
+        )
+        for date, (primary_count, filtered_primary_count) in user_results.items():
+            if primary_count == 0:
+                print("No primary for {} at {}".format(user_uuid, date))
+            elif primary_count == 1:
+                pass  # Intention noop
             else:
-                print("Too many primaries for {} at {}".format(user_uuid))
+                if filtered_primary_count == 0:
+                    logger.info("All primaries are special for {} at {}".format(
+                        user_uuid, date
+                    ))
+                elif filtered_primary_count == 1:
+                    logger.info("Only one non-special primary for {} at {}".format(
+                        user_uuid, date
+                    ))
+                else:
+                    print("Too many primaries for {} at {}".format(user_uuid, date))
 
     def recalculate_primary(self, user_uuid, no_past=False):
         """
