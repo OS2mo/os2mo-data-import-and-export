@@ -1,7 +1,8 @@
 import datetime
 from unittest import TestCase
 from unittest.mock import MagicMock
-from more_itertools import ilen
+from collections import OrderedDict
+from more_itertools import ilen, unzip
 from operator import itemgetter
 
 from hypothesis import given, example
@@ -72,6 +73,8 @@ class MOPrimaryEngagementUpdaterTest(MOPrimaryEngagementUpdater):
 
 
 class Test_check_user(TestCase):
+    """Test the check_user functions."""
+
     def setUp(self):
         self.updater = MOPrimaryEngagementUpdaterTest({'mora.base': 'mora_base_url'})
 
@@ -232,3 +235,33 @@ class Test_check_user(TestCase):
                 datetime.datetime(1950, 1, 2, 0, 0): (1, 0)
             }
         )
+
+    def test_check_user_outputter(self):
+        fixture_data = [
+            (datetime.datetime(1931, 1, 1, 0, 0), (0, 0)),
+            (datetime.datetime(1932, 1, 1, 0, 0), (1, 1)),
+            (datetime.datetime(1933, 1, 1, 0, 0), (2, 0)),
+            (datetime.datetime(1934, 1, 1, 0, 0), (2, 1)),
+            (datetime.datetime(1935, 1, 1, 0, 0), (2, 2)),
+        ]
+        # It does not normally return an ordered dict, but for testing we want a
+        # consistent order.
+        self.updater._check_user = lambda check_filters, user_uuid: OrderedDict(
+            fixture_data
+        )
+
+        outputter, strings, user_uuids, dates = unzip(
+            self.updater._check_user_outputter('user_uuid')
+        )
+        from ..common import noop, logger
+
+        self.assertEqual(list(outputter), [
+            print, noop, logger.info, logger.info, print
+        ])
+        self.assertEqual(list(strings), [
+            "No primary", None, "All primaries are special",
+            'Only one non-special primary',
+            "Too many primaries"
+        ])
+        self.assertEqual(list(user_uuids), ['user_uuid'] * 5)
+        self.assertEqual(list(dates), list(map(itemgetter(0), fixture_data)))

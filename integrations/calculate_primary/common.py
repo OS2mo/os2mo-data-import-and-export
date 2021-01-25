@@ -12,6 +12,10 @@ LOGGER_NAME = "updatePrimaryEngagements"
 logger = logging.getLogger(LOGGER_NAME)
 
 
+def noop(*args, **kwargs):
+    pass
+
+
 def edit_engagement(data, mo_engagement_uuid):
     payload = {"type": "engagement", "uuid": mo_engagement_uuid, "data": data}
     return payload
@@ -136,33 +140,44 @@ class MOPrimaryEngagementUpdater(ABC):
         date_list = date_list[:-1]
         # Map all our dates, to their corresponding engagements.
         mo_engagements = map(
-            partial(self._count_primary_engagements, check_filters, user_uuid),
-            map(
-                partial(self._read_engagement, user_uuid), date_list
-            )
+            partial(self._read_engagement, user_uuid), date_list
         )
-        return dict(zip(date_list, mo_engagements))
+        # Map mo_engagements to primary counts
+        primary_counts = map(
+            partial(self._count_primary_engagements, check_filters, user_uuid),
+            mo_engagements
+        )
+        # Create dicts from cut_dates --> primary_counts
+        return dict(zip(date_list, primary_counts))
 
-    def check_user(self, user_uuid):
+    def _check_user_outputter(self, user_uuid):
+        def to_output(p_count, fp_count):
+            p_count = min(p_count, 2)
+            fp_count = min(fp_count, 2)
+
+            fp_table = {
+                0: (logger.info, "All primaries are special"),
+                1: (logger.info, "Only one non-special primary"),
+                2: (print, "Too many primaries"),
+            }
+            p_table = {
+                0: lambda fp_count: (print, "No primary"),
+                1: lambda fp_count: (noop, None),
+                2: lambda fp_count: fp_table[fp_count],
+            }
+            return p_table[p_count](fp_count)
+
         user_results = self._check_user(
             self.check_filters, user_uuid
         )
-        for date, (primary_count, filtered_primary_count) in user_results.items():
-            if primary_count == 0:
-                print("No primary for {} at {}".format(user_uuid, date))
-            elif primary_count == 1:
-                pass  # Intention noop
-            else:
-                if filtered_primary_count == 0:
-                    logger.info("All primaries are special for {} at {}".format(
-                        user_uuid, date
-                    ))
-                elif filtered_primary_count == 1:
-                    logger.info("Only one non-special primary for {} at {}".format(
-                        user_uuid, date
-                    ))
-                else:
-                    print("Too many primaries for {} at {}".format(user_uuid, date))
+        for date, (p_count, fp_count) in user_results.items():
+            outputter, string = to_output(p_count, fp_count)
+            yield outputter, string, user_uuid, date
+
+    def check_user(self, user_uuid):
+        outputs = self._check_user_outputter(user_uuid)
+        for outputter, string, user_uuid, date in outputs:
+            outputter(string + " for {} at {}".format(user_uuid, date))
 
     def recalculate_primary(self, user_uuid, no_past=False):
         """
@@ -269,10 +284,7 @@ class MOPrimaryEngagementUpdater(ABC):
         return return_dict
 
     def check_all(self):
-        """
-        Check all users for the existence of primary engagements.
-        :return: TODO
-        """
+        """Check all users for the existence of primary engagements."""
         print("Reading all users from MO...")
         all_users = self.helper.read_all_users()
         print("OK")
