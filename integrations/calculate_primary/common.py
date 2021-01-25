@@ -18,11 +18,10 @@ def edit_engagement(data, mo_engagement_uuid):
 
 
 class MOPrimaryEngagementUpdater(ABC):
-    def __init__(self):
-        self.settings = load_settings()
-        mora_base = self.settings["mora.base"]
+    def __init__(self, settings=None):
+        self.settings = settings or load_settings()
 
-        self.helper = MoraHelper(hostname=mora_base, use_cache=False)
+        self.helper = self._get_mora_helper(self.settings['mora.base'])
 
         # List of engagement filters to apply to check / recalculate respectively
         # NOTE: Should be overridden by subclasses
@@ -37,6 +36,9 @@ class MOPrimaryEngagementUpdater(ABC):
     def _get_org_uuid(self):
         org_uuid = self.helper.read_organisation()
         return org_uuid
+
+    def _get_mora_helper(self, mora_base):
+        return MoraHelper(hostname=mora_base, use_cache=False)
 
     def _get_person(self, cpr=None, uuid=None, mo_person=None):
         """
@@ -79,36 +81,55 @@ class MOPrimaryEngagementUpdater(ABC):
     def _is_primary(self, employment_id, eng, min_id, impl_specific):
         raise NotImplementedError
 
-    def check_user(self, user_uuid):
+    def _check_user(self, user_uuid, check_filters):
+        """Check the users primary engagement(s).
+
+        Args:
+            user_uuid: UUID of the user to check.
+            check_filters: A list of predicate functions from (user_uuid, eng).
+
+        Returns:
+            2-tuple:
+                primary_count: Number of primaries found.
+                filtered_primary_count: Number of primaries passing check_filters.
+        """
         # List of cut dates, excluding the very last one
         date_list = self.helper.find_cut_dates(uuid=user_uuid)
         date_list = date_list[:-1]
         # Map all our dates, to their corresponding engagements.
-        mo_engagements = list(flatten(
+        mo_engagements = flatten(
             map(partial(self._read_engagement, user_uuid), date_list)
-        ))
-        # Only keep engagements, which are primary
-        primary_mo_engagements = filter(
+        )
+
+        # Count number of primary engagements, by filtering on self.primary
+        primary_mo_engagements = list(filter(
             lambda eng: eng["engagement_type"]["uuid"] in self.primary,
             mo_engagements,
-        )
-        # Count number of primary engagements in the iterator
+        ))
         primary_count = ilen(primary_mo_engagements)
 
+        # Count number of primary engagements, by filtering out special primaries
+        # What consistutes a 'special primary' depend on the subclass implementation
+        for filter_func in check_filters:
+            primary_mo_engagements = filter(
+                partial(filter_func, user_uuid), primary_mo_engagements
+            )
+        filtered_primary_count = ilen(primary_mo_engagements)
+
+        return primary_count, filtered_primary_count
+
+    def check_user(self, user_uuid):
+        primary_count, filtered_primary_count = self._check_user(
+            user_uuid, self.check_filters
+        )
         if primary_count == 0:
             print("No primary for {}".format(user_uuid))
-        elif primary_count > 1:
-            # Re-count primaries to ensure only one 'true' primary is left
-            extra_primary_mo_engagements = mo_engagements
-            for filter_func in self.check_filters:
-                extra_primary_mo_engagements = filter(
-                    partial(filter_func, user_uuid), extra_primary_mo_engagements
-                )
-            extra_primary_count = ilen(extra_primary_mo_engagements)
-
-            if primary_count == 0:
+        elif primary_count == 1:
+            pass  # Intention noop
+        else:
+            if filtered_primary_count == 0:
                 logger.info("All primaries are special for {}".format(user_uuid))
-            elif primary_count == 1:
+            elif filtered_primary_count == 1:
                 logger.info("Only one non-special primary for {}".format(user_uuid))
             else:
                 print("Too many primaries for {} at {}".format(user_uuid))
