@@ -1,6 +1,7 @@
 -r os2phonebook/requirements.txt
 -r sql_export/requirements.txt
 -r utils/requirements.txt
+-r emus/requirements.txt
 click
 anytree
 tqdm

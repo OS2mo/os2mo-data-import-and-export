@@ -16,6 +16,7 @@ import datetime
 import requests
 from xml.sax.saxutils import escape
 from functools import partial
+from itertools import filterfalse
 
 from exporters.emus import config
 
@@ -397,8 +398,8 @@ def export_e_emus(session, settings, nodes, emus_file):
         engagements = session.query(Engagement).filter(
             Engagement.enhed_uuid == ou.uuid
         ).all()
-        engagements = filter(hourly_paid, engagements)
-        engagements = filter(partial(discarded, settings), engagements)
+        engagements = filterfalse(hourly_paid, engagements)
+        engagements = filterfalse(partial(discarded, settings), engagements)
         for engagement in engagements:
             logger.info("adding engagement %s", engagement.uuid)
             engagement_rows.append(build_engagement_row(session, settings,

@@ -11,6 +11,7 @@ Helper class to make a number of pre-defined queries into MO.
 These are specfic for Viborg
 """
 
+from tqdm import tqdm
 import time
 from os2mo_helpers.mora_helpers import MoraHelper
 import exporters.common_queries as cq
@@ -93,7 +94,7 @@ def export_ou_emus(mh, nodes, emus_file):
                   'longName', 'street', 'zipCode', 'city', 'phoneNumber']
 
     rows = []
-    for node in cq.PreOrderIter(nodes['root']):
+    for node in tqdm(cq.PreOrderIter(nodes['root']), total=len(nodes), desc="export ou"):
         ou = mh.read_ou(node.name)
         if not engagement_counter[ou["uuid"]]:
             logger.info("skipping dept %s with no non-hourly-paid employees",
@@ -360,7 +361,7 @@ def export_e_emus(mh, nodes, emus_file):
     manager_rows = []
     engagement_rows = []
 
-    for node in cq.PreOrderIter(nodes['root']):
+    for node in tqdm(cq.PreOrderIter(nodes['root']), total=len(nodes), desc="export e"):
         ou = mh.read_ou(node.name)
 
         # normal engagements - original export
