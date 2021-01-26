@@ -89,7 +89,7 @@ class Test_check_user(TestCase):
         """Test the result of running _check_user on non-overlapping engagements.
 
         Args:
-            engagements: A list of engagement_type uuids, these are used to create a
+            engagements: A list of primary uuids, these are used to create a
                 list of actual engagements, with non-overlapping validities.
         """
         # Create a mapping from 'from date' to engagement.
@@ -110,11 +110,11 @@ class Test_check_user(TestCase):
         # As engagements are made non-overlapping, we will always return only one,
         # namely the one found by lookup in our engagement_map
         self.updater._read_engagement = lambda user_uuid, date: [
-            {"engagement_type": {"uuid": engagement_map[date]}}
+            {"primary": {"uuid": engagement_map[date]}}
         ]
         check_filters = [
             # Filter out special primaries
-            lambda user_uuid, eng: eng["engagement_type"]["uuid"] != 'special_primary_uuid'
+            lambda user_uuid, eng: eng["primary"]["uuid"] != 'special_primary_uuid'
         ]
 
         def gen_expected(date):
@@ -122,7 +122,7 @@ class Test_check_user(TestCase):
             uuid = engagement_map.get(date)
             count = 1 if uuid in self.updater.primary else 0
             special_count = 1 if uuid == 'special_primary_uuid' else 0
-            return count, count - special_count
+            return 1, count, count - special_count
 
         self.assertEqual(
             self.updater._check_user(check_filters, 'user_uuid'),
@@ -196,7 +196,7 @@ class Test_check_user(TestCase):
         # See test_engagement_at_date for details
         engagements = self.engagements_fixture()
         self.updater._read_engagement = lambda user_uuid, date: [
-            {"engagement_type": {"uuid": engagement['uuid']}}
+            {"primary": {"uuid": engagement['uuid']}}
             for engagement in engagements_at_date(date, engagements)
         ]
 
@@ -213,32 +213,32 @@ class Test_check_user(TestCase):
 
         check_filters = [
             # Filter out special primaries
-            lambda user_uuid, eng: eng["engagement_type"]["uuid"] != 'special_primary_uuid'
+            lambda user_uuid, eng: eng["primary"]["uuid"] != 'special_primary_uuid'
         ]
 
         self.assertEqual(
             self.updater._check_user(check_filters, 'user_uuid'),
             {
                 # Only primary_uuid
-                datetime.datetime(1931, 1, 1, 0, 0): (1, 1),
+                datetime.datetime(1931, 1, 1, 0, 0): (1, 1, 1),
                 # Both primary_uuid and fixed_primary_uuid
-                datetime.datetime(1939, 9, 1, 0, 0): (2, 2),
+                datetime.datetime(1939, 9, 1, 0, 0): (2, 2, 2),
                 # Only primary_uuid
-                datetime.datetime(1945, 9, 3, 0, 0): (1, 1),
+                datetime.datetime(1945, 9, 3, 0, 0): (1, 1, 1),
                 # Both primary_uuid and special_primary_uuid
-                datetime.datetime(1949, 1, 1, 0, 0): (2, 1),
+                datetime.datetime(1949, 1, 1, 0, 0): (2, 2, 1),
                 # Only special_primary_uuid
-                datetime.datetime(1950, 1, 2, 0, 0): (1, 0)
+                datetime.datetime(1950, 1, 2, 0, 0): (1, 1, 0)
             }
         )
 
     def test_check_user_outputter(self):
         fixture_data = [
-            (datetime.datetime(1931, 1, 1, 0, 0), (0, 0)),
-            (datetime.datetime(1932, 1, 1, 0, 0), (1, 1)),
-            (datetime.datetime(1933, 1, 1, 0, 0), (2, 0)),
-            (datetime.datetime(1934, 1, 1, 0, 0), (2, 1)),
-            (datetime.datetime(1935, 1, 1, 0, 0), (2, 2)),
+            (datetime.datetime(1931, 1, 1, 0, 0), (2, 0, 0)),
+            (datetime.datetime(1932, 1, 1, 0, 0), (2, 1, 1)),
+            (datetime.datetime(1933, 1, 1, 0, 0), (2, 2, 0)),
+            (datetime.datetime(1934, 1, 1, 0, 0), (2, 2, 1)),
+            (datetime.datetime(1935, 1, 1, 0, 0), (2, 2, 2)),
         ]
         # It does not normally return an ordered dict, but for testing we want a
         # consistent order.
