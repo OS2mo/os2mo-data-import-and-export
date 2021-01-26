@@ -33,7 +33,7 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         ]
 
     def _find_primary_types(self):
-        # Keys are; fixed_primary, primary no_salary non-primary
+        # Keys are; fixed_primary, primary, no_salary and non-primary
         primary_types = sd_common.primary_types(self.helper)
         primary = [
             primary_types["fixed_primary"],
@@ -42,45 +42,42 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         ]
         return primary_types, primary
 
-    def _calculate_rate_and_ids(self, mo_engagement, no_past):
-        max_rate = 0
-        min_id = 9999999
-        for eng in mo_engagement:
-            if no_past and eng["validity"]["to"]:
-                to = datetime.datetime.strptime(eng["validity"]["to"], "%Y-%m-%d")
-                if to < datetime.datetime.now():
-                    continue
+    def _find_primary(self, mo_engagements):
+        # Ensure that all mo_engagements have user_keys.
+        for eng in mo_engagements:
+            if 'user_key' not in eng:
+                return None
 
-            logger.debug("Calculate rate, engagement: {}".format(eng))
-            if "user_key" not in eng:
-                logger.error("Cannot calculate primary!!! Eng: {}".format(eng))
-                return None, None
-
-            try:  # Code similar to this exists in common.
-                employment_id = int(eng["user_key"])
+        def non_integer_userkey(self, mo_engagement):
+            try:
+                # non-integer user keys should universally be status0, and as such
+                # they should already have been filtered out, thus if they have not
+                # been filtered out, they must have the wrong primary_type.
+                int(eng['user_key'])
             except ValueError:
-                employment_id = 999999
+                self._fixup_status_0(mo_engagement)
+                # Filter it out, as it should have been
+                return False
+            return True
 
-            if not eng["fraction"]:
-                eng["fraction"] = 0
+        # Ensure that all mo_engagements have integer user_keys.
+        mo_engagements = list(filter(non_integer_userkey, mo_engagements))
 
-            stat = "Cur max rate: {}, cur min_id: {}, this rate: {}, this id: {}"
-            logger.debug(
-                stat.format(max_rate, min_id, employment_id, eng["fraction"])
-            )
+        # The primary engagement is the engagement with the highest occupation rate.
+        # - The occupation rate is found as 'fraction' on the engagement.
+        #
+        # If two engagements have the same occupation rate, the tie is broken by
+        # picking the one with the lowest user-key integer.
+        primary_engagement = max(
+            mo_engagements,
+            # Sort first by fraction, then reversely by user_key integer
+            key=lambda eng: (eng.get("fraction", 0), -int(eng["user_key"]))
+        )
+        return primary_engagement['uuid']
 
-            occupation_rate = eng["fraction"]
-            if eng["fraction"] == max_rate:
-                if employment_id < min_id:
-                    min_id = employment_id
-            if occupation_rate > max_rate:
-                max_rate = occupation_rate
-                min_id = employment_id
-        logger.debug("Min id: {}, Max rate: {}".format(min_id, max_rate))
-        return (min_id, max_rate)
-
-    def _handle_non_integer_employment_id(self, validity, eng):
+    def _fixup_status_0(self, mo_engagement):
         logger.warning("Engagement type not status0. Will fix.")
+        validity = mo_engagement['validity']
         data = {
             "primary": {"uuid": self.primary_types["no_salary"]},
             "validity": validity,
@@ -90,17 +87,3 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         response = self.helper._mo_post("details/edit", payload)
         assert response.status_code == 200
         logger.info("Status0 fixed")
-        # XXX: If we are counting number of edits, in the main method, why do we
-        #      not count this edit here??
-
-    def _is_primary(self, employment_id, eng, min_id, impl_specific):
-        max_rate = impl_specific
-
-        occupation_rate = eng.get("fraction", 0)
-        logger.debug(
-            "Current rate and id: {}, {}".format(occupation_rate, employment_id)
-        )
-
-        # XXX: These conditions are not equivalent, and as such we may end
-        #      up in a situation where the employee gets no primary at all!
-        return occupation_rate == max_rate and employment_id == min_id

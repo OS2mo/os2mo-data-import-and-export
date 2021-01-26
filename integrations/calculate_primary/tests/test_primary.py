@@ -14,6 +14,8 @@ from ..common import MOPrimaryEngagementUpdater
 def engagements_at_date(date, engagements):
     """Filter engagements to only show ones valid at date.
 
+    This is supposed to emulate how MO handles the `at` parameter.
+
     Args:
         date: The date to check validities against.
         engagements: The list of engagements to filter
@@ -62,14 +64,8 @@ class MOPrimaryEngagementUpdaterTest(MOPrimaryEngagementUpdater):
         ]
         return primary_dict, primary_list
 
-    def _calculate_rate_and_ids(self, mo_engagement, no_past):
+    def _find_primary(self, mo_engagements):
         raise NotImplementedError()
-
-    def _handle_non_integer_employment_id(self, validity, eng):
-        raise NotImplementedError
-
-    def _is_primary(self, employment_id, eng, min_id, impl_specific):
-        raise NotImplementedError
 
 
 class Test_check_user(TestCase):
@@ -276,3 +272,14 @@ class Test_check_user(TestCase):
             'Only one non-special primary for user_uuid at 1934-01-01',
             'Too many primaries for user_uuid at 1935-01-01'
         ])
+
+
+class Test_recalculate_user(TestCase):
+    """Test the recalculate_user functions."""
+
+    def setUp(self):
+        self.updater = MOPrimaryEngagementUpdaterTest({'mora.base': 'mora_base_url'})
+
+    def test_create(self):
+        """Test that setUp runs without using it for anything."""
+        pass
