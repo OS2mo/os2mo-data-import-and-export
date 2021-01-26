@@ -15,13 +15,11 @@ import logging
 import os
 
 import requests
-import aiohttp
 import datetime
 from operator import itemgetter
 
 from anytree import Node
 from more_itertools import only
-from integrations.dar_helper.utils import async_to_sync
 
 SAML_TOKEN = os.environ.get("SAML_TOKEN", None)
 PRIMARY_RESPONSIBILITY = "Personale: ansættelse/afskedigelse"
@@ -122,16 +120,8 @@ class MoraHelper:
             i += 1
         return path_dict
 
-    def _mo_lookup(
-        self,
-        uuid,
-        url,
-        at=None,
-        validity=None,
-        only_primary=False,
-        use_cache=None,
-        calculate_primary=False,
-    ):
+    def _mo_lookup(self, uuid, url, at=None, validity=None, only_primary=False,
+                   use_cache=None, calculate_primary=False):
         # TODO: at-value is currently not part of cache key
         if use_cache is None:
             use_cache = self.default_cache
@@ -155,30 +145,27 @@ class MoraHelper:
             if SAML_TOKEN is None:
                 response = requests.get(full_url, params=params)
                 if response.status_code == 401:
-                    msg = "Missing SAML token"
+                    msg = 'Missing SAML token'
                     logger.error(msg)
                     raise requests.exceptions.RequestException(msg)
                 return_dict = response.json()
             else:
                 header = {"SESSION": SAML_TOKEN}
-                response = requests.get(full_url, headers=header, params=params)
+                response = requests.get(
+                    full_url,
+                    headers=header,
+                    params=params
+                )
                 if response.status_code == 401:
-                    msg = "SAML token not accepted"
+                    msg = 'SAML token not accepted'
                     logger.error(msg)
                     raise requests.exceptions.RequestException(msg)
 
                 return_dict = response.json()
             self.cache[cache_id] = return_dict
-            if response.status_code == 500:
-                # This happens when an object has been deleted.
-                return {}
         return return_dict
 
-    @async_to_sync
-    async def _mo_post(self, url, payload, force=True):
-        return await self._a_mo_post(url, payload, force=force)
-
-    async def _a_mo_post(self, url, payload, force=True):
+    def _mo_post(self, url, payload, force=True):
         if force:
             params = {"force": 1}
         else:
@@ -190,7 +177,12 @@ class MoraHelper:
             header = None
 
         full_url = self.host + url
-        response = requests.post(full_url, headers=header, params=params, json=payload)
+        response = requests.post(
+            full_url,
+            headers=header,
+            params=params,
+            json=payload
+        )
         return response
 
     def check_connection(self):
