@@ -8,11 +8,6 @@ from integrations.SD_Lon import sd_common
 class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
     def __init__(self):
         super().__init__()
-        self.check_filters = [
-            # Filter out no_salary primary, such that only fixed and primary is left
-            lambda user_uuid, eng: eng["engagement_type"]["uuid"]
-            != primary[3]
-        ]
 
         def remove_past(user_uuid, no_past, eng):
             if no_past and eng["validity"]["to"]:
@@ -21,15 +16,22 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
                     return False
             return True
 
-        def remove_no_salary(user_uuid, no_past, eng):
-            if eng["primary"]["uuid"] == self.primary_types["no_salary"]:
-                logger.info("Status 0, no update of primary")
-                return False
-            return True
+        def remove_no_salary(eng):
+            return not self._predicate_primary_is("no_salary", eng)
+
+        def remove_no_salary_check(user_uuid, eng):
+            return remove_no_salary(eng)
+
+        def remove_no_salary_calculate(user_uuid, no_past, eng):
+            return remove_no_salary(eng)
+
+        self.check_filters = [
+            remove_no_salary_check,
+        ]
 
         self.calculate_filters = [
             remove_past,
-            remove_no_salary,
+            remove_no_salary_calculate,
         ]
 
     def _find_primary_types(self):
