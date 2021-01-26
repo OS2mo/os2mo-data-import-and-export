@@ -15,17 +15,20 @@ logger = logging.getLogger(LOGGER_NAME)
 
 
 class MultipleFixedPrimaries(Exception):
-    """Thrown when multiple fixed primaries are found doing recalculate."""
+    """Thrown when multiple fixed primaries are found doing recalculate.
+
+    This means that a user entered invalid data in MO.
+    """
     pass
 
 
 class NoPrimaryFound(Exception):
-    """Thrown when no primary is determined doing recalculate."""
+    """Thrown when no primary is determined doing recalculate.
+
+    This means the implementation specific backend did not fulfill the interface for
+    the _find_primary method.
+    """
     pass
-
-
-class EngagementMissingUserKey(Exception):
-    """Thrown when an engagement is missing its userkey during recalculate."""
 
 
 def noop(*args, **kwargs):
@@ -435,7 +438,14 @@ class MOPrimaryEngagementUpdater(ABC):
         all_users = self.helper.read_all_users()
         print("OK")
         edit_status = {}
-        for user in tqdm(all_users):
-            status = self.recalculate_user(user["uuid"], no_past=no_past)
-            edit_status.update(status)
+        all_users = tqdm(all_users)
+        all_users = map(itemgetter('uuid'), all_users)
+        for user_uuid in all_users:
+            try:
+                status = self.recalculate_user(user_uuid, no_past=no_past)
+                edit_status.update(status)
+            except MultipleFixedPrimaries:
+                print("{} has conflicting fixed primaries".format(user_uuid))
+            except Exception as exp:
+                print("Exception while processing {}: {}".format(user_uuid, exp))
         print("Total edits: {}".format(sum(edit_status.values())))
