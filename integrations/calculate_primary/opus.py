@@ -3,8 +3,9 @@ from integrations.calculate_primary.common import (MOPrimaryEngagementUpdater,
 
 
 class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
         # Currently primary is set first by engagement type (order given in
         # settings) and secondly by job_id.
         self.eng_types_order = self.settings[

@@ -28,12 +28,12 @@ def get_engagement_updater(integration):
         from integrations.calculate_primary.sd import \
             SDPrimaryEngagementUpdater
 
-        return SDPrimaryEngagementUpdater()
+        return SDPrimaryEngagementUpdater
     if integration == "OPUS":
         from integrations.calculate_primary.opus import \
             OPUSPrimaryEngagementUpdater
 
-        return OPUSPrimaryEngagementUpdater()
+        return OPUSPrimaryEngagementUpdater
     raise NotImplementedError("No engagement updater implemented for " + integration)
 
 
@@ -42,6 +42,10 @@ def get_engagement_updater(integration):
     "--integration",
     type=click.Choice(["SD", "OPUS"], case_sensitive=False),
     help="Integration to use",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True, type=click.BOOL, help="Make no changes"
 )
 @optgroup.group("Operation", cls=RequiredMutuallyExclusiveOptionGroup, help="")
 @optgroup.option(
@@ -53,13 +57,14 @@ def get_engagement_updater(integration):
 )
 @optgroup.option("--recalculate-user", type=click.UUID, help="Recalculate one user")
 def calculate_primary(
-    integration, check_all, check_user, recalculate_all, recalculate_user
+    integration, dry_run, check_all, check_user, recalculate_all, recalculate_user
 ):
     """Tool to work with primary engagement(s)."""
     setup_logging()
 
     # Acquire the configured updater
-    updater = get_engagement_updater(integration)
+    updater_class = get_engagement_updater(integration)
+    updater = updater_class(dry_run=dry_run)
 
     # Run the specified operation
     if check_all:
@@ -73,7 +78,7 @@ def calculate_primary(
         updater.recalculate_all(no_past=True)
     if recalculate_user:
         print("Recalculate user")
-        updater.recalculate_primary(recalculate_user)
+        updater.recalculate_user(recalculate_user)
 
 
 if __name__ == "__main__":

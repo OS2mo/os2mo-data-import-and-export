@@ -6,8 +6,8 @@ from integrations.SD_Lon import sd_common
 
 
 class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
         def remove_past(user_uuid, no_past, eng):
             if no_past and eng["validity"]["to"]:
@@ -50,7 +50,7 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
             if 'user_key' not in eng:
                 return None
 
-        def non_integer_userkey(self, mo_engagement):
+        def non_integer_userkey(mo_engagement):
             try:
                 # non-integer user keys should universally be status0, and as such
                 # they should already have been filtered out, thus if they have not
@@ -73,7 +73,7 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         primary_engagement = max(
             mo_engagements,
             # Sort first by fraction, then reversely by user_key integer
-            key=lambda eng: (eng.get("fraction", 0), -int(eng["user_key"]))
+            key=lambda eng: (eng.get("fraction") or 0, -int(eng["user_key"]))
         )
         return primary_engagement['uuid']
 
@@ -86,6 +86,7 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         }
         payload = edit_engagement(data, eng["uuid"])
         logger.debug("Status0 edit payload: {}".format(payload))
-        response = self.helper._mo_post("details/edit", payload)
-        assert response.status_code == 200
-        logger.info("Status0 fixed")
+        if not self.dry_run:
+            response = self.helper._mo_post("details/edit", payload)
+            assert response.status_code == 200
+            logger.info("Status0 fixed")
