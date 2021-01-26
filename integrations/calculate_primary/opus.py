@@ -55,60 +55,41 @@ class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
 
         return primary_dict, primary_list
 
-    def _calculate_rate_and_ids(self, mo_engagement, no_past):
-        min_type_pri = 9999
-        min_id = 9999999
-        for eng in mo_engagement:
-            logger.debug("Calculate rate, engagement: {}".format(eng))
+    def _find_primary(self, mo_engagements):
+        # Ensure that all mo_engagements have user_keys.
+        for eng in mo_engagements:
+            if 'user_key' not in eng:
+                return None
 
+        def non_integer_userkey(self, mo_engagement):
             try:
-                employment_id = int(eng["user_key"])
+                # non-integer user keys should not occur
+                int(eng['user_key'])
             except ValueError:
                 logger.warning(
                     "Skippning engangement with non-integer employment_id: {}".format(
                         eng["user_key"]
                     )
                 )
-                continue
+                return False
+            return True
 
-            stat = "Current eng_type, min_id: {}, {}. This rate, eng_pos: {}, {}"
-            logger.debug(
-                stat.format(min_type_pri, min_id, employment_id, eng["fraction"])
-            )
+        # Ensure that all mo_engagements have integer user_keys.
+        mo_engagements = list(filter(non_integer_userkey, mo_engagements))
 
+        # The primary engagement is the engagement with the lowest engagement type.
+        # - The order of engagement types is given by self.eng_types_order.
+        #
+        # If two engagements have the same engagement_type, the tie is broken by
+        # picking the one with the lowest user-key integer.
+        def get_engagement_type_id(engagement):
             if eng["engagement_type"] in self.eng_types_order:
-                type_pri = self.eng_types_order.index(eng["engagement_type"])
-            else:
-                type_pri = 9999
+                return self.eng_types_order.index(eng["engagement_type"])
+            return 9999
 
-            if type_pri == min_type_pri:
-                if employment_id < min_id:
-                    min_id = employment_id
-            if type_pri < min_type_pri:
-                min_id = employment_id
-                min_type_pri = type_pri
-
-        logger.debug("Min id: {}, Prioritied type: {}".format(min_id, min_type_pri))
-        if (min_id is None) or (min_type_pri is None):
-            raise Exception("Cannot calculate primary")
-        return (min_id, min_type_pri)
-
-    def _handle_non_integer_employment_id(self, validity, eng):
-        logger.warning(
-            "Skippning engangement with non-integer employment_id: {}".format(
-                eng["user_key"]
-            )
+        primary_engagement = min(
+            mo_engagements,
+            # Sort first by engagement_type, then by user_key integer
+            key=lambda eng: (get_engagement_type_id(eng), int(eng["user_key"]))
         )
-
-    def _is_primary(self, employment_id, eng, min_id, impl_specific):
-        min_type_pri = impl_specific
-
-        if eng["engagement_type"] in self.eng_types_order:
-            type_pri = self.eng_types_order.index(eng["engagement_type"])
-        else:
-            type_pri = 9999
-
-        msg = "Current type pri and id: {}, {}"
-        logger.debug(msg.format(type_pri, employment_id))
-
-        return type_pri == min_type_pri and employment_id == min_id
+        return primary_engagement['uuid']
