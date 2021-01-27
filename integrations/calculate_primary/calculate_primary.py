@@ -34,13 +34,14 @@ def get_engagement_updater(integration):
             OPUSPrimaryEngagementUpdater
 
         return OPUSPrimaryEngagementUpdater
-    raise NotImplementedError("No engagement updater implemented for " + integration)
+    raise NotImplementedError("Unexpected integration: " + str(integration))
 
 
 @click.command()
 @click.option(
     "--integration",
     type=click.Choice(["SD", "OPUS"], case_sensitive=False),
+    required=True,
     help="Integration to use",
 )
 @click.option(

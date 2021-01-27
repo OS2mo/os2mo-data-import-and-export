@@ -1,12 +1,13 @@
 import datetime
 from unittest import TestCase
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 from collections import OrderedDict
 from more_itertools import ilen, unzip
 from operator import itemgetter
 
 from hypothesis import given, example
 import hypothesis.strategies as st
+from integrations.ad_integration.utils import AttrDict
 
 from ..common import MOPrimaryEngagementUpdater
 
@@ -65,7 +66,7 @@ class MOPrimaryEngagementUpdaterTest(MOPrimaryEngagementUpdater):
         return primary_dict, primary_list
 
     def _find_primary(self, mo_engagements):
-        raise NotImplementedError()
+        return mo_engagements[0]['uuid']
 
 
 class Test_check_user(TestCase):
@@ -279,7 +280,214 @@ class Test_recalculate_user(TestCase):
 
     def setUp(self):
         self.updater = MOPrimaryEngagementUpdaterTest({'mora.base': 'mora_base_url'})
+        self.updater.morahelper_mock._mo_post.return_value = AttrDict({
+            "status_code": 200,
+        })
+        self.updater._ensure_primary = MagicMock(wraps=self.updater._ensure_primary)
 
     def test_create(self):
         """Test that setUp runs without using it for anything."""
         pass
+
+    def test_recalculate_no_engagements(self):
+        """Test that no engagements mean no changes and no attempted updates."""
+        self.assertEqual(
+            self.updater.recalculate_user('user_uuid'),
+            {'user_uuid': 0}
+        )
+        self.updater._ensure_primary.assert_not_called()
+
+    @given(st.sampled_from(['primary_uuid', 'fixed_primary_uuid']))
+    def test_recalculate_single_engagement_already_primary(self, old_primary):
+        """Test that a primary engagement is still primary after recalculate."""
+        cut_dates = [
+            datetime.datetime(2930, 1, 1),
+            datetime.datetime(9999, 12, 30, 0, 0)
+        ]
+        self.updater.morahelper_mock.find_cut_dates.return_value = cut_dates
+
+        engagement = {"uuid": "engagement_uuid", "primary": {"uuid": old_primary}}
+        self.updater._read_engagement = lambda user_uuid, date: [engagement]
+
+        self.assertEqual(
+            self.updater.recalculate_user('user_uuid'),
+            {'user_uuid': 0}
+        )
+        self.updater._ensure_primary.assert_called_with(
+            engagement, old_primary, {'from': '2930-01-01', 'to': None}
+        )
+        self.updater.morahelper_mock._mo_post.assert_not_called()
+
+    @given(st.sampled_from(['non_primary_uuid', 'unrelated_uuid']))
+    def test_recalculate_single_engagement_becoming_primary(self, old_primary):
+        """Test that a non-primary engagement becomes primary after recalculate."""
+        cut_dates = [
+            datetime.datetime(2930, 1, 1),
+            datetime.datetime(9999, 12, 30, 0, 0)
+        ]
+        self.updater.morahelper_mock.find_cut_dates.return_value = cut_dates
+
+        engagement = {"uuid": "engagement_uuid", "primary": {"uuid": old_primary}}
+        self.updater._read_engagement = lambda user_uuid, date: [engagement]
+
+        self.assertEqual(
+            self.updater.recalculate_user('user_uuid'),
+            {'user_uuid': 1}
+        )
+        self.updater._ensure_primary.assert_called_with(
+            engagement, 'primary_uuid', {'from': '2930-01-01', 'to': None}
+        )
+        self.updater.morahelper_mock._mo_post.assert_called_with(
+            'details/edit',
+            {
+                'type': 'engagement',
+                'uuid': 'engagement_uuid',
+                'data': {
+                    'primary': {'uuid': 'primary_uuid'},
+                    'validity': {'from': '2930-01-01', 'to': None}
+                }
+            }
+        )
+
+    def test_recalculate_multiple_engagements(self):
+        """Test that non-primary engagements yield one primary after recalculate.
+
+        Note: which one is subject to the _find_primary method, the test one simply
+              picks the first one in the provided list.
+        """
+        engagements = [{
+            'uuid': 'engagement_uuid_1',
+            "primary": {"uuid": 'non_primary_uuid'}
+        }, {
+            'uuid': 'engagement_uuid_2',
+            "primary": {"uuid": 'non_primary_uuid'}
+        }]
+
+        cut_dates = [
+            datetime.datetime(2930, 1, 1),
+            datetime.datetime(9999, 12, 30, 0, 0)
+        ]
+        self.updater.morahelper_mock.find_cut_dates.return_value = cut_dates
+
+        self.updater._read_engagement = lambda user_uuid, date: engagements
+
+        self.assertEqual(
+            self.updater.recalculate_user('user_uuid'),
+            {'user_uuid': 1}
+        )
+        self.updater._ensure_primary.assert_has_calls([
+            call(
+                engagements[0], 'primary_uuid', {'from': '2930-01-01', 'to': None}
+            ),
+            call(
+                engagements[1], 'non_primary_uuid', {'from': '2930-01-01', 'to': None}
+            ),
+        ])
+        # Only one call, as non_primary is already non_primary
+        self.updater.morahelper_mock._mo_post.assert_called_with(
+            'details/edit',
+            {
+                'type': 'engagement',
+                'uuid': 'engagement_uuid_1',
+                'data': {
+                    'primary': {'uuid': 'primary_uuid'},
+                    'validity': {'from': '2930-01-01', 'to': None}
+                }
+            }
+        )
+
+    def test_recalculate_multiple_engagements_wrong_primary(self):
+        """Test that opposite primary engagements yield two after changes.
+
+        Note: which one is subject to the _find_primary method, the test one simply
+              picks the first one in the provided list.
+        """
+        engagements = [{
+            'uuid': 'engagement_uuid_1',
+            "primary": {"uuid": 'non_primary_uuid'}
+        }, {
+            'uuid': 'engagement_uuid_2',
+            "primary": {"uuid": 'primary_uuid'}
+        }]
+
+        cut_dates = [
+            datetime.datetime(2930, 1, 1),
+            datetime.datetime(9999, 12, 30, 0, 0)
+        ]
+        self.updater.morahelper_mock.find_cut_dates.return_value = cut_dates
+
+        self.updater._read_engagement = lambda user_uuid, date: engagements
+
+        self.assertEqual(
+            self.updater.recalculate_user('user_uuid'),
+            {'user_uuid': 2}
+        )
+        self.updater._ensure_primary.assert_has_calls([
+            call(
+                engagements[0], 'primary_uuid', {'from': '2930-01-01', 'to': None}
+            ),
+            call(
+                engagements[1], 'non_primary_uuid', {'from': '2930-01-01', 'to': None}
+            ),
+        ])
+        # Two calls, as primary is flipped for each
+        self.updater.morahelper_mock._mo_post.assert_has_calls([
+            call(
+                'details/edit',
+                {
+                    'type': 'engagement',
+                    'uuid': 'engagement_uuid_1',
+                    'data': {
+                        'primary': {'uuid': 'primary_uuid'},
+                        'validity': {'from': '2930-01-01', 'to': None}
+                    }
+                }
+            ),
+            call(
+                'details/edit',
+                {
+                    'type': 'engagement',
+                    'uuid': 'engagement_uuid_2',
+                    'data': {
+                        'primary': {'uuid': 'non_primary_uuid'},
+                        'validity': {'from': '2930-01-01', 'to': None}
+                    }
+                }
+            ),
+        ])
+
+    def test_recalculate_multiple_engagements_fixed_primary(self):
+        """Test that fixed primaries overrule normal primary calculation.
+
+        Note: which one is subject to the _find_primary method, the test one simply
+              picks the first one in the provided list.
+        """
+        engagements = [{
+            'uuid': 'engagement_uuid_1',
+            "primary": {"uuid": 'non_primary_uuid'}
+        }, {
+            'uuid': 'engagement_uuid_2',
+            "primary": {"uuid": 'fixed_primary_uuid'}
+        }]
+
+        cut_dates = [
+            datetime.datetime(2930, 1, 1),
+            datetime.datetime(9999, 12, 30, 0, 0)
+        ]
+        self.updater.morahelper_mock.find_cut_dates.return_value = cut_dates
+
+        self.updater._read_engagement = lambda user_uuid, date: engagements
+
+        self.assertEqual(
+            self.updater.recalculate_user('user_uuid'),
+            {'user_uuid': 0}
+        )
+        self.updater._ensure_primary.assert_has_calls([
+            call(
+                engagements[0], 'non_primary_uuid', {'from': '2930-01-01', 'to': None}
+            ),
+            call(
+                engagements[1], 'fixed_primary_uuid', {'from': '2930-01-01', 'to': None}
+            ),
+        ])
+        self.updater.morahelper_mock._mo_post.assert_not_called()
