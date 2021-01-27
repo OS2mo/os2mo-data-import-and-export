@@ -4,10 +4,12 @@ from abc import ABC, abstractmethod
 from functools import lru_cache, partial
 from operator import itemgetter
 
-from exporters.utils.load_settings import load_settings
 from more_itertools import ilen, pairwise, only
-from os2mo_helpers.mora_helpers import MoraHelper
 from tqdm import tqdm
+
+from exporters.utils.load_settings import load_settings
+from exporters.utils.deprecation import deprecated
+from os2mo_helpers.mora_helpers import MoraHelper
 
 
 LOGGER_NAME = "updatePrimaryEngagements"
@@ -36,11 +38,6 @@ def noop(*args, **kwargs):
     pass
 
 
-def edit_engagement(data, mo_engagement_uuid):
-    payload = {"type": "engagement", "uuid": mo_engagement_uuid, "data": data}
-    return payload
-
-
 class MOPrimaryEngagementUpdater(ABC):
     def __init__(self, settings=None, dry_run=False):
         self.settings = settings or load_settings()
@@ -55,22 +52,32 @@ class MOPrimaryEngagementUpdater(ABC):
 
         self.primary_types, self.primary = self._find_primary_types()
 
-    @lru_cache(maxsize=None)
-    def _get_org_uuid(self):
-        org_uuid = self.helper.read_organisation()
-        return org_uuid
-
     def _get_mora_helper(self, mora_base):
+        """Construct a MoraHelper object.
+
+        Split out solely to ease testing.
+        """
         return MoraHelper(hostname=mora_base, use_cache=False)
 
     def _get_person(self, cpr=None, uuid=None, mo_person=None):
+        """Fetch a person from MO.
+
+        Only one of the given parameters should be given, if multiple are given
+        UUID takes priority over CPR which in turn takes priority over mo_person.
+
+        Args:
+            cpr: The CPR number of the person.
+            uuid: The MO uuid of the person.
+            mo_person: An existing user object from MoraHelper.
+
+        Returns:
+            user object from MoraHelper.
         """
-        Set a new person as the current user. Either a cpr-number or
-        an uuid should be given, not both.
-        :param cpr: cpr number of the person.
-        :param uuid: MO uuid of the person.
-        :param mo_person: An already existing user object from mora_helper.
-        """
+        @lru_cache(maxsize=None)
+        def _get_org_uuid():
+            org_uuid = self.helper.read_organisation()
+            return org_uuid
+
         if uuid:
             mo_person = self.helper.read_user(user_uuid=uuid)
         elif cpr:
@@ -80,13 +87,14 @@ class MOPrimaryEngagementUpdater(ABC):
         return mo_person
 
     def _read_engagement(self, user_uuid, date):
-        mo_engagement = self.helper.read_user_engagement(
+        """Fetch all engagements for user_uuid at date."""
+        mo_engagements = self.helper.read_user_engagements(
             user=user_uuid,
             at=date,
             only_primary=True,  # Do not read extended info from MO.
             use_cache=False,
         )
-        return mo_engagement
+        return mo_engagements
 
     @abstractmethod
     def _find_primary_types(self):
@@ -104,7 +112,7 @@ class MOPrimaryEngagementUpdater(ABC):
 
     @abstractmethod
     def _find_primary(self, mo_engagements):
-        """Decide which of the engagements in mo_engagements is the primary.
+        """Decide which of the engagements in mo_engagements is the primary one.
 
         This method does not need to handle fixed_primaries as the method will
         not be called if fixed_primaries exist.
@@ -279,13 +287,14 @@ class MOPrimaryEngagementUpdater(ABC):
         for outputter, string in outputs:
             outputter(string)
 
-    def recalculate_primary(self, user_uuid, no_past=False):
-        # Kept for backwards compatability
-        logger.info("DEPRECATED: Called recalculate_primary")
-        return self.recalculate_user(user_uuid, no_past=no_past)
+    @deprecated
+    def recalculate_primary(self, *args, **kwargs):
+        """Deprecated alias for recalculate_user."""
+        # Kept solely for backwards compatability
+        return self.recalculate_user(*args, **kwargs)
 
     def _decide_primary(self, mo_engagements):
-        """Decide which of the engagements in mo_engagements is the primary.
+        """Decide which of the engagements in mo_engagements is the primary one.
 
         Args:
             mo_engagements: List of engagements
@@ -300,6 +309,7 @@ class MOPrimaryEngagementUpdater(ABC):
         # If one is found, it is our primary and we are done.
         # If none are found, we need to calculate the primary engagement.
         find_fixed_primary = partial(self._predicate_primary_is, "fixed_primary")
+
         # Iterator of UUIDs of engagements with primary = fixed_primary
         fixed_primary_engagement_uuids = map(
             itemgetter('uuid'), filter(find_fixed_primary, mo_engagements)
@@ -321,6 +331,10 @@ class MOPrimaryEngagementUpdater(ABC):
     def _ensure_primary(self, engagement, primary_type_uuid, validity):
         """Ensure that engagement has the right primary_type.
 
+        Assuming the engagement already has the correct primary_type this method
+        is a noop, wheres if this is not the case an update request will be made
+        against MO.
+
         Args:
             engagement: The engagement to (potentially) update.
             primary_type_uuid: The primary type to ensure the engagement has.
@@ -338,32 +352,39 @@ class MOPrimaryEngagementUpdater(ABC):
             )
             return False
 
-        # At this point, we have to update the entry
-        data = {"primary": {"uuid": primary_type_uuid}, "validity": validity}
-        payload = edit_engagement(data, engagement["uuid"])
+        # At this point, we know that we have to update the engagement, thus we
+        # construct an update payload and send it to MO.
+        payload = {
+            "type": "engagement",
+            "uuid": engagement["uuid"],
+            "data": {
+                "primary": {"uuid": primary_type_uuid},
+                "validity": validity
+            }
+        }
         logger.debug("Edit payload: {}".format(payload))
 
         if not self.dry_run:
             response = self.helper._mo_post("details/edit", payload)
             assert response.status_code in (200, 400)
             if response.status_code == 400:
-                logger.info("Attempted edit, but no change needed.")
+                # XXX: This shouldn't happen due to the previous check?
+                logger.warn("Attempted edit, but no change needed.")
         return True
 
     def recalculate_user(self, user_uuid, no_past=False):
-        """
-        Re-calculate primary engagement for the entire history of the current user.
-        """
-        logger.info("Calculate primary engagement: {}".format(user_uuid))
-        date_list = self.helper.find_cut_dates(user_uuid, no_past=no_past)
-        number_of_edits = 0
+        """(Re)calculate primary engagement for the entire history the user."""
 
         def fetch_mo_engagements(date):
+            """Fetch engagements which are active at 'date' and fulfill our filters.
+
+            Also ensures that the 'primary' attribute is set on all engagements.
+            """
             def ensure_primary(engagement):
                 """Ensure that engagement has a primary field."""
                 # TODO: It would seem this happens for leaves, should we make a
                 #       special type for this?
-                # TODO: What does the above even mean?
+                # TODO: What does the above even mean? - Help?
                 if not engagement["primary"]:
                     engagement["primary"] = {"uuid": self.primary_types["non_primary"]}
                 return engagement
@@ -382,6 +403,7 @@ class MOPrimaryEngagementUpdater(ABC):
             return mo_engagements
 
         def calculate_validity(start, end):
+            """Construct engagement primarity validity from start and end date."""
             to = datetime.datetime.strftime(
                 end - datetime.timedelta(days=1), "%Y-%m-%d"
             )
@@ -393,25 +415,34 @@ class MOPrimaryEngagementUpdater(ABC):
             }
             return validity
 
+        logger.info("Calculate primary engagement: {}".format(user_uuid))
+        number_of_edits = 0
+
+        # Find a list of dates with changes in engagement, and for each change
+        # decide which engagement is the primary between that and the next change.
+        date_list = self.helper.find_cut_dates(user_uuid, no_past=no_past)
         for start, end in pairwise(date_list):
             logger.info("Recalculate primary, date: {}".format(start))
 
             mo_engagements = fetch_mo_engagements(start)
             logger.debug("MO engagements: {}".format(mo_engagements))
 
-            # No engagements, nothing to do
+            # No engagements, no primary, and thus nothing to do
             if len(mo_engagements) == 0:
                 continue
 
-            validity = calculate_validity(start, end)
+            # Decide which of the mo_engagements is the primary one, and also what
+            # kind of primary it is, fixed_primary or just primary
             primary_uuid, primary_type_key = self._decide_primary(mo_engagements)
+            validity = calculate_validity(start, end)
 
             # Update the primary type of all engagements (if required)
             for engagement in mo_engagements:
-                # All engagements are non_primary, except for the primary one.
+                # As there can only be one primary engagement at the time, all
+                # engagements are non_primary by default.
                 primary_type_uuid = self.primary_types["non_primary"]
-                # The primary engagement gets the primary_type determined by 
-                # the _decide_primary function, could be fixed_primary or primary.
+                # Only the primary engagement is marked non_primary. The actual type
+                # is simply the one provided by _decide_primary.
                 if engagement['uuid'] == primary_uuid:
                     primary_type_uuid = self.primary_types[primary_type_key]
 

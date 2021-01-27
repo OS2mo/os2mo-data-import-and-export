@@ -317,16 +317,12 @@ class MoraHelper:
         logger.info("Terminate detail %s", payload)
         # self._mo_post('details/terminate', payload):
 
-    def read_user_engagement(
-        self,
-        user,
-        at=None,
-        read_all=False,
-        skip_past=False,
-        only_primary=False,
-        use_cache=None,
-        calculate_primary=False,
-    ):
+    def read_user_engagement(self, *args, **kwargs):
+        return self.read_user_engagements(*args, **kwargs)
+
+    def read_user_engagements(self, user, at=None, read_all=False, skip_past=False,
+                             only_primary=False, use_cache=None,
+                             calculate_primary=False):
         """Read engagements for a user.
 
         :param user: UUID of the wanted user.
