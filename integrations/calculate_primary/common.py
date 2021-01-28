@@ -228,25 +228,17 @@ class MOPrimaryEngagementUpdater(ABC):
                 date: Date for the output string
         """
         def to_output(e_count, p_count, fp_count):
-            e_count = min(e_count, 1)
-            p_count = min(p_count, 2)
-            fp_count = min(fp_count, 2)
-
-            fp_table = {
-                0: (logger.info, "All primaries are special"),
-                1: (logger.info, "Only one non-special primary"),
-                2: (print, "Too many primaries"),
-            }
-            p_table = {
-                0: lambda fp_count: (print, "No primary"),
-                1: lambda fp_count: (noop, ""),
-                2: lambda fp_count: fp_table[fp_count],
-            }
-            e_table = {
-                0: lambda p_count, fp_count: (noop, ""),
-                1: lambda p_count, fp_count: p_table[p_count](fp_count)
-            }
-            return e_table[e_count](p_count, fp_count)
+            if e_count == 0:
+                return (noop, "")
+            if p_count == 0:
+                return (print, "No primary")
+            if p_count == 1:
+                return (noop, "")
+            if fp_count == 0:
+                return (logger.info, "All primaries are special")
+            if fp_count == 1:
+                return (logger.info, "Only one non-special primary")
+            return (print, "Too many primaries")
 
         user_results = self._check_user(
             check_filters, user_uuid
