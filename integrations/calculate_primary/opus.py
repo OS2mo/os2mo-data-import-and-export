@@ -13,7 +13,7 @@ class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         ]
 
         def engagements_included_in_primary_calculation(user_uuid, no_past, engagement):
-            if eng["org_unit"]["uuid"] in self.settings.get(
+            if engagement["org_unit"]["uuid"] in self.settings.get(
                 "integrations.ad.import_ou.mo_unit_uuid", ""
             ):
                 # disregard engagements from externals
