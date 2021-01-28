@@ -796,3 +796,79 @@ class Test_sd_changed_at(unittest.TestCase):
             sd_updater.job_sync.sync_from_sd.assert_called_once()
             self.assertIn("engagement_type" + str(job_id), sd_updater.engagement_types)
             self.assertEqual(engagement_type_uuid, 'new_class_uuid')
+
+    def test_edit_engagement(self):
+        engagement = OrderedDict([
+            ('EmploymentIdentifier', 'DEERE'),
+            ('Profession', OrderedDict([
+                ('@changedAtDate', '1970-01-01'),
+                ('ActivationDate', '1960-01-01'),
+                ('DeactivationDate', '9999-12-31'),
+                ('JobPositionIdentifier', '9002'),
+                ('EmploymentName', 'dummy'),
+                ('AppointmentCode', '0')
+            ]))
+        ])
+
+        sd_updater = setup_sd_changed_at()
+        sd_updater.engagement_types = {
+            'månedsløn': 'monthly pay',
+            'timeløn': 'hourly pay',
+        }
+        sd_updater.mo_engagement = [
+            {
+                "user_key": engagement['EmploymentIdentifier'],
+                "uuid": "mo_engagement_uuid",
+                'validity': {
+                    'from': '1950-01-01',
+                    'to': None
+                }
+            }
+        ]
+
+        morahelper = sd_updater.morahelper_mock
+        _mo_post = morahelper._mo_post
+        _mo_post.return_value = AttrDict(
+            {
+                "status_code": 201,
+            }
+        )
+        sd_updater._create_engagement_type = MagicMock(wraps=sd_updater._create_engagement_type)
+        sd_updater._create_professions = MagicMock(wraps=sd_updater._create_professions)
+        # Return 1 on first call, 2 on second call
+        sd_updater._create_class.side_effect = ['new_class_1_uuid', 'new_class_2_uuid']
+
+        sd_updater.edit_engagement(engagement)
+
+        # Check that the create functions are both called
+        sd_updater._create_engagement_type.assert_called_with('engagement_type9002', '9002')
+        sd_updater._create_professions.assert_called_with('9002', '9002')
+        # And thus that job_sync is called once from each
+        sd_updater.job_sync.sync_from_sd.assert_has_calls([
+            call('9002'), call('9002')
+        ])
+        # And that the results are returned to MO
+        _mo_post.assert_has_calls([
+            call(
+                'details/edit',
+                {
+                    'type': 'engagement',
+                    'uuid': 'mo_engagement_uuid',
+                    'data': {
+                        'job_function': {'uuid': 'new_class_1_uuid'},
+                        'validity': {'from': '1960-01-01', 'to': None}
+                    }
+                }
+            ),
+            call(
+                'details/edit',
+                {
+                    'type': 'engagement',
+                    'uuid': 'mo_engagement_uuid',
+                    'data': {
+                        'engagement_type': {'uuid': 'new_class_2_uuid'},
+                        'validity': {'from': '1960-01-01', 'to': None}
+                    }
+                }
+            )
+        ])

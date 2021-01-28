@@ -46,7 +46,7 @@ def ensure_list(element):
 
 def setup_logging():
     detail_logging = ('sdCommon', 'sdChangedAt', 'updatePrimaryEngagements',
-                      'fixDepartments')
+                      'fixDepartments', 'sdSyncJobId')
     for name in logging.root.manager.loggerDict:
         if name in detail_logging:
             logging.getLogger(name).setLevel(LOG_LEVEL)
@@ -402,7 +402,7 @@ class ChangeAtSD:
         engagement_type_uuid = self._create_class(payload)
         self.engagement_types[engagement_type_ref] = engagement_type_uuid
 
-        self.job_sync.sync_from_sd(job_position)
+        self.job_sync.sync_from_sd(job_position, refresh=True)
 
         return engagement_type_uuid
 
@@ -417,7 +417,7 @@ class ChangeAtSD:
         job_uuid = self._create_class(payload)
         self.job_functions[job_function] = job_uuid
 
-        self.job_sync.sync_from_sd(job_position)
+        self.job_sync.sync_from_sd(job_position, refresh=True)
 
         return job_uuid
 
