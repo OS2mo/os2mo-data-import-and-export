@@ -46,13 +46,11 @@ class JobIdSync:
 
         self._read_classes()
 
-    def _get_mora_helper(self, mora_base):
-        mora_base = self.settings['mora.base']
-        return MoraHelper(hostname=mora_base, use_cache=False)
 
     def _read_classes(self):
         """Read engagement_types and job_function types from MO."""
-        helper = self._get_mora_helper()
+        mora_base = self.settings['mora.base']
+        helper = MoraHelper(hostname=mora_base, use_cache=False)
 
         self.engagement_types = helper.read_classes_in_facet('engagement_type')
         if self.update_job_functions:
