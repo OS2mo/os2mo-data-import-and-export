@@ -376,7 +376,7 @@ class sdMox(object):
         return unit_uuid
 
     def check_unit(self, **payload):
-        """ Try to have the unit retrieved and compared to the
+        """Try to have the unit retrieved and compared to the
         values at hand for as many times
         as specified in self.amqp_check_retries and return the unit.
 

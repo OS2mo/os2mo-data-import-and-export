@@ -14,8 +14,6 @@
 #     Der skal findes en postadresse inden man opretter et Pnummer,
 #     ellers går tilbagemeldingen fra SD tilsyneladende i ged.
 #     Der er indført et check for det i sd_mox.py
-#
-#
 
 """
 SD Mox trigger.module

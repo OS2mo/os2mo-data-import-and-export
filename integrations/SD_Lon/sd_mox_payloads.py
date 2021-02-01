@@ -129,10 +129,7 @@ def flyt_xml_dict(unit_uuid=None, unit_name=None, virk_from=None, virk_to=None,
     })}
 
     rb = reg['RegistreringBesked']
-    rb["ObjektID"] = {
-        'sd:IdentifikatorType': 'OrganisationEnhed',
-        'sd:UUIDIdentifikator': unit_uuid
-    }
+    rb["ObjektID"] = create_objekt_id(unit_uuid)
 
     rg = rb["Registrering"] = collections.OrderedDict()
     rg['sd:FraTidspunkt'] = {'sd:TidsstempelDatoTid': virk_from},
@@ -189,10 +186,7 @@ def import_xml_dict(unit_uuid=None, unit_name=None, unit_code=None, unit_level=N
                                'SDObjekt.xsd'})})
 
     rb = reg['RegistreringBesked']
-    rb["ObjektID"] = {
-        'sd:IdentifikatorType': 'OrganisationEnhed',
-        'sd:UUIDIdentifikator': unit_uuid
-    }
+    rb["ObjektID"] = create_objekt_id(unit_uuid)
 
     rg = rb["Registrering"] = collections.OrderedDict()
 
