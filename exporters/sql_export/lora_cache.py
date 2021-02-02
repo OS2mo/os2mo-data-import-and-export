@@ -12,6 +12,9 @@ from operator import itemgetter
 from itertools import starmap
 from collections import defaultdict
 
+import click
+from more_itertools import bucket
+
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.dar_helper import dar_helper
 
@@ -20,6 +23,9 @@ logger = logging.getLogger("LoraCache")
 DEFAULT_TIMEZONE = dateutil.tz.gettz('Europe/Copenhagen')
 
 PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
+
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'lora_cache.log'
 
 
 class LoraCache(object):
@@ -840,32 +846,52 @@ class LoraCache(object):
             print(msg)
             return
 
-        user_primary = {}
-        for uuid, eng_validities in self.engagements.items():
+        def extract_engagement(uuid, eng_validities):
+            """Extract engagement from engagement validities."""
             assert(len(eng_validities)) == 1
             eng = eng_validities[0]
+            return uuid, eng
 
-            primary_type = self.classes.get(eng['primary_type'])
+        def convert_to_scope_value(uuid, engagement):
+            """Convert engagement to scope value."""
+            primary_type = self.classes.get(engagement['primary_type'])
             if primary_type is None:
-                msg = 'Primary information missing in engagement {}'
-                logger.debug(msg.format(uuid))
-                continue
+                logger.debug(
+                    'Primary information missing in engagement {}'.format(uuid)
+                )
+                return 0
             primary_scope = int(primary_type['scope'])
-            if eng['user'] in user_primary:
-                if user_primary[eng['user']][0] < primary_scope:
-                    user_primary[eng['user']] = [primary_scope, uuid, None]
-            else:
-                user_primary[eng['user']] = [primary_scope, uuid, None]
+            return uuid, primary_scope
 
-        for uuid, eng_validities in self.engagements.items():
-            eng = eng_validities[0]
-            primary_for_user = user_primary.get(eng['user'], [None, None, None])
-            if primary_for_user[1] == uuid:
-                logger.debug('Primary for {} is {}'.format(eng['user'], uuid))
-                self.engagements[uuid][0]['primary_boolean'] = True
-            else:
-                logger.debug('{} is not primary {}'.format(uuid, eng['user']))
-                self.engagements[uuid][0]['primary_boolean'] = False
+        def get_engagement_user(tup):
+            uuid, engagement = tup
+            return engagement['user']
+
+        # List of 2-tuples: uuid, engagement validities
+        engagement_validities = self.engagements.items()
+        # Iterator of 2-tuples: uuid, engagement
+        engagements = starmap(extract_engagement, engagement_validities)
+        # Buckets of iterators of 2-tuples: uuid, engagement
+        user_buckets = bucket(engagements, key=get_engagement_user)
+        # Run though the user buckets in turn
+        for user_uuid in user_buckets:
+            # Iterator of 2-tuples: uuid, engagement
+            user_engagements = user_buckets[user_uuid]
+            # Iterator of 2-tuples: uuid, scope_value
+            scope_values = list(starmap(convert_to_scope_value, user_engagements))
+
+            # Find the highest scope in the users engagements, all engagements with
+            # this scope value will be considered primary.
+            highest_scope = max(map(itemgetter(1), scope_values))
+
+            # Loop through all engagements and start marking them with primarity
+            for uuid, primary_scope in scope_values:
+                is_primary = (primary_scope == highest_scope)
+                if is_primary:
+                    logger.debug('Primary for {} is {}'.format(user_uuid, uuid))
+                else:
+                    logger.debug('{} is not primary {}'.format(uuid, user_uuid))
+                self.engagements[uuid][0]['primary_boolean'] = is_primary
 
     def calculate_derived_unit_data(self):
         if self.full_history:
@@ -1157,9 +1183,23 @@ class LoraCache(object):
         # Here we should de-activate read-only mode
 
 
+@click.command()
+@click.option("--historic/--no-historic", default=True, help="Do full historic export")
+@click.option("--resolve-dar/--no-resolve-dar", default=False, help="Resolve DAR addresses")
+def cli(historic, resolve_dar):
+    lc = LoraCache(
+        full_history=historic,
+        skip_past=True,
+        resolve_dar=resolve_dar
+    )
+    lc.populate_cache(dry_run=False)
+
+    logger.info('Now calcualate derived data')
+    lc.calculate_derived_unit_data()
+    lc.calculate_primary_engagements()
+
+
 if __name__ == '__main__':
-    LOG_LEVEL = logging.DEBUG
-    LOG_FILE = 'lora_cache.log'
 
     for name in logging.root.manager.loggerDict:
         if name in ('LoraCache'):
@@ -1173,9 +1213,4 @@ if __name__ == '__main__':
         filename=LOG_FILE
     )
 
-    lc = LoraCache(full_history=True, skip_past=True, resolve_dar=False)
-    lc.populate_cache(dry_run=False)
-
-    logger.info('Now calcualate derived data')
-    lc.calculate_derived_unit_data()
-    lc.calculate_primary_engagements()
+    cli()
