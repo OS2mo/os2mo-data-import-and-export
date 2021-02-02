@@ -53,7 +53,7 @@ class SqlExport(object):
         db_host = self.settings.get('exporters.actual_state.host')
         pw_raw = self.settings.get('exporters.actual_state.password', '')
         pw = urllib.parse.quote_plus(pw_raw)
-        engine_settings = {}
+        engine_settings = {"pool_pre_ping": True}
         if db_type == 'SQLite':
             db_string = 'sqlite:///{}.db'.format(db_name)
         elif db_type == 'MS-SQL':
@@ -67,7 +67,7 @@ class SqlExport(object):
                 )
             db_string = 'mssql+pyodbc:///?odbc_connect={}'.format(quoted)
         elif db_type == "Mysql":
-            engine_settings={"pool_recycle":3600}
+            engine_settings.update({"pool_recycle": 3600})
             db_string = 'mysql+mysqldb://{}:{}@{}/{}'.format(
                 user, pw, db_host, db_name)
 
