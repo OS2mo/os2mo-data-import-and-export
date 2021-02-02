@@ -31,27 +31,24 @@ class SdMoxError(Exception):
 
 class sdMox(object):
     def __init__(self, from_date=None, to_date=None, **kwargs):
-        cfg = self.config = kwargs
-
-        sd_cfg = cfg["sd_common"]
-        self.sd = SD(**sd_cfg)
+        self.config = kwargs
+        self.sd = SD(**self.config["sd_common"])
 
         try:
-            self.amqp_user = cfg["AMQP_USER"]
-            self.amqp_password = cfg["AMQP_PASSWORD"]
-            self.virtual_host = cfg["VIRTUAL_HOST"]
-            self.amqp_host = cfg["AMQP_HOST"]
-            self.amqp_port = cfg["AMQP_PORT"]
-            self.amqp_check_waittime = cfg["AMQP_CHECK_WAITTIME"]
-            self.amqp_check_retries = cfg["AMQP_CHECK_RETRIES"]
+            self.amqp_user = self.config["AMQP_USER"]
+            self.amqp_password = self.config["AMQP_PASSWORD"]
+            self.virtual_host = self.config["VIRTUAL_HOST"]
+            self.amqp_host = self.config["AMQP_HOST"]
+            self.amqp_port = self.config["AMQP_PORT"]
+            self.amqp_check_waittime = self.config["AMQP_CHECK_WAITTIME"]
+            self.amqp_check_retries = self.config["AMQP_CHECK_RETRIES"]
         except Exception:
             raise SdMoxError("SD AMQP credentials mangler")
 
         try:
-            self.sd_levels = OrderedDict(cfg["sd_unit_levels"])
+            self.sd_levels = OrderedDict(self.config["sd_unit_levels"])
             self.level_by_uuid = {v: k for k, v in self.sd_levels.items()}
-            self.arbtid_by_uuid = cfg["arbtid_by_uuid"]
-
+            self.arbtid_by_uuid = self.config["arbtid_by_uuid"]
         except Exception:
             raise SdMoxError("Klasse-uuider for conf af Ny-Niveauer "
                              "eller Tidsregistrering mangler")
