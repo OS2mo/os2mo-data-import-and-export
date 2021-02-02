@@ -28,6 +28,16 @@ def get_prefixed_configuration(cfg, prefix):
 
 
 class SD:
+    def __init__(self, **kwargs):
+        self.config = kwargs
+        self.use_cache = self.config.get("USE_PICKLE_CACHE", True)
+        try:
+            self.institution_identifier = self.config["INSTITUTION_IDENTIFIER"]
+            self.sd_user = self.config["SD_USER"]
+            self.sd_password = self.config["SD_PASSWORD"]
+            self.base_url = self.config["BASE_URL"]
+        except Exception:
+            raise Exception('Credentials missing')
 
     @classmethod
     def create(cls, config, pfix=CFG_PREFIX):
@@ -44,17 +54,6 @@ class SD:
             for k, v in config.items()
             if k.startswith(pfix)
         })
-
-    def __init__(self, **kwargs):
-        cfg = self.config = kwargs
-        self.use_cache = cfg.get("USE_PICKLE_CACHE", True)
-        try:
-            self.institution_identifier = cfg["INSTITUTION_IDENTIFIER"]
-            self.sd_user = cfg["SD_USER"]
-            self.sd_password = cfg["SD_PASSWORD"]
-            self.base_url = cfg["BASE_URL"]
-        except Exception:
-            raise Exception('Credentials missing')
 
     def lookup(self, url, params={}):
         logger.info('Retrive: {}'.format(url))
