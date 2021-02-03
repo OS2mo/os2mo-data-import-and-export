@@ -779,7 +779,6 @@ class ChangeAtSD:
         if no_salary_minimum is not None and int(job_position) < no_salary_minimum:
             message = 'No salary employee, with too low job_position id'
             logger.warning(message)
-            # Returning none will propagate the failure, so we continue
             return None
 
         # We need a special engagement type for the engagement.
