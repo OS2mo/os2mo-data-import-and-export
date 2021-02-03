@@ -27,15 +27,15 @@ setup(
     },
     zip_safe=False,
     install_requires=[
+        "anytree",
         "certifi",
         "chardet",
         "click",
-        "idna",
-        "requests",
-        "anytree",
         "freezegun",
-        "xmltodict",
+        "idna",
         "openpyxl",
+        "requests",
         "xlsxwriter",
+        "xmltodict",
     ]
 )

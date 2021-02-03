@@ -1,4 +1,4 @@
-from os2mo_helpers.mox_helpers.payloads import lora_klasse
+from mox_helpers.payloads import lora_klasse
 
 
 def create_org_unit(department, name, org, unit_type, from_date):
