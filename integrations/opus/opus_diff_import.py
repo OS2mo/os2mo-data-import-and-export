@@ -64,6 +64,7 @@ class OpusDiffImport(object):
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
+        self.filter_ids = self.settings.get('integrations.opus.units.filter_ids', [])
 
         self.session = Session()
         self.employee_forced_uuids = employee_mapping
@@ -143,6 +144,7 @@ class OpusDiffImport(object):
     def parser(self, target_file):
         data = xmltodict.parse(target_file.read_text())['kmd']
         self.units = data['orgUnit'][1:]
+        self.units = opus_helpers.filter_units(self.units, self.filter_ids)
         self.employees = data['employee']
         return True
 
@@ -204,7 +206,7 @@ class OpusDiffImport(object):
 
     def _find_engagement(self, bvn, present=False):
         info = {}
-        resource = '/organisation/organisationfunktion?bvn={}'.format(bvn)
+        resource = '/organisation/organisationfunktion?bvn={}&funktionsnavn=Engagement'.format(bvn)
         if present:
             resource += '&gyldighed=Aktiv'
         response = self.session.get(url=self.settings['mox.base'] + resource)
@@ -410,11 +412,11 @@ class OpusDiffImport(object):
         unit_type = self.unit_types[org_type]
 
         unit_args = {
-                'unit': unit,
-                'unit_uuid': str(calculated_uuid),
-                'unit_type': unit_type,
-                'parent': str(parent_uuid),
-                'from_date': self.latest_date.strftime('%Y-%m-%d')
+            'unit': unit,
+            'unit_uuid': str(calculated_uuid),
+            'unit_type': unit_type,
+            'parent': str(parent_uuid),
+            'from_date': self.latest_date.strftime('%Y-%m-%d')
         }
 
         if mo_unit.get('uuid'):  # Edit
@@ -760,6 +762,10 @@ class OpusDiffImport(object):
             employee_mo_uuid = self.create_user(employee)
         else:
             employee_mo_uuid = mo_user['uuid']
+            if employee.get('firstName') is None:
+                employee.update({'firstName': mo_user['givenname']})
+            if employee.get('lastName') is None:
+                employee.update({'lastName': mo_user['surname']})
             if not ((employee['firstName'] == mo_user['givenname']) and
                     (employee['lastName'] == mo_user['surname'])):
                 payload = payloads.create_user(employee, self.org_uuid,
@@ -773,18 +779,19 @@ class OpusDiffImport(object):
         # Now we have a MO uuid, update engagement:
         mo_engagements = self.helper.read_user_engagement(employee_mo_uuid,
                                                           read_all=True)
+        user_engagements = filter(
+            lambda eng: eng['user_key'] == employee['@id'], mo_engagements
+        )
         current_mo_eng = None
-        for eng in mo_engagements:
-            if eng['user_key'] == employee['@id']:
-                current_mo_eng = eng['uuid']
-                val_from = datetime.strptime(eng['validity']['from'], '%Y-%m-%d')
-                if eng['validity']['to'] is None:
-                    val_to = datetime.strptime('9999-12-31', '%Y-%m-%d')
-                else:
-                    val_to = datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
-                if val_from < self.latest_date < val_to:
-                    logger.info('Found current validty {}'.format(eng['validity']))
-                    break
+        for eng in user_engagements:
+            current_mo_eng = eng['uuid']
+            val_from = datetime.strptime(eng['validity']['from'], '%Y-%m-%d')
+            val_to = datetime.strptime('9999-12-31', '%Y-%m-%d')
+            if eng['validity']['to'] is not None:
+                val_to = datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
+            if val_from < self.latest_date < val_to:
+                logger.info('Found current validty {}'.format(eng['validity']))
+                break
 
         if current_mo_eng is None:
             self.create_engagement(employee_mo_uuid, employee)

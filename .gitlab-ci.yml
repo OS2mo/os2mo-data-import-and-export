@@ -28,7 +28,7 @@ stages:
 ############
 
 .lint-python:
-  stage: test
+  stage: lint
   needs: []
   image: python:3
   services: []
@@ -38,14 +38,64 @@ stages:
     - docker
 
 
+Lint Customers files:
+  extends: .lint-python
+  script:
+    - python -m black --diff --line-length 85 --check customers/
+    - python -m isort --profile black --diff --check-only customers/
+
+Lint LoraCache Integration:
+  extends: .lint-python
+  script:
+    - python -m black --diff --line-length 85 --check exporters/sql_export/tests/*.py
+    - python -m isort --diff --check-only exporters/sql_export/tests/*.py
+
 Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
-    - python -m black --line-length 85 --check tests/* utils.py
-    - python -m isort --check-only tests/* utils.py
+    - python -m black --diff --line-length 85 --check tests/* utils.py ad_template_engine.py
+    - python -m isort --diff --check-only tests/* utils.py ad_template_engine.py
 
+Lint SetAlias Tool:
+  extends: .lint-python
+  script:
+    - python -m black --diff --line-length 85 --check tools/snurrebasser/set_alias.py
+    - python -m isort --diff --check-only tools/snurrebasser/set_alias.py
 
+Lint SDLoen Integration:
+  extends: .lint-python
+  script:
+    - cd integrations/SD_Lon/
+    - python -m black --diff --line-length 85 --check db_overview.py sd_cli.py sd_common.py tests/*
+    - python -m isort --diff --check-only db_overview.py sd_cli.py sd_common.py tests/*
+
+Lint OPUS Org Tree Print:
+  extends: .lint-python
+  script:
+    - cd integrations/opus/org_tree_print/
+    - python -m black --diff --line-length 85 --check *.py
+    - python -m isort --diff --check-only *.py
+
+Lint Reports:
+  extends: .lint-python
+  script:
+    - python -m black --diff --line-length 85 --check reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py 
+    - python -m isort --profile black --check-only reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py 
+
+Lint Exporter Utils:
+  extends: .lint-python
+  script:
+    - cd exporters/utils/
+    - python -m black --diff --line-length 85 --check *.py tests/*.py
+    - python -m isort --diff --check-only *.py tests/*.py
+
+Lint Tools:
+  extends: .lint-python
+  script:
+    - cd tools/
+    - python -m black --diff --line-length 85 --check uuid_replace.py
+    - python -m isort --diff --check-only uuid_replace.py
 
 
 # Test stage
@@ -54,23 +104,76 @@ Lint AD Integration:
 .test-python:
   stage: test
   needs: []
-  image: python:3.5
+  image: python:3
   services: []
   before_script:
+    - apt-get update && apt-get install -y unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev-compat
+    - find . -name 'requirements.*' | grep -v venv/ | xargs -l1 pip install -r
+    - pip install -r ./integrations/requirements/common.txt
+    - pip install -r ./integrations/requirements/test.txt
     - pip install ./os2mo_data_import --upgrade
-    - pip install -r integrations/requirements/test.txt
   tags:
     - docker
 
+
+Test LoraCache Exporter:
+  extends: .test-python
+  script:
+    - apt update && apt install -y unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev cifs-utils
+    - pip install -r exporters/sql_export/tests/requirements.txt
+    - export PYTHONPATH=$PWD:$PYTHONPATH
+    - pytest exporters/sql_export/tests/
 
 Test AD Integration:
   extends: .test-python
   script:
     - cd integrations/ad_integration/
-    - pytest tests/
-
+    - pytest tests/ --ignore tests/test_ad_sync.py
 
 Test OS2Sync Integration:
   extends: .test-python
   script:
+    - cp settings/kommune-andeby.json settings/settings.json
+    - export PYTHONPATH=$PWD:$PYTHONPATH
     - python -m doctest integrations/os2sync/os2mo.py
+
+Test CPR Mapper:
+  extends: .test-python
+  script:
+    - python -m doctest -v integrations/cpr_mapper.py
+
+Test OPUS Org Tree Print:
+  extends: .test-python
+  script:
+    - pip install -r integrations/opus/org_tree_print/requirements.txt
+    - python -m doctest -v integrations/opus/org_tree_print/main.py
+
+Test OPUS Helpers:
+  extends: .test-python
+  script:
+    - cp settings/kommune-andeby.json settings/settings.json
+    - python -m doctest -v integrations/opus/opus_helpers.py
+    
+# Breaks, not ready for CI
+Test SDLoen Integration:
+  extends: .test-python
+  script:
+    - export PYTHONPATH=$PWD:$PYTHONPATH
+    - pip install -r integrations/requirements.txt
+    - python integrations/SD_Lon/sd_cli.py --help
+    # - cp settings/kommune-andeby.json settings/settings.json
+    # - pytest integrations/SD_Lon/tests/
+
+Test Reports:
+  extends: .test-python
+  script:
+    - export PYTHONPATH=$PWD:$PYTHONPATH
+    - pip install -r reports/requirements/test.txt
+    - pytest reports/os2mo_tests/ --ignore reports/os2mo_tests/test_viborg_managers.py
+
+Test Exporter Utils:
+  extends: .test-python
+  script:
+    - export PYTHONPATH=$PWD:$PYTHONPATH
+    - pip install -r exporters/utils/requirements.txt
+    - pytest exporters/utils/tests/

@@ -3,12 +3,15 @@ import json
 import logging
 import pathlib
 import time
-from functools import wraps
+from itertools import starmap
+from functools import wraps, partial
+from operator import attrgetter
 
 import click
 from aiohttp import BasicAuth, ClientSession, TCPConnector
+from more_itertools import side_effect
 
-from exporters.sql_export.sql_export import SqlExport
+from exporters.sql_export.lc_for_jobs_db import get_engine
 from exporters.sql_export.sql_table_defs import (
     Adresse,
     Bruger,
@@ -17,9 +20,13 @@ from exporters.sql_export.sql_table_defs import (
     Leder,
     Tilknytning,
     KLE,
+    DARAdresse
 )
 from sqlalchemy import create_engine, event, or_
 from sqlalchemy.orm import sessionmaker
+
+from integrations.dar_helper.dar_helper import dar_fetch
+from integrations.dar_helper.utils import async_to_sync
 
 
 LOG_LEVEL = logging.DEBUG
@@ -70,31 +77,12 @@ class elapsedtime(object):
         )
 
 
-def async_to_sync(f):
-    """Decorator to run an async function to completion.
-
-    Example:
-
-        @async_to_sync
-        async def sleepy(seconds):
-            await sleep(seconds)
-
-        sleepy(5)
-    
-    Args:
-        f (async function): The async function to wrap and make synchronous.
-
-    Returns:
-        :obj:`sync function`: The syncronhous function wrapping the async one.
-    """
-
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        loop = asyncio.get_event_loop()
-        future = asyncio.ensure_future(f(*args, **kwargs))
-        return loop.run_until_complete(future)
-
-    return wrapper
+def apply_tuple(func):
+    """Wrap a function to apply its arguments to itself."""
+    @wraps(func)
+    def wrapped(tup):
+        return func(*tup)
+    return wrapped
 
 
 @click.group()
@@ -104,34 +92,9 @@ def cli():
 
 
 @cli.command()
-@click.option("--resolve-dar/--no-resolve-dar", default=False)
-@click.option("--historic/--no-historic", default=False)
-@click.option("--use-pickle/--no-use-pickle", default=False)
-@click.option("--force-sqlite/--no-force-sqlite", default=False)
-def sql_export(resolve_dar, historic, use_pickle, force_sqlite):
-    # Load settings file
-    cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-    if not cfg_file.is_file():
-        raise Exception("No setting file")
-    settings = json.loads(cfg_file.read_text())
-    # Override settings
-    settings["exporters.actual_state.type"] = "SQLite"
-    settings["exporters.actual_state_historic.type"] = "SQLite"
-    settings["exporters.actual_state.db_name"] = "tmp/OS2mo_ActualState"
-    settings["exporters.actual_state_historic.db_name"] = "tmp/OS2mo_historic"
-    # Generate sql export
-    sql_export = SqlExport(
-        force_sqlite=force_sqlite, historic=historic, settings=settings
-    )
-    sql_export.perform_export(resolve_dar=resolve_dar, use_pickle=use_pickle)
-
-
-@cli.command()
-@async_to_sync
-async def generate_json():
+def generate_json():
     # TODO: Async database access
-    db_string = "sqlite:///{}.db".format("tmp/OS2mo_ActualState")
-    engine = create_engine(db_string)
+    engine = get_engine()
     # Prepare session
     Session = sessionmaker(bind=engine, autoflush=False)
     session = Session()
@@ -141,93 +104,121 @@ async def generate_json():
 
     query_counter.count = 0
     event.listen(engine, "before_cursor_execute", query_counter)
-    # Count number of http requests
-    def request_counter():
-        request_counter.count += 1
-
-    request_counter.count = 0
 
     # Print number of employees
     total_number_of_employees = session.query(Bruger).count()
     print("Total employees:", total_number_of_employees)
 
-    def enrich_org_units_with_engagements(org_unit_map):
-        # Enrich with engagements
-        queryset = (
-            session.query(Engagement, Bruger)
-            .filter(Engagement.bruger_uuid == Bruger.uuid)
-            .all()
-        )
+    def filter_missing_entry(entry_map, entry_type, unit_uuid, entry):
+        if unit_uuid not in entry_map:
+            logger.error(
+                entry_type + " not found in map: " + str(unit_uuid)
+            )
+            return False
+        return True
 
-        for engagement, bruger in queryset:
-            if engagement.enhed_uuid not in org_unit_map:
-                continue
-            engagement_entry = {
+    def enrich_org_unit_with_x(org_unit_map, entry_type, entry_gen, entries):
+        def gen_entry(x, bruger):
+            return x.enhed_uuid, entry_gen(x, bruger)
+        # Bind two arguments so the function only takes unit_uuid, entry.
+        # Then apply_tuple to the function takes a tuple(unit_uuid, entry).
+        missing_entry_filter = apply_tuple(partial(
+            filter_missing_entry, org_unit_map, entry_type.capitalize()
+        ))
+
+        entries = starmap(gen_entry, entries)
+        entries = filter(missing_entry_filter, entries)
+        for unit_uuid, entry in entries:
+            org_unit_map[unit_uuid][entry_type].append(entry)
+        return org_unit_map
+
+    def enrich_employees_with_x(employee_map, entry_type, entry_gen, entries):
+        def gen_entry(x, enhed):
+            return x.bruger_uuid, entry_gen(x, enhed)
+        # Bind two arguments so the function only takes unit_uuid, entry.
+        # Then apply_tuple to the function takes a tuple(unit_uuid, entry).
+        missing_entry_filter = apply_tuple(partial(
+            filter_missing_entry, employee_map, entry_type.capitalize()
+        ))
+
+        # Add org-units to queue as side-effect
+        entries = side_effect(
+            lambda x_enhed: add_org_unit(x_enhed[1]),
+            entries
+        )
+        entries = starmap(gen_entry, entries)
+        entries = filter(missing_entry_filter, entries)
+        for bruger_uuid, entry in entries:
+            employee_map[bruger_uuid][entry_type].append(entry)
+        return employee_map
+
+    def enrich_org_units_with_engagements(org_unit_map):
+        def gen_engagement(engagement, bruger):
+            return {
                 "title": engagement.stillingsbetegnelse_titel,
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-            org_unit_map[engagement.enhed_uuid]["engagements"].append(engagement_entry)
-        return org_unit_map
-
-    def enrich_org_units_with_associations(org_unit_map):
-        queryset = (
-            session.query(Tilknytning, Bruger)
-            .filter(Tilknytning.bruger_uuid == Bruger.uuid)
-            .all()
+        engagements = session.query(Engagement, Bruger).filter(
+            Engagement.bruger_uuid == Bruger.uuid
+        ).all()
+        return enrich_org_unit_with_x(
+            org_unit_map, "engagements", gen_engagement, engagements
         )
 
-        for tilknytning, bruger in queryset:
-            if tilknytning.enhed_uuid not in org_unit_map:
-                continue
-            association_entry = {
+    def enrich_org_units_with_associations(org_unit_map):
+        def gen_association(tilknytning, bruger):
+            return {
                 "title": tilknytning.tilknytningstype_titel,
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-            org_unit_map[tilknytning.enhed_uuid]["associations"].append(
-                association_entry
-            )
-        return org_unit_map
-
-    def enrich_org_units_with_management(org_unit_map):
-        queryset = (
-            session.query(Leder, Bruger).filter(Leder.bruger_uuid == Bruger.uuid).all()
+        associations = session.query(Tilknytning, Bruger).filter(
+            Tilknytning.bruger_uuid == Bruger.uuid
+        ).all()
+        return enrich_org_unit_with_x(
+            org_unit_map, "associations", gen_association, associations
         )
 
-        for leder, bruger in queryset:
-            if leder.enhed_uuid not in org_unit_map:
-                continue
-            management_entry = {
+    def enrich_org_units_with_management(org_unit_map):
+        def gen_management(leder, bruger):
+            return {
                 "title": leder.ledertype_titel,
                 "name": bruger.fornavn + " " + bruger.efternavn,
                 "uuid": bruger.uuid,
             }
-            org_unit_map[leder.enhed_uuid]["management"].append(management_entry)
-        return org_unit_map
-
-    def enrich_org_units_with_kles(org_unit_map):
-        queryset = (
-            session.query(KLE).all()
+        managements = session.query(Leder, Bruger).filter(
+            Leder.bruger_uuid == Bruger.uuid
+        ).all()
+        return enrich_org_unit_with_x(
+            org_unit_map, "management", gen_management, managements
         )
 
-        for kle in queryset:
-            if kle.enhed_uuid not in org_unit_map:
-                continue
-            if kle.kle_aspekt_titel != 'Udførende':
-                continue
-            kle_entry = {
+    def enrich_org_units_with_kles(org_unit_map):
+        def gen_kle(kle):
+            return kle.enhed_uuid, {
                 "title": kle.kle_nummer_titel,
                 # "name": kle.kle_aspekt_titel,
                 "uuid": kle.uuid,
             }
-            org_unit_map[kle.enhed_uuid]["kles"].append(kle_entry)
+        # Bind two arguments so the function only takes unit_uuid, entry.
+        # Then apply_tuple to the function takes a tuple(unit_uuid, entry).
+        missing_entry_filter = apply_tuple(partial(
+            filter_missing_entry, org_unit_map, "KLE"
+        ))
+
+        kles = session.query(KLE).all()
+        kles = filter(lambda kle: kle.kle_aspekt_titel == 'Udførende', kles)
+        kles = map(gen_kle, kles)
+        kles = filter(missing_entry_filter, kles)
+        for unit_uuid, kle in kles:
+            org_unit_map[unit_uuid]["kles"].append(kle)
         return org_unit_map
 
     org_unit_map = {}
     org_unit_queue = set()
 
-    def queue_org_unit(uuid):
+    def queue_org_unit(uuid=None):
         if uuid is None:
             return
         org_unit_queue.add(uuid)
@@ -242,6 +233,7 @@ async def generate_json():
                 add_org_unit(enhed)
 
     def add_org_unit(enhed):
+        # Assuming it has already been added, do not read
         if enhed.uuid in org_unit_map:
             return
 
@@ -262,15 +254,14 @@ async def generate_json():
                 "WWW": [],
             },
         }
-        if unit["parent"]:
-            # Add parent to queue for bulk fetching later
-            queue_org_unit(enhed.forældreenhed_uuid)
-
         org_unit_map[enhed.uuid] = unit
 
-    def fetch_employees(employee_map):
-        for employee in session.query(Bruger).all():
-            phonebook_entry = {
+        # Add parent to queue for bulk fetching later (if any)
+        queue_org_unit(enhed.forældreenhed_uuid)
+
+    def fetch_employees():
+        def employee_to_dict(employee):
+            return {
                 "uuid": employee.uuid,
                 "surname": employee.efternavn,
                 "givenname": employee.fornavn,
@@ -284,71 +275,61 @@ async def generate_json():
                     "EMAIL": [],
                     "EAN": [],
                     "PNUMBER": [],
-                    "WWW": [],
-                },
+                    "WWW": []
+                }
             }
-            employee_map[employee.uuid] = phonebook_entry
+
+        def create_uuid_tuple(entry):
+            return entry["uuid"], entry
+
+        employees = map(employee_to_dict, session.query(Bruger).all())
+        employee_map = dict(map(create_uuid_tuple, employees))
         return employee_map
 
     def enrich_employees_with_engagements(employee_map):
-        # Enrich with engagements
-        queryset = (
-            session.query(Engagement, Enhed)
-            .filter(Engagement.enhed_uuid == Enhed.uuid)
-            .all()
-        )
-
-        for _, enhed in queryset:
-            add_org_unit(enhed)
-
-        for engagement, enhed in queryset:
-            engagement_entry = {
+        def gen_engagement(engagement, enhed):
+            return {
                 "title": engagement.stillingsbetegnelse_titel,
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-            employee_map[engagement.bruger_uuid]["engagements"].append(engagement_entry)
-        return employee_map
-
-    def enrich_employees_with_associations(employee_map):
-        # Enrich with associations
-        queryset = (
-            session.query(Tilknytning, Enhed)
-            .filter(Tilknytning.enhed_uuid == Enhed.uuid)
-            .all()
+        engagements = session.query(Engagement, Enhed).filter(
+            Engagement.enhed_uuid == Enhed.uuid
+        ).all()
+        return enrich_employees_with_x(
+            employee_map, "engagements", gen_engagement, engagements
         )
 
-        for _, enhed in queryset:
-            add_org_unit(enhed)
-
-        for tilknytning, enhed in queryset:
-            tilknytning_entry = {
+    def enrich_employees_with_associations(employee_map):
+        def gen_association(tilknytning, enhed):
+            return {
                 "title": tilknytning.tilknytningstype_titel,
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-            employee_map[tilknytning.bruger_uuid]["associations"].append(
-                tilknytning_entry
-            )
-        return employee_map
-
-    def enrich_employees_with_management(employee_map):
-        # Enrich with management
-        queryset = (
-            session.query(Leder, Enhed).filter(Leder.enhed_uuid == Enhed.uuid).all()
+        associations = session.query(Tilknytning, Enhed).filter(
+            Tilknytning.enhed_uuid == Enhed.uuid
+        ).all()
+        return enrich_employees_with_x(
+            employee_map, "associations", gen_association, associations
         )
 
-        for _, enhed in queryset:
-            add_org_unit(enhed)
-
-        for leder, enhed in queryset:
-            leder_entry = {
+    def enrich_employees_with_management(employee_map):
+        def gen_management(leder, enhed):
+            return {
                 "title": leder.ledertype_titel,
                 "name": enhed.navn,
                 "uuid": enhed.uuid,
             }
-            employee_map[leder.bruger_uuid]["management"].append(leder_entry)
-        return employee_map
+        managements = session.query(Leder, Enhed).filter(
+            Leder.enhed_uuid == Enhed.uuid
+        ).filter(
+            # Filter vacant leders
+            Leder.bruger_uuid != None
+        ).all()
+        return enrich_employees_with_x(
+            employee_map, "management", gen_management, managements
+        )
 
     def filter_employees(employee_map):
         def filter_function(phonebook_entry):
@@ -380,23 +361,23 @@ async def generate_json():
         }
         return filtered_map
 
-    async def enrich_org_units_with_addresses(org_unit_map):
+    def enrich_org_units_with_addresses(org_unit_map):
         # Enrich with adresses
         queryset = session.query(Adresse).filter(Adresse.enhed_uuid != None)
 
-        return await address_helper(
+        return address_helper(
             queryset, org_unit_map, lambda address: address.enhed_uuid
         )
 
-    async def enrich_employees_with_addresses(employee_map):
+    def enrich_employees_with_addresses(employee_map):
         # Enrich with adresses
         queryset = session.query(Adresse).filter(Adresse.bruger_uuid != None)
 
-        return await address_helper(
+        return address_helper(
             queryset, employee_map, lambda address: address.bruger_uuid
         )
 
-    async def address_helper(queryset, entry_map, address_to_uuid):
+    def address_helper(queryset, entry_map, address_to_uuid):
         da_address_types = {
             "DAR": "DAR",
             "Telefon": "PHONE",
@@ -442,61 +423,36 @@ async def generate_json():
         for address in queryset.all():
             process_address(address)
 
-        async def process_dawa(keys, client):
-            # TODO: Go through different addrtypes
-            addrtype = "adresser"
-            missing = set(keys)
-            request_counter()
-            url = "https://dawa.aws.dk/" + addrtype
-            params = {"id": "|".join(keys), "struktur": "mini"}
-            async with client.get(url, params=params) as response:
-                if response.status != 200:
-                    print(response.status)
-                    raise Exception("BAD")
-                body = await response.json()
-                for reply in body:
-                    if "betegnelse" not in reply:
-                        continue
-                    dar_uuid = reply["id"]
-                    missing.remove(dar_uuid)
-                    value = reply["betegnelse"]
-                    for address in dawa_queue[dar_uuid]:
-                        entry_uuid = address_to_uuid(address)
-                        atype = da_address_types[address.adressetype_scope]
+        uuids = set(dawa_queue.keys())
+        queryset = session.query(DARAdresse).filter(DARAdresse.uuid.in_(uuids))
+        betegnelser = map(attrgetter('betegnelse'), queryset.all())
+        betegnelser = filter(lambda x: x is not None, betegnelser)
+        for value in betegnelser:
+            for address in dawa_queue[dar_uuid]:
+                entry_uuid = address_to_uuid(address)
+                atype = da_address_types[address.adressetype_scope]
 
-                        formatted_address = {
-                            "description": address.adressetype_titel,
-                            "value": value,
-                        }
+                formatted_address = {
+                    "description": address.adressetype_titel,
+                    "value": value,
+                }
 
-                        entry_map[entry_uuid]["addresses"][atype].append(
-                            formatted_address
-                        )
-            if missing:
-                print(missing, "not found in DAWA")
+                entry_map[entry_uuid]["addresses"][atype].append(
+                    formatted_address
+                )
 
-        tasks = []
-        chunk_size = 150
-        # DAWA only accepts:
-        # * 30 requests per second per IP
-        # * 10 concurrent connections per IP
-        # Thus we limit our connections to 10 here.
-        connector = TCPConnector(limit=10)
-        async with ClientSession(connector=connector) as client:
-            data = list(dawa_queue.keys())
-            chunks = [data[x : x + chunk_size] for x in range(0, len(data), chunk_size)]
-            for chunk in chunks:
-                task = asyncio.ensure_future(process_dawa(chunk, client))
-                tasks.append(task)
-            await asyncio.gather(*tasks)
+        found = set(map(attrgetter('uuid'), queryset.all()))
+        missing = uuids - found
+        if missing:
+            print(missing, "not found in DAWA")
 
         return entry_map
 
     # Employees
     # ----------
-    employee_map = {}
+    employee_map = None
     with elapsedtime("fetch_employees"):
-        employee_map = fetch_employees(employee_map)
+        employee_map = fetch_employees()
     # NOTE: These 3 queries can run in parallel
     with elapsedtime("enrich_employees_with_engagements"):
         employee_map = enrich_employees_with_engagements(employee_map)
@@ -507,6 +463,8 @@ async def generate_json():
     # Filter off employees without engagements, assoications and management
     with elapsedtime("filter_employees"):
         employee_map = filter_employees(employee_map)
+    with elapsedtime("enrich_employees_with_addresses"):
+        employee_map = enrich_employees_with_addresses(employee_map)
 
     # Org Units
     # ----------
@@ -521,18 +479,10 @@ async def generate_json():
         org_unit_map = enrich_org_units_with_management(org_unit_map)
     with elapsedtime("enrich_org_units_with_kles"):
         org_unit_map = enrich_org_units_with_kles(org_unit_map)
-
-    # Both
-    # -----
-    # Fire all HTTP requests in parallel (for both employees and org units)
-    with elapsedtime("enrich_x_with_addresses"):
-        employee_map, org_unit_map = await asyncio.gather(
-            enrich_employees_with_addresses(employee_map),
-            enrich_org_units_with_addresses(org_unit_map),
-        )
+    with elapsedtime("enrich_org_units_with_addresses"):
+        org_unit_map = enrich_org_units_with_addresses(org_unit_map)
 
     print("Processing took", query_counter.count, "queries")
-    print("Processing took", request_counter.count, "requests")
 
     # Write files
     # ------------

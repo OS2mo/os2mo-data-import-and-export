@@ -1,8 +1,8 @@
+import click
 import time
 import json
 import pathlib
 import logging
-import argparse
 import datetime
 
 from integrations.SD_Lon import sd_common
@@ -10,22 +10,32 @@ from integrations.SD_Lon import sd_payloads
 
 from os2mo_helpers.mora_helpers import MoraHelper
 
-# TODO: Soon we have done this 4 times. Should we make a small settings
-# importer, that will also handle datatype for specicic keys?
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
-MORA_BASE = SETTINGS['mora.base']
-
 logger = logging.getLogger("updatePrimaryEngagements")
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'calculate_primary.log'
 
 
+def setup_logging():
+    detail_logging = ('mora-helper', 'updatePrimaryEngagements', 'sdCommon')
+    for name in logging.root.manager.loggerDict:
+        if name in detail_logging:
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
+
+
 class MOPrimaryEngagementUpdater(object):
     def __init__(self):
-        self.helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
+        settings = sd_common.load_settings()
+        mora_base = settings['mora.base']
+
+        self.helper = MoraHelper(hostname=mora_base, use_cache=False)
         self.org_uuid = self.helper.read_organisation()
 
         self.mo_person = None
@@ -51,17 +61,9 @@ class MOPrimaryEngagementUpdater(object):
             mo_person = self.helper.read_user(user_uuid=uuid)
         elif cpr:
             mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
-        elif mo_person:
-            pass
-        else:
-            mo_person = None
         # print('Read user: {}s'.format(time.time() - t))
-        if mo_person:
-            self.mo_person = mo_person
-            success = True
-        else:
-            self.mo_person = None
-            success = False
+        self.mo_person = mo_person
+        success = mo_person is not None
         return success
 
     def _calculate_rate_and_ids(self, mo_engagement, no_past):
@@ -229,21 +231,21 @@ class MOPrimaryEngagementUpdater(object):
                     logger.info('Status 0, no update of primary')
                     continue
 
-                if date_list[i + 1] == datetime.datetime(9999, 12, 30, 0, 0):
+                to = datetime.datetime.strftime(
+                    date_list[i + 1] - datetime.timedelta(days=1), "%Y-%m-%d"
+                )
+                if to == "9999-12-30":
                     to = None
-                else:
-                    to = datetime.datetime.strftime(
-                        date_list[i + 1] - datetime.timedelta(days=1), "%Y-%m-%d"
-                    )
                 validity = {
                     'from': datetime.datetime.strftime(date, "%Y-%m-%d"),
                     'to': to
                 }
 
                 if 'user_key' not in eng:
-                    break
+                    break  # Why break instead of continue?!
+
                 try:
-                    # non-integer user keys should universially be status0
+                    # non-integer user keys should universally be status0
                     employment_id = int(eng['user_key'])
                 except ValueError:
                     logger.warning('Engagement type not status0. Will fix.')
@@ -315,48 +317,37 @@ class MOPrimaryEngagementUpdater(object):
             logger.debug('Time for primary calculation: {}'.format(time.time() - t))
         print('Total edits: {}'.format(sum(edit_status.values())))
 
-    def _cli(self):
-        parser = argparse.ArgumentParser(description='Calculate Primary')
-        group = parser.add_mutually_exclusive_group(required=True)
-        group.add_argument('--check-all-for-primary',  action='store_true',
-                           help='Check all users for a primary engagement')
-        group.add_argument('--recalculate-all',  action='store_true',
-                           help='Recalculate all all users')
-        group.add_argument('--recalculate-user', nargs=1, metavar='MO_uuid',
-                           help='Recalculate primaries for a user')
 
-        args = vars(parser.parse_args())
+@click.command()
+@click.option("--check-all", is_flag=True, type=click.BOOL, help="Check all users")
+@click.option("--recalculate-all", is_flag=True, type=click.BOOL, help="Recalculate all users")
+@click.option("--recalculate-user", type=click.UUID, help="Recalculate one user")
+def calculate_primary(check_all, recalculate_all, recalculate_user):
+    """Tool to work with primary engagement(s)."""
+    setup_logging()
 
-        if args.get('recalculate_user'):
-            print('Recalculate user')
-            t = time.time()
-            uuid = args.get('recalculate_user')[0]
-            self.set_current_person(uuid=uuid)
-            self.recalculate_primary()
-            print('Time for primary calculation: {}'.format(time.time() - t))
+    num_set = sum(map(bool, [check_all, recalculate_all, recalculate_user]))
+    if num_set == 0:
+        raise click.ClickException("Please provide atleast one argument")
+    if num_set > 1:
+        raise click.ClickException("Flags are mutually exclusive")
 
-        if args.get('check_all_for_primary'):
-            print('Check all for primary')
-            self.check_all_for_primary()
+    updater = MOPrimaryEngagementUpdater()
+    if check_all:
+        print('Check all for primary')
+        updater.check_all_for_primary()
 
-        if args.get('recalculate_all'):
-            print('Check all for primary')
-            self.recalculate_all(no_past=True)
+    if recalculate_all:
+        print('Recalculate all')
+        updater.recalculate_all(no_past=True)
+
+    if recalculate_user:
+        print('Recalculate user')
+        t = time.time()
+        updater.set_current_person(uuid=recalculate_user)
+        updater.recalculate_primary()
+        print('Time for primary calculation: {}'.format(time.time() - t))
 
 
 if __name__ == '__main__':
-    detail_logging = ('mora-helper', 'updatePrimaryEngagements', 'sdCommon')
-    for name in logging.root.manager.loggerDict:
-        if name in detail_logging:
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
-
-    logging.basicConfig(
-        format='%(levelname)s %(asctime)s %(name)s %(message)s',
-        level=LOG_LEVEL,
-        filename=LOG_FILE
-    )
-
-    updater = MOPrimaryEngagementUpdater()
-    updater._cli()
+    calculate_primary()

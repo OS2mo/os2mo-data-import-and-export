@@ -1,6 +1,6 @@
+import json
 import os
 import pathlib
-import json
 
 # flake8: noqa
 
@@ -24,6 +24,10 @@ settings = {
         "OS2MO_TOP_UNIT_UUID": top_settings["os2sync.top_unit_uuid"],
         "OS2SYNC_MUNICIPALITY": top_settings["municipality.cvr"],
         "OS2SYNC_XFER_CPR": top_settings["os2sync.xfer_cpr"],
+        "OS2SYNC_USE_LC_DB": top_settings.get("os2sync.use_lc_db", False),
+        "OS2SYNC_IGNORED_UNIT_LEVELS": top_settings.get("os2sync.ignored.unit_levels",[]),
+        "OS2SYNC_IGNORED_UNIT_TYPES": top_settings.get("os2sync.ignored.unit_types",[]),
+        "OS2SYNC_AUTOWASH": top_settings.get("os2sync.autowash",False),
 }
-
+logformat = '%(levelname)s %(asctime)s %(name)s %(message)s'
 loggername = "os2sync"

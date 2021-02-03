@@ -1,6 +1,6 @@
 from fixture_generator import dummy_data_creator
 from datetime import datetime
-from click import command, option, Abort
+from click import command, option, ClickException
 from requests import Session
 from anytree import PreOrderIter
 from os2mo_data_import import ImportHelper
@@ -319,7 +319,7 @@ def main(mox_base, mora_base, municipality, scale, org_size, extra_root, kle):
         })
 
         if not r or not r.json():
-            raise Abort('no such municipality: ' + municipality)
+            raise ClickException('no such municipality: ' + municipality)
 
         municipality_number = r.json()[0]['kode']
         municipality_name = r.json()[0]['navn'] + ' Kommune'

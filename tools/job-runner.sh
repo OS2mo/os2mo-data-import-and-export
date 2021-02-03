@@ -19,8 +19,6 @@ cd ${DIPEXAR}
 
 export PYTHONPATH=$PWD:$PYTHONPATH
 
-rm tmp/*.p 2>/dev/null || :
-
 # some logfiles can be truncated after backup as a primitive log rotation
 # they should be appended to BACK_UP_AND_TRUNCATE
 declare -a BACK_UP_AND_TRUNCATE=(
@@ -69,13 +67,11 @@ show_git_commit(){
 }
 
 imports_mox_db_clear(){
-    set -e
     echo running imports_mox_db_clear
     ${VENV}/bin/python3 tools/clear_mox_tables.py
 }
 
 imports_test_ad_connectivity(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/test_connectivity.log"
     )
@@ -84,19 +80,29 @@ imports_test_ad_connectivity(){
 }
 
 imports_test_sd_connectivity(){
-    set -e
     echo running imports_test_sd_connectivity
     ${VENV}/bin/python3 integrations/SD_Lon/test_sd_connectivity.py
 }
 
 imports_test_opus_connectivity(){
-    set -e
+    (
+        SETTING_PREFIX="cronhook" source ${DIPEXAR}/tools/prefixed_settings.sh
+        if [ "${mount_opus_on}" = "true" ] ; then
+            echo testing opus mountpoint settings
+            mountpoint ${mount_opus_mountpoint} || exit 1
+            (
+                # hvis opus er mountet, skal xml_path, hvor man læser opus fra være == mountpointet
+                SETTING_PREFIX="integrations.opus.import" source ${DIPEXAR}/tools/prefixed_settings.sh
+                [ ! "${mount_opus_mountpoint}" = "${xml_path}" ] && echo "xml-path skal være == mountpoint" && exit 1
+                exit 0
+            )
+        fi
+    ) || return 1
     echo running imports_test_ops_connectivity
     ${VENV}/bin/python3 integrations/opus/test_opus_connectivity.py --test-diff-import
 }
 
 imports_sd_fix_departments(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/fix_sd_departments.log"
     )
@@ -105,7 +111,6 @@ imports_sd_fix_departments(){
 }
 
 imports_sd_changed_at(){
-    set -e
     echo running imports_sd_changed_at
     BACK_UP_AFTER_JOBS+=(
         ${DIPEXAR}/cpr_mo_ad_map.csv
@@ -115,7 +120,6 @@ imports_sd_changed_at(){
 }
 
 imports_opus_diff_import(){
-    set -e
     echo running opus_diff_import
     BACK_UP_AFTER_JOBS+=(
         ${DIPEXAR}/cpr_mo_ad_map.csv
@@ -137,7 +141,6 @@ imports_sd_update_primary(){
 
 
 imports_ad_sync(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/ad_mo_sync.log"
     )
@@ -146,13 +149,11 @@ imports_ad_sync(){
 }
 
 imports_ballerup_apos(){
-    set -e
     echo running imports_ballerup_apos
     ${VENV}/bin/python3 integrations/ballerup/ballerup.py
 }
 
 imports_ballerup_udvalg(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/udvalg.log"
     )
@@ -161,7 +162,6 @@ imports_ballerup_udvalg(){
 }
 
 imports_ad_group_into_mo(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/external_ad_users.log"
     )
@@ -170,7 +170,6 @@ imports_ad_group_into_mo(){
 }
 
 imports_kle_online(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/kle_online.log"
     )
@@ -179,26 +178,31 @@ imports_kle_online(){
 }
 
 imports_opgavefordeler(){
-    set -e
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/opgavefordeler.log"
     )
     echo running imports_opgavefordeler
-    "${VENV}/bin/python3" integrations/kle/opgavefordeler.py
+    "${VENV}/bin/python3" integrations/kle/kle_import_export.py
+}
+
 imports_holstebro_ledere(){
     set -e
     echo running holstebro_decorate_leaders
-    ${VENV}/bin/python3 exporters/holstebro_decorate_leaders.py --test
+    "${VENV}/bin/python3" exporters/holstebro_decorate_leaders.py --test
 }
 
 exports_holstebro(){
     set -e
     echo "running exports_holstebro"
-    ${VENV}/bin/python3 exporters/holstebro.py --test
+    "${VENV}/bin/python3" exporters/holstebro.py --test
 }
 
+imports_dummy(){
+    echo "Running imports_dummy"
+}
+
+
 exports_mox_rollekatalog(){
-    set -e
     export MOX_ROLLE_MAPPING="${DIPEXAR}/cpr_mo_ad_map.csv"
     export MOX_ROLLE_OS2MO_API_KEY=$SAML_TOKEN
     export MOX_ROLLE_LOG_FILE="${DIPEXAR}/exports_mox_rollekatalog.log"
@@ -212,7 +216,6 @@ exports_mox_rollekatalog(){
 }
 
 exports_os2sync(){
-    set -e
     BACK_UP_AND_TRUNCATE+=($(
         SETTING_PREFIX="os2sync" source ${DIPEXAR}/tools/prefixed_settings.sh
         echo ${log_file}
@@ -222,7 +225,6 @@ exports_os2sync(){
 }
 
 exports_mox_stsorgsync(){
-    set -e
     MOX_ERR_CODE=0
     BACK_UP_AND_TRUNCATE+=($(
         SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -242,7 +244,6 @@ exports_mox_stsorgsync(){
 }
 
 exports_cpr_uuid(){
-    set -e
     echo running exports_cpr_uuid
     (
         SETTING_PREFIX="cpr.uuid" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -251,16 +252,17 @@ exports_cpr_uuid(){
 }
 
 exports_viborg_emus(){
-    set -e
+    BACK_UP_AND_TRUNCATE+=(
+        emus_log.txt
+    )
     echo running viborg_emus
-    ${VENV}/bin/python3 exporters/emus/viborg_xml_emus_sftp.py
+    ${VENV}/bin/python3 exporters/emus/lcdb_viborg_xml_emus_sftp.py
 }
 
 exports_viborg_eksterne(){
-    set -e
     echo "running viborgs eksterne"
     ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py --lora|| exit 1
-    $(
+    (
         SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
         SETTING_PREFIX="integrations.ad" source ${DIPEXAR}/tools/prefixed_settings.sh
         SETTING_PREFIX="exports_viborg_eksterne" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -286,32 +288,23 @@ exports_viborg_eksterne(){
     )
 }
 
-reports_sd_db_overview(){
-    set -e
-    echo running reports_sd_db_overview
-    outfile=$(mktemp)
-    ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py > ${outfile}
-    head -2 ${outfile}
-    echo "..."
-    tail -3 ${outfile}
-    rm ${outfile}
+exports_ad_life_cycle(){
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/AD_life_cycle.log"
+    )
+    echo "running exports_ad_life_cycle"
+    ${VENV}/bin/python3 integrations/ad_integration/ad_life_cycle.py --create-ad-accounts
 }
 
-reports_opus_db_overview(){
-    set -e
-    echo running reports_opus_db_overview
-    outfile=$(mktemp)
-    ${VENV}/bin/python3 integrations/opus/db_overview.py > ${outfile}
-    head -4 ${outfile}
-    echo "..."
-    tail -3 ${outfile}
-    rm ${outfile}
+exports_mo_to_ad_sync(){
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/mo_to_ad_sync.log"
+    )
+    echo "running exports_mo_to_ad_sync"
+    ${VENV}/bin/python3 integrations/ad_integration/mo_to_ad_sync.py
 }
-
- 
 
 exports_plan2learn(){
-    set -e
     echo "running exports_plan2learn"
     declare -a CSV_FILES=(
 	bruger
@@ -334,9 +327,7 @@ exports_plan2learn(){
     )
 }
 
-
 exports_queries_ballerup(){
-    set -e
     echo appending ballerup exports logfile to BACK_UP_AND_TRUNCATE
     BACK_UP_AND_TRUNCATE+=($(
         SETTING_PREFIX="exporters.ballerup" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -351,7 +342,9 @@ exports_queries_ballerup(){
         [ -d "${WORK_DIR}" ] || mkdir "${WORK_DIR}"
         cd "${WORK_DIR}"
         ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
+        local STATUS=$?
         cp "${WORK_DIR}"/*.csv "${EXPORTS_DIR}"
+        return $STATUS
     )
 }
 
@@ -362,14 +355,13 @@ exports_actual_state_export(){
 }
 
 exports_historic_sql_export(){
-    BACK_UP_AND_TRUNCATE+=(sql_export_historic.log)
+    BACK_UP_AND_TRUNCATE+=(sql_export.log)
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --historic
 }
 
 exports_os2phonebook_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(os2phonebook_export.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py sql-export
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py generate-json
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py transfer-json
 }
@@ -383,18 +375,69 @@ reports_viborg_managers(){
     ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
 }
 
-exports_test(){
-    set -e
-    :
+reports_frederikshavn(){
+    BACK_UP_AND_TRUNCATE+=(Frederikshavn_reports.log)
+    ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/Frederikshavn_reports.py
+}
+
+exports_lc_for_jobs_db(){
+    BACK_UP_AND_TRUNCATE+=(lc-for-jobs.log)
+    SETTING_PREFIX="lc-for-jobs" source ${DIPEXAR}/tools/prefixed_settings.sh
+    [ -z "${actual_db_name}" ] && echo "actual_db_name not specified" && exit 1
+    db_file="${actual_db_name}.db"
+
+    [ -f "${db_file}" ] && chmod 600 "${db_file}"
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lc_for_jobs_db.py sql-export --resolve-dar
+    local STATUS=$?    
+    [ -f "${db_file}" ] && chmod 400 "${db_file}"
+    return $STATUS
+}
+
+exports_dummy(){
+    echo "Running exports_dummy"
+}
+
+
+reports_viborg_managers(){
+    ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
+}
+
+reports_sd_db_overview(){
+    echo running reports_sd_db_overview
+    outfile=$(mktemp)
+    ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py > ${outfile}
+    local STATUS=$?
+    head -2 ${outfile}
+    echo "..."
+    tail -3 ${outfile}
+    rm ${outfile}
+    return $STATUS
+}
+
+reports_opus_db_overview(){
+    echo running reports_opus_db_overview
+    outfile=$(mktemp)
+    ${VENV}/bin/python3 integrations/opus/db_overview.py > ${outfile}
+    local STATUS=$?
+    head -4 ${outfile}
+    echo "..."
+    tail -3 ${outfile}
+    rm ${outfile}
+    return $STATUS
+}
+
+reports_dummy(){
+    echo "Running reports_dummy"
 }
 
 
 # read the run-job script et al
 for module in tools/job-runner.d/*.sh; do
-    echo sourcing $module
+    #echo sourcing $module
     source $module 
 done
 
+prometrics-git
 
 # imports are typically interdependent: -e
 imports(){
@@ -462,6 +505,10 @@ imports(){
         imports_holstebro_ledere || return 2
     fi
 
+
+    if [ "${RUN_IMPORTS_DUMMY}" == "true" ]; then
+        run-job imports_dummy || return 2
+    fi
 }
 
 # exports may also be interdependent: -e
@@ -469,6 +516,10 @@ exports(){
     [ "${IMPORTS_OK}" == "false" ] \
         && echo ERROR: imports are in error - skipping exports \
         && return 1 # exports depend on imports
+
+    if [ "${RUN_LC_FOR_JOBS_DB_EXPORT}" == "true" ]; then
+        run-job exports_lc_for_jobs_db || return 2
+    fi
 
     if [ "${RUN_ACTUAL_STATE_EXPORT}" == "true" ]; then
         run-job exports_actual_state_export || return 2
@@ -511,6 +562,14 @@ exports(){
         run-job exports_cpr_uuid || return 2
     fi
 
+    if [ "${RUN_EXPORTS_AD_LIFE_CYCLE}" == "true" ]; then
+        run-job exports_ad_life_cycle || return 2
+    fi
+
+    if [ "${RUN_EXPORTS_MO_TO_AD_SYNC}" == "true" ]; then
+        run-job exports_mo_to_ad_sync || return 2
+    fi
+
     if [ "${RUN_MOX_ROLLE}" == "true" ]; then
         run-job exports_mox_rollekatalog || return 2
     fi
@@ -523,6 +582,9 @@ exports(){
         run-job exports_test || return 2
     fi
 
+    if [ "${RUN_EXPORTS_DUMMY}" == "true" ]; then
+        run-job exports_dummy || return 2
+    fi
 }
 
 # reports are typically not interdependent
@@ -533,7 +595,7 @@ reports(){
         && return 1 # reports depend on imports
 
     if [ "${RUN_SD_DB_OVERVIEW}" == "true" ]; then
-        run-job reports_sd_db_overview || echo "error in reports_sd_db_overview - continuing"
+        run-job reports_sd_db_overview || return 2
     fi
     
     if [ "${RUN_OPUS_DB_OVERVIEW}" == "true" ]; then
@@ -544,7 +606,13 @@ reports(){
         run-job reports_viborg_managers || return 2
     fi
 
+    if [ "${RUN_REPORTS_FREDERIKSHAVN}" == "true" ]; then
+        run-job reports_frederikshavn || return 2
+    fi
 
+    if [ "${RUN_REPORTS_DUMMY}" == "true" ]; then
+        run-job reports_dummy || return 2
+    fi
 }
 
 pre_truncate_logfiles(){
@@ -651,6 +719,8 @@ show_status(){
 
 if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
     (
+        # Dette er den sektion, der kaldes fra CRON (ingen argumenter)
+
         if [ ! -n "${CRON_LOG_JSON_SINK}" ]; then
             REASON="WARNING: crontab.CRON_LOG_JSON_SINK not specified - no json logging"
             echo ${REASON}
@@ -724,6 +794,9 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
             echo ${REASON}
         fi
 
+        # Vi sletter lora-cache-picklefiler og andet inden vi kører cronjobbet
+        rm tmp/*.p 2>/dev/null || :
+
         export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
         pre_backup
@@ -744,7 +817,7 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
 elif [ "${JOB_RUNNER_MODE}" == "running" ]; then
     if [ -n "$(grep $1\(\) $0)" ]; then
         echo running single job function
-        $1
+        run-job $1
     fi
 elif [ "${JOB_RUNNER_MODE}" == "sourced" ]; then
     # export essential functions

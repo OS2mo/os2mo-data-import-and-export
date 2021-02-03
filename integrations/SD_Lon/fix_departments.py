@@ -1,14 +1,17 @@
+import click
 import json
 import pathlib
 import logging
 import requests
 import datetime
-import argparse
+from functools import partial
+from itertools import chain
 from integrations.SD_Lon import sd_payloads
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import mora_assert
+from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.exceptions import NoCurrentValdityException
 
 LOG_LEVEL = logging.DEBUG
@@ -16,24 +19,26 @@ LOG_FILE = 'fix_sd_departments.log'
 
 logger = logging.getLogger('fixDepartments')
 
-detail_logging = ('sdCommon', 'fixDepartments')
-for name in logging.root.manager.loggerDict:
-    if name in detail_logging:
-        logging.getLogger(name).setLevel(LOG_LEVEL)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
 
+def setup_logging():
+    detail_logging = ('sdCommon', 'fixDepartments')
+    for name in logging.root.manager.loggerDict:
+        if name in detail_logging:
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
 
 
 class FixDepartments(object):
     def __init__(self):
         logger.info('Start program')
-        # TODO: Soon we have done this 4 times. Should we make a small settings
-        # importer, that will also handle datatype for specicic keys?
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = load_settings()
 
         self.institution_uuid = self.get_institution()
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
@@ -42,6 +47,10 @@ class FixDepartments(object):
         try:
             self.org_uuid = self.helper.read_organisation()
         except requests.exceptions.RequestException as e:
+            logger.error(e)
+            print(e)
+            exit()
+        except json.decoder.JSONDecodeError as e:
             logger.error(e)
             print(e)
             exit()
@@ -333,47 +342,52 @@ class FixDepartments(object):
         # in destination_unit.
         for person in all_people.values():
             cpr = person['PersonCivilRegistrationIdentifier']
-            job_id = person['Employment']['EmploymentIdentifier']
-            msg = 'Checking job-id: {}'
-            print(msg.format(job_id))
-            logger.info(msg.format(job_id))
-            sd_uuid = (person['Employment']['EmploymentDepartment']
-                       ['DepartmentUUIDIdentifier'])
-            if not sd_uuid == unit_uuid:
-                # This employment is not from the current department,
-                # but is inherited from a lower level. Can happen if this
-                # tool is initiated on a level higher than Afdelings-niveau.
-                continue
 
-            mo_person = self.helper.read_user(user_cpr=cpr,
-                                              org_uuid=self.org_uuid)
+            if not isinstance(person['Employment'], list):
+                person['Employment'] = [person['Employment']]
 
-            mo_engagements = self.helper.read_user_engagement(
-                mo_person['uuid'], read_all=True, only_primary=True, skip_past=True
-            )
-
-            # Find the uuid of the relevant engagement and update all current and
-            # future rows.
-            mo_engagement = self._find_engagement(mo_engagements, job_id)
-            for eng in mo_engagements:
-                if not eng['uuid'] == mo_engagement['uuid']:
-                    # This engagement is not relevant for this unit
-                    continue
-                if eng['org_unit']['uuid'] == destination_unit:
-                    # This engagement is already in the correct unit
+            for employment in person['Employment']:
+                job_id = employment['EmploymentIdentifier']
+                msg = 'Checking job-id: {}'
+                print(msg.format(job_id))
+                logger.info(msg.format(job_id))
+                sd_uuid = (employment['EmploymentDepartment']
+                           ['DepartmentUUIDIdentifier'])
+                if not sd_uuid == unit_uuid:
+                    # This employment is not from the current department,
+                    # but is inherited from a lower level. Can happen if this
+                    # tool is initiated on a level higher than Afdelings-niveau.
                     continue
 
-                from_date = datetime.datetime.strptime(
-                    eng['validity']['from'], '%Y-%m-%d')
-                if from_date < validity_date:
-                    eng['validity']['from'] = validity_date.strftime('%Y-%m-%d')
+                mo_person = self.helper.read_user(user_cpr=cpr,
+                                                  org_uuid=self.org_uuid)
 
-                data = {'org_unit': {'uuid': destination_unit},
-                        'validity': eng['validity']}
-                payload = sd_payloads.engagement(data, mo_engagement)
-                logger.debug('Move engagement payload: {}'.format(payload))
-                response = self.helper._mo_post('details/edit', payload)
-                mora_assert(response)
+                mo_engagements = self.helper.read_user_engagement(
+                    mo_person['uuid'], read_all=True, only_primary=True, skip_past=True
+                )
+
+                # Find the uuid of the relevant engagement and update all current and
+                # future rows.
+                mo_engagement = self._find_engagement(mo_engagements, job_id)
+                for eng in mo_engagements:
+                    if not eng['uuid'] == mo_engagement['uuid']:
+                        # This engagement is not relevant for this unit
+                        continue
+                    if eng['org_unit']['uuid'] == destination_unit:
+                        # This engagement is already in the correct unit
+                        continue
+
+                    from_date = datetime.datetime.strptime(
+                        eng['validity']['from'], '%Y-%m-%d')
+                    if from_date < validity_date:
+                        eng['validity']['from'] = validity_date.strftime('%Y-%m-%d')
+
+                    data = {'org_unit': {'uuid': destination_unit},
+                            'validity': eng['validity']}
+                    payload = sd_payloads.engagement(data, mo_engagement)
+                    logger.debug('Move engagement payload: {}'.format(payload))
+                    response = self.helper._mo_post('details/edit', payload)
+                    mora_assert(response)
 
     def get_parent(self, unit_uuid, validity_date):
         """
@@ -459,35 +473,41 @@ class FixDepartments(object):
         for unit in reversed(branch):
             self.fix_department_at_single_date(unit[1], date)
 
-    def _cli(self):
-        """
-        Command line interface to sync SD departent information to MO.
-        """
-        parser = argparse.ArgumentParser(description='Department updater')
-        parser.add_argument('--department-uuid', nargs=1, required=True,
-                            metavar='UUID of the department to update')
-        args = vars(parser.parse_args())
 
-        today = datetime.datetime.today()
-        department_uuid = args.get('department_uuid')[0]
+    def sd_uuid_from_short_code(self, validity_date, shortname):
+        validity = {
+            'from_date': validity_date.strftime('%d.%m.%Y'),
+            'to_date': validity_date.strftime('%d.%m.%Y')
+        }
+        department = self.get_department(validity, shortname=shortname)[0]
+        return department["DepartmentUUIDIdentifier"]
 
-        # Use a future date to be sure that the unit exists in SD.
-        fix_date = today + datetime.timedelta(weeks=80)
-        self.fix_or_create_branch(department_uuid, fix_date)
 
-        self.fix_NY_logic(department_uuid, today)
+@click.command()
+@click.option('--department-short-name', 'short_names', multiple=True, type=click.STRING, help="Shortname of the department to update")
+@click.option('--department-uuid', 'uuids', multiple=True, type=click.UUID, help="UUID of the department to update")
+def unit_fixer(short_names, uuids):
+    """Sync SD department information to MO."""
+    setup_logging()
+
+    unit_fixer = FixDepartments()
+
+    today = datetime.datetime.today()
+    # Use a future date to be sure that the unit exists in SD.
+    # XXX: Why 80 weeks instead of 1 day?
+    fix_date = today + datetime.timedelta(weeks=80)
+
+    # Translate short_names to uuids
+    short_name_uuids = map(
+        partial(unit_fixer.sd_uuid_from_short_code, fix_date), short_names
+    )
+    # Convert UUIDs to strings
+    department_uuids = map(str, uuids)
+
+    for department_uuid in chain(short_name_uuids, department_uuids):
+        unit_fixer.fix_or_create_branch(department_uuid, fix_date)
+        unit_fixer.fix_NY_logic(department_uuid, today)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(
-        format='%(levelname)s %(asctime)s %(name)s %(message)s',
-        level=LOG_LEVEL,
-        filename=LOG_FILE
-    )
-    unit_fixer = FixDepartments()
-    # uruk = 'cf9864bf-1ed8-4800-9600-000001290002'
-    # today = datetime.datetime.today()
-    # print(unit_fixer.get_all_parents(uruk, from_date))
-    # print(unit_fixer.get_all_parents(uruk, today))
-    # unit_fixer.fix_or_create_branch(uruk, today)
-    unit_fixer._cli()
+    unit_fixer()

@@ -1,6 +1,9 @@
 class NoPrimaryEngagementException(Exception):
     pass
 
+class NoActiveEngagementsException(Exception):
+    pass
+
 
 class UserNotFoundException(Exception):
     pass

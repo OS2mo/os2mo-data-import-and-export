@@ -11,6 +11,7 @@ Helper class to make a number of pre-defined queries into MO.
 These are specfic for Viborg
 """
 
+from tqdm import tqdm
 import time
 from os2mo_helpers.mora_helpers import MoraHelper
 import exporters.common_queries as cq
@@ -24,6 +25,7 @@ import logging
 import collections
 import pathlib
 from xml.sax.saxutils import escape
+from exporters.utils.priority_by_class import choose_public_address
 
 
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
@@ -41,17 +43,18 @@ for i in logging.root.manager.loggerDict:
         logging.getLogger(i).setLevel(logging.WARNING)
 
 
+# TODO: Refactor this
 cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
 if not cfg_file.is_file():
     raise Exception('No setting file')
 settings = json.loads(cfg_file.read_text())
 
 MORA_BASE = settings.get("mora.base", 'http://localhost:5000')
-MORA_ROOT_ORG_UNIT_NAME = settings.get("mora.admin_top_unit", 'Viborg Kommune')
-USERID_ITSYSTEM = settings["emus.userid_itsystem"]
+MORA_ROOT_ORG_UNIT_UUID = settings.get("mora.admin_top_unit")
 EMUS_RESPONSIBILITY_CLASS = settings["emus.manager_responsibility_class"]
 EMUS_FILENAME = settings.get("emus.outfile_name", 'emus_filename.xml')
-EMUS_DISCARDED_JOB_FUNCTIONS = settings.get("emus.discard_job_functions",[])
+EMUS_DISCARDED_JOB_FUNCTIONS = settings.get("emus.discard_job_functions", [])
+EMUS_ALLOWED_ENGAGEMENT_TYPES = settings.get("emus.engagement_types", [])
 
 
 engagement_counter = collections.Counter()
@@ -91,7 +94,7 @@ def export_ou_emus(mh, nodes, emus_file):
                   'longName', 'street', 'zipCode', 'city', 'phoneNumber']
 
     rows = []
-    for node in cq.PreOrderIter(nodes['root']):
+    for node in tqdm(cq.PreOrderIter(nodes['root']), total=len(nodes), desc="export ou"):
         ou = mh.read_ou(node.name)
         if not engagement_counter[ou["uuid"]]:
             logger.info("skipping dept %s with no non-hourly-paid employees",
@@ -154,10 +157,19 @@ def get_e_username(e_uuid, id_it_system, mh):
 
 
 def get_e_address(e_uuid, scope, mh):
-    for address in mh._mo_lookup(e_uuid, 'e/{}/details/address'):
-        if address['address_type']['scope'] == scope:
-            return address
-    return {}
+    candidates = mh.get_e_addresses(e_uuid, scope)
+    if scope == "PHONE":
+        priority_list = settings.get("emus.phone.priority", [])
+    elif scope == "EMAIL":
+        priority_list = settings.get("emus.email.priority", [])
+    else:
+        priority_list = []
+
+    address = choose_public_address(candidates, priority_list)
+    if address is not None:
+        return address
+    else:
+        return {} # like mora_helpers
 
 
 """
@@ -178,7 +190,6 @@ def build_engagement_row(mh, ou, engagement):
         'e/{}'
     )
 
-
     if "surname" in engagement["person"]:
         firstname = engagement["person"]["givenname"]
         lastname = engagement["person"]["surname"]
@@ -191,10 +202,11 @@ def build_engagement_row(mh, ou, engagement):
         engagement["person"]["uuid"],
         'Active Directory'
     )
-    _phone = mh.get_e_address(engagement["person"]["uuid"], "PHONE")
-    _email = mh.get_e_address(engagement["person"]["uuid"], "EMAIL")
+    _phone = get_e_address(engagement["person"]["uuid"], "PHONE", mh)
+    _email = get_e_address(engagement["person"]["uuid"], "EMAIL", mh)
 
     row = {
+        'personUUID': engagement["person"]["uuid"],
         # employee_id is tjenestenr by default
         'employee_id': engagement.get("user_key", ''),
         # client is 1 by default
@@ -228,7 +240,7 @@ def get_manager_dates(mh, person):
     startdate = '9999-12-31'
     enddate = '0000-00-00'
     for engagement in mh.read_user_engagement(person["uuid"], read_all=True):
-        if engagement["validity"].get("to") and enddate is not '':
+        if engagement["validity"].get("to") and enddate != '':
             # Enddate is finite, check if it is later than current
             if engagement["validity"]["to"] > enddate:
                 enddate = engagement["validity"]["to"]
@@ -239,7 +251,7 @@ def get_manager_dates(mh, person):
             startdate = engagement["validity"]["from"]
 
     assert startdate < '9999-12-31'
-    assert enddate is '' or enddate > '0000-00-00'
+    assert enddate == '' or enddate > '0000-00-00'
     return startdate, enddate
 
 
@@ -269,8 +281,8 @@ def build_manager_rows(mh, ou, manager):
         'Active Directory'
     )
 
-    _phone = mh.get_e_address(person["uuid"], "PHONE")
-    _email = mh.get_e_address(person["uuid"], "EMAIL")
+    _phone = get_e_address(person["uuid"], "PHONE", mh)
+    _email = get_e_address(person["uuid"], "EMAIL", mh)
 
     # manipulate row into a manager row
     # empty a couple of fields, change client and employee_id
@@ -286,6 +298,7 @@ def build_manager_rows(mh, ou, manager):
             responsibility["name"]
         )
         row = {
+            'personUUID': person["uuid"],
             'employee_id': person["uuid"],
             'client': "540",
             'entryDate': entrydate,
@@ -320,9 +333,15 @@ def hourly_paid(engagement):
 
 
 def discarded(engagement):
-    jfkey = engagement.get("job_function", {}).get("user_key", "")
+    jfkey = engagement.get("job_function", {}).get("uuid", "")
+    etuuid = engagement["engagement_type"]["uuid"]
+    if etuuid not in EMUS_ALLOWED_ENGAGEMENT_TYPES:
+        logger.debug("%s discarded engagement_type %s",
+                     engagement["person"]["uuid"], etuuid)
+        return True
     if jfkey in EMUS_DISCARDED_JOB_FUNCTIONS:
-        logger.debug("%s discarded job function %s", engagement["person"]["uuid"], jfkey)
+        logger.debug("%s discarded job function %s",
+                     engagement["person"]["uuid"], jfkey)
         return True
     return False
 
@@ -336,13 +355,13 @@ def engagement_count(mh, ou):
 
 
 def export_e_emus(mh, nodes, emus_file):
-    fieldnames = ['entryDate', 'leaveDate', 'cpr', 'firstName',
+    fieldnames = ['personUUID', 'entryDate', 'leaveDate', 'cpr', 'firstName',
                   'lastName', 'workPhone', 'workContract', 'workContractText',
                   'positionId', 'position', "orgUnit", 'email', "username"]
     manager_rows = []
     engagement_rows = []
 
-    for node in cq.PreOrderIter(nodes['root']):
+    for node in tqdm(cq.PreOrderIter(nodes['root']), total=len(nodes), desc="export e"):
         ou = mh.read_ou(node.name)
 
         # normal engagements - original export
@@ -392,21 +411,12 @@ def export_e_emus(mh, nodes, emus_file):
 
 def main(
     emus_xml_file,
-    root_org_unit_name=MORA_ROOT_ORG_UNIT_NAME,
+    root_org_unit_uuid=MORA_ROOT_ORG_UNIT_UUID,
     mh=MoraHelper(),
     t=time.time(),
 ):
-    root_org_unit_uuid = None
-    org = mh.read_organisation()
-    roots = mh.read_top_units(org)
-    for root in roots:
-        logger.debug("checking if %s is %s", root["name"], root_org_unit_name)
-        if root['name'] == root_org_unit_name:
-            root_org_unit_uuid = root['uuid']
-            break
-
     if not root_org_unit_uuid:
-        logger.error("%s not found in root-ous", root_org_unit_name)
+        logger.error("root_org_unit_uuid must be specified")
         exit(1)
 
     logger.warning("caching all ou's,"

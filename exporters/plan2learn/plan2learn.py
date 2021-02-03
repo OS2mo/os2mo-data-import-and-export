@@ -13,6 +13,9 @@ import pathlib
 import datetime
 import argparse
 from anytree import PreOrderIter
+from operator import itemgetter
+from functools import partial
+from more_itertools import flatten, only
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
@@ -43,18 +46,19 @@ SETTINGS = json.loads(cfg_file.read_text())
 ACTIVE_JOB_FUNCTIONS = []  # Liste over aktive engagementer som skal eksporteres.
 
 
-def export_bruger(mh, nodes, lc_historic):
+def export_bruger(mh, nodes, lc, lc_historic):
     #  fieldnames = ['BrugerId', 'CPR', 'Navn', 'E-mail', 'Mobil', 'Stilling']
     used_cprs = []
 
     # Todo: Move to settings
+    email_type = 'fa865555-58b5-327d-e7dc-2990b0d28ff9'
     phone_type = '7db54183-1f2c-87ba-d4c3-de22a101ebc1'
     allowed_engagement_types = ['d3ffdf48-0ea2-72dc-6319-8597bdaa81d3',
                                 'ac485d1c-025f-9818-f2c9-fafea2c1d282']
 
     rows = []
     for node in PreOrderIter(nodes['root']):
-        if lc_historic:
+        if lc and lc_historic:
             # TODO: If this is to run faster, we need to pre-sort into units,
             # to avoid iterating all engagements for each unit.
             for eng in lc_historic.engagements.values():
@@ -65,24 +69,46 @@ def export_bruger(mh, nodes, lc_historic):
                         continue
 
                     user_uuid = engv['user']
-                    user = lc_historic.users[user_uuid]
+                    user = lc.users[user_uuid][0]
                     name = user['navn']
                     cpr = user['cpr']
                     if cpr in used_cprs:
                         # print('Skipping user: {} '.format(uuid))
                         continue
 
-                    address = {}
-                    for raw_address in lc_historic.addresses.values():
-                        for addr_validity in raw_address:
-                            if addr_validity['user'] == engv['user']:
-                                if addr_validity['scope'] == 'E-mail':
-                                    address['E-mail'] = addr_validity['value']
-                                if addr_validity['adresse_type'] == phone_type:
-                                    address['Telefon'] = addr_validity['value']
+                    # Iterator of all address validities in LoRa 
+                    raw_addresses = lc_historic.addresses.values()
+                    address_validities = flatten(raw_addresses)
+                    # Iterator of all address validities for the current user
+                    address_validities = filter(
+                        lambda addr_validity: addr_validity['user'] == engv['user'],
+                        address_validities
+                    )
+                    address_validities = list(address_validities)
 
-                    if cpr in used_cprs:
-                        # print('Skipping user: {} '.format(uuid))
+                    def check_address_type(lookup, addr_validity):
+                        """Filter address validities on their address type."""
+                        return addr_validity['adresse_type'] == lookup
+
+                    address = {}
+                    # Lookup an address value with address_type == email_type
+                    try:
+                        address['E-mail'] = only(map(itemgetter('value'), filter(
+                            partial(check_address_type, email_type),
+                            address_validities
+                        )))
+                    except ValueError:
+                        logger.info("Non unique email address, skipping " + user_uuid)
+                        continue
+
+                    # Lookup an address value with address_type == phone_type
+                    try:
+                        address['Telefon'] = only(map(itemgetter('value'), filter(
+                            partial(check_address_type, phone_type),
+                            address_validities
+                        )))
+                    except ValueError:
+                        logger.info("Non unique phone number, skipping " + user_uuid)
                         continue
 
                     used_cprs.append(cpr)
@@ -103,7 +129,7 @@ def export_bruger(mh, nodes, lc_historic):
             for uuid, employee in employees.items():
                 if employee['engagement_type_uuid'] not in allowed_engagement_types:
                     continue
-                address = mh.read_user_address(uuid, cpr=True, phone_type=phone_type)
+                address = mh.read_user_address(uuid, cpr=True, email_type=email_type, phone_type=phone_type)
                 user_uuid = employee['Person UUID']
                 name = employee['Navn']
                 cpr = address['CPR-Nummer']
@@ -223,12 +249,16 @@ def export_engagement(mh, filename, eksporterede_afdelinger, brugere_rows,
 
     err_msg = 'Skipping {}, due to non-allowed engagement type'
     if lc and lc_historic:
-        for employee in lc_historic.users.values():
+        for employee_effects in lc.users.values():
             for eng in lc_historic.engagements.values():
                 # We can consistenly access index 0, the historic export
                 # is for the purpose of catching future engagements, not
                 # to catch all validities
                 engv = eng[0]
+
+                # As this is not the historic cache, there should only be one user
+                employee = employee_effects[0]
+
                 if engv['user'] != employee['uuid']:
                     continue
 
@@ -496,7 +526,7 @@ def main(speedup, dry_run=False):
     # reading this from cache.
     nodes = mh.read_ou_tree(root_unit)
 
-    brugere_rows = export_bruger(mh, nodes, lc_historic)
+    brugere_rows = export_bruger(mh, nodes, lc, lc_historic)
     print('Bruger: {}s'.format(time.time() - t))
     logger.info('Bruger: {}s'.format(time.time() - t))
 
