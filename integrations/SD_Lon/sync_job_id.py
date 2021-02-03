@@ -5,11 +5,11 @@ import pathlib
 import logging
 import argparse
 import requests
-import sd_payloads
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import load_settings
+from integrations.SD_Lon import sd_payloads
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'sync_job_id.log'
