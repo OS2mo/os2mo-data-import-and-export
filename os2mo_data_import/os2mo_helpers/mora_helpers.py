@@ -515,11 +515,12 @@ class MoraHelper:
         return manager
 
     def read_organisation_people(self, org_uuid, person_type='engagement',
-                                 split_name=True, read_all=False, skip_past=False):
+                                 split_name=True, read_all=False, skip_past=False, primary_types=[]):
         """ Read all employees in an ou. If the same employee is listed
         more than once, only the latest listing will be included.
         :param org_uuid: UUID of the OU to find emplyees in.
         :read_all: Read all engagements, not only the present ones.
+        :primary_types: list of primary_type UUIDs allowed for export
         :return: The list of emplyoees
         """
         person_list = {}
@@ -538,6 +539,9 @@ class MoraHelper:
                 all_persons = all_persons + persons
 
         for person in all_persons:
+            if len(primary_types) != 0 and person['primary']['uuid'] not in primary_types:
+                continue
+
             uuid = person['person']['uuid']
             data = {
                 'Ansættelse gyldig fra': person['validity']['from'],
@@ -618,9 +622,9 @@ class MoraHelper:
         for eng in mo_engagement:
 
             # no love in python for dates like 1900
-            earliest_fromdate=datetime.datetime(1930,1,1)
+            earliest_fromdate = datetime.datetime(1930, 1, 1)
             fromdate = datetime.datetime.strptime(eng['validity']['from'],
-                                                 '%Y-%m-%d')
+                                                  '%Y-%m-%d')
             if fromdate < earliest_fromdate:
                 fromdate = earliest_fromdate
             dates.add(fromdate)

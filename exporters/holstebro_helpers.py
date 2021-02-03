@@ -258,7 +258,7 @@ def export_to_intranote(mh, all_nodes, filename):
             if ou['org_unit_level']['name'] != 'Afdelings-niveau':
 
                 employees = mh.read_organisation_people(
-                    node.name, 'engagement', False)
+                    node.name, 'engagement', False, primary_types=SETTINGS['exports.holstebro.primary_types'])
 
                 ny_levels = {'NY7-niveau': 'Samling',
                              'NY6-niveau': 'Samling',
