@@ -48,8 +48,10 @@ mox_cfg = {
     "AMQP_USER": "example",
     "AMQP_HOST": "example.com",
     "AMQP_PORT": 2222,
-    "VIRTUAL_HOST": "example.com",
     "AMQP_PASSWORD": "",
+    "AMQP_CHECK_WAITTIME": 0,
+    "AMQP_CHECK_RETRIES": 0,
+    "VIRTUAL_HOST": "example.com",
     "NY6_NIVEAU": "6",
     "NY5_NIVEAU": "5",
     "NY4_NIVEAU": "4",
@@ -71,8 +73,6 @@ mox_cfg = {
 
 
 class Tests(unittest.TestCase):
-    maxDiff = None
-
     def setUp(self):
         from_date = datetime.datetime(2019, 7, 1, 0, 0)
         self.mox = sd_mox.sdMox(from_date, **mox_cfg)

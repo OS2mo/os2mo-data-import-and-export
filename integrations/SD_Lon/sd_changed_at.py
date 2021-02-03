@@ -6,10 +6,12 @@ import sqlite3
 import requests
 import datetime
 from functools import lru_cache
+from operator import itemgetter
 from integrations.SD_Lon import sd_payloads
 
 from more_itertools import only, last, pairwise
 import pandas as pd
+from tqdm import tqdm
 
 from integrations import cpr_mapper
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -23,6 +25,9 @@ from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.sd_common import EmploymentStatus, LetGo
 
+from integrations.SD_Lon.sync_job_id import JobIdSync
+
+from integrations.SD_Lon.db_overview import DBOverview
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.calculate_primary import MOPrimaryEngagementUpdater
 
@@ -39,17 +44,9 @@ def ensure_list(element):
     return element
 
 
-def progress_iterator(elements, outputter, mod=10):
-    total = len(elements)
-    for i, element in enumerate(elements, start=1):
-        if i == 1 or i % mod == 0 or i == total:
-            outputter("{}/{}".format(i, total))
-        yield element
-
-
 def setup_logging():
     detail_logging = ('sdCommon', 'sdChangedAt', 'updatePrimaryEngagements',
-                      'fixDepartments')
+                      'fixDepartments', 'sdSyncJobId')
     for name in logging.root.manager.loggerDict:
         if name in detail_logging:
             logging.getLogger(name).setLevel(LOG_LEVEL)
@@ -79,15 +76,10 @@ class ChangeAtSD:
         else:
             raise exceptions.JobfunctionSettingsIsWrongException()
 
-        cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
-        if not cpr_map.is_file():
-            logger.error('Did not find cpr mapping')
-            raise Exception('Did not find cpr mapping')
-
-        logger.info('Found cpr mapping')
-        self.employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
+        self.employee_forced_uuids = self._read_forced_uuids()
         self.department_fixer = FixDepartments()
         self.helper = self._get_mora_helper(self.settings['mora.base'])
+        self.job_sync = self._get_job_sync(self.settings)
 
         # List of job_functions that should be ignored.
         self.skip_job_functions = self.settings.get('skip_job_functions', [])
@@ -126,20 +118,19 @@ class ChangeAtSD:
         facet_info = self.helper.read_classes_in_facet('engagement_job_function')
         job_functions = facet_info[0]
         self.job_function_facet = facet_info[1]
-        self.job_functions = {}
-        for job in job_functions:
-            if self.use_jpi:
-                self.job_functions[job['user_key']] = job['uuid']
-            else:
-                self.job_functions[job['name']] = job['uuid']
+        # Map from user-key to uuid if jpi, name to uuid otherwise
+        job_function_mapper = itemgetter('name', 'uuid')
+        if self.use_jpi:
+            job_function_mapper = itemgetter('user_key', 'uuid')
+        self.job_functions = dict(map(job_function_mapper, job_functions))
 
         logger.info('Read engagement types')
         # The Opus diff-import contains a slightly more abstrac def to do this
         engagement_types = self.helper.read_classes_in_facet('engagement_type')
-        self.engagement_types = {}
-        for engagement_type in engagement_types[0]:
-            self.engagement_types[
-                engagement_type['user_key']] = engagement_type['uuid']
+        self.engagement_type_facet = engagement_types[1]
+        self.engagement_types = dict(map(
+            itemgetter('user_key', 'uuid'), engagement_types[0]
+        ))
 
         logger.info('Read leave types')
         facet_info = self.helper.read_classes_in_facet('leave_type')
@@ -150,22 +141,18 @@ class ChangeAtSD:
     def _get_mora_helper(self, mora_base):
         return MoraHelper(hostname=mora_base, use_cache=False)
 
-    def _add_profession_to_lora(self, profession):
-        """
-        Add a new job_function type to LoRa. This does not depend on self.use_jpi,
-        since the argument is just af string. If self.use_jpi is true, the string
-        will be the SD JobPositionIdentifier, otherwise it will be the actual job
-        name.
-        :param prefession: The job_position to be created.
-        """
-        payload = sd_payloads.profession(profession, self.org_uuid,
-                                         self.job_function_facet)
-        response = requests.post(
-            url=self.settings['mox.base'] + '/klassifikation/klasse',
-            json=payload
-        )
-        assert response.status_code == 201
-        return response.json()
+    def _get_job_sync(self, settings):
+        return JobIdSync(settings)
+
+    def _read_forced_uuids(self):
+        cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
+        if not cpr_map.is_file():
+            logger.error('Did not find cpr mapping')
+            raise Exception('Did not find cpr mapping')
+
+        logger.info('Found cpr mapping')
+        employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
+        return employee_forced_uuids
 
     @lru_cache(maxsize=None)
     def read_employment_changed(self, from_date=None, to_date=None, employment_identifier=None):
@@ -247,7 +234,7 @@ class ChangeAtSD:
             person_changed = self.read_person_changed()
 
         logger.info('Number of changed persons: {}'.format(len(person_changed)))
-        for person in person_changed:
+        for person in tqdm(person_changed, desc="update persons"):
             cpr = person['PersonCivilRegistrationIdentifier']
             logger.debug('Updating: {}'.format(cpr))
             if cpr[-4:] == '0000':
@@ -388,14 +375,86 @@ class ChangeAtSD:
             logger.info(msg)
         return relevant_engagement
 
-    # Possibly this should be generalized to also be able to add engagement_types
-    def _update_professions(self, emp_name):
+    def _create_class(self, payload):
+        """Create a new class using the provided class payload.
+
+        Args:
+            payload: A class created using sd_payloads.* via lora_klasse
+
+        Returns:
+            uuid of the newly created class.
+        """
+        response = requests.post(
+            url=self.settings['mox.base'] + '/klassifikation/klasse',
+            json=payload
+        )
+        assert response.status_code == 201
+        return response.json()['uuid']
+
+    def _create_engagement_type(self, engagement_type_ref, job_position):
+        # Could not fetch, attempt to create it
+        logger.warning(
+            "Missing engagement_type: {} (now creating)".format(engagement_type_ref)
+        )
+        payload = sd_payloads.engagement_type(
+            engagement_type_ref, job_position, self.org_uuid, self.engagement_type_facet
+        )
+        engagement_type_uuid = self._create_class(payload)
+        self.engagement_types[engagement_type_ref] = engagement_type_uuid
+
+        self.job_sync.sync_from_sd(job_position, refresh=True)
+
+        return engagement_type_uuid
+
+    def _create_professions(self, job_function, job_position):
+        # Could not fetch, attempt to create it
+        logger.warning(
+            "Missing profession: {} (now creating)".format(job_function)
+        )
+        payload = sd_payloads.profession(
+            job_function, self.org_uuid, self.job_function_facet
+        )
+        job_uuid = self._create_class(payload)
+        self.job_functions[job_function] = job_uuid
+
+        self.job_sync.sync_from_sd(job_position, refresh=True)
+
+        return job_uuid
+
+    def _fetch_engagement_type(self, job_position):
+        """Fetch an engagement type UUID, create if missing.
+
+        Args:
+            engagement_type_ref: String of the expected engagement_type name
+
+        Returns:
+            uuid of the engagement type or None if it could not be created.
+        """
+        # Attempt to fetch the engagement type
+        engagement_type_ref = 'engagement_type' + job_position
+        engagement_type_uuid = self.engagement_types.get(engagement_type_ref)
+        if engagement_type_uuid:
+            return engagement_type_uuid
+        return self._create_engagement_type(engagement_type_ref, job_position)
+
+    def _fetch_professions(self, job_function, job_position):
+        """Fetch an job function UUID, create if missing.
+
+        This function does not depend on self.use_jpi, as the argument is just a
+        string. If self.use_jpi is true, the string will be the SD
+        JobPositionIdentifier, otherwise it will be the actual job name.
+
+        Args:
+            emp_name: Overloaded job identifier string / employment name.
+
+        Returns:
+            uuid of the job function or None if it could not be created.
+        """
         # Add new profssions to LoRa
-        job_uuid = self.job_functions.get(emp_name)
-        if job_uuid is None:
-            response = self._add_profession_to_lora(emp_name)
-            uuid = response['uuid']
-            self.job_functions[emp_name] = uuid
+        job_uuid = self.job_functions.get(job_function)
+        if job_uuid:
+            return job_uuid
+        return self._create_professions(job_function, job_position)
 
     def engagement_components(self, engagement_info):
         job_id = engagement_info['EmploymentIdentifier']
@@ -584,32 +643,25 @@ class ChangeAtSD:
         if self.use_jpi:
             job_function = job_position
 
-        self._update_professions(job_function)
-
         primary = self.primary_types['non_primary']
         if status['EmploymentStatusCode'] == '0':
             primary = self.primary_types['no_salary']
 
-        split = self.settings['integrations.SD_Lon.monthly_hourly_divide']
-        employment_id = calc_employment_id(engagement)
-        if employment_id['value'] < split:
-            engagement_type = self.engagement_types.get('månedsløn')
-        elif (split - 1) < employment_id['value'] < 999999:
-            engagement_type = self.engagement_types.get('timeløn')
-        else:  # This happens if EmploymentID is not a number
-            # Will fail if a new job position emerges
-            engagement_type = self.engagement_types.get("engagement_type" + job_position)
-            logger.info('Non-nummeric id. Job pos id: {}'.format(job_position))
+        engagement_type = self.determine_engagement_type(engagement, job_position)
+        if engagement_type is None:
+            return False
 
         extension_field = self.settings.get('integrations.SD_Lon.employment_field')
         extension = {}
         if extension_field is not None:
             extension = {extension_field: emp_name}
 
+        job_function_uuid = self._fetch_professions(job_function, job_position)
+
         payload = sd_payloads.create_engagement(
             org_unit=org_unit,
             mo_person=self.mo_person,
-            job_function=self.job_functions.get(job_function),
+            job_function=job_function_uuid,
             engagement_type=engagement_type,
             primary=primary,
             user_key=user_key,
@@ -632,6 +684,8 @@ class ChangeAtSD:
         if also_edit:
             # This will take of the extra entries
             self.edit_engagement(engagement)
+
+        return True
 
     def _terminate_engagement(self, from_date, job_id):
         mo_engagement = self._find_engagement(job_id)
@@ -707,6 +761,52 @@ class ChangeAtSD:
             response = self.helper._mo_post('details/edit', payload)
             mora_assert(response)
 
+    def determine_engagement_type(self, engagement, job_position):
+        split = self.settings['integrations.SD_Lon.monthly_hourly_divide']
+        employment_id = calc_employment_id(engagement)
+        if employment_id['value'] < split:
+            return self.engagement_types.get('månedsløn')
+        # XXX: Is the first condition not implied by not hitting the above case?
+        if (split - 1) < employment_id['value'] < 999999:
+            return self.engagement_types.get('timeløn')
+        # This happens if EmploymentID is not a number
+        # XXX: Why are we checking against 999999 instead of checking the type?
+        # Once we get here, we know that it is a no-salary employee
+
+        # We should not create engagements (or engagement_types) for engagements
+        # with too low of a job_position id compared to no_salary_minimum_id.
+        no_salary_minimum = self.settings.get('integrations.SD_Lon.no_salary_minimum_id', None)
+        if no_salary_minimum is not None and int(job_position) < no_salary_minimum:
+            message = 'No salary employee, with too low job_position id'
+            logger.warning(message)
+            return None
+
+        # We need a special engagement type for the engagement.
+        # We will try to fetch and try to create it if we cannot find it.
+        logger.info('Non-nummeric id. Job pos id: {}'.format(job_position))
+        return self._fetch_engagement_type(job_position)
+
+    def _edit_engagement_type(self, engagement, mo_eng):
+        job_id, engagement_info = self.engagement_components(engagement)
+        for profession_info in engagement_info['professions']:
+            logger.info('Change engagement type of engagement {}'.format(job_id))
+            job_position = profession_info['JobPositionIdentifier']
+
+            validity = self._validity(profession_info, mo_eng['validity']['to'],
+                                      cut=True)
+            if validity is None:
+                continue
+
+            engagement_type = self.determine_engagement_type(engagement, job_position)
+            if engagement_type is None:
+                continue
+            data = {'engagement_type': {'uuid': engagement_type},
+                    'validity': validity}
+            payload = sd_payloads.engagement(data, mo_eng)
+            logger.debug('Update engagement type payload: {}'.format(payload))
+            response = self.helper._mo_post('details/edit', payload)
+            mora_assert(response)
+
     def _edit_engagement_profession(self, engagement, mo_eng):
         job_id, engagement_info = self.engagement_components(engagement)
         for profession_info in engagement_info['professions']:
@@ -730,8 +830,7 @@ class ChangeAtSD:
             if ext_field is not None:
                 extention = {ext_field: emp_name}
 
-            self._update_professions(job_function)
-            job_function_uuid = self.job_functions.get(job_function)
+            job_function_uuid = self._fetch_professions(job_function, job_position)
 
             data = {'job_function': {'uuid': job_function_uuid},
                     'validity': validity}
@@ -784,6 +883,7 @@ class ChangeAtSD:
 
         self._edit_engagement_department(engagement, mo_eng)
         self._edit_engagement_profession(engagement, mo_eng)
+        self._edit_engagement_type(engagement, mo_eng)
         self._edit_engagement_worktime(engagement, mo_eng)
 
     def _handle_status_changes(self, cpr, engagement):
@@ -902,7 +1002,7 @@ class ChangeAtSD:
                 return False
             return True
 
-        employments_changed = progress_iterator(employments_changed, print)
+        employments_changed = tqdm(employments_changed, desc="update employments")
         employments_changed = filter(skip_fictional_users, employments_changed)
 
         for employment in employments_changed:
@@ -918,13 +1018,14 @@ class ChangeAtSD:
             self.mo_person = self.helper.read_user(
                 user_cpr=cpr, org_uuid=self.org_uuid
             )
+            logger.debug(str(self.mo_person))
             self.updater.set_current_person(mo_person=self.mo_person)
 
             if not self.mo_person:
                 sd_engagement = filter(skip_initial_deleted, sd_engagement)
                 for employment_info in sd_engagement:
+                    logger.warning('This person should be in MO, but is not')
                     try:
-                        logger.warning('This person should be in MO, but is not')
                         self.update_changed_persons(cpr=cpr)
                         self.mo_person = self.helper.read_user(
                             user_cpr=cpr, org_uuid=self.org_uuid
@@ -1008,9 +1109,10 @@ def gen_date_pairs(from_date: datetime, one_day: bool = False):
 
 @click.command()
 @click.option('--init', is_flag=True, type=click.BOOL, default=False, help="Initialize a new rundb")
+@click.option('--force', is_flag=True, type=click.BOOL, default=False, help="Ignore previously unfinished runs")
 @click.option('--one-day', is_flag=True, type=click.BOOL, default=False,
               help="Only import changes for the next missing day")
-def changed_at(init, one_day):
+def changed_at(init, force, one_day):
     """Tool to delta synchronize with MO with SD."""
     setup_logging()
 
@@ -1030,18 +1132,17 @@ def changed_at(init, one_day):
         initialize_changed_at(from_date, run_db, force=True)
         exit()
 
-    conn = sqlite3.connect(run_db, detect_types=sqlite3.PARSE_DECLTYPES)
-    c = conn.cursor()
-
+    db_overview = DBOverview()
     # To date from last entries, becomes from_date for current entry
-    query = 'SELECT to_date, status FROM runs ORDER BY id DESC LIMIT 1'
-    c.execute(query)
-    from_date, status = c.fetchone()
+    from_date, status = db_overview.read_last_line("to_date", "status")
 
-    if 'Running' in status:
-        print('Critical error')
-        logging.error('Previous ChangedAt run did not return!')
-        raise Exception('Previous ChangedAt run did not return!')
+    if "Running" in status:
+        if force:
+            db_overview.delete_last_row()
+            from_date, status = db_overview.read_last_line("to_date", "status")
+        else:
+            logging.error('Previous ChangedAt run did not return!')
+            raise click.ClickException('Previous ChangedAt run did not return!')
 
     dates = gen_date_pairs(from_date)
 

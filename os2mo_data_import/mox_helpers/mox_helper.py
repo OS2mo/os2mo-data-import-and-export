@@ -137,7 +137,7 @@ class MoxHelper:
     ) -> UUIDstr:
         self._validate_payload(service, obj, payload)
         url = self.hostname + "/" + service + "/" + obj + "/" + uuid
-      
+
         async with session.patch(url, json=payload) as response:
             return (await response.json())["uuid"]
 

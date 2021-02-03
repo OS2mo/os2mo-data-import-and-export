@@ -8,7 +8,7 @@ from parameterized import parameterized
 
 class Test_db_overview(unittest.TestCase):
     def setUp(self):
-        self.db_overview = DBOverview()
+        self.db_overview = DBOverview({"integrations.SD_Lon.import.run_db": "dummy"})
 
     @parameterized.expand(
         [

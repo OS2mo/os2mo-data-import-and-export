@@ -8,8 +8,8 @@ from integrations.SD_Lon.sd_common import load_settings
 
 
 class DBOverview(object):
-    def __init__(self):
-        settings = load_settings()
+    def __init__(self, settings=None):
+        settings = settings or load_settings()
         self.run_db = settings["integrations.SD_Lon.import.run_db"]
 
     def read_db_content(self):

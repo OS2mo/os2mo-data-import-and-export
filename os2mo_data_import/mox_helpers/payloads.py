@@ -48,6 +48,7 @@ def lora_klasse(
     scope=None,
     parent_uuid=None,
 ):
+    # NOTE: This is used from SD, and should be split out as a library?
     attributter = {
         "klasseegenskaber": [
             {

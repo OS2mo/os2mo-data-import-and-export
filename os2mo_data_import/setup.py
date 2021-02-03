@@ -18,6 +18,7 @@ setup(
         "os2mo_data_import",
         "integration_abstraction",
         "os2mo_helpers",
+        "mox_helpers",
         "fixture_generator",
         "kle",
     ],
@@ -26,15 +27,15 @@ setup(
     },
     zip_safe=False,
     install_requires=[
+        "anytree",
         "certifi",
         "chardet",
         "click",
-        "idna",
-        "requests",
-        "anytree",
         "freezegun",
-        "xmltodict",
+        "idna",
         "openpyxl",
+        "requests",
         "xlsxwriter",
+        "xmltodict",
     ]
 )
