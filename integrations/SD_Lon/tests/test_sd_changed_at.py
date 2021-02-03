@@ -866,7 +866,7 @@ class Test_sd_changed_at(unittest.TestCase):
         sd_updater._create_professions.assert_called_with("9002", "9002")
         # And thus that job_sync is called once from each
         sd_updater.job_sync.sync_from_sd.assert_has_calls(
-            [call("9002"), call("9002")]
+            [call("9002", refresh=True), call("9002", refresh=True)]
         )
         # And that the results are returned to MO
         _mo_post.assert_has_calls(

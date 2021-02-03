@@ -6,12 +6,11 @@ from integrations.SD_Lon.sync_job_id import JobIdSync
 
 class JobIdSyncTest(JobIdSync):
     def __init__(self, *args, **kwargs):
-        self.morahelper_mock = MagicMock()
-
         super().__init__(*args, **kwargs)
 
-    def _get_mora_helper(self, mora_base):
-        return self.morahelper_mock
+    def _read_classes(self):
+        self.engagement_types = []
+        self.job_function_types = []
 
 
 class Test_sync_job_id(TestCase):
