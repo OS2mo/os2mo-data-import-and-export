@@ -57,6 +57,7 @@ def export_from_mo(hostname):
     planorama_employee = f"{filename}_{SETTINGS['exports.holstebro.planorama.employee_filename']}"
     essens_lms_filename = f"{filename}_{SETTINGS['exports.holstebro.essenslms.filename']}"
     intranote_filename = f"{filename}_{SETTINGS['exports.holstebro.intranote.filename']}"
+    org_hierarchy_filename = f"{filename}_org_hierarki.csv"
     org_viewer_filename = SETTINGS['exports.holstebro.org_viewer.filename']
 
     # TEST UUIDs
@@ -81,6 +82,13 @@ def export_from_mo(hostname):
         logger.info('Build cache: {}'.format(time.time() - t))
 
     try:
+
+        logger.info(f"Exporting org. with managers")
+        logger.info("Setting export format to UTF-8")
+        mh.export_ansi = False
+        hh.export_orgs(
+            mh, all_nodes[SETTINGS['municipality.uuid']], org_hierarchy_filename)
+        logger.info(f"{org_hierarchy_filename}: {time.time() - t}")
 
         logger.info(f"Exporting data to Intranote")
         logger.info("Setting export format to ANSI")

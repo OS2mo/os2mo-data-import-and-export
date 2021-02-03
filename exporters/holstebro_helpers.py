@@ -216,6 +216,32 @@ def export_to_orgviewer(mh, all_nodes):
         outfile.close()
 
 
+def export_orgs(mh, nodes, filename):
+    """ Traverses a tree of OUs, for each OU finds the manager of the OU.
+    The list of managers will be saved o a csv-file.
+    :param mh: Instance of MoraHelper to do the actual work
+    :param nodes: The nodes of the OU tree
+    """
+    fieldnames = mh._create_fieldnames(nodes)
+    fieldnames += ['Leder']
+
+    rows = []
+    for node in PreOrderIter(nodes['root']):
+        ou = mh.read_ou(node.name)
+
+        # Do not add "Afdelings-niveau"
+        if ou['org_unit_level']['name'] != 'Afdelings-niveau':
+            path_dict = mh._create_path_dict(fieldnames, node)
+            # find this unit's manager
+            manager = mh.read_ou_manager(ou['uuid'], True)
+
+            row = {}
+            row.update({'Leder': manager['Navn']})  # Work address
+            row.update(path_dict)  # Path
+            rows.append(row)
+    mh._write_csv(fieldnames, rows, filename)
+
+
 def export_to_intranote(mh, all_nodes, filename):
     fieldnames = ['NY7-niveau',
                   'NY6-niveau',
