@@ -18,6 +18,7 @@ setup(
         "os2mo_data_import",
         "integration_abstraction",
         "os2mo_helpers",
+        "mox_helpers",
         "fixture_generator",
         "kle",
     ],
