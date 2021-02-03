@@ -436,11 +436,13 @@ class Test_sd_changed_at(unittest.TestCase):
                 status["ActivationDate"], employment_id
             )
 
-    @parameterized.expand([
-        ["07777", "monthly pay"],
-        ["90000", "hourly pay"],
-        ["C3-P0", "employment pay"],
-    ])
+    @parameterized.expand(
+        [
+            ["07777", "monthly pay"],
+            ["90000", "hourly pay"],
+            ["C3-P0", "employment pay"],
+        ]
+    )
     def test_create_new_engagement(self, employment_id, engagement_type):
 
         cpr = "0101709999"
@@ -456,9 +458,9 @@ class Test_sd_changed_at(unittest.TestCase):
         sd_updater = setup_sd_changed_at()
 
         sd_updater.engagement_types = {
-            'månedsløn': 'monthly pay',
-            'timeløn': 'hourly pay',
-            'engagement_type' + job_id: 'employment pay'
+            "månedsløn": "monthly pay",
+            "timeløn": "hourly pay",
+            "engagement_type" + job_id: "employment pay",
         }
 
         morahelper = sd_updater.morahelper_mock
@@ -552,11 +554,13 @@ class Test_sd_changed_at(unittest.TestCase):
             },
         )
 
-    @parameterized.expand([
-        ["07777", "monthly pay"],
-        ["90000", "hourly pay"],
-        ["C3-P0", "employment pay"],
-    ])
+    @parameterized.expand(
+        [
+            ["07777", "monthly pay"],
+            ["90000", "hourly pay"],
+            ["C3-P0", "employment pay"],
+        ]
+    )
     def test_update_all_employments_editing(self, employment_id, engagement_type):
 
         cpr = "0101709999"
@@ -571,9 +575,9 @@ class Test_sd_changed_at(unittest.TestCase):
 
         sd_updater = setup_sd_changed_at()
         sd_updater.engagement_types = {
-            'månedsløn': 'monthly pay',
-            'timeløn': 'hourly pay',
-            'engagement_type' + job_id: 'employment pay'
+            "månedsløn": "monthly pay",
+            "timeløn": "hourly pay",
+            "engagement_type" + job_id: "employment pay",
         }
 
         sd_updater.read_employment_changed = lambda: read_employment_result
@@ -773,13 +777,15 @@ class Test_sd_changed_at(unittest.TestCase):
         """
         sd_updater = setup_sd_changed_at()
         sd_updater.engagement_types = {
-            'månedsløn': 'monthly pay',
-            'timeløn': 'hourly pay',
+            "månedsløn": "monthly pay",
+            "timeløn": "hourly pay",
         }
 
         self.assertEqual(len(sd_updater.engagement_types), 2)
         if engagement_exists:
-            sd_updater.engagement_types['engagement_type' + str(job_id)] = 'old_engagement_type_uuid'
+            sd_updater.engagement_types[
+                "engagement_type" + str(job_id)
+            ] = "old_engagement_type_uuid"
             self.assertEqual(len(sd_updater.engagement_types), 3)
         else:
             self.assertEqual(len(sd_updater.engagement_types), 2)
@@ -789,40 +795,46 @@ class Test_sd_changed_at(unittest.TestCase):
         if engagement_exists:
             self.assertEqual(len(sd_updater.engagement_types), 3)
             sd_updater._create_class.assert_not_called()
-            self.assertEqual(engagement_type_uuid, 'old_engagement_type_uuid')
+            self.assertEqual(engagement_type_uuid, "old_engagement_type_uuid")
         else:
             self.assertEqual(len(sd_updater.engagement_types), 3)
             sd_updater._create_class.assert_called_once()
             sd_updater.job_sync.sync_from_sd.assert_called_once()
-            self.assertIn("engagement_type" + str(job_id), sd_updater.engagement_types)
-            self.assertEqual(engagement_type_uuid, 'new_class_uuid')
+            self.assertIn(
+                "engagement_type" + str(job_id), sd_updater.engagement_types
+            )
+            self.assertEqual(engagement_type_uuid, "new_class_uuid")
 
     def test_edit_engagement(self):
-        engagement = OrderedDict([
-            ('EmploymentIdentifier', 'DEERE'),
-            ('Profession', OrderedDict([
-                ('@changedAtDate', '1970-01-01'),
-                ('ActivationDate', '1960-01-01'),
-                ('DeactivationDate', '9999-12-31'),
-                ('JobPositionIdentifier', '9002'),
-                ('EmploymentName', 'dummy'),
-                ('AppointmentCode', '0')
-            ]))
-        ])
+        engagement = OrderedDict(
+            [
+                ("EmploymentIdentifier", "DEERE"),
+                (
+                    "Profession",
+                    OrderedDict(
+                        [
+                            ("@changedAtDate", "1970-01-01"),
+                            ("ActivationDate", "1960-01-01"),
+                            ("DeactivationDate", "9999-12-31"),
+                            ("JobPositionIdentifier", "9002"),
+                            ("EmploymentName", "dummy"),
+                            ("AppointmentCode", "0"),
+                        ]
+                    ),
+                ),
+            ]
+        )
 
         sd_updater = setup_sd_changed_at()
         sd_updater.engagement_types = {
-            'månedsløn': 'monthly pay',
-            'timeløn': 'hourly pay',
+            "månedsløn": "monthly pay",
+            "timeløn": "hourly pay",
         }
         sd_updater.mo_engagement = [
             {
-                "user_key": engagement['EmploymentIdentifier'],
+                "user_key": engagement["EmploymentIdentifier"],
                 "uuid": "mo_engagement_uuid",
-                'validity': {
-                    'from': '1950-01-01',
-                    'to': None
-                }
+                "validity": {"from": "1950-01-01", "to": None},
             }
         ]
 
@@ -833,42 +845,53 @@ class Test_sd_changed_at(unittest.TestCase):
                 "status_code": 201,
             }
         )
-        sd_updater._create_engagement_type = MagicMock(wraps=sd_updater._create_engagement_type)
-        sd_updater._create_professions = MagicMock(wraps=sd_updater._create_professions)
+        sd_updater._create_engagement_type = MagicMock(
+            wraps=sd_updater._create_engagement_type
+        )
+        sd_updater._create_professions = MagicMock(
+            wraps=sd_updater._create_professions
+        )
         # Return 1 on first call, 2 on second call
-        sd_updater._create_class.side_effect = ['new_class_1_uuid', 'new_class_2_uuid']
+        sd_updater._create_class.side_effect = [
+            "new_class_1_uuid",
+            "new_class_2_uuid",
+        ]
 
         sd_updater.edit_engagement(engagement)
 
         # Check that the create functions are both called
-        sd_updater._create_engagement_type.assert_called_with('engagement_type9002', '9002')
-        sd_updater._create_professions.assert_called_with('9002', '9002')
+        sd_updater._create_engagement_type.assert_called_with(
+            "engagement_type9002", "9002"
+        )
+        sd_updater._create_professions.assert_called_with("9002", "9002")
         # And thus that job_sync is called once from each
-        sd_updater.job_sync.sync_from_sd.assert_has_calls([
-            call('9002'), call('9002')
-        ])
+        sd_updater.job_sync.sync_from_sd.assert_has_calls(
+            [call("9002"), call("9002")]
+        )
         # And that the results are returned to MO
-        _mo_post.assert_has_calls([
-            call(
-                'details/edit',
-                {
-                    'type': 'engagement',
-                    'uuid': 'mo_engagement_uuid',
-                    'data': {
-                        'job_function': {'uuid': 'new_class_1_uuid'},
-                        'validity': {'from': '1960-01-01', 'to': None}
-                    }
-                }
-            ),
-            call(
-                'details/edit',
-                {
-                    'type': 'engagement',
-                    'uuid': 'mo_engagement_uuid',
-                    'data': {
-                        'engagement_type': {'uuid': 'new_class_2_uuid'},
-                        'validity': {'from': '1960-01-01', 'to': None}
-                    }
-                }
-            )
-        ])
+        _mo_post.assert_has_calls(
+            [
+                call(
+                    "details/edit",
+                    {
+                        "type": "engagement",
+                        "uuid": "mo_engagement_uuid",
+                        "data": {
+                            "job_function": {"uuid": "new_class_1_uuid"},
+                            "validity": {"from": "1960-01-01", "to": None},
+                        },
+                    },
+                ),
+                call(
+                    "details/edit",
+                    {
+                        "type": "engagement",
+                        "uuid": "mo_engagement_uuid",
+                        "data": {
+                            "engagement_type": {"uuid": "new_class_2_uuid"},
+                            "validity": {"from": "1960-01-01", "to": None},
+                        },
+                    },
+                ),
+            ]
+        )
