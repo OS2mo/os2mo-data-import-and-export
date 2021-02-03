@@ -5,10 +5,12 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-import requests
 import logging
-from integrations.os2sync import config
 
+import requests
+
+from integrations.os2sync import config
+from exporters.utils.priority_by_class import choose_public_address
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
@@ -70,7 +72,8 @@ def has_kle():
     try:
         os2mo_get("{BASE}/o/{ORG}/f/kle_aspect")
         os2mo_get("{BASE}/o/{ORG}/f/kle_number")
-        os2mo_get("{BASE}/ou/" +
+        os2mo_get(
+            "{BASE}/ou/" +
             settings["OS2MO_TOP_UNIT_UUID"] +
             "/details/kle"
         )
@@ -87,61 +90,31 @@ def user_uuids(**kwargs):
     ]
 
 
-def chose_visible_prioritized_address(candidates, prioritized_classes):
-    chosen = None
-    # find candidate using prioritized list if available
-    for cls in prioritized_classes:
-        if chosen:
-            break
-        for candidate in candidates:
-            if (
-                candidate["address_type"]["uuid"] == cls
-                and candidate.get("visibility",
-                                  {"scope": "PUBLIC"})["scope"] == "PUBLIC"
-            ):
-                chosen = {"Value": candidate["name"],
-                          "Uuid": candidate["uuid"]}
-
-    if not prioritized_classes and len(candidates):
-        for candidate in reversed(candidates):
-            if candidate.get("visibility",
-                             {"scope": "PUBLIC"})["scope"] == "PUBLIC":
-                chosen = {"Value": candidate["name"],
-                          "Uuid": candidate["uuid"]}
-                break
-
-    return chosen
-
-
 def addresses_to_user(user, addresses):
+    # TODO: This looks like bucketing (more_itertools.bucket)
     emails, phones = [], []
-    for a in addresses:
-        if a["address_type"]["scope"] == "EMAIL":
-            emails.append(a)
-        if a["address_type"]["scope"] == "PHONE":
-            phones.append(a)
-        if a["address_type"]["scope"] == "DAR":
-            user["Location"] = a["name"]
+    for address in addresses:
+        if address["address_type"]["scope"] == "EMAIL":
+            emails.append(address)
+        if address["address_type"]["scope"] == "PHONE":
+            phones.append(address)
+        if address["address_type"]["scope"] == "DAR":
+            user["Location"] = address["name"]
 
     # find phone using prioritized/empty list of address_type uuids
-    phone = chose_visible_prioritized_address(
-        phones,
-        settings["OS2SYNC_PHONE_SCOPE_CLASSES"]
-    )
+    phone = choose_public_address(phones, settings["OS2SYNC_PHONE_SCOPE_CLASSES"])
     if phone:
-        user["Phone"] = phone["Value"]
+        user["PhoneNumber"] = phone["name"]
 
     # find email using prioritized/empty list of address_type uuids
-    email = chose_visible_prioritized_address(
-        emails,
-        settings["OS2SYNC_EMAIL_SCOPE_CLASSES"]
-    )
+    email = choose_public_address(emails, settings["OS2SYNC_EMAIL_SCOPE_CLASSES"])
     if email:
-        user["Email"] = email["Value"]
+        user["Email"] = email["name"]
 
 
 def engagements_to_user(user, engagements, allowed_unitids):
-    for e in engagements:
+    for e in sorted(engagements,
+                    key=lambda e: e["job_function"]["name"] + e["uuid"]):
         if e["org_unit"]["uuid"] in allowed_unitids:
             user["Positions"].append(
                 {
@@ -175,19 +148,6 @@ def get_sts_user(uuid, allowed_unitids):
     return sts_user
 
 
-def pruned_tree(uuids=[]):
-    retval = list(uuids)
-    for uuid in uuids:
-        parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
-        if not parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
-            while parent.get("parent"):
-                if parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
-                    break
-                retval.append(parent["uuid"])
-                parent = parent["parent"]
-    return retval
-
-
 def org_unit_uuids(**kwargs):
     return [
         ou["uuid"]
@@ -201,6 +161,13 @@ def itsystems_to_orgunit(orgunit, itsystems):
         orgunit["ItSystemUuids"].append(i["itsystem"]["uuid"])
 
 
+def address_type_is_contact_hours(address):
+    return (
+        address["address_type"]["user_key"] == "ContactOpenHours" and
+        address["address_type"]["scope"] == "TEXT"
+    )
+
+
 def addresses_to_orgunit(orgunit, addresses):
     for a in addresses:
         if a["address_type"]["scope"] == "EMAIL":
@@ -210,7 +177,11 @@ def addresses_to_orgunit(orgunit, addresses):
         elif a["address_type"]["scope"] == "PHONE":
             orgunit["PhoneNumber"] = a["name"]
         elif a["address_type"]["scope"] == "DAR":
-            orgunit["Post"] = a["value"]
+            orgunit["Post"] = a["name"]
+        elif a["address_type"]["scope"] == "PNUMBER":
+            orgunit["Location"] = a["name"]
+        elif address_type_is_contact_hours(a):
+            orgunit["ContactOpenHours"] = a["name"]
 
 
 def kle_to_orgunit(orgunit, kle):
@@ -221,18 +192,15 @@ def kle_to_orgunit(orgunit, kle):
 
     Example:
 
+        >>> import json
         >>> orgunit={}
         >>> kles = [
-        ...     {'uuid': 1, 'kle_aspect': [{'scope': 'UDFOERENDE'}]},
-        ...     {'uuid': 2, 'kle_aspect': [{'scope': 'ANSVARLIG'}]},
-        ...     {'uuid': 3, 'kle_aspect': [{'scope': 'ANSVARLIG'},
-        ...                                {'scope': 'UDFOERENDE'}
-        ...     ]}
+        ...     {'uuid': 1, 'kle_number': {'uuid': '3'}},
+        ...     {'uuid': 2, 'kle_number': {'uuid': '4'}},
         ... ]
         >>> kle_to_orgunit(orgunit, kles)
-        >>> orgunit
-        {'Tasks': [1, 3], 'ContactForTasks': [2, 3]}
-
+        >>> json.dumps(orgunit, sort_keys=True)
+        '{"Tasks": ["3", "4"]}'
 
     Args:
         orgunit: The organization unit to enrich with kle information.
@@ -242,25 +210,57 @@ def kle_to_orgunit(orgunit, kle):
         None
     """
     tasks = set()
-    contactfortasks = set()
 
     for k in kle:
-        uuid = k["uuid"]
-        for a in k["kle_aspect"]:
-            if a["scope"] == "UDFOERENDE":
-                tasks.add(uuid)
-            elif a["scope"] == "ANSVARLIG":
-                contactfortasks.add(uuid)
+        uuid = k["kle_number"]["uuid"]
+        tasks.add(uuid)
 
     if len(tasks):
-        orgunit["Tasks"] = list(tasks)
+        orgunit["Tasks"] = list(sorted(tasks))
 
-    if len(contactfortasks):
-        orgunit["ContactForTasks"] = list(contactfortasks)
+
+def is_ignored(unit, settings):
+    """Determine if unit should be left out of transfer
+
+    Example:
+        >>> settings={
+        ... "OS2SYNC_IGNORED_UNIT_LEVELS": ["10","2"],
+        ... "OS2SYNC_IGNORED_UNIT_TYPES":['6','7']}
+        >>> unit={"org_unit_level":{"uuid":"1"}, "org_unit_type":{"uuid":"5"}}
+        >>> is_ignored(unit, settings)
+        False
+        >>> unit={"org_unit_level":{"uuid":"2"}, "org_unit_type":{"uuid":"5"}}
+        >>> is_ignored(unit, settings)
+        True
+        >>> unit={"org_unit_level":{"uuid":"1"}, "org_unit_type":{"uuid":"6"}}
+        >>> is_ignored(unit, settings)
+        True
+
+    Args:
+        unit: The organization unit to enrich with kle information.
+        settings: a dictionary
+
+    Returns:
+        Boolean
+    """
+
+    return (
+        unit.get("org_unit_level") and unit["org_unit_level"]["uuid"] in settings[
+            "OS2SYNC_IGNORED_UNIT_LEVELS"
+        ]
+    ) or (
+        unit.get("org_unit_type") and unit["org_unit_type"]["uuid"] in settings[
+            "OS2SYNC_IGNORED_UNIT_TYPES"
+        ]
+    )
 
 
 def get_sts_orgunit(uuid):
     base = parent = os2mo_get("{BASE}/ou/" + uuid + "/").json()
+
+    if is_ignored(base, settings):
+        logger.info("Ignoring %r", base)
+        return None
 
     if not parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
         while parent.get("parent"):

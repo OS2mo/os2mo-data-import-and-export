@@ -10,7 +10,6 @@
 # scriptet finder selv uuider for facet og organisation
 
 
-
 facet_class_json(){
 	facet=$1
 	bvn=$2
@@ -69,7 +68,12 @@ EOKLASS
 )}
 
 opret(){
-    curl --header "Content-Type: application/json" -X POST http://localhost:8080/klassifikation/klasse -d @-
+    putuuid=$1
+    if [ -z "${putuuid}" ]; then
+        curl --header "Content-Type: application/json" -X POST http://localhost:8080/klassifikation/klasse -d @-
+    else
+        curl --header "Content-Type: application/json" -X PUT http://localhost:8080/klassifikation/klasse/${putuuid} -d @-
+    fi
 }
 
 facet_list(){
@@ -90,14 +94,15 @@ dry_run="$1"
 organisation=$(curl http://localhost:8080/organisation/organisation?bvn=% | jq -r .results[][])
 
 
-existing=$(curl http://localhost:8080/klassifikation/klasse?bvn=${bvn} | jq -r .results[][])
+existing=$(curl "http://localhost:8080/klassifikation/klasse?bvn=${bvn}&facet=${facet}" | jq -r .results[][])
 if [ -n "${existing}" ]; then
     echo "Brugervendt nøgle eksisterer"
     exit 1
 fi
 
 [ -n "${facet}" -a -n "${bvn}" -a -n "${titel}" -a -n "${scope}" -a -z "${dry_run}" ] && (
-    facet_class_json "${facet}" "${bvn}" "${titel}" "${organisation}" "${scope}" | opret
+    facet_class_json "${facet}" "${bvn}" "${titel}" "${organisation}" "${scope}" | opret ${uuid}
+
 ) || (
 
     echo DRY_RUN CHECK: Du har angivet:

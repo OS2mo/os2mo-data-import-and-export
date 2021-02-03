@@ -2,8 +2,10 @@ def create_user(employee, org_uuid, uuid=None):
     if employee['firstName'] is None and employee['lastName'] is None:
         employee['firstName'] = 'Ukendt'
         employee['lastName'] = 'Ukendt'
+        empl = dict(employee)
+        empl.pop("cpr")
         print('No names on user')
-        print(employee)
+        print(empl)
     payload = {
         'givenname': employee['firstName'],
         'surname': employee['lastName'],

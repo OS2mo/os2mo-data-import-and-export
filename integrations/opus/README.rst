@@ -271,3 +271,13 @@ Ved starten af alle opus_diff_import kørsler, skrives en linje med status ``Run
 og efter hver kørsel skrives en linje med status ``Diff update ended``. En kørsel kan
 ikke startes hvis den nyeste linje har status ``Running``, da dette enten betyder at
 integrationen allerede kører, eller at den seneste kørsel fejlede.
+
+Filtrering af organisationsenheder
+==================================
+Den valgfrie nøgle :code:`integrations.opus.units.filter_ids` kan sættes for
+at filtrere udvalgte organisationenheder og deres tilhørende underliggende
+organisationsenheder fra, før selve importen kører.
+
+Nølgen skal være en liste indeholdende OPUS ID'er for de organisationsenheder,
+som ønskes filtreret fra. OPUS ID findes i OPUS filen 
+:code:`<orgUnit id="350" client="813" lastChanged="2020-09-16">`

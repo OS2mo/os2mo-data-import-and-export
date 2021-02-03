@@ -48,7 +48,7 @@ for kvno in "${kvnos[@]}" ; do
         # diff <(cut -d' ' -f3-100 trace-no-key) <(cut -d' ' -f3-100 trace-kvno-${kvno})
         klist -e \
             && printf "\n\n*** success ^^^ ***\n\n" \
-            && mv user.key-${kvno}-enc-${enctype} ~/CRON/user.key \
+            && mv user.key-${kvno}-enc-${enctype} $DIPEXAR/../user.key \
             && exit 0 \
             || printf "\n\n*** failed  ^^^ ***\n\n"
         kdestroy

@@ -13,6 +13,7 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 SCRIPT=${SCRIPT:-${DIR}/job-runner.sh}
+BACKUP_SCRIPT=${BACKUP_SCRIPT:-${DIR}/backup.sh}
 
 # Unix service account to run job-runner.sh under
 RUNAS=${RUNAS:-svc_os2mo}
@@ -45,49 +46,14 @@ fi
 # Database snapshot
 #------------------
 if [ "${INSTALLATION_TYPE}" == "docker" ]; then
-    # Check preconditions
-    CONTAINER_NAME=${CONTAINER_NAME:-"mox_database"}
-    DATABASE_NAME=${DATABASE_NAME:-"mox"}
-    HOST_SNAPSHOT_DESTINATION=${HOST_SNAPSHOT_DESTINATION:-"/opt/docker/os2mo/database_snapshot/os2mo_database.sql"}
-    DOCKER_SNAPSHOT_DESTINATION=${DOCKER_SNAPSHOT_DESTINATION:-"/database_snapshot/os2mo_database.sql"}
-    if ! [ -x "$(command -v docker)" ]; then
-        echo "Unable to locate the 'docker' executable."
-        exit 1
-    fi
-    if [ ! "$(docker ps -q -f name=${CONTAINER_NAME})" ]; then
-        echo "Unable to locate a running mox database container: ${CONTAINER_NAME}"
-        exit 1
-    fi
-    # Create backup
-    docker exec -t ${CONTAINER_NAME} \
-        su --shell /bin/bash \
-           --command "pg_dump --data-only ${DATABASE_NAME} -f ${DOCKER_SNAPSHOT_DESTINATION}" \
-           postgres
+    bash ${BACKUP_SCRIPT}
     EXIT_CODE=$?
     if [ ${EXIT_CODE} -ne 0 ]; then
-        echo "Unable to snapshot database"
         exit 1
     fi
-    # docker cp ${CONTAINER_NAME}:${DOCKER_SNAPSHOT_DESTINATION} ${HOST_SNAPSHOT_DESTINATION}
-    chmod 755 ${HOST_SNAPSHOT_DESTINATION}
 elif [ "${INSTALLATION_TYPE}" == "legacy" ]; then
-    # Check preconditions
-    HOST_SNAPSHOT_DESTINATION=${HOST_SNAPSHOT_DESTINATION:-"/opt/magenta/snapshots/os2mo_database.sql"}
-    if ! [ -x "$(command -v pg_dump)" ]; then
-        echo "Unable to locate the 'pg_dump' executable."
-        exit 1
-    fi
-    # Ensure the folder exists
-    mkdir -p $(dirname "${HOST_SNAPSHOT_DESTINATION}")
-    # Create backup
-    su --shell /bin/bash \
-        --command "pg_dump --data-only ${DATABASE_NAME} -f ${HOST_SNAPSHOT_DESTINATION}"
-        postgres
-    EXIT_CODE=$?
-    if [ ${EXIT_CODE} -ne 0 ]; then
-        echo "Unable to snapshot database"
-        exit 1
-    fi
+    echo "Unsupported installation type: legacy"
+    exit 1
 elif [ "${INSTALLATION_TYPE}" == "none" ]; then
     echo "WARNING: No snapshotting configured"
 else
@@ -95,10 +61,15 @@ else
     exit 1
 fi
 
-# Run script
+
+# Run script between pre and post-hooks
 #-----------
+PREOUT=(${DIR}/cronhook.sh pre)
 SCRIPT_OUTPUT=$(su --preserve-environment --shell /bin/bash --command "${SCRIPT}" ${RUNAS})
 EXIT_CODE=$?
+POSTOUT=(${DIR}/cronhook.sh post)
+SCRIPT_OUTPUT="${PREOUT}${SCRIPT_OUTPUT}${POSTOUT}"
+
 
 EVENT_NAMESPACE=magenta/project/os2mo/integration/script
 

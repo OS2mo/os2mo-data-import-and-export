@@ -1,4 +1,4 @@
-#
+##
 # Copyright (c) 2017-2018, Magenta ApS
 #
 # This Source Code Form is subject to the terms of the Mozilla Public
@@ -17,6 +17,7 @@ import logging
 import requests
 import datetime
 from anytree import Node
+from more_itertools import only
 
 SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
 PRIMARY_RESPONSIBILITY = 'Personale: ansættelse/afskedigelse'
@@ -24,7 +25,7 @@ PRIMARY_RESPONSIBILITY = 'Personale: ansættelse/afskedigelse'
 logger = logging.getLogger("mora-helper")
 
 
-class MoraHelper(object):
+class MoraHelper:
     def __init__(self, hostname='http://localhost', export_ansi=True,
                  use_cache=True):
         self.host = hostname + '/service/'
@@ -92,7 +93,8 @@ class MoraHelper(object):
                 csvfile.write(lines)
 
     def _create_path_dict(self, fieldnames, node, org_types=None):
-        """ Create a dict with a MO-path to a given node.
+        """Create a dict with a MO-path to a given node.
+
         :param fieldnames: The headline for each level of the path.
         :node: The node to find the path for.
         :return: A dict with headlines as keys and nodes as values.
@@ -176,8 +178,15 @@ class MoraHelper(object):
         )
         return response
 
+    def check_connection(self):
+        """Check that a connection can be established to MO."""
+        # Really any endpoint could be used here
+        response = self._mo_lookup(uuid=None, url='configuration')
+        return "read_only" in response
+
     def read_organisation(self):
-        """ Read the main Organisation, all OU's will have this as root.
+        """Read the main Organisation, all OU's will have this as root.
+
         Currently reads only one, theroretically more than root org can exist.
         :return: UUID of root organisation
         """
@@ -185,15 +194,15 @@ class MoraHelper(object):
         return org_id[0]['uuid']
 
     def read_all_users(self, limit=None):
-        """
-        Return a list of all employees in MO.
+        """Return a list of all employees in MO.
+
         :param limit: If set, only less large sub-set wll be retrived,
         mainly usefull for testing.
         :return: List af all employees.
         """
         logger.info('Read all MO users')
         org = self.read_organisation()
-        if limit is None:
+        if limit is None or limit == 0:
             limit = 100000000
         employee_list = self._mo_lookup(org, 'o/{}/e?limit=' + str(limit))
         employees = employee_list['items']
@@ -201,7 +210,8 @@ class MoraHelper(object):
         return employees
 
     def read_it_systems(self):
-        """ Read the main Organisation, all OU's will have this as root.
+        """Read the main Organisation, all OU's will have this as root.
+
         Currently reads only one, theroretically more than root org can exist.
         :return: UUID of root organisation
         """
@@ -210,7 +220,8 @@ class MoraHelper(object):
         return it_systems
 
     def read_ou(self, uuid, at=None, use_cache=None):
-        """ Return a dict with the data available about an OU
+        """Return a dict with the data available about an OU.
+
         :param uuid: The UUID of the OU
         :return: Dict with the information about the OU
         """
@@ -219,7 +230,8 @@ class MoraHelper(object):
 
     def read_ou_address(self, uuid, at=None, use_cache=None, scope="DAR",
                         return_all=False):
-        """ Return a dict with the data available about an OU
+        """Return a dict with the data available about an OU.
+
         :param uuid: The UUID of the OU
         :param return_all: If True the response will be a list of dicts
         rather than a dict, and all adresses will be returned.
@@ -250,7 +262,8 @@ class MoraHelper(object):
         return return_value
 
     def read_classes_in_facet(self, facet, use_cache=False):
-        """ Return all classes belong to a given facet.
+        """Return all classes belong to a given facet.
+
         :param facet: The facet to be returned.
         :return: List of classes in the facet and the uuid of the facet.
         """
@@ -263,8 +276,8 @@ class MoraHelper(object):
 
     def read_user(self, user_uuid=None, user_cpr=None, at=None, use_cache=None,
                   org_uuid=None):
-        """
-        Read basic info for a user. Either uuid or cpr must be given.
+        """Read basic info for a user. Either uuid or cpr must be given.
+
         :param user_uuid: UUID of the wanted user.
         :param user_cpr: cpr of the wanted user.
         :return: Basic user info
@@ -285,7 +298,8 @@ class MoraHelper(object):
         return user_info
 
     def terminate_detail(self, mo_type, uuid, from_date):
-        """ Terminate a specific MO detail.
+        """Terminate a specific MO detail.
+
         :param mo_type: The MO type to terminate (association, role, engagement, etc)
         :param uuid: Object to terminate.
         :param from_date: Date to terminate from.
@@ -303,8 +317,8 @@ class MoraHelper(object):
     def read_user_engagement(self, user, at=None, read_all=False, skip_past=False,
                              only_primary=False, use_cache=None,
                              calculate_primary=False):
-        """
-        Read engagements for a user.
+        """Read engagements for a user.
+
         :param user: UUID of the wanted user.
         :read_all: Read all engagements, not only the present ones.
         :skip_past: Even if read_all is true, do not read the past.
@@ -334,8 +348,8 @@ class MoraHelper(object):
 
     def read_user_association(self, user, at=None, read_all=False,
                               only_primary=False, use_cache=None):
-        """
-        Read associations for a user.
+        """Read associations for a user.
+
         :param user: UUID of the wanted user.
         :return: List of the users associations.
         """
@@ -354,9 +368,9 @@ class MoraHelper(object):
         return associations
 
     def read_user_address(self, user, username=False, cpr=False,
-                          at=None, use_cache=None, phone_type=None):
-        """
-        Read phone number and email from user
+                          at=None, use_cache=None, phone_type=None, email_type=None):
+        """Read phone number and email from user.
+
         :param user: UUID of the wanted user
         :param phone_type: Optionally add a specific phone_type class.
         :return: Dict witn phone number and email (if they exists in MO)
@@ -372,7 +386,11 @@ class MoraHelper(object):
                         return_address['Telefon'] = address['name']
 
             if address['address_type']['scope'] == 'EMAIL':
-                return_address['E-mail'] = address['name']
+                if email_type is None:
+                    return_address['E-mail'] = address['name']
+                else:
+                    if address['address_type']['uuid'] == email_type:
+                        return_address['E-mail'] = address['name']
         if username or cpr:
             personal_info = self._mo_lookup(user, 'e/{}')
             if username:
@@ -416,7 +434,7 @@ class MoraHelper(object):
         """
         user_manager = None
 
-        url = 'http://localhost:8080//organisation/organisationfunktion/{}'
+        url = 'http://localhost:8080/organisation/organisationfunktion/{}'
         response = requests.get(url.format(engagement_uuid))
         data = response.json()
         relationer = data[engagement_uuid][0]['registreringer'][0]['relationer']
@@ -590,8 +608,15 @@ class MoraHelper(object):
 
         dates = set()
         for eng in mo_engagement:
-            dates.add(datetime.datetime.strptime(eng['validity']['from'],
-                                                 '%Y-%m-%d'))
+
+            # no love in python for dates like 1900
+            earliest_fromdate=datetime.datetime(1930,1,1)
+            fromdate = datetime.datetime.strptime(eng['validity']['from'],
+                                                 '%Y-%m-%d')
+            if fromdate < earliest_fromdate:
+                fromdate = earliest_fromdate
+            dates.add(fromdate)
+
             if eng['validity']['to']:
                 to = datetime.datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
                 day_after = to + datetime.timedelta(days=1)
@@ -609,8 +634,23 @@ class MoraHelper(object):
                 return its['user_key']
         return ''
 
+    def get_e_addresses(self, e_uuid, scope=None):
+        addresses = self._mo_lookup(e_uuid, 'e/{}/details/address')
+        if scope:
+            addresses = filter(
+                lambda address: address['address_type']['scope'] == scope,
+                addresses
+            )
+        return list(addresses)
+
     def get_e_address(self, e_uuid, scope):
-        for address in self._mo_lookup(e_uuid, 'e/{}/details/address'):
-            if address['address_type']['scope'] == scope:
-                return address
-        return {}
+        return only(self.get_e_addresses(e_uuid, scope), {})
+
+    def get_e_itsystems(self, e_uuid, it_system_uuid=None):
+        it_systems = self._mo_lookup(e_uuid, 'e/{}/details/it')
+        if it_system_uuid:
+            it_systems = filter(
+                lambda its: its['itsystem']["uuid"] == it_system_uuid,
+                it_systems
+            )
+        return list(it_systems)

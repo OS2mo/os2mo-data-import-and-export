@@ -7,10 +7,10 @@
 
 import datetime
 import unittest
+
 import freezegun
 import xmltodict
 from integrations.SD_Lon import sd_mox
-
 
 xml_create = """<?xml version="1.0" encoding="utf-8"?>
 <RegistreringBesked xmlns:dkcc1="http://rep.oio.dk/ebxml/xml/schemas/dkcc/2003/02/13/" xmlns:cvr="http://rep.oio.dk/cvr.dk/xml/schemas/2005/03/22/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:sd="urn:oio:sagdok:3.0.0" xsi:schemaLocation="urn:oio:sagdok:organisation:organisationenhed:2.0.0 OrganisationEnhedRegistrering.xsd urn:oio:silkdata:1.0.0 SDObjekt.xsd" xmlns:itst1="http://rep.oio.dk/itst.dk/xml/schemas/2005/06/24/" xmlns:sd20070301="http://rep.oio.dk/sd.dk/xml.schema/20070301/" xmlns="urn:oio:sagdok:organisation:organisationenhed:2.0.0" xmlns:orgfaelles="urn:oio:sagdok:organisation:2.0.0" xmlns:silkdata="urn:oio:silkdata:1.0.0" xmlns:dkcc2="http://rep.oio.dk/ebxml/xml/schemas/dkcc/2005/03/15/" xmlns:oio="urn:oio:definitions:1.0.0"><ObjektID><sd:IdentifikatorType>OrganisationEnhed</sd:IdentifikatorType><sd:UUIDIdentifikator>12345-22-22-22-12345</sd:UUIDIdentifikator></ObjektID><Registrering><sd:FraTidspunkt><sd:TidsstempelDatoTid>2019-07-01T00:00:00.00</sd:TidsstempelDatoTid></sd:FraTidspunkt><sd:LivscyklusKode>Opstaaet</sd:LivscyklusKode><sd:BrugerRef><sd:IdentifikatorType>ILTEST</sd:IdentifikatorType><sd:UUIDIdentifikator>3bb66b0d-132d-4b98-a903-ea29f6552mmm</sd:UUIDIdentifikator></sd:BrugerRef><AttributListe><Egenskab><sd:EnhedNavn>A-sdm2</sd:EnhedNavn><sd:Virkning><sd:FraTidspunkt><sd:TidsstempelDatoTid>2019-07-01T00:00:00.00</sd:TidsstempelDatoTid></sd:FraTidspunkt><sd:TilTidspunkt><sd:TidsstempelDatoTid>9999-12-31T00:00:00.00</sd:TidsstempelDatoTid></sd:TilTidspunkt></sd:Virkning></Egenskab><sd:LokalUdvidelse><silkdata:Integration><silkdata:AttributVaerdi>user-key-22222</silkdata:AttributVaerdi><sd:Virkning><sd:FraTidspunkt><sd:TidsstempelDatoTid>2019-07-01T00:00:00.00</sd:TidsstempelDatoTid></sd:FraTidspunkt><sd:TilTidspunkt><sd:TidsstempelDatoTid>9999-12-31T00:00:00.00</sd:TidsstempelDatoTid></sd:TilTidspunkt></sd:Virkning><silkdata:AttributNavn>EnhedKode</silkdata:AttributNavn></silkdata:Integration><silkdata:Integration><silkdata:AttributVaerdi>Afdelings-niveau</silkdata:AttributVaerdi><sd:Virkning><sd:FraTidspunkt><sd:TidsstempelDatoTid>2019-07-01T00:00:00.00</sd:TidsstempelDatoTid></sd:FraTidspunkt><sd:TilTidspunkt><sd:TidsstempelDatoTid>9999-12-31T00:00:00.00</sd:TidsstempelDatoTid></sd:TilTidspunkt></sd:Virkning><silkdata:AttributNavn>Niveau</silkdata:AttributNavn></silkdata:Integration></sd:LokalUdvidelse></AttributListe><TilstandListe><orgfaelles:Gyldighed><sd:Virkning><sd:FraTidspunkt><sd:TidsstempelDatoTid>2019-07-01T00:00:00.00</sd:TidsstempelDatoTid></sd:FraTidspunkt><sd:TilTidspunkt><sd:TidsstempelDatoTid>9999-12-31T00:00:00.00</sd:TidsstempelDatoTid></sd:TilTidspunkt></sd:Virkning><orgfaelles:GyldighedStatusKode>Aktiv</orgfaelles:GyldighedStatusKode></orgfaelles:Gyldighed></TilstandListe><RelationListe><sd:LokalUdvidelse></sd:LokalUdvidelse><sd:Overordnet><sd:Virkning><sd:FraTidspunkt><sd:TidsstempelDatoTid>2019-07-01T00:00:00.00</sd:TidsstempelDatoTid></sd:FraTidspunkt><sd:TilTidspunkt><sd:TidsstempelDatoTid>9999-12-31T00:00:00.00</sd:TidsstempelDatoTid></sd:TilTidspunkt></sd:Virkning><sd:ReferenceID><sd:UUIDIdentifikator></sd:UUIDIdentifikator></sd:ReferenceID></sd:Overordnet></RelationListe></Registrering></RegistreringBesked>"""  # noqa
@@ -32,12 +32,11 @@ xml_move = """<?xml version="1.0" encoding="utf-8"?>
 <RegistreringBesked xsi:schemaLocation="urn:oio:sagdok:organisation:organisationenhed:2.0.0 OrganisationEnhedRegistrering.xsd" xmlns:cvr="http://rep.oio.dk/cvr.dk/xml/schemas/2005/03/22/" xmlns="urn:oio:sagdok:organisation:organisationenhed:2.0.0" xmlns:itst1="http://rep.oio.dk/itst.dk/xml/schemas/2005/06/24/" xmlns:dkcc2="http://rep.oio.dk/ebxml/xml/schemas/dkcc/2005/03/15/" xmlns:sd="urn:oio:sagdok:3.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:dkcc1="http://rep.oio.dk/ebxml/xml/schemas/dkcc/2003/02/13/" xmlns:sd20070301="http://rep.oio.dk/sd.dk/xml.schema/20070301/" xmlns:oio="urn:oio:definitions:1.0.0" xmlns:orgfaelles="urn:oio:sagdok:organisation:2.0.0"><ObjektID><sd:UUIDIdentifikator>12345-22-22-22-12345</sd:UUIDIdentifikator><sd:IdentifikatorType>OrganisationEnhed</sd:IdentifikatorType></ObjektID><Registrering><sd:FraTidspunkt><sd:TidsstempelDatoTid>2019-07-01T00:00:00.00</sd:TidsstempelDatoTid></sd:FraTidspunkt><sd:LivscyklusKode>Flyttet</sd:LivscyklusKode><sd:BrugerRef><sd:UUIDIdentifikator>3bb66b0d-132d-4b98-a903-ea29f6552d53</sd:UUIDIdentifikator><sd:IdentifikatorType>AD</sd:IdentifikatorType></sd:BrugerRef><AttributListe><sd:LokalUdvidelse></sd:LokalUdvidelse><Egenskab><sd:Virkning><sd:FraTidspunkt><sd:TidsstempelDatoTid>2019-07-01T00:00:00.00</sd:TidsstempelDatoTid></sd:FraTidspunkt><sd:TilTidspunkt><sd:TidsstempelDatoTid>9999-12-31T00:00:00.00</sd:TidsstempelDatoTid></sd:TilTidspunkt></sd:Virkning><sd:EnhedNavn>A-sdm2</sd:EnhedNavn></Egenskab></AttributListe><TilstandListe></TilstandListe><RelationListe><sd:LokalUdvidelse></sd:LokalUdvidelse><sd:Overordnet><sd:Virkning><sd:FraTidspunkt><sd:TidsstempelDatoTid>2019-07-01T00:00:00.00</sd:TidsstempelDatoTid></sd:FraTidspunkt><sd:TilTidspunkt><sd:TidsstempelDatoTid>9999-12-31T00:00:00.00</sd:TidsstempelDatoTid></sd:TilTidspunkt></sd:Virkning><sd:ReferenceID><sd:UUIDIdentifikator>12345-11-11-11-12345</sd:UUIDIdentifikator></sd:ReferenceID></sd:Overordnet></RelationListe></Registrering></RegistreringBesked>"""  # noqa
 
 
-
-
 unit_parent = {
     "name": "A-sdm1",
     "uuid": "12345-11-11-11-12345",
     "org_unit_type": {"uuid": "uuid-a"},
+    "org_unit_level": {"uuid": "uuid-b"},
     "user_key": "user-key-11111",
 }
 
@@ -63,7 +62,11 @@ mox_cfg = {
         "SD_PASSWORD": "",
         "BASE_URL": "",
         "INSTITUTION_IDENTIFIER": "",
-    }
+    },
+    "sd_unit_levels": {"Afdelings-niveau": "uuid-b"},
+    "arbtid_by_uuid": {
+        "uuid-tr-arbejdstidsplaner": "Arbejdstidsplaner",
+    },
 }
 
 
@@ -76,29 +79,46 @@ class Tests(unittest.TestCase):
 
     def test_grouped_adresses(self):
         addresses = [
-            {"address_type": {"scope": "DAR", "user_key": "dar-key-1"},
-             "value": "0a3f507b-6331-32b8-e044-0003ba298018"},
-            {"address_type": {"scope": "DAR", "user_key": "dar-key-2"},
-             "value": "0a3f507b-7750-32b8-e044-0003ba298018"},
-            {"address_type": {"scope": "PHONE", "user_key": "phn-key-1"},
-             "value": "12345678"},
-            {"address_type": {"scope": "PNUMBER", "user_key": "pnum-key-1"},
-             "value": "0123456789"}]
+            {
+                "address_type": {"scope": "DAR", "user_key": "dar-key-1"},
+                "value": "0a3f507b-6331-32b8-e044-0003ba298018",
+            },
+            {
+                "address_type": {"scope": "DAR", "user_key": "dar-key-2"},
+                "value": "0a3f507b-7750-32b8-e044-0003ba298018",
+            },
+            {
+                "address_type": {"scope": "PHONE", "user_key": "phn-key-1"},
+                "value": "12345678",
+            },
+            {
+                "address_type": {"scope": "PNUMBER", "user_key": "pnum-key-1"},
+                "value": "0123456789",
+            },
+        ]
         scoped, keyed = self.mox.grouped_addresses(addresses)
 
-        self.assertEqual({
-            'DAR': ['Banegårdspladsen 1, 2750 Ballerup',
-                    'Toftebjerghaven 4, 2750 Ballerup'],
-            'PHONE': ['12345678'],
-            'PNUMBER': ['0123456789']
-        }, scoped)
+        self.assertEqual(
+            {
+                "DAR": [
+                    "Banegårdspladsen 1, 2750 Ballerup",
+                    "Toftebjerghaven 4, 2750 Ballerup",
+                ],
+                "PHONE": ["12345678"],
+                "PNUMBER": ["0123456789"],
+            },
+            scoped,
+        )
 
-        self.assertEqual({
-            'dar-key-1': ['0a3f507b-6331-32b8-e044-0003ba298018'],
-            'dar-key-2': ['0a3f507b-7750-32b8-e044-0003ba298018'],
-            'phn-key-1': ['12345678'],
-            'pnum-key-1': ['0123456789']
-        }, keyed)
+        self.assertEqual(
+            {
+                "dar-key-1": ["0a3f507b-6331-32b8-e044-0003ba298018"],
+                "dar-key-2": ["0a3f507b-7750-32b8-e044-0003ba298018"],
+                "phn-key-1": ["12345678"],
+                "pnum-key-1": ["0123456789"],
+            },
+            keyed,
+        )
 
     def test_payload_create(self):
         pc = self.mox.payload_create(
@@ -107,20 +127,26 @@ class Tests(unittest.TestCase):
                 "name": "A-sdm2",
                 # "uuid": "12345-22-22-22-12345",
                 "org_unit_type": {"uuid": "uuid-a"},
+                "org_unit_level": {"uuid": "uuid-b"},
                 "user_key": "user-key-22222",
             },
-            parent=unit_parent
+            parent=unit_parent,
         )
 
-        self.assertEqual({
-            'unit_name': 'A-sdm2',
-            'parent': {'level': 'Afdelings-niveau',
-                       'unit_code': 'user-key-11111',
-                       'uuid': '12345-11-11-11-12345'},
-            'unit_code': 'user-key-22222',
-            'unit_level': 'Afdelings-niveau',
-            'unit_uuid': '12345-22-22-22-12345'
-        },  pc)
+        self.assertEqual(
+            {
+                "unit_name": "A-sdm2",
+                "parent": {
+                    "level": "Afdelings-niveau",
+                    "unit_code": "user-key-11111",
+                    "uuid": "12345-11-11-11-12345",
+                },
+                "unit_code": "user-key-22222",
+                "unit_level": "Afdelings-niveau",
+                "unit_uuid": "12345-22-22-22-12345",
+            },
+            pc,
+        )
 
         expected = xmltodict.parse(xml_create, dict_constructor=dict)
         with freezegun.freeze_time("2020-01-01 12:00:00"):
@@ -129,11 +155,12 @@ class Tests(unittest.TestCase):
                 unit_uuid=pc["unit_uuid"],
                 unit_code=pc["unit_code"],
                 unit_level=pc["unit_level"],
-                parent=pc["parent"]['uuid']
+                parent=pc["parent"]["uuid"],
             )
             # print(actual)
-            self.assertEqual(expected, xmltodict.parse(actual,
-                                                       dict_constructor=dict))
+            self.assertEqual(
+                expected, xmltodict.parse(actual, dict_constructor=dict)
+            )
 
     def test_payload_edit_simple(self):
         pe = self.mox.payload_edit(
@@ -143,27 +170,33 @@ class Tests(unittest.TestCase):
                 "org_unit_type": {"uuid": "uuid-a"},
                 "user_key": "user-key-22222",
             },
-            addresses=[]
+            addresses=[],
         )
 
-        self.assertEqual({
-            'unit_name': 'A-sdm2',
-            'unit_code': 'user-key-22222',
-            'phone': None,
-            'adresse': None,
-            'pnummer': None,
-            'integration_values': {'formaalskode': None,
-                                   'skolekode': None,
-                                   'time_planning': None},
-            'unit_uuid': '12345-22-22-22-12345'
-        },  pe)
+        self.assertEqual(
+            {
+                "unit_name": "A-sdm2",
+                "unit_code": "user-key-22222",
+                "phone": None,
+                "adresse": None,
+                "pnummer": None,
+                "integration_values": {
+                    "formaalskode": None,
+                    "skolekode": None,
+                    "time_planning": None,
+                },
+                "unit_uuid": "12345-22-22-22-12345",
+            },
+            pe,
+        )
 
         expected = xmltodict.parse(xml_edit_simple, dict_constructor=dict)
         with freezegun.freeze_time("2020-01-01 12:00:00"):
             actual = self.mox._create_xml_ret(**pe)
             # print(actual)
-            self.assertEqual(expected, xmltodict.parse(actual,
-                                                       dict_constructor=dict))
+            self.assertEqual(
+                expected, xmltodict.parse(actual, dict_constructor=dict)
+            )
 
     def test_payload_edit_address(self):
         pe = self.mox.payload_edit(
@@ -175,39 +208,57 @@ class Tests(unittest.TestCase):
             },
             addresses=[
                 {
-                    "address_type": {"scope": "DAR",
-                                     "user_key": "dar-userkey-not-used"},
-                    "value": "0a3f507b-7750-32b8-e044-0003ba298018"
+                    "address_type": {
+                        "scope": "DAR",
+                        "user_key": "dar-userkey-not-used",
+                    },
+                    "value": "0a3f507b-7750-32b8-e044-0003ba298018",
                 },
-                {"address_type": {"scope": "PHONE",
-                                  "user_key": "phone-user-key-not-used"},
-                 "value": "12345678"},
-                {"address_type": {"scope": "PNUMBER",
-                                  "user_key": "pnummer-user-key-not-used"},
-                 "value": "0123456789"},
-            ]
+                {
+                    "address_type": {
+                        "scope": "PHONE",
+                        "user_key": "phone-user-key-not-used",
+                    },
+                    "value": "12345678",
+                },
+                {
+                    "address_type": {
+                        "scope": "PNUMBER",
+                        "user_key": "pnummer-user-key-not-used",
+                    },
+                    "value": "0123456789",
+                },
+            ],
         )
 
-        self.assertEqual({
-            'unit_name': 'A-sdm2',
-            'unit_code': 'user-key-22222',
-            'phone': "12345678",
-            'adresse': {'silkdata:AdresseNavn': 'Toftebjerghaven 4',
-                        'silkdata:ByNavn': 'Ballerup',
-                        'silkdata:PostKodeIdentifikator': '2750'},
-            'pnummer': "0123456789",
-            'integration_values': {'formaalskode': None,
-                                   'skolekode': None,
-                                   'time_planning': None},
-            'unit_uuid': '12345-22-22-22-12345'
-        },  pe)
+        self.assertEqual(
+            {
+                "unit_name": "A-sdm2",
+                "unit_code": "user-key-22222",
+                "phone": "12345678",
+                "adresse": {
+                    "silkdata:AdresseNavn": "Toftebjerghaven 4",
+                    "silkdata:ByNavn": "Ballerup",
+                    "silkdata:PostKodeIdentifikator": "2750",
+                },
+                "pnummer": "0123456789",
+                "integration_values": {
+                    "formaalskode": None,
+                    "skolekode": None,
+                    "time_planning": None,
+                },
+                "unit_uuid": "12345-22-22-22-12345",
+            },
+            pe,
+        )
 
         expected = xmltodict.parse(xml_edit_address, dict_constructor=dict)
         with freezegun.freeze_time("2020-01-01 12:00:00"):
             actual = self.mox._create_xml_ret(**pe)
             # print(actual)
-            self.assertEqual(expected, xmltodict.parse(actual,
-                                                       dict_constructor=dict))
+            self.assertEqual(
+                expected, xmltodict.parse(actual, dict_constructor=dict)
+            )
 
     def test_payload_edit_integration_values(self):
         pe = self.mox.payload_edit(
@@ -219,32 +270,44 @@ class Tests(unittest.TestCase):
                 "time_planning": {"uuid": "uuid-tr-arbejdstidsplaner"},
             },
             addresses=[
-                {"address_type": {"scope": "TEXT", "user_key": "Formålskode"},
-                 "name": "fkode-name-not-used", "value": "Formål1"},
-                {"address_type": {"scope": "TEXT", "user_key": "Skolekode"},
-                 "value": "Skole1"},
-            ]
+                {
+                    "address_type": {"scope": "TEXT", "user_key": "Formålskode"},
+                    "name": "fkode-name-not-used",
+                    "value": "Formål1",
+                },
+                {
+                    "address_type": {"scope": "TEXT", "user_key": "Skolekode"},
+                    "value": "Skole1",
+                },
+            ],
         )
 
-        self.assertEqual({
-            'unit_name': 'A-sdm3',
-            'unit_code': 'user-key-33333',
-            'phone': None,
-            'adresse': None,
-            'pnummer': None,
-            'integration_values': {'formaalskode': "Formål1",
-                                   'skolekode': "Skole1",
-                                   'time_planning': "Arbejdstidsplaner"},
-            'unit_uuid': '12345-33-33-33-12345'
-        },  pe)
+        self.assertEqual(
+            {
+                "unit_name": "A-sdm3",
+                "unit_code": "user-key-33333",
+                "phone": None,
+                "adresse": None,
+                "pnummer": None,
+                "integration_values": {
+                    "formaalskode": "Formål1",
+                    "skolekode": "Skole1",
+                    "time_planning": "Arbejdstidsplaner",
+                },
+                "unit_uuid": "12345-33-33-33-12345",
+            },
+            pe,
+        )
 
-        expected = xmltodict.parse(xml_edit_integration_values,
-                                   dict_constructor=dict)
+        expected = xmltodict.parse(
+            xml_edit_integration_values, dict_constructor=dict
+        )
         with freezegun.freeze_time("2020-01-01 12:00:00"):
             actual = self.mox._create_xml_ret(**pe)
             # print(actual)
-            self.assertEqual(expected,
-                             xmltodict.parse(actual, dict_constructor=dict))
+            self.assertEqual(
+                expected, xmltodict.parse(actual, dict_constructor=dict)
+            )
 
     def test_payload_move_orgunit(self):
         pc = self.mox.payload_create(
@@ -253,20 +316,26 @@ class Tests(unittest.TestCase):
                 "name": "A-sdm2",
                 # "uuid": "12345-22-22-22-12345",
                 "org_unit_type": {"uuid": "uuid-a"},
+                "org_unit_level": {"uuid": "uuid-b"},
                 "user_key": "user-key-22222",
             },
-            parent=unit_parent
+            parent=unit_parent,
         )
 
-        self.assertEqual({
-            'unit_name': 'A-sdm2',
-            'parent': {'level': 'Afdelings-niveau',
-                       'unit_code': 'user-key-11111',
-                       'uuid': '12345-11-11-11-12345'},
-            'unit_code': 'user-key-22222',
-            'unit_level': 'Afdelings-niveau',
-            'unit_uuid': '12345-22-22-22-12345'
-        },  pc)
+        self.assertEqual(
+            {
+                "unit_name": "A-sdm2",
+                "parent": {
+                    "level": "Afdelings-niveau",
+                    "unit_code": "user-key-11111",
+                    "uuid": "12345-11-11-11-12345",
+                },
+                "unit_code": "user-key-22222",
+                "unit_level": "Afdelings-niveau",
+                "unit_uuid": "12345-22-22-22-12345",
+            },
+            pc,
+        )
 
         expected = xmltodict.parse(xml_move, dict_constructor=dict)
         with freezegun.freeze_time("2020-01-01 12:00:00"):
@@ -275,8 +344,9 @@ class Tests(unittest.TestCase):
                 unit_uuid=pc["unit_uuid"],
                 unit_code=pc["unit_code"],
                 unit_level=pc["unit_level"],
-                parent_unit_uuid=pc["parent"]['uuid']
+                parent_unit_uuid=pc["parent"]["uuid"],
             )
             # print(actual)
-            self.assertEqual(expected, xmltodict.parse(actual,
-                                                       dict_constructor=dict))
+            self.assertEqual(
+                expected, xmltodict.parse(actual, dict_constructor=dict)
+            )

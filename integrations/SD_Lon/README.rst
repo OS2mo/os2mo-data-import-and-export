@@ -50,6 +50,15 @@ Desuden er det nødvendigt at angive adressen på MO og LoRa i variablerne:
  * ``mox.base``
  * ``mora.base``
 
+Brug af integrationen
+=====================
+De forskellige underprogrammer kan alle tilgåes igennem ét hoved program,
+nemlig ``sd_cli``, ved kørsel af dette program vises underprogrammerne, og
+deres parametre og formål kan udforskes. Kør blot:
+```
+python integrations/SD_Lon/sd_cli.py --help
+```
+
 Detaljer om importen
 ====================
 Udtræk fra SD Løn foregår som udgangspunkt via disse webservices:
@@ -236,7 +245,7 @@ hjælpeværktøjer:
  * ``test_sd_connectivity.py``: Et lille værktøj som tester at den lokale
    ``settings.json`` indeholder de nødvendige nøgler. Desuden tester programmet
    for en række potentielle fejl, eksempevis om felterne har gyldige værdier
-   og om det er muligt at kotakte SD Løn med de angivne brugeroplysinger.
+   og om det er muligt at kontakte SD Løn med de angivne brugeroplysinger.
 
  * ``test_mo_against_sd.py``: Et værktøj som tester udvalgte personers engagementer
    mod SD løn of checker at MO og SD er løn har samme opfattelse af om personens
@@ -282,10 +291,10 @@ Tjekliste for fuldt import
 Overordnet foregår opstart af en ny SD import efter dette mønster:
 
 1. Kør importværktøjet med fuld historik (dette er standard opførsel).
-2. Kør en inledende ChangedAt for at hente alle kendte fremtidige ændringer og
+2. Kør en indledende ChangedAt for at hente alle kendte fremtidige ændringer og
    intitialisere den lokale database over kørsler.
 3. Kør sd_changed_at.py periodisk (eksempelvis dagligt).
-4. Eventuelt synkroisering af stillingsbetegnelser.
+4. Eventuelt synkronisering af stillingsbetegnelser.
 5. Eventuelt synkronisering fra AD.
    
 1. Kør importværktøjet
@@ -294,13 +303,13 @@ En indledende import køres ved at oprette en instans af ImportHelper_ ImportHel
 
 .. code-block:: python
 
-   importer = ImportHelper(
-       create_defaults=True,
-       mox_base=MOX_BASE,
-       mora_base=MORA_BASE,
-       store_integration_data=False,
-       seperate_names=True
-   )
+    importer = ImportHelper(
+        create_defaults=True,
+        mox_base=MOX_BASE,
+        mora_base=MORA_BASE,
+        store_integration_data=False,
+        seperate_names=True
+    )
 			       
 Hverken importen eller efterfølgende synkronisering med ChangedAt anvender
 integrationsdata, og det er derfor valgfrit om vil anvende dette.
@@ -310,19 +319,19 @@ Importen kan derefter køres med disse trin:
 .. code-block:: python
 
     sd = sd_importer.SdImport(
-	importer,
+        importer,
         ad_info=None,
-	manager_rows=None
-   )
+        manager_rows=None
+    )
 
-   sd.create_ou_tree(
-       create_orphan_container=False,
-       sub_tree=None,
-       super_unit=None
-   )
-   sd.create_employees()
+    sd.create_ou_tree(
+        create_orphan_container=False,
+        sub_tree=None,
+        super_unit=None
+    )
+    sd.create_employees()
 
-   importer.import_all()
+    importer.import_all()
 
 Hvor der i dette tilfælde ikke angives ledere eller en AD integration. Disse to
 punkter diskuteres under punkterne `Ledere i SD Løn`_ og
@@ -335,8 +344,8 @@ undertræet med den pågældende uuid i SD som vil blive importeret. Det er i
 Importen vil nu blive afviklet og nogle timer senere vil MO være populeret med
 værdierne fra SD Løn som de ser ud dags dato.
 
-2. Kør en inledende ChangedAt
------------------------------
+2. Kør en indledende ChangedAt
+------------------------------
 I SD Løn importeres i udgangspunktet kun nuværende og forhenværende medarbejdere og
 engagementer, fremtidige ændringer skal hentes i en seperat process. Denne process
 håndteres af programmet `sd_changed_at.py` (som også anvendes til efterfølgende
@@ -499,6 +508,8 @@ og udgøres af disse settings:
  * ``integrations.SD_Lon.sd_mox.AMQP_HOST``: AMQP host aftalt med SD
  * ``integrations.SD_Lon.sd_mox.AMQP_PORT``: AMQP port aftalt med SD
  * ``integrations.SD_Lon.sd_mox.AMQP_PASSWORD``: AMQP password aftalt med SD
+ * ``integrations.SD_Lon.sd_mox.AMQP_CHECK_RETRIES``: Antal gange man prøver at validere de via AMQP overførte ændringer (default: 6)
+ * ``integrations.SD_Lon.sd_mox.AMQP_CHECK_WAITTIME``: Ventetid før hvert forsøg på validering (default: 3)
  * ``integrations.SD_Lon.sd_mox.VIRTUAL_HOST``: Virtuel host aftalt med SD
 
 Dernæst beskriver ``integrations.SD_Lon.sd_mox.TRIGGERED_UUIDS`` en liste af 

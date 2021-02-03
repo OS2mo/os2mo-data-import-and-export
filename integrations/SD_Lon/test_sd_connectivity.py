@@ -1,3 +1,4 @@
+import click
 import json
 import pathlib
 from uuid import UUID
@@ -145,6 +146,12 @@ class TestSdConnectivity(object):
         self._check_contact_to_sd()
 
 
-if __name__ == '__main__':
+@click.command()
+def check_connectivity():
+    """Check SD configuration and connectivity."""
     tsc = TestSdConnectivity()
     tsc.sd_check()
+
+
+if __name__ == '__main__':
+    check_connectivity()

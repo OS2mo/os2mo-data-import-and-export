@@ -1,0 +1,275 @@
+{
+  "facets": [
+    {
+      "medarbejder_organisation3": {
+        "description": "Hovedorganisation / Faglig organisation"
+      },
+      "medarbejder_under_organisation3": {
+        "description": "Underorganisation"
+      }
+    }
+  ],
+  "classes": [
+    {
+      "__apply_to_all__": {
+        "facet": "association_type"
+      },
+      "assoc_LR_leader": {
+        "title": "LR, formand"
+      },
+      "assoc_LR": {
+        "title": "LR"
+      },
+      "assoc_FTR_leader": {
+        "title": "FTR, næstformand"
+      },
+      "assoc_FTR": {
+        "title": "FTR"
+      },
+      "assoc_TR_leader": {
+        "title": "TR, næstformand"
+      },
+      "assoc_TR": {
+        "title": "TR"
+      },
+      "assoc_AMR_leader": {
+        "title": "AMR, næstformand"
+      },
+      "assoc_AMR": {
+        "title": "AMR"
+      },
+      "assoc_FTR_AMR": {
+        "title": "(F)TR og AMR"
+      },
+      "assoc_Medarb_rep_leader": {
+        "title": "Medarb.rep, næstformand"
+      },
+      "assoc_Medarb_rep": {
+        "title": "Medarb.rep"
+      },
+      "assoc_Medarb_rep_AMR": {
+        "title": "Medarb.rep og AMR"
+      },
+      "assoc_NA": {
+        "title": "Ej relevant"
+      }
+    },
+    {
+      "DocUnit": {
+        "title": "Documentadresse",
+        "scope": "WWW",
+        "facet": "org_unit_address_type"
+      }
+    },
+    {
+      "__apply_to_all__": {
+        "facet": "medarbejder_organisation3"
+      },
+      "na3": {
+        "description": "Ej relevant",
+        "title": "Ej relevant"
+      },
+      "lo3": {
+        "description": "Landsorganisationen i Danmark",
+        "title": "LO"
+      },
+      "ftf3": {
+        "description": "FTF",
+        "title": "FTF"
+      },
+      "ac3": {
+        "description": "AC (Akademikerne)",
+        "title": "AC (Akademikerne)"
+      }
+    },
+    {
+      "__apply_to_all__": {
+        "__layer__": 2,
+        "facet": "medarbejder_under_organisation3",
+        "parent": "ac3"
+      },
+      "ac3_Arkitekt": {
+        "description": "Forbundet Arkitekter og Designere",
+        "title": "Forbundet Arkitekter og Designere"
+      },
+      "ac3_Arkitektforbundet": {
+        "description": "Arkitektforbundet",
+        "title": "Arkitektforbundet"
+      },
+      "ac3_BF": {
+        "description": "BF - Bibliotekarforbundet",
+        "title": "BF - Bibliotekarforbundet"
+      },
+      "ac3_DDL": {
+        "description": "DDL - Den Danske Landinspektørforening",
+        "title": "DDL - Den Danske Landinspektørforening"
+      },
+      "ac3_DJ": {
+        "description": "DJ  - Dansk Journalistforbund",
+        "title": "DJ  - Dansk Journalistforbund"
+      },
+      "ac3_DJOEF": {
+        "description": "Djøf - Danmarks Jurist- og Økonomforbund",
+        "title": "Djøf - Danmarks Jurist- og Økonomforbund"
+      },
+      "ac3_DM": {
+        "description": "DM - Dansk Magisterforening",
+        "title": "DM - Dansk Magisterforening"
+      },
+      "ac3_DMpF": {
+        "description": "DMpF - Dansk Musikpædagogisk Forening",
+        "title": "DMpF - Dansk Musikpædagogisk Forening"
+      },
+      "ac3_DP": {
+        "description": "DP - Dansk Psykologforening",
+        "title": "DP - Dansk Psykologforening"
+      },
+      "ac3_Ergoterapeut": {
+        "description": "Ergoterapeutforeningen",
+        "title": "Ergoterapeutforeningen"
+      },
+      "ac3_FAOD": {
+        "description": "FAOD - Forbundet af arkitekter og designere",
+        "title": "FAOD - Forbundet af arkitekter og designere"
+      },
+      "ac3_FaKD": {
+        "description": "FaKD - Foreningen af kliniske diætister",
+        "title": "FaKD - Foreningen af kliniske diætister"
+      },
+      "ac3_Fysioterapeut": {
+        "description": "Danske Fysioterapeuter",
+        "title": "Danske Fysioterapeuter"
+      },
+      "ac3_IDA": {
+        "description": "IDA - Ingeniørforeningen i Danmark",
+        "title": "IDA - Ingeniørforeningen i Danmark"
+      },
+      "ac3_JA": {
+        "description": "JA - Jordbrugsakademikernes Forbund",
+        "title": "JA - Jordbrugsakademikernes Forbund"
+      },
+      "ac3_Kommunikation": {
+        "description": "Forbundet Kommunikation og Sprog",
+        "title": "Forbundet Kommunikation og Sprog"
+      },
+      "ac3_Maskinmester": {
+        "description": "Maskinmestrenes Forening",
+        "title": "Maskinmestrenes Forening"
+      },
+      "ac3_NA": {
+        "description": "Ej relevant",
+        "title": "Ej relevant"
+      },
+      "ac3_PD": {
+        "description": "PD - Dansk Farmaceutforening/Pharma Danmark",
+        "title": "PD - Dansk Farmaceutforening/Pharma Danmark"
+      },
+      "ac3_Skov": {
+        "description": "Danske Skov- og Landskabsingeniører",
+        "title": "Danske Skov- og Landskabsingeniører"
+      },
+      "ac3_TF": {
+        "description": "TF - Tandlægeforeningen",
+        "title": "TF - Tandlægeforeningen"
+      }
+    },
+    {
+      "__apply_to_all__": {
+        "__layer__": 2,
+        "facet": "medarbejder_under_organisation3",
+        "parent": "ftf3"
+      },
+      "ftf3_DLF": {
+        "description": "DLF - Danmarks Lærerforening",
+        "title": "DLF - Danmarks Lærerforening"
+      },
+      "ftf3_DMF": {
+        "description": "DMF - Dansk Musiker Forbund",
+        "title": "DMF - Dansk Musiker Forbund"
+      },
+      "ftf3_DS": {
+        "description": "DS - Dansk Socialrådgiverforening",
+        "title": "DS - Dansk Socialrådgiverforening"
+      },
+      "ftf3_DSR": {
+        "description": "DSR - Dansk Sygeplejeråd",
+        "title": "DSR - Dansk Sygeplejeråd"
+      },
+      "ftf3_Kost": {
+        "description": "Kost- og ernæringsforbundet",
+        "title": "Kost- og ernæringsforbundet"
+      },
+      "ftf3_LO_BUPL": {
+        "description": "BUPL - Børne- og Ungdomspædagogernes Landsforbund",
+        "title": "BUPL - Børne- og Ungdomspædagogernes Landsforbund"
+      },
+      "ftf3_NA": {
+        "description": "Ej relevant",
+        "title": "Ej relevant"
+      },
+      "ftf3_PFF": {
+        "description": "PFF - Pædagogernes Forhandlingsfællesskab",
+        "title": "PFF - Pædagogernes Forhandlingsfællesskab"
+      },
+      "ftf3_Tand": {
+        "description": "Danske Tandplejere",
+        "title": "Danske Tandplejere"
+      }
+    },
+    {
+      "__apply_to_all__": {
+        "__layer__": 2,
+        "facet": "medarbejder_under_organisation3",
+        "parent": "lo3"
+      },
+      "lo3_ElForbund": {
+        "description": "Dansk El-forbund",
+        "title": "Dansk El-forbund"
+      },
+      "lo3_FOA": {
+        "description": "FOA - Fag og Arbejde",
+        "title": "FOA - Fag og Arbejde"
+      },
+      "lo3_HK": {
+        "description": "HK Kommunal",
+        "title": "HK Kommunal"
+      },
+      "lo3_Konstruktoerforeningen": {
+        "description": "Konstruktørforeningen",
+        "title": "Konstruktørforeningen"
+      },
+      "lo3_Kost": {
+        "description": "Kost & Ernæringsforbundet",
+        "title": "Kost & Ernæringsforbundet"
+      },
+      "lo3_Malerforbundet": {
+        "description": "Malerforbundet i Danmark",
+        "title": "Malerforbundet i Danmark"
+      },
+      "lo3_Metal": {
+        "description": "Dansk Metal",
+        "title": "Dansk Metal"
+      },
+      "lo3_NA": {
+        "description": "Ej relevant",
+        "title": "Ej relevant"
+      },
+      "lo3_SL": {
+        "description": "SL - Socialpædagogerne",
+        "title": "SL - Socialpædagogerne"
+      },
+      "lo3_TIB": {
+        "description": "Forbundet Træ, Industri og Byg i Danmark",
+        "title": "Forbundet Træ, Industri og Byg i Danmark"
+      },
+      "lo3_TL": {
+        "description": "TL - Teknisk Landsforbund",
+        "title": "TL - Teknisk Landsforbund"
+      },
+      "lo3_ThreeF": {
+        "description": "3F - Fagligt Fælles Forbund",
+        "title": "3F - Fagligt Fælles Forbund"
+      }
+    }
+  ]
+}

@@ -2,12 +2,17 @@ import json
 import pathlib
 import logging
 from datetime import datetime
+from operator import itemgetter
 
-import ad_reader
+from more_itertools import only
+
+import ad_reader as adreader
 import ad_logger
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
+from utils import apply, progress_iterator
 
+from integrations.ad_integration import read_ad_conf_settings
 
 logger = logging.getLogger('AdSyncRead')
 
@@ -21,7 +26,7 @@ logger = logging.getLogger('AdSyncRead')
 # Find them here https://os2mo-test.holstebro.dk/service/o/ORGUUID/f/visibility/
 
 
-# AD has  no concept of temporality, validity is always from now to infinity.
+# AD has no concept of temporality, validity is always from now to infinity.
 VALIDITY = {
     'from':  datetime.strftime(datetime.now(), "%Y-%m-%d"),
     'to': None
@@ -29,37 +34,15 @@ VALIDITY = {
 
 
 class AdMoSync(object):
-    def __init__(self):
+    def __init__(self, all_settings=None):
         logger.info('AD Sync Started')
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
-        self.mapping = self.settings['integrations.ad.ad_mo_sync_mapping']
 
-        self.helper = MoraHelper(hostname=self.settings['mora.base'],
-                                 use_cache=False)
+        self.settings = all_settings
+        if self.settings is None:
+            self.settings = read_ad_conf_settings.SETTINGS
+
+        self.helper = self._setup_mora_helper()
         self.org = self.helper.read_organisation()
-
-        if 'it_systems' in self.mapping:
-            mo_it_systems = self.helper.read_it_systems()
-
-            for it_system, it_system_uuid in self.mapping['it_systems'].items():
-                found = False
-                for mo_it_system in mo_it_systems:
-                    if mo_it_system['uuid'] == it_system_uuid:
-                        found = True
-                if not found:
-                    msg = '{} with uuid {}, not found in MO'
-                    raise Exception(msg.format(it_system, it_system_uuid))
-
-        skip_school = self.settings.get('integrations.ad.skip_school_ad_to_mo', True)
-        logger.info('Skip school domain: {}'.format(skip_school))
-        self.ad_reader = ad_reader.ADParameterReader(skip_school=skip_school)
-        print('Retrive AD dump')
-        self.ad_reader.cache_all()
-        print('Done')
-        logger.info('Done with AD caching')
 
         # Possibly get IT-system directly from LoRa for better performance.
         lora_speedup = self.settings.get(
@@ -68,11 +51,14 @@ class AdMoSync(object):
             print('Retrive LoRa dump')
             self.lc = LoraCache(resolve_dar=False, full_history=False)
             self.lc.populate_cache(dry_run=False, skip_associations=True)
+            # skip reading lora - not for prod
+            # self.lc.populate_cache(dry_run=True, skip_associations=True)
             self.lc.calculate_primary_engagements()
             print('Done')
         else:
             print('Use direct MO access')
             self.lc = None
+        #exit() # - når man vil lave picklefiler
 
         mo_visibilities = self.helper.read_classes_in_facet('visibility')[0]
         self.visibility = {
@@ -88,20 +74,9 @@ class AdMoSync(object):
             if not found:
                 raise Exception('Error in visibility class configuration')
 
-        used_mo_fields = []
-        for key in self.mapping.keys():
-            for ad_field, mo_combi in self.mapping.get(key, {}).items():
-                if mo_combi in used_mo_fields:
-                    msg = 'MO field {} used more than once'
-                    raise Exception(msg.format(mo_combi))
-                used_mo_fields.append(mo_combi)
-
-        self.stats = {
-            'addresses': [0, 0],
-            'engagements': 0,
-            'it_systems': 0,
-            'users': set()
-        }
+    def _setup_mora_helper(self):
+        return MoraHelper(hostname=self.settings['mora.base'],
+                          use_cache=False)
 
     def _read_mo_classes(self):
         """
@@ -119,11 +94,9 @@ class AdMoSync(object):
         """
         logger.info('Read all MO users')
         if self.lc:
-            employees = self.lc.users.values()
+            employees = list(map(itemgetter(0), self.lc.users.values()))
         else:
-            employee_list = self.helper._mo_lookup(
-                self.org, 'o/{}/e?limit=1000000000')
-            employees = employee_list['items']
+            employees = self.helper.read_all_users()
         logger.info('Done reading all MO users')
         return employees
 
@@ -144,24 +117,38 @@ class AdMoSync(object):
                             'uuid': addr[0]['uuid'],
                             'address_type': {'uuid': addr[0]['adresse_type']},
                             'visibility': {'uuid': addr[0]['visibility']},
-                            'value': addr[0]['value']
+                            'value': addr[0]['value'],
+                            'validity': {
+                                "from": addr[0]['from_date'],
+                                "to": addr[0]['to_date']
+                            }
                         }
                     )
         else:
-            user_addresses = self.helper._mo_lookup(uuid, 'e/{}/details/address')
+            user_addresses = self.helper.get_e_addresses(uuid)
 
         for field, klasse in self.mapping['user_addresses'].items():
-            found_address = None
-            for address in user_addresses:
-                if not address['address_type']['uuid'] == klasse[0]:
-                    continue
-                if klasse[1] is not None and 'visibility' in address:
-                    if self.visibility[klasse[1]] == address['visibility']['uuid']:
-                        found_address = (address['uuid'], address['value'])
-                else:
-                    found_address = (address['uuid'], address['value'])
-            if found_address is not None:
-                types_to_edit[field] = found_address
+            address_type_uuid, visibility_uuid = klasse
+            potential_matches = user_addresses
+            # Filter out addresses with wrong type
+            def check_address_type_uuid(address):
+                return address['address_type']['uuid'] == address_type_uuid
+            potential_matches = filter(check_address_type_uuid, potential_matches)
+            # Filter out addresses with wrong visibility
+            def check_address_visibility(address):
+                return (
+                    visibility_uuid is None or 'visibility' not in address or
+                    self.visibility[visibility_uuid] == address['visibility']['uuid']
+                )
+            potential_matches = filter(check_address_visibility, potential_matches)
+            # Consume iterator, verifying either 0 or 1 elements are returned
+            try:
+                found_address = only(potential_matches)
+                if found_address is not None:
+                    types_to_edit[field] = found_address
+            except ValueError:
+                logger.warning('Multiple addresses found, not syncing for {}: {}'.format(uuid, field))
+                continue
         logger.debug('Existing fields for {}: {}'.format(uuid, types_to_edit))
         return types_to_edit
 
@@ -186,7 +173,7 @@ class AdMoSync(object):
         response = self.helper._mo_post('details/create', payload)
         logger.debug('Response: {}'.format(response))
 
-    def _edit_address(self, address_uuid, value, klasse):
+    def _edit_address(self, address_uuid, value, klasse, validity=VALIDITY):
         """
         Edit an exising address to a new value.
         :param address_uuid: uuid of the address object.
@@ -198,7 +185,7 @@ class AdMoSync(object):
                 'type': 'address',
                 'uuid': address_uuid,
                 'data': {
-                    'validity': VALIDITY,
+                    'validity': validity,
                     'value': value,
                     'address_type': {'uuid': klasse[0]}
                 }
@@ -272,8 +259,9 @@ class AdMoSync(object):
                 logger.debug('Response: {}'.format(response.text))
         else:
             print('No cache')
-            user_engagements = self.helper._mo_lookup(
-                uuid, 'e/{}/details/engagement?calculate_primary=1')
+            user_engagements = self.helper.read_user_engagement(
+                uuid, calculate_primary=True, read_all=True
+            )
             for eng in user_engagements:
                 if not eng['is_primary']:
                     continue
@@ -304,32 +292,57 @@ class AdMoSync(object):
                     else:
                         logger.info('{} not in ad_object'.format(ad_field))
 
+    def _create_it_system(self, person_uuid, ad_username, mo_itsystem_uuid):
+        payload = {
+            "type": "it",
+            "user_key": ad_username,
+            "itsystem": {"uuid": mo_itsystem_uuid},
+            "person": {"uuid": person_uuid},
+            "validity": VALIDITY
+        }
+        logger.debug("Create it system payload: {}".format(payload))
+        response = self.helper._mo_post("details/create", payload)
+        logger.debug("Response: {}".format(response.text))
+        response.raise_for_status()
+
+    def _update_it_system(self, ad_username, binding_uuid):
+        payload = {
+            "type": "it",
+            "data": {
+                "user_key": ad_username,
+                "validity": VALIDITY
+            },
+            "uuid": binding_uuid,
+        }
+        logger.debug("Update it system payload: {}".format(payload))
+        response = self.helper._mo_post("details/edit", payload)
+        logger.debug("Response: {}".format(response.text))
+        response.raise_for_status()
+
     def _edit_it_system(self, uuid, ad_object):
-        mo_itsystem_uuid = self.mapping['it_systems']['samAccountName']
+        mo_itsystem_uuid = self.mapping["it_systems"]["samAccountName"]
         if self.lc:
-            username = ''
-            for it in self.lc.it_connections.values():
-                if it[0]['user'] == uuid:
-                    if it[0]['itsystem'] == mo_itsystem_uuid:
-                        username = it[0]['username']
+            it_systems = map(itemgetter(0), self.lc.it_connections.values())
+            it_systems = filter(lambda it: it["user"] == uuid, it_systems)
+            it_systems = filter(lambda it: it["itsystem"] == mo_itsystem_uuid, it_systems)
+            it_systems = map(itemgetter("username", "uuid"), it_systems)
         else:
-            username = self.helper.get_e_username(uuid, 'Active Directory')
-        # If username is blank, we have found a user that needs to be assiged to an
-        # IT-system.
-        if username == '':
-            payload = {
-                'type': 'it',
-                'user_key': ad_object['SamAccountName'],
-                'itsystem': {'uuid': mo_itsystem_uuid},
-                'person': {'uuid': uuid},
-                'validity': VALIDITY
-            }
-            logger.debug('Create it system payload: {}'.format(payload))
-            response = self.helper._mo_post('details/create', payload)
-            self.stats['it_systems'] += 1
-            self.stats['users'].add(uuid)
-            logger.debug('Response: {}'.format(response.text))
-            response.raise_for_status()
+            it_systems = self.helper.get_e_itsystems(uuid, mo_itsystem_uuid)
+            it_systems = map(itemgetter("user_key", "uuid"), it_systems)
+        # Here it_systems is a 2 tuple (mo_username, binding_uuid)
+        mo_username, binding_uuid = only(it_systems, ("", ""))
+        # Username currently in AD
+        ad_username = ad_object["SamAccountName"]
+
+        # If mo_username is blank, we found a user who needs a new entry created
+        if mo_username == "":
+            self._create_it_system(uuid, ad_username, mo_itsystem_uuid)
+            self.stats["it_systems"] += 1
+            self.stats["users"].add(uuid)
+        elif mo_username != ad_username:  # We need to update the mo_username
+            self._update_it_system(ad_username, binding_uuid)
+            self.stats["it_systems"] += 1
+            self.stats["users"].add(uuid)
 
     def _edit_user_addresses(self, uuid, ad_object):
         fields_to_edit = self._find_existing_ad_address_types(uuid)
@@ -346,24 +359,103 @@ class AdMoSync(object):
                 self._create_address(uuid, ad_object[field], klasse)
             else:
                 # This is an existing address
-                if not fields_to_edit[field][1] == ad_object[field]:
+                if not fields_to_edit[field]['value'] == ad_object[field]:
                     msg = 'Value change, MO: {} <> AD: {}'
                     self.stats['addresses'][1] += 1
                     self.stats['users'].add(uuid)
-                    self._edit_address(fields_to_edit[field][0],
+                    self._edit_address(fields_to_edit[field]['uuid'],
                                        ad_object[field],
                                        klasse)
                 else:
                     msg = 'No value change: {}=={}'
-                logger.debug(msg.format(fields_to_edit[field][1],
+                logger.debug(msg.format(fields_to_edit[field]['value'],
                                         ad_object[field]))
 
-    def _update_single_user(self, uuid, ad_object):
+    def _finalize_it_system(self, uuid, ad_object):
+        if 'it_systems' not in self.mapping:
+            return
+
+        today = datetime.strftime(datetime.now(), "%Y-%m-%d")
+        it_systems = {
+            it['itsystem']['uuid']: it for it in
+            self.helper.get_e_itsystems(uuid)
+        }
+
+        def check_validity_is_ok(uuid):
+            # NOTE: Maybe this should be not set, or in the future?
+            if not uuid in it_systems:
+                return False
+            return it_systems[uuid]['validity']['to'] is None
+
+        # Find fields to terminate
+        it_system_uuids = self.mapping['it_systems'].values()
+        it_system_uuids = filter(check_validity_is_ok, it_system_uuids)
+
+        for uuid in it_system_uuids:
+            payload = {
+                'type': 'it',
+                'uuid': it_systems[uuid]["uuid"],
+                'validity': {"to": today}
+            }
+            logger.debug('Finalize payload: {}'.format(payload))
+            response = self.helper._mo_post('details/terminate', payload)
+            logger.debug('Response: {}'.format(response.text))
+
+    def _finalize_user_addresses(self, uuid, ad_object):
+        if 'user_addresses' not in self.mapping:
+            return
+
+        today = datetime.strftime(datetime.now(), "%Y-%m-%d")
+        fields_to_edit = self._find_existing_ad_address_types(uuid)
+
+        def check_ad_field_exists(field):
+            if field not in ad_object:
+                logger.debug('No such AD field: {}'.format(field))
+                return False
+            return True
+
+        def check_field_in_fields_to_edit(field):
+            return field in fields_to_edit.keys()
+
+        def check_validity_is_ok(field):
+            # NOTE: Maybe this should be not set, or in the future?
+            return fields_to_edit[field]['validity']['to'] is None
+
+        # Find fields to terminate
+        address_fields = self.mapping['user_addresses'].keys()
+        # we terminate even if somebody has removed the field from AD 
+        # address_fields = filter(check_ad_field_exists, address_fields)
+        address_fields = filter(check_field_in_fields_to_edit, address_fields)
+        address_fields = filter(check_validity_is_ok, address_fields)
+        for field in address_fields:
+            payload = {
+                'type': 'address',
+                'uuid': fields_to_edit[field]['uuid'],
+                'validity': {"to": today}
+            }
+            logger.debug('Finalize payload: {}'.format(payload))
+            response = self.helper._mo_post('details/terminate', payload)
+            logger.debug('Response: {}'.format(response.text))
+
+    def _update_single_user(self, uuid, ad_object, terminate_disabled):
         """
         Update all fields for a single user.
         :param uuid: uuid of the user.
         :param ad_object: Dict with the AD information for the user.
         """
+        # Debug log if enabled is not found
+        if 'Enabled' not in ad_object:
+            logger.info('{} not in ad_object'.format("Enabled"))
+
+        # Check whether the current user is disabled or not
+        current_user_is_disabled = ad_object.get('Enabled', True) == False
+        if terminate_disabled and current_user_is_disabled:
+            # Set validity end --> today if in the future
+            self._finalize_it_system(uuid, ad_object)
+            self._finalize_user_addresses(uuid, ad_object)
+            return
+
+        # Sync the user, whether disabled or not
         if 'it_systems' in self.mapping:
             self._edit_it_system(uuid, ad_object)
 
@@ -373,27 +465,90 @@ class AdMoSync(object):
         if 'user_addresses' in self.mapping:
             self._edit_user_addresses(uuid, ad_object)
 
+    def _setup_ad_reader_and_cache_all(self, index):
+        ad_reader = adreader.ADParameterReader(index=index)
+        print('Retrive AD dump')
+        ad_reader.cache_all()
+        print('Done')
+        logger.info('Done with AD caching')
+        return ad_reader
+
+    def _verify_it_systems(self):
+        """Verify that all configured it-systems exist."""
+        if 'it_systems' not in self.mapping:
+            return
+
+        # Set of UUIDs of all it_systems in MO
+        mo_it_systems = set(
+            map(itemgetter('uuid'), self.helper.read_it_systems())
+        )
+
+        @apply
+        def filter_found(it_system, it_system_uuid):
+            return it_system_uuid not in mo_it_systems
+
+        # List of tuples (name, uuid) of it-systems configured in settings
+        configured_it_systems = self.mapping['it_systems'].items()
+        # Remove all the ones that exist in MO
+        configured_it_systems = filter(filter_found, configured_it_systems)
+
+        for it_system, it_system_uuid in configured_it_systems:
+            msg = '{} with uuid {}, not found in MO'
+            raise Exception(msg.format(it_system, it_system_uuid))
+
     def update_all_users(self):
-        """
-        Iterate over all users and sync AD informations to MO.
-        """
-        i = 0
-        employees = self._read_all_mo_users()
-        for employee in employees:
-            i = i + 1
-            if i % 100 == 0:
-                print('Progress: {}/{}'.format(i, len(employees)))
-            # logger.info('Start sync of {}'.format(employee['uuid']))
-            if 'cpr' in employee:
-                cpr = employee['cpr']
-            else:
-                user = self.helper.read_user(employee['uuid'])
-                cpr = user['cpr_no']
-            response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
-            if response:
-                self._update_single_user(employee['uuid'], response)
-            # logger.info('End sync of {}'.format(employee['uuid']))
-        logger.info('Stats: {}'.format(self.stats))
+        # Iterate over all AD's 
+        for index, _ in enumerate(self.settings["integrations.ad"]):
+
+            self.stats = {
+                'ad-index': index,
+                'addresses': [0, 0],
+                'engagements': 0,
+                'it_systems': 0,
+                'users': set()
+            }
+
+            ad_reader = self._setup_ad_reader_and_cache_all(index=index)
+
+            # move to read_conf_settings og valider på tværs af alle-ad'er
+            # så vi ikke overskriver addresser, itsystemer og extensionfelter 
+            # fra et ad med  med værdier fra et andet
+            self.mapping = ad_reader._get_setting()['ad_mo_sync_mapping']
+            self._verify_it_systems()
+
+            used_mo_fields = []
+
+            for key in self.mapping.keys():
+                for ad_field, mo_combi in self.mapping.get(key, {}).items():
+                    if mo_combi in used_mo_fields:
+                        msg = 'MO field {} used more than once'
+                        raise Exception(msg.format(mo_combi))
+                    used_mo_fields.append(mo_combi)
+
+            def employee_to_cpr_uuid(employee):
+                """Convert an employee to a tuple (cpr, uuid)."""
+                uuid = employee['uuid']
+                if 'cpr' in employee:
+                    cpr = employee['cpr']
+                else:
+                    cpr = self.helper.read_user(uuid)['cpr_no']
+                return cpr, uuid
+
+            # Lookup whether or not to terminate disabled users
+            terminate_disabled = ad_reader._get_setting().get(
+                "ad_mo_sync_terminate_disabled", False
+            )
+
+            # Iterate over all users and sync AD informations to MO.
+            employees = self._read_all_mo_users()
+            employees = progress_iterator(employees)
+            employees = map(employee_to_cpr_uuid, employees)
+            for cpr, uuid in employees:
+                response = ad_reader.read_user(cpr=cpr, cache_only=True)
+                if response:
+                    self._update_single_user(uuid, response, terminate_disabled)
+
+            logger.info('Stats: {}'.format(self.stats))
         self.stats['users'] = 'Written in log file'
         print(self.stats)
 

@@ -23,14 +23,16 @@ dist
 venv-*
 venv
 
-#Logs and caches
+# Logs and caches
 tmp
 
 # Workspace
 overflow
+.hypothesis/
 
-#default output filenames
+# default output filenames
 emus_filename.xml
 
 # customer settings
 settings
+ActualState.db

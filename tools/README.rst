@@ -77,7 +77,29 @@ for at komme tilbage til en veldefineret tilstand.
 
 Der kan være mere konfiguration nødvendig for de enkelte jobs - se disse for detaljer
 
-Kørsel af jobs
+Mountpoints
+^^^^^^^^^^^
+Tilvejebringelse (og afslutning) af mountpoints styres af et script, cronhook.sh, som kaldes før og efter
+job-runner.sh. Dette script afvilker scripts i cronhook.pre.d og cronhook.post.d, hvis de er slået til i settings
+Sripts her afvikles i alfabetisk orden, og de bør hver især brokke sig over de settings de mangler
+
+For at mounte opus-filer ind fra et windows share anvendes følgende settings:
+
+* cronhook.mount_opus_on: true/ false
+* cronhook.mount_opus_share - en windows unc-sti
+* cronhook.mount_opus_mountpoint - det mounpoint hvor sharet mountet
+* cronhook.mount_opus_username - brugernavn til sharet
+* cronhook.mount_opus_password - password til sharet
+
+For at unmounte efter kørslen sættes denne setting, men lad være med det.
+Det besværliggør fejlfinding, hvis ikke der hele tiden er kontakt til filerne
+
+* cronhook.unmount_opus_on: true/false
+
+Husk at mountpoints på windows ofte indeholder $-tegnet. Et sådan skal i settings escapes som \\$ 
+
+
+Korsel af jobs
 ^^^^^^^^^^^^^^
 
 job-runner.sh er ikke et smart program. Dert er til gengæld simpelt.: Job-afviklingen foregår i 3 afdelinger: imports, exports og reports.
@@ -218,7 +240,72 @@ Programmet er 17/3 2020 skrevet om til at håndtere os2mo under docker.
 moxklas.sh
 ==========
 
-Anvendes under implementering til at oprette klasser i Lora.
+Anvendes under implementering til at oprette klasser i Lora. Nogle gange også efterfølgende. Scriptet er simpelt, men ikke så simpelt at kalde:
+
+For at oprette en Email-addresse-klasse med en predefineret uuid under facetten employee_address_type udføres:
+
+.. code-block:: bash
+
+    uuid=68d3d0ce-9fde-11ea-80b1-63a0ea904cea facet=employee_address_type bvn=test-moxklas titel=test-moxklas scope=EMAIL bash tools/moxklas.sh 
+
+
+Man kan provokere et dry-run ved at sætte en parameter efter hele linien
+
+.. code-block:: bash
+
+    uuid=68d3d0ce-9fde-11ea-80b1-63a0ea904cea facet=employee_address_type bvn=test-moxklas titel=test-moxklas scope=EMAIL bash tools/moxklas.sh 42
+
+Ovenstående sender et payload til lora, som opretter en klasse som ligner nedenstående
+
+.. code-block:: json
+
+    {
+      "attributter": {
+        "klasseegenskaber": [
+          {
+            "brugervendtnoegle": "test-moxklas",
+            "titel": "test-moxklas",
+            "omfang": "EMAIL",
+            "virkning": {
+              "from": "1930-01-01 12:02:32",
+              "to": "infinity"
+            }
+          }
+        ]
+      },
+      "tilstande": {
+        "klassepubliceret": [
+          {
+            "publiceret": "Publiceret",
+            "virkning": {
+              "from": "1930-01-01 12:02:32",
+              "to": "infinity"
+            }
+          }
+        ]
+      },
+      "relationer": {
+        "ansvarlig": [
+          {
+            "uuid": "8a2ae31b-422a-4374-b3a8-a2ed4ed23c63",
+            "virkning": {
+              "from": "1930-01-01 12:02:32",
+              "to": "infinity"
+            },
+            "objekttype": "organisation"
+          }
+        ],
+        "facet": [
+          {
+            "uuid": "332e8b38-68c3-4457-a5fb-3332216bb7a6",
+            "virkning": {
+              "from": "1930-01-01 12:02:32",
+              "to": "infinity"
+            }
+          }
+        ]
+      }
+    }
 
 
 opus_import_all.sh
@@ -278,3 +365,10 @@ job-runner.d
 Job-runner.d er konponenter, der loades af job-runneren
 Indtil nu loades funktionen, der afvikler jobs herigennem ligesom nyeste tilføjelse: tidsmålinger gør.
 
+
+terminate_orgfunc.py
+====================
+
+Et tool, som terminerer ALLE brugeres adresser og it-forbindelser. Det er jo ikke særligt smart
+at køre sådan et, for så skal man oprette dem allesammen igen. Det er imidlertid nødvendigt, 
+hvis man er Viborg og tidligere har brugt Skole-AD eller man ændrer feltmapning

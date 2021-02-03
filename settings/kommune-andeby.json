@@ -17,23 +17,26 @@
     "crontab.RUN_OPGAVEFORDELER": false,
     "crontab.RUN_ACTUAL_STATE_EXPORT": false,
     "crontab.RUN_HISTORIC_SQL_EXPORT": false,
+    "crontab.RUN_EXPORTS_AD_LIFE_CYCLE": false,
+    "crontab.RUN_EXPORTS_MO_TO_AD_SYNC": false,
 
     "crontab.SAML_TOKEN": "",
-    "crontab.SVC_USER": "USER@KOMMUNE.NET", 
-    "crontab.SVC_KEYTAB": "/path/keytab-file", 
-    "crontab.CRON_BACKUP": "/path/backup-dir", 
-    "crontab.CRON_LOG_FILE": "/path/cron-log-file", 
-    "crontab.CRON_LOG_JSON_SINK": "/path/log.json",
+    "crontab.SVC_USER": "USER@KOMMUNE.NET",
+    "crontab.SVC_KEYTAB": "tmp/keytab-file",
+    "crontab.CRON_BACKUP": "tmp/backup-dir",
+    "crontab.CRON_LOG_FILE": "tmp/cron-log-file",
+    "crontab.CRON_LOG_JSON_SINK": "tmp/log.json",
     "crontab.BACKUP_SAVE_DAYS": "60",
-    "crontab.SNAPSHOT_LORA":"/path/db-snapshot.sql",
-    "crontab.OS2MO_COMPOSE_YML":"/path/to/os2mo/docker-compose.yml",
+    "crontab.SNAPSHOT_LORA":"tmp/db-snapshot.sql",
+    "crontab.OS2MO_COMPOSE_YML":"tmp/to/os2mo/docker-compose.yml",
 
-    "mox.base": "http://example.com/mox",
+    "mox.base": "http://localhost:8080",
     "mora.admin_top_unit": "angiver roden af det organisatoriske træ, der skal overføres(emus/os2sync)",
-    "mora.base": "http://example.com/mora",
+    "mora.base": "http://localhost:5000",
     "mora.folder.query_export":"path-to-where-os2mo-reads-csv-files",
     "municipality.name": "Andeby Kommune",
     "municipality.cvr": "11223344",
+    "municipality.code": "11223344",
     "address.visibility.secret": "uuid-for-secret-address",
     "address.visibility.internal": "uuid-for-internal-address",
     "address.visibility.public": "uuid-for-public-address",
@@ -47,8 +50,8 @@
     "emus.sftp_key_path": "angiver den nøgle, man anvender got at forbinde sig til sftp-serveren",
     "emus.sftp_user": "angiver den sftp-user, man forbinder som",
     "emus.userid_itsystem": "angiver hvilket IT-system, man tager brugernavnet fra, default er ``Active Directory",
-
-
+    "emus.email.priority":["email-addresse-klasser, som valget indsnævres til - prioriteret liste"],
+    "emus.phone.priority":["phone-addresse-klasser, som valget indsnævres til - prioriteret liste"],
 
     "exports_viborg_eksterne.destination_smb_share":"smb-share",
     "exports_viborg_eksterne.destination_directory":"directory-name",
@@ -56,6 +59,7 @@
     "exports_viborg_eksterne.outfile_basename":"viborg_ekstern.csv",
     "exports_viborg_eksterne.destination_smb_share":"sharename-write-4-backslashes-for-each-backslash",
     "exports_viborg_eksterne.destination_directory":"directory-name-on-smb-share",
+    "exports_viborg_eksterne.email.priority":["email-addresse-klasser, som valget indsnævres til - prioriteret liste"],
 
     "exporters.actual_state.manager_responsibility_class": "uuid-for-responsibility",
     "exporters.actual_state.type": "MS-SQL",
@@ -156,7 +160,10 @@
     "os2sync.email_scope_classes": [],
     "os2sync.api_url" : "/url-to-os2sync-api",
     "os2sync.top_unit_uuid": "uuid for administrative org top unit in os2mo",
+    "os2sync.xfer_cpr": "xfer_cpr",
 
     "integrations.os2opgavefordeler.url": "",
-    "integrations.os2opgavefordeler.token": ""
+    "integrations.os2opgavefordeler.token": "",
+
+    "integrations.kle_xlsx.file_path": ""
 }

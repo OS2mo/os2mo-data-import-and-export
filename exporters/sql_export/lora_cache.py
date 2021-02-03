@@ -8,12 +8,24 @@ import datetime
 import dateutil
 import lora_utils
 import requests
+from operator import itemgetter
+from itertools import starmap
+from collections import defaultdict
+
+import click
+from more_itertools import bucket
 
 from os2mo_helpers.mora_helpers import MoraHelper
+from integrations.dar_helper import dar_helper
 
 logger = logging.getLogger("LoraCache")
 
 DEFAULT_TIMEZONE = dateutil.tz.gettz('Europe/Copenhagen')
+
+PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
+
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = 'lora_cache.log'
 
 
 class LoraCache(object):
@@ -21,24 +33,25 @@ class LoraCache(object):
     def __init__(self, resolve_dar=True, full_history=False, skip_past=False):
         msg = 'Start LoRa cache, resolve dar: {}, full_history: {}'
         logger.info(msg.format(resolve_dar, full_history))
+        self.resolve_dar = resolve_dar
 
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = self._load_settings()
 
         self.additional = {
             'relationer': ('tilknyttedeorganisationer', 'tilhoerer')
         }
 
-        if resolve_dar:
-            self.dar_cache = {}
-        else:
-            self.dar_cache = None
+        self.dar_map = defaultdict(list)
 
         self.full_history = full_history
         self.skip_past = skip_past
         self.org_uuid = self._read_org_uuid()
+
+    def _load_settings(self):
+        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+        if not cfg_file.is_file():
+            raise Exception('No setting file')
+        return json.loads(cfg_file.read_text())
 
     def _read_org_uuid(self):
         mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
@@ -218,26 +231,64 @@ class LoraCache(object):
         return itsystems
 
     def _cache_lora_users(self):
-        # MO assigns no validity to users, no historic export here.
         params = {'bvn': '%'}
         url = '/organisation/bruger'
-        user_list = self._perform_lora_lookup(url, params, skip_history=True)
+        user_list = self._perform_lora_lookup(url, params)
+
+        relevant = {
+            "attributter": ("brugeregenskaber", "brugerudvidelser"),
+            "relationer": ("tilknyttedepersoner", "tilhoerer"),
+            "tilstande": ("brugergyldighed",),
+        }
 
         users = {}
         for user in user_list:
             uuid = user['id']
-            reg = user['registreringer'][0]
-            cpr = reg['relationer']['tilknyttedepersoner'][0]['urn'][-10:]
-            udv = reg['attributter']['brugerudvidelser'][0]
-            fornavn = udv.get('fornavn', '')
-            efternavn = udv.get('efternavn', '')
-            users[uuid] = {
-                'uuid': uuid,
-                'cpr': cpr,
-                'fornavn': fornavn,
-                'efternavn': efternavn,
-                'navn': '{} {}'.format(fornavn, efternavn)
-            }
+            users[uuid] = []
+
+            effects = list(self._get_effects(user, relevant))
+            for effect in effects:
+                from_date, to_date = self._from_to_from_effect(effect)
+                if from_date is None and to_date is None:
+                    continue
+                reg = effect[2]
+
+                tilknyttedepersoner = reg['relationer']['tilknyttedepersoner']
+                if len(tilknyttedepersoner) == 0:
+                    continue
+                cpr = tilknyttedepersoner[0]['urn'][-10:]
+
+                egenskaber = reg['attributter']['brugeregenskaber']
+                if len(egenskaber) == 0:
+                    continue
+                egenskaber = egenskaber[0]
+
+                udv = reg['attributter']['brugerudvidelser']
+                if len(udv) == 0:
+                    continue
+                udv = udv[0]
+
+                user_key = egenskaber.get('brugervendtnoegle', '')
+                fornavn = udv.get('fornavn', '')
+                efternavn = udv.get('efternavn', '')
+                kaldenavn_fornavn = udv.get('kaldenavn_fornavn', '')
+                kaldenavn_efternavn = udv.get('kaldenavn_efternavn', '')
+                users[uuid].append(
+                    {
+                        'uuid': uuid,
+                        'cpr': cpr,
+                        'user_key': user_key,
+                        'fornavn': fornavn,
+                        'efternavn': efternavn,
+                        'navn': ' '.join([fornavn, efternavn]).strip(),
+                        'kaldenavn_fornavn': kaldenavn_fornavn,
+                        'kaldenavn_efternavn': kaldenavn_efternavn,
+                        'kaldenavn': ' '.join([kaldenavn_fornavn,
+                                               kaldenavn_efternavn]).strip(),
+                        'from_date': from_date,
+                        'to_date': to_date
+                    }
+                )
         return users
 
     def _cache_lora_units(self):
@@ -272,7 +323,7 @@ class LoraCache(object):
                 else:
                     parent = parent_raw
 
-                if 'niveau' in relationer:
+                if 'niveau' in relationer and len(relationer['niveau']) > 0:
                     level = relationer['niveau'][0]['uuid']
                 else:
                     level = None
@@ -301,8 +352,6 @@ class LoraCache(object):
         }
         address_list = self._perform_lora_lookup(url, params)
 
-        total_dar = 0
-        no_hit = 0
         addresses = {}
         logger.info('Performing DAR lookup, this might take a while...')
         for address in address_list:
@@ -316,7 +365,7 @@ class LoraCache(object):
                     continue
                 relationer = effect[2]['relationer']
 
-                if 'tilknyttedeenheder' in relationer:
+                if 'tilknyttedeenheder' in relationer and len(relationer['tilknyttedeenheder']) > 0:
                     unit_uuid = relationer['tilknyttedeenheder'][0]['uuid']
                     user_uuid = None
                 elif 'tilknyttedebrugere' in relationer and len(relationer['tilknyttedebrugere']) > 0:
@@ -354,34 +403,13 @@ class LoraCache(object):
                     skip_len = len('urn:text:')
                     value = urllib.parse.unquote(value_raw[skip_len:])
                 elif address_type == 'DAR':
-                    # print('Total dar: {}, no-hit: {}'.format(total_dar, no_hit))
-
                     scope = 'DAR'
                     skip_len = len('urn:dar:')
                     dar_uuid = value_raw[skip_len:]
-                    total_dar += 1
+                    value = None
 
-                    if self.dar_cache is None:
-                        value = None
-                    else:
-                        if self.dar_cache.get(dar_uuid) is None:
-                            self.dar_cache[dar_uuid] = {}
-                            no_hit += 1
-                            for addrtype in ('adresser', 'adgangsadresser'):
-                                logger.debug('Looking up dar: {}'.format(dar_uuid))
-                                adr_url = 'https://dawa.aws.dk/{}'.format(addrtype)
-                                # 'historik/adresser', 'historik/adgangsadresser'
-                                params = {'id': dar_uuid, 'struktur': 'mini'}
-                                # Note: Dar accepts up to 10 simultanious
-                                # connections, consider grequests.
-                                r = requests.get(url=adr_url, params=params)
-                                address_data = r.json()
-                                r.raise_for_status()
-                                if address_data:
-                                    self.dar_cache[dar_uuid] = address_data[0]
-                                    break
-                                self.dar_cache[dar_uuid] = {'betegelse': 'skip dar'}
-                        value = self.dar_cache[dar_uuid].get('betegnelse')
+                    if self.dar_map is not None:
+                        self.dar_map[dar_uuid].append(uuid)
                 else:
                     print('Ny type: {}'.format(address_type))
                     msg = 'Unknown addresse type: {}, value: {}'
@@ -410,7 +438,6 @@ class LoraCache(object):
                         'to_date': to_date
                     }
                 )
-        logger.info('Total dar: {}, no-hit: {}'.format(total_dar, no_hit))
         return addresses
 
     def _cache_lora_engagements(self):
@@ -427,9 +454,9 @@ class LoraCache(object):
         engagement_list = self._perform_lora_lookup(url, params)
         for engagement in engagement_list:
             uuid = engagement['id']
-            engagements[uuid] = []
 
             effects = self._get_effects(engagement, relevant)
+            engagement_effects = []
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 if from_date is None and to_date is None:
@@ -460,7 +487,10 @@ class LoraCache(object):
                 if primær:
                     primary_type = primær[0]['uuid']
 
-                job_function = rel['opgaver'][0]['uuid']
+                try:
+                    job_function = rel['opgaver'][0]['uuid']
+                except:
+                    continue
 
                 user_uuid = rel['tilknyttedebrugere'][0]['uuid']
                 unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
@@ -487,7 +517,7 @@ class LoraCache(object):
                     'udvidelse_10': udvidelser.get('udvidelse_10')
                 }
 
-                engagements[uuid].append(
+                engagement_effects.append(
                     {
                         'uuid': uuid,
                         'user': user_uuid,
@@ -502,6 +532,8 @@ class LoraCache(object):
                         'to_date': to_date
                     }
                 )
+            if engagement_effects:
+                engagements[uuid] = engagement_effects
         return engagements
 
     def _cache_lora_associations(self):
@@ -700,20 +732,56 @@ class LoraCache(object):
                 rel = effect[2]['relationer']
                 unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
                 kle_number = rel['organisatoriskfunktionstype'][0]['uuid']
-                kle_aspect = rel['opgaver'][0]['uuid']
 
-                kles[uuid].append(
+                for aspekt in rel['opgaver']:
+                    kle_aspect = aspekt['uuid']
+                    kles[uuid].append(
+                        {
+                            'uuid': uuid,
+                            'unit': unit_uuid,
+                            'kle_number': kle_number,
+                            'kle_aspect': kle_aspect,
+                            'user_key': user_key,
+                            'from_date': from_date,
+                            'to_date': to_date
+                        }
+                    )
+        return kles
+
+    def _cache_lora_related(self):
+        params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Relateret Enhed'}
+        url = '/organisation/organisationfunktion'
+        related_list = self._perform_lora_lookup(url, params)
+        related = {}
+        for relate in related_list:
+            uuid = relate['id']
+            related[uuid] = []
+
+            relevant = {
+                'relationer': ('tilknyttedeenheder',),
+                'attributter': ()
+            }
+
+            effects = self._get_effects(relate, relevant)
+            for effect in effects:
+                from_date, to_date = self._from_to_from_effect(effect)
+                if from_date is None and to_date is None:
+                    continue
+
+                rel = effect[2]['relationer']
+                unit1_uuid = rel['tilknyttedeenheder'][0]['uuid']
+                unit2_uuid = rel['tilknyttedeenheder'][1]['uuid']
+
+                related[uuid].append(
                     {
                         'uuid': uuid,
-                        'unit': unit_uuid,
-                        'kle_number': kle_number,
-                        'kle_aspect': kle_aspect,
-                        'user_key': user_key,
+                        'unit1_uuid': unit1_uuid,
+                        'unit2_uuid': unit2_uuid,
                         'from_date': from_date,
                         'to_date': to_date
                     }
                 )
-        return kles
+        return related
 
     def _cache_lora_managers(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Leder'}
@@ -741,7 +809,10 @@ class LoraCache(object):
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 rel = effect[2]['relationer']
-                user_uuid = rel['tilknyttedebrugere'][0]['uuid']
+                try:
+                    user_uuid = rel['tilknyttedebrugere'][0]['uuid']
+                except:
+                    user_uuid = None
                 unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
                 manager_type = rel['organisatoriskfunktionstype'][0]['uuid']
                 manager_responsibility = []
@@ -775,32 +846,52 @@ class LoraCache(object):
             print(msg)
             return
 
-        user_primary = {}
-        for uuid, eng_validities in self.engagements.items():
+        def extract_engagement(uuid, eng_validities):
+            """Extract engagement from engagement validities."""
             assert(len(eng_validities)) == 1
             eng = eng_validities[0]
+            return uuid, eng
 
-            primary_type = self.classes.get(eng['primary_type'])
+        def convert_to_scope_value(uuid, engagement):
+            """Convert engagement to scope value."""
+            primary_type = self.classes.get(engagement['primary_type'])
             if primary_type is None:
-                msg = 'Primary information missing in engagement {}'
-                logger.debug(msg.format(uuid))
-                continue
+                logger.debug(
+                    'Primary information missing in engagement {}'.format(uuid)
+                )
+                return 0
             primary_scope = int(primary_type['scope'])
-            if eng['user'] in user_primary:
-                if user_primary[eng['user']][0] < primary_scope:
-                    user_primary[eng['user']] = [primary_scope, uuid, None]
-            else:
-                user_primary[eng['user']] = [primary_scope, uuid, None]
+            return uuid, primary_scope
 
-        for uuid, eng_validities in self.engagements.items():
-            eng = eng_validities[0]
-            primary_for_user = user_primary.get(eng['user'], [None, None, None])
-            if primary_for_user[1] == uuid:
-                logger.debug('Primary for {} is {}'.format(eng['user'], uuid))
-                self.engagements[uuid][0]['primary_boolean'] = True
-            else:
-                logger.debug('{} is not primary {}'.format(uuid, eng['user']))
-                self.engagements[uuid][0]['primary_boolean'] = False
+        def get_engagement_user(tup):
+            uuid, engagement = tup
+            return engagement['user']
+
+        # List of 2-tuples: uuid, engagement validities
+        engagement_validities = self.engagements.items()
+        # Iterator of 2-tuples: uuid, engagement
+        engagements = starmap(extract_engagement, engagement_validities)
+        # Buckets of iterators of 2-tuples: uuid, engagement
+        user_buckets = bucket(engagements, key=get_engagement_user)
+        # Run though the user buckets in turn
+        for user_uuid in user_buckets:
+            # Iterator of 2-tuples: uuid, engagement
+            user_engagements = user_buckets[user_uuid]
+            # Iterator of 2-tuples: uuid, scope_value
+            scope_values = list(starmap(convert_to_scope_value, user_engagements))
+
+            # Find the highest scope in the users engagements, all engagements with
+            # this scope value will be considered primary.
+            highest_scope = max(map(itemgetter(1), scope_values))
+
+            # Loop through all engagements and start marking them with primarity
+            for uuid, primary_scope in scope_values:
+                is_primary = (primary_scope == highest_scope)
+                if is_primary:
+                    logger.debug('Primary for {} is {}'.format(user_uuid, uuid))
+                else:
+                    logger.debug('{} is not primary {}'.format(uuid, user_uuid))
+                self.engagements[uuid][0]['primary_boolean'] = is_primary
 
     def calculate_derived_unit_data(self):
         if self.full_history:
@@ -811,24 +902,43 @@ class LoraCache(object):
             print(msg)
             return
 
-        responsibility_class = self.settings[
-            'exporters.actual_state.manager_responsibility_class']
+        responsibility_class = self.settings.get(
+            'exporters.actual_state.manager_responsibility_class', None
+        )
         for unit, unit_validities in self.units.items():
             assert(len(unit_validities)) == 1
             unit_info = unit_validities[0]
             manager_uuid = None
             acting_manager_uuid = None
 
-            # Find a direct manager, if possible
-            for manager, manager_validities in self.managers.items():
-                assert(len(manager_validities)) == 1
-                manager_info = manager_validities[0]
+            def find_manager_for_org_unit(org_unit):
+                def to_manager_info(manager_uuid, manager_validities):
+                    assert(len(manager_validities)) == 1
+                    manager_info = manager_validities[0]
+                    return manager_uuid, manager_info
 
-                if manager_info['unit'] == unit:
-                    for resp in manager_info['manager_responsibility']:
-                        if resp == responsibility_class:
-                            manager_uuid = manager
-                            acting_manager_uuid = manager
+                def filter_invalid_managers(tup):
+                    manager_uuid, manager_info = tup
+                    # Wrong unit
+                    if manager_info['unit'] != org_unit:
+                        return False
+                    # No resonsibility class
+                    if responsibility_class is None:
+                        return True
+                    # Check responsability
+                    return any(
+                        resp == responsibility_class
+                        for resp in manager_info['manager_responsibility']
+                    )
+
+                managers = self.managers.items()
+                managers = starmap(to_manager_info, managers)
+                managers = filter(filter_invalid_managers, managers)
+                managers = map(itemgetter(0), managers)
+                return next(managers, None)
+
+            # Find a direct manager, if possible
+            manager_uuid = acting_manager_uuid = find_manager_for_org_unit(unit)
 
             location = ''
             current_unit = unit_info
@@ -842,17 +952,41 @@ class LoraCache(object):
 
                 # Find the acting manager.
                 if acting_manager_uuid is None:
-                    for manager, manager_validities in self.managers.items():
-                        manager_info = manager_validities[0]
-                        if manager_info['unit'] == current_parent:
-                            for resp in manager_info['manager_responsibility']:
-                                if resp == responsibility_class:
-                                    acting_manager_uuid = manager
+                    acting_manager_uuid = find_manager_for_org_unit(current_parent)
             location = location[:-1]
 
             self.units[unit][0]['location'] = location
             self.units[unit][0]['manager_uuid'] = manager_uuid
             self.units[unit][0]['acting_manager_uuid'] = acting_manager_uuid
+
+    def _cache_dar(self):
+        # Initialize cache for entries we cannot lookup
+        dar_uuids = self.dar_map.keys()
+        dar_cache = dict(map(
+            lambda dar_uuid: (dar_uuid, {'betegnelse': None}), dar_uuids
+        ))
+        total_dar = len(dar_uuids)
+        total_missing = total_dar
+
+        # Start looking entries up in DAR
+        if self.resolve_dar:
+            dar_addresses, missing = dar_helper.sync_dar_fetch(dar_uuids)
+            dar_adgange, missing = dar_helper.sync_dar_fetch(
+                list(missing), addrtype="adgangsadresser"
+            )
+            total_missing = len(missing)
+
+            dar_cache.update(dar_addresses)
+            dar_cache.update(dar_adgange)
+
+        # Update all addresses with betegnelse
+        for dar_uuid, uuid_list in self.dar_map.items():
+            for uuid in uuid_list:
+                for address in self.addresses[uuid]:
+                    address['value'] = dar_cache[dar_uuid].get('betegnelse')
+
+        logger.info('Total dar: {}, no-hit: {}'.format(total_dar, total_missing))
+        return dar_cache
 
     def populate_cache(self, dry_run=False, skip_associations=False):
         """
@@ -875,6 +1009,7 @@ class LoraCache(object):
             itsystems_file = 'tmp/itsystems_historic.p'
             it_connections_file = 'tmp/it_connections_historic.p'
             kles_file = 'tmp/kles_historic.p'
+            related_file = 'tmp/related_historic.p'
         else:
             facets_file = 'tmp/facets.p'
             classes_file = 'tmp/classes.p'
@@ -889,6 +1024,7 @@ class LoraCache(object):
             itsystems_file = 'tmp/itsystems.p'
             it_connections_file = 'tmp/it_connections.p'
             kles_file = 'tmp/kles.p'
+            related_file = 'tmp/related.p'
 
         if dry_run:
             logger.info('LoRa cache dry run - no actual read')
@@ -921,6 +1057,8 @@ class LoraCache(object):
                 self.it_connections = pickle.load(f)
             with open(kles_file, 'rb') as f:
                 self.kles = pickle.load(f)
+            with open(related_file, 'rb') as f:
+                self.related = pickle.load(f)
             return
 
         t = time.time()
@@ -933,9 +1071,9 @@ class LoraCache(object):
         dt = time.time() - t
         elements = len(self.classes) + len(self.facets)
         with open(facets_file, 'wb') as f:
-            pickle.dump(self.facets, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.facets, f, PICKLE_PROTOCOL)
         with open(classes_file, 'wb') as f:
-            pickle.dump(self.classes, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.classes, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, elements, elements/dt))
 
         t = time.time()
@@ -943,7 +1081,7 @@ class LoraCache(object):
         self.users = self._cache_lora_users()
         dt = time.time() - t
         with open(users_file, 'wb') as f:
-            pickle.dump(self.users, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.users, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.users), len(self.users)/dt))
 
         t = time.time()
@@ -951,7 +1089,7 @@ class LoraCache(object):
         self.units = self._cache_lora_units()
         dt = time.time() - t
         with open(units_file, 'wb') as f:
-            pickle.dump(self.units, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.units, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.units), len(self.units)/dt))
 
         t = time.time()
@@ -959,7 +1097,7 @@ class LoraCache(object):
         self.addresses = self._cache_lora_address()
         dt = time.time() - t
         with open(addresses_file, 'wb') as f:
-            pickle.dump(self.addresses, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.addresses, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.addresses), len(self.addresses)/dt))
 
         t = time.time()
@@ -967,7 +1105,7 @@ class LoraCache(object):
         self.engagements = self._cache_lora_engagements()
         dt = time.time() - t
         with open(engagements_file, 'wb') as f:
-            pickle.dump(self.engagements, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.engagements, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.engagements), len(self.engagements)/dt))
 
         t = time.time()
@@ -975,7 +1113,7 @@ class LoraCache(object):
         self.managers = self._cache_lora_managers()
         dt = time.time() - t
         with open(managers_file, 'wb') as f:
-            pickle.dump(self.managers, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.managers, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.managers), len(self.managers)/dt))
 
         if not skip_associations:
@@ -984,7 +1122,7 @@ class LoraCache(object):
             self.associations = self._cache_lora_associations()
             dt = time.time() - t
             with open(associations_file, 'wb') as f:
-                pickle.dump(self.associations, f, pickle.HIGHEST_PROTOCOL)
+                pickle.dump(self.associations, f, PICKLE_PROTOCOL)
                 logger.info(msg.format(dt, len(self.associations),
                                        len(self.associations)/dt))
 
@@ -993,7 +1131,7 @@ class LoraCache(object):
         self.leaves = self._cache_lora_leaves()
         dt = time.time() - t
         with open(leaves_file, 'wb') as f:
-            pickle.dump(self.leaves, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.leaves, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.leaves), len(self.leaves)/dt))
 
         t = time.time()
@@ -1002,7 +1140,7 @@ class LoraCache(object):
         self.roles = self._cache_lora_roles()
         dt = time.time() - t
         with open(roles_file, 'wb') as f:
-            pickle.dump(self.roles, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.roles, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.roles), len(self.roles)/dt))
 
         t = time.time()
@@ -1012,9 +1150,9 @@ class LoraCache(object):
         elements = len(self.itsystems) + len(self.it_connections)
         dt = time.time() - t
         with open(itsystems_file, 'wb') as f:
-            pickle.dump(self.itsystems, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.itsystems, f, PICKLE_PROTOCOL)
         with open(it_connections_file, 'wb') as f:
-            pickle.dump(self.it_connections, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.it_connections, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, elements, elements/dt))
 
         t = time.time()
@@ -1022,14 +1160,46 @@ class LoraCache(object):
         self.kles = self._cache_lora_kles()
         dt = time.time() - t
         with open(kles_file, 'wb') as f:
-            pickle.dump(self.kles, f, pickle.HIGHEST_PROTOCOL)
+            pickle.dump(self.kles, f, PICKLE_PROTOCOL)
         logger.info(msg.format(dt, len(self.kles), len(self.kles)/dt))
+
+        t = time.time()
+        logger.info('Læs enhedssammenkobling')
+        self.related = self._cache_lora_related()
+        dt = time.time() - t
+        with open(related_file, 'wb') as f:
+            pickle.dump(self.related, f, pickle.HIGHEST_PROTOCOL)
+        logger.info(msg.format(dt, len(self.related), len(self.related)/dt))
+
+        t = time.time()
+        logger.info('Læs dar')
+        self.dar_cache = self._cache_dar()
+        dt = time.time() - t
+        #with open(cache_file, 'wb') as f:
+        #    pickle.dump(self.dar_cache, f, pickle.HIGHEST_PROTOCOL)
+        logger.info(msg.format(dt, len(self.dar_cache), len(self.dar_cache)/dt))
+
+
         # Here we should de-activate read-only mode
 
 
+@click.command()
+@click.option("--historic/--no-historic", default=True, help="Do full historic export")
+@click.option("--resolve-dar/--no-resolve-dar", default=False, help="Resolve DAR addresses")
+def cli(historic, resolve_dar):
+    lc = LoraCache(
+        full_history=historic,
+        skip_past=True,
+        resolve_dar=resolve_dar
+    )
+    lc.populate_cache(dry_run=False)
+
+    logger.info('Now calcualate derived data')
+    lc.calculate_derived_unit_data()
+    lc.calculate_primary_engagements()
+
+
 if __name__ == '__main__':
-    LOG_LEVEL = logging.DEBUG
-    LOG_FILE = 'lora_cache.log'
 
     for name in logging.root.manager.loggerDict:
         if name in ('LoraCache'):
@@ -1043,9 +1213,4 @@ if __name__ == '__main__':
         filename=LOG_FILE
     )
 
-    lc = LoraCache(full_history=True, skip_past=True, resolve_dar=False)
-    lc.populate_cache(dry_run=False)
-
-    logger.info('Now calcualate derived data')
-    lc.calculate_derived_unit_data()
-    lc.calculate_primary_engagements()
+    cli()

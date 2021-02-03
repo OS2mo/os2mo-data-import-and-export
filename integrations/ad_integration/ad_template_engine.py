@@ -1,5 +1,9 @@
 from jinja2 import Template
-from utils import dict_partition
+
+from utils import dict_map, dict_partition, duplicates, lower_list
+
+# Parameters that should not be quoted
+no_quote_list = ["Credential"]
 
 
 cmdlet_parameters = {
@@ -129,16 +133,25 @@ cmdlet_parameters = {
     },
 }
 
+# These may never be emitted in parameters / other_attributes
+illegal_parameters = {
+    "New-ADUser": ["Manager"],
+    "Set-ADUser": ["Manager", "Name"],
+}
+illegal_attributes = {
+    "New-ADUser": ["Credential", "Name"],
+    "Set-ADUser": ["Credential", "Name"],
+}
 
 cmdlet_templates = {
     "New-ADUser": """
         New-ADUser
         {%- for parameter, value in parameters.items() %}
-          -{{ parameter }} "{{ value }}"
+          -{{ parameter }} {{ value }}
         {%- endfor %}
           -OtherAttributes @{
         {%- for attribute, value in other_attributes.items() -%}
-            "{{ attribute }}"="{{ value }}";
+            "{{ attribute }}"={{ value }};
         {%- endfor -%}
         }
     """,
@@ -148,35 +161,19 @@ cmdlet_templates = {
     # TODO: Consider Replace versus Remove/Clean/Add
     "Set-ADUser": """
         Get-ADUser
-          -Filter 'SamAccountName -eq "{{ parameters['SamAccountName'] }}"'
-          -Credential "{{ parameters['Credential'] }}" |
+          -Filter 'SamAccountName -eq {{ parameters['SamAccountName'] }}'
+          -Credential {{ parameters['Credential'] }} |
         Set-ADUser
         {%- for parameter, value in parameters.items() %}
-          -{{ parameter }} "{{ value }}"
+          -{{ parameter }} {{ value }}
         {%- endfor %}
           -Replace @{
         {%- for attribute, value in other_attributes.items() -%}
-            "{{ attribute }}"="{{ value }}";
+            "{{ attribute }}"={{ value }};
         {%- endfor -%}
         }
     """,
 }
-
-
-def lower_list(listy):
-    """Convert each element in the list to lower-case.
-
-    Example:
-        result = lower_list(['Alfa', 'BETA', 'gamma'])
-        self.assertEqual(result, ['alfa', 'beta', 'gamma'])
-
-    Args:
-        listy: The list of strings to force into lowercase.
-
-    Returns:
-        list: A list where all contained the strings are lowercase.
-    """
-    return list(map(lambda x: x.lower(), listy))
 
 
 def prepare_default_field_templates(jinja_map):
@@ -214,29 +211,28 @@ def prepare_settings_based_field_templates(jinja_map, cmd, settings):
         dict: A jinja_map which has been extended with settings based values.
     """
     # Build settings-based templates
-    def _get_write_setting(settings):
+    def _get_setting_type(settings, key):
         # TODO: Currently we ignore school
-        if not settings["primary_write"]:
-            msg = "Trying to enable write access with broken settings."
-            logger.error(msg)
+        try:
+            return settings[key]
+        except KeyError:
+            msg = "Unable to find settings type: " + key
             raise Exception(msg)
-        return settings["primary_write"]
 
-    write_settings = _get_write_setting(settings)
+    write_settings = _get_setting_type(settings, "primary_write")
+    primary_settings = _get_setting_type(settings, "primary")
     jinja_map[
         write_settings["level2orgunit_field"]
     ] = "{{ mo_values['level2orgunit'] }}"
     jinja_map[write_settings["org_field"]] = "{{ mo_values['location'] }}"
 
     # Local fields for MO->AD sync'ing
-    named_sync_fields = settings.get("integrations.ad_writer.mo_to_ad_fields", {})
+    named_sync_fields = write_settings.get("mo_to_ad_fields")
     for mo_field, ad_field in named_sync_fields.items():
-        jinja_map[ad_field] = "{{ mo_values[" + mo_field + "] }}"
+        jinja_map[ad_field] = "{{ mo_values['" + mo_field + "'] }}"
 
     # Local fields for MO->AD sync'ing
-    named_sync_template_fields = settings.get(
-        "integrations.ad_writer.template_to_ad_fields", {}
-    )
+    named_sync_template_fields = write_settings.get("template_to_ad_fields")
     for ad_field, template in named_sync_template_fields.items():
         jinja_map[ad_field] = template
 
@@ -250,7 +246,7 @@ def prepare_settings_based_field_templates(jinja_map, cmd, settings):
         # power-shell code.
         jinja_map[write_settings["cpr_field"]] = (
             "{{ mo_values['cpr'][0:6] }}"
-            + settings["integrations.ad.cpr_separator"]
+            + primary_settings["cpr_separator"]
             + "{{ mo_values['cpr'][6:10] }}"
         )
 
@@ -268,10 +264,12 @@ def prepare_and_check_login_field_templates(jinja_map):
     """
     # Check against hardcoded values, as these will be forcefully overridden.
     jinja_keys = lower_list(jinja_map.keys())
-    if "Credential".lower() in jinja_keys:
+    if "credential" in jinja_keys:
         raise ValueError("Credential is hardcoded")
-    if "SamAccountName".lower() in jinja_keys:
+    if "samaccountname" in jinja_keys:
         raise ValueError("SamAccountName is hardcoded")
+    if "manager" in jinja_keys:
+        raise ValueError("Manager is handled uniquely")
     # Do the forceful override
     jinja_map["Credential"] = "$usercredential"
     jinja_map["SamAccountName"] = "{{ user_sam }}"
@@ -279,40 +277,99 @@ def prepare_and_check_login_field_templates(jinja_map):
     return jinja_map
 
 
-def prepare_template(cmd, jinja_map, settings):
+def prepare_field_templates(cmd, settings, jinja_map=None):
+    """Build a finalized map of parameters and attributes.
+
+    Args:
+        cmd: command to generate template for.
+        settings: dictionary containing settings from settings.json
+        jinja_map: dictionary from ad field names to jinja template strings.
+
+    Returns:
+        tuple(dict, dict):
+            parameters: a dict of parameter key, value pairs
+            other_attributes: a dict of attribute key, value pairs
+
+            Both dicts have the same format, namely:
+                field_name -> jinja template for the field
+    """
+    # Load field templates (ad_field --> template)
+    jinja_map = jinja_map or {}
+    jinja_map = prepare_default_field_templates(jinja_map)
+    jinja_map = prepare_settings_based_field_templates(jinja_map, cmd, settings)
+    jinja_map = prepare_and_check_login_field_templates(jinja_map)
+
+    # Check against duplicates in jinja_map
+    ad_fields_low = map(lambda ad_field: ad_field.lower(), jinja_map.keys())
+    duplicate_ad_fields = duplicates(ad_fields_low)
+    if duplicate_ad_fields:
+        raise ValueError("Duplicate ad_field: " + ",".join(duplicate_ad_fields))
+    return jinja_map
+
+
+def quote_templates(jinja_map):
+    # Put quotes around all values outside the no_quote_list
+    def quotes_wrap(value, key):
+        if key.lower() in lower_list(no_quote_list):
+            return value
+        return '"{}"'.format(value)
+
+    jinja_map = dict_map(jinja_map, value_func=quotes_wrap)
+    return jinja_map
+
+
+def partition_templates(cmd, jinja_map):
+    # Partition rendered attributes by parameters and attributes
+    parameter_list = lower_list(cmdlet_parameters[cmd])
+    other_attributes, parameters = dict_partition(
+        lambda key, _: key.lower() in parameter_list, jinja_map
+    )
+    return parameters, other_attributes
+
+
+def filter_illegal(cmd, parameters, other_attributes):
+
+    # Drop all illegal parameters and attributes
+    # Parameters
+    for parameter in illegal_parameters[cmd]:
+        parameters.pop(parameter, None)
+        parameters.pop(parameter.lower(), None)
+    # Attributes
+    for attribute in illegal_attributes[cmd]:
+        other_attributes.pop(attribute, None)
+        other_attributes.pop(attribute.lower(), None)
+
+    return parameters, other_attributes
+
+
+def prepare_template(cmd, settings, jinja_map=None):
     """Build a complete powershell command template.
 
     Args:
         cmd: command to generate template for.
-        jinja_map: dictionary from ad field names to jinja template strings.
         settings: dictionary containing settings from settings.json
+        jinja_map: dictionary from ad field names to jinja template strings.
 
     Returns:
         str: A jinja template string produced by templating the command
              template with all the field templates.
     """
     # Load command template via cmd
-    # cmd = 'Set-ADUser'
     cmd_options = cmdlet_templates.keys()
     if cmd not in cmd_options:
         raise ValueError(
             "prepare_template cmd must be one of: " + ",".join(cmd_options)
         )
     command_template = Template(cmdlet_templates[cmd])
-
-    # Load field templates (ad_field --> template)
-    jinja_map = prepare_default_field_templates(jinja_map)
-    jinja_map = prepare_settings_based_field_templates(jinja_map, cmd, settings)
-    jinja_map = prepare_and_check_login_field_templates(jinja_map)
-
-    # Partition rendered attributes by parameters and attributes
-    parameter_list = lower_list(cmdlet_parameters[cmd])
-    other_attributes, parameters = dict_partition(
-        lambda key, _: key.lower() in parameter_list, jinja_map
+    parameters, other_attributes = filter_illegal(
+        cmd,
+        *partition_templates(
+            cmd, quote_templates(prepare_field_templates(cmd, settings))
+        )
     )
 
     # Generate our combined template, by rendering our command template using
-    # the jinja_map templates.
+    # the field templates templates.
     combined_template = command_template.render(
         parameters=parameters, other_attributes=other_attributes
     )
@@ -323,21 +380,16 @@ def template_powershell(context, settings, cmd="New-ADUser", jinja_map=None):
     """Build a complete powershell command.
 
     Args:
-        cmd: command to generate template for. Defaults to 'New-ADUser'.
-        jinja_map: dictionary from ad field names to jinja template strings.
         context: dictionary used for jinja templating context.
         settings: dictionary containing settings from settings.json
+        cmd: command to generate template for. Defaults to 'New-ADUser'.
+        jinja_map: dictionary from ad field names to jinja template strings.
 
     Returns:
         str: An executable powershell script.
     """
-    # Set arguments to empty dicts if none
-    jinja_map = jinja_map or {}
-    context = context or {}
-    settings = settings or {}
-
     # Acquire the full template, templated itself with all field templates
-    full_template = prepare_template(cmd, jinja_map, settings)
+    full_template = prepare_template(cmd, settings)
 
     # Render the final template using the context
     return Template(full_template).render(**context)

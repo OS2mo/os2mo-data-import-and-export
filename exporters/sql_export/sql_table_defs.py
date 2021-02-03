@@ -23,10 +23,16 @@ class Klasse(Base):
 class Bruger(Base):
     __tablename__ = "brugere"
 
-    uuid = Column(String(36), nullable=False, primary_key=True)
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
+    bvn = Column(String(250), nullable=False)
     fornavn = Column(String(250), nullable=True)
     efternavn = Column(String(250), nullable=True)
+    kaldenavn_fornavn = Column(String(250), nullable=True)
+    kaldenavn_efternavn = Column(String(250), nullable=True)
     cpr = Column(String(250), nullable=False)
+    startdato = Column(String(10))
+    slutdato = Column(String(10))
 
 
 class Enhed(Base):
@@ -57,13 +63,15 @@ class Adresse(Base):
     bruger_uuid = Column(String(36), nullable=True)  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
     værdi = Column(String(250), nullable=True)
-    dar_uuid = Column(String(36), nullable=True)
+    dar_uuid = Column(String(36), nullable=True) # , ForeignKey('dar_adresser.uuid'))
     adressetype_uuid = Column(String(36), ForeignKey("klasser.uuid"))
+    adressetype_bvn = Column(String(250), nullable=False)
     adressetype_scope = Column(String(250), nullable=False)
     adressetype_titel = Column(String(250), nullable=False)
     synlighed_uuid = Column(
         String(36), nullable=True
     )  # , ForeignKey('klasser.uuid'))
+    synlighed_scope = Column(String(250), nullable=True)
     synlighed_titel = Column(String(250), nullable=True)
     startdato = Column(String(10))
     slutdato = Column(String(10))
@@ -208,3 +216,31 @@ class Kvittering(Base):
     query_tid = Column(DateTime)
     start_levering_tid = Column(DateTime)
     slut_levering_tid = Column(DateTime)
+
+
+class Enhedssammenkobling(Base):
+    __tablename__ = "enhedssammenkobling"
+
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
+    enhed1_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
+    enhed2_uuid  = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
+    startdato = Column(String(10))
+    slutdato = Column(String(10))
+
+
+class DARAdresse(Base):
+    __tablename__ = "dar_adresser"
+
+    id = Column(Integer, nullable=False, primary_key=True)
+    uuid = Column(String(36), nullable=False)
+    vejkode = Column(String(8))
+    vejnavn = Column(String(250))
+    husnr = Column(String(8))
+    etage = Column(String(16))
+    dør = Column(String(8))
+    postnr = Column(String(8))
+    postnrnavn = Column(String(250))
+    kommunekode = Column(String(8))
+    adgangsadresseid = Column(String(36))
+    betegnelse = Column(String(250))

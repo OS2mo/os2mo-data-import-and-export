@@ -1,3 +1,4 @@
+import click
 import json
 import atexit
 import pathlib
@@ -14,17 +15,19 @@ LOG_FILE = 'sync_job_id.log'
 
 logger = logging.getLogger('sdSyncJobId')
 
-for name in logging.root.manager.loggerDict:
-    if name in ('sdSyncJobId', 'sdCommon', 'mora-helper'):
-        logging.getLogger(name).setLevel(LOG_LEVEL)
-    else:
-        logging.getLogger(name).setLevel(logging.ERROR)
 
-logging.basicConfig(
-    format='%(levelname)s %(asctime)s %(name)s %(message)s',
-    level=LOG_LEVEL,
-    filename=LOG_FILE
-)
+def setup_logging():
+    for name in logging.root.manager.loggerDict:
+        if name in ('sdSyncJobId', 'sdCommon', 'mora-helper'):
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format='%(levelname)s %(asctime)s %(name)s %(message)s',
+        level=LOG_LEVEL,
+        filename=LOG_FILE
+    )
 
 
 class JobIdSync(object):
@@ -199,38 +202,36 @@ class JobIdSync(object):
 
         return 'Job position updated'
 
-    def _cli(self):
-        """
-        Command line interface for the Job Position Sync tool.
-        If only job_pos_id is given, value will be extracted from SD.
-        If a title is also given, the titel will be synced independant of
-        the SD value.
-        """
-        parser = argparse.ArgumentParser(description='JobIdentifier Sync')
-        parser.add_argument('--job-pos-id', nargs=1, required=False,
-                            metavar='SD_Job_position_ID')
-        parser.add_argument('--titel', nargs=1, required=False, metavar='Titel')
 
-        parser.add_argument('--sync-all',  action='store_true')
+@click.command()
+@click.option('--job-pos-id', type=click.STRING, help="Synchronize the provided job identifier.")
+@click.option('--title', type=click.STRING, help="Title override, only has effect if job-pos-id is given.")
+@click.option('--sync-all', is_flag=True, type=click.BOOL, help="Synchronize all job identifiers.")
+def sync_jobid(job_pos_id, title, sync_all):
+    """Job Position Synchronize tool."""
+    setup_logging()
 
-        args = vars(parser.parse_args())
+    if job_pos_id is None and sync_all is None:
+        raise click.ClickException(
+            "Either job-pos-id or sync-all must be given"
+        )
+    if job_pos_id and sync_all:
+        raise click.ClickException(
+            "job-pos-id and sync-all are mutually exclusive"
+        )
 
-        if args['job_pos_id'] is not None:
-            job_pos_id = args.get('job_pos_id')[0]
-            print(job_pos_id)
-            title = args.get('titel')
-            if title is None:
-                print(self.sync_from_sd(job_pos_id))
-            else:
-                print(self.sync_manually(job_pos_id, title[0]))
+    sync_tool = JobIdSync()
 
-        elif args['sync_all']:
-            self.sync_all_from_sd()
-
+    if job_pos_id:
+        print(job_pos_id)
+        if title:
+            print(sync_tool.sync_manually(job_pos_id, title))
         else:
-            print('No arguments given (-h for help)')
+            print(sync_tool.sync_from_sd(job_pos_id))
+
+    if sync_all:
+        sync_tool.sync_all_from_sd()
 
 
 if __name__ == '__main__':
-    sync_tool = JobIdSync()
-    sync_tool._cli()
+    sync_jobid()

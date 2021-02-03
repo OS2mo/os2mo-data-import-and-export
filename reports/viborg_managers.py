@@ -13,6 +13,7 @@ import pathlib
 import json
 from anytree import PostOrderIter, PreOrderIter
 from os2mo_helpers.mora_helpers import MoraHelper
+from exporters.utils.priority_by_class import choose_public_address
 
 """
 Rapportens opdrag: Tæl lederes medarbejdere, og den har udviklet sig lidt:
@@ -169,6 +170,10 @@ def prepare_report(mh, nodes):
     rows = []
     opgjort_pr = datetime.datetime.now().strftime("%d/%m/%Y")
     sort_order = 0
+
+    priority_list = settings.get("emus.email.priority", [])
+    # priority_list = settings.get("exports_viborg_eksterne.email.priority", [])
+
     for node in PreOrderIter(nodes['root']):
         sort_order = sort_order + 1
 
@@ -176,16 +181,16 @@ def prepare_report(mh, nodes):
         'payload' contains his manager and engagement-objects
         """
         for manager, payload in node.report["m_dir_salary"].items():
-            _email = mh.get_e_address(manager, "EMAIL")
+            # Fetch all email addresses, and use the best one
+            _emails = mh.get_e_addresses(manager, "EMAIL")
+            _email = choose_public_address(_emails, priority_list)
 
             row = {
                 "sort_order": sort_order,
                 "manager_uuid": payload["manager"]["person"]["uuid"],
                 "Leder": payload["manager"]["person"]["name"],
                 "Egen afd": payload["manager"]["org_unit"]["name"],
-                "Email": (_email.get("name", "") if _email.get(
-                          "visibility", {}
-                          ).get("scope", "") != "SECRET" else 'hemmelig'),
+                "Email": (_email.get("name", "") if _email is not None else 'hemmelig'),
                 "Direkte funktionær": len([
                     (k, v) for k, v in node.report["e_dir_salary"].items()
                     if k != payload["manager"]["person"]["uuid"]

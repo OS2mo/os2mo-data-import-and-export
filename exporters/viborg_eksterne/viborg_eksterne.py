@@ -6,6 +6,8 @@
 """
 Helper class to make a number of pre-defined queries into MO
 """
+import functools
+
 import time
 import json
 import logging
@@ -15,6 +17,7 @@ import datetime
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
+from exporters.utils.priority_by_class import lc_choose_public_address
 
 
 LOG_LEVEL = logging.DEBUG
@@ -62,7 +65,7 @@ def export_engagement(mh: MoraHelper, filename, lc, lc_historic):
 
     logging.info('Reading users')
     if lc:
-        employees = lc.users.values()
+        employees = list(map(lambda x: x[0], lc.users.values()))
     else:
         employees = mh.read_all_users()
 
@@ -71,11 +74,14 @@ def export_engagement(mh: MoraHelper, filename, lc, lc_historic):
     # make it O(#employees + #engagments) - consider if this is worth the effort
     for employee in employees:
         if lc:
-            for eng in lc_historic.engagements.values():
+            for eng in filter(
+                lambda x: x[0]['user'] == employee['uuid'],
+                lc_historic.engagements.values()
+            ):
                 engv = eng[0]  # Historic information is here to catch future
                 # engagements, not to use the actual historic information
-                if engv['user'] != employee['uuid']:
-                    continue
+                #if engv['user'] != employee['uuid']:
+                #    continue
                 if engv['engagement_type'] in disallowed_engagement_types:
                     continue
 
@@ -85,13 +91,25 @@ def export_engagement(mh: MoraHelper, filename, lc, lc_historic):
 
                 if manager:
                     manager_object = lc_historic.managers[manager][0]
-                    manager_name = lc.users[manager_object['user']]['navn']
+                    manager_name = lc.users[manager_object['user']][0]['navn']
+                    manager_email = ""
 
-                    manager_email = None
-                    for address in lc_historic.addresses.values():
-                        if address[0]['user'] == manager_object['user']:
-                            if address[0]['scope'] == 'E-mail':
-                                manager_email = address[0]['value']
+                    manager_email_candidates = [x[0] for x in filter(
+                        lambda x: (
+                            x[0]['scope'] == 'E-mail' and
+                            x[0]['user'] == manager_object['user']
+                        ),
+                        lc_historic.addresses.values()
+                    )]
+
+                    chosen = lc_choose_public_address(
+                        manager_email_candidates,
+                        SETTINGS.get("exports_viborg_eksterne.email.priority", []),
+                        lc # for class lookup
+                    )
+
+                    if chosen:
+                        manager_email = chosen['value']
                 else:
                     logger.warning(
                         "No manager found for org unit: {}".format(org_unit_uuid)

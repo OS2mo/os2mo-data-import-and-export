@@ -16,7 +16,7 @@ from exporters.sql_export.sql_table_defs import (
     Bruger, Enhed,
     ItSystem, LederAnsvar, KLE,
     Adresse, Engagement, Rolle, Tilknytning, Orlov, ItForbindelse, Leder,
-    Kvittering
+    Kvittering, Enhedssammenkobling, DARAdresse
 )
 
 LOG_LEVEL = logging.DEBUG
@@ -53,7 +53,7 @@ class SqlExport(object):
         db_host = self.settings.get('exporters.actual_state.host')
         pw_raw = self.settings.get('exporters.actual_state.password', '')
         pw = urllib.parse.quote_plus(pw_raw)
-        engine_settings = {}
+        engine_settings = {"pool_pre_ping": True}
         if db_type == 'SQLite':
             db_string = 'sqlite:///{}.db'.format(db_name)
         elif db_type == 'MS-SQL':
@@ -67,7 +67,7 @@ class SqlExport(object):
                 )
             db_string = 'mssql+pyodbc:///?odbc_connect={}'.format(quoted)
         elif db_type == "Mysql":
-            engine_settings={"pool_recycle":3600}
+            engine_settings.update({"pool_recycle": 3600})
             db_string = 'mysql+mysqldb://{}:{}@{}/{}'.format(
                 user, pw, db_host, db_name)
 
@@ -80,7 +80,16 @@ class SqlExport(object):
         def timestamp():
             return datetime.datetime.now()
 
+        trunc_tables=dict(Base.metadata.tables)
+        trunc_tables.pop("kvittering")
+
+        Base.metadata.drop_all(self.engine, tables=trunc_tables.values())
+        Base.metadata.create_all(self.engine)
+        Session = sessionmaker(bind=self.engine, autoflush=False)
+        self.session = Session()
+
         query_time = timestamp()
+        kvittering = self._add_receipt(query_time)
         if self.historic:
             self.lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
             self.lc.populate_cache(dry_run=use_pickle)
@@ -91,23 +100,21 @@ class SqlExport(object):
             self.lc.calculate_primary_engagements()
 
         start_delivery_time = timestamp()
-
-        Base.metadata.drop_all(self.engine)
-        Base.metadata.create_all(self.engine)
-        Session = sessionmaker(bind=self.engine, autoflush=False)
-        self.session = Session()
+        self._update_receipt(kvittering, start_delivery_time)
 
         self._add_classification()
         self._add_users_and_units()
         self._add_addresses()
+        self._add_dar_addresses()
         self._add_engagements()
         self._add_associactions_leaves_and_roles()
         self._add_managers()
         self._add_it_systems()
         self._add_kles()
+        self._add_related()
 
         end_delivery_time = timestamp()
-        self._add_receipt(query_time, start_delivery_time, end_delivery_time)
+        self._update_receipt(kvittering, start_delivery_time, end_delivery_time)
 
     def at_exit(self):
         logger.info('*SQL export ended*')
@@ -144,14 +151,20 @@ class SqlExport(object):
     def _add_users_and_units(self, output=False):
         logger.info('Add users and units')
         print('Add users and units')
-        for user, user_info in self.lc.users.items():
-            sql_user = Bruger(
-                uuid=user,
-                fornavn=user_info['fornavn'],
-                efternavn=user_info['efternavn'],
-                cpr=user_info['cpr']
-            )
-            self.session.add(sql_user)
+        for user, user_effects in self.lc.users.items():
+            for user_info in user_effects:
+                sql_user = Bruger(
+                    uuid=user,
+                    bvn=user_info['user_key'],
+                    fornavn=user_info['fornavn'],
+                    efternavn=user_info['efternavn'],
+                    kaldenavn_fornavn=user_info['kaldenavn_fornavn'],
+                    kaldenavn_efternavn=user_info['kaldenavn_efternavn'],
+                    cpr=user_info['cpr'],
+                    startdato=user_info['from_date'],
+                    slutdato=user_info['to_date'],
+                )
+                self.session.add(sql_user)
 
         for unit, unit_validities in self.lc.units.items():
             for unit_info in unit_validities:
@@ -241,6 +254,10 @@ class SqlExport(object):
                 if address_info['visibility'] is not None:
                     visibility_text = self.lc.classes[
                         address_info['visibility']]['title']
+                visibility_scope = None
+                if address_info['visibility'] is not None:
+                    visibility_scope = self.lc.classes[
+                        address_info['visibility']]['scope']
 
                 sql_address = Adresse(
                     uuid=address,
@@ -249,11 +266,16 @@ class SqlExport(object):
                     værdi=address_info['value'],
                     dar_uuid=address_info['dar_uuid'],
                     adressetype_uuid=address_info['adresse_type'],
+                    adressetype_bvn=self.lc.classes[
+                        address_info['adresse_type']
+                    ]['user_key'],
                     adressetype_scope=address_info['scope'],
-                    synlighed_uuid=address_info['visibility'],
-                    synlighed_titel=visibility_text,
                     adressetype_titel=self.lc.classes[
-                        address_info['adresse_type']]['title'],
+                        address_info['adresse_type']
+                    ]['title'],
+                    synlighed_uuid=address_info['visibility'],
+                    synlighed_scope=visibility_scope,
+                    synlighed_titel=visibility_text,
                     startdato=address_info['from_date'],
                     slutdato=address_info['to_date']
                 )
@@ -261,6 +283,21 @@ class SqlExport(object):
         self.session.commit()
         if output:
             for result in self.engine.execute('select * from adresser limit 10'):
+                print(result.items())
+
+    def _add_dar_addresses(self, output=False):
+        logger.info('Add DAR addresses')
+        print('Add DAR addresses')
+        for address, address_info in self.lc.dar_cache.items():
+            sql_address = DARAdresse(
+                uuid=address,
+                **{key: value for key, value in address_info.items()
+                   if key in DARAdresse.__table__.columns.keys() and key != "id"}
+            )
+            self.session.add(sql_address)
+        self.session.commit()
+        if output:
+            for result in self.engine.execute('select * from dar_adresser limit 10'):
                 print(result.items())
 
     def _add_associactions_leaves_and_roles(self, output=False):
@@ -368,7 +405,7 @@ class SqlExport(object):
             for result in self.engine.execute('select * from kle limit 10'):
                 print(result.items())
 
-    def _add_receipt(self, query_time, start_time, end_time, output=False):
+    def _add_receipt(self, query_time, start_time=None, end_time=None, output=False):
         logger.info('Add Receipt')
         print('Add Receipt')
         sql_kvittering = Kvittering(
@@ -380,6 +417,35 @@ class SqlExport(object):
         self.session.commit()
         if output:
             for result in self.engine.execute('select * from kvittering limit 10'):
+                print(result.items())
+        return sql_kvittering
+
+    def _update_receipt(self, sql_kvittering, start_time=None, end_time=None, output=False):
+        logger.info('Update Receipt')
+        print('Update Receipt')
+        sql_kvittering.start_levering_tid=start_time
+        sql_kvittering.slut_levering_tid=end_time
+        self.session.commit()
+        if output:
+            for result in self.engine.execute('select * from kvittering limit 10'):
+                print(result.items())
+
+    def _add_related(self, output=False):
+        logger.info('Add Enhedssammenkobling')
+        print('Add Enhedssammenkobling')
+        for related, related_validity in self.lc.related.items():
+            for related_info in related_validity:
+                sql_related = Enhedssammenkobling(
+                    uuid=related,
+                    enhed1_uuid=related_info['unit1_uuid'],
+                    enhed2_uuid=related_info['unit2_uuid'],
+                    startdato=related_info['from_date'],
+                    slutdato=related_info['to_date']
+                )
+                self.session.add(sql_related)
+        self.session.commit()
+        if output:
+            for result in self.engine.execute('select * from enhedssammenkobling limit 10'):
                 print(result.items())
 
     def _add_managers(self, output=False):
