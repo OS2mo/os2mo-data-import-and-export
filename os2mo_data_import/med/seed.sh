@@ -6,7 +6,7 @@ cd "${DIR}"
 MOX_URL="${MOX_URL:-http://localhost:8080}"
 MORA_URL="${MORA_URL:-http://localhost:5000}"
 # CLI="echo python mox_util.py cli"
-CLI="python mox_util.py cli --mox-base ${MOX_URL}"
+CLI="python ../mox_helpers/mox_util.py cli --mox-base ${MOX_URL}"
 
 ${CLI} bulk-ensure frederikshavn.json
 
