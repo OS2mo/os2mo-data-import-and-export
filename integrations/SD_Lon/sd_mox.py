@@ -13,14 +13,67 @@ import pprint
 import logging
 import datetime
 import xmltodict
+from operator import itemgetter
 from integrations.SD_Lon import sd_mox_payloads as smp
 from integrations.SD_Lon.sd import SD
+from integrations.SD_Lon.sd_common import load_settings
+from os2mo_helpers.mora_helpers import MoraHelper
 import requests
 from collections import OrderedDict
 
 
 logger = logging.getLogger('sdMox')
 logger.setLevel(logging.DEBUG)
+
+
+def read_sdmox_config():
+    settings = load_settings()
+    sdmox_config = {
+        "AMQP_USER": settings["integrations.SD_Lon.sd_mox.AMQP_USER"],
+        "AMQP_PASSWORD": settings["integrations.SD_Lon.sd_mox.AMQP_PASSWORD"],
+        "AMQP_HOST": settings.get("integrations.SD_Lon.sd_mox.AMQP_HOST", "msg-amqp.silkeborgdata.dk"),
+        "AMQP_PORT": settings.get("integrations.SD_Lon.sd_mox.AMQP_PORT", 5672),
+        "AMQP_CHECK_WAITTIME": settings.get("integrations.SD_Lon.sd_mox.AMQP_CHECK_WAITTIME", 3),
+        "AMQP_CHECK_RETRIES": settings.get("integrations.SD_Lon.sd_mox.AMQP_CHECK_RETRIES", 6),
+        "VIRTUAL_HOST": settings["integrations.SD_Lon.sd_mox.VIRTUAL_HOST"],
+
+        "OS2MO_SERVICE": settings["mora.base"] + "/service/",
+        "OS2MO_TOKEN": settings.get("crontab.SAML_TOKEN"),
+        "OS2MO_VERIFY": settings.get("mora.verify", True),
+
+        "TRIGGERED_UUIDS": settings["integrations.SD_Lon.sd_mox.TRIGGERED_UUIDS"],
+        "OU_LEVELKEYS": settings["integrations.SD_Lon.sd_mox.OU_LEVELKEYS"],
+        "OU_TIME_PLANNING_MO_VS_SD": settings["integrations.SD_Lon.sd_mox.OU_TIME_PLANNING_MO_VS_SD"],
+        "sd_unit_levels": [],
+        "arbtid_by_uuid": {},
+
+        "sd_common": {
+            "USE_PICKLE_CACHE": False,  # force no caching for sd
+            "SD_USER": settings["integrations.SD_Lon.sd_user"],
+            "SD_PASSWORD": settings["integrations.SD_Lon.sd_password"],
+            "INSTITUTION_IDENTIFIER": settings["integrations.SD_Lon.institution_identifier"],
+            "BASE_URL": settings["integrations.SD_Lon.base_url"],
+        }
+    }
+
+    # Add settings from MO
+    mora_helpers = MoraHelper(hostname=settings['mora.base'])
+
+    mora_org = sdmox_config.get("ORG_UUID")
+    if mora_org is None:
+        sdmox_config["ORG_UUID"] = mora_helpers.read_organisation()
+
+    classes, _ = mora_helpers.read_classes_in_facet('org_unit_level')
+    classes = dict(map(itemgetter("user_key", "uuid"), classes))
+    for key in sdmox_config["OU_LEVELKEYS"]:
+        sdmox_config["sd_unit_levels"].append((key, classes[key]))
+
+    classes, _ = mora_helpers.read_classes_in_facet('time_planning')
+    classes = dict(map(itemgetter("user_key", "uuid"), classes))
+    for key, sd_value in sdmox_config["OU_TIME_PLANNING_MO_VS_SD"].items():
+        sdmox_config["arbtid_by_uuid"][classes[key]] = sd_value
+ 
+    return sdmox_config
 
 
 class SdMoxError(Exception):
@@ -56,11 +109,16 @@ class sdMox(object):
         if from_date:
             self._update_virkning(from_date)
 
+    @staticmethod
+    def create(from_date=None, to_date=None):
+        sdmox_config = read_sdmox_config()
+        mox = sdMox(from_date=from_date, to_date=to_date, **sdmox_config)
+        mox.amqp_connect()
+        return mox
+
     def amqp_connect(self):
         self.exchange_name = 'org-struktur-changes-topic'
         credentials = pika.PlainCredentials(self.amqp_user, self.amqp_password)
-        # parameters = pika.ConnectionParameters(host='msg-amqp.silkeborgdata.dk',
-        #                                       port=5672,
         parameters = pika.ConnectionParameters(host=self.amqp_host,
                                                port=self.amqp_port,
                                                virtual_host=self.virtual_host,
@@ -77,7 +135,7 @@ class sdMox(object):
 
     def on_response(self, ch, method, props, body):
         logger.error(body)
-        raise SdMoxError('Uventet svar fra SD amqp')
+        raise SdMoxError('Uventet svar fra SD AMQP')
 
     def call(self, xml):
         logger.info('Calling SD-Mox amqp')
@@ -528,11 +586,16 @@ def today():
     today = datetime.date.today()
     return today
 
+def first_of_month():
+    first_day_of_this_month = today().replace(day=1)
+    return first_day_of_this_month
+
 
 clickDate = click.DateTime(formats=["%Y-%m-%d"])
 
+
 @click.command()
-@click.option('--from-date', type=clickDate, default=str(today()), help="TODO")
+@click.option('--from-date', type=clickDate, default=str(first_of_month()), help="TODO", show_default=True)
 @click.option('--to-date', type=clickDate, help="TODO")
 def sd_mox_cli(from_date, to_date):
     """Tool to make changes in SD."""
@@ -542,10 +605,9 @@ def sd_mox_cli(from_date, to_date):
     if to_date and from_date > to_date:
         raise click.ClickException("from_date must be smaller than to_date")
 
-    print(from_date)
-    print(to_date)
+    mox = sdMox.create(from_date, to_date)
+
     raise NotImplementedError()
-    # mox = sdMox(from_date, to_date)
 
     # unit_uuid = '32d9b4ed-eff2-4fa9-a372-c697eed2a597'
     # print(mox.create_unit_from_mo(unit_uuid, test_run=False))
@@ -577,7 +639,8 @@ def sd_mox_cli(from_date, to_date):
     errors = mox._check_department(
         unit_name=unit_name,
         unit_code=unit_code,
-        unit_uuid=unit_uuid)
+        unit_uuid=unit_uuid
+    )
     print(errors)
 
     # if False:
