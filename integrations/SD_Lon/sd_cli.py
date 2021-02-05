@@ -6,11 +6,11 @@ from fix_departments import unit_fixer
 from sd_changed_at import changed_at
 from sd_fixup import cli as sd_fixup
 from sd_importer import cli as sd_importer
+from sd_mox import sd_mox_cli
+from sd_tree_org import sd_tree_org
 from sync_job_id import sync_jobid
 from test_mo_against_sd import cli as mo_against_sd
 from test_sd_connectivity import check_connectivity
-from sd_tree_org import sd_tree_org
-from sd_mox import sd_mox_cli
 
 
 @click.group()

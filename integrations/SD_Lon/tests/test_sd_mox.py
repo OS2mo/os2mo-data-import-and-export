@@ -6,20 +6,20 @@
 #
 
 import datetime
+from functools import partial
 from os import path
 from unittest import TestCase
-from functools import partial
 
 from freezegun import freeze_time
-from xmltodict import parse
 from integrations.SD_Lon import sd_mox
+from xmltodict import parse
 
 xmlparse = partial(parse, dict_constructor=dict)
 
 
 def read_file(path):
     """Read the file at path, and return its contents."""
-    with open(path, 'r') as resource_file:
+    with open(path, "r") as resource_file:
         return resource_file.read()
 
 
