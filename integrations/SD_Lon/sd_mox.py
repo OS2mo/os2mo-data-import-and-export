@@ -110,8 +110,10 @@ class sdMox(object):
             self._update_virkning(from_date)
 
     @staticmethod
-    def create(from_date=None, to_date=None):
+    def create(from_date=None, to_date=None, overrides=None):
         sdmox_config = read_sdmox_config()
+        if overrides:
+            sdmox_config.update(overrides)
         mox = sdMox(from_date=from_date, to_date=to_date, **sdmox_config)
         mox.amqp_connect()
         return mox
@@ -597,7 +599,8 @@ clickDate = click.DateTime(formats=["%Y-%m-%d"])
 @click.command()
 @click.option('--from-date', type=clickDate, default=str(first_of_month()), help="TODO", show_default=True)
 @click.option('--to-date', type=clickDate, help="TODO")
-def sd_mox_cli(from_date, to_date):
+@click.argument('overrides', nargs=-1)
+def sd_mox_cli(from_date, to_date, overrides):
     """Tool to make changes in SD."""
 
     from_date = from_date.date()
@@ -605,7 +608,9 @@ def sd_mox_cli(from_date, to_date):
     if to_date and from_date > to_date:
         raise click.ClickException("from_date must be smaller than to_date")
 
-    mox = sdMox.create(from_date, to_date)
+    overrides = dict(override.split('=') for override in overrides)
+
+    mox = sdMox.create(from_date, to_date, overrides)
 
     raise NotImplementedError()
 
