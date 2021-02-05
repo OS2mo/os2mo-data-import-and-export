@@ -72,13 +72,6 @@ def mo_request(service, method="get", **params):
         raise
 
 
-def get_sdMox():
-    """ instantiate integration object
-    """
-    mox = sd_mox.sdMox.create()
-    return mox
-
-
 def is_sd_triggered(p):
     """ determine whether trigger code should run for unit p
     """
@@ -112,8 +105,7 @@ def ou_before_create(data):
     from_date = datetime.datetime.strptime(
         data["request"]['validity']['from'], '%Y-%m-%d'
     )
-    mox = get_sdMox()
-    mox._update_virkning(from_date)
+    mox = sd_mox.sdMox.create(from_date=from_date)
 
     payload = mox.payload_create(data["uuid"], data["request"], parent)
     mox.create_unit(test_run=False, **payload)
@@ -127,35 +119,24 @@ def ou_before_create(data):
 
 
 def ou_before_edit(data):
-    """ An ou is about to be renamed or moved
-    """
+    """An ou is about to be renamed or moved."""
     from_date_str = data["request"]["data"]["validity"]["from"]
     unit = mo_request("ou/" + data["uuid"], at=from_date_str).json()
     if not is_sd_triggered(unit):
         return
 
     from_date = datetime.datetime.strptime(from_date_str, '%Y-%m-%d')
-    mox = get_sdMox()
-    mox._update_virkning(from_date)
-
-    # doing a read department here will give the non-unique error
-    # here - where we still have access to the mo-error reporting
-    code_errors = mox._validate_unit_code(unit['user_key'], can_exist=True)
-    if code_errors:
-        raise sd_mox.SdMoxError(", ".join(code_errors))
-
+    mox = sd_mox.sdMox.create(from_date=from_date)
     if "name" in data["request"]["data"]:
-        # we are renaming a department
-        unit["name"] = data["request"]["data"]["name"]
-        addresses = mo_request(
-            "ou/" + data["uuid"] + "/details/address",
-            at=from_date_str
-        ).json()
-        payload = mox.payload_edit(data["uuid"], unit, addresses)
-        operation = "ret"
-        mox.edit_unit(test_run=False, **payload)
-
+        new_name = data["request"]["data"]["name"]
+        mox.rename_unit(data["uuid"], new_Name, at=from_date, dry_run=True)
     elif "parent" in data["request"]["data"]:
+        # doing a read department here will give the non-unique error
+        # here - where we still have access to the mo-error reporting
+        code_errors = mox._validate_unit_code(unit['user_key'], can_exist=True)
+        if code_errors:
+            raise sd_mox.SdMoxError(", ".join(code_errors))
+
         # we are moving a department
         parent = mo_request(
             "ou/" + data["request"]["data"]["parent"]["uuid"],
@@ -167,8 +148,7 @@ def ou_before_edit(data):
         mox.move_unit(test_run=False, **payload)
         # when moving, do not check against name
         payload["unit_name"] = None
-
-    mox.check_unit(operation=operation, **payload)
+        mox.check_unit(operation=operation, **payload)
 
 
 def address_before_create(data, unit_given=False):
@@ -212,8 +192,7 @@ def address_before_create(data, unit_given=False):
 
 
     from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
-    mox = get_sdMox()
-    mox._update_virkning(from_date)
+    mox = sd_mox.sdMox.create(from_date=from_date)
 
     payload = mox.payload_edit(ou, unit, addresses)
     mox.edit_unit(test_run=False, **payload)
@@ -240,8 +219,7 @@ def address_before_edit(data):
         "ou/" + ou + "/details/address", at=from_date
     ).json()
     from_date = datetime.datetime.strptime(from_date, '%Y-%m-%d')
-    mox = get_sdMox()
-    mox._update_virkning(from_date)
+    mox = sd_mox.sdMox.create(from_date=from_date)
 
     # doing a read department here will give the non-unique error
     # here - where we still have access to the mo-error reporting

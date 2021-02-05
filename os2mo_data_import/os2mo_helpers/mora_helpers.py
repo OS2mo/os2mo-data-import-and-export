@@ -229,7 +229,7 @@ class MoraHelper:
         return org_enhed
 
     def read_ou_address(self, uuid, at=None, use_cache=None, scope="DAR",
-                        return_all=False):
+                        return_all=False, reformat=True):
         """Return a dict with the data available about an OU.
 
         :param uuid: The UUID of the OU
@@ -237,29 +237,31 @@ class MoraHelper:
         rather than a dict, and all adresses will be returned.
         :return: Dict (or list) with the information about the OU
         """
-        return_list = []
-        addresses = self._mo_lookup(uuid, 'ou/{}/details/address', at, use_cache)
-
-        for address in addresses:
+        def reformat_address(address):
             return_address = {}
-            if address['address_type']['scope'] == scope or scope is None:
-                return_address['type'] = address['address_type']['uuid']
-                return_address['visibility'] = address.get('visibility')
-                return_address['Adresse'] = address['name']
-                return_address['value'] = address['value']
-                return_address['uuid'] = address['uuid']
-                # Deprecated spelling mistake....
-                return_address['visibibility'] = address.get('visibility')
-                return_list.append(return_address)
+            return_address['type'] = address['address_type']['uuid']
+            return_address['visibility'] = address.get('visibility')
+            return_address['Adresse'] = address['name']
+            return_address['value'] = address['value']
+            return_address['uuid'] = address['uuid']
+            # Deprecated spelling mistake....
+            return_address['visibibility'] = address.get('visibility')
+            return return_address
+
+        addresses = self._mo_lookup(uuid, 'ou/{}/details/address', at, use_cache)
+        addresses = filter(
+            lambda address: address['address_type']['scope'] == scope or scope is None,
+            addresses
+        )
+        if reformat:  # TODO: Eliminiate this random intermediate format
+           addresses = map(reformat_address, addresses)
+        return_list = list(addresses)
 
         if return_all:
-            return_value = return_list
-        else:
-            if return_list:
-                return_value = return_list[0]
-            else:
-                return_value = {}
-        return return_value
+            return return_list
+        if return_list:
+            return return_list[0]
+        return {}
 
     def read_classes_in_facet(self, facet, use_cache=False):
         """Return all classes belong to a given facet.
