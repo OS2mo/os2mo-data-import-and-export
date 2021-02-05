@@ -232,7 +232,7 @@ class sdMox(object):
             if expected is not None and actual != expected:
                 errors.append(error)
 
-        department = self.read_department(unit_code=unit_code, unit_level=unit_level)
+        department = self.read_department(unit_code=unit_code, unit_uuid=unit_uuid, unit_level=unit_level)
         if department is None:
             return None, ["Unit"]
 
@@ -267,7 +267,7 @@ class sdMox(object):
 
         return department, errors
 
-    def _create_xml_ret(self, unit_uuid, unit_code, unit_name, pnummer=None,
+    def _create_xml_ret(self, unit_uuid, unit_code=None, unit_name=None, pnummer=None,
                         phone=None, adresse=None, integration_values=None):
         value_dict = {
             'RelationListe': smp.relations_ret(
@@ -391,6 +391,30 @@ class sdMox(object):
             self.call(xml)
         return unit_uuid
 
+    def rename_unit(self, unit_uuid, new_unit_name, at, dry_run=False):
+        settings = load_settings()
+        mora_helpers = MoraHelper(hostname=settings['mora.base'])
+
+        # Fetch old ou data
+        unit = mora_helpers.read_ou(unit_uuid, at=at)
+        # Change to add our new data
+        unit["name"] = new_unit_name
+
+        # doing a read department here will give the non-unique error
+        # here - where we still have access to the mo-error reporting
+        code_errors = self._validate_unit_code(unit['user_key'], can_exist=True)
+        if code_errors:
+            raise sd_mox.SdMoxError(", ".join(code_errors))
+
+        addresses = mora_helpers.read_ou_address(
+            unit_uuid, at=at, scope=None, return_all=True,
+            reformat=False
+        )
+        payload = self.payload_edit(unit_uuid, unit, addresses)
+
+        self.edit_unit(test_run=dry_run, **payload)
+        return self.check_unit(operation="ret", **payload)
+
     def edit_unit(self, test_run=True, **payload):
         xml = self._create_xml_ret(**payload)
         logger.debug('Edit unit xml: {}'.format(xml))
@@ -440,6 +464,8 @@ class sdMox(object):
         Raise an sdMoxError if the unit could not be found or did not have
         the expected attribute values. This error will be shown in the UI
         """
+        unit = None
+        errors = None
         for i in range(self.amqp_check_retries):
             time.sleep(self.amqp_check_waittime)
             unit, errors = self._check_department(**payload)
@@ -539,7 +565,7 @@ class sdMox(object):
 
         # TODO: This url is hard-codet
         from os2mo_data_import.os2mo_helpers.mora_helpers import MoraHelper
-        self.mh = MoraHelper(hostname='http://localhost:5000')
+        mh = MoraHelper(hostname='http://localhost:5000')
 
         logger.info('Create {} from MO, test run: {}'.format(unit_uuid, test_run))
         unit_info = mox.mh.read_ou(unit_uuid)
@@ -570,7 +596,7 @@ class sdMox(object):
                 logger.error(msg)
             return False
 
-        integration_addresses = self.mh._mo_lookup(unit_uuid,
+        integration_addresses = mh._mo_lookup(unit_uuid,
                                                    'ou/{}/details/address')
         unit_edit_payload = self.payload_edit(
             unit_uuid,
@@ -596,11 +622,12 @@ def first_of_month():
 clickDate = click.DateTime(formats=["%Y-%m-%d"])
 
 
-@click.command()
+@click.group()
 @click.option('--from-date', type=clickDate, default=str(first_of_month()), help="TODO", show_default=True)
 @click.option('--to-date', type=clickDate, help="TODO")
-@click.argument('overrides', nargs=-1)
-def sd_mox_cli(from_date, to_date, overrides):
+@click.option('--overrides', multiple=True)
+@click.pass_context
+def sd_mox_cli(ctx, from_date, to_date, overrides):
     """Tool to make changes in SD."""
 
     from_date = from_date.date()
@@ -610,49 +637,47 @@ def sd_mox_cli(from_date, to_date, overrides):
 
     overrides = dict(override.split('=') for override in overrides)
 
-    mox = sdMox.create(from_date, to_date, overrides)
+    sdmox = sdMox.create(from_date, to_date, overrides)
 
-    raise NotImplementedError()
+    ctx.ensure_object(dict)
+    ctx.obj["sdmox"] = sdmox
+    ctx.obj["from_date"] = from_date
+    ctx.obj["to_date"] = to_date
 
-    # unit_uuid = '32d9b4ed-eff2-4fa9-a372-c697eed2a597'
-    # print(mox.create_unit_from_mo(unit_uuid, test_run=False))
 
-    unit_code = '06GÅ'
-    unit_level = 'Afdelings-niveau'
-    parent = {
-        'unit_code': '32D9',
-        'uuid': '32d9b4ed-eff2-4fa9-a372-c697eed2a597',
-        'level': 'NY2-niveau'
-    }
+@sd_mox_cli.command()
+@click.pass_context
+@click.option('--unit-uuid', type=click.UUID, required=True)
+@click.option('--print-department', is_flag=True, default=False)
+@click.option('--unit-name')
+def check_name(ctx, unit_uuid, print_department, unit_name):
+    mox = ctx.obj["sdmox"]
 
-    # unit_uuid = mox.create_unit(
-    #     # unit_uuid=unit_uuid,
-    #     name='Daw dav',
-    #     unit_code=unit_code,
-    #     unit_level=unit_level,
-    #     parent=parent,
-    #     test_run=False
-    # )
-    # print(unit_uuid)
-
-    # time.sleep(2)
-
-    # Der er noget galt, vi finder ikke enheder som helt sikkert findes.
-
-    unit_uuid = '31b43f5d-d8e8-4bd2-8420-a41148ca229f'
-    unit_name = 'Daw dav'
-    errors = mox._check_department(
+    unit_uuid = str(unit_uuid)
+    department, errors = mox._check_department(
+        unit_uuid=unit_uuid,
         unit_name=unit_name,
-        unit_code=unit_code,
-        unit_uuid=unit_uuid
     )
-    print(errors)
+    if print_department:
+       import json
+       print(json.dumps(department, indent=4))
 
-    # if False:
-    #     xml = mox.edit_unit(
-    #         uuid=uuid,
-    #         name='Test 2'
-    #     )
+    if errors:
+        click.echo("Mismatches found for:")
+        for error in errors:
+            click.echo("* " + click.style(error, fg='red'))
+
+
+@sd_mox_cli.command()
+@click.pass_context
+@click.option('--unit-uuid', type=click.UUID, required=True)
+@click.option('--new-unit-name')
+@click.option('--dry-run', is_flag=True, default=False)
+def set_name(ctx, unit_uuid, new_unit_name, dry_run):
+    unit_uuid = str(unit_uuid)
+
+    mox = ctx.obj["sdmox"]
+    mox.rename_unit(unit_uuid, new_unit_name, at=ctx.obj['from_date'], dry_run=dry_run)
 
 
 if __name__ == '__main__':

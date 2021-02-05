@@ -198,7 +198,7 @@ async def sd_tree_org():
 
     def build_any_tree(parent_map, root_uuid):
         def build_tree_node(uuid, parent=None):
-            node = Node(department_map[uuid] + " (" + uuid + ")", parent=parent)
+            node = Node(department_name_map[uuid] + " (" + department_id_map[uuid] + ", " + uuid + ")", parent=parent)
             return node
 
         def build_tree(parent_node, parent_uuid):
@@ -223,8 +223,11 @@ async def sd_tree_org():
     organization = organization_response["Organization"]["DepartmentReference"]
 
     # Generate map from UUID to Name for Deparments
-    department_map = dict(
+    department_name_map = dict(
         map(itemgetter("DepartmentUUIDIdentifier", "DepartmentName"), departments)
+    )
+    department_id_map = dict(
+        map(itemgetter("DepartmentUUIDIdentifier", "DepartmentIdentifier"), departments)
     )
 
     # Build parent map
@@ -243,5 +246,22 @@ async def sd_tree_org():
         print()
 
 
+@click.command()
+@async_to_sync
+async def department_identifier_list():
+    sd_connector = SDConnector.create()
+    department_response = await sd_connector.getDepartment()
+    departments = department_response["Department"]
+    from collections import Counter
+    department_identifiers = Counter(
+        map(itemgetter("DepartmentIdentifier"), departments)
+    )
+    for element, count in department_identifiers.most_common():
+        if count == 1:
+            break
+        print(element, count)
+
+
 if __name__ == "__main__":
-    sd_tree_org()
+    department_identifier_list()
+    # sd_tree_org()
