@@ -9,6 +9,8 @@ from sd_importer import cli as sd_importer
 from sync_job_id import sync_jobid
 from test_mo_against_sd import cli as mo_against_sd
 from test_sd_connectivity import check_connectivity
+from sd_tree_org import sd_tree_org
+from sd_mox import sd_mox_cli
 
 
 @click.group()
@@ -17,16 +19,18 @@ def SDTool():
     pass
 
 
-SDTool.add_command(sd_importer, "sd_importer")
-SDTool.add_command(mo_against_sd, "test_mo_against_sd")
+SDTool.add_command(sd_importer, "sd-importer")
+SDTool.add_command(mo_against_sd, "test-mo-against-sd")
 SDTool.add_command(check_connectivity)
 SDTool.add_command(calculate_primary)
 SDTool.add_command(read_rundb)
 SDTool.add_command(unit_fixer)
 SDTool.add_command(sync_jobid)
 SDTool.add_command(changed_at)
-SDTool.add_command(sd_fixup)
-SDTool.add_command(sd_importer, "sd_importer")
+SDTool.add_command(sd_fixup, "sd-fixup")
+SDTool.add_command(sd_importer, "sd-importer")
+SDTool.add_command(sd_tree_org)
+SDTool.add_command(sd_mox_cli)
 
 
 if __name__ == "__main__":

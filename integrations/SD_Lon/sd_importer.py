@@ -732,6 +732,7 @@ class SdImport(object):
 
 @click.group()
 def cli():
+    """Tool to do initial importing."""
     for name in logging.root.manager.loggerDict:
         if name in ('sdImport', 'sdCommon', 'AdReader', 'moImporterMoraTypes',
                     'moImporterMoxTypes', 'moImporterUtilities', 'moImporterHelpers'):
