@@ -859,7 +859,7 @@ class LoraCache(object):
                 logger.debug(
                     'Primary information missing in engagement {}'.format(uuid)
                 )
-                return 0
+                return uuid, 0
             primary_scope = int(primary_type['scope'])
             return uuid, primary_scope
 
