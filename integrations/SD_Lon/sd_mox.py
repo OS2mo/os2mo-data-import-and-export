@@ -6,7 +6,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 
-
+import click
 import pika
 import time
 import pprint
@@ -524,11 +524,28 @@ class sdMox(object):
         return True
 
 
-if __name__ == '__main__':
-    from_date = datetime.datetime(2019, 7, 1, 0, 0)
-    # to_date = datetime.datetime(2020, 6, 1, 0, 0)
+def today():
+    today = datetime.date.today()
+    return today
 
-    mox = sdMox(from_date)
+
+clickDate = click.DateTime(formats=["%Y-%m-%d"])
+
+@click.command()
+@click.option('--from-date', type=clickDate, default=str(today()), help="TODO")
+@click.option('--to-date', type=clickDate, help="TODO")
+def sd_mox_cli(from_date, to_date):
+    """Tool to make changes in SD."""
+
+    from_date = from_date.date()
+    to_date = to_date.date() if to_date else None
+    if to_date and from_date > to_date:
+        raise click.ClickException("from_date must be smaller than to_date")
+
+    print(from_date)
+    print(to_date)
+    raise NotImplementedError()
+    # mox = sdMox(from_date, to_date)
 
     # unit_uuid = '32d9b4ed-eff2-4fa9-a372-c697eed2a597'
     # print(mox.create_unit_from_mo(unit_uuid, test_run=False))
@@ -568,3 +585,7 @@ if __name__ == '__main__':
     #         uuid=uuid,
     #         name='Test 2'
     #     )
+
+
+if __name__ == '__main__':
+    sd_mox_cli()

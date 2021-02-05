@@ -4,6 +4,17 @@
         <sd:IdentifikatorType>OrganisationEnhed</sd:IdentifikatorType>
         <sd:UUIDIdentifikator>12345-22-22-22-12345</sd:UUIDIdentifikator>
     </ObjektID>
+    <AttributListe>
+        <sd:LokalUdvidelse />
+        <Egenskab>
+            <sd:EnhedNavn>A-sdm2</sd:EnhedNavn>
+            <sd:Virkning>
+                <sd:FraTidspunkt>
+                    <sd:TidsstempelDatoTid>2019-07-01T00:00:00.00</sd:TidsstempelDatoTid>
+                </sd:FraTidspunkt>
+            </sd:Virkning>
+        </Egenskab>
+    </AttributListe>
     <RelationListe>
         <sd:LokalUdvidelse>
             <silkdata:Lokation />
@@ -25,15 +36,4 @@
             <sd:TidsstempelDatoTid>2020-01-01T12:00:00.00</sd:TidsstempelDatoTid>
         </sd:FraTidspunkt>
     </Registrering>
-    <AttributListe>
-        <sd:LokalUdvidelse />
-        <Egenskab>
-            <sd:EnhedNavn>A-sdm2</sd:EnhedNavn>
-            <sd:Virkning>
-                <sd:FraTidspunkt>
-                    <sd:TidsstempelDatoTid>2019-07-01T00:00:00.00</sd:TidsstempelDatoTid>
-                </sd:FraTidspunkt>
-            </sd:Virkning>
-        </Egenskab>
-    </AttributListe>
 </RegistreringBesked>
