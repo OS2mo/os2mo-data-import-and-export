@@ -72,66 +72,10 @@ def mo_request(service, method="get", **params):
         raise
 
 
-def read_config(app):
-    cfg_file = custpath / "settings" / "settings.json"
-    cfg = json.loads(cfg_file.read_text())
-
-    sdmox_config.update({
-        "AMQP_USER": cfg["integrations.SD_Lon.sd_mox.AMQP_USER"],
-        "AMQP_PASSWORD": cfg["integrations.SD_Lon.sd_mox.AMQP_PASSWORD"],
-        "AMQP_HOST": cfg["integrations.SD_Lon.sd_mox.AMQP_HOST"],
-        "AMQP_PORT": cfg["integrations.SD_Lon.sd_mox.AMQP_PORT"],
-        "AMQP_CHECK_WAITTIME": cfg.get("integrations.SD_Lon.sd_mox.AMQP_CHECK_WAITTIME",3),
-        "AMQP_CHECK_RETRIES": cfg.get("integrations.SD_Lon.sd_mox.AMQP_CHECK_RETRIES", 6),
-        "VIRTUAL_HOST": cfg["integrations.SD_Lon.sd_mox.VIRTUAL_HOST"],
-        "OS2MO_SERVICE": cfg["mora.base"] + "/service/",
-        "OS2MO_TOKEN": cfg.get("crontab.SAML_TOKEN"),
-        "OS2MO_VERIFY": cfg["mora.verify"],
-        "TRIGGERED_UUIDS": cfg["integrations.SD_Lon.sd_mox.TRIGGERED_UUIDS"],
-        "OU_LEVELKEYS": cfg["integrations.SD_Lon.sd_mox.OU_LEVELKEYS"],
-        "OU_TIME_PLANNING_MO_VS_SD": cfg["integrations.SD_Lon.sd_mox.OU_TIME_PLANNING_MO_VS_SD"],
-        "sd_unit_levels":[],
-        "arbtid_by_uuid":{},
-    })
-    sdmox_config["sd_common"] = {
-        "USE_PICKLE_CACHE": False,  # force no caching for sd
-        "SD_USER": cfg["integrations.SD_Lon.sd_user"],
-        "SD_PASSWORD": cfg["integrations.SD_Lon.sd_password"],
-        "INSTITUTION_IDENTIFIER": cfg["integrations.SD_Lon.institution_identifier"],
-        "BASE_URL":  cfg["integrations.SD_Lon.base_url"],
-    }
-
-
 def get_sdMox():
     """ instantiate integration object
     """
-    mora_org = sdmox_config.get("ORG_UUID")
-    if mora_org is None:
-        mora_org = sdmox_config.setdefault("ORG_UUID", mo_request("o").json()[0]["uuid"])
-
-    logger.warn(mora_org)
-
-    classes = {
-        i["user_key"]: i["uuid"]
-        for i in mo_request("o/" + mora_org + "/f/org_unit_level/"
-        ).json()["data"]["items"]
-    }
-
-    for key in sdmox_config["OU_LEVELKEYS"]:
-        sdmox_config["sd_unit_levels"].append((key, classes[key]))
-
-
-    classes = mo_request("o/" + mora_org + "/f/time_planning/").json()
-    classes = {
-        i["user_key"]: i["uuid"]
-        for i in mo_request("o/" + mora_org + "/f/time_planning/"
-        ).json()["data"]["items"]
-    }
-    for key, sd_value in sdmox_config["OU_TIME_PLANNING_MO_VS_SD"].items():
-        sdmox_config["arbtid_by_uuid"][classes[key]] = sd_value
-
-    mox = sd_mox.sdMox(**sdmox_config)
-    mox.amqp_connect()
+    mox = sd_mox.sdMox.create()
     return mox
 
 
@@ -311,7 +255,7 @@ def address_before_edit(data):
 
 
 def register(app):
-    read_config(app)
+    sdmox_config = sd_mox.read_sdmox_config()
     from mora.triggers import Trigger
 
     Trigger.on(
