@@ -322,6 +322,8 @@ class sdMox(object):
                 code_errors.append('Enhedsnummer skal være store bogstaver')
 
         if not code_errors:
+            # TODO: Ignore duplicates as we lookup using UUID elsewhere
+            #       Only check for duplicates on new creations
             # customers expect unique unit_codes globally
             department = self.read_department(unit_code=unit_code)
             if department is not None and not can_exist:
