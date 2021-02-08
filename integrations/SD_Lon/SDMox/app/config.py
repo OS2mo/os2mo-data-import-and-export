@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     amqp_username: str
     amqp_password: str
-    amqp_host: AnyUrl = "amqp://msg-amqp.silkeborgdata.dk"
+    amqp_host: str = "msg-amqp.silkeborgdata.dk"
     amqp_virtual_host: str
     amqp_port: int = 5672
     amqp_check_waittime: int = 3
@@ -28,6 +28,6 @@ class Settings(BaseSettings):
 
 
 @lru_cache
-def get_settings():
-    settings = Settings()
+def get_settings(**overrides):
+    settings = Settings(**overrides)
     return settings

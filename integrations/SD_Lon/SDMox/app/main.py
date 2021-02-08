@@ -26,6 +26,10 @@ from fastapi.responses import RedirectResponse
 from os2mo_helpers.mora_helpers import MoraHelper
 from pydantic import BaseModel, BaseSettings, Field
 
+from config import get_settings
+from util import get_mora_helper
+from sd_mox import SDMox
+
 tags_metadata = [
     {
         "name": "Meta",
@@ -45,16 +49,8 @@ tags_metadata = [
     },
 ]
 app = FastAPI(openapi_tags=tags_metadata)
-
-from config import get_settings
-from sd_mox import sdMox
-
 # Called for side-effect
 get_settings()
-
-
-def get_mora_helper():
-    return MoraHelper(hostname=get_settings().mora_url, use_cache=False)
 
 
 def should_mox_run(mo_ou):
@@ -185,10 +181,10 @@ def _ou_edit_name(ou_uuid: UUID, new_name: str, at: datetime):
     if new_name is None:
         raise ValueError("NO")
 
-    mox = sdMox.create(from_date=at)
-    mox.amqp_connect()
     print("Changing name")
-    mox.rename_unit(ou_uuid, new_name, at=from_date, dry_run=True)
+    mox = SDMox(from_date=at)
+    # mox.amqp_connect()
+    mox.rename_unit(ou_uuid, new_name, at=at, dry_run=True)
 
 
 def _ou_edit_parent(ou_uuid: UUID, new_parent: UUID, at: datetime):
@@ -196,9 +192,9 @@ def _ou_edit_parent(ou_uuid: UUID, new_parent: UUID, at: datetime):
         raise ValueError("NO")
 
     print("Changing parent")
-    mox = sdMox.create(from_date=at)
-    mox.amqp_connect()
-    mox.move_unit(ou_uuid, new_parent, at=from_date, dry_run=True)
+    mox = SDMox(from_date=at)
+    # mox.amqp_connect()
+    mox.move_unit(ou_uuid, new_parent, at=at, dry_run=True)
 
 
 @app.get("/", response_class=RedirectResponse, tags=["Meta"])
@@ -265,40 +261,40 @@ def triggers():
 
 @app.post("/triggers/ou/create", tags=["Trigger API"])
 def ou_create():
-#    """An ou is about to be created"""
-#    mora_org = sdmox_config.get("ORG_UUID")
-#    if mora_org is None:
-#        mora_org = sdmox_config.setdefault(
-#            "ORG_UUID", mo_request("o").json()[0]["uuid"]
-#        )
-#
-#    if (
-#        # we will never create at top level
-#        not data["request"]["parent"]
-#        or mora_org == data["request"]["parent"]["uuid"]
-#    ):
-#        return
-#
-#    parent = mo_request("ou/" + data["request"]["parent"]["uuid"]).json()
-#
-#    if not is_sd_triggered(parent):
-#        return
-#
-#    # try to create a unit in sd
-#    from_date = datetime.datetime.strptime(
-#        data["request"]["validity"]["from"], "%Y-%m-%d"
-#    )
-#    mox = sd_mox.sdMox.create(from_date=from_date)
-#
-#    payload = mox.payload_create(data["uuid"], data["request"], parent)
-#    mox.create_unit(test_run=False, **payload)
-#
-#    if not data["request"].get("details", []):
-#        # check unit here
-#        mox.check_unit(operation="import", **payload)
-#    else:
-#        # check unit after editing addresses
-#        address_before_create(data, unit_given=True)
+    #    """An ou is about to be created"""
+    #    mora_org = sdmox_config.get("ORG_UUID")
+    #    if mora_org is None:
+    #        mora_org = sdmox_config.setdefault(
+    #            "ORG_UUID", mo_request("o").json()[0]["uuid"]
+    #        )
+    #
+    #    if (
+    #        # we will never create at top level
+    #        not data["request"]["parent"]
+    #        or mora_org == data["request"]["parent"]["uuid"]
+    #    ):
+    #        return
+    #
+    #    parent = mo_request("ou/" + data["request"]["parent"]["uuid"]).json()
+    #
+    #    if not is_sd_triggered(parent):
+    #        return
+    #
+    #    # try to create a unit in sd
+    #    from_date = datetime.datetime.strptime(
+    #        data["request"]["validity"]["from"], "%Y-%m-%d"
+    #    )
+    #    mox = sd_mox.sdMox.create(from_date=from_date)
+    #
+    #    payload = mox.payload_create(data["uuid"], data["request"], parent)
+    #    mox.create_unit(test_run=False, **payload)
+    #
+    #    if not data["request"].get("details", []):
+    #        # check unit here
+    #        mox.check_unit(operation="import", **payload)
+    #    else:
+    #        # check unit after editing addresses
+    #        address_before_create(data, unit_given=True)
     return {"ou": "create"}
 
 
@@ -325,80 +321,80 @@ def trggers_ou_edit(payload: MOTriggerPayload):
 
 @app.post("/triggers/address/create", tags=["Trigger API"])
 def address_create():
-#    """Addresses are about to be created
-#    if unit is also new, it is given as a whole
-#    """
-#
-#    # whole department changes validity - including addresses
-#    from_date = data["request"]["validity"]["from"]
-#
-#    if unit_given:
-#
-#        # a new unit has been created
-#        ou = data["uuid"]
-#        unit = data["request"]
-#        addresses = unit["details"]
-#
-#    else:
-#
-#        # a new address is being added to an existing unit
-#        ou = data.get("org_unit_uuid")
-#        if not ou:
-#            return
-#        try:
-#            unit = mo_request("ou/" + ou, at=from_date).json()
-#            if not is_sd_triggered(unit):
-#                return
-#        except requests.exceptions.HTTPError as e:
-#            if e.response.status_code == 404:
-#                return  # new unit - checked elsewhere
-#            raise
-#
-#        previous_addresses = mo_request(
-#            "ou/" + ou + "/details/address", at=from_date
-#        ).json()
-#
-#        # the new address is prepended to addresses and
-#        # thereby given higher priority in sd_mox.py
-#        # see 'grouped_addresses'
-#        addresses = [data["request"]] + previous_addresses
-#
-#    from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
-#    mox = sd_mox.sdMox.create(from_date=from_date)
-#
-#    payload = mox.payload_edit(ou, unit, addresses)
-#    mox.edit_unit(test_run=False, **payload)
-#    mox.check_unit(operation="ret", **payload)
+    #    """Addresses are about to be created
+    #    if unit is also new, it is given as a whole
+    #    """
+    #
+    #    # whole department changes validity - including addresses
+    #    from_date = data["request"]["validity"]["from"]
+    #
+    #    if unit_given:
+    #
+    #        # a new unit has been created
+    #        ou = data["uuid"]
+    #        unit = data["request"]
+    #        addresses = unit["details"]
+    #
+    #    else:
+    #
+    #        # a new address is being added to an existing unit
+    #        ou = data.get("org_unit_uuid")
+    #        if not ou:
+    #            return
+    #        try:
+    #            unit = mo_request("ou/" + ou, at=from_date).json()
+    #            if not is_sd_triggered(unit):
+    #                return
+    #        except requests.exceptions.HTTPError as e:
+    #            if e.response.status_code == 404:
+    #                return  # new unit - checked elsewhere
+    #            raise
+    #
+    #        previous_addresses = mo_request(
+    #            "ou/" + ou + "/details/address", at=from_date
+    #        ).json()
+    #
+    #        # the new address is prepended to addresses and
+    #        # thereby given higher priority in sd_mox.py
+    #        # see 'grouped_addresses'
+    #        addresses = [data["request"]] + previous_addresses
+    #
+    #    from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
+    #    mox = sd_mox.sdMox.create(from_date=from_date)
+    #
+    #    payload = mox.payload_edit(ou, unit, addresses)
+    #    mox.edit_unit(test_run=False, **payload)
+    #    mox.check_unit(operation="ret", **payload)
     return {"address": "create"}
 
 
 @app.patch("/triggers/address/edit", tags=["Trigger API"])
 def address_edit(uuid: UUID):
-#    """An address is about to be changed"""
-#    ou = data.get("org_unit_uuid")
-#    if not ou:
-#        return
-#    from_date = data["request"]["data"]["validity"]["from"]
-#    unit = mo_request("ou/" + ou, at=from_date).json()
-#    if not is_sd_triggered(unit):
-#        return
-#
-#    # the changed address is prepended to addresses and
-#    # thereby given higher priority in sd_mox.py
-#    # see 'grouped_addresses'
-#    addresses = [data["request"]["data"]] + mo_request(
-#        "ou/" + ou + "/details/address", at=from_date
-#    ).json()
-#    from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
-#    mox = sd_mox.sdMox.create(from_date=from_date)
-#
-#    # doing a read department here will give the non-unique error
-#    # here - where we still have access to the mo-error reporting
-#    code_errors = mox._validate_unit_code(unit["user_key"], can_exist=True)
-#    if code_errors:
-#        raise sd_mox.SdMoxError(", ".join(code_errors))
-#
-#    payload = mox.payload_edit(ou, unit, addresses)
-#    mox.edit_unit(test_run=False, **payload)
-#    mox.check_unit(operation="ret", **payload)
+    #    """An address is about to be changed"""
+    #    ou = data.get("org_unit_uuid")
+    #    if not ou:
+    #        return
+    #    from_date = data["request"]["data"]["validity"]["from"]
+    #    unit = mo_request("ou/" + ou, at=from_date).json()
+    #    if not is_sd_triggered(unit):
+    #        return
+    #
+    #    # the changed address is prepended to addresses and
+    #    # thereby given higher priority in sd_mox.py
+    #    # see 'grouped_addresses'
+    #    addresses = [data["request"]["data"]] + mo_request(
+    #        "ou/" + ou + "/details/address", at=from_date
+    #    ).json()
+    #    from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
+    #    mox = sd_mox.sdMox.create(from_date=from_date)
+    #
+    #    # doing a read department here will give the non-unique error
+    #    # here - where we still have access to the mo-error reporting
+    #    code_errors = mox._validate_unit_code(unit["user_key"], can_exist=True)
+    #    if code_errors:
+    #        raise sd_mox.SdMoxError(", ".join(code_errors))
+    #
+    #    payload = mox.payload_edit(ou, unit, addresses)
+    #    mox.edit_unit(test_run=False, **payload)
+    #    mox.check_unit(operation="ret", **payload)
     return {"address": "edit"}
