@@ -6,7 +6,6 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 
-import click
 import pika
 import time
 import pprint
@@ -14,9 +13,7 @@ import logging
 import datetime
 import xmltodict
 from operator import itemgetter
-from integrations.SD_Lon import sd_mox_payloads as smp
-from integrations.SD_Lon.sd import SD
-from integrations.SD_Lon.sd_common import load_settings
+import sd_mox_payloads as smp
 from os2mo_helpers.mora_helpers import MoraHelper
 import requests
 from collections import OrderedDict
@@ -24,56 +21,6 @@ from collections import OrderedDict
 
 logger = logging.getLogger('sdMox')
 logger.setLevel(logging.DEBUG)
-
-
-def read_sdmox_config():
-    settings = load_settings()
-    sdmox_config = {
-        "AMQP_USER": settings["integrations.SD_Lon.sd_mox.AMQP_USER"],
-        "AMQP_PASSWORD": settings["integrations.SD_Lon.sd_mox.AMQP_PASSWORD"],
-        "AMQP_HOST": settings.get("integrations.SD_Lon.sd_mox.AMQP_HOST", "msg-amqp.silkeborgdata.dk"),
-        "AMQP_PORT": settings.get("integrations.SD_Lon.sd_mox.AMQP_PORT", 5672),
-        "AMQP_CHECK_WAITTIME": settings.get("integrations.SD_Lon.sd_mox.AMQP_CHECK_WAITTIME", 3),
-        "AMQP_CHECK_RETRIES": settings.get("integrations.SD_Lon.sd_mox.AMQP_CHECK_RETRIES", 6),
-        "VIRTUAL_HOST": settings["integrations.SD_Lon.sd_mox.VIRTUAL_HOST"],
-
-        "OS2MO_SERVICE": settings["mora.base"] + "/service/",
-        "OS2MO_TOKEN": settings.get("crontab.SAML_TOKEN"),
-        "OS2MO_VERIFY": settings.get("mora.verify", True),
-
-        "TRIGGERED_UUIDS": settings["integrations.SD_Lon.sd_mox.TRIGGERED_UUIDS"],
-        "OU_LEVELKEYS": settings["integrations.SD_Lon.sd_mox.OU_LEVELKEYS"],
-        "OU_TIME_PLANNING_MO_VS_SD": settings["integrations.SD_Lon.sd_mox.OU_TIME_PLANNING_MO_VS_SD"],
-        "sd_unit_levels": [],
-        "arbtid_by_uuid": {},
-
-        "sd_common": {
-            "USE_PICKLE_CACHE": False,  # force no caching for sd
-            "SD_USER": settings["integrations.SD_Lon.sd_user"],
-            "SD_PASSWORD": settings["integrations.SD_Lon.sd_password"],
-            "INSTITUTION_IDENTIFIER": settings["integrations.SD_Lon.institution_identifier"],
-            "BASE_URL": settings["integrations.SD_Lon.base_url"],
-        }
-    }
-
-    # Add settings from MO
-    mora_helpers = MoraHelper(hostname=settings['mora.base'])
-
-    mora_org = sdmox_config.get("ORG_UUID")
-    if mora_org is None:
-        sdmox_config["ORG_UUID"] = mora_helpers.read_organisation()
-
-    classes, _ = mora_helpers.read_classes_in_facet('org_unit_level')
-    classes = dict(map(itemgetter("user_key", "uuid"), classes))
-    for key in sdmox_config["OU_LEVELKEYS"]:
-        sdmox_config["sd_unit_levels"].append((key, classes[key]))
-
-    classes, _ = mora_helpers.read_classes_in_facet('time_planning')
-    classes = dict(map(itemgetter("user_key", "uuid"), classes))
-    for key, sd_value in sdmox_config["OU_TIME_PLANNING_MO_VS_SD"].items():
-        sdmox_config["arbtid_by_uuid"][classes[key]] = sd_value
- 
-    return sdmox_config
 
 
 class SdMoxError(Exception):
@@ -87,6 +34,23 @@ class sdMox(object):
         self.config = kwargs
         self.sd = SD(**self.config["sd_common"])
 
+        # Add settings from MO
+        mora_helpers = MoraHelper(hostname=settings['mora.base'])
+
+        mora_org = sdmox_config.get("ORG_UUID")
+        if mora_org is None:
+            sdmox_config["ORG_UUID"] = mora_helpers.read_organisation()
+
+        classes, _ = mora_helpers.read_classes_in_facet('org_unit_level')
+        classes = dict(map(itemgetter("user_key", "uuid"), classes))
+        for key in sdmox_config["OU_LEVELKEYS"]:
+            sdmox_config["sd_unit_levels"].append((key, classes[key]))
+
+        classes, _ = mora_helpers.read_classes_in_facet('time_planning')
+        classes = dict(map(itemgetter("user_key", "uuid"), classes))
+        for key, sd_value in sdmox_config["OU_TIME_PLANNING_MO_VS_SD"].items():
+            sdmox_config["arbtid_by_uuid"][classes[key]] = sd_value
+     
         try:
             self.amqp_user = self.config["AMQP_USER"]
             self.amqp_password = self.config["AMQP_PASSWORD"]
@@ -108,15 +72,6 @@ class sdMox(object):
 
         if from_date:
             self._update_virkning(from_date)
-
-    @staticmethod
-    def create(from_date=None, to_date=None, overrides=None):
-        sdmox_config = read_sdmox_config()
-        if overrides:
-            sdmox_config.update(overrides)
-        mox = sdMox(from_date=from_date, to_date=to_date, **sdmox_config)
-        mox.amqp_connect()
-        return mox
 
     def amqp_connect(self):
         self.exchange_name = 'org-struktur-changes-topic'
@@ -417,6 +372,30 @@ class sdMox(object):
         self.edit_unit(test_run=dry_run, **payload)
         return self.check_unit(operation="ret", **payload)
 
+    def move_unit(self, unit_uuid, new_parent_uuid, at, dry_run=False):
+        settings = load_settings()
+        mora_helpers = MoraHelper(hostname=settings['mora.base'])
+
+        # Fetch old ou data
+        unit = mora_helpers.read_ou(unit_uuid, at=at)
+
+        # doing a read department here will give the non-unique error
+        # here - where we still have access to the mo-error reporting
+        code_errors = self._validate_unit_code(unit['user_key'], can_exist=True)
+        if code_errors:
+            raise sd_mox.SdMoxError(", ".join(code_errors))
+
+        # Fetch the new parent
+        new_parent_unit = mora_helpers.read_ou(new_parent_uuid)
+
+        payload = mox.payload_create(unit_uuid, unit, new_parent_unit)
+        operation = "flyt"
+        self._move_unit(test_run=dry_run, **payload)
+
+        # when moving, do not check against name
+        payload["unit_name"] = None
+        return self.check_unit(operation="flyt", **payload)
+
     def edit_unit(self, test_run=True, **payload):
         xml = self._create_xml_ret(**payload)
         logger.debug('Edit unit xml: {}'.format(xml))
@@ -425,7 +404,7 @@ class sdMox(object):
             self.call(xml)
         return payload["unit_uuid"]
 
-    def move_unit(self, unit_name, unit_code, parent, unit_level, unit_uuid=None,
+    def _move_unit(self, unit_name, unit_code, parent, unit_level, unit_uuid=None,
                   test_run=True):
 
         code_errors = self._validate_unit_code(unit_code, can_exist=True)
@@ -612,75 +591,3 @@ class sdMox(object):
         return True
 
 
-def today():
-    today = datetime.date.today()
-    return today
-
-def first_of_month():
-    first_day_of_this_month = today().replace(day=1)
-    return first_day_of_this_month
-
-
-clickDate = click.DateTime(formats=["%Y-%m-%d"])
-
-
-@click.group()
-@click.option('--from-date', type=clickDate, default=str(first_of_month()), help="TODO", show_default=True)
-@click.option('--to-date', type=clickDate, help="TODO")
-@click.option('--overrides', multiple=True)
-@click.pass_context
-def sd_mox_cli(ctx, from_date, to_date, overrides):
-    """Tool to make changes in SD."""
-
-    from_date = from_date.date()
-    to_date = to_date.date() if to_date else None
-    if to_date and from_date > to_date:
-        raise click.ClickException("from_date must be smaller than to_date")
-
-    overrides = dict(override.split('=') for override in overrides)
-
-    sdmox = sdMox.create(from_date, to_date, overrides)
-
-    ctx.ensure_object(dict)
-    ctx.obj["sdmox"] = sdmox
-    ctx.obj["from_date"] = from_date
-    ctx.obj["to_date"] = to_date
-
-
-@sd_mox_cli.command()
-@click.pass_context
-@click.option('--unit-uuid', type=click.UUID, required=True)
-@click.option('--print-department', is_flag=True, default=False)
-@click.option('--unit-name')
-def check_name(ctx, unit_uuid, print_department, unit_name):
-    mox = ctx.obj["sdmox"]
-
-    unit_uuid = str(unit_uuid)
-    department, errors = mox._check_department(
-        unit_uuid=unit_uuid,
-        unit_name=unit_name,
-    )
-    if print_department:
-       import json
-       print(json.dumps(department, indent=4))
-
-    if errors:
-        click.echo("Mismatches found for:")
-        for error in errors:
-            click.echo("* " + click.style(error, fg='red'))
-
-
-@sd_mox_cli.command()
-@click.pass_context
-@click.option('--unit-uuid', type=click.UUID, required=True)
-@click.option('--new-unit-name')
-@click.option('--dry-run', is_flag=True, default=False)
-def set_name(ctx, unit_uuid, new_unit_name, dry_run):
-    unit_uuid = str(unit_uuid)
-
-    mox = ctx.obj["sdmox"]
-    mox.rename_unit(unit_uuid, new_unit_name, at=ctx.obj['from_date'], dry_run=dry_run)
-
-
-if __name__ == '__main__':
-    sd_mox_cli()

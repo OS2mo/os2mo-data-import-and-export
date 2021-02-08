@@ -1,0 +1,23 @@
+version: "3.9"
+services:
+  web:
+    build: .
+    command: '/start-reload.sh'
+    environment:
+      MORA_URL: https://morademo.magenta.dk
+
+      TRIGGERED_UUIDS: '["4335efff-b324-5efd-b44d-c0f94df5e107", "25abf6f4-fa38-5bd8-b217-7130ce3552cd"]'
+      OU_LEVELKEYS: '[]'
+      OU_TIME_PLANNING_MO_VS_SD: '{}'
+
+      AMQP_USERNAME: 'guest'
+      AMQP_PASSWORD: 'guest'
+      AMQP_VIRTUAL_HOST: 'kommunenavn'
+      
+      SD_USERNAME: 'SYSYUSER01'
+      SD_PASSWORD: 'password1'
+      SD_INSTITUTION: 'ID'
+    ports:
+      - "5011:80"
+    volumes:
+      - ./app:/app
