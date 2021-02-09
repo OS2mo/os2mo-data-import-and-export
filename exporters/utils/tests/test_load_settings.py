@@ -1,9 +1,5 @@
 from unittest import TestCase
-<<<<<<< HEAD
 from unittest.mock import mock_open, patch
-=======
-from unittest.mock import patch, mock_open
->>>>>>> e84e9da (Test utils)
 
 from exporters.utils.load_settings import load_settings
 
