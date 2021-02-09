@@ -306,7 +306,7 @@ class sdMox(object):
         xml = xmltodict.unparse(flyt_dict)
         return xml
 
-    def _validate_unit_code(self, unit_code, unit_level=None, can_exist=False):
+    def _validate_unit_code(self, unit_code, unit_level=None, read_department=True):
         logger.info('Validating unit code {}'.format(unit_code))
         code_errors = []
         if unit_code is None:
@@ -321,12 +321,12 @@ class sdMox(object):
             if unit_code.upper() != unit_code:
                 code_errors.append('Enhedsnummer skal være store bogstaver')
 
-        if not code_errors:
+        if not code_errors and read_department:
             # TODO: Ignore duplicates as we lookup using UUID elsewhere
             #       Only check for duplicates on new creations
             # customers expect unique unit_codes globally
             department = self.read_department(unit_code=unit_code)
-            if department is not None and not can_exist:
+            if department is not None:
                 code_errors.append('Enhedsnummer er i brug')
         return code_errors
 
@@ -404,7 +404,7 @@ class sdMox(object):
 
         # doing a read department here will give the non-unique error
         # here - where we still have access to the mo-error reporting
-        code_errors = self._validate_unit_code(unit['user_key'], can_exist=True)
+        code_errors = self._validate_unit_code(unit['user_key'], read_department=False)
         if code_errors:
             raise sd_mox.SdMoxError(", ".join(code_errors))
 
@@ -428,7 +428,7 @@ class sdMox(object):
     def move_unit(self, unit_name, unit_code, parent, unit_level, unit_uuid=None,
                   test_run=True):
 
-        code_errors = self._validate_unit_code(unit_code, can_exist=True)
+        code_errors = self._validate_unit_code(unit_code, read_department=False)
         if code_errors:
             raise SdMoxError(", ".join(code_errors))
 
