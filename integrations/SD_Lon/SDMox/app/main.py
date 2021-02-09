@@ -15,10 +15,10 @@
 #     ellers går tilbagemeldingen fra SD tilsyneladende i ged.
 #     Der er indført et check for det i sd_mox.py
 
-from datetime import datetime
+from datetime import date
 from enum import Enum
 from functools import partial
-from typing import List, Optional
+from typing import Dict, List, Optional
 from uuid import UUID
 
 import requests
@@ -68,23 +68,9 @@ def should_mox_run(mo_ou):
     return False
 
 
-class Validity(BaseModel):
-    time_from: datetime = Field(None, alias="from")
-    time_to: datetime = Field(None, alias="to")
-
-
-class OUParent(BaseModel):
-    uuid: UUID
-
-
-class OUData(BaseModel):
-    validity: Validity
-    name: Optional[str] = None
-    parent: Optional[OUParent] = None
-
-
 class OUObject(BaseModel):
-    data: OUData
+    type: str
+    data: Dict
 
 
 class EventType(int, Enum):
@@ -92,6 +78,7 @@ class EventType(int, Enum):
 
     Duplicated from here: https://git.magenta.dk/rammearkitektur/os2mo/-/blob/development/backend/mora/triggers/__init__.py#L50-54
     """
+
     ON_BEFORE, ON_AFTER = range(2)
 
 
@@ -100,6 +87,7 @@ class RequestType(int, Enum):
 
     Duplicated from here: https://git.magenta.dk/rammearkitektur/os2mo/-/blob/development/backend/mora/mapping.py#L123-128
     """
+
     CREATE, EDIT, TERMINATE = range(3)
 
 
@@ -107,7 +95,28 @@ class MOTriggerPayload(BaseModel):
     """MO trigger payload.
 
     See: https://os2mo.readthedocs.io/en/development/api/triggers.html#the-trigger-function for details.
+
+    Note: data is dependent on the `event_type, `request_type` and `role_type`.
     """
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "event_type": 0,
+                "request": {
+                    "data": {
+                        "clamp": True,
+                        "name": "Havtorn Kommune",
+                        "uuid": "fb2d158f-114e-5f67-8365-2c520cf10b58",
+                        "validity": {"from": "2021-02-09"},
+                    },
+                    "type": "org_unit",
+                },
+                "request_type": 1,
+                "role_type": "org_unit",
+                "uuid": "fb2d158f-114e-5f67-8365-2c520cf10b58",
+            }
+        }
 
     event_type: EventType
     request: OUObject
@@ -127,8 +136,9 @@ class MOTriggerRegister(BaseModel):
             "example": {
                 "event_type": 0,
                 "request_type": 0,
-                "role_type": "ORG_UNIT",
+                "role_type": "org_unit",
                 "url": "/triggers/ou/create",
+                "timeout": 60,
             }
         }
 
@@ -136,6 +146,7 @@ class MOTriggerRegister(BaseModel):
     request_type: RequestType
     role_type: str
     url: str
+    timeout: Optional[int]
 
 
 class DetailError(BaseModel):
@@ -152,7 +163,7 @@ class DetailError(BaseModel):
 
 
 def get_date(
-    date: Optional[datetime] = Query(
+    date: Optional[date] = Query(
         None,
         description="""Effective start date for change.
         Must be the first day of a month.
@@ -165,7 +176,7 @@ def get_date(
     return first_of_month()
 
 
-def _verify_ou_ok(uuid: UUID, at: datetime, mora_helper):
+def _verify_ou_ok(uuid: UUID, at: date, mora_helper):
     try:
         # TODO: AIOHTTP MoraHelpers?
         mo_ou = mora_helper.read_ou(uuid, at=at)
@@ -218,7 +229,7 @@ _verify_ou_ok.responses = {
 
 def verify_ou_ok(
     uuid: UUID,
-    at: datetime = Depends(get_date),
+    at: date = Depends(get_date),
     mora_helper=Depends(partial(get_mora_helper, None)),
 ):
     _verify_ou_ok(uuid, at, mora_helper)
@@ -231,14 +242,16 @@ def verify_ou_ok_trigger(
     payload: MOTriggerPayload, mora_helper=Depends(partial(get_mora_helper, None))
 ):
     uuid = payload.uuid
-    at = payload.request.data.validity.time_from
+    data = payload.request.data
+
+    at = data["validity"]["from"]
     _verify_ou_ok(uuid, at, mora_helper)
 
 
 verify_ou_ok_trigger.responses = _verify_ou_ok.responses
 
 
-async def _ou_edit_name(ou_uuid: UUID, new_name: str, at: datetime):
+async def _ou_edit_name(ou_uuid: UUID, new_name: str, at: date):
     if new_name is None:
         raise ValueError("NO")
 
@@ -248,7 +261,7 @@ async def _ou_edit_name(ou_uuid: UUID, new_name: str, at: datetime):
     await mox.rename_unit(ou_uuid, new_name, at=at, dry_run=True)
 
 
-async def _ou_edit_parent(ou_uuid: UUID, new_parent: UUID, at: datetime):
+async def _ou_edit_parent(ou_uuid: UUID, new_parent: UUID, at: date):
     if new_parent is None:
         raise ValueError("NO")
 
@@ -276,7 +289,7 @@ async def root() -> RedirectResponse:
 async def ou_edit_name(
     uuid: UUID,
     new_name: str,
-    at: datetime = Depends(get_date),
+    at: date = Depends(get_date),
 ):
     """Rename an organizational unit.
 
@@ -286,6 +299,7 @@ async def ou_edit_name(
     # TODO: Document using Query() instead?
     # See: https://github.com/tiangolo/fastapi/issues/1007
     await _ou_edit_name(uuid, new_name, at)
+    return {"status": "OK"}
 
 
 @app.patch(
@@ -295,11 +309,10 @@ async def ou_edit_name(
     tags=["API"],
     summary="Move an organizational unit.",
 )
-async def ou_edit_parent(
-    uuid: UUID, new_parent: UUID, at: datetime = Depends(get_date)
-):
+async def ou_edit_parent(uuid: UUID, new_parent: UUID, at: date = Depends(get_date)):
     """Move an organizational unit."""
     await _ou_edit_parent(uuid, new_parent, at)
+    return {"status": "OK"}
 
 
 @app.get(
@@ -317,25 +330,25 @@ def triggers():
         {
             "event_type": EventType.ON_BEFORE,
             "request_type": RequestType.CREATE,
-            "role_type": "ORG_UNIT",
+            "role_type": "org_unit",
             "url": "/triggers/ou/create",
         },
         {
             "event_type": EventType.ON_BEFORE,
             "request_type": RequestType.EDIT,
-            "role_type": "ORG_UNIT",
+            "role_type": "org_unit",
             "url": "/triggers/ou/edit",
         },
         {
             "event_type": EventType.ON_BEFORE,
             "request_type": RequestType.CREATE,
-            "role_type": "ADDRESS",
+            "role_type": "address",
             "url": "/triggers/address/create",
         },
         {
             "event_type": EventType.ON_BEFORE,
             "request_type": RequestType.EDIT,
-            "role_type": "ADDRESS",
+            "role_type": "address",
             "url": "/triggers/address/edit",
         },
     ]
@@ -380,7 +393,7 @@ def ou_create():
     return {"ou": "create"}
 
 
-@app.patch(
+@app.post(
     "/triggers/ou/edit",
     responses=verify_ou_ok_trigger.responses,
     dependencies=[Depends(verify_ou_ok_trigger)],
@@ -390,16 +403,19 @@ def ou_create():
 async def trggers_ou_edit(payload: MOTriggerPayload):
     """Rename or move an organizational unit."""
     uuid = payload.uuid
-    at = payload.request.data.validity.time_from
+    data = payload.request.data
 
-    new_name = payload.request.data.name
+    at = data["validity"]["from"]
+
+    new_name = data["name"]
     if new_name:
         await _ou_edit_name(uuid, new_name, at)
 
-    new_parent_obj = payload.request.data.parent
+    new_parent_obj = data["parent"]
     if new_parent_obj:
         new_parent_uuid = new_parent_obj.uuid
         await _ou_edit_parent(uuid, new_parent_uuid, at)
+    return {"status": "OK"}
 
 
 @app.post("/triggers/address/create", tags=["Trigger API"])
@@ -451,7 +467,7 @@ def address_create():
     return {"address": "create"}
 
 
-@app.patch("/triggers/address/edit", tags=["Trigger API"])
+@app.post("/triggers/address/edit", tags=["Trigger API"])
 def address_edit(uuid: UUID):
     #    """An address is about to be changed"""
     #    ou = data.get("org_unit_uuid")
