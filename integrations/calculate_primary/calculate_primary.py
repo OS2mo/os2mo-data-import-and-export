@@ -1,7 +1,8 @@
 import logging
 
 import click
-from click_option_group import RequiredMutuallyExclusiveOptionGroup, optgroup
+
+# from click_option_group import RequiredMutuallyExclusiveOptionGroup, optgroup
 from integrations.calculate_primary.common import LOGGER_NAME
 
 
@@ -44,19 +45,22 @@ def get_engagement_updater(integration):
     required=True,
     help="Integration to use",
 )
+@click.option("--dry-run", is_flag=True, type=click.BOOL, help="Make no changes")
+# @optgroup.group("Operation", cls=RequiredMutuallyExclusiveOptionGroup, help="")
+# @optgroup.option(
+#    "--check-all", is_flag=True, type=click.BOOL, help="Check all users"
+# )
+# @optgroup.option("--check-user", type=click.UUID, help="Check one user")
+# @optgroup.option(
+#    "--recalculate-all", is_flag=True, type=click.BOOL, help="Recalculate all users"
+# )
+# @optgroup.option("--recalculate-user", type=click.UUID, help="Recalculate one user")
+@click.option("--check-all", is_flag=True, type=click.BOOL, help="Check all users")
+@click.option("--check-user", type=click.UUID, help="Check one user")
 @click.option(
-    "--dry-run",
-    is_flag=True, type=click.BOOL, help="Make no changes"
-)
-@optgroup.group("Operation", cls=RequiredMutuallyExclusiveOptionGroup, help="")
-@optgroup.option(
-    "--check-all", is_flag=True, type=click.BOOL, help="Check all users"
-)
-@optgroup.option("--check-user", type=click.UUID, help="Check one user")
-@optgroup.option(
     "--recalculate-all", is_flag=True, type=click.BOOL, help="Recalculate all users"
 )
-@optgroup.option("--recalculate-user", type=click.UUID, help="Recalculate one user")
+@click.option("--recalculate-user", type=click.UUID, help="Recalculate one user")
 def calculate_primary(
     integration, dry_run, check_all, check_user, recalculate_all, recalculate_user
 ):
