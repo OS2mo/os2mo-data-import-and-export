@@ -134,7 +134,15 @@ def export_ou_emus(session, nodes, emus_file=sys.stdout):
         manager = session.query(Leder).filter(
             Leder.uuid == ou.leder_uuid
         ).first()
+
         manager_uuid = manager.bruger_uuid if manager else ''
+        # Ensure that managers actually have an engagement
+        if manager_uuid:
+            entrydate, _ = get_manager_dates(session, manager_uuid)
+            if entrydate is None:
+                logger.info("skipping manager %s with no current employment (for ou)", manager_uuid)
+                manager_uuid = ''
+
         # manager_uuid = ou.leder_uuid or ''
 
         street_address = session.query(Adresse).filter(and_(
@@ -257,7 +265,7 @@ def build_engagement_row(session, settings, ou, engagement):
     return row
 
 
-def get_manager_dates(session, bruger):
+def get_manager_dates(session, bruger_uuid):
     """Man kan tydeligvis ikke regne med at chefens datoer
     på lederobjektet er korrekte. Derfor ser vi lige på
     om chefen fortsat er ansat, inden vi rapporterer.
@@ -266,7 +274,7 @@ def get_manager_dates(session, bruger):
     startdate = '9999-12-31'
     enddate = '0000-00-00'
     for engagement in session.query(Engagement).filter(
-        Engagement.bruger_uuid == bruger.uuid
+        Engagement.bruger_uuid == bruger_uuid
     ).all():
         if engagement.slutdato and enddate != '':
             # Enddate is finite, check if it is later than current
@@ -299,9 +307,9 @@ def build_manager_rows(session, settings, ou, manager):
     firstname = bruger.fornavn
     lastname = bruger.efternavn
 
-    entrydate, leavedate = get_manager_dates(session, bruger)
+    entrydate, leavedate = get_manager_dates(session, bruger.uuid)
     if entrydate is None:
-        logger.info("skipping manager %s with no current employment", manager.uuid)
+        logger.info("skipping manager %s with no current employment (for user)", manager.uuid)
         return []
 
     username = session.query(ItForbindelse.brugernavn).filter(and_(
