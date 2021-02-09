@@ -1,20 +1,7 @@
-import datetime
-
 import click
 
 from sd_mox import SDMox
-from util import async_to_sync
-
-
-def today():
-    today = datetime.date.today()
-    return today
-
-
-def first_of_month():
-    first_day_of_this_month = today().replace(day=1)
-    return first_day_of_this_month
-
+from util import async_to_sync, first_of_month
 
 clickDate = click.DateTime(formats=["%Y-%m-%d"])
 
@@ -78,11 +65,14 @@ async def check_name(ctx, unit_uuid, print_department, unit_name):
 @click.option("--unit-uuid", type=click.UUID, required=True)
 @click.option("--new-unit-name")
 @click.option("--dry-run", is_flag=True, default=False)
-def set_name(ctx, unit_uuid, new_unit_name, dry_run):
+@async_to_sync
+async def set_name(ctx, unit_uuid, new_unit_name, dry_run):
     unit_uuid = str(unit_uuid)
 
     mox = ctx.obj["sdmox"]
-    mox.rename_unit(unit_uuid, new_unit_name, at=ctx.obj["from_date"], dry_run=dry_run)
+    await mox.rename_unit(
+        unit_uuid, new_unit_name, at=ctx.obj["from_date"], dry_run=dry_run
+    )
 
 
 if __name__ == "__main__":

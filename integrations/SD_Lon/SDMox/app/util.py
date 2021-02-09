@@ -1,3 +1,5 @@
+import datetime
+
 import asyncio
 from functools import wraps
 from functools import lru_cache
@@ -5,6 +7,16 @@ from functools import lru_cache
 from os2mo_helpers.mora_helpers import MoraHelper
 
 from config import get_settings
+
+
+def today():
+    today = datetime.date.today()
+    return today
+
+
+def first_of_month():
+    first_day_of_this_month = today().replace(day=1)
+    return first_day_of_this_month
 
 
 def get_mora_helper(mora_url=None):
