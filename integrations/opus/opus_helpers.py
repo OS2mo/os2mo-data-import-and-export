@@ -1,38 +1,31 @@
-import uuid
-import json
-import pickle
-import pathlib
-import hashlib
-import logging
-import sqlite3
 import datetime
+import hashlib
+import json
+import logging
+import pathlib
+import pickle
+import sqlite3
+import uuid
 from operator import itemgetter
 from pathlib import Path
 
 import xmltodict
-
 from integrations import cpr_mapper
-from integrations.opus import opus_import
-from integrations.opus import opus_diff_import
-from integrations.opus.opus_exceptions import RunDBInitException
+from integrations.opus import opus_diff_import, opus_import
+from exporters.utils.load_settings import load_settings
 # from integrations.opus.opus_exceptions import NoNewerDumpAvailable
-from integrations.opus.opus_exceptions import RedundantForceException
-from integrations.opus.opus_exceptions import ImporterrunNotCompleted
+from integrations.opus.opus_exceptions import (ImporterrunNotCompleted,
+                                               RedundantForceException,
+                                               RunDBInitException)
 
-# TODO: Soon we have done this 4 times. Should we make a small settings
-# importer, that will also handle datatype for specicic keys?
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
-
+SETTINGS = load_settings()
 DUMP_PATH = Path(SETTINGS['integrations.opus.import.xml_path'])
 START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
 
 logger = logging.getLogger("opusHelper")
 
 
-def _read_cpr_mapping():
+def read_cpr_mapping():
     cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
     if not cpr_map.is_file():
         logger.error('Did not find cpr mapping')
@@ -54,7 +47,7 @@ def read_available_dumps():
     return dumps
 
 
-def _local_db_insert(insert_tuple):
+def local_db_insert(insert_tuple):
     conn = sqlite3.connect(SETTINGS['integrations.opus.import.run_db'],
                            detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
@@ -68,7 +61,7 @@ def _local_db_insert(insert_tuple):
     conn.close()
 
 
-def _initialize_db(run_db):
+def initialize_db(run_db):
     logger.info('Force is true, create new db')
     conn = sqlite3.connect(str(run_db))
     c = conn.cursor()
@@ -80,7 +73,7 @@ def _initialize_db(run_db):
     conn.close()
 
 
-def _next_xml_file(run_db, dumps):
+def next_xml_file(run_db, dumps):
     conn = sqlite3.connect(SETTINGS['integrations.opus.import.run_db'],
                            detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
@@ -133,77 +126,6 @@ def generate_uuid(value):
     return value_uuid
 
 
-def start_opus_import(importer, ad_reader=None, force=False):
-    """
-    Start an opus import, run the oldest available dump that
-    has not already been imported.
-    """
-    dumps = read_available_dumps()
-
-    run_db = Path(SETTINGS['integrations.opus.import.run_db'])
-    if not run_db.is_file():
-        logger.error('Local base not correctly initialized')
-        if not force:
-            raise RunDBInitException('Local base not correctly initialized')
-        else:
-            _initialize_db(run_db)
-        xml_date = sorted(dumps.keys())[0]
-    else:
-        if force:
-            raise RedundantForceException('Used force on existing db')
-        xml_date = _next_xml_file(run_db, dumps)
-
-    xml_file = dumps[xml_date]
-    _local_db_insert((xml_date, 'Running since {}'))
-
-    employee_mapping = _read_cpr_mapping()
-
-    opus_importer = opus_import.OpusImport(
-        importer,
-        org_name=SETTINGS['municipality.name'],
-        xml_data=str(xml_file),
-        ad_reader=ad_reader,
-        import_first=True,
-        employee_mapping=employee_mapping
-    )
-    logger.info('Start import')
-    opus_importer.insert_org_units()
-    opus_importer.insert_employees()
-    opus_importer.add_addresses_to_employees()
-    opus_importer.importer.import_all()
-    logger.info('Ended import')
-
-    _local_db_insert((xml_date, 'Import ended: {}'))
-
-
-def start_opus_diff(ad_reader=None):
-    """
-    Start an opus update, use the oldest available dump that has not
-    already been imported.
-    """
-    dumps = read_available_dumps()
-    run_db = Path(SETTINGS['integrations.opus.import.run_db'])
-
-    employee_mapping = _read_cpr_mapping()
-
-    if not run_db.is_file():
-        logger.error('Local base not correctly initialized')
-        raise RunDBInitException('Local base not correctly initialized')
-    xml_date, latest_date = _next_xml_file(run_db, dumps)
-
-    if xml_date is not None:
-        xml_file = dumps[xml_date]
-
-        _local_db_insert((xml_date, 'Running diff update since {}'))
-        msg = 'Start update: File: {}, update since: {}'
-        logger.info(msg.format(xml_file, latest_date))
-        print(msg.format(xml_file, latest_date))
-
-        diff = opus_diff_import.OpusDiffImport(latest_date, ad_reader=ad_reader,
-                                               employee_mapping=employee_mapping)
-        diff.start_re_import(xml_file, include_terminations=True)
-        logger.info('Ended update')
-        _local_db_insert((xml_date, 'Diff update ended: {}'))
 
 
 def read_dump_data(dump_file):
@@ -238,7 +160,7 @@ def compare_employees(original, new, force=False):
 def update_employee(employee_number, days):
     from integrations.ad_integration import ad_reader
 
-    employee_mapping = _read_cpr_mapping()
+    employee_mapping = read_cpr_mapping()
     ad_read = ad_reader.ADParameterReader()
     latest_date = None
 

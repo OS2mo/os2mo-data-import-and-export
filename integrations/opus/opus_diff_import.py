@@ -1,21 +1,21 @@
-# -- coding: utf-8 --
 import json
 import logging
+from datetime import datetime, timedelta
+from pathlib import Path
+
 import requests
 import xmltodict
-
-from pathlib import Path
-from requests import Session
-from datetime import datetime
-from datetime import timedelta
-
+from exporters.utils.load_settings import load_settings
 from integrations import dawa_helper
-from integrations.opus import payloads
-from integrations.opus import opus_helpers
-from os2mo_helpers.mora_helpers import MoraHelper
+from integrations.ad_integration import ad_reader
+from integrations.opus import opus_helpers, payloads
 from integrations.opus.calculate_primary import MOPrimaryEngagementUpdater
-from integrations.opus.opus_exceptions import UnknownOpusUnit
-from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
+from integrations.opus.opus_exceptions import (EmploymentIdentifierNotUnique,
+                                               RunDBInitException,
+                                               UnknownOpusUnit)
+from os2mo_helpers.mora_helpers import MoraHelper
+from requests import Session
+from tqdm import tqdm
 
 logger = logging.getLogger("opusDiff")
 
@@ -58,12 +58,8 @@ EMPLOYEE_ADDRESS_CHECKS = {
 class OpusDiffImport(object):
     def __init__(self, latest_date, ad_reader, employee_mapping={}):
         logger.info('Opus diff importer __init__ started')
-        # TODO: Soon we have done this 4 times. Should we make a small settings
-        # importer, that will also handle datatype for specicic keys?
-        cfg_file = Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+
+        self.settings = load_settings()
         self.filter_ids = self.settings.get('integrations.opus.units.filter_ids', [])
 
         self.session = Session()
@@ -102,8 +98,8 @@ class OpusDiffImport(object):
         # Potential to cut ~30s by parsing this:
         # /organisationfunktion?funktionsnavn=Rolle&virkningFra=2019-01-01
         self.role_cache = []
-        units = self.helper._mo_lookup(self.org_uuid, 'o/{}/ou?limit=1000000000')
-        for unit in units['items']:
+        units = self.helper._mo_lookup(self.org_uuid, 'o/{}/ou')
+        for unit in tqdm(units['items'], desc="Update roles"):
             for validity in ['past', 'present', 'future']:
                 url = 'ou/{}/details/role?validity=' + validity
                 roles = self.helper._mo_lookup(unit['uuid'], url)
@@ -141,12 +137,13 @@ class OpusDiffImport(object):
             logger.debug('Requst had no effect')
         return None
 
-    def parser(self, target_file):
+    def parser(self, target_file, filter_ids):
         data = xmltodict.parse(target_file.read_text())['kmd']
-        self.units = data['orgUnit'][1:]
-        self.units = opus_helpers.filter_units(self.units, self.filter_ids)
-        self.employees = data['employee']
-        return True
+        units = data['orgUnit'][1:]
+        units = opus_helpers.filter_units(units, filter_ids)
+        employees = data['employee']
+        return units, employees
+
 
     def _add_klasse_to_lora(self, klasse_name, facet_uuid):
         klasse_uuid = opus_helpers.generate_uuid(klasse_name)
@@ -847,21 +844,21 @@ class OpusDiffImport(object):
                     self.terminate_detail(org_funk_info['manager'],
                                           detail_type='manager')
 
-    def start_re_import(self, xml_file, include_terminations=False):
+    def start_import(self, xml_file, include_terminations=False):
         """
         Start an opus import, run the oldest available dump that
         has not already been imported.
         """
-        self.parser(xml_file)
+        self.units, self.employees = self.parser(xml_file, self.filter_ids)
 
-        for unit in self.units:
+        for unit in tqdm(self.units, desc="Update units"):
             last_changed = datetime.strptime(unit['@lastChanged'], '%Y-%m-%d')
             # Turns out org-unit updates are sometimes a day off
             last_changed = last_changed + timedelta(days=1)
             if last_changed > self.latest_date:
                 self.update_unit(unit)
 
-        for employee in self.employees:
+        for employee in tqdm(self.employees, desc="Update employees"):
             last_changed_str = employee.get('@lastChanged')
             if last_changed_str is not None:  # This is a true employee-object.
                 last_changed = datetime.strptime(last_changed_str, '%Y-%m-%d')
@@ -897,15 +894,39 @@ class OpusDiffImport(object):
         logger.info('Program ended correctly')
 
 
-if __name__ == '__main__':
-    from integrations.ad_integration import ad_reader
-    from integrations.opus.opus_helpers import start_opus_diff
-    from integrations.opus.opus_exceptions import RunDBInitException
+def start_opus_diff(ad_reader=None):
+    """
+    Start an opus update, use the oldest available dump that has not
+    already been imported.
+    """
+    dumps = opus_helpers.read_available_dumps()
+    run_db = Path(SETTINGS['integrations.opus.import.run_db'])
 
-    cfg_file = Path.cwd() / 'settings' / 'settings.json'
-    if not cfg_file.is_file():
-        raise Exception('No setting file')
-    SETTINGS = json.loads(cfg_file.read_text())
+    employee_mapping = opus_helpers.read_cpr_mapping()
+
+    if not run_db.is_file():
+        logger.error('Local base not correctly initialized')
+        raise RunDBInitException('Local base not correctly initialized')
+    xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
+
+    if not xml_date:
+        return
+
+    xml_file = dumps[xml_date]
+    opus_helpers.local_db_insert((xml_date, 'Running diff update since {}'))
+    msg = 'Start update: File: {}, update since: {}'
+    logger.info(msg.format(xml_file, latest_date))
+    print(msg.format(xml_file, latest_date))
+    diff = OpusDiffImport(latest_date, ad_reader=ad_reader,
+                                           employee_mapping=employee_mapping)
+    diff.start_import(xml_file, include_terminations=True)
+    logger.info('Ended update')
+    opus_helpers.local_db_insert((xml_date, 'Diff update ended: {}'))
+
+
+if __name__ == '__main__':
+    
+    SETTINGS = load_settings()
 
     ad_reader = ad_reader.ADParameterReader()
 
