@@ -11,7 +11,6 @@ def old_function():
 
 
 class DeprecationTests(TestCase):
-
     def assertIsSubclass(self, cls, parent_cls):
         """Assert that cls is a subclass of parent_cls."""
         assert issubclass(cls, parent_cls)
@@ -28,6 +27,5 @@ class DeprecationTests(TestCase):
             warning = warning_catcher[0]
             self.assertIsSubclass(warning.category, DeprecationWarning)
             self.assertEqual(
-                str(warning.message),
-                "Call to deprecated function old_function."
+                str(warning.message), "Call to deprecated function old_function."
             )
