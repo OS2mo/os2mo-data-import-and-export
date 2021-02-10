@@ -182,23 +182,12 @@ For at kunne sammenligne objekter mellem MO og Opus, har integrationen brug for 
 kende de klasser som felterne mappes til i MO. Det er derfor nødvendigt at oprette
 disse nøgler i ``settings.json``:
 
- * ``opus.addresses.employee.dar``:  UUID på postaddresse for medarbejdere.
- * ``opus.addresses.employee.phone``: UUID på telefon for medarbejdere.
- * ``opus.addresses.employee.email``: UUID på email for medarbejdere.
- * ``opus.addresses.unit.se``: UUID på SE nummer for enheder.
- * ``opus.addresses.unit.cvr``: UUID på CVR nummer for enheder.
- * ``opus.addresses.unit.ean``: UUID på EAN nummer for enheder.
- * ``opus.addresses.unit.pnr``: UUID på p-nummer for enheder.
- * ``opus.addresses.unit.phoneNumber``:  UUID på telefonnummer for enheder.
- * ``opus.addresses.unit.dar``: UUID på postaddresser for enheder.
  * ``opus.it_systems.ad``:  UUID på IT-systemet 'Active Directory'
  * ``opus.it_systems.opus``: UUID på IT-systemet 'Opus'
 
 Klasserne oprettes i forbindelse med førstegangsimporten, og UUID'erne kan findes ved
 hjælp af disse tre end-points i MO:
 
- * ``/service/o/<org_uuid>/f/org_unit_address_type/``
- * ``/service/o/<org_uuid>/f/employee_address_type/``
  * ``/service/o/<org_uuid>/it/``
    
 Værdien af org_uuid findes ved at tilgå:
