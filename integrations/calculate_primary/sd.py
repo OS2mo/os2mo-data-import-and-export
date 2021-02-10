@@ -65,6 +65,9 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         # Ensure that all mo_engagements have integer user_keys.
         mo_engagements = list(filter(non_integer_userkey, mo_engagements))
 
+        if not mo_engagements:
+            return None
+
         # The primary engagement is the engagement with the highest occupation rate.
         # - The occupation rate is found as 'fraction' on the engagement.
         #
@@ -80,11 +83,14 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
     def _fixup_status_0(self, mo_engagement):
         logger.warning("Engagement type not status0. Will fix.")
         validity = mo_engagement['validity']
-        data = {
-            "primary": {"uuid": self.primary_types["no_salary"]},
-            "validity": validity,
+        payload = {
+            "type": "engagement",
+            "uuid": mo_engagement["uuid"],
+            "data": {
+                "primary": {"uuid": self.primary_types["no_salary"]},
+                "validity": validity
+            }
         }
-        payload = edit_engagement(data, eng["uuid"])
         logger.debug("Status0 edit payload: {}".format(payload))
         if not self.dry_run:
             response = self.helper._mo_post("details/edit", payload)

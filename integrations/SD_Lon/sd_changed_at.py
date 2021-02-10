@@ -30,7 +30,7 @@ from integrations.SD_Lon.sync_job_id import JobIdSync
 
 from integrations.SD_Lon.db_overview import DBOverview
 from integrations.SD_Lon.fix_departments import FixDepartments
-from integrations.calculate_primary.common import LOGGER_NAME
+from integrations.calculate_primary.common import LOGGER_NAME, NoPrimaryFound
 from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
 
 
@@ -1070,7 +1070,13 @@ class ChangeAtSD:
                 self._update_user_employments(cpr, sd_engagement)
 
                 # Re-calculate primary after all updates for user has been performed.
-                self.updater.recalculate_primary(self.mo_person['uuid'])
+                try:
+                    self.updater.recalculate_primary(self.mo_person['uuid'])
+                except NoPrimaryFound:
+                    logger.warning(
+                        "Could not find primary for: " + str(self.mo_person['uuid'])
+                    )
+
 
 
 def _local_db_insert(insert_tuple):
