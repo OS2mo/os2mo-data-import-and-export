@@ -3,9 +3,10 @@
 import random
 
 import click
+from ad_reader import ADParameterReader
+from operator import itemgetter
 
 import username_rules.method_2
-from ad_reader import ADParameterReader
 
 
 METHOD = 'metode 2'
@@ -87,9 +88,9 @@ class CreateUserNames(object):
     An implementation of metode 2 in the AD MOX specification document
     (Bilag: Tildeling af brugernavne).
     """
-    def __init__(self, occupied_names: set):
+    def __init__(self, occupied_names: set = None):
         self.method = METHOD
-        self.occupied_names = occupied_names
+        self.occupied_names = self.set_occupied_names(occupied_names)
         self.combinations = [
             username_rules.method_2.FIRST,
             username_rules.method_2.SECOND,
@@ -133,6 +134,10 @@ class CreateUserNames(object):
                 username += 'X'
         return username
 
+    def set_occupied_names(self, occupied_names: set = None):
+        occupied_names = occupied_names or set()
+        self.occupied_names = occupied_names
+
     def populate_occupied_names(self, **kwargs):
         """
         Read all usernames from AD and add them to the list of reserved names.
@@ -140,10 +145,10 @@ class CreateUserNames(object):
         """
         reader = ADParameterReader(**kwargs)
         all_users = reader.read_it_all()
-        for user in all_users:
-            self.occupied_names.add(user['SamAccountName'])
+        occupied_names = set(map(itemgetter('SamAccountName'), all_users))
+        self.set_occupied_names(occupied_names)
         del reader
-        return len(all_users)
+        return len(occupied_names)
 
     def disqualify_unwanted_names(self, banned_words_list):
         """

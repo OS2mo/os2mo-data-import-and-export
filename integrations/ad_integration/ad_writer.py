@@ -257,7 +257,7 @@ class MORESTSource(MODataSource):
 
 
 class ADWriter(AD):
-    def __init__(self, lc=None, lc_historic=None, **kwargs):
+    def __init__(self, lc=None, lc_historic=None, occupied_names=None, **kwargs):
         super().__init__(**kwargs)
         self.opts = dict(**kwargs)
 
@@ -278,12 +278,13 @@ class ADWriter(AD):
         self.helper = MoraHelper(hostname=self.settings['global']['mora.base'],
                                  use_cache=False)
 
-        self._init_name_creator()
+        self._init_name_creator(occupied_names)
 
-    def _init_name_creator(self):
-        self.name_creator = CreateUserNames(occupied_names=set())
-        logger.info('Reading occupied names')
-        self.name_creator.populate_occupied_names(**self.opts)
+    def _init_name_creator(self, occupied_names):
+        self.name_creator = CreateUserNames()
+        if occupied_names is None:
+            logger.info('Reading occupied names')
+            self.name_creator.populate_occupied_names(**self.opts)
         logger.info('Done reading occupied names')
 
     def _get_write_setting(self):
