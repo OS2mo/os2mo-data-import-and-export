@@ -1,4 +1,5 @@
 import json
+from operator import itemgetter
 import logging
 from datetime import datetime, timedelta
 from operator import itemgetter
@@ -94,6 +95,8 @@ class OpusDiffImport(object):
         self.responsibilities, _ = self._find_classes('responsibility')
         self.org_unit_address_types, _ = self._find_classes('org_unit_address_type')
         self.employee_address_types, _ = self._find_classes('employee_address_type')
+        it_systems = self.helper.read_it_systems()
+        self.it_systems = dict(map(itemgetter('name', 'uuid'), it_systems))
 
         # TODO, this should also be done be _find_classes
         logger.info('Read job_functions')
@@ -570,7 +573,7 @@ class OpusDiffImport(object):
         if 'userId' in employee:
             payload = payloads.connect_it_system_to_user(
                 employee['userId'],
-                self.settings['integrations.opus.it_systems.opus'],
+                self.it_systems['Opus'],
                 return_uuid
             )
             logger.debug('Opus account payload: {}'.format(payload))
@@ -582,7 +585,7 @@ class OpusDiffImport(object):
         if sam_account:
             payload = payloads.connect_it_system_to_user(
                 sam_account,
-                self.settings['integrations.opus.it_systems.ad'],
+                self.it_systems['Active Directory'],
                 return_uuid
             )
             logger.debug('AD account payload: {}'.format(payload))
