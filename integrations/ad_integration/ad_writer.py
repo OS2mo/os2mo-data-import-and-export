@@ -281,7 +281,7 @@ class ADWriter(AD):
         self._init_name_creator(occupied_names)
 
     def _init_name_creator(self, occupied_names):
-        self.name_creator = CreateUserNames()
+        self.name_creator = CreateUserNames(occupied_names)
         if occupied_names is None:
             logger.info('Reading occupied names')
             self.name_creator.populate_occupied_names(**self.opts)
