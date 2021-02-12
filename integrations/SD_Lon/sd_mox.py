@@ -17,7 +17,7 @@ import click
 import pika
 import requests
 import xmltodict
-from os2mo_helpers.mora_helpers import MoraHelper
+from integrations.SD_Lon.mora_helpers import MoraHelper
 
 from integrations.SD_Lon import sd_mox_payloads as smp
 from integrations.SD_Lon.sd import SD
