@@ -21,14 +21,26 @@ from integrations.SD_Lon.mora_helpers import MoraHelper
 
 from integrations.SD_Lon import sd_mox_payloads as smp
 from integrations.SD_Lon.sd import SD
-from integrations.SD_Lon.sd_common import load_settings
 
 logger = logging.getLogger("sdMox")
 logger.setLevel(logging.DEBUG)
 
 
+def load_settings():
+    import pathlib
+    import json
+    import customer
+    import sys
+    custpath = pathlib.Path(customer.__file__).parent
+    sys.path.append(str(custpath))
+
+    cfg_file = custpath / "settings" / "settings.json"
+    return json.loads(cfg_file.read_text())
+
+
 def read_sdmox_config():
     settings = load_settings()
+    print(settings)
     sdmox_config = {
         "AMQP_USER": settings["integrations.SD_Lon.sd_mox.AMQP_USER"],
         "AMQP_PASSWORD": settings["integrations.SD_Lon.sd_mox.AMQP_PASSWORD"],
