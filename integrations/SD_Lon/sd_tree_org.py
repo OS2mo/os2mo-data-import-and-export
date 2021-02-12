@@ -269,5 +269,5 @@ async def department_identifier_list():
 
 
 if __name__ == "__main__":
-    department_identifier_list()
-    # sd_tree_org()
+    # department_identifier_list()
+    sd_tree_org()

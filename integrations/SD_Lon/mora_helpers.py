@@ -26,11 +26,14 @@ logger = logging.getLogger("mora-helper")
 
 class MoraHelper:
     def __init__(self, hostname='http://localhost', export_ansi=True,
-                 use_cache=True):
+                 use_cache=True, saml_token=None):
         self.host = hostname + '/service/'
         self.cache = {}
         self.default_cache = use_cache
         self.export_ansi = export_ansi
+        if saml_token:
+            global SAML_TOKEN
+            SAML_TOKEN = saml_token
 
     def _split_name(self, name):
         """ Split a name into first and last name.

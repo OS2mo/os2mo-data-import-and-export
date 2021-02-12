@@ -10,8 +10,11 @@ import datetime
 import logging
 import pprint
 import time
+import pathlib
+import json
 from collections import OrderedDict
 from operator import itemgetter
+from functools import lru_cache
 
 import click
 import pika
@@ -26,21 +29,21 @@ logger = logging.getLogger("sdMox")
 logger.setLevel(logging.DEBUG)
 
 
+@lru_cache(maxsize=None)
 def load_settings():
-    import pathlib
-    import json
-    import customer
-    import sys
-    custpath = pathlib.Path(customer.__file__).parent
-    sys.path.append(str(custpath))
-
-    cfg_file = custpath / "settings" / "settings.json"
+    cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
+    if not cfg_file.is_file():
+        import customer
+        import sys
+        custpath = pathlib.Path(customer.__file__).parent
+        sys.path.append(str(custpath))
+        cfg_file = custpath / "settings" / "settings.json"
     return json.loads(cfg_file.read_text())
 
 
+@lru_cache(maxsize=None)
 def read_sdmox_config():
     settings = load_settings()
-    print(settings)
     sdmox_config = {
         "AMQP_USER": settings["integrations.SD_Lon.sd_mox.AMQP_USER"],
         "AMQP_PASSWORD": settings["integrations.SD_Lon.sd_mox.AMQP_PASSWORD"],
@@ -77,7 +80,7 @@ def read_sdmox_config():
     }
 
     # Add settings from MO
-    mora_helpers = MoraHelper(hostname=settings["mora.base"])
+    mora_helpers = MoraHelper(hostname=settings["mora.base"], saml_token=settings["crontab.SAML_TOKEN"])
 
     mora_org = sdmox_config.get("ORG_UUID")
     if mora_org is None:
@@ -453,7 +456,7 @@ class sdMox(object):
 
     def rename_unit(self, unit_uuid, new_unit_name, at, dry_run=False):
         settings = load_settings()
-        mora_helpers = MoraHelper(hostname=settings["mora.base"])
+        mora_helpers = MoraHelper(hostname=settings["mora.base"], saml_token=settings["crontab.SAML_TOKEN"])
 
         # Fetch old ou data
         unit = mora_helpers.read_ou(unit_uuid, at=at)

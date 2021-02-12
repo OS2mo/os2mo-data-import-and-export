@@ -45,12 +45,11 @@ from integrations.SD_Lon import (
     sd
 )  # noqa
 
-sdmox_config = {}
-
 
 def mo_request(service, method="get", **params):
     method = getattr(requests, method)
     # :5000/service/ + "ou/1234"
+    sdmox_config = sd_mox.read_sdmox_config()
     url = sdmox_config["OS2MO_SERVICE"] + service
 
     if sdmox_config["OS2MO_TOKEN"]:
@@ -75,6 +74,7 @@ def mo_request(service, method="get", **params):
 def is_sd_triggered(p):
     """ determine whether trigger code should run for unit p
     """
+    sdmox_config = sd_mox.read_sdmox_config()
     while p and p["uuid"]:
         if p["uuid"] in sdmox_config.get("TRIGGERED_UUIDS"):
             return True
@@ -85,6 +85,7 @@ def is_sd_triggered(p):
 def ou_before_create(data):
     """ An ou is about to be created
     """
+    sdmox_config = sd_mox.read_sdmox_config()
     mora_org = sdmox_config.get("ORG_UUID")
     if mora_org is None:
         mora_org = sdmox_config.setdefault("ORG_UUID", mo_request("o").json()[0]["uuid"])
@@ -129,7 +130,7 @@ def ou_before_edit(data):
     mox = sd_mox.sdMox.create(from_date=from_date)
     if "name" in data["request"]["data"]:
         new_name = data["request"]["data"]["name"]
-        mox.rename_unit(data["uuid"], new_Name, at=from_date, dry_run=True)
+        mox.rename_unit(data["uuid"], new_name, at=from_date)
     elif "parent" in data["request"]["data"]:
         # doing a read department here will give the non-unique error
         # here - where we still have access to the mo-error reporting
@@ -233,7 +234,6 @@ def address_before_edit(data):
 
 
 def register(app):
-    sdmox_config = sd_mox.read_sdmox_config()
     from mora.triggers import Trigger
 
     Trigger.on(
