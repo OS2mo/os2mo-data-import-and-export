@@ -108,9 +108,6 @@ class SDConnector:
         Utilizes _sd_request to fire the actual request, which in turn utilize
         _sd_lookup_cache for caching.
         """
-        # logger.info("Retrieve: {}".format(url))
-        # logger.debug("Params: {}".format(params))
-
         full_url = self.base_url + url
 
         async with aiohttp.ClientSession(raise_for_status=True) as session:
@@ -198,7 +195,15 @@ async def sd_tree_org():
 
     def build_any_tree(parent_map, root_uuid):
         def build_tree_node(uuid, parent=None):
-            node = Node(department_name_map[uuid] + " (" + department_id_map[uuid] + ", " + uuid + ")", parent=parent)
+            node = Node(
+                department_name_map[uuid]
+                + " ("
+                + department_id_map[uuid]
+                + ", "
+                + uuid
+                + ")",
+                parent=parent,
+            )
             return node
 
         def build_tree(parent_node, parent_uuid):
@@ -253,6 +258,7 @@ async def department_identifier_list():
     department_response = await sd_connector.getDepartment()
     departments = department_response["Department"]
     from collections import Counter
+
     department_identifiers = Counter(
         map(itemgetter("DepartmentIdentifier"), departments)
     )

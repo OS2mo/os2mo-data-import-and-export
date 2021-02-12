@@ -679,11 +679,19 @@ clickDate = click.DateTime(formats=["%Y-%m-%d"])
     "--from-date",
     type=clickDate,
     default=str(first_of_month()),
-    help="TODO",
+    help="Start date of the validity of the change.",
     show_default=True,
 )
-@click.option("--to-date", type=clickDate, help="TODO")
-@click.option("--overrides", multiple=True)
+@click.option(
+    "--to-date",
+    type=clickDate,
+    help="End date of the validity of the change (can be None for infinite).",
+)
+@click.option(
+    "--overrides",
+    multiple=True,
+    help="List of overrides to apply to SDMox's configuration.",
+)
 @click.pass_context
 def sd_mox_cli(ctx, from_date, to_date, overrides):
     """Tool to make changes in SD."""
@@ -705,9 +713,23 @@ def sd_mox_cli(ctx, from_date, to_date, overrides):
 
 @sd_mox_cli.command()
 @click.pass_context
-@click.option("--unit-uuid", type=click.UUID, required=True)
-@click.option("--print-department", is_flag=True, default=False)
-@click.option("--unit-name")
+@click.option(
+    "--unit-uuid",
+    type=click.UUID,
+    required=True,
+    help="UUID of the organizational unit to check.",
+)
+@click.option(
+    "--print-department",
+    is_flag=True,
+    default=False,
+    help="Whether to debug print the raw department data.",
+)
+@click.option(
+    "--unit-name",
+    required=True,
+    help="The expected name of the organization unit in SD.",
+)
 def check_name(ctx, unit_uuid, print_department, unit_name):
     mox = ctx.obj["sdmox"]
 
@@ -729,9 +751,23 @@ def check_name(ctx, unit_uuid, print_department, unit_name):
 
 @sd_mox_cli.command()
 @click.pass_context
-@click.option("--unit-uuid", type=click.UUID, required=True)
-@click.option("--new-unit-name")
-@click.option("--dry-run", is_flag=True, default=False)
+@click.option(
+    "--unit-uuid",
+    type=click.UUID,
+    required=True,
+    help="UUID of the organizational unit to modify.",
+)
+@click.option(
+    "--new-unit-name",
+    required=True,
+    help="The new name to apply to the organization unit in SD.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Whether to dry-run (i.e. make no actual changes).",
+)
 def set_name(ctx, unit_uuid, new_unit_name, dry_run):
     unit_uuid = str(unit_uuid)
 
