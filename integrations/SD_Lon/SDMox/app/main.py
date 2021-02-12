@@ -22,7 +22,7 @@ from typing import Dict, List, Optional
 from uuid import UUID
 
 import requests
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, HTTPException, Path, Query, status
 from fastapi.responses import RedirectResponse
 from os2mo_helpers.mora_helpers import MoraHelper
 from pydantic import BaseModel, BaseSettings, Field
@@ -49,7 +49,12 @@ tags_metadata = [
         },
     },
 ]
-app = FastAPI(openapi_tags=tags_metadata)
+app = FastAPI(
+    title="SDMox",
+    description="API to make changes in SD.",
+    version="0.0.1",
+    openapi_tags=tags_metadata,
+)
 # Called for side-effect
 get_settings()
 
@@ -165,10 +170,11 @@ class DetailError(BaseModel):
 def get_date(
     date: Optional[date] = Query(
         None,
-        description="""Effective start date for change.
-        Must be the first day of a month.
-        If omitted it will default to the first of the current month.
-        """,
+        description=(
+            "Effective start date for change." + "<br/>" +
+            "Must be the first day of a month." + "<br/>"
+            "If omitted it will default to the first of the current month."
+        ),
     )
 ):
     if date:
@@ -204,7 +210,7 @@ _verify_ou_ok.responses = {
         "model": DetailError,
         "description": (
             "Bad Gateway Error"
-            + "\n\n"
+            + "<br/><br/>"
             + "Returned when unable to establish a connection to MO."
         ),
     },
@@ -212,7 +218,7 @@ _verify_ou_ok.responses = {
         "model": DetailError,
         "description": (
             "Not Found Error"
-            + "\n\n"
+            + "<br/><br/>"
             + "Returned when the requested organizational unit cannot be found in MO."
         ),
     },
@@ -220,7 +226,7 @@ _verify_ou_ok.responses = {
         "model": DetailError,
         "description": (
             "Forbidden Error"
-            + "\n\n"
+            + "<br/><br/>"
             + "Returned when the requested organizational unit is outside the configured allow list."
         ),
     },
@@ -287,15 +293,11 @@ async def root() -> RedirectResponse:
     summary="Rename an organizational unit.",
 )
 async def ou_edit_name(
-    uuid: UUID,
-    new_name: str,
+    uuid: UUID = Path(..., description="UUID of the organizational unit to rename."),
+    new_name: str = Query(..., description="The name we wish to change to."),
     at: date = Depends(get_date),
 ):
-    """Rename an organizational unit.
-
-    - **uuid**: UUID of the organizational unit to rename.
-    - **new_name**: The name we wish to change to.
-    """
+    """Rename an organizational unit."""
     # TODO: Document using Query() instead?
     # See: https://github.com/tiangolo/fastapi/issues/1007
     await _ou_edit_name(uuid, new_name, at)
@@ -309,7 +311,11 @@ async def ou_edit_name(
     tags=["API"],
     summary="Move an organizational unit.",
 )
-async def ou_edit_parent(uuid: UUID, new_parent: UUID, at: date = Depends(get_date)):
+async def ou_edit_parent(
+    uuid: UUID = Path(..., description="UUID of the organizational unit to move."),
+    new_parent: UUID = Query(..., description="The parent unit we wish to move under."),
+    at: date = Depends(get_date),
+):
     """Move an organizational unit."""
     await _ou_edit_parent(uuid, new_parent, at)
     return {"status": "OK"}
@@ -321,7 +327,7 @@ async def ou_edit_parent(uuid: UUID, new_parent: UUID, at: date = Depends(get_da
     summary="List triggers to be registered.",
     response_model=List[MOTriggerRegister],
     response_description=(
-        "Successful Response" + "\n\n" + "List of triggers to register."
+        "Successful Response" + "<br/>" + "List of triggers to register."
     ),
 )
 def triggers():
