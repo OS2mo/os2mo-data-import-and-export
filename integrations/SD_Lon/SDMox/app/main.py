@@ -16,18 +16,18 @@
 #     Der er indført et check for det i sd_mox.py
 
 from datetime import date
-from enum import Enum
 from functools import partial
 from typing import Dict, List, Optional
 from uuid import UUID
 
 import requests
+from config import get_settings
 from fastapi import Depends, FastAPI, HTTPException, Path, Query, status
 from fastapi.responses import RedirectResponse
 from os2mo_helpers.mora_helpers import MoraHelper
-from pydantic import BaseModel, BaseSettings, Field
-
-from config import get_settings
+from os2mo_http_trigger_protocol import (EventType, MOTriggerPayload,
+                                         MOTriggerRegister, RequestType)
+from pydantic import BaseModel, BaseSettings
 from sd_mox import SDMox
 from util import first_of_month, get_mora_helper
 
@@ -73,87 +73,6 @@ def should_mox_run(mo_ou):
     return False
 
 
-class OUObject(BaseModel):
-    type: str
-    data: Dict
-
-
-class EventType(int, Enum):
-    """MO Trigger EventType.
-
-    Duplicated from here: https://git.magenta.dk/rammearkitektur/os2mo/-/blob/development/backend/mora/triggers/__init__.py#L50-54
-    """
-
-    ON_BEFORE, ON_AFTER = range(2)
-
-
-class RequestType(int, Enum):
-    """MO Trigger RequestType.
-
-    Duplicated from here: https://git.magenta.dk/rammearkitektur/os2mo/-/blob/development/backend/mora/mapping.py#L123-128
-    """
-
-    CREATE, EDIT, TERMINATE = range(3)
-
-
-class MOTriggerPayload(BaseModel):
-    """MO trigger payload.
-
-    See: https://os2mo.readthedocs.io/en/development/api/triggers.html#the-trigger-function for details.
-
-    Note: data is dependent on the `event_type, `request_type` and `role_type`.
-    """
-
-    class Config:
-        schema_extra = {
-            "example": {
-                "event_type": 0,
-                "request": {
-                    "data": {
-                        "clamp": True,
-                        "name": "Havtorn Kommune",
-                        "uuid": "fb2d158f-114e-5f67-8365-2c520cf10b58",
-                        "validity": {"from": "2021-02-09"},
-                    },
-                    "type": "org_unit",
-                },
-                "request_type": 1,
-                "role_type": "org_unit",
-                "uuid": "fb2d158f-114e-5f67-8365-2c520cf10b58",
-            }
-        }
-
-    event_type: EventType
-    request: OUObject
-    request_type: RequestType
-    role_type: str
-    uuid: UUID
-
-
-class MOTriggerRegister(BaseModel):
-    """Return value for /triggers.
-
-    Contains the information that MO needs to register the trigger.
-    """
-
-    class Config:
-        schema_extra = {
-            "example": {
-                "event_type": 0,
-                "request_type": 0,
-                "role_type": "org_unit",
-                "url": "/triggers/ou/create",
-                "timeout": 60,
-            }
-        }
-
-    event_type: EventType
-    request_type: RequestType
-    role_type: str
-    url: str
-    timeout: Optional[int]
-
-
 class DetailError(BaseModel):
     """Default Error model."""
 
@@ -171,8 +90,10 @@ def get_date(
     date: Optional[date] = Query(
         None,
         description=(
-            "Effective start date for change." + "<br/>" +
-            "Must be the first day of a month." + "<br/>"
+            "Effective start date for change."
+            + "<br/>"
+            + "Must be the first day of a month."
+            + "<br/>"
             "If omitted it will default to the first of the current month."
         ),
     )
