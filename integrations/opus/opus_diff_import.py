@@ -3,7 +3,8 @@ import json
 import logging
 import requests
 import xmltodict
-
+import asyncio
+from tqdm import tqdm
 from pathlib import Path
 from requests import Session
 from datetime import datetime
@@ -99,11 +100,42 @@ class OpusDiffImport(object):
             self.job_functions[job['name']] = job['uuid']
 
         logger.info('Read Roles')
+
+        self.role_cache = []
+        units = self.helper._mo_lookup(self.org_uuid, 'o/{}/ou?limit=1000000000')
+        async def get_role(unit, validity):
+            url = 'ou/{}/details/role?validity=' + validity
+            roles = self.helper._mo_lookup(unit['uuid'], url)
+            roleslist = []
+            for role in roles:
+                roleslist.append({
+                    'uuid': role['uuid'],
+                    'person': role['person']['uuid'],
+                    'validity': role['validity'],
+                    'role_type': role['role_type']['uuid'],
+                    'role_type_text': role['role_type']['name']
+                }
+                )
+            if roleslist != []:
+                return roleslist
+
+        async def read_roles(units):
+            coro = [ get_role(unit, validity) for validity in ['past', 'present', 'future'] for unit in units['items']]
+            return await asyncio.gather(*coro)
+            
+        import time
+        s = time.perf_counter()
+        rolecache = asyncio.run(read_roles(units))
+        elapsed = time.perf_counter() - s
+        print(f"Async executed in {elapsed:0.2f} seconds.")
+    
+
         # Potential to cut ~30s by parsing this:
         # /organisationfunktion?funktionsnavn=Rolle&virkningFra=2019-01-01
         self.role_cache = []
         units = self.helper._mo_lookup(self.org_uuid, 'o/{}/ou?limit=1000000000')
-        for unit in units['items']:
+        s = time.perf_counter()
+        for unit in tqdm(units['items']):
             for validity in ['past', 'present', 'future']:
                 url = 'ou/{}/details/role?validity=' + validity
                 roles = self.helper._mo_lookup(unit['uuid'], url)
@@ -117,6 +149,8 @@ class OpusDiffImport(object):
                             'role_type_text': role['role_type']['name']
                         }
                     )
+        elapsed = time.perf_counter() - s
+        print(f"Sync executed in {elapsed:0.2f} seconds.")
 
         self.latest_date = latest_date
         self.units = None
