@@ -3,7 +3,7 @@ import json
 import logging
 import requests
 import xmltodict
-
+from tqdm import tqdm
 from pathlib import Path
 from requests import Session
 from datetime import datetime
@@ -854,19 +854,13 @@ class OpusDiffImport(object):
         """
         self.parser(xml_file)
 
-        for unit in self.units:
-            last_changed = datetime.strptime(unit['@lastChanged'], '%Y-%m-%d')
-            # Turns out org-unit updates are sometimes a day off
-            last_changed = last_changed + timedelta(days=1)
-            if last_changed > self.latest_date:
-                self.update_unit(unit)
+        for unit in tqdm(self.units, desc="Update units"):
+            self.update_unit(unit)
 
-        for employee in self.employees:
+        for employee in tqdm(self.employees, desc="Update employees"):
             last_changed_str = employee.get('@lastChanged')
             if last_changed_str is not None:  # This is a true employee-object.
-                last_changed = datetime.strptime(last_changed_str, '%Y-%m-%d')
-                if last_changed > self.latest_date:
-                    self.update_employee(employee)
+                self.update_employee(employee)
 
                 # Changes to Roller is not included in @lastChanged...
                 if 'function' in employee:

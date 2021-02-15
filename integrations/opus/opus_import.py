@@ -41,7 +41,7 @@ class OpusImport(object):
         if not cfg_file.is_file():
             raise Exception('No setting file')
         self.settings = json.loads(cfg_file.read_text())
-        self.filter_ids = self.settings.get('integrations.opus.units.filter_ids', []),
+        self.filter_ids = self.settings.get('integrations.opus.units.filter_ids', [])
 
         self.importer = importer
         self.import_first = import_first
