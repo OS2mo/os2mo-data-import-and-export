@@ -27,6 +27,7 @@ setup(
     },
     zip_safe=False,
     install_requires=[
+        "aiohttp",
         "anytree",
         "certifi",
         "chardet",
@@ -37,5 +38,6 @@ setup(
         "requests",
         "xlsxwriter",
         "xmltodict",
+        "more_itertools",
     ]
 )
