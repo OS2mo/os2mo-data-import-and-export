@@ -134,7 +134,7 @@ def ou_before_edit(data):
     elif "parent" in data["request"]["data"]:
         # doing a read department here will give the non-unique error
         # here - where we still have access to the mo-error reporting
-        code_errors = mox._validate_unit_code(unit['user_key'], can_exist=True)
+        code_errors = mox._validate_unit_code(unit['user_key'], read_department=False)
         if code_errors:
             raise sd_mox.SdMoxError(", ".join(code_errors))
 
@@ -224,7 +224,7 @@ def address_before_edit(data):
 
     # doing a read department here will give the non-unique error
     # here - where we still have access to the mo-error reporting
-    code_errors = mox._validate_unit_code(unit['user_key'], can_exist=True)
+    code_errors = mox._validate_unit_code(unit['user_key'], read_department=False)
     if code_errors:
         raise sd_mox.SdMoxError(", ".join(code_errors))
 
