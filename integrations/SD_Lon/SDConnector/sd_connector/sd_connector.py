@@ -35,10 +35,10 @@ def today() -> datetime.date:
 class SDConnector:
     def __init__(
         self,
-        institution_identifier,
-        sd_username,
-        sd_password,
-        sd_base_url="https://service.sd.dk/sdws/",
+        institution_identifier: Union[str, UUID],
+        sd_username: str,
+        sd_password: str,
+        sd_base_url: str = "https://service.sd.dk/sdws/",
     ):
         self.institution_identifier = institution_identifier
         self.auth = aiohttp.BasicAuth(sd_username, sd_password)
@@ -46,7 +46,7 @@ class SDConnector:
 
     def _enrich_with_institution(self, params: dict) -> dict:
         if is_uuid(self.institution_identifier):
-            params["InstitutionUUIDIdentifier"] = self.institution_identifier
+            params["InstitutionUUIDIdentifier"] = str(self.institution_identifier)
         else:
             params["InstitutionIdentifier"] = self.institution_identifier
         return params
@@ -57,7 +57,7 @@ class SDConnector:
         if department_identifier is None:
             return params
         if is_uuid(department_identifier):
-            params["DepartmentUUIDIdentifier"] = department_identifier
+            params["DepartmentUUIDIdentifier"] = str(department_identifier)
         else:
             params["DepartmentIdentifier"] = department_identifier
         return params
