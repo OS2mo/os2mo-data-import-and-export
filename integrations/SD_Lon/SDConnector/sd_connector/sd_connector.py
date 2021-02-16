@@ -140,3 +140,18 @@ class SDConnector:
         url = "GetDepartment20111201"
         dict_response = await self._send_request_json(url, params)
         return dict_response[url]
+
+    async def getDepartmentParent(
+        self,
+        department_uuid_identifier: Union[str, UUID],
+        effective_date: datetime.date = None,
+    ) -> dict:
+        effective_date = effective_date or today()
+        params = {
+            "EffectiveDate": effective_date.strftime("%d.%m.%Y"),
+            "DepartmentUUIDIdentifier": str(department_uuid_identifier),
+        }
+
+        url = "GetDepartmentParent20190701"
+        dict_response = await self._send_request_json(url, params)
+        return dict_response[url]
