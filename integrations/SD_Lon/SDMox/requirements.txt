@@ -1,5 +1,0 @@
-pika
-
-aiohttp
-# -e git+https://github.com/OS2mo/os2mo-data-import-and-export#egg=os2mo_data_import&subdirectory=os2mo_data_import
-os2mo-http-trigger-protocol
