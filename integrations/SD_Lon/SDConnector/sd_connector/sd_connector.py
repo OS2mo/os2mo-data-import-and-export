@@ -1,5 +1,6 @@
 import datetime
 from functools import partial
+from typing import Union
 from uuid import UUID
 
 import aiohttp
@@ -12,15 +13,21 @@ class SDAPIException(Exception):
     pass
 
 
-def is_uuid(string: str) -> bool:
+def is_uuid(uuid: Union[str, UUID]) -> bool:
+    if isinstance(uuid, UUID):
+        return True
+
     try:
-        UUID(string)
+        UUID(uuid)
         return True
     except ValueError:
         return False
+    except AttributeError as exp:
+        print(exp)
+        return False
 
 
-def today():
+def today() -> datetime.date:
     today = datetime.date.today()
     return today
 
@@ -37,14 +44,16 @@ class SDConnector:
         self.auth = aiohttp.BasicAuth(sd_username, sd_password)
         self.base_url = sd_base_url
 
-    def _enrich_with_institution(self, params):
+    def _enrich_with_institution(self, params: dict) -> dict:
         if is_uuid(self.institution_identifier):
             params["InstitutionUUIDIdentifier"] = self.institution_identifier
         else:
             params["InstitutionIdentifier"] = self.institution_identifier
         return params
 
-    def _enrich_with_department(self, params, department_identifier=None):
+    def _enrich_with_department(
+        self, params: dict, department_identifier: Union[str, UUID] = None
+    ) -> dict:
         if department_identifier is None:
             return params
         if is_uuid(department_identifier):
@@ -53,7 +62,12 @@ class SDConnector:
             params["DepartmentIdentifier"] = department_identifier
         return params
 
-    def _enrich_with_dates(self, params, start_date=None, end_date=None):
+    def _enrich_with_dates(
+        self,
+        params: dict,
+        start_date: datetime.date = None,
+        end_date: datetime.date = None,
+    ) -> dict:
         start_date = start_date or today()
         end_date = end_date or today()
         params.update(
@@ -64,7 +78,7 @@ class SDConnector:
         )
         return params
 
-    async def _send_request_xml(self, url, params):
+    async def _send_request_xml(self, url: str, params: dict) -> str:
         """Fire a requests against SD.
 
         Utilizes _sd_request to fire the actual request, which in turn utilize
@@ -81,7 +95,7 @@ class SDConnector:
                 assert response.headers["Content-Type"] == "text/xml;charset=UTF-8"
                 return await response.text()
 
-    async def _send_request_json(self, url, params):
+    async def _send_request_json(self, url: str, params: dict) -> dict:
         xml_response = await self._send_request_xml(url, params)
         dict_response = xmlparse(xml_response)
         if "Envelope" in dict_response:
@@ -90,9 +104,9 @@ class SDConnector:
 
     async def getOrganization(
         self,
-        start_date=None,
-        end_date=None,
-    ):
+        start_date: datetime.date = None,
+        end_date: datetime.date = None,
+    ) -> dict:
         params = {
             "UUIDIndicator": "true",
         }
@@ -104,11 +118,11 @@ class SDConnector:
 
     async def getDepartment(
         self,
-        department_identifier=None,
-        department_level_identifier=None,
-        start_date=None,
-        end_date=None,
-    ):
+        department_identifier: Union[str, UUID] = None,
+        department_level_identifier: str = None,
+        start_date: datetime.date = None,
+        end_date: datetime.date = None,
+    ) -> dict:
         params = {
             "ContactInformationIndicator": "true",
             "DepartmentNameIndicator": "true",
