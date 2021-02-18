@@ -6,6 +6,7 @@ from operator import itemgetter
 from pathlib import Path
 
 import click
+import constants
 import requests
 import xmltodict
 from exporters.utils.load_settings import load_settings
@@ -573,7 +574,7 @@ class OpusDiffImport(object):
         if 'userId' in employee:
             payload = payloads.connect_it_system_to_user(
                 employee['userId'],
-                self.it_systems['Opus'],
+                self.it_systems[constants.Opus_it_system],
                 return_uuid
             )
             logger.debug('Opus account payload: {}'.format(payload))
@@ -585,7 +586,7 @@ class OpusDiffImport(object):
         if sam_account:
             payload = payloads.connect_it_system_to_user(
                 sam_account,
-                self.it_systems['Active Directory'],
+                self.it_systems[constants.AD_it_system],
                 return_uuid
             )
             logger.debug('AD account payload: {}'.format(payload))
