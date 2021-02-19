@@ -3,6 +3,7 @@ import logging
 import pathlib
 from pathlib import Path
 
+import constants
 import xmltodict
 from exporters.utils.load_settings import load_settings
 from integrations import dawa_helper
@@ -62,7 +63,7 @@ class OpusImport(object):
 
         importer.new_itsystem(
             identifier='Opus',
-            system_name='Opus'
+            system_name=constants.Opus_it_system
         )
 
         self.ad_people = {}
@@ -72,7 +73,7 @@ class OpusImport(object):
             self.ad_reader = ad_reader
             self.importer.new_itsystem(
                 identifier='AD',
-                system_name='Active Directory'
+                system_name=constants.AD_it_system
             )
             self.ad_reader.cache_all()
 

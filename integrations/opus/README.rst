@@ -108,7 +108,7 @@ personen endnu ikke tiltrådt, og fremgår i fanen fremtid.
 
 
 Anvendelse af integrationen
-==========================
+===========================
 
 For at anvende integrationen kræves udover de nævnte xml-dumps, at der oprettes
 en gyldig konfiguration i ``settings.json``. De påkrævede nøgler er:
@@ -173,32 +173,6 @@ For at synkronisere en enkelt medarbejder anvedes disse kommandolinjeparametre:
 
 * ``--update-single-user``: Ansættelsesnummer på den relevante medarbejder
 * ``days``: Antal dage bagud integrationen skal søge.
-
-
-Opsætning af agenten til re-import
-----------------------------------
-
-For at kunne sammenligne objekter mellem MO og Opus, har integrationen brug for at
-kende de klasser som felterne mappes til i MO. Det er derfor nødvendigt at oprette
-disse nøgler i ``settings.json``:
-
- * ``opus.it_systems.ad``:  UUID på IT-systemet 'Active Directory'
- * ``opus.it_systems.opus``: UUID på IT-systemet 'Opus'
-
-Klasserne oprettes i forbindelse med førstegangsimporten, og UUID'erne kan findes ved
-hjælp af disse tre end-points i MO:
-
- * ``/service/o/<org_uuid>/it/``
-   
-Værdien af org_uuid findes ved at tilgå:
-
- * ``/service/o/``
-
-Det er vigtigt, at disse klasser ikke også anvendes fra front-end'en da dette vil
-skabe en konflikt med synkroniseringen fra Opus (som ikke længere kan vide hvilke
-værdier, der skal rettes). Det er muligt at oprette yderligere typer, som ikke
-anvendes af Opus-agenten, hvis der brug for felter som kan oprettes og rettes fra
-front-end'en.
 
 
 Nuværende begrænsninger omkring re-import

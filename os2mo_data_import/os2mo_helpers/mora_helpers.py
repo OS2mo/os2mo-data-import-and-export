@@ -211,10 +211,9 @@ class MoraHelper:
         return employees
 
     def read_it_systems(self):
-        """Read the main Organisation, all OU's will have this as root.
+        """Read all it systems 
 
-        Currently reads only one, theroretically more than root org can exist.
-        :return: UUID of root organisation
+        :return: list of it systems, eg. Opus, Active Directory
         """
         org_id = self.read_organisation()
         it_systems = self._mo_lookup(org_id, url='o/{}/it/')

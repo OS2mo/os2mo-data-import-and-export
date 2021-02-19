@@ -1,10 +1,12 @@
 import json
+from operator import itemgetter
 import logging
 from datetime import datetime, timedelta
 from operator import itemgetter
 from pathlib import Path
 
 import click
+import constants
 import requests
 import xmltodict
 from exporters.utils.load_settings import load_settings
@@ -94,6 +96,8 @@ class OpusDiffImport(object):
         self.responsibilities, _ = self._find_classes('responsibility')
         self.org_unit_address_types, _ = self._find_classes('org_unit_address_type')
         self.employee_address_types, _ = self._find_classes('employee_address_type')
+        it_systems = self.helper.read_it_systems()
+        self.it_systems = dict(map(itemgetter('name', 'uuid'), it_systems))
 
         # TODO, this should also be done be _find_classes
         logger.info('Read job_functions')
@@ -570,7 +574,7 @@ class OpusDiffImport(object):
         if 'userId' in employee:
             payload = payloads.connect_it_system_to_user(
                 employee['userId'],
-                self.settings['integrations.opus.it_systems.opus'],
+                self.it_systems[constants.Opus_it_system],
                 return_uuid
             )
             logger.debug('Opus account payload: {}'.format(payload))
@@ -582,7 +586,7 @@ class OpusDiffImport(object):
         if sam_account:
             payload = payloads.connect_it_system_to_user(
                 sam_account,
-                self.settings['integrations.opus.it_systems.ad'],
+                self.it_systems[constants.AD_it_system],
                 return_uuid
             )
             logger.debug('AD account payload: {}'.format(payload))
