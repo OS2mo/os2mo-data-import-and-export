@@ -1,8 +1,10 @@
 import json
 import logging
 from datetime import datetime, timedelta
+from operator import itemgetter
 from pathlib import Path
 
+import click
 import requests
 import xmltodict
 from exporters.utils.load_settings import load_settings
@@ -11,8 +13,11 @@ from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers, payloads
 from integrations.opus.calculate_primary import MOPrimaryEngagementUpdater
 from integrations.opus.opus_exceptions import (EmploymentIdentifierNotUnique,
+                                               ImporterrunNotCompleted,
                                                RunDBInitException,
                                                UnknownOpusUnit)
+from integrations.SD_Lon.db_overview import DBOverview
+from os2mo_data_import import ImportHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 from requests import Session
 from tqdm import tqdm
@@ -37,21 +42,19 @@ logging.basicConfig(
     level=LOG_LEVEL,
     filename=LOG_FILE
 )
-
-
 UNIT_ADDRESS_CHECKS = {
-    'seNr': 'opus.addresses.unit.se',
-    'cvrNr': 'opus.addresses.unit.cvr',
-    'eanNr': 'opus.addresses.unit.ean',
-    'pNr': 'opus.addresses.unit.pnr',
-    'phoneNumber': 'opus.addresses.unit.phoneNumber',
-    'dar': 'opus.addresses.unit.dar'
+    'seNr': 'SE',
+    'cvrNr': 'CVR',
+    'eanNr': 'EAN',
+    'pNr': 'Pnummer',
+    'phoneNumber': 'Telefon',
+    'dar': 'Postadresse'
 }
 
 EMPLOYEE_ADDRESS_CHECKS = {
-    'phone': 'opus.addresses.employee.phone',
-    'email': 'opus.addresses.employee.email',
-    'dar': 'opus.addresses.employee.dar'
+    'phone': 'TelefonEmployee',
+    'email': 'EmailEmployee',
+    'dar': 'AdressePostEmployee'
 }
 
 
@@ -70,6 +73,11 @@ class OpusDiffImport(object):
                                  use_cache=False)
         try:
             self.org_uuid = self.helper.read_organisation()
+        except KeyError:
+            msg = 'No root organisation in MO'
+            logger.warning(msg)
+            print(msg)
+            return
         except requests.exceptions.RequestException as e:
             logger.error(e)
             print(e)
@@ -84,6 +92,8 @@ class OpusDiffImport(object):
         self.manager_types, self.manager_type_facet = self._find_classes(
             'manager_type')
         self.responsibilities, _ = self._find_classes('responsibility')
+        self.org_unit_address_types, _ = self._find_classes('org_unit_address_type')
+        self.employee_address_types, _ = self._find_classes('employee_address_type')
 
         # TODO, this should also be done be _find_classes
         logger.info('Read job_functions')
@@ -337,13 +347,13 @@ class OpusDiffImport(object):
         mo_addresses = self._condense_employee_mo_addresses(mo_uuid)
         logger.info('Addresses to be synced to MO: {}'.format(opus_addresses))
 
-        for addr_type, setting in EMPLOYEE_ADDRESS_CHECKS.items():
+        for addr_type, mo_addr_type in EMPLOYEE_ADDRESS_CHECKS.items():
             if opus_addresses.get(addr_type) is None:
                 continue
 
-            current = mo_addresses.get(self.settings[setting])
+            current = mo_addresses.get(self.employee_address_types[mo_addr_type])
             address_args = {
-                'address_type': {'uuid': self.settings[setting]},
+                'address_type': {'uuid': self.employee_address_types[mo_addr_type]},
                 'value': opus_addresses[addr_type],
                 'validity': {
                     'from': self.latest_date.strftime('%Y-%m-%d'),
@@ -380,15 +390,15 @@ class OpusDiffImport(object):
                 logger.warning('Failed to lookup {}, {}'.format(unit['street'],
                                                                 unit['zipCode']))
 
-        for addr_type, setting in UNIT_ADDRESS_CHECKS.items():
-            # addr_type is the opus name for the address, the MO uuid
-            # for the corresponding class is found in settings.
+        for addr_type, mo_addr_type in UNIT_ADDRESS_CHECKS.items():
+            # addr_type is the opus name for the address, mo_addr_type 
+            # is read from MO
             if unit.get(addr_type) is None:
                 continue
 
-            current = address_dict.get(self.settings[setting])
+            current = address_dict.get(self.org_unit_address_types[mo_addr_type])
             args = {
-                'address_type': {'uuid': self.settings[setting]},
+                'address_type': {'uuid': self.org_unit_address_types[mo_addr_type]},
                 'value': unit[addr_type],
                 'validity': {
                     'from': self.latest_date.strftime('%Y-%m-%d'),
@@ -455,6 +465,9 @@ class OpusDiffImport(object):
         :param employee: Relevent Opus employee object.
         :return: True if update happended, False if not.
         """
+        if employee['orgUnit'] in self.filter_ids:
+            logger.warning("Engagement is to a filtered unit.")
+            return False
         job_function, eng_type = self._job_and_engagement_type(employee)
         unit_uuid = opus_helpers.generate_uuid(employee['orgUnit'])
 
