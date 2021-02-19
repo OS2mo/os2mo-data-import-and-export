@@ -10,11 +10,10 @@ import datetime
 from integrations.opus import payloads
 
 from os2mo_helpers.mora_helpers import MoraHelper
+from exporters.utils.load_settings import load_settings
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
+
+SETTINGS = load_settings()
 MORA_BASE = SETTINGS['mora.base']
 
 logger = logging.getLogger("updatePrimaryEngagements")

@@ -1,14 +1,15 @@
-# -- coding: utf-8 --
 import json
-import pathlib
 import logging
-import xmltodict
+import pathlib
+from pathlib import Path
 
-from requests import Session
+import xmltodict
+from exporters.utils.load_settings import load_settings
 from integrations import dawa_helper
 from integrations.opus import opus_helpers
-from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.opus.opus_exceptions import UnknownOpusAction
+from os2mo_helpers.mora_helpers import MoraHelper
+from requests import Session
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'
@@ -37,11 +38,8 @@ class OpusImport(object):
         """ If import first is False, the first unit will be skipped """
         self.org_uuid = None
 
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
-        self.filter_ids = self.settings.get('integrations.opus.units.filter_ids', []),
+        self.settings = load_settings()
+        self.filter_ids = self.settings.get('integrations.opus.units.filter_ids', [])
 
         self.importer = importer
         self.import_first = import_first
@@ -427,3 +425,46 @@ class OpusImport(object):
                     date_from=date_from,
                     date_to=date_to
                 )
+
+def start_opus_import(importer, ad_reader=None, force=False):
+    """
+    Start an opus import, run the oldest available dump that
+    has not already been imported.
+    """
+    SETTINGS = load_settings()
+    dumps = opus_helpers.read_available_dumps()
+
+    run_db = Path(SETTINGS['integrations.opus.import.run_db'])
+    if not run_db.is_file():
+        logger.error('Local base not correctly initialized')
+        if not force:
+            raise RunDBInitException('Local base not correctly initialized')
+        else:
+            opus_helpers.initialize_db(run_db)
+        xml_date = sorted(dumps.keys())[0]
+    else:
+        if force:
+            raise RedundantForceException('Used force on existing db')
+        xml_date = opus_helpers.next_xml_file(run_db, dumps)
+
+    xml_file = dumps[xml_date]
+    opus_helpers.local_db_insert((xml_date, 'Running since {}'))
+
+    employee_mapping = opus_helpers.read_cpr_mapping()
+
+    opus_importer = OpusImport(
+        importer,
+        org_name=SETTINGS['municipality.name'],
+        xml_data=str(xml_file),
+        ad_reader=ad_reader,
+        import_first=True,
+        employee_mapping=employee_mapping
+    )
+    logger.info('Start import')
+    opus_importer.insert_org_units()
+    opus_importer.insert_employees()
+    opus_importer.add_addresses_to_employees()
+    opus_importer.importer.import_all()
+    logger.info('Ended import')
+
+    opus_helpers.local_db_insert((xml_date, 'Import ended: {}'))
