@@ -54,7 +54,7 @@ UNIT_ADDRESS_CHECKS = {
 }
 
 EMPLOYEE_ADDRESS_CHECKS = {
-    'phone': 'TelefonEmployee',
+    'phone': 'PhoneEmployee',
     'email': 'EmailEmployee',
     'dar': 'AdressePostEmployee'
 }
