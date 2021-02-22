@@ -13,6 +13,7 @@ from exporters.utils.apply import apply
 from exporters.utils.catchtime import catchtime
 from exporters.utils.jinja_filter import create_filters
 from exporters.utils.lazy_dict import LazyDict, LazyEval
+from exporters.utils.load_settings import load_settings
 from integrations.ad_integration import ad_logger, ad_reader, ad_writer
 from integrations.ad_integration.ad_exceptions import (
     NoActiveEngagementsException,
@@ -22,16 +23,10 @@ from integrations.ad_integration.ad_exceptions import (
 logger = logging.getLogger("CreateAdUsers")
 
 
-method_apply = apply
-
-
 class AdLifeCycle:
     def __init__(self, use_cached_mo=False):
         logger.info("AD Sync Started")
-        cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-        if not cfg_file.is_file():
-            raise Exception("No setting file")
-        settings = json.loads(cfg_file.read_text())
+        settings = load_settings()
 
         self.roots = settings["integrations.ad.write.create_user_trees"]
         create_filters = partial(create_filters, tuple_keys=("employee", "ad_object"))
@@ -94,7 +89,7 @@ class AdLifeCycle:
             "users": set(),
         }
 
-    @method_apply
+    @apply
     def _find_user_unit_tree(self, user, ad_object):
         try:
             (
