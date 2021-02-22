@@ -10,7 +10,7 @@ from operator import itemgetter
 from pathlib import Path
 
 import xmltodict
-
+from deepdiff import DeepDiff
 from exporters.utils.load_settings import load_settings
 from integrations import cpr_mapper
 from integrations.opus import opus_diff_import, opus_import
@@ -18,6 +18,7 @@ from integrations.opus import opus_diff_import, opus_import
 from integrations.opus.opus_exceptions import (ImporterrunNotCompleted,
                                                RedundantForceException,
                                                RunDBInitException)
+from tqdm import tqdm
 
 SETTINGS = load_settings()
 DUMP_PATH = Path(SETTINGS['integrations.opus.import.xml_path'])
@@ -126,8 +127,54 @@ def generate_uuid(value):
     value_uuid = uuid.UUID(value_digest)
     return value_uuid
 
+def parser(target_file, filter_ids):
+    data = xmltodict.parse(target_file.read_text())['kmd']
+    units = data['orgUnit'][1:]
+    units = filter_units(units, filter_ids)
+    employees = data['employee']
+    return units, employees
 
 
+def find_changes(before, after, disable_tqdm=False):
+    """ Filter a list of dictionaries based on differences to another list of dictionaries
+    Used to find changes to org_units and employees in opus files.
+    Any registration in lastChanged is ignored here.
+    Use disable_tqdm in tests etc.
+
+    Returns: list of dictionaries from 'after' where there are changes from 'before'
+    >>> a = [{"@id":1, "text":"unchanged", '@lastChanged': 'some day'}, {"@id":2, "text":"before", '@lastChanged':'today'}]
+    >>> b = [{"@id":1, "text":"unchanged", '@lastChanged': 'another day'}, {"@id":2, "text":"after"}]
+    >>> c = [{"@id":1, "text":"unchanged", '@lastChanged': 'another day'}]
+    >>> find_changes(a, a, disable_tqdm=True)
+    []
+    >>> find_changes(a, b, disable_tqdm=True)
+    [{'@id': 2, 'text': 'after'}]
+    >>> find_changes(b, a, disable_tqdm=True)
+    [{'@id': 2, 'text': 'before', '@lastChanged': 'today'}]
+    >>> find_changes(a, c, disable_tqdm=True)
+    []
+    """
+    old_ids = list(map(itemgetter('@id'), before))
+    old_map = dict(zip(old_ids,before))
+    changed_obj= []
+    for obj in tqdm(after, desc="Finding changes", disable=disable_tqdm):
+        if obj['@id'] not in old_ids:
+            changed_obj.append(obj)
+        else:
+            diff = DeepDiff(obj, old_map[obj['@id']], exclude_paths={"root['@lastChanged']", "root['numerator']", "root['denominator']"})
+            if diff != {}:
+                changed_obj.append(obj)
+
+    return changed_obj
+
+def file_diff(date1, date2, filter_ids):
+    units1, employees1 = parser(date1, filter_ids)
+    units2, employees2 = parser(date2, filter_ids)
+
+    units = find_changes(units1, units2)
+    employees = find_changes(employees1, employees2)
+
+    return units, employees
 
 def read_dump_data(dump_file):
     cache_file = pathlib.Path.cwd() / 'tmp' / (dump_file.stem + '.p')

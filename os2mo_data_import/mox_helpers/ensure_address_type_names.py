@@ -1,4 +1,5 @@
 import asyncio
+import subprocess
 
 import click
 from mox_helpers.mox_util import ensure_class_value_helper
@@ -6,6 +7,8 @@ from mox_helpers.mox_util import ensure_class_value_helper
 import constants
 from exporters.utils.async_to_sync import async_to_sync
 from exporters.utils.load_settings import load_settings
+from mox_util import ensure_class_value_helper
+from utils import async_to_sync
 
 settings = load_settings()
 # Mapped of settings (which has an uuid associated to it in the settings file)
@@ -38,6 +41,13 @@ async def ensure_address_type_bvns(dry_run: bool):
     """
     for setting, bvn in var_map.items():
         uuid = settings[setting]
+        kwargs = {
+            "mox_base": settings["mox.base"],
+            "uuid": uuid,
+            "variable": "brugervendtnoegle",
+            "new_value": bvn,
+            "dry_run": dry_run,
+        }
         try:
             await ensure_class_value_helper(
                 mox_base=settings["mox.base"],

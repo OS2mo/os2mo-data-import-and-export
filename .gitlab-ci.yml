@@ -149,6 +149,12 @@ Test OPUS Org Tree Print:
     - pip install -r integrations/opus/org_tree_print/requirements.txt
     - python -m doctest -v integrations/opus/org_tree_print/main.py
 
+Test OPUS importers:
+  extends: .test-python
+  script:
+    - cp settings/kommune-andeby.json settings/settings.json
+    - python -m pytest -v integrations/opus/tests
+
 Test OPUS Helpers:
   extends: .test-python
   script:
