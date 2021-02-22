@@ -1,14 +1,17 @@
 import json
-from operator import itemgetter
 import logging
 from datetime import datetime, timedelta
 from operator import itemgetter
 from pathlib import Path
 
 import click
-import constants
 import requests
 import xmltodict
+from os2mo_helpers.mora_helpers import MoraHelper
+from requests import Session
+from tqdm import tqdm
+
+import constants
 from exporters.utils.load_settings import load_settings
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
@@ -20,9 +23,6 @@ from integrations.opus.opus_exceptions import (EmploymentIdentifierNotUnique,
                                                UnknownOpusUnit)
 from integrations.SD_Lon.db_overview import DBOverview
 from os2mo_data_import import ImportHelper
-from os2mo_helpers.mora_helpers import MoraHelper
-from requests import Session
-from tqdm import tqdm
 
 logger = logging.getLogger("opusDiff")
 
@@ -45,18 +45,18 @@ logging.basicConfig(
     filename=LOG_FILE
 )
 UNIT_ADDRESS_CHECKS = {
-    'seNr': 'SE',
-    'cvrNr': 'CVR',
-    'eanNr': 'EAN',
-    'pNr': 'Pnummer',
-    'phoneNumber': 'PhoneUnit',
-    'dar': 'AddressPostUnit'
+    'seNr': constants.addresses_unit_se,
+    'cvrNr': constants.addresses_unit_cvr,
+    'eanNr': constants.addresses_unit_ean,
+    'pNr':  constants.addresses_unit_pnr,
+    'phoneNumber':  constants.addresses_unit_phoneNumber,
+    'dar': constants.addresses_unit_dar
 }
 
 EMPLOYEE_ADDRESS_CHECKS = {
-    'phone': 'PhoneEmployee',
-    'email': 'EmailEmployee',
-    'dar': 'AdressePostEmployee'
+    'phone': constants.addresses_employee_phone,
+    'email': constants.addresses_employee_email,
+    'dar': constants.addresses_employee_dar
 }
 
 

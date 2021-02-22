@@ -1,24 +1,27 @@
-import subprocess
+import asyncio
 
 import click
+from mox_helpers.mox_util import ensure_class_value_helper
+
+import constants
+from exporters.utils.async_to_sync import async_to_sync
 from exporters.utils.load_settings import load_settings
 
 settings = load_settings()
-# List of BVN's to be set based on values defined in opus_import.py
-# Mapped to a uuid defined in the settings file
+# Mapped of settings (which has an uuid associated to it in the settings file)
+# to BVN of the address types as defined in the constants.py file
 var_map = {
-    "opus.addresses.employee.dar": "AdressePostEmployees",
-    "opus.addresses.employee.phone": "PhoneEmployee",
-    "opus.addresses.employee.email": "EmailEmployee",
-    "opus.addresses.unit.se": "SE",
-    "opus.addresses.unit.cvr": "CVR",
-    "opus.addresses.unit.ean": "EAN",
-    "opus.addresses.unit.pnr": "Pnummer",
-    "opus.addresses.unit.phoneNumber": "PhoneUnit",
-    "opus.addresses.unit.dar": "AddressPostUnit"}
+    "opus.addresses.employee.dar": constants.addresses_employee_dar,
+    "opus.addresses.employee.phone": constants.addresses_employee_phone,
+    "opus.addresses.employee.email": constants.addresses_employee_email,
+    "opus.addresses.unit.se": constants.addresses_unit_se,
+    "opus.addresses.unit.cvr": constants.addresses_unit_cvr,
+    "opus.addresses.unit.ean": constants.addresses_unit_ean,
+    "opus.addresses.unit.pnr": constants.addresses_unit_pnr,
+    "opus.addresses.unit.phoneNumber": constants.addresses_unit_phoneNumber,
+    "opus.addresses.unit.dar": constants.addresses_unit_dar,
+}
 
-
-basecommand = "venv/bin/python os2mo_data_import/mox_helpers/mox_util.py cli ensure-class-value --uuid {} --variable brugervendtnoegle --new_value {}"
 
 @click.command()
 @click.option(
@@ -27,17 +30,26 @@ basecommand = "venv/bin/python os2mo_data_import/mox_helpers/mox_util.py cli ens
     is_flag=True,
     help="Dry run and print the commands",
 )
-def ensure_address_type_names(dry_run: bool):
-    """ Tool for ensuring classes for address types have correct names.
-    It relies on uuids set in settings file and uses mox_util to ensure their BVN's are consistent
+@async_to_sync
+async def ensure_address_type_bvns(dry_run: bool):
+    """Tool for ensuring classes for address types have correct BVN.
 
+    It relies on uuids set in settings.json file and uses mox_util to ensure their BVN's are consistent.
     """
-    for setting, name in var_map.items():
-        command = basecommand.format(settings[setting], name)
-        if dry_run:
-            click.echo(command)
-        else:
-            p = subprocess.run(command, shell=True)
+    for setting, bvn in var_map.items():
+        uuid = settings[setting]
+        kwargs = {
+            "mox_base": settings["mox.base"],
+            "uuid": uuid,
+            "variable": "brugervendtnoegle",
+            "new_value": bvn,
+            "dry_run": dry_run,
+        }
+        try:
+            await ensure_class_value_helper(**kwargs)
+        except IndexError:
+            print("Found no {} at {}".format(bvn, uuid))
 
-if __name__ == '__main__':
-    ensure_address_type_names()
+
+if __name__ == "__main__":
+    ensure_address_type_bvns()

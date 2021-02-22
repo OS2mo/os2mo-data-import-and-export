@@ -3,14 +3,15 @@ import logging
 import pathlib
 from pathlib import Path
 
-import constants
 import xmltodict
+from os2mo_helpers.mora_helpers import MoraHelper
+from requests import Session
+
+import constants
 from exporters.utils.load_settings import load_settings
 from integrations import dawa_helper
 from integrations.opus import opus_helpers
 from integrations.opus.opus_exceptions import UnknownOpusAction
-from os2mo_helpers.mora_helpers import MoraHelper
-from requests import Session
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'

@@ -10,9 +10,10 @@ from operator import itemgetter
 from pathlib import Path
 
 import xmltodict
+
+from exporters.utils.load_settings import load_settings
 from integrations import cpr_mapper
 from integrations.opus import opus_diff_import, opus_import
-from exporters.utils.load_settings import load_settings
 # from integrations.opus.opus_exceptions import NoNewerDumpAvailable
 from integrations.opus.opus_exceptions import (ImporterrunNotCompleted,
                                                RedundantForceException,
