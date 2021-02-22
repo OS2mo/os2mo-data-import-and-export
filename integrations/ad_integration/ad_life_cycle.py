@@ -12,25 +12,14 @@ from tqdm import tqdm
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.lazy_dict import LazyDict, LazyEval
 from exporters.utils.catchtime import catchtime
+from exporters.utils.apply import apply
 from integrations.ad_integration import ad_logger, ad_reader, ad_writer
 from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException, NoActiveEngagementsException
 
 logger = logging.getLogger("CreateAdUsers")
 
 
-def apply(func):
-    @wraps(func)
-    def applied(tup):
-        return func(*tup)
-
-    return applied
-
-def method_apply(method):
-    @wraps(method)
-    def applied(self, tup):
-        return method(self, *tup)
-
-    return applied
+method_apply = apply
 
 
 def create_filters(jinja_strings):

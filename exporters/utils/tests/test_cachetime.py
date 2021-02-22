@@ -8,7 +8,7 @@ from exporters.utils.catchtime import catchtime
 
 
 class CatchtimeTests(TestCase):
-    """Test Catchtime functions as expected."""
+    """Test the catchtime contextmanager works as expected."""
 
     @given(st.floats(min_value=0, max_value=0.1))
     def test_catchtime(self, sleep_time: float):
