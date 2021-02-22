@@ -1,9 +1,8 @@
 import json
 import logging
 import pathlib
-from jinja2 import Template
 from operator import itemgetter
-from functools import wraps, partial, lru_cache
+from functools import partial, lru_cache
 
 import click
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -13,6 +12,7 @@ from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.lazy_dict import LazyDict, LazyEval
 from exporters.utils.catchtime import catchtime
 from exporters.utils.apply import apply
+from exporters.utils.jinja_filter import create_filters
 from integrations.ad_integration import ad_logger, ad_reader, ad_writer
 from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException, NoActiveEngagementsException
 
@@ -20,22 +20,6 @@ logger = logging.getLogger("CreateAdUsers")
 
 
 method_apply = apply
-
-
-def create_filters(jinja_strings):
-    def string_to_bool(v):
-        return v.lower() in ("yes", "true", "t", "1")
-
-    def as_filter(template):
-        @apply
-        def filter(employee, ad_object):
-            result = template.render(employee=employee, ad_object=ad_object)
-            return string_to_bool(result)
-        return filter
-
-    jinja_templates = map(Template, jinja_strings)
-    filter_functions = map(as_filter, jinja_templates)
-    return list(filter_functions)
 
 
 class AdLifeCycle:
@@ -47,6 +31,7 @@ class AdLifeCycle:
         settings = json.loads(cfg_file.read_text())
 
         self.roots = settings["integrations.ad.write.create_user_trees"]
+        create_filters = partial(create_filters, tuple_keys=("employee", "ad_object"))
         self.create_filters = create_filters(settings.get(
             "integrations.ad.lifecycle.create_filters", []
         ))
