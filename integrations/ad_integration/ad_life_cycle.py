@@ -10,6 +10,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from tqdm import tqdm
 
 from exporters.sql_export.lora_cache import LoraCache
+from exporters.utils.lazy_dict import LazyDict, LazyEval
 from integrations.ad_integration import ad_logger, ad_reader, ad_writer
 from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException, NoActiveEngagementsException
 
@@ -38,83 +39,6 @@ from contextlib import contextmanager
 def catchtime() -> float:
     start = perf_counter()
     yield lambda: perf_counter() - start
-
-
-from collections.abc import Mapping
-
-
-class LazyEval:
-    def __init__(self, cally, cache=True):
-        self.cally = cally
-        self.cache = cache
-
-    def do_cache(self):
-        return self.cache
-
-    def __call__(self, dictionary):
-        return self.cally(dictionary)
-
-
-class LazyDict(Mapping):
-    def __init__(self, *args, **kw):
-        self._raw_dict = dict(*args, **kw)
-
-    def __getitem__(self, key):
-        value = self._raw_dict.__getitem__(key)
-        # Check if we got back a LazyEval item
-        if type(value) == LazyEval:
-            return self._handle_lazy(key, value)
-        return value
-
-    def __setitem__(self, key, value):
-        self._raw_dict.__setitem__(key, value)
-
-    def _handle_lazy(self, key, lazy_eval):
-        value = lazy_eval(self)
-        if lazy_eval.do_cache():
-            self._raw_dict[key] = value
-        return value
- 
-    def __repr__(self):
-        return repr(self._raw_dict)
-
-    def __iter__(self):
-        return iter(self._raw_dict)
-
-    def __len__(self):
-        return len(self._raw_dict)
-
-
-#a = LazyDict({'a': 'b'})
-#print(a)
-#print(a['a'])
-#print(a['a'])
-#
-#b = 0
-#def counter_func():
-#    global b
-#    b = b + 1
-#    return b
-#
-#
-#a = LazyDict({'a': counter_func})
-#print(a)
-#print(a['a'])
-#print(a['a'])
-#
-#a = LazyDict({'a': LazyEval(counter_func)})
-#print(a)
-#print(a['a'])
-#print(a['a'])
-#
-#a = LazyDict({'a': LazyEval(counter_func, cache=False)})
-#print(a)
-#print(a['a'])
-#print(a['a'])
-#
-#
-#import sys
-#sys.exit(1)
 
 
 def create_filters(jinja_strings):
@@ -234,7 +158,7 @@ class AdLifeCycle:
             def make_class_lazy(class_attribute, mo_engagement):
                 class_uuid = mo_engagement[class_attribute]
                 mo_engagement[class_attribute + "_uuid"] = class_uuid
-                mo_engagement[class_attribute] = LazyEval(lambda dictionary: {
+                mo_engagement[class_attribute] = LazyEval(lambda: {
                     **self.lc.classes[class_uuid],
                     "uuid": class_uuid,
                 })
@@ -252,12 +176,12 @@ class AdLifeCycle:
             # Turn mo_employee into a lazy dict and add lazy properties
             mo_employee = LazyDict(mo_employee)
             
-            mo_employee["engagements"] = LazyEval(lambda dictionary: list(filter(
+            mo_employee["engagements"] = LazyEval(lambda: list(filter(
                 lambda engagement: engagement["user"] == mo_employee["uuid"],
                 get_engagements()
             )))
 
-            mo_employee["primary_engagement"] = LazyEval(lambda dictionary: next(filter(
+            mo_employee["primary_engagement"] = LazyEval(lambda key, dictionary: next(filter(
                 lambda engagement: engagement.get("primary_boolean", False),
                 dictionary["engagements"]
             ), None))
