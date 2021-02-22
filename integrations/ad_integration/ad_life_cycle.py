@@ -11,6 +11,7 @@ from tqdm import tqdm
 
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.lazy_dict import LazyDict, LazyEval
+from exporters.utils.catchtime import catchtime
 from integrations.ad_integration import ad_logger, ad_reader, ad_writer
 from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException, NoActiveEngagementsException
 
@@ -30,15 +31,6 @@ def method_apply(method):
         return method(self, *tup)
 
     return applied
-
-
-from time import perf_counter
-from contextlib import contextmanager
-
-@contextmanager
-def catchtime() -> float:
-    start = perf_counter()
-    yield lambda: perf_counter() - start
 
 
 def create_filters(jinja_strings):
