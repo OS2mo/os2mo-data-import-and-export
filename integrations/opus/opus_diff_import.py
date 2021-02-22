@@ -49,8 +49,8 @@ UNIT_ADDRESS_CHECKS = {
     'cvrNr': 'CVR',
     'eanNr': 'EAN',
     'pNr': 'Pnummer',
-    'phoneNumber': 'Telefon',
-    'dar': 'Postadresse'
+    'phoneNumber': 'PhoneUnit',
+    'dar': 'AddressPostUnit'
 }
 
 EMPLOYEE_ADDRESS_CHECKS = {
