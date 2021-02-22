@@ -1,20 +1,23 @@
 import json
 import logging
 import pathlib
+from functools import lru_cache, partial
 from operator import itemgetter
-from functools import partial, lru_cache
 
 import click
 from os2mo_helpers.mora_helpers import MoraHelper
 from tqdm import tqdm
 
 from exporters.sql_export.lora_cache import LoraCache
-from exporters.utils.lazy_dict import LazyDict, LazyEval
-from exporters.utils.catchtime import catchtime
 from exporters.utils.apply import apply
+from exporters.utils.catchtime import catchtime
 from exporters.utils.jinja_filter import create_filters
+from exporters.utils.lazy_dict import LazyDict, LazyEval
 from integrations.ad_integration import ad_logger, ad_reader, ad_writer
-from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException, NoActiveEngagementsException
+from integrations.ad_integration.ad_exceptions import (
+    NoActiveEngagementsException,
+    NoPrimaryEngagementException,
+)
 
 logger = logging.getLogger("CreateAdUsers")
 
@@ -32,20 +35,20 @@ class AdLifeCycle:
 
         self.roots = settings["integrations.ad.write.create_user_trees"]
         create_filters = partial(create_filters, tuple_keys=("employee", "ad_object"))
-        self.create_filters = create_filters(settings.get(
-            "integrations.ad.lifecycle.create_filters", []
-        ))
-        self.disable_filters = create_filters(settings.get(
-            "integrations.ad.lifecycle.disable_filters", []
-        ))
-        
+        self.create_filters = create_filters(
+            settings.get("integrations.ad.lifecycle.create_filters", [])
+        )
+        self.disable_filters = create_filters(
+            settings.get("integrations.ad.lifecycle.disable_filters", [])
+        )
+
         # This is a slow step (since ADReader reads all users)
         print("Retrieve AD dump")
         with catchtime() as t:
             self.ad_reader = ad_reader.ADParameterReader()
             all_users = self.ad_reader.cache_all()
         print("Done with AD caching: {}".format(t()))
-        occupied_names = set(map(itemgetter('SamAccountName'), all_users))
+        occupied_names = set(map(itemgetter("SamAccountName"), all_users))
 
         # This is a potentially slow step (since it may read LoraCache)
         print("Retrive LoRa dump")
@@ -60,7 +63,9 @@ class AdLifeCycle:
         # This is a slow step (since ADWriter reads all SAM names in __init__)
         print("Retrieve AD Writer name list")
         with catchtime() as t:
-            self.ad_writer = ad_writer.ADWriter(lc=self.lc, lc_historic=self.lc_historic, occupied_names=occupied_names)
+            self.ad_writer = ad_writer.ADWriter(
+                lc=self.lc, lc_historic=self.lc_historic, occupied_names=occupied_names
+            )
         print("Done with AD Writer init: {}".format(t()))
 
         logger.debug("__init__() done")
@@ -115,7 +120,7 @@ class AdLifeCycle:
 
     def _gen_filtered_employees(self, filters=None):
         def enrich_with_ad_user(mo_employee):
-            cpr = mo_employee['cpr']
+            cpr = mo_employee["cpr"]
             ad_object = self.ad_reader.read_user(cpr=cpr, cache_only=True)
             return mo_employee, ad_object
 
@@ -124,10 +129,12 @@ class AdLifeCycle:
             def make_class_lazy(class_attribute, mo_engagement):
                 class_uuid = mo_engagement[class_attribute]
                 mo_engagement[class_attribute + "_uuid"] = class_uuid
-                mo_engagement[class_attribute] = LazyEval(lambda: {
-                    **self.lc.classes[class_uuid],
-                    "uuid": class_uuid,
-                })
+                mo_engagement[class_attribute] = LazyEval(
+                    lambda: {
+                        **self.lc.classes[class_uuid],
+                        "uuid": class_uuid,
+                    }
+                )
                 return mo_engagement
 
             engagements = self.lc.engagements.values()
@@ -141,16 +148,25 @@ class AdLifeCycle:
         def enrich_with_engagements(mo_employee):
             # Turn mo_employee into a lazy dict and add lazy properties
             mo_employee = LazyDict(mo_employee)
-            
-            mo_employee["engagements"] = LazyEval(lambda: list(filter(
-                lambda engagement: engagement["user"] == mo_employee["uuid"],
-                get_engagements()
-            )))
 
-            mo_employee["primary_engagement"] = LazyEval(lambda key, dictionary: next(filter(
-                lambda engagement: engagement.get("primary_boolean", False),
-                dictionary["engagements"]
-            ), None))
+            mo_employee["engagements"] = LazyEval(
+                lambda: list(
+                    filter(
+                        lambda engagement: engagement["user"] == mo_employee["uuid"],
+                        get_engagements(),
+                    )
+                )
+            )
+
+            mo_employee["primary_engagement"] = LazyEval(
+                lambda key, dictionary: next(
+                    filter(
+                        lambda engagement: engagement.get("primary_boolean", False),
+                        dictionary["engagements"],
+                    ),
+                    None,
+                )
+            )
 
             return mo_employee
 
@@ -195,7 +211,8 @@ class AdLifeCycle:
                 filter_user_not_in_ad,
                 # Remove users that have active engagements
                 filter_user_has_engagements,
-            ] + self.disable_filters
+            ]
+            + self.disable_filters
         )
         # Employees now contain only employees which should be disabled
         for employee, ad_object in employees:
@@ -246,7 +263,8 @@ class AdLifeCycle:
                 filter_user_without_engagements,
                 # Check if the user is in a create-user sub-tree
                 self._find_user_unit_tree,
-            ] + self.create_filters
+            ]
+            + self.create_filters
         )
         # Employees now contain only employees which should be created
         for employee, ad_object in employees:
@@ -258,10 +276,10 @@ class AdLifeCycle:
                 status = True
                 message = "dry-run"
                 if not dry_run:
-                    #status, message = self.ad_writer.create_user(
+                    # status, message = self.ad_writer.create_user(
                     #    employee["uuid"], create_manager=False
-                    #)
-                    print('CREATE USER ' + employee["uuid"])
+                    # )
+                    print("CREATE USER " + employee["uuid"])
                     pass
                 if status:
                     logger.debug("New username: {}".format(message))
