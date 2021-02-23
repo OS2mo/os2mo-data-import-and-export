@@ -262,9 +262,6 @@ skal være sat når programmet afvikles:
  * ``integrations.ad.write.level2orgunit_type``: uuid på den enhedstype som angiver
    at enheden er en organisatorisk hovedgruppering og derfor skal skrives i feltet
    angivet i ``integrations.ad.write.level2orgunit_field``.
- * ``integrations.ad.write.create_user_trees``: Liste over uuid'er på enheder,
-   medarbejdere i disse enheder samt deres underheder, vil få oprettet AD en
-   konto af scriptet `ad_life_cycle.py` hvis de ikke har en i forvejen.
 
 
 Skabelse af brugernavne
@@ -819,29 +816,106 @@ på brugere som henholdsvis findes i MO men ikke i AD, eller findes i AD, men ik
 har aktive engagementer i MO.
 
 ::
-   usage: ad_life_cycle.py [-h]
+   usage: ad_life_cycle.py [-h/--help]
                            [--create-ad-accounts] [--disable-ad-accounts]
-                           [--dry-run]
+                           [--dry-run] [--use-cached-mo]
 
 Betydningen af disse parametre angives herunder, det er muligt at afvilke begge
 synkroniseringer i samme kørsel ved at angive begge parametre.
 
- * --create-ad-accounts
+ * ``--create-ad-accounts``
 
    Opret AD brugere til MO brugere som ikke i forvejen findes i AD efter de
-   regler som er angivet i settings-nøglen
-   ``integrations.ad.write.create_user_trees``.
+   regler som er angivet i settings-nøglerne:
 
- * --disable-ad-accounts
+   * ``integrations.ad.write.create_user_trees`` og
+   * ``integrations.ad.lifecycle.create_filters``
+
+   Se mere om disse herunder.
+
+ * ``--disable-ad-accounts``
 
    Sæt status til Disabled for AD konti hvor den tilhøende MO bruge ikke længere
-   har et aktivt engagement.
+   har et aktivt engagement og som opfylder reglerne angivet i settings-nøglen:
 
- * --dry-run
+   * ``integrations.ad.lifecycle.disable_filters``
+
+   Se mere om denne herunder.
+
+ * ``--dry-run``
 
    Programmet vil ikke forsøge at opdatere sit billede af MO, en vil anvende
    den aktuelt cache'de værdi. Dette kan være nyttigt til udvikling, eller
    hvis flere integrationer køres umidelbart efter hinanden.
+
+ * ``--use-cached-mo``
+
+   Programmet vil ikke genopfriske LoraCache, men blot benytte den aktuelle
+   LoraCache der findes på disken.
+
+Derudover kan programmet konfigureres med nøgler i ``settings.json`` specifikt:
+
+ * ``integrations.ad.write.create_user_trees``
+
+   Liste over uuid'er på enheder, medarbejdere i disse enheder samt deres
+   underheder, vil få oprettet AD en konto af ad_life_cycle, hvis de ikke i
+   forvejen har en.
+
+ * ``integrations.ad.lifecycle.create_filters``
+
+   Se dokumentation herunder for ``integrations.ad.lifecycle.disable_filters``.
+   Denne nøgle gør det samme, blot som filter for oprettelse istedet for
+   som filter for deaktivering.
+
+ * ``integrations.ad.lifecycle.disable_filters``
+
+   Liste af jinja templates der evalueres på MO brugere, deres engagementer og
+   deres tilhørende AD konti. Disse templates kan returnere en sand værdi for
+   at beholde brugeren eller en falsk værdi for at sortere brugeren fra.
+
+   Værdierne der vurderes som sande er "yes", "true", "1" og "1.0".
+   De findes i ``string_to_bool`` metoden i ``exporters/utils/jinja_filter.py``.
+
+   Eksempel 1:
+
+   Vi ønsker kun at deaktivere brugere, hvis AD konto har et givent prefix (``X``)
+   i deres SAM Account Name. For at opnå dette kan vi lave følgende konfiguration:
+
+   .. code-block:: json
+
+       {
+           "integrations.ad.lifecycle.disable_filters": [
+               "{{ ad_object['SamAccountName'].startswith('X') }}"
+           ]
+       }
+
+   Hermed vil disable-ad-accounts kun deaktivere brugere med X som prefix.
+
+   Eksempel 2:
+
+   Vi ønsker ikke at oprette brugere i AD, såfremt de har en given
+   stillingsbetegnelse (`Bruger`) på deres primære engagement i MO.
+   For at opnå dette kan vi lave følgende konfiguration:
+
+   .. code-block:: json
+
+       {
+           "integrations.ad.lifecycle.create_filters": [
+               "{{
+                   employee.get(
+                       'primary_engagement', {}
+                   ).get(
+                       'job_function', {}
+                   ).get(
+                       'name', ''
+                   ) != 'Bruger'
+               }}"
+           ]
+       }
+
+   Hermed vil create-ad-accounts oprette AD kontis for alle brugere, undtagen
+   dem som har den givne stillingsbetegnelse.
+
 
 Det er værd at bemærke at brugerne som laves med ad_life_cycle *ikke* oprettes med
 relaterede data, de vil altså fremstå f.eks. uden adresser. Deres relaterede data
