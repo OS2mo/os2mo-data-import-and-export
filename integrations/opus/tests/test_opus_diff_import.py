@@ -8,9 +8,10 @@ import xmltodict
 from click.testing import CliRunner
 from hypothesis import given
 from hypothesis.strategies import datetimes, dictionaries, text, uuids
+from parameterized import parameterized, parameterized_class
+
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import OpusDiffImport, start_opus_diff
-from parameterized import parameterized, parameterized_class
 
 
 class OpusDiffImportTestbase(OpusDiffImport):
@@ -141,7 +142,7 @@ class Opus_diff_import_tester(unittest.TestCase):
         self.assertIsInstance(xml_date, datetime)
         diff = OpusDiffImportTest_counts(xml_date, ad_reader=None)
         diff.start_import(self.units, self.employees, include_terminations=True)
-        self.assertEqual(diff.terminate_detail.call_count, self.expected_terminations)
+        self.assertEqual(diff.terminate_detail.call_count, self.expected_terminations*2)
 
     @patch("integrations.dawa_helper.dawa_lookup")
     @given(datetimes())
@@ -201,12 +202,11 @@ class Opus_diff_import_tester(unittest.TestCase):
             "unit_uuid": str(org_unit_uuid),
         }
         current = {"uuid": address_type_uuid}
-        mo_addresses = {address_type_uuid: current}
         # Same
-        diff._perform_address_update(args, current, mo_addresses)
+        diff._perform_address_update(args, current)
         diff.helper.assert_not_called()
         # new
-        diff._perform_address_update(args, None, mo_addresses)
+        diff._perform_address_update(args, None)
         diff.helper._mo_post.assert_called_with(
             "details/create",
             {

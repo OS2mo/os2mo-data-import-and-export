@@ -3,15 +3,14 @@ from datetime import datetime
 from pathlib import Path
 from unittest import TestCase
 from unittest.mock import MagicMock, call, patch
-from parameterized import parameterized
 
 import xmltodict
 from hypothesis import given
 from hypothesis.strategies import datetimes, dictionaries, text
-from parameterized import parameterized_class
+from parameterized import parameterized, parameterized_class
 
-from integrations.opus.opus_diff_import import start_opus_diff
 from integrations.opus import opus_helpers
+from integrations.opus.opus_diff_import import start_opus_diff
 
 
 class test_opus_helpers(TestCase):
