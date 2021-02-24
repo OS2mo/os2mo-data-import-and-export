@@ -6,7 +6,7 @@
 # Labs as required approval to your MR if you have any changes.                #
 ################################################################################
 
-# For pushing of release images to work, the following envionment variables have
+# For pushing of release images to work, the following environment variables have
 # to set in the Gitlab UI.
 # RELEASE_REGISTRY_USER
 # RELEASE_REGISTRY_PASSWORD
@@ -121,7 +121,7 @@ Build TestImage:
 # Test stage
 ############
 
-.test-python:
+.test-python: &test-python
   stage: test
   needs: ['Build TestImage']
   image:
@@ -129,6 +129,11 @@ Build TestImage:
   services: []
   tags:
     - docker
+  variables:
+    GIT_STRATEGY: none # We do not need the source code
+
+  script:
+    - cd /code
 
 Test LoraCache Exporter:
   extends: .test-python
@@ -143,10 +148,10 @@ Test AD Integration:
 
 Test OS2Sync Integration:
   extends: .test-python
+  variables:
+    CUSTOMER_SETTINGS: /code/settings/kommune-andeby.json
   script:
-    - cp settings/kommune-andeby.json settings/settings.json
-    - python -m doctest integrations/os2sync/os2mo.py
-    - pytest integrations/os2sync/tests/test_address_type_conversions.py
+    - pytest integrations/os2sync/tests
 
 Test CPR Mapper:
   extends: .test-python
@@ -165,7 +170,7 @@ Test OPUS importers:
     - python -m pytest -v integrations/opus/tests
 
 Test OPUS Helpers:
-  extends: .test-python
+  <<: *test-python
   script:
     - cp settings/kommune-andeby.json settings/settings.json
     - python -m doctest -v integrations/opus/opus_helpers.py

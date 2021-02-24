@@ -6,11 +6,13 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import logging
+from typing import Any, Dict, List, Optional, Union
 
 import requests
 
-from integrations.os2sync import config
+from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
+from integrations.os2sync import config
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
@@ -24,8 +26,60 @@ session.headers = {
 if settings["OS2MO_SAML_TOKEN"] is not None:
     session.headers["SESSION"] = settings["OS2MO_SAML_TOKEN"]
 
-
 TRUNCATE_LENGTH = max(36, int(settings.get("OS2SYNC_TRUNCATE", 200)))
+
+# Actually recursive, but couple of levels here
+JSON_TYPE = Dict[str, Union[None, str,
+                            Dict[str, Union[None, str,
+                                            Dict[str, Any]]]]]
+
+
+class IT:
+    """
+    parses this style of
+    """
+
+    def __init__(self, system_name: str, user_key: str):
+        self.system_name = system_name
+        self.user_key = user_key
+
+    @classmethod
+    def from_mo_json(cls, response: List[JSON_TYPE]):
+        """
+        Designed to parse the response from MO when requesting a users it-systems
+        Concretely, expects a list of this style of object:
+
+        {'itsystem': {'name': 'Active Directory',
+              'reference': None,
+              'system_type': None,
+              'user_key': 'Active Directory',
+              'uuid': 'a1608e69-c422-404f-a6cc-b873c50af111',
+              'validity': {'from': '1900-01-01', 'to': None}},
+         'org_unit': None,
+         'person': {'givenname': 'Solveig',
+                    'name': 'Solveig Kuhlenhenke',
+                    'nickname': '',
+                    'nickname_givenname': '',
+                    'nickname_surname': '',
+                    'surname': 'Kuhlenhenke',
+                    'uuid': '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'},
+         'user_key': 'SolveigK',
+         'uuid': 'a2fb2581-c57a-46ad-8a21-30118a3859b7',
+         'validity': {'from': '2003-08-13', 'to': None}}
+        """
+        return [cls(system_name=it_obj['itsystem']['name'].strip(),
+                    user_key=it_obj['user_key'].strip())
+                for it_obj in response]
+
+    def __repr__(self):
+        return '{}(system_name={},user_key={})'.format(self.__class__.__name__,
+                                                       self.system_name, self.user_key)
+
+    def __eq__(self, other):
+        if not isinstance(other, IT):
+            raise TypeError('unexpected type: {}'.format(other))
+
+        return self.system_name == other.system_name and self.user_key == other.user_key
 
 
 # truncate and warn all strings in dictionary,
@@ -124,11 +178,36 @@ def engagements_to_user(user, engagements, allowed_unitids):
             )
 
 
+def try_get_ad_user_key(uuid: str) -> Optional[str]:
+    """
+    fetches all it-systems related to a user and return the ad-user_key if exists
+    """
+    it_response = os2mo_get("{BASE}/e/" + uuid + "/details/it").json()
+    it_systems = IT.from_mo_json(it_response)
+    ad_systems = list(filter(lambda x: x.system_name == AD_it_system,
+                             it_systems))
+    print(ad_systems)
+    # if no ad OR multiple
+    if len(ad_systems) != 1:
+        return
+    return ad_systems[0].user_key
+
+
 def get_sts_user(uuid, allowed_unitids):
     base = os2mo_get("{BASE}/e/" + uuid + "/").json()
+
+    user_id = uuid  # default
+
+    # alternative user_id
+    if settings["OS2SYNC_AD_AS_BVN"]:
+        candidate_user_id = try_get_ad_user_key(uuid)
+        # if exists/truthy
+        if candidate_user_id:
+            user_id = candidate_user_id
+
     sts_user = {
         "Uuid": uuid,
-        "UserId": uuid,
+        "UserId": user_id,
         "Positions": [],
         "Person": {"Name": base["name"], "Cpr": base["cpr_no"]},
     }
@@ -192,18 +271,6 @@ def kle_to_orgunit(orgunit, kle):
     * Aspect "Udførende" goes into "Tasks"
     * Aspect "Ansvarlig" goes into "ContactForTasks"
 
-    Example:
-
-        >>> import json
-        >>> orgunit={}
-        >>> kles = [
-        ...     {'uuid': 1, 'kle_number': {'uuid': '3'}},
-        ...     {'uuid': 2, 'kle_number': {'uuid': '4'}},
-        ... ]
-        >>> kle_to_orgunit(orgunit, kles)
-        >>> json.dumps(orgunit, sort_keys=True)
-        '{"Tasks": ["3", "4"]}'
-
     Args:
         orgunit: The organization unit to enrich with kle information.
         kle: A list of KLEs.
@@ -223,20 +290,6 @@ def kle_to_orgunit(orgunit, kle):
 
 def is_ignored(unit, settings):
     """Determine if unit should be left out of transfer
-
-    Example:
-        >>> settings={
-        ... "OS2SYNC_IGNORED_UNIT_LEVELS": ["10","2"],
-        ... "OS2SYNC_IGNORED_UNIT_TYPES":['6','7']}
-        >>> unit={"org_unit_level":{"uuid":"1"}, "org_unit_type":{"uuid":"5"}}
-        >>> is_ignored(unit, settings)
-        False
-        >>> unit={"org_unit_level":{"uuid":"2"}, "org_unit_type":{"uuid":"5"}}
-        >>> is_ignored(unit, settings)
-        True
-        >>> unit={"org_unit_level":{"uuid":"1"}, "org_unit_type":{"uuid":"6"}}
-        >>> is_ignored(unit, settings)
-        True
 
     Args:
         unit: The organization unit to enrich with kle information.

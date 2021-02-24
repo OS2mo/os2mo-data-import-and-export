@@ -6,13 +6,15 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import logging
+from typing import Optional
 
+from more_itertools import flatten
 from sqlalchemy.orm import sessionmaker
 
+from constants import AD_it_system
 from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
-from exporters.sql_export.sql_table_defs import (KLE, Adresse, Bruger,
-                                                 Engagement, Enhed,
-                                                 ItForbindelse)
+from exporters.sql_export.sql_table_defs import (Adresse, Bruger, Engagement, Enhed,
+                                                 ItForbindelse, ItSystem, KLE)
 from integrations.os2sync import config, os2mo
 
 settings = config.settings
@@ -41,12 +43,35 @@ scope_to_scope = {
 }
 
 
+def try_get_ad_user_key(session, uuid: str) -> Optional[str]:
+    ad_system_user_names = session.query(
+        ItForbindelse.brugernavn).join(ItSystem,
+                                       ItForbindelse.it_system_uuid == ItSystem.uuid
+                                       ).filter(ItSystem.navn == AD_it_system,
+                                                ItForbindelse.bruger_uuid == uuid
+                                                ).all()
+    ad_system_user_names = list(flatten(ad_system_user_names))
+
+    if len(ad_system_user_names) != 1:
+        return
+    return ad_system_user_names[0]
+
+
 def get_sts_user(session, uuid, allowed_unitids):
     base = session.query(Bruger).filter(Bruger.uuid == uuid).one()
 
+    user_id = base.bvn  # default
+
+    # alternative user_id
+    if settings["OS2SYNC_AD_AS_BVN"]:
+        candidate_user_id = try_get_ad_user_key(session, uuid)
+        # if exists/truthy
+        if candidate_user_id:
+            user_id = candidate_user_id
+
     sts_user = {
         "Uuid": uuid,
-        "UserId": base.bvn,
+        "UserId": user_id,
         "Positions": [],
         "Person": {"Name": base.fornavn + " " + base.efternavn, "Cpr": base.cpr},
     }
