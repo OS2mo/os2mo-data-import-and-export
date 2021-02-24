@@ -14,6 +14,7 @@
 variables:
   # Project variables
   RELEASE_REGISTRY: index.docker.io/magentaaps
+  IMAGE_SHA: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
 
 
 stages:
@@ -97,31 +98,41 @@ Lint Tools:
     - python -m black --diff --line-length 85 --check uuid_replace.py
     - python -m isort --diff --check-only uuid_replace.py
 
+# Build stage
+#############
+
+Build TestImage:
+  stage: build
+  needs: []
+  image:
+    # We use kaniko v0.16.0 as both v0.17.0, v0.17.1, v0.18.0 and v0.19.0 contains fatal bugs.
+    name: gcr.io/kaniko-project/executor:debug-v0.16.0
+    entrypoint: [""]
+  tags:
+    - docker
+  script:
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor
+      --cache
+      --context=$CI_PROJECT_DIR
+      --dockerfile=$CI_PROJECT_DIR/docker/Dockerfile
+      --destination=${IMAGE_SHA}
 
 # Test stage
 ############
 
 .test-python:
   stage: test
-  needs: []
-  image: python:3
+  needs: ['Build TestImage']
+  image:
+    name: ${IMAGE_SHA}
   services: []
-  before_script:
-    - apt-get update && apt-get install -y unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev-compat
-    - find . -name 'requirements.*' | grep -v venv/ | xargs -l1 pip install -r
-    - pip install -r ./integrations/requirements/common.txt
-    - pip install -r ./integrations/requirements/test.txt
-    - pip install ./os2mo_data_import --upgrade
   tags:
     - docker
-
 
 Test LoraCache Exporter:
   extends: .test-python
   script:
-    - apt update && apt install -y unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev cifs-utils
-    - pip install -r exporters/sql_export/tests/requirements.txt
-    - export PYTHONPATH=$PWD:$PYTHONPATH
     - pytest exporters/sql_export/tests/
 
 Test AD Integration:
@@ -134,7 +145,6 @@ Test OS2Sync Integration:
   extends: .test-python
   script:
     - cp settings/kommune-andeby.json settings/settings.json
-    - export PYTHONPATH=$PWD:$PYTHONPATH
     - python -m doctest integrations/os2sync/os2mo.py
     - pytest integrations/os2sync/tests/test_address_type_conversions.py
 
@@ -146,7 +156,6 @@ Test CPR Mapper:
 Test OPUS Org Tree Print:
   extends: .test-python
   script:
-    - pip install -r integrations/opus/org_tree_print/requirements.txt
     - python -m doctest -v integrations/opus/org_tree_print/main.py
 
 Test OPUS importers:
@@ -164,21 +173,15 @@ Test OPUS Helpers:
 Test SDLoen Integration:
   extends: .test-python
   script:
-    - export PYTHONPATH=$PWD:$PYTHONPATH
-    - pip install -r integrations/requirements.txt
     - python integrations/SD_Lon/sd_cli.py --help
     - pytest integrations/SD_Lon/tests/
 
 Test Reports:
   extends: .test-python
   script:
-    - export PYTHONPATH=$PWD:$PYTHONPATH
-    - pip install -r reports/requirements/test.txt
     - pytest reports/os2mo_tests/ --ignore reports/os2mo_tests/test_viborg_managers.py
 
 Test Exporter Utils:
   extends: .test-python
   script:
-    - export PYTHONPATH=$PWD:$PYTHONPATH
-    - pip install -r exporters/utils/requirements.txt
     - pytest exporters/utils/tests/
