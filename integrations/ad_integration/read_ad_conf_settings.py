@@ -14,6 +14,8 @@ def _read_global_settings(top_settings):
     global_settings['mora.base'] = top_settings.get('mora.base')
     global_settings['servers'] = top_settings.get('integrations.ad')[0].get('servers', [])
     global_settings['winrm_host'] = top_settings.get('integrations.ad.winrm_host')
+    global_settings['system_user'] = top_settings['integrations.ad'][0]['system_user']
+    global_settings['password'] = top_settings['integrations.ad'][0]['password']
     if not global_settings['winrm_host']:
         msg = 'Missing hostname for remote management server'
         logger.error(msg)
