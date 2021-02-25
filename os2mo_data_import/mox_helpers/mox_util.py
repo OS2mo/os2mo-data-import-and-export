@@ -291,16 +291,14 @@ async def ensure_class_value(
     new_value: str,
     dry_run: bool,
 ):
-    
-    kwargs = {
-        "mox_base": ctx.obj["mox.base"],
-        "bvn": bvn,
-        "uuid": uuid,
-        "variable": "brugervendtnoegle",
-        "new_value": bvn,
-        "dry_run": dry_run,
-    }
-    await ensure_class_value_helper(**kwargs)
+    await ensure_class_value_helper(
+        mox_base=ctx.obj["mox.base"],
+        bvn=bvn,
+        uuid=uuid,
+        variable="brugervendtnoegle",
+        new_value=bvn,
+        dry_run=dry_run,
+    )
 
 
 @cli.command()

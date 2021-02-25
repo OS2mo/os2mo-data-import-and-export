@@ -38,15 +38,14 @@ async def ensure_address_type_bvns(dry_run: bool):
     """
     for setting, bvn in var_map.items():
         uuid = settings[setting]
-        kwargs = {
-            "mox_base": settings["mox.base"],
-            "uuid": uuid,
-            "variable": "brugervendtnoegle",
-            "new_value": bvn,
-            "dry_run": dry_run,
-        }
         try:
-            await ensure_class_value_helper(**kwargs)
+            await ensure_class_value_helper(
+                mox_base=settings["mox.base"],
+                uuid=uuid,
+                variable="brugervendtnoegle",
+                new_value=bvn,
+                dry_run=dry_run,
+            )
         except IndexError:
             print("Found no {} at {}".format(bvn, uuid))
 
