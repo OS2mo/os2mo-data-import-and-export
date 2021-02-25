@@ -35,10 +35,6 @@ JSON_TYPE = Dict[str, Union[None, str,
 
 
 class IT:
-    """
-    parses this style of
-    """
-
     def __init__(self, system_name: str, user_key: str):
         self.system_name = system_name
         self.user_key = user_key
@@ -186,7 +182,7 @@ def try_get_ad_user_key(uuid: str) -> Optional[str]:
     it_systems = IT.from_mo_json(it_response)
     ad_systems = list(filter(lambda x: x.system_name == AD_it_system,
                              it_systems))
-    print(ad_systems)
+
     # if no ad OR multiple
     if len(ad_systems) != 1:
         return

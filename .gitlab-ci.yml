@@ -121,27 +121,34 @@ Build TestImage:
 # Test stage
 ############
 
-.test-python: &test-python
+.test-python:
   stage: test
-  needs: ['Build TestImage']
+  needs: [ 'Build TestImage' ]
   image:
     name: ${IMAGE_SHA}
-  services: []
+  services: [ ]
   tags:
     - docker
   variables:
     GIT_STRATEGY: none # We do not need the source code
-
-  script:
+    HYPOTHESIS_PROFILE: ci
+  before_script:
     - cd /code
+
 
 Test LoraCache Exporter:
   extends: .test-python
   script:
     - pytest exporters/sql_export/tests/
 
-Test AD Integration:
-  extends: .test-python
+Test AD Integration:  # runs outside image (unfortunately)
+  stage: test
+  needs: [ 'Build TestImage' ]
+  image:
+    name: ${IMAGE_SHA}
+  services: [ ]
+  tags:
+    - docker
   script:
     - cd integrations/ad_integration/
     - pytest tests/
@@ -170,7 +177,7 @@ Test OPUS importers:
     - python -m pytest -v integrations/opus/tests
 
 Test OPUS Helpers:
-  <<: *test-python
+  extends: .test-python
   script:
     - cp settings/kommune-andeby.json settings/settings.json
     - python -m doctest -v integrations/opus/opus_helpers.py

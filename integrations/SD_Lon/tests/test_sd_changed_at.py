@@ -1,15 +1,14 @@
-import unittest
 from collections import OrderedDict
 from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock, call, patch
 
 import hypothesis.strategies as st
-import xmltodict
 from hypothesis import example, given
 from integrations.ad_integration.utils import AttrDict
 from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD, gen_date_pairs
 from parameterized import parameterized
+from test_case import DipexTestCase
 
 
 class ChangeAtSDTest(ChangeAtSD):
@@ -317,7 +316,7 @@ def read_employment_fixture(cpr, employment_id, job_id, job_title, status="1"):
     return sd_request_reply, expected_read_employment_result
 
 
-class Test_sd_changed_at(unittest.TestCase):
+class Test_sd_changed_at(DipexTestCase):
     @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
     @patch("integrations.SD_Lon.sd_common._sd_request")
     def test_read_person(self, sd_request, sd_settings):

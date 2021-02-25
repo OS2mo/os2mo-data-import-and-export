@@ -6,7 +6,7 @@ RUN apt-get update && apt-get -y install  unixodbc-dev  freetds-dev  unixodbc  t
 COPY . /code
 WORKDIR /code
 
-RUN find . -name 'requirements.*' | grep -v venv/ | xargs -l1 pip install -r
+RUN find . -name 'requirements.txt' | grep -v venv/ | xargs -l1 pip install -r
 RUN pip install -r ./integrations/requirements/common.txt
 RUN pip install -r ./integrations/requirements/test.txt
 RUN pip install ./os2mo_data_import --upgrade

@@ -32,7 +32,7 @@ settings = {
         "OS2SYNC_IGNORED_UNIT_TYPES": top_settings.get("os2sync.ignored.unit_types",
                                                        []),
         "OS2SYNC_AUTOWASH": top_settings.get("os2sync.autowash", False),
-        "OS2SYNC_AD_AS_BVN": False,
+        "OS2SYNC_AD_AS_BVN": top_settings.get("os2sync.ad_as_bvn", False),
 }
 logformat = '%(levelname)s %(asctime)s %(name)s %(message)s'
 loggername = "os2sync"
