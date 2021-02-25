@@ -913,7 +913,7 @@ Derudover kan programmet konfigureres med nøgler i ``settings.json`` specifikt:
            ]
        }
 
-   Hermed vil create-ad-accounts oprette AD kontis for alle brugere, undtagen
+   Hermed vil create-ad-accounts oprette AD konti for alle brugere, undtagen
    dem som har den givne stillingsbetegnelse.
 
 
