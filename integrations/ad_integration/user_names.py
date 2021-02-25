@@ -88,9 +88,9 @@ class CreateUserNames(object):
     An implementation of metode 2 in the AD MOX specification document
     (Bilag: Tildeling af brugernavne).
     """
-    def __init__(self, occupied_names: set = None):
+    def __init__(self, occupied_names: Optional[set] = None):
         self.method = METHOD
-        self.occupied_names = self.set_occupied_names(occupied_names)
+        self.set_occupied_names(occupied_names)
         self.combinations = [
             username_rules.method_2.FIRST,
             username_rules.method_2.SECOND,
@@ -134,8 +134,8 @@ class CreateUserNames(object):
                 username += 'X'
         return username
 
-    def set_occupied_names(self, occupied_names: set = None):
-        occupied_names = occupied_names or set()
+    def set_occupied_names(self, occupied_names_in: Optional[set] = None) -> None:
+        occupied_names: set = occupied_names_in or set()
         self.occupied_names = occupied_names
 
     def populate_occupied_names(self, **kwargs):
