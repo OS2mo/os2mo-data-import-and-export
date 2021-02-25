@@ -28,7 +28,7 @@ class LazyEval:
         """Return whether the return-value of the __call__ method should be cached."""
         return self.cache
 
-    def __call__(self, key: Any, dictionary: 'LazyDict') -> Any:
+    def __call__(self, key: Any, dictionary: "LazyDict") -> Any:
         """Evaluate the callable.
 
         Is first tried with the key and LazyDict as argument, and if this fails,
