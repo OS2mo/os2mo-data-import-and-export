@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import random
+from typing import Optional
 
 import click
 from ad_reader import ADParameterReader
