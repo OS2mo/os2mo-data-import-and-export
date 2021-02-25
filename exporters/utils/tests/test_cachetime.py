@@ -27,4 +27,4 @@ class CatchtimeTests(TestCase):
         time_spent, process_time = t()
 
         self.assertLess(time_spent - sleep_time, 0.01)
-        self.assertLess(process_time, 0.0001)
+        self.assertLess(process_time, time_spent - sleep_time)
