@@ -13,6 +13,8 @@ import xmltodict
 
 logger = logging.getLogger("sdCommon")
 
+class SDSettings:
+    pass
 
 @lru_cache(maxsize=None)
 def load_settings():

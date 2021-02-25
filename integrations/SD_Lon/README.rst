@@ -10,7 +10,7 @@ medarbejderoplysninger fra SD Løn til OS2MO.
 .. _SD løn opsætning:
 
 Opsætning
-==========
+=========
 
 For at kunne afvikle integrationen, kræves loginoplysninger til SD-Løn, som angives
 via ``settings.json``, desuden anvendes en række felter som angiver den lokale anvendelse

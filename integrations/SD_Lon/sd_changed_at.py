@@ -1122,15 +1122,15 @@ def changed_at(init, force, one_day):
     logger.info('***************')
     logger.info('Program started')
 
-    if init:
-        run_db = pathlib.Path(run_db)
+    run_db = pathlib.Path(run_db)
 
+    if not run_db.is_file():
+        logging.info('Initializing run_db')
         from_date = datetime.datetime.strptime(
             settings['integrations.SD_Lon.global_from_date'],
             '%Y-%m-%d'
         )
         initialize_changed_at(from_date, run_db, force=True)
-        exit()
 
     db_overview = DBOverview()
     # To date from last entries, becomes from_date for current entry
