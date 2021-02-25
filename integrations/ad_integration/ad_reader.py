@@ -13,6 +13,27 @@ logger = logging.getLogger("AdReader")
 
 # SKIP_BRUGERTYPE
 
+def first_included(settings, users):
+    """
+        include: given a list of users, return the first one that is included
+        exclude: given a list of users, return the first one that is not excluded
+    """
+    discrim_field = settings.get("discriminator.field")
+
+    if not discrim_field:
+        return users
+
+    users = list(filter(lambda user: discrim_field in user, users))
+
+    for value in settings.get("discriminator.values", []):
+        for user in users:
+            value_found = (value == user[discrim_field])
+            if settings["discriminator.function"] == "include" and value_found:
+                return user
+            if settings["discriminator.function"] == "exclude" and not value_found:
+                return user
+    return {}
+
 
 class ADParameterReader(AD):
 
@@ -28,34 +49,6 @@ class ADParameterReader(AD):
         # XXX: What's the point of reading settings here?
         settings = self._get_setting()
         return self.cache_all()
-
-    def first_included(self, settings, users):
-        """
-            include: given a list of users, return the first one that is included
-            exclude: given a list of users, return the first one that is not excluded
-        """
-        discrim_field = settings.get("discriminator.field")
-
-        if not discrim_field:
-            included = users
-        else:
-            included = []
-
-        for v in settings.get("discriminator.values", []):
-            for user in users:
-                if not discrim_field in user:
-                    value_found = False
-                else:
-                    value_found = v in user[discrim_field]
-                if settings["discriminator.function"] == "include" and value_found:
-                    included.append(user)
-                elif settings["discriminator.function"] == "exclude" and not value_found:
-                    included.append(user)
-
-        if included:
-            return included[0]
-        else:
-            return {}
 
     # Hvornår skal vi læse og skrive i hvad?
     # Opdatering af os2mo fra ad: ad_sync: vi læser alle (for i in...) Ny reader og opdater mo
@@ -86,7 +79,7 @@ class ADParameterReader(AD):
         try:
             for userlist in users_by_cpr.values():
 
-                current_user = self.first_included(settings,  userlist)
+                current_user = first_included(settings,  userlist)
 
                 if current_user:
 
