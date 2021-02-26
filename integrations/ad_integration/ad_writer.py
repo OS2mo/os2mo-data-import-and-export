@@ -587,7 +587,7 @@ class ADWriter(AD):
             ),
             'cpr_no': LazyEvalDerived(
                 lambda _mo_user: _mo_user['cpr_no']
-            )
+            ),
 
             # Lazy Unit and associated fields
             "_unit": LazyEvalDerived(
