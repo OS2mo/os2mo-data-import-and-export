@@ -44,10 +44,7 @@ def LazyEvalDerived(cally: Callable, cache: bool = True) -> LazyEval:
 
     def inner(key: Any, dictionary: "LazyDict") -> Any:
         return cally(
-            **{
-                varname: dictionary[varname]
-                for varname in cally_signature.parameters
-            }
+            **{varname: dictionary[varname] for varname in cally_signature.parameters}
         )
 
     return LazyEval(inner, cache)
@@ -58,6 +55,7 @@ def LazyEvalBare(cally: Callable, cache: bool = True) -> LazyEval:
 
     Bare means that the cally callable will not receive any arguments.
     """
+
     def inner(key: Any, dictionary: "LazyDict") -> Any:
         """Throw away the arguments, and call the callable."""
         return cally()

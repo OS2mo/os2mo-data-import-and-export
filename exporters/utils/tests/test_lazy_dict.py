@@ -73,7 +73,7 @@ class LazyDictTests(TestCase):
         """Test that LazyDict supports lazy evaluation using LazyEval."""
         lazy_dict = LazyDict({"base_value": 5})
         lazy_dict["derived_func1"] = LazyEval(
-            lambda key, dictionary: dictionary['base_value']
+            lambda key, dictionary: dictionary["base_value"]
         )
         self.assertEqual(lazy_dict["derived_func1"], 5)
         self.assertEqual(lazy_dict["derived_func1"], 5)
@@ -82,7 +82,7 @@ class LazyDictTests(TestCase):
         self.assertEqual(lazy_dict["derived_func1"], 5)
 
         lazy_dict["derived_func2"] = LazyEval(
-            lambda key, dictionary: dictionary['base_value'], cache=False
+            lambda key, dictionary: dictionary["base_value"], cache=False
         )
         self.assertEqual(lazy_dict["derived_func2"], 3)
         self.assertEqual(lazy_dict["derived_func2"], 3)
@@ -93,9 +93,7 @@ class LazyDictTests(TestCase):
     def test_lazy_evalulation_derived(self):
         """Test that LazyDict supports lazy evaluation using LazyEvalDerived."""
         lazy_dict = LazyDict({"base_value": 5})
-        lazy_dict["derived_func1"] = LazyEvalDerived(
-            lambda base_value: base_value
-        )
+        lazy_dict["derived_func1"] = LazyEvalDerived(lambda base_value: base_value)
         self.assertEqual(lazy_dict["derived_func1"], 5)
         lazy_dict["base_value"] = 3
         self.assertEqual(lazy_dict["derived_func1"], 5)
@@ -109,8 +107,8 @@ class LazyDictTests(TestCase):
 
         lazy_dict["derived_func3"] = LazyEvalDerived(
             lambda derived_func1, derived_func2: derived_func1 + derived_func2,
-            cache=False
+            cache=False,
         )
-        self.assertEqual(lazy_dict["derived_func3"], 5+1)
+        self.assertEqual(lazy_dict["derived_func3"], 5 + 1)
         lazy_dict["base_value"] = 2
-        self.assertEqual(lazy_dict["derived_func3"], 5+2)
+        self.assertEqual(lazy_dict["derived_func3"], 5 + 2)
