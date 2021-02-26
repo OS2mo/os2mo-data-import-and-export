@@ -13,6 +13,7 @@ from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from jinja2 import Template
 from more_itertools import unzip
+from more_itertools import flatten
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.lazy_dict import LazyDict
 from ra_utils.lazy_dict import LazyEval
@@ -127,6 +128,18 @@ class MODataSource(ABC):
 
         return start_date, end_date
 
+    @abstractmethod
+    def get_it_systems(self, uuid):
+        """Read the IT system bindings from the user using the provided uuid.
+
+        Args:
+            uuid: UUID for the user to lookup.
+
+        Returns:
+            dict of dicts: A dictionary it-system uuid to it-system dictionaries.
+        """
+        raise NotImplementedError
+
 
 class LoraCacheSource(MODataSource):
     """LoraCache implementation of the MODataSource interface."""
@@ -237,6 +250,14 @@ class LoraCacheSource(MODataSource):
         """
         return self.mo_rest_source.get_engagement_dates(uuid)
 
+    def get_it_systems(self, uuid):
+        lc_it = flatten(self.lc.it_connections)
+        lc_it = filter(lambda it_system: it_system["user"] == uuid, lc_it)
+        return {
+            it_system['itsystem']: it_system
+            for it_system in lc_it
+        }
+
 
 class MORESTSource(MODataSource):
     """MO REST implementation of the MODataSource interface."""
@@ -307,6 +328,20 @@ class MORESTSource(MODataSource):
             return [], []
         from_dates, to_dates = unzipped
         return from_dates, to_dates
+
+    def get_it_systems(self, uuid):
+        return {
+            it_system["itsystem"]["uuid"]: {
+                'uuid': it_system["uuid"],
+                'user': it_system["person"]["uuid"],
+                'unit': it_system.get("org_unit", {}).get("uuid"),
+                'username': it_system["user_key"],
+                'itsystem': it_system["itsystem"]["uuid"],
+                'from_date': it_system["validity"]["from"],
+                'to_date': it_system["validity"]["to"],
+            }
+            for it_system in self.helper.get_e_itsystems(uuid)
+        }
 
 
 class ADWriter(AD):
@@ -642,6 +677,11 @@ class ADWriter(AD):
                 ),
                 "read_manager": LazyEvalDerived(
                     lambda _manager_uuid: bool(_manager_uuid)
+                ),
+
+                # IT systems
+                "it_systems": LazyEvalDerived(
+                    lambda uuid: self.datasource.get_it_systems(uuid)
                 ),
             }
         )
