@@ -39,6 +39,12 @@ class LazyEval:
         except TypeError:
             return self.cally()
 
+    def __str__(self) -> str:
+        return "LazyEval" + str(self.cally)
+
+    def __repr__(self) -> str:
+        return "LazyEval" + repr(self.cally)
+
 
 class LazyDict(Mapping):
     """Dictionary supporting lazy evaluation of some keys.
@@ -80,6 +86,9 @@ class LazyDict(Mapping):
         if lazy_eval.do_cache():
             self._raw_dict[key] = value
         return value
+
+    def __str__(self) -> str:
+        return str(self._raw_dict)
 
     def __repr__(self) -> str:
         return repr(self._raw_dict)

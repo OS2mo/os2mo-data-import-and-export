@@ -901,15 +901,7 @@ Derudover kan programmet konfigureres med nøgler i ``settings.json`` specifikt:
 
        {
            "integrations.ad.lifecycle.create_filters": [
-               "{{
-                   employee.get(
-                       'primary_engagement', {}
-                   ).get(
-                       'job_function', {}
-                   ).get(
-                       'name', ''
-                   ) != 'Bruger'
-               }}"
+               "{{ employee.get('primary_engagement', {}).get('job_function', {}).get('title', '') != 'Bruger' }}"
            ]
        }
 

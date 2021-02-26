@@ -30,11 +30,11 @@ class AdLifeCycle:
         settings = load_settings()
 
         self.roots = settings["integrations.ad.write.create_user_trees"]
-        create_filters = partial(create_filters, tuple_keys=("employee", "ad_object"))
-        self.create_filters = create_filters(
+        seeded_create_filters = partial(create_filters, tuple_keys=("employee", "ad_object"))
+        self.create_filters = seeded_create_filters(
             settings.get("integrations.ad.lifecycle.create_filters", [])
         )
-        self.disable_filters = create_filters(
+        self.disable_filters = seeded_create_filters(
             settings.get("integrations.ad.lifecycle.disable_filters", [])
         )
 
