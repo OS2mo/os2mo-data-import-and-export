@@ -16,6 +16,8 @@ import ad_logger
 import ad_templates
 from ad_template_engine import template_powershell, prepare_field_templates
 from utils import dict_map, dict_exclude, lower_list, dict_subset
+
+from exporters.utils.lazy_dict import LazyDict, LazyEval
 from integrations.ad_integration.ad_exceptions import CprNotNotUnique
 from integrations.ad_integration.ad_exceptions import UserNotFoundException
 from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
@@ -493,96 +495,167 @@ class ADWriter(AD):
         }
         """
         logger.info('Read information for {}'.format(uuid))
-        mo_user = self._read_user(uuid)
-
         try:
             employment_number, title, eng_org_unit, eng_uuid = self.datasource.find_primary_engagement(uuid)
         except NoActiveEngagementsException:
             logger.info('No active engagements found')
             return None
 
-        end_date = self._find_end_date(uuid)
+        def split_addresses(addresses):
+            postal_code = city = streetname = 'Ukendt'
+            if addresses.get('postal'):
+                postal = addresses['postal']
+                try:
+                    postal_code = re.findall('[0-9]{4}', postal['Adresse'])[0]
+                    city_pos = postal['Adresse'].find(postal_code) + 5
+                    city = postal['Adresse'][city_pos:]
+                    streetname = postal['Adresse'][:city_pos - 7]
+                except IndexError:
+                    logger.error('Unable to read adresse from MO (no access to DAR?)')
+                except TypeError:
+                    logger.error('Unable to read adresse from MO (no access to DAR?)')
+            return {
+                'postal_code': postal_code,
+                'city': city,
+                'streetname': streetname,
+            }
 
-        unit_info = self._find_unit_info(eng_org_unit)
-        addresses = self._read_user_addresses(eng_org_unit)
-
-        postal_code = city = streetname = 'Ukendt'
-        if addresses.get('postal'):
-            postal = addresses['postal']
-            try:
-                postal_code = re.findall('[0-9]{4}', postal['Adresse'])[0]
-                city_pos = postal['Adresse'].find(postal_code) + 5
-                city = postal['Adresse'][city_pos:]
-                streetname = postal['Adresse'][:city_pos - 7]
-            except IndexError:
-                logger.error('Unable to read adresse from MO (no access to DAR?)')
-            except TypeError:
-                logger.error('Unable to read adresse from MO (no access to DAR?)')
-
-        manager_info = {
-            'name': None,
-            'sam':  None,
-            'mail': None,
-            'cpr': None
-        }
-        if read_manager:
+        def read_manager_uuid(mo_user, eng_uuid):
             manager_uuid = self.datasource.get_manager_uuid(
                 mo_user, eng_uuid
             )
             if manager_uuid is None:
                 logger.info('No managers found')
-                read_manager = False
+            return manager_uuid
 
-        if read_manager:
-            mo_manager_user = self._read_user(manager_uuid)
-            manager_info['name'] = mo_manager_user['name']
-            manager_info['cpr'] = mo_manager_user['cpr_no']
-
+        def read_manager_mail(manager_uuid):
             manager_mail_dict = self.datasource.get_email_address(manager_uuid)
             if manager_mail_dict:
-                manager_info['mail'] = manager_mail_dict['value']
+                return manager_mail_dict['value']
+            return None
 
+        def read_manager_sam(manager_cpr):
             try:
-                manager_ad_info = self._find_ad_user(cpr=manager_info['cpr'],
-                                                     ad_dump=ad_dump)
+                manager_ad_info = self._find_ad_user(
+                    cpr=manager_cpr, ad_dump=ad_dump
+                )
             except CprNotFoundInADException:
                 manager_ad_info = []
 
             if len(manager_ad_info) == 1:
-                manager_info['sam'] = manager_ad_info[0]['SamAccountName']
+                return manager_ad_info[0]['SamAccountName']
             else:
                 msg = 'Searching for {}, found in AD: {}'
                 logger.debug(msg.format(manager_info['name'], manager_ad_info))
                 raise ManagerNotUniqueFromCprException()
+            return None
 
-        mo_values = {
-            'read_manager': read_manager,
-            'name': (mo_user['givenname'], mo_user['surname']),
-            'full_name': '{} {}'.format(mo_user['givenname'], mo_user['surname']).strip(),
-            'nickname': (mo_user['nickname_givenname'], mo_user['nickname_surname']),
-            'full_nickname': '{} {}'.format(mo_user['nickname_givenname'], mo_user['nickname_surname']).strip(),
-            'employment_number': employment_number,
-            'end_date': end_date,
-            'uuid': uuid,
-            'cpr': mo_user['cpr_no'],
-            'title': title,
-            'unit': unit_info['name'],
-            'unit_uuid': eng_org_unit,
-            'unit_user_key': unit_info['user_key'],
-            'unit_public_email': addresses['unit_public_email'],
-            'unit_secure_email': addresses['unit_secure_email'],
-            'unit_postal_code': postal_code,
-            'unit_city': city,
-            'unit_streetname': streetname,
-            # UNIT PHONE NUMBER
-            # UNIT WEB PAGE
-            'location': unit_info['location'],
-            'level2orgunit': unit_info['level2orgunit'],
-            'manager_sam': manager_info['sam'],
-            'manager_cpr': manager_info['cpr'],
-            'manager_name': manager_info['name'],
-            'manager_mail': manager_info['mail']
-        }
+        # NOTE: Underscore fields should not be read
+        mo_values: LazyDict = LazyDict({
+            # Raw information
+            "uuid": uuid,
+
+            # Engagement information
+            "employment_number": employment_number,
+            "title": title,
+            "unit_uuid": eng_org_unit,
+            "_eng_uuid": eng_uuid,
+
+            # Lazy MO User and associated fields
+            '_mo_user': LazyEval(
+                lambda key, dictionary: self._read_user(dictionary["uuid"])
+            ),
+            'name': LazyEval(
+                lambda key, dictionary: (
+                    dictionary['_mo_user']['givenname'], dictionary['_mo_user']['surname']
+                )
+            ),
+            'full_name': LazyEval(
+                lambda key, dictionary: '{} {}'.format(dictionary['name'])
+            ),
+            'nickname': LazyEval(
+                lambda key, dictionary: (
+                    dictionary['_mo_user']['nickname_givenname'], dictionary['_mo_user']['nickname_surname']
+                )
+            ),
+            'full_nickname': LazyEval(
+                lambda key, dictionary: '{} {}'.format(dictionary['nickname'])
+            ),
+            'cpr_no': LazyEval(
+                lambda key, dictionary: dictionary['_mo_user']['cpr_no']
+            )
+
+            'end_date': LazyEval(
+                lambda key, dictionary: self._find_end_date(dictionary["uuid"])
+            ),
+
+            # Lazy Unit and associated fields
+            "_unit": LazyEval(
+                lambda key, dictionary: self._find_unit_info(dictionary["unit_uuid"])
+            ),
+            'unit': LazyEval(
+                lambda key, dictionary: dictionary["_unit"]["name"]
+            ),
+            'unit_user_key': LazyEval(
+                lambda key, dictionary: dictionary["_unit"]["user_key"]
+            ),
+            'location': LazyEval(
+                lambda key, dictionary: dictionary["_unit"]["location"]
+            ),
+            'level2orgunit': LazyEval(
+                lambda key, dictionary: dictionary["_unit"]["level2orgunit"]
+            ),
+
+            # Lazy addresses and associated fields
+            "_addresses": LazyEval(
+                lambda key, dictionary: self._read_user_addresses(dictionary["unit_uuid"])
+            ),
+            "_parsed_addresses": LazyEval(
+                lambda key, dictionary: split_addresses(dictionary["_addresses"])
+            ),
+            'unit_postal_code': LazyEval(
+                lambda key, dictionary: dictionary["_parsed_addresses"]['postal_code']
+            ),
+            'unit_city': LazyEval(
+                lambda key, dictionary: dictionary["_parsed_addresses"]['city']
+            ),
+            'unit_streetname': LazyEval(
+                lambda key, dictionary: dictionary["_parsed_addresses"]['streetname']
+            ),
+            'unit_public_email': LazyEval(
+                lambda key, dictionary: dictionary["addresses"]['unit_public_email']
+            ),
+            'unit_secure_email': LazyEval(
+                lambda key, dictionary: dictionary["addresses"]['unit_secure_email']
+            ),
+
+            # Manager stuff
+            "_manager_uuid": LazyEval(
+                lambda key, dictionary: (
+                    read_manager_uuid(
+                        dictionary["_mo_user"], dictionary["_eng_uuid"]
+                    ) if read_manager else None
+                )
+            ),
+            "_manager_mo_user": LazyEval(
+                lambda key, dictionary: self._read_user(dictionary["_manager_uuid"]) if dictionary["_manager_uuid"] else None
+            ),
+            "manager_name": LazyEval(
+                lambda key, dictionary: dictionary["_manager_mo_user"]["name"] if dictionary["_manager_mo_user"] else None
+            ),
+            "manager_cpr": LazyEval(
+                lambda key, dictionary: dictionary["_manager_mo_user"]["cpr_no"] if dictionary["_manager_mo_user"] else None
+            ),
+            "manager_mail": LazyEval(
+                lambda key, dictionary: read_manager_mail(dictionary["_manager_uuid"]) if dictionary["_manager_uuid"] else None
+            ),
+            "manager_sam": LazyEval(
+                lambda key, dictionary: read_manager_sam(dictionary["manager_cpr"]) if dictionary["_manager_uuid"] else None
+            ),
+            "read_manager": LazyEval(
+                lambda key, dictionary: bool(dictionary["_manager_uuid"])
+            ),
+        })
         return mo_values
 
     def add_manager_to_user(self, user_sam, manager_sam):
