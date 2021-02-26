@@ -4,7 +4,7 @@ from unittest import TestCase
 import hypothesis.strategies as st
 from hypothesis import given
 
-from exporters.utils.lazy_dict import LazyDict, LazyEval
+from exporters.utils.lazy_dict import LazyDict, LazyEval, LazyEvalBare, LazyEvalDerived
 
 
 def exception_func():
@@ -41,30 +41,76 @@ class LazyDictTests(TestCase):
         for key in dicty.keys():
             self.assertEqual(dicty[key], lazy_dict[key])
 
-    def test_lazy_evalulation(self):
-        """Test that LazyDict supports lazy evaluation using LazyEval."""
-        lazy_dict = LazyDict({"exception_func": LazyEval(exception_func)})
+    def test_lazy_evalulation_bare(self):
+        """Test that LazyDict supports lazy evaluation using LazyEvalBare."""
+        lazy_dict = LazyDict({"exception_func": LazyEvalBare(exception_func)})
         with self.assertRaises(ValueError):
             lazy_dict["exception_func"]
 
-        lazy_dict["identity_func1"] = LazyEval(partial(lambda x: x, 2))
+        lazy_dict["identity_func1"] = LazyEvalBare(partial(lambda x: x, 2))
         self.assertEqual(lazy_dict["identity_func1"], 2)
         self.assertEqual(lazy_dict["identity_func1"], 2)
 
-        lazy_dict["identity_func2"] = LazyEval(partial(identity_func, 4))
+        lazy_dict["identity_func2"] = LazyEvalBare(partial(identity_func, 4))
         self.assertEqual(lazy_dict["identity_func2"], 4)
         self.assertEqual(lazy_dict["identity_func2"], 4)
 
-        lazy_dict["identity_func3"] = LazyEval(lambda: 8)
+        lazy_dict["identity_func3"] = LazyEvalBare(lambda: 8)
         self.assertEqual(lazy_dict["identity_func3"], 8)
         self.assertEqual(lazy_dict["identity_func3"], 8)
 
-        lazy_dict["c_no_cache"] = LazyEval(self.counter_func)
+        lazy_dict["c_no_cache"] = LazyEvalBare(self.counter_func)
         self.assertEqual(lazy_dict["c_no_cache"], 1)
         self.assertEqual(lazy_dict["c_no_cache"], 1)
 
-        lazy_dict["c_cache"] = LazyEval(self.counter_func, cache=False)
+        lazy_dict["c_cache"] = LazyEvalBare(self.counter_func, cache=False)
         self.assertEqual(lazy_dict["c_cache"], 2)
         self.assertEqual(lazy_dict["c_cache"], 3)
         self.assertEqual(lazy_dict["c_no_cache"], 1)
         self.assertEqual(lazy_dict["c_cache"], 4)
+
+    def test_lazy_evalulation_normal(self):
+        """Test that LazyDict supports lazy evaluation using LazyEval."""
+        lazy_dict = LazyDict({"base_value": 5})
+        lazy_dict["derived_func1"] = LazyEval(
+            lambda key, dictionary: dictionary['base_value']
+        )
+        self.assertEqual(lazy_dict["derived_func1"], 5)
+        self.assertEqual(lazy_dict["derived_func1"], 5)
+        lazy_dict["base_value"] = 3
+        self.assertEqual(lazy_dict["derived_func1"], 5)
+        self.assertEqual(lazy_dict["derived_func1"], 5)
+
+        lazy_dict["derived_func2"] = LazyEval(
+            lambda key, dictionary: dictionary['base_value'], cache=False
+        )
+        self.assertEqual(lazy_dict["derived_func2"], 3)
+        self.assertEqual(lazy_dict["derived_func2"], 3)
+        lazy_dict["base_value"] = 1
+        self.assertEqual(lazy_dict["derived_func2"], 1)
+        self.assertEqual(lazy_dict["derived_func2"], 1)
+
+    def test_lazy_evalulation_derived(self):
+        """Test that LazyDict supports lazy evaluation using LazyEvalDerived."""
+        lazy_dict = LazyDict({"base_value": 5})
+        lazy_dict["derived_func1"] = LazyEvalDerived(
+            lambda base_value: base_value
+        )
+        self.assertEqual(lazy_dict["derived_func1"], 5)
+        lazy_dict["base_value"] = 3
+        self.assertEqual(lazy_dict["derived_func1"], 5)
+
+        lazy_dict["derived_func2"] = LazyEvalDerived(
+            lambda base_value: base_value, cache=False
+        )
+        self.assertEqual(lazy_dict["derived_func2"], 3)
+        lazy_dict["base_value"] = 1
+        self.assertEqual(lazy_dict["derived_func2"], 1)
+
+        lazy_dict["derived_func3"] = LazyEvalDerived(
+            lambda derived_func1, derived_func2: derived_func1 + derived_func2,
+            cache=False
+        )
+        self.assertEqual(lazy_dict["derived_func3"], 5+1)
+        lazy_dict["base_value"] = 2
+        self.assertEqual(lazy_dict["derived_func3"], 5+2)

@@ -17,7 +17,7 @@ import ad_templates
 from ad_template_engine import template_powershell, prepare_field_templates
 from utils import dict_map, dict_exclude, lower_list, dict_subset
 
-from exporters.utils.lazy_dict import LazyDict, LazyEval
+from exporters.utils.lazy_dict import LazyDict, LazyEval, LazyEvalDerived
 from integrations.ad_integration.ad_exceptions import CprNotNotUnique
 from integrations.ad_integration.ad_exceptions import UserNotFoundException
 from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
@@ -561,72 +561,72 @@ class ADWriter(AD):
             "unit_uuid": eng_org_unit,
             "_eng_uuid": eng_uuid,
 
+            'end_date': LazyEvalDerived(
+                lambda uuid: self._find_end_date(uuid)
+            ),
+
             # Lazy MO User and associated fields
-            '_mo_user': LazyEval(
-                lambda key, dictionary: self._read_user(dictionary["uuid"])
+            '_mo_user': LazyEvalDerived(
+                lambda uuid: self._read_user(uuid)
             ),
-            'name': LazyEval(
-                lambda key, dictionary: (
-                    dictionary['_mo_user']['givenname'], dictionary['_mo_user']['surname']
+            'name': LazyEvalDerived(
+                lambda _mo_user: (
+                    _mo_user['givenname'], _mo_user['surname']
                 )
             ),
-            'full_name': LazyEval(
-                lambda key, dictionary: '{} {}'.format(dictionary['name'])
+            'full_name': LazyEvalDerived(
+                lambda name: '{} {}'.format(name)
             ),
-            'nickname': LazyEval(
-                lambda key, dictionary: (
-                    dictionary['_mo_user']['nickname_givenname'], dictionary['_mo_user']['nickname_surname']
+            'nickname': LazyEvalDerived(
+                lambda _mo_user: (
+                    _mo_user['nickname_givenname'], _mo_user['nickname_surname']
                 )
             ),
-            'full_nickname': LazyEval(
-                lambda key, dictionary: '{} {}'.format(dictionary['nickname'])
+            'full_nickname': LazyEvalDerived(
+                lambda nickname: '{} {}'.format(nickname)
             ),
-            'cpr_no': LazyEval(
-                lambda key, dictionary: dictionary['_mo_user']['cpr_no']
+            'cpr_no': LazyEvalDerived(
+                lambda _mo_user: _mo_user['cpr_no']
             )
 
-            'end_date': LazyEval(
-                lambda key, dictionary: self._find_end_date(dictionary["uuid"])
-            ),
-
             # Lazy Unit and associated fields
-            "_unit": LazyEval(
-                lambda key, dictionary: self._find_unit_info(dictionary["unit_uuid"])
+            "_unit": LazyEvalDerived(
+                lambda unit_uuid: self._find_unit_info(unit_uuid)
             ),
-            'unit': LazyEval(
-                lambda key, dictionary: dictionary["_unit"]["name"]
+            'unit': LazyEvalDerived(
+                lambda _unit: _unit["name"]
             ),
-            'unit_user_key': LazyEval(
-                lambda key, dictionary: dictionary["_unit"]["user_key"]
+            'unit_user_key': LazyEvalDerived(
+                lambda _unit: _unit["user_key"]
             ),
-            'location': LazyEval(
-                lambda key, dictionary: dictionary["_unit"]["location"]
+            'location': LazyEvalDerived(
+                lambda _unit: _unit["location"]
             ),
-            'level2orgunit': LazyEval(
-                lambda key, dictionary: dictionary["_unit"]["level2orgunit"]
+            'level2orgunit': LazyEvalDerived(
+                lambda _unit: _unit["level2orgunit"]
             ),
 
             # Lazy addresses and associated fields
-            "_addresses": LazyEval(
-                lambda key, dictionary: self._read_user_addresses(dictionary["unit_uuid"])
+            "_addresses": LazyEvalDerived(
+                lambda unit_uuid: self._read_user_addresses(unit_uuid)
             ),
-            "_parsed_addresses": LazyEval(
-                lambda key, dictionary: split_addresses(dictionary["_addresses"])
+            "_parsed_addresses": LazyEvalDerived(
+                lambda _addresses: split_addresses(_addresses)
             ),
-            'unit_postal_code': LazyEval(
-                lambda key, dictionary: dictionary["_parsed_addresses"]['postal_code']
+            'unit_postal_code': LazyEvalDerived(
+                lambda _parsed_addresses: _parsed_addresses['postal_code']
             ),
-            'unit_city': LazyEval(
-                lambda key, dictionary: dictionary["_parsed_addresses"]['city']
+            'unit_city': LazyEvalDerived(
+                lambda _parsed_addresses: _parsed_addresses['city']
             ),
-            'unit_streetname': LazyEval(
-                lambda key, dictionary: dictionary["_parsed_addresses"]['streetname']
+            'unit_streetname': LazyEvalDerived(
+                lambda _parsed_addresses: _parsed_addresses['streetname']
             ),
-            'unit_public_email': LazyEval(
-                lambda key, dictionary: dictionary["addresses"]['unit_public_email']
+            'unit_public_email': LazyEvalDerived(
+                lambda _addresses: _addresses['unit_public_email']
             ),
-            'unit_secure_email': LazyEval(
-                lambda key, dictionary: dictionary["addresses"]['unit_secure_email']
+            'unit_secure_email': LazyEvalDerived(
+                lambda _addresses: _addresses['unit_secure_email']
             ),
 
             # Manager stuff
@@ -637,23 +637,23 @@ class ADWriter(AD):
                     ) if read_manager else None
                 )
             ),
-            "_manager_mo_user": LazyEval(
-                lambda key, dictionary: self._read_user(dictionary["_manager_uuid"]) if dictionary["_manager_uuid"] else None
+            "_manager_mo_user": LazyEvalDerived(
+                lambda _manager_uuid: self._read_user(_manager_uuid) if _manager_uuid else {}
             ),
-            "manager_name": LazyEval(
-                lambda key, dictionary: dictionary["_manager_mo_user"]["name"] if dictionary["_manager_mo_user"] else None
+            "manager_name": LazyEvalDerived(
+                lambda _manager_mo_user: _manager_mo_user.get("name")
             ),
-            "manager_cpr": LazyEval(
-                lambda key, dictionary: dictionary["_manager_mo_user"]["cpr_no"] if dictionary["_manager_mo_user"] else None
+            "manager_cpr": LazyEvalDerived(
+                lambda _manager_mo_user: _manager_mo_user.get("cpr_no")
             ),
-            "manager_mail": LazyEval(
-                lambda key, dictionary: read_manager_mail(dictionary["_manager_uuid"]) if dictionary["_manager_uuid"] else None
+            "manager_mail": LazyEvalDerived(
+                lambda _manager_uuid: read_manager_mail(_manager_uuid) if _manager_uuid else None
             ),
-            "manager_sam": LazyEval(
-                lambda key, dictionary: read_manager_sam(dictionary["manager_cpr"]) if dictionary["_manager_uuid"] else None
+            "manager_sam": LazyEvalDerived(
+                lambda manager_cpr: read_manager_sam(manager_cpr) if manager_cpr else None
             ),
-            "read_manager": LazyEval(
-                lambda key, dictionary: bool(dictionary["_manager_uuid"])
+            "read_manager": LazyEvalDerived(
+                lambda _manager_uuid: bool(_manager_uuid)
             ),
         })
         return mo_values
