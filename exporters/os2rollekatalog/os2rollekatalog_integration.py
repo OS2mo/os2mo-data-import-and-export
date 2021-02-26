@@ -220,7 +220,14 @@ def get_users(connector):
     return converted_users
 
 
-def main():
+@click.command()
+@click.option(
+    '--print-payload',
+    default=False,
+    type=bool,
+    help='Print the payload to be sent to Rollekataloget on stdout'
+)
+def main(print_payload):
     """Main function - download from OS2MO and export to OS2Rollekatalog."""
     init_log()
 
@@ -251,6 +258,10 @@ def main():
 
     try:
         logger.info("Writing to Rollekataloget")
+
+        if print_payload:
+            print(json.dumps(payload))
+
         result = requests.post(
             ROLLEKATALOG_URL,
             json=payload,
