@@ -13,6 +13,7 @@ import pathlib
 import sys
 from logging.handlers import RotatingFileHandler
 
+import click
 import requests
 
 from os2mo_tools import mo_api
@@ -141,7 +142,7 @@ def get_org_units(connector):
                 # Only import users who are in AD
                 return {}
 
-            return {"uuid": manager["uuid"], "userId": sam_account_name}
+            return {"uuid": person["uuid"], "userId": sam_account_name}
 
         payload = {
             "uuid": org_unit_uuid,
@@ -208,7 +209,7 @@ def get_users(connector):
             continue
 
         payload = {
-            "extUuid": ad_guid,
+            "extUuid": employee["uuid"],
             "userId": sam_account_name,
             "name": employee["name"],
             "email": get_employee_email(*e_connectors),
