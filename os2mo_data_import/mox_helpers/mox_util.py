@@ -180,41 +180,17 @@ async def ensure_class_exists(
     print_created(uuid, created)
 
 
-# ensure class value
-@cli.command()
-@click.pass_context
-@click.option(
-    "--bvn",
-    "--brugervendt-nøgle",
-    help="User key for the class.",
-)
-@click.option(
-    "--uuid",
-    help="UUID for the class.",
-)
-@click.option("--variable", required=True,  help="variable to be checked/updated")
-@click.option(
-    "--new_value",required=True, help="Value which should be checked/updated."
-)
-@click.option("--description", help="Description to set on the class.")
-@click.option(
-    "--dry-run",
-    default=False,
-    is_flag=True,
-    help="Dry run and print the generated object.",
-)
-@async_to_sync
-async def ensure_class_value(
-    ctx,
-    bvn: str,
-    uuid: str,
+
+async def ensure_class_value_helper(
     variable: str,
     new_value: str,
-    description: str,
-    dry_run: bool,
+    mox_base: str = 'localhost:8080',
+    bvn: str = None,
+    uuid: str = None,
+    dry_run: bool = False,
 ):
-    """Ensures values"""
-    mox_helper = await create_mox_helper(ctx.obj["mox.base"])
+    """Ensures a value of a class is as expected. """
+    mox_helper = await create_mox_helper(mox_base)
 
     if bvn:
         try:
@@ -284,6 +260,45 @@ async def ensure_class_value(
     if changed:
         uuid = await mox_helper.update_klassifikation_klasse(uuid, klasse)
     print_changed(uuid, changed)
+
+@cli.command()
+@click.pass_context
+@click.option(
+    "--bvn",
+    "--brugervendt-nøgle",
+    help="User key for the class.",
+)
+@click.option(
+    "--uuid",
+    help="UUID for the class.",
+)
+@click.option("--variable", required=True,  help="variable to be checked/updated")
+@click.option(
+    "--new_value",required=True, help="Value which should be checked/updated."
+)
+@click.option(
+    "--dry-run",
+    default=False,
+    is_flag=True,
+    help="Dry run and print the generated object.",
+)
+@async_to_sync
+async def ensure_class_value(
+    ctx,
+    bvn: str,
+    uuid: str,
+    variable: str,
+    new_value: str,
+    dry_run: bool,
+):
+    await ensure_class_value_helper(
+        mox_base=ctx.obj["mox.base"],
+        bvn=bvn,
+        uuid=uuid,
+        variable="brugervendtnoegle",
+        new_value=bvn,
+        dry_run=dry_run,
+    )
 
 
 @cli.command()
