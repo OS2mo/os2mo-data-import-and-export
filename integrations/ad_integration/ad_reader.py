@@ -21,7 +21,7 @@ def first_included(settings, users):
     discrim_field = settings.get("discriminator.field")
 
     if not discrim_field:
-        return users
+        return next(iter(users), {})
 
     users = list(filter(lambda user: discrim_field in user, users))
 
