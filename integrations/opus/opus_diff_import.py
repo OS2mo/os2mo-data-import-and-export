@@ -215,40 +215,22 @@ class OpusDiffImport(object):
         # logger.debug('Organisationsfunktionsinfo: {}'.format(data))
         return data
 
-    def _find_engagement(self, bvn, present=False):
+    def _find_engagement(self, bvn, funktionsnavn, present=False):
         info = {}
-        resource = '/organisation/organisationfunktion?bvn={}&funktionsnavn=Engagement'.format(bvn)
+        resource = '/organisation/organisationfunktion?bvn={}&funktionsnavn={}'.format(bvn, funktionsnavn)
         if present:
             resource += '&gyldighed=Aktiv'
         response = self.session.get(url=self.settings['mox.base'] + resource)
         response.raise_for_status()
         uuids = response.json()['results'][0]
+        if len(uuids) > 1:
+            msg = 'Employment ID {} not unique: {}'.format(bvn, uuids)
+            logger.error(msg)
+            raise EmploymentIdentifierNotUnique(msg)
+        
+        logger.info('bvn: {}, uuid: {}'.format(bvn, uuids))
         if uuids:
-            if len(uuids) == 1:
-                logger.info('bvn: {}, uuid: {}'.format(bvn, uuids))
-                info['engagement'] = uuids[0]
-            elif len(uuids) == 2:
-                # This will happen if an exising manager is implicitly terminated
-                for uuid in uuids:
-                    org_funk = self._get_organisationfunktion(uuid)
-                    org_funk_type = (
-                        org_funk['attributter']
-                        ['organisationfunktionegenskaber'][0]['funktionsnavn']
-                    )
-                    if org_funk_type == 'Engagement':
-                        info['engagement'] = uuid
-                    if org_funk_type == 'Leder':
-                        info['manager'] = uuid
-
-                if not ('manager' in info and 'engagement' in info):
-                    msg = 'Found two uuids, but not of correct type'
-                    logger.error(msg)
-                    raise EmploymentIdentifierNotUnique(msg)
-            elif len(uuids) > 2:
-                msg = 'Employment ID {} not unique: {}'.format(bvn, uuids)
-                logger.error(msg)
-                raise EmploymentIdentifierNotUnique(msg)
-        return info
+            return uuids[0]
 
     def validity(self, employee, edit=False):
         """
@@ -896,13 +878,13 @@ class OpusDiffImport(object):
                     logger.error(msg)
                     raise Exception(msg)
 
-                org_funk_info = self._find_engagement(employee['@id'], present=True)
-                if org_funk_info:
-                    logger.info('Terminating: {}'.format(org_funk_info))
-                    self.terminate_detail(org_funk_info['engagement'])
-                    if 'manager' in org_funk_info:
-                        self.terminate_detail(org_funk_info['manager'],
-                                              detail_type='manager')
+                eng_info = self._find_engagement(employee['@id'], 'Engagement', present=True)
+                if eng_info:
+                    logger.info('Terminating: {}'.format(eng_info))
+                    self.terminate_detail(eng_info)
+                    manager_info = self._find_engagement(employee['@id'], 'Leder', present=True)
+                    if manager_info:
+                        self.terminate_detail(manager_info, detail_type='manager')
 
         for role in self.role_cache:
             logger.info('Role not found, implicitly terminating {}'.format(role))
