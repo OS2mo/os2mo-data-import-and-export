@@ -2,6 +2,7 @@ import json
 import logging
 import pathlib
 
+from exporters.utils.load_settings import load_settings
 from reports.query_actualstate import list_employees, list_MED_members, run_report
 
 LOG_LEVEL = logging.DEBUG
@@ -17,14 +18,14 @@ logging.basicConfig(
 
 if __name__ == "__main__":
     # Læs fra settings
-    settings = json.loads((pathlib.Path(".") / "settings/settings.json").read_text())
+    settings = load_settings()
     query_path = settings["mora.folder.query_export"]
     logger.debug("Running reports for Frederikshavn")
     # Lav rapport over MED_medlemmer
     run_report(
         list_MED_members,
         "MED",
-        "MED-organisationen",
+        {"løn": "Frederikshavn Kommune", "MED": "MED-organisationen"},
         query_path + "/MED_medlemmer.xlsx",
     )
     logger.debug("MED report done.")

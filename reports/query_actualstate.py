@@ -46,19 +46,19 @@ def set_of_org_units(session, org_name: str) -> set:
     return alle_enheder
 
 
-def list_MED_members(session, org_name: str) -> list:
+def list_MED_members(session, org_names: dict) -> list:
     """Lists all "tilknyntninger" to an organisation.
 
     Returns a list of tuples with titles as first element and data on members in subsequent tuples
     [("Navn", "Email", "Tilknytningstype", "Enhed"),
      ("Fornavn Efternavn", "email@example.com", "Formand", "Enhed")]
     """
-
-    alle_MED_enheder = set_of_org_units(session, org_name)
+    alle_enheder = set_of_org_units(session, org_names["løn"])
+    alle_MED_enheder = set_of_org_units(session, org_names["MED"])
     Emails = (
         session.query(Adresse.værdi, Adresse.bruger_uuid)
         .filter(
-            Adresse.adressetype_titel == "Email",
+            Adresse.adressetype_titel == "AD-Email",
             or_(
                 Adresse.synlighed_titel == None,
                 Adresse.synlighed_titel != "Hemmelig",
@@ -66,13 +66,33 @@ def list_MED_members(session, org_name: str) -> list:
         )
         .subquery()
     )
+    Phonenr = (
+        session.query(Adresse.værdi, Adresse.bruger_uuid)
+        .filter(
+            Adresse.adressetype_titel == "AD-Telefonnummer",
+            or_(
+                Adresse.synlighed_titel == None,
+                Adresse.synlighed_titel != "Hemmelig",
+            ),
+        )
+        .subquery()
+    )
+    eng_unit = (
+        session.query(Enhed.navn, Engagement.bruger_uuid).filter(
+            Enhed.uuid == Engagement.enhed_uuid,
+            Engagement.enhed_uuid.in_(alle_enheder),
+            Engagement.bruger_uuid == Bruger.uuid,
+        )
+    ).subquery()
 
     query = (
         session.query(
             Bruger.fornavn + " " + Bruger.efternavn,
             Emails.c.værdi,
+            Phonenr.c.værdi,
             Tilknytning.tilknytningstype_titel,
             Enhed.navn,
+            eng_unit.c.navn,
         )
         .filter(
             Enhed.uuid == Tilknytning.enhed_uuid,
@@ -80,10 +100,24 @@ def list_MED_members(session, org_name: str) -> list:
             Tilknytning.bruger_uuid == Bruger.uuid,
         )
         .join(Emails, Emails.c.bruger_uuid == Bruger.uuid, isouter=True)
+        .join(Phonenr, Phonenr.c.bruger_uuid == Bruger.uuid, isouter=True)
+        .join(eng_unit, eng_unit.c.bruger_uuid == Bruger.uuid)
         .order_by(Bruger.efternavn)
     )
     data = query.all()
-    data = list(prepend(("Navn", "Email", "Tilknytningstype", "Enhed"), data))
+    data = list(
+        prepend(
+            (
+                "Navn",
+                "Email",
+                "Telefonnummer",
+                "Tilknytningstype",
+                "Tilknytningsenhed",
+                "Ansættelsesenhed",
+            ),
+            data,
+        )
+    )
     return data
 
 
