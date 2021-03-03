@@ -161,10 +161,10 @@ def itsystems_to_orgunit(orgunit, itsystems):
         orgunit["ItSystemUuids"].append(i["itsystem"]["uuid"])
 
 
-def address_type_is_contact_hours(address):
+def address_type_is(address, user_key=None, scope="TEXT"):
     return (
-        address["address_type"]["user_key"] == "ContactOpenHours" and
-        address["address_type"]["scope"] == "TEXT"
+        address["address_type"]["user_key"] == user_key and
+        address["address_type"]["scope"] == scope
     )
 
 
@@ -180,8 +180,10 @@ def addresses_to_orgunit(orgunit, addresses):
             orgunit["Post"] = a["name"]
         elif a["address_type"]["scope"] == "PNUMBER":
             orgunit["Location"] = a["name"]
-        elif address_type_is_contact_hours(a):
+        elif address_type_is(a, user_key="ContactOpenHours"):
             orgunit["ContactOpenHours"] = a["name"]
+        elif address_type_is(a, user_key="DtrId"):
+            orgunit["DtrId"] = a["name"]
 
 
 def kle_to_orgunit(orgunit, kle):
