@@ -19,11 +19,11 @@ from integrations import dawa_helper
 
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers, payloads
-from integrations.calculate_primary.opus import OPUSPrimaryEngagementUpdater
 from integrations.opus.opus_exceptions import (EmploymentIdentifierNotUnique,
                                                ImporterrunNotCompleted,
                                                RunDBInitException,
                                                UnknownOpusUnit)
+from integrations.calculate_primary.opus import OPUSPrimaryEngagementUpdater
 from integrations.SD_Lon.db_overview import DBOverview
 from os2mo_data_import import ImportHelper
 
