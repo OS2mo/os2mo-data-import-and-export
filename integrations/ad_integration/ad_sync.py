@@ -435,7 +435,7 @@ class AdMoSync(object):
             response = self.helper._mo_post('details/terminate', payload)
             logger.debug('Response: {}'.format(response.text))
 
-    def _terminate_single_user(uuid):
+    def _terminate_single_user(self, uuid):
         self._finalize_it_system(uuid)
         self._finalize_user_addresses(uuid)
 
