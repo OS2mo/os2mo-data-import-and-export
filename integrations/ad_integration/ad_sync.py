@@ -5,7 +5,7 @@ from datetime import datetime
 from operator import itemgetter
 from functools import partial
 
-from more_itertools import only
+from more_itertools import only, partition
 from tqdm import tqdm
 
 import ad_reader as adreader
@@ -377,7 +377,7 @@ class AdMoSync(object):
                 logger.debug(msg.format(fields_to_edit[field]['value'],
                                         ad_object[field]))
 
-    def _finalize_it_system(self, uuid, ad_object):
+    def _finalize_it_system(self, uuid):
         if 'it_systems' not in self.mapping:
             return
 
@@ -407,18 +407,12 @@ class AdMoSync(object):
             response = self.helper._mo_post('details/terminate', payload)
             logger.debug('Response: {}'.format(response.text))
 
-    def _finalize_user_addresses(self, uuid, ad_object):
+    def _finalize_user_addresses(self, uuid):
         if 'user_addresses' not in self.mapping:
             return
 
         today = datetime.strftime(datetime.now(), "%Y-%m-%d")
         fields_to_edit = self._find_existing_ad_address_types(uuid)
-
-        def check_ad_field_exists(field):
-            if field not in ad_object:
-                logger.debug('No such AD field: {}'.format(field))
-                return False
-            return True
 
         def check_field_in_fields_to_edit(field):
             return field in fields_to_edit.keys()
@@ -429,8 +423,6 @@ class AdMoSync(object):
 
         # Find fields to terminate
         address_fields = self.mapping['user_addresses'].keys()
-        # we terminate even if somebody has removed the field from AD 
-        # address_fields = filter(check_ad_field_exists, address_fields)
         address_fields = filter(check_field_in_fields_to_edit, address_fields)
         address_fields = filter(check_validity_is_ok, address_fields)
         for field in address_fields:
@@ -442,6 +434,10 @@ class AdMoSync(object):
             logger.debug('Finalize payload: {}'.format(payload))
             response = self.helper._mo_post('details/terminate', payload)
             logger.debug('Response: {}'.format(response.text))
+
+    def _terminate_single_user(uuid):
+        self._finalize_it_system(uuid)
+        self._finalize_user_addresses(uuid)
 
     def _update_single_user(self, uuid, ad_object, terminate_disabled):
         """Update all fields for a single user.
@@ -466,8 +462,7 @@ class AdMoSync(object):
         # configured to terminate disabled users.
         if terminate_disabled and not user_enabled:
             # Set validity end --> today if in the future
-            self._finalize_it_system(uuid, ad_object)
-            self._finalize_user_addresses(uuid, ad_object)
+            self._terminate_single_user(uuid)
             return
 
         # Sync the user, whether disabled or not
@@ -573,13 +568,16 @@ class AdMoSync(object):
             employees = map(employee_to_cpr_uuid, employees)
             employees = map(cpr_uuid_to_uuid_ad, employees)
             # Remove all entries without ad_object
-            employees = filter(filter_no_ad_object, employees)
+            missing_employees, employees = partition(filter_no_ad_object, employees)
             # Run all pre filters
             for pre_filter in self.pre_filters:
                 employees = filter(pre_filter, employees)
             # Call update_single_user on each remaining user
             for uuid, ad_object in employees:
                 self._update_single_user(uuid, ad_object, terminate_disabled)
+            # Call terminate on each missing user
+            for uuid, ad_object in employees:
+                self._terminate_single_user(uuid)
 
             logger.info('Stats: {}'.format(self.stats))
         self.stats['users'] = 'Written in log file'
