@@ -5,12 +5,14 @@ from datetime import datetime
 from operator import itemgetter
 
 from more_itertools import only
+from tqdm import tqdm
 
 import ad_reader as adreader
 import ad_logger
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
-from utils import apply, progress_iterator
+from exporters.utils.jinja_filter import create_filters
+from exporters.utils.apply import apply
 
 from integrations.ad_integration import read_ad_conf_settings
 
@@ -44,21 +46,16 @@ class AdMoSync(object):
         self.helper = self._setup_mora_helper()
         self.org = self.helper.read_organisation()
 
+        seeded_create_filters = partial(create_filters, tuple_keys=("uuid", "ad_object"))
+        self.pre_filters = seeded_create_filters(
+            settings.get("integrations.ad.ad_mo_sync.pre_filters", [])
+        )
+        self.terminate_disabled_filters = seeded_create_filters(
+            settings.get("integrations.ad.ad_mo_sync.terminate_disabled_filters", [])
+        )
+
         # Possibly get IT-system directly from LoRa for better performance.
-        lora_speedup = self.settings.get(
-            'integrations.ad.ad_mo_sync_direct_lora_speedup', False)
-        if lora_speedup:
-            print('Retrive LoRa dump')
-            self.lc = LoraCache(resolve_dar=False, full_history=False)
-            self.lc.populate_cache(dry_run=False, skip_associations=True)
-            # skip reading lora - not for prod
-            # self.lc.populate_cache(dry_run=True, skip_associations=True)
-            self.lc.calculate_primary_engagements()
-            print('Done')
-        else:
-            print('Use direct MO access')
-            self.lc = None
-        #exit() # - når man vil lave picklefiler
+        self.lc = self._setup_lora_cache()
 
         mo_visibilities = self.helper.read_classes_in_facet('visibility')[0]
         self.visibility = {
@@ -66,30 +63,38 @@ class AdMoSync(object):
             'INTERNAL': self.settings['address.visibility.internal'],
             'SECRET': self.settings['address.visibility.secret']
         }
-        for sync_vis in self.visibility.values():
-            found = False
-            for mo_vis in mo_visibilities:
-                if sync_vis == mo_vis['uuid']:
-                    found = True
-            if not found:
-                raise Exception('Error in visibility class configuration')
+
+        # Check that the configured visibilities are found in MO
+        configured_visibilities = set(self.visibility.values())
+        mo_visibilities = set(map(itemgetter('uuid'), mo_visibilities))
+        # If the configured visibiltities are not a subset, atleast one is missing.
+        if not configured_visibilities.issubset(mo_visibilities):
+            raise Exception('Error in visibility class configuration')
 
     def _setup_mora_helper(self):
         return MoraHelper(hostname=self.settings['mora.base'],
                           use_cache=False)
 
-    def _read_mo_classes(self):
-        """
-        Read all address classes in MO. Mostly usefull for debugging.
-        """
-        # This is not really needed, unless we want to make a consistency check.
-        emp_adr_classes = self.helper.read_classes_in_facet('employee_address_type')
-        for emp_adr_class in emp_adr_classes[0]:
-            print(emp_adr_class)
+    def _setup_lora_cache(self):
+        # Possibly get IT-system directly from LoRa for better performance.
+        lora_speedup = self.settings.get(
+            'integrations.ad.ad_mo_sync_direct_lora_speedup', False
+        )
+        if lora_speedup:
+            print('Retrive LoRa dump')
+            lc = LoraCache(resolve_dar=False, full_history=False)
+            lc.populate_cache(dry_run=False, skip_associations=True)
+            # skip reading lora - not for prod
+            # lc.populate_cache(dry_run=True, skip_associations=True)
+            lc.calculate_primary_engagements()
+            print('Done')
+            return lc
+        print('Use direct MO access')
+        return None
 
     def _read_all_mo_users(self):
-        """
-        Return a list of all employees in MO.
+        """Return a list of all employees in MO.
+
         :return: List af all employees.
         """
         logger.info('Read all MO users')
@@ -101,8 +106,8 @@ class AdMoSync(object):
         return employees
 
     def _find_existing_ad_address_types(self, uuid):
-        """
-        Find the addresses that is already related to a user.
+        """Find the addresses that is already related to a user.
+
         :param uuid: The uuid of the user in question.
         :return: A dictionary with address classes as keys and tuples of address
         objects and values as values.
@@ -153,8 +158,8 @@ class AdMoSync(object):
         return types_to_edit
 
     def _create_address(self, uuid, value, klasse):
-        """
-        Create a new address for a user.
+        """Create a new address for a user.
+
         :param uuid: uuid of the user.
         :param: value Value of of the adress.
         :param: klasse: The address type and vissibility of the address.
@@ -174,8 +179,8 @@ class AdMoSync(object):
         logger.debug('Response: {}'.format(response))
 
     def _edit_address(self, address_uuid, value, klasse, validity=VALIDITY):
-        """
-        Edit an exising address to a new value.
+        """Edit an exising address to a new value.
+
         :param address_uuid: uuid of the address object.
         :param value: The new value
         :param: klasse: The address type and vissibility of the address.
@@ -438,18 +443,27 @@ class AdMoSync(object):
             logger.debug('Response: {}'.format(response.text))
 
     def _update_single_user(self, uuid, ad_object, terminate_disabled):
-        """
-        Update all fields for a single user.
+        """Update all fields for a single user.
+
         :param uuid: uuid of the user.
         :param ad_object: Dict with the AD information for the user.
         """
         # Debug log if enabled is not found
         if 'Enabled' not in ad_object:
-            logger.info('{} not in ad_object'.format("Enabled"))
+            logger.info("Enabled not in ad_object")
+        user_enabled = ad_object.get('Enabled', True)
 
-        # Check whether the current user is disabled or not
-        current_user_is_disabled = ad_object.get('Enabled', True) == False
-        if terminate_disabled and current_user_is_disabled:
+        # If terminate_disabled is None, we decide on a per-user basis using the
+        # terminate_disabled_filters, by invariant we atleast one exist.
+        if terminate_disabled is None:
+            terminate_disabled = all(
+                terminate_disabled_filter((uuid, ad_object))
+                for terminate_disabled_filter in self.terminate_disabled_filters
+            )
+
+        # Check whether the current user is disabled, and terminate them, if we are
+        # configured to terminate disabled users.
+        if terminate_disabled and not user_enabled:
             # Set validity end --> today if in the future
             self._finalize_it_system(uuid, ad_object)
             self._finalize_user_addresses(uuid, ad_object)
@@ -512,7 +526,7 @@ class AdMoSync(object):
 
             # move to read_conf_settings og valider på tværs af alle-ad'er
             # så vi ikke overskriver addresser, itsystemer og extensionfelter 
-            # fra et ad med  med værdier fra et andet
+            # fra et ad med værdier fra et andet
             self.mapping = ad_reader._get_setting()['ad_mo_sync_mapping']
             self._verify_it_systems()
 
@@ -534,19 +548,37 @@ class AdMoSync(object):
                     cpr = self.helper.read_user(uuid)['cpr_no']
                 return cpr, uuid
 
+            @apply
+            def cpr_uuid_to_uuid_ad(cpr, uuid):
+                ad_object = ad_reader.read_user(cpr=cpr, cache_only=True)
+                return uuid, ad_object
+
+            @apply
+            def filter_no_ad_object(uuid, ad_object):
+                return not ad_object
+
             # Lookup whether or not to terminate disabled users
             terminate_disabled = ad_reader._get_setting().get(
-                "ad_mo_sync_terminate_disabled", False
+                "ad_mo_sync_terminate_disabled"
             )
+            # If not globally configured, and no user filters are configured either,
+            # we default terminate_disabled to False
+            if terminate_disabled is None and not self.terminate_disabled_filters:
+                terminate_disabled = False
 
             # Iterate over all users and sync AD informations to MO.
             employees = self._read_all_mo_users()
-            employees = progress_iterator(employees)
+            employees = tqdm(employees)
             employees = map(employee_to_cpr_uuid, employees)
-            for cpr, uuid in employees:
-                response = ad_reader.read_user(cpr=cpr, cache_only=True)
-                if response:
-                    self._update_single_user(uuid, response, terminate_disabled)
+            employees = map(cpr_uuid_to_uuid_ad, employees)
+            # Remove all entries without ad_object
+            employees = filter(filter_no_ad_object, employees)
+            # Run all pre filters
+            for pre_filter in self.pre_filters:
+                employees = filter(pre_filter, employees)
+            # Call update_single_user on each remaining user
+            for uuid, ad_object in employees:
+                self._update_single_user(uuid, ad_object, terminate_disabled)
 
             logger.info('Stats: {}'.format(self.stats))
         self.stats['users'] = 'Written in log file'
