@@ -29,7 +29,7 @@ Integrationen går via i alt tre maskiner:
 Når integrationen er i drift, genererer den PowerShell kommandoer som sendes til
 remote management serveren som afvikler dem mod AD serveren. Denne omvej hænger
 sammen med, at MO afvikles fra et Linux miljø, hvorimod PowerShell kommunikation
-med AD bedst afvikles fra et Windows miljø. 
+med AD bedst afvikles fra et Windows miljø.
 
 For at kunne afvikle integrationen kræves der udover den nævnte opsætning af enten Kerberos eller ntlm,
 at AD er sat op med cpr-numre på medarbejdere samt en servicebruger som har
@@ -37,21 +37,21 @@ rettigheder til at læse dette felt. Desuden skal et antal variable være sat i
 ``settings.json``
 
 Det er muligt at anvende flere AD til udlæsning af adresser og itsystemer til OS2MO
-Således er ``integrations.ad`` i ``settings.json`` et array med følgende 
+Således er ``integrations.ad`` i ``settings.json`` et array med følgende
 indbyggede betydning:
- 
- * Første AD i listen (index 0) anvendes til skrivning (hvis skrivning er aktiveret) 
+
+ * Første AD i listen (index 0) anvendes til skrivning (hvis skrivning er aktiveret)
    og til integrationer, som endnu ikke er forberedt for flere ad'er.
 
- * Alle AD'er anvendes af ad_sync til opdatering af og skabelse af adresser, itsystemer 
+ * Alle AD'er anvendes af ad_sync til opdatering af og skabelse af adresser, itsystemer
 
 Opsætning af ntlm over https
 ----------------------------
 For at kunne autentificere med ntlm over https kræver det at settingsfilen indeholder brugernavn og password
-til en systembruger fra et domæne - modsat lokalt oprettet bruger - samt metoden 'ntlm'. Se bekrivelsen af parametre herunder. Brugeren skal desuden have 
+til en systembruger fra et domæne - modsat lokalt oprettet bruger - samt metoden 'ntlm'. Se bekrivelsen af parametre herunder. Brugeren skal desuden have
 administratorrettigheder på windowsserveren, samt rettigheder til at læse og evt. skrive i AD.
-Dette gælder også feltet der indeholder CPR numre der kan være indstillet til 'confidential'. 
-I så fald skal rettigheden gives gennem programmet ldp. 
+Dette gælder også feltet der indeholder CPR numre der kan være indstillet til 'confidential'.
+I så fald skal rettigheden gives gennem programmet ldp.
 For at sætte winrm op med https vha. et SelfSignedCertificate kan man følge nedenstående:
 Erstat "Computernavn" med serverens Hostname.
 
@@ -65,7 +65,7 @@ Det giver et 'thumbprint' i stil med "54B8571D6D0C0C89473ED5470A45EDC5A68AA2C3"
 
 2. Dette sættes ind i følgende kommando i en kommandoprompt (ikke powershell) også som administrator:
 
-.. code-block:: 
+.. code-block::
 
   winrm create winrm/config/Listener?Address=*+Transport=HTTPS @{Hostname="Computernavn"; CertificateThumbprint="54B8571D6D0C0C89473ED5470A45EDC5A68AA2C3"}
 
@@ -114,7 +114,7 @@ For hvert ad angives
    at cpr-fremsøge medarbejder som har denne værdi foranstillet i SAM-navn.
    Funktionen muliggør at skelne mellem brugere og servicebrugere som har samme
    cpr-nummer.
- * ``caseless_samname``: Hvis denne værdi er ``true`` (Default) vil sam_filter 
+ * ``caseless_samname``: Hvis denne værdi er ``true`` (Default) vil sam_filter
    ikke se forskel på store og små bogstaver.
  * ``system_user``: Navnet på den systembruger som har rettighed til
    at læse fra AD.
@@ -178,7 +178,7 @@ En test af skrivning foregår efter denne opskrift:
 Hvis disse tests går igennem, anses opsætningen for at være klar til
 AD skriv integrationen.
 
-   
+
 Brug af integrationen
 =====================
 
@@ -229,7 +229,7 @@ Hvis man i dette tilfælde sætter ``integrations.ad.discriminator.function``
 til ``include`` vil kontoen opfattes som primær hvis 'Medarbejder' også findes i
 ``integrations.ad.discriminator.values``
 
-Opfattes mere end en konto som primær tages den første, man støder på - 
+Opfattes mere end en konto som primær tages den første, man støder på -
 I så tilfælde fungerer ``integrations.ad.discriminator.values`` som en prioriteret liste
 
 Findes nøglen ``integrations.ad.discriminator.field``, skal de andre to nøgler
@@ -308,13 +308,17 @@ AD til MO
 
 Synkronisering fra AD til MO foregår via programmet ``ad_sync.py``.
 
-Programmet opdaterer alle værdier i MO i henhold til den feltmapning som er angivet
+Programmet opdaterer alle værdier i MO i henhold til den feltmapning, som er angivet
 i `settings.json`. Det er muligt at synkronisere adresseoplysninger, samt at
 oprette et IT-system på brugeren, hvis brugeren findes i AD, men endnu ikke har et
-tilknyttet IT-system i MO. Desuden er det muligt at synkronisere et AD felt til
-et felt på brugerens primærengagement (typisk stillingsbetegnelsen). 
+tilknyttet IT-system i MO. Desuden er det muligt at synkronisere et AD-felt til
+et felt på brugerens primærengagement (typisk stillingsbetegnelsen).
+
+``ad_sync.py`` er ejer over det MO-data, som programmet skriver til.
+
+Hvis ``ad_sync.py`` er sat op til udlæse fra flere AD-servere:
 Husk at efterfølgende AD kan overskrive. Derfor:
-Anvend ikke samme klasser, itsystemer eller extensionfelter i flere af 
+Anvend ikke samme klasser, itsystemer eller extensionfelter i flere af
 de specificerede AD'er
 
 Et eksempel på en feltmapning angives herunder:
@@ -341,20 +345,17 @@ For adresser angives en synlighed, som kan antage værdien `PUBLIC`, `INTERNAL`,
 offentlig, intern, hemmelig, eller ikke angivet. UUID'er er på de tilhørende
 adresseklasser i MO som AD felterne skal mappes til.
 
-Hvis der findes flere adresser i MO med samme type og synlighed, springer
-programmet den givne adresse over, og skriver en advarsel i loggen. Det
-forventes herefter at brugeren af programmet løser denne situation, enten ved
-at sikre unikheden direkte, eller ved oprettelse af en speciel adresseklasse
-som udelukkende benyttes af AD, hvormed unikheden sikres ad den vej.
+Hvis der findes flere adresser i MO med samme type og synlighed, vil programmet
+opdatere den først fundne MO-adresse, og afslutte de andre matchende MO-adresser.
 
-Hvis der for en given bruger er felter i feltmapningen som ikke findes i AD, vil
+Hvis der for en given bruger er felter i feltmapningen, som ikke findes i AD, vil
 disse felter bliver sprunget over, men de øvrige felter vil stadig blive
 synkroniseret.
 
 Selve synkroniseringen foregår ved at programmet først udtrækker samtlige
 medarbejdere fra MO, der itereres hen over denne liste, og information fra AD'et
 slås op med cpr-nummer som nøgle. Hvis brugeren findes i AD, udlæses alle parametre
-angivet i `integrations.ad.properties` og de af dem som figurerer i feltmapningen
+angivet i `integrations.ad.properties` og de af dem, som figurerer i feltmapningen,
 synkroniseres til MO.
 
 Integrationen vil som udgangspunkt ikke synkronisere fra et eventuelt skole AD, med
@@ -810,7 +811,7 @@ har aktive engagementer i MO.
 
 Betydningen af disse parametre angives herunder, det er muligt at afvilke begge
 synkroniseringer i samme kørsel ved at angive begge parametre.
-			   
+
  * --create-ad-accounts
 
    Opret AD brugere til MO brugere som ikke i forvejen findes i AD efter de
@@ -821,7 +822,7 @@ synkroniseringer i samme kørsel ved at angive begge parametre.
 
    Sæt status til Disabled for AD konti hvor den tilhøende MO bruge ikke længere
    har et aktivt engagement.
-			   
+
  * --dry-run
 
    Programmet vil ikke forsøge at opdatere sit billede af MO, en vil anvende
@@ -832,7 +833,7 @@ Det er værd at bemærke at brugerne som laves med ad_life_cycle *ikke* oprettes
 relaterede data, de vil altså fremstå f.eks. uden adresser. Deres relaterede data
 kan tilførsel vha. ``ad_sync`` programmet.
 
-   
+
 execute_ad_script.py
 ++++++++++++++++++++
 

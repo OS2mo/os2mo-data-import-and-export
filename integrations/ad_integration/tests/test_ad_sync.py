@@ -2,6 +2,7 @@
 import sys
 from datetime import date
 from functools import partial
+from itertools import chain
 from os.path import dirname
 from unittest import TestCase
 from unittest.mock import MagicMock
@@ -13,6 +14,8 @@ sys.path.append(dirname(__file__) + "/..")
 
 from test_utils import TestADMoSyncMixin, dict_modifier, mo_modifier
 
+from utils import AttrDict
+
 
 def iso_date(date):
     return date.strftime("%Y-%m-%d")
@@ -22,7 +25,38 @@ def today_iso():
     return iso_date(date.today())
 
 
+class MockLoraCache:
+    # This implements enough of the real `LoraCache` to make
+    # `_edit_engagement` happy.
+
+    def __init__(self, mo_values):
+        self._mo_values = mo_values
+
+    @property
+    def users(self):
+        return {self._mo_values["uuid"]: [self._mo_values]}
+
+    @property
+    def engagements(self):
+        return {
+            "engagement_uuid": [
+                {
+                    "uuid": "engagement_uuid",
+                    "user": self._mo_values["uuid"],
+                    "primary_boolean": True,
+                    "to_date": None,
+                    "extension_2": "old mo value",
+                    "extensions": {
+                        "udvidelse_%d" % n: "old mo value #%d" for n in range(1, 11)
+                    },
+                }
+            ]
+        }
+
+
 class TestADMoSync(TestCase, TestADMoSyncMixin):
+    maxDiff = None
+
     def setUp(self):
         self._initialize_configuration()
 
@@ -43,130 +77,24 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
         return add_sync_mapping
 
-    @parameterized.expand(
-        [
-            # Email (Undefined)
-            # ------------------
-            # No email in MO
-            ("email", None, None, "noop"),
-            ("email", "emil@magenta.dk", None, "create"),
-            ("email", "example@example.com", None, "create"),
-            ("email", "lee@magenta.dk", None, "create"),
-            # Email already in MO
-            ("email", "emil@magenta.dk", "emil@magenta.dk", "noop"),
-            ("email", "example@example.com", "emil@magenta.dk", "edit"),
-            ("email", "lee@magenta.dk", "emil@magenta.dk", "edit"),
-            # Telephone number (PUBLIC)
-            # --------------------------
-            # No telephone number in MO
-            ("telephone", None, None, "noop"),
-            ("telephone", "+45 70 10 11 55", None, "create"),
-            ("telephone", "70 10 11 55", None, "create"),
-            ("telephone", "70101155", None, "create"),
-            # Telephone number already in MO
-            ("telephone", "70101155", "70101155", "noop"),
-            ("telephone", "90909090", "70101155", "edit"),
-            ("telephone", "90901111", "70101155", "edit"),
-            # Office number (INTERNAL)
-            # -------------------------
-            # No office number in MO
-            ("office", None, None, "noop"),
-            ("office", "420", None, "create"),
-            ("office", "421", None, "create"),
-            ("office", "11", None, "create"),
-            # Office number already in MO
-            ("office", "420", "420", "noop"),
-            ("office", "421", "420", "edit"),
-            ("office", "11", "420", "edit"),
-            # Mobile number (SECRET)
-            # -----------------------
-            # No mobile number in MO
-            ("mobile", None, None, "noop"),
-            ("mobile", "+45 70 10 11 55", None, "create"),
-            ("mobile", "70 10 11 55", None, "create"),
-            ("mobile", "70101155", None, "create"),
-            # Mobile number already in MO
-            ("mobile", "70101155", "70101155", "noop"),
-            ("mobile", "90909090", "70101155", "edit"),
-            ("mobile", "90901111", "70101155", "edit"),
-            # Floor (no uuid)
-            # ----------------
-            # No floor number in MO
-            ("floor", None, None, "noop"),
-            ("floor", "1st", None, "create"),
-            ("floor", "2nd", None, "create"),
-            ("floor", "3rd", None, "create"),
-            # Floor number already in MO
-            ("floor", "1st", "1st", "noop"),
-            ("floor", "2nd", "1st", "edit"),
-            ("floor", "3rd", "1st", "edit"),
-        ]
-    )
-    def test_sync_address_data(self, address_type, ad_data, mo_data, expected):
-        """Verify address data is synced correctly from AD to MO.
-
-        Args:
-            address_type (str): The type of address to operate on.
-            ad_data (str): The address data found in AD (if any).
-            mo_data (str): The address data found in MO (if any).
-            expected (str): The expected outcome of running AD sync.
-                One of:
-                    'noop': Nothing in MO is updated.
-                    'create': A new address is created in MO.
-                    'edit': The current address in MO is updated.
-        """
-        today = today_iso()
-        mo_values = self.mo_values_func()
-        self.settings = self._prepare_settings(
-            self._sync_address_mapping_transformer()
-        )
-        address_type_setting = self.settings["integrations.ad"][0][
-            "ad_mo_sync_mapping"
-        ]["user_addresses"][address_type]
-        address_type_uuid = address_type_setting[0]
-        address_type_visibility = address_type_setting[1]
-
-        # Helper functions to seed admosync mock
-        def add_ad_data(ad_values):
-            ad_values[address_type] = ad_data
-            return ad_values
-
-        def seed_mo():
-            if mo_data is None:
-                return {"address": []}
-            return {
-                "address": [
-                    {
-                        "uuid": "address_uuid",
-                        "address_type": {"uuid": address_type_uuid},
-                        "org": {"uuid": "org_uuid"},
-                        "person": {"uuid": mo_values["uuid"]},
-                        "type": "address",
-                        "validity": {"from": today, "to": None},
-                        "value": mo_data,
-                    }
-                ]
-            }
-
-        self._setup_admosync(
-            transform_settings=lambda _: self.settings,
-            transform_ad_values=add_ad_data,
-            seed_mo=seed_mo,
+    def _setup_address_type_mappings(self, address_type):
+        settings = self._prepare_settings(self._sync_address_mapping_transformer())
+        mapping = settings["integrations.ad"][0]["ad_mo_sync_mapping"]
+        address_type_setting = mapping["user_addresses"][address_type]
+        return AttrDict(
+            settings=settings,
+            address_type_uuid=address_type_setting[0],
+            address_type_visibility=address_type_setting[1],
         )
 
-        self.assertEqual(self.ad_sync.mo_post_calls, [])
-
-        # Run full sync against the mocks
-        self.ad_sync.update_all_users()
-
-        # Expected outcome
+    def _get_expected_mo_api_calls(self, setup, expected, mo_values, ad_data, today):
         expected_sync = {
             "noop": [],
             "create": [
                 {
                     "force": True,
                     "payload": {
-                        "address_type": {"uuid": address_type_uuid},
+                        "address_type": {"uuid": setup.address_type_uuid},
                         "org": {"uuid": "org_uuid"},
                         "person": {"uuid": mo_values["uuid"]},
                         "type": "address",
@@ -182,7 +110,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                     "payload": [
                         {
                             "data": {
-                                "address_type": {"uuid": address_type_uuid},
+                                "address_type": {"uuid": setup.address_type_uuid},
                                 "validity": {"from": today, "to": None},
                                 "value": ad_data,
                             },
@@ -193,22 +121,243 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                     "url": "details/edit",
                 }
             ],
+            "terminate": [
+                {
+                    "force": True,
+                    "payload": {
+                        "type": "address",
+                        "uuid": "address_uuid",
+                        "validity": {"to": today},
+                    },
+                    "url": "details/terminate",
+                }
+            ],
         }
+        return expected_sync[expected]
+
+    def _get_expected_mo_api_calls_with_visibility(
+        self,
+        setup: AttrDict,
+        expected: str,
+        mo_values: dict,
+        ad_data: str,
+        today: str,
+    ):
+        calls = self._get_expected_mo_api_calls(
+            setup, expected, mo_values, ad_data, today
+        )
+
         # Enrich expected with visibility
-        if address_type_visibility:
+        if setup.address_type_visibility:
             # Where to write visibility information
             payload_table = {
                 "noop": lambda: {},  # aka. throw it away
-                "create": lambda: expected_sync[expected][0]["payload"],
+                "create": lambda: calls[0]["payload"],
                 "edit": lambda: payload_table["create"]()[0]["data"],
+                "terminate": lambda: {},
             }
             # Write the visibility into the table
-            visibility_lower = address_type_visibility.lower()
+            visibility_lower = setup.address_type_visibility.lower()
             payload_table[expected]()["visibility"] = {
                 "uuid": "address_visibility_" + visibility_lower + "_uuid"
             }
 
-        self.assertEqual(self.ad_sync.mo_post_calls, expected_sync[expected])
+        return calls
+
+    def _get_expected_mo_engagement_edit_call(self, validity_from=None, **data):
+        call = {
+            "force": True,
+            "payload": {
+                "data": {
+                    "validity": {"from": validity_from, "to": None},
+                },
+                "type": "engagement",
+                "uuid": "engagement_uuid",
+            },
+            "url": "details/edit",
+        }
+        call["payload"]["data"].update(**data)
+        return call
+
+    @parameterized.expand(
+        [
+            # Email (Undefined)
+            # ------------------
+            # No email in MO
+            ("email", None, None, "noop"),
+            ("email", "emil@magenta.dk", None, "create"),
+            ("email", "example@example.com", None, "create"),
+            ("email", "lee@magenta.dk", None, "create"),
+            # Email already in MO
+            ("email", "emil@magenta.dk", "emil@magenta.dk", "noop"),
+            ("email", "example@example.com", "emil@magenta.dk", "edit"),
+            ("email", "lee@magenta.dk", "emil@magenta.dk", "edit"),
+            # Email terminated in AD
+            ("email", None, "old.mo.email@example.org", "terminate"),
+            # Telephone number (PUBLIC)
+            # --------------------------
+            # No telephone number in MO
+            ("telephone", None, None, "noop"),
+            ("telephone", "+45 70 10 11 55", None, "create"),
+            ("telephone", "70 10 11 55", None, "create"),
+            ("telephone", "70101155", None, "create"),
+            # Telephone number already in MO
+            ("telephone", "70101155", "70101155", "noop"),
+            ("telephone", "90909090", "70101155", "edit"),
+            ("telephone", "90901111", "70101155", "edit"),
+            # Telephone number terminated in AD
+            ("telephone", None, "12345678", "terminate"),
+            # Office number (INTERNAL)
+            # -------------------------
+            # No office number in MO
+            ("office", None, None, "noop"),
+            ("office", "420", None, "create"),
+            ("office", "421", None, "create"),
+            ("office", "11", None, "create"),
+            # Office number already in MO
+            ("office", "420", "420", "noop"),
+            ("office", "421", "420", "edit"),
+            ("office", "11", "420", "edit"),
+            # Office number terminated in AD
+            ("office", None, "42", "terminate"),
+            # Mobile number (SECRET)
+            # -----------------------
+            # No mobile number in MO
+            ("mobile", None, None, "noop"),
+            ("mobile", "+45 70 10 11 55", None, "create"),
+            ("mobile", "70 10 11 55", None, "create"),
+            ("mobile", "70101155", None, "create"),
+            # Mobile number already in MO
+            ("mobile", "70101155", "70101155", "noop"),
+            ("mobile", "90909090", "70101155", "edit"),
+            ("mobile", "90901111", "70101155", "edit"),
+            # Mobile number terminated in AD
+            ("mobile", None, "12345678", "terminate"),
+            # Floor (no uuid)
+            # ----------------
+            # No floor number in MO
+            ("floor", None, None, "noop"),
+            ("floor", "1st", None, "create"),
+            ("floor", "2nd", None, "create"),
+            ("floor", "3rd", None, "create"),
+            # Floor number already in MO
+            ("floor", "1st", "1st", "noop"),
+            ("floor", "2nd", "1st", "edit"),
+            ("floor", "3rd", "1st", "edit"),
+            # Floor number terminated in AD
+            ("floor", None, "1st", "terminate"),
+        ]
+    )
+    def test_sync_address_data(self, address_type, ad_data, mo_data, expected):
+        """Verify address data is synced correctly from AD to MO.
+
+        Args:
+            address_type (str): The type of address to operate on.
+            ad_data (str): The address data found in AD (if any).
+            mo_data (str): The address data found in MO (if any).
+            expected (str): The expected outcome of running AD sync.
+                One of:
+                    'noop': Nothing in MO is updated.
+                    'create': A new address is created in MO.
+                    'edit': The current address in MO is updated.
+                    'terminate': The current address in MO is terminated.
+        """
+        setup = self._setup_address_type_mappings(address_type)
+        today = today_iso()
+        mo_values = self.mo_values_func()
+
+        # Helper functions to seed admosync mock
+        def add_ad_data(ad_values):
+            ad_values[address_type] = ad_data
+            return ad_values
+
+        def seed_mo():
+            if mo_data is None:
+                return {"address": []}
+            return {
+                "address": [
+                    {
+                        "uuid": "address_uuid",
+                        "address_type": {"uuid": setup.address_type_uuid},
+                        "org": {"uuid": "org_uuid"},
+                        "person": {"uuid": mo_values["uuid"]},
+                        "type": "address",
+                        "validity": {"from": today, "to": None},
+                        "value": mo_data,
+                    }
+                ]
+            }
+
+        self._setup_admosync(
+            transform_settings=lambda _: setup.settings,
+            transform_ad_values=add_ad_data,
+            seed_mo=seed_mo,
+        )
+
+        self.assertEqual(self.ad_sync.mo_post_calls, [])
+
+        # Run full sync against the mocks
+        self.ad_sync.update_all_users()
+
+        # Check that the expected MO calls were made
+        self.assertEqual(
+            self.ad_sync.mo_post_calls,
+            self._get_expected_mo_api_calls_with_visibility(
+                setup, expected, mo_values, ad_data, today
+            ),
+        )
+
+    def test_sync_address_data_multiple_of_same_type(self):
+        address_type = "email"
+        setup = self._setup_address_type_mappings(address_type)
+        today = today_iso()
+        mo_values = self.mo_values_func()
+
+        mo_value = "old value"
+        ad_value = "new value"
+
+        # Helper functions to seed admosync mock
+        def add_ad_data(ad_values):
+            ad_values[address_type] = ad_value
+            return ad_values
+
+        def seed_mo():
+            three_identical_mo_addresses = [
+                {
+                    "uuid": "address_uuid",
+                    "address_type": {"uuid": setup.address_type_uuid},
+                    "org": {"uuid": "org_uuid"},
+                    "person": {"uuid": mo_values["uuid"]},
+                    "type": "address",
+                    "validity": {"from": today, "to": None},
+                    "value": mo_value,
+                }
+            ] * 3
+            return {"address": three_identical_mo_addresses}
+
+        self._setup_admosync(
+            transform_settings=lambda _: setup.settings,
+            transform_ad_values=add_ad_data,
+            seed_mo=seed_mo,
+        )
+
+        self.assertEqual(self.ad_sync.mo_post_calls, [])
+
+        # Run full sync against the mocks
+        self.ad_sync.update_all_users()
+
+        # Check that the expected MO calls were made.
+        # Assert that we make 1 'edit' call and 2 'terminate' calls, in order
+        # to keep only one of the three identical MO addresses.
+        expected_calls = chain(
+            *[
+                self._get_expected_mo_api_calls(
+                    setup, verb, mo_values, ad_value, today
+                )
+                for verb in ("edit", "terminate", "terminate")
+            ]
+        )
+        self.assertEqual(self.ad_sync.mo_post_calls, list(expected_calls))
 
     def test_sync_address_data_multiple(self):
         """Verify address data is synced correctly from AD to MO."""
@@ -462,6 +611,97 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             ],
         }
         self.assertEqual(self.ad_sync.mo_post_calls, expected_sync[expected])
+
+    def test_sync_engagement_dropped_field(self):
+        """Verify engagement data is synced correctly from AD to MO.
+        Test removal of dropped extensions in incoming AD object.
+
+        This tests the code path in `_edit_engagement` where `self.lc` is
+        None, e.g. the LoraCache is not configured and used.
+        """
+        today = today_iso()
+
+        def seed_mo():
+            element = {
+                "is_primary": True,
+                "uuid": "engagement_uuid",
+                "validity": {"from": "1960-06-29", "to": None},
+                "extension_2": "old mo value",
+            }
+            return {"engagement": [element]}
+
+        self._setup_admosync(
+            transform_settings=self._sync_engagement_mapping_transformer(
+                # Map an attr which does not exist in the AD object
+                {"extensionAttribute2": "extension_2"}
+            ),
+            seed_mo=seed_mo,
+        )
+
+        self.assertEqual(self.ad_sync.mo_post_calls, [])
+
+        # Run full sync against the mocks
+        self.ad_sync.update_all_users()
+
+        # Verify that we send an empty value to MO for 'extension_2'
+        self.assertEqual(
+            self.ad_sync.mo_post_calls,
+            [
+                self._get_expected_mo_engagement_edit_call(
+                    extension_2="", validity_from=today
+                )
+            ],
+        )
+
+    def test_sync_engagement_dropped_field_loracache(self):
+        """Verify engagement data is synced correctly from AD to MO.
+        Test removal of dropped extensions in incoming AD object.
+
+        This test mocks the presence of a `LoraCache` instance at `self.lc`.
+        """
+        self._setup_admosync(
+            transform_settings=self._sync_engagement_mapping_transformer(
+                # Map an attr which does not exist in the AD object
+                {"extensionAttribute2": "extension_2"}
+            ),
+        )
+
+        self.assertEqual(self.ad_sync.mo_post_calls, [])
+
+        self.ad_sync.lc = MockLoraCache(self.mo_values_func())
+
+        # Run full sync against the mocks
+        self.ad_sync.update_all_users()
+
+        # Verify that we send an empty value to MO for 'extension_2'
+        self.assertEqual(
+            self.ad_sync.mo_post_calls,
+            [
+                self._get_expected_mo_engagement_edit_call(
+                    extension_2="",
+                    validity_from=today_iso(),
+                )
+            ],
+        )
+
+    def test_sync_engagement_configuration_check_loracache(self):
+        """Verify that `_edit_engagement` raises an exception if an
+        unmapped MO field is encountered.
+
+        This test mocks the presence of a `LoraCache` instance at `self.lc`.
+        """
+        self._setup_admosync(
+            transform_settings=self._sync_engagement_mapping_transformer(
+                # Map an attr which does not exist in field mapping
+                {"extensionAttribute2": "unknown_field"}
+            ),
+        )
+
+        self.ad_sync.lc = MockLoraCache(self.mo_values_func())
+
+        # Run full sync against the mocks
+        with self.assertRaises(Exception):
+            self.ad_sync.update_all_users()
 
     @parameterized.expand(
         [

@@ -14,7 +14,6 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.jinja_filter import create_filters
 from exporters.utils.apply import apply
-
 from integrations.ad_integration import read_ad_conf_settings
 
 logger = logging.getLogger('AdSyncRead')
@@ -34,6 +33,122 @@ VALIDITY = {
     'from':  datetime.strftime(datetime.now(), "%Y-%m-%d"),
     'to': None
 }
+
+
+class ConfigurationError(Exception):
+    pass
+
+
+class AddressDecisionList:
+    """Given an AD object and a set of MO adresses, an instance of this class
+    represents the updates required to synchronize the MO address data with
+    the current state in the AD object.
+
+    Each `AddressDecisionList` instance is an iterable over one or more
+    decisions. Each decision is a tuple of `(decision_type, address, *args).`
+    Client code can iterate over the list of decisions and effectuate MO API
+    calls based on their decision type.
+
+    :param uuid: uuid of the user
+    :param ad_object: AD object for user
+    :param user_addresses: MO addresses for user
+    :param address_mapping: The contents of "user_addresses" in setting
+    "ad_mo_sync_mapping"
+    :param visibility: The contents of `AdMoSync.visibility`
+    """
+
+    # Decision types
+    CREATE = 'create'
+    EDIT = 'edit'
+    TERMINATE = 'terminate'
+
+    def __init__(
+        self,
+        uuid: str,
+        ad_object: dict,
+        user_addresses: list,
+        address_mapping: dict,
+        visibility: dict,
+    ):
+        self._uuid = uuid
+        self._ad_object = ad_object
+        self._user_addresses = user_addresses
+        self._address_mapping = address_mapping
+        self._visibility = visibility
+        self._decisions = self._build()
+
+    def __iter__(self):
+        return self._decisions
+
+    def _build(self):
+        for field, (address_type_uuid, visibility_uuid) in self._address_mapping.items():
+            edit = None
+            terminate = None
+            noop = None
+
+            # Loop over all existing MO addresses, and find out which need to
+            # be edited or terminated.
+            for address in self._user_addresses:
+                if self._match_address(address, address_type_uuid, visibility_uuid):
+                    if (edit is None) and self._ad_object.get(field):
+                        if self._mo_and_ad_differs(address, field):
+                            edit = address
+                            # Address in AD differs from MO: yield a MO
+                            # address edit.
+                            yield (
+                                self.EDIT,
+                                address,
+                                self._ad_object[field],
+                                (address_type_uuid, visibility_uuid),
+                            )
+                        else:
+                            # Address in AD is same as in MO: do nothing, but
+                            # remember that we processed this address.
+                            noop = address
+                    else:
+                        # We have already yielded one MO address edit, and
+                        # this address no longer exists in AD: yield a MO
+                        # address termination.
+                        terminate = address
+                        yield (self.TERMINATE, address)
+
+            # We looped over all existing MO addresses, but did nothing yet.
+            if (edit is None) and (terminate is None) and (noop is None):
+                # The field exists in AD but there's no corresponding MO
+                # address.
+                if self._ad_object.get(field):
+                    # Yield a MO address creation.
+                    yield (
+                        self.CREATE,
+                        None,  # empty MO address
+                        self._uuid,
+                        self._ad_object[field],
+                        (address_type_uuid, visibility_uuid),
+                    )
+
+    def _mo_and_ad_differs(self, address, field):
+        return address['value'] != self._ad_object[field]
+
+    def _match_address(self, address, address_type_uuid, visibility_uuid):
+        return (
+            address is not None
+            and
+            self._match_address_type_uuid(address, address_type_uuid)
+            and
+            self._match_address_visibility(address, address_type_uuid)
+        )
+
+    def _match_address_type_uuid(self, address, address_type_uuid):
+        # Filter out addresses with wrong type
+        return address['address_type']['uuid'] == address_type_uuid
+
+    def _match_address_visibility(self, address, visibility_uuid):
+        # Filter out addresses with wrong visibility
+        return (
+            visibility_uuid is None
+            or 'visibility' not in address
+            or self._visibility[visibility_uuid] == address['visibility']['uuid']
+        )
 
 
 class AdMoSync(object):
@@ -106,15 +221,17 @@ class AdMoSync(object):
         logger.info('Done reading all MO users')
         return employees
 
-    def _find_existing_ad_address_types(self, uuid):
-        """Find the addresses that is already related to a user.
+    def _get_address_decision_list(self, uuid, ad_object):
+        """Construct a `AddressDecisionList` instance for `ad_object`
 
-        :param uuid: The uuid of the user in question.
-        :return: A dictionary with address classes as keys and tuples of address
-        objects and values as values.
+        :param uuid: uuid of the user
+        :param ad_object: AD object for user
+        :return: An `AddressDecisionList` instance
         """
-        types_to_edit = {}
+
+        # Populate list of `user_addresses`
         if self.lc:
+            # Retrieve user addresses from LoraCache
             user_addresses = []
             for addr in self.lc.addresses.values():
                 if addr[0]['user'] == uuid:
@@ -131,32 +248,16 @@ class AdMoSync(object):
                         }
                     )
         else:
+            # Retrieve user addresses from MO
             user_addresses = self.helper.get_e_addresses(uuid)
 
-        for field, klasse in self.mapping['user_addresses'].items():
-            address_type_uuid, visibility_uuid = klasse
-            potential_matches = user_addresses
-            # Filter out addresses with wrong type
-            def check_address_type_uuid(address):
-                return address['address_type']['uuid'] == address_type_uuid
-            potential_matches = filter(check_address_type_uuid, potential_matches)
-            # Filter out addresses with wrong visibility
-            def check_address_visibility(address):
-                return (
-                    visibility_uuid is None or 'visibility' not in address or
-                    self.visibility[visibility_uuid] == address['visibility']['uuid']
-                )
-            potential_matches = filter(check_address_visibility, potential_matches)
-            # Consume iterator, verifying either 0 or 1 elements are returned
-            try:
-                found_address = only(potential_matches)
-                if found_address is not None:
-                    types_to_edit[field] = found_address
-            except ValueError:
-                logger.warning('Multiple addresses found, not syncing for {}: {}'.format(uuid, field))
-                continue
-        logger.debug('Existing fields for {}: {}'.format(uuid, types_to_edit))
-        return types_to_edit
+        return AddressDecisionList(
+            uuid,
+            ad_object,
+            user_addresses,
+            self.mapping['user_addresses'],
+            self.visibility,
+        )
 
     def _create_address(self, uuid, value, klasse):
         """Create a new address for a user.
@@ -223,46 +324,18 @@ class AdMoSync(object):
                 'from': VALIDITY['from'],
                 'to': eng['to_date']
             }
-            for ad_field, mo_field in self.mapping['engagements'].items():
-                if mo_field == 'extension_1':
-                    mo_value = eng['extensions']['udvidelse_1']
-                if mo_field == 'extension_2':
-                    mo_value = eng['extensions']['udvidelse_2']
-                if mo_field == 'extension_3':
-                    mo_value = eng['extensions']['udvidelse_3']
-                if mo_field == 'extension_4':
-                    mo_value = eng['extensions']['udvidelse_4']
-                if mo_field == 'extension_5':
-                    mo_value = eng['extensions']['udvidelse_5']
-                if mo_field == 'extension_6':
-                    mo_value = eng['extensions']['udvidelse_6']
-                if mo_field == 'extension_7':
-                    mo_value = eng['extensions']['udvidelse_7']
-                if mo_field == 'extension_8':
-                    mo_value = eng['extensions']['udvidelse_8']
-                if mo_field == 'extension_9':
-                    mo_value = eng['extensions']['udvidelse_9']
-                if mo_field == 'extension_10':
-                    mo_value = eng['extensions']['udvidelse_10']
 
-                if not ad_object.get(ad_field):
-                    logger.info('{} not in ad_object'.format(ad_field))
-                    continue
-                payload = {
-                    'type': 'engagement',
-                    'uuid': eng['uuid'],
-                    'data': {
-                        mo_field: ad_object.get(ad_field),
-                        'validity': validity
-                    }
-                }
-                if mo_value == ad_object.get(ad_field):
-                    continue
-                logger.debug('Edit payload: {}'.format(payload))
-                response = self.helper._mo_post('details/edit', payload)
-                self.stats['engagements'] += 1
-                self.stats['users'].add(uuid)
-                logger.debug('Response: {}'.format(response.text))
+            field_mapping = {
+                f'extension_{x}': eng['extensions'][f'udvidelse_{x}']
+                for x in range(1, 11)
+            }
+
+            for ad_field, mo_field in self.mapping['engagements'].items():
+                if mo_field not in field_mapping:
+                    raise ConfigurationError('MO field %r is not mapped' % mo_field)
+                self._edit_engagement_post_to_mo(
+                    ad_field, ad_object, mo_field, uuid, eng, validity
+                )
         else:
             print('No cache')
             user_engagements = self.helper.read_user_engagement(
@@ -277,26 +350,35 @@ class AdMoSync(object):
                     'to': eng['validity']['to']
                 }
                 for ad_field, mo_field in self.mapping['engagements'].items():
-                    if ad_object.get(ad_field):
-                        payload = {
-                            'type': 'engagement',
-                            'uuid': eng['uuid'],
-                            'data': {
-                                mo_field: ad_object.get(ad_field),
-                                'validity': validity
-                            }
-                        }
-                        if not eng[mo_field] == ad_object.get(ad_field):
-                            logger.debug('Edit payload: {}'.format(payload))
-                            response = self.helper._mo_post('details/edit', payload)
-                            self.stats['engagements'] += 1
-                            self.stats['users'].add(uuid)
-                            logger.debug('Response: {}'.format(response.text))
-                        else:
-                            print('Ingen ændring')
+                    self._edit_engagement_post_to_mo(
+                        ad_field, ad_object, mo_field, uuid, eng, validity
+                    )
 
-                    else:
-                        logger.info('{} not in ad_object'.format(ad_field))
+    def _edit_engagement_post_to_mo(self, ad_field, ad_object, mo_field, uuid, mo_engagement, validity):
+        # Default `mo_value` to an empty string. In case the field is dropped
+        # from the AD object, this will empty its value in MO.
+        mo_value = ""
+        if ad_field in ad_object:
+            mo_value = ad_object[ad_field]
+
+        if mo_engagement[mo_field] == ad_object.get(ad_field):
+            logger.debug("No change, not editing engagement")
+            return
+
+        payload = {
+            'type': 'engagement',
+            'uuid': mo_engagement['uuid'],
+            'data': {
+                mo_field: mo_value,
+                'validity': validity
+            }
+        }
+        logger.debug('Edit payload: %r', payload)
+
+        response = self.helper._mo_post('details/edit', payload)
+        self.stats['engagements'] += 1
+        self.stats['users'].add(uuid)
+        logger.debug('Response: %r', response.text)
 
     def _create_it_system(self, person_uuid, ad_username, mo_itsystem_uuid):
         payload = {
@@ -351,31 +433,25 @@ class AdMoSync(object):
             self.stats["users"].add(uuid)
 
     def _edit_user_addresses(self, uuid, ad_object):
-        fields_to_edit = self._find_existing_ad_address_types(uuid)
-
-        for field, klasse in self.mapping['user_addresses'].items():
-            if not ad_object.get(field):
-                logger.debug('No such AD field: {}'.format(field))
-                continue
-
-            if field not in fields_to_edit.keys():
-                # This is a new address
+        decision_list = self._get_address_decision_list(uuid, ad_object)
+        for decision, address, *args in decision_list:
+            if decision == AddressDecisionList.CREATE:
+                self._create_address(*args)
+                # Update internal stats
                 self.stats['addresses'][0] += 1
                 self.stats['users'].add(uuid)
-                self._create_address(uuid, ad_object[field], klasse)
+            elif decision == AddressDecisionList.EDIT:
+                self._edit_address(address['uuid'], *args)
+                # Update internal stats
+                self.stats['addresses'][1] += 1
+                self.stats['users'].add(uuid)
+            elif decision == AddressDecisionList.TERMINATE:
+                self._finalize_user_addresses_post_to_mo(address)
             else:
-                # This is an existing address
-                if not fields_to_edit[field]['value'] == ad_object[field]:
-                    msg = 'Value change, MO: {} <> AD: {}'
-                    self.stats['addresses'][1] += 1
-                    self.stats['users'].add(uuid)
-                    self._edit_address(fields_to_edit[field]['uuid'],
-                                       ad_object[field],
-                                       klasse)
-                else:
-                    msg = 'No value change: {}=={}'
-                logger.debug(msg.format(fields_to_edit[field]['value'],
-                                        ad_object[field]))
+                raise ValueError(
+                    'unknown decision %r (address=%r, args=%r)' %
+                    (decision, address, args)
+                )
 
     def _finalize_it_system(self, uuid):
         if 'it_systems' not in self.mapping:
@@ -407,37 +483,31 @@ class AdMoSync(object):
             response = self.helper._mo_post('details/terminate', payload)
             logger.debug('Response: {}'.format(response.text))
 
-    def _finalize_user_addresses(self, uuid):
+    def _finalize_user_addresses(self, uuid, ad_object):
         if 'user_addresses' not in self.mapping:
             return
 
+        decision_list = self._get_address_decision_list(uuid, ad_object)
+        for decision, address, *args in decision_list:
+            if decision == AddressDecisionList.EDIT:
+                if address['validity']['to'] is None:
+                    self._finalize_user_addresses_post_to_mo(address)
+
+    def _finalize_user_addresses_post_to_mo(self, mo_address: dict):
         today = datetime.strftime(datetime.now(), "%Y-%m-%d")
-        fields_to_edit = self._find_existing_ad_address_types(uuid)
+        payload = {
+            'type': 'address',
+            'uuid': mo_address['uuid'],
+            'validity': {"to": today}
+        }
+        logger.debug('Finalize payload: {}'.format(payload))
+        response = self.helper._mo_post('details/terminate', payload)
+        logger.debug('Response: {}'.format(response.text))
+        return response
 
-        def check_field_in_fields_to_edit(field):
-            return field in fields_to_edit.keys()
-
-        def check_validity_is_ok(field):
-            # NOTE: Maybe this should be not set, or in the future?
-            return fields_to_edit[field]['validity']['to'] is None
-
-        # Find fields to terminate
-        address_fields = self.mapping['user_addresses'].keys()
-        address_fields = filter(check_field_in_fields_to_edit, address_fields)
-        address_fields = filter(check_validity_is_ok, address_fields)
-        for field in address_fields:
-            payload = {
-                'type': 'address',
-                'uuid': fields_to_edit[field]['uuid'],
-                'validity': {"to": today}
-            }
-            logger.debug('Finalize payload: {}'.format(payload))
-            response = self.helper._mo_post('details/terminate', payload)
-            logger.debug('Response: {}'.format(response.text))
-
-    def _terminate_single_user(self, uuid):
+    def _terminate_single_user(self, uuid, ad_object):
         self._finalize_it_system(uuid)
-        self._finalize_user_addresses(uuid)
+        self._finalize_user_addresses(uuid, ad_object)
 
     def _update_single_user(self, uuid, ad_object, terminate_disabled):
         """Update all fields for a single user.
@@ -462,7 +532,7 @@ class AdMoSync(object):
         # configured to terminate disabled users.
         if terminate_disabled and not user_enabled:
             # Set validity end --> today if in the future
-            self._terminate_single_user(uuid)
+            self._terminate_single_user(uuid, ad_object)
             return
 
         # Sync the user, whether disabled or not
@@ -507,7 +577,7 @@ class AdMoSync(object):
             raise Exception(msg.format(it_system, it_system_uuid))
 
     def update_all_users(self):
-        # Iterate over all AD's 
+        # Iterate over all AD's
         for index, _ in enumerate(self.settings["integrations.ad"]):
 
             self.stats = {
@@ -521,8 +591,8 @@ class AdMoSync(object):
             ad_reader = self._setup_ad_reader_and_cache_all(index=index)
 
             # move to read_conf_settings og valider på tværs af alle-ad'er
-            # så vi ikke overskriver addresser, itsystemer og extensionfelter 
-            # fra et ad med værdier fra et andet
+            # så vi ikke overskriver addresser, itsystemer og extensionfelter
+            # fra et ad med  med værdier fra et andet
             self.mapping = ad_reader._get_setting()['ad_mo_sync_mapping']
             self._verify_it_systems()
 
@@ -577,7 +647,7 @@ class AdMoSync(object):
                 self._update_single_user(uuid, ad_object, terminate_disabled)
             # Call terminate on each missing user
             for uuid, ad_object in missing_employees:
-                self._terminate_single_user(uuid)
+                self._terminate_single_user(uuid, ad_object)
 
             logger.info('Stats: {}'.format(self.stats))
         self.stats['users'] = 'Written in log file'
