@@ -36,7 +36,6 @@ def jinja_filter(
     context: Iterator[Tuple[str, Any]] = zip(tuple_keys, tuple_values)
     context_dict: Dict[str, Any] = dict(context)
     result: str = template.render(**context_dict)
-    print("*", result)
     return string_to_bool(result)
 
 
