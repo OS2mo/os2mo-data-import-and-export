@@ -4,6 +4,7 @@ from datetime import date
 from functools import partial
 from os.path import dirname
 from unittest import TestCase
+from unittest.mock import MagicMock
 
 from parameterized import parameterized
 
@@ -606,3 +607,93 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             "noop": [],
         }
         self.assertEqual(self.ad_sync.mo_post_calls, sync_expected[expected])
+
+    @parameterized.expand(
+        [
+            ([], True),
+            (["True"], True),
+            (["False"], False),
+            (["True", "True"], True),
+            (["True", "False"], False),
+            (["False", "True"], False),
+            (["False", "False"], False),
+
+            (["{{ 'a' == 'a' }}"], True),
+            (["{{ 'a' == 'b' }}"], False),
+            (["{{ 2 == 3 }}"], False),
+
+            (["{{ ad_object['extensionAttribute1']|length == 10 }}"], True),
+        ]
+    )
+    def test_pre_filters(self, prefilters, expected):
+
+        def add_prefilter_template(settings):
+            settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {}
+            settings["integrations.ad.ad_mo_sync.pre_filters"] = prefilters
+            return settings
+
+        self._setup_admosync(
+            transform_settings=add_prefilter_template,
+        )
+        self.assertEqual(self.ad_sync.mo_post_calls, [])
+
+        update_mock = MagicMock()
+        self.ad_sync._update_single_user = update_mock
+
+        # Run full sync against the mocks
+        self.ad_sync.update_all_users()
+
+        if expected:
+            update_mock.assert_called()
+        else:
+            update_mock.assert_not_called()
+
+    @parameterized.expand(
+        [
+            ([], False, False),
+            (["True"], False, False),
+            (["False"], False, False),
+
+            ([], True, True),
+            (["True"], True, True),
+            (["False"], True, True),
+
+            ([], None, False),
+            (["True"], None, True),
+            (["False"], None, False),
+            (["True", "True"], None, True),
+            (["True", "False"], None, False),
+            (["False", "True"], None, False),
+            (["False", "False"], None, False),
+        ]
+    )
+    def test_disabled_filter(self, prefilters, terminate_disabled, expected):
+
+        def add_terminate_filter_template(settings):
+            settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {}
+            settings["integrations.ad"][0]["ad_mo_sync_terminate_disabled"] = terminate_disabled
+            settings["integrations.ad.ad_mo_sync.terminate_disabled_filters"] = prefilters
+            return settings
+
+        # Helper functions to seed admosync mock
+        def add_ad_data(ad_values):
+            ad_values["Enabled"] = False
+            return ad_values
+
+        self._setup_admosync(
+            transform_settings=add_terminate_filter_template,
+            transform_ad_values=add_ad_data,
+        )
+        self.assertEqual(self.ad_sync.mo_post_calls, [])
+
+        finalize_mock = MagicMock()
+        self.ad_sync._finalize_it_system = finalize_mock
+        self.ad_sync._finalize_user_addresses = finalize_mock
+
+        # Run full sync against the mocks
+        self.ad_sync.update_all_users()
+
+        if expected:
+            finalize_mock.assert_called()
+        else:
+            finalize_mock.assert_not_called()

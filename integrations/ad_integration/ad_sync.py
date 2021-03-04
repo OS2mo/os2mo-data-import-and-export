@@ -556,7 +556,7 @@ class AdMoSync(object):
 
             @apply
             def filter_no_ad_object(uuid, ad_object):
-                return not ad_object
+                return ad_object
 
             # Lookup whether or not to terminate disabled users
             terminate_disabled = ad_reader._get_setting().get(
