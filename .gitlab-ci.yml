@@ -81,15 +81,16 @@ Lint OPUS Org Tree Print:
 Lint Reports:
   extends: .lint-python
   script:
-    - python -m black --diff --check reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py
-    - python -m isort --profile black --check-only reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py
+    - python -m black --diff --line-length 85 --check reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py 
+    - python -m isort --profile black --check-only reports/query_actualstate.py reports/XLSXExporter.py reports/os2mo_tests/test_query_actualstate.py reports/os2mo_tests/test_XLSXExporter.py 
 
 Lint Exporter Utils:
   extends: .lint-python
   script:
+    - python -m isort --diff --check-only exporters/utils/*.py exporters/utils/tests/*.py
     - cd exporters/utils/
-    - python -m black --diff --line-length 85 --check *.py tests/*.py
-    - python -m isort --diff --check-only *.py tests/*.py
+    - python -m black --diff --check *.py tests/*.py
+
 
 Lint Tools:
   extends: .lint-python
@@ -181,7 +182,7 @@ Test OPUS Helpers:
   script:
     - cp settings/kommune-andeby.json settings/settings.json
     - python -m doctest -v integrations/opus/opus_helpers.py
-
+    
 Test SDLoen Integration:
   extends: .test-python
   script:
