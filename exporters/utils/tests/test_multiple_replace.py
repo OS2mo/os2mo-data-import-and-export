@@ -2,9 +2,10 @@ from functools import reduce
 from unittest import TestCase
 
 import hypothesis.strategies as st
-from exporters.utils.multiple_replace import multiple_replace
 from hypothesis import assume, event, example, given
 from parameterized import parameterized
+
+from exporters.utils.multiple_replace import multiple_replace
 
 
 class MultipleReplaceTests(TestCase):
