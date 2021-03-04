@@ -576,7 +576,7 @@ class AdMoSync(object):
             for uuid, ad_object in employees:
                 self._update_single_user(uuid, ad_object, terminate_disabled)
             # Call terminate on each missing user
-            for uuid, ad_object in employees:
+            for uuid, ad_object in missing_employees:
                 self._terminate_single_user(uuid)
 
             logger.info('Stats: {}'.format(self.stats))

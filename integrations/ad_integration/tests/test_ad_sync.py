@@ -695,3 +695,27 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             finalize_mock.assert_called()
         else:
             finalize_mock.assert_not_called()
+
+    def test_finalize_missing_ad_user(self):
+        def add_terminate_filter_template(settings):
+            settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {}
+            return settings
+
+        # Helper functions to seed admosync mock
+        def add_ad_data(ad_values):
+            return None
+
+        self._setup_admosync(
+            transform_settings=add_terminate_filter_template,
+            transform_ad_values=add_ad_data,
+        )
+        self.assertEqual(self.ad_sync.mo_post_calls, [])
+
+        finalize_mock = MagicMock()
+        self.ad_sync._finalize_it_system = finalize_mock
+        self.ad_sync._finalize_user_addresses = finalize_mock
+
+        # Run full sync against the mocks
+        self.ad_sync.update_all_users()
+
+        finalize_mock.assert_called()
