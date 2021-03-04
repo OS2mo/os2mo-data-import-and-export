@@ -49,10 +49,10 @@ class AdMoSync(object):
 
         seeded_create_filters = partial(create_filters, tuple_keys=("uuid", "ad_object"))
         self.pre_filters = seeded_create_filters(
-            settings.get("integrations.ad.ad_mo_sync.pre_filters", [])
+            self.settings.get("integrations.ad.ad_mo_sync.pre_filters", [])
         )
         self.terminate_disabled_filters = seeded_create_filters(
-            settings.get("integrations.ad.ad_mo_sync.terminate_disabled_filters", [])
+            self.settings.get("integrations.ad.ad_mo_sync.terminate_disabled_filters", [])
         )
 
         # Possibly get IT-system directly from LoRa for better performance.
