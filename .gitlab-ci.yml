@@ -128,7 +128,7 @@ Test AD Integration:
   extends: .test-python
   script:
     - cd integrations/ad_integration/
-    - pytest tests/ --ignore tests/test_ad_sync.py
+    - pytest tests/
 
 Test OS2Sync Integration:
   extends: .test-python
