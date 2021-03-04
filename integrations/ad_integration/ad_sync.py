@@ -3,6 +3,7 @@ import pathlib
 import logging
 from datetime import datetime
 from operator import itemgetter
+from functools import partial
 
 from more_itertools import only
 from tqdm import tqdm
