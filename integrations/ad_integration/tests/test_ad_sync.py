@@ -617,16 +617,13 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             (["True", "False"], False),
             (["False", "True"], False),
             (["False", "False"], False),
-
             (["{{ 'a' == 'a' }}"], True),
             (["{{ 'a' == 'b' }}"], False),
             (["{{ 2 == 3 }}"], False),
-
             (["{{ ad_object['extensionAttribute1']|length == 10 }}"], True),
         ]
     )
     def test_pre_filters(self, prefilters, expected):
-
         def add_prefilter_template(settings):
             settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {}
             settings["integrations.ad.ad_mo_sync.pre_filters"] = prefilters
@@ -653,11 +650,9 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             ([], False, False),
             (["True"], False, False),
             (["False"], False, False),
-
             ([], True, True),
             (["True"], True, True),
             (["False"], True, True),
-
             ([], None, False),
             (["True"], None, True),
             (["False"], None, False),
@@ -668,11 +663,14 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         ]
     )
     def test_disabled_filter(self, prefilters, terminate_disabled, expected):
-
         def add_terminate_filter_template(settings):
             settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {}
-            settings["integrations.ad"][0]["ad_mo_sync_terminate_disabled"] = terminate_disabled
-            settings["integrations.ad.ad_mo_sync.terminate_disabled_filters"] = prefilters
+            settings["integrations.ad"][0][
+                "ad_mo_sync_terminate_disabled"
+            ] = terminate_disabled
+            settings[
+                "integrations.ad.ad_mo_sync.terminate_disabled_filters"
+            ] = prefilters
             return settings
 
         # Helper functions to seed admosync mock
