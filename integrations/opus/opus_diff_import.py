@@ -268,7 +268,10 @@ class OpusDiffImport(object):
             else:
                 address_string = employee['address']
                 zip_code = employee["postalCode"]
-                addr_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+                try:
+                    addr_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+                except:
+                    addr_uuid = None
                 if addr_uuid:
                     opus_addresses['dar'] = addr_uuid
                 else:
@@ -332,7 +335,10 @@ class OpusDiffImport(object):
                 }
 
         if unit['street'] and unit['zipCode']:
-            address_uuid = dawa_helper.dawa_lookup(unit['street'], unit['zipCode'])
+            try:
+                address_uuid = dawa_helper.dawa_lookup(unit['street'], unit['zipCode'])
+            except:
+                addr_uuid = None
             if address_uuid:
                 logger.debug('Found DAR uuid: {}'.format(address_uuid))
                 unit['dar'] = address_uuid

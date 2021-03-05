@@ -7,7 +7,7 @@ from pathlib import Path
 import requests
 from more_itertools import flatten, pairwise, prepend
 from tqdm import tqdm
-
+from functools import lru_cache
 import constants
 from exporters.utils.load_settings import load_settings
 from integrations.ad_integration import ad_reader
@@ -18,11 +18,18 @@ from os2mo_data_import import ImportHelper
 
 
 def perform_setup(
-    mox_base: str, mora_base: str, roles: set, engagement_types: set
+    settings=None, roles: set = None, engagement_types: set = None
 ) -> None:
     """Setup all necessary classes etc to perform opus-import.
+    
     Takes a set of roles and engagement_types as input and creates classes for them.
     """
+    settings = settings or load_settings()
+    roles = roles or set()
+    engagement_types = engagement_types or set()
+    mox_base = settings.get("mox.base", "http://localhost:8080")
+    mora_base = settings.get("mora.base", "http://localhost:5000")
+    
     # Init
     os2mo = ImportHelper(
         create_defaults=True,
@@ -34,12 +41,13 @@ def perform_setup(
     # The Organisation class is the main entry point,
     # It exposes the related sub classes such as:
     # Facet, Klasse, Itsystem, OrganisationUnit, Employee
-
+    main_name = settings.get('municipality.name', 'Magenta APS')
+    main_uuid = opus_helpers.generate_uuid(main_name)
     os2mo.add_organisation(
-        identifier="Furesø Kommune",
-        uuid="de999ce1-8038-4bb6-b95b-3bf7df434a58",
-        user_key="FURESØ",
-        municipality_code=3500,
+        identifier=main_name,
+        uuid=str(main_uuid),
+        user_key=main_name,
+        municipality_code=settings.get('municipality.code', 1234),
     )
 
     # Add klasse with reference to facet "org_unit_type"
@@ -204,10 +212,7 @@ def truncate_db(MOX_BASE="http://localhost:8080"):
 
 
 def to_job_type(e):
-    eng_type = e.get("workContractText")
-    if eng_type:
-        return eng_type
-    return "Ansat"
+    return e.get("workContractText", "Ansat")
 
 
 def to_roles(e):
@@ -222,9 +227,11 @@ def to_roles(e):
         return roles
     return set()
 
-
-def read_all_employees(filter_ids):
+def read_all_employees():
     """Make a list of all employee data from all files"""
+    settings = load_settings()
+    filter_ids = settings.get("integrations.opus.units.filter_ids", [])
+
     dumps = opus_helpers.read_available_dumps()
     full_data = map(
         lambda d: opus_helpers.parser(d, filter_ids),
@@ -235,7 +242,8 @@ def read_all_employees(filter_ids):
 
 
 def read_all_files(filter_ids):
-    """Create full list of data to write to MO
+    """Create full list of data to write to MO.
+
     Searches files pairwise for changes and returns the date of change, units and employees with changes
     """
     dumps = opus_helpers.read_available_dumps()
@@ -260,19 +268,22 @@ def setup_new_mo(settings=load_settings()):
 
     Clear MO database and read through all files to find roles and engagement_types
     """
-    MOX_BASE = settings.get("mox.base", "http://localhost:8080")
-    MORA_BASE = settings.get("mora.base", "http://localhost:5000")
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
 
-    truncate_db(MOX_BASE)
+    truncate_db(settings.get('mox.base'))
 
-    employees = list(read_all_employees(filter_ids))
-
+    
     # Get all distinct roles and job types
-    job_types = set(map(to_job_type, employees))
-    roles = set(flatten(map(to_roles, employees)))
+    #TODO: This is quite bad as we have to read all files twice as reading all employees into a list is not an option with ~300 files. 
+    #IF opus-import could create new roles and engagement types this entire step would be unnecessary.
+    employees = read_all_employees()
+    engagement_types = set(map(to_job_type, employees))
+    
+    employees = read_all_employees()
+    roles = set.union(*map(to_roles, employees))
+    
     # Setup classes and root organisation
-    perform_setup(MOX_BASE, MORA_BASE, roles, job_types)
+    perform_setup(settings=settings, roles=roles, engagement_types=engagement_types)
 
 
 def import_all(ad_reader=None):
@@ -291,8 +302,22 @@ def import_all(ad_reader=None):
             date, ad_reader=ad_reader, employee_mapping=employee_mapping
         )
         diff.start_import(units, employees, include_terminations=True)
+        #Write latest successful import to rundb so opus_diff_import can continue from where this ended
+        opus_helpers.local_db_insert((date, 'Diff update ended: {}'))
 
 
+@click.command()
+@click.option('--import-amount',
+              type=click.Choice(['none', 'all'], case_sensitive=False), required=True)
+@click.option('--use-ad', is_flag=True, type=click.BOOL, default=False,
+              help="Read from AD")
+def clear_and_reload(import_amount, use_ad):
+    if import_amount == 'all':
+        AD = ad_reader.ADParameterReader() if use_ad else None
+        import_all(ad_reader=AD)
+    else:
+        setup_new_mo()
+    
 
 if __name__ == "__main__":
-    import_all()
+    clear_and_reload()

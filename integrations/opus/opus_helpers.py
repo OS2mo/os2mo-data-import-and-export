@@ -9,7 +9,7 @@ import uuid
 from operator import itemgetter
 from pathlib import Path
 from typing import Dict, List, Tuple
-
+from functools import lru_cache
 import xmltodict
 from deepdiff import DeepDiff
 from tqdm import tqdm
@@ -117,7 +117,7 @@ def parse_phone(phone_number):
         logger.warning('Could not parse phone {}'.format(phone_number))
     return validated_phone
 
-
+@lru_cache(maxsize=None)
 def generate_uuid(value):
     """
     Generate a predictable uuid based on org name and a unique value.
