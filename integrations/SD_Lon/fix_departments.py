@@ -1,18 +1,16 @@
-import click
-import json
-import pathlib
-import logging
-import requests
 import datetime
+import json
+import logging
 from functools import partial
 from itertools import chain
-from integrations.SD_Lon import sd_payloads
 
+import click
+import requests
 from os2mo_helpers.mora_helpers import MoraHelper
-from integrations.SD_Lon.sd_common import sd_lookup
-from integrations.SD_Lon.sd_common import mora_assert
-from integrations.SD_Lon.sd_common import load_settings
+
+from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.exceptions import NoCurrentValdityException
+from integrations.SD_Lon.sd_common import load_settings, mora_assert, sd_lookup
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'fix_sd_departments.log'
@@ -45,7 +43,10 @@ class FixDepartments(object):
                                  use_cache=False)
 
         try:
-            self.org_uuid = self.helper.read_organisation()
+            self.org_uuid = self.settings.get(
+                'integrations.SD_Lon.fix_departments_root',
+                self.helper.read_organisation()
+            )
         except requests.exceptions.RequestException as e:
             logger.error(e)
             print(e)
@@ -189,7 +190,7 @@ class FixDepartments(object):
         response = self.helper._mo_post('details/edit', payload)
         logger.debug('Edit response status: {}'.format(response.status_code))
         if response.status_code == 400:
-            assert(response.text.find('raise to a new registration') > 0)
+            assert (response.text.find('raise to a new registration') > 0)
         else:
             response.raise_for_status()
 
@@ -351,8 +352,7 @@ class FixDepartments(object):
                 msg = 'Checking job-id: {}'
                 print(msg.format(job_id))
                 logger.info(msg.format(job_id))
-                sd_uuid = (employment['EmploymentDepartment']
-                           ['DepartmentUUIDIdentifier'])
+                sd_uuid = employment['EmploymentDepartment']['DepartmentUUIDIdentifier']
                 if not sd_uuid == unit_uuid:
                     # This employment is not from the current department,
                     # but is inherited from a lower level. Can happen if this
@@ -473,7 +473,6 @@ class FixDepartments(object):
         for unit in reversed(branch):
             self.fix_department_at_single_date(unit[1], date)
 
-
     def sd_uuid_from_short_code(self, validity_date, shortname):
         validity = {
             'from_date': validity_date.strftime('%d.%m.%Y'),
@@ -484,8 +483,10 @@ class FixDepartments(object):
 
 
 @click.command()
-@click.option('--department-short-name', 'short_names', multiple=True, type=click.STRING, help="Shortname of the department to update")
-@click.option('--department-uuid', 'uuids', multiple=True, type=click.UUID, help="UUID of the department to update")
+@click.option('--department-short-name', 'short_names', multiple=True,
+              type=click.STRING, help="Shortname of the department to update")
+@click.option('--department-uuid', 'uuids', multiple=True, type=click.UUID,
+              help="UUID of the department to update")
 def unit_fixer(short_names, uuids):
     """Sync SD department information to MO."""
     setup_logging()
