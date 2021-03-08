@@ -45,7 +45,8 @@ class FixDepartments(object):
         try:
             self.org_uuid = self.settings.get(
                 'integrations.SD_Lon.fix_departments_root',
-                self.helper.read_organisation())
+                self.helper.read_organisation()
+            )
         except requests.exceptions.RequestException as e:
             logger.error(e)
             print(e)
@@ -351,8 +352,7 @@ class FixDepartments(object):
                 msg = 'Checking job-id: {}'
                 print(msg.format(job_id))
                 logger.info(msg.format(job_id))
-                sd_uuid = (employment['EmploymentDepartment']
-                ['DepartmentUUIDIdentifier'])
+                sd_uuid = employment['EmploymentDepartment']['DepartmentUUIDIdentifier']
                 if not sd_uuid == unit_uuid:
                     # This employment is not from the current department,
                     # but is inherited from a lower level. Can happen if this
