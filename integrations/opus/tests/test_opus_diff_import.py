@@ -24,6 +24,7 @@ class OpusDiffImportTestbase(OpusDiffImport):
         self.morahelper_mock = MagicMock()
         self.morahelper_mock.read_organisation.return_value = "org_uuid"
         self.morahelper_mock._mo_post.return_value.status_code = 201
+        self.ensure_class_mock = (MagicMock(), MagicMock())
         self._add_klasse_to_lora = MagicMock()
         mock_primary.primary_types = {"non_primary": "test"}
 
@@ -31,6 +32,9 @@ class OpusDiffImportTestbase(OpusDiffImport):
 
     def _get_mora_helper(self, hostname, use_cache):
         return self.morahelper_mock
+    
+    def _ensure_class_in_lora(self, facet, klasse):
+        return self.ensure_class_mock
 
     def _find_classes(self, facet):
         if facet == "engagement_type":
@@ -152,12 +156,13 @@ class Opus_diff_import_tester(unittest.TestCase):
         for unit in self.units:
             diff.update_unit(unit)
             calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
+            add_type_uuid, _ = diff.ensure_class_mock
             diff.helper._mo_post.assert_called_with(
                 "details/create",
                 {
                     "type": "address",
                     "value": dawa_helper_mock(),
-                    "address_type": {"uuid": "Addr_UUID"},
+                    "address_type": {"uuid": add_type_uuid},
                     "validity": {"from": xml_date.strftime("%Y-%m-%d"), "to": None},
                     "org_unit": {"uuid": str(calculated_uuid)},
                 },

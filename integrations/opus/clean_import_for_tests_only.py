@@ -17,16 +17,12 @@ from integrations.opus.opus_diff_import import OpusDiffImport
 from os2mo_data_import import ImportHelper
 
 
-def perform_setup(
-    settings=None, roles: set = None, engagement_types: set = None
-) -> None:
+def perform_setup(settings=None) -> None:
     """Setup all necessary classes etc to perform opus-import.
     
-    Takes a set of roles and engagement_types as input and creates classes for them.
+    
     """
     settings = settings or load_settings()
-    roles = roles or set()
-    engagement_types = engagement_types or set()
     mox_base = settings.get("mox.base", "http://localhost:8080")
     mora_base = settings.get("mora.base", "http://localhost:5000")
     
@@ -64,106 +60,6 @@ def perform_setup(
             "title": "explicitly-primary",
         },
         {
-            "identifier": "AddressPostUnit",
-            "facet_type_ref": "org_unit_address_type",
-            "title": "Adresse",
-            "scope": "DAR",
-        },
-        {
-            "identifier": "Organisation",
-            "facet_type_ref": "org_unit_type",
-            "title": "Organisation",
-        },
-        {
-            "identifier": "Afdeling",
-            "facet_type_ref": "org_unit_type",
-            "title": "Afdeling",
-        },
-        {
-            "identifier": "Niveau 1",
-            "facet_type_ref": "org_unit_level",
-            "user_key": "Niveau 1",
-            "title": "Niveau 1",
-        },
-        {
-            "identifier": "Niveau 2",
-            "facet_type_ref": "org_unit_level",
-            "user_key": "Niveau 2",
-            "title": "Niveau 2",
-        },
-        {
-            "identifier": "Niveau 3",
-            "facet_type_ref": "org_unit_level",
-            "user_key": "Niveau 3",
-            "title": "Niveau 3",
-        },
-        {
-            "identifier": "Arbejdstidsplaner",
-            "facet_type_ref": "time_planning",
-            "user_key": "Arbejdstidsplaner",
-            "title": "Arbejdstidsplaner",
-        },
-        {
-            "identifier": "Tjenestetid",
-            "facet_type_ref": "time_planning",
-            "user_key": "Tjenestetid",
-            "title": "Tjenestetid",
-        },
-        {
-            "identifier": "Lederansvar",
-            "facet_type_ref": "responsibility",
-            "title": "Lederansvar",
-        },
-        {
-            "identifier": "EAN",
-            "facet_type_ref": "org_unit_address_type",
-            "title": "EAN-nr.",
-            "scope": "EAN",
-            "example": "1234567890123",
-        },
-        {
-            "identifier": "PhoneUnit",
-            "facet_type_ref": "org_unit_address_type",
-            "title": "Tlf",
-            "scope": "PHONE",
-            "example": "20304060",
-        },
-        {
-            "identifier": "SE",
-            "facet_type_ref": "org_unit_address_type",
-            "title": "SE",
-            "scope": "TEXT",
-        },
-        {
-            "identifier": "CVR",
-            "facet_type_ref": "org_unit_address_type",
-            "title": "CVR",
-            "scope": "TEXT",
-        },
-        {
-            "identifier": "Pnummer",
-            "facet_type_ref": "org_unit_address_type",
-            "title": "Pnummer",
-            "scope": "TEXT",
-        },
-        {
-            "identifier": "AdressePostEmployee",
-            "facet_type_ref": "employee_address_type",
-            "title": "Adresse",
-            "scope": "DAR",
-        },
-        {
-            "identifier": "PhoneEmployee",
-            "facet_type_ref": "employee_address_type",
-            "title": "Telefon",
-            "scope": "PHONE",
-        },
-        {
-            "identifier": "EmailEmployee",
-            "facet_type_ref": "employee_address_type",
-            "scope": "EMAIL",
-        },
-        {
             "identifier": "AD-AdressePostEmployee",
             "facet_type_ref": "employee_address_type",
             "title": "AD-Adresse",
@@ -178,19 +74,10 @@ def perform_setup(
         {
             "identifier": "AD-EmailEmployee",
             "facet_type_ref": "employee_address_type",
-            "scope": "AD-EMAIL",
+            "title": "AD-Email",
+            "scope": "EMAIL",
         },
     ]
-    role_classes = [
-        {"identifier": role, "facet_type_ref": "role_type", "title": role}
-        for role in roles
-    ]
-    engagement_type_classes = [
-        {"identifier": eng, "facet_type_ref": "engagement_type", "title": eng}
-        for eng in engagement_types
-    ]
-    classes_to_create += role_classes
-    classes_to_create += engagement_type_classes
 
     for klasses in classes_to_create:
         os2mo.add_klasse(**klasses)
@@ -209,37 +96,6 @@ def perform_setup(
 def truncate_db(MOX_BASE="http://localhost:8080"):
     r = requests.get(MOX_BASE + "/db/truncate")
     r.raise_for_status()
-
-
-def to_job_type(e):
-    return e.get("workContractText", "Ansat")
-
-
-def to_roles(e):
-    function = e.get("function")
-    if function:
-        roles = set()
-        if type(function) == list:
-            for f in e.get("function"):
-                roles.add(f.get("artText"))
-        else:
-            roles.add(function.get("artText"))
-        return roles
-    return set()
-
-def read_all_employees():
-    """Make a list of all employee data from all files"""
-    settings = load_settings()
-    filter_ids = settings.get("integrations.opus.units.filter_ids", [])
-
-    dumps = opus_helpers.read_available_dumps()
-    full_data = map(
-        lambda d: opus_helpers.parser(d, filter_ids),
-        tqdm(dumps.values(), desc="Reading opusfiles"),
-    )
-    all_employees = flatten(map(itemgetter(1), full_data))
-    return all_employees
-
 
 def read_all_files(filter_ids):
     """Create full list of data to write to MO.
@@ -272,18 +128,8 @@ def setup_new_mo(settings=load_settings()):
 
     truncate_db(settings.get('mox.base'))
 
-    
-    # Get all distinct roles and job types
-    #TODO: This is quite bad as we have to read all files twice as reading all employees into a list is not an option with ~300 files. 
-    #IF opus-import could create new roles and engagement types this entire step would be unnecessary.
-    employees = read_all_employees()
-    engagement_types = set(map(to_job_type, employees))
-    
-    employees = read_all_employees()
-    roles = set.union(*map(to_roles, employees))
-    
     # Setup classes and root organisation
-    perform_setup(settings=settings, roles=roles, engagement_types=engagement_types)
+    perform_setup(settings=settings)
 
 
 def import_all(ad_reader=None):
@@ -313,11 +159,13 @@ def import_all(ad_reader=None):
               help="Read from AD")
 def clear_and_reload(import_amount, use_ad):
     if import_amount == 'all':
-        AD = ad_reader.ADParameterReader() if use_ad else None
+        if use_ad:
+            AD = ad_reader.ADParameterReader() 
+            AD.cache_all()
         import_all(ad_reader=AD)
     else:
         setup_new_mo()
     
 
 if __name__ == "__main__":
-    clear_and_reload()
+    import_all(ad_reader=None)
