@@ -7,18 +7,15 @@ import random
 import logging
 import pathlib
 import datetime
-import argparse
+
+import click
+from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
+from jinja2 import Template
 
 import ad_logger
 import ad_templates
-
 from ad_template_engine import template_powershell, prepare_field_templates
-from jinja2 import Template
-
 from utils import dict_map, dict_exclude, lower_list, dict_subset
-
-from utils import dict_exclude, dict_subset
-
 from integrations.ad_integration.ad_exceptions import CprNotNotUnique
 from integrations.ad_integration.ad_exceptions import UserNotFoundException
 from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
@@ -29,10 +26,10 @@ from integrations.ad_integration.ad_exceptions import SamAccountNameNotUnique
 from integrations.ad_integration.ad_exceptions import (
     ManagerNotUniqueFromCprException
 )
-
 from ad_common import AD
 from user_names import CreateUserNames
 from os2mo_helpers.mora_helpers import MoraHelper
+
 
 logger = logging.getLogger("AdWriter")
 
@@ -895,74 +892,77 @@ class ADWriter(AD):
             logger.error('Failed to delete account!: {}'.format(response))
             return (False, 'Failed to delete')
 
-    def _cli(self):
-        """
-        Command line interface for the AD writer class.
-        """
-        parser = argparse.ArgumentParser(description='AD Writer')
-        group = parser.add_mutually_exclusive_group(required=True)
-        group.add_argument('--create-user-with-manager', nargs=1, metavar='MO_uuid',
-                           help='Create a new user in AD, also assign a manager')
-        group.add_argument('--create-user', nargs=1, metavar='MO_uuid',
-                           help='Create a new user in AD, do not assign a manager')
-        group.add_argument('--sync-user', nargs=1, metavar='MO uuid',
-                           help='Sync relevant fields from MO to AD')
-        group.add_argument('--delete-user', nargs=1, metavar='User_SAM')
-        group.add_argument('--read-ad-information', nargs=1, metavar='User_SAM')
-        group.add_argument('--add-manager-to-user',  nargs=2,
-                           metavar=('Manager_SAM', 'User_SAM'))
 
-        args = vars(parser.parse_args())
+@click.command()
+@optgroup.group("Action", cls=RequiredMutuallyExclusiveOptionGroup)
+@optgroup.option(
+    '--create-user-with-manager',
+    help='Create a new user in AD, also assign a manager',
+)
+@optgroup.option(
+    '--create-user',
+    help='Create a new user in AD, do not assign a manager',
+)
+@optgroup.option(
+    '--sync-user',
+    help='Sync relevant fields from MO to AD',
+)
+@optgroup.option('--delete-user')
+@optgroup.option('--read-ad-information')
+@optgroup.option('--add-manager-to-user', nargs=2, type=str)
+def cli(**args):
+    """
+    Command line interface for the AD writer class.
+    """
 
-        if args.get('create_user_with_manager'):
-            print('Create_user_with_manager:')
-            uuid = args.get('create_user_with_manager')[0]
-            status = self.create_user(uuid, create_manager=True)
-            # TODO: execute custom script? Or should this be done in
-            # two steps.
-            print(status[1])
+    ad_writer = ADWriter()
 
-        if args.get('create_user'):
-            print('Create user, no link to manager:')
-            uuid = args.get('create_user')[0]
-            status = self.create_user(uuid, create_manager=False)
-            print(status[1])
+    if args.get('create_user_with_manager'):
+        print('Create_user_with_manager:')
+        status = ad_writer.create_user(
+            args['create_user_with_manager'], create_manager=True
+        )
+        # TODO: execute custom script? Or should this be done in
+        # two steps.
+        print(status[1])
 
-        if args.get('sync_user'):
-            print('Sync MO fields to AD')
-            uuid = args.get('sync_user')[0]
-            status = self.sync_user(uuid)
-            print(status[1])
+    if args.get('create_user'):
+        print('Create user, no link to manager:')
+        status = ad_writer.create_user(
+            args['create_user'], create_manager=False
+        )
+        print(status[1])
 
-        if args.get('delete_user'):
-            print('Deleting user:')
-            sam = args.get('delete_user')[0]
-            status = self.delete_user(sam)
-            print(status[1])
+    if args.get('sync_user'):
+        print('Sync MO fields to AD')
+        status = ad_writer.sync_user(args['sync_user'])
+        print(status[1])
 
-        if args.get('read_ad_information'):
-            print('AD information on user:')
-            sam = args.get('read_ad_information')[0]
-            user = self.get_from_ad(user=sam)
-            if not user:
-                print('User not found')
-            else:
-                for key, value in sorted(user[0].items()):
-                    print('{}: {}'.format(key, value))
+    if args.get('delete_user'):
+        print('Deleting user:')
+        status = ad_writer.delete_user(args['delete_user'])
+        print(status[1])
 
-        if args.get('add_manager_to_user'):
-            manager = args['add_manager_to_user'][0]
-            user = args['add_manager_to_user'][1]
-            print('{} is now set as manager for {}'.format(manager, user))
-            self.add_manager_to_user(manager_sam=manager, user_sam=user)
+    if args.get('read_ad_information'):
+        print('AD information on user:')
+        sam = args['read_ad_information']
+        user = ad_writer.get_from_ad(user=sam)
+        if not user:
+            print('User not found')
+        else:
+            for key, value in sorted(user[0].items()):
+                print('{}: {}'.format(key, value))
 
-        # TODO: Enable a user, including setting a random password
-        # ad_writer.set_user_password('MSLEG', _random_password())
-        # ad_writer.enable_user('OBRAP')
+    if args.get('add_manager_to_user'):
+        manager, user = args['add_manager_to_user']
+        print('{} is now set as manager for {}'.format(manager, user))
+        ad_writer.add_manager_to_user(manager_sam=manager, user_sam=user)
+
+    # TODO: Enable a user, including setting a random password
+    # ad_writer.set_user_password('MSLEG', _random_password())
+    # ad_writer.enable_user('OBRAP')
 
 
 if __name__ == '__main__':
     ad_logger.start_logging('ad_writer.log')
-
-    ad_writer = ADWriter()
-    ad_writer._cli()
+    cli()

@@ -1,9 +1,10 @@
-import argparse
 from abc import ABC
 
 import pandas as pd
 import xlsxwriter
 import xlsxwriter.worksheet
+import click
+from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
 
 from integrations.kle.kle_import_export import (
     KLEAnnotationIntegration,
@@ -255,19 +256,19 @@ class KLEXLSXImporter(KLEXLSXIntegration):
         return payloads
 
 
-if __name__ == '__main__':
-
-    parser = argparse.ArgumentParser(prog='kle_xlsx')
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument('--import', action='store_true')
-    group.add_argument('--export', action='store_true')
-
-    args = vars(parser.parse_args())
-
-    if args.get('import'):
+@click.command()
+@optgroup.group("Action", cls=RequiredMutuallyExclusiveOptionGroup)
+@optgroup.option("--import", is_flag=True)
+@optgroup.option("--export", is_flag=True)
+def cli(**args):
+    if args['import']:
         importer = KLEXLSXImporter()
         importer.run()
 
-    if args.get('export'):
+    if args['export']:
         exporter = KLEXLSXExporter()
         exporter.run()
+
+
+if __name__ == '__main__':
+    cli()

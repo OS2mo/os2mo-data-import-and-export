@@ -2,13 +2,14 @@ import time
 import json
 import pathlib
 import logging
-import argparse
 import datetime
+
+import click
+from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
 
 # SD?
 # from integrations.SD_Lon import sd_payloads
 from integrations.opus import payloads
-
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.utils.load_settings import load_settings
 
@@ -279,33 +280,36 @@ class MOPrimaryEngagementUpdater(object):
             logger.debug('Time for primary calculation: {}'.format(time.time() - t))
         print('Total edits: {}'.format(sum(edit_status.values())))
 
-    def _cli(self):
-        parser = argparse.ArgumentParser(description='Calculate Primary')
-        group = parser.add_mutually_exclusive_group(required=True)
-        group.add_argument('--check-all-for-primary',  action='store_true',
-                           help='Check all users for a primary engagement')
-        group.add_argument('--recalculate-all',  action='store_true',
-                           help='Recalculate all all users')
-        group.add_argument('--recalculate-user', nargs=1, metavar='MO_uuid',
-                           help='Recalculate primaries for a user')
 
-        args = vars(parser.parse_args())
+@click.command(help="Calculate Primary")
+@optgroup.group("Action", cls=RequiredMutuallyExclusiveOptionGroup)
+@optgroup.option(
+    "--check-all-for-primary",
+    is_flag=True,
+    help='Check all users for a primary engagement',
+)
+@optgroup.option("--recalculate-all", is_flag=True, help='Recalculate all users')
+@optgroup.option(
+    "--recalculate-user",
+    help='Recalculate primaries for a user (specify MO UUID)',
+)
+def cli(**args):
+    updater = MOPrimaryEngagementUpdater()
 
-        if args.get('recalculate_user'):
-            print('Recalculate user')
-            t = time.time()
-            uuid = args.get('recalculate_user')[0]
-            self.set_current_person(uuid=uuid)
-            self.recalculate_primary()
-            print('Time for primary calculation: {}'.format(time.time() - t))
+    if args['recalculate_user']:
+        print('Recalculate user')
+        t = time.time()
+        updater.set_current_person(uuid=args['recalculate_user'])
+        updater.recalculate_primary()
+        print('Time for primary calculation: {}'.format(time.time() - t))
 
-        if args.get('check_all_for_primary'):
-            print('Check all for primary')
-            self.check_all_for_primary()
+    if args['check_all_for_primary']:
+        print('Check all for primary')
+        updater.check_all_for_primary()
 
-        if args.get('recalculate_all'):
-            print('Check all for primary')
-            self.recalculate_all(no_past=True)
+    if args['recalculate_all']:
+        print('Check all for primary')
+        updater.recalculate_all(no_past=True)
 
 
 if __name__ == '__main__':
@@ -322,5 +326,4 @@ if __name__ == '__main__':
         filename=LOG_FILE
     )
 
-    updater = MOPrimaryEngagementUpdater()
-    updater._cli()
+    cli()

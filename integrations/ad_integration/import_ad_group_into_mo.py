@@ -3,10 +3,11 @@ import json
 import uuid
 import hashlib
 import logging
-import argparse
 import datetime
 
 import requests
+import click
+from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration import payloads
@@ -299,30 +300,28 @@ class ADMOImporter(object):
             if not current_engagements:
                 self._create_engagement(ad_user)
 
-    def cli(self):
-        """
-        Command line interface for the AD to MO user import.
-        """
 
-        parser = argparse.ArgumentParser(description='AD->MO user import')
-        group = parser.add_mutually_exclusive_group(required=True)
-        group.add_argument('--create-or-update', action='store_true')
-        group.add_argument('--cleanup-removed-users', action='store_true')
-        group.add_argument('--full-sync', action='store_true')
+@click.command(help="AD->MO user import")
+@optgroup.group("Action", cls=RequiredMutuallyExclusiveOptionGroup)
+@optgroup.option("--create-or-update", is_flag=True)
+@optgroup.option("--cleanup-removed-users", is_flag=True)
+@optgroup.option("--full-sync", is_flag=True)
+def cli(**args):
+    """
+    Command line interface for the AD to MO user import.
+    """
+    ad_import = ADMOImporter()
 
-        args = vars(parser.parse_args())
+    if args.get('create_or_update'):
+        ad_import.create_or_update_users_in_mo()
 
-        if args.get('create_or_update'):
-            self.create_or_update_users_in_mo()
+    if args.get('cleanup_removed_users'):
+        ad_import.cleanup_removed_users_from_mo()
 
-        if args.get('cleanup_removed_users'):
-            self.cleanup_removed_users_from_mo()
-
-        if args.get('full_sync'):
-            self.create_or_update_users_in_mo()
-            self.cleanup_removed_users_from_mo()
+    if args.get('full_sync'):
+        ad_import.create_or_update_users_in_mo()
+        ad_import.cleanup_removed_users_from_mo()
 
 
 if __name__ == '__main__':
-    ad_import = ADMOImporter()
-    ad_import.cli()
+    cli()

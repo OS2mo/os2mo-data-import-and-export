@@ -1,10 +1,12 @@
-import argparse
 import json
 import logging
 import pathlib
 
 import requests
 import requests_kerberos
+import click
+from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
+
 from integrations.ad_integration import ad_logger
 from integrations.ad_integration.ad_common import AD
 from winrm import Session
@@ -216,20 +218,13 @@ def perform_write_test():
         print('Test of AD fields for writing is a success')
 
 
-def cli():
-    """
-    Command line interface for the AD writer class.
-    """
-    parser = argparse.ArgumentParser(description="AD Writer")
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--test-read-settings", action="store_true")
-    group.add_argument("--test-write-settings", action="store_true")
-
-    args = vars(parser.parse_args())
-
+@click.command(help="Test AD connectivity")
+@optgroup.group("Action", cls=RequiredMutuallyExclusiveOptionGroup)
+@optgroup.option("--test-read-settings", is_flag=True)
+@optgroup.option("--test-write-settings", is_flag=True)
+def cli(**args):
     if args.get("test_read_settings"):
         perform_read_test()
-
     if args.get('test_write_settings'):
         perform_read_test()
         perform_write_test()

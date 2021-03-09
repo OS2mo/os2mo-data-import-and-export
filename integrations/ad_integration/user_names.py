@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import random
-import argparse
 
-from ad_reader import ADParameterReader
+import click
 
 import username_rules.method_2
+from ad_reader import ADParameterReader
+
 
 METHOD = 'metode 2'
 
@@ -258,34 +259,41 @@ class CreateUserNames(object):
             print(user_count)
             print('------')
 
-    def _cli(self):
-        parser = argparse.ArgumentParser(description='User name creator')
-        parser.add_argument('--method', nargs=1, metavar='method',
-                            help='User name method (2 or 3)')
-        parser.add_argument('-N', nargs=1, type=int, help='Number of usernames')
-        parser.add_argument('--name', nargs=1, metavar='name', help='Name of user')
 
-        args = vars(parser.parse_args())
+@click.command(help="User name creator")
+@click.option(
+    "--method",
+    required=True,
+    type=click.Choice(["2", "3"]),
+    help='User name method (2 or 3)',
+)
+@click.option("--name", required=True, help='Name of user')
+@click.option("-N", required=True, type=int, help='Number of user names to create')
+@click.option(
+    '--populate-occupied-names',
+    is_flag=True,
+    help='Populate occupied names from AD',
+)
+def cli(**args):
+    name_creator = CreateUserNames(occupied_names=set())
+    name_creator.method = "metode %s" % args["method"]
 
-        name = args.get('name')[0].split(' ')
+    if args['populate_occupied_names']:
+        name_creator.populate_occupied_names()
 
-        if args.get('method')[0] == '2':
-            self.method = 'metode 2'
-        elif args.get('method')[0] == '3':
-            self.method = 'metode 3'
-        else:
-            exit('No valid method given')
-
-        for i in range(0, args.get('N')[0]):
-            print(self.create_username(name))
+    name = args['name'].split(' ')
+    for i in range(0, args['n']):
+        print(name_creator.create_username(name))
 
 
 if __name__ == '__main__':
-    name_creator = CreateUserNames(occupied_names=set())
+    cli()
+
+    # name_creator = CreateUserNames(occupied_names=set())
     # name_creator.populate_occupied_names()
     # name_creator._cli()
-    name = ['Anders', 'Kristian', 'Jens', 'abzæ-{øå', 'Peter', 'Andersen']
-    print(name_creator.create_username(name))
+    # name = ['Anders', 'Kristian', 'Jens', 'abzæ-{øå', 'Peter', 'Andersen']
+    # print(name_creator.create_username(name))
 
     # import pickle
     # from pathlib import Path
