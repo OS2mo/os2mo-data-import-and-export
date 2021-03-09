@@ -292,13 +292,13 @@ class LoraCache(object):
         return users
 
     def _cache_lora_units(self):
-        params = {'bvn': '%'}
+        params = {'gyldighed': 'Aktiv','bvn': '%'}
         url = '/organisation/organisationenhed'
         relevant = {
             'relationer': ('overordnet', 'enhedstype', 'niveau'),
             'attributter': ('organisationenhedegenskaber',)
         }
-        unit_list = self._perform_lora_lookup(url, params)
+        unit_list = self._perform_lora_lookup(url, params, skip_history=True)
 
         units = {}
         for unit in unit_list:
