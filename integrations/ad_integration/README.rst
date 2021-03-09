@@ -383,7 +383,7 @@ Denne nøgle indeholder en liste af jinja templates.
 Disse templates kan returnere en sand værdi for at terminere brugeren, eller en
 falsk værdi for at synkronisere brugeren.
 Kun hvis samtlige filtre returnere sand vil brugeren blive termineret, hvis blot ét
-af filtrene returnere falsk vil brugeren i stedet blive synkroniseret. Resultaterne
+af filtrene returnerer falsk vil brugeren i stedet blive synkroniseret. Resultaterne
 for evaluering af filtrene sammenholdes altså med en 'AND' operation.
 
 Værdierne der vurderes som sande er "yes", "true", "1" og "1.0".
