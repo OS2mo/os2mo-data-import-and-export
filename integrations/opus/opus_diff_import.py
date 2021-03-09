@@ -17,10 +17,12 @@ from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers, payloads
 from integrations.opus.calculate_primary import MOPrimaryEngagementUpdater
-from integrations.opus.opus_exceptions import (EmploymentIdentifierNotUnique,
-                                               ImporterrunNotCompleted,
-                                               RunDBInitException,
-                                               UnknownOpusUnit)
+from integrations.opus.opus_exceptions import (
+    EmploymentIdentifierNotUnique,
+    ImporterrunNotCompleted,
+    RunDBInitException,
+    UnknownOpusUnit,
+)
 from integrations.SD_Lon.db_overview import DBOverview
 from os2mo_data_import import ImportHelper
 
@@ -61,7 +63,7 @@ EMPLOYEE_ADDRESS_CHECKS = {
 
 
 class OpusDiffImport(object):
-    def __init__(self, latest_date, ad_reader, employee_mapping={}):
+    def __init__(self, xml_date, ad_reader, employee_mapping={}):
         logger.info('Opus diff importer __init__ started')
 
         self.settings = load_settings()
@@ -71,7 +73,7 @@ class OpusDiffImport(object):
         self.employee_forced_uuids = employee_mapping
         self.ad_reader = ad_reader
 
-        self.helper = MoraHelper(hostname=self.settings['mora.base'],
+        self.helper = self._get_mora_helper(hostname=self.settings['mora.base'],
                                  use_cache=False)
         try:
             self.org_uuid = self.helper.read_organisation()
@@ -108,27 +110,7 @@ class OpusDiffImport(object):
         for job in job_functions:
             self.job_functions[job['name']] = job['uuid']
 
-        logger.info('Read Roles')
-        # Potential to cut ~30s by parsing this:
-        # /organisationfunktion?funktionsnavn=Rolle&virkningFra=2019-01-01
-        self.role_cache = []
-        units = self.helper._mo_lookup(self.org_uuid, 'o/{}/ou')
-        for unit in tqdm(units['items'], desc="Update roles"):
-            for validity in ['past', 'present', 'future']:
-                url = 'ou/{}/details/role?validity=' + validity
-                roles = self.helper._mo_lookup(unit['uuid'], url)
-                for role in roles:
-                    self.role_cache.append(
-                        {
-                            'uuid': role['uuid'],
-                            'person': role['person']['uuid'],
-                            'validity': role['validity'],
-                            'role_type': role['role_type']['uuid'],
-                            'role_type_text': role['role_type']['name']
-                        }
-                    )
-
-        self.latest_date = latest_date
+        self.xml_date = xml_date
         self.units = None
         self.employees = None
         logger.info('__init__ done, now start export')
@@ -141,6 +123,9 @@ class OpusDiffImport(object):
             types_dict[class_type['user_key']] = class_type['uuid']
         return types_dict, facet
 
+    def _get_mora_helper(self, hostname="localhost:5000", use_cache=False):
+        return MoraHelper(hostname=self.settings['mora.base'], use_cache=False)
+
     # This exact function also exists in sd_changed_at
     def _assert(self, response):
         """ Check response is as expected """
@@ -150,14 +135,6 @@ class OpusDiffImport(object):
             assert response.text.find('not give raise to a new registration') > 0
             logger.debug('Requst had no effect')
         return None
-
-    def parser(self, target_file, filter_ids):
-        data = xmltodict.parse(target_file.read_text())['kmd']
-        units = data['orgUnit'][1:]
-        units = opus_helpers.filter_units(units, filter_ids)
-        employees = data['employee']
-        return units, employees
-
 
     def _add_klasse_to_lora(self, klasse_name, facet_uuid):
         klasse_uuid = opus_helpers.generate_uuid(klasse_name)
@@ -227,7 +204,7 @@ class OpusDiffImport(object):
             msg = 'Employment ID {} not unique: {}'.format(bvn, uuids)
             logger.error(msg)
             raise EmploymentIdentifierNotUnique(msg)
-        
+
         logger.info('bvn: {}, uuid: {}'.format(bvn, uuids))
         if uuids:
             return uuids[0]
@@ -247,20 +224,8 @@ class OpusDiffImport(object):
         #     to_datetime = datetime.strptime(to_date, '%Y-%m-%d')
 
         from_date = employee['entryDate']
-        if from_date is None:
-            from_date = employee.get('@lastChanged')
-        if not edit and from_date is None:
-            logger.error('Missing start date for employee!')
-            from_date = employee.get('@lastChanged')
-
-        if edit:
-            lastchanged = employee.get('@lastChanged')
-            entry_datetime = datetime.strptime(from_date, '%Y-%m-%d')
-            lastchanged_datetime = datetime.strptime(lastchanged, '%Y-%m-%d')
-
-            if lastchanged_datetime > entry_datetime:
-                from_date = lastchanged
-
+        if (from_date is None) or edit:
+            from_date = self.xml_date.strftime('%Y-%m-%d')
         validity = {
             'from': from_date,
             'to': to_date
@@ -303,14 +268,17 @@ class OpusDiffImport(object):
             else:
                 address_string = employee['address']
                 zip_code = employee["postalCode"]
-                addr_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+                try:
+                    addr_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+                except:
+                    addr_uuid = None
                 if addr_uuid:
                     opus_addresses['dar'] = addr_uuid
                 else:
                     logger.warning('Could not find address in DAR')
         return opus_addresses
 
-    def _perform_address_update(self, args, current, mo_addresses):
+    def _perform_address_update(self, args, current):
         addr_type = args['address_type']['uuid']
         if current is None:  # Create address
             payload = payloads.create_address(**args)
@@ -318,15 +286,14 @@ class OpusDiffImport(object):
                                                                 payload))
             response = self.helper._mo_post('details/create', payload)
             assert response.status_code == 201
-        else:
-            if current == mo_addresses.get(addr_type):  # Nothing changed
-                logger.info('{} not updated'.format(addr_type))
-            else:  # Edit address
-                payload = payloads.edit_address(args, current['uuid'])
-                logger.debug('Edit address {}, payload: {}'.format(addr_type,
-                                                                   payload))
-                response = self.helper._mo_post('details/edit', payload)
-                self._assert(response)
+        elif args.get('value') == current.get('value'):  # Nothing changed
+            logger.info('{} not updated'.format(addr_type))
+        else:  # Edit address
+            payload = payloads.edit_address(args, current['uuid'])
+            logger.debug('Edit address {}, payload: {}'.format(addr_type,
+                                                                payload))
+            response = self.helper._mo_post('details/edit', payload)
+            response.raise_for_status()
 
     def _update_employee_address(self, mo_uuid, employee):
         opus_addresses = self._condense_employee_opus_addresses(employee)
@@ -342,12 +309,12 @@ class OpusDiffImport(object):
                 'address_type': {'uuid': self.employee_address_types[mo_addr_type]},
                 'value': opus_addresses[addr_type],
                 'validity': {
-                    'from': self.latest_date.strftime('%Y-%m-%d'),
+                    'from': self.xml_date.strftime('%Y-%m-%d'),
                     'to': None
                 },
                 'user_uuid': mo_uuid
             }
-            self._perform_address_update(address_args, current, mo_addresses)
+            self._perform_address_update(address_args, current)
 
     def _update_unit_addresses(self, unit):
         calculated_uuid = opus_helpers.generate_uuid(unit['@id'])
@@ -361,14 +328,17 @@ class OpusDiffImport(object):
                 # More than one of this type exist in MO, this is not allowed.
                 msg = 'Inconsistent addresses for unit: {}'
                 logger.error(msg.format(calculated_uuid))
-            if address['value'] not in ('9999999999999', '0000000000'):
-                address_dict[address['type']] = {
+            # if address['value'] not in ('9999999999999', '0000000000'):
+            address_dict[address['type']] = {
                     'value': address['value'],
                     'uuid': address['uuid']
                 }
 
         if unit['street'] and unit['zipCode']:
-            address_uuid = dawa_helper.dawa_lookup(unit['street'], unit['zipCode'])
+            try:
+                address_uuid = dawa_helper.dawa_lookup(unit['street'], unit['zipCode'])
+            except:
+                addr_uuid = None
             if address_uuid:
                 logger.debug('Found DAR uuid: {}'.format(address_uuid))
                 unit['dar'] = address_uuid
@@ -377,7 +347,7 @@ class OpusDiffImport(object):
                                                                 unit['zipCode']))
 
         for addr_type, mo_addr_type in UNIT_ADDRESS_CHECKS.items():
-            # addr_type is the opus name for the address, mo_addr_type 
+            # addr_type is the opus name for the address, mo_addr_type
             # is read from MO
             if unit.get(addr_type) is None:
                 continue
@@ -387,16 +357,17 @@ class OpusDiffImport(object):
                 'address_type': {'uuid': self.org_unit_address_types[mo_addr_type]},
                 'value': unit[addr_type],
                 'validity': {
-                    'from': self.latest_date.strftime('%Y-%m-%d'),
+                    'from': self.xml_date.strftime('%Y-%m-%d'),
                     'to': None
                 },
                 'unit_uuid': str(calculated_uuid)
             }
-            self._perform_address_update(args, current, address_dict)
+            self._perform_address_update(args, current)
 
     def update_unit(self, unit):
         calculated_uuid = opus_helpers.generate_uuid(unit['@id'])
-        parent_uuid = opus_helpers.generate_uuid(unit['parentOrgUnit'])
+        parent_name = unit['parentOrgUnit']
+        parent_uuid = opus_helpers.generate_uuid(parent_name) if parent_name else self.helper.read_organisation()
         mo_unit = self.helper.read_ou(calculated_uuid)
 
         # Default 'Enhed' is the default from the initial import
@@ -409,7 +380,7 @@ class OpusDiffImport(object):
             'unit_uuid': str(calculated_uuid),
             'unit_type': unit_type,
             'parent': str(parent_uuid),
-            'from_date': self.latest_date.strftime('%Y-%m-%d')
+            'from_date': self.xml_date.strftime('%Y-%m-%d')
         }
 
         if mo_unit.get('uuid'):  # Edit
@@ -605,7 +576,7 @@ class OpusDiffImport(object):
                                            employee['subordinateLevel'])
             self._update_manager_level(manager_level)
             manager_level_uuid = self.manager_levels.get(manager_level)
-            manager_type = 'manager_type_' + employee["position"]
+            manager_type = employee["position"]
             self._update_manager_types(manager_type)
             manager_type_uuid = self.manager_types.get(manager_type)
             responsibility_uuid = self.responsibilities.get('Lederansvar')
@@ -676,19 +647,19 @@ class OpusDiffImport(object):
     def update_roller(self, employee):
         cpr = employee['cpr']['#text']
         mo_user = self.helper.read_user(user_cpr=cpr)
-        logger.info('Check {} for updates in Roller'.format(cpr))
+        logger.info('Check {} for updates in Roller'.format(mo_user['uuid']))
         if isinstance(employee['function'], dict):
             opus_roles = [employee['function']]
         else:
             opus_roles = employee['function']
-
+        mo_roles = self.helper._mo_lookup(mo_user['uuid'], 'e/{}/details/role')
         for opus_role in opus_roles:
             opus_end_datetime = datetime.strptime(opus_role['@endDate'], '%Y-%m-%d')
             if opus_role['@endDate'] == '9999-12-31':
                 opus_role['@endDate'] = None
 
             found = False
-            for mo_role in self.role_cache:
+            for mo_role in mo_roles:
                 if 'roleText' in opus_role:
                     combined_role = '{} - {}'.format(opus_role['artText'],
                                                      opus_role['roleText'])
@@ -696,8 +667,8 @@ class OpusDiffImport(object):
                     combined_role = opus_role['artText']
 
                 if (
-                        mo_role['person'] == mo_user['uuid'] and
-                        combined_role == mo_role['role_type_text']
+                        mo_role['person']['uuid'] == mo_user['uuid'] and
+                        combined_role == mo_role['role_type']['name']
                 ):
                     found = True
                     if mo_role['validity']['to'] is None:
@@ -728,7 +699,6 @@ class OpusDiffImport(object):
                             detail_type='role',
                             end_date=opus_end_datetime
                         )
-                    self.role_cache.remove(mo_role)
             if not found:
                 logger.info('Create new role: {}'.format(opus_role))
                 # TODO: We will fail a if  new role-type surfaces
@@ -750,7 +720,7 @@ class OpusDiffImport(object):
     def update_employee(self, employee):
         cpr = employee['cpr']['#text']
         logger.info('----')
-        logger.info('Now updating {}'.format(cpr))
+        logger.info('Now updating {}'.format(employee.get('@id')))
         logger.debug('Available info: {}'.format(employee))
         mo_user = self.helper.read_user(user_cpr=cpr)
 
@@ -785,7 +755,7 @@ class OpusDiffImport(object):
             val_to = datetime.strptime('9999-12-31', '%Y-%m-%d')
             if eng['validity']['to'] is not None:
                 val_to = datetime.strptime(eng['validity']['to'], '%Y-%m-%d')
-            if val_from < self.latest_date < val_to:
+            if val_from < self.xml_date < val_to:
                 logger.info('Found current validty {}'.format(eng['validity']))
                 break
 
@@ -802,7 +772,7 @@ class OpusDiffImport(object):
 
     def terminate_detail(self, uuid, detail_type='engagement', end_date=None):
         if end_date is None:
-            end_date = self.latest_date
+            end_date = self.xml_date
 
         payload = payloads.terminate_detail(
             uuid, end_date.strftime('%Y-%m-%d'), detail_type
@@ -823,10 +793,10 @@ class OpusDiffImport(object):
             else:
                 # Terminate existing roles
                 mo_user = self.helper.read_user(user_cpr=employee['cpr']['#text'])
-                for role in self.role_cache:
-                    if role['person'] == mo_user['uuid']:
-                        logger.info('Terminating role: {}'.format(role))
-                        self.terminate_detail(role['uuid'], detail_type='role')
+                role = self.helper.read_user_roller(mo_user['uuid'])
+                if role['person'] == mo_user['uuid']:
+                    logger.info('Terminating role: {}'.format(role))
+                    self.terminate_detail(role['uuid'], detail_type='role')
         else:  # This is an implicit termination.
             # This is a terminated employee, check if engagement is active
             # terminate if it is.
@@ -843,28 +813,20 @@ class OpusDiffImport(object):
                     self.terminate_detail(org_funk_info['manager'],
                                           detail_type='manager')
 
-    def start_import(self, xml_file, include_terminations=False):
+    def start_import(self, units, employees, include_terminations=False):
         """
         Start an opus import, run the oldest available dump that
         has not already been imported.
         """
-        self.units, self.employees = self.parser(xml_file, self.filter_ids)
 
-        for unit in tqdm(self.units, desc="Update units"):
-            last_changed = datetime.strptime(unit['@lastChanged'], '%Y-%m-%d')
-            # Turns out org-unit updates are sometimes a day off
-            last_changed = last_changed + timedelta(days=1)
-            if last_changed > self.latest_date:
-                self.update_unit(unit)
+        for unit in tqdm(units, desc="Update units"):
+            self.update_unit(unit)
 
-        for employee in tqdm(self.employees, desc="Update employees"):
+        for employee in tqdm(employees, desc="Update employees"):
             last_changed_str = employee.get('@lastChanged')
             if last_changed_str is not None:  # This is a true employee-object.
-                last_changed = datetime.strptime(last_changed_str, '%Y-%m-%d')
-                if last_changed > self.latest_date:
-                    self.update_employee(employee)
+                self.update_employee(employee)
 
-                # Changes to Roller is not included in @lastChanged...
                 if 'function' in employee:
                     self.update_roller(employee)
             else:  # This is an implicit termination.
@@ -886,10 +848,6 @@ class OpusDiffImport(object):
                     if manager_info:
                         self.terminate_detail(manager_info, detail_type='manager')
 
-        for role in self.role_cache:
-            logger.info('Role not found, implicitly terminating {}'.format(role))
-            self.terminate_detail(role['uuid'], detail_type='role')
-
         logger.info('Program ended correctly')
 
 
@@ -910,21 +868,22 @@ def start_opus_diff(ad_reader=None):
 
     if not xml_date:
         return
-
-    xml_file = dumps[xml_date]
+    filter_ids = SETTINGS.get('integrations.opus.units.filter_ids', [])
+    print("Looking for changes...")
+    units, employees = opus_helpers.file_diff(dumps[latest_date], dumps[xml_date], filter_ids)
+    print("Found changes to {} units and {} employees ".format(len(units), len(employees)))
     opus_helpers.local_db_insert((xml_date, 'Running diff update since {}'))
     msg = 'Start update: File: {}, update since: {}'
-    logger.info(msg.format(xml_file, latest_date))
-    print(msg.format(xml_file, latest_date))
-    diff = OpusDiffImport(latest_date, ad_reader=ad_reader,
+    logger.info(msg.format(xml_date, latest_date))
+    print(msg.format(xml_date, latest_date))
+    diff = OpusDiffImport(xml_date, ad_reader=ad_reader,
                                            employee_mapping=employee_mapping)
-    diff.start_import(xml_file, include_terminations=True)
+    diff.start_import(units, employees, include_terminations=True)
     logger.info('Ended update')
     opus_helpers.local_db_insert((xml_date, 'Diff update ended: {}'))
 
-
 if __name__ == '__main__':
-    
+
     SETTINGS = load_settings()
 
     ad_reader = ad_reader.ADParameterReader()

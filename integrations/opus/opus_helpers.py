@@ -8,16 +8,22 @@ import sqlite3
 import uuid
 from operator import itemgetter
 from pathlib import Path
-
+from typing import Dict, List, Tuple
+from functools import lru_cache
 import xmltodict
+from deepdiff import DeepDiff
+from tqdm import tqdm
 
 from exporters.utils.load_settings import load_settings
 from integrations import cpr_mapper
 from integrations.opus import opus_diff_import, opus_import
+
 # from integrations.opus.opus_exceptions import NoNewerDumpAvailable
-from integrations.opus.opus_exceptions import (ImporterrunNotCompleted,
-                                               RedundantForceException,
-                                               RunDBInitException)
+from integrations.opus.opus_exceptions import (
+    ImporterrunNotCompleted,
+    RedundantForceException,
+    RunDBInitException,
+)
 
 SETTINGS = load_settings()
 DUMP_PATH = Path(SETTINGS['integrations.opus.import.xml_path'])
@@ -111,7 +117,7 @@ def parse_phone(phone_number):
         logger.warning('Could not parse phone {}'.format(phone_number))
     return validated_phone
 
-
+@lru_cache(maxsize=None)
 def generate_uuid(value):
     """
     Generate a predictable uuid based on org name and a unique value.
@@ -126,8 +132,69 @@ def generate_uuid(value):
     value_uuid = uuid.UUID(value_digest)
     return value_uuid
 
+def parser(target_file: Path, filter_ids: List[str]) -> Tuple[Dict, Dict]:
+    data = xmltodict.parse(target_file.read_text())['kmd']
+    units = data['orgUnit']
+    units = filter_units(units, filter_ids)
+    employees = data['employee']
+    return units, employees
 
 
+def find_changes(before: List[Dict], after: List[Dict], disable_tqdm: bool = False) -> List[Dict]:
+    """Filter a list of dictionaries based on differences to another list of dictionaries
+    Used to find changes to org_units and employees in opus files.
+    Any registration in lastChanged is ignored here.
+    Use disable_tqdm in tests etc.
+
+    Returns: list of dictionaries from 'after' where there are changes from 'before'
+    >>> a = [{"@id":1, "text":"unchanged", '@lastChanged': 'some day'}, {"@id":2, "text":"before", '@lastChanged':'today'}]
+    >>> b = [{"@id":1, "text":"unchanged", '@lastChanged': 'another day'}, {"@id":2, "text":"after"}]
+    >>> c = [{"@id":1, "text":"unchanged", '@lastChanged': 'another day'}]
+    >>> find_changes(a, a, disable_tqdm=True)
+    []
+    >>> find_changes(a, b, disable_tqdm=True)
+    [{'@id': 2, 'text': 'after'}]
+    >>> find_changes(b, a, disable_tqdm=True)
+    [{'@id': 2, 'text': 'before', '@lastChanged': 'today'}]
+    >>> find_changes(a, c, disable_tqdm=True)
+    []
+    """
+    old_ids = list(map(itemgetter('@id'), before))
+    old_map = dict(zip(old_ids, before))
+    changed_obj = []
+    def find_changed(obj: Dict) -> bool:
+       # New object
+       if obj['@id'] not in old_ids:
+           return True
+
+       old_obj = old_map[obj['@id']]
+       diff = DeepDiff(
+           obj, old_obj, exclude_paths={
+               "root['@lastChanged']", "root['numerator']", "root['denominator']"
+           }
+       )
+       # Changed object
+       if diff:
+           return True
+
+       # Unchanged object
+       return False
+
+    after = tqdm(after, desc="Finding changes", disable=disable_tqdm)
+    changed_obj = list(filter(find_changed, after))
+
+    return changed_obj
+
+def file_diff(date1, date2, filter_ids, disable_tqdm=False):
+    units1 = employees1 = {}
+    if date1:
+        units1, employees1 = parser(date1, filter_ids)
+    units2, employees2 = parser(date2, filter_ids)
+
+    units = find_changes(units1, units2, disable_tqdm=disable_tqdm)
+    employees = find_changes(employees1, employees2, disable_tqdm=disable_tqdm)
+
+    return units, employees
 
 def read_dump_data(dump_file):
     cache_file = pathlib.Path.cwd() / 'tmp' / (dump_file.stem + '.p')
