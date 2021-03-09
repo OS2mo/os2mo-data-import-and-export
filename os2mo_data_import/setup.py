@@ -37,5 +37,6 @@ setup(
         "requests",
         "xlsxwriter",
         "xmltodict",
+        "more_itertools",
     ]
 )
