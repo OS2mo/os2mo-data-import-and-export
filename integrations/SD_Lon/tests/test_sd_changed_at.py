@@ -46,9 +46,7 @@ def setup_sd_changed_at(updates=None):
     start_date = today
 
     # TODO: Consider interfacing these off in seperate methods inside ChangeAtSD
-    with patch(
-        "integrations.SD_Lon.sd_changed_at.primary_types", autospec=True
-    ) as pt:
+    with patch("integrations.SD_Lon.sd_changed_at.primary_types", autospec=True) as pt:
         with patch(
             "integrations.SD_Lon.sd_changed_at.MOPrimaryEngagementUpdater",
             autospec=True,
@@ -419,13 +417,9 @@ class Test_sd_changed_at(unittest.TestCase):
 
             self.assertFalse(sd_updater.create_new_engagement.called)
             sd_updater.update_all_employments()
-            sd_updater.create_new_engagement.assert_called_with(
-                engagement, status, cpr
-            )
+            sd_updater.create_new_engagement.assert_called_with(engagement, status, cpr)
         elif status == "S":  # Deletes call terminante engagement
-            morahelper.read_user_engagement.return_value = [
-                {"user_key": employment_id}
-            ]
+            morahelper.read_user_engagement.return_value = [{"user_key": employment_id}]
             sd_updater._terminate_engagement = MagicMock()
 
             status = read_employment_result[0]["Employment"]["EmploymentStatus"]
@@ -715,17 +709,13 @@ class Test_sd_changed_at(unittest.TestCase):
         """Test that job_function only has two valid values."""
         if exception:
             with self.assertRaises(exception):
-                setup_sd_changed_at(
-                    {"integrations.SD_Lon.job_function": job_function}
-                )
+                setup_sd_changed_at({"integrations.SD_Lon.job_function": job_function})
         else:
             setup_sd_changed_at({"integrations.SD_Lon.job_function": job_function})
 
     @given(job_position=st.integers(), no_salary_minimum=st.integers())
     @patch("integrations.SD_Lon.sd_changed_at.sd_payloads", autospec=True)
-    def test_construct_object(
-        self, sd_payloads_mock, job_position, no_salary_minimum
-    ):
+    def test_construct_object(self, sd_payloads_mock, job_position, no_salary_minimum):
         expected = no_salary_minimum is not None
         expected = expected and job_position < no_salary_minimum
         expected = not expected
@@ -800,9 +790,7 @@ class Test_sd_changed_at(unittest.TestCase):
             self.assertEqual(len(sd_updater.engagement_types), 3)
             sd_updater._create_class.assert_called_once()
             sd_updater.job_sync.sync_from_sd.assert_called_once()
-            self.assertIn(
-                "engagement_type" + str(job_id), sd_updater.engagement_types
-            )
+            self.assertIn("engagement_type" + str(job_id), sd_updater.engagement_types)
             self.assertEqual(engagement_type_uuid, "new_class_uuid")
 
     def test_edit_engagement(self):
@@ -848,9 +836,7 @@ class Test_sd_changed_at(unittest.TestCase):
         sd_updater._create_engagement_type = MagicMock(
             wraps=sd_updater._create_engagement_type
         )
-        sd_updater._create_professions = MagicMock(
-            wraps=sd_updater._create_professions
-        )
+        sd_updater._create_professions = MagicMock(wraps=sd_updater._create_professions)
         # Return 1 on first call, 2 on second call
         sd_updater._create_class.side_effect = [
             "new_class_1_uuid",
