@@ -572,7 +572,7 @@ class AdMoSync(object):
             # Run all pre filters
             for pre_filter in self.pre_filters:
                 employees = filter(pre_filter, employees)
-            # Call update_single_user on each remaining user
+            # Call update_single_user on each remaining users
             for uuid, ad_object in employees:
                 self._update_single_user(uuid, ad_object, terminate_disabled)
             # Call terminate on each missing user
