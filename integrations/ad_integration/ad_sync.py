@@ -68,7 +68,7 @@ class AdMoSync(object):
         # Check that the configured visibilities are found in MO
         configured_visibilities = set(self.visibility.values())
         mo_visibilities = set(map(itemgetter('uuid'), mo_visibilities))
-        # If the configured visibiltities are not a subset, atleast one is missing.
+        # If the configured visibiltities are not a subset, at least one is missing.
         if not configured_visibilities.issubset(mo_visibilities):
             raise Exception('Error in visibility class configuration')
 
