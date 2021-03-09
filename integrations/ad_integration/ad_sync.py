@@ -451,7 +451,7 @@ class AdMoSync(object):
         user_enabled = ad_object.get('Enabled', True)
 
         # If terminate_disabled is None, we decide on a per-user basis using the
-        # terminate_disabled_filters, by invariant we atleast one exist.
+        # terminate_disabled_filters, by invariant we at least one exist.
         if terminate_disabled is None:
             terminate_disabled = all(
                 terminate_disabled_filter((uuid, ad_object))
