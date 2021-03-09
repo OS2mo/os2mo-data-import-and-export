@@ -430,7 +430,7 @@ Denne nøgle indeholder en liste af jinja templates.
 Disse templates kan returnere en sand værdi for at beholde brugeren, eller en
 falsk værdi for filtrere brugeren fra.
 Kun hvis samtlige filtre returnerer sand vil brugeren blive beholdt, hvis blot ét
-af filtrene returnere falsk vil brugeren i stedet blive filtreret fra.
+af filtrene returnerer falsk vil brugeren i stedet blive filtreret fra.
 Resultaterne for evaluering af filtrene sammenholdes altså med en 'AND' operation.
 
    Eksempel 1:
