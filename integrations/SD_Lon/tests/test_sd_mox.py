@@ -158,9 +158,7 @@ class Tests(unittest.TestCase):
                 parent=pc["parent"]["uuid"],
             )
             # print(actual)
-            self.assertEqual(
-                expected, xmltodict.parse(actual, dict_constructor=dict)
-            )
+            self.assertEqual(expected, xmltodict.parse(actual, dict_constructor=dict))
 
     def test_payload_edit_simple(self):
         pe = self.mox.payload_edit(
@@ -194,9 +192,7 @@ class Tests(unittest.TestCase):
         with freezegun.freeze_time("2020-01-01 12:00:00"):
             actual = self.mox._create_xml_ret(**pe)
             # print(actual)
-            self.assertEqual(
-                expected, xmltodict.parse(actual, dict_constructor=dict)
-            )
+            self.assertEqual(expected, xmltodict.parse(actual, dict_constructor=dict))
 
     def test_payload_edit_address(self):
         pe = self.mox.payload_edit(
@@ -256,9 +252,7 @@ class Tests(unittest.TestCase):
         with freezegun.freeze_time("2020-01-01 12:00:00"):
             actual = self.mox._create_xml_ret(**pe)
             # print(actual)
-            self.assertEqual(
-                expected, xmltodict.parse(actual, dict_constructor=dict)
-            )
+            self.assertEqual(expected, xmltodict.parse(actual, dict_constructor=dict))
 
     def test_payload_edit_integration_values(self):
         pe = self.mox.payload_edit(
@@ -299,15 +293,11 @@ class Tests(unittest.TestCase):
             pe,
         )
 
-        expected = xmltodict.parse(
-            xml_edit_integration_values, dict_constructor=dict
-        )
+        expected = xmltodict.parse(xml_edit_integration_values, dict_constructor=dict)
         with freezegun.freeze_time("2020-01-01 12:00:00"):
             actual = self.mox._create_xml_ret(**pe)
             # print(actual)
-            self.assertEqual(
-                expected, xmltodict.parse(actual, dict_constructor=dict)
-            )
+            self.assertEqual(expected, xmltodict.parse(actual, dict_constructor=dict))
 
     def test_payload_move_orgunit(self):
         pc = self.mox.payload_create(
@@ -347,6 +337,4 @@ class Tests(unittest.TestCase):
                 parent_unit_uuid=pc["parent"]["uuid"],
             )
             # print(actual)
-            self.assertEqual(
-                expected, xmltodict.parse(actual, dict_constructor=dict)
-            )
+            self.assertEqual(expected, xmltodict.parse(actual, dict_constructor=dict))

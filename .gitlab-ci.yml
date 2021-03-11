@@ -67,8 +67,8 @@ Lint SDLoen Integration:
   extends: .lint-python
   script:
     - cd integrations/SD_Lon/
-    - python -m black --diff --line-length 85 --check db_overview.py sd_cli.py sd_common.py tests/*
-    - python -m isort --diff --check-only db_overview.py sd_cli.py sd_common.py tests/*
+    - python -m black --diff --check fix_departments.py db_overview.py sd_cli.py sd_common.py tests/*
+    - python -m isort --profile black --diff --check-only fix_departments.py db_overview.py sd_cli.py sd_common.py tests/*
 
 Lint OPUS Org Tree Print:
   extends: .lint-python
