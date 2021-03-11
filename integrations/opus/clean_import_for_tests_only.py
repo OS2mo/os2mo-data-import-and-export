@@ -159,6 +159,7 @@ def import_all(ad_reader=None):
               help="Read from AD")
 def clear_and_reload(import_amount, use_ad):
     if import_amount == 'all':
+        AD = None
         if use_ad:
             AD = ad_reader.ADParameterReader() 
             AD.cache_all()
@@ -168,4 +169,4 @@ def clear_and_reload(import_amount, use_ad):
     
 
 if __name__ == "__main__":
-    import_all(ad_reader=None)
+    clear_and_reload()

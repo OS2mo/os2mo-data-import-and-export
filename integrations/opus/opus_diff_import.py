@@ -350,13 +350,13 @@ class OpusDiffImport(object):
         org_type = unit.get('orgTypeTxt', 'Enhed')
         
         unit_type, _ = self._ensure_class_in_lora('org_unit_type', org_type)
-
+        from_date = unit.get('startDate', self.xml_date.strftime('%Y-%m-%d'))
         unit_args = {
             'unit': unit,
             'unit_uuid': str(calculated_uuid),
             'unit_type': unit_type,
             'parent': str(parent_uuid),
-            'from_date': self.xml_date.strftime('%Y-%m-%d')
+            'from_date': from_date
         }
 
         if mo_unit.get('uuid'):  # Edit
@@ -381,7 +381,7 @@ class OpusDiffImport(object):
         job = employee["position"]
         job_function_uuid, _= self._ensure_class_in_lora('engagement_job_function', job)
 
-        contract = employee.get('workContractText')
+        contract = employee.get('workContractText', 'Ansat')
         engagement_type_uuid, _ = self._ensure_class_in_lora('engagement_type', contract)
         return job_function_uuid, engagement_type_uuid
 
