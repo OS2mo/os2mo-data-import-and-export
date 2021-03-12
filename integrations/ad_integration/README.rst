@@ -372,7 +372,7 @@ brugere får i stedet deres AD data 'afsluttet'.
 Ved afslutning forstås at brugerens AD synkroniserede adresser og it-systemer
 flyttes til fortiden, såfremt de har en åben slutdato.
 
-Hvis nøglen `integrations.ad.ad_mo_sync_terminate_disabled` ikke er granuleret nok,
+Hvis nøglen `integrations.ad.ad_mo_sync_terminate_disabled` ikke er fintmasket nok,
 f.eks. fordi deaktiverede brugere dækker over både brugere som er under oprettelse
 og brugere som er under nedlæggelse, kan et være nødvendigt at tage stilling til
 om en given deaktiveret bruger skal nedlægges eller synkroniseres på baggrund af
