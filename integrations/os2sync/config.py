@@ -1,9 +1,9 @@
 import json
 
 # flake8: noqa
-from customer_settings import PathDefaultMethod, get_settings
+from exporters.utils.load_settings import get_settings_path
 
-settingsfile = get_settings(PathDefaultMethod.raw)
+settingsfile = get_settings_path(method=0)
 
 top_settings = json.loads(settingsfile.read_text())
 
