@@ -2,3 +2,4 @@ more_itertools
 pytest
 parameterized
 hypothesis
+jinja2

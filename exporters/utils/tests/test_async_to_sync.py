@@ -3,8 +3,9 @@ from typing import Tuple
 from unittest import TestCase
 
 import hypothesis.strategies as st
-from exporters.utils.async_to_sync import async_to_sync
 from hypothesis import given
+
+from exporters.utils.async_to_sync import async_to_sync
 
 
 @async_to_sync

@@ -368,16 +368,97 @@ Deaktiverede AD brugere kan håndteres på forskellige måder.
 Som udgangspunkt synkroniseres de på præcis samme vis som almindelige brugere,
 med mindre nøglen `integrations.ad.ad_mo_sync_terminate_disabled` er sat til `True`.
 Hvis dette er tilfælde ophører den automatiske synkronisering, og deaktiverede
-brugere får deres AD data 'afsluttet'.
+brugere får i stedet deres AD data 'afsluttet'.
 Ved afslutning forstås at brugerens AD synkroniserede adresser og it-systemer
 flyttes til fortiden, såfremt de har en åben slutdato.
+
+Hvis nøglen `integrations.ad.ad_mo_sync_terminate_disabled` ikke er fintmasket nok,
+f.eks. fordi deaktiverede brugere dækker over både brugere som er under oprettelse
+og brugere som er under nedlæggelse, kan et være nødvendigt at tage stilling til
+om en given deaktiveret bruger skal nedlægges eller synkroniseres på baggrund af
+AD dataene fra den enkelte bruger.
+
+Dette understøttes vha. `integrations.ad.ad_mo_sync.terminate_disabled_filters` nøglen.
+Denne nøgle indeholder en liste af jinja templates.
+Disse templates kan returnere en sand værdi for at terminere brugeren, eller en
+falsk værdi for at synkronisere brugeren.
+Kun hvis samtlige filtre returnere sand vil brugeren blive termineret, hvis blot ét
+af filtrene returnerer falsk vil brugeren i stedet blive synkroniseret. Resultaterne
+for evaluering af filtrene sammenholdes altså med en 'AND' operation.
+
+Værdierne der vurderes som sande er "yes", "true", "1" og "1.0".
+
+   Eksempel 1:
+
+   Vi ønsker kun at terminere brugere, hvis MO UUID starter med 8 nuller, f.eks.:
+   '00000000-e4fe-47af-8ff6-187bca92f3f9'.
+
+   For at opnå dette kan vi lave følgende konfiguration:
+
+   .. code-block:: json
+
+       {
+           "integrations.ad.ad_mo_sync.terminate_disabled_filters": [
+               "{{ uuid.startswith('00000000') }}"
+           ]
+       }
+
+   Eksempel 2:
+
+   Vi holder i vores AD et extensionAttribute felt til livtidstilstanden af brugerne.
+   Lad os antage at der er tale om feltet `extensionAttribute3`, der kan holde værdierne:
+
+   * `"Ny bruger"`: Som skal synkroniseres
+   * `"På orlov"`: Som skal synkroniseres
+   * `"Under sletning"`: Som skal termineres
+
+   Vi ønsker altså at termineringsadfærden skal afledes af feltets værdi i AD.
+
+   For at opnå dette kan vi lave følgende konfiguration:
+
+   .. code-block:: json
+
+       {
+           "integrations.ad.ad_mo_sync.terminate_disabled_filters": [
+               "{{ ad_object['extenionAttribute3'] == 'Under sletning' }}"
+           ]
+       }
+
+Såfremt nogle brugere hverken ønskes terminerede eller synkroniserede kan de
+filtreres fra vha. `integrations.ad.ad_mo_sync.pre_filters` nøglen.
+Denne nøgle indeholder en liste af jinja templates.
+Disse templates kan returnere en sand værdi for at beholde brugeren, eller en
+falsk værdi for filtrere brugeren fra.
+Kun hvis samtlige filtre returnerer sand vil brugeren blive beholdt, hvis blot ét
+af filtrene returnerer falsk vil brugeren i stedet blive filtreret fra.
+Resultaterne for evaluering af filtrene sammenholdes altså med en 'AND' operation.
+
+   Eksempel 1:
+
+   I det forrige Eksempel 2 så vi på en situation hvor et AD felt benyttes til at
+   afgøre om hvorvidt brugere skulle termineres eller synkroniseres.
+
+   Lad os antage at vi stadig har konfigurationen herfra i vores settings.json fil,
+   men nu ønsker slet ikke at synkronisere `"På orlov"` brugerne overhovedet.
+
+   For at opnå dette kan vi lave følgende konfiguration:
+
+   .. code-block:: json
+
+       {
+           "integrations.ad.ad_mo_sync.terminate_disabled_filters": [
+               "{{ ad_object['extenionAttribute3'] == 'Under sletning' }}"
+           ],
+           "integrations.ad.ad_mo_sync.pre_filters": [
+               "{{ ad_object['extenionAttribute3'] != 'På orlov' }}"
+           ]
+       }
 
 Slutteligt skal det nævnes, at implemeneringen af synkroniseringen understøtter
 muligheden for at opnå en betydelig hastighedsforbering ved at tillade direkte adgang
 til LoRa, denne funktion aktiveres med nøglen
-`integrations.ad.ad_mo_sync_direct_lora_speedup` og reducerer kørselstiden
-betragteligt. Hvis der er få ændringer vil afviklingstiden komme ned på nogle få
-minutter.
+`integrations.ad.ad_mo_sync_direct_lora_speedup` og reducerer kørselstiden betragteligt.
+Hvis der er få ændringer vil afviklingstiden komme ned på nogle få minutter.
 
 MO til AD
 +++++++++

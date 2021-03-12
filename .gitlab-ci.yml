@@ -87,9 +87,10 @@ Lint Reports:
 Lint Exporter Utils:
   extends: .lint-python
   script:
+    - python -m isort --diff --check-only --profile black exporters/utils/*.py exporters/utils/tests/*.py
     - cd exporters/utils/
-    - python -m black --diff --line-length 85 --check *.py tests/*.py
-    - python -m isort --diff --check-only *.py tests/*.py
+    - python -m black --diff --check *.py tests/*.py
+
 
 Lint Tools:
   extends: .lint-python
