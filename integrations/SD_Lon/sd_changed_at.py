@@ -1,3 +1,4 @@
+import sys
 import click
 import json
 import logging
@@ -736,6 +737,31 @@ class ChangeAtSD:
 
             logger.debug('Validity of this department change: {}'.format(validity))
             org_unit = department['DepartmentUUIDIdentifier']
+            if org_unit is None:
+                logger.warning(
+                    "DepartmentUUIDIdentifier was None, attempting GetDepartment"
+                )
+                # This code should not be necessary, but SD returns bad data.
+                # Sometimes the UUID is missing, even if it can be looked up?
+                url = 'GetDepartment20111201'
+                params = {
+                    'ActivationDate': self.from_date.strftime('%d.%m.%Y'),
+                    'DeactivationDate': self.from_date.strftime('%d.%m.%Y'),
+                    'DepartmentNameIndicator': 'true',
+                    'UUIDIndicator': 'true',
+                    'DepartmentIdentifier': department['DepartmentIdentifier']
+                }
+                response = sd_lookup(url, params)
+                logger.warning(
+                    "GetDepartment returned: {}".format(response)
+                )
+                org_unit = response["Department"]["DepartmentUUIDIdentifier"]
+                if org_unit is None:
+                    logger.fatal(
+                        "DepartmentUUIDIdentifier was None inside failover."
+                    )
+                    sys.exit(1)
+
             associations = self.helper.read_user_association(self.mo_person['uuid'],
                                                              read_all=True)
             logger.debug('User associations: {}'.format(associations))
