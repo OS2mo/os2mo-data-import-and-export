@@ -16,3 +16,7 @@ addresses_unit_ean = "EAN"
 addresses_unit_pnr = "Pnummer"
 addresses_unit_phoneNumber = "PhoneUnit"
 addresses_unit_dar = "AddressPostUnit"
+
+# LoRaCache
+lc_for_jobs_actual_db_name = "ActualState"
+
