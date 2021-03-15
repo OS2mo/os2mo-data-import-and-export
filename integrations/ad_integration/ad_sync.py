@@ -8,7 +8,7 @@ from functools import partial
 
 from more_itertools import only, partition
 from tqdm import tqdm
-from typing import Any, Iterator, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, Optional, Tuple, Union
 
 import ad_reader as adreader
 import ad_logger
@@ -79,7 +79,7 @@ class AddressDecisionList:
         self._visibility = visibility
         self._decisions = self._build()
 
-    def __iter__(self) -> Iterator[Tuple[str, Union[dict, None], Optional[Any]]]:
+    def __iter__(self) -> Iterator[Tuple[str, Optional[Dict], Optional[Any]]]:
         return self._decisions
 
     def _build(self):
@@ -112,16 +112,16 @@ class AddressDecisionList:
                     yield (self.TERMINATE, address)
                 continue
 
-            # At this point we know that AD has a value, partition on whether
-            # MO addresses match.
-            _no_differs, differs = partition(
+            # At this point we know that AD has a value for this field.
+            # Only process the MO addresses that differ from AD.
+            differing_addresses = filter(
                 partial(self._mo_and_ad_differs, field),
-                user_addresses
+                user_addresses,
             )
 
-            # First element in `differs` is edited, and all other elements
-            # are terminated.
-            first_address = next(differs, None)
+            # First element in `differing_addresses` is edited, and all other
+            # elements are terminated.
+            first_address = next(differing_addresses, None)
             if first_address:
                 yield (
                     self.EDIT,
@@ -129,13 +129,15 @@ class AddressDecisionList:
                     self._ad_object[field],
                     (address_type_uuid, visibility_uuid),
                 )
-            for address in differs:
+            for address in differing_addresses:
                 yield (self.TERMINATE, address)
 
-    def _mo_and_ad_differs(self, field, address):
+    def _mo_and_ad_differs(self, field: str, address: dict) -> bool:
         return address['value'] != self._ad_object[field]
 
-    def _match_address(self, address_type_uuid, visibility_uuid, address):
+    def _match_address(
+        self, address_type_uuid: str, visibility_uuid: str, address: dict
+    ) -> bool:
         return (
             address is not None
             and
@@ -144,11 +146,11 @@ class AddressDecisionList:
             self._match_address_visibility(visibility_uuid, address)
         )
 
-    def _match_address_type_uuid(self, address_type_uuid, address):
+    def _match_address_type_uuid(self, address_type_uuid, address) -> bool:
         # Filter out addresses with wrong type
         return address['address_type']['uuid'] == address_type_uuid
 
-    def _match_address_visibility(self, visibility_uuid, address):
+    def _match_address_visibility(self, visibility_uuid, address) -> bool:
         # Filter out addresses with wrong visibility
         return (
             visibility_uuid is None
