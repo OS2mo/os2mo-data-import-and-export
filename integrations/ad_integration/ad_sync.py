@@ -2,11 +2,13 @@ import json
 import pathlib
 import logging
 from datetime import datetime
+from functools import partial
 from operator import itemgetter
 from functools import partial
 
 from more_itertools import only, partition
 from tqdm import tqdm
+from typing import Any, Iterator, Optional, Tuple, Union
 
 import ad_reader as adreader
 import ad_logger
@@ -77,44 +79,21 @@ class AddressDecisionList:
         self._visibility = visibility
         self._decisions = self._build()
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Tuple[str, Union[dict, None], Optional[Any]]]:
         return self._decisions
 
     def _build(self):
         for field, (address_type_uuid, visibility_uuid) in self._address_mapping.items():
-            edit = None
-            terminate = None
-            noop = None
+            user_addresses = list(
+                filter(
+                    partial(self._match_address, address_type_uuid, visibility_uuid),
+                    self._user_addresses
+                )
+            )
 
-            # Loop over all existing MO addresses, and find out which need to
-            # be edited or terminated.
-            for address in self._user_addresses:
-                if self._match_address(address, address_type_uuid, visibility_uuid):
-                    if (edit is None) and self._ad_object.get(field):
-                        if self._mo_and_ad_differs(address, field):
-                            edit = address
-                            # Address in AD differs from MO: yield a MO
-                            # address edit.
-                            yield (
-                                self.EDIT,
-                                address,
-                                self._ad_object[field],
-                                (address_type_uuid, visibility_uuid),
-                            )
-                        else:
-                            # Address in AD is same as in MO: do nothing, but
-                            # remember that we processed this address.
-                            noop = address
-                    else:
-                        # We have already yielded one MO address edit, and
-                        # this address no longer exists in AD: yield a MO
-                        # address termination.
-                        terminate = address
-                        yield (self.TERMINATE, address)
-
-            # We looped over all existing MO addresses, but did nothing yet.
-            if (edit is None) and (terminate is None) and (noop is None):
-                # The field exists in AD but there's no corresponding MO
+            # No corresponding MO addresses found, let's create one
+            if not user_addresses:
+                # The field exists in AD, but there's no corresponding MO
                 # address.
                 if self._ad_object.get(field):
                     # Yield a MO address creation.
@@ -125,24 +104,51 @@ class AddressDecisionList:
                         self._ad_object[field],
                         (address_type_uuid, visibility_uuid),
                     )
+                    continue
 
-    def _mo_and_ad_differs(self, address, field):
+            # Field not in AD, terminate all corresponding MO addresses
+            if self._ad_object.get(field) is None:
+                for address in user_addresses:
+                    yield (self.TERMINATE, address)
+                continue
+
+            # At this point we know that AD has a value, partition on whether
+            # MO addresses match.
+            _no_differs, differs = partition(
+                partial(self._mo_and_ad_differs, field),
+                user_addresses
+            )
+
+            # First element in `differs` is edited, and all other elements
+            # are terminated.
+            first_address = next(differs, None)
+            if first_address:
+                yield (
+                    self.EDIT,
+                    first_address,
+                    self._ad_object[field],
+                    (address_type_uuid, visibility_uuid),
+                )
+            for address in differs:
+                yield (self.TERMINATE, address)
+
+    def _mo_and_ad_differs(self, field, address):
         return address['value'] != self._ad_object[field]
 
-    def _match_address(self, address, address_type_uuid, visibility_uuid):
+    def _match_address(self, address_type_uuid, visibility_uuid, address):
         return (
             address is not None
             and
-            self._match_address_type_uuid(address, address_type_uuid)
+            self._match_address_type_uuid(address_type_uuid, address)
             and
-            self._match_address_visibility(address, address_type_uuid)
+            self._match_address_visibility(visibility_uuid, address)
         )
 
-    def _match_address_type_uuid(self, address, address_type_uuid):
+    def _match_address_type_uuid(self, address_type_uuid, address):
         # Filter out addresses with wrong type
         return address['address_type']['uuid'] == address_type_uuid
 
-    def _match_address_visibility(self, address, visibility_uuid):
+    def _match_address_visibility(self, visibility_uuid, address):
         # Filter out addresses with wrong visibility
         return (
             visibility_uuid is None
