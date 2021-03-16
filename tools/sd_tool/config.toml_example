@@ -1,0 +1,5 @@
+# The script to be run
+script = ""
+
+# The subpath where the app is running
+script_name = "/sdtool"
