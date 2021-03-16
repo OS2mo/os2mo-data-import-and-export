@@ -18,14 +18,11 @@ from os2mo_data_import import ImportHelper
 
 
 def perform_setup(settings=None) -> None:
-    """Setup all necessary classes etc to perform opus-import.
-    
-    
-    """
+    """Setup all necessary classes etc to perform opus-import."""
     settings = settings or load_settings()
     mox_base = settings.get("mox.base", "http://localhost:8080")
     mora_base = settings.get("mora.base", "http://localhost:5000")
-    
+
     # Init
     os2mo = ImportHelper(
         create_defaults=True,
@@ -37,27 +34,52 @@ def perform_setup(settings=None) -> None:
     # The Organisation class is the main entry point,
     # It exposes the related sub classes such as:
     # Facet, Klasse, Itsystem, OrganisationUnit, Employee
-    main_name = settings.get('municipality.name', 'Magenta APS')
+    main_name = settings.get("municipality.name", "Magenta APS")
     main_uuid = opus_helpers.generate_uuid(main_name)
     os2mo.add_organisation(
         identifier=main_name,
         uuid=str(main_uuid),
         user_key=main_name,
-        municipality_code=settings.get('municipality.code', 1234),
+        municipality_code=settings.get("municipality.code", 1234),
     )
 
     # Add klasse with reference to facet "org_unit_type"
     classes_to_create = [
-        {"identifier": "primary", "facet_type_ref": "primary_type", "title": "primary"},
+        {
+            "identifier": "primary",
+            "facet_type_ref": "primary_type",
+            "title": "Ansat",
+            "scope": "3000",
+        },
         {
             "identifier": "non-primary",
             "facet_type_ref": "primary_type",
-            "title": "non-primary",
+            "title": "Ikke-primær ansættelse",
+            "scope": "0",
         },
         {
             "identifier": "explicitly-primary",
             "facet_type_ref": "primary_type",
-            "title": "explicitly-primary",
+            "title": "Manuelt primær ansættelse",
+            "scope": "5000",
+        },
+        {
+            "identifier": "Intern",
+            "facet_type_ref": "visibility",
+            "title": "Må vises internt",
+            "scope": "INTERNAL",
+        },
+        {
+            "identifier": "Public",
+            "facet_type_ref": "visibility",
+            "title": "Må vises eksternt",
+            "scope": "PUBLIC",
+        },
+        {
+            "identifier": "Secret",
+            "facet_type_ref": "visibility",
+            "title": "Hemmelig",
+            "scope": "SECRET",
         },
         {
             "identifier": "AD-AdressePostEmployee",
@@ -97,6 +119,7 @@ def truncate_db(MOX_BASE="http://localhost:8080"):
     r = requests.get(MOX_BASE + "/db/truncate")
     r.raise_for_status()
 
+
 def read_all_files(filter_ids):
     """Create full list of data to write to MO.
 
@@ -126,7 +149,7 @@ def setup_new_mo(settings=load_settings()):
     """
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
 
-    truncate_db(settings.get('mox.base'))
+    truncate_db(settings.get("mox.base"))
 
     # Setup classes and root organisation
     perform_setup(settings=settings)
@@ -148,25 +171,28 @@ def import_all(ad_reader=None):
             date, ad_reader=ad_reader, employee_mapping=employee_mapping
         )
         diff.start_import(units, employees, include_terminations=True)
-        #Write latest successful import to rundb so opus_diff_import can continue from where this ended
-        opus_helpers.local_db_insert((date, 'Diff update ended: {}'))
+        # Write latest successful import to rundb so opus_diff_import can continue from where this ended
+        opus_helpers.local_db_insert((date, "Diff update ended: {}"))
 
 
 @click.command()
-@click.option('--import-amount',
-              type=click.Choice(['none', 'all'], case_sensitive=False), required=True)
-@click.option('--use-ad', is_flag=True, type=click.BOOL, default=False,
-              help="Read from AD")
+@click.option(
+    "--import-amount",
+    type=click.Choice(["none", "all"], case_sensitive=False),
+    required=True,
+)
+@click.option(
+    "--use-ad", is_flag=True, type=click.BOOL, default=False, help="Read from AD"
+)
 def clear_and_reload(import_amount, use_ad):
-    if import_amount == 'all':
+    if import_amount == "all":
         AD = None
         if use_ad:
-            AD = ad_reader.ADParameterReader() 
+            AD = ad_reader.ADParameterReader()
             AD.cache_all()
         import_all(ad_reader=AD)
     else:
         setup_new_mo()
-    
 
 if __name__ == "__main__":
     clear_and_reload()

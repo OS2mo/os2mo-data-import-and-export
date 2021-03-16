@@ -1,7 +1,6 @@
 import json
 import logging
 from datetime import datetime, timedelta
-from functools import lru_cache
 from operator import itemgetter
 from pathlib import Path
 from typing import Tuple
@@ -9,7 +8,6 @@ import click
 import requests
 import xmltodict
 from mox_helpers import mox_util
-from mox_helpers.utils import async_to_sync
 from os2mo_helpers.mora_helpers import MoraHelper
 from requests import Session
 from tqdm import tqdm
@@ -137,24 +135,6 @@ class OpusDiffImport(object):
         assert response.status_code == 200
         return response.json()
 
-    @lru_cache(maxsize=None)
-    @async_to_sync
-    async def _ensure_class_in_lora(self, facet: str, klasse: str, **kwargs) -> Tuple[str, bool]:
-        """Ensures class exists in lora.
-
-        Returns the uuid of the existing class or creates it and returns uuid of the new class. 
-        Uses mox_utils ensure_class_exists but caches results, so subsequent calls with same parameters 
-        will return the correct uuid without any calls to lora.
-        Returns a tuple contaning a uuid of the class and a boolean of wether it was created or not.
-        Remember that the 'created' boolean is also cached so it will only show if it was created the first time this was called.
-        Example:
-            uuid, _ = self._ensure_class_in_lora('org_unit_type', 'Enhed')
-        """
-        logger.info(f"Creating a new {facet} called {klasse} if it dosn't already exist")
-
-        scope = predefined_scopes.get(klasse)
-        response = await mox_util.ensure_class_exists_helper(bvn=klasse, title=klasse, facet_bvn=facet, scope=scope)
-        return response
 
     def _get_organisationfunktion(self, lora_uuid):
         resource = '/organisation/organisationfunktion/{}'
@@ -278,7 +258,7 @@ class OpusDiffImport(object):
             if opus_addresses.get(addr_type) is None:
                 continue
 
-            addr_type_uuid, _ = self._ensure_class_in_lora('employee_address_type', mo_addr_type)
+            addr_type_uuid, _ = mox_util.ensure_class_in_lora('employee_address_type', mo_addr_type, scope = predefined_scopes.get(mo_addr_type))
             current = mo_addresses.get(addr_type_uuid)
             address_args = {
                 'address_type': {'uuid': addr_type_uuid},
@@ -327,7 +307,7 @@ class OpusDiffImport(object):
             if unit.get(addr_type) is None:
                 continue
 
-            addr_type_uuid, _ = self._ensure_class_in_lora('org_unit_address_type', mo_addr_type)
+            addr_type_uuid, _ = mox_util.ensure_class_in_lora('org_unit_address_type', mo_addr_type, scope = predefined_scopes.get(mo_addr_type))
             current = address_dict.get(addr_type_uuid)
             args = {
                 'address_type': {'uuid': addr_type_uuid},
@@ -348,8 +328,8 @@ class OpusDiffImport(object):
 
         # Default 'Enhed' is the default from the initial import
         org_type = unit.get('orgTypeTxt', 'Enhed')
-        
-        unit_type, _ = self._ensure_class_in_lora('org_unit_type', org_type)
+
+        unit_type, _ = mox_util.ensure_class_in_lora('org_unit_type', org_type)
         from_date = unit.get('startDate', self.xml_date.strftime('%Y-%m-%d'))
         unit_args = {
             'unit': unit,
@@ -379,10 +359,10 @@ class OpusDiffImport(object):
 
     def _job_and_engagement_type(self, employee):
         job = employee["position"]
-        job_function_uuid, _= self._ensure_class_in_lora('engagement_job_function', job)
+        job_function_uuid, _= mox_util.ensure_class_in_lora('engagement_job_function', job)
 
         contract = employee.get('workContractText', 'Ansat')
-        engagement_type_uuid, _ = self._ensure_class_in_lora('engagement_type', contract)
+        engagement_type_uuid, _ = mox_util.ensure_class_in_lora('engagement_type', contract)
         return job_function_uuid, engagement_type_uuid
 
     def update_engagement(self, engagement, employee):
@@ -547,10 +527,10 @@ class OpusDiffImport(object):
         if employee['isManager'] == 'true':
             manager_level = '{}.{}'.format(employee['superiorLevel'],
                                            employee['subordinateLevel'])
-            manager_level_uuid, _ = self._ensure_class_in_lora('manager_level', manager_level)
+            manager_level_uuid, _ = mox_util.ensure_class_in_lora('manager_level', manager_level)
             manager_type = employee["position"]
-            manager_type_uuid, _ = self._ensure_class_in_lora('manager_type', manager_type)
-            responsibility_uuid, _ = self._ensure_class_in_lora('responsibility', 'Lederansvar')
+            manager_type_uuid, _ = mox_util.ensure_class_in_lora('manager_type', manager_type)
+            responsibility_uuid, _ = mox_util.ensure_class_in_lora('responsibility', 'Lederansvar')
 
             args = {
                 'unit': str(opus_helpers.generate_uuid(employee['orgUnit'])),
@@ -674,7 +654,7 @@ class OpusDiffImport(object):
                 logger.info('Create new role: {}'.format(opus_role))
                 # TODO: We will fail a if  new role-type surfaces
                 role_name = opus_role['artText']
-                role_type, _ = self._ensure_class_in_lora('role_type', role_name)
+                role_type, _ = mox_util.ensure_class_in_lora('role_type', role_name)
                 payload = payloads.create_role(
                     employee=employee,
                     user_uuid=mo_user['uuid'],

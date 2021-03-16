@@ -24,7 +24,6 @@ class OpusDiffImportTestbase(OpusDiffImport):
         self.morahelper_mock = MagicMock()
         self.morahelper_mock.read_organisation.return_value = "org_uuid"
         self.morahelper_mock._mo_post.return_value.status_code = 201
-        self.ensure_class_mock = (MagicMock(), MagicMock())
         self._add_klasse_to_lora = MagicMock()
         mock_primary.primary_types = {"non_primary": "test"}
 
@@ -32,9 +31,6 @@ class OpusDiffImportTestbase(OpusDiffImport):
 
     def _get_mora_helper(self, hostname, use_cache):
         return self.morahelper_mock
-    
-    def _ensure_class_in_lora(self, facet, klasse):
-        return self.ensure_class_mock
 
     def _find_classes(self, facet):
         if facet == "engagement_type":
@@ -146,17 +142,23 @@ class Opus_diff_import_tester(unittest.TestCase):
         self.assertIsInstance(xml_date, datetime)
         diff = OpusDiffImportTest_counts(xml_date, ad_reader=None)
         diff.start_import(self.units, self.employees, include_terminations=True)
-        self.assertEqual(diff.terminate_detail.call_count, self.expected_terminations*2)
+        self.assertEqual(
+            diff.terminate_detail.call_count, self.expected_terminations * 2
+        )
 
     @patch("integrations.dawa_helper.dawa_lookup")
+    @patch(
+        "mox_helpers.mox_util.ensure_class_in_lora",
+        return_value=(MagicMock(), MagicMock()),
+    )
     @given(datetimes())
-    def test_update_unit(self, dawa_helper_mock, xml_date):
+    def test_update_unit(self, classes_mock, dawa_helper_mock, xml_date):
         self.assertIsInstance(xml_date, datetime)
         diff = OpusDiffImportTestbase(xml_date, ad_reader=None)
         for unit in self.units:
             diff.update_unit(unit)
             calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
-            add_type_uuid, _ = diff.ensure_class_mock
+            add_type_uuid, _ = classes_mock()
             diff.helper._mo_post.assert_called_with(
                 "details/create",
                 {
@@ -169,8 +171,12 @@ class Opus_diff_import_tester(unittest.TestCase):
             )
 
     @patch("integrations.dawa_helper.dawa_lookup")
+    @patch(
+        "mox_helpers.mox_util.ensure_class_in_lora",
+        return_value=(MagicMock(), MagicMock()),
+    )
     @given(datetimes())
-    def test_update_employee(self, dawa_helper_mock, xml_date):
+    def test_update_employee(self, dawa_helper_mock, classes_mock, xml_date):
         self.assertIsInstance(xml_date, datetime)
         diff = OpusDiffImportTestbase(xml_date, ad_reader=None)
         diff.updater.primary_types = {"non_primary": "test"}
@@ -181,18 +187,19 @@ class Opus_diff_import_tester(unittest.TestCase):
             return_value=None,
         ):
             for employee in self.employees:
-                if employee.get('cpr'):
+                if employee.get("cpr"):
                     diff.update_employee(employee)
+                    uuid = diff.helper._mo_lookup().__getitem__().__getitem__()
                     diff.helper._mo_post.assert_called_with(
                         "details/terminate",
                         {
                             "type": "manager",
-                            "uuid": diff.helper._mo_lookup().__getitem__().__getitem__(),
+                            "uuid": uuid,
                             "validity": {"to": xml_date.strftime("%Y-%m-%d")},
                         },
                     )
                 else:
-                    self.assertEqual(employee['@action'], "leave")
+                    self.assertEqual(employee["@action"], "leave")
 
     @given(datetimes(), datetimes(), text(), uuids(), uuids())
     def test_perform_address_update_create(

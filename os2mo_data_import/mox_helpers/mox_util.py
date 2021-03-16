@@ -2,7 +2,7 @@ import asyncio
 import json
 import sys
 from datetime import datetime
-from functools import partial
+from functools import lru_cache, partial
 from operator import itemgetter
 from typing import Tuple
 
@@ -161,6 +161,24 @@ async def ensure_class_exists_helper(
 
     # POST for non-dry
     response = await mox_helper.get_or_create_klassifikation_klasse(klasse)
+    return response
+
+
+@lru_cache(maxsize=None)
+@async_to_sync
+async def ensure_class_in_lora(facet: str, klasse: str, **kwargs) -> Tuple[str, bool]:
+    """Ensures class exists in lora.
+    Returns the uuid of the existing class or creates it and returns uuid of the new class.
+    Uses mox_utils ensure_class_exists but caches results, so subsequent calls with same parameters will return the correct uuid without any calls to lora.
+    Returns a tuple contaning a uuid of the class and a boolean of wether it was created or not.
+    Remember that the 'created' boolean is also cached so it will only show if it was created the first time this was called.
+    Examples:
+        uuid, _ = ensure_class_in_lora('org_unit_type', 'Enhed')
+        uuid, _ = ensure_class_in_lora('employee_address_type', 'Email', scope = 'EMAIL')
+    """
+    response = await ensure_class_exists_helper(
+        bvn=klasse, title=klasse, facet_bvn=facet, **kwargs
+    )
     return response
 
 
