@@ -1,0 +1,5 @@
+# The script to be run
+script = "/opt/dipex/os2mo-data-import-and-export/tools/sd_tool/update_unit.sh"
+
+# The subpath where the app is running
+script_name = "/sdtool"
