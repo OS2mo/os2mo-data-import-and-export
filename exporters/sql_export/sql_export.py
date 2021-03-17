@@ -219,6 +219,9 @@ class SqlExport(object):
                 else:
                     primærtype_titel = ''
 
+                engagement_type_uuid = engagement_info['engagement_type']
+                job_function_uuid = engagement_info['job_function']
+
                 sql_engagement = Engagement(
                     uuid=engagement,
                     enhed_uuid=engagement_info['unit'],
@@ -229,10 +232,14 @@ class SqlExport(object):
                     engagementstype_uuid=engagement_info['engagement_type'],
                     primær_boolean=engagement_info.get('primary_boolean'),
                     arbejdstidsfraktion=engagement_info['fraction'],
-                    engagementstype_titel=self.lc.classes[
-                        engagement_info['engagement_type']]['title'],
-                    stillingsbetegnelse_titel=self.lc.classes[
-                        engagement_info['job_function']]['title'],
+                    engagementstype_titel=self.lc.classes.get(
+                        engagement_type_uuid,
+                        {"title": engagement_type_uuid}
+                    )['title'],
+                    stillingsbetegnelse_titel=self.lc.classes.get(
+                        job_function_uuid,
+                        {"title": job_function_uuid}
+                    )['title'],
                     primærtype_titel=primærtype_titel,
                     startdato=engagement_info['from_date'],
                     slutdato=engagement_info['to_date'],
