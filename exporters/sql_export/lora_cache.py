@@ -299,13 +299,18 @@ class LoraCache:
         return users
 
     def _cache_lora_units(self):
-        params = {'gyldighed': 'Aktiv','bvn': '%'}
+        params = {'bvn': '%'}
+        skip_history = False
+        if not self.full_history:
+            params['gyldighed'] = 'Aktiv'
+            skip_history = True
         url = '/organisation/organisationenhed'
         relevant = {
             'relationer': ('overordnet', 'enhedstype', 'niveau'),
             'attributter': ('organisationenhedegenskaber',)
         }
-        unit_list = self._perform_lora_lookup(url, params, skip_history=True, unit="unit")
+        
+        unit_list = self._perform_lora_lookup(url, params, skip_history=skip_history, unit="unit")
 
         units = {}
         for unit in tqdm(unit_list, desc="Processing unit", unit="unit"):
