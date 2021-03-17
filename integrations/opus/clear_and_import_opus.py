@@ -14,112 +14,12 @@ from integrations.ad_integration import ad_reader
 from integrations.ad_integration.utils import apply
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import OpusDiffImport
-from os2mo_data_import import ImportHelper
-from mox_helpers import mox_util
-
-
-def perform_setup(settings=None) -> None:
-    """Setup all necessary classes etc to perform opus-import."""
-    settings = settings or load_settings()
-    mox_base = settings.get("mox.base", "http://localhost:8080")
-    mora_base = settings.get("mora.base", "http://localhost:5000")
-
-    # Init
-    os2mo = ImportHelper(
-        create_defaults=True,
-        store_integration_data=True,
-        mox_base=mox_base,
-        mora_base=mora_base,
-    )
-
-    # The Organisation class is the main entry point,
-    # It exposes the related sub classes such as:
-    # Facet, Klasse, Itsystem, OrganisationUnit, Employee
-    main_name = settings.get("municipality.name", "Magenta APS")
-    main_uuid = opus_helpers.generate_uuid(main_name)
-    os2mo.add_organisation(
-        identifier=main_name,
-        uuid=str(main_uuid),
-        user_key=main_name,
-        municipality_code=settings.get("municipality.code", 1234),
-    )
-    os2mo.new_itsystem(
-        identifier=constants.Opus_it_system, system_name=constants.Opus_it_system
-    )
-    os2mo.new_itsystem(
-        identifier=constants.AD_it_system, system_name=constants.AD_it_system
-    )
-
-    # Perfom setup of root unit and it systems.
-    os2mo.import_all()
-
-    classes_to_create = [
-        {
-            "klasse": "primary",
-            "facet": "primary_type",
-            "title": "Ansat",
-            "scope": "3000",
-        },
-        {
-            "klasse": "non-primary",
-            "facet": "primary_type",
-            "title": "Ikke-primær ansættelse",
-            "scope": "0",
-        },
-        {
-            "klasse": "explicitly-primary",
-            "facet": "primary_type",
-            "title": "Manuelt primær ansættelse",
-            "scope": "5000",
-        },
-        {
-            "klasse": "Intern",
-            "facet": "visibility",
-            "title": "Må vises internt",
-            "scope": "INTERNAL",
-        },
-        {
-            "klasse": "Public",
-            "facet": "visibility",
-            "title": "Må vises eksternt",
-            "scope": "PUBLIC",
-        },
-        {
-            "klasse": "Secret",
-            "facet": "visibility",
-            "title": "Hemmelig",
-            "scope": "SECRET",
-        },
-        {
-            "klasse": "AD-Mobil",
-            "facet": "employee_address_type",
-            "title": "AD-Mobil",
-            "scope": "PHONE",
-        },
-        {
-            "klasse": "AD-PhoneEmployee",
-            "facet": "employee_address_type",
-            "title": "AD-Telefon",
-            "scope": "PHONE",
-        },
-        {
-            "klasse": "AD-EmailEmployee",
-            "facet": "employee_address_type",
-            "title": "AD-Email",
-            "scope": "EMAIL",
-        },
-    ]
-
-    for klasses in classes_to_create:
-        mox_util.ensure_class_in_lora(**klasses)
-
-
+from tools.default_mo_classes import ensure_default_classes, create_new_root_and_it
 
 
 def truncate_db(MOX_BASE="http://localhost:8080"):
     r = requests.get(MOX_BASE + "/db/truncate")
     r.raise_for_status()
-
 
 def read_all_files(filter_ids):
     """Create full list of data to write to MO.
@@ -153,7 +53,8 @@ def setup_new_mo(settings=load_settings()):
     truncate_db(settings.get("mox.base"))
 
     # Setup classes and root organisation
-    perform_setup(settings=settings)
+    create_new_root_and_it()
+    ensure_default_classes()
 
 
 def import_all(ad_reader=None):
