@@ -5,6 +5,7 @@ import pathlib
 import argparse
 import urllib.parse
 import datetime
+from tqdm import tqdm
 
 from sqlalchemy import create_engine, Index
 from sqlalchemy.orm import sessionmaker
@@ -102,16 +103,20 @@ class SqlExport(object):
         start_delivery_time = timestamp()
         self._update_receipt(kvittering, start_delivery_time)
 
-        self._add_classification()
-        self._add_users_and_units()
-        self._add_addresses()
-        self._add_dar_addresses()
-        self._add_engagements()
-        self._add_associactions_leaves_and_roles()
-        self._add_managers()
-        self._add_it_systems()
-        self._add_kles()
-        self._add_related()
+        tasks = [
+            self._add_classification,
+            self._add_users_and_units,
+            self._add_addresses,
+            self._add_dar_addresses,
+            self._add_engagements,
+            self._add_associactions_leaves_and_roles,
+            self._add_managers,
+            self._add_it_systems,
+            self._add_kles,
+            self._add_related,
+        ]
+        for task in tqdm(tasks, desc="SQLExport", unit="task"):
+            task()
 
         end_delivery_time = timestamp()
         self._update_receipt(kvittering, start_delivery_time, end_delivery_time)
@@ -121,9 +126,7 @@ class SqlExport(object):
 
     def _add_classification(self, output=False):
         logger.info('Add classification')
-        print('Add classification')
-        logger.info('Add classification')
-        for facet, facet_info in self.lc.facets.items():
+        for facet, facet_info in tqdm(self.lc.facets.items(), desc="Export facet", unit="facet"):
             sql_facet = Facet(
                 uuid=facet,
                 bvn=facet_info['user_key'],
@@ -131,7 +134,7 @@ class SqlExport(object):
             self.session.add(sql_facet)
         self.session.commit()
 
-        for klasse, klasse_info in self.lc.classes.items():
+        for klasse, klasse_info in tqdm(self.lc.classes.items(), desc="Export class", unit="class"):
             sql_class = Klasse(
                 uuid=klasse,
                 bvn=klasse_info['user_key'],
@@ -150,8 +153,7 @@ class SqlExport(object):
 
     def _add_users_and_units(self, output=False):
         logger.info('Add users and units')
-        print('Add users and units')
-        for user, user_effects in self.lc.users.items():
+        for user, user_effects in tqdm(self.lc.users.items(), desc="Export user", unit="user"):
             for user_info in user_effects:
                 sql_user = Bruger(
                     uuid=user,
@@ -166,7 +168,7 @@ class SqlExport(object):
                 )
                 self.session.add(sql_user)
 
-        for unit, unit_validities in self.lc.units.items():
+        for unit, unit_validities in tqdm(self.lc.units.items(), desc="Export unit", unit="unit"):
             for unit_info in unit_validities:
                 location = unit_info.get('location')
                 manager_uuid = unit_info.get('manager_uuid')
@@ -210,8 +212,7 @@ class SqlExport(object):
 
     def _add_engagements(self, output=False):
         logger.info('Add engagements')
-        print('Add engagements')
-        for engagement, engagement_validity in self.lc.engagements.items():
+        for engagement, engagement_validity in tqdm(self.lc.engagements.items(), desc="Export engagement", unit="engagement"):
             for engagement_info in engagement_validity:
                 if engagement_info['primary_type'] is not None:
                     primærtype_titel = self.lc.classes[
@@ -254,8 +255,7 @@ class SqlExport(object):
 
     def _add_addresses(self, output=False):
         logger.info('Add addresses')
-        print('Add addresses')
-        for address, address_validities in self.lc.addresses.items():
+        for address, address_validities in tqdm(self.lc.addresses.items(), desc="Export address", unit="address"):
             for address_info in address_validities:
                 visibility_text = None
                 if address_info['visibility'] is not None:
@@ -294,8 +294,7 @@ class SqlExport(object):
 
     def _add_dar_addresses(self, output=False):
         logger.info('Add DAR addresses')
-        print('Add DAR addresses')
-        for address, address_info in self.lc.dar_cache.items():
+        for address, address_info in tqdm(self.lc.dar_cache.items(), desc="Export DAR", unit="DAR"):
             sql_address = DARAdresse(
                 uuid=address,
                 **{key: value for key, value in address_info.items()
@@ -309,8 +308,7 @@ class SqlExport(object):
 
     def _add_associactions_leaves_and_roles(self, output=False):
         logger.info('Add associactions leaves and roles')
-        print('Add associactions leaves and roles')
-        for association, association_validity in self.lc.associations.items():
+        for association, association_validity in tqdm(self.lc.associations.items(), desc="Export association", unit="association"):
             for association_info in association_validity:
                 sql_association = Tilknytning(
                     uuid=association,
@@ -325,7 +323,7 @@ class SqlExport(object):
                 )
                 self.session.add(sql_association)
 
-        for role, role_validity in self.lc.roles.items():
+        for role, role_validity in tqdm(self.lc.roles.items(), desc="Export role", unit="role"):
             for role_info in role_validity:
                 sql_role = Rolle(
                     uuid=role,
@@ -338,7 +336,7 @@ class SqlExport(object):
                 )
                 self.session.add(sql_role)
 
-        for leave, leave_validity in self.lc.leaves.items():
+        for leave, leave_validity in tqdm(self.lc.leaves.items(), desc="Export leave", unit="leave"):
             for leave_info in leave_validity:
                 leave_type = leave_info['leave_type']
                 sql_leave = Orlov(
@@ -362,15 +360,14 @@ class SqlExport(object):
 
     def _add_it_systems(self, output=False):
         logger.info('Add IT systems')
-        print('Add IT systems')
-        for itsystem, itsystem_info in self.lc.itsystems.items():
+        for itsystem, itsystem_info in tqdm(self.lc.itsystems.items(), desc="Export itsystem", unit="itsystem"):
             sql_itsystem = ItSystem(
                 uuid=itsystem,
                 navn=itsystem_info['name']
             )
             self.session.add(sql_itsystem)
 
-        for it_connection, it_connection_validity in self.lc.it_connections.items():
+        for it_connection, it_connection_validity in tqdm(self.lc.it_connections.items(), desc="Export it connection", unit="it connection"):
             for it_connection_info in it_connection_validity:
                 sql_it_connection = ItForbindelse(
                     uuid=it_connection,
@@ -393,8 +390,7 @@ class SqlExport(object):
 
     def _add_kles(self, output=False):
         logger.info('Add KLES')
-        print('Add KLES')
-        for kle, kle_validity in self.lc.kles.items():
+        for kle, kle_validity in tqdm(self.lc.kles.items(), desc="Export KLE", unit="KLE"):
             for kle_info in kle_validity:
                 sql_kle = KLE(
                     uuid=kle,
@@ -414,7 +410,6 @@ class SqlExport(object):
 
     def _add_receipt(self, query_time, start_time=None, end_time=None, output=False):
         logger.info('Add Receipt')
-        print('Add Receipt')
         sql_kvittering = Kvittering(
             query_tid=query_time,
             start_levering_tid=start_time,
@@ -429,7 +424,6 @@ class SqlExport(object):
 
     def _update_receipt(self, sql_kvittering, start_time=None, end_time=None, output=False):
         logger.info('Update Receipt')
-        print('Update Receipt')
         sql_kvittering.start_levering_tid=start_time
         sql_kvittering.slut_levering_tid=end_time
         self.session.commit()
@@ -439,8 +433,7 @@ class SqlExport(object):
 
     def _add_related(self, output=False):
         logger.info('Add Enhedssammenkobling')
-        print('Add Enhedssammenkobling')
-        for related, related_validity in self.lc.related.items():
+        for related, related_validity in tqdm(self.lc.related.items(), desc="Export related", unit="related"):
             for related_info in related_validity:
                 sql_related = Enhedssammenkobling(
                     uuid=related,
@@ -457,8 +450,7 @@ class SqlExport(object):
 
     def _add_managers(self, output=False):
         logger.info('Add managers')
-        print('Add managers')
-        for manager, manager_validity in self.lc.managers.items():
+        for manager, manager_validity in tqdm(self.lc.managers.items(), desc="Export manager", unit="manager"):
             for manager_info in manager_validity:
                 sql_manager = Leder(
                     uuid=manager,

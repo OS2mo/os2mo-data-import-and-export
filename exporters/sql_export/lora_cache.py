@@ -11,6 +11,7 @@ import requests
 from operator import itemgetter
 from itertools import starmap
 from collections import defaultdict
+from tqdm import tqdm
 
 import click
 from more_itertools import bucket
@@ -28,7 +29,7 @@ LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'lora_cache.log'
 
 
-class LoraCache(object):
+class LoraCache:
 
     def __init__(self, resolve_dar=True, full_history=False, skip_past=False):
         msg = 'Start LoRa cache, resolve dar: {}, full_history: {}'
@@ -125,7 +126,7 @@ class LoraCache(object):
                 from_date = to_date = None
         return from_date, to_date
 
-    def _perform_lora_lookup(self, url, params, skip_history=False):
+    def _perform_lora_lookup(self, url, params, skip_history=False, unit="it"):
         """
         Exctract a complete set of objects in LoRa.
         :param url: The url that should be used to extract data.
@@ -135,8 +136,6 @@ class LoraCache(object):
         t = time.time()
         logger.debug('Start reading {}, params: {}, at t={}'.format(url, params, t))
         results_pr_request = 5000
-        params['list'] = 1
-        params['maximalantalresultater'] = results_pr_request
         params['foersteresultat'] = 0
 
         # Default, this can be overwritten in the lines below
@@ -148,36 +147,44 @@ class LoraCache(object):
             if not self.skip_past:
                 params['virkningFra'] = '-infinity'
 
+        response = requests.get(self.settings['mox.base'] + url, params=params)
+        data = response.json()
+        total = len(data["results"][0])
+
+        params['list'] = 1
+        params['maximalantalresultater'] = results_pr_request
+
         complete_data = []
 
-        done = False
-        while not done:
-            response = requests.get(self.settings['mox.base'] + url, params=params)
-            data = response.json()
-            results = data['results']
-            if results:
-                data_list = data['results'][0]
-            else:
+        with tqdm(total=total, desc="Fetching " + unit, unit=unit) as pbar:
+            while True:
+                response = requests.get(self.settings['mox.base'] + url, params=params)
+                data = response.json()
+                results = data['results']
                 data_list = []
-            complete_data = complete_data + data_list
-            if len(data_list) == 0:
-                done = True
-            else:
+                if results:
+                    data_list = data['results'][0]
+                pbar.update(len(data_list))
+                complete_data = complete_data + data_list
+                if len(data_list) == 0:
+                    break
                 params['foersteresultat'] += results_pr_request
                 logger.debug('Mellemtid, {} læsninger: {}s'.format(
-                    params['foersteresultat'], time.time() - t))
+                    params['foersteresultat'], time.time() - t)
+                )
         logger.debug('LoRa læsning færdig. {} elementer, {}s'.format(
-            len(complete_data), time.time() - t))
+            len(complete_data), time.time() - t)
+        )
         return complete_data
 
     def _cache_lora_facets(self):
         # Facets are eternal i MO and does not need a historic dump
         params = {'bvn': '%'}
         url = '/klassifikation/facet'
-        facet_list = self._perform_lora_lookup(url, params, skip_history=True)
+        facet_list = self._perform_lora_lookup(url, params, skip_history=True, unit="facet")
 
         facets = {}
-        for facet in facet_list:
+        for facet in tqdm(facet_list, desc="Processing facet", unit="facet"):
             uuid = facet['id']
             reg = facet['registreringer'][0]
             user_key = reg['attributter']['facetegenskaber'][0]['brugervendtnoegle']
@@ -191,10 +198,10 @@ class LoraCache(object):
         # currently we replicate this behaviour here.
         params = {'bvn': '%'}
         url = '/klassifikation/klasse'
-        class_list = self._perform_lora_lookup(url, params, skip_history=True)
+        class_list = self._perform_lora_lookup(url, params, skip_history=True, unit="class")
 
         classes = {}
-        for oio_class in class_list:
+        for oio_class in tqdm(class_list, desc="Processing class", unit="class"):
             uuid = oio_class['id']
             reg = oio_class['registreringer'][0]
             user_key = reg['attributter']['klasseegenskaber'][0]['brugervendtnoegle']
@@ -213,10 +220,10 @@ class LoraCache(object):
         # IT-systems are eternal i MO and does not need a historic dump
         params = {'bvn': '%'}
         url = '/organisation/itsystem'
-        itsystem_list = self._perform_lora_lookup(url, params, skip_history=True)
+        itsystem_list = self._perform_lora_lookup(url, params, skip_history=True, unit="itsystem")
 
         itsystems = {}
-        for itsystem in itsystem_list:
+        for itsystem in tqdm(itsystem_list, desc="Processing itsystem", unit="itsystem"):
             uuid = itsystem['id']
             reg = itsystem['registreringer'][0]
             user_key = (reg['attributter']['itsystemegenskaber'][0]
@@ -233,7 +240,7 @@ class LoraCache(object):
     def _cache_lora_users(self):
         params = {'bvn': '%'}
         url = '/organisation/bruger'
-        user_list = self._perform_lora_lookup(url, params)
+        user_list = self._perform_lora_lookup(url, params, unit="user")
 
         relevant = {
             "attributter": ("brugeregenskaber", "brugerudvidelser"),
@@ -242,7 +249,7 @@ class LoraCache(object):
         }
 
         users = {}
-        for user in user_list:
+        for user in tqdm(user_list, desc="Processing user", unit="user"):
             uuid = user['id']
             users[uuid] = []
 
@@ -298,10 +305,10 @@ class LoraCache(object):
             'relationer': ('overordnet', 'enhedstype', 'niveau'),
             'attributter': ('organisationenhedegenskaber',)
         }
-        unit_list = self._perform_lora_lookup(url, params, skip_history=True)
+        unit_list = self._perform_lora_lookup(url, params, skip_history=True, unit="unit")
 
         units = {}
-        for unit in unit_list:
+        for unit in tqdm(unit_list, desc="Processing unit", unit="unit"):
             uuid = unit['id']
             units[uuid] = []
 
@@ -350,11 +357,10 @@ class LoraCache(object):
                            'adresser', 'organisatoriskfunktionstype', 'opgaver'),
             'attributter': ('organisationfunktionegenskaber',)
         }
-        address_list = self._perform_lora_lookup(url, params)
+        address_list = self._perform_lora_lookup(url, params, unit="address")
 
         addresses = {}
-        logger.info('Performing DAR lookup, this might take a while...')
-        for address in address_list:
+        for address in tqdm(address_list, desc="Processing address", unit="address"):
             uuid = address['id']
             addresses[uuid] = []
 
@@ -451,8 +457,8 @@ class LoraCache(object):
         }
         url = '/organisation/organisationfunktion'
         engagements = {}
-        engagement_list = self._perform_lora_lookup(url, params)
-        for engagement in engagement_list:
+        engagement_list = self._perform_lora_lookup(url, params, unit="engagement")
+        for engagement in tqdm(engagement_list, desc="Processing engagement", unit="engagement"):
             uuid = engagement['id']
 
             effects = self._get_effects(engagement, relevant)
@@ -545,8 +551,8 @@ class LoraCache(object):
         }
         url = '/organisation/organisationfunktion'
         associations = {}
-        association_list = self._perform_lora_lookup(url, params)
-        for association in association_list:
+        association_list = self._perform_lora_lookup(url, params, unit="association")
+        for association in tqdm(association_list, desc="Processing association", unit="association"):
             uuid = association['id']
             associations[uuid] = []
 
@@ -591,8 +597,8 @@ class LoraCache(object):
         }
         url = '/organisation/organisationfunktion'
         roles = {}
-        role_list = self._perform_lora_lookup(url, params)
-        for role in role_list:
+        role_list = self._perform_lora_lookup(url, params, unit="role")
+        for role in tqdm(role_list, desc="Processing role", unit="role"):
             uuid = role['id']
             roles[uuid] = []
 
@@ -626,8 +632,8 @@ class LoraCache(object):
         }
         url = '/organisation/organisationfunktion'
         leaves = {}
-        leave_list = self._perform_lora_lookup(url, params)
-        for leave in leave_list:
+        leave_list = self._perform_lora_lookup(url, params, unit="leave")
+        for leave in tqdm(leave_list, desc="Processing leave", unit="leave"):
             uuid = leave['id']
             leaves[uuid] = []
             effects = self._get_effects(leave, relevant)
@@ -657,10 +663,10 @@ class LoraCache(object):
     def _cache_lora_it_connections(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'IT-system'}
         url = '/organisation/organisationfunktion'
-        it_connection_list = self._perform_lora_lookup(url, params)
+        it_connection_list = self._perform_lora_lookup(url, params, unit="it connection")
 
         it_connections = {}
-        for it_connection in it_connection_list:
+        for it_connection in tqdm(it_connection_list, desc="Processing it connection", unit="it connection"):
             uuid = it_connection['id']
             it_connections[uuid] = []
 
@@ -706,9 +712,9 @@ class LoraCache(object):
     def _cache_lora_kles(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'KLE'}
         url = '/organisation/organisationfunktion'
-        kle_list = self._perform_lora_lookup(url, params)
+        kle_list = self._perform_lora_lookup(url, params, unit="KLE")
         kles = {}
-        for kle in kle_list:
+        for kle in tqdm(kle_list, desc="Processing KLE", unit="KLE"):
             uuid = kle['id']
             kles[uuid] = []
 
@@ -751,9 +757,9 @@ class LoraCache(object):
     def _cache_lora_related(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Relateret Enhed'}
         url = '/organisation/organisationfunktion'
-        related_list = self._perform_lora_lookup(url, params)
+        related_list = self._perform_lora_lookup(url, params, unit="related")
         related = {}
-        for relate in related_list:
+        for relate in tqdm(related_list, desc="Processing related", unit="related"):
             uuid = relate['id']
             related[uuid] = []
 
@@ -786,10 +792,10 @@ class LoraCache(object):
     def _cache_lora_managers(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Leder'}
         url = '/organisation/organisationfunktion'
-        manager_list = self._perform_lora_lookup(url, params)
+        manager_list = self._perform_lora_lookup(url, params, unit="manager")
 
         managers = {}
-        for manager in manager_list:
+        for manager in tqdm(manager_list, desc="Processing manager", unit="manager"):
             uuid = manager['id']
             managers[uuid] = []
             relevant = {
@@ -1059,126 +1065,112 @@ class LoraCache(object):
                 self.kles = pickle.load(f)
             with open(related_file, 'rb') as f:
                 self.related = pickle.load(f)
+            self.dar_cache = {}
             return
 
         t = time.time()
         msg = 'Kørselstid: {:.1f}s, {} elementer, {:.0f}/s'
 
         # Here we should activate read-only mode
-        logger.info('Læs facetter og klasser')
-        self.facets = self._cache_lora_facets()
-        self.classes = self._cache_lora_classes()
-        dt = time.time() - t
-        elements = len(self.classes) + len(self.facets)
-        with open(facets_file, 'wb') as f:
-            pickle.dump(self.facets, f, PICKLE_PROTOCOL)
-        with open(classes_file, 'wb') as f:
-            pickle.dump(self.classes, f, PICKLE_PROTOCOL)
-        logger.info(msg.format(dt, elements, elements/dt))
+        def read_facets():
+            logger.info('Læs facetter')
+            self.facets = self._cache_lora_facets()
+            return self.facets
 
-        t = time.time()
-        logger.info('Læs brugere')
-        self.users = self._cache_lora_users()
-        dt = time.time() - t
-        with open(users_file, 'wb') as f:
-            pickle.dump(self.users, f, PICKLE_PROTOCOL)
-        logger.info(msg.format(dt, len(self.users), len(self.users)/dt))
+        def read_classes():
+            logger.info('Læs klasser')
+            self.classes = self._cache_lora_classes()
+            return self.classes
 
-        t = time.time()
-        logger.info('Læs enheder')
-        self.units = self._cache_lora_units()
-        dt = time.time() - t
-        with open(units_file, 'wb') as f:
-            pickle.dump(self.units, f, PICKLE_PROTOCOL)
-        logger.info(msg.format(dt, len(self.units), len(self.units)/dt))
+        def read_users():
+            logger.info('Læs brugere')
+            self.users = self._cache_lora_users()
+            return self.users
 
-        t = time.time()
-        logger.info('Læs adresser:')
-        self.addresses = self._cache_lora_address()
-        dt = time.time() - t
-        with open(addresses_file, 'wb') as f:
-            pickle.dump(self.addresses, f, PICKLE_PROTOCOL)
-        logger.info(msg.format(dt, len(self.addresses), len(self.addresses)/dt))
+        def read_units():
+            logger.info('Læs enheder')
+            self.units = self._cache_lora_units()
+            return self.units
 
-        t = time.time()
-        logger.info('Læs engagementer')
-        self.engagements = self._cache_lora_engagements()
-        dt = time.time() - t
-        with open(engagements_file, 'wb') as f:
-            pickle.dump(self.engagements, f, PICKLE_PROTOCOL)
-        logger.info(msg.format(dt, len(self.engagements), len(self.engagements)/dt))
+        def read_addresses():
+            logger.info('Læs adresser:')
+            self.addresses = self._cache_lora_address()
+            return self.addresses
 
-        t = time.time()
-        logger.info('Læs ledere')
-        self.managers = self._cache_lora_managers()
-        dt = time.time() - t
-        with open(managers_file, 'wb') as f:
-            pickle.dump(self.managers, f, PICKLE_PROTOCOL)
-        logger.info(msg.format(dt, len(self.managers), len(self.managers)/dt))
+        def read_engagements():
+            logger.info('Læs engagementer')
+            self.engagements = self._cache_lora_engagements()
+            return self.engagements
 
-        if not skip_associations:
-            t = time.time()
+        def read_managers():
+            logger.info('Læs ledere')
+            self.managers = self._cache_lora_managers()
+            return self.managers
+
+        def read_associations():
             logger.info('Læs tilknytninger')
             self.associations = self._cache_lora_associations()
-            dt = time.time() - t
-            with open(associations_file, 'wb') as f:
-                pickle.dump(self.associations, f, PICKLE_PROTOCOL)
-                logger.info(msg.format(dt, len(self.associations),
-                                       len(self.associations)/dt))
+            return self.associations
 
-        t = time.time()
-        logger.info('Læs orlover')
-        self.leaves = self._cache_lora_leaves()
-        dt = time.time() - t
-        with open(leaves_file, 'wb') as f:
-            pickle.dump(self.leaves, f, PICKLE_PROTOCOL)
-        logger.info(msg.format(dt, len(self.leaves), len(self.leaves)/dt))
+        def read_leaves():
+            logger.info('Læs orlover')
+            self.leaves = self._cache_lora_leaves()
+            return self.leaves
 
-        t = time.time()
-        logger.info('Læs roller')
-        t = time.time()
-        self.roles = self._cache_lora_roles()
-        dt = time.time() - t
-        with open(roles_file, 'wb') as f:
-            pickle.dump(self.roles, f, PICKLE_PROTOCOL)
-        logger.info(msg.format(dt, len(self.roles), len(self.roles)/dt))
+        def read_roles():
+            logger.info('Læs roller')
+            self.roles = self._cache_lora_roles()
+            return self.roles
 
-        t = time.time()
-        logger.info('Læs it')
-        self.itsystems = self._cache_lora_itsystems()
-        self.it_connections = self._cache_lora_it_connections()
-        elements = len(self.itsystems) + len(self.it_connections)
-        dt = time.time() - t
-        with open(itsystems_file, 'wb') as f:
-            pickle.dump(self.itsystems, f, PICKLE_PROTOCOL)
-        with open(it_connections_file, 'wb') as f:
-            pickle.dump(self.it_connections, f, PICKLE_PROTOCOL)
-        logger.info(msg.format(dt, elements, elements/dt))
+        def read_itsystems():
+            logger.info('Læs itsystem')
+            self.itsystems = self._cache_lora_itsystems()
+            return self.itsystems
 
-        t = time.time()
-        logger.info('Læs kles')
-        self.kles = self._cache_lora_kles()
-        dt = time.time() - t
-        with open(kles_file, 'wb') as f:
-            pickle.dump(self.kles, f, PICKLE_PROTOCOL)
-        logger.info(msg.format(dt, len(self.kles), len(self.kles)/dt))
+        def read_it_connections():
+            logger.info('Læs it kobling')
+            self.it_connections = self._cache_lora_it_connections()
+            return self.it_connections
 
-        t = time.time()
-        logger.info('Læs enhedssammenkobling')
-        self.related = self._cache_lora_related()
-        dt = time.time() - t
-        with open(related_file, 'wb') as f:
-            pickle.dump(self.related, f, pickle.HIGHEST_PROTOCOL)
-        logger.info(msg.format(dt, len(self.related), len(self.related)/dt))
+        def read_kles():
+            logger.info('Læs kles')
+            self.kles = self._cache_lora_kles()
+            return self.kles
 
-        t = time.time()
-        logger.info('Læs dar')
-        self.dar_cache = self._cache_dar()
-        dt = time.time() - t
-        #with open(cache_file, 'wb') as f:
-        #    pickle.dump(self.dar_cache, f, pickle.HIGHEST_PROTOCOL)
-        logger.info(msg.format(dt, len(self.dar_cache), len(self.dar_cache)/dt))
+        def read_related():
+            logger.info('Læs enhedssammenkobling')
+            self.related = self._cache_lora_related()
+            return self.related
 
+        def read_dar():
+            logger.info('Læs dar')
+            self.dar_cache = self._cache_dar()
+            #with open(cache_file, 'wb') as f:
+            #    pickle.dump(self.dar_cache, f, pickle.HIGHEST_PROTOCOL)
+
+        tasks = []
+        tasks.append((read_facets, facets_file))
+        tasks.append((read_classes, classes_file))
+        tasks.append((read_users, users_file))
+        tasks.append((read_units, units_file))
+        tasks.append((read_addresses, addresses_file))
+        tasks.append((read_engagements, engagements_file))
+        tasks.append((read_managers, managers_file))
+        if not skip_associations:
+            tasks.append((read_associations, associations_file))
+        tasks.append((read_leaves, leaves_file))
+        tasks.append((read_roles, roles_file))
+        tasks.append((read_itsystems, itsystems_file))
+        tasks.append((read_it_connections, it_connections_file))
+        tasks.append((read_kles, kles_file))
+        tasks.append((read_related, related_file))
+        tasks.append((read_dar, None))
+
+        for task, filename in tqdm(tasks, desc="LoraCache", unit="task"):
+            data = task()
+            if filename:
+                with open(filename, 'wb') as f:
+                    pickle.dump(data, f, PICKLE_PROTOCOL)
 
         # Here we should de-activate read-only mode
 
