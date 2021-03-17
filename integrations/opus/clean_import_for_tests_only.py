@@ -15,6 +15,7 @@ from integrations.ad_integration.utils import apply
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import OpusDiffImport
 from os2mo_data_import import ImportHelper
+from mox_helpers import mox_util
 
 
 def perform_setup(settings=None) -> None:
@@ -42,68 +43,6 @@ def perform_setup(settings=None) -> None:
         user_key=main_name,
         municipality_code=settings.get("municipality.code", 1234),
     )
-
-    # Add klasse with reference to facet "org_unit_type"
-    classes_to_create = [
-        {
-            "identifier": "primary",
-            "facet_type_ref": "primary_type",
-            "title": "Ansat",
-            "scope": "3000",
-        },
-        {
-            "identifier": "non-primary",
-            "facet_type_ref": "primary_type",
-            "title": "Ikke-primær ansættelse",
-            "scope": "0",
-        },
-        {
-            "identifier": "explicitly-primary",
-            "facet_type_ref": "primary_type",
-            "title": "Manuelt primær ansættelse",
-            "scope": "5000",
-        },
-        {
-            "identifier": "Intern",
-            "facet_type_ref": "visibility",
-            "title": "Må vises internt",
-            "scope": "INTERNAL",
-        },
-        {
-            "identifier": "Public",
-            "facet_type_ref": "visibility",
-            "title": "Må vises eksternt",
-            "scope": "PUBLIC",
-        },
-        {
-            "identifier": "Secret",
-            "facet_type_ref": "visibility",
-            "title": "Hemmelig",
-            "scope": "SECRET",
-        },
-        {
-            "identifier": "AD-AdressePostEmployee",
-            "facet_type_ref": "employee_address_type",
-            "title": "AD-Adresse",
-            "scope": "DAR",
-        },
-        {
-            "identifier": "AD-PhoneEmployee",
-            "facet_type_ref": "employee_address_type",
-            "title": "AD-Telefon",
-            "scope": "PHONE",
-        },
-        {
-            "identifier": "AD-EmailEmployee",
-            "facet_type_ref": "employee_address_type",
-            "title": "AD-Email",
-            "scope": "EMAIL",
-        },
-    ]
-
-    for klasses in classes_to_create:
-        os2mo.add_klasse(**klasses)
-
     os2mo.new_itsystem(
         identifier=constants.Opus_it_system, system_name=constants.Opus_it_system
     )
@@ -111,8 +50,70 @@ def perform_setup(settings=None) -> None:
         identifier=constants.AD_it_system, system_name=constants.AD_it_system
     )
 
-    # Perfom setup of defined classes etc.
+    # Perfom setup of root unit and it systems.
     os2mo.import_all()
+
+    classes_to_create = [
+        {
+            "klasse": "primary",
+            "facet": "primary_type",
+            "title": "Ansat",
+            "scope": "3000",
+        },
+        {
+            "klasse": "non-primary",
+            "facet": "primary_type",
+            "title": "Ikke-primær ansættelse",
+            "scope": "0",
+        },
+        {
+            "klasse": "explicitly-primary",
+            "facet": "primary_type",
+            "title": "Manuelt primær ansættelse",
+            "scope": "5000",
+        },
+        {
+            "klasse": "Intern",
+            "facet": "visibility",
+            "title": "Må vises internt",
+            "scope": "INTERNAL",
+        },
+        {
+            "klasse": "Public",
+            "facet": "visibility",
+            "title": "Må vises eksternt",
+            "scope": "PUBLIC",
+        },
+        {
+            "klasse": "Secret",
+            "facet": "visibility",
+            "title": "Hemmelig",
+            "scope": "SECRET",
+        },
+        {
+            "klasse": "AD-Mobil",
+            "facet": "employee_address_type",
+            "title": "AD-Mobil",
+            "scope": "PHONE",
+        },
+        {
+            "klasse": "AD-PhoneEmployee",
+            "facet": "employee_address_type",
+            "title": "AD-Telefon",
+            "scope": "PHONE",
+        },
+        {
+            "klasse": "AD-EmailEmployee",
+            "facet": "employee_address_type",
+            "title": "AD-Email",
+            "scope": "EMAIL",
+        },
+    ]
+
+    for klasses in classes_to_create:
+        mox_util.ensure_class_in_lora(**klasses)
+
+
 
 
 def truncate_db(MOX_BASE="http://localhost:8080"):

@@ -2,9 +2,10 @@ import asyncio
 import json
 import sys
 from datetime import datetime
-from functools import lru_cache, partial
+from functools import partial
 from operator import itemgetter
 from typing import Tuple
+from functools import lru_cache
 
 import click
 from more_itertools import bucket, flatten, unzip
@@ -114,8 +115,8 @@ def print_changed(uuid: str, changed: bool) -> None:
 
 async def ensure_class_exists_helper(
     bvn: str,
-    title: str,
     facet_bvn: str,
+    title: str = None,
     description: str = None,
     scope: str = None,
     org_uuid: str = None,
@@ -126,6 +127,8 @@ async def ensure_class_exists_helper(
 ):
     """Ensure the generated class exists in MOX."""
     mox_helper = await create_mox_helper(mox_base)
+
+    title = title or bvn
 
     # Fetch default organisation if any, assuming none is set
     org_uuid = org_uuid or await mox_helper.read_element_organisation_organisation(
@@ -168,17 +171,15 @@ async def ensure_class_exists_helper(
 @async_to_sync
 async def ensure_class_in_lora(facet: str, klasse: str, **kwargs) -> Tuple[str, bool]:
     """Ensures class exists in lora.
-    Returns the uuid of the existing class or creates it and returns uuid of the new class.
+    Returns the uuid of the existing class or creates it and returns uuid of the new class. 
     Uses mox_utils ensure_class_exists but caches results, so subsequent calls with same parameters will return the correct uuid without any calls to lora.
     Returns a tuple contaning a uuid of the class and a boolean of wether it was created or not.
     Remember that the 'created' boolean is also cached so it will only show if it was created the first time this was called.
-    Examples:
+    Example:
         uuid, _ = ensure_class_in_lora('org_unit_type', 'Enhed')
         uuid, _ = ensure_class_in_lora('employee_address_type', 'Email', scope = 'EMAIL')
     """
-    response = await ensure_class_exists_helper(
-        bvn=klasse, title=klasse, facet_bvn=facet, **kwargs
-    )
+    response = await ensure_class_exists_helper(bvn=klasse, facet_bvn=facet, **kwargs)
     return response
 
 
