@@ -634,6 +634,10 @@ class AdMoSync(object):
             def filter_no_ad_object(uuid, ad_object):
                 return ad_object
 
+            # Lookup whether or not to terminate missing users
+            terminate_missing = ad_reader._get_setting().get(
+                "ad_mo_sync_terminate_missing", False
+            )
             # Lookup whether or not to terminate disabled users
             terminate_disabled = ad_reader._get_setting().get(
                 "ad_mo_sync_terminate_disabled"
@@ -659,11 +663,12 @@ class AdMoSync(object):
             for uuid, ad_object in employees:
                 self._update_single_user(uuid, ad_object, terminate_disabled)
             # Call terminate on each missing user
-            print("Terminating missing users")
-            missing_employees = list(missing_employees)
-            missing_employees = tqdm(missing_employees)
-            for uuid, ad_object in missing_employees:
-                self._terminate_single_user(uuid, ad_object)
+            if terminate_missing:
+                print("Terminating missing users")
+                missing_employees = list(missing_employees)
+                missing_employees = tqdm(missing_employees)
+                for uuid, ad_object in missing_employees:
+                    self._terminate_single_user(uuid, ad_object)
 
             logger.info('Stats: {}'.format(self.stats))
         self.stats['users'] = 'Written in log file'
