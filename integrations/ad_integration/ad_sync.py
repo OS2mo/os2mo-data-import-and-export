@@ -315,11 +315,12 @@ class AdMoSync(object):
 
     def _edit_engagement(self, uuid, ad_object):
         if self.lc:
-            eng = None
-            for cur_eng in self.lc.engagements.values():
-                if cur_eng[0]['user'] == uuid:
-                    if cur_eng[0]['primary_boolean']:
-                        eng = cur_eng[0]
+
+            engagements = self.lc.engagements.values()
+            engagements = map(itemgetter(0), engagements)
+            engagements = filter(lambda eng: eng["user"] == uuid, engagements)
+            engagements = filter(itemgetter("primary_boolean"), engagements)
+            eng = next(engagements, None)
 
             if eng is None:
                 # No current primary engagment found
@@ -333,14 +334,7 @@ class AdMoSync(object):
                 'to': eng['to_date']
             }
 
-            field_mapping = {
-                f'extension_{x}': eng['extensions'][f'udvidelse_{x}']
-                for x in range(1, 11)
-            }
-
             for ad_field, mo_field in self.mapping['engagements'].items():
-                if mo_field not in field_mapping:
-                    raise ConfigurationError('MO field %r is not mapped' % mo_field)
                 self._edit_engagement_post_to_mo(
                     ad_field, ad_object, mo_field, uuid, eng, validity
                 )
@@ -365,11 +359,19 @@ class AdMoSync(object):
     def _edit_engagement_post_to_mo(self, ad_field, ad_object, mo_field, uuid, mo_engagement, validity):
         # Default `mo_value` to an empty string. In case the field is dropped
         # from the AD object, this will empty its value in MO.
-        mo_value = ""
-        if ad_field in ad_object:
-            mo_value = ad_object[ad_field]
+        new_mo_value = ad_object.get(ad_field, "")
+        old_mo_value = mo_engagement.get(mo_field, None)
 
-        if mo_engagement[mo_field] == ad_object.get(ad_field):
+        field_mapping = {
+            f'extension_{x}': mo_engagement['extensions'][f'udvidelse_{x}']
+            for x in range(1, 11)
+        }
+        if old_mo_value is None:
+            if mo_field not in field_mapping:
+                raise ConfigurationError('MO field %r is not mapped' % mo_field)
+            old_mo_value = field_mapping[mo_field]
+
+        if old_mo_value == new_mo_value:
             logger.debug("No change, not editing engagement")
             return
 
@@ -377,7 +379,7 @@ class AdMoSync(object):
             'type': 'engagement',
             'uuid': mo_engagement['uuid'],
             'data': {
-                mo_field: mo_value,
+                mo_field: new_mo_value,
                 'validity': validity
             }
         }
