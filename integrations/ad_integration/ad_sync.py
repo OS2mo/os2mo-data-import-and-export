@@ -229,6 +229,22 @@ class AdMoSync(object):
         logger.info('Done reading all MO users')
         return employees
 
+    def _read_it_systems(self, uuid, it_system_uuid=None):
+        logger.debug('Read it-system for user')
+        if self.lc:
+            it_systems = map(itemgetter(0), self.lc.it_connections.values())
+            it_systems = filter(lambda it: it["user"] == uuid, it_systems)
+            if it_system_uuid:
+                it_systems = filter(
+                    lambda it: it["itsystem"] == it_system_uuid,
+                    it_systems
+                )
+            it_systems = map(itemgetter("username", "uuid"), it_systems)
+        else:
+            it_systems = self.helper.get_e_itsystems(uuid, it_system_uuid)
+            it_systems = map(itemgetter("user_key", "uuid"), it_systems)
+        return it_systems
+
     def _get_address_decision_list(self, uuid, ad_object):
         """Construct a `AddressDecisionList` instance for `ad_object`
 
@@ -420,14 +436,7 @@ class AdMoSync(object):
 
     def _edit_it_system(self, uuid, ad_object):
         mo_itsystem_uuid = self.mapping["it_systems"]["samAccountName"]
-        if self.lc:
-            it_systems = map(itemgetter(0), self.lc.it_connections.values())
-            it_systems = filter(lambda it: it["user"] == uuid, it_systems)
-            it_systems = filter(lambda it: it["itsystem"] == mo_itsystem_uuid, it_systems)
-            it_systems = map(itemgetter("username", "uuid"), it_systems)
-        else:
-            it_systems = self.helper.get_e_itsystems(uuid, mo_itsystem_uuid)
-            it_systems = map(itemgetter("user_key", "uuid"), it_systems)
+        it_systems = self._read_it_systems(uuid, mo_itsystem_uuid)
         # Here it_systems is a 2 tuple (mo_username, binding_uuid)
         mo_username, binding_uuid = only(it_systems, ("", ""))
         # Username currently in AD
@@ -673,8 +682,12 @@ class AdMoSync(object):
                 # TODO: Convert this function into two seperate phases.
                 # 1. A map from uuid, ad_object to mo_endpoints + mo_payloads
                 # 2. Bulk updating of MO using the data from 1.
+                mo_itsystem_uuid = self.mapping["it_systems"]["samAccountName"]
                 for uuid, ad_object in missing_employees:
-                    self._terminate_single_user(uuid, ad_object)
+                    it_systems = self._read_it_systems(uuid, mo_itsystem_uuid)
+                    mo_username, binding_uuid = only(it_systems, ("", ""))
+                    if mo_username != "":
+                        self._terminate_single_user(uuid, ad_object)
 
             logger.info('Stats: {}'.format(self.stats))
         self.stats['users'] = 'Written in log file'
