@@ -315,7 +315,6 @@ class AdMoSync(object):
 
     def _edit_engagement(self, uuid, ad_object):
         if self.lc:
-
             engagements = self.lc.engagements.values()
             engagements = map(itemgetter(0), engagements)
             engagements = filter(lambda eng: eng["user"] == uuid, engagements)
@@ -362,11 +361,13 @@ class AdMoSync(object):
         new_mo_value = ad_object.get(ad_field, "")
         old_mo_value = mo_engagement.get(mo_field, None)
 
-        field_mapping = {
-            f'extension_{x}': mo_engagement['extensions'][f'udvidelse_{x}']
-            for x in range(1, 11)
-        }
+        # If we cannot read the field, maybe it is because our mo_engagement is from 
+        # LoraCache, and thus is different from MO and must be read differently.
         if old_mo_value is None:
+            field_mapping = {
+                f'extension_{x}': mo_engagement['extensions'][f'udvidelse_{x}']
+                for x in range(1, 11)
+            }
             if mo_field not in field_mapping:
                 raise ConfigurationError('MO field %r is not mapped' % mo_field)
             old_mo_value = field_mapping[mo_field]
@@ -644,7 +645,6 @@ class AdMoSync(object):
 
             # Iterate over all users and sync AD informations to MO.
             employees = self._read_all_mo_users()
-            employees = tqdm(employees)
             employees = map(employee_to_cpr_uuid, employees)
             employees = map(cpr_uuid_to_uuid_ad, employees)
             # Remove all entries without ad_object
@@ -653,9 +653,15 @@ class AdMoSync(object):
             for pre_filter in self.pre_filters:
                 employees = filter(pre_filter, employees)
             # Call update_single_user on each remaining users
+            print("Updating users")
+            employees = list(employees)
+            employees = tqdm(employees)
             for uuid, ad_object in employees:
                 self._update_single_user(uuid, ad_object, terminate_disabled)
             # Call terminate on each missing user
+            print("Terminating missing users")
+            missing_employees = list(missing_employees)
+            missing_employees = tqdm(missing_employees)
             for uuid, ad_object in missing_employees:
                 self._terminate_single_user(uuid, ad_object)
 
