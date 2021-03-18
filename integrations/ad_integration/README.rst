@@ -455,6 +455,11 @@ Resultaterne for evaluering af filtrene sammenholdes altså med en 'AND' operati
            ]
        }
 
+Foruden terminering af MO kontos hvor AD brugeren er deaktiveret, kan MO kontos
+hvor en tilsvarende AD bruger ikke kan findes, også termineres automatisk.
+Denne funktionalitet aktiveres ved at sætte med nøglen
+`integrations.ad.ad_mo_sync_terminate_missing` til `True`.
+
 Slutteligt skal det nævnes, at implemeneringen af synkroniseringen understøtter
 muligheden for at opnå en betydelig hastighedsforbering ved at tillade direkte adgang
 til LoRa, denne funktion aktiveres med nøglen

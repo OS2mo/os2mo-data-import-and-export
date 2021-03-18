@@ -205,7 +205,7 @@ class AdMoSync(object):
             'integrations.ad.ad_mo_sync_direct_lora_speedup', False
         )
         if lora_speedup:
-            print('Retrive LoRa dump')
+            print('Retrieve LoRa dump')
             lc = LoraCache(resolve_dar=False, full_history=False)
             lc.populate_cache(dry_run=False, skip_associations=True)
             # skip reading lora - not for prod
@@ -315,11 +315,11 @@ class AdMoSync(object):
 
     def _edit_engagement(self, uuid, ad_object):
         if self.lc:
-            eng = None
-            for cur_eng in self.lc.engagements.values():
-                if cur_eng[0]['user'] == uuid:
-                    if cur_eng[0]['primary_boolean']:
-                        eng = cur_eng[0]
+            engagements = self.lc.engagements.values()
+            engagements = map(itemgetter(0), engagements)
+            engagements = filter(lambda eng: eng["user"] == uuid, engagements)
+            engagements = filter(itemgetter("primary_boolean"), engagements)
+            eng = next(engagements, None)
 
             if eng is None:
                 # No current primary engagment found
@@ -333,14 +333,7 @@ class AdMoSync(object):
                 'to': eng['to_date']
             }
 
-            field_mapping = {
-                f'extension_{x}': eng['extensions'][f'udvidelse_{x}']
-                for x in range(1, 11)
-            }
-
             for ad_field, mo_field in self.mapping['engagements'].items():
-                if mo_field not in field_mapping:
-                    raise ConfigurationError('MO field %r is not mapped' % mo_field)
                 self._edit_engagement_post_to_mo(
                     ad_field, ad_object, mo_field, uuid, eng, validity
                 )
@@ -365,11 +358,21 @@ class AdMoSync(object):
     def _edit_engagement_post_to_mo(self, ad_field, ad_object, mo_field, uuid, mo_engagement, validity):
         # Default `mo_value` to an empty string. In case the field is dropped
         # from the AD object, this will empty its value in MO.
-        mo_value = ""
-        if ad_field in ad_object:
-            mo_value = ad_object[ad_field]
+        new_mo_value = ad_object.get(ad_field, "")
+        old_mo_value = mo_engagement.get(mo_field, None)
 
-        if mo_engagement[mo_field] == ad_object.get(ad_field):
+        # If we cannot read the field, maybe it is because our mo_engagement is from 
+        # LoraCache, and thus is different from MO and must be read differently.
+        if old_mo_value is None and "extensions" in mo_engagement:
+            field_mapping = {
+                f'extension_{x}': mo_engagement['extensions'][f'udvidelse_{x}']
+                for x in range(1, 11)
+            }
+            if mo_field not in field_mapping:
+                raise ConfigurationError('MO field %r is not mapped' % mo_field)
+            old_mo_value = field_mapping[mo_field]
+
+        if old_mo_value == new_mo_value:
             logger.debug("No change, not editing engagement")
             return
 
@@ -377,7 +380,7 @@ class AdMoSync(object):
             'type': 'engagement',
             'uuid': mo_engagement['uuid'],
             'data': {
-                mo_field: mo_value,
+                mo_field: new_mo_value,
                 'validity': validity
             }
         }
@@ -555,7 +558,7 @@ class AdMoSync(object):
 
     def _setup_ad_reader_and_cache_all(self, index):
         ad_reader = adreader.ADParameterReader(index=index)
-        print('Retrive AD dump')
+        print('Retrieve AD dump')
         ad_reader.cache_all()
         print('Done')
         logger.info('Done with AD caching')
@@ -631,6 +634,10 @@ class AdMoSync(object):
             def filter_no_ad_object(uuid, ad_object):
                 return ad_object
 
+            # Lookup whether or not to terminate missing users
+            terminate_missing = ad_reader._get_setting().get(
+                "ad_mo_sync_terminate_missing", False
+            )
             # Lookup whether or not to terminate disabled users
             terminate_disabled = ad_reader._get_setting().get(
                 "ad_mo_sync_terminate_disabled"
@@ -642,7 +649,6 @@ class AdMoSync(object):
 
             # Iterate over all users and sync AD informations to MO.
             employees = self._read_all_mo_users()
-            employees = tqdm(employees)
             employees = map(employee_to_cpr_uuid, employees)
             employees = map(cpr_uuid_to_uuid_ad, employees)
             # Remove all entries without ad_object
@@ -651,11 +657,24 @@ class AdMoSync(object):
             for pre_filter in self.pre_filters:
                 employees = filter(pre_filter, employees)
             # Call update_single_user on each remaining users
+            print("Updating users")
+            employees = list(employees)
+            employees = tqdm(employees)
             for uuid, ad_object in employees:
+                # TODO: Convert this function into two seperate phases.
+                # 1. A map from uuid, ad_object to mo_endpoints + mo_payloads
+                # 2. Bulk updating of MO using the data from 1.
                 self._update_single_user(uuid, ad_object, terminate_disabled)
             # Call terminate on each missing user
-            for uuid, ad_object in missing_employees:
-                self._terminate_single_user(uuid, ad_object)
+            if terminate_missing:
+                print("Terminating missing users")
+                missing_employees = list(missing_employees)
+                missing_employees = tqdm(missing_employees)
+                # TODO: Convert this function into two seperate phases.
+                # 1. A map from uuid, ad_object to mo_endpoints + mo_payloads
+                # 2. Bulk updating of MO using the data from 1.
+                for uuid, ad_object in missing_employees:
+                    self._terminate_single_user(uuid, ad_object)
 
             logger.info('Stats: {}'.format(self.stats))
         self.stats['users'] = 'Written in log file'
