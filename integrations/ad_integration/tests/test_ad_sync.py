@@ -45,7 +45,6 @@ class MockLoraCache:
                     "user": self._mo_values["uuid"],
                     "primary_boolean": True,
                     "to_date": None,
-                    "extension_2": "old mo value",
                     "extensions": {
                         "udvidelse_%d" % n: "old mo value #%d" for n in range(1, 11)
                     },
@@ -936,9 +935,18 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         else:
             finalize_mock.assert_not_called()
 
-    def test_finalize_missing_ad_user(self):
+    @parameterized.expand(
+        [
+            (False, False),
+            (True, True),
+        ]
+    )
+    def test_finalize_missing_ad_user(self, terminate_missing, expected):
         def add_terminate_filter_template(settings):
             settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {}
+            settings["integrations.ad"][0][
+                "ad_mo_sync_terminate_missing"
+            ] = terminate_missing
             return settings
 
         # Helper functions to seed admosync mock
@@ -958,4 +966,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         # Run full sync against the mocks
         self.ad_sync.update_all_users()
 
-        finalize_mock.assert_called()
+        if expected:
+            finalize_mock.assert_called()
+        else:
+            finalize_mock.assert_not_called()

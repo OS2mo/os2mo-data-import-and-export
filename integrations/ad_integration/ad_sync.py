@@ -205,7 +205,7 @@ class AdMoSync(object):
             'integrations.ad.ad_mo_sync_direct_lora_speedup', False
         )
         if lora_speedup:
-            print('Retrive LoRa dump')
+            print('Retrieve LoRa dump')
             lc = LoraCache(resolve_dar=False, full_history=False)
             lc.populate_cache(dry_run=False, skip_associations=True)
             # skip reading lora - not for prod
@@ -363,7 +363,7 @@ class AdMoSync(object):
 
         # If we cannot read the field, maybe it is because our mo_engagement is from 
         # LoraCache, and thus is different from MO and must be read differently.
-        if old_mo_value is None:
+        if old_mo_value is None and "extensions" in mo_engagement:
             field_mapping = {
                 f'extension_{x}': mo_engagement['extensions'][f'udvidelse_{x}']
                 for x in range(1, 11)
@@ -558,7 +558,7 @@ class AdMoSync(object):
 
     def _setup_ad_reader_and_cache_all(self, index):
         ad_reader = adreader.ADParameterReader(index=index)
-        print('Retrive AD dump')
+        print('Retrieve AD dump')
         ad_reader.cache_all()
         print('Done')
         logger.info('Done with AD caching')
