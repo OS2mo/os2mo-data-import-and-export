@@ -661,12 +661,18 @@ class AdMoSync(object):
             employees = list(employees)
             employees = tqdm(employees)
             for uuid, ad_object in employees:
+                # TODO: Convert this function into two seperate phases.
+                # 1. A map from uuid, ad_object to mo_endpoints + mo_payloads
+                # 2. Bulk updating of MO using the data from 1.
                 self._update_single_user(uuid, ad_object, terminate_disabled)
             # Call terminate on each missing user
             if terminate_missing:
                 print("Terminating missing users")
                 missing_employees = list(missing_employees)
                 missing_employees = tqdm(missing_employees)
+                # TODO: Convert this function into two seperate phases.
+                # 1. A map from uuid, ad_object to mo_endpoints + mo_payloads
+                # 2. Bulk updating of MO using the data from 1.
                 for uuid, ad_object in missing_employees:
                     self._terminate_single_user(uuid, ad_object)
 
