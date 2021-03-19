@@ -610,6 +610,7 @@ class AdMoSync(object):
 
             ad_reader = self._setup_ad_reader_and_cache_all(index=index)
             ad_settings = ad_reader._get_setting()
+            print(ad_settings)
 
             # move to read_conf_settings og valider på tværs af alle-ad'er
             # så vi ikke overskriver addresser, itsystemer og extensionfelter
@@ -679,8 +680,8 @@ class AdMoSync(object):
             if terminate_missing:
                 print("Terminating missing users")
 
-                mo_itsystem_uuid = self.mapping["it_systems"]["samAccountName"]
                 def has_it_system(employee):
+                    mo_itsystem_uuid = self.mapping["it_systems"]["samAccountName"]
                     it_systems = self._read_it_systems(uuid, mo_itsystem_uuid)
                     mo_username, _ = only(it_systems, ("", ""))
                     return mo_username != ""

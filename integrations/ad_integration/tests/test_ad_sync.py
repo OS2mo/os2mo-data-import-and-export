@@ -947,6 +947,9 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             settings["integrations.ad"][0][
                 "ad_mo_sync_terminate_missing"
             ] = terminate_missing
+            settings["integrations.ad"][0][
+                "ad_mo_sync_terminate_missing_require_itsystem"
+            ] = False
             return settings
 
         # Helper functions to seed admosync mock

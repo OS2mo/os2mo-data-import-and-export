@@ -365,6 +365,9 @@ class TestADMixin(object):
                     "properties": [],
                     "search_base": "search_base",
                     "integrations.ad.ad_mo_sync_mapping": {},
+                    "ad_mo_sync_terminate_missing": False,
+                    "ad_mo_sync_terminate_missing_require_itsystem": True,
+                    "ad_mo_sync_terminate_disabled": True,
                     "servers": ["server123"],
                 }
             ],
