@@ -74,18 +74,27 @@ def _read_primary_ad_settings(top_settings, index=0):
 
     # Settings that do not need to be set, or have defaults
     #primary_settings['server'] = None
-    primary_settings['servers'] = top_settings[
-        'integrations.ad'][index].get('servers', [])
-    primary_settings['caseless_samname'] = top_settings.get(
-        'integrations.ad')[index].get('caseless_samname', True)
-    primary_settings['sam_filter'] = top_settings.get(
-        "integrations.ad")[index].get("sam_filter", '')
-    primary_settings['cpr_separator'] = top_settings.get(
-        'integrations.ad')[index].get('cpr_separator', '')
-    primary_settings['ad_mo_sync_mapping'] = top_settings.get(
-        'integrations.ad')[index].get('ad_mo_sync_mapping', {})
-    primary_settings['method'] = top_settings[
-        'integrations.ad'][index].get("method", "kerberos")
+    index_settings = top_settings[
+        'integrations.ad'
+    ][index]
+    primary_settings['servers'] = index_settings.get('servers', [])
+    primary_settings['caseless_samname'] = index_settings.get('caseless_samname', True)
+    primary_settings['sam_filter'] = index_settings.get("sam_filter", '')
+    primary_settings['cpr_separator'] = index_settings.get('cpr_separator', '')
+    primary_settings['method'] = index_settings.get("method", "kerberos")
+
+    primary_settings['ad_mo_sync_mapping'] = index_settings.get(
+        'ad_mo_sync_mapping', {}
+    )
+    primary_settings['ad_mo_sync_terminate_missing'] = index_settings.get(
+        "ad_mo_sync_terminate_missing", False
+    )
+    primary_settings["ad_mo_sync_terminate_missing_require_itsystem"] = index_settings.get(
+        "ad_mo_sync_terminate_missing_require_itsystem", True
+    )
+    primary_settings["ad_mo_sync_terminate_disabled"] = index_settings.get(
+        "ad_mo_sync_terminate_disabled"
+    )
 
     # So far false in all known cases, default to false
     # get_ad_object = os.environ.get('AD_GET_AD_OBJECT', 'False')
