@@ -229,6 +229,22 @@ class AdMoSync(object):
         logger.info('Done reading all MO users')
         return employees
 
+    def _read_it_systems(self, uuid, it_system_uuid=None):
+        logger.debug('Read it-system for user')
+        if self.lc:
+            it_systems = map(itemgetter(0), self.lc.it_connections.values())
+            it_systems = filter(lambda it: it["user"] == uuid, it_systems)
+            if it_system_uuid:
+                it_systems = filter(
+                    lambda it: it["itsystem"] == it_system_uuid,
+                    it_systems
+                )
+            it_systems = map(itemgetter("username", "uuid"), it_systems)
+        else:
+            it_systems = self.helper.get_e_itsystems(uuid, it_system_uuid)
+            it_systems = map(itemgetter("user_key", "uuid"), it_systems)
+        return it_systems
+
     def _get_address_decision_list(self, uuid, ad_object):
         """Construct a `AddressDecisionList` instance for `ad_object`
 
@@ -420,14 +436,7 @@ class AdMoSync(object):
 
     def _edit_it_system(self, uuid, ad_object):
         mo_itsystem_uuid = self.mapping["it_systems"]["samAccountName"]
-        if self.lc:
-            it_systems = map(itemgetter(0), self.lc.it_connections.values())
-            it_systems = filter(lambda it: it["user"] == uuid, it_systems)
-            it_systems = filter(lambda it: it["itsystem"] == mo_itsystem_uuid, it_systems)
-            it_systems = map(itemgetter("username", "uuid"), it_systems)
-        else:
-            it_systems = self.helper.get_e_itsystems(uuid, mo_itsystem_uuid)
-            it_systems = map(itemgetter("user_key", "uuid"), it_systems)
+        it_systems = self._read_it_systems(uuid, mo_itsystem_uuid)
         # Here it_systems is a 2 tuple (mo_username, binding_uuid)
         mo_username, binding_uuid = only(it_systems, ("", ""))
         # Username currently in AD
@@ -600,11 +609,12 @@ class AdMoSync(object):
             }
 
             ad_reader = self._setup_ad_reader_and_cache_all(index=index)
+            ad_settings = ad_reader._get_setting()
 
             # move to read_conf_settings og valider på tværs af alle-ad'er
             # så vi ikke overskriver addresser, itsystemer og extensionfelter
             # fra et ad med  med værdier fra et andet
-            self.mapping = ad_reader._get_setting()['ad_mo_sync_mapping']
+            self.mapping = ad_settings['ad_mo_sync_mapping']
             self._verify_it_systems()
 
             used_mo_fields = []
@@ -635,13 +645,13 @@ class AdMoSync(object):
                 return ad_object
 
             # Lookup whether or not to terminate missing users
-            terminate_missing = ad_reader._get_setting().get(
-                "ad_mo_sync_terminate_missing", False
-            )
+            terminate_missing = ad_settings["ad_mo_sync_terminate_missing"]
+            # Decide whether missing users should only be terminated if and only if
+            # they have an AD it system in their MO account.
+            terminate_missing_require_itsystem = ad_settings["ad_mo_sync_terminate_missing_require_itsystem"]
             # Lookup whether or not to terminate disabled users
-            terminate_disabled = ad_reader._get_setting().get(
-                "ad_mo_sync_terminate_disabled"
-            )
+            terminate_disabled = ad_settings["ad_mo_sync_terminate_disabled"]
+
             # If not globally configured, and no user filters are configured either,
             # we default terminate_disabled to False
             if terminate_disabled is None and not self.terminate_disabled_filters:
@@ -668,8 +678,19 @@ class AdMoSync(object):
             # Call terminate on each missing user
             if terminate_missing:
                 print("Terminating missing users")
+
+                def has_it_system(employee):
+                    mo_itsystem_uuid = self.mapping["it_systems"]["samAccountName"]
+                    it_systems = self._read_it_systems(uuid, mo_itsystem_uuid)
+                    mo_username, _ = only(it_systems, ("", ""))
+                    return mo_username != ""
+
+                if terminate_missing_require_itsystem:
+                    missing_employees = filter(has_it_system, missing_employees)
+
                 missing_employees = list(missing_employees)
                 missing_employees = tqdm(missing_employees)
+
                 # TODO: Convert this function into two seperate phases.
                 # 1. A map from uuid, ad_object to mo_endpoints + mo_payloads
                 # 2. Bulk updating of MO using the data from 1.

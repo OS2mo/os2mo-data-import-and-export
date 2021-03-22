@@ -460,6 +460,15 @@ hvor en tilsvarende AD bruger ikke kan findes, også termineres automatisk.
 Denne funktionalitet aktiveres ved at sætte med nøglen
 `integrations.ad.ad_mo_sync_terminate_missing` til `True`.
 
+Disse brugere med manglende AD konti kan desuden begrænses således at der kun
+termineres brugere der tidligere har været oprettet i AD. Dette sker ved at tjekke
+om brugerens MO konti har et AD it-system svarende til konfigurationen i
+``it_systems -> samAccountName``. Denne adfærd kan slås fra ved at sætte nøglen:
+`integrations.ad.ad_mo_sync_terminate_missing_require_itsystem` til `False`,
+hvorefter SAMTLIGE MO brugere uden en tilhørende AD konti vil blive termineret.
+Dette vil typisk betyde at et stort antal historiske brugere vil få termineret deres
+adresser og itsystemer.
+
 Slutteligt skal det nævnes, at implemeneringen af synkroniseringen understøtter
 muligheden for at opnå en betydelig hastighedsforbering ved at tillade direkte adgang
 til LoRa, denne funktion aktiveres med nøglen
