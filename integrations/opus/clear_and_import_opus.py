@@ -1,3 +1,5 @@
+import aiohttp
+import asyncio
 import click
 import time
 from datetime import datetime
@@ -16,15 +18,19 @@ from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import OpusDiffImport
 from tools.default_mo_setup import ensure_default_classes, create_new_root_and_it
 from tools.subtreedeleter import SubtreeDeleter
+from mox_helpers.utils import async_to_sync
 
 
 def truncate_db(MOX_BASE : str = "http://localhost:8080") -> None:
     r = requests.get(MOX_BASE + "/db/truncate")
     r.raise_for_status()
 
-def delete_opus_tree(api_token: str, org_unit_uuid: str, delete_functions: bool = False) -> None:
-    deleter = SubtreeDeleter(api_token, org_unit_uuid)
-    deleter.run(org_unit_uuid, delete_functions)
+@async_to_sync
+async def delete_opus_tree(api_token, org_unit_uuid: str, delete_functions: bool = False) -> None:
+    async with aiohttp.ClientSession() as session:
+        session.headers.update({'session': api_token})
+        deleter = SubtreeDeleter(session, org_unit_uuid)
+        await deleter.run(org_unit_uuid, delete_functions)
 
 def read_all_files(filter_ids):
     """Create full list of data to write to MO.
@@ -48,10 +54,11 @@ def read_all_files(filter_ids):
     return map(lookup_units_and_employees, tqdm(pairwise(export_dates)))
 
 
-def setup_new_mo(settings : list = None, opus_uuid:str = None, truncate: bool = None):
-    """Create fresh MO setup with nessecary classes
+def prepare_re_import(settings : list = None, opus_uuid:str = None, truncate: bool = None):
+    """Create a MO setup with necessary classes
 
-    Clear MO database and read through all files to find roles and engagement_types
+    Clear MO database, or only the opus-unit with the given uuid.
+    Ensure necessary classes exists.
     """
     settings = settings or load_settings()
     api_token = settings.get('crontab.SAML_TOKEN')
@@ -61,7 +68,6 @@ def setup_new_mo(settings : list = None, opus_uuid:str = None, truncate: bool = 
         create_new_root_and_it()
     elif opus_uuid:
         delete_opus_tree(api_token, opus_uuid, delete_functions=True)
-        
     ensure_default_classes()
 
 
@@ -93,18 +99,18 @@ def import_opus(ad_reader=None, import_amount:str = 'one'):
     type=click.Choice(["one", "all"], case_sensitive=False),
     required=True,
 )
-@click.option("--opus-uuid", type=click.STRING, help="Delete only Opus subtree with the given uuid")
+@click.option("--opus-uuid", type=click.STRING, help="Delete Opus subtree with the given uuid")
 @click.option("--truncate", is_flag=True, help="Truncate all MO tables - be carefull!")
 @click.option(
     "--use-ad", is_flag=True, type=click.BOOL, default=False, help="Read from AD"
 )
 def clear_and_reload(import_amount, opus_uuid, truncate, use_ad):
     settings = load_settings()
-    setup_new_mo(settings=settings, opus_uuid=opus_uuid, truncate=truncate)
+    prepare_re_import(settings=settings, opus_uuid=opus_uuid, truncate=truncate)
     AD = None
     if use_ad:
         AD = ad_reader.ADParameterReader()
-        AD.cache_all()
+        AD.cache_all(print_progress=True)
     import_opus(ad_reader=AD, import_amount=import_amount)
 
 if __name__ == "__main__":
