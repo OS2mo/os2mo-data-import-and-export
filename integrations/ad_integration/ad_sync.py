@@ -610,7 +610,6 @@ class AdMoSync(object):
 
             ad_reader = self._setup_ad_reader_and_cache_all(index=index)
             ad_settings = ad_reader._get_setting()
-            print(ad_settings)
 
             # move to read_conf_settings og valider på tværs af alle-ad'er
             # så vi ikke overskriver addresser, itsystemer og extensionfelter
