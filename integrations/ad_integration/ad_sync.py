@@ -220,7 +220,7 @@ class AdMoSync(object):
         logger.info("Done reading all MO users")
         return employees
 
-    def _read_it_systems(self, uuid, it_system_uuid=None):
+    def _read_it_systems_raw(self, uuid, it_system_uuid=None):
         logger.debug("Read it-system for user")
         if self.lc:
             it_systems = map(itemgetter(0), self.lc.it_connections.values())
@@ -229,10 +229,19 @@ class AdMoSync(object):
                 it_systems = filter(
                     lambda it: it["itsystem"] == it_system_uuid, it_systems
                 )
-            it_systems = map(itemgetter("username", "uuid"), it_systems)
         else:
             it_systems = self.helper.get_e_itsystems(uuid, it_system_uuid)
-            it_systems = map(itemgetter("user_key", "uuid"), it_systems)
+        return it_systems
+
+    def _read_it_systems(self, uuid, it_system_uuid=None):
+        # Figure out which fields to extract from the it-system
+        # Differs by source, as LoraCache and MO are not equivalent!
+        extractor = itemgetter("user_key", "uuid")
+        if self.lc:
+            extractor = itemgetter("username", "uuid")
+        # Fetch itsystems and extract fields
+        it_systems = self._read_it_systems_raw(uuid, it_system_uuid)
+        it_systems = map(extractor, it_systems)
         return it_systems
 
     def _get_address_decision_list(self, uuid, ad_object):
@@ -458,16 +467,32 @@ class AdMoSync(object):
             return
 
         today = datetime.strftime(datetime.now(), "%Y-%m-%d")
-        it_systems = self._read_it_systems(uuid)
+        it_systems = self._read_it_systems_raw(uuid)
+
+        # Figure out how to find the itsystems uuid
+        # Differs by source, as LoraCache and MO are not equivalent!
+        itsystem_uuid_extractor = lambda it: it['itsystem']["uuid"]
+        if self.lc:
+            itsystem_uuid_extractor = lambda it: it['itsystem']
         it_systems = {
-            it["itsystem"]["uuid"]: it for it in it_systems
+            itsystem_uuid_extractor(it): it for it in it_systems
         }
+
+        def _is_itsystem_end_date_none(itsystem):
+            # Figure out how to find the itsystem connection end-date
+            # Differs by source, as LoraCache and MO are not equivalent!
+            if self.lc:
+                to_date = itsystem["to_date"]
+            else:
+                to_date = itsystem["validity"]["to"]
+            return to_date is None
 
         def check_validity_is_ok(uuid):
             # NOTE: Maybe this should be not set, or in the future?
             if not uuid in it_systems:
                 return False
-            return it_systems[uuid]["validity"]["to"] is None
+            itsystem = it_systems[uuid]
+            return _is_itsystem_end_date_none(itsystem)
 
         # Find fields to terminate
         it_system_uuids = self.mapping["it_systems"].values()
