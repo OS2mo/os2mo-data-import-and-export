@@ -95,6 +95,12 @@ def _read_primary_ad_settings(top_settings, index=0):
     primary_settings["ad_mo_sync_terminate_disabled"] = index_settings.get(
         "ad_mo_sync_terminate_disabled"
     )
+    primary_settings["ad_mo_sync_pre_filters"] = index_settings.get(
+        "ad_mo_sync_pre_filters", []
+    )
+    primary_settings["ad_mo_sync_terminate_disabled_filters"] = index_settings.get(
+        "ad_mo_sync_terminate_disabled_filters", []
+    )
 
     # So far false in all known cases, default to false
     # get_ad_object = os.environ.get('AD_GET_AD_OBJECT', 'False')

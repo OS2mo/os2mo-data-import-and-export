@@ -368,6 +368,8 @@ class TestADMixin(object):
                     "ad_mo_sync_terminate_missing": False,
                     "ad_mo_sync_terminate_missing_require_itsystem": True,
                     "ad_mo_sync_terminate_disabled": True,
+                    "ad_mo_sync_pre_filters": [],
+                    "ad_mo_sync_terminate_disabled_filters": [],
                     "servers": ["server123"],
                 }
             ],

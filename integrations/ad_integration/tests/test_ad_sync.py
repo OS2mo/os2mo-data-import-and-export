@@ -865,7 +865,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
     def test_pre_filters(self, prefilters, expected):
         def add_prefilter_template(settings):
             settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {}
-            settings["integrations.ad.ad_mo_sync.pre_filters"] = prefilters
+            settings["integrations.ad"][0]["ad_mo_sync_pre_filters"] = prefilters
             return settings
 
         self._setup_admosync(
@@ -907,8 +907,8 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             settings["integrations.ad"][0][
                 "ad_mo_sync_terminate_disabled"
             ] = terminate_disabled
-            settings[
-                "integrations.ad.ad_mo_sync.terminate_disabled_filters"
+            settings["integrations.ad"][0][
+                "ad_mo_sync_terminate_disabled_filters"
             ] = prefilters
             return settings
 
