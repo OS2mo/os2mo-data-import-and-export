@@ -252,24 +252,25 @@ class AdMoSync(object):
         :return: An `AddressDecisionList` instance
         """
 
+        def to_mo_address(addr):
+            return {
+                "uuid": addr["uuid"],
+                "address_type": {"uuid": addr["adresse_type"]},
+                "visibility": {"uuid": addr["visibility"]},
+                "value": addr["value"],
+                "validity": {
+                    "from": addr["from_date"],
+                    "to": addr["to_date"],
+                }
+            }
+
         # Populate list of `user_addresses`
         if self.lc:
             # Retrieve user addresses from LoraCache
-            user_addresses = []
-            for addr in self.lc.addresses.values():
-                if addr[0]["user"] == uuid:
-                    user_addresses.append(
-                        {
-                            "uuid": addr[0]["uuid"],
-                            "address_type": {"uuid": addr[0]["adresse_type"]},
-                            "visibility": {"uuid": addr[0]["visibility"]},
-                            "value": addr[0]["value"],
-                            "validity": {
-                                "from": addr[0]["from_date"],
-                                "to": addr[0]["to_date"],
-                            },
-                        }
-                    )
+            user_addresses = self.lc.addresses.values()
+            user_addresses = map(itemgetter(0), user_addresses)
+            user_addresses = filter(lambda addr: addr["user"] == uuid, user_addresses)
+            user_addresses = map(to_mo_address, user_addresses)
         else:
             # Retrieve user addresses from MO
             user_addresses = self.helper.get_e_addresses(uuid)
@@ -512,11 +513,25 @@ class AdMoSync(object):
         if "user_addresses" not in self.mapping:
             return
 
+        @apply
+        def _is_edit(decision, address, *args):
+            return decision == AddressDecisionList.EDIT
+
+        @apply
+        def _has_no_end_date(decision, address, *args):
+            return address["validity"]["to"] is None
+
+        @apply
+        def _extract_address(decision, address, *args):
+            return address
+
         decision_list = self._get_address_decision_list(uuid, ad_object)
-        for decision, address, *args in decision_list:
-            if decision == AddressDecisionList.EDIT:
-                if address["validity"]["to"] is None:
-                    self._finalize_user_addresses_post_to_mo(address)
+        decision_list = filter(_is_edit, decision_list)
+        decision_list = filter(_has_no_end_date, decision_list)
+        decision_list = map(_extract_address, decision_list)
+
+        for address in decision_list:
+            self._finalize_user_addresses_post_to_mo(address)
 
     def _finalize_user_addresses_post_to_mo(self, mo_address: dict):
         today = datetime.strftime(datetime.now(), "%Y-%m-%d")
