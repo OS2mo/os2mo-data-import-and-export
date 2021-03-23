@@ -702,7 +702,8 @@ class AdMoSync(object):
             if terminate_missing:
                 print("Terminating missing users")
 
-                def has_it_system(employee):
+                @apply
+                def has_it_system(uuid, ad_object):
                     mo_itsystem_uuid = self.mapping["it_systems"]["samAccountName"]
                     itconnections = self._read_itconnections(uuid, mo_itsystem_uuid)
                     mo_username, _ = only(itconnections, ("", ""))
