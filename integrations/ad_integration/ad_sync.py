@@ -6,6 +6,7 @@ from functools import partial
 from operator import itemgetter
 from typing import Any, Dict, Iterator, Optional, Tuple, Union
 
+import click
 import ad_logger
 import ad_reader as adreader
 from more_itertools import only, partition
@@ -509,8 +510,8 @@ class AdMoSync(object):
             return
 
         @apply
-        def _is_edit(decision, address, *args):
-            return decision == AddressDecisionList.EDIT
+        def _is_terminate(decision, address, *args):
+            return decision == AddressDecisionList.TERMINATE
 
         @apply
         def _has_no_end_date(decision, address, *args):
@@ -520,8 +521,8 @@ class AdMoSync(object):
         def _extract_address(decision, address, *args):
             return address
 
-        decision_list = self._get_address_decision_list(uuid, ad_object)
-        decision_list = filter(_is_edit, decision_list)
+        decision_list = list(self._get_address_decision_list(uuid, ad_object))
+        decision_list = filter(_is_terminate, decision_list)
         decision_list = filter(_has_no_end_date, decision_list)
         decision_list = map(_extract_address, decision_list)
 
@@ -582,10 +583,11 @@ class AdMoSync(object):
         if "user_addresses" in self.mapping:
             self._edit_user_addresses(uuid, ad_object)
 
-    def _setup_ad_reader_and_cache_all(self, index):
+    def _setup_ad_reader_and_cache_all(self, index, cache_all=True):
         ad_reader = adreader.ADParameterReader(index=index)
         print("Retrieve AD dump")
-        ad_reader.cache_all(print_progress=True)
+        if cache_all:
+            ad_reader.cache_all(print_progress=True)
         print("Done")
         logger.info("Done with AD caching")
         return ad_reader
@@ -611,7 +613,15 @@ class AdMoSync(object):
             msg = "{} with uuid {}, not found in MO"
             raise Exception(msg.format(it_system, it_system_uuid))
 
+    def update_single_user(self, uuid):
+        employees = [self.helper.read_user(uuid)]
+        self._update_users(employees, ad_cache_all=False)
+
     def update_all_users(self):
+        employees = self._read_all_mo_users()
+        self._update_users(employees)
+
+    def _update_users(self, employees, ad_cache_all=True):
         # Iterate over all AD's
         for index, _ in enumerate(self.settings["integrations.ad"]):
 
@@ -623,7 +633,7 @@ class AdMoSync(object):
                 "users": set(),
             }
 
-            ad_reader = self._setup_ad_reader_and_cache_all(index=index)
+            ad_reader = self._setup_ad_reader_and_cache_all(index=index, cache_all=ad_cache_all)
             ad_settings = ad_reader._get_setting()
 
             # move to read_conf_settings og valider på tværs af alle-ad'er
@@ -652,7 +662,7 @@ class AdMoSync(object):
 
             @apply
             def cpr_uuid_to_uuid_ad(cpr, uuid):
-                ad_object = ad_reader.read_user(cpr=cpr, cache_only=True)
+                ad_object = ad_reader.read_user(cpr=cpr, cache_only=ad_cache_all)
                 return uuid, ad_object
 
             @apply
@@ -680,7 +690,6 @@ class AdMoSync(object):
                 terminate_disabled = False
 
             # Iterate over all users and sync AD informations to MO.
-            employees = self._read_all_mo_users()
             employees = map(employee_to_cpr_uuid, employees)
             employees = map(cpr_uuid_to_uuid_ad, employees)
             # Remove all entries without ad_object
@@ -723,12 +732,25 @@ class AdMoSync(object):
                     self._terminate_single_user(uuid, ad_object)
 
             logger.info("Stats: {}".format(self.stats))
+            print(self.stats)
         self.stats["users"] = "Written in log file"
-        print(self.stats)
+
+
+@click.command()
+@click.option(
+    "--sync-user",
+    help="Sync a single user.",
+    type=click.UUID,
+)
+def sync(sync_user):
+    sync = AdMoSync()
+    if sync_user:
+        sync.update_single_user(str(sync_user))
+    else:
+        sync.update_all_users()
 
 
 if __name__ == "__main__":
     ad_logger.start_logging("ad_mo_sync.log")
 
-    sync = AdMoSync()
-    sync.update_all_users()
+    sync()
