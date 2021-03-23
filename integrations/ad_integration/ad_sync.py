@@ -467,19 +467,18 @@ class AdMoSync(object):
         if "it_systems" not in self.mapping:
             return
 
-        today = datetime.strftime(datetime.now(), "%Y-%m-%d")
-        it_systems = self._read_it_systems_raw(uuid)
-
         # Figure out how to find the itsystems uuid
         # Differs by source, as LoraCache and MO are not equivalent!
         itsystem_uuid_extractor = lambda it: it['itsystem']["uuid"]
         if self.lc:
             itsystem_uuid_extractor = lambda it: it['itsystem']
-        it_systems = {
-            itsystem_uuid_extractor(it): it for it in it_systems
-        }
 
-        def _is_itsystem_end_date_none(itsystem):
+        it_system_uuids = self.mapping["it_systems"].values()
+        def _keep_only_mapped(itconnection):
+            itsystem_uuid = itsystem_uuid_extractor(itconnection)
+            return itsystem_uuid in it_system_uuids
+
+        def _keep_only_open(itconnection):
             # Figure out how to find the itsystem connection end-date
             # Differs by source, as LoraCache and MO are not equivalent!
             if self.lc:
@@ -488,18 +487,13 @@ class AdMoSync(object):
                 to_date = itsystem["validity"]["to"]
             return to_date is None
 
-        def check_validity_is_ok(uuid):
-            # NOTE: Maybe this should be not set, or in the future?
-            if not uuid in it_systems:
-                return False
-            itsystem = it_systems[uuid]
-            return _is_itsystem_end_date_none(itsystem)
+        itconnections = self._read_it_systems_raw(uuid)
+        itconnections = filter(_keep_only_mapped, itconnections)
+        ïtconnections = filter(_keep_only_open, itconnections)
+        itconnections = map(itemgetter("uuid"), itconnections)
 
-        # Find fields to terminate
-        it_system_uuids = self.mapping["it_systems"].values()
-        it_system_uuids = filter(check_validity_is_ok, it_system_uuids)
-
-        for uuid in it_system_uuids:
+        today = datetime.strftime(datetime.now(), "%Y-%m-%d")
+        for uuid in itconnections:
             payload = {
                 "type": "it",
                 "uuid": it_systems[uuid]["uuid"],
