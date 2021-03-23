@@ -21,7 +21,7 @@ mo_employee = {'cpr_no': '0602602389',
                        'user_key': 'Kolding Kommune',
                        'uuid': '3b866d97-0b1f-48e0-8078-686d96f430b3'},
                'surname': 'Kuhlenhenke',
-               'user_key': 'SolveigK',
+               'user_key': 'SolveigK_user_key',
                'uuid': '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'}
 
 mo_employee_address = [
@@ -226,7 +226,7 @@ mo_employee_it = [{'itsystem': {'name': 'OpenDesk',
                               'nickname_surname': '',
                               'surname': 'Kuhlenhenke',
                               'uuid': '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'},
-                   'user_key': 'SolveigK',
+                   'user_key': 'SolveigKOpenDesk',
                    'uuid': 'a029d0ac-7ea6-4023-8680-57825e43af8c',
                    'validity': {'from': '2003-08-13', 'to': None}},
                   {'itsystem': {'name': 'Active Directory',
@@ -295,7 +295,7 @@ class TestsMOAd(unittest.TestCase):
                     'Location': 'Bakkedraget 28, Vester Nebel, 6040 Egtved',
                     'Person': {'Cpr': '0602602389', 'Name': 'Solveig Kuhlenhenke'},
                     'Positions': [],
-                    'UserId': '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b',
+                    'UserId': 'SolveigK_user_key',
                     'Uuid': '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'}
         self.assertEqual(expected, get_sts_user(uuid, []))
 

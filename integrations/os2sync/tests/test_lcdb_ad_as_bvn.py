@@ -156,7 +156,7 @@ class Tests_lc_db(unittest.TestCase):
                     'Person': {'Cpr': 'cpr1',
                                'Name': 'fornavn efternavn'},
                     'PhoneNumber': '12345678',
-                    'UserId': 'b1',
+                    'UserId': 'b1bvn',
                     'Uuid': 'b1',
                     'Positions': [],
                     }
