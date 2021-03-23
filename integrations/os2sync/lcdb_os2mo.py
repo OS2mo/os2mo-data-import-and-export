@@ -60,10 +60,11 @@ def try_get_ad_user_key(session, uuid: str) -> Optional[str]:
 def get_sts_user(session, uuid, allowed_unitids):
     base = session.query(Bruger).filter(Bruger.uuid == uuid).one()
 
-    user_id = base.uuid  # default
+    user_id = base.bvn  # default
 
     # alternative user_id
     if settings["OS2SYNC_AD_AS_BVN"]:
+        user_id = uuid  # default
         candidate_user_id = try_get_ad_user_key(session, uuid)
         # if exists/truthy
         if candidate_user_id:
