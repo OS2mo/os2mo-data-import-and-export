@@ -590,7 +590,7 @@ class AdMoSync(object):
     def _setup_ad_reader_and_cache_all(self, index):
         ad_reader = adreader.ADParameterReader(index=index)
         print("Retrieve AD dump")
-        ad_reader.cache_all()
+        ad_reader.cache_all(print_progress=True)
         print("Done")
         logger.info("Done with AD caching")
         return ad_reader
