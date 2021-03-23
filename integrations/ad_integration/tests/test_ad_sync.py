@@ -813,7 +813,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                             "uuid": "it_system_uuid",
                         },
                         "user_key": "username",
-                        "uuid": "it_system_uuid",
+                        "uuid": "itconnection_uuid",
                         "validity": {"from": from_date, "to": to_date},
                     }
                 ]
@@ -837,7 +837,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                     "force": True,
                     "payload": {
                         "type": "it",
-                        "uuid": "it_system_uuid",
+                        "uuid": "itconnection_uuid",
                         "validity": {"to": today},
                     },
                     "url": "details/terminate",

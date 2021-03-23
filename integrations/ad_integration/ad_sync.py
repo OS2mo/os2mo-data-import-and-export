@@ -220,29 +220,29 @@ class AdMoSync(object):
         logger.info("Done reading all MO users")
         return employees
 
-    def _read_it_systems_raw(self, uuid, it_system_uuid=None):
+    def _read_itconnections_raw(self, uuid, it_system_uuid=None):
         logger.debug("Read it-system for user")
         if self.lc:
-            it_systems = map(itemgetter(0), self.lc.it_connections.values())
-            it_systems = filter(lambda it: it["user"] == uuid, it_systems)
+            itconnections = map(itemgetter(0), self.lc.it_connections.values())
+            itconnections = filter(lambda it: it["user"] == uuid, itconnections)
             if it_system_uuid:
-                it_systems = filter(
-                    lambda it: it["itsystem"] == it_system_uuid, it_systems
+                itconnections = filter(
+                    lambda it: it["itsystem"] == it_system_uuid, itconnections
                 )
         else:
-            it_systems = self.helper.get_e_itsystems(uuid, it_system_uuid)
-        return it_systems
+            itconnections = self.helper.get_e_itsystems(uuid, it_system_uuid)
+        return itconnections
 
-    def _read_it_systems(self, uuid, it_system_uuid=None):
+    def _read_itconnections(self, uuid, it_system_uuid=None):
         # Figure out which fields to extract from the it-system
         # Differs by source, as LoraCache and MO are not equivalent!
         extractor = itemgetter("user_key", "uuid")
         if self.lc:
             extractor = itemgetter("username", "uuid")
-        # Fetch itsystems and extract fields
-        it_systems = self._read_it_systems_raw(uuid, it_system_uuid)
-        it_systems = map(extractor, it_systems)
-        return it_systems
+        # Fetch itconnections and extract fields
+        itconnections = self._read_itconnections_raw(uuid, it_system_uuid)
+        itconnections = map(extractor, itconnections)
+        return itconnections
 
     def _get_address_decision_list(self, uuid, ad_object):
         """Construct a `AddressDecisionList` instance for `ad_object`
@@ -426,9 +426,9 @@ class AdMoSync(object):
 
     def _edit_it_system(self, uuid, ad_object):
         mo_itsystem_uuid = self.mapping["it_systems"]["samAccountName"]
-        it_systems = self._read_it_systems(uuid, mo_itsystem_uuid)
+        itconnections = self._read_itconnections(uuid, mo_itsystem_uuid)
         # Here it_systems is a 2 tuple (mo_username, binding_uuid)
-        mo_username, binding_uuid = only(it_systems, ("", ""))
+        mo_username, binding_uuid = only(itconnections, ("", ""))
         # Username currently in AD
         ad_username = ad_object["SamAccountName"]
 
@@ -482,21 +482,21 @@ class AdMoSync(object):
             # Figure out how to find the itsystem connection end-date
             # Differs by source, as LoraCache and MO are not equivalent!
             if self.lc:
-                to_date = itsystem["to_date"]
+                to_date = itconnection["to_date"]
             else:
-                to_date = itsystem["validity"]["to"]
+                to_date = itconnection["validity"]["to"]
             return to_date is None
 
-        itconnections = self._read_it_systems_raw(uuid)
+        itconnections = self._read_itconnections_raw(uuid)
         itconnections = filter(_keep_only_mapped, itconnections)
-        ïtconnections = filter(_keep_only_open, itconnections)
+        itconnections = filter(_keep_only_open, itconnections)
         itconnections = map(itemgetter("uuid"), itconnections)
 
         today = datetime.strftime(datetime.now(), "%Y-%m-%d")
         for uuid in itconnections:
             payload = {
                 "type": "it",
-                "uuid": it_systems[uuid]["uuid"],
+                "uuid": uuid,
                 "validity": {"to": today},
             }
             logger.debug("Finalize payload: {}".format(payload))
@@ -704,8 +704,8 @@ class AdMoSync(object):
 
                 def has_it_system(employee):
                     mo_itsystem_uuid = self.mapping["it_systems"]["samAccountName"]
-                    it_systems = self._read_it_systems(uuid, mo_itsystem_uuid)
-                    mo_username, _ = only(it_systems, ("", ""))
+                    itconnections = self._read_itconnections(uuid, mo_itsystem_uuid)
+                    mo_username, _ = only(itconnections, ("", ""))
                     return mo_username != ""
 
                 if terminate_missing_require_itsystem:
