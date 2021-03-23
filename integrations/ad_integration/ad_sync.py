@@ -271,6 +271,7 @@ class AdMoSync(object):
             user_addresses = map(itemgetter(0), user_addresses)
             user_addresses = filter(lambda addr: addr["user"] == uuid, user_addresses)
             user_addresses = map(to_mo_address, user_addresses)
+            user_addresses = list(user_addresses)
         else:
             # Retrieve user addresses from MO
             user_addresses = self.helper.get_e_addresses(uuid)
