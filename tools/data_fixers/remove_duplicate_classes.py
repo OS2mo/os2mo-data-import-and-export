@@ -56,6 +56,7 @@ def check_duplicates_classes(delete_dups: bool = False):
     return len(ldupl)
 
 
+
 @click.command()
 @click.option(
     "--delete",
@@ -71,6 +72,7 @@ def cli(delete):
     This tool is written to help clean up engagement_types that had the same name, but with different casing.
     """
     check_duplicates_classes(delete)
+
 
 
 if __name__ == "__main__":

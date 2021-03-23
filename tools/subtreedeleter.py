@@ -1,12 +1,17 @@
 import asyncio
 import itertools
-import tqdm
 import sys
-from queue import Queue
-from more_itertools import flatten
-import requests
-import click
 import typing
+from queue import Queue
+
+import aiohttp
+import click
+import requests
+import tqdm
+from more_itertools import flatten
+from mox_helpers.utils import async_to_sync
+
+from exporters.utils.load_settings import load_settings
 
 
 class SubtreeDeleter:
@@ -14,26 +19,27 @@ class SubtreeDeleter:
         self.session = session
 
     async def get_org_uuid(self):
-        async with self.session.get('http://localhost:5000/service/o/') as r:
+        async with self.session.get("http://localhost:5000/service/o/") as r:
             r.raise_for_status()
             r = await r.json()
-            return r[0]['uuid']
+            return r[0]["uuid"]
 
     async def get_tree(self, org_uuid):
         async with self.session.get(
-            'http://localhost:5000/service/o/{}/ou/tree'.format(org_uuid)) as r:
+            "http://localhost:5000/service/o/{}/ou/tree".format(org_uuid)
+        ) as r:
             r.raise_for_status()
             return await r.json()
 
     async def get_associated_org_func(self, org_unit_uuid):
         async with self.session.get(
-            'http://localhost:8080/organisation/organisationfunktion?tilknyttedeenheder={}'.format(
+            "http://localhost:8080/organisation/organisationfunktion?tilknyttedeenheder={}".format(
                 org_unit_uuid
             )
         ) as r:
             r.raise_for_status()
             r = await r.json()
-            return r['results'][0]
+            return r["results"][0]
 
     @staticmethod
     def find_subtree(subtree_uuid: str, trees: typing.List[dict]):
@@ -43,19 +49,19 @@ class SubtreeDeleter:
 
         while not queue.empty():
             tree = queue.get()
-            if tree['uuid'] == subtree_uuid:
+            if tree["uuid"] == subtree_uuid:
                 return tree
-            if tree.get('children'):
-                for child in tree.get('children'):
+            if tree.get("children"):
+                for child in tree.get("children"):
                     queue.put(child)
 
-        raise click.ClickException('{} not found'.format(subtree_uuid))
+        raise click.ClickException("{} not found".format(subtree_uuid))
 
     def get_tree_uuids(self, tree: dict):
-        uuids = [tree['uuid']]
-        children = tree.get('children')
+        uuids = [tree["uuid"]]
+        children = tree.get("children")
         if children:
-            for subtree in tree['children']:
+            for subtree in tree["children"]:
                 uuids += self.get_tree_uuids(subtree)
         return uuids
 
@@ -64,53 +70,59 @@ class SubtreeDeleter:
         return await asyncio.gather(*org_func_uuids)
 
     async def deleter(self, path, uuid):
-            url = "http://localhost:8080/{}/{}"
-            async with self.session.delete(url.format(path, uuid)) as r:
-                r.raise_for_status()
-                return await r.json()
-
-            
+        url = "http://localhost:8080/{}/{}"
+        async with self.session.delete(url.format(path, uuid)) as r:
+            r.raise_for_status()
+            return await r.json()
 
     async def delete_from_lora(self, uuids, path):
         tasks = [self.deleter(path, uuid) for uuid in uuids]
-        responses = [await f
-                 for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks))]
-        
-            
+        responses = [
+            await f for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks))
+        ]
 
     async def run(self, subtree_uuid, delete_functions):
         org_uuid = await self.get_org_uuid()
         tree = await self.get_tree(org_uuid)
         subtree = self.find_subtree(subtree_uuid, tree)
 
-        print('Deleting subtree for {}'.format(subtree_uuid))
+        print("Deleting subtree for {}".format(subtree_uuid))
         unit_uuids = self.get_tree_uuids(subtree)
-        await self.delete_from_lora(unit_uuids, 'organisation/organisationenhed')
+        await self.delete_from_lora(unit_uuids, "organisation/organisationenhed")
 
         if delete_functions:
-            print('Deleting associated org functions for subtree'.format(subtree_uuid))
+            print("Deleting associated org functions for subtree".format(subtree_uuid))
             org_func_uuids = await self.get_associated_org_funcs(unit_uuids)
-            await self.delete_from_lora(flatten(org_func_uuids), 'organisation/organisationfunktion')
+            await self.delete_from_lora(
+                flatten(org_func_uuids), "organisation/organisationfunktion"
+            )
 
-        print('Done')
+        print("Done")
+
+
+@async_to_sync
+async def subtreedeleter_helper(
+    org_unit_uuid: str, delete_functions: bool = False
+) -> None:
+    settings = load_settings()
+    api_token = settings.get("crontab.SAML_TOKEN")
+    timeout = aiohttp.ClientTimeout(total=None)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
+        session.headers.update({"session": api_token})
+        deleter = SubtreeDeleter(session, org_unit_uuid)
+        await deleter.run(org_unit_uuid, delete_functions)
 
 
 @click.command()
-@click.argument('org_unit_uuid')
-@click.option('--api-token')
+@click.argument("org_unit_uuid")
 @click.option(
-    '--delete-functions',
+    "--delete-functions",
     default=False,
     help="Delete all organisational functions associated with units in the subtree",
 )
-def main(api_token, org_unit_uuid, delete_functions):
-    async def runner():
-        async with aiohttp.ClientSession() as session:
-            session.headers.update({'session': api_token})
-            deleter = SubtreeDeleter(session, org_unit_uuid)
-            deleter.run(org_unit_uuid, delete_functions)
+def main(org_unit_uuid, delete_functions):
+    subtreedeleter_helper(org_unit_uuid, delete_functions)
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
