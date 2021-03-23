@@ -458,8 +458,9 @@ class AdMoSync(object):
             return
 
         today = datetime.strftime(datetime.now(), "%Y-%m-%d")
+        it_systems = self._read_it_systems(uuid)
         it_systems = {
-            it["itsystem"]["uuid"]: it for it in self.helper.get_e_itsystems(uuid)
+            it["itsystem"]["uuid"]: it for it in it_systems
         }
 
         def check_validity_is_ok(uuid):
