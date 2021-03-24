@@ -621,9 +621,10 @@ class AdMoSync(object):
         employees = self._read_all_mo_users()
         self._update_users(employees)
 
-    def _update_users(self, employees, ad_cache_all=True):
+    def _update_users(self, employees_in, ad_cache_all=True):
         # Iterate over all AD's
         for index, _ in enumerate(self.settings["integrations.ad"]):
+            employees = employees_in
 
             self.stats = {
                 "ad-index": index,
