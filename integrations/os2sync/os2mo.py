@@ -192,16 +192,12 @@ def try_get_ad_user_key(uuid: str) -> Optional[str]:
 def get_sts_user(uuid, allowed_unitids):
     base = os2mo_get("{BASE}/e/" + uuid + "/").json()
 
-    user_id = base["user_key"]  # default
-
-    # alternative user_id
-    if settings["OS2SYNC_AD_AS_BVN"]:
-        # fallback to uuid
-        user_id = uuid
-        candidate_user_id = try_get_ad_user_key(uuid)
-        # if exists/truthy
-        if candidate_user_id:
-            user_id = candidate_user_id
+    # fallback to uuid
+    user_id = uuid
+    candidate_user_id = try_get_ad_user_key(uuid)
+    # if exists/truthy
+    if candidate_user_id:
+        user_id = candidate_user_id
 
     sts_user = {
         "Uuid": uuid,

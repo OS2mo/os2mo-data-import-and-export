@@ -145,7 +145,7 @@ class Tests_lc_db(unittest.TestCase):
         self.assertEqual(expected, try_get_ad_user_key(session=self.session, uuid='b1'))
 
     @patch.dict(config.settings, {
-        'OS2SYNC_AD_AS_BVN': False, 'OS2SYNC_XFER_CPR': True,
+        'OS2SYNC_XFER_CPR': True,
         'OS2SYNC_PHONE_SCOPE_CLASSES': '',
         'OS2SYNC_EMAIL_SCOPE_CLASSES': '',
     },
@@ -156,26 +156,9 @@ class Tests_lc_db(unittest.TestCase):
                     'Person': {'Cpr': 'cpr1',
                                'Name': 'fornavn efternavn'},
                     'PhoneNumber': '12345678',
-                    'UserId': 'b1bvn',
-                    'Uuid': 'b1',
-                    'Positions': [],
-                    }
-        self.assertEqual(expected, get_sts_user(self.session, 'b1', []))
-
-    @patch.dict(config.settings, {
-        'OS2SYNC_AD_AS_BVN': True, 'OS2SYNC_XFER_CPR': True,
-        'OS2SYNC_PHONE_SCOPE_CLASSES': '',
-        'OS2SYNC_EMAIL_SCOPE_CLASSES': '',
-    },
-                clear=True)
-    def test_lcdb_get_sts_user_ad_logon(self):
-        self.setup_wide()
-        expected = {'Email': 'test@email.dk',
-                    'Person': {'Cpr': 'cpr1',
-                               'Name': 'fornavn efternavn'},
-                    'PhoneNumber': '12345678',
                     'UserId': 'AD-logon',
                     'Uuid': 'b1',
                     'Positions': [],
                     }
         self.assertEqual(expected, get_sts_user(self.session, 'b1', []))
+
