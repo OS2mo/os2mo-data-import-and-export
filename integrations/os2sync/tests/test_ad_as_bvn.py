@@ -21,7 +21,7 @@ mo_employee = {'cpr_no': '0602602389',
                        'user_key': 'Kolding Kommune',
                        'uuid': '3b866d97-0b1f-48e0-8078-686d96f430b3'},
                'surname': 'Kuhlenhenke',
-               'user_key': 'SolveigK',
+               'user_key': 'SolveigK_user_key',
                'uuid': '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'}
 
 mo_employee_address = [
@@ -226,7 +226,7 @@ mo_employee_it = [{'itsystem': {'name': 'OpenDesk',
                               'nickname_surname': '',
                               'surname': 'Kuhlenhenke',
                               'uuid': '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'},
-                   'user_key': 'SolveigK',
+                   'user_key': 'SolveigKOpenDesk',
                    'uuid': 'a029d0ac-7ea6-4023-8680-57825e43af8c',
                    'validity': {'from': '2003-08-13', 'to': None}},
                   {'itsystem': {'name': 'Active Directory',
@@ -243,7 +243,7 @@ mo_employee_it = [{'itsystem': {'name': 'OpenDesk',
                               'nickname_surname': '',
                               'surname': 'Kuhlenhenke',
                               'uuid': '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'},
-                   'user_key': 'SolveigK',
+                   'user_key': 'SolveigK_AD_logon',
                    'uuid': 'a2fb2581-c57a-46ad-8a21-30118a3859b7',
                    'validity': {'from': '2003-08-13', 'to': None}}]
 
@@ -279,11 +279,11 @@ class TestsMOAd(unittest.TestCase):
 
     @patch('integrations.os2sync.os2mo.session.get', patched_session_get)
     def test_get_ad_user_key(self):
-        expected = 'SolveigK'
+        expected = 'SolveigK_AD_logon'
         self.assertEqual(expected, try_get_ad_user_key(uuid))
 
     @patch.dict(config.settings, {
-        'OS2SYNC_AD_AS_BVN': False, 'OS2MO_SERVICE_URL': '',
+        'OS2MO_SERVICE_URL': '',
         'OS2MO_ORG_UUID': '', 'OS2SYNC_XFER_CPR': True,
         'OS2SYNC_PHONE_SCOPE_CLASSES': '',
         'OS2SYNC_EMAIL_SCOPE_CLASSES': '',
@@ -295,23 +295,6 @@ class TestsMOAd(unittest.TestCase):
                     'Location': 'Bakkedraget 28, Vester Nebel, 6040 Egtved',
                     'Person': {'Cpr': '0602602389', 'Name': 'Solveig Kuhlenhenke'},
                     'Positions': [],
-                    'UserId': '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b',
-                    'Uuid': '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'}
-        self.assertEqual(expected, get_sts_user(uuid, []))
-
-    @patch.dict(config.settings, {
-        'OS2SYNC_AD_AS_BVN': True, 'OS2MO_SERVICE_URL': '',
-        'OS2MO_ORG_UUID': '', 'OS2SYNC_XFER_CPR': True,
-        'OS2SYNC_PHONE_SCOPE_CLASSES': '',
-        'OS2SYNC_EMAIL_SCOPE_CLASSES': '',
-    },
-                clear=True)
-    @patch('integrations.os2sync.os2mo.session.get', patched_session_get)
-    def test_mo_client_use_ad(self):
-        expected = {'Email': 'solveigk@kolding.dk',
-                    'Location': 'Bakkedraget 28, Vester Nebel, 6040 Egtved',
-                    'Person': {'Cpr': '0602602389', 'Name': 'Solveig Kuhlenhenke'},
-                    'Positions': [],
-                    'UserId': 'SolveigK',
+                    'UserId': 'SolveigK_AD_logon',
                     'Uuid': '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'}
         self.assertEqual(expected, get_sts_user(uuid, []))
