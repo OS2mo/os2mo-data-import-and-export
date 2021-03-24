@@ -27,7 +27,7 @@ logger = logging.getLogger("mora-helper")
 
 
 class MoraHelper:
-    def __init__(self, hostname='http://localhost', export_ansi=True,
+    def __init__(self, hostname='http://localhost:5000', export_ansi=True,
                  use_cache=True):
         self.host = hostname + '/service/'
         self.cache = {}
