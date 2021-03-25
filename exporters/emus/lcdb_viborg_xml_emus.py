@@ -13,6 +13,7 @@ import sys
 import io
 import collections
 import datetime
+import time
 import requests
 from xml.sax.saxutils import escape
 from functools import partial
@@ -80,8 +81,21 @@ def get_dar_address(db_address):
                 params = {'id': dar_uuid, 'struktur': 'mini'}
                 # Note: Dar accepts up to 10 simultanious
                 # connections, consider grequests.
-                r = requests.get(url=adr_url, params=params)
-                address_data = r.json()
+                counter = 0
+                max_tries = 10
+                while True:
+                    counter += 1
+                    try:
+                        r = requests.get(url=adr_url, params=params)
+                        address_data = r.json()
+                        break
+                    except json.decoder.JSONDecodeError:
+                        print(r.text)
+                        continue
+                    if counter > max_tries:
+                       break
+                    time.sleep(5)
+
                 if address_data:
                     dar_cache[dar_uuid] = address_data[0]
                     break
