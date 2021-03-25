@@ -119,9 +119,9 @@ def read_ou_tree(session, org, nodes={}, parent=None):
     """
 
     if parent is None:
-        parent = nodes[org] = nodes['root'] = Node(
-            org, unit=session.query(Enhed).filter(Enhed.uuid == org).one()
-        )
+        org_unit = session.query(Enhed).filter(Enhed.uuid == org).one()
+        parent = nodes[org] = nodes['root'] = Node(org, unit=org_unit)
+
 
     units = session.query(Enhed).filter(Enhed.forældreenhed_uuid == org)
     for unit in units:
