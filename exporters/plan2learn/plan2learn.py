@@ -45,7 +45,7 @@ SETTINGS = load_settings()
 ACTIVE_JOB_FUNCTIONS = []  # Liste over aktive engagementer som skal eksporteres.
 
 
-def get_e_address(e_uuid, scope, lc_historic, settings):
+def get_e_address(e_uuid, scope, lc, lc_historic, settings):
     # Iterator of all addresses in LoRa
     lora_addresses = lc_historic.addresses.values()
     lora_addresses = flatten(lora_addresses)
@@ -59,6 +59,7 @@ def get_e_address(e_uuid, scope, lc_historic, settings):
         lambda address: address['scope'] == scope,
         lora_addresses
     )
+    candidates = lora_addresses
 
     if scope == "Telefon":
         priority_list = settings.get("plan2learn.email.phone", [])
@@ -67,7 +68,7 @@ def get_e_address(e_uuid, scope, lc_historic, settings):
     else:
         priority_list = []
 
-    address = lc_choose_public_address(candidates, priority_list)
+    address = lc_choose_public_address(candidates, priority_list, lc)
     if address is not None:
         return address
     else:
@@ -96,8 +97,8 @@ def construct_bruger_row(user_uuid, cpr, name, email, phone):
         'BrugerId': user_uuid,
         'CPR': cpr,
         'Navn': name,
-        'E-mail': email or ""
-        'Mobil': phone or ""
+        'E-mail': email or "",
+        'Mobil': phone or "",
         'Stilling': None  # To be populated later
     }
     return row
@@ -129,15 +130,15 @@ def export_bruger_lc(node, used_cprs, lc, lc_historic):
         used_cprs.add(cpr)
         name = user['navn']
 
-        _phone_obj = get_e_address(user_uuid, 'Telefon', lc_historic, SETTINGS)
+        _phone_obj = get_e_address(user_uuid, 'Telefon', lc, lc_historic, SETTINGS)
         _phone = None
         if _phone_obj:
-            _phone = _phone_obj.værdi
+            _phone = _phone_obj['value']
 
-        _email_obj = get_e_address(user_uuid, 'E-mail', lc_historic, SETTINGS)
+        _email_obj = get_e_address(user_uuid, 'E-mail', lc, lc_historic, SETTINGS)
         _email = None
         if _email_obj:
-            _email = _email_obj.værdi
+            _email = _email_obj['value']
 
         rows.append(construct_bruger_row(
             user_uuid, cpr, name, _email, _phone
@@ -164,12 +165,12 @@ def export_bruger_mo(node, used_cprs, mh):
         _phone_obj = get_e_address_mo(user_uuid, 'PHONE', mh, SETTINGS)
         _phone = None
         if _phone_obj:
-            _phone = _phone_obj.værdi
+            _phone = _phone_obj['value']
 
         _email_obj = get_e_address_mo(user_uuid, 'EMAIL', mh, SETTINGS)
         _email = None
         if _email_obj:
-            _email = _email_obj.værdi
+            _email = _email_obj['value']
 
         rows.append(construct_bruger_row(
             user_uuid, cpr, name, _email, _phone
