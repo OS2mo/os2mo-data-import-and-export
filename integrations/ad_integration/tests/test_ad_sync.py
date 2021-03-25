@@ -729,7 +729,6 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
         # Helper functions to seed admosync mock
         def add_ad_data(ad_values):
-            ad_values["email"] = "emil@magenta.dk"
             ad_values["Enabled"] = False
             return ad_values
 
