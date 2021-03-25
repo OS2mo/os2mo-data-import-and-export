@@ -93,7 +93,7 @@ def get_dar_address(db_address):
                         print(r.text)
                         continue
                     if counter > max_tries:
-                       break
+                       raise Exception("DAR does not respond!")
                     time.sleep(5)
 
                 if address_data:
