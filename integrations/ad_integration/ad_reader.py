@@ -110,7 +110,7 @@ class ADParameterReader(AD):
         return_value = []
         date_range = range(1, 32)
         if print_progress:
-            date_range = tqdm(date_range)
+            date_range = tqdm(date_range, desc="Fetching AD accounts")
         for i in date_range:
             day = str(i).zfill(2)
             self.uncached_read_user(cpr='{}*'.format(day), ria=return_value)

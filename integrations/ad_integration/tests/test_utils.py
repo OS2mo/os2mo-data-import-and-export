@@ -368,6 +368,8 @@ class TestADMixin(object):
                     "ad_mo_sync_terminate_missing": False,
                     "ad_mo_sync_terminate_missing_require_itsystem": True,
                     "ad_mo_sync_terminate_disabled": True,
+                    "ad_mo_sync_pre_filters": [],
+                    "ad_mo_sync_terminate_disabled_filters": [],
                     "servers": ["server123"],
                 }
             ],
@@ -461,7 +463,7 @@ class AdMoSyncTestSubclass(AdMoSync):
             }
         )
 
-    def _setup_ad_reader_and_cache_all(self, index):
+    def _setup_ad_reader_and_cache_all(self, index, cache_all=True):
         def read_user(cpr, cache_only):
             # We only support one person in our mocking
             if cpr != self.mo_values["cpr"]:

@@ -367,19 +367,19 @@ afslutning af deaktiverede AD brugere.
 
 Deaktiverede AD brugere kan håndteres på forskellige måder.
 Som udgangspunkt synkroniseres de på præcis samme vis som almindelige brugere,
-med mindre nøglen `integrations.ad.ad_mo_sync_terminate_disabled` er sat til `True`.
+med mindre nøglen `ad_mo_sync_terminate_disabled` er sat til `True`.
 Hvis dette er tilfælde ophører den automatiske synkronisering, og deaktiverede
 brugere får i stedet deres AD data 'afsluttet'.
 Ved afslutning forstås at brugerens AD synkroniserede adresser og it-systemer
 flyttes til fortiden, såfremt de har en åben slutdato.
 
-Hvis nøglen `integrations.ad.ad_mo_sync_terminate_disabled` ikke er fintmasket nok,
+Hvis nøglen `ad_mo_sync_terminate_disabled` ikke er fintmasket nok,
 f.eks. fordi deaktiverede brugere dækker over både brugere som er under oprettelse
 og brugere som er under nedlæggelse, kan et være nødvendigt at tage stilling til
 om en given deaktiveret bruger skal nedlægges eller synkroniseres på baggrund af
 AD dataene fra den enkelte bruger.
 
-Dette understøttes vha. `integrations.ad.ad_mo_sync.terminate_disabled_filters` nøglen.
+Dette understøttes vha. `ad_mo_sync_terminate_disabled_filters` nøglen.
 Denne nøgle indeholder en liste af jinja templates.
 Disse templates kan returnere en sand værdi for at terminere brugeren, eller en
 falsk værdi for at synkronisere brugeren.
@@ -399,7 +399,7 @@ Værdierne der vurderes som sande er "yes", "true", "1" og "1.0".
    .. code-block:: json
 
        {
-           "integrations.ad.ad_mo_sync.terminate_disabled_filters": [
+           "ad_mo_sync_terminate_disabled_filters": [
                "{{ uuid.startswith('00000000') }}"
            ]
        }
@@ -420,13 +420,13 @@ Værdierne der vurderes som sande er "yes", "true", "1" og "1.0".
    .. code-block:: json
 
        {
-           "integrations.ad.ad_mo_sync.terminate_disabled_filters": [
+           "ad_mo_sync_terminate_disabled_filters": [
                "{{ ad_object['extenionAttribute3'] == 'Under sletning' }}"
            ]
        }
 
 Såfremt nogle brugere hverken ønskes terminerede eller synkroniserede kan de
-filtreres fra vha. `integrations.ad.ad_mo_sync.pre_filters` nøglen.
+filtreres fra vha. `ad_mo_sync_pre_filters` nøglen.
 Denne nøgle indeholder en liste af jinja templates.
 Disse templates kan returnere en sand værdi for at beholde brugeren, eller en
 falsk værdi for filtrere brugeren fra.
@@ -447,10 +447,10 @@ Resultaterne for evaluering af filtrene sammenholdes altså med en 'AND' operati
    .. code-block:: json
 
        {
-           "integrations.ad.ad_mo_sync.terminate_disabled_filters": [
+           "ad_mo_sync_terminate_disabled_filters": [
                "{{ ad_object['extenionAttribute3'] == 'Under sletning' }}"
            ],
-           "integrations.ad.ad_mo_sync.pre_filters": [
+           "ad_mo_sync_pre_filters": [
                "{{ ad_object['extenionAttribute3'] != 'På orlov' }}"
            ]
        }
@@ -458,13 +458,13 @@ Resultaterne for evaluering af filtrene sammenholdes altså med en 'AND' operati
 Foruden terminering af MO kontos hvor AD brugeren er deaktiveret, kan MO kontos
 hvor en tilsvarende AD bruger ikke kan findes, også termineres automatisk.
 Denne funktionalitet aktiveres ved at sætte med nøglen
-`integrations.ad.ad_mo_sync_terminate_missing` til `True`.
+`ad_mo_sync_terminate_missing` til `True`.
 
 Disse brugere med manglende AD konti kan desuden begrænses således at der kun
 termineres brugere der tidligere har været oprettet i AD. Dette sker ved at tjekke
 om brugerens MO konti har et AD it-system svarende til konfigurationen i
 ``it_systems -> samAccountName``. Denne adfærd kan slås fra ved at sætte nøglen:
-`integrations.ad.ad_mo_sync_terminate_missing_require_itsystem` til `False`,
+`ad_mo_sync_terminate_missing_require_itsystem` til `False`,
 hvorefter SAMTLIGE MO brugere uden en tilhørende AD konti vil blive termineret.
 Dette vil typisk betyde at et stort antal historiske brugere vil få termineret deres
 adresser og itsystemer.

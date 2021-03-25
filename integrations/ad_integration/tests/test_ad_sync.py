@@ -729,7 +729,6 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
         # Helper functions to seed admosync mock
         def add_ad_data(ad_values):
-            ad_values["email"] = "emil@magenta.dk"
             ad_values["Enabled"] = False
             return ad_values
 
@@ -813,7 +812,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                             "uuid": "it_system_uuid",
                         },
                         "user_key": "username",
-                        "uuid": "it_system_uuid",
+                        "uuid": "itconnection_uuid",
                         "validity": {"from": from_date, "to": to_date},
                     }
                 ]
@@ -837,7 +836,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                     "force": True,
                     "payload": {
                         "type": "it",
-                        "uuid": "it_system_uuid",
+                        "uuid": "itconnection_uuid",
                         "validity": {"to": today},
                     },
                     "url": "details/terminate",
@@ -865,7 +864,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
     def test_pre_filters(self, prefilters, expected):
         def add_prefilter_template(settings):
             settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {}
-            settings["integrations.ad.ad_mo_sync.pre_filters"] = prefilters
+            settings["integrations.ad"][0]["ad_mo_sync_pre_filters"] = prefilters
             return settings
 
         self._setup_admosync(
@@ -907,8 +906,8 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             settings["integrations.ad"][0][
                 "ad_mo_sync_terminate_disabled"
             ] = terminate_disabled
-            settings[
-                "integrations.ad.ad_mo_sync.terminate_disabled_filters"
+            settings["integrations.ad"][0][
+                "ad_mo_sync_terminate_disabled_filters"
             ] = prefilters
             return settings
 
