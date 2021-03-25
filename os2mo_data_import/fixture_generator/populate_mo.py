@@ -1,12 +1,15 @@
-from fixture_generator import dummy_data_creator
-from datetime import datetime
-from click import command, option, ClickException
-from requests import Session
-from anytree import PreOrderIter
-from os2mo_data_import import ImportHelper
-from fixture_generator.dummy_data_creator import Size
-from kle import kle_import
+# encoding: utf-8
 
+from datetime import datetime
+
+from anytree import PreOrderIter
+from click import ClickException, command, option
+from kle import kle_import
+from os2mo_data_import import ImportHelper
+from requests import Session
+
+from fixture_generator import dummy_data_creator
+from fixture_generator.dummy_data_creator import Size
 
 """
 This tools needs either 2 or 7 arguments:
