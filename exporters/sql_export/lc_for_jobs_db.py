@@ -11,6 +11,7 @@ from constants import lc_for_jobs_actual_db_name
 from exporters.sql_export.sql_export import SqlExport
 from sqlalchemy import create_engine
 from customer_settings import PathDefaultMethod, get_settings
+from exporters.utils.load_settings import load_settings
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "lc-for-jobs.log"
@@ -20,10 +21,7 @@ logger = logging.getLogger("lc-for-jobs")
 
 def get_engine(dbpath=None):
     if dbpath is None:
-        cfg_file = get_settings(PathDefaultMethod.cwd)
-        if not cfg_file.is_file():
-            raise Exception("No setting file")
-        settings = json.loads(cfg_file.read_text())
+        settings = load_settings()
         dbpath = settings.get(
             "lc-for-jobs.actual_db_name", lc_for_jobs_actual_db_name
         )
@@ -46,10 +44,7 @@ def cli():
 def sql_export(resolve_dar):
 
     # Load settings file
-    cfg_file = get_settings(PathDefaultMethod.cwd)
-    if not cfg_file.is_file():
-        raise Exception("No setting file")
-    org_settings = json.loads(cfg_file.read_text())
+    org_settings = load_settings()
 
     # Override settings
     settings = {

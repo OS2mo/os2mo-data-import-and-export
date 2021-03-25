@@ -20,6 +20,7 @@ from itertools import filterfalse
 
 from exporters.emus import config
 
+import click
 from tqdm import tqdm
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import and_
@@ -105,7 +106,8 @@ def read_ou_tree(session, org, nodes={}, parent=None):
 
     if parent is None:
         parent = nodes[org] = nodes['root'] = Node(
-            org, unit=session.query(Enhed).filter(Enhed.uuid == org).one())
+            org, unit=session.query(Enhed).filter(Enhed.uuid == org).one()
+        )
 
     units = session.query(Enhed).filter(Enhed.forældreenhed_uuid == org)
     for unit in units:
@@ -467,6 +469,12 @@ def main(emus_xml_file, settings):
     emus_xml_file.write("</OS2MO>")
 
 
-if __name__ == '__main__':
-    with open(config.settings["EMUS_FILENAME"], "w", encoding="utf-8") as emus_f:
+@click.command()
+@click.argument('filename')
+def cli(filename):
+    with open(filename, "w", encoding="utf-8") as emus_f:
         main(emus_xml_file=emus_f, settings=config.settings)
+
+
+if __name__ == '__main__':
+    cli()
