@@ -8,34 +8,35 @@ import aiohttp
 import click
 import requests
 import tqdm
+from tqdm.asyncio import tqdm
 from more_itertools import flatten
 from mox_helpers.utils import async_to_sync
-
 from exporters.utils.load_settings import load_settings
 
 
 class SubtreeDeleter:
     def __init__(self, session, subtree_uuid):
         self.session = session
+        settings = load_settings()
+        self.mora_base = settings.get("mora.base")
+        self.mox_base = settings.get("mox.base")
 
     async def get_org_uuid(self):
-        async with self.session.get("http://localhost:5000/service/o/") as r:
+        async with self.session.get(f"{self.mora_base}/service/o/") as r:
             r.raise_for_status()
             r = await r.json()
             return r[0]["uuid"]
 
     async def get_tree(self, org_uuid):
         async with self.session.get(
-            "http://localhost:5000/service/o/{}/ou/tree".format(org_uuid)
+            f"{self.mora_base}/service/o/{org_uuid}/ou/tree"
         ) as r:
             r.raise_for_status()
             return await r.json()
 
     async def get_associated_org_func(self, org_unit_uuid):
         async with self.session.get(
-            "http://localhost:8080/organisation/organisationfunktion?tilknyttedeenheder={}".format(
-                org_unit_uuid
-            )
+            f"{self.mox_base}/organisation/organisationfunktion?tilknyttedeenheder={org_unit_uuid}"
         ) as r:
             r.raise_for_status()
             r = await r.json()
@@ -67,19 +68,17 @@ class SubtreeDeleter:
 
     async def get_associated_org_funcs(self, unit_uuids: typing.List[str]):
         org_func_uuids = map(self.get_associated_org_func, unit_uuids)
-        return await asyncio.gather(*org_func_uuids)
+        return await tqdm.gather(org_func_uuids)
 
     async def deleter(self, path, uuid):
-        url = "http://localhost:8080/{}/{}"
-        async with self.session.delete(url.format(path, uuid)) as r:
+        url = f"{self.mox_base}/{path}/{uuid}"
+        async with self.session.delete(url) as r:
             r.raise_for_status()
             return await r.json()
 
     async def delete_from_lora(self, uuids, path):
         tasks = [self.deleter(path, uuid) for uuid in uuids]
-        responses = [
-            await f for f in tqdm.tqdm(asyncio.as_completed(tasks), total=len(tasks))
-        ]
+        await tqdm.gather(tasks)
 
     async def run(self, subtree_uuid, delete_functions):
         org_uuid = await self.get_org_uuid()

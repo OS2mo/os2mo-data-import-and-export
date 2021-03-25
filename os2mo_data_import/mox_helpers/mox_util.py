@@ -12,6 +12,7 @@ from more_itertools import bucket, flatten, unzip
 from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.payloads import lora_facet, lora_klasse
 from mox_helpers.utils import async_to_sync, dict_map
+from exporters.utils.load_settings import load_settings
 
 
 @click.group()
@@ -179,7 +180,9 @@ async def ensure_class_in_lora(facet: str, klasse: str, **kwargs) -> Tuple[str, 
         uuid, _ = ensure_class_in_lora('org_unit_type', 'Enhed')
         uuid, _ = ensure_class_in_lora('employee_address_type', 'Email', scope = 'EMAIL')
     """
-    response = await ensure_class_exists_helper(bvn=klasse, facet_bvn=facet, **kwargs)
+    settings = load_settings()
+    mox_base = settings.get('mox.base')
+    response = await ensure_class_exists_helper(bvn=klasse, facet_bvn=facet, mox_base=mox_base, **kwargs)
     return response
 
 

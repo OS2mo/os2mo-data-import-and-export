@@ -3,6 +3,8 @@ from os2mo_data_import import ImportHelper
 from mox_helpers import mox_util
 from exporters.utils.load_settings import load_settings
 from integrations.opus import opus_helpers
+
+
 def create_new_root_and_it(settings=None) -> None:
     """Setup all necessary classes etc to perform opus-import."""
     settings = settings or load_settings()
@@ -20,7 +22,7 @@ def create_new_root_and_it(settings=None) -> None:
     # The Organisation class is the main entry point,
     # It exposes the related sub classes such as:
     # Facet, Klasse, Itsystem, OrganisationUnit, Employee
-    main_name = settings.get("municipality.name", "Magenta APS")
+    main_name = settings.get("municipality.name", "Magenta ApS")
     main_uuid = opus_helpers.generate_uuid(main_name)
     os2mo.add_organisation(
         identifier=main_name,
@@ -39,8 +41,7 @@ def create_new_root_and_it(settings=None) -> None:
     os2mo.import_all()
 
 def ensure_default_classes():
-    """Ensures the defined set of default classes exists in lora.
-    """
+    """Ensures the defined set of default classes exists in lora."""
     default_classes = [
         {
             "klasse": "primary",
@@ -97,7 +98,6 @@ def ensure_default_classes():
             "scope": "EMAIL",
         },
     ]
-
     for klasse in default_classes:
         mox_util.ensure_class_in_lora(**klasse)
 

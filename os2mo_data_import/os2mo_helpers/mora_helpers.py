@@ -158,7 +158,7 @@ class MoraHelper:
                 return_dict = response.json()
             self.cache[cache_id] = return_dict
             if response.status_code == 500:
-                #This happens when an object has been deleted.
+                # This happens when an object has been deleted.
                 return {}
         return return_dict
 
@@ -348,6 +348,8 @@ class MoraHelper:
                                              calculate_primary=calculate_primary)
                 if isinstance(engagement, list):
                     engagements = engagements + engagement
+                else:
+                    print(f"There was an unexpected engagement returned: {engagement}")
         return engagements
 
     def read_user_association(self, user, at=None, read_all=False,
