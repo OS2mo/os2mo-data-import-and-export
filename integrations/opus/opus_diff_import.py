@@ -3,11 +3,10 @@ import logging
 from datetime import datetime, timedelta
 from operator import itemgetter
 from pathlib import Path
-from typing import Tuple
+
 import click
 import requests
 import xmltodict
-from mox_helpers import mox_util
 from os2mo_helpers.mora_helpers import MoraHelper
 from requests import Session
 from tqdm import tqdm
@@ -62,27 +61,19 @@ EMPLOYEE_ADDRESS_CHECKS = {
     'email': constants.addresses_employee_email,
     'dar': constants.addresses_employee_dar
 }
-predefined_scopes = {constants.addresses_employee_dar: "DAR",
-                     constants.addresses_employee_phone: "PHONE",
-                     constants.addresses_employee_email: "EMAIL",
-                     constants.addresses_unit_dar: "DAR",
-                     constants.addresses_unit_phoneNumber: "PHONE",
-                     constants.addresses_unit_ean: "EAN",
-                     constants.addresses_unit_cvr: "TEXT",
-                     constants.addresses_unit_pnr: "TEXT",
-                     constants.addresses_unit_se: "TEXT"}
+
 
 class OpusDiffImport(object):
     def __init__(self, xml_date, ad_reader, employee_mapping={}):
         logger.info('Opus diff importer __init__ started')
-        self.xml_date = xml_date
-        self.ad_reader = ad_reader
-        self.employee_forced_uuids = employee_mapping
-        
+
         self.settings = load_settings()
         self.filter_ids = self.settings.get('integrations.opus.units.filter_ids', [])
 
         self.session = Session()
+        self.employee_forced_uuids = employee_mapping
+        self.ad_reader = ad_reader
+
         self.helper = self._get_mora_helper(hostname=self.settings['mora.base'],
                                  use_cache=False)
         try:
@@ -98,10 +89,32 @@ class OpusDiffImport(object):
             exit()
         self.updater = MOPrimaryEngagementUpdater()
 
+        self.engagement_types, _ = self._find_classes('engagement_type')
+        self.unit_types, self.unit_type_facet = self._find_classes('org_unit_type')
+        self.manager_levels, self.manager_level_facet = self._find_classes(
+            'manager_level')
+        self.role_types, _ = self._find_classes('role_type')
+        self.manager_types, self.manager_type_facet = self._find_classes(
+            'manager_type')
+        self.responsibilities, _ = self._find_classes('responsibility')
+        self.org_unit_address_types, _ = self._find_classes('org_unit_address_type')
+        self.employee_address_types, _ = self._find_classes('employee_address_type')
         it_systems = self.helper.read_it_systems()
         self.it_systems = dict(map(itemgetter('name', 'uuid'), it_systems))
 
-        logger.info('__init__ done, now ready for import')
+        # TODO, this should also be done be _find_classes
+        logger.info('Read job_functions')
+        facet_info = self.helper.read_classes_in_facet('engagement_job_function')
+        job_functions = facet_info[0]
+        self.job_function_facet = facet_info[1]
+        self.job_functions = {}
+        for job in job_functions:
+            self.job_functions[job['name']] = job['uuid']
+
+        self.xml_date = xml_date
+        self.units = None
+        self.employees = None
+        logger.info('__init__ done, now start export')
 
     def _find_classes(self, facet):
         class_types = self.helper.read_classes_in_facet(facet)
@@ -136,6 +149,39 @@ class OpusDiffImport(object):
         assert response.status_code == 200
         return response.json()
 
+    # This also exists in sd_changed_at
+    def _update_professions(self, emp_name):
+        job_uuid = self.job_functions.get(emp_name)
+        if job_uuid is None:
+            response = self._add_klasse_to_lora(emp_name, self.job_function_facet)
+            uuid = response['uuid']
+            self.job_functions[emp_name] = uuid
+
+    def _update_unit_types(self, unit_type):
+        unit_type_uuid = self.unit_types.get(unit_type)
+        if unit_type_uuid is None:
+            print('New unit type: {}!'.format(unit_type))
+            response = self._add_klasse_to_lora(unit_type, self.unit_type_facet)
+            uuid = response['uuid']
+            self.unit_types[unit_type] = uuid
+
+    def _update_manager_types(self, manager_type):
+        manager_type_uuid = self.manager_types.get(manager_type)
+        if manager_type_uuid is None:
+            print('New manager type: {}!'.format(manager_type))
+            response = self._add_klasse_to_lora(manager_type,
+                                                self.manager_type_facet)
+            uuid = response['uuid']
+            self.manager_types[manager_type] = uuid
+
+    def _update_manager_level(self, manager_level):
+        manager_level_uuid = self.manager_levels.get(manager_level)
+        if manager_level_uuid is None:
+            print('New manager level: {}!'.format(manager_level))
+            response = self._add_klasse_to_lora(manager_level,
+                                                self.manager_level_facet)
+            uuid = response['uuid']
+            self.manager_levels[manager_level] = uuid
 
     def _get_organisationfunktion(self, lora_uuid):
         resource = '/organisation/organisationfunktion/{}'
@@ -259,10 +305,9 @@ class OpusDiffImport(object):
             if opus_addresses.get(addr_type) is None:
                 continue
 
-            addr_type_uuid, _ = mox_util.ensure_class_in_lora('employee_address_type', mo_addr_type, scope = predefined_scopes.get(mo_addr_type))
-            current = mo_addresses.get(addr_type_uuid)
+            current = mo_addresses.get(self.employee_address_types[mo_addr_type])
             address_args = {
-                'address_type': {'uuid': addr_type_uuid},
+                'address_type': {'uuid': self.employee_address_types[mo_addr_type]},
                 'value': opus_addresses[addr_type],
                 'validity': {
                     'from': self.xml_date.strftime('%Y-%m-%d'),
@@ -308,10 +353,9 @@ class OpusDiffImport(object):
             if unit.get(addr_type) is None:
                 continue
 
-            addr_type_uuid, _ = mox_util.ensure_class_in_lora('org_unit_address_type', mo_addr_type, scope = predefined_scopes.get(mo_addr_type))
-            current = address_dict.get(addr_type_uuid)
+            current = address_dict.get(self.org_unit_address_types[mo_addr_type])
             args = {
-                'address_type': {'uuid': addr_type_uuid},
+                'address_type': {'uuid': self.org_unit_address_types[mo_addr_type]},
                 'value': unit[addr_type],
                 'validity': {
                     'from': self.xml_date.strftime('%Y-%m-%d'),
@@ -329,15 +373,15 @@ class OpusDiffImport(object):
 
         # Default 'Enhed' is the default from the initial import
         org_type = unit.get('orgTypeTxt', 'Enhed')
+        self._update_unit_types(org_type)
+        unit_type = self.unit_types[org_type]
 
-        unit_type, _ = mox_util.ensure_class_in_lora('org_unit_type', org_type)
-        from_date = unit.get('startDate', self.xml_date.strftime('%Y-%m-%d'))
         unit_args = {
             'unit': unit,
             'unit_uuid': str(calculated_uuid),
             'unit_type': unit_type,
             'parent': str(parent_uuid),
-            'from_date': from_date
+            'from_date': self.xml_date.strftime('%Y-%m-%d')
         }
 
         if mo_unit.get('uuid'):  # Edit
@@ -359,12 +403,15 @@ class OpusDiffImport(object):
         self._update_unit_addresses(unit)
 
     def _job_and_engagement_type(self, employee):
+        # It is assumed no new engagement types are added during daily
+        # updates. Default 'Ansat' is the default from the initial import
         job = employee["position"]
-        job_function_uuid, _= mox_util.ensure_class_in_lora('engagement_job_function', job)
+        self._update_professions(job)
+        job_function = self.job_functions[job]
 
         contract = employee.get('workContractText', 'Ansat')
-        engagement_type_uuid, _ = mox_util.ensure_class_in_lora('engagement_type', contract)
-        return job_function_uuid, engagement_type_uuid
+        eng_type = self.engagement_types[contract]
+        return job_function, eng_type
 
     def update_engagement(self, engagement, employee):
         """
@@ -506,10 +553,12 @@ class OpusDiffImport(object):
         if employee['isManager'] == 'true':
             manager_level = '{}.{}'.format(employee['superiorLevel'],
                                            employee['subordinateLevel'])
-            manager_level_uuid, _ = mox_util.ensure_class_in_lora('manager_level', manager_level)
+            self._update_manager_level(manager_level)
+            manager_level_uuid = self.manager_levels.get(manager_level)
             manager_type = employee["position"]
-            manager_type_uuid, _ = mox_util.ensure_class_in_lora('manager_type', manager_type)
-            responsibility_uuid, _ = mox_util.ensure_class_in_lora('responsibility', 'Lederansvar')
+            self._update_manager_types(manager_type)
+            manager_type_uuid = self.manager_types.get(manager_type)
+            responsibility_uuid = self.responsibilities.get('Lederansvar')
 
             args = {
                 'unit': str(opus_helpers.generate_uuid(employee['orgUnit'])),
@@ -632,8 +681,7 @@ class OpusDiffImport(object):
             if not found:
                 logger.info('Create new role: {}'.format(opus_role))
                 # TODO: We will fail a if  new role-type surfaces
-                role_name = opus_role['artText']
-                role_type, _ = mox_util.ensure_class_in_lora('role_type', role_name)
+                role_type = self.role_types.get(opus_role['artText'])
                 payload = payloads.create_role(
                     employee=employee,
                     user_uuid=mo_user['uuid'],
