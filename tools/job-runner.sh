@@ -66,6 +66,11 @@ show_git_commit(){
     echo
 }
 
+sanity_check_mo_data(){
+    echo Performing sanity check on data
+    ${VENV}/bin/python3 tools/check_data.py 
+}
+
 imports_mox_db_clear(){
     echo running imports_mox_db_clear
     ${VENV}/bin/python3 tools/clear_mox_tables.py
@@ -783,6 +788,7 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
         export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
         pre_backup
+        run-job sanity_check_mo_data || echo Sanity check failed
         run-job imports && IMPORTS_OK=true
         run-job exports && EXPORTS_OK=true
         run-job reports && REPORTS_OK=true
