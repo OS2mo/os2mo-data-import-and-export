@@ -8,7 +8,9 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.utils.load_settings import load_settings
 
 
-def check_duplicate_cpr(mora_base: str = None) -> dict:
+def check_duplicate_cpr() -> dict:
+    settings = load_settings()
+    mora_base = settings.get("mora.base", "http://localhost:5000/")
     helper = MoraHelper(hostname=mora_base)
     users = helper.read_all_users()
     cprs = dict(map(itemgetter("uuid", "cpr_no"), users))
@@ -38,9 +40,8 @@ def cli(delete):
     This tool is written to help clean up users with same cpr.
     """
     settings = load_settings()
-    mora_base = settings.get("mora.base")
     mox_base = settings.get("mox.base")
-    uuids = check_duplicate_cpr(mora_base)
+    uuids = check_duplicate_cpr()
     if delete:
         for uuid in uuids:
             r = requests.delete(f"{mox_base}/organisation/bruger/{uuid}")

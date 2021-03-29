@@ -19,6 +19,7 @@ from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import OpusDiffImport
 from tools.default_mo_setup import create_new_root_and_it, ensure_default_classes
 from tools.subtreedeleter import subtreedeleter_helper
+from tools.data_fixers.remove_duplicate_classes import check_duplicates_classes
 
 
 def truncate_db(MOX_BASE: str = "http://localhost:8080") -> None:
@@ -75,6 +76,9 @@ def prepare_re_import(
         # create root org and it systems
         create_new_root_and_it()
     elif opus_uuid:
+        dub = check_duplicates_classes()
+        if dub > 0:
+            raise Exception("There are duplicate classes, remove them with tools/data_fixers/remove_duplicate_classes.py --delete")
         subtreedeleter_helper(opus_uuid, delete_functions=True)
     ensure_default_classes()
 

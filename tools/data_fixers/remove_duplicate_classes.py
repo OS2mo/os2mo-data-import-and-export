@@ -3,32 +3,32 @@ from operator import itemgetter
 
 import click
 import requests
+import urllib.parse
 
 from exporters.utils.load_settings import load_settings
 
-
 def check_relations(session, base, uuid):
     r = session.get(
-        base + f"organisation/organisationfunktion?vilkaarligrel={uuid}&list=true"
+        base + f"/organisation/organisationfunktion?vilkaarligrel={uuid}&list=true"
     )
     r.raise_for_status()
     return r.json()["results"]
 
 
 def get_all_uuids(session, base, bvn):
-    r = session.get(base + f"klassifikation/klasse?brugervendtnoegle={bvn}")
+    r = session.get(base + f"/klassifikation/klasse?brugervendtnoegle={bvn}")
     return r.json()["results"][0]
 
 
 def delete_class(session, base, uuid):
-    r = session.delete(base + f"klassifikation/klasse/{uuid}")
+    r = session.delete(base + f"/klassifikation/klasse/{uuid}")
 
 
 def check_duplicates_classes(delete_dups: bool = False):
-    base = "http://localhost:8080/"
     settings = load_settings()
+    mox_base = settings.get("mox.base", "http://localhost:8080/")
     session = requests.Session()
-    r = session.get(base + "klassifikation/klasse?list=true")
+    r = session.get(mox_base + "/klassifikation/klasse?list=true")
     all_classes = r.json()["results"][0]
     all_ids = map(itemgetter("id"), all_classes)
     all_classes = list(
@@ -42,14 +42,15 @@ def check_duplicates_classes(delete_dups: bool = False):
     class_map = dict(zip(all_classes, all_ids))
     ldupl = [i for i, cnt in Counter(all_classes).items() if cnt > 1]
     for dup in ldupl:
-        uuids = get_all_uuids(session, base, dup.replace(" ", "+"))
+        dup = urllib.parse.quote(dup)
+        uuids = get_all_uuids(session, mox_base, dup)
         for uuid in uuids:
             assert uuid not in settings.values()
-            rel = check_relations(session, base, uuid)
+            rel = check_relations(session, mox_base, uuid)
             if len(rel) > 0:
                 print("There are relations to this uuid:", len(rel))
             if delete_dups:
-                delete_class(session, base, uuid)
+                delete_class(session, mox_base, uuid)
             else:
                 print(dup, uuid, len(rel))
     print("Done")

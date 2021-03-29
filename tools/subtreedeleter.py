@@ -12,6 +12,7 @@ from tqdm.asyncio import tqdm
 from more_itertools import flatten
 from mox_helpers.utils import async_to_sync
 from exporters.utils.load_settings import load_settings
+from more_itertools import one
 
 
 class SubtreeDeleter:
@@ -25,7 +26,7 @@ class SubtreeDeleter:
         async with self.session.get(f"{self.mora_base}/service/o/") as r:
             r.raise_for_status()
             r = await r.json()
-            return r[0]["uuid"]
+            return one(r)["uuid"]
 
     async def get_tree(self, org_uuid):
         async with self.session.get(
@@ -40,7 +41,7 @@ class SubtreeDeleter:
         ) as r:
             r.raise_for_status()
             r = await r.json()
-            return r["results"][0]
+            return one(r["results"])
 
     @staticmethod
     def find_subtree(subtree_uuid: str, trees: typing.List[dict]):
