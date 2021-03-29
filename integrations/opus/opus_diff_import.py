@@ -451,22 +451,9 @@ class OpusDiffImport(object):
         response = self.helper._mo_post('details/create', payload)
         assert response.status_code == 201
 
-    def create_user(self, employee):
+    def create_user(self, employee, uuid = None):
         cpr = employee['cpr']['#text']
-        if self.ad_reader is not None:
-            ad_info = self.ad_reader.read_user(cpr=cpr)
-        else:
-            ad_info = {}
-        uuid = self.employee_forced_uuids.get(cpr)
-        logger.info('Employee in force list: {} {}'.format(cpr, uuid))
-        logger.info('AD info: {}'.format(ad_info))
-        if uuid is None:
-            ad_uuid = ad_info.get('ObjectGuid')
-            if ad_uuid is None:
-                msg = '{} not in MO, UUID list or AD, assign random uuid'
-                logger.debug(msg.format(cpr))
-            else:
-                uuid = ad_uuid
+
         payload = payloads.create_user(employee, self.org_uuid, uuid)
 
         logger.info('Create user payload: {}'.format(payload))
@@ -477,29 +464,21 @@ class OpusDiffImport(object):
             return_uuid
         ))
 
-        if 'userId' in employee:
-            payload = payloads.connect_it_system_to_user(
-                employee['userId'],
-                self.it_systems[constants.Opus_it_system],
-                return_uuid
-            )
-            logger.debug('Opus account payload: {}'.format(payload))
-            response = self.helper._mo_post('details/create', payload)
-            assert response.status_code == 201
-            logger.info('Added Opus account info to {}'.format(cpr))
-
-        sam_account = ad_info.get('SamAccountName', None)
-        if sam_account:
-            payload = payloads.connect_it_system_to_user(
-                sam_account,
-                self.it_systems[constants.AD_it_system],
-                return_uuid
-            )
-            logger.debug('AD account payload: {}'.format(payload))
-            response = self.helper._mo_post('details/create', payload)
-            assert response.status_code == 201
-            logger.info('Added AD account info to {}'.format(cpr))
         return return_uuid
+
+    def connect_it_system(self, username, it_system, employee, person_uuid):
+        it_system_uuid = self.it_systems[it_system]
+        current = self.helper.get_e_itsystems(
+            person_uuid, it_system_uuid=it_system_uuid)
+        #TODO: Edit it system if value has changed.
+        if not current:
+            payload = payloads.connect_it_system_to_user(
+                username, it_system_uuid, person_uuid
+            )
+            logger.debug(f"{it_system} account payload: {payload}")
+            response = self.helper._mo_post('details/create', payload)
+            assert response.status_code == 201
+            logger.info(f"Added {it_system} info to {person_uuid}")
 
     def _to_datetime(self, item):
         if item is None:
@@ -676,21 +655,42 @@ class OpusDiffImport(object):
         logger.debug('Available info: {}'.format(employee))
         mo_user = self.helper.read_user(user_cpr=cpr)
 
+        ad_info = {}
+        if self.ad_reader is not None:
+            ad_info = self.ad_reader.read_user(cpr=cpr)
+        
+        uuid = self.employee_forced_uuids.get(cpr)
+        logger.info('Employee in force list: {} {}'.format(cpr, uuid))
+        logger.info('AD info: {}'.format(ad_info))
+        if uuid is None:
+            ad_uuid = ad_info.get('ObjectGuid')
+            if ad_uuid:
+                uuid = ad_uuid
+            else:
+                msg = '{} not in MO, UUID list or AD, assign random uuid'
+                logger.debug(msg.format(cpr))
+
         if mo_user is None:
-            employee_mo_uuid = self.create_user(employee)
+            employee_mo_uuid = self.create_user(employee, uuid)
         else:
             employee_mo_uuid = mo_user['uuid']
-            if employee.get('firstName') is None:
-                employee.update({'firstName': mo_user['givenname']})
-            if employee.get('lastName') is None:
-                employee.update({'lastName': mo_user['surname']})
-            if not ((employee['firstName'] == mo_user['givenname']) and
-                    (employee['lastName'] == mo_user['surname'])):
-                payload = payloads.create_user(employee, self.org_uuid,
-                                               employee_mo_uuid)
-                return_uuid = self.helper._mo_post('e/create', payload).json()
+            # Ensure names exist so we dont overwrite MO with empty name
+            employee['firstName'] = employee.get('firstName', mo_user['givenname'])
+            employee['lastName'] = employee.get('lastName', mo_user['surname'])
+            # Update user if name has changed
+            if ((employee['firstName'] != mo_user['givenname']) or
+                    (employee['lastName'] != mo_user['surname'])):
+                employee_mo_uuid = self.create_user(employee, uuid)
                 msg = 'Updated name of employee {} with uuid {}'
-                logger.info(msg.format(cpr, return_uuid))
+                logger.info(msg.format(cpr, employee_mo_uuid))
+        
+        # Add it-systems
+        if employee.get('userId'):
+            self.connect_it_system(employee['userId'], constants.Opus_it_system, employee, employee_mo_uuid)
+
+        sam_account = ad_info.get('SamAccountName')
+        if sam_account:
+            self.connect_it_system(sam_account, constants.AD_it_system, employee, employee_mo_uuid)
 
         self._update_employee_address(employee_mo_uuid, employee)
 
