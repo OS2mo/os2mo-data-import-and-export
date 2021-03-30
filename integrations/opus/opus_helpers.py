@@ -197,14 +197,7 @@ def file_diff(date1, date2, filter_ids, disable_tqdm=False):
     return units, employees
 
 def read_dump_data(dump_file):
-    cache_file = pathlib.Path.cwd() / 'tmp' / (dump_file.stem + '.p')
-    if not cache_file.is_file():
-        data = xmltodict.parse(dump_file.read_text())['kmd']
-        with open(str(cache_file), 'wb') as f:
-            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-    else:
-        with open(str(cache_file), 'rb') as f:
-            data = pickle.load(f)
+    data = xmltodict.parse(dump_file.read_text())['kmd']
     return data
 
 
