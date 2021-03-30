@@ -79,7 +79,7 @@ def prepare_re_import(
         dub = check_duplicates_classes()
         if dub > 0:
             raise Exception("There are duplicate classes, remove them with tools/data_fixers/remove_duplicate_classes.py --delete")
-        subtreedeleter_helper(opus_uuid, delete_functions=True)
+        subtreedeleter_helper(opus_uuid, delete_functions=True, keep_functions=["KLE", "Relateret Enhed"])
     ensure_default_classes()
 
 
