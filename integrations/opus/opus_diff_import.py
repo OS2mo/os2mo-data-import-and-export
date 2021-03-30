@@ -680,7 +680,7 @@ class OpusDiffImport(object):
             # Update user if name has changed
             if ((employee['firstName'] != mo_user['givenname']) or
                     (employee['lastName'] != mo_user['surname'])):
-                employee_mo_uuid = self.create_user(employee, uuid)
+                employee_mo_uuid = self.create_user(employee, employee_mo_uuid)
                 msg = 'Updated name of employee {} with uuid {}'
                 logger.info(msg.format(cpr, employee_mo_uuid))
         
