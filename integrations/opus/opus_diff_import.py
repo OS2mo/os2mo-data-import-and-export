@@ -674,9 +674,6 @@ class OpusDiffImport(object):
             employee_mo_uuid = self.create_user(employee, uuid)
         else:
             employee_mo_uuid = mo_user['uuid']
-            # Ensure names exist so we dont overwrite MO with empty name
-            employee['firstName'] = employee.get('firstName', mo_user['givenname'])
-            employee['lastName'] = employee.get('lastName', mo_user['surname'])
             # Update user if name has changed
             if ((employee['firstName'] != mo_user['givenname']) or
                     (employee['lastName'] != mo_user['surname'])):
