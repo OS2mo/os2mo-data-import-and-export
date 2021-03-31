@@ -2,19 +2,32 @@ import asyncio
 import itertools
 import sys
 import typing
+import urllib.parse
 from queue import Queue
+from typing import List
 
 import aiohttp
 import click
 import requests
 import tqdm
-from tqdm.asyncio import tqdm
-from more_itertools import flatten
+from more_itertools import flatten, one
 from mox_helpers.utils import async_to_sync
+from tqdm.asyncio import tqdm
+
 from exporters.utils.load_settings import load_settings
-import urllib.parse
-from more_itertools import one
-from typing import List
+
+all_functionnames = [
+    "Engagement",
+    "Leder",
+    "Addresse",
+    "Tilknytning",
+    "Rolle",
+    "KLE",
+    "Relateret Enhed",
+    "IT-system",
+    "Orlov",
+]
+
 
 class SubtreeDeleter:
     def __init__(self, session, subtree_uuid):
@@ -36,8 +49,10 @@ class SubtreeDeleter:
             r.raise_for_status()
             return await r.json()
 
-    async def get_associated_org_func(self, org_unit_uuid: str, funktionsnavn: str = None):
-        url= f"{self.mox_base}/organisation/organisationfunktion?tilknyttedeenheder={org_unit_uuid}"
+    async def get_associated_org_func(
+        self, org_unit_uuid: str, funktionsnavn: str = None
+    ):
+        url = f"{self.mox_base}/organisation/organisationfunktion?tilknyttedeenheder={org_unit_uuid}"
         if funktionsnavn:
             funktionsnavn = urllib.parse.quote(funktionsnavn)
             url += f"&funktionsnavn={funktionsnavn}"
@@ -70,10 +85,18 @@ class SubtreeDeleter:
                 uuids += self.get_tree_uuids(subtree)
         return uuids
 
-    async def get_associated_org_funcs(self, unit_uuids: List[str], funktionsnavne: List[str] = []):
+    async def get_associated_org_funcs(
+        self, unit_uuids: List[str], funktionsnavne: List[str] = []
+    ):
         if funktionsnavne == []:
-            return await tqdm.gather(self.get_associated_org_func(uuid) for uuid in unit_uuids)
-        return await tqdm.gather(self.get_associated_org_func(uuid, f) for uuid in unit_uuids for f in funktionsnavne)
+            return await tqdm.gather(
+                self.get_associated_org_func(uuid) for uuid in unit_uuids
+            )
+        return await tqdm.gather(
+            self.get_associated_org_func(uuid, f)
+            for uuid in unit_uuids
+            for f in funktionsnavne
+        )
 
     async def deleter(self, path, uuid):
         url = f"{self.mox_base}/{path}/{uuid}"
@@ -84,7 +107,9 @@ class SubtreeDeleter:
     async def delete_from_lora(self, uuids, path):
         return await tqdm.gather(self.deleter(path, uuid) for uuid in uuids)
 
-    async def run(self, subtree_uuid: str, delete_functions: bool, keep_functions: List[str] = []):
+    async def run(
+        self, subtree_uuid: str, delete_functions: bool, keep_functions: List[str] = []
+    ):
         org_uuid = await self.get_org_uuid()
         tree = await self.get_tree(org_uuid)
         subtree = self.find_subtree(subtree_uuid, tree)
@@ -97,9 +122,10 @@ class SubtreeDeleter:
             print("Deleting associated org functions for subtree".format(subtree_uuid))
             funktionsnavne = []
             if keep_functions:
-                funktionsnavne = ["Engagement", "Leder", "Addresse", "Tilknytning", "Rolle", "KLE", "Relateret Enhed", "IT-system", "Orlov"]
-                funktionsnavne = [f for f in funktionsnavne if f not in keep_functions]
-            org_func_uuids = await self.get_associated_org_funcs(unit_uuids, funktionsnavne=funktionsnavne)
+                funktionsnavne = [f for f in all_functionnames if f not in keep_functions]
+            org_func_uuids = await self.get_associated_org_funcs(
+                unit_uuids, funktionsnavne=funktionsnavne
+            )
             await self.delete_from_lora(
                 flatten(org_func_uuids), "organisation/organisationfunktion"
             )
@@ -117,18 +143,37 @@ async def subtreedeleter_helper(
     async with aiohttp.ClientSession(timeout=timeout) as session:
         session.headers.update({"session": api_token})
         deleter = SubtreeDeleter(session, org_unit_uuid)
-        await deleter.run(org_unit_uuid, delete_functions, keep_functions=keep_functions)
+        await deleter.run(
+            org_unit_uuid, delete_functions, keep_functions=keep_functions
+        )
 
 
 @click.command()
-@click.argument("org_unit_uuid")
+@click.option(
+    "--org-unit-uuid",
+    required=True,
+    help="Delete org_unit and all units in the tree below",
+)
 @click.option(
     "--delete-functions",
-    default=False,
+    is_flag=True,
     help="Delete all organisational functions associated with units in the subtree",
 )
-def main(org_unit_uuid, delete_functions):
-    subtreedeleter_helper(org_unit_uuid, delete_functions)
+@click.option(
+    "--keep",
+    type=click.Choice(all_functionnames, case_sensitive=False),
+    multiple=True,
+    help="List of functions that should not be deleted",
+)
+def main(org_unit_uuid, delete_functions, keep):
+    """Delete an organisational unit and all units below.
+
+    Given the uuid of an org_unit this will delete the unit and all units below it. Optionally also deletes organisationfunctions such as engagements, KLE and addresses.
+    To delete all organisationfunctions except certain type(s) add them with --keep.
+    Example:
+        venv/bin/python tools/subtreedeleter.py --org-unit-uuid=c9b4c61f-1d38-5f6a-2c9e-d001e7cf6bd0 --delete-functions --keep=Leder --keep=KLE
+    """
+    subtreedeleter_helper(org_unit_uuid, delete_functions, keep_functions=keep)
 
 
 if __name__ == "__main__":

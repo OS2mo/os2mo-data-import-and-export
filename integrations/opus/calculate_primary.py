@@ -185,7 +185,7 @@ class MOPrimaryEngagementUpdater(object):
             logger.info('Recalculate primary, date: {}'.format(date))
 
             mo_engagement = self.helper.read_user_engagement(
-                    user=self.mo_person['uuid'], at=date, only_primary=True, use_cache=False
+                user=self.mo_person['uuid'], at=date, only_primary=True, use_cache=False
             )
 
             mo_engagement = self._engagements_included_in_primary_calculation(mo_engagement)

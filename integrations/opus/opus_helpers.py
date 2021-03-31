@@ -13,6 +13,7 @@ from functools import lru_cache
 import xmltodict
 from deepdiff import DeepDiff
 from tqdm import tqdm
+from collections import OrderedDict
 
 from exporters.utils.load_settings import load_settings
 from integrations import cpr_mapper
@@ -310,3 +311,14 @@ def filter_units(units, filter_ids):
         return parent_set.isdisjoint(filter_set)
 
     return list(filter(is_disjoint_from_filter_ids, units))
+
+
+def read_cpr(employee: OrderedDict) -> str:
+    cpr = employee.get('cpr')
+    if isinstance(cpr, OrderedDict):
+        cpr = employee['cpr']['#text']
+    elif isinstance(cpr, str):
+        assert isinstance(int(cpr), int)
+    else:
+        raise TypeError("Can't read cpr in this format")
+    return cpr

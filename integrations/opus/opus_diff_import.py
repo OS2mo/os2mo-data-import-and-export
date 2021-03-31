@@ -13,6 +13,7 @@ from requests import Session
 from tqdm import tqdm
 
 import constants
+from collections import OrderedDict
 from exporters.utils.load_settings import load_settings
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
@@ -452,8 +453,7 @@ class OpusDiffImport(object):
         assert response.status_code == 201
 
     def create_user(self, employee, uuid = None):
-        cpr = employee['cpr']['#text']
-
+        cpr = opus_helpers.read_cpr(employee)
         payload = payloads.create_user(employee, self.org_uuid, uuid)
 
         logger.info('Create user payload: {}'.format(payload))
@@ -649,7 +649,7 @@ class OpusDiffImport(object):
                 assert response.status_code == 201
 
     def update_employee(self, employee):
-        cpr = employee['cpr']['#text']
+        cpr = opus_helpers.read_cpr(employee)
         logger.info('----')
         logger.info('Now updating {}'.format(employee.get('@id')))
         logger.debug('Available info: {}'.format(employee))
@@ -664,10 +664,8 @@ class OpusDiffImport(object):
             logger.info('Employee in force list: {} {}'.format(cpr, uuid))
             logger.info('AD info: {}'.format(ad_info))
             if uuid is None:
-                ad_uuid = ad_info.get('ObjectGuid')
-                if ad_uuid:
-                    uuid = ad_uuid
-                else:
+                uuid = ad_info.get('ObjectGuid')
+                if uuid is None:
                     msg = '{} not in MO, UUID list or AD, assign random uuid'
                     logger.debug(msg.format(cpr))
             employee_mo_uuid = self.create_user(employee, uuid)
