@@ -653,34 +653,31 @@ class OpusDiffImport(object):
         logger.info('----')
         logger.info('Now updating {}'.format(employee.get('@id')))
         logger.debug('Available info: {}'.format(employee))
-        mo_user = self.helper.read_user(user_cpr=cpr)
+        mo_user = self.helper.read_user(user_cpr=cpr, use_cache=False)
 
         ad_info = {}
         if self.ad_reader is not None:
             ad_info = self.ad_reader.read_user(cpr=cpr)
         
-        uuid = self.employee_forced_uuids.get(cpr)
-        logger.info('Employee in force list: {} {}'.format(cpr, uuid))
-        logger.info('AD info: {}'.format(ad_info))
-        if uuid is None:
-            ad_uuid = ad_info.get('ObjectGuid')
-            if ad_uuid:
-                uuid = ad_uuid
-            else:
-                msg = '{} not in MO, UUID list or AD, assign random uuid'
-                logger.debug(msg.format(cpr))
-
         if mo_user is None:
+            uuid = self.employee_forced_uuids.get(cpr)
+            logger.info('Employee in force list: {} {}'.format(cpr, uuid))
+            logger.info('AD info: {}'.format(ad_info))
+            if uuid is None:
+                ad_uuid = ad_info.get('ObjectGuid')
+                if ad_uuid:
+                    uuid = ad_uuid
+                else:
+                    msg = '{} not in MO, UUID list or AD, assign random uuid'
+                    logger.debug(msg.format(cpr))
             employee_mo_uuid = self.create_user(employee, uuid)
         else:
             employee_mo_uuid = mo_user['uuid']
-            # Ensure names exist so we dont overwrite MO with empty name
-            employee['firstName'] = employee.get('firstName', mo_user['givenname'])
-            employee['lastName'] = employee.get('lastName', mo_user['surname'])
+
             # Update user if name has changed
             if ((employee['firstName'] != mo_user['givenname']) or
                     (employee['lastName'] != mo_user['surname'])):
-                employee_mo_uuid = self.create_user(employee, uuid)
+                employee_mo_uuid = self.create_user(employee, employee_mo_uuid)
                 msg = 'Updated name of employee {} with uuid {}'
                 logger.info(msg.format(cpr, employee_mo_uuid))
         
