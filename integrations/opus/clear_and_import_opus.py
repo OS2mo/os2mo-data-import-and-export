@@ -47,7 +47,9 @@ def read_all_files(filter_ids):
     """
     dumps = opus_helpers.read_available_dumps()
 
+    # Prepend None to be able to start from the first file
     export_dates = prepend(None, sorted(dumps.keys()))
+    date_pairs = pairwise(export_dates)
 
     @apply
     def lookup_units_and_employees(date1, date2):
@@ -56,10 +58,9 @@ def read_all_files(filter_ids):
         units, employees = opus_helpers.file_diff(
             filename1, filename2, filter_ids, disable_tqdm=True
         )
-        print(f"{date2}: Found {len(units)} units and {len(employees)} employees")
         return date2, units, employees
 
-    return map(lookup_units_and_employees, tqdm(pairwise(export_dates)))
+    return map(lookup_units_and_employees, date_pairs)
 
 
 def prepare_re_import(
@@ -95,6 +96,7 @@ def import_opus(ad_reader=None, import_all: bool = False):
     employee_mapping = opus_helpers.read_cpr_mapping()
     date_units_and_employees = read_all_files(filter_ids)
     for date, units, employees in date_units_and_employees:
+        print(f"Importing from {date}: Found {len(units)} units and {len(employees)} employees")
         diff = OpusDiffImport(
             date, ad_reader=ad_reader, employee_mapping=employee_mapping
         )

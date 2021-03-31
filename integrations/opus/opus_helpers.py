@@ -132,11 +132,11 @@ def generate_uuid(value):
     value_uuid = uuid.UUID(value_digest)
     return value_uuid
 
-def parser(target_file: Path, filter_ids: List[str]) -> Tuple[Dict, Dict]:
+def parser(target_file: Path, filter_ids: List[str]) -> Tuple[List, List]:
     data = xmltodict.parse(target_file.read_text())['kmd']
-    units = data['orgUnit']
+    units = data.get('orgUnit', [])
     units = filter_units(units, filter_ids)
-    employees = data['employee']
+    employees = data.get('employee', [])
     return units, employees
 
 
