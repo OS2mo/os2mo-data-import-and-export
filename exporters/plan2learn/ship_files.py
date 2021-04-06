@@ -1,37 +1,10 @@
-import sys
-import json
-import socket  # Used to handle exception
+from socket import timeout  # Used to handle exception
 
-from pathlib import Path
+import click
+
 from ftplib import FTP_TLS
 
-
-# cwd = Path(__file__).resolve().parent
-# for filename in filenames:
-#     filepath = Path(__file__).resolve().parent / filename
-
-#     # The server insists on returning a timeout after every upload, so we
-#     # re-start the connection for each file.
-#     ftps = start_ftpes_connection()
-
-#     with open(str(filepath), 'rb') as csv_file:
-#         print('Uploading: {}'.format(filename))
-#         try:
-#             ftps.storbinary('STOR {}'.format(filename), csv_file)
-#         except ConnectionResetError:
-#             pass
-#         except socket.timeout:
-#             pass
-#         print('Done')
-#         ftps.quit()
-
-# filenames = [
-#     'organisation.csv',
-#     'bruger.csv',
-#     'engagement.csv',
-#     'leder.csv',
-#     'stillingskode.csv'
-# ]
+from exporters.utils.load_settings import load_settings
 
 
 def start_ftpes_connection(timeout=30):
@@ -53,11 +26,12 @@ def dir_list():
     ftps.quit()
 
 
-cfg_file = Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
+SETTINGS = load_settings()
 
+
+@click.command()
+@click.argument("from_file")
+@click.argument("to_file")
 def main(from_file, to_file):
     print('Directory listing before upload:')
     dir_list()
@@ -71,8 +45,10 @@ def main(from_file, to_file):
         try:
             ftps.storbinary('STOR {}'.format(to_file), csv_file)
         except ConnectionResetError:
+            print("Connection Error")
             pass
-        except socket.timeout:
+        except timeout:
+            print("Timeout Error")
             pass
         print('Done')
         ftps.quit()
@@ -82,4 +58,4 @@ def main(from_file, to_file):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2])
+    main()

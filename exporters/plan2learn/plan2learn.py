@@ -19,6 +19,8 @@ from more_itertools import flatten, only
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
+from exporters.utils.load_settings import load_settings
+from exporters.utils.priority_by_class import choose_public_address, lc_choose_public_address
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'plan2learn.log'
@@ -38,129 +40,168 @@ logging.basicConfig(
 )
 
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
+SETTINGS = load_settings()
 
 ACTIVE_JOB_FUNCTIONS = []  # Liste over aktive engagementer som skal eksporteres.
 
 
+def get_e_address(e_uuid, scope, lc, lc_historic, settings):
+    # Iterator of all addresses in LoRa
+    lora_addresses = lc_historic.addresses.values()
+    lora_addresses = flatten(lora_addresses)
+    # Iterator of all addresses for the current user
+    lora_addresses = filter(
+        lambda address: address['user'] == e_uuid,
+        lora_addresses
+    )
+    # Iterator of all addresses for current user and correct scope
+    lora_addresses = filter(
+        lambda address: address['scope'] == scope,
+        lora_addresses
+    )
+    candidates = lora_addresses
+
+    if scope == "Telefon":
+        priority_list = settings.get("plan2learn.email.phone", [])
+    elif scope == "E-mail":
+        priority_list = settings.get("plan2learn.email.priority", [])
+    else:
+        priority_list = []
+
+    address = lc_choose_public_address(candidates, priority_list, lc)
+    if address is not None:
+        return address
+    else:
+        return {} # like mora_helpers
+
+
+def get_e_address_mo(e_uuid, scope, mh, settings):
+    candidates = mh.get_e_addresses(e_uuid, scope)
+
+    if scope == "PHONE":
+        priority_list = settings.get("emus.phone.priority", [])
+    elif scope == "EMAIL":
+        priority_list = settings.get("emus.email.priority", [])
+    else:
+        priority_list = []
+
+    address = choose_public_address(candidates, priority_list)
+    if address is not None:
+        return address
+    else:
+        return {} # like mora_helpers
+
+
+def construct_bruger_row(user_uuid, cpr, name, email, phone):
+    row = {
+        'BrugerId': user_uuid,
+        'CPR': cpr,
+        'Navn': name,
+        'E-mail': email or "",
+        'Mobil': phone or "",
+        'Stilling': None  # To be populated later
+    }
+    return row
+
+
+allowed_engagement_types = SETTINGS[
+    'exporters.plan2learn.allowed_engagement_types'
+]
+
+
+def export_bruger_lc(node, used_cprs, lc, lc_historic):
+    # TODO: If this is to run faster, we need to pre-sort into units,
+    # to avoid iterating all engagements for each unit.
+    lora_engagements = lc_historic.engagements.values()
+    lora_engagements = flatten(lora_engagements)
+    lora_engagements = filter(lambda engv: engv['unit'] == node.name, lora_engagements)
+    lora_engagements = filter(
+        lambda engv: engv['engagement_type'] in allowed_engagement_types,
+        lora_engagements
+    )
+    lora_user_uuids = map(itemgetter('user'), lora_engagements)
+    rows = []
+    for user_uuid in lora_user_uuids:
+        user = lc.users[user_uuid][0]
+        cpr = user['cpr']
+        if cpr in used_cprs:
+            # print('Skipping user: {} '.format(uuid))
+            continue
+        used_cprs.add(cpr)
+        name = user['navn']
+
+        _phone_obj = get_e_address(user_uuid, 'Telefon', lc, lc_historic, SETTINGS)
+        _phone = None
+        if _phone_obj:
+            _phone = _phone_obj['value']
+
+        _email_obj = get_e_address(user_uuid, 'E-mail', lc, lc_historic, SETTINGS)
+        _email = None
+        if _email_obj:
+            _email = _email_obj['value']
+
+        rows.append(construct_bruger_row(
+            user_uuid, cpr, name, _email, _phone
+        ))
+    return rows, used_cprs
+
+
+def export_bruger_mo(node, used_cprs, mh):
+    employees = mh.read_organisation_people(
+        node.name, split_name=False, read_all=True, skip_past=True
+    )
+    rows = []
+    for uuid, employee in employees.items():
+        if employee['engagement_type_uuid'] not in allowed_engagement_types:
+            continue
+        user_uuid = employee['Person UUID']
+        name = employee['Navn']
+        cpr = address['CPR-Nummer']
+        if cpr in used_cprs:
+            # print('Skipping user: {} '.format(uuid))
+            continue
+        used_cprs.add(cpr)
+
+        _phone_obj = get_e_address_mo(user_uuid, 'PHONE', mh, SETTINGS)
+        _phone = None
+        if _phone_obj:
+            _phone = _phone_obj['value']
+
+        _email_obj = get_e_address_mo(user_uuid, 'EMAIL', mh, SETTINGS)
+        _email = None
+        if _email_obj:
+            _email = _email_obj['value']
+
+        rows.append(construct_bruger_row(
+            user_uuid, cpr, name, _email, _phone
+        ))
+    return rows, used_cprs
+
+
 def export_bruger(mh, nodes, lc, lc_historic):
     #  fieldnames = ['BrugerId', 'CPR', 'Navn', 'E-mail', 'Mobil', 'Stilling']
-    used_cprs = []
+    if lc and lc_historic:
+        bruger_exporter = partial(export_bruger_lc, lc=lc, lc_historic=lc_historic)
+    else:
+        bruger_exporter = partial(export_bruger_mo, mh=mh)
 
-    # Todo: Move to settings
-    email_type = 'fa865555-58b5-327d-e7dc-2990b0d28ff9'
-    phone_type = '7db54183-1f2c-87ba-d4c3-de22a101ebc1'
-    allowed_engagement_types = ['d3ffdf48-0ea2-72dc-6319-8597bdaa81d3',
-                                'ac485d1c-025f-9818-f2c9-fafea2c1d282']
-
+    used_cprs = set()
     rows = []
     for node in PreOrderIter(nodes['root']):
-        if lc and lc_historic:
-            # TODO: If this is to run faster, we need to pre-sort into units,
-            # to avoid iterating all engagements for each unit.
-            for eng in lc_historic.engagements.values():
-                for engv in eng:  # Iterate over all validities
-                    if engv['unit'] != node.name:
-                        continue
-                    if engv['engagement_type'] not in allowed_engagement_types:
-                        continue
+        new_rows, used_cprs = bruger_exporter(node, used_cprs)
+        rows.extend(new_rows)
 
-                    user_uuid = engv['user']
-                    user = lc.users[user_uuid][0]
-                    name = user['navn']
-                    cpr = user['cpr']
-                    if cpr in used_cprs:
-                        # print('Skipping user: {} '.format(uuid))
-                        continue
-
-                    # Iterator of all address validities in LoRa 
-                    raw_addresses = lc_historic.addresses.values()
-                    address_validities = flatten(raw_addresses)
-                    # Iterator of all address validities for the current user
-                    address_validities = filter(
-                        lambda addr_validity: addr_validity['user'] == engv['user'],
-                        address_validities
-                    )
-                    address_validities = list(address_validities)
-
-                    def check_address_type(lookup, addr_validity):
-                        """Filter address validities on their address type."""
-                        return addr_validity['adresse_type'] == lookup
-
-                    address = {}
-                    # Lookup an address value with address_type == email_type
-                    try:
-                        address['E-mail'] = only(map(itemgetter('value'), filter(
-                            partial(check_address_type, email_type),
-                            address_validities
-                        )))
-                    except ValueError:
-                        logger.info("Non unique email address, skipping " + user_uuid)
-                        continue
-
-                    # Lookup an address value with address_type == phone_type
-                    try:
-                        address['Telefon'] = only(map(itemgetter('value'), filter(
-                            partial(check_address_type, phone_type),
-                            address_validities
-                        )))
-                    except ValueError:
-                        logger.info("Non unique phone number, skipping " + user_uuid)
-                        continue
-
-                    used_cprs.append(cpr)
-                    row = {
-                        'BrugerId': user_uuid,
-                        'CPR': cpr,
-                        'Navn': name,
-                        'E-mail': address.get('E-mail', ''),
-                        'Mobil': address.get('Telefon', ''),
-                        'Stilling': None  # To be populated later
-                    }
-                    rows.append(row)
-
-        else:
-            employees = mh.read_organisation_people(node.name, split_name=False,
-                                                    read_all=True, skip_past=True)
-
-            for uuid, employee in employees.items():
-                if employee['engagement_type_uuid'] not in allowed_engagement_types:
-                    continue
-                address = mh.read_user_address(uuid, cpr=True, email_type=email_type, phone_type=phone_type)
-                user_uuid = employee['Person UUID']
-                name = employee['Navn']
-                cpr = address['CPR-Nummer']
-                if cpr in used_cprs:
-                    # print('Skipping user: {} '.format(uuid))
-                    continue
-
-                used_cprs.append(cpr)
-                row = {
-                    'BrugerId': user_uuid,
-                    'CPR': cpr,
-                    'Navn': name,
-                    'E-mail': address.get('E-mail', ''),
-                    'Mobil': address.get('Telefon', ''),
-                    'Stilling': None  # To be populated later
-                }
-                rows.append(row)
     # Turns out, we need to update this once we reach engagements
     # mh._write_csv(fieldnames, rows, filename)
     return rows
 
 
 def _split_dar(address):
+    gade = post = by = ''
     if address:
         gade = address.split(',')[0]
         post = address.split(',')[1][1:5]
         by = address.split(',')[1][6:]
-    else:
-        gade = ''
-        post = ''
-        by = ''
     return gade, post, by
 
 
@@ -239,7 +280,8 @@ def export_engagement(mh, filename, eksporterede_afdelinger, brugere_rows,
                   'StartdatoEngagement']
 
     allowed_engagement_types = SETTINGS[
-        'exporters.plan2learn.allowed_engagement_types']
+        'exporters.plan2learn.allowed_engagement_types'
+    ]
 
     rows = []
 
