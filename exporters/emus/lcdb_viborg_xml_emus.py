@@ -13,6 +13,7 @@ import sys
 import io
 import collections
 import datetime
+import time
 import requests
 from xml.sax.saxutils import escape
 from functools import partial
@@ -20,6 +21,7 @@ from itertools import filterfalse
 
 from exporters.emus import config
 
+import click
 from tqdm import tqdm
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import and_
@@ -79,8 +81,21 @@ def get_dar_address(db_address):
                 params = {'id': dar_uuid, 'struktur': 'mini'}
                 # Note: Dar accepts up to 10 simultanious
                 # connections, consider grequests.
-                r = requests.get(url=adr_url, params=params)
-                address_data = r.json()
+                counter = 0
+                max_tries = 10
+                while True:
+                    counter += 1
+                    try:
+                        r = requests.get(url=adr_url, params=params)
+                        address_data = r.json()
+                        break
+                    except json.decoder.JSONDecodeError:
+                        print(r.text)
+                        continue
+                    if counter > max_tries:
+                       raise Exception("DAR does not respond!")
+                    time.sleep(5)
+
                 if address_data:
                     dar_cache[dar_uuid] = address_data[0]
                     break
@@ -104,8 +119,9 @@ def read_ou_tree(session, org, nodes={}, parent=None):
     """
 
     if parent is None:
-        parent = nodes[org] = nodes['root'] = Node(
-            org, unit=session.query(Enhed).filter(Enhed.uuid == org).one())
+        org_unit = session.query(Enhed).filter(Enhed.uuid == org).one()
+        parent = nodes[org] = nodes['root'] = Node(org, unit=org_unit)
+
 
     units = session.query(Enhed).filter(Enhed.forældreenhed_uuid == org)
     for unit in units:
@@ -467,6 +483,12 @@ def main(emus_xml_file, settings):
     emus_xml_file.write("</OS2MO>")
 
 
-if __name__ == '__main__':
-    with open(config.settings["EMUS_FILENAME"], "w", encoding="utf-8") as emus_f:
+@click.command()
+@click.argument('filename')
+def cli(filename):
+    with open(filename, "w", encoding="utf-8") as emus_f:
         main(emus_xml_file=emus_f, settings=config.settings)
+
+
+if __name__ == '__main__':
+    cli()
