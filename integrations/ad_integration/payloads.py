@@ -1,10 +1,13 @@
-def create_user(cpr, ad_user, org_uuid):
+from typing import Optional
+def create_user(cpr:str, ad_user:dict, org_uuid, uuid:Optional[str] = None) -> dict:
     payload = {
-        "cpr_no": cpr,
-        "uuid": ad_user["ObjectGUID"],
-        "givenname": ad_user["GivenName"],
-        "surname": ad_user["Surname"],
-        "org": {"uuid": org_uuid},
+        'cpr_no': cpr,
+        'uuid': uuid or ad_user['ObjectGUID'],
+        'givenname': ad_user['GivenName'],
+        'surname': ad_user['Surname'],
+        'org': {
+            'uuid': org_uuid
+        }
     }
     return payload
 

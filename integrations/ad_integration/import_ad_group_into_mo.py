@@ -93,7 +93,7 @@ class ADMOImporter(object):
         response = requests.put(
             url=url.format(self.settings["mox.base"], klasse_uuid), json=payload
         )
-        assert response.status_code == 200
+        response.raise_for_status()
         return response.json()
 
     def _fc_klasse(self, bvn, navn, facet):
@@ -172,7 +172,7 @@ class ADMOImporter(object):
                 users[uuid] = user
         self.users = users
 
-    def _create_user(self, ad_user):
+    def _create_user(self, ad_user, uuid = None):
         """
         Create or update a user in MO using an AD user as a template.
         The user will share uuid between MO and AD.
@@ -184,21 +184,26 @@ class ADMOImporter(object):
             return None
         cpr = cpr_raw.replace("-", "")
 
-        payload = payloads.create_user(cpr, ad_user, self.org_uuid)
-        logger.info("Create user payload: {}".format(payload))
-        user_uuid = self.helper._mo_post("e/create", payload).json()
-        logger.info("Created employee {}".format(user_uuid))
-        return user_uuid
+        payload = payloads.create_user(cpr, ad_user, self.org_uuid, uuid = uuid)
+        logger.info('Create user payload: {}'.format(payload))
+        try:
+            r = self.helper._mo_post('e/create', payload)
+            r.raise_for_status()
+            user_uuid = r.json()
+            logger.info('Created employee {}'.format(user_uuid))
+            return user_uuid
+        except:
+            return
 
     def _connect_user_to_ad(self, ad_user):
         logger.info("Connect user to AD: {}".format(ad_user["SamAccountName"]))
         payload = payloads.connect_it_system_to_user(
             ad_user, self.settings["integrations.opus.it_systems.ad"]
         )
-        logger.debug("AD account payload: {}".format(payload))
-        response = self.helper._mo_post("details/create", payload)
-        assert response.status_code == 201
-        logger.debug("Added AD account info to {}".format(ad_user["SamAccountName"]))
+        logger.debug('AD account payload: {}'.format(payload))
+        response = self.helper._mo_post('details/create', payload)
+        response.raise_for_status()
+        logger.debug('Added AD account info to {}'.format(ad_user['SamAccountName']))
         return True
 
     def _create_engagement(self, ad_user):
@@ -207,29 +212,11 @@ class ADMOImporter(object):
         payload = payloads.create_engagement(
             ad_user=ad_user, validity=validity, **self.uuids
         )
-        response = self.helper._mo_post("details/create", payload)
-        logger.info("Create engagement payload: {}".format(payload))
-        assert response.status_code == 201
-        logger.info("Added engagement to {}".format(ad_user["SamAccountName"]))
+        logger.info('Create engagement payload: {}'.format(payload))
+        response = self.helper._mo_post('details/create', payload)
+        response.raise_for_status()
+        logger.info('Added engagement to {}'.format(ad_user['SamAccountName']))
         return True
-
-    def rename_user(self, mo_uuid):
-        """
-        This is purely for testing, rename the user to check that the integration
-        is able to change it back.
-        :param mo_uuid: uuid of the mo user to rename.
-        """
-        user = self.helper.read_user(user_uuid=mo_uuid)
-        print(user)
-        payload = {
-            "uuid": mo_uuid,
-            "givenname": "Fornavn",
-            "surname": "Efternavnsen",
-            "cpr_no": user["cpr_no"],
-            "org": {"uuid": self.org_uuid},
-        }
-        return_uuid = self.helper._mo_post("e/create", payload).json()
-        print(return_uuid)
 
     def cleanup_removed_users_from_mo(self):
         """
@@ -259,27 +246,33 @@ class ADMOImporter(object):
             self._find_or_create_unit_and_classes()
         if self.users is None:
             self._update_list_of_external_users_in_ad()
+        
+        cpr_field = self.primary_ad_settings['cpr_field']
 
         for user_uuid, ad_user in self.users.items():
-            logger.info("Updating {}".format(ad_user["SamAccountName"]))
-            mo_user = self.helper.read_user(user_uuid=user_uuid)
-            logger.info("Existing MO info: {}".format(mo_user))
-            if "status" in mo_user:
-                print("Create user")
-                mo_uuid = self._create_user(ad_user)
-                if not mo_uuid:
-                    continue
-            else:
-                mo_uuid = mo_user["uuid"]
-                name_changed = (
-                    mo_user["givenname"] != ad_user["GivenName"]
-                    or mo_user["surname"] != ad_user["Surname"]
-                )
+            logger.info('Updating {}'.format(ad_user['SamAccountName']))
+            cpr = ad_user[cpr_field]
+            mo_user = self.helper.read_user(user_cpr=cpr)
+            logger.info('Existing MO info: {}'.format(mo_user))
+            if mo_user:
+                mo_uuid = mo_user['uuid']
+                name_changed = (mo_user['givenname'] != ad_user['GivenName'] or
+                                mo_user['surname'] != ad_user['Surname'])
                 if name_changed:
-                    print("Update name")
-                    msg = "{}. Given: {}, Sur: {}"
-                    print(msg.format("AD", ad_user["GivenName"], ad_user["Surname"]))
-                    self._create_user(ad_user)
+                    print('Update name')
+                    msg = '{}. Given: {}, Sur: {}'
+                    print(msg.format('AD', ad_user['GivenName'], ad_user['Surname']))
+                    self._create_user(ad_user, uuid=mo_uuid)
+            else:
+                print('Create user')
+                mo_uuid = self._create_user(ad_user)
+            
+            if not mo_uuid:
+                msg = f"User was not created:", ad_user
+                logger.warning(msg)
+                print(msg)
+                continue
+                
 
             url = "e/{}/details/it"
             found_it = False
