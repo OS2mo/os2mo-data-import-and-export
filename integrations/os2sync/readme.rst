@@ -1,10 +1,46 @@
-********************************
-Integration til STS Organisation
-********************************
+***********************
+Integration til OS2Sync
+***********************
 
 Indledning
 ==========
-Denne integration gør det muligt at opdatere STS Organisation fra OS2MO
+
+Denne integration gør det muligt at sende data fra OS2MO til `OS2Sync <https://www.os2sync.dk/>`_.
+OS2Sync er i stand til at sende data videre til FK ORG, såfremt det er installeret og konfigureret.
+Integrationen læser flg. oplysninger i OS2MO, og sender dem til OS2Sync:
+
+======================  =================
+OS2MO                   Oplysninger
+======================  =================
+Ansatte                 * UUID
+                        * UserId
+                        * Navn
+                        * CPR-nummer
+                        * Adresser
+                        * Engagementer
+----------------------  -----------------
+Organisationsenheder    * UUID
+                        * Parent UUID
+                        * Navn
+                        * IT-systemer
+                        * Adresser
+                        * KLE-opmærkninger
+======================  =================
+
+Når integrationen sender *organisationsenheders adresser* til OS2Sync, sker det efter nedenstående skema.
+Såfremt en adresseoplysning på enheden matcher på "Scope" og evt. "Brugervendt nøgle", sendes oplysningen til feltet angivet i "OS2Sync-felt":
+
+===========  =====================  ====================
+Scope        Brugervendt nøgle      OS2Sync-felt
+===========  =====================  ====================
+``EMAIL``    (vilkårlig)            ``Email``
+``EAN``      (vilkårlig)            ``Ean``
+``PHONE``    (vilkårlig)            ``PhoneNumber``
+``DAR``      (vilkårlig)            ``Post``
+``PNUMBER``  (vilkårlig)            ``Location``
+``TEXT``     ``ContactOpenHours``   ``ContactOpenHours``
+``TEXT``     ``DtrId``              ``DtrId``
+===========  =====================  ====================
 
 Opsætning
 =========
@@ -25,30 +61,17 @@ fælles parametre
 os2syncs parametre
 ------------------
 
- * ``os2sync.log_file``: logfil, typisk
-   '/home/bruger/CRON/os2sync.log'
- * ``os2sync.log_level``: Loglevel, numerisk efter pythons logging-modul,
-    typisk 10, som betyder at alt kommer ud
- * ``os2sync.ca_verify_os2mo``: Angiver om OS2mo serverens certifikat skal checkes,
-    typisk true
- * ``os2sync.ca_verify_os2sync``: Angiver om Os2Sync containerens certifikat skal checkes,
-    typisk true
+ * ``os2sync.log_file``: logfil, typisk '/opt/dipex/os2sync.log'
+ * ``os2sync.log_level``: Loglevel, numerisk efter pythons logging-modul, typisk 10, som betyder at alt kommer ud
+ * ``os2sync.ca_verify_os2mo``: Angiver om OS2mo serverens certifikat skal checkes, typisk true
+ * ``os2sync.ca_verify_os2sync``: Angiver om Os2Sync containerens certifikat skal checkes, typisk true
  * ``os2sync.hash_cache``: Cache som sørger for at kun ændringer overføres
- * ``os2sync.phone_scope_classes``: Begrænsning af hvilke telefon-klasser, der kan komme op,
-    anvendes typisk til at frasortere hemmelige telefonnumre
- * ``os2sync.email_scope_classes``: Begrænsning af hvilke email-klasser, der kan komme op,
-    anvendes typisk til at frasortere hemmelige email-addresser
- * ``os2sync.api_url``: Adresse på os2sync-containeres API, typisk
-    http://localhost:8081/api
- * ``os2sync.top_unit_uuid``: Den top level organisation, der skal overføres,
-    typisk Kommunenavn Kommune
- * ``os2sync.xfer_cpr``: Bestemmer om cpr skasl overføres, typisk true
+ * ``os2sync.phone_scope_classes``: Begrænsning af hvilke telefon-klasser, der kan komme op, anvendes typisk til at frasortere hemmelige telefonnumre
+ * ``os2sync.email_scope_classes``: Begrænsning af hvilke email-klasser, der kan komme op, anvendes typisk til at frasortere hemmelige email-addresser
+ * ``os2sync.api_url``: Adresse på os2sync-containeres API, typisk http://localhost:8081/api
+ * ``os2sync.top_unit_uuid``: UUID på den top-level organisation, der skal overføres
+ * ``os2sync.xfer_cpr``: Bestemmer om cpr-nummer skal overføres, typisk true
  * ``os2sync.use_lc_db``: Bestemmer om kørslen skal anvende lora-cache for hastighed
- * ``os2sync.ignored.unit_levels``: liste af unit-level-klasser,
-    der skal ignoreres i overførslen
- * ``os2sync.ignored.unit_types``: liste af unit-type-klasser,
-    der skal ignoreres i overførslen
- * ``os2sync.autowash``: sletning uden filter. Normalt slettes kun afdelinger
-    i os2sync, som er forsvundet fra OS2MO. Med autowash slettes alt i os2syncs version af 
-    den administrative org, som ikke vil blive overført fra os2mo.
-
+ * ``os2sync.ignored.unit_levels``: liste af unit-level-klasser, der skal ignoreres i overførslen
+ * ``os2sync.ignored.unit_types``: liste af unit-type-klasser, der skal ignoreres i overførslen
+ * ``os2sync.autowash``: sletning uden filter. Normalt slettes kun afdelinger i os2sync, som er forsvundet fra OS2MO. Med autowash slettes alt i os2syncs version af den administrative org, som ikke vil blive overført fra os2mo.

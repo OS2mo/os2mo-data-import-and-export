@@ -1,27 +1,33 @@
 """
 This script offers access to the DIPEX command line tools that use Click.
 
-1. This script can be installed into a virtualenv like this:
+Installation
+============
 
-$ . venv/bin/activate
-$ pip install --editable .
+This script can be installed into a virtualenv like this::
 
-Then it should be available as an ordinary shell command:
+    $ . venv/bin/activate
+    $ pip install --editable .
 
-$ metacli --help
+Then it should be available as an ordinary shell command::
 
-2. Click autocompletion can be activated like this:
+    $ metacli --help
 
-$ eval "$(_METACLI_COMPLETE=source_bash metacli)"
+Autocompletion
+==============
 
-For other shells, see
-https://click.palletsprojects.com/en/7.x/bashcomplete/#activation
+Click autocompletion can be activated like this::
 
-Then, you should be able to autocomplete subcommand names like this:
+    $ eval "$(_METACLI_COMPLETE=source_bash metacli)"
 
-$ metacli sd_<TAB><TAB>
-    sd_changed_at         sd_fixup.fixup_all        sd_fixup.fixup_department
-    sd_fixup.fixup_user   sd_importer.full_import   sd_importer.import_user
+(For other shells, see `the Click documentation
+<https://click.palletsprojects.com/en/7.x/bashcomplete/#activation>`_)
+
+Then, you should be able to autocomplete subcommand names like this::
+
+    $ metacli sd_<TAB><TAB>
+      sd_changed_at        sd_fixup.fixup_all       sd_fixup.fixup_department
+      sd_fixup.fixup_user  sd_importer.full_import  sd_importer.import_user
 
 Option names should also be autocompleted.
 """

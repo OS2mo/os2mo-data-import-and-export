@@ -131,7 +131,7 @@ facetter
 Facetter i MO har ikke nogen titel, og ikke nogen historik.
 
 klasser
---------
+-------
 
  * ``uuid``: Klassens uuid, primærnøgle for tabellen.
  * ``bvn``: Brugervendt nøgle for klassen.
@@ -143,7 +143,8 @@ Klasser regnes af MO til at have evig virkning og eksporteres derfor altid med
 dags-dato værdi, også i et historisk eksport.
 
 brugere
---------
+-------
+
  * ``uuid``: Brugerens uuid, primærnøgle for tabellen.
  * ``fornavn``: Brugerens fornavn.
  * ``efternavn``:  Brugerens efternavn.
@@ -155,7 +156,8 @@ brugere
 
 
 enheder
---------
+-------
+
  * ``uuid``: Enhedens uuid, primærnøgle for tabellen.
  * ``navn`` Enhedens navn.
  * ``forældreenhed_uuid``: Reference til primærnøglen for forælderenheden.
@@ -210,8 +212,8 @@ engagementer
 Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``.
 
  * ``uuid``: Engagementets (org-funk'ens) uuid, primærnøgle for tabellen.
- * ``bruger_uuid``: Reference til primærnøglen i tabellen ``brugere``. 
- * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``. 
+ * ``bruger_uuid``: Reference til primærnøglen i tabellen ``brugere``.
+ * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``.
  * ``bvn``: Engagementets brugervendte nøgle. Dette vil i de fleste tilfælde
    være ansættelsesnummeret i lønsystemet.
  * ``arbejdstidsfraktion``: Angiver den registrerede arbejdstidsfraktion for
@@ -228,36 +230,35 @@ Engagementer er i MO organisationfunktioner med funktionsnavnet ``Engagement``.
  * ``primær_boolean``: Boolean som angiver om engagementet er brugerens primære
    engagement, se afsnit om beregnede felter
  * ``udvidelse_1``: Første af 10 fritekstfelter på MOs engagementer
- * ....
  * ``udvidelse_10``: Sidste af 10 fritekstfelter på MOs engagementer
  * ``startdato``: Startdato for denne rækkes gyldighed.
  * ``slutdato``: Slutdato for denne rækkes gyldighed.
 
 
 roller
---------
+------
 
 Roller er i MO organisationfunktioner med funktionsnavnet ``Rolle``.
 
  * ``uuid``: Rollens (org-funk'ens) uuid, primærnøgle for tabellen.
- * ``bruger_uuid``: Reference til primærnøglen i tabellen ``brugere``. 
- * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``. 
+ * ``bruger_uuid``: Reference til primærnøglen i tabellen ``brugere``.
+ * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``.
  * ``rolletype_uuid``: Rolletypen, reference til primærnøglen i tabellen
    ``klasser``.
  * ``rolletype_titel``: Titlen på klassen for rolletypen.
  * ``startdato``: Startdato for denne rækkes gyldighed.
  * ``slutdato``: Slutdato for denne rækkes gyldighed.
 
-   
+
 tilknytninger
---------
+-------------
 
 Tilknytninger er i MO organisationfunktioner med funktionsnavnet ``Tilknytning``.
 
  * ``uuid``: Tilknytningens (org-funk'ens) uuid, primærnøgle for tabellen.
  * ``bvn``: Tilknytningens brugervendte nøgle.
- * ``bruger_uuid``: Reference til primærnøglen i tabellen ``brugere``. 
- * ``enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``. 
+ * ``bruger_uuid``: Reference til primærnøglen i tabellen ``brugere``.
+ * ``enhed_uuid`: Reference til primærnøglen i tabellen ``enheder``.
  * ``tilknytningstype_uuid``: Tilknytningstypen, reference til primærnøglen i tabellen
    ``klasser``.
  * ``tilknytningstype_text``: Titlen på klassen for tilknytningstypen.
@@ -266,13 +267,13 @@ Tilknytninger er i MO organisationfunktioner med funktionsnavnet ``Tilknytning``
 
 
 orlover
---------
+-------
 
 Orlover er i MO organisationfunktioner med funktionsnavnet ``Orlov``.
 
  * ``uuid``:  Orlovens (org-funk'ens) uuid, primærnøgle for tabellen.
  * ``bvn``: Brugervendt nøgle for orloven.
- * ``bruger_uuid``:  Reference til primærnøglen i tabellen ``brugere``. 
+ * ``bruger_uuid``:  Reference til primærnøglen i tabellen ``brugere``.
  * ``orlovstype_text``: Titlen på klasse for orlovstypen.
  * ``orlovstype_uuid``: Orlovstypen, reference til primærnøglen i tabellen
    ``klasser``.
@@ -280,14 +281,15 @@ Orlover er i MO organisationfunktioner med funktionsnavnet ``Orlov``.
  * ``slutdato``: Slutdato for denne rækkes gyldighed.
 
 it_systemer
---------
+-----------
+
  * ``uuid``: IT-systemets uuid, primærnøgle for tabellen.
  * ``navn``: IT-systemets navn.
 
 IT-systmer regnes af MO til at have evig virkning og eksporteres derfor altid med
 dags-dato værdi, også i et historisk eksport.
 
-   
+
 it_forbindelser
 ---------------
 
@@ -303,14 +305,15 @@ i dette tilfælde vil der normalt ikke være brugernavn på forbindelsen.
  * ``it_system_uuid``: Reference til primærnøglen i tabellen ``it_systemer``
  * ``bruger_uuid``: Reference til primærnøglen i tabellen ``brugere``.  Hvis
    it-forbindelsen er på en enhed, vil feltet være blankt.
- * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``. 
+ * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``.
  * ``brugernavn``: Brugerens brugernavn i IT-systemet. Normalt blank for forbindelser
    til enheder.
  * ``startdato``: Startdato for denne rækkes gyldighed.
  * ``slutdato``: Slutdato for denne rækkes gyldighed.
 
 ledere
---------
+------
+
  * ``uuid``: Lederrollens (org-funk'ens) uuid, primærnøgle for tabellen.
  * ``bruger_uuid``: Reference til primærnøglen i tabellen ``brugere``.
  * ``enhed_uuid``: Reference til primærnøglen i tabellen ``enheder``.
@@ -371,4 +374,3 @@ For at anvende denne eksport er det nødvendigt at oprette enkelt nøgle i
  * ``lc-for-jobs.actual_db_name``: Navnet på filen (eksporten tilsætter selv '.db' til navnet)
 
 Databasen vil kun være skrivbar imens den bliver genereret.
-
