@@ -1,12 +1,12 @@
 import logging
-import argparse
 
-# import ad_logger
-import ad_exceptions
-
+import click
+from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
 from pathlib import Path
 
+import ad_exceptions
 from ad_writer import ADWriter
+
 
 logger = logging.getLogger("AdExecute")
 
@@ -149,39 +149,39 @@ class ADExecute(ADWriter):
             raise Exception(msg)
         return 'Script completed'
 
-    def _cli(self):
-        """
-        Command line interface for the script executor.
-        """
-        parser = argparse.ArgumentParser(description='Powershell Script Executer')
-        group = parser.add_mutually_exclusive_group()
-        group.add_argument('--validate-script', nargs=1, metavar='Script name',
-                           help='Validate that a template can be parsed')
 
-        group.add_argument('--execute-script', nargs=2,
-                           metavar=('Script name', 'user_uuid'),
-                           help='Execute script with values from user')
+@click.command(help='Powershell Script Executer')
+@optgroup.group("Action", cls=RequiredMutuallyExclusiveOptionGroup)
+@optgroup.option(
+    '--validate-script',
+    help='Validate that a template can be parsed',
+)
+@optgroup.option(
+    '--execute-script',
+    help='Execute script with values from user',
+    nargs=2,
+    type=str,
+)
+def cli(**args):
+    """
+    Command line interface for the script executor.
+    """
+    executor = ADExecute()
+    if args.get('validate_script'):
+        script = args['validate_script']
+        valid = executor.read_script_template(script, pre_check=True)
+        if valid[0]:
+            print('Script is valid')
+        else:
+            print('Script validation failed:\n{}'.format(valid[1]))
 
-        args = vars(parser.parse_args())
-
-        if args.get('validate_script'):
-            script = args.get('validate_script')[0]
-            valid = self.read_script_template(script, pre_check=True)
-            if valid[0]:
-                print('Script is valid')
-            else:
-                print('Script validation failed:\n{}'.format(valid[1]))
-
-        if args.get('execute_script'):
-            script = args.get('execute_script')[0]
-            user = args.get('execute_script')[1]
-            print(self.execute_script(script, user))
+    if args.get('execute_script'):
+        script, user = args['execute_script']
+        print(executor.execute_script(script, user))
 
 
 if __name__ == '__main__':
-    exe = ADExecute()
-    exe._cli()
-
+    cli()
     # This is a fictious user, Noah Petersen, 111111-1111
     # mo_user = '4931ddb6-5084-45d6-9fb2-52ff33998005'
     # script = 'send_email.ps_template'

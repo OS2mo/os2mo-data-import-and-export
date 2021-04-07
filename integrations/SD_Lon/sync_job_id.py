@@ -3,7 +3,6 @@ import json
 import atexit
 import pathlib
 import logging
-import argparse
 import requests
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.SD_Lon.sd_common import sd_lookup

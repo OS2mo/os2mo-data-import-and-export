@@ -1,76 +1,82 @@
 import json
 import pathlib
-import argparse
 
+import click
+from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
+
+from exporters.utils.load_settings import load_settings
+from integrations.ad_integration.ad_reader import ADParameterReader
+from integrations.opus.opus_helpers import update_employee
+from integrations.opus.opus_diff_import import start_opus_diff
+from integrations.opus.opus_import import start_opus_import
+from integrations.opus.opus_exceptions import RunDBInitException
 from os2mo_data_import import ImportHelper
 
-from integrations.ad_integration import ad_reader
-from integrations.opus.opus_helpers import update_employee
-from integrations.opus.opus_helpers import start_opus_diff
-from integrations.opus.opus_helpers import start_opus_import
-from integrations.opus.opus_exceptions import RunDBInitException
 
-parser = argparse.ArgumentParser(description='Sorø import')
-group = parser.add_mutually_exclusive_group()
-group.add_argument('--import', action='store_true', help='New import into empty MO')
-group.add_argument('--update', action='store_true', help='Update with next xml file')
-group.add_argument('--update-single-user', nargs=1, metavar='Emmploymentnumber',
-                   help='Update a single user')
-parser.add_argument('--days', nargs=1, type=int, metavar='Days to go back',
-                    help='Number of days in the past to sync single user',
-                    default=[1000])
+@click.command(help="Furesø import")
+@optgroup.group("Action", cls=RequiredMutuallyExclusiveOptionGroup)
+@optgroup.option("--import", is_flag=True, help='New import into empty MO')
+@optgroup.option("--update", is_flag=True, help='Update with next xml file')
+@optgroup.option(
+    "--update-single-user",
+    help='Update a single user, specify employee number',
+)
+@click.option(
+    "--days",
+    type=int,
+    default=1000,
+    help='Number of days in the past to sync single user (default=1000)',
+)
+def cli(**args):
+    SETTINGS = load_settings()
 
-args = vars(parser.parse_args())
+    ad_reader = ADParameterReader()
 
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
+    if args['update']:
+        try:
+            start_opus_diff(ad_reader=ad_reader)
+        except RunDBInitException:
+            print('RunDB not initialized')
 
-ad_reader = ad_reader.ADParameterReader()
+    if args['import']:
+        importer = ImportHelper(
+            create_defaults=True,
+            mox_base=SETTINGS['mox.base'],
+            mora_base=SETTINGS['mora.base'],
+            store_integration_data=False,
+            seperate_names=True,
+            demand_consistent_uuids=False
+        )
 
-if args['update']:
-    try:
-        start_opus_diff(ad_reader=ad_reader)
-    except RunDBInitException:
-        print('RunDB not initialized')
-    
-if args['import']:
-    importer = ImportHelper(
-        create_defaults=True,
-        mox_base=SETTINGS['mox.base'],
-        mora_base=SETTINGS['mora.base'],
-        store_integration_data=False,
-        seperate_names=True,
-        demand_consistent_uuids=False
-    )
+        med_name = 'MED Organisation'
+        importer.add_klasse(
+            identifier=med_name,
+            facet_type_ref='org_unit_type',
+            user_key=med_name,
+            scope='TEXT',
+            title=med_name
+        )
+
+        importer.add_organisation_unit(
+            identifier=med_name,
+            name=med_name,
+            user_key=med_name,
+            type_ref=med_name,
+            date_from='1930-01-01',
+            date_to=None,
+            parent_ref=None
+        )
+
+        try:
+            start_opus_import(importer, ad_reader=ad_reader, force=True)
+        except RunDBInitException:
+            print('RunDB not initialized')
+
+    if args['update_single_user']:
+        employment_number = args['update_single_user']
+        days = args['days']
+        update_employee(employment_number, days)
 
 
-    med_name = 'MED Organisation'
-    importer.add_klasse(
-        identifier=med_name,
-        facet_type_ref='org_unit_type',
-        user_key=med_name,
-        scope='TEXT',
-        title=med_name
-    )
-
-    importer.add_organisation_unit(
-        identifier=med_name,
-        name=med_name,
-        user_key=med_name,
-        type_ref=med_name,
-        date_from='1930-01-01',
-        date_to=None,
-        parent_ref=None
-    )
-
-    try:
-        start_opus_import(importer, ad_reader=ad_reader, force=True)
-    except RunDBInitException:
-        print('RunDB not initialized')
-
-if args.get('update_single_user'):
-    employment_number = args.get('update_single_user')[0]
-    days = args['days'][0]
-    update_employee(employment_number, days)
+if __name__ == "__main__":
+    cli()

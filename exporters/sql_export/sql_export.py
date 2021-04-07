@@ -2,11 +2,11 @@ import json
 import atexit
 import logging
 import pathlib
-import argparse
 import urllib.parse
 import datetime
 from tqdm import tqdm
 
+import click
 from sqlalchemy import create_engine, Index
 from sqlalchemy.orm import sessionmaker
 
@@ -483,18 +483,16 @@ class SqlExport(object):
             for result in self.engine.execute('select * from leder_ansvar limit 10'):
                 print(result.items())
 
-
-def cli():
+@click.command(help="SQL export")
+@click.option('--resolve-dar', is_flag=True)
+@click.option('--historic', is_flag=True)
+@click.option('--use-pickle', is_flag=True)
+@click.option('--force-sqlite', is_flag=True)
+def cli(**args):
     """
     Command line interface.
     """
-    parser = argparse.ArgumentParser(description='SQL export')
-    parser.add_argument('--resolve-dar', action='store_true')
-    parser.add_argument('--historic', action='store_true')
-    parser.add_argument('--use-pickle', action='store_true')
-    parser.add_argument('--force-sqlite', action='store_true')
-
-    args = vars(parser.parse_args())
+    logger.info('Command line args: %r', args)
 
     cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
     if not cfg_file.is_file():
@@ -502,14 +500,14 @@ def cli():
     settings = json.loads(cfg_file.read_text())
 
     sql_export = SqlExport(
-        force_sqlite=args.get('force_sqlite'),
-        historic=args.get('historic'),
+        force_sqlite=args['force_sqlite'],
+        historic=args['historic'],
         settings=settings,
     )
 
     sql_export.perform_export(
-        resolve_dar=args.get('resolve_dar'),
-        use_pickle=args.get('use_pickle')
+        resolve_dar=args['resolve_dar'],
+        use_pickle=args['use_pickle'],
     )
 
 

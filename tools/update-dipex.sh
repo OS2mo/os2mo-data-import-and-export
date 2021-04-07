@@ -38,7 +38,10 @@ do
     echo installing ${REQFILE}
     venv/bin/pip install -r $REQFILE --upgrade
 done
-venv/bin/pip  pip install -r ./integrations/requirements/common.txt
-venv/bin/pip  pip install -r ./integrations/requirements/test.txt
+venv/bin/pip install -r ./integrations/requirements/common.txt
+venv/bin/pip install -r ./integrations/requirements/test.txt
 venv/bin/pip install ./os2mo_data_import --upgrade
 
+# Install 'metacli' into venv
+source venv/bin/activate
+venv/bin/pip install --editable .

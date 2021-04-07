@@ -1,14 +1,15 @@
-import argparse
 import json
 import logging
 import pathlib
 import random
 
 import requests
-from ad_common import AD
-from os2mo_helpers.mora_helpers import MoraHelper
+import click
+from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
 from tqdm import tqdm
 
+from ad_common import AD
+from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration import ad_logger, ad_reader
 
 LOG_FILE = 'sync_mo_uuid_to_ad.log'
@@ -22,7 +23,6 @@ class SyncMoUuidToAd(AD):
     """
 
     def __init__(self):
-        ad_logger.start_logging(LOG_FILE)
         super().__init__()
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
@@ -100,7 +100,7 @@ class SyncMoUuidToAd(AD):
             logger.debug('PS-script: {}'.format(ps_script))
             response = self._run_ps_script(ps_script)
             logger.debug('Response: {}'.format(response))
-            if response: 
+            if response:
                 msg= 'Unexpected response: {}'.format(response)
                 logger.exception(msg)
                 raise Exception(msg)
@@ -117,28 +117,33 @@ class SyncMoUuidToAd(AD):
             logger.exception(msg)
             raise Exception(msg)
 
-    def cli(self):
-        """
-        Command line interface for the AD writer class.
-        """
-        parser = argparse.ArgumentParser(description='SyncMoUuidToAd')
-        parser.add_argument('--debug', default="false", help="(true/false) Set logging level to debug, default is false")
-        group = parser.add_mutually_exclusive_group(required=True)
-        group.add_argument('--sync-all', action='store_true')
-        group.add_argument('--sync-cpr', nargs=1, required=False)
-        args = vars(parser.parse_args())
-        logger.level = logging.INFO
-        if args.get('debug').lower() == "true":
-            logger.level=logging.DEBUG
-        logger.info(args)
+@click.command()
+@click.option(
+    "--debug",
+    help="Set logging level to DEBUG (default is INFO)",
+    is_flag=True,
+    default=False,
+)
+@optgroup.group("Action", cls=RequiredMutuallyExclusiveOptionGroup)
+@optgroup.option("--sync-all", is_flag=True)
+@optgroup.option("--sync-cpr")
+def cli(**args):
+    ad_logger.start_logging(LOG_FILE)
 
-        if args.get('sync_all'):
-            self.perform_sync()
-        if args.get('sync_cpr'):
-            self.sync_one(args["sync_cpr"][0])
-            
-        logger.info("Sync done")
+    # Set log level according to --debug command line arg
+    logger.level = logging.INFO
+    if args.get('debug'):
+        logger.level = logging.DEBUG
+
+    logger.debug(args)
+
+    sync = SyncMoUuidToAd()
+    if args.get('sync_all'):
+        sync.perform_sync()
+    if args.get('sync_cpr'):
+        sync.sync_one(args["sync_cpr"])
+    logger.info("Sync done")
+
 
 if __name__ == '__main__':
-    sync = SyncMoUuidToAd()
-    sync.cli()
+    cli()
