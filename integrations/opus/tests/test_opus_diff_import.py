@@ -15,9 +15,9 @@ from integrations.opus.opus_diff_import import OpusDiffImport, start_opus_diff
 
 
 class OpusDiffImportTestbase(OpusDiffImport):
-    @patch("integrations.opus.calculate_primary.MOPrimaryEngagementUpdater")
+    @patch("integrations.calculate_primary.opus.OPUSPrimaryEngagementUpdater")
     @patch(
-        "integrations.opus.calculate_primary.MOPrimaryEngagementUpdater.__init__",
+        "integrations.calculate_primary.opus.OPUSPrimaryEngagementUpdater.__init__",
         return_value=None,
     )
     def __init__(self, latest_date, primary_init_mock, mock_primary, *args, **kwargs):
