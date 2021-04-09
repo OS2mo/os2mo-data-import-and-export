@@ -147,13 +147,13 @@ class ADWriterTestSubclass(ADWriter):
             "sam_account_name"
         ]
 
-    def _init_name_creator(self):
+    def _init_name_creator(self, occupied_names=None):
         """Mocked to pretend no names are occupied.
 
         This method would normally use ADReader to read usernames from AD.
         """
         # Simply leave out the call to populate_occupied_names
-        self.name_creator = CreateUserNames(occupied_names=set())
+        self.name_creator = CreateUserNames(occupied_names)
 
     def _create_session(self):
         """Mocked to return a fake-class which writes scripts to self.scripts.
