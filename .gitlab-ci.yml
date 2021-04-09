@@ -42,13 +42,13 @@ stages:
 Lint Customers files:
   extends: .lint-python
   script:
-    - python -m black --diff --line-length 85 --check customers/
+    - python -m black --diff --check customers/
     - python -m isort --profile black --diff --check-only customers/
 
 Lint LoraCache Integration:
   extends: .lint-python
   script:
-    - python -m black --diff --line-length 85 --check exporters/sql_export/tests/*.py
+    - python -m black --diff --check exporters/sql_export/tests/*.py
     - python -m isort --diff --check-only exporters/sql_export/tests/*.py
 
 Lint AD Integration:
@@ -61,7 +61,7 @@ Lint AD Integration:
 Lint SetAlias Tool:
   extends: .lint-python
   script:
-    - python -m black --diff --line-length 85 --check tools/snurrebasser/set_alias.py
+    - python -m black --diff --check tools/snurrebasser/set_alias.py
     - python -m isort --diff --check-only tools/snurrebasser/set_alias.py
 
 Lint SDLoen Integration:
@@ -75,7 +75,7 @@ Lint OPUS Org Tree Print:
   extends: .lint-python
   script:
     - cd integrations/opus/org_tree_print/
-    - python -m black --diff --line-length 85 --check *.py
+    - python -m black --diff --check *.py
     - python -m isort --diff --check-only *.py
 
 Lint Reports:
