@@ -13,6 +13,7 @@ from functools import lru_cache
 import xmltodict
 from deepdiff import DeepDiff
 from tqdm import tqdm
+from collections import OrderedDict
 
 from exporters.utils.load_settings import load_settings
 from integrations import cpr_mapper
@@ -132,11 +133,11 @@ def generate_uuid(value):
     value_uuid = uuid.UUID(value_digest)
     return value_uuid
 
-def parser(target_file: Path, filter_ids: List[str]) -> Tuple[Dict, Dict]:
+def parser(target_file: Path, filter_ids: List[str]) -> Tuple[List, List]:
     data = xmltodict.parse(target_file.read_text())['kmd']
-    units = data['orgUnit']
+    units = data.get('orgUnit', [])
     units = filter_units(units, filter_ids)
-    employees = data['employee']
+    employees = data.get('employee', [])
     return units, employees
 
 
@@ -197,14 +198,7 @@ def file_diff(date1, date2, filter_ids, disable_tqdm=False):
     return units, employees
 
 def read_dump_data(dump_file):
-    cache_file = pathlib.Path.cwd() / 'tmp' / (dump_file.stem + '.p')
-    if not cache_file.is_file():
-        data = xmltodict.parse(dump_file.read_text())['kmd']
-        with open(str(cache_file), 'wb') as f:
-            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-    else:
-        with open(str(cache_file), 'rb') as f:
-            data = pickle.load(f)
+    data = xmltodict.parse(dump_file.read_text())['kmd']
     return data
 
 
@@ -317,3 +311,14 @@ def filter_units(units, filter_ids):
         return parent_set.isdisjoint(filter_set)
 
     return list(filter(is_disjoint_from_filter_ids, units))
+
+
+def read_cpr(employee: OrderedDict) -> str:
+    cpr = employee.get('cpr')
+    if isinstance(cpr, OrderedDict):
+        cpr = employee['cpr']['#text']
+    elif isinstance(cpr, str):
+        assert isinstance(int(cpr), int)
+    else:
+        raise TypeError("Can't read cpr in this format")
+    return cpr

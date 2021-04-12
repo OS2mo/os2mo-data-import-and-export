@@ -1,3 +1,6 @@
+from collections import OrderedDict
+from integrations.opus import opus_helpers
+
 def create_user(employee, org_uuid, uuid=None):
     if employee['firstName'] is None and employee['lastName'] is None:
         employee['firstName'] = 'Ukendt'
@@ -6,10 +9,11 @@ def create_user(employee, org_uuid, uuid=None):
         empl.pop("cpr")
         print('No names on user')
         print(empl)
+    cpr = opus_helpers.read_cpr(employee)
     payload = {
         'givenname': employee['firstName'],
         'surname': employee['lastName'],
-        'cpr_no': employee['cpr']['#text'],
+        'cpr_no': cpr,
         'org': {
             'uuid': org_uuid
         }
