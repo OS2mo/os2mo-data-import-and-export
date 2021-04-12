@@ -70,9 +70,9 @@ EOKLASS
 opret(){
     putuuid=$1
     if [ -z "${putuuid}" ]; then
-        curl --header "Content-Type: application/json" -X POST http://localhost:8080/klassifikation/klasse -d @-
+        curl --header "Content-Type: application/json" -X POST http://localhost:8080/klassifikation/klasse/ -d @-
     else
-        curl --header "Content-Type: application/json" -X PUT http://localhost:8080/klassifikation/klasse/${putuuid} -d @-
+        curl --header "Content-Type: application/json" -X PUT http://localhost:8080/klassifikation/klasse/${putuuid}/ -d @-
     fi
 }
 
