@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from inspect import signature
 from typing import Any, Callable, Iterator
 
 
@@ -29,15 +30,37 @@ class LazyEval:
         return self.cache
 
     def __call__(self, key: Any, dictionary: "LazyDict") -> Any:
-        """Evaluate the callable.
+        """Evaluate the callable."""
+        return self.cally(key, dictionary)
 
-        Is first tried with the key and LazyDict as argument, and if this fails,
-        retried without any arguments being provided.
-        """
-        try:
-            return self.cally(key, dictionary)
-        except TypeError:
-            return self.cally()
+
+def LazyEvalDerived(cally: Callable, cache: bool = True) -> LazyEval:
+    """Create a 'derived' LazyEval.
+
+    Derived means that the cally callable will receive arguments from the dictionary
+    derived by the parameters it takes.
+    """
+    cally_signature = signature(cally)
+
+    def inner(key: Any, dictionary: "LazyDict") -> Any:
+        return cally(
+            **{varname: dictionary[varname] for varname in cally_signature.parameters}
+        )
+
+    return LazyEval(inner, cache)
+
+
+def LazyEvalBare(cally: Callable, cache: bool = True) -> LazyEval:
+    """Create a 'bare' LazyEval.
+
+    Bare means that the cally callable will not receive any arguments.
+    """
+
+    def inner(key: Any, dictionary: "LazyDict") -> Any:
+        """Throw away the arguments, and call the callable."""
+        return cally()
+
+    return LazyEval(inner, cache)
 
     def __str__(self) -> str:
         return "LazyEval" + str(self.cally)
