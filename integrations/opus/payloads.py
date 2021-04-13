@@ -45,7 +45,7 @@ def edit_role(validity, mo_role_uuid):
 
 
 def create_engagement(employee, user_uuid, unit_uuid, job_function, engagement_type,
-                      primary, validity):
+                      primary, validity, fraction):
     payload = {
         'type': 'engagement',
         'org_unit': {'uuid': str(unit_uuid)},
@@ -54,6 +54,7 @@ def create_engagement(employee, user_uuid, unit_uuid, job_function, engagement_t
         'primary': {'uuid': primary},
         'engagement_type': {'uuid': engagement_type},
         'user_key': employee['@id'],
+        'fraction': int(employee['numerator'].replace('.', '')),
         'validity': validity
     }
     return payload

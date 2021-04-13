@@ -383,7 +383,11 @@ class OpusDiffImport(object):
         unit_uuid = opus_helpers.generate_uuid(employee['orgUnit'])
 
         validity = self.validity(employee, edit=True)
+        fraction = employee.get('numerator')
+        if fraction:
+        fraction = 
         data = {
+            'fraction': int(employee['numerator'].replace('.', '')),
             'engagement_type': {'uuid': eng_type},
             'job_function': {'uuid': job_function},
             'org_unit': {'uuid': str(unit_uuid)},
@@ -418,7 +422,7 @@ class OpusDiffImport(object):
             payload = payloads.edit_engagement(data, engagement['uuid'])
             logger.debug('Update engagement payload: {}'.format(payload))
             response = self.helper._mo_post('details/edit', payload)
-            self._assert(response)
+            response.raise_for_status()
 
         if new_valid_to < old_valid_to:
             self.terminate_detail(
