@@ -89,11 +89,15 @@ def to_mo_employee(employee):
 def get_sts_user(session, uuid, allowed_unitids):
     employee = session.query(Bruger).filter(Bruger.uuid == uuid).one()
 
-    user_id = uuid  # default
+    # fallback to uuid
+    user_id = uuid
+    user_key = settings.get("OS2SYNC_USER_KEY")
     candidate_user_id = try_get_ad_user_key(session, uuid)
     # if exists/truthy
     if candidate_user_id:
         user_id = candidate_user_id
+    elif user_key == 'bvn':
+        user_id = base.bvn
 
     person = Person(to_mo_employee(employee), settings=settings)
 

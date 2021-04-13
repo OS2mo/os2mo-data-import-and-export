@@ -75,6 +75,7 @@ os2syncs parametre
  * ``os2sync.ignored.unit_levels``: liste af unit-level-klasser, der skal ignoreres i overførslen
  * ``os2sync.ignored.unit_types``: liste af unit-type-klasser, der skal ignoreres i overførslen
  * ``os2sync.autowash``: sletning uden filter. Normalt slettes kun afdelinger i os2sync, som er forsvundet fra OS2MO. Med autowash slettes alt i os2syncs version af den administrative org, som ikke vil blive overført fra os2mo.
+ * ``os2sync.user_key``: den nøgle der skal bruges - fx. bvn. AD-logon er altid default, men hvis der ikke er en AD-integration kan det være nyttigt at bruge fx. bvn som nøgle. Hvis denne ikke er udfyldt anvendes uuid som nøgle.
  * ``os2sync.templates``: Giver mulighed for at styre formatteringen af data vha. Jinja-templates.
 
 ``os2sync.templates``

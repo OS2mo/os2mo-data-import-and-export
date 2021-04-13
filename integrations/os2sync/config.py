@@ -40,6 +40,7 @@ settings = {
     "OS2SYNC_IGNORED_UNIT_LEVELS": top_settings.get("os2sync.ignored.unit_levels", []),
     "OS2SYNC_IGNORED_UNIT_TYPES": top_settings.get("os2sync.ignored.unit_types", []),
     "OS2SYNC_AUTOWASH": top_settings.get("os2sync.autowash", False),
+    "OS2SYNC_USER_KEY":  top_settings.get("os2sync.user_key"),
     "OS2SYNC_TEMPLATES": top_settings.get("os2sync.templates", {})
 }
 
