@@ -125,15 +125,16 @@ def sd_lookup(url, params={}, use_cache=True):
     payload.update(params)
     auth = (sd_user, sd_password)
     response = _sd_request(full_url, payload, auth, use_cache=use_cache)
+    logger.debug("Response: {}".format(response.text))
 
     dict_response = xmltodict.parse(response.text)
 
     if url in dict_response:
         xml_response = dict_response[url]
     else:
-        msg = "SD api error, envelope: {}"
-        logger.error(msg.format(dict_response["Envelope"]))
-        raise Exception(msg.format(dict_response["Envelope"]))
+        msg = "SD api error, envelope: {}, response: {}"
+        logger.error(msg.format(dict_response["Envelope"], response.text))
+        raise Exception(msg.format(dict_response["Envelope"], response.text))
     logger.debug("Done with {}".format(url))
     return xml_response
 
