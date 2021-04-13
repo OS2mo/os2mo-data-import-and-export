@@ -6,8 +6,6 @@ from hypothesis import assume, event, example, given
 
 from exporters.utils.multiple_replace import multiple_replace
 
-from exporters.utils.multiple_replace import multiple_replace
-
 
 class MultipleReplaceTests(TestCase):
     @given(st.text())
