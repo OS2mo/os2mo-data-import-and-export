@@ -1,0 +1,321 @@
+{
+    "read_organisation_people": {
+        "0eb0efa1-b311-411d-ae7d-c3361a63385c": {
+            "Ansættelse gyldig fra": "1969-04-20",
+            "Ansættelse gyldig til": null,
+            "Person UUID": "0eb0efa1-b311-411d-ae7d-c3361a63385c",
+            "Org-enhed": "Kantine",
+            "Org-enhed UUID": "6651fd60-6674-4476-8369-1199d1a70f57",
+            "Engagement UUID": "d1b43415-4dcd-4995-96f0-6493e9f30308",
+            "Stillingsbetegnelse": "Specialkonsulent",
+            "engagement_type_uuid": "8735b62a-1ca5-40a4-8037-31ed76094ae4",
+            "Engagementstype": "Ansat",
+            "Fornavn": "David",
+            "Efternavn": "Hasselhoff",
+            "Navn": "David Hasselhoff"
+        }
+    },
+    "read_user_address": {
+        "Telefon": "12345678",
+        "E-mail": "thehoff@magenta.dk",
+        "Brugernavn": "TheHoff",
+        "CPR-Nummer": "2004691337"
+    },
+    "_create_path_dict": {
+        "root": "Magenta",
+        "org": "Teknik",
+        "sub org": "Kloakering",
+        "2xsub org": "Kantine",
+        "p-nummer": "1234"
+    },
+    "read_ou_manager": {
+        "Navn": "David",
+        "Ansvar": "Livredder",
+        "uuid": "0eb0efa1-b311-411d-ae7d-c3361a63385c"
+    },
+    "read_ou_address": {
+        "type": "7dd0d7d9-16e0-47b3-bee9-fa370fca2821",
+        "visibility": null,
+        "Adresse": "Mega nice gadenavn 42, 1337 Testby",
+        "value": "1e02fac5-5185-484e-b9e7-6df8e74d9295",
+        "uuid": "f921d194-2670-4394-adaa-96eaa8684e6f",
+        "visibibility": null
+    },
+    "read_ou": {
+        "name": "Test og Gøgl",
+        "user_key": "Test og Gøgl",
+        "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+        "location": "Magenta\\Test",
+        "user_settings": {
+            "orgunit": {
+                "show_roles": true,
+                "show_kle": false,
+                "show_user_key": true,
+                "show_location": true,
+                "show_time_planning": false,
+                "show_level": true,
+                "show_primary_engagement": false,
+                "show_primary_association": false,
+                "show_org_unit_button": false,
+                "inherit_manager": true,
+                "association_dynamic_facets": "",
+                "substitute_roles": "",
+                "show_cpr_no": true,
+                "show_user_key_in_search": false,
+                "extension_field_ui_labels": "",
+                "show_engagement_hyperlink": false
+            }
+        },
+        "parent": {
+            "name": "Test",
+            "user_key": "Test",
+            "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+            "location": "Magenta",
+            "user_settings": {
+                "orgunit": {
+                    "show_roles": true,
+                    "show_kle": false,
+                    "show_user_key": true,
+                    "show_location": true,
+                    "show_time_planning": false,
+                    "show_level": true,
+                    "show_primary_engagement": false,
+                    "show_primary_association": false,
+                    "show_org_unit_button": false,
+                    "inherit_manager": true,
+                    "association_dynamic_facets": "",
+                    "substitute_roles": "",
+                    "show_cpr_no": true,
+                    "show_user_key_in_search": false,
+                    "extension_field_ui_labels": "",
+                    "show_engagement_hyperlink": false
+                }
+            },
+            "parent": {
+                "name": "Magenta",
+                "user_key": "Magenta",
+                "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                "location": "",
+                "user_settings": {
+                    "orgunit": {
+                        "show_roles": true,
+                        "show_kle": false,
+                        "show_user_key": true,
+                        "show_location": true,
+                        "show_time_planning": false,
+                        "show_level": true,
+                        "show_primary_engagement": false,
+                        "show_primary_association": false,
+                        "show_org_unit_button": false,
+                        "inherit_manager": true,
+                        "association_dynamic_facets": "",
+                        "substitute_roles": "",
+                        "show_cpr_no": true,
+                        "show_user_key_in_search": false,
+                        "extension_field_ui_labels": "",
+                        "show_engagement_hyperlink": false
+                    }
+                },
+                "parent": null,
+                "org": {
+                    "name": "Magenta",
+                    "user_key": "Magenta",
+                    "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe"
+                },
+                "org_unit_type": {
+                    "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                    "name": "Afdeling",
+                    "user_key": "Afdeling",
+                    "example": null,
+                    "scope": "TEXT",
+                    "owner": null,
+                    "full_name": "Afdeling",
+                    "top_level_facet": {
+                        "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                        "user_key": "org_unit_type",
+                        "description": ""
+                    },
+                    "facet": {
+                        "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                        "user_key": "org_unit_type",
+                        "description": ""
+                    }
+                },
+                "time_planning": {
+                    "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                    "name": "Dannes ikke",
+                    "user_key": "Dannes ikke",
+                    "example": null,
+                    "scope": "TEXT",
+                    "owner": null,
+                    "full_name": "Dannes ikke",
+                    "top_level_facet": {
+                        "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                        "user_key": "time_planning",
+                        "description": ""
+                    },
+                    "facet": {
+                        "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                        "user_key": "time_planning",
+                        "description": ""
+                    }
+                },
+                "org_unit_level": {
+                    "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                    "name": "N1",
+                    "user_key": "N1",
+                    "example": null,
+                    "scope": "TEXT",
+                    "owner": null,
+                    "full_name": "N1",
+                    "top_level_facet": {
+                        "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                        "user_key": "org_unit_level",
+                        "description": ""
+                    },
+                    "facet": {
+                        "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                        "user_key": "org_unit_level",
+                        "description": ""
+                    }
+                },
+                "validity": {
+                    "from": "1960-01-01",
+                    "to": null
+                }
+            },
+            "org": {
+                "name": "Magenta",
+                "user_key": "Magenta",
+                "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe"
+            },
+            "org_unit_type": {
+                "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                "name": "Afdeling",
+                "user_key": "Afdeling",
+                "example": null,
+                "scope": "TEXT",
+                "owner": null,
+                "full_name": "Afdeling",
+                "top_level_facet": {
+                    "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                    "user_key": "org_unit_type",
+                    "description": ""
+                },
+                "facet": {
+                    "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                    "user_key": "org_unit_type",
+                    "description": ""
+                }
+            },
+            "time_planning": {
+                "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                "name": "Arbejdstidsplaner",
+                "user_key": "Arbejdstidsplaner",
+                "example": null,
+                "scope": "TEXT",
+                "owner": null,
+                "full_name": "Arbejdstidsplaner",
+                "top_level_facet": {
+                    "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                    "user_key": "time_planning",
+                    "description": ""
+                },
+                "facet": {
+                    "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                    "user_key": "time_planning",
+                    "description": ""
+                }
+            },
+            "org_unit_level": {
+                "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                "name": "N1",
+                "user_key": "N1",
+                "example": null,
+                "scope": "TEXT",
+                "owner": null,
+                "full_name": "N1",
+                "top_level_facet": {
+                    "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                    "user_key": "org_unit_level",
+                    "description": ""
+                },
+                "facet": {
+                    "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                    "user_key": "org_unit_level",
+                    "description": ""
+                }
+            },
+            "validity": {
+                "from": "1960-01-01",
+                "to": null
+            }
+        },
+        "org": {
+            "name": "Magenta",
+            "user_key": "Magenta",
+            "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe"
+        },
+        "org_unit_type": {
+            "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+            "name": "Afdeling",
+            "user_key": "Afdeling",
+            "example": null,
+            "scope": "TEXT",
+            "owner": null,
+            "full_name": "Afdeling",
+            "top_level_facet": {
+                "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                "user_key": "org_unit_type",
+                "description": ""
+            },
+            "facet": {
+                "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                "user_key": "org_unit_type",
+                "description": ""
+            }
+        },
+        "time_planning": {
+            "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+            "name": "Tjenestetid",
+            "user_key": "Tjenestetid",
+            "example": null,
+            "scope": "TEXT",
+            "owner": null,
+            "full_name": "Tjenestetid",
+            "top_level_facet": {
+                "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                "user_key": "time_planning",
+                "description": ""
+            },
+            "facet": {
+                "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                "user_key": "time_planning",
+                "description": ""
+            }
+        },
+        "org_unit_level": {
+            "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+            "name": "N2",
+            "user_key": "N2",
+            "example": null,
+            "scope": "TEXT",
+            "owner": null,
+            "full_name": "N2",
+            "top_level_facet": {
+                "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                "user_key": "org_unit_level",
+                "description": ""
+            },
+            "facet": {
+                "uuid": "5132beee-56eb-4df3-b160-b9407ccb83fe",
+                "user_key": "org_unit_level",
+                "description": ""
+            }
+        },
+        "validity": {
+            "from": "1960-01-01",
+            "to": null
+        }
+    }
+}
