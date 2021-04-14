@@ -385,9 +385,9 @@ class OpusDiffImport(object):
         validity = self.validity(employee, edit=True)
         fraction = employee.get('numerator')
         if fraction:
-        fraction = 
+            fraction = int(employee['numerator'].replace('.', ''))
         data = {
-            'fraction': int(employee['numerator'].replace('.', '')),
+            'fraction': fraction,
             'engagement_type': {'uuid': eng_type},
             'job_function': {'uuid': job_function},
             'org_unit': {'uuid': str(unit_uuid)},
