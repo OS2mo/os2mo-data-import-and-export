@@ -208,9 +208,8 @@ class MoraHelper:
         """
         logger.info("Read all MO users")
         org = self.read_organisation()
-        if limit is None or limit == 0:
-            limit = 100000000
-        employee_list = self._mo_lookup(org, "o/{}/e?limit=" + str(limit))
+        limit = limit or 0
+        employee_list = self._mo_lookup(org, "o/{}/e/?limit=" + str(limit))
         employees = employee_list["items"]
         logger.info("Done reading all MO users")
         return employees
@@ -230,7 +229,7 @@ class MoraHelper:
         :param uuid: The UUID of the OU
         :return: Dict with the information about the OU
         """
-        org_enhed = self._mo_lookup(uuid, "ou/{}", at, use_cache)
+        org_enhed = self._mo_lookup(uuid, "ou/{}/", at, use_cache)
         return org_enhed
 
     def read_ou_address(
@@ -291,18 +290,18 @@ class MoraHelper:
         """
         user_info = None
         if user_uuid:
-            user_info = self._mo_lookup(user_uuid, "e/{}", at, use_cache)
+            user_info = self._mo_lookup(user_uuid, "e/{}/", at, use_cache)
         if user_cpr:
             if not org_uuid:
                 org_uuid = self.read_organisation()
             user = self._mo_lookup(
-                user_cpr, "o/" + org_uuid + "/e?query={}", at, use_cache
+                user_cpr, "o/" + org_uuid + "/e/?query={}", at, use_cache
             )
             assert user["total"] < 2  # Only a single person can be found from cpr
 
             if user["total"] == 1:
                 user_info = self._mo_lookup(
-                    user["items"][0]["uuid"], "e/{}", at, use_cache
+                    user["items"][0]["uuid"], "e/{}/", at, use_cache
                 )
         return user_info
 
@@ -428,7 +427,7 @@ class MoraHelper:
                     if address["address_type"]["uuid"] == email_type:
                         return_address["E-mail"] = address["name"]
         if username or cpr:
-            personal_info = self._mo_lookup(user, "e/{}")
+            personal_info = self._mo_lookup(user, "e/{}/")
             if username:
                 return_address["Brugernavn"] = personal_info["user_key"]
             if cpr:
