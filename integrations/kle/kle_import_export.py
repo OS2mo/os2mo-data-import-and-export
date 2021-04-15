@@ -14,6 +14,8 @@ from sqlalchemy.orm import sessionmaker
 from exporters.sql_export.lc_for_jobs_db import get_engine
 from exporters.sql_export.sql_table_defs import KLE
 
+from exporters.utils.load_settings import load_settings
+from os2mo_data_import.helpers import MoraHelper
 LOG_FILE = 'opgavefordeler.log'
 
 logger = logging.getLogger(__name__)
@@ -45,14 +47,13 @@ class KLEAnnotationIntegration(ABC):
     # something like a Strategy here. However, maybe YAGNI.
 
     def __init__(self):
-        cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-        if not cfg_file.is_file():
-            raise Exception("No settings file")
-        self.settings = json.loads(cfg_file.read_text())
+        
+        self.settings = load_settings()
 
         self.mora_base = self.settings.get("mora.base")
         self.mora_session = self._get_mora_session(token=os.environ.get("SAML_TOKEN"))
-        self.org_uuid = self._get_mo_org_uuid()
+        self.helper = MoraHelper(hostname=self.settings.get('mora.base'))
+        self.org_uuid = self.helper.read_organisation()
 
         kle_classes = self.get_kle_classes_from_mo()
         self.kle_uuid_map = {item["user_key"]: item["uuid"] for item in kle_classes}
@@ -83,13 +84,8 @@ class KLEAnnotationIntegration(ABC):
     def get_kle_classes_from_mo(self) -> list:
         """Get all of the kle_number 'klasse' objects from OS2mo"""
         logger.info("Fetching KLE numbers from OS2mo")
-        url = "{}/service/o/{}/f/kle_number"
-        r = self.mora_session.get(url.format(self.mora_base, self.org_uuid))
-        r.raise_for_status()
-
-        items = r.json()["data"]["items"]
-        logger.info("Found {} items".format(len(items)))
-        return items
+        kle_numbers,  _ = self.helper.read_classes_in_facet('kle_number')
+        return kle_numbers
 
     def get_aspect_classes_from_mo(self) -> list:
         """Get all of the kle_aspect 'klasse' objects from OS2mo"""
