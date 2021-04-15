@@ -14,6 +14,7 @@ import xmltodict
 from deepdiff import DeepDiff
 from tqdm import tqdm
 from collections import OrderedDict
+from integrations.gcloud import gcloud_reader
 
 from exporters.utils.load_settings import load_settings
 from integrations import cpr_mapper
@@ -27,7 +28,6 @@ from integrations.opus.opus_exceptions import (
 )
 
 SETTINGS = load_settings()
-DUMP_PATH = Path(SETTINGS['integrations.opus.import.xml_path'])
 START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
 
 logger = logging.getLogger("opusHelper")
@@ -46,8 +46,20 @@ def read_cpr_mapping():
 
 def read_available_dumps():
     dumps = {}
+    settings = load_settings()
+    
+    if settings.get("gcloud.bucket_name"):
+        # When opus files are in google cloud storage
+        reader = gcloud_reader()
+        dump_list = reader.list_files()
+    else:
+        # Default is in a local folder specified in settings
+        dump_path = Path(settings['integrations.opus.import.xml_path'])
+        dump_list = dump_path.glob('*.xml')
 
-    for opus_dump in DUMP_PATH.glob('*.xml'):
+    for opus_dump in dump_list:
+        if settings.get("gcloud.bucket_name"):
+            opus_dump.name = opus_dump.name.replace('production/', '') 
         date_part = opus_dump.name[4:18]
         export_time = datetime.datetime.strptime(date_part, '%Y%m%d%H%M%S')
         if export_time > START_DATE:
@@ -134,12 +146,20 @@ def generate_uuid(value):
     return value_uuid
 
 def parser(target_file: Path, filter_ids: List[str]) -> Tuple[List, List]:
-    data = xmltodict.parse(target_file.read_text())['kmd']
+    """Read an opus file and return units and employees
+    """
+    
+    if isinstance(target_file, Path):
+       text_input = target_file.read_text() 
+    else:
+        text_input = gcloud_reader().read_file(target_file)
+
+    data = xmltodict.parse(text_input)
+    data = data['kmd']
     units = data.get('orgUnit', [])
     units = filter_units(units, filter_ids)
     employees = data.get('employee', [])
     return units, employees
-
 
 def find_changes(before: List[Dict], after: List[Dict], disable_tqdm: bool = False) -> List[Dict]:
     """Filter a list of dictionaries based on differences to another list of dictionaries
@@ -196,10 +216,6 @@ def file_diff(date1, date2, filter_ids, disable_tqdm=False):
     employees = find_changes(employees1, employees2, disable_tqdm=disable_tqdm)
 
     return units, employees
-
-def read_dump_data(dump_file):
-    data = xmltodict.parse(dump_file.read_text())['kmd']
-    return data
 
 
 def compare_employees(original, new, force=False):

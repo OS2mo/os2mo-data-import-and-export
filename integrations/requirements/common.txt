@@ -11,3 +11,4 @@ more_itertools
 tqdm
 deepdiff
 click-option-group
+google-cloud-storage
