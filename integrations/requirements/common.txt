@@ -12,3 +12,4 @@ tqdm
 deepdiff
 click-option-group
 google-cloud-storage
+fs.smbfs

@@ -14,11 +14,11 @@ import xmltodict
 from deepdiff import DeepDiff
 from tqdm import tqdm
 from collections import OrderedDict
-from integrations.gcloud import gcloud_reader
 
 from exporters.utils.load_settings import load_settings
 from integrations import cpr_mapper
 from integrations.opus import opus_diff_import, opus_import
+from integrations.opus.opus_file_reader import ofr
 
 # from integrations.opus.opus_exceptions import NoNewerDumpAvailable
 from integrations.opus.opus_exceptions import (
@@ -45,27 +45,7 @@ def read_cpr_mapping():
 
 
 def read_available_dumps():
-    dumps = {}
-    settings = load_settings()
-    
-    if settings.get("gcloud.bucket_name"):
-        # When opus files are in google cloud storage
-        reader = gcloud_reader()
-        dump_list = reader.list_files()
-    else:
-        # Default is in a local folder specified in settings
-        dump_path = Path(settings['integrations.opus.import.xml_path'])
-        dump_list = dump_path.glob('*.xml')
-
-    for opus_dump in dump_list:
-        if settings.get("gcloud.bucket_name"):
-            opus_dump.name = opus_dump.name.replace('production/', '') 
-        date_part = opus_dump.name[4:18]
-        export_time = datetime.datetime.strptime(date_part, '%Y%m%d%H%M%S')
-        if export_time > START_DATE:
-            dumps[export_time] = opus_dump
-    return dumps
-
+    return ofr().list_files()
 
 def local_db_insert(insert_tuple):
     conn = sqlite3.connect(SETTINGS['integrations.opus.import.run_db'],
@@ -148,11 +128,7 @@ def generate_uuid(value):
 def parser(target_file: Path, filter_ids: List[str]) -> Tuple[List, List]:
     """Read an opus file and return units and employees
     """
-    
-    if isinstance(target_file, Path):
-       text_input = target_file.read_text() 
-    else:
-        text_input = gcloud_reader().read_file(target_file)
+    text_input = ofr().read_file(target_file)
 
     data = xmltodict.parse(text_input)
     data = data['kmd']
