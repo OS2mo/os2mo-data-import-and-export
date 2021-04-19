@@ -2,7 +2,6 @@ import json
 import atexit
 import logging
 import pathlib
-import urllib.parse
 import datetime
 from tqdm import tqdm
 
@@ -19,11 +18,11 @@ from exporters.sql_export.sql_table_defs import (
     Adresse, Engagement, Rolle, Tilknytning, Orlov, ItForbindelse, Leder,
     Kvittering, Enhedssammenkobling, DARAdresse
 )
+from exporters.sql_export.sql_url import generate_connection_url, DatabaseFunction
+
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'sql_export.log'
-
-logger = logging.getLogger('SqlExport')
 
 
 class SqlExport(object):
@@ -31,50 +30,11 @@ class SqlExport(object):
         logger.info('Start SQL export')
         atexit.register(self.at_exit)
         self.historic = historic
-        self.settings = settings
-        if self.settings is None:
-            raise Exception('No settings provided')
 
-        if self.historic:
-            db_type = self.settings.get('exporters.actual_state_historic.type')
-            db_name = self.settings.get('exporters.actual_state_historic.db_name')
-        else:
-            db_type = self.settings.get('exporters.actual_state.type')
-            db_name = self.settings.get('exporters.actual_state.db_name')
-
-        if force_sqlite:
-            db_type = 'SQLite'
-
-        if None in [db_type, db_name]:
-            msg = 'Configuration error, missing db name or type'
-            logger.error(msg)
-            raise Exception(msg)
-
-        user = self.settings.get('exporters.actual_state.user')
-        db_host = self.settings.get('exporters.actual_state.host')
-        pw_raw = self.settings.get('exporters.actual_state.password', '')
-        pw = urllib.parse.quote_plus(pw_raw)
-        engine_settings = {"pool_pre_ping": True}
-        if db_type == 'SQLite':
-            db_string = 'sqlite:///{}.db'.format(db_name)
-        elif db_type == 'MS-SQL':
-            db_string = 'mssql+pymssql://{}:{}@{}/{}'.format(
-                user, pw, db_host, db_name)
-        elif db_type == 'MS-SQL-ODBC':
-            quoted = urllib.parse.quote_plus((
-                'DRIVER=libtdsodbc.so;Server={};Database={};UID={};' +
-                'PWD={};TDS_Version=8.0;Port=1433;').format(
-                    db_host, db_name, user, pw_raw)
-                )
-            db_string = 'mssql+pyodbc:///?odbc_connect={}'.format(quoted)
-        elif db_type == "Mysql":
-            engine_settings.update({"pool_recycle": 3600})
-            db_string = 'mysql+mysqldb://{}:{}@{}/{}'.format(
-                user, pw, db_host, db_name)
-
-        else:
-            raise Exception('Unknown DB type')
-
+        database_function = DatabaseFunction.ACTUAL_STATE
+        if historic:
+            database_function = DatabaseFunction.ACTUAL_STATE_HISTORIC
+        db_string = generate_connection_url(database_function, force_sqlite=force_sqlite, settings=settings)
         self.engine = create_engine(db_string, **engine_settings)
 
     def perform_export(self, resolve_dar=True, use_pickle=False):
