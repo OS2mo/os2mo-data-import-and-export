@@ -8,6 +8,8 @@ from tqdm import tqdm
 import click
 from sqlalchemy import create_engine, Index
 from sqlalchemy.orm import sessionmaker
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.sql_export.sql_table_defs import (
@@ -18,11 +20,14 @@ from exporters.sql_export.sql_table_defs import (
     Adresse, Engagement, Rolle, Tilknytning, Orlov, ItForbindelse, Leder,
     Kvittering, Enhedssammenkobling, DARAdresse
 )
-from exporters.sql_export.sql_url import generate_connection_url, DatabaseFunction
+from exporters.sql_export.sql_url import generate_connection_url, generate_engine_settings, DatabaseFunction
 
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'sql_export.log'
+
+
+logger = logging.getLogger("SqlExport")
 
 
 class SqlExport(object):
@@ -35,6 +40,7 @@ class SqlExport(object):
         if historic:
             database_function = DatabaseFunction.ACTUAL_STATE_HISTORIC
         db_string = generate_connection_url(database_function, force_sqlite=force_sqlite, settings=settings)
+        engine_settings = generate_engine_settings(database_function, force_sqlite=force_sqlite, settings=settings)
         self.engine = create_engine(db_string, **engine_settings)
 
     def perform_export(self, resolve_dar=True, use_pickle=False):
@@ -43,10 +49,10 @@ class SqlExport(object):
 
         Session = sessionmaker(bind=self.engine, autoflush=False)
         self.session = Session()
+        Base.metadata.create_all(self.engine)
 
         query_time = timestamp()
         kvittering = self._add_receipt(query_time)
-        self.session.commit()
         if self.historic:
             self.lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
             self.lc.populate_cache(dry_run=use_pickle)
@@ -58,12 +64,11 @@ class SqlExport(object):
 
         start_delivery_time = timestamp()
         self._update_receipt(kvittering, start_delivery_time)
-        self.session.commit()
 
         trunc_tables=dict(Base.metadata.tables)
         trunc_tables.pop("kvittering")
 
-        connection = session.connection()
+        connection = self.session.connection()
         Base.metadata.drop_all(connection, tables=trunc_tables.values())
         Base.metadata.create_all(connection)
 
@@ -84,7 +89,57 @@ class SqlExport(object):
 
         end_delivery_time = timestamp()
         self._update_receipt(kvittering, start_delivery_time, end_delivery_time)
-        self.session.commit()
+
+    def swap_tables(self):
+        """Swap tables around to present the exported data.
+
+        Swaps the current tables to old tables, then swaps write tables to current.
+        Finally drops the old tables leaving just the current tables.
+        """
+        connection = self.engine.connect()
+        ctx = MigrationContext.configure(connection)
+        op = Operations(ctx)
+
+        def gen_table_names(write_table):
+            """Generate current and old table names from write tables."""
+            # Current tables do not have the prefix 'w'
+            current_table = write_table[1:]
+            old_table = current_table + "_old"
+            return write_table, current_table, old_table
+
+        tables = dict(Base.metadata.tables)
+        tables.pop("kvittering")
+        tables = tables.keys()
+        tables = list(map(gen_table_names, tables))
+
+        # Drop any left-over old tables that may exist
+        with ctx.begin_transaction():
+            for _, _, old_table in tables:
+                try:
+                    op.drop_table(old_table)
+                except Exception:
+                    pass
+
+        # Rename current to old and write to current
+        with ctx.begin_transaction():
+            for write_table, current_table, old_table in tables:
+                # Rename current table to old table
+                # No current tables is OK
+                try:
+                    op.rename_table(current_table, old_table)
+                except Exception:
+                    pass
+                # Rename write table to current table
+                op.rename_table(write_table, current_table)
+
+        # Drop any old tables that may exist
+        with ctx.begin_transaction():
+            for _, _, old_table in tables:
+                # Drop old tables
+                try:
+                    op.drop_table(old_table)
+                except Exception:
+                    pass
 
     def at_exit(self):
         logger.info('*SQL export ended*')
@@ -97,6 +152,7 @@ class SqlExport(object):
                 bvn=facet_info['user_key'],
             )
             self.session.add(sql_facet)
+        self.session.commit()
 
         for klasse, klasse_info in tqdm(self.lc.classes.items(), desc="Export class", unit="class"):
             sql_class = Klasse(
@@ -107,6 +163,7 @@ class SqlExport(object):
                 facet_bvn=self.lc.facets[klasse_info['facet']]['user_key']
             )
             self.session.add(sql_class)
+        self.session.commit()
 
         if output:
             for result in self.engine.execute('select * from facetter limit 4'):
@@ -130,6 +187,7 @@ class SqlExport(object):
                     slutdato=user_info['to_date'],
                 )
                 self.session.add(sql_user)
+        self.session.commit()
 
         for unit, unit_validities in tqdm(self.lc.units.items(), desc="Export unit", unit="unit"):
             for unit_info in unit_validities:
@@ -156,6 +214,7 @@ class SqlExport(object):
                     slutdato=unit_info['to_date']
                 )
                 self.session.add(sql_unit)
+        self.session.commit()
 
         # create supplementary index for quick toplevel lookup
         # when rewriting whole table this is quicker than maintaining
@@ -209,6 +268,7 @@ class SqlExport(object):
                     **engagement_info['extensions']
                 )
                 self.session.add(sql_engagement)
+        self.session.commit()
 
         if output:
             for result in self.engine.execute('select * from engagementer limit 5'):
@@ -248,6 +308,7 @@ class SqlExport(object):
                     slutdato=address_info['to_date']
                 )
                 self.session.add(sql_address)
+        self.session.commit()
         if output:
             for result in self.engine.execute('select * from adresser limit 10'):
                 print(result.items())
@@ -261,6 +322,7 @@ class SqlExport(object):
                    if key in DARAdresse.__table__.columns.keys() and key != "id"}
             )
             self.session.add(sql_address)
+        self.session.commit()
         if output:
             for result in self.engine.execute('select * from dar_adresser limit 10'):
                 print(result.items())
@@ -281,6 +343,7 @@ class SqlExport(object):
                     slutdato=association_info['to_date']
                 )
                 self.session.add(sql_association)
+        self.session.commit()
 
         for role, role_validity in tqdm(self.lc.roles.items(), desc="Export role", unit="role"):
             for role_info in role_validity:
@@ -294,6 +357,7 @@ class SqlExport(object):
                     slutdato=role_info['to_date']
                 )
                 self.session.add(sql_role)
+        self.session.commit()
 
         for leave, leave_validity in tqdm(self.lc.leaves.items(), desc="Export leave", unit="leave"):
             for leave_info in leave_validity:
@@ -308,6 +372,7 @@ class SqlExport(object):
                     slutdato=leave_info['to_date']
                 )
                 self.session.add(sql_leave)
+        self.session.commit()
         if output:
             for result in self.engine.execute('select * from tilknytninger limit 4'):
                 print(result.items())
@@ -324,6 +389,7 @@ class SqlExport(object):
                 navn=itsystem_info['name']
             )
             self.session.add(sql_itsystem)
+        self.session.commit()
 
         for it_connection, it_connection_validity in tqdm(self.lc.it_connections.items(), desc="Export it connection", unit="it connection"):
             for it_connection_info in it_connection_validity:
@@ -337,6 +403,7 @@ class SqlExport(object):
                     slutdato=it_connection_info['to_date']
                 )
                 self.session.add(sql_it_connection)
+        self.session.commit()
         if output:
             for result in self.engine.execute('select * from it_systemer limit 2'):
                 print(result.items())
@@ -360,6 +427,7 @@ class SqlExport(object):
                     slutdato=kle_info['to_date']
                 )
                 self.session.add(sql_kle)
+        self.session.commit()
         if output:
             for result in self.engine.execute('select * from kle limit 10'):
                 print(result.items())
@@ -372,6 +440,7 @@ class SqlExport(object):
             slut_levering_tid=end_time,
         )
         self.session.add(sql_kvittering)
+        self.session.commit()
         if output:
             for result in self.engine.execute('select * from kvittering limit 10'):
                 print(result.items())
@@ -381,6 +450,7 @@ class SqlExport(object):
         logger.info('Update Receipt')
         sql_kvittering.start_levering_tid=start_time
         sql_kvittering.slut_levering_tid=end_time
+        self.session.commit()
         if output:
             for result in self.engine.execute('select * from kvittering limit 10'):
                 print(result.items())
@@ -397,6 +467,7 @@ class SqlExport(object):
                     slutdato=related_info['to_date']
                 )
                 self.session.add(sql_related)
+        self.session.commit()
         if output:
             for result in self.engine.execute('select * from enhedssammenkobling limit 10'):
                 print(result.items())
@@ -429,6 +500,7 @@ class SqlExport(object):
                         slutdato=manager_info['to_date']
                     )
                     self.session.add(sql_responsibility)
+        self.session.commit()
         if output:
             for result in self.engine.execute('select * from ledere limit 10'):
                 print(result.items())
@@ -456,11 +528,11 @@ def cli(**args):
         historic=args['historic'],
         settings=settings,
     )
-
     sql_export.perform_export(
         resolve_dar=args['resolve_dar'],
         use_pickle=args['use_pickle'],
     )
+    sql_export.swap_tables()
 
 
 if __name__ == '__main__':

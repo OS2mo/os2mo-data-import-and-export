@@ -61,7 +61,6 @@ def main(
 
     recreate_db(to_session)
     transfer_tables(from_session, to_session)
-
     to_session.commit()
 
 
