@@ -3,6 +3,7 @@ from typing import Optional
 import click
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy_utils import get_class_by_table
 from tqdm import tqdm
 
 from sql_table_defs import Base
@@ -20,11 +21,10 @@ def recreate_db(session) -> None:
 def transfer_tables(from_session, to_session) -> None:
     """Transfer all data from from_session to to_session."""
     # Pull list of defined models in our Base
-    # ... and remove special case entry
-    models = dict(Base._decl_class_registry.items())
-    del models["_sa_module_registry"]
+    models = [get_class_by_table(Base, table) for table in Base.metadata.tables.values()]
 
-    for modelname, model in tqdm(models.items(), desc="Migrating models"):
+    for model in tqdm(models, desc="Migrating models"):
+        modelname = model.__name__
         # Convert from_session model into to_session model
         from_entries = from_session.query(model).all()
         count = len(from_entries)
