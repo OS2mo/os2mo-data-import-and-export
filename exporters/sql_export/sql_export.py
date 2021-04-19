@@ -26,7 +26,6 @@ from exporters.sql_export.sql_url import generate_connection_url, generate_engin
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'sql_export.log'
 
-
 logger = logging.getLogger("SqlExport")
 
 
@@ -47,9 +46,13 @@ class SqlExport(object):
         def timestamp():
             return datetime.datetime.now()
 
+        trunc_tables=dict(Base.metadata.tables)
+        trunc_tables.pop("kvittering")
+
+        Base.metadata.drop_all(self.engine, tables=trunc_tables.values())
+        Base.metadata.create_all(self.engine)
         Session = sessionmaker(bind=self.engine, autoflush=False)
         self.session = Session()
-        Base.metadata.create_all(self.engine)
 
         query_time = timestamp()
         kvittering = self._add_receipt(query_time)
@@ -64,13 +67,6 @@ class SqlExport(object):
 
         start_delivery_time = timestamp()
         self._update_receipt(kvittering, start_delivery_time)
-
-        trunc_tables=dict(Base.metadata.tables)
-        trunc_tables.pop("kvittering")
-
-        connection = self.session.connection()
-        Base.metadata.drop_all(connection, tables=trunc_tables.values())
-        Base.metadata.create_all(connection)
 
         tasks = [
             self._add_classification,

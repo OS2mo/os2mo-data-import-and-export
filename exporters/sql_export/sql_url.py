@@ -1,6 +1,6 @@
 import urllib.parse
 from enum import Enum
-from typing import Dict, Any, Tuple
+from typing import Any, Dict, Tuple
 
 from exporters.utils.load_settings import load_settings
 
@@ -8,8 +8,6 @@ from exporters.utils.load_settings import load_settings
 class DatabaseFunction(Enum):
     ACTUAL_STATE = 1
     ACTUAL_STATE_HISTORIC = 2
-    ACTUAL_STATE_WRITER = 3
-    ACTUAL_STATE_HISTORIC_WRITER = 4
 
 
 def generate_db_type_and_name(
@@ -24,14 +22,6 @@ def generate_db_type_and_name(
             "exporters.actual_state_historic.type",
             "exporters.actual_state_historic.db_name",
         ),
-        DatabaseFunction.ACTUAL_STATE_WRITER: (
-            "exporters.actual_state_writer.type",
-            "exporters.actual_state_writer.db_name",
-        ),
-        DatabaseFunction.ACTUAL_STATE_HISTORIC_WRITER: (
-            "exporters.actual_state_historic_writer.type",
-            "exporters.actual_state_historic_writer.db_name",
-        ),
     }
     db_type_key, db_name_key = keymap[database_function]
     db_type = settings.get(db_type_key)
@@ -44,7 +34,7 @@ def generate_db_type_and_name(
         msg = "Configuration error, missing db name or type"
         raise Exception(msg)
 
-    return db_type, db_name
+    return str(db_type), str(db_name)
 
 
 def generate_connection_url(
@@ -53,7 +43,9 @@ def generate_connection_url(
     """Utilize settings or settings from disk to derive database connection url."""
     settings = settings or load_settings()
 
-    db_type, db_name = generate_db_type_and_name(database_function, force_sqlite, settings)
+    db_type, db_name = generate_db_type_and_name(
+        database_function, force_sqlite, settings
+    )
     user = settings.get("exporters.actual_state.user")
     db_host = settings.get("exporters.actual_state.host")
     pw_raw = settings.get("exporters.actual_state.password", "")
@@ -72,7 +64,6 @@ def generate_connection_url(
         )
         return "mssql+pyodbc:///?odbc_connect={}".format(quoted)
     if db_type == "Mysql":
-        engine_settings.update({"pool_recycle": 3600})
         return "mysql+mysqldb://{}:{}@{}/{}".format(user, pw, db_host, db_name)
     if db_type == "Postgres":
         return "postgresql://{}:{}@{}/{}".format(user, pw, db_host, db_name)
@@ -84,7 +75,7 @@ def generate_engine_settings(
 ) -> Dict[str, Any]:
     settings = settings or load_settings()
 
-    db_type, db_name = generate_db_type_and_name(database_function, force_sqlite, settings)
+    db_type, _ = generate_db_type_and_name(database_function, force_sqlite, settings)
     engine_settings: Dict = {"pool_pre_ping": True}
     if db_type == "Mysql":
         engine_settings.update({"pool_recycle": 3600})
