@@ -972,3 +972,88 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             finalize_mock.assert_called()
         else:
             finalize_mock.assert_not_called()
+
+
+class TestADMoSyncEditUserAttrs(TestCase, TestADMoSyncMixin):
+    maxDiff = None
+    generate_dynamic_person = False
+
+    def setUp(self):
+        self._initialize_configuration()
+
+    @parameterized.expand(
+        [
+            # 0: No fields are mapped
+            (
+                {},  # (empty) mapping of AD attrs to MO attrs
+                {},  # (additional) AD attrs for this user
+            ),
+            # 1: "Given name" is mapped from AD to MO, and AD value is present
+            (
+                {"givenName": "givenname"},
+                {"givenName": "Test"},
+            ),
+            # 2: "Given name" is mapped from AD to MO, but AD value is not
+            # present
+            (
+                {"givenName": "givenname"},
+                {},
+            ),
+            # 3: Field A is mapped from AD to MO, but only field B has a
+            # present AD value
+            (
+                {"foo": "foo"},
+                {"bar": "AD value for bar"},
+            ),
+            # 4: Fields A and B are mapped, but only field B has a present AD
+            # value
+            (
+                {"givenName": "givenname", "surname": "surname"},
+                {"givenName": "Test"},
+            ),
+            # 5: Fields A and B are mapped, and both fields have a present AD
+            # value
+            (
+                {"givenName": "givenname", "surname": "surname"},
+                {"givenName": "Test", "surname": "Testesen"},
+            ),
+        ]
+    )
+    def test_edit_user_attrs(self, mapping, ad_attrs):
+        def add_sync_mapping(settings):
+            settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {
+                "user_attrs": mapping
+            }
+            return settings
+
+        def add_ad_data(ad_values):
+            ad_values.update(ad_attrs)
+            return ad_values
+
+        self._setup_admosync(
+            transform_settings=add_sync_mapping,
+            transform_ad_values=add_ad_data,
+        )
+
+        # Run full sync against the mocks
+        self.ad_sync.update_all_users()
+
+        # If AD attrs are mapped and present in AD object
+        if set(ad_attrs) and set(ad_attrs).issubset(set(mapping)):
+            # Assert exactly one MO POST call was made
+            self.assertEqual(len(self.ad_sync.mo_post_calls), 1)
+            call = self.ad_sync.mo_post_calls[0]
+            data = call["payload"]["data"]
+            # Assert payload is "edit employee" with validity of (today, None)
+            self.assertEqual(call["url"], "details/edit")
+            self.assertEqual(call["payload"]["type"], "employee")
+            self.assertDictEqual(data["validity"], {"from": today_iso(), "to": None})
+            # Assert we use AD value for each mapped field
+            for ad_attr, mo_attr in mapping.items():
+                if ad_attr in ad_attrs:
+                    self.assertEqual(data[mo_attr], ad_attrs[ad_attr])
+                else:
+                    self.assertNotIn(ad_attr, data)
+        else:
+            # Assert no MO POST calls were made
+            self.assertEqual(len(self.ad_sync.mo_post_calls), 0)

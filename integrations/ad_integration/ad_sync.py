@@ -7,16 +7,16 @@ from operator import itemgetter
 from typing import Any, Dict, Iterator, Optional, Tuple, Union
 
 import click
-import ad_logger
-import ad_reader as adreader
 from more_itertools import only, partition
-from os2mo_helpers.mora_helpers import MoraHelper
 from tqdm import tqdm
 
+import ad_logger
+import ad_reader as adreader
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.apply import apply
 from exporters.utils.jinja_filter import create_filters
 from integrations.ad_integration import read_ad_conf_settings
+from os2mo_helpers.mora_helpers import MoraHelper
 
 logger = logging.getLogger("AdSyncRead")
 
@@ -541,18 +541,41 @@ class AdMoSync(object):
         logger.debug("Response: {}".format(response.text))
         return response
 
+    def _edit_user_attrs(self, uuid, ad_object):
+        user_attrs = {
+            mo_field_name: ad_object.get(ad_field_name)
+            for ad_field_name, mo_field_name
+            in self.mapping.get("user_attrs", {}).items()
+            if ad_object.get(ad_field_name) is not None
+        }
+        if user_attrs:
+            user_attrs["validity"] = VALIDITY
+            self.stats["users"].add(uuid)
+            return self.helper.update_user(uuid, user_attrs)
+
     def _terminate_single_user(self, uuid, ad_object):
         self._finalize_it_system(uuid)
         self._finalize_user_addresses(uuid, ad_object)
 
     def _update_single_user(
-        self, uuid, ad_object, terminate_disabled, terminate_disabled_filters
+        self,
+        uuid,
+        ad_object,
+        terminate_disabled,
+        terminate_disabled_filters,
     ):
         """Update all fields for a single user.
 
         :param uuid: uuid of the user.
         :param ad_object: Dict with the AD information for the user.
+        :param terminate_disabled: terminate *all* disabled users if True
+        :param terminate_disabled_filters: list of filter functions
         """
+        # If `user_attrs` is set up, transfer values from mapped AD user fields
+        # to corresponding MO user attributes.
+        if self.mapping.get("user_attrs"):
+            self._edit_user_attrs(uuid, ad_object)
+
         # Debug log if enabled is not found
         if "Enabled" not in ad_object:
             logger.info("Enabled not in ad_object")
