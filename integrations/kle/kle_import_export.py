@@ -90,13 +90,8 @@ class KLEAnnotationIntegration(ABC):
     def get_aspect_classes_from_mo(self) -> list:
         """Get all of the kle_aspect 'klasse' objects from OS2mo"""
         logger.info("Fetching KLE aspect classes from OS2mo")
-        url = "{}/service/o/{}/f/kle_aspect"
-        r = self.mora_session.get(url.format(self.mora_base, self.org_uuid))
-        r.raise_for_status()
-
-        items = r.json()["data"]["items"]
-        logger.info("Found {} items".format(len(items)))
-        return items
+        kle_aspects,  _ = self.helper.read_classes_in_facet('kle_aspect')
+        return kle_aspects
 
     def get_all_org_units_from_mo(self) -> list:
         """Get a list of all units from OS2mo"""
