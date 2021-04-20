@@ -425,7 +425,12 @@ class MOPrimaryEngagementUpdater(ABC):
 
             # Decide which of the mo_engagements is the primary one, and also what
             # kind of primary it is, fixed_primary or just primary
-            primary_uuid, primary_type_key = self._decide_primary(mo_engagements)
+            try:
+                primary_uuid, primary_type_key = self._decide_primary(mo_engagements)
+            except NoPrimaryFound:
+                logger.warning(f"Unable to determine primary for {user_uuid}")
+                primary_uuid = None
+
             validity = calculate_validity(start, end)
 
             # Update the primary type of all engagements (if required)

@@ -62,7 +62,7 @@ class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
             if 'user_key' not in eng:
                 return None
 
-        def non_integer_userkey(self, mo_engagement):
+        def non_integer_userkey(eng):
             try:
                 # non-integer user keys should not occur
                 int(eng['user_key'])
@@ -77,7 +77,8 @@ class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
 
         # Ensure that all mo_engagements have integer user_keys.
         mo_engagements = list(filter(non_integer_userkey, mo_engagements))
-
+        if mo_engagements == []:
+            return None
         # The primary engagement is the engagement with the lowest engagement type.
         # - The order of engagement types is given by self.eng_types_order.
         #
