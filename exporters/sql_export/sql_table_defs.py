@@ -44,9 +44,7 @@ class Enhed(Base):
     forældreenhed_uuid = Column(String(36), nullable=True, primary_key=False)
     enhedstype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     enhedstype_titel = Column(String(250), nullable=False)
-    enhedsniveau_uuid = Column(
-        String(36), nullable=True
-    )  # ForeignKey('klasser.uuid'))
+    enhedsniveau_uuid = Column(String(36), nullable=True)  # ForeignKey('klasser.uuid'))
     enhedsniveau_titel = Column(String(250), nullable=True)
     organisatorisk_sti = Column(String(1000), nullable=True)
     leder_uuid = Column(String(36))
@@ -63,14 +61,12 @@ class Adresse(Base):
     bruger_uuid = Column(String(36), nullable=True)  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
     værdi = Column(String(250), nullable=True)
-    dar_uuid = Column(String(36), nullable=True) # , ForeignKey('dar_adresser.uuid'))
-    adressetype_uuid = Column(String(36)) # , ForeignKey("klasser.uuid"))
+    dar_uuid = Column(String(36), nullable=True)  # , ForeignKey('dar_adresser.uuid'))
+    adressetype_uuid = Column(String(36))  # , ForeignKey("klasser.uuid"))
     adressetype_bvn = Column(String(250), nullable=False)
     adressetype_scope = Column(String(250), nullable=False)
     adressetype_titel = Column(String(250), nullable=False)
-    synlighed_uuid = Column(
-        String(36), nullable=True
-    )  # , ForeignKey('klasser.uuid'))
+    synlighed_uuid = Column(String(36), nullable=True)  # , ForeignKey('klasser.uuid'))
     synlighed_scope = Column(String(250), nullable=True)
     synlighed_titel = Column(String(250), nullable=True)
     startdato = Column(String(10))
@@ -88,9 +84,7 @@ class Engagement(Base):
     arbejdstidsfraktion = Column(Integer)
     engagementstype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     engagementstype_titel = Column(String(250), nullable=False)
-    primærtype_uuid = Column(
-        String(36), nullable=True
-    )  # , ForeignKey('klasser.uuid'))
+    primærtype_uuid = Column(String(36), nullable=True)  # , ForeignKey('klasser.uuid'))
     primærtype_titel = Column(String(250), nullable=True)
     stillingsbetegnelse_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     stillingsbetegnelse_titel = Column(String(250), nullable=False)
@@ -224,7 +218,7 @@ class Enhedssammenkobling(Base):
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     enhed1_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
-    enhed2_uuid  = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
+    enhed2_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
     startdato = Column(String(10))
     slutdato = Column(String(10))
 
