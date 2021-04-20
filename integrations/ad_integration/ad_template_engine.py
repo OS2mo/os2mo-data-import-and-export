@@ -176,29 +176,6 @@ cmdlet_templates = {
 }
 
 
-def prepare_default_field_templates(jinja_map):
-    """Expand jinja_map with default templates.
-
-    Args:
-        jinja_map: dictionary from ad field names to jinja template strings.
-
-    Returns:
-        dict: A jinja_map which has been extended with default templates.
-    """
-    # Seed default templates
-    jinja_map.setdefault(
-        "Name",
-        "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }} - {{ user_sam }}",
-    )
-    jinja_map.setdefault(
-        "Displayname", "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }}"
-    )
-    jinja_map.setdefault("GivenName", "{{ mo_values['name'][0] }}")
-    jinja_map.setdefault("SurName", "{{ mo_values['name'][1] }}")
-    jinja_map.setdefault("EmployeeNumber", "{{ mo_values['employment_number'] }}")
-    return jinja_map
-
-
 def prepare_settings_based_field_templates(jinja_map, cmd, settings):
     """Expand jinja_map with settings based templates.
 
@@ -214,10 +191,12 @@ def prepare_settings_based_field_templates(jinja_map, cmd, settings):
     def _get_setting_type(settings, key):
         # TODO: Currently we ignore school
         try:
-            return settings[key]
+            result = settings[key]
         except KeyError:
             msg = "Unable to find settings type: " + key
-            raise Exception(msg)
+        if not result:
+            raise Exception("%r is empty" % key)
+        return result
 
     write_settings = _get_setting_type(settings, "primary_write")
     primary_settings = _get_setting_type(settings, "primary")
@@ -295,7 +274,6 @@ def prepare_field_templates(cmd, settings, jinja_map=None):
     """
     # Load field templates (ad_field --> template)
     jinja_map = jinja_map or {}
-    jinja_map = prepare_default_field_templates(jinja_map)
     jinja_map = prepare_settings_based_field_templates(jinja_map, cmd, settings)
     jinja_map = prepare_and_check_login_field_templates(jinja_map)
 

@@ -1,4 +1,5 @@
 # TODO: Fix imports in module
+import copy
 import sys
 from os.path import dirname
 
@@ -343,33 +344,25 @@ class TestADWriter(TestCase, TestADWriterMixin):
                 "integrations.ad_writer.mo_to_ad_fields": {"unit": "name"},
             }
         )
-        self._setup_adwriter(early_transform_settings=settings_transformer)
-        self.assertEqual(self.settings["primary_write"], {})
+        with self.assertRaises(ValueError):
+            self._setup_adwriter(early_transform_settings=settings_transformer)
 
     def test_non_overwritten_default(self):
         """Test that a mistake in overriding a default results in an error."""
         # Assert no scripts were produced from initializing ad_writer itself
         self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
 
-        # Expected outputs
-        num_expected_scripts = 1
+        # Add another mapping for the display name AD field
+        # In `TestADMixin._prepare_settings.default_settings`, this is spelled
+        # `Displayname` (notice the case difference.)
+        display_name = {"displayname": "{{ mo_values['name'][0] }}"}
+        self.settings["primary_write"]["template_to_ad_fields"].update(display_name)
 
-        # DisplayName is a default and should be overwritten.
-        settings_transformer = dict_modifier(
-            {
-                "integrations.ad_writer.template_to_ad_fields": {
-                    "displayname": "{{ mo_values['name'][0] }}"
-                },
-            }
-        )
-        self._setup_adwriter(early_transform_settings=settings_transformer)
-
-        # Run create user and fetch scripts
-        uuid = "invalid-provided-and-accepted-due-to-mocking"
-
-        # Check that the create user ps looks good
         with self.assertRaises(ValueError):
-            self.ad_writer.sync_user(mo_uuid=uuid, sync_manager=False)
+            self.ad_writer.sync_user(
+                mo_uuid="invalid-provided-and-accepted-due-to-mocking",
+                sync_manager=False,
+            )
 
     def test_user_edit_illegal_parameter(self):
         """Test user edit ps_script code with illegal parameter
@@ -433,6 +426,17 @@ class TestADWriter(TestCase, TestADWriterMixin):
         edit_user_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
         self.assertNotIn('"Name"="John"', edit_user_ps)
 
+    def test_duplicated_ad_field_name(self):
+        # Test configuration where 'Name' is mapped both via
+        # `mo_to_ad_fields` *and* `template_to_ad_fields`
+        add_dupe_field = dict_modifier(
+            {
+                "integrations.ad_writer.mo_to_ad_fields": {"unit": "Name"},
+            }
+        )
+        with self.assertRaises(ValueError):
+            self._setup_adwriter(early_transform_settings=add_dupe_field)
+
     @parameterized.expand(
         [
             # Verify different employment numbers
@@ -440,11 +444,13 @@ class TestADWriter(TestCase, TestADWriterMixin):
                 dict_modifier({}),
                 mo_modifier({"employment_number": "267"}),
                 dict_modifier({}),
+                [],
             ],
             [
                 dict_modifier({}),
                 mo_modifier({"employment_number": "42"}),
                 dict_modifier({}),
+                [],
             ],
             # Test mo_to_ad_fields
             [
@@ -459,6 +465,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
                         "name": ("John Deere", "Enhed"),
                     }
                 ),
+                ["Name"],
             ],
             [
                 dict_modifier(
@@ -476,6 +483,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
                         "extension_field2": (None, "42"),
                     }
                 ),
+                ["Name"],
             ],
             # Test template_to_ad_fields
             [
@@ -492,6 +500,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
                         "adjusted_number": (None, "47"),
                     }
                 ),
+                [],
             ],
             # Test template_to_ad_fields
             [
@@ -514,13 +523,37 @@ class TestADWriter(TestCase, TestADWriterMixin):
                         "enabled": (True, "Invalid"),
                     }
                 ),
+                [],
             ],
         ]
     )
     def test_sync_compare(
-        self, settings_transformer, mo_transformer, expected_transformer
+        self,
+        settings_transformer,
+        mo_transformer,
+        expected_transformer,
+        removed_fields,
     ):
-        self._setup_adwriter(None, mo_transformer, settings_transformer)
+        # If test case defines `removed_fields`, remove these fields from the
+        # `integrations.ad_writer.template_to_ad_fields` setting, as they are
+        # defined by the `integrations.ad_writer.mo_to_ad_fields` setting
+        # instead.
+        def remove_template_fields(settings):
+            key = "integrations.ad_writer.template_to_ad_fields"
+            to_remove = set([f.lower() for f in removed_fields])
+            for field in copy.copy(settings[key]):
+                if field.lower() in to_remove:
+                    del settings[key][field]
+            return settings
+
+        actual_settings_transformer = lambda settings: settings_transformer(
+            remove_template_fields(settings)
+        )
+
+        self._setup_adwriter(
+            early_transform_settings=actual_settings_transformer,
+            transform_mo_values=mo_transformer,
+        )
 
         uuid = "invalid-provided-and-accepted-due-to-mocking"
         mo_values = self.ad_writer.read_ad_information_from_mo(uuid)

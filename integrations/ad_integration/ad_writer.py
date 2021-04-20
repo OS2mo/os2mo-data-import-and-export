@@ -689,8 +689,6 @@ class ADWriter(AD):
         return mismatch
 
     def _sync_compare(self, mo_values, ad_dump):
-        write_settings = self._get_write_setting()
-
         user_ad_info = self._find_ad_user(mo_values['cpr'], ad_dump)
         assert(len(user_ad_info) == 1)
         ad = user_ad_info[0]
