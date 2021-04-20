@@ -3,14 +3,15 @@ jobs run under job-runner as opposed to the actual state used
 by customers. It is meant to be run just after the nightly imports
 to be used as a speed up in comparison with hitting MO's rest interface.
 """
-import click
 import json
 import logging
 
-from constants import lc_for_jobs_actual_db_name
-from exporters.sql_export.sql_export import SqlExport
+import click
 from sqlalchemy import create_engine
+
+from constants import lc_for_jobs_actual_db_name
 from customer_settings import PathDefaultMethod, get_settings
+from exporters.sql_export.sql_export import SqlExport
 from exporters.utils.load_settings import load_settings
 
 LOG_LEVEL = logging.DEBUG
@@ -22,13 +23,11 @@ logger = logging.getLogger("lc-for-jobs")
 def get_engine(dbpath=None):
     if dbpath is None:
         settings = load_settings()
-        dbpath = settings.get(
-            "lc-for-jobs.actual_db_name", lc_for_jobs_actual_db_name
-        )
+        dbpath = settings.get("lc-for-jobs.actual_db_name", lc_for_jobs_actual_db_name)
 
     dbpath = str(dbpath)
-    if dbpath != ':memory:':
-        dbpath += '.db'
+    if dbpath != ":memory:":
+        dbpath += ".db"
     db_string = "sqlite:///{}".format(dbpath)
     return create_engine(db_string)
 
@@ -55,12 +54,10 @@ def sql_export(resolve_dar):
         ),
         "exporters.actual_state.manager_responsibility_class": org_settings[
             "exporters.actual_state.manager_responsibility_class"
-        ]
+        ],
     }
 
-    sql_export = SqlExport(
-        force_sqlite=True, historic=False, settings=settings
-    )
+    sql_export = SqlExport(force_sqlite=True, historic=False, settings=settings)
     sql_export.perform_export(resolve_dar=resolve_dar, use_pickle=False)
 
 
