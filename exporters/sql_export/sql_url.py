@@ -51,6 +51,8 @@ def generate_connection_url(
     pw_raw = settings.get("exporters.actual_state.password", "")
     pw = urllib.parse.quote_plus(pw_raw)
 
+    if db_type == "Memory":
+        return "sqlite://"
     if db_type == "SQLite":
         return "sqlite:///{}.db".format(db_name)
     if db_type == "MS-SQL":

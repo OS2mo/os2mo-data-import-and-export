@@ -1,5 +1,4 @@
 import json
-import atexit
 import logging
 import pathlib
 import datetime
@@ -29,10 +28,9 @@ LOG_FILE = 'sql_export.log'
 logger = logging.getLogger("SqlExport")
 
 
-class SqlExport(object):
+class SqlExport:
     def __init__(self, force_sqlite=False, historic=False, settings=None):
         logger.info('Start SQL export')
-        atexit.register(self.at_exit)
         self.historic = historic
 
         database_function = DatabaseFunction.ACTUAL_STATE
@@ -41,6 +39,17 @@ class SqlExport(object):
         db_string = generate_connection_url(database_function, force_sqlite=force_sqlite, settings=settings)
         engine_settings = generate_engine_settings(database_function, force_sqlite=force_sqlite, settings=settings)
         self.engine = create_engine(db_string, **engine_settings)
+
+    def _get_lora_cache(self, resolve_dar, use_pickle):
+        if self.historic:
+            lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
+            lc.populate_cache(dry_run=use_pickle)
+        else:
+            lc = LoraCache(resolve_dar=resolve_dar)
+            lc.populate_cache(dry_run=use_pickle)
+            lc.calculate_derived_unit_data()
+            lc.calculate_primary_engagements()
+        return lc
 
     def perform_export(self, resolve_dar=True, use_pickle=False):
         def timestamp():
@@ -56,14 +65,7 @@ class SqlExport(object):
 
         query_time = timestamp()
         kvittering = self._add_receipt(query_time)
-        if self.historic:
-            self.lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
-            self.lc.populate_cache(dry_run=use_pickle)
-        else:
-            self.lc = LoraCache(resolve_dar=resolve_dar)
-            self.lc.populate_cache(dry_run=use_pickle)
-            self.lc.calculate_derived_unit_data()
-            self.lc.calculate_primary_engagements()
+        self.lc = self._get_lora_cache(resolve_dar, use_pickle)
 
         start_delivery_time = timestamp()
         self._update_receipt(kvittering, start_delivery_time)
@@ -136,9 +138,6 @@ class SqlExport(object):
                     op.drop_table(old_table)
                 except Exception:
                     pass
-
-    def at_exit(self):
-        logger.info('*SQL export ended*')
 
     def _add_classification(self, output=False):
         logger.info('Add classification')
@@ -529,6 +528,7 @@ def cli(**args):
         use_pickle=args['use_pickle'],
     )
     sql_export.swap_tables()
+    logger.info('*SQL export ended*')
 
 
 if __name__ == '__main__':
