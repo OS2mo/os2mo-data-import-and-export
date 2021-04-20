@@ -1,6 +1,7 @@
 import pytest
-from exporters.sql_export.sql_export import SqlExport
 from sqlalchemy import inspect
+
+from exporters.sql_export.sql_export import SqlExport
 
 
 class FakeLC:
@@ -68,43 +69,49 @@ def test_sql_export_tables():
         resolve_dar=False,
         use_pickle=False,
     )
-    check_tables(sql_export.engine, [
-        "kvittering",
-        "wadresser",
-        "wbrugere",
-        "wdar_adresser",
-        "wengagementer",
-        "wenheder",
-        "wenhedssammenkobling",
-        "wfacetter",
-        "wit_forbindelser",
-        "wit_systemer",
-        "wklasser",
-        "wkle",
-        "wleder_ansvar",
-        "wledere",
-        "worlover",
-        "wroller",
-        "wtilknytninger",
-    ])
+    check_tables(
+        sql_export.engine,
+        [
+            "kvittering",
+            "wadresser",
+            "wbrugere",
+            "wdar_adresser",
+            "wengagementer",
+            "wenheder",
+            "wenhedssammenkobling",
+            "wfacetter",
+            "wit_forbindelser",
+            "wit_systemer",
+            "wklasser",
+            "wkle",
+            "wleder_ansvar",
+            "wledere",
+            "worlover",
+            "wroller",
+            "wtilknytninger",
+        ],
+    )
 
     sql_export.swap_tables()
-    check_tables(sql_export.engine, [
-        "adresser",
-        "brugere",
-        "dar_adresser",
-        "engagementer",
-        "enheder",
-        "enhedssammenkobling",
-        "facetter",
-        "it_forbindelser",
-        "it_systemer",
-        "klasser",
-        "kle",
-        "kvittering",
-        "leder_ansvar",
-        "ledere",
-        "orlover",
-        "roller",
-        "tilknytninger",
-    ])
+    check_tables(
+        sql_export.engine,
+        [
+            "adresser",
+            "brugere",
+            "dar_adresser",
+            "engagementer",
+            "enheder",
+            "enhedssammenkobling",
+            "facetter",
+            "it_forbindelser",
+            "it_systemer",
+            "klasser",
+            "kle",
+            "kvittering",
+            "leder_ansvar",
+            "ledere",
+            "orlover",
+            "roller",
+            "tilknytninger",
+        ],
+    )
