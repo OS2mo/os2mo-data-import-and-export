@@ -21,7 +21,7 @@ jms_bvn_one = jmespath.compile(
 
 
 def check_relations(session, base: str, uuid: str) -> List[dict]:
-    """Find all objects related to the class with the given uuid
+    """Find all objects related to the class with the given uuid.
 
     Returns a list of objects, or an empty list if no objects related to the given uuid are found.
     """
@@ -38,6 +38,7 @@ def read_duplicate_class(session, base: str, bvn: str) -> List[Tuple[str, str]]:
 
     Returns a list of tuples with uuids and bvns of the found classes.
     """
+    bvn = urllib.parse.quote(bvn)
     r = session.get(base + f"/klassifikation/klasse?brugervendtnoegle={bvn}&list=true")
     r.raise_for_status()
     res = r.json()["results"][0]
@@ -47,13 +48,13 @@ def read_duplicate_class(session, base: str, bvn: str) -> List[Tuple[str, str]]:
 
 
 def delete_class(session, base: str, uuid: str) -> None:
-    """Delete the class with the given uuid"""
+    """Delete the class with the given uuid."""
     r = session.delete(base + f"/klassifikation/klasse/{uuid}")
     r.raise_for_status()
 
 
 def switch_class(session, base: str, payload: str, new_uuid: str) -> None:
-    """Switch an objects related class
+    """Switch an objects related class.
 
     Given an object payload and an uuid this function wil switch the class that an object is related to.
     """
@@ -69,11 +70,8 @@ def switch_class(session, base: str, payload: str, new_uuid: str) -> None:
     r.raise_for_status()
 
 
-def find_duplicates_classes() -> List[str]:
-    """Find classes that are duplicates and return them"""
-    settings = load_settings()
-    mox_base = settings.get("mox.base", "http://localhost:8080/")
-    session = requests.Session()
+def find_duplicates_classes(session, mox_base:str) -> List[str]:
+    """Find classes that are duplicates and return them."""
     r = session.get(mox_base + "/klassifikation/klasse?list=true")
     all_classes = r.json()["results"][0]
     all_ids = map(itemgetter("id"), all_classes)
@@ -101,23 +99,23 @@ def cli(delete):
     Objects related to the other class will be transferred to the selected class and the other class deleted.
     """
 
-    duplicate_list = find_duplicates_classes()
-    if not delete:
-        click.echo(f"There are {len(duplicate_list)} duplicate class(es).")
-        return
-
     settings = load_settings()
     mox_base = settings.get("mox.base", "http://localhost:8080/")
     session = requests.Session()
 
+    duplicate_list = find_duplicates_classes(session=session, mox_base=mox_base)
+
+    if not delete:
+        click.echo(f"There are {len(duplicate_list)} duplicate class(es).")
+        return
+
     for dup in tqdm(duplicate_list, desc="Deleting duplicate classes"):
-        dup = urllib.parse.quote(dup)
+
         dup_class = read_duplicate_class(session, mox_base, dup)
         bvn_set = set(map(itemgetter(1), dup_class))
         # Check if all found bvns are exactly the same. Only prompt for a choice if they are not.
-        if len(bvn_set) == 1:
-            keep = 1
-        else:
+        keep = 1
+        if len(bvn_set) != 1:
             click.echo("These are the choices:")
             # Generate a prompt to display
             msg = "\n".join(f"  {i}: {bvn}" for i, bvn in enumerate(bvn_set, start=1))
