@@ -209,6 +209,8 @@ def get_sts_user(uuid, allowed_unitids):
         "Person": person.to_json(),
     }
 
+    logger.debug('os2mo.get_sts_user: sts_user = %r', sts_user)
+
     addresses_to_user(
         sts_user, os2mo_get("{BASE}/e/" + uuid + "/details/address").json()
     )
@@ -226,7 +228,7 @@ def get_sts_user(uuid, allowed_unitids):
 def org_unit_uuids(**kwargs):
     return [
         ou["uuid"]
-        for ou in os2mo_get("{BASE}/o/{ORG}/ou", limit=999999,
+        for ou in os2mo_get("{BASE}/o/{ORG}/ou/", limit=999999,
                             **kwargs).json()["items"]
     ]
 

@@ -16,6 +16,7 @@ from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
 from exporters.sql_export.sql_table_defs import (Adresse, Bruger, Engagement, Enhed,
                                                  ItForbindelse, ItSystem, KLE)
 from integrations.os2sync import config, os2mo
+from integrations.os2sync.templates import Person
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
@@ -56,6 +57,34 @@ def try_get_ad_user_key(session, uuid: str) -> Optional[str]:
         return
     return ad_system_user_names[0]
 
+def to_mo_employee(base):
+    """Convert `Bruger` row `base` to something which resembles a MO employee
+    JSON response.
+
+    This is done so we can pass a suitable template context to
+    `os2sync.templates.Person` even when running with `OS2SYNC_USE_LC_DB=True`.
+    """
+
+    def or_none(val):
+        return val or None
+
+    def to_name(*parts):
+        return or_none(" ".join(part for part in parts if part))
+
+    return dict(
+        # Name
+        name=to_name(base.fornavn, base.efternavn),
+        givenname=or_none(base.fornavn),
+        surname=or_none(base.efternavn),
+        # Nickname
+        nickname=to_name(base.kaldenavn_fornavn, base.kaldenavn_efternavn),
+        nickname_givenname=or_none(base.kaldenavn_fornavn),
+        nickname_surname=or_none(base.kaldenavn_efternavn),
+        # Other fields
+        cpr_no=or_none(base.cpr),
+        user_key=or_none(base.bvn),
+        uuid=or_none(base.uuid),
+    )
 
 def get_sts_user(session, uuid, allowed_unitids):
     base = session.query(Bruger).filter(Bruger.uuid == uuid).one()
@@ -66,14 +95,16 @@ def get_sts_user(session, uuid, allowed_unitids):
     if candidate_user_id:
         user_id = candidate_user_id
 
+    person = Person(to_mo_employee(base), settings=settings)
+
     sts_user = {
         "Uuid": uuid,
         "UserId": user_id,
         "Positions": [],
-        "Person": {"Name": base.fornavn + " " + base.efternavn, "Cpr": base.cpr},
+        "Person": person.to_json(),
     }
-    if not settings["OS2SYNC_XFER_CPR"]:
-        sts_user["Person"]["Cpr"] = None
+
+    logger.debug('lcdb_os2mo.get_sts_user: sts_user = %r', sts_user)
 
     addresses = []
     for lc_address in session.query(
