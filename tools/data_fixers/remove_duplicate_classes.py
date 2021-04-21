@@ -3,6 +3,7 @@ import urllib.parse
 from collections import Counter
 from operator import itemgetter
 from typing import List, Tuple
+from uuid import UUID
 
 import click
 import jmespath
@@ -20,7 +21,7 @@ jms_bvn_one = jmespath.compile(
 )
 
 
-def check_relations(session, base: str, uuid: str) -> List[dict]:
+def check_relations(session, base: str, uuid: UUID) -> List[dict]:
     """Find all objects related to the class with the given uuid.
 
     Returns a list of objects, or an empty list if no objects related to the given uuid are found.
@@ -33,7 +34,7 @@ def check_relations(session, base: str, uuid: str) -> List[dict]:
     return only(res, default=[])
 
 
-def read_duplicate_class(session, base: str, bvn: str) -> List[Tuple[str, str]]:
+def read_duplicate_class(session, base: str, bvn: str) -> List[Tuple[UUID, str]]:
     """Read details of classes with the given bvn.
 
     Returns a list of tuples with uuids and bvns of the found classes.
@@ -70,7 +71,7 @@ def switch_class(session, base: str, payload: str, new_uuid: str) -> None:
     r.raise_for_status()
 
 
-def find_duplicates_classes(session, mox_base:str) -> List[str]:
+def find_duplicates_classes(session, mox_base: str) -> List[str]:
     """Find classes that are duplicates and return them."""
     r = session.get(mox_base + "/klassifikation/klasse?list=true")
     all_classes = r.json()["results"][0]
