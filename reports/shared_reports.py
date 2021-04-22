@@ -72,7 +72,7 @@ class CustomerReports(MoraHelper):
 
         cols = ["root", "org", "sub org"]
         for i in range(2, self.nodes["root"].height):
-            cols += [str(i) + "xsub org"]
+            cols.append(str(i) + "xsub org")
         return cols
 
     def employees(self) -> pd.DataFrame:
