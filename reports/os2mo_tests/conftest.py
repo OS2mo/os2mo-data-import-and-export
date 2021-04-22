@@ -17,6 +17,6 @@ def test_data() -> Path:
 
 
 @pytest.fixture
-def temp_dir(tmpdir_factory):
+def temp_dir(tmpdir_factory) -> Path:
     temp_dir: str = tmpdir_factory.mktemp("temp_dir")
     return Path(temp_dir)
