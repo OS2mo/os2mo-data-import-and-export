@@ -4,7 +4,6 @@ from collections import Counter
 from operator import itemgetter
 from typing import List, Tuple
 from uuid import UUID
-
 import click
 import jmespath
 import requests
@@ -27,7 +26,8 @@ def check_relations(session, base: str, uuid: UUID) -> List[dict]:
     Returns a list of objects, or an empty list if no objects related to the given uuid are found.
     """
     r = session.get(
-        base + f"/organisation/organisationfunktion?vilkaarligrel={str(uuid)}&list=true&virkningfra=-infinity"
+        base
+        + f"/organisation/organisationfunktion?vilkaarligrel={str(uuid)}&list=true&virkningfra=-infinity"
     )
     r.raise_for_status()
     res = r.json()["results"]
@@ -55,19 +55,24 @@ def delete_class(session, base: str, uuid: UUID) -> None:
     r.raise_for_status()
 
 
-def switch_class(session, base: str, payload: str, new_uuid: UUID) -> None:
+def switch_class(session, base: str, payload: str, new_uuid: UUID, uuid_set: set) -> None:
     """Switch an objects related class.
 
     Given an object payload and an uuid this function wil switch the class that an object is related to.
+    Only switches class if it is in the set uuid_set.
     """
     old_uuid = UUID(payload["id"])
     payload = payload["registreringer"][0]
+    #Drop data we don't need to post
     payload = {
         item: payload.get(item) for item in ("attributter", "relationer", "tilstande")
     }
-    payload["relationer"]["organisatoriskfunktionstype"][0]["uuid"] = str(new_uuid)
-    r = session.patch(
-        base + f"/organisation/organisationfunktion/{str(old_uuid)}/", json=payload
+    org_f_type = payload["relationer"]["organisatoriskfunktionstype"]
+    #Update the uuid of all classes if the class is in uuid_set
+    #This is to ensure we only update the classes that would otherwise be deleted
+    [x.update({"uuid": str(new_uuid)}) for x in org_f_type if UUID(x['uuid']) in uuid_set]
+    r = session.put(
+        base + f"/organisation/organisationfunktion/{str(old_uuid)}", json=payload
     )
     r.raise_for_status()
 
@@ -119,6 +124,7 @@ def cli(delete):
 
         dup_class = read_duplicate_class(session, mox_base, dup)
         title_set = set(map(itemgetter(1), dup_class))
+        uuid_set = set(map(itemgetter(0), dup_class))
         # Check if all found titles are exactly the same. Only prompt for a choice if they are not.
         keep = 1
         if len(title_set) != 1:
@@ -134,7 +140,7 @@ def cli(delete):
             uuid, _ = obj
             rel = check_relations(session, mox_base, uuid)
             for payload in tqdm(rel, desc="Changing class for objects"):
-                switch_class(session, mox_base, payload, kept_uuid)
+                switch_class(session, mox_base, payload, kept_uuid, uuid_set)
             delete_class(session, mox_base, uuid)
 
 
