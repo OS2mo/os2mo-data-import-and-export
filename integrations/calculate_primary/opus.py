@@ -1,5 +1,6 @@
-from integrations.calculate_primary.common import (MOPrimaryEngagementUpdater,
-                                                   logger)
+import math
+
+from integrations.calculate_primary.common import MOPrimaryEngagementUpdater, logger
 
 
 class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
@@ -59,26 +60,9 @@ class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
     def _find_primary(self, mo_engagements):
         # Ensure that all mo_engagements have user_keys.
         for eng in mo_engagements:
-            if 'user_key' not in eng:
+            if "user_key" not in eng:
                 return None
 
-        def non_integer_userkey(eng):
-            try:
-                # non-integer user keys should not occur
-                int(eng['user_key'])
-            except ValueError:
-                logger.warning(
-                    "Skippning engangement with non-integer employment_id: {}".format(
-                        eng["user_key"]
-                    )
-                )
-                return False
-            return True
-
-        # Ensure that all mo_engagements have integer user_keys.
-        mo_engagements = list(filter(non_integer_userkey, mo_engagements))
-        if mo_engagements == []:
-            return None
         # The primary engagement is the engagement with the lowest engagement type.
         # - The order of engagement types is given by self.eng_types_order.
         #
@@ -87,11 +71,23 @@ class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         def get_engagement_type_id(engagement):
             if eng["engagement_type"] in self.eng_types_order:
                 return self.eng_types_order.index(eng["engagement_type"])
-            return 9999
+            return math.inf
+
+        def get_engagement_order(engagement):
+            try:
+                eng_id = int(eng["user_key"])
+                return eng_id
+            except:
+                logger.warning(
+                    "Skippning engangement with non-integer employment_id: {}".format(
+                        eng["user_key"]
+                    )
+                )
+                return math.inf
 
         primary_engagement = min(
             mo_engagements,
             # Sort first by engagement_type, then by user_key integer
-            key=lambda eng: (get_engagement_type_id(eng), int(eng["user_key"]))
+            key=lambda eng: (get_engagement_type_id(eng), get_engagement_order(eng)),
         )
-        return primary_engagement['uuid']
+        return primary_engagement["uuid"]
