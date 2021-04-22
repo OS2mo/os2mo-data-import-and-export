@@ -10,6 +10,7 @@ from typing import List
 
 import pandas as pd
 from anytree import PreOrderIter
+from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
 
 from exporters.utils.load_settings import load_settings
@@ -52,14 +53,12 @@ class CustomerReports(MoraHelper):
         # This sucks, sorry
         org = super().read_organisation()
         top_units = super().read_top_units(org)
-        for unit in top_units:
-            if org_name in unit["name"]:
-                self.nodes = super().read_ou_tree(unit["uuid"])
-                break
-        else:
-            raise ValueError(
-                f"Organisation unit {org_name} not found in organisation units"
-            )
+        top_units = filter(lambda unit: org_name in unit["name"], top_units)
+        error = ValueError(
+            f"Organisation unit {org_name} not found in organisation units"
+        )
+        matching_unit = one(top_units, too_short=error, too_long=error)
+        self.nodes = super().read_ou_tree(matching_unit["uuid"])
 
     def get_org_cols(self) -> List[str]:
         """Get suborganisation columns dynamically.
