@@ -1,100 +1,69 @@
 import unittest
 
+from parameterized import parameterized
+
 from integrations.os2sync.templates import FieldTemplateRenderError
 from integrations.os2sync.templates import FieldTemplateSyntaxError
 from integrations.os2sync.templates import Person
+from integrations.os2sync.tests.helpers import MoEmployeeMixin
+from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
 
 
-class _EmployeeMixin:
-    def mock_employee(self, nickname=False):
-        # Mock the result of `os2mo_get("{BASE}/e/" + uuid + "/").json()`
-        # Only contains the keys relevant for testing
-        return {
-            # Name
-            "name": "Test Testesen",
-            "givenname": "Test",
-            "surname": "Testesen",
-            # Nickname
-            "nickname": "Kalde Navn" if nickname else "",
-            "nickname_givenname": "Kalde" if nickname else "",
-            "nickname_surname": "Navn" if nickname else "",
-            # Other fields
-            "cpr_no": "0101019999",
-            "user_key": "testtestesen",
-            "uuid": "mock-uuid"
-        }
-
-
-class TestPerson(unittest.TestCase, _EmployeeMixin):
-    def test_transfer_cpr_true(self):
+class TestPerson(unittest.TestCase, MoEmployeeMixin):
+    @parameterized.expand(
+        [
+            # OS2SYNC_XFER_CPR, key of expected CPR value
+            (True, "cpr_no"),
+            (False, None),
+        ]
+    )
+    def test_transfer_cpr(self, flag, expected_key):
         mo_employee = self.mock_employee()
-        person = Person(mo_employee, settings={"OS2SYNC_XFER_CPR": True})
+        person = Person(mo_employee, settings={"OS2SYNC_XFER_CPR": flag})
+        expected_cpr = mo_employee[expected_key] if expected_key else None
         self.assertDictEqual(
             person.to_json(),
-            {"Name": mo_employee["name"], "Cpr": mo_employee["cpr_no"]},
-        )
-
-    def test_transfer_cpr_false(self):
-        mo_employee = self.mock_employee()
-        person = Person(mo_employee, settings={"OS2SYNC_XFER_CPR": False})
-        self.assertDictEqual(
-            person.to_json(),
-            {"Name": mo_employee["name"], "Cpr": None},
+            {"Name": mo_employee["name"], "Cpr": expected_cpr},
         )
 
 
-class TestPersonNameTemplate(unittest.TestCase, _EmployeeMixin):
-    settings = {
-        "OS2SYNC_TEMPLATES": {
-            "person.name":
-            "{% if nickname -%}{{ nickname }}{%- else %}{{ name }}{%- endif %}"
-        },
-        "OS2SYNC_XFER_CPR": True,  # required by `Person.to_json`
-    }
+class TestPersonNameTemplate(unittest.TestCase, MoEmployeeMixin):
+    @parameterized.expand(
+        [
+            (
+                dict(nickname=False),  # mo employee response kwargs
+                "name",  # key of expected value for `Name`
+            ),
+            (
+                dict(nickname=True),  # mo employee response kwargs
+                "nickname",  # key of expected value for `Name`
+            ),
+        ]
+    )
+    def test_template(self, response_kwargs, expected_key):
+        mo_employee = self.mock_employee(**response_kwargs)
+        person = Person(mo_employee, settings=self._gen_settings(NICKNAME_TEMPLATE))
+        self.assertEqual(person.to_json()["Name"], mo_employee[expected_key])
 
-    def test_nickname_present(self):
-        mo_employee = self.mock_employee(nickname=True)
-        person = Person(mo_employee, settings=self.settings)
-        self.assertEqual(person.to_json()["Name"], mo_employee["nickname"])
-
-    def test_nickname_absent(self):
-        mo_employee = self.mock_employee(nickname=False)
-        person = Person(mo_employee, settings=self.settings)
-        self.assertEqual(person.to_json()["Name"], mo_employee["name"])
-
-
-class TestPersonInvalidTemplate(unittest.TestCase, _EmployeeMixin):
-    def test_syntax_error_raises_exception(self):
-        settings = {
-            "OS2SYNC_TEMPLATES": {
-                "person.name": "{% invalid jinja %}"
-            },
-            "OS2SYNC_XFER_CPR": True,  # required by `Person.to_json`
-        }
+    def test_template_syntax_error_raises_exception(self):
         mo_employee = self.mock_employee()
         with self.assertRaises(FieldTemplateSyntaxError):
-            Person(mo_employee, settings=settings)
+            Person(mo_employee, settings=self._gen_settings("{% invalid jinja %}"))
 
-    def test_render_failure_raises_exception(self):
-        settings = {
-            "OS2SYNC_TEMPLATES": {
-                "person.name": "{{ name|dictsort }}"
-            },
-            "OS2SYNC_XFER_CPR": True,  # required by `Person.to_json`
-        }
+    @parameterized.expand(
+        [
+            "{{ name|dictsort }}"
+            "{{ unknown_variable }}"
+        ]
+    )
+    def test_template_render_failure_raises_exception(self, template):
         mo_employee = self.mock_employee()
-        person = Person(mo_employee, settings=settings)
+        person = Person(mo_employee, settings=self._gen_settings(template))
         with self.assertRaises(FieldTemplateRenderError):
             person.to_json()
 
-    def test_unknown_variable_raises_exception(self):
-        settings = {
-            "OS2SYNC_TEMPLATES": {
-                "person.name": "{{ unknown_variable }}"
-            },
+    def _gen_settings(self, template):
+        return {
+            "OS2SYNC_TEMPLATES": {"person.name": template},
             "OS2SYNC_XFER_CPR": True,  # required by `Person.to_json`
         }
-        mo_employee = self.mock_employee()
-        person = Person(mo_employee, settings=settings)
-        with self.assertRaises(FieldTemplateRenderError):
-            person.to_json()

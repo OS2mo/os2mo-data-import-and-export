@@ -1,51 +1,70 @@
 import unittest
-from unittest.mock import MagicMock
 from unittest.mock import patch
+
+from parameterized import parameterized
 
 from integrations.os2sync import os2mo
 from integrations.os2sync.os2mo import get_sts_user as os2mo_get_sts_user
-from integrations.os2sync.tests.test_person_conversions import _EmployeeMixin
+from integrations.os2sync.tests.helpers import MoEmployeeMixin
+from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
 
 
-class TestGetStsUser(unittest.TestCase, _EmployeeMixin):
+class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
     maxDiff = None
 
-    def test_name_only(self):
-        pass
+    def setUp(self):
+        super().setUp()
+        self._uuid = "mock-uuid"
+        self._user_key = "mock-user-key"
 
-    def test_name_and_nickname(self):
-        template = "{% if nickname -%}{{ nickname }}{%- else %}{{ name }}{%- endif %}"
-        with patch.dict("integrations.os2sync.config.settings") as settings:
-            settings["OS2SYNC_XFER_CPR"] = True
-            settings["OS2SYNC_TEMPLATES"]["person.name"] = template
-            response = self._make_mock_response()
-            with self._fn("os2mo_get", response):
-                with self._fn("try_get_ad_user_key", MagicMock()):
-                    with self._fn("addresses_to_user", []):
-                        with self._fn("engagements_to_user", []):
-                            sts_user = os2mo_get_sts_user("name and nickname", [])
-
+    @parameterized.expand(
+        [
+            # Test without template
+            (
+                None,  # template
+                dict(nickname=False),  # mo employee response kwargs
+                "name",  # key of expected value for `Name`
+            ),
+            # Test with template: user has no nickname
+            (
+                NICKNAME_TEMPLATE,  # template
+                dict(nickname=False),  # mo employee response kwargs
+                "name",  # key of expected value for `Name`
+            ),
+            # Test with template: user has a nickname
+            (
+                NICKNAME_TEMPLATE,  # template
+                dict(nickname=True),  # mo employee response kwargs
+                "nickname",  # key of expected value for `Name`
+            ),
+        ]
+    )
+    def test_get_sts_user(self, template, response_kwargs, expected_key):
+        mo_employee_response = self.mock_employee_response(**response_kwargs)
+        sts_user = self._run(mo_employee_response, template=template)
         self.assertDictEqual(
             sts_user,
             {
-                "Uuid": "name and nickname",
-                "UserId": MagicMock(),
+                "Uuid": self._uuid,
+                "UserId": self._user_key,
                 "Positions": [],
                 "Person": {
-                    "Name": "Test Testesen",
-                    "Cpr": None,
+                    "Name": mo_employee_response.json()[expected_key],
+                    "Cpr": mo_employee_response.json()["cpr_no"],
                 },
             },
         )
 
-    def _fn(self, name, return_value):
+    def _run(self, response, template=None):
+        with patch.dict("integrations.os2sync.config.settings") as settings:
+            settings["OS2SYNC_XFER_CPR"] = True
+            if template:
+                settings["OS2SYNC_TEMPLATES"]["person.name"] = template
+            with self._patch("os2mo_get", response):
+                with self._patch("try_get_ad_user_key", self._user_key):
+                    with self._patch("addresses_to_user", []):
+                        with self._patch("engagements_to_user", []):
+                            return os2mo_get_sts_user(self._uuid, [])
+
+    def _patch(self, name, return_value):
         return patch.object(os2mo, name, return_value=return_value)
-
-    def _make_mock_response(self, **kwargs):
-        mo_employee = self.mock_employee(**kwargs)
-
-        class MockResponse:
-            def json(self):
-                return mo_employee
-
-        return MockResponse()

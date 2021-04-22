@@ -1,9 +1,12 @@
 import unittest
+from unittest.mock import patch
 
 from alchemy_mock.mocking import UnifiedAlchemyMagicMock
+from parameterized import parameterized
 
 from exporters.sql_export.sql_table_defs import Bruger
 from integrations.os2sync.lcdb_os2mo import get_sts_user as lcdb_get_sts_user
+from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
 
 
 # Mock contents of `Bruger` model
@@ -42,37 +45,46 @@ class TestGetStsUser(unittest.TestCase):
         super().setUp()
         self._session = UnifiedAlchemyMagicMock(data=_lcdb_mock_users)
 
-    def test_name_only(self):
-        sts_user = lcdb_get_sts_user(self._session, "name only", [])
+    @parameterized.expand(
+        [
+            # Test without template
+            (
+                None,  # template
+                "name only",  # uuid of mock `Bruger`
+                "Test Testesen",  # expected value of `Name`
+            ),
+            # Test with template: user has no nickname
+            (
+                NICKNAME_TEMPLATE,  # template
+                "name only",  # uuid of mock `Bruger`
+                "Test Testesen",  # expected value of `Name`
+            ),
+            # Test with template: user has no nickname
+            (
+                NICKNAME_TEMPLATE,  # template
+                "name and nickname",  # uuid of mock `Bruger`
+                "Teste Testersen",  # expected value of `Name`
+            ),
+        ]
+    )
+    def test_get_sts_user(self, template, uuid, expected_name):
+        if template:
+            # Run with template
+            with patch.dict("integrations.os2sync.config.settings") as settings:
+                settings["OS2SYNC_TEMPLATES"]["person.name"] = template
+                sts_user = lcdb_get_sts_user(self._session, uuid, [])
+        else:
+            # Run without template
+            sts_user = lcdb_get_sts_user(self._session, uuid, [])
 
         self.assertDictEqual(
             sts_user,
             {
-                "Uuid": "name only",
-                "UserId": "name only",
+                "Uuid": uuid,
+                "UserId": uuid,
                 "Positions": [],
                 "Person": {
-                    "Name": "Test Testesen",
-                    "Cpr": None,
-                },
-            },
-        )
-
-    def test_name_and_nickname(self):
-        template = "{% if nickname -%}{{ nickname }}{%- else %}{{ name }}{%- endif %}"
-        dict_path = "integrations.os2sync.config.settings"
-        with unittest.mock.patch.dict(dict_path) as patched_settings:
-            patched_settings["OS2SYNC_TEMPLATES"]["person.name"] = template
-            sts_user = lcdb_get_sts_user(self._session, "name and nickname", [])
-
-        self.assertDictEqual(
-            sts_user,
-            {
-                "Uuid": "name and nickname",
-                "UserId": "name and nickname",
-                "Positions": [],
-                "Person": {
-                    "Name": "Teste Testersen",
+                    "Name": expected_name,
                     "Cpr": None,
                 },
             },
