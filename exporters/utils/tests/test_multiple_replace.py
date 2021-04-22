@@ -44,7 +44,7 @@ class MultipleReplaceTests(TestCase):
         self.assertEqual(text, "love eating spam")
 
     @given(st.text(), st.dictionaries(st.text(min_size=1), st.text()))
-    @example(text='1', changes={'0': '2', '1': '00'})
+    @example(text="1", changes={"0": "2", "1": "00"})
     def test_replace_multiple_as_replace(self, text, changes):
         """Test that multiple replacement works as str.replace.
 
