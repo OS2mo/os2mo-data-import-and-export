@@ -13,8 +13,8 @@ from tqdm import tqdm
 
 from exporters.utils.load_settings import load_settings
 
-jms_bvn_list = jmespath.compile(
-    "[*].registreringer[0].attributter.klasseegenskaber[0].brugervendtnoegle"
+jms_title_list = jmespath.compile(
+    "[*].registreringer[0].attributter.klasseegenskaber[0].titel"
 )
 jms_bvn_one = jmespath.compile(
     "registreringer[0].attributter.klasseegenskaber[0].brugervendtnoegle"
@@ -27,7 +27,7 @@ def check_relations(session, base: str, uuid: UUID) -> List[dict]:
     Returns a list of objects, or an empty list if no objects related to the given uuid are found.
     """
     r = session.get(
-        base + f"/organisation/organisationfunktion?vilkaarligrel={uuid}&list=true"
+        base + f"/organisation/organisationfunktion?vilkaarligrel={str(uuid)}&list=true&virkningfra=-infinity"
     )
     r.raise_for_status()
     res = r.json()["results"]
@@ -37,42 +37,46 @@ def check_relations(session, base: str, uuid: UUID) -> List[dict]:
 def read_duplicate_class(session, base: str, bvn: str) -> List[Tuple[UUID, str]]:
     """Read details of classes with the given bvn.
 
-    Returns a list of tuples with uuids and bvns of the found classes.
+    Returns a list of tuples with uuids and titles of the found classes.
     """
     bvn = urllib.parse.quote(bvn)
     r = session.get(base + f"/klassifikation/klasse?brugervendtnoegle={bvn}&list=true")
     r.raise_for_status()
     res = r.json()["results"][0]
     uuids = jmespath.search("[*].id", res)
-    bvns = jms_bvn_list.search(res)
-    return list(zip(uuids, bvns))
+    uuids = map(UUID, uuids)
+    titles = jms_title_list.search(res)
+    return list(zip(uuids, titles))
 
 
-def delete_class(session, base: str, uuid: str) -> None:
+def delete_class(session, base: str, uuid: UUID) -> None:
     """Delete the class with the given uuid."""
-    r = session.delete(base + f"/klassifikation/klasse/{uuid}")
+    r = session.delete(base + f"/klassifikation/klasse/{str(uuid)}")
     r.raise_for_status()
 
 
-def switch_class(session, base: str, payload: str, new_uuid: str) -> None:
+def switch_class(session, base: str, payload: str, new_uuid: UUID) -> None:
     """Switch an objects related class.
 
     Given an object payload and an uuid this function wil switch the class that an object is related to.
     """
-    old_uuid = payload["id"]
+    old_uuid = UUID(payload["id"])
     payload = payload["registreringer"][0]
     payload = {
         item: payload.get(item) for item in ("attributter", "relationer", "tilstande")
     }
-    payload["relationer"]["organisatoriskfunktionstype"][0]["uuid"] = new_uuid
+    payload["relationer"]["organisatoriskfunktionstype"][0]["uuid"] = str(new_uuid)
     r = session.patch(
-        base + f"/organisation/organisationfunktion/{old_uuid}/", json=payload
+        base + f"/organisation/organisationfunktion/{str(old_uuid)}/", json=payload
     )
     r.raise_for_status()
 
 
 def find_duplicates_classes(session, mox_base: str) -> List[str]:
-    """Find classes that are duplicates and return them."""
+    """Find classes that are duplicates and return them.
+
+    Returns a list of class bvns that has duplicates. They are returned in lowercase.
+    """
     r = session.get(mox_base + "/klassifikation/klasse?list=true")
     all_classes = r.json()["results"][0]
     all_ids = map(itemgetter("id"), all_classes)
@@ -97,6 +101,7 @@ def cli(delete):
     This tool is written to help clean up engagement_types that had the same name, but with different casing.
     If no argument is given it will print the amount of duplicated classses.
     If the `--delete` flag is supplied you will be prompted to choose a class to keep for each duplicate.
+    In case there are no differences to
     Objects related to the other class will be transferred to the selected class and the other class deleted.
     """
 
@@ -113,13 +118,13 @@ def cli(delete):
     for dup in tqdm(duplicate_list, desc="Deleting duplicate classes"):
 
         dup_class = read_duplicate_class(session, mox_base, dup)
-        bvn_set = set(map(itemgetter(1), dup_class))
-        # Check if all found bvns are exactly the same. Only prompt for a choice if they are not.
+        title_set = set(map(itemgetter(1), dup_class))
+        # Check if all found titles are exactly the same. Only prompt for a choice if they are not.
         keep = 1
-        if len(bvn_set) != 1:
+        if len(title_set) != 1:
             click.echo("These are the choices:")
             # Generate a prompt to display
-            msg = "\n".join(f"  {i}: {bvn}" for i, bvn in enumerate(bvn_set, start=1))
+            msg = "\n".join(f"  {i}: {x[1]}" for i, x in enumerate(dup_class, start=1))
             click.echo(msg)
             keep = click.prompt("Choose the one to keep", type=int, default=1)
         kept_uuid, _ = dup_class[keep - 1]
