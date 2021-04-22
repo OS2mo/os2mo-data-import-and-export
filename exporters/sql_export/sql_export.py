@@ -1,14 +1,14 @@
 import json
-import atexit
 import logging
 import pathlib
-import urllib.parse
 import datetime
 from tqdm import tqdm
 
 import click
 from sqlalchemy import create_engine, Index
 from sqlalchemy.orm import sessionmaker
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.sql_export.sql_table_defs import (
@@ -19,63 +19,37 @@ from exporters.sql_export.sql_table_defs import (
     Adresse, Engagement, Rolle, Tilknytning, Orlov, ItForbindelse, Leder,
     Kvittering, Enhedssammenkobling, DARAdresse
 )
+from exporters.sql_export.sql_url import generate_connection_url, generate_engine_settings, DatabaseFunction
+
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'sql_export.log'
 
-logger = logging.getLogger('SqlExport')
+logger = logging.getLogger("SqlExport")
 
 
-class SqlExport(object):
+class SqlExport:
     def __init__(self, force_sqlite=False, historic=False, settings=None):
         logger.info('Start SQL export')
-        atexit.register(self.at_exit)
         self.historic = historic
-        self.settings = settings
-        if self.settings is None:
-            raise Exception('No settings provided')
 
-        if self.historic:
-            db_type = self.settings.get('exporters.actual_state_historic.type')
-            db_name = self.settings.get('exporters.actual_state_historic.db_name')
-        else:
-            db_type = self.settings.get('exporters.actual_state.type')
-            db_name = self.settings.get('exporters.actual_state.db_name')
-
-        if force_sqlite:
-            db_type = 'SQLite'
-
-        if None in [db_type, db_name]:
-            msg = 'Configuration error, missing db name or type'
-            logger.error(msg)
-            raise Exception(msg)
-
-        user = self.settings.get('exporters.actual_state.user')
-        db_host = self.settings.get('exporters.actual_state.host')
-        pw_raw = self.settings.get('exporters.actual_state.password', '')
-        pw = urllib.parse.quote_plus(pw_raw)
-        engine_settings = {"pool_pre_ping": True}
-        if db_type == 'SQLite':
-            db_string = 'sqlite:///{}.db'.format(db_name)
-        elif db_type == 'MS-SQL':
-            db_string = 'mssql+pymssql://{}:{}@{}/{}'.format(
-                user, pw, db_host, db_name)
-        elif db_type == 'MS-SQL-ODBC':
-            quoted = urllib.parse.quote_plus((
-                'DRIVER=libtdsodbc.so;Server={};Database={};UID={};' +
-                'PWD={};TDS_Version=8.0;Port=1433;').format(
-                    db_host, db_name, user, pw_raw)
-                )
-            db_string = 'mssql+pyodbc:///?odbc_connect={}'.format(quoted)
-        elif db_type == "Mysql":
-            engine_settings.update({"pool_recycle": 3600})
-            db_string = 'mysql+mysqldb://{}:{}@{}/{}'.format(
-                user, pw, db_host, db_name)
-
-        else:
-            raise Exception('Unknown DB type')
-
+        database_function = DatabaseFunction.ACTUAL_STATE
+        if historic:
+            database_function = DatabaseFunction.ACTUAL_STATE_HISTORIC
+        db_string = generate_connection_url(database_function, force_sqlite=force_sqlite, settings=settings)
+        engine_settings = generate_engine_settings(database_function, force_sqlite=force_sqlite, settings=settings)
         self.engine = create_engine(db_string, **engine_settings)
+
+    def _get_lora_cache(self, resolve_dar, use_pickle):
+        if self.historic:
+            lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
+            lc.populate_cache(dry_run=use_pickle)
+        else:
+            lc = LoraCache(resolve_dar=resolve_dar)
+            lc.populate_cache(dry_run=use_pickle)
+            lc.calculate_derived_unit_data()
+            lc.calculate_primary_engagements()
+        return lc
 
     def perform_export(self, resolve_dar=True, use_pickle=False):
         def timestamp():
@@ -91,14 +65,7 @@ class SqlExport(object):
 
         query_time = timestamp()
         kvittering = self._add_receipt(query_time)
-        if self.historic:
-            self.lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
-            self.lc.populate_cache(dry_run=use_pickle)
-        else:
-            self.lc = LoraCache(resolve_dar=resolve_dar)
-            self.lc.populate_cache(dry_run=use_pickle)
-            self.lc.calculate_derived_unit_data()
-            self.lc.calculate_primary_engagements()
+        self.lc = self._get_lora_cache(resolve_dar, use_pickle)
 
         start_delivery_time = timestamp()
         self._update_receipt(kvittering, start_delivery_time)
@@ -121,8 +88,56 @@ class SqlExport(object):
         end_delivery_time = timestamp()
         self._update_receipt(kvittering, start_delivery_time, end_delivery_time)
 
-    def at_exit(self):
-        logger.info('*SQL export ended*')
+    def swap_tables(self):
+        """Swap tables around to present the exported data.
+
+        Swaps the current tables to old tables, then swaps write tables to current.
+        Finally drops the old tables leaving just the current tables.
+        """
+        connection = self.engine.connect()
+        ctx = MigrationContext.configure(connection)
+        op = Operations(ctx)
+
+        def gen_table_names(write_table):
+            """Generate current and old table names from write tables."""
+            # Current tables do not have the prefix 'w'
+            current_table = write_table[1:]
+            old_table = current_table + "_old"
+            return write_table, current_table, old_table
+
+        tables = dict(Base.metadata.tables)
+        tables.pop("kvittering")
+        tables = tables.keys()
+        tables = list(map(gen_table_names, tables))
+
+        # Drop any left-over old tables that may exist
+        with ctx.begin_transaction():
+            for _, _, old_table in tables:
+                try:
+                    op.drop_table(old_table)
+                except Exception:
+                    pass
+
+        # Rename current to old and write to current
+        with ctx.begin_transaction():
+            for write_table, current_table, old_table in tables:
+                # Rename current table to old table
+                # No current tables is OK
+                try:
+                    op.rename_table(current_table, old_table)
+                except Exception:
+                    pass
+                # Rename write table to current table
+                op.rename_table(write_table, current_table)
+
+        # Drop any old tables that may exist
+        with ctx.begin_transaction():
+            for _, _, old_table in tables:
+                # Drop old tables
+                try:
+                    op.drop_table(old_table)
+                except Exception:
+                    pass
 
     def _add_classification(self, output=False):
         logger.info('Add classification')
@@ -167,6 +182,7 @@ class SqlExport(object):
                     slutdato=user_info['to_date'],
                 )
                 self.session.add(sql_user)
+        self.session.commit()
 
         for unit, unit_validities in tqdm(self.lc.units.items(), desc="Export unit", unit="unit"):
             for unit_info in unit_validities:
@@ -322,6 +338,7 @@ class SqlExport(object):
                     slutdato=association_info['to_date']
                 )
                 self.session.add(sql_association)
+        self.session.commit()
 
         for role, role_validity in tqdm(self.lc.roles.items(), desc="Export role", unit="role"):
             for role_info in role_validity:
@@ -335,6 +352,7 @@ class SqlExport(object):
                     slutdato=role_info['to_date']
                 )
                 self.session.add(sql_role)
+        self.session.commit()
 
         for leave, leave_validity in tqdm(self.lc.leaves.items(), desc="Export leave", unit="leave"):
             for leave_info in leave_validity:
@@ -366,6 +384,7 @@ class SqlExport(object):
                 navn=itsystem_info['name']
             )
             self.session.add(sql_itsystem)
+        self.session.commit()
 
         for it_connection, it_connection_validity in tqdm(self.lc.it_connections.items(), desc="Export it connection", unit="it connection"):
             for it_connection_info in it_connection_validity:
@@ -504,11 +523,12 @@ def cli(**args):
         historic=args['historic'],
         settings=settings,
     )
-
     sql_export.perform_export(
         resolve_dar=args['resolve_dar'],
         use_pickle=args['use_pickle'],
     )
+    sql_export.swap_tables()
+    logger.info('*SQL export ended*')
 
 
 if __name__ == '__main__':
