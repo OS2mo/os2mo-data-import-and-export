@@ -379,6 +379,10 @@ reports_frederikshavn(){
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/Frederikshavn_reports.py
 }
 
+reports_csv(){
+    ${VENV}/bin/python3 ${DIPEXAR}/reports/shared_reports.py
+}
+
 exports_lc_for_jobs_db(){
     BACK_UP_AND_TRUNCATE+=(lc-for-jobs.log)
     SETTING_PREFIX="lc-for-jobs" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -602,6 +606,10 @@ reports(){
 
     if [ "${RUN_REPORTS_FREDERIKSHAVN}" == "true" ]; then
         run-job reports_frederikshavn || return 2
+    fi
+
+    if [ "${RUN_REPORTS_CSV}" == "true" ]; then
+        run-job reports_csv || return 2
     fi
 
     if [ "${RUN_REPORTS_DUMMY}" == "true" ]; then

@@ -12,6 +12,8 @@ import pandas as pd
 from anytree import PreOrderIter
 from os2mo_helpers.mora_helpers import MoraHelper
 
+from exporters.utils.load_settings import load_settings
+
 
 # --------------------------------------------------------------------------------------
 # CustomerReports class
@@ -229,3 +231,38 @@ def report_to_csv(df: pd.DataFrame, csv_out: Path) -> None:
         File to output CSV to.
     """
     df.to_csv(csv_out, sep=";", index=False, quoting=QUOTE_ALL)
+
+
+# --------------------------------------------------------------------------------------
+# Main
+# --------------------------------------------------------------------------------------
+
+
+def main() -> None:
+    settings = load_settings()
+    reports = CustomerReports(settings["mora.base"], settings["reports.org_name"])
+    sd_reports = CustomerReports(
+        settings["mora.base"], settings["reports.pay_org_name"]
+    )
+
+    # Output directory
+    outdir = Path(settings["mora.folder.query_export"])
+
+    # Reports
+    report_to_csv(reports.employees(), outdir / "Alle Stillinger OS2mo.csv")
+    report_to_csv(reports.managers(), outdir / "Alle Lederfunktioner OS2mo.csv")
+    report_to_csv(
+        reports.organisation_employees(),
+        outdir / "Organisationsstruktur og Stillinger OS2mo.csv",
+    )
+    report_to_csv(
+        reports.organisation_units(), outdir / "Organisationsenheder OS2mo.csv"
+    )
+    report_to_csv(
+        sd_reports.organisation_overview(),
+        outdir / "SDLønorganisation og P-Nummer OS2mo.csv",
+    )
+
+
+if __name__ == "__main__":
+    main()
