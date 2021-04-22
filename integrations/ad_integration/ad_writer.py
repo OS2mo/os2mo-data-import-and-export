@@ -585,7 +585,7 @@ class ADWriter(AD):
             'full_nickname': LazyEvalDerived(
                 lambda nickname: '{} {}'.format(*nickname)
             ),
-            'cpr_no': LazyEvalDerived(
+            'cpr': LazyEvalDerived(
                 lambda _mo_user: _mo_user['cpr_no']
             ),
 
