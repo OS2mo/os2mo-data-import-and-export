@@ -11,26 +11,26 @@ from tqdm import tqdm
 from ad_common import AD
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.ad_integration import ad_logger, ad_reader
+from exporters.utils.load_settings import load_settings
 
 LOG_FILE = 'sync_mo_uuid_to_ad.log'
 logger = logging.getLogger('MoUuidAdSync')
 
+
 class SyncMoUuidToAd(AD):
-    """
-    Small tool to help the development of AD write test.
+    """Syncronize MO UUIDs to AD.
+
     Walks through all users in AD, search in MO by cpr and writes the MO
     uuid on the users AD account.
     """
 
     def __init__(self):
         super().__init__()
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = load_settings()
 
-        self.helper = MoraHelper(hostname=self.all_settings['global']['mora.base'],
-                                 use_cache=False)
+        self.helper = MoraHelper(
+            hostname=self.all_settings['global']['mora.base'], use_cache=False
+        )
         try:
             self.org_uuid = self.helper.read_organisation()
         except requests.exceptions.RequestException as e:
@@ -58,13 +58,10 @@ class SyncMoUuidToAd(AD):
             uuid = user['items'][0]['uuid']
         return uuid
 
-    def perform_sync(self, all_users=[]):
-        if len(all_users) == 0:
-            all_users = self.reader.read_it_all()
+    def perform_sync(self, ad_users, mo_users):
+        logger.info('Will now attempt to sync {} users'.format(len(ad_users)))
 
-        logger.info('Will now attempt to sync {} users'.format(len(all_users)))
-
-        for user in tqdm(all_users):
+        for user in tqdm(ad_users):
             self.stats['attempted_users'] += 1
             cpr = user.get(self.all_settings['primary']['cpr_field'])
             separator = self.all_settings['primary'].get('cpr_separator', '')
@@ -76,7 +73,8 @@ class SyncMoUuidToAd(AD):
                 continue
 
             expected_mo_uuid = user.get(
-                self.settings['integrations.ad.write.uuid_field'])
+                self.settings['integrations.ad.write.uuid_field']
+            )
             if expected_mo_uuid == mo_uuid:
                 logger.debug('uuid for {} correct in AD'.format(user))
                 continue
@@ -108,14 +106,35 @@ class SyncMoUuidToAd(AD):
         print(self.stats)
         logger.info(self.stats)
 
+    def sync_all(self):
+        # ad_users = self.reader.read_it_all(print_progress=True)
+        mo_users = self.helper.read_all_users()
+        print(mo_users)
+        return
+
+        mo_users = {
+            cprno: mo_uuid
+        }
+        self.perform_sync(ad_users, mo_users)
+
+
+
     def sync_one(self, cprno):
-        user = self.reader.read_user(cpr=cprno)
-        if user:
-            self.perform_sync([user])
-        else:
-            msg = "User not found"
+        ad_users = [self.reader.read_user(cpr=cprno)]
+        if not ad_users:
+            msg = "AD User not found"
             logger.exception(msg)
             raise Exception(msg)
+        mo_uuid = self._search_mo_cpr(cprno)
+        if not mo_uuid:
+            msg = "MO User not found"
+            logger.exception(msg)
+            raise Exception(msg)
+        mo_users = {
+            cprno: mo_uuid
+        }
+        self.perform_sync(ad_users, mo_users)
+
 
 @click.command()
 @click.option(
@@ -139,7 +158,7 @@ def cli(**args):
 
     sync = SyncMoUuidToAd()
     if args.get('sync_all'):
-        sync.perform_sync()
+        sync.sync_all()
     if args.get('sync_cpr'):
         sync.sync_one(args["sync_cpr"])
     logger.info("Sync done")
