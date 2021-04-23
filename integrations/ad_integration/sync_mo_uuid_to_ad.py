@@ -28,6 +28,14 @@ class SyncMoUuidToAd(AD):
         super().__init__()
         self.settings = load_settings()
 
+        # Check configuration
+        ad_uuid_field = self.settings['integrations.ad.write.uuid_field']
+        for ad_settings in self.settings["integrations.ad"]:
+            if ad_uuid_field not in ad_settings["properties"]:
+                msg = "'uuid_field' not in 'properies' for AD"
+                logger.warning(msg)
+                print(msg)
+
         self.helper = MoraHelper(
             hostname=self.all_settings['global']['mora.base'], use_cache=False
         )
@@ -80,7 +88,6 @@ class SyncMoUuidToAd(AD):
                     "Perhaps uuid_field or properties are misconfigured?"
                 )
                 logger.warning(msg)
-                print(msg)
             if expected_mo_uuid == mo_uuid:
                 logger.info('uuid for {} correct in AD'.format(mo_uuid))
                 self.stats['already_ok'] += 1
