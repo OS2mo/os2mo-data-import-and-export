@@ -45,10 +45,10 @@ class ADParameterReader(AD):
         response = self._run_ps_script(ps_script)
         return response
 
-    def read_it_all(self):
+    def read_it_all(self, print_progress=False):
         # XXX: What's the point of reading settings here?
         settings = self._get_setting()
-        return self.cache_all()
+        return self.cache_all(print_progress=print_progress)
 
     # Hvornår skal vi læse og skrive i hvad?
     # Opdatering af os2mo fra ad: ad_sync: vi læser alle (for i in...) Ny reader og opdater mo
