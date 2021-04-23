@@ -74,6 +74,11 @@ class SyncMoUuidToAd(AD):
         @apply
         def filter_already_synced(ad_user, mo_uuid):
             expected_mo_uuid = ad_user.get(ad_uuid_field)
+            if expected_mo_uuid is None:
+                logger.warning(
+                    "Read None from UUID field in AD!" +
+                    "Perhaps uuid_field or properties are misconfigured?"
+                )
             if expected_mo_uuid == mo_uuid:
                 logger.info('uuid for {} correct in AD'.format(mo_uuid))
                 self.stats['already_ok'] += 1
