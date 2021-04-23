@@ -2,22 +2,22 @@ import json
 import urllib.parse
 from collections import Counter
 from operator import itemgetter
-from typing import List, Tuple
+from typing import Dict, List, Set, Tuple
 from uuid import UUID
+
 import click
 import jmespath
 import requests
-from more_itertools import only
+from more_itertools import only, unzip
 from tqdm import tqdm
 
 from exporters.utils.load_settings import load_settings
 
-jms_title_list = jmespath.compile(
-    "[*].registreringer[0].attributter.klasseegenskaber[0].titel"
-)
-jms_bvn_one = jmespath.compile(
+jms_bvn = jmespath.compile(
     "registreringer[0].attributter.klasseegenskaber[0].brugervendtnoegle"
 )
+jms_title = jmespath.compile("registreringer[0].attributter.klasseegenskaber[0].titel")
+jms_facet = jmespath.compile("registreringer[0].relationer.facet[0].uuid")
 
 
 def check_relations(session, base: str, uuid: UUID) -> List[dict]:
@@ -34,28 +34,15 @@ def check_relations(session, base: str, uuid: UUID) -> List[dict]:
     return only(res, default=[])
 
 
-def read_duplicate_class(session, base: str, bvn: str) -> List[Tuple[UUID, str]]:
-    """Read details of classes with the given bvn.
-
-    Returns a list of tuples with uuids and titles of the found classes.
-    """
-    bvn = urllib.parse.quote(bvn)
-    r = session.get(base + f"/klassifikation/klasse?brugervendtnoegle={bvn}&list=true")
-    r.raise_for_status()
-    res = r.json()["results"][0]
-    uuids = jmespath.search("[*].id", res)
-    uuids = map(UUID, uuids)
-    titles = jms_title_list.search(res)
-    return list(zip(uuids, titles))
-
-
 def delete_class(session, base: str, uuid: UUID) -> None:
     """Delete the class with the given uuid."""
     r = session.delete(base + f"/klassifikation/klasse/{str(uuid)}")
     r.raise_for_status()
 
 
-def switch_class(session, base: str, payload: str, new_uuid: UUID, uuid_set: set) -> None:
+def switch_class(
+    session, base: str, payload: str, new_uuid: UUID, uuid_set: Set[str]
+) -> None:
     """Switch an objects related class.
 
     Given an object payload and an uuid this function wil switch the class that an object is related to.
@@ -63,32 +50,50 @@ def switch_class(session, base: str, payload: str, new_uuid: UUID, uuid_set: set
     """
     old_uuid = UUID(payload["id"])
     payload = payload["registreringer"][0]
-    #Drop data we don't need to post
+    # Drop data we don't need to post
     payload = {
         item: payload.get(item) for item in ("attributter", "relationer", "tilstande")
     }
-    org_f_type = payload["relationer"]["organisatoriskfunktionstype"]
-    #Update the uuid of all classes if the class is in uuid_set
-    #This is to ensure we only update the classes that would otherwise be deleted
-    [x.update({"uuid": str(new_uuid)}) for x in org_f_type if UUID(x['uuid']) in uuid_set]
+
+    # Change all uuids from uuid_set to new_uuid.
+    p_string = json.dumps(payload)
+    for old_uuid in uuid_set:
+        p_string = p_string.replace(str(old_uuid), str(new_uuid))
+    payload = json.loads(p_string)
+
     r = session.put(
         base + f"/organisation/organisationfunktion/{str(old_uuid)}", json=payload
     )
     r.raise_for_status()
 
 
-def find_duplicates_classes(session, mox_base: str) -> List[str]:
-    """Find classes that are duplicates and return them.
+def find_duplicates_classes(session, mox_base: str) -> List[List[Tuple[UUID, str]]]:
+    """Find classes within a facet that are duplicates.
 
-    Returns a list of class bvns that has duplicates. They are returned in lowercase.
+    Returns a list of lists containing uuids and titles of classes that are duplicates.
     """
     r = session.get(mox_base + "/klassifikation/klasse?list=true")
     all_classes = r.json()["results"][0]
-    all_ids = map(itemgetter("id"), all_classes)
-    all_classes = list(map(lambda c: jms_bvn_one.search(c).lower(), all_classes))
-    class_map = dict(zip(all_classes, all_ids))
-    duplicate_list = [i for i, cnt in Counter(all_classes).items() if cnt > 1]
-    return duplicate_list
+    # gather relevant data: uuid of class, bvn, titles and facet uuid.
+    all_ids = list(map(itemgetter("id"), all_classes))
+    all_class_bvns = list(map(lambda c: jms_bvn.search(c), all_classes))
+    all_class_titles = list(map(lambda c: jms_title.search(c), all_classes))
+    all_facets = list(map(lambda c: jms_facet.search(c), all_classes))
+
+    # find duplicates of (lowercase bvn, facet uuid)
+    all_class_bvns_lower = [x.lower() for x in all_class_bvns]
+    bvn_facets_lower = list(zip(all_class_bvns_lower, all_facets))
+    dup_bvn_facets = set(x for x in bvn_facets_lower if bvn_facets_lower.count(x) > 1)
+
+    # We need to return class uuids and original case title for each duplicate.
+    title_map = dict(zip(all_ids, all_class_titles))
+    bvn_map_lower = dict(zip(all_ids, bvn_facets_lower))
+
+    duplicate_bvn_facet = [
+        [(uuid, title_map[uuid]) for uuid, val in bvn_map_lower.items() if val == dup]
+        for dup in dup_bvn_facets
+    ]
+    return duplicate_bvn_facet
 
 
 @click.command()
@@ -114,17 +119,17 @@ def cli(delete):
     mox_base = settings.get("mox.base", "http://localhost:8080/")
     session = requests.Session()
 
-    duplicate_list = find_duplicates_classes(session=session, mox_base=mox_base)
+    duplicate_bvn_facet = find_duplicates_classes(session=session, mox_base=mox_base)
 
     if not delete:
-        click.echo(f"There are {len(duplicate_list)} duplicate class(es).")
+        click.echo(f"There are {len(duplicate_bvn_facet)} duplicate class(es).")
         return
 
-    for dup in tqdm(duplicate_list, desc="Deleting duplicate classes"):
+    for dup_class in tqdm(duplicate_bvn_facet, desc="Deleting duplicate classes"):
+        uuids, titles = unzip(dup_class)
+        uuid_set = set(uuids)
+        title_set = set(titles)
 
-        dup_class = read_duplicate_class(session, mox_base, dup)
-        title_set = set(map(itemgetter(1), dup_class))
-        uuid_set = set(map(itemgetter(0), dup_class))
         # Check if all found titles are exactly the same. Only prompt for a choice if they are not.
         keep = 1
         if len(title_set) != 1:
