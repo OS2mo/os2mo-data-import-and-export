@@ -456,7 +456,9 @@ class OpusDiffImport(object):
         payload = payloads.create_user(employee, self.org_uuid, uuid)
 
         logger.info('Create user payload: {}'.format(payload))
-        return_uuid = self.helper._mo_post('e/create', payload).json()
+        r = self.helper._mo_post('e/create', payload)
+        r.raise_for_status()
+        return_uuid = r.json()
         logger.info('Created employee {} {} with uuid {}'.format(
             employee['firstName'],
             employee['lastName'],
