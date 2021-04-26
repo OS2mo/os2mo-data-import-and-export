@@ -1,3 +1,4 @@
+import io
 import datetime
 import logging
 import os
@@ -23,9 +24,11 @@ def main(filename):
     QUERY_EXPORT_DIR = top_settings["mora.folder.query_export"]
     EMUS_FILENAME = top_settings.get("emus.outfile_name", "emus_filename.xml")
 
+    generated_file = io.StringIO()
     logger.info("encoding file for transfer")
-    with open(filename, "r", encoding="utf-8") as generated_file:
-        filetosend = generated_file.read()
+    with open(filename, "r", encoding="utf-8") as source_file:
+        generated_file.write(source_file.read())
+    filetosend = io.BytesIO(generated_file.getvalue().encode("utf-8"))
 
     logger.info("connecting sftp")
     try:
@@ -42,9 +45,9 @@ def main(filename):
         raise
     sp.connect()
 
-    filename = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_os2mo2musskema.xml")
-    logger.info("sending %s to %s", filename, MUSSKEMA_RECIPIENT)
-    sp.send(filetosend, filename, MUSSKEMA_RECIPIENT)
+    output_filename = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_os2mo2musskema.xml")
+    logger.info("sending %s to %s", output_filename, MUSSKEMA_RECIPIENT)
+    sp.send(filetosend, output_filename, MUSSKEMA_RECIPIENT)
     sp.disconnect()
 
     # write the file that is sent into query export dir too
