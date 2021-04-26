@@ -3,7 +3,6 @@ import fs
 from exporters.utils.load_settings import load_settings
 from pathlib import Path
 import datetime
-
 class opus_reader_gcloud:
     def __init__(self):
         settings = load_settings()
@@ -15,12 +14,11 @@ class opus_reader_gcloud:
         all_files = self.client.list_blobs(self.bucket)
         return [f.name.replace('production/', '') for f in all_files]
 
-
     def read_file(self, blob):
         return blob.download_as_text()
 
 
-class opus_reader_smb():
+class opus_reader_smb:
     def __init__(self):
         self.settings = load_settings()
         user = self.settings['Integrations.opus.smb_user']
@@ -34,7 +32,6 @@ class opus_reader_smb():
 
     def read_file(self, path):
         return smb_fs.readtext(path)
-
 class opus_reader_local():
     def __init__(self):
         self.settings = load_settings()
@@ -68,7 +65,5 @@ class ofr():
     
     def read_file(self, filename):
         return self.opus_file_reader.read_file(filename)
-    
 if __name__ == "__main__":
-
     print(ofr().list_files())
