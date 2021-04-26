@@ -18,7 +18,7 @@ from collections import OrderedDict
 from exporters.utils.load_settings import load_settings
 from integrations import cpr_mapper
 from integrations.opus import opus_diff_import, opus_import
-from integrations.opus.opus_file_reader import ofr
+from integrations.opus.opus_file_reader import get_opus_filereader
 
 # from integrations.opus.opus_exceptions import NoNewerDumpAvailable
 from integrations.opus.opus_exceptions import (
@@ -45,7 +45,7 @@ def read_cpr_mapping():
 
 
 def read_available_dumps():
-    return ofr().list_files()
+    return get_opus_filereader().list_opus_files()
 
 def local_db_insert(insert_tuple):
     conn = sqlite3.connect(SETTINGS['integrations.opus.import.run_db'],
@@ -128,7 +128,7 @@ def generate_uuid(value):
 def parser(target_file: Path, filter_ids: List[str]) -> Tuple[List, List]:
     """Read an opus file and return units and employees
     """
-    text_input = ofr().read_file(target_file)
+    text_input = get_opus_filereader().read_file(target_file)
 
     data = xmltodict.parse(text_input)
     data = data['kmd']
