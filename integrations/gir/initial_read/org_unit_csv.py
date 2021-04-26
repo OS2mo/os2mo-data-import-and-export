@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from itertools import groupby
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from uuid import UUID
 
 from more_itertools import flatten
 from pydantic import BaseModel, PrivateAttr
@@ -14,7 +15,7 @@ from os2mo_data_import.util import generate_uuid
 @dataclass(frozen=True)
 class PartialManager:
     engagement_user_key: str
-    org_unit_uuid: str
+    org_unit_uuid: UUID
 
 
 class RawOrgUnit(BaseModel):
@@ -74,16 +75,16 @@ class RawOrgUnit(BaseModel):
         obj = cls.parse_obj(cls.__spaces_to_underscores(obj))
         return obj
 
-    def __get_uuid(self) -> str:
+    def __get_uuid(self) -> UUID:
         return generate_uuid(str(self.__path))
 
-    def __get_parent_uuid(self) -> Optional[str]:
+    def __get_parent_uuid(self) -> Optional[UUID]:
         if not self.__path[1:]:
             return None
         return generate_uuid(str(self.__path[:-1]))
 
     def to_mo_org_unit(
-            self, org_unit_type_uuid: str, org_unit_level_uuid: str
+            self, org_unit_type_uuid: UUID, org_unit_level_uuid: UUID
     ) -> OrgUnit:
         return OrgUnit.from_simplified_fields(
             uuid=self.__get_uuid(),
@@ -101,7 +102,7 @@ class RawOrgUnit(BaseModel):
 
 
 def read_csv(
-        path: Path, org_unit_type_uuid: str, org_unit_level_uuid: str
+        path: Path, org_unit_type_uuid: UUID, org_unit_level_uuid: UUID
 ) -> Tuple[List[List[OrgUnit]], List[PartialManager]]:
     with path.open("r") as file:
         raw_org_units = list(

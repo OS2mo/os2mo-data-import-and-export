@@ -4,6 +4,7 @@ from datetime import datetime
 from functools import partial
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
+from uuid import UUID
 
 from more_itertools import flatten
 from pydantic import BaseModel, Field
@@ -56,9 +57,9 @@ class AddressKlasses(BaseModel):
     @classmethod
     def from_simplified_fields(
         cls,
-        organisation_uuid: str,
-        engagement_address_type_uuid: str,
-        employee_address_type_uuid: str,
+        organisation_uuid: UUID,
+        engagement_address_type_uuid: UUID,
+        employee_address_type_uuid: UUID,
     ):
         gen_klass = partial(gen_single_klass, organisation_uuid=organisation_uuid)
         return AddressKlasses(
@@ -111,11 +112,11 @@ class AddressKlasses(BaseModel):
 
 
 def gen_single_klass(
-    facet_uuid: str, organisation_uuid: str, title: str, scope: Optional[str] = None
+    facet_uuid: UUID, organisation_uuid: UUID, title: str, scope: Optional[str] = None
 ) -> Klasse:
     return Klasse.from_simplified_fields(
         facet_uuid=facet_uuid,
-        uuid=generate_uuid("klasse" + facet_uuid + title),
+        uuid=generate_uuid("klasse" + str(facet_uuid) + title),
         user_key=title,
         title=title,
         scope=scope,
@@ -199,11 +200,11 @@ class RawEmdData(BaseModel):
     def __generate_engagement(
         self,
         *,
-        person_uuid: str,
+        person_uuid: UUID,
         job_function_uuid_generator: UUIDGenerator,
         engagement_type_uuid_generator: UUIDGenerator,
         org_unit_uuids: Dict[str, str],
-        primary_uuid: str,
+        primary_uuid: UUID,
     ) -> Engagement:
         engagement_type = (
             self.Hr_Employee_Type
@@ -249,7 +250,7 @@ class RawEmdData(BaseModel):
         from_date,
         to_date,
         person_uuid,
-        org_uuid: str,
+        org_uuid: UUID,
     ) -> List[Address]:
         visibility_uuid = (
             visible_uuid if self.Phonebook_Relevant else not_visible_uuid
@@ -282,7 +283,7 @@ class RawEmdData(BaseModel):
                     return None
             return Address.from_simplified_fields(
                 uuid=generate_uuid(
-                    engagement_uuid + address_type_klasse.uuid + value + str(value2)
+                    str(engagement_uuid) + str(address_type_klasse.uuid) + value + str(value2)
                 ),
                 value=value,
                 value2=value2,
@@ -307,8 +308,8 @@ class RawEmdData(BaseModel):
             addresses.append(
                 Address.from_simplified_fields(
                     uuid=generate_uuid(
-                        person_uuid
-                        + address_klasses.COUNTRY_OF_RESIDENCE.uuid
+                        str(person_uuid)
+                        + str(address_klasses.COUNTRY_OF_RESIDENCE.uuid)
                         + self.Country_Of_Residence
                     ),
                     value=self.Country_Of_Residence,
@@ -370,9 +371,9 @@ class RawEmdData(BaseModel):
 
     @staticmethod
     def __generate_engagement_association(
-        org_unit_uuids: Iterable[str],
-        engagement_uuid: str,
-        association_type_uuid: str,
+        org_unit_uuids: Iterable[UUID],
+        engagement_uuid: UUID,
+        association_type_uuid: UUID,
         from_date: str,
         to_date: Optional[str],
     ) -> List[EngagementAssociation]:
@@ -380,9 +381,9 @@ class RawEmdData(BaseModel):
             EngagementAssociation.from_simplified_fields(
                 uuid=generate_uuid(
                     "engagement_association"
-                    + engagement_uuid
-                    + org_unit_uuid
-                    + association_type_uuid
+                    + str(engagement_uuid)
+                    + str(org_unit_uuid)
+                    + str(association_type_uuid)
                 ),
                 org_unit_uuid=org_unit_uuid,
                 engagement_uuid=engagement_uuid,
@@ -396,18 +397,18 @@ class RawEmdData(BaseModel):
     def to_mo_objs(
         self,
         org_unit_uuids: Dict[str, str],
-        primary_uuid: str,
+        primary_uuid: UUID,
         engagement_type_uuid_generator: UUIDGenerator,
         job_function_uuid_generator: UUIDGenerator,
-        visible_uuid: str,
-        not_visible_uuid: str,
+        visible_uuid: UUID,
+        not_visible_uuid: UUID,
         address_klasses: AddressKlasses,
-        org_unit_type_uuid: str,
-        financial_org_unit_uuid: str,
-        legal_org_unit_uuid: str,
-        engagement_association_type_uuid: str,
-        org_unit_level_uuid: str,
-        org_uuid: str,
+        org_unit_type_uuid: UUID,
+        financial_org_unit_uuid: UUID,
+        legal_org_unit_uuid: UUID,
+        engagement_association_type_uuid: UUID,
+        org_unit_level_uuid: UUID,
+        org_uuid: UUID,
     ):
         """
         :param org_unit_uuids: Hr_Department_No: uuid
@@ -479,18 +480,18 @@ class RawEmdData(BaseModel):
 def read_emd(
     path: Path,
     org_unit_uuids: Dict[str, str],
-    primary_uuid: str,
+    primary_uuid: UUID,
     engagement_type_uuid_generator: UUIDGenerator,
     job_function_uuid_generator: UUIDGenerator,
-    visible_uuid: str,
-    not_visible_uuid: str,
+    visible_uuid: UUID,
+    not_visible_uuid: UUID,
     address_klasses: AddressKlasses,
-    org_unit_type_uuid: str,
-    financial_org_unit_uuid: str,
-    legal_org_unit_uuid: str,
-    engagement_association_type_uuid: str,
-    org_unit_level_uuid: str,
-    org_uuid: str,
+    org_unit_type_uuid: UUID,
+    financial_org_unit_uuid: UUID,
+    legal_org_unit_uuid: UUID,
+    engagement_association_type_uuid: UUID,
+    org_unit_level_uuid: UUID,
+    org_uuid: UUID,
 ) -> Tuple[Iterable[Iterable[MoObj]], ...]:
     with path.open("r") as file:
         raw_emd_datas: Iterable[RawEmdData] = map(

@@ -13,4 +13,4 @@ def generate_uuid(seed):
     """
     m = hashlib.md5()
     m.update(seed.encode('utf-8'))
-    return str(uuid.UUID(m.hexdigest()))
+    return uuid.UUID(m.hexdigest())

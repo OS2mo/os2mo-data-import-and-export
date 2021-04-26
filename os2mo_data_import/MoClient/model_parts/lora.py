@@ -1,5 +1,6 @@
 from functools import partial
 from typing import Literal, Optional
+from uuid import UUID
 
 from pydantic import Field, conlist
 
@@ -64,8 +65,8 @@ class FacetStates(ConfiguredBase):
 
 
 class Responsible(ConfiguredBase):
-    object_type: Literal["organisation"] = [Field("organisation", alias="objekttype")]
-    uuid: str
+    object_type: Literal["organisation"] = Field("organisation", alias="objekttype")
+    uuid: UUID
     effective_time: EffectiveTime = Field(alias="virkning")
 
 
@@ -75,7 +76,7 @@ class FacetRelations(ConfiguredBase):
 
 class FacetRef(ConfiguredBase):
     object_type: Literal["facet"] = Field("facet", alias="objekttype")
-    uuid: str
+    uuid: UUID
     effective_time: EffectiveTime = Field(alias="virkning")
 
 

@@ -1,4 +1,5 @@
 from typing import List, Literal, Optional
+from uuid import UUID
 
 from pydantic import Field
 
@@ -47,7 +48,7 @@ from os2mo_data_import.MoClient.model_parts.mo import (
 
 class OrgUnit(MoObj):
     type: Literal["org_unit"] = "org_unit"
-    uuid: str
+    uuid: UUID
     user_key: str
     validity: Validity
     name: str
@@ -59,13 +60,13 @@ class OrgUnit(MoObj):
     @classmethod
     def from_simplified_fields(
         cls,
-        uuid: str,
+        uuid: UUID,
         user_key: str,
         name: str,
-        org_unit_type_uuid: str,
-        org_unit_level_uuid: str,
-        parent_uuid: Optional[str] = None,
-        org_unit_hierarchy_uuid: Optional[str] = None,
+        org_unit_type_uuid: UUID,
+        org_unit_level_uuid: UUID,
+        parent_uuid: Optional[UUID] = None,
+        org_unit_hierarchy_uuid: Optional[UUID] = None,
         from_date: str = "1930-01-01",
         to_date: Optional[str] = None,
     ) -> "OrgUnit":
@@ -88,24 +89,24 @@ class OrgUnit(MoObj):
             org_unit_level=OrgUnitLevel(uuid=org_unit_level_uuid),
         )
 
-    def get_uuid(self) -> Optional[str]:
+    def get_uuid(self) -> Optional[UUID]:
         return self.uuid
 
 
 class Employee(MoObj):
     type: str = "employee"
-    uuid: str
+    uuid: UUID
     name: str
     cpr_no: Optional[str] = None
     seniority: Optional[str] = None
 
-    def get_uuid(self) -> Optional[str]:
+    def get_uuid(self) -> Optional[UUID]:
         return self.uuid
 
 
 class Engagement(MoObj):
     type: str = "engagement"
-    uuid: str
+    uuid: UUID
     org_unit: OrgUnitRef
     person: Person
     job_function: JobFunction
@@ -127,14 +128,14 @@ class Engagement(MoObj):
     @classmethod
     def from_simplified_fields(
         cls,
-        uuid: str,
-        org_unit_uuid: str,
-        person_uuid: str,
-        job_function_uuid: str,
-        engagement_type_uuid: str,
+        uuid: UUID,
+        org_unit_uuid: UUID,
+        person_uuid: UUID,
+        job_function_uuid: UUID,
+        engagement_type_uuid: UUID,
         from_date: Optional[str],
         to_date: Optional[str],
-        primary_uuid: str,
+        primary_uuid: UUID,
         user_key: str,
         extension_1: str = "",
         extension_2: str = "",
@@ -168,13 +169,13 @@ class Engagement(MoObj):
             extension_10=extension_10,
         )
 
-    def get_uuid(self) -> Optional[str]:
+    def get_uuid(self) -> Optional[UUID]:
         return self.uuid
 
 
 class Address(MoObj):
     type = "address"
-    uuid: str
+    uuid: UUID
     value: str
     value2: Optional[str]
     address_type: AddressType
@@ -188,17 +189,17 @@ class Address(MoObj):
     @classmethod
     def from_simplified_fields(
         cls,
-        uuid: str,
+        uuid: UUID,
         value: str,
         value2: Optional[str],
-        address_type_uuid: str,
-        org_uuid: str,
+        address_type_uuid: UUID,
+        org_uuid: UUID,
         from_date: str,
         to_date: Optional[str] = None,
-        person_uuid: Optional[str] = None,
-        org_unit_uuid: Optional[str] = None,
-        engagement_uuid: Optional[str] = None,
-        visibility_uuid: Optional[str] = None,
+        person_uuid: Optional[UUID] = None,
+        org_unit_uuid: Optional[UUID] = None,
+        engagement_uuid: Optional[UUID] = None,
+        visibility_uuid: Optional[UUID] = None,
     ):
         address_type = AddressType(uuid=address_type_uuid)
         org = OrganisationRef(uuid=org_uuid)
@@ -228,13 +229,13 @@ class Address(MoObj):
             validity=validity,
         )
 
-    def get_uuid(self) -> Optional[str]:
+    def get_uuid(self) -> Optional[UUID]:
         return self.uuid
 
 
 class Manager(MoObj):
     type: str = "manager"
-    uuid: str
+    uuid: UUID
     # user_key: str
     org_unit: OrgUnitRef
     person: Person
@@ -246,13 +247,13 @@ class Manager(MoObj):
     @classmethod
     def from_simplified_fields(
         cls,
-        uuid: str,
+        uuid: UUID,
         # user_key: str,
-        org_unit_uuid: str,
-        person_uuid: str,
-        responsibility_uuid: str,
-        manager_level_uuid: str,
-        manager_type_uuid: str,
+        org_unit_uuid: UUID,
+        person_uuid: UUID,
+        responsibility_uuid: UUID,
+        manager_level_uuid: UUID,
+        manager_type_uuid: UUID,
         from_date: str = "1930-01-01",
         to_date: Optional[str] = None,
     ):
@@ -274,13 +275,13 @@ class Manager(MoObj):
             validity=validity,
         )
 
-    def get_uuid(self) -> Optional[str]:
+    def get_uuid(self) -> Optional[UUID]:
         return self.uuid
 
 
 class EngagementAssociation(MoObj):
     type: str = "engagement_association"
-    uuid: str
+    uuid: UUID
     # user_key: str
     org_unit: OrgUnitRef
     engagement: EngagementRef
@@ -290,11 +291,11 @@ class EngagementAssociation(MoObj):
     @classmethod
     def from_simplified_fields(
         cls,
-        uuid: str,
+        uuid: UUID,
         # user_key: str,
-        org_unit_uuid: str,
-        engagement_uuid: str,
-        engagement_association_type_uuid: str,
+        org_unit_uuid: UUID,
+        engagement_uuid: UUID,
+        engagement_association_type_uuid: UUID,
         from_date: str = "1930-01-01",
         to_date: Optional[str] = None,
     ):
@@ -312,7 +313,7 @@ class EngagementAssociation(MoObj):
             validity=validity,
         )
 
-    def get_uuid(self) -> Optional[str]:
+    def get_uuid(self) -> Optional[UUID]:
         return self.uuid
 
 
@@ -323,12 +324,12 @@ class Organisation(MoObj):
     # TODO, PENDING: https://github.com/samuelcolvin/pydantic/pull/2231
     # for now, this value is included,
     # and has to be excluded manually when converting to json
-    uuid: Optional[str] = None  # Field(None, exclude=True)
+    uuid: Optional[UUID] = None  # Field(None, exclude=True)
 
     @classmethod
     def from_simplified_fields(
         cls,
-        uuid: str,
+        uuid: UUID,
         name: str,
         user_key: str,  # often == name,
         municipality_code: Optional[int] = None,
@@ -365,7 +366,7 @@ class Organisation(MoObj):
             uuid=uuid,
         )
 
-    def get_uuid(self) -> Optional[str]:
+    def get_uuid(self) -> Optional[UUID]:
         return self.uuid
 
 
@@ -375,14 +376,14 @@ class Facet(MoObj):
     relations: FacetRelations = Field(alias="relationer")
     # TODO, PENDING: https://github.com/samuelcolvin/pydantic/pull/2231
     # for now, this value is included, and has to be excluded when converted to json
-    uuid: Optional[str] = None  # Field(None, exclude=True)
+    uuid: Optional[UUID] = None  # Field(None, exclude=True)
 
     @classmethod
     def from_simplified_fields(
         cls,
-        uuid: str,
+        uuid: UUID,
         user_key: str,
-        organisation_uuid: str,
+        organisation_uuid: UUID,
         date_from: str = "1930-01-01",
         date_to: str = "infinity",
     ):
@@ -411,7 +412,7 @@ class Facet(MoObj):
             uuid=uuid,
         )
 
-    def get_uuid(self) -> Optional[str]:
+    def get_uuid(self) -> Optional[UUID]:
         return self.uuid
 
 
@@ -421,16 +422,16 @@ class Klasse(MoObj):
     relations: KlasseRelations = Field(alias="relationer")
     # TODO, PENDING: https://github.com/samuelcolvin/pydantic/pull/2231
     # for now, this value is included, and has to be excluded when converted to json
-    uuid: Optional[str] = None  # Field(None, exclude=True)
+    uuid: Optional[UUID] = None  # Field(None, exclude=True)
 
     @classmethod
     def from_simplified_fields(
         cls,
-        facet_uuid: str,  # uuid
-        uuid: str,
+        facet_uuid: UUID,  # uuid
+        uuid: UUID,
         user_key: str,  # rarely used
         scope: Optional[str],
-        organisation_uuid: str,
+        organisation_uuid: UUID,
         title: str,
         date_from: str = "1930-01-01",
         date_to: str = "infinity",
@@ -471,5 +472,5 @@ class Klasse(MoObj):
             uuid=uuid,
         )
 
-    def get_uuid(self) -> Optional[str]:
+    def get_uuid(self) -> Optional[UUID]:
         return self.uuid

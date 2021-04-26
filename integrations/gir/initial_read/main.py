@@ -1,7 +1,9 @@
+import os
 from asyncio import run
 from functools import partial
 from pathlib import Path
 from typing import Dict, Iterable, Optional
+from uuid import UUID
 
 from more_itertools import flatten
 
@@ -62,7 +64,7 @@ def missing_ous(outu, oulu):
 
 
 def klasses_from_uuid_gen(
-    facet_uuid: str, organisation_uuid: str, uuid_gen: UUIDGenerator
+    facet_uuid: UUID, organisation_uuid: UUID, uuid_gen: UUIDGenerator
 ):
     def klasse_gen(uuid, user_key):
         return Klasse.from_simplified_fields(
@@ -82,9 +84,9 @@ def klasses_from_uuid_gen(
 def gen_managers(
     partial_managers: Iterable[PartialManager],
     eng_mapping: Dict[str, Engagement],
-    responsibility_uuid: str,
-    manager_level_uuid: str,
-    manager_type_uuid: str,
+    responsibility_uuid: UUID,
+    manager_level_uuid: UUID,
+    manager_type_uuid: UUID,
 ) -> Iterable[Manager]:
     def manager_gen(partial_manager: PartialManager) -> Optional[Manager]:
         try:
@@ -96,7 +98,7 @@ def gen_managers(
             uuid=generate_uuid(
                 "manager"
                 + partial_manager.engagement_user_key
-                + partial_manager.org_unit_uuid
+                + str(partial_manager.org_unit_uuid)
             ),
             org_unit_uuid=partial_manager.org_unit_uuid,
             person_uuid=eng.person.uuid,
@@ -111,7 +113,7 @@ def gen_managers(
     return list(filter(lambda x: x is not None, map(manager_gen, filtered_pm)))
 
 
-def read_values() -> Iterable[Iterable[MoObj]]:
+def read_values(base_path: Path) -> Iterable[Iterable[MoObj]]:
     base = ValidMo.from_scratch()
     gen_org_klass = partial(
         gen_single_klass, organisation_uuid=base.organisation.uuid
@@ -181,7 +183,7 @@ def read_values() -> Iterable[Iterable[MoObj]]:
     classes.extend(address_classes_iterable)
 
     org_units, partial_managers = read_csv(
-        path=Path("/home/mw/gir/gir_orsted_hierarki_linje.csv"),
+        path=base_path / "gir_orsted_hierarki_linje.csv",
         org_unit_type_uuid=ou_type_unit.uuid,
         org_unit_level_uuid=ou_level_l1.uuid,
     )
@@ -213,7 +215,7 @@ def read_values() -> Iterable[Iterable[MoObj]]:
         engagement_associations,
         addresses,
     ) = read_emd(
-        path=Path("/home/mw/gir/gir_from_emd.csv"),
+        path=base_path / "gir_from_emd.csv",
         org_unit_uuids=ou_mapping,
         primary_uuid=not_primary.uuid,
         engagement_type_uuid_generator=engagement_type_uuid_generator,
@@ -262,19 +264,20 @@ def read_values() -> Iterable[Iterable[MoObj]]:
     # return (*fixture,)
     # return (*fixture2,)
     # return *engagement_associations, *managers, *addresses
-    return *managers[10:20], *addresses[10:20]
+    # return *managers[10:20], *addresses[10:20]
     # return (*managers,)
     # return (*addresses[9:],)
-    # return *fixture, *fixture2, *engagement_associations, *managers, *addresses
+    return *fixture, *fixture2, *engagement_associations, *managers, *addresses
 
 
-async def main():
+async def main(base_path: Path):
     client = Client()
-    values = read_values()
+    values = read_values(base_path)
     async with client.context():
         for group in values:
             await client.load_mo_objs(group)
 
 
 if __name__ == "__main__":
-    run(main())
+    # os.environ["gir_base_path"]
+    run(main(Path('/home/mw/gir')))

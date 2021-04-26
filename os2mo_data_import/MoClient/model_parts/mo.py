@@ -1,4 +1,5 @@
 from typing import Optional
+from uuid import UUID
 
 from pydantic import Field
 
@@ -11,68 +12,68 @@ class Validity(ConfiguredBase):
 
 
 class Parent(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class OrgUnitHierarchy(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class OrgUnitType(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class OrgUnitLevel(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class Person(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class OrgUnitRef(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class JobFunction(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class Primary(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class EngagementType(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class OrganisationRef(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class EngagementRef(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class Visibility(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class AddressType(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class Responsibility(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class ManagerLevel(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class ManagerType(ConfiguredBase):
-    uuid: str
+    uuid: UUID
 
 
 class EngagementAssociationType(ConfiguredBase):
-    uuid: str
+    uuid: UUID

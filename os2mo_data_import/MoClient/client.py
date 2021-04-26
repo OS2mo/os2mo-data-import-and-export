@@ -1,8 +1,11 @@
+import asyncio
 import logging
 from asyncio import Semaphore, as_completed, gather, run, sleep
 from contextlib import asynccontextmanager
-from itertools import groupby
+from itertools import groupby, starmap
+from pprint import pprint
 from typing import Callable, Coroutine, Iterable, List, Optional, Tuple, Type
+from uuid import UUID
 
 from aiohttp import ClientSession
 from more_itertools import chunked
@@ -22,6 +25,18 @@ from os2mo_data_import.MoClient.model import (
 from os2mo_data_import.MoClient.model_parts.interface import MoObj
 
 logger = logging.getLogger(__name__)
+
+
+def uuid_to_str(data: "JSON") -> "JSON":
+    if isinstance(data, str) or isinstance(data, int) or data is None:
+        return data
+    elif isinstance(data, UUID):
+        return str(data)
+    elif isinstance(data, list):
+        return list(map(uuid_to_str, data))
+    elif isinstance(data, dict):
+        return {key: uuid_to_str(value) for key, value in data.items()}
+    raise TypeError(f"unexpected type: {type(data)}")
 
 
 class Client:
@@ -90,6 +105,7 @@ class Client:
         """
         await self.__verify_session()
         async with self.__session_factory() as session:
+
             async def check_endpoint(url, response):
                 for _ in range(attempts):
                     try:
@@ -106,12 +122,12 @@ class Client:
                 (self.__base_url + "/version/", "mo_version"),
                 (self.__base_mox_url + "/version", "lora_version"),
             ]
-            tasks = starmap(check_endpoint, *unzip(tasks))
+            tasks = starmap(check_endpoint, tasks)
             await asyncio.gather(*tasks)
 
     async def __post_to_mo(self, current_type: Type[MoObj], data: Iterable[MoObj]):
         await self.__verify_session()
-        jsons = [x.dict(by_alias=True) for x in data]
+        jsons = [uuid_to_str(x.dict(by_alias=True)) for x in data]
         for json in jsons:
             async with self.__sem:
                 async with self.__session.post(
@@ -123,7 +139,7 @@ class Client:
         """
 
         :param current_type: Redundant, only pass it because we already have it
-        :param data:
+        :param obj:
         :return:
         """
         await self.__verify_session()
@@ -132,7 +148,9 @@ class Client:
             uuid = obj.get_uuid()
             # TODO, PENDING: https://github.com/samuelcolvin/pydantic/pull/2231
             # for now, uuid is included, and has to be excluded when converted to json
-            jsonified = obj.dict(by_alias=True, exclude={"uuid"}, exclude_none=True)
+            jsonified = uuid_to_str(
+                obj.dict(by_alias=True, exclude={"uuid"}, exclude_none=True)
+            )
             generic_url = self.__base_mox_url + self.__mox_path_map[current_type]
             if uuid is None:  # post
                 async with self.__session.post(
@@ -178,8 +196,11 @@ class Client:
 
         if current_type in self.__mo_path_map:
             await self.__post_to_mo(current_type, data)
+            return
         elif current_type in self.__mox_path_map:
             await self.__post_to_mox(current_type, data)
+            return
+
         raise TypeError(f"unknown type: {current_type}")
 
     async def __submit_payloads(
@@ -214,7 +235,7 @@ if __name__ == "__main__":
         c.load_mo_objs(
             [
                 Organisation.from_simplified_fields(
-                    uuid="456362c4-0ee4-4e5e-a72c-751239745e64",
+                    uuid=UUID("456362c4-0ee4-4e5e-a72c-751239745e64"),
                     name="test_org_name",
                     user_key="test_org_user_key",
                 )
