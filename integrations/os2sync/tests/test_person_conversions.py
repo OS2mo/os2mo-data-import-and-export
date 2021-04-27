@@ -20,7 +20,7 @@ class TestPerson(unittest.TestCase, MoEmployeeMixin):
     def test_transfer_cpr(self, flag, expected_key):
         mo_employee = self.mock_employee()
         person = Person(mo_employee, settings={"OS2SYNC_XFER_CPR": flag})
-        expected_cpr = mo_employee[expected_key] if expected_key else None
+        expected_cpr = mo_employee.get(expected_key)
         self.assertDictEqual(
             person.to_json(),
             {"Name": mo_employee["name"], "Cpr": expected_cpr},
@@ -31,11 +31,11 @@ class TestPersonNameTemplate(unittest.TestCase, MoEmployeeMixin):
     @parameterized.expand(
         [
             (
-                dict(nickname=False),  # mo employee response kwargs
+                {"nickname": False},  # mo employee response kwargs
                 "name",  # key of expected value for `Name`
             ),
             (
-                dict(nickname=True),  # mo employee response kwargs
+                {"nickname": True},  # mo employee response kwargs
                 "nickname",  # key of expected value for `Name`
             ),
         ]

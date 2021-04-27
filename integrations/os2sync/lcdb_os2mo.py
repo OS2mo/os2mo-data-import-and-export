@@ -57,9 +57,9 @@ def try_get_ad_user_key(session, uuid: str) -> Optional[str]:
         return
     return ad_system_user_names[0]
 
-def to_mo_employee(base):
-    """Convert `Bruger` row `base` to something which resembles a MO employee
-    JSON response.
+def to_mo_employee(employee):
+    """Convert `Bruger` row `employee` to something which resembles a MO
+    employee JSON response.
 
     This is done so we can pass a suitable template context to
     `os2sync.templates.Person` even when running with `OS2SYNC_USE_LC_DB=True`.
@@ -73,21 +73,21 @@ def to_mo_employee(base):
 
     return dict(
         # Name
-        name=to_name(base.fornavn, base.efternavn),
-        givenname=or_none(base.fornavn),
-        surname=or_none(base.efternavn),
+        name=to_name(employee.fornavn, employee.efternavn),
+        givenname=or_none(employee.fornavn),
+        surname=or_none(employee.efternavn),
         # Nickname
-        nickname=to_name(base.kaldenavn_fornavn, base.kaldenavn_efternavn),
-        nickname_givenname=or_none(base.kaldenavn_fornavn),
-        nickname_surname=or_none(base.kaldenavn_efternavn),
+        nickname=to_name(employee.kaldenavn_fornavn, employee.kaldenavn_efternavn),
+        nickname_givenname=or_none(employee.kaldenavn_fornavn),
+        nickname_surname=or_none(employee.kaldenavn_efternavn),
         # Other fields
-        cpr_no=or_none(base.cpr),
-        user_key=or_none(base.bvn),
-        uuid=or_none(base.uuid),
+        cpr_no=or_none(employee.cpr),
+        user_key=or_none(employee.bvn),
+        uuid=or_none(employee.uuid),
     )
 
 def get_sts_user(session, uuid, allowed_unitids):
-    base = session.query(Bruger).filter(Bruger.uuid == uuid).one()
+    employee = session.query(Bruger).filter(Bruger.uuid == uuid).one()
 
     user_id = uuid  # default
     candidate_user_id = try_get_ad_user_key(session, uuid)
@@ -95,7 +95,7 @@ def get_sts_user(session, uuid, allowed_unitids):
     if candidate_user_id:
         user_id = candidate_user_id
 
-    person = Person(to_mo_employee(base), settings=settings)
+    person = Person(to_mo_employee(employee), settings=settings)
 
     sts_user = {
         "Uuid": uuid,

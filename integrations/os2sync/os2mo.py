@@ -191,7 +191,7 @@ def try_get_ad_user_key(uuid: str) -> Optional[str]:
 
 
 def get_sts_user(uuid, allowed_unitids):
-    base = os2mo_get("{BASE}/e/" + uuid + "/").json()
+    employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
 
     # fallback to uuid
     user_id = uuid
@@ -200,7 +200,7 @@ def get_sts_user(uuid, allowed_unitids):
     if candidate_user_id:
         user_id = candidate_user_id
 
-    person = Person(base, settings=settings)
+    person = Person(employee, settings=settings)
 
     sts_user = {
         "Uuid": uuid,

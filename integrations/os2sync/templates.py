@@ -36,39 +36,42 @@ class FieldRenderer:
         # Configure Jinja environment to raise exception on unknown variables
         self._env = Environment(undefined=StrictUndefined)
 
-        # Instantiate all Jinja templates found in config, and map them to
-        # their config key
-        self._template_fields: Dict[str, Template] = {}
-        for key, source in config.items():
+        def _load_template(key, source):
             try:
                 template = self._env.from_string(source)
             except TemplateSyntaxError as e:
                 raise FieldTemplateSyntaxError(
                     "syntax error in template %r (source=%r)" % (key, source)
                 ) from e
-            else:
-                self._template_fields[key] = template
+            return template
+
+        # Instantiate all Jinja templates found in config, and map them to
+        # their config key
+        self._template_fields: Dict[str, Template] = {
+            key: _load_template(key, source) for key, source in config.items()
+        }
 
     def render(self, key: str, context: Dict[str, Any], fallback: Any = None) -> str:
         """Render a field template given by `key` using `context`.
 
         :param key: config key specifying the template to render
         :param context: dictionary used to render template
-        :param fallback: value used as fallback in case no template matches
-                         `key`, or if template rendering fails
+        :param fallback: value used as fallback in case no template matches `key`
+        :raises FieldTemplateRenderError: if template rendering fails
         """
 
         template = self._template_fields.get(key)
-        if template:
-            try:
-                return template.render(**context)
-            except Exception as e:
-                raise FieldTemplateRenderError(
-                    "could not render template %r (context=%r)" %
-                    (key, context)
-                ) from e
-        # If no template, or template rendering fails, return fallback
-        return fallback
+
+        if not template:
+            return fallback
+
+        try:
+            return template.render(**context)
+        except Exception as e:
+            raise FieldTemplateRenderError(
+                "could not render template %r (context=%r)" %
+                (key, context)
+            ) from e
 
 
 class Entity:
@@ -86,7 +89,7 @@ class Entity:
         """
 
         self.context = context
-        self.settings = settings if settings else _settings
+        self.settings = settings or _settings
         self.field_renderer = FieldRenderer(
             self.settings.get("OS2SYNC_TEMPLATES", {})
         )

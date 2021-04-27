@@ -1,4 +1,3 @@
-
 NICKNAME_TEMPLATE = "{% if nickname -%}{{ nickname }}{%- else %}{{ name }}{%- endif %}"
 
 
