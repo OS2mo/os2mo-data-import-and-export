@@ -44,8 +44,10 @@ def read_cpr_mapping():
     return employee_forced_uuids
 
 
-def read_available_dumps():
-    return get_opus_filereader().list_opus_files()
+def read_available_dumps() -> Dict[datetime.datetime, str]:
+    dumps = get_opus_filereader().list_opus_files()
+    assert len(dumps) > 0, "No Opus files found!"
+    return dumps
 
 def local_db_insert(insert_tuple):
     conn = sqlite3.connect(SETTINGS['integrations.opus.import.run_db'],

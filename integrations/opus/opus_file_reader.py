@@ -1,10 +1,11 @@
 import datetime
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, List
-from more_itertools import one
+from typing import Dict, List, Optional
+
 import fs
 from google.cloud import storage
+from more_itertools import one
 
 from exporters.utils.load_settings import load_settings
 
@@ -34,8 +35,8 @@ class OpusReaderInterface(ABC):
 
 
 class GcloudOpusReader(OpusReaderInterface):
-    def __init__(self):
-        settings = load_settings()
+    def __init__(self, settings):
+        settings = settings
         bucket_name = settings["integrations.opus.gcloud_bucket_name"]
         self.client = storage.Client()
         self.bucket = storage.Bucket(self.client, bucket_name)
@@ -51,8 +52,8 @@ class GcloudOpusReader(OpusReaderInterface):
 
 
 class SMBOpusReader(OpusReaderInterface):
-    def __init__(self):
-        self.settings = load_settings()
+    def __init__(self, settings):
+        self.settings = settings
         user = self.settings["integrations.opus.smb_user"]
         password = self.settings["integrations.opus.smb_password"]
         smb_host = self.settings["integrations.opus.smb_host"]
@@ -68,8 +69,8 @@ class SMBOpusReader(OpusReaderInterface):
 
 
 class LocalOpusReader(OpusReaderInterface):
-    def __init__(self):
-        self.settings = load_settings()
+    def __init__(self, settings):
+        self.settings = settings
 
     def list_opus_files(self) -> Dict[datetime.datetime, Path]:
         dump_path = Path(self.settings["integrations.opus.import.xml_path"])
@@ -79,14 +80,14 @@ class LocalOpusReader(OpusReaderInterface):
         return filename.read_text()
 
 
-def get_opus_filereader() -> OpusReaderInterface:
+def get_opus_filereader(settings: Optional[Dict] = None) -> OpusReaderInterface:
     """Get the correct opus reader interface based on values from settings."""
-    settings = load_settings()
+    settings = settings or load_settings()
     if settings.get("gcloud.bucket_name"):
-        return GcloudOpusReader()
+        return GcloudOpusReader(settings)
     if settings.get("integrations.opus.smb_host"):
-        return SMBOpusReader()
-    return LocalOpusReader()
+        return SMBOpusReader(settings)
+    return LocalOpusReader(settings)
 
 
 if __name__ == "__main__":
