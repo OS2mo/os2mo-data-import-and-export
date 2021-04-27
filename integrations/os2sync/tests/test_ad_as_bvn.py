@@ -282,13 +282,14 @@ class TestsMOAd(unittest.TestCase):
         expected = 'SolveigK_AD_logon'
         self.assertEqual(expected, try_get_ad_user_key(uuid))
 
-    @patch.dict(config.settings, {
-        'OS2MO_SERVICE_URL': '',
-        'OS2MO_ORG_UUID': '', 'OS2SYNC_XFER_CPR': True,
-        'OS2SYNC_PHONE_SCOPE_CLASSES': '',
-        'OS2SYNC_EMAIL_SCOPE_CLASSES': '',
-    },
-                clear=True)
+    @patch.dict(
+        config.settings,
+        {
+            'OS2MO_SERVICE_URL': '',
+            'OS2MO_ORG_UUID': '',
+            'OS2SYNC_XFER_CPR': True,
+        },
+    )
     @patch('integrations.os2sync.os2mo.session.get', patched_session_get)
     def test_mo_client_default(self):
         expected = {'Email': 'solveigk@kolding.dk',
