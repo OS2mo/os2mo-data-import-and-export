@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Optional
 
 from pydantic import BaseModel, Extra
 
@@ -12,7 +12,7 @@ class ConfiguredBase(BaseModel):
         extra = Extra.forbid
 
 
-class MoObj(ConfiguredBase, metaclass=ABCMeta):
+class LoraObj(ConfiguredBase, metaclass=ABCMeta):
     @abstractmethod
     def get_uuid(self) -> Optional[str]:
         """

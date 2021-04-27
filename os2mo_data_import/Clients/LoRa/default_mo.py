@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from os2mo_data_import.MoClient.model import Facet, Organisation
+from os2mo_data_import.Clients.LoRa.model import Facet, Organisation
 from os2mo_data_import.util import generate_uuid
 
 

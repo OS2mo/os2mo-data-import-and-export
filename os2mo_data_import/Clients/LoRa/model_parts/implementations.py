@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import Field, conlist
 
-from os2mo_data_import.MoClient.model_parts.interface import ConfiguredBase
+from os2mo_data_import.Clients.LoRa.model_parts.interface import ConfiguredBase
 
 single_element_list = partial(conlist, min_items=1, max_items=1)
 

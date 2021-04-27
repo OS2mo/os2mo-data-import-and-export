@@ -9,10 +9,10 @@ from uuid import UUID
 from more_itertools import flatten
 from pydantic import BaseModel, Field
 
-from os2mo_data_import.MoClient.model import Address, Employee, Engagement, \
-    EngagementAssociation, Klasse, \
-    OrgUnit
-from os2mo_data_import.MoClient.model_parts.interface import MoObj
+from os2mo_data_import.Clients.LoRa.model import Klasse
+from os2mo_data_import.Clients.MO.model import Address, Employee, Engagement, \
+    EngagementAssociation, OrgUnit
+from os2mo_data_import.Clients.MO.model_parts.interface import MoObj
 from os2mo_data_import.util import generate_uuid
 
 

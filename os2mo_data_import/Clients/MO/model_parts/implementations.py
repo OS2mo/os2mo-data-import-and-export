@@ -3,7 +3,7 @@ from uuid import UUID
 
 from pydantic import Field
 
-from os2mo_data_import.MoClient.model_parts.interface import ConfiguredBase
+from os2mo_data_import.Clients.MO.model_parts.interface import ConfiguredBase
 
 
 class Validity(ConfiguredBase):

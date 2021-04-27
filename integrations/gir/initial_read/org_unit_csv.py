@@ -8,7 +8,7 @@ from uuid import UUID
 from more_itertools import flatten
 from pydantic import BaseModel, PrivateAttr
 
-from os2mo_data_import.MoClient.model import OrgUnit
+from os2mo_data_import.Clients.MO.model import OrgUnit
 from os2mo_data_import.util import generate_uuid
 
 

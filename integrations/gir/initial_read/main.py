@@ -1,5 +1,4 @@
-import os
-from asyncio import run
+from asyncio import run, sleep
 from functools import partial
 from pathlib import Path
 from typing import Dict, Iterable, Optional
@@ -13,11 +12,12 @@ from integrations.gir.initial_read.emd_csv import (
     gen_single_klass,
     read_emd,
 )
+from integrations.gir.initial_read.mo_lora_client import MoLoRaClient
 from integrations.gir.initial_read.org_unit_csv import PartialManager, read_csv
-from os2mo_data_import.MoClient.client import Client
-from os2mo_data_import.MoClient.default_mo import ValidMo
-from os2mo_data_import.MoClient.model import Engagement, Klasse, Manager, OrgUnit
-from os2mo_data_import.MoClient.model_parts.interface import MoObj
+from os2mo_data_import.Clients.LoRa.default_mo import ValidMo
+from os2mo_data_import.Clients.LoRa.model import Klasse
+from os2mo_data_import.Clients.MO.model import Engagement, Manager, OrgUnit
+from os2mo_data_import.Clients.MO.model_parts.interface import MoObj
 from os2mo_data_import.util import generate_uuid
 
 
@@ -268,16 +268,17 @@ def read_values(base_path: Path) -> Iterable[Iterable[MoObj]]:
     # return (*managers,)
     # return (*addresses[9:],)
     return *fixture, *fixture2, *engagement_associations, *managers, *addresses
+    # return org_units[:1]
 
 
 async def main(base_path: Path):
-    client = Client()
+    client = MoLoRaClient()
     values = read_values(base_path)
     async with client.context():
         for group in values:
-            await client.load_mo_objs(group)
+            await client.load_objs(group)
 
 
 if __name__ == "__main__":
     # os.environ["gir_base_path"]
-    run(main(Path('/home/mw/gir')))
+    run(main(Path("/home/mw/gir")))
