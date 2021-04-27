@@ -323,6 +323,9 @@ Et eksempel på en feltmapning angives herunder:
 .. code-block:: json
 
     "ad_mo_sync_mapping": {
+        "user_attrs": {
+            "samAccountName": "user_key"
+        },
         "user_addresses": {
             "telephoneNumber": ["a6dbb837-5fca-4f05-b369-8476a35e0a95", "INTERNAL"],
             "pager": ["d9cd7a04-a992-4b31-9534-f375eba2f1f4 ", "PUBLIC"],
@@ -337,17 +340,20 @@ Et eksempel på en feltmapning angives herunder:
         }
     }
 
-For adresser angives en synlighed, som kan antage værdien `PUBLIC`, `INTERNAL`,
-`SECRET` eller `null` som angiver at synligheden i MO sættes til henholdsvis
-offentlig, intern, hemmelig, eller ikke angivet. UUID'er er på de tilhørende
-adresseklasser i MO som AD felterne skal mappes til.
+I ``user_attrs`` kan AD-felter på brugere mappes til tilsvarende felter i MO.
+I eksemplet er AD-feltet ``samAccountName`` således mappet til MO-feltet ``user_key``.
+
+I ``user_addresses`` kan AD-felter mappes til MO-adresseoplysninger.
+Her angives en synlighed, som kan antage værdierne `PUBLIC`, `INTERNAL`, `SECRET`
+eller `null`, hvilket angiver at synligheden i MO sættes til hhv. offentlig, intern,
+hemmelig, eller ikke angivet.
+UUID'erne identificerer de adresseklasser i MO, som AD-felterne skal mappes til.
 
 Hvis der findes flere adresser i MO med samme type og synlighed, vil programmet
 opdatere den først fundne MO-adresse, og afslutte de andre matchende MO-adresser.
 
 Hvis der for en given bruger er felter i feltmapningen, som ikke findes i AD, vil
-disse felter bliver sprunget over, men de øvrige felter vil stadig blive
-synkroniseret.
+disse felter blive sprunget over, men de øvrige felter vil stadig blive synkroniseret.
 
 Selve synkroniseringen foregår ved at programmet først udtrækker samtlige
 medarbejdere fra MO, der itereres hen over denne liste, og information fra AD'et

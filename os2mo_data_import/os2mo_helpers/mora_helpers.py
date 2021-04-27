@@ -692,3 +692,7 @@ class MoraHelper:
                 lambda its: its["itsystem"]["uuid"] == it_system_uuid, it_systems
             )
         return list(it_systems)
+
+    def update_user(self, uuid, data):
+        payload = {"type": "employee", "uuid": uuid, "data": data}
+        return self._mo_post("details/edit", payload)

@@ -323,7 +323,8 @@ class TestADMixin(object):
                 "ObjectClass",
                 "SamAccountName",
                 "Surname",
-                "UserPrincipalName" "extensionAttribute1",
+                "UserPrincipalName",
+                "extensionAttribute1",
             ],
             "DistinguishedName": "CN="
             + person["full_name"]
@@ -444,6 +445,10 @@ class AdMoSyncTestSubclass(AdMoSync):
         def read_user(uuid):
             return self.mo_values
 
+        def update_user(uuid, data):
+            payload = {"type": "employee", "uuid": uuid, "data": data}
+            return _mo_post("details/edit", payload)
+
         return AttrDict(
             {
                 "read_organisation": lambda: "org_uuid",
@@ -459,6 +464,7 @@ class AdMoSyncTestSubclass(AdMoSync):
                 "read_user_engagement": get_e_details("engagement"),
                 "get_e_addresses": get_e_details("address"),
                 "get_e_itsystems": get_e_details("it"),
+                "update_user": update_user,
                 "_mo_post": _mo_post,
             }
         )
