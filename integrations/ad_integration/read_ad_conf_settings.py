@@ -1,17 +1,18 @@
-import os
+import collections
 import json
-import pathlib
 import logging
+import os
+import pathlib
+
+from exporters.utils.load_settings import load_settings
+from integrations.ad_integration.utils import LazyDict
+
 
 logger = logging.getLogger("AdReader")
-
-from integrations.ad_integration.utils import LazyDict
-from exporters.utils.load_settings import load_settings
 
 
 def _read_global_settings(top_settings):
     global_settings = {}
-
     global_settings['mora.base'] = top_settings.get('mora.base')
     global_settings['servers'] = top_settings.get('integrations.ad')[0].get('servers', [])
     global_settings['winrm_host'] = top_settings.get('integrations.ad.winrm_host')
@@ -25,7 +26,6 @@ def _read_global_settings(top_settings):
 
 
 def _read_primary_ad_settings(top_settings, index=0):
-
     primary_settings = {}
 
     if top_settings.get('integrations.ad') is None:
@@ -73,10 +73,7 @@ def _read_primary_ad_settings(top_settings, index=0):
             )
 
     # Settings that do not need to be set, or have defaults
-    #primary_settings['server'] = None
-    index_settings = top_settings[
-        'integrations.ad'
-    ][index]
+    index_settings = top_settings['integrations.ad'][index]
     primary_settings['servers'] = index_settings.get('servers', [])
     primary_settings['caseless_samname'] = index_settings.get('caseless_samname', True)
     primary_settings['sam_filter'] = index_settings.get("sam_filter", '')
@@ -182,49 +179,14 @@ def _read_primary_write_information(top_settings):
     )
     # Conflicts are case-insensitive
     ad_field_names = list(map(lambda ad_field: ad_field.lower(), ad_field_names))
-    if len(ad_field_names) > len(set(ad_field_names)):
-        msg = 'Duplicate AD fieldnames in settings: {}'
-        logger.info(msg.format(sorted(ad_field_names)))
-        primary_write_settings = {}
+    counter = collections.Counter(ad_field_names)
+    dupes = sorted(set(name for name, count in counter.items() if count > 1))
+    if dupes:
+        msg = 'Duplicated AD field names in settings: %r'
+        logger.info(msg, dupes)
+        raise ValueError(msg % dupes)
 
     return primary_write_settings
-
-
-def _NEVER_read_school_ad_settings():
-    raise RuntimeError("NEVER call this - it is obsolete")
-    school_settings = {}
-
-    school_settings['search_base'] = os.environ.get('AD_SCHOOL_SEARCH_BASE')
-    school_settings['cpr_field'] = os.environ.get('AD_SCHOOL_CPR_FIELD')
-    school_settings['system_user'] = os.environ.get('AD_SCHOOL_SYSTEM_USER')
-    school_settings['password'] = os.environ.get('AD_SCHOOL_PASSWORD')
-    ad_school_prop_raw = os.environ.get('AD_SCHOOL_PROPERTIES')
-    if ad_school_prop_raw:
-        school_settings['properties'] = set(ad_school_prop_raw.split(' '))
-    else:
-        school_settings['properties'] = None
-
-    missing = []
-    for key, val in school_settings.items():
-        if not val:
-            missing.append(key)
-    if missing:
-        msg = 'Missing values for {}, skipping school AD'.format(missing)
-        logger.info(msg)
-        school_settings['read_school'] = False
-    else:
-        school_settings['read_school'] = True
-
-    # Settings that do not need to be set
-    school_settings['server'] = os.environ.get('AD_SCHOOL_SERVER')
-    school_settings['cpr_separator'] = top_settings.get(
-        'integrations.ad.school_cpr_separator', '')
-
-    # So far true in all known cases, default to true
-    get_ad_object = os.environ.get('AD_SCHOOL_GET_AD_OBJECT', 'True')
-    school_settings['get_ad_object'] = get_ad_object.lower() == 'true'
-
-    return school_settings
 
 
 SETTINGS = LazyDict()

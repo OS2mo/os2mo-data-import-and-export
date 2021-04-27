@@ -383,6 +383,13 @@ class TestADMixin(object):
             "integrations.ad.write.upn_end": "epn_end",
             "integrations.ad.write.org_unit_field": "org_field",
             "integrations.ad.write.level2orgunit_type": "level2orgunit_type",
+            "integrations.ad_writer.template_to_ad_fields": {
+                "Name": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }} - {{ user_sam }}",
+                "Displayname": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }}",
+                "GivenName": "{{ mo_values['name'][0] }}",
+                "SurName": "{{ mo_values['name'][1] }}",
+                "EmployeeNumber": "{{ mo_values['employment_number'] }}",
+            },
             "address.visibility.public": "address_visibility_public_uuid",
             "address.visibility.internal": "address_visibility_internal_uuid",
             "address.visibility.secret": "address_visibility_secret_uuid",
