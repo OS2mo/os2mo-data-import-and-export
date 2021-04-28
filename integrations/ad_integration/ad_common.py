@@ -1,20 +1,25 @@
-import subprocess
-
-import time
 import json
-import random
 import logging
+import random
+import subprocess
+import time
+from typing import Dict, List, Optional
 
+import more_itertools
 from winrm import Session
 from winrm.exceptions import WinRMTransportError
 from winrm.vendor.requests_kerberos.exceptions import KerberosExchangeError
 
-from integrations.ad_integration import ad_exceptions
 from integrations.ad_integration import read_ad_conf_settings
+from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
+from integrations.ad_integration.ad_exceptions import CprNotNotUnique
 
 logger = logging.getLogger("AdCommon")
+
 # Is this universal?
 ENCODING = "cp850"
+
+ADUser = Dict[str, str]
 
 
 def ad_minify(text):
@@ -121,7 +126,7 @@ def generate_kerberos_session(hostname, username=None, password=None):
 
 
 class AD:
-    def __init__(self, all_settings=None, index=0):
+    def __init__(self, all_settings=None, index=0, **kwargs):
         self.all_settings = all_settings
         if self.all_settings is None:
             self.all_settings = read_ad_conf_settings.read_settings(index=index)
@@ -284,23 +289,24 @@ class AD:
         properties = properties[:-1] + " "  # Remove trailing comma, add space
         return properties
 
-    def _find_unique_user(self, cpr):
-        """
-        Find a unique AD account from cpr, otherwise raise an exception.
-        """
-        user_ad_info = self.get_from_ad(cpr=cpr)
+    def _get_sam_for_ad_user(self, ad_user: ADUser) -> str:
+        return ad_user['SamAccountName']
 
-        if len(user_ad_info) == 1:
-            user_sam = user_ad_info[0]["SamAccountName"]
-        elif len(user_ad_info) == 0:
-            msg = "Found no account for {}".format(cpr)
-            logger.error(msg)
-            raise ad_exceptions.UserNotFoundException(msg)
+    def _find_ad_user(
+        self,
+        cpr: str,
+        ad_dump: Optional[List[Dict[str, str]]] = None
+    ) -> ADUser:
+        """Find a unique AD account from cpr, otherwise raise an exception.
+        """
+        if ad_dump:
+            cpr_field = self.all_settings['primary']['cpr_field']
+            ad_users = filter(lambda ad_user: ad_user.get(cpr_field) == cpr, ad_dump)
         else:
-            msg = "Too many SamAccounts for {}".format(cpr)
-            logger.error(msg)
-            raise ad_exceptions.CprNotNotUnique(msg)
-        return user_sam
+            logger.debug('No AD information supplied, will look it up')
+            ad_users = self.get_from_ad(cpr=cpr)
+
+        return more_itertools.one(ad_users, CprNotFoundInADException, CprNotNotUnique)
 
     def get_from_ad(self, user=None, cpr=None, server=None):
         """

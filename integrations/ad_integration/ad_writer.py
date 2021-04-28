@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
+from functools import partial
 import re
 import json
 import time
@@ -15,32 +16,22 @@ from jinja2 import Template
 import ad_logger
 import ad_templates
 from ad_template_engine import template_powershell, prepare_field_templates
-from utils import dict_map, dict_exclude, lower_list, dict_subset
-
+from ad_common import AD
 from exporters.utils.lazy_dict import LazyDict, LazyEval, LazyEvalDerived
-from integrations.ad_integration.ad_exceptions import CprNotNotUnique
-from integrations.ad_integration.ad_exceptions import UserNotFoundException
 from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
-from integrations.ad_integration.ad_exceptions import ReplicationFailedException
+from integrations.ad_integration.ad_exceptions import CprNotNotUnique
+from integrations.ad_integration.ad_exceptions import ManagerNotUniqueFromCprException
 from integrations.ad_integration.ad_exceptions import NoActiveEngagementsException
 from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException
+from integrations.ad_integration.ad_exceptions import ReplicationFailedException
 from integrations.ad_integration.ad_exceptions import SamAccountNameNotUnique
-from integrations.ad_integration.ad_exceptions import (
-    ManagerNotUniqueFromCprException
-)
-from ad_common import AD
-from user_names import CreateUserNames
+from integrations.ad_integration.ad_exceptions import UserNotFoundException
 from os2mo_helpers.mora_helpers import MoraHelper
+from utils import dict_map, dict_exclude, lower_list, dict_subset
+from user_names import CreateUserNames
 
 
 logger = logging.getLogger("AdWriter")
-
-
-def _random_password(length=12):
-    password = ''
-    for _ in range(0, length):
-        password += chr(random.randrange(48, 127))
-    return password
 
 
 class MODataSource(ABC):
@@ -326,23 +317,6 @@ class ADWriter(AD):
     def _read_user(self, uuid):
         return self.datasource.read_user(uuid)
 
-    def _find_ad_user(self, cpr, ad_dump):
-        ad_info = []
-        if ad_dump is not None:
-            for user in ad_dump:
-                if user.get(self.all_settings['primary']['cpr_field']) == cpr:
-                    ad_info.append(user)
-        else:
-            ad_info = self.get_from_ad(cpr=cpr)
-
-        if not ad_info:
-            msg = 'Found no account for {}'.format(cpr)
-            logger.error(msg)
-            raise CprNotFoundInADException()
-        if len(ad_info) > 1:
-            raise CprNotNotUnique
-        return ad_info
-
     def _find_unit_info(self, eng_org_unit):
         # TODO: Convert to datasource
         write_settings = self._get_write_setting()
@@ -536,18 +510,13 @@ class ADWriter(AD):
 
         def read_manager_sam(manager_cpr):
             try:
-                manager_ad_info = self._find_ad_user(
-                    cpr=manager_cpr, ad_dump=ad_dump
-                )
+                manager_ad_user = self._find_ad_user(cpr=manager_cpr, ad_dump=ad_dump)
             except CprNotFoundInADException:
-                manager_ad_info = []
-
-            if len(manager_ad_info) == 1:
-                return manager_ad_info[0]['SamAccountName']
+                logger.info("manager not found by cpr lookup")
+            except CprNotNotUnique:
+                logger.info("multiple managers found by cpr lookup")
             else:
-                msg = 'Searching for {}, found in AD: {}'
-                logger.debug(msg.format(manager_info['name'], manager_ad_info))
-                raise ManagerNotUniqueFromCprException()
+                return self._get_sam_for_ad_user(manager_ad_user)
             return None
 
         # NOTE: Underscore fields should not be read
@@ -688,32 +657,32 @@ class ADWriter(AD):
             }
         return mismatch
 
+    def _render_field_template(self, context, template):
+        return Template(template.strip('"')).render(**context)
+
     def _sync_compare(self, mo_values, ad_dump):
-        user_ad_info = self._find_ad_user(mo_values['cpr'], ad_dump)
-        assert(len(user_ad_info) == 1)
-        ad = user_ad_info[0]
-        user_sam = ad['SamAccountName']
+        ad_user = self._find_ad_user(mo_values['cpr'], ad_dump=ad_dump)
+        user_sam = self._get_sam_for_ad_user(ad_user)
+
         # TODO: Why is this not generated along with all other info in mo_values?
-        mo_values['name_sam'] = '{} - {}'.format(mo_values['full_name'],
-                                                 ad['SamAccountName'])
+        mo_values['name_sam'] = '{} - {}'.format(mo_values['full_name'], user_sam)
 
         fields = prepare_field_templates("Set-ADUser", settings=self.all_settings)
 
         def to_lower(string):
             return string.lower()
 
-        ad = dict_map(ad, key_func=to_lower)
+        ad_user = dict_map(ad_user, key_func=to_lower)
         fields = dict_map(fields, key_func=to_lower)
 
         never_compare = lower_list(['Credential', 'Manager'])
         fields = dict_exclude(fields, never_compare)
 
         context = {
+            "ad_values": ad_user,
             "mo_values": mo_values,
             "user_sam": user_sam,
         }
-        def render_field_template(template):
-            return Template(template.strip('"')).render(**context)
 
         # Build context and render template to get comparision value
         # NOTE: This results in rendering the template twice, once here and
@@ -721,16 +690,20 @@ class ADWriter(AD):
         #       We should probably restructure this, such that we only render
         #       the template once, potentially rendering a dict of results.
         # TODO: Make the above mentioned change.
-        fields = dict_map(fields, value_func=render_field_template)
+        fields = dict_map(
+            fields, value_func=partial(self._render_field_template, context),
+        )
         mismatch = {}
         for ad_field, rendered_value in fields.items():
-            mismatch.update(self._cf(ad_field, rendered_value, ad))
+            mismatch.update(self._cf(ad_field, rendered_value, ad_user))
 
         if mo_values.get('manager_cpr'):
-            manager_ad_info = self._find_ad_user(mo_values['manager_cpr'], ad_dump)
-            if not ad['manager'] == manager_ad_info[0]['DistinguishedName']:
-                mismatch['manager'] = (ad['manager'],
-                                       manager_ad_info[0]['DistinguishedName'])
+            manager_ad_user = self._find_ad_user(
+                mo_values['manager_cpr'], ad_dump=ad_dump
+            )
+            manager_distinguished_name = manager_ad_user['DistinguishedName']
+            if ad_user['manager'] != manager_distinguished_name:
+                mismatch['manager'] = (ad_user['manager'], manager_distinguished_name)
                 logger.info('Manager should be updated')
         return mismatch
 
@@ -745,15 +718,14 @@ class ADWriter(AD):
         if mo_values is None:
             return (False, 'No active engagments')
 
+        ad_user = self._find_ad_user(mo_values['cpr'], ad_dump=ad_dump)
+        user_sam = self._get_sam_for_ad_user(ad_user)
+
         if ad_dump is None:
-            logger.debug('No AD information supplied, will look it up')
-            user_sam = self._find_unique_user(mo_values['cpr'])
             # Todo, we could also add the compare logic here, but
             # the benifit will be max 40%
             mismatch = {'force re-sync': 'yes', 'manager': 'yes'}
         else:
-            user_ad_info = self._find_ad_user(mo_values['cpr'], ad_dump)
-            user_sam = user_ad_info[0]['SamAccountName']
             mismatch = self._sync_compare(mo_values, ad_dump)
 
         logger.debug('Sync compare: {}'.format(mismatch))
@@ -795,11 +767,12 @@ class ADWriter(AD):
 
         edit_user_string = template_powershell(
             cmd='Set-ADUser',
-            context = {
+            context={
+                "ad_values": ad_user,
                 "mo_values": mo_values,
                 "user_sam": user_sam,
             },
-            settings = self.all_settings
+            settings=self.all_settings,
         )
         edit_user_string = self.remove_redundant(edit_user_string)
 
@@ -858,11 +831,12 @@ class ADWriter(AD):
             raise CprNotNotUnique(mo_values['cpr'])
 
         create_user_string = template_powershell(
-            context = {
+            context={
+                "ad_values": {},
                 "mo_values": mo_values,
                 "user_sam": sam_account_name,
             },
-            settings = self.all_settings
+            settings=self.all_settings,
         )
         create_user_string = self.remove_redundant(create_user_string)
 
@@ -1029,10 +1003,6 @@ def cli(**args):
         manager, user = args['add_manager_to_user']
         print('{} is now set as manager for {}'.format(manager, user))
         ad_writer.add_manager_to_user(manager_sam=manager, user_sam=user)
-
-    # TODO: Enable a user, including setting a random password
-    # ad_writer.set_user_password('MSLEG', _random_password())
-    # ad_writer.enable_user('OBRAP')
 
 
 if __name__ == '__main__':
