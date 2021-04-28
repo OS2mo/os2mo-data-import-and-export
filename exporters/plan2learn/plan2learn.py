@@ -63,7 +63,7 @@ def get_e_address(e_uuid, scope, lc, lc_historic, settings):
     candidates = lora_addresses
 
     if scope == "Telefon":
-        priority_list = settings.get("plan2learn.email.phone", [])
+        priority_list = settings.get("plan2learn.phone.priority", [])
     elif scope == "E-mail":
         priority_list = settings.get("plan2learn.email.priority", [])
     else:
@@ -80,9 +80,9 @@ def get_e_address_mo(e_uuid, scope, mh, settings):
     candidates = mh.get_e_addresses(e_uuid, scope)
 
     if scope == "PHONE":
-        priority_list = settings.get("emus.phone.priority", [])
+        priority_list = settings.get("plan2learn.phone.priority", [])
     elif scope == "EMAIL":
-        priority_list = settings.get("emus.email.priority", [])
+        priority_list = settings.get("plan2learn.email.priority", [])
     else:
         priority_list = []
 
