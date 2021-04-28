@@ -135,7 +135,6 @@ async def ensure_class_exists_helper(
     org_uuid = org_uuid or await mox_helper.read_element_organisation_organisation(
         bvn="%"
     )
-
     # Fetch uuids from bvns
     facet_uuid = await mox_helper.read_element_klassifikation_facet(bvn=facet_bvn)
     parent_uuid = None
@@ -228,14 +227,14 @@ async def ensure_class_exists(
     dry_run: bool,
 ):
     uuid, created = await ensure_class_exists_helper(
-        bvn,
-        title,
-        facet_bvn,
-        description,
-        scope,
-        org_uuid,
-        org_unit_uuid,
-        parent_bvn,
+        bvn=bvn,
+        title=title,
+        facet_bvn=facet_bvn,
+        description=description,
+        scope=scope,
+        org_uuid=org_uuid,
+        org_unit_uuid=org_unit_uuid,
+        parent_bvn=parent_bvn,
         mox_base=ctx.obj["mox.base"],
         dry_run=dry_run,
     )
@@ -357,8 +356,8 @@ async def ensure_class_value(
         mox_base=ctx.obj["mox.base"],
         bvn=bvn,
         uuid=uuid,
-        variable="brugervendtnoegle",
-        new_value=bvn,
+        variable=variable,
+        new_value=new_value,
         dry_run=dry_run,
     )
 
