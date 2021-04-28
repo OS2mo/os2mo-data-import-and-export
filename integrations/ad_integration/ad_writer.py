@@ -117,7 +117,7 @@ class MODataSource(ABC):
         start_dates, end_dates = self.get_engagement_dates(uuid)
 
         start_dates = filter(lambda date: date if date else '1800-01-01', start_dates)
-        start_date = min(end_dates, default='9999-12-31')
+        start_date = min(start_dates, default='9999-12-31')
 
         end_dates = filter(lambda date: date if date else '9999-12-31', end_dates)
         end_date = max(end_dates, default='1800-01-01')
