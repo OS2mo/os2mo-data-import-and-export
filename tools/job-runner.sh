@@ -254,7 +254,7 @@ exports_viborg_emus(){
     echo running viborg_emus
     EMUS_FILENAME="tmp/emus_export.xml"
 
-    ${VENV}/bin/python3 exporters/emus/lcdb_viborg_xml_emus_sftp.py ${EMUS_FILENAME}
+    ${VENV}/bin/python3 exporters/emus/lcdb_viborg_xml_emus.py ${EMUS_FILENAME}
     ${VENV}/bin/python3 exporters/emus/emus_sftp.py ${EMUS_FILENAME}
 }
 
