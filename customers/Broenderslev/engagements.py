@@ -21,9 +21,12 @@ class UserEngagements:
         self.header = {"SESSION": saml}
         get_org = requests.get(f"{self.host}/service/o/", headers=self.header)
         get_org.raise_for_status()
-        org_list = get_org.json()
-        org_list = filter(lambda org: org_name in org["name"], org_list)
-        self.org_uuid = one(org_list)["uuid"]
+        org = one(get_org.json())
+        if org_name not in org["name"]:
+            raise ValueError(
+                f"Organisation {org_name} not found. Host returned {org['name']}."
+            )
+        self.org_uuid = org["uuid"]
 
     def _get_all_users(self) -> List[Dict[str, Any]]:
         get_users = requests.get(
