@@ -144,12 +144,7 @@ class Tests_lc_db(unittest.TestCase):
         expected = 'AD-logon'
         self.assertEqual(expected, try_get_ad_user_key(session=self.session, uuid='b1'))
 
-    @patch.dict(config.settings, {
-        'OS2SYNC_XFER_CPR': True,
-        'OS2SYNC_PHONE_SCOPE_CLASSES': '',
-        'OS2SYNC_EMAIL_SCOPE_CLASSES': '',
-    },
-                clear=True)
+    @patch.dict(config.settings, {'OS2SYNC_XFER_CPR': True})
     def test_lcdb_get_sts_user_default(self):
         self.setup_wide()
         expected = {'Email': 'test@email.dk',

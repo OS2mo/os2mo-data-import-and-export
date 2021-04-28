@@ -52,10 +52,10 @@ Opsætningen i ``settings.json``
 fælles parametre
 ----------------
 
- * ``mora.base``: Beskriver OS2MO's adresse
- * ``crontab.SAML_TOKEN``: api token for service-adgang til OS2MO
- * ``municipality.cvr`` : Kommunens CVR-nummer
- * ``crontab.RUN_OS2SYNC``: Bestemmer om jobbet skal køres i cron (true/false)
+* ``crontab.RUN_OS2SYNC``: Bestemmer om jobbet skal køres i cron (true/false)
+* ``crontab.SAML_TOKEN``: api token for service-adgang til OS2MO
+* ``mora.base``: Beskriver OS2MO's adresse
+* ``municipality.cvr`` : Kommunens CVR-nummer
 
 
 os2syncs parametre
@@ -75,3 +75,24 @@ os2syncs parametre
  * ``os2sync.ignored.unit_levels``: liste af unit-level-klasser, der skal ignoreres i overførslen
  * ``os2sync.ignored.unit_types``: liste af unit-type-klasser, der skal ignoreres i overførslen
  * ``os2sync.autowash``: sletning uden filter. Normalt slettes kun afdelinger i os2sync, som er forsvundet fra OS2MO. Med autowash slettes alt i os2syncs version af den administrative org, som ikke vil blive overført fra os2mo.
+ * ``os2sync.templates``: Giver mulighed for at styre formatteringen af data vha. Jinja-templates.
+
+``os2sync.templates``
+---------------------
+
+Denne indstilling kan bruges til at styre, hvordan felter sendes til OS2Sync.
+Indstillingen består af en eller flere feltnøgler, og en tilhørende `Jinja-template <https://jinja.palletsprojects.com/en/2.11.x/templates/>`_.
+
+På nuværende tidspunkt kender programmet kun feltnøglen ``person.name``, der bruges til at kontrollere, hvordan personnavne formatteres, når de sendes til OS2Sync.
+
+Et eksempel på brug:
+
+.. code-block:: json
+
+    {
+        "os2sync.templates": {
+            "person.name": "{% if nickname -%}{{ nickname }}{%- else %}{{ name }}{%- endif %}"
+        }
+    }
+
+Denne opsætning betyder, at vi først tjekker om der er et kaldenavn (``nickname``) registreret på personen i MO. Hvis der er, så anvendes dette, når der skrives et personnavn til OS2Sync. Hvis ikke, så anvendes det almindelige navn, der er registreret på personen (``name``.)

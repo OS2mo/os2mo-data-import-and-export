@@ -13,6 +13,7 @@ import requests
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
 from integrations.os2sync import config
+from integrations.os2sync.templates import Person
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
@@ -190,7 +191,7 @@ def try_get_ad_user_key(uuid: str) -> Optional[str]:
 
 
 def get_sts_user(uuid, allowed_unitids):
-    base = os2mo_get("{BASE}/e/" + uuid + "/").json()
+    employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
 
     # fallback to uuid
     user_id = uuid
@@ -199,24 +200,27 @@ def get_sts_user(uuid, allowed_unitids):
     if candidate_user_id:
         user_id = candidate_user_id
 
+    person = Person(employee, settings=settings)
+
     sts_user = {
         "Uuid": uuid,
         "UserId": user_id,
         "Positions": [],
-        "Person": {"Name": base["name"], "Cpr": base["cpr_no"]},
+        "Person": person.to_json(),
     }
-    if not settings["OS2SYNC_XFER_CPR"]:
-        sts_user["Person"]["Cpr"] = None
+
+    logger.debug('os2mo.get_sts_user: sts_user = %r', sts_user)
 
     addresses_to_user(
         sts_user, os2mo_get("{BASE}/e/" + uuid + "/details/address").json()
     )
+
     engagements_to_user(
         sts_user,
         os2mo_get("{BASE}/e/" + uuid + "/details/engagement").json(),
         allowed_unitids
     )
-    # show_all_details(uuid,"e")
+
     strip_truncate_and_warn(sts_user, sts_user)
     return sts_user
 
@@ -224,7 +228,7 @@ def get_sts_user(uuid, allowed_unitids):
 def org_unit_uuids(**kwargs):
     return [
         ou["uuid"]
-        for ou in os2mo_get("{BASE}/o/{ORG}/ou", limit=999999,
+        for ou in os2mo_get("{BASE}/o/{ORG}/ou/", limit=999999,
                             **kwargs).json()["items"]
     ]
 
