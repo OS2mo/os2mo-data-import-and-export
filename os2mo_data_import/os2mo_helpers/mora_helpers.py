@@ -15,6 +15,9 @@ import logging
 import os
 
 import requests
+import datetime
+from operator import itemgetter
+
 from anytree import Node
 from more_itertools import only
 
@@ -117,16 +120,8 @@ class MoraHelper:
             i += 1
         return path_dict
 
-    def _mo_lookup(
-        self,
-        uuid,
-        url,
-        at=None,
-        validity=None,
-        only_primary=False,
-        use_cache=None,
-        calculate_primary=False,
-    ):
+    def _mo_lookup(self, uuid, url, at=None, validity=None, only_primary=False,
+                   use_cache=None, calculate_primary=False):
         # TODO: at-value is currently not part of cache key
         if use_cache is None:
             use_cache = self.default_cache
@@ -150,23 +145,24 @@ class MoraHelper:
             if SAML_TOKEN is None:
                 response = requests.get(full_url, params=params)
                 if response.status_code == 401:
-                    msg = "Missing SAML token"
+                    msg = 'Missing SAML token'
                     logger.error(msg)
                     raise requests.exceptions.RequestException(msg)
                 return_dict = response.json()
             else:
                 header = {"SESSION": SAML_TOKEN}
-                response = requests.get(full_url, headers=header, params=params)
+                response = requests.get(
+                    full_url,
+                    headers=header,
+                    params=params
+                )
                 if response.status_code == 401:
-                    msg = "SAML token not accepted"
+                    msg = 'SAML token not accepted'
                     logger.error(msg)
                     raise requests.exceptions.RequestException(msg)
 
                 return_dict = response.json()
             self.cache[cache_id] = return_dict
-            if response.status_code == 500:
-                # This happens when an object has been deleted.
-                return {}
         return return_dict
 
     def _mo_post(self, url, payload, force=True):
@@ -181,7 +177,12 @@ class MoraHelper:
             header = None
 
         full_url = self.host + url
-        response = requests.post(full_url, headers=header, params=params, json=payload)
+        response = requests.post(
+            full_url,
+            headers=header,
+            params=params,
+            json=payload
+        )
         return response
 
     def check_connection(self):
@@ -316,16 +317,12 @@ class MoraHelper:
         logger.info("Terminate detail %s", payload)
         # self._mo_post('details/terminate', payload):
 
-    def read_user_engagement(
-        self,
-        user,
-        at=None,
-        read_all=False,
-        skip_past=False,
-        only_primary=False,
-        use_cache=None,
-        calculate_primary=False,
-    ):
+    def read_user_engagement(self, *args, **kwargs):
+        return self.read_user_engagements(*args, **kwargs)
+
+    def read_user_engagements(self, user, at=None, read_all=False, skip_past=False,
+                             only_primary=False, use_cache=None,
+                             calculate_primary=False):
         """Read engagements for a user.
 
         :param user: UUID of the wanted user.
@@ -469,7 +466,8 @@ class MoraHelper:
         """
         user_manager = None
 
-        url = "http://localhost:8080/organisation/organisationfunktion/{}"
+        # XXX: Why is this here, this is for MOX?!
+        url = 'http://localhost:8080/organisation/organisationfunktion/{}'
         response = requests.get(url.format(engagement_uuid))
         data = response.json()
         relationer = data[engagement_uuid][0]["registreringer"][0]["relationer"]
@@ -639,30 +637,47 @@ class MoraHelper:
         return nodes
 
     def find_cut_dates(self, uuid, no_past=False):
+        """Find dates with changes in engagement history.
+
+        Run through entire history of a user and return a list of dates.
+
+        Args:
+            uuid: UUID of the user to find changes for.
+            no_past: Do not read engagements in the past.
+
+        Returns:
+            list: List of datetimes with changes in engagement history.
         """
-        Run throgh entire history of a user and return a list of dates with
-        changes in the engagement.
-        """
-        mo_engagement = self.read_user_engagement(
-            user=uuid, only_primary=True, read_all=True, skip_past=no_past
+        def get_from_date(validity):
+            fromdate = datetime.datetime.strptime(
+                validity['from'], '%Y-%m-%d'
+            )
+            # Python has no love in for dates like 1900
+            # Thus we clamp the from date to 1930 if it is before then
+            earliest_fromdate = datetime.datetime(1930, 1, 1)
+            return max(fromdate, earliest_fromdate)
+
+        def get_to_date(validity):
+            if validity['to']:
+                to = datetime.datetime.strptime(
+                    validity['to'], '%Y-%m-%d'
+                )
+                day_after = to + datetime.timedelta(days=1)
+                return day_after
+            return datetime.datetime(9999, 12, 30, 0, 0)
+
+        mo_engagements = self.read_user_engagement(
+            user=uuid,
+            only_primary=True,
+            read_all=True,
+            skip_past=no_past
         )
+        validities = map(itemgetter('validity'), mo_engagements)
 
         dates = set()
-        for eng in mo_engagement:
-
-            # no love in python for dates like 1900
-            earliest_fromdate = datetime.datetime(1930, 1, 1)
-            fromdate = datetime.datetime.strptime(eng["validity"]["from"], "%Y-%m-%d")
-            if fromdate < earliest_fromdate:
-                fromdate = earliest_fromdate
-            dates.add(fromdate)
-
-            if eng["validity"]["to"]:
-                to = datetime.datetime.strptime(eng["validity"]["to"], "%Y-%m-%d")
-                day_after = to + datetime.timedelta(days=1)
-                dates.add(day_after)
-            else:
-                dates.add(datetime.datetime(9999, 12, 30, 0, 0))
+        for validity in validities:
+            dates.add(get_from_date(validity))
+            dates.add(get_to_date(validity))
 
         date_list = sorted(list(dates))
         logger.debug("List of cut-dates: {}".format(date_list))

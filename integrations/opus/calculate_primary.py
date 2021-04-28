@@ -208,12 +208,11 @@ class MOPrimaryEngagementUpdater(object):
 
             exactly_one_primary = False
             for eng in mo_engagement:
+                to = datetime.datetime.strftime(
+                    date_list[i + 1] - datetime.timedelta(days=1), "%Y-%m-%d"
+                )
                 if date_list[i + 1] == datetime.datetime(9999, 12, 30, 0, 0):
                     to = None
-                else:
-                    to = datetime.datetime.strftime(
-                        date_list[i + 1] - datetime.timedelta(days=1), "%Y-%m-%d"
-                    )
                 validity = {
                     'from': datetime.datetime.strftime(date, "%Y-%m-%d"),
                     'to': to

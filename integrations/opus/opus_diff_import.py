@@ -16,15 +16,14 @@ import constants
 from collections import OrderedDict
 from exporters.utils.load_settings import load_settings
 from integrations import dawa_helper
+
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers, payloads
-from integrations.opus.calculate_primary import MOPrimaryEngagementUpdater
-from integrations.opus.opus_exceptions import (
-    EmploymentIdentifierNotUnique,
-    ImporterrunNotCompleted,
-    RunDBInitException,
-    UnknownOpusUnit,
-)
+from integrations.opus.opus_exceptions import (EmploymentIdentifierNotUnique,
+                                               ImporterrunNotCompleted,
+                                               RunDBInitException,
+                                               UnknownOpusUnit)
+from integrations.calculate_primary.opus import OPUSPrimaryEngagementUpdater
 from integrations.SD_Lon.db_overview import DBOverview
 from os2mo_data_import import ImportHelper
 
@@ -96,7 +95,7 @@ class OpusDiffImport(object):
             logger.error(e)
             print(e)
             exit()
-        self.updater = MOPrimaryEngagementUpdater()
+        self.updater = OPUSPrimaryEngagementUpdater()
 
         it_systems = self.helper.read_it_systems()
         self.it_systems = dict(map(itemgetter('name', 'uuid'), it_systems))
@@ -457,7 +456,9 @@ class OpusDiffImport(object):
         payload = payloads.create_user(employee, self.org_uuid, uuid)
 
         logger.info('Create user payload: {}'.format(payload))
-        return_uuid = self.helper._mo_post('e/create', payload).json()
+        r = self.helper._mo_post('e/create', payload)
+        r.raise_for_status()
+        return_uuid = r.json()
         logger.info('Created employee {} {} with uuid {}'.format(
             employee['firstName'],
             employee['lastName'],
@@ -714,8 +715,7 @@ class OpusDiffImport(object):
             self.update_engagement(eng, employee)
 
         self.update_manager_status(employee_mo_uuid, employee)
-        self.updater.set_current_person(cpr=cpr)
-        self.updater.recalculate_primary()
+        self.updater.recalculate_primary(employee_mo_uuid)
 
     def terminate_detail(self, uuid, detail_type='engagement', end_date=None):
         if end_date is None:
