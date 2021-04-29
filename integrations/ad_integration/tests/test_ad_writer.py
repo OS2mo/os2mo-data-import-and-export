@@ -2,15 +2,21 @@
 import copy
 import sys
 from os.path import dirname
-from unittest import TestCase
+from unittest import TestCase, mock
 
 from jinja2.exceptions import UndefinedError
+from more_itertools import first_true
 from parameterized import parameterized
 
 sys.path.append(dirname(__file__))
 sys.path.append(dirname(__file__) + "/..")
 
 from test_utils import TestADWriterMixin, dict_modifier, mo_modifier
+
+from ..ad_exceptions import CprNotFoundInADException, CprNotNotUnique
+
+JOB_TITLE_AD_FIELD_NAME = "titel"
+JOB_TITLE_TEMPLATE = "{{ ad_values.get('titel') or mo_values['title'] }}"
 
 
 class TestADWriter(TestCase, TestADWriterMixin):
@@ -42,6 +48,21 @@ class TestADWriter(TestCase, TestADWriterMixin):
             self.assertEqual(len(set(zip_line)), 1)
         # Return common code
         return common_lines[0]
+
+    def _add_to_template_to_ad_fields(self, ad_field_name, template):
+        return dict_modifier(
+            {
+                "integrations.ad_writer.template_to_ad_fields": {
+                    ad_field_name: template
+                }
+            }
+        )
+
+    def _assert_script_contains_field(self, script, name, value):
+        """Assert that AD PowerShell script `script` includes the AD field
+        called `name` and that the field value is `value`.
+        """
+        self.assertRegex(script, f'"{name}"="{value}"')
 
     @parameterized.expand(
         [
@@ -331,6 +352,65 @@ class TestADWriter(TestCase, TestADWriterMixin):
         for content in expected_content:
             self.assertIn(content, edit_user_ps)
 
+    def test_user_create_ad_values(self):
+        """Test that `ad_values` is present (and empty) when creating a new AD
+        user. The template `JOB_TITLE_TEMPLATE` uses the MO job title to fill
+        in the job title in the appropriate AD field.
+        """
+        self._setup_adwriter(
+            early_transform_settings=self._add_to_template_to_ad_fields(
+                JOB_TITLE_AD_FIELD_NAME,
+                JOB_TITLE_TEMPLATE,
+            )
+        )
+        mo_uuid = "invalid-provided-and-accepted-due-to-mocking"
+        self.ad_writer.create_user(mo_uuid, create_manager=False)
+        # Find the "create AD user" script
+        create_script = first_true(
+            self.ad_writer.scripts, pred=lambda s: "New-ADUser" in s
+        )
+        # Assert that it contains the mapped job title field
+        self._assert_script_contains_field(
+            create_script, JOB_TITLE_AD_FIELD_NAME, self.mo_values_func()["title"]
+        )
+
+    @parameterized.expand(
+        [
+            # Tuples of (AD job title, which value to use)
+            (None, "mo-value"),
+            ("", "mo-value"),
+            ("Tester", "ad-value"),
+        ]
+    )
+    def test_user_update_ad_values(self, ad_value, expectation):
+        """Test that `ad_values` is present (and empty) when updating an
+        existing AD user. The template `JOB_TITLE_TEMPLATE` only populates the
+        AD job title with the MO job title if the current AD job title is
+        empty.
+        """
+        self._setup_adwriter(
+            early_transform_settings=self._add_to_template_to_ad_fields(
+                JOB_TITLE_AD_FIELD_NAME,
+                JOB_TITLE_TEMPLATE,
+            ),
+            transform_ad_values=dict_modifier(
+                {JOB_TITLE_AD_FIELD_NAME: ad_value},
+            ),
+        )
+        mo_uuid = "invalid-provided-and-accepted-due-to-mocking"
+        mo_value = self.mo_values_func()["title"]
+        self.ad_writer.sync_user(mo_uuid, ad_dump=None, sync_manager=False)
+        # Find the "update AD user" script
+        update_script = first_true(
+            self.ad_writer.scripts, pred=lambda s: "Set-ADUser" in s
+        )
+        # Assert that the update script uses the current AD job title
+        self._assert_script_contains_field(
+            update_script,
+            JOB_TITLE_AD_FIELD_NAME,
+            ad_value if ad_value else mo_value,
+        )
+
     def test_duplicate_ad_field_entries(self):
         """Test user edit ps_script code.
 
@@ -562,8 +642,8 @@ class TestADWriter(TestCase, TestADWriterMixin):
         ad_values = self._prepare_get_from_ad(lambda x: x)
         ad_values["Name"] = "John Deere"
 
-        def find_ad_user(cpr, ad_dump):
-            return [ad_values]
+        def find_ad_user(cpr, ad_dump=None):
+            return ad_values
 
         self.ad_writer._find_ad_user = find_ad_user
 
@@ -590,6 +670,30 @@ class TestADWriter(TestCase, TestADWriterMixin):
             ad_values[cased_ad_key] = changeset[1]
         mismatch = self.ad_writer._sync_compare(mo_values, None)
         self.assertEqual(mismatch, {})
+
+    def test_sync_compare_context_includes_ad_values(self):
+        self._setup_adwriter()
+
+        # The `ad_values` passed in the template context has all keys in lower
+        # case
+        ad_values = {key.lower(): val for key, val in self.ad_values_func().items()}
+
+        mo_values = self.ad_writer.read_ad_information_from_mo("mo-uuid")
+        mo_values["manager_cpr"] = None
+
+        # Call `_sync_compare` with a mocked `_render_field_template` method
+        # so we can inspect the template contexts passed to it
+        with mock.patch.object(self.ad_writer, "_render_field_template") as m:
+            self.ad_writer._sync_compare(mo_values, None)
+
+        # Assert that all calls to mocked template render method includes a
+        # valid `ad_values` dict in the template context
+        template_contexts = [
+            call.args[0] for call in m.mock_calls if len(call.args) == 2
+        ]
+        self.assertTrue(
+            all(context["ad_values"] == ad_values for context in template_contexts)
+        )
 
     def test_add_manager(self):
         mo_values = self.ad_writer.read_ad_information_from_mo(
@@ -632,6 +736,41 @@ class TestADWriter(TestCase, TestADWriterMixin):
             + " -Credential $usercredential"
         ).format(password)
         self.assertEqual(set_password_ps, expected_line)
+
+    @parameterized.expand(
+        [
+            # AD dump is None
+            (None, CprNotFoundInADException),
+            # AD dump is empty list
+            ([], CprNotFoundInADException),
+            # AD dump has user without CPR
+            ([{"foo": "bar"}], CprNotFoundInADException),
+            # AD dump has exactly one matching user
+            ([{"cpr": "112233-4455"}], None),
+            # AD dump has multiple users with identical CPRs
+            (
+                [{"cpr": "112233-4455"}, {"cpr": "112233-4455"}],
+                CprNotNotUnique,
+            ),
+        ]
+    )
+    def test_find_ad_user_ad_dump(self, ad_dump, expected_exception):
+        cpr = "112233-4455"
+
+        def settings_transformer(settings):
+            settings["integrations.ad"][0].update({"cpr_field": "cpr"})
+            return settings
+
+        self._setup_adwriter(
+            early_transform_settings=settings_transformer, mock_find_ad_user=False
+        )
+
+        if expected_exception:
+            with self.assertRaises(expected_exception):
+                self.ad_writer._find_ad_user(cpr, ad_dump=ad_dump)
+        else:
+            ad_user = self.ad_writer._find_ad_user(cpr, ad_dump=ad_dump)
+            self.assertDictEqual(ad_user, {"cpr": "112233-4455"})
 
     def test_template_fails_on_undefined_variable(self):
         settings_transformer = dict_modifier(

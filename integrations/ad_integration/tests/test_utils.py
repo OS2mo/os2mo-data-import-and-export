@@ -137,15 +137,21 @@ def mo_modifier(updates):
 class ADWriterTestSubclass(ADWriter):
     """Testing subclass of ADWriter."""
 
-    def __init__(self, read_ad_information_from_mo, *args, **kwargs):
+    def __init__(
+        self,
+        read_ad_information_from_mo,
+        ad_values_func=None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         # List of scripts to be executed via run_ps
         self.scripts = []
         # Transformer for mo_values return
         self.read_ad_information_from_mo = read_ad_information_from_mo
-        self._find_unique_user = lambda cpr: read_ad_information_from_mo("")[
-            "sam_account_name"
-        ]
+        # Replace real `_find_ad_user` with mock
+        if kwargs.get("mock_find_ad_user", True):
+            self._find_ad_user = lambda ad_user, ad_dump=None: ad_values_func()
 
     def _init_name_creator(self, occupied_names=None):
         """Mocked to pretend no names are occupied.
@@ -404,15 +410,20 @@ class TestADWriterMixin(TestADMixin):
         late_transform_settings=None,
         transform_mo_values=None,
         early_transform_settings=None,
+        transform_ad_values=lambda x: x,
+        **kwargs,
     ):
         transformer_func = late_transform_settings or _no_transformation
         self.settings = transformer_func(
             read_settings(self._prepare_settings(early_transform_settings))
         )
         self.mo_values_func = partial(self._prepare_mo_values, transform_mo_values)
+        self.ad_values_func = partial(self._prepare_get_from_ad, transform_ad_values)
         self.ad_writer = ADWriterTestSubclass(
             all_settings=self.settings,
             read_ad_information_from_mo=self.mo_values_func,
+            ad_values_func=self.ad_values_func,
+            **kwargs,
         )
 
 
@@ -424,7 +435,7 @@ class AdMoSyncTestSubclass(AdMoSync):
         ad_values_func,
         mo_seed_func,
         *args,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.mo_values = mo_values_func()
