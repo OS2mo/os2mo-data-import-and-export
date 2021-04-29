@@ -72,9 +72,7 @@ class MoxHelper:
             async with session.get(url) as response:
                 data = await response.json()
                 # Find all service urls in the site-map
-                service_urls = filter(
-                    lambda x: x.endswith("/fields"), data["site-map"]
-                )
+                service_urls = filter(lambda x: x.endswith("/fields"), data["site-map"])
                 return map(build_service_tuple, service_urls)
 
         service_tuples = list(await discover_endpoints())
@@ -95,8 +93,7 @@ class MoxHelper:
         # Fetch schemas for each endpoint in 'parallel'
         # TODO: Consider caching schemas on disk
         schema_tasks = map(
-            lambda tup: asyncio.ensure_future(self._fetch_schema(*tup)),
-            service_tuples
+            lambda tup: asyncio.ensure_future(self._fetch_schema(*tup)), service_tuples
         )
         self.schemas = dict(await asyncio.gather(*schema_tasks))
 
@@ -133,7 +130,7 @@ class MoxHelper:
 
     @ensure_session
     async def _update(
-        self, session: aiosession, service: str, obj: str,uuid:str, payload: Any
+        self, session: aiosession, service: str, obj: str, uuid: str, payload: Any
     ) -> UUIDstr:
         self._validate_payload(service, obj, payload)
         url = self.hostname + "/" + service + "/" + obj + "/" + uuid
@@ -163,10 +160,14 @@ class MoxHelper:
         elif len(result) == 0:
             raise ElementNotFound
 
-    async def _get_or_create(self, service: str, obj: str, payload) -> UUIDstr:
+    async def _get_or_create(
+        self, service: str, obj: str, payload, **kwargs
+    ) -> UUIDstr:
         bvn = payload["attributter"][obj + "egenskaber"][0]["brugervendtnoegle"]
+        params = {"bvn": bvn}
+        params.update(**kwargs)
         try:
-            element = await self._read_element(service, obj, {"bvn": bvn})
+            element = await self._read_element(service, obj, params=params)
             return element, False
         except ElementNotFound:
             element = await self._create(service, obj, payload)
@@ -181,6 +182,7 @@ async def create_mox_helper(*args, generate_methods=True, **kwargs):
 
 
 if __name__ == "__main__":
+
     async def run():
         mox = await create_mox_helper("http://localhost:8080")
         print(await mox.check_connection())

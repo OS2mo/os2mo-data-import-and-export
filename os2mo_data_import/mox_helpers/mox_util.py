@@ -163,7 +163,9 @@ async def ensure_class_exists_helper(
         return
 
     # POST for non-dry
-    response = await mox_helper.get_or_create_klassifikation_klasse(klasse)
+    response = await mox_helper.get_or_create_klassifikation_klasse(
+        klasse, facet=facet_uuid
+    )
     return response
 
 

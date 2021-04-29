@@ -73,7 +73,7 @@ def read_classes(session, mox_base: str) -> List[Dict]:
     return one(r.json()["results"])
 
 
-def get_relevant_info(all_classes: List[Dict]) -> Tuple[List,List,List,List]:
+def get_relevant_info(all_classes: List[Dict]) -> Tuple[List, List, List, List]:
     """From the full MO response find uuids, bvns and titles of the classes and the uuid of the facet the class exists in.
 
     >>> all_classes = [{'id': '13158594-13f8-4d16-85da-b8d7f00351d2', 'registreringer': [{'fratidspunkt': {'tidsstempeldatotid': '2021-04-28T17:46:41.27874+00:00', 'graenseindikator': True}, 'tiltidspunkt': {'tidsstempeldatotid': 'infinity'}, 'livscykluskode': 'Importeret', 'brugerref': '42c432e8-9c4a-11e6-9f62-873cf34a735f', 'attributter': {'klasseegenskaber': [{'brugervendtnoegle': 'test_bvn', 'omfang': 'TEXT', 'titel': 'Test Title', 'virkning': {'from': '1930-01-01 12:02:32+00', 'to': 'infinity', 'from_included': True, 'to_included': False}}]}, 'tilstande': {'klassepubliceret': [{'virkning': {'from': '1930-01-01 12:02:32+00', 'to': 'infinity', 'from_included': True, 'to_included': False}, 'publiceret': 'Publiceret'}]}, 'relationer': {'ansvarlig': [{'virkning': {'from': '1930-01-01 12:02:32+00', 'to': 'infinity', 'from_included': True, 'to_included': False}, 'uuid': '65b7feb6-0126-a033-550e-e52836610e1a', 'objekttype': 'organisation'}], 'facet': [{'virkning': {'from': '1930-01-01 12:02:32+00', 'to': 'infinity', 'from_included': True, 'to_included': False}, 'uuid': '2dd34236-c9ec-4059-9252-298f161e9b56'}]}}]}]
