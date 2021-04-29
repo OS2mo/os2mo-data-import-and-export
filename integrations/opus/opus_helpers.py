@@ -18,6 +18,7 @@ from collections import OrderedDict
 from exporters.utils.load_settings import load_settings
 from integrations import cpr_mapper
 from integrations.opus import opus_diff_import, opus_import
+from integrations.opus.opus_file_reader import get_opus_filereader
 
 # from integrations.opus.opus_exceptions import NoNewerDumpAvailable
 from integrations.opus.opus_exceptions import (
@@ -27,7 +28,6 @@ from integrations.opus.opus_exceptions import (
 )
 
 SETTINGS = load_settings()
-DUMP_PATH = Path(SETTINGS['integrations.opus.import.xml_path'])
 START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
 
 logger = logging.getLogger("opusHelper")
@@ -44,16 +44,10 @@ def read_cpr_mapping():
     return employee_forced_uuids
 
 
-def read_available_dumps():
-    dumps = {}
-
-    for opus_dump in DUMP_PATH.glob('*.xml'):
-        date_part = opus_dump.name[4:18]
-        export_time = datetime.datetime.strptime(date_part, '%Y%m%d%H%M%S')
-        if export_time > START_DATE:
-            dumps[export_time] = opus_dump
+def read_available_dumps() -> Dict[datetime.datetime, str]:
+    dumps = get_opus_filereader().list_opus_files()
+    assert len(dumps) > 0, "No Opus files found!"
     return dumps
-
 
 def local_db_insert(insert_tuple):
     conn = sqlite3.connect(SETTINGS['integrations.opus.import.run_db'],
@@ -134,12 +128,16 @@ def generate_uuid(value):
     return value_uuid
 
 def parser(target_file: Path, filter_ids: List[str]) -> Tuple[List, List]:
-    data = xmltodict.parse(target_file.read_text())['kmd']
+    """Read an opus file and return units and employees
+    """
+    text_input = get_opus_filereader().read_file(target_file)
+
+    data = xmltodict.parse(text_input)
+    data = data['kmd']
     units = data.get('orgUnit', [])
     units = filter_units(units, filter_ids)
     employees = data.get('employee', [])
     return units, employees
-
 
 def find_changes(before: List[Dict], after: List[Dict], disable_tqdm: bool = False) -> List[Dict]:
     """Filter a list of dictionaries based on differences to another list of dictionaries
@@ -196,10 +194,6 @@ def file_diff(date1, date2, filter_ids, disable_tqdm=False):
     employees = find_changes(employees1, employees2, disable_tqdm=disable_tqdm)
 
     return units, employees
-
-def read_dump_data(dump_file):
-    data = xmltodict.parse(dump_file.read_text())['kmd']
-    return data
 
 
 def compare_employees(original, new, force=False):

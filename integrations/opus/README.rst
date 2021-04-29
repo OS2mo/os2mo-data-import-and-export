@@ -11,15 +11,18 @@ medarbejderoplysninger fra XML dumps fra OPUS Løn til OS2MO
 Opsætning
 =========
 
-For at kunne afvikle integrationen, kræves adgang til en mappe med xml-dumps fra
-OPUS. Oplysninger om stien til denne mappe er øjeblikket skrevet direkte i
-importkoden og kan ikke ændres i runtime.
+Der er tre muligheder for læsning af opusfiler.
 
-Den forventede sti for mappen med opus dumps er:
-``/opt/customer/``
+* Lokalt: Opusfilerne kopieres direkte til serverne. Stien specificeres i settings.json som ``integrations.opus.import.xml_path``. Som regel er den ``/opt/customer/``.
+* Windows share. Filerne kan læses fra et windows share med SMB protokollen. Denne anvendes hvis ``integrations.opus.smb_host`` er udfyldt i settings.json.
+Bemærk den skal udfyldes som ``IP/sti``. Kræver desuden en bruger med rettighed til at læse filerne 
+og credentials sættes i settings.json som ``integrations.opus.smb_user`` og ``integrations.opus.smb_password``.
+* Google cloud storage: Filerne kan læses direkte fra google cloud storage. 
+Dette kræver en service konto der er sat op på serveren med rettigheder til at læse filerne. 
+Derudover er det kun ``integrations.opus.gcloud_bucket_name`` der skal udfyldes i settings.json med det navn som storage enheden har i google cloud.
 
-De enkelte dumps forventes at være navngivet systematisk som:
-``ZLPE<data + tid>_delta.xml``
+Fælles for dem alle gælder at de enkelte dumps forventes at være navngivet systematisk som:
+``ZLPE<dat0 + tid>_delta.xml``
 
 Eksempelvis ``ZLPE20190902224224_delta.xml``.
 
@@ -51,7 +54,7 @@ En import fra OPUS vil oprette IT-systemet 'Opus' i MO. Alle medarbejdere som ha
 en værdi i feltet ``userId`` vil få skrevet deres OPUS brugernavn på dette
 IT-system.
 
-.. _AD Integration til SD Opus:
+.. AD Integration til Opus:
 
 AD-Integration
 ==============

@@ -1,9 +1,11 @@
 import json
 import logging
+from collections import OrderedDict
 from datetime import datetime, timedelta
 from operator import itemgetter
 from pathlib import Path
 from typing import Tuple
+
 import click
 import requests
 import xmltodict
@@ -13,7 +15,6 @@ from requests import Session
 from tqdm import tqdm
 
 import constants
-from collections import OrderedDict
 from exporters.utils.load_settings import load_settings
 from integrations import dawa_helper
 

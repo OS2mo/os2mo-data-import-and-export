@@ -37,7 +37,7 @@ def find_opus_name() -> str:
     dumps = opus_helpers.read_available_dumps()
 
     first_date = min(sorted(dumps.keys()))
-    first_file = opus_helpers.read_dump_data(dumps[first_date])
+    first_file = opus_helpers.parser(dumps[first_date], [])
     main_unit = first(first_file["orgUnit"])
     calculated_uuid = opus_helpers.generate_uuid(main_unit["@id"])
     return str(calculated_uuid)
