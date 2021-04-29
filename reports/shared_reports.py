@@ -24,29 +24,36 @@ from exporters.utils.load_settings import load_settings
 class CustomerReports(MoraHelper):
     """Collection of shared customer reports. Subclasses MoraHelper.
 
-    Attributes
-    ----------
-    nodes: Dict[str, Any]
-        Dictionary containing the organisation tree.
+    Member functions return reports as pandas DataFrames.
+    These can be exported to many different formats. Refer to the
+    `documentation <https://pandas.pydata.org/docs/user_guide/io.html>`_
+    for details.
+
+    Attributes:
+        nodes (Dict[str, Any]): Dictionary containing the organisation tree.
     """
 
     def __init__(self, hostname: str, org_name: str):
-        """Initialise customer reports with hostname and
+        """Initialises customer reports with hostname and
         organisation name.
 
-        Parameters
-        ----------
-        hostname : str
-            MoRa host
-        org_name : str
-            The organisation name, e.g. Testkommune
+        Args:
+            hostname (str): MoRa host
+            org_name (str): The organisation name
 
-        Raises
-        ------
-        ValueError
-            If the organisation name (and thus UUID) is not found
-            in the top units.
+        Raises:
+            ValueError: If the organisation name (and thus UUID) is not found
+                in the top units.
+
+        Example:
+            Initialise CustomerReports with localhost on port 5000 and Testkommune
+            as the organisation.
+
+            >>> CustomerReports("http://localhost:5000", "Testkommune")
+            # Returns a CustomerReports object
+
         """
+
         super().__init__(hostname=hostname)
         self.nodes: Dict[str, Any] = dict()
 
@@ -60,13 +67,11 @@ class CustomerReports(MoraHelper):
         matching_unit = one(top_units, too_short=error, too_long=error)
         self.nodes = super().read_ou_tree(matching_unit["uuid"])
 
-    def get_org_cols(self) -> List[str]:
-        """Get suborganisation columns dynamically.
+    def _get_org_cols(self) -> List[str]:
+        """Gets suborganisation columns dynamically.
 
-        Returns
-        -------
-        List[str]
-            List of column names.
+        Returns:
+            List[str]: List of column names.
         """
 
         cols = ["root", "org", "sub org"]
@@ -75,12 +80,12 @@ class CustomerReports(MoraHelper):
         return cols
 
     def employees(self) -> pd.DataFrame:
-        """Generate a report listing employees in the organisation.
+        """Generates a report listing employees in the organisation.
 
-        Returns
-        -------
-        pd.DataFrame
-            pandas DataFrame containing employee information.
+        Returns:
+            pd.DataFrame: pandas DataFrame containing employee information.
+
+
         """
 
         rows = []
@@ -111,13 +116,13 @@ class CustomerReports(MoraHelper):
     def managers(self) -> pd.DataFrame:
         """Generate a report listing managers in the organisation.
 
-        Returns
-        -------
-        pd.DataFrame
-            pandas DataFrame containing manager information.
+        Returns:
+            pd.DataFrame: pandas DataFrame containing manager information.
+
+
         """
         rows = []
-        cols = self.get_org_cols()
+        cols = self._get_org_cols()
         cols.extend(["Ansvar", "Navn", "Telefon", "E-mail"])
 
         for node in PreOrderIter(self.nodes["root"]):
@@ -132,13 +137,14 @@ class CustomerReports(MoraHelper):
     def organisation_overview(self) -> pd.DataFrame:
         """Generate a report listing the organisation structure including P-numbers.
 
-        Returns
-        -------
-        pd.DataFrame
-            pandas DataFrame containing organisation structure information.
+        Returns:
+            pd.DataFrame: pandas DataFrame containing organisation
+            structure information.
+
+
         """
         rows = []
-        cols = self.get_org_cols()
+        cols = self._get_org_cols()
         cols.extend(["Adresse", "P-nummer"])
 
         for node in PreOrderIter(self.nodes["root"]):
@@ -155,13 +161,14 @@ class CustomerReports(MoraHelper):
     def organisation_employees(self) -> pd.DataFrame:
         """Returns an overview of employees within the organisation structure.
 
-        Returns
-        -------
-        pd.DataFrame
-            pandas Dataframe containing employee and organisation structure information.
+        Returns:
+            pd.DataFrame: pandas Dataframe containing employee and organisation
+            structure information.
+
+
         """
         rows = []
-        cols = self.get_org_cols()
+        cols = self._get_org_cols()
         cols.extend(["Navn", "Brugernavn", "Telefon", "E-mail", "Adresse"])
 
         for node in PreOrderIter(self.nodes["root"]):
@@ -180,10 +187,10 @@ class CustomerReports(MoraHelper):
         """Generate a report listing organisation units within the organisation,
         including unit types and validity.
 
-        Returns
-        -------
-        pd.DataFrame
-            pandas DataFrame containing organisation unit information.
+        Returns:
+            pd.DataFrame: pandas DataFrame containing organisation unit information.
+
+
         """
         rows = []
         cols = [
@@ -222,12 +229,9 @@ def report_to_csv(df: pd.DataFrame, csv_out: Path) -> None:
     """Export a pandas DataFrame based report to CSV with
     specific settings.
 
-    Parameters
-    ----------
-    df : pd.DataFrame
-        DataFrame to export to CSV
-    csv_out : Path
-        File to output CSV to.
+    Args:
+        df (pd.DataFrame): DataFrame to export to CSV
+        csv_out (Path): File to output CSV to.
     """
     df.to_csv(csv_out, sep=";", index=False, quoting=QUOTE_ALL)
 
