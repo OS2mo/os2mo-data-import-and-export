@@ -83,7 +83,7 @@ class LocalOpusReader(OpusReaderInterface):
 def get_opus_filereader(settings: Optional[Dict] = None) -> OpusReaderInterface:
     """Get the correct opus reader interface based on values from settings."""
     settings = settings or load_settings()
-    if settings.get("gcloud.bucket_name"):
+    if settings.get("integrations.opus.gcloud_bucket_name"):
         return GcloudOpusReader(settings)
     if settings.get("integrations.opus.smb_host"):
         return SMBOpusReader(settings)
