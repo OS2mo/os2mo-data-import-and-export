@@ -1,4 +1,4 @@
-from jinja2 import Template
+from jinja2 import Environment, StrictUndefined, Template
 
 from utils import dict_map, dict_partition, duplicates, lower_list
 
@@ -320,6 +320,14 @@ def filter_illegal(cmd, parameters, other_attributes):
     return parameters, other_attributes
 
 
+def load_jinja_template(source: str) -> Template:
+    """Load Jinja template in the string `source` and return a `Template`
+    instance.
+    """
+    environment = Environment(undefined=StrictUndefined)
+    return environment.from_string(source)
+
+
 def prepare_template(cmd, settings, jinja_map=None):
     """Build a complete powershell command template.
 
@@ -338,7 +346,7 @@ def prepare_template(cmd, settings, jinja_map=None):
         raise ValueError(
             "prepare_template cmd must be one of: " + ",".join(cmd_options)
         )
-    command_template = Template(cmdlet_templates[cmd])
+    command_template = load_jinja_template(cmdlet_templates[cmd])
     parameters, other_attributes = filter_illegal(
         cmd,
         *partition_templates(
@@ -370,4 +378,5 @@ def template_powershell(context, settings, cmd="New-ADUser", jinja_map=None):
     full_template = prepare_template(cmd, settings)
 
     # Render the final template using the context
-    return Template(full_template).render(**context)
+    final_template = load_jinja_template(full_template)
+    return final_template.render(**context)

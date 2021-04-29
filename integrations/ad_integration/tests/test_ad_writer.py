@@ -2,13 +2,14 @@
 import copy
 import sys
 from os.path import dirname
+from unittest import TestCase
+
+from jinja2.exceptions import UndefinedError
+from parameterized import parameterized
 
 sys.path.append(dirname(__file__))
 sys.path.append(dirname(__file__) + "/..")
 
-from unittest import TestCase
-
-from parameterized import parameterized
 from test_utils import TestADWriterMixin, dict_modifier, mo_modifier
 
 
@@ -631,3 +632,15 @@ class TestADWriter(TestCase, TestADWriterMixin):
             + " -Credential $usercredential"
         ).format(password)
         self.assertEqual(set_password_ps, expected_line)
+
+    def test_template_fails_on_undefined_variable(self):
+        settings_transformer = dict_modifier(
+            {
+                "integrations.ad_writer.template_to_ad_fields": {
+                    "Displayname": "{{ unknown_variable }}"
+                },
+            }
+        )
+        self._setup_adwriter(early_transform_settings=settings_transformer)
+        with self.assertRaises(UndefinedError):
+            self.ad_writer.sync_user(mo_uuid="mo-uuid", sync_manager=False)
