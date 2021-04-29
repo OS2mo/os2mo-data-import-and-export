@@ -3,9 +3,8 @@ from operator import itemgetter
 
 import click
 import requests
-from os2mo_helpers.mora_helpers import MoraHelper
-
 from exporters.utils.load_settings import load_settings
+from os2mo_helpers.mora_helpers import MoraHelper
 
 
 def check_duplicate_cpr(mora_base: str) -> list:
