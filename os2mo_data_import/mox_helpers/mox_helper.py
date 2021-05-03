@@ -130,7 +130,7 @@ class MoxHelper:
 
     @ensure_session
     async def _update(
-        self, session: aiosession, service: str, obj: str, uuid: str, payload: Any
+        self, session: aiosession, service: str, obj: str, uuid: UUIDstr, payload: Any
     ) -> UUIDstr:
         self._validate_payload(service, obj, payload)
         url = self.hostname + "/" + service + "/" + obj + "/" + uuid

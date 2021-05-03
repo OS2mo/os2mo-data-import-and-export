@@ -1,6 +1,6 @@
 import json
 import urllib.parse
-from collections import Counter
+from collections import defaultdict
 from operator import itemgetter
 from typing import Dict, List, Set, Tuple
 from uuid import UUID
@@ -9,6 +9,7 @@ import click
 import jmespath
 import requests
 from exporters.utils.load_settings import load_settings
+from exporters.utils.transpose_dict import transpose_dict
 from more_itertools import one, only, unzip
 from tqdm import tqdm
 
@@ -95,30 +96,30 @@ def filter_duplicates(
     Example 1) there are two classes called "test", but they are in different facets:
     >>> info = (["class_uuid1", "class_uuid2"],["test", "Test"],["TEST", "Test"],["facet_uuid1", "facet_uuid2"])
     >>> filter_duplicates(*info)
-    []
+    {}
 
     Example 2) there are two classes called "test" in the same facet:
     >>> info = ["class_uuid1", "class_uuid2"],["test", "Test"],["TEST", "Test"],["facet_uuid1", "facet_uuid1"]
     >>> filter_duplicates(*info)
-    [[('class_uuid1', 'TEST'), ('class_uuid2', 'Test')]]
+    {('test', 'facet_uuid1'): [('class_uuid1', 'TEST'), ('class_uuid2', 'Test')]}
     """
-    # gather relevant data: uuid of class, bvn, titles and facet uuid.
-
     # find duplicates of (lowercase bvn, facet uuid)
     class_bvns_lower = [x.lower() for x in class_bvns]
     bvn_facets_lower = list(zip(class_bvns_lower, facet_uuids))
     dup_bvn_facets = set(x for x in bvn_facets_lower if bvn_facets_lower.count(x) > 1)
+    uuid_title_map = tuple(zip(class_uuids, class_titles))
 
-    # We need to return class uuids and original case title for each duplicate.
-    title_map = dict(zip(class_uuids, class_titles))
-    bvn_map_lower = dict(zip(class_uuids, bvn_facets_lower))
+    bvn_map_lower = dict(zip(uuid_title_map, bvn_facets_lower))
+    # Find alle the duplicates
+    duplicate_bvn_facet = filter(
+        lambda x: x[1] in dup_bvn_facets, bvn_map_lower.items()
+    )
+    duplicate_bvn_facet = dict(duplicate_bvn_facet)
 
-    duplicate_bvn_facet = [
-        [(uuid, title_map[uuid]) for uuid, val in bvn_map_lower.items() if val == dup]
-        for dup in dup_bvn_facets
-    ]
+    # Transpose the dict to be able to iterate over duplicates
+    transposed = transpose_dict(duplicate_bvn_facet)
 
-    return duplicate_bvn_facet
+    return transposed
 
 
 def find_duplicates_classes(session, mox_base: str) -> List[List[Tuple[UUID, str]]]:
@@ -160,7 +161,9 @@ def cli(delete):
         click.echo(f"There are {len(duplicate_bvn_facet)} duplicate class(es).")
         return
 
-    for dup_class in tqdm(duplicate_bvn_facet, desc="Deleting duplicate classes"):
+    for dup_class in tqdm(
+        duplicate_bvn_facet.values(), desc="Deleting duplicate classes"
+    ):
         uuids, titles = unzip(dup_class)
         uuid_set = set(uuids)
         title_set = set(titles)
