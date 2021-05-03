@@ -17,11 +17,10 @@ The ``main()`` method in ``/reports/shared_reports.py`` will generate all availa
         {
             "mora.base": "http://localhost:5000",
             "mora.folder.query_export": "/opt/reports/"
-            "reports.org_name": "Testkommune",
-            "reports.pay_org_name": "Testkommune"
+            "reports.org_name": "Testkommune"
         }
     
-    Note that the organisation name and the payroll organisation name are identical. This will be the case for most customers, but some use a different payroll organisation, and thus we need to be able to specify this setting.
+    Note that ```reports.pay_org_name`` is *not* set in these settings. In this case, it will default to the organisation name. However, a few customers have a specific payroll organisation, so we need to be able to use the setting if necessary.
 
     Then, to generate all reports in CSV-format, simply call
 
@@ -29,7 +28,9 @@ The ``main()`` method in ``/reports/shared_reports.py`` will generate all availa
 
         python /reports/shared_reports.py
 
-If only a subset of reports and/or different output formats are required, the API can be used directly -- refer to the following section.
+
+If only a subset of reports and/or different output formats are required, the API can be used directly -- refer to the following section. In the future, a Click CLI will be made available.
+
 
 
 API Reference
@@ -38,6 +39,3 @@ API Reference
 .. autoclass:: reports.shared_reports.CustomerReports
     :members:
     :special-members:
-
-
-

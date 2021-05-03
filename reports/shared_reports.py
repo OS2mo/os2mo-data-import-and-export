@@ -51,7 +51,6 @@ class CustomerReports(MoraHelper):
 
             >>> CustomerReports("http://localhost:5000", "Testkommune")
             # Returns a CustomerReports object
-
         """
 
         super().__init__(hostname=hostname)
@@ -84,8 +83,6 @@ class CustomerReports(MoraHelper):
 
         Returns:
             pd.DataFrame: pandas DataFrame containing employee information.
-
-
         """
 
         rows = []
@@ -118,8 +115,6 @@ class CustomerReports(MoraHelper):
 
         Returns:
             pd.DataFrame: pandas DataFrame containing manager information.
-
-
         """
         rows = []
         cols = self._get_org_cols()
@@ -140,8 +135,6 @@ class CustomerReports(MoraHelper):
         Returns:
             pd.DataFrame: pandas DataFrame containing organisation
             structure information.
-
-
         """
         rows = []
         cols = self._get_org_cols()
@@ -164,8 +157,6 @@ class CustomerReports(MoraHelper):
         Returns:
             pd.DataFrame: pandas Dataframe containing employee and organisation
             structure information.
-
-
         """
         rows = []
         cols = self._get_org_cols()
@@ -189,8 +180,6 @@ class CustomerReports(MoraHelper):
 
         Returns:
             pd.DataFrame: pandas DataFrame containing organisation unit information.
-
-
         """
         rows = []
         cols = [
@@ -242,16 +231,17 @@ def report_to_csv(df: pd.DataFrame, csv_out: Path) -> None:
 
 
 def main() -> None:
+    # Settings
     settings = load_settings()
-    reports = CustomerReports(settings["mora.base"], settings["reports.org_name"])
-    sd_reports = CustomerReports(
-        settings["mora.base"], settings["reports.pay_org_name"]
-    )
-
-    # Output directory
+    host = settings["mora.base"]
+    org = settings["reports.org_name"]
+    pay_org = settings.get("reports.pay_org_name", org)
     outdir = Path(settings["mora.folder.query_export"])
 
     # Reports
+    reports = CustomerReports(host, org)
+    sd_reports = CustomerReports(host, pay_org)
+
     report_to_csv(reports.employees(), outdir / "Alle Stillinger OS2mo.csv")
     report_to_csv(reports.managers(), outdir / "Alle Lederfunktioner OS2mo.csv")
     report_to_csv(
