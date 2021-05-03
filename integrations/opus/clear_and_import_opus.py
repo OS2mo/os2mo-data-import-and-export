@@ -37,8 +37,8 @@ def find_opus_name() -> str:
     dumps = opus_helpers.read_available_dumps()
 
     first_date = min(sorted(dumps.keys()))
-    first_file = opus_helpers.parser(dumps[first_date], [])
-    main_unit = first(first_file["orgUnit"])
+    units, _ = opus_helpers.parser(dumps[first_date], [])
+    main_unit = first(units)
     calculated_uuid = opus_helpers.generate_uuid(main_unit["@id"])
     return str(calculated_uuid)
 
@@ -116,7 +116,9 @@ def import_opus(ad_reader=None, import_all: bool = False) -> None:
         diff = OpusDiffImport(
             date, ad_reader=ad_reader, employee_mapping=employee_mapping
         )
+        filtered_units, units = opus_helpers.filter_units(units, filter_ids)
         diff.start_import(units, employees, include_terminations=True)
+        diff.handle_filtered_units(filtered_units)
         # Write latest successful import to rundb so opus_diff_import can continue from where this ended
         opus_helpers.local_db_insert((date, "Diff update ended: {}"))
 

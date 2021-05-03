@@ -14,6 +14,7 @@ import xmltodict
 from deepdiff import DeepDiff
 from tqdm import tqdm
 from collections import OrderedDict
+from more_itertools import partition
 
 from exporters.utils.load_settings import load_settings
 from integrations import cpr_mapper
@@ -135,7 +136,6 @@ def parser(target_file: Path, filter_ids: List[str]) -> Tuple[List, List]:
     data = xmltodict.parse(text_input)
     data = data['kmd']
     units = data.get('orgUnit', [])
-    units = filter_units(units, filter_ids)
     employees = data.get('employee', [])
     return units, employees
 
@@ -184,11 +184,11 @@ def find_changes(before: List[Dict], after: List[Dict], disable_tqdm: bool = Fal
 
     return changed_obj
 
-def file_diff(date1, date2, filter_ids, disable_tqdm=False):
+def file_diff(file1, file2, filter_ids, disable_tqdm=False):
     units1 = employees1 = {}
-    if date1:
-        units1, employees1 = parser(date1, filter_ids)
-    units2, employees2 = parser(date2, filter_ids)
+    if file1:
+        units1, employees1 = parser(file1, filter_ids)
+    units2, employees2 = parser(file2, filter_ids)
 
     units = find_changes(units1, units2, disable_tqdm=disable_tqdm)
     employees = find_changes(employees1, employees2, disable_tqdm=disable_tqdm)
@@ -262,23 +262,40 @@ def update_employee(employee_number, days):
 
 
 def filter_units(units, filter_ids):
-    """
-    Filter units such that no unit with a parent-id in filter_ids exist.
+    """Splits units into two based on filter_ids.
+    
+    Partitions the units such that no unit with a parent-id in filter_ids exist in one list.
+    Any unit filtered like that is put in the other list.
 
     Example:
         >>> units = [(1, None), (2, 1), (3, 1), (4, 2), (5, 2), (6, 3), (7, 5)]
         >>> tup_to_unit = lambda tup: {'@id': tup[0], 'parentOrgUnit': tup[1]}
         >>> units = list(map(tup_to_unit, units))
         >>> get_ids = lambda units: list(map(itemgetter('@id'), units))
-        >>> get_ids(filter_units(units, [1]))
+        >>> a, b = filter_units(units, [1])
+        >>> get_ids(a)
+        [1, 2, 3, 4, 5, 6, 7]
+        >>> get_ids(b)
         []
-        >>> get_ids(filter_units(units, [2]))
+        >>> a, b = filter_units(units, [2])
+        >>> get_ids(a)
+        [2, 4, 5, 7]
+        >>> get_ids(b)
         [1, 3, 6]
-        >>> get_ids(filter_units(units, [3]))
+        >>> a, b = filter_units(units, [3])
+        >>> get_ids(a)
+        [3, 6]
+        >>> get_ids(b)
         [1, 2, 4, 5, 7]
-        >>> get_ids(filter_units(units, [3, 5]))
+        >>> a, b = filter_units(units, [3, 5])
+        >>> get_ids(a)
+        [3, 5, 6, 7]
+        >>> get_ids(b)
         [1, 2, 4]
-        >>> get_ids(filter_units(units, [3, 7]))
+        >>> a, b = filter_units(units, [3, 7])
+        >>> get_ids(a)
+        [3, 6, 7]
+        >>> get_ids(b)
         [1, 2, 4, 5]
 
     Args:
@@ -303,8 +320,8 @@ def filter_units(units, filter_ids):
         """Test for overlap between parents and filter_set."""
         parent_set = set(get_parent(parent_map, unit['@id']))
         return parent_set.isdisjoint(filter_set)
-
-    return list(filter(is_disjoint_from_filter_ids, units))
+    
+    return partition(is_disjoint_from_filter_ids, units)
 
 
 def read_cpr(employee: OrderedDict) -> str:
