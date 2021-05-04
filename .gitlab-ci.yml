@@ -98,6 +98,8 @@ Lint Tools:
     - cd tools/
     - python -m black --diff --line-length 85 --check uuid_replace.py
     - python -m isort --diff --check-only uuid_replace.py
+    - python -m black --diff --check data_fixers
+    - python -m isort --profile black --diff --check-only data_fixers
 
 # Build stage
 #############
@@ -198,3 +200,8 @@ Test Exporter Utils:
   extends: .test-python
   script:
     - pytest exporters/utils/tests/
+
+Test data_fixers:
+  extends: .test-python
+  script:
+    - python -m doctest -v tools/data_fixers/remove_duplicate_classes.py

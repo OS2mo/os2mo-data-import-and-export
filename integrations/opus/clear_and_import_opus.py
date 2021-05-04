@@ -18,7 +18,7 @@ from integrations.ad_integration import ad_reader
 from integrations.ad_integration.utils import apply
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import OpusDiffImport
-from tools.data_fixers.remove_duplicate_classes import check_duplicates_classes
+from tools.data_fixers.remove_duplicate_classes import find_duplicates_classes
 from tools.default_mo_setup import create_new_root_and_it, ensure_default_classes
 from tools.subtreedeleter import subtreedeleter_helper
 
@@ -77,12 +77,14 @@ def prepare_re_import(
     Ensure necessary classes exists.
     """
     settings = settings or load_settings()
+    mox_base = settings.get("mox.base")
     if truncate:
-        truncate_db(settings.get("mox.base"))
+        truncate_db(mox_base)
         # Create root org and it systems
         create_new_root_and_it()
     elif opus_uuid:
-        dub = check_duplicates_classes()
+        session = requests.session()
+        dub = find_duplicates_classes(session=session, mox_base=mox_base)
         if dub:
             raise Exception(
                 "There are duplicate classes, remove them with tools/data_fixers/remove_duplicate_classes.py --delete"
