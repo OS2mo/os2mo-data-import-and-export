@@ -8,6 +8,8 @@ import random
 import logging
 import pathlib
 import datetime
+from operator import itemgetter
+from more_itertools import unzip
 
 import click
 from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
@@ -90,6 +92,37 @@ class MODataSource(ABC):
             str: A UUID string for the manager
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def get_engagement_dates(self, uuid):
+        """Return all present and future engagement start dates and end dates.
+
+        Args:
+            uuid: UUID for the user to lookup.
+
+        Returns:
+            tuple[list[str], list[str]]: A tuple of lists of start and end dates.
+        """
+        raise NotImplementedError
+
+    def get_engagement_endpoint_dates(self, uuid):
+        """Return the earliest start- and latest end-date for the users engagements.
+
+        Args:
+            uuid: UUID for the user to lookup.
+
+        Returns:
+            tuple[str, str]: A tuple with start and end date.
+        """
+        start_dates, end_dates = self.get_engagement_dates(uuid)
+
+        start_dates = filter(lambda date: date if date else '1800-01-01', start_dates)
+        start_date = min(start_dates, default='9999-12-31')
+
+        end_dates = filter(lambda date: date if date else '9999-12-31', end_dates)
+        end_date = max(end_dates, default='1800-01-01')
+
+        return start_date, end_date
 
 
 class LoraCacheSource(MODataSource):
@@ -195,6 +228,26 @@ class LoraCacheSource(MODataSource):
         except KeyError as exp:
             return None
 
+    def get_engagement_dates(self, uuid):
+        """Return all present and future engagement start dates and end dates.
+
+        Args:
+            uuid: UUID for the user to lookup.
+
+        Returns:
+            tuple[list[str], list[str]]: A tuple of lists of start and end dates.
+        """
+        user_engagements = map(
+            lambda eng: eng['user'] == uuid,
+            map(itemgetter(0), self.lc_historic.engagements.values())
+        )
+        dates = map(itemgetter('from_date', 'to_date'), user_engagements)
+        unzipped = unzip(dates)
+        if len(unzipped) == 0:
+            return [], []
+        from_dates, to_dates = unzipped
+        return from_dates, to_dates
+
 
 class MORESTSource(MODataSource):
     """MO REST implementation of the MODataSource interface."""
@@ -247,6 +300,26 @@ class MORESTSource(MODataSource):
             return manager_uuid
         except KeyError:
             return None
+
+    def get_engagement_dates(self, uuid):
+        """Return all present and future engagement start dates and end dates.
+
+        Args:
+            uuid: UUID for the user to lookup.
+
+        Returns:
+            tuple[list[str], list[str]]: A tuple of lists of start and end dates.
+        """
+        user_engagements = self.helper.read_user_engagement(
+            uuid, read_all=True, skip_past=True
+        )
+        dates = map(itemgetter('validity'), user_engagements)
+        dates = map(itemgetter('from', 'to'), dates)
+        unzipped = unzip(dates)
+        if len(unzipped) == 0:
+            return [], []
+        from_dates, to_dates = unzipped
+        return from_dates, to_dates
 
 
 class ADWriter(AD):
@@ -414,42 +487,6 @@ class ADWriter(AD):
         }
         return addresses
 
-    def _find_end_date(self, uuid):
-        # TODO: Convert to datasource
-        end_date = '1800-01-01'
-        # Now, calculate final end date for any primary engagement
-        if self.lc_historic is not None:
-            all_engagements = []
-            for eng in self.lc_historic.engagements.values():
-                if eng[0]['user'] == uuid:  # All elements have the same user
-                    all_engagements += eng
-            for eng in all_engagements:
-                current_end = eng['to_date']
-                if current_end is None:
-                    current_end = '9999-12-31'
-
-                if (
-                        datetime.datetime.strptime(current_end, '%Y-%m-%d') >
-                        datetime.datetime.strptime(end_date, '%Y-%m-%d')
-                ):
-                    end_date = current_end
-
-        else:
-            future_engagements = self.helper.read_user_engagement(uuid,
-                                                                  read_all=True,
-                                                                  skip_past=True)
-            for eng in future_engagements:
-                current_end = eng['validity']['to']
-                if current_end is None:
-                    current_end = '9999-12-31'
-
-                if (
-                        datetime.datetime.strptime(current_end, '%Y-%m-%d') >
-                        datetime.datetime.strptime(end_date, '%Y-%m-%d')
-                ):
-                    end_date = current_end
-        return end_date
-
     def read_ad_information_from_mo(self, uuid, read_manager=True, ad_dump=None):
         """
         Retrive the necessary information from MO to contruct a new AD user.
@@ -530,8 +567,14 @@ class ADWriter(AD):
             "unit_uuid": eng_org_unit,
             "_eng_uuid": eng_uuid,
 
+            '_dates': LazyEvalDerived(
+                lambda uuid: self.datasource.get_engagement_endpoint_dates(uuid)
+            ),
+            'start_date': LazyEvalDerived(
+                lambda _dates: _dates[0]
+            ),
             'end_date': LazyEvalDerived(
-                lambda uuid: self._find_end_date(uuid)
+                lambda _dates: _dates[1]
             ),
 
             # Lazy MO User and associated fields
