@@ -44,9 +44,10 @@ def cli(delete):
             r.raise_for_status()
     else:
         click.echo(
-            f"There are {len(uuids)} CPR-number(s) assigned to more than one user",
-            uuids,
+            f"There are {len(uuids)} CPR-number(s) assigned to more than one user"
         )
+        if uuids:
+            click.echo(uuids)
 
 
 if __name__ == "__main__":
