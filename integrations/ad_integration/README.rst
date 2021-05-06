@@ -494,29 +494,55 @@ synkronisere til felter på AD-brugere. Flere MO-værdier kan tilføjes, efterh�
 integrationen udvikles. Her er en liste over de MO-værdier, integrationen stiller til
 rådighed i dag:
 
-* ``employment_number``: Lønsystemets ansættelsesnummer for medarbejderens primære
-  engagement
-* ``end_date``: Slutdato for længste ansættelse i MO. Hvis en ansættelse ikke har nogen
-  kendt slutdato, angives 9999-12-31
-* ``uuid``: Brugerens UUID i MO
-* ``title``: Stillingsbetegnelsen for brugerens primære engagement
-* ``unit``: Navn på enheden for brugerens primære engagement
-* ``unit_uuid``: UUID på enheden for brugerens primære engagement
-* ``unit_user_key``: Brugervendt nøgle for enheden for brugerens primære engagement
-  Dette vil typisk være lønsystemets korte navn for enheden
-* ``unit_public_email``: Email på brugerens primære enhed med synligheden ``offentlig``
-* ``unit_secure_email``: Email på brugerens primære enhed med synligheden ``hemmelig``
-  Hvis enheden kun har email-adresser uden angivet synlighed, vil den blive angivet her
-* ``unit_postal_code``: Postnummer for brugerens primære enhed
-* ``unit_city``: By for brugerens primære enhed
-* ``unit_streetname``: Gadenavn for brugerens primære enhed
-* ``location``: Fuld organisatorisk sti til brugerens primære enhed
-* ``level2orgunit``: Den organisatoriske hovedgruppering (magistrat, direktørområde,
-  eller forvaltning) som brugerens primære engagement hører under
-* ``manager_name``: Navn på leder for brugerens primære engagement
-* ``manager_cpr``: CPR på leder for brugerens primære engagement
-* ``manager_sam``: ``SamAccountName`` for leder for brugerens primære engagement
-* ``manager_mail``: Email på lederen for brugerens primære engagement
+.. _MO-værdier:
+
+.. list-table:: MO-værdier
+   :widths: 15 85
+   :header-rows: 1
+
+   * - Feltnavn
+     - Beskrivelse af indhold
+   * - ``employment_number``
+     -  Lønsystemets ansættelsesnummer for medarbejderens primære engagement.
+   * - ``end_date``
+     - Slutdato for længste ansættelse i MO.
+       Hvis en ansættelse ikke har nogen kendt slutdato, angives 9999-12-31.
+   * - ``uuid``
+     - Brugerens UUID i MO.
+   * - ``title``
+     - Stillingsbetegnelsen for brugerens primære engagement.
+   * - ``unit``
+     - Navn på enheden for brugerens primære engagement.
+   * - ``unit_uuid``
+     - UUID på enheden for brugerens primære engagement.
+   * - ``unit_user_key``
+     - Brugervendt nøgle for enheden for brugerens primære engagement.
+       Dette vil typisk være lønsystemets korte navn for enheden.
+   * - ``unit_public_email``
+     - Email på brugerens primære enhed med synligheden ``offentlig``.
+   * - ``unit_secure_email``
+     - Email på brugerens primære enhed med synligheden ``hemmelig``.
+       Hvis enheden kun har email-adresser uden angivet synlighed, vil den blive angivet
+       her.
+   * - ``unit_postal_code``
+     - Postnummer for brugerens primære enhed.
+   * - ``unit_city``
+     - By for brugerens primære enhed.
+   * - ``unit_streetname``
+     - Gadenavn for brugerens primære enhed.
+   * - ``location``
+     - Fuld organisatorisk sti til brugerens primære enhed.
+   * - ``level2orgunit``
+     - Den organisatoriske hovedgruppering (magistrat, direktørområde, eller forvaltning)
+       som brugerens primære engagement hører under.
+   * - ``manager_name``
+     - Navn på leder for brugerens primære engagement.
+   * - ``manager_cpr``
+     - CPR-nummer på leder for brugerens primære engagement.
+   * - ``manager_sam``
+     - ``SamAccountName`` for leder for brugerens primære engagement.
+   * - ``manager_mail``
+     - Email på lederen for brugerens primære engagement.
 
 MO-felterne ``level2orgunit`` og ``location`` synkroniseres altid til felterne angivet i
 konfigurationsnøglerne ``integrations.ad.write.level2orgunit_type`` og
@@ -541,17 +567,61 @@ kan se ud som dette:
 Formatet for ``mo_to_ad_fields`` er: MO-felt -> AD-felt. Altså mappes
 `unit_public_email` fra MO til `extensionAttribute3` i AD i ovenstående eksempel.
 
-Som et alternativ til denne direkte 1-til-1 feltmapning er der mulighed for en mere
-fleksibel mapning vha. såkaldte `Jinja`-skabeloner. Dette giver yderligere muligheder
-for at tilpasse formatteringen af de enkelte værdier, der skrives i AD.
-Se eventuelt her: https://jinja.palletsprojects.com/en/2.11.x/templates/ (linket er på
-engelsk.)
+MO til AD - tilpasning vha. Jinja-templates
++++++++++++++++++++++++++++++++++++++++++++
 
-En feltmapning med Jinja-skabeloner kan eksempelvis se ud som dette:
+Som et alternativ til den ovennævnte direkte 1-til-1 feltmapning (`mo_to_ad_fields`) er
+der også mulighed for en mere fleksibel felt-mapning vha. såkaldte `Jinja`-skabeloner.
+Dette giver yderligere muligheder for at tilpasse formatteringen af de enkelte værdier,
+der skrives i AD. Se eventuelt her: https://jinja.palletsprojects.com/en/2.11.x/templates/
+(linket er på engelsk.)
+
+Standard-opsætningen af AD-integrationen indeholder flg. Jinja-templates:
 
 .. code-block:: json
 
   "integrations.ad_writer.template_to_ad_fields": {
+    "Name": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }} - {{ user_sam }}",
+    "Displayname": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }}",
+    "GivenName": "{{ mo_values['name'][0] }}",
+    "SurName": "{{ mo_values['name'][1] }}",
+    "EmployeeNumber": "{{ mo_values['employment_number'] }}"
+  }
+
+De felter, der er tilgængelige i ``mo_values``, er beskrevet her: :ref:`MO-værdier`.
+
+Med denne standard-opsætning oprettes der brugere i AD på denne form:
+
+.. list-table:: Eksempel
+   :header-rows: 1
+
+   * - AD-felt
+     - Indhold
+   * - `Name`
+     - "Fornavn Efternavn - Sam_account_name"
+   * - `Displayname`
+     - "Fornavn Efternavn"
+   * - `GivenName`
+     - "Fornavn"
+   * - `SurName`
+     - "Efternavn"
+   * - `EmployeeNumber`
+     - "A1234"
+
+Standard-opsætningen kan udvides eller erstattes. Eksempelvis kan opsætningen udvides
+til også at udfylde postnummer, afdeling, gadenavn og en `extension attribute` således:
+
+.. code-block:: json
+
+  "integrations.ad_writer.template_to_ad_fields": {
+    "# standard-felter": "",
+    "Name": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }} - {{ user_sam }}",
+    "Displayname": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }}",
+    "GivenName": "{{ mo_values['name'][0] }}",
+    "SurName": "{{ mo_values['name'][1] }}",
+    "EmployeeNumber": "{{ mo_values['employment_number'] }}",
+
+    "# yderligere felter": "",
     "postalCode": "{{ mo_values['unit_postal_code'] }}",
     "department": "{{ mo_values['unit_user_key'] }}",
     "streetName": "{{ mo_values['unit_streetname'].split(' ')[0] }}",
@@ -588,7 +658,7 @@ såfremt der ikke allerede står noget i det pågældende AD-felt:
 .. code-block:: json
 
   "integrations.ad_writer.template_to_ad_fields": {
-    "title": "{{ ad_values.get('titel') or mo_values['title'] }}",
+    "titel": "{{ ad_values.get('titel') or mo_values['title'] }}",
   }
 
 I ovenstående eksempel vil værdien i AD-feltet `titel` kun blive udfyldt med MO's
