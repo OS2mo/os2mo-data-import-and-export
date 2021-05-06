@@ -761,6 +761,28 @@ class OpusDiffImport(object):
                     self.terminate_detail(org_funk_info['manager'],
                                           detail_type='manager')
 
+    def handle_filtered_units(self, units, terminate=True):
+        """Rules for handling units that are not imported from opus.
+
+        If a unit is filtered from the Opus file it means it cannot be deleted in Opus, but should not appear in MO.
+        Any units that exists in MO, but are later moved in Opus to be below one of the filtered units should be terminated in MO.
+        """
+        units = tqdm(units, desc="Terminating filtered units", disable=not terminate)
+        ids = map(itemgetter('@id'), units)
+        uuids = map(opus_helpers.generate_uuid, ids)
+        uuid_strs = map(str, uuids)
+        mo_units = map(self.helper.read_ou, uuid_strs)
+        mo_units = filter(lambda unit: unit.get('uuid'), mo_units)
+        if terminate:
+            for mo_unit in mo_units:
+                self.terminate_detail(mo_unit["uuid"], detail_type='org_unit',end_date=self.xml_date)
+        else:
+            mo_units = list(mo_units)
+            if mo_units:
+                print(f"There are units that should have been terminated:")
+                print(list(map(itemgetter('uuid'), mo_units)))
+            
+
     def start_import(self, units, employees, include_terminations=False):
         """
         Start an opus import, run the oldest available dump that
@@ -819,6 +841,7 @@ def start_opus_diff(ad_reader=None):
     filter_ids = SETTINGS.get('integrations.opus.units.filter_ids', [])
     print("Looking for changes...")
     units, employees = opus_helpers.file_diff(dumps[latest_date], dumps[xml_date], filter_ids)
+    filtered_units, units = filter_units(units, filter_ids)
     print("Found changes to {} units and {} employees ".format(len(units), len(employees)))
     opus_helpers.local_db_insert((xml_date, 'Running diff update since {}'))
     msg = 'Start update: File: {}, update since: {}'
@@ -827,6 +850,7 @@ def start_opus_diff(ad_reader=None):
     diff = OpusDiffImport(xml_date, ad_reader=ad_reader,
                                            employee_mapping=employee_mapping)
     diff.start_import(units, employees, include_terminations=True)
+    diff.handle_filtered_units(filtered_units)
     logger.info('Ended update')
     opus_helpers.local_db_insert((xml_date, 'Diff update ended: {}'))
 
