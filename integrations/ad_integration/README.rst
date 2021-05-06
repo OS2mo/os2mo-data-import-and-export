@@ -323,6 +323,9 @@ Et eksempel på en feltmapning angives herunder:
 .. code-block:: json
 
     "ad_mo_sync_mapping": {
+        "user_attrs": {
+            "samAccountName": "user_key"
+        },
         "user_addresses": {
             "telephoneNumber": ["a6dbb837-5fca-4f05-b369-8476a35e0a95", "INTERNAL"],
             "pager": ["d9cd7a04-a992-4b31-9534-f375eba2f1f4 ", "PUBLIC"],
@@ -337,17 +340,20 @@ Et eksempel på en feltmapning angives herunder:
         }
     }
 
-For adresser angives en synlighed, som kan antage værdien `PUBLIC`, `INTERNAL`,
-`SECRET` eller `null` som angiver at synligheden i MO sættes til henholdsvis
-offentlig, intern, hemmelig, eller ikke angivet. UUID'er er på de tilhørende
-adresseklasser i MO som AD felterne skal mappes til.
+I ``user_attrs`` kan AD-felter på brugere mappes til tilsvarende felter i MO.
+I eksemplet er AD-feltet ``samAccountName`` således mappet til MO-feltet ``user_key``.
+
+I ``user_addresses`` kan AD-felter mappes til MO-adresseoplysninger.
+Her angives en synlighed, som kan antage værdierne `PUBLIC`, `INTERNAL`, `SECRET`
+eller `null`, hvilket angiver at synligheden i MO sættes til hhv. offentlig, intern,
+hemmelig, eller ikke angivet.
+UUID'erne identificerer de adresseklasser i MO, som AD-felterne skal mappes til.
 
 Hvis der findes flere adresser i MO med samme type og synlighed, vil programmet
 opdatere den først fundne MO-adresse, og afslutte de andre matchende MO-adresser.
 
 Hvis der for en given bruger er felter i feltmapningen, som ikke findes i AD, vil
-disse felter bliver sprunget over, men de øvrige felter vil stadig blive
-synkroniseret.
+disse felter blive sprunget over, men de øvrige felter vil stadig blive synkroniseret.
 
 Selve synkroniseringen foregår ved at programmet først udtrækker samtlige
 medarbejdere fra MO, der itereres hen over denne liste, og information fra AD'et
@@ -475,106 +481,119 @@ Hvis der er få ændringer vil afviklingstiden komme ned på nogle få minutter.
 MO til AD
 +++++++++
 
-Synkronisering fra MO til AD foregår efter en algoritme hvor der itereres hen over
-alle AD brugere. Hver enkelt bruger slås op i MO via feltet angivet i nøglen
-`integrations.ad.write.uuid_field` og informatione fra MO synkroniseres
-til AD i henhold til den lokale feltmapning. AD-integrationen stiller et antal
-værdier til rådighed, som det er muligt at synkronisere til felter i AD. Flere
-kan tilføjes efterhånden som integrationen udvikles.
+Synkronisering fra MO til AD foregår således:
 
- * ``employment_number``: Lønsystemets ansættelsesnummer for medarbejderens primære
-   engagement.
- * ``start_date``: Startdato for den første nuværende eller fremtidige ansættelse i MO,
-                   hvis en ansættelse ikke har nogen kendt startdato, angives 1800-01-01.
- * ``end_date``: Slutdato for den sidste nuværende eller fremtidige ansættelse i MO,
-                 hvis en ansættelse ikke har nogen kendt slutdato, angives 9999-12-31.
- * ``uuid``: Brugerens UUID i MO.
- * ``title``: Stillingsbetegnelse for brugerens primære engagement.
- * ``unit``: Navn på enheden for brugerens primære engagement.
- * ``unit_uuid``: UUID på enheden for brugerens primære engagement.
- * ``unit_user_key``: Brugervendt nøgle for enheden for brugerens primære engagement,
-   dette vil typisk være lønssystemets kortnavn for enheden.
- * ``unit_public_email``: Email på brugerens primære enhed med synligheen ``offentlig``
- * ``unit_secure_email``: Email på brugerens primære enhed med synligheen ``hemmelig``.
-   Hvis enheden kun har email-adresser uden angivet synlighed, vil den blive agivet
-   her.
- * ``unit_postal_code``: Postnummer for brugerens primære enhed.
- * ``unit_city``: By for brugerens primære enhed.
- * ``unit_streetname``: Gadenavn for brugerens primære enhed.
- * ``location``: Fuld organisatorisk sti til brugerens primære enhed.
- * ``level2orgunit``: Den oganisatoreiske hovedgruppering (Magistrat, direktørområde,
-   eller forvalting) som brugerens primære engagement hører under.
- * ``manager_name``: Navn på leder for brugerens primære engagement.
- * ``manager_cpr``: CPR på leder for brugerens primære engagement.
- * ``manager_sam``: SamAccountName for leder for brugerens primære engagement.
- * ``manager_mail``: Email på lederen for brugerens primære engagement.
+* der itereres hen over alle AD-brugere
+* hver enkelt AD-bruger slås op i MO via feltet angivet i nøglen
+  `integrations.ad.write.uuid_field`
+* data om den tilsvarende MO-bruger synkroniseres til AD i henhold til konfigurationen
+  (se nedenfor)
 
-Felterne ``level2orgunit`` og ``location`` synkroniseres altid til felterne angivet i
-nøglerner ``integrations.ad.write.level2orgunit_type`` og
-``integrations.ad.write.org_unit_field``, og skal derfor ikke specificeres yderligere
-i feltmapningen.
+AD-integrationen stiller et antal MO-værdier til rådighed, som det er muligt at
+synkronisere til felter på AD-brugere. Flere MO-værdier kan tilføjes, efterhånden som
+integrationen udvikles. Her er en liste over de MO-værdier, integrationen stiller til
+rådighed i dag:
 
-Desuden synkroniseres  altid AD felterne:
- * `Displayname`: Synkroniseres til medarbejderens fulde navn
- * `GivenName`: Synkroniseres til medarbejderens fornavn
- * `SurName`: Synkroniseres til medarbejderens efternavn
- * `Name`: Synkroniseres til vædien
-   "`Givenname`  `Surname`  - `Sam_account_name`"
- * `EmployeeNumber`: Synkroniseres til `employment_number`
+* ``employment_number``: Lønsystemets ansættelsesnummer for medarbejderens primære
+  engagement
+* ``end_date``: Slutdato for længste ansættelse i MO. Hvis en ansættelse ikke har nogen
+  kendt slutdato, angives 9999-12-31
+* ``uuid``: Brugerens UUID i MO
+* ``title``: Stillingsbetegnelsen for brugerens primære engagement
+* ``unit``: Navn på enheden for brugerens primære engagement
+* ``unit_uuid``: UUID på enheden for brugerens primære engagement
+* ``unit_user_key``: Brugervendt nøgle for enheden for brugerens primære engagement
+  Dette vil typisk være lønsystemets korte navn for enheden
+* ``unit_public_email``: Email på brugerens primære enhed med synligheden ``offentlig``
+* ``unit_secure_email``: Email på brugerens primære enhed med synligheden ``hemmelig``
+  Hvis enheden kun har email-adresser uden angivet synlighed, vil den blive angivet her
+* ``unit_postal_code``: Postnummer for brugerens primære enhed
+* ``unit_city``: By for brugerens primære enhed
+* ``unit_streetname``: Gadenavn for brugerens primære enhed
+* ``location``: Fuld organisatorisk sti til brugerens primære enhed
+* ``level2orgunit``: Den organisatoriske hovedgruppering (magistrat, direktørområde,
+  eller forvaltning) som brugerens primære engagement hører under
+* ``manager_name``: Navn på leder for brugerens primære engagement
+* ``manager_cpr``: CPR på leder for brugerens primære engagement
+* ``manager_sam``: ``SamAccountName`` for leder for brugerens primære engagement
+* ``manager_mail``: Email på lederen for brugerens primære engagement
 
-Yderligere synkronisering fortages i henhold til en lokal feltmaping, som eksempelvis
+MO-felterne ``level2orgunit`` og ``location`` synkroniseres altid til felterne angivet i
+konfigurationsnøglerne ``integrations.ad.write.level2orgunit_type`` og
+``integrations.ad.write.org_unit_field``, og skal derfor ikke specificeres yderligere i
+feltmapningen.
+
+Synkroniseringen til AD foretages i henhold til en lokal feltmapning, som eksempelvis
 kan se ud som dette:
 
 .. code-block:: json
 
-   "integrations.ad_writer.mo_to_ad_fields": {
-	"unit_postal_code": "postalCode",
-	"unit_city": "l",
-	"unit_user_key": "department",
-	"unit_streetname": "streetAddress",
-	"unit_public_email": "extensionAttribute3",
-	"title": "Title",
-	"unit": "extensionAttribute2"
-   }
+  "integrations.ad_writer.mo_to_ad_fields": {
+    "unit_postal_code": "postalCode",
+    "unit_city": "l",
+    "unit_user_key": "department",
+    "unit_streetname": "streetAddress",
+    "unit_public_email": "extensionAttribute3",
+    "title": "Title",
+    "unit": "extensionAttribute2"
+  }
 
-Formattet for denne skal læses som: MO felt --> AD felt, altså mappes
-`unit_public_email` fra MO til `extensionAttribute3` i AD.
+Formatet for ``mo_to_ad_fields`` er: MO-felt -> AD-felt. Altså mappes
+`unit_public_email` fra MO til `extensionAttribute3` i AD i ovenstående eksempel.
 
-Som et alternativ til denne direkte 1-til-1 felt-mapning er der mulighed for en
-mere fleksibel mapning vha. `jinja` skabeloner (Se eventuelt her:
-https://jinja.palletsprojects.com/en/2.11.x/templates/ (Engelsk)).
+Som et alternativ til denne direkte 1-til-1 feltmapning er der mulighed for en mere
+fleksibel mapning vha. såkaldte `Jinja`-skabeloner. Dette giver yderligere muligheder
+for at tilpasse formatteringen af de enkelte værdier, der skrives i AD.
+Se eventuelt her: https://jinja.palletsprojects.com/en/2.11.x/templates/ (linket er på
+engelsk.)
 
-Brug af jinja skabelon for AD feltmapning, kan eksempelvis se ud som dette:
+En feltmapning med Jinja-skabeloner kan eksempelvis se ud som dette:
 
 .. code-block:: json
 
-   "integrations.ad_writer.template_to_ad_fields": {
-	"postalCode": "{{ mo_values['unit_postal_code'] }}",
-	"department": "{{ mo_values['unit_user_key'] }}",
-	"streetName": "{{ mo_values['unit_streetname'].split(' ')[0] }}",
+  "integrations.ad_writer.template_to_ad_fields": {
+    "postalCode": "{{ mo_values['unit_postal_code'] }}",
+    "department": "{{ mo_values['unit_user_key'] }}",
+    "streetName": "{{ mo_values['unit_streetname'].split(' ')[0] }}",
     "extensionAttribute3": "{{ mo_values['unit_public_email']|default('all@afdeling.dk') }}",
-   }
+  }
 
-Det er værd at bemærke at begge systemer; `mo_to_ad_fields` og
-`template_to_ad_fields` benytter jinja systemet i maven på eksporteren.
-
-Det er altså ækvivalent at skrive henholdvis:
+Det er værd at bemærke, at begge konfigurationsmuligheder (`mo_to_ad_fields` og
+`template_to_ad_fields`) benytter Jinja-skabeloner som grundlag for deres virkemåde. Det
+er altså ækvivalent at skrive henholdsvis:
 
 .. code-block:: json
 
-   "integrations.ad_writer.mo_to_ad_fields": {
-	"unit_postal_code": "postalCode",
-   }
+  "integrations.ad_writer.mo_to_ad_fields": {
+    "unit_postal_code": "postalCode",
+  }
 
 og:
 
 .. code-block:: json
 
-   "integrations.ad_writer.template_to_ad_fields": {
-	"postalCode": "{{ mo_values['unit_postal_code'] }}",
-   }
+  "integrations.ad_writer.template_to_ad_fields": {
+    "postalCode": "{{ mo_values['unit_postal_code'] }}",
+  }
 
-Da førstnævnte konverteres til sidstnævnte internt i programmet.
+Da førstnævnte konfiguration konverteres til sidstnævnte internt i programmet.
+
+Når man skriver Jinja-templates i `template_to_ad_fields` er data om MO-brugeren
+tilgængelige i objektet ``mo_values`` (som vist i eksemplerne ovenfor). Samtidig er data
+om AD-brugeren (før skrivning) ligeledes tilgængelige i objektet ``ad_values``.
+Når koden *opretter* en ny AD-bruger, er ``ad_values`` tilgængeligt for Jinja-templates,
+men er et tomt objekt. Dette kan fx anvendes til kun at synkronisere data fra MO til AD,
+såfremt der ikke allerede står noget i det pågældende AD-felt:
+
+.. code-block:: json
+
+  "integrations.ad_writer.template_to_ad_fields": {
+    "title": "{{ ad_values.get('titel') or mo_values['title'] }}",
+  }
+
+I ovenstående eksempel vil værdien i AD-feltet `titel` kun blive udfyldt med MO's
+tilsvarende `title` hvis AD-brugeren ikke allerede har en titel. Og det har AD-brugeren
+ikke, såfremt programmet netop er i færd med at oprette selvsamme AD-bruger.
 
 
 Afvikling af PowerShell templates
@@ -649,58 +668,58 @@ eksempel på sådan en fil kunne se sådan ud:
        "integrations.ad.password": "sericeuser_password",
        "integrations.ad.cpr_field": "ad_cpr_field",
        "integrations.ad.write.servers": [
-	   "DC1",
-	   "DC2",
-	   "DC3",
-	   "DC4",
-	   "DC5"
+     "DC1",
+     "DC2",
+     "DC3",
+     "DC4",
+     "DC5"
        ],
        "integrations.ad.write.level2orgunit_type": "cdd1305d-ee6a-45ec-9652-44b2b720395f",
        "integrations.ad.write.primary_types": [
-	   "62e175e9-9173-4885-994b-9815a712bf42",
-	   "829ad880-c0b7-4f9e-8ef7-c682fb356077",
-	   "35c5804e-a9f8-496e-aa1d-4433cc38eb02"
+     "62e175e9-9173-4885-994b-9815a712bf42",
+     "829ad880-c0b7-4f9e-8ef7-c682fb356077",
+     "35c5804e-a9f8-496e-aa1d-4433cc38eb02"
        ],
        "integrations.ad_writer.mo_to_ad_fields": {
-	   "unit_user_key": "department",
-	   "level2orgunit": "company",
-	   "title": "Title",
-	   "unit": "extensionAttribute2"
+     "unit_user_key": "department",
+     "level2orgunit": "company",
+     "title": "Title",
+     "unit": "extensionAttribute2"
        },
        "integrations.ad.write.uuid_field": "sts_field",
        "integrations.ad.write.level2orgunit_field": "extensionAttribute1",
        "integrations.ad.write.org_unit_field": "extensionAttribute2",
        "integrations.ad.properties": [
-	   "manager",
-	   "ObjectGuid",
-	   "SamAccountName",
-	   "mail",
-	   "mobile",
-	   "pager",
-	   "givenName",
-	   "l",
-	   "sn",
-	   "st",
-	   "cn",
-	   "company",
-	   "title",
-	   "postalCode",
-	   "physicalDeliveryOfficeName",
-	   "extensionAttribute1",
-	   "extensionAttribute2",
-	   "ad_cpr_field"
+     "manager",
+     "ObjectGuid",
+     "SamAccountName",
+     "mail",
+     "mobile",
+     "pager",
+     "givenName",
+     "l",
+     "sn",
+     "st",
+     "cn",
+     "company",
+     "title",
+     "postalCode",
+     "physicalDeliveryOfficeName",
+     "extensionAttribute1",
+     "extensionAttribute2",
+     "ad_cpr_field"
        ],
        "integrations.ad.ad_mo_sync_mapping": {
-	   "user_addresses": {
-	       "telephoneNumber": ["51d4dbaa-cb59-4db0-b9b8-031001ae107d", "PUBLIC"],
-	       "pager": ["956712cd-5cde-4acc-ad0a-7d97c08a95ee", "SECRET"],
-	       "mail": ["c8a49f1b-fb39-4ce3-bdd0-b3b907262db3", null],
-	       "physicalDeliveryOfficeName": ["7ca6dfb1-5cc7-428c-b15f-a27056b90ae5", null],
-	       "mobile": ["43153f5d-e2d3-439f-b608-1afbae91ddf6", "PUBLIC"]
-	   },
-	   "it_systems": {
-	       "samAccountName": "fb2ac325-a1c4-4632-a254-3a7e2184eea7"
-	   }
+     "user_addresses": {
+         "telephoneNumber": ["51d4dbaa-cb59-4db0-b9b8-031001ae107d", "PUBLIC"],
+         "pager": ["956712cd-5cde-4acc-ad0a-7d97c08a95ee", "SECRET"],
+         "mail": ["c8a49f1b-fb39-4ce3-bdd0-b3b907262db3", null],
+         "physicalDeliveryOfficeName": ["7ca6dfb1-5cc7-428c-b15f-a27056b90ae5", null],
+         "mobile": ["43153f5d-e2d3-439f-b608-1afbae91ddf6", "PUBLIC"]
+     },
+     "it_systems": {
+         "samAccountName": "fb2ac325-a1c4-4632-a254-3a7e2184eea7"
+     }
        }
    }
 
@@ -757,10 +776,10 @@ Dette værktøj har følgende muligheder:
 
    usage: ad_writer.py [-h]
                     [--create-user-with-manager MO_uuid |
-		    --create-user MO_uuid |
-		    --sync-user MO_uuid | --delete-user User_SAM |
-		    --read-ad-information User_SAM |
-		    --add-manager-to-user Manager_SAM User_SAM]
+        --create-user MO_uuid |
+        --sync-user MO_uuid | --delete-user User_SAM |
+        --read-ad-information User_SAM |
+        --add-manager-to-user Manager_SAM User_SAM]
 
 De forskellige muligheder gennemgås her en ad gangen:
  * --create-user-with-manager MO uuid
@@ -925,7 +944,7 @@ Dette værktøj har følgende muligheder:
 
    usage: execute_ad_script.py [-h]
                                [--validate-script Script name |
-			       --execute-script Script name user_uuid]
+             --execute-script Script name user_uuid]
 
 De forskellige muligheder gennemgås her en ad gangen:
  * --validate-script Script_name
