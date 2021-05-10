@@ -16,6 +16,7 @@ from tqdm.asyncio import tqdm
 
 from exporters.utils.load_settings import load_settings
 
+
 all_functionnames = [
     "Engagement",
     "Leder",
@@ -30,11 +31,12 @@ all_functionnames = [
 
 
 class SubtreeDeleter:
-    def __init__(self, session, subtree_uuid):
+    def __init__(self, session, subtree_uuid, connections: int = 4):
         self.session = session
         settings = load_settings()
         self.mora_base = settings.get("mora.base")
         self.mox_base = settings.get("mox.base")
+        self.sem = asyncio.Semaphore(connections)
 
     async def get_org_uuid(self):
         async with self.session.get(f"{self.mora_base}/service/o/") as r:
@@ -100,9 +102,10 @@ class SubtreeDeleter:
 
     async def deleter(self, path, uuid):
         url = f"{self.mox_base}/{path}/{uuid}"
-        async with self.session.delete(url) as r:
-            r.raise_for_status()
-            return await r.json()
+        async with self.sem:
+            async with self.session.delete(url) as r:
+                r.raise_for_status()
+                return await r.json()
 
     async def delete_from_lora(self, uuids, path):
         return await tqdm.gather(self.deleter(path, uuid) for uuid in uuids)
@@ -135,14 +138,14 @@ class SubtreeDeleter:
 
 @async_to_sync
 async def subtreedeleter_helper(
-    org_unit_uuid: str, delete_functions: bool = False, keep_functions: List[str] = []
+    org_unit_uuid: str, delete_functions: bool = False, keep_functions: List[str] = [], connections: int = 4
 ) -> None:
     settings = load_settings()
     api_token = settings.get("crontab.SAML_TOKEN")
     timeout = aiohttp.ClientTimeout(total=None)
     async with aiohttp.ClientSession(timeout=timeout) as session:
         session.headers.update({"session": api_token})
-        deleter = SubtreeDeleter(session, org_unit_uuid)
+        deleter = SubtreeDeleter(session, org_unit_uuid, connections=connections)
         await deleter.run(
             org_unit_uuid, delete_functions, keep_functions=keep_functions
         )
@@ -165,7 +168,12 @@ async def subtreedeleter_helper(
     multiple=True,
     help="List of functions that should not be deleted",
 )
-def main(org_unit_uuid, delete_functions, keep):
+@click.option(
+    "--connections",
+    default=4,
+    help="The amount of concurrent requests made to OS2mo",
+)
+def main(org_unit_uuid, delete_functions, keep, connections):
     """Delete an organisational unit and all units below.
 
     Given the uuid of an org_unit this will delete the unit and all units below it. Optionally also deletes organisationfunctions such as engagements, KLE and addresses.
@@ -173,7 +181,7 @@ def main(org_unit_uuid, delete_functions, keep):
     Example:
         venv/bin/python tools/subtreedeleter.py --org-unit-uuid=c9b4c61f-1d38-5f6a-2c9e-d001e7cf6bd0 --delete-functions --keep=Leder --keep=KLE
     """
-    subtreedeleter_helper(org_unit_uuid, delete_functions, keep_functions=keep)
+    subtreedeleter_helper(org_unit_uuid, delete_functions, keep_functions=keep, connections=connections)
 
 
 if __name__ == "__main__":
