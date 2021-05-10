@@ -66,10 +66,18 @@ html_static_path = ['_static']
 autodoc_default_flags = ['members']
 autosummary_generate = True
 
-# recommonmark setup
+
 def setup(app):
-    app.add_config_value('recommonmark_config', {
+    # recommonmark setup
+    app.add_config_value(
+        'recommonmark_config',
+        {
             #'url_resolver': lambda url: github_doc_root + url,
             'auto_toc_tree_section': 'Contents',
-            }, False)
+        },
+        False
+    )
     app.add_transform(AutoStructify)
+
+    # customize css
+    app.add_css_file('remove-table-scrollbars.css')
