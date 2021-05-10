@@ -16,6 +16,9 @@ from tqdm.asyncio import tqdm
 
 from exporters.utils.load_settings import load_settings
 
+SEM_SIZE = 8
+sem = asyncio.Semaphore(SEM_SIZE)
+
 all_functionnames = [
     "Engagement",
     "Leder",
@@ -100,9 +103,10 @@ class SubtreeDeleter:
 
     async def deleter(self, path, uuid):
         url = f"{self.mox_base}/{path}/{uuid}"
-        async with self.session.delete(url) as r:
-            r.raise_for_status()
-            return await r.json()
+        async with sem:
+            async with self.session.delete(url) as r:
+                r.raise_for_status()
+                return await r.json()
 
     async def delete_from_lora(self, uuids, path):
         return await tqdm.gather(self.deleter(path, uuid) for uuid in uuids)
