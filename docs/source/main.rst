@@ -27,6 +27,12 @@ Import tool
 .. include:: ../../os2mo_data_import/integration_abstraction/README.rst
 
 ###########
+Reports
+###########
+.. include:: ../../reports/README.rst
+
+
+###########
 Other tools
 ###########
 .. include:: ../../tools/README.rst
