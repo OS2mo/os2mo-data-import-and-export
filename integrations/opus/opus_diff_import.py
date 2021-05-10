@@ -841,7 +841,8 @@ def start_opus_diff(ad_reader=None):
     filter_ids = SETTINGS.get('integrations.opus.units.filter_ids', [])
     print("Looking for changes...")
     units, employees = opus_helpers.file_diff(dumps[latest_date], dumps[xml_date], filter_ids)
-    filtered_units, units = filter_units(units, filter_ids)
+    filtered_units, units = opus_helpers.filter_units(units, filter_ids)
+    units=list(units)
     print("Found changes to {} units and {} employees ".format(len(units), len(employees)))
     opus_helpers.local_db_insert((xml_date, 'Running diff update since {}'))
     msg = 'Start update: File: {}, update since: {}'
