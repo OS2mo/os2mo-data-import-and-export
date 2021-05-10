@@ -70,6 +70,7 @@ def prepare_re_import(
     settings: Optional[list] = None,
     opus_uuid: Optional[str] = None,
     truncate: Optional[bool] = None,
+    connections: int = 4
 ) -> None:
     """Create a MO setup with necessary classes.
 
@@ -90,7 +91,7 @@ def prepare_re_import(
                 "There are duplicate classes, remove them with tools/data_fixers/remove_duplicate_classes.py --delete"
             )
         subtreedeleter_helper(
-            opus_uuid, delete_functions=True, keep_functions=["KLE", "Relateret Enhed"]
+            opus_uuid, delete_functions=True, keep_functions=["KLE", "Relateret Enhed"], connections=connections
         )
     ensure_default_classes()
 
@@ -136,8 +137,13 @@ def import_opus(ad_reader=None, import_all: bool = False) -> None:
 )
 @click.option("--truncate", is_flag=True, help="Truncate all MO tables")
 @click.option("--use-ad", is_flag=True, help="Read from AD")
+@click.option(
+    "--connections",
+    default=4,
+    help="The amount of concurrent requests made to OS2mo",
+)
 def clear_and_reload(
-    import_all: bool, delete_opus: bool, truncate: bool, use_ad: bool
+    import_all: bool, delete_opus: bool, truncate: bool, use_ad: bool, connections:int
 ) -> None:
     """Tool for reimporting opus files.
 
@@ -153,7 +159,7 @@ def clear_and_reload(
             "This will purge ALL DATA FROM MO. Do you want to continue?", abort=True
         )
     opus_uuid = find_opus_name() if delete_opus else None
-    prepare_re_import(settings=settings, opus_uuid=opus_uuid, truncate=truncate)
+    prepare_re_import(settings=settings, opus_uuid=opus_uuid, truncate=truncate, connections=connections)
     AD = None
     if use_ad:
         AD = ad_reader.ADParameterReader()
