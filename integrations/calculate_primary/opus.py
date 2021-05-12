@@ -18,7 +18,7 @@ class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
                 "integrations.ad.import_ou.mo_unit_uuid", ""
             ):
                 # disregard engagements from externals
-                logger.warning("disregarding external engagement: {}".format(eng))
+                logger.warning("disregarding external engagement: {}".format(engagement))
                 return False
             return True
 
