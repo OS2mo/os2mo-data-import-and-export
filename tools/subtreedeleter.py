@@ -54,7 +54,7 @@ class SubtreeDeleter:
     async def get_associated_org_func(
         self, org_unit_uuid: str, funktionsnavn: str = None
     ):
-        url = f"{self.mox_base}/organisation/organisationfunktion?tilknyttedeenheder={org_unit_uuid}"
+        url = f"{self.mox_base}/organisation/organisationfunktion?tilknyttedeenheder={org_unit_uuid}&virkningfra=-infinity&virkningtil=infinity"
         if funktionsnavn:
             funktionsnavn = urllib.parse.quote(funktionsnavn)
             url += f"&funktionsnavn={funktionsnavn}"
