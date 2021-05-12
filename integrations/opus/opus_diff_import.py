@@ -194,6 +194,10 @@ class OpusDiffImport(object):
         # Unfortunately, mora-helper currently does not read all addresses
         user_addresses = self.helper._mo_lookup(mo_uuid, 'e/{}/details/address')
         address_dict = {}  # Condensate of all MO addresses for the employee
+        if not isinstance(user_addresses, list):
+            # In case the request to mo fails we assume no addresses in MO.
+            # This has happend when the something in lora has been deleted.
+            return address_dict
 
         for address in user_addresses:
             if address_dict.get(address['address_type']['uuid']) is not None:
@@ -828,7 +832,7 @@ def start_opus_diff(ad_reader=None):
     """
     dumps = opus_helpers.read_available_dumps()
     run_db = Path(SETTINGS['integrations.opus.import.run_db'])
-
+    filter_ids = SETTINGS.get('integrations.opus.units.filter_ids', [])
     employee_mapping = opus_helpers.read_cpr_mapping()
 
     if not run_db.is_file():
@@ -836,24 +840,27 @@ def start_opus_diff(ad_reader=None):
         raise RunDBInitException('Local base not correctly initialized')
     xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
 
-    if not xml_date:
-        return
-    filter_ids = SETTINGS.get('integrations.opus.units.filter_ids', [])
-    print("Looking for changes...")
-    units, employees = opus_helpers.file_diff(dumps[latest_date], dumps[xml_date], filter_ids)
-    filtered_units, units = opus_helpers.filter_units(units, filter_ids)
-    units=list(units)
-    print("Found changes to {} units and {} employees ".format(len(units), len(employees)))
-    opus_helpers.local_db_insert((xml_date, 'Running diff update since {}'))
-    msg = 'Start update: File: {}, update since: {}'
-    logger.info(msg.format(xml_date, latest_date))
-    print(msg.format(xml_date, latest_date))
-    diff = OpusDiffImport(xml_date, ad_reader=ad_reader,
-                                           employee_mapping=employee_mapping)
-    diff.start_import(units, employees, include_terminations=True)
-    diff.handle_filtered_units(filtered_units)
-    logger.info('Ended update')
-    opus_helpers.local_db_insert((xml_date, 'Diff update ended: {}'))
+    
+    while xml_date:
+        msg = 'Start update: File: {}, update since: {}'
+        logger.info(msg.format(xml_date, latest_date))
+        print(msg.format(xml_date, latest_date))
+        # Find changes to units and employees
+        units, employees = opus_helpers.file_diff(dumps[latest_date], dumps[xml_date], filter_ids)
+        # Partition based on filtered units in settings
+        filtered_units, units = opus_helpers.filter_units(units, filter_ids)
+        units=list(units)
+        opus_helpers.local_db_insert((xml_date, 'Running diff update since {}'))
+        
+        diff = OpusDiffImport(xml_date, ad_reader=ad_reader,
+                                            employee_mapping=employee_mapping)
+        diff.start_import(units, employees, include_terminations=True)
+        diff.handle_filtered_units(filtered_units)
+        logger.info('Ended update')
+        opus_helpers.local_db_insert((xml_date, 'Diff update ended: {}'))
+        print()
+        # Check if there are more files to import
+        xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
 
 if __name__ == '__main__':
 
