@@ -27,6 +27,18 @@ Organisationsenheder    * UUID
                         * KLE-opmærkninger
 ======================  =================
 
+Når integrationen sender *ansatte* til OS2Sync, sker det efter nedenstående skema:
+
+===================  ============
+OS2Sync-felt         Udfyldes med
+===================  ============
+``Uuid``             MO-brugerens UUID
+``UserId``           MO-brugerens UUID, medmindre der er registreret et IT-system af typen "AD" på MO-brugeren.
+                     I så fald bruges det AD-brugernavn, der er registreret på IT-systemet.
+``Person`` ``Name``  MO-brugerens fornavn og efternavn
+``Person`` ``Cpr``   MO-brugerens CPR-nummer, medmindre indstillingen ``os2sync.xfer_cpr`` er sat til ``False``.
+===================  ============
+
 Når integrationen sender *organisationsenheders adresser* til OS2Sync, sker det efter nedenstående skema.
 Såfremt en adresseoplysning på enheden matcher på "Scope" og evt. "Brugervendt nøgle", sendes oplysningen til feltet angivet i "OS2Sync-felt":
 
@@ -83,7 +95,7 @@ os2syncs parametre
 Denne indstilling kan bruges til at styre, hvordan felter sendes til OS2Sync.
 Indstillingen består af en eller flere feltnøgler, og en tilhørende `Jinja-template <https://jinja.palletsprojects.com/en/2.11.x/templates/>`_.
 
-På nuværende tidspunkt kender programmet kun feltnøglen ``person.name``, der bruges til at kontrollere, hvordan personnavne formatteres, når de sendes til OS2Sync.
+På nuværende tidspunkt kender programmet feltnøglerne ``person.name`` og ``person.user_id``, der bruges til at kontrollere, hvordan hhv. personnavne og bruger-id'er formatteres, når de sendes til OS2Sync.
 
 Et eksempel på brug:
 
@@ -96,3 +108,15 @@ Et eksempel på brug:
     }
 
 Denne opsætning betyder, at vi først tjekker om der er et kaldenavn (``nickname``) registreret på personen i MO. Hvis der er, så anvendes dette, når der skrives et personnavn til OS2Sync. Hvis ikke, så anvendes det almindelige navn, der er registreret på personen (``name``.)
+
+Et eksempel på brug af ``person.user_id``:
+
+.. code-block:: json
+
+    {
+        "os2sync.templates": {
+            "person.user_id": "{{ user_key }}"
+        }
+    }
+
+Hvis OS2Sync-integrationen sættes op med denne opsætning, skriver den MO-brugerens BVN (brugervendte nøgle) i OS2Sync-feltet ``UserId``, medmindre MO-brugeren også har et registreret IT-system af typen "AD". I så fald anvendes det AD-brugernavn, der er registreret på IT-systemet.

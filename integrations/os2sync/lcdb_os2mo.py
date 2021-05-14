@@ -16,7 +16,7 @@ from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
 from exporters.sql_export.sql_table_defs import (Adresse, Bruger, Engagement, Enhed,
                                                  ItForbindelse, ItSystem, KLE)
 from integrations.os2sync import config, os2mo
-from integrations.os2sync.templates import Person
+from integrations.os2sync.templates import Person, User
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
@@ -89,22 +89,16 @@ def to_mo_employee(employee):
 def get_sts_user(session, uuid, allowed_unitids):
     employee = session.query(Bruger).filter(Bruger.uuid == uuid).one()
 
-    user_id = uuid  # default
-    candidate_user_id = try_get_ad_user_key(session, uuid)
-    # if exists/truthy
-    if candidate_user_id:
-        user_id = candidate_user_id
+    user = User(
+        dict(
+            uuid=uuid,
+            candidate_user_id=try_get_ad_user_key(session, uuid),
+            person=Person(to_mo_employee(employee), settings=settings),
+        ),
+        settings=settings,
+    )
 
-    person = Person(to_mo_employee(employee), settings=settings)
-
-    sts_user = {
-        "Uuid": uuid,
-        "UserId": user_id,
-        "Positions": [],
-        "Person": person.to_json(),
-    }
-
-    logger.debug('lcdb_os2mo.get_sts_user: sts_user = %r', sts_user)
+    sts_user = user.to_json()
 
     addresses = []
     for lc_address in session.query(

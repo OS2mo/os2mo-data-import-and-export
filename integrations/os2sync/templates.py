@@ -6,6 +6,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 from typing import Any, Dict, Optional
+from uuid import UUID
 
 from jinja2 import Environment
 from jinja2 import StrictUndefined
@@ -98,6 +99,41 @@ class Entity:
         """Return a dictionary suitable for inclusion in a JSON payload."""
 
         raise NotImplementedError("must be implemented by subclass")
+
+
+class User(Entity):
+    """Models a `User` entity in the OS2Sync REST API"""
+
+    def __init__(
+        self,
+        context: Dict[str, Any],
+        settings: Optional[Dict[str, str]] = None,
+    ):
+        super().__init__(context, settings=settings)
+        assert isinstance(context["uuid"], (UUID, str))
+        assert isinstance(context["person"], Person)
+        assert isinstance(context["candidate_user_id"], (str, type(None)))
+        self.context.setdefault("user_key", context["person"].context["user_key"])
+
+    def to_json(self) -> Dict[str, Any]:
+        if self.context["candidate_user_id"] is not None:
+            # If an AD BVN is available, always use that
+            user_id = self.context["candidate_user_id"]
+        else:
+            # Otherwise, use the "person.user_id" template if available,
+            # falling back to the MO user UUID if not.
+            user_id = self.field_renderer.render(
+                "person.user_id", self.context, fallback=self.context["uuid"],
+            )
+
+        person = self.context["person"]
+
+        return {
+            "Uuid": self.context["uuid"],
+            "UserId": user_id,
+            "Person": person.to_json(),
+            "Positions": [],
+        }
 
 
 class Person(Entity):

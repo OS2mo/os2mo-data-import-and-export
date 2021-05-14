@@ -52,8 +52,8 @@ class TestPersonNameTemplate(unittest.TestCase, MoEmployeeMixin):
 
     @parameterized.expand(
         [
-            "{{ name|dictsort }}"
-            "{{ unknown_variable }}"
+            "{{ name|dictsort }}",
+            "{{ unknown_variable }}",
         ]
     )
     def test_template_render_failure_raises_exception(self, template):

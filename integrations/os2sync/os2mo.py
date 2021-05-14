@@ -13,7 +13,7 @@ import requests
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
 from integrations.os2sync import config
-from integrations.os2sync.templates import Person
+from integrations.os2sync.templates import Person, User
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
@@ -193,23 +193,16 @@ def try_get_ad_user_key(uuid: str) -> Optional[str]:
 def get_sts_user(uuid, allowed_unitids):
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
 
-    # fallback to uuid
-    user_id = uuid
-    candidate_user_id = try_get_ad_user_key(uuid)
-    # if exists/truthy
-    if candidate_user_id:
-        user_id = candidate_user_id
+    user = User(
+        dict(
+            uuid=uuid,
+            candidate_user_id=try_get_ad_user_key(uuid),
+            person=Person(employee, settings=settings),
+        ),
+        settings=settings,
+    )
 
-    person = Person(employee, settings=settings)
-
-    sts_user = {
-        "Uuid": uuid,
-        "UserId": user_id,
-        "Positions": [],
-        "Person": person.to_json(),
-    }
-
-    logger.debug('os2mo.get_sts_user: sts_user = %r', sts_user)
+    sts_user = user.to_json()
 
     addresses_to_user(
         sts_user, os2mo_get("{BASE}/e/" + uuid + "/details/address").json()
