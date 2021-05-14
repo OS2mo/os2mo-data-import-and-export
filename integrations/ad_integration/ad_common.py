@@ -13,6 +13,7 @@ from winrm.vendor.requests_kerberos.exceptions import KerberosExchangeError
 from integrations.ad_integration import read_ad_conf_settings
 from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
 from integrations.ad_integration.ad_exceptions import CprNotNotUnique
+from integrations.ad_integration.ad_exceptions import CommandFailure
 
 logger = logging.getLogger("AdCommon")
 
@@ -204,8 +205,7 @@ class AD:
                 output = output.replace("&oslash;", "ø")
                 response = json.loads(output)
         else:
-            print("Error: {}".format(r.std_err))
-            response = r.std_err
+            raise CommandFailure(r.std_err)
         return response
 
     def _ps_boiler_plate(self):
@@ -214,11 +214,6 @@ class AD:
         """
         settings = self._get_setting()
 
-        # This is most likely never neeed.
-        # server = ''
-        # if settings['server']:
-        #     server = ' -Server {} '.format(settings['server'])
-
         # TODO: Are these really different?
         path = ""
         search_base = ""
@@ -226,20 +221,12 @@ class AD:
             path = ' -Path "{}" '.format(settings["search_base"])
             search_base = ' -SearchBase "{}" '.format(settings["search_base"])
 
-        get_ad_object = ""
-        # TODO: When do we need this?
-        # if settings['get_ad_object']:
-        #    get_ad_object = ' | Get-ADObject'
-
         credentials = " -Credential $usercredential"
 
         boiler_plate = {
-            # 'server': server,
             "path": path,
-            "get_ad_object": get_ad_object,
             "search_base": search_base,
             "credentials": credentials,
-            # 'complete': server + search_base + credentials
             "complete": search_base + credentials,
         }
         return boiler_plate
@@ -282,7 +269,6 @@ class AD:
 
     def _properties(self):
         settings = self._get_setting()
-        # properties = ' -Properties *'
         properties = " -Properties "
         for item in settings["properties"]:
             properties += item + ","
@@ -366,23 +352,22 @@ class AD:
         bp = self._ps_boiler_plate()
 
         if user:
-            dict_key = user
-            ps_template = "get-aduser -Filter 'SamAccountName -eq \"{}\"' "
+            ps_template = "Get-ADUser -Filter 'SamAccountName -eq \"{val}\"'"
+            get_command = ps_template.format(val=user)
 
         if cpr:
             # For wild-card searches, we do a litteral search.
             if cpr.find("*") > -1:
-                dict_key = cpr
+                val = cpr
             else:
                 # For direct cpr-search we obey the local separator setting.
-                dict_key = "{}{}{}".format(
-                    cpr[0:6], settings["cpr_separator"], cpr[6:10]
-                )
+                cpr_sep = settings["cpr_separator"]
+                val = f"{cpr[0:6]}{cpr_sep}{cpr[6:10]}"
 
             field = settings["cpr_field"]
-            ps_template = "get-aduser -Filter '" + field + ' -like "{}"\''
-
-        get_command = ps_template.format(dict_key)
+            operator = "-eq" if field.lower() == "objectguid" else "-like"
+            ps_template = "Get-ADUser -Filter '{field} {operator} \"{val}\"'"
+            get_command = ps_template.format(field=field, operator=operator, val=val)
 
         server_string = ""
         if server is not None:
@@ -404,7 +389,6 @@ class AD:
             server_string +
             bp['complete'] +
             self._properties() +
-            # bp['get_ad_object'] +
             command_end
         )
         response = self._run_ps_script(ps_script)
@@ -418,3 +402,10 @@ class AD:
                 return_val = response
 
         return return_val
+
+    def _list_users(self):
+        cmd = "%(cred)s Get-ADUser -Properties * -Filter * %(search_base)s | ConvertTo-Json" % dict(
+            cred=self._build_user_credential(),
+            search_base=self._ps_boiler_plate()["search_base"],
+        )
+        return self._run_ps_script(cmd)
