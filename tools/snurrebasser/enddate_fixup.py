@@ -1,110 +1,136 @@
 import json
-from uuid import UUID
-from typing import Iterator, List, Tuple, Any
+from datetime import date, datetime
 from operator import itemgetter
-from datetime import date
-from datetime import datetime
+from typing import Any, Dict, Iterator, List, Tuple
+from uuid import UUID
 
 import click
-from os2mo_helpers.mora_helpers import MoraHelper
-from tqdm import tqdm
-from pydantic import AnyHttpUrl
 from more_itertools import one
+from os2mo_helpers.mora_helpers import MoraHelper
+from pydantic import AnyHttpUrl
+from tqdm import tqdm
 
 from exporters.utils.apply import apply
 from integrations.ad_integration.utils import AttrDict
 
 
-def find_users(mora_base: AnyHttpUrl) -> Iterator[Tuple[UUID, List[UUID]]]:
-    helper = MoraHelper(hostname=mora_base, use_cache=False)
+def find_bad_engagements(mora_base: AnyHttpUrl) -> Iterator[Tuple[UUID, List[UUID]]]:
+    """Find users with engagements that ends after 9999-01-01."""
 
-    def find_problematic(user_uuid: UUID) -> Tuple[UUID, List[UUID]]:
-        mo_engagements = helper.read_user_engagement(
-            user=str(user_uuid),
-            only_primary=True,
-            read_all=True,
-            skip_past=True
+    def enrich_user_uuid(user_uuid: UUID) -> Tuple[UUID, List[UUID]]:
+        """Enrich each user_uuid with engagements that end after 9999-01-01."""
+        # Fetch all engagements for the user
+        mo_engagements: List[Dict] = helper.read_user_engagement(
+            user=str(user_uuid), only_primary=False, read_all=True, skip_past=True
         )
-        mo_engagements = map(
-            lambda mo_engagement: (mo_engagement['uuid'], mo_engagement['validity']['to']),
-            mo_engagements
+        # Extract uuid and end-date, filter out infinity end-dates.
+        mo_engagement_tuples_str: Iterator[Tuple[UUID, str]] = map(
+            lambda mo_engagement: (
+                mo_engagement["uuid"],
+                mo_engagement["validity"]["to"],
+            ),
+            mo_engagements,
         )
-        mo_engagements = filter(
+        mo_engagement_tuples_str = filter(
             apply(lambda mo_uuid, end_date: end_date is not None),
-            mo_engagements
+            mo_engagement_tuples_str,
         )
-        mo_engagements = map(
-            apply(lambda mo_uuid, end_date: (mo_uuid, datetime.strptime(end_date, "%Y-%m-%d").date())),
-            mo_engagements
+        # Convert end-date to datetime.date, and filter out dates before 9999-01-01
+        mo_engagement_tuples: Iterator[Tuple[UUID, date]] = map(
+            apply(
+                lambda mo_uuid, end_date: (
+                    mo_uuid,
+                    datetime.strptime(end_date, "%Y-%m-%d").date(),
+                )
+            ),
+            mo_engagement_tuples_str,
         )
-        mo_engagements = filter(
+        mo_engagement_tuples = filter(
             apply(lambda mo_uuid, end_date: end_date >= date(9999, 1, 1)),
-            mo_engagements
+            mo_engagement_tuples,
         )
-        mo_engagements = map(itemgetter(0), mo_engagements)
-        mo_engagements = map(UUID, mo_engagements)
-        return user_uuid, list(mo_engagements)
+        # Extract and convert resulting engagement uuids
+        mo_engagement_uuid_strings: Iterator[str] = map(
+            itemgetter(0), mo_engagement_tuples
+        )
+        mo_engagement_uuids: Iterator[UUID] = map(UUID, mo_engagement_uuid_strings)
+        return user_uuid, list(mo_engagement_uuids)
 
-    all_users = helper.read_all_users()
-    all_users = tqdm(all_users)
-    all_users = map(itemgetter('uuid'), all_users)
-    all_users = map(UUID, all_users)
-    all_users = map(find_problematic, all_users)
-    all_users = filter(
-        apply(lambda user_uuid, engagement_uuids: bool(engagement_uuids)),
-        all_users
+    helper = MoraHelper(hostname=mora_base, use_cache=False)
+    # Read all users and map to just their UUIDs
+    users: Iterator[Dict] = tqdm(helper.read_all_users())
+    user_uuid_strings: Iterator[str] = map(itemgetter("uuid"), users)
+    user_uuids: Iterator[UUID] = map(UUID, user_uuid_strings)
+    # Enrich each user_uuid with a list of bad engagement uuids, filter empty lists
+    user_tuples: Iterator[Tuple[UUID, List[UUID]]] = map(enrich_user_uuid, user_uuids)
+    user_tuples = filter(
+        apply(lambda user_uuid, engagement_uuids: bool(engagement_uuids)), user_tuples
     )
-    return all_users
+    return user_tuples
 
 
-def fixup_user(mora_base: AnyHttpUrl, person_uuid: UUID, engagement_uuid: UUID, dry_run: bool = False) -> Tuple[str, Any]:
+def fixup_user(
+    mora_base: AnyHttpUrl,
+    person_uuid: UUID,
+    engagement_uuid: UUID,
+    dry_run: bool = False,
+) -> Tuple[Dict[str, Any], Any]:
+    """Fixup the end-date of a single engagement for a single user."""
     helper = MoraHelper(hostname=mora_base, use_cache=False)
     # Fetch all present engagements for the user
-    engagements = helper._mo_lookup(
+    engagements: Iterator[Dict[str, Any]] = helper._mo_lookup(
         person_uuid,
         "e/{}/details/engagement",
-        validity='present',
+        validity="present",
         only_primary=False,
         use_cache=False,
         calculate_primary=False,
     )
     # Find the engagement we are looking for in the list
     engagements = filter(
-        lambda engagement: engagement['uuid'] == str(engagement_uuid),
-        engagements
+        lambda engagement: engagement["uuid"] == str(engagement_uuid), engagements
     )
-    engagement = one(engagements)
+    engagement: Dict[str, Any] = one(engagements)
 
-    # Prepare our fix payload
-    data = {}
-    data.update({
-        key: {
-            "uuid": engagement[key]["uuid"],
-        } for key in ["engagement_type", "job_function", "org_unit", "person", "primary"]
-    })
-    data.update({
-        key: engagement[key] for key in ["extension_" + str(i) for i in range(1, 11)]
-    })
-    data.update({
-        key: engagement[key] for key in ["fraction", "is_primary", "user_key", "uuid"]
-    })
-    data.update({
-        "validity": {
-            "from": engagement["validity"]["from"],
-            "to": None,
+    # Construct data-part of our payload using current data.
+    uuid_keys = [
+        "engagement_type",
+        "job_function",
+        "org_unit",
+        "person",
+        "primary",
+    ]
+    direct_keys = ["extension_" + str(i) for i in range(1, 11)] + [
+        "fraction",
+        "is_primary",
+        "user_key",
+        "uuid",
+    ]
+    data: Dict[str, Any] = {}
+    data.update({key: {"uuid": engagement[key]["uuid"]} for key in uuid_keys})
+    data.update({key: engagement[key] for key in direct_keys})
+    data.update(
+        {
+            "validity": {
+                "from": engagement["validity"]["from"],
+                "to": None,
+            }
         }
-    })
-    # Fire the payload
-    payload = {
-        'type': 'engagement',
-        'uuid': str(engagement_uuid),
-        'data': data,
-        'person': {
-            'uuid': str(person_uuid,)
-        }
+    )
+
+    # Construct entire payload
+    payload: Dict[str, Any] = {
+        "type": "engagement",
+        "uuid": str(engagement_uuid),
+        "data": data,
+        "person": {
+            "uuid": str(
+                person_uuid,
+            )
+        },
     }
     if dry_run:
-        return payload, AttrDict({'status_code': 200, 'text': "Dry-run"})
+        return payload, AttrDict({"status_code": 200, "text": "Dry-run"})
     response = helper._mo_post("details/edit", payload)
     return payload, response
 
@@ -116,12 +142,12 @@ def cli():
 
 @cli.command()
 @click.option("--mora-base", default="http://localhost:5000")
-@click.option("--json", is_flag=True, default=False)
-def find(mora_base: AnyHttpUrl, json: bool):
-    all_users = find_users(mora_base)
-    if json:
-        all_users = dict(all_users)
-        print(json.dumps(all_users, indent=4))
+@click.option("--output-json", is_flag=True, default=False)
+def find(mora_base: AnyHttpUrl, output_json: bool):
+    all_users = find_bad_engagements(mora_base)
+    if output_json:
+        all_users_dict = dict(all_users)
+        print(json.dumps(all_users_dict, indent=4))
     else:
         for user_uuid, engagement_uuids in all_users:
             print(user_uuid, engagement_uuids)
@@ -142,12 +168,14 @@ def fixup(mora_base: AnyHttpUrl, person_uuid: UUID, engagement_uuid: UUID):
 @click.option("--mora-base", default="http://localhost:5000")
 @click.option("--dry-run", is_flag=True, default=False)
 def rework(mora_base: AnyHttpUrl, dry_run: bool):
-    all_users = find_users(mora_base)
+    all_users = find_bad_engagements(mora_base)
     for user_uuid, engagement_uuids in all_users:
         print(user_uuid, engagement_uuids)
         for engagement_uuid in engagement_uuids:
             try:
-                payload, response = fixup_user(mora_base, user_uuid, engagement_uuid, dry_run=dry_run)
+                payload, response = fixup_user(
+                    mora_base, user_uuid, engagement_uuid, dry_run=dry_run
+                )
             except ValueError:
                 print("Unable to fixup", engagement_uuid)
                 continue
@@ -156,5 +184,5 @@ def rework(mora_base: AnyHttpUrl, dry_run: bool):
             # print(json.dumps(payload, indent=4))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()
