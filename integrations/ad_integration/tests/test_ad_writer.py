@@ -26,25 +26,27 @@ class TestADWriter(TestCase, TestADWriterMixin):
     def setUp(self):
         self._setup_adwriter()
 
-    def _verify_identitical_common_code(self, num_expected_scripts, num_common_lines=5):
-        """Verify that common code in all scripts is identitical.
+    def _verify_identical_common_code(self, num_expected_scripts, num_common_lines=5):
+        """Verify that common code in all scripts is identical.
 
         I.e. that all scripts start with the same num_common_lines lines.
         """
         self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
         # 1. Convert each script from a string into a list of strings (lines)
-        lines = [x.split("\n") for x in self.ad_writer.scripts]
+        lines = [script.split("\n") for script in self.ad_writer.scripts]
         self.assertGreaterEqual(len(lines[0]), num_common_lines)
         self.assertEqual(len(lines), num_expected_scripts)
-        # 2. Get the common lines (first 4 lines) in each script
+        # 2. Get the common lines (first `num_common_lines` lines in each
+        # script.)
         common_lines = [x[:num_common_lines] for x in lines]
         self.assertEqual(len(common_lines[0]), num_common_lines)
         self.assertEqual(len(common_lines), num_expected_scripts)
-        # 3. Zip the lines producing 4 'n' tuples, where 'n' is len(scripts).
+        # 3. Zip the lines producing `num_common_lines` tuples of 'n' elements,
+        # where 'n' is len(scripts).
         zip_lines = list(zip(*common_lines))
         self.assertEqual(len(zip_lines[0]), num_expected_scripts)
         self.assertEqual(len(zip_lines), num_common_lines)
-        # Check that all zip_lines are identitical
+        # Check that all zip_lines are identical
         for zip_line in zip_lines:
             self.assertEqual(len(set(zip_line)), 1)
         # Return common code
@@ -60,6 +62,9 @@ class TestADWriter(TestCase, TestADWriterMixin):
         called `name` and that the field value is `value`.
         """
         self.assertRegex(script, f'"{name}"="{value}"')
+
+    def _get_script_contents(self, index=0):
+        return self.ad_writer.scripts[index].split("\n")[5].strip()
 
     @parameterized.expand(
         [
@@ -87,7 +92,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
         """Test ps_script common code (first five lines of each script).
 
         The common code lines are identical for all writes to the AD.
-        This is verified by the 'verify_identitical_common_code' method.
+        This is verified by the 'verify_identical_common_code' method.
 
         Create_user is used as a test-case to provoke the creation of a PS script,
         but only the common top of the code is actually tested.
@@ -106,11 +111,11 @@ class TestADWriter(TestCase, TestADWriterMixin):
         # Check that scripts were produced
         self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
 
-        # Verify that the first 4 lines are identitical for all scripts
-        common_ps = self._verify_identitical_common_code(num_expected_scripts)
+        # Verify that the first 4 lines are identical for all scripts
+        common_ps = self._verify_identical_common_code(num_expected_scripts)
         common_ps = [x.strip() for x in common_ps]
         expected_ps = [
-            "",
+            self.ad_writer._ps_boiler_plate()["encoding"],
             '$User = "' + self.settings["primary"]["system_user"] + '"',
             '$PWord = ConvertTo-SecureString –String "'
             + self.settings["primary"]["password"]
@@ -275,11 +280,11 @@ class TestADWriter(TestCase, TestADWriterMixin):
         # Check that scripts were produced
         self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
 
-        # Verify that the first 4 lines are identitical for all scripts
-        self._verify_identitical_common_code(num_expected_scripts)
+        # Verify that the first 4 lines are identical for all scripts
+        self._verify_identical_common_code(num_expected_scripts)
 
         # Check that the create user ps looks good
-        create_user_ps = self.ad_writer.scripts[2].split("\n")[5].strip()
+        create_user_ps = self._get_script_contents(index=2)
 
         mo_values = self.ad_writer.read_ad_information_from_mo(uuid)
         expected_content = [
@@ -328,11 +333,11 @@ class TestADWriter(TestCase, TestADWriterMixin):
         # Check that scripts were produced
         self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
 
-        # Verify that the first 4 lines are identitical for all scripts
-        self._verify_identitical_common_code(num_expected_scripts)
+        # Verify that the first 4 lines are identical for all scripts
+        self._verify_identical_common_code(num_expected_scripts)
 
         # Check that the create user ps looks good
-        edit_user_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
+        edit_user_ps = self._get_script_contents()
         mo_values = self.ad_writer.read_ad_information_from_mo(uuid)
         expected_content = [
             "Get-ADUser",
@@ -467,11 +472,11 @@ class TestADWriter(TestCase, TestADWriterMixin):
         # Check that scripts were produced
         self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
 
-        # Verify that the first 4 lines are identitical for all scripts
-        self._verify_identitical_common_code(num_expected_scripts)
+        # Verify that the first 4 lines are identical for all scripts
+        self._verify_identical_common_code(num_expected_scripts)
 
         # Check that the create user ps looks good
-        edit_user_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
+        edit_user_ps = self._get_script_contents()
         self.assertNotIn("Displayname", edit_user_ps)
 
     def test_user_edit_illegal_attribute(self):
@@ -498,11 +503,11 @@ class TestADWriter(TestCase, TestADWriterMixin):
         # Check that scripts were produced
         self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
 
-        # Verify that the first 4 lines are identitical for all scripts
-        self._verify_identitical_common_code(num_expected_scripts)
+        # Verify that the first 4 lines are identical for all scripts
+        self._verify_identical_common_code(num_expected_scripts)
 
         # Check that the create user ps looks good
-        edit_user_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
+        edit_user_ps = self._get_script_contents()
         self.assertNotIn('"Name"="John"', edit_user_ps)
 
     def test_duplicated_ad_field_name(self):
@@ -706,10 +711,10 @@ class TestADWriter(TestCase, TestADWriterMixin):
         # Expected outputs
         num_expected_scripts = 1
         self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
-        # Verify that the first 4 lines are identitical for all scripts
-        self._verify_identitical_common_code(num_expected_scripts)
+        # Verify that the first 4 lines are identical for all scripts
+        self._verify_identical_common_code(num_expected_scripts)
         # Check that the create user ps looks good
-        add_manager_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
+        add_manager_ps = self._get_script_contents()
 
         expected_line = (
             "Get-ADUser -Filter 'SamAccountName -eq \"MGORE\"'"
@@ -725,10 +730,10 @@ class TestADWriter(TestCase, TestADWriterMixin):
         # Expected outputs
         num_expected_scripts = 1
         self.assertEqual(len(self.ad_writer.scripts), num_expected_scripts)
-        # Verify that the first 4 lines are identitical for all scripts
-        self._verify_identitical_common_code(num_expected_scripts)
+        # Verify that the first 4 lines are identical for all scripts
+        self._verify_identical_common_code(num_expected_scripts)
         # Check that the create user ps looks good
-        set_password_ps = self.ad_writer.scripts[0].split("\n")[5].strip()
+        set_password_ps = self._get_script_contents()
 
         expected_line = (
             "Get-ADUser -Filter 'SamAccountName -eq \"MGORE\"' -Credential"
