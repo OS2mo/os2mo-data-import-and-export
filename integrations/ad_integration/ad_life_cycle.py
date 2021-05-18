@@ -25,7 +25,11 @@ FilterFunction = Callable[[Tuple[Dict, Dict]], bool]
 
 
 class AdLifeCycle:
-    def __init__(self, use_cached_mo: bool = False) -> None:
+    def __init__(
+        self,
+        use_cached_mo: bool = False,
+        skip_occupied_names_check: bool = False
+    ) -> None:
         logger.info("AD Sync Started")
         settings = load_settings()
 
@@ -38,14 +42,20 @@ class AdLifeCycle:
             settings.get("integrations.ad.lifecycle.disable_filters", [])
         )
 
-        # This is a slow step (since ADReader reads all users)
-        print("Retrieve AD dump")
-        all_users: List[Dict] = []
-        with catchtime() as t:
-            self.ad_reader = ad_reader.ADParameterReader()
-            all_users = self.ad_reader.cache_all()
-        print("Done with AD caching: {}".format(t()))
-        occupied_names: Set[str] = set(map(itemgetter("SamAccountName"), all_users))
+        self.ad_reader = ad_reader.ADParameterReader()
+
+        if skip_occupied_names_check:
+            print("Skipping reading of occupied user names")
+            occupied_names: Set[str] = set()
+        else:
+            # This is a slow step (since ADReader reads all users)
+            print("Retrieve AD dump")
+            with catchtime() as t:
+                all_users: List[Dict] = self.ad_reader.cache_all()
+                occupied_names: Set[str] = set(
+                    map(itemgetter("SamAccountName"), all_users)
+                )
+            print("Done with AD caching: {}".format(t()))
 
         # This is a potentially slow step (since it may read LoraCache)
         print("Retrive LoRa dump")
@@ -314,9 +324,9 @@ class AdLifeCycle:
             except NoPrimaryEngagementException:
                 logger.error("No engagment found!")
                 stats["engagement_not_found"] += 1
-            except:
-                logger.exception("Unknown error!")
-                stats["critical_errors"] += 1
+            # except:
+            #     logger.exception("Unknown error!")
+            #     stats["critical_errors"] += 1
 
         return stats
 
@@ -356,11 +366,19 @@ def write_stats(stats: Dict[str, Any]) -> None:
     help="Use cached LoRa data, if false cache is refreshed.",
     type=click.BOOL,
 )
+@click.option(
+    "--skip-occupied-names-check",
+    default=False,
+    is_flag=True,
+    help="Skip reading all current user names from AD. Only for testing!",
+    type=click.BOOL,
+)
 def ad_life_cycle(
     create_ad_accounts: bool,
     disable_ad_accounts: bool,
     dry_run: bool,
     use_cached_mo: bool,
+    skip_occupied_names_check: bool,
 ) -> None:
     """Create or disable users."""
     logger.debug(
@@ -379,7 +397,10 @@ def ad_life_cycle(
             "Either create_ad_accounts or disable_ad_accounts must be given!"
         )
 
-    sync = AdLifeCycle(use_cached_mo=use_cached_mo)
+    sync = AdLifeCycle(
+        use_cached_mo=use_cached_mo,
+        skip_occupied_names_check=skip_occupied_names_check,
+    )
 
     if create_ad_accounts:
         stats = sync.create_ad_accounts(dry_run)

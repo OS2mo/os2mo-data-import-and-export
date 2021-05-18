@@ -61,7 +61,7 @@ class ADParameterReader(AD):
     def uncached_read_user(self, user=None, cpr=None, ria=None):
         # read one or more users using cpr-pattern.
         # if list is passed in ria (read it all) then this is extended
-        # with found users - this way the function replaces the old 
+        # with found users - this way the function replaces the old
         # 'read it all' function, so there is now only one function
         # reading from AD.
         settings = self._get_setting()
@@ -71,11 +71,13 @@ class ADParameterReader(AD):
         server = None
         if self.all_settings['primary']['servers']:
             server = random.choice(self.all_settings['primary']['servers'])
+
         response = self.get_from_ad(user=user, cpr=cpr, server=server)
 
         users_by_cpr = {}
         for user in response:
             users_by_cpr.setdefault(user[settings['cpr_field']], []).append(user)
+
         try:
             for userlist in users_by_cpr.values():
 

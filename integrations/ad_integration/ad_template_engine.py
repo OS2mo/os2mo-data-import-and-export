@@ -149,11 +149,13 @@ cmdlet_templates = {
         {%- for parameter, value in parameters.items() %}
           -{{ parameter }} {{ value }}
         {%- endfor %}
+        {% if other_attributes %}
           -OtherAttributes @{
         {%- for attribute, value in other_attributes.items() -%}
             "{{ attribute }}"={{ value }};
         {%- endfor -%}
         }
+        {% endif %}
     """,
     # Update information saved on a user
     # Notice: Name cannot be updated using Set-ADUser, this must be done

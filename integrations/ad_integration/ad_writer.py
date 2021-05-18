@@ -885,7 +885,7 @@ class ADWriter(AD):
 
         # Should this go to self._ps_boiler_plate()?
         server_string = ''
-        if self.all_settings['global'].get('servers') is not None:
+        if self.all_settings['global'].get('servers'):
             server_string = ' -Server {} '.format(
                 random.choice(self.all_settings['global']['servers'])
             )

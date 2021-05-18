@@ -37,3 +37,7 @@ class NoScriptToExecuteException(Exception):
 
 class UnknownKeywordsInScriptException(Exception):
     pass
+
+
+class CommandFailure(Exception):
+    pass

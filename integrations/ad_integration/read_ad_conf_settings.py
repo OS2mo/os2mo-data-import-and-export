@@ -7,7 +7,6 @@ import pathlib
 from exporters.utils.load_settings import load_settings
 from integrations.ad_integration.utils import LazyDict
 
-
 logger = logging.getLogger("AdReader")
 
 
@@ -99,11 +98,6 @@ def _read_primary_ad_settings(top_settings, index=0):
         "ad_mo_sync_terminate_disabled_filters", []
     )
 
-    # So far false in all known cases, default to false
-    # get_ad_object = os.environ.get('AD_GET_AD_OBJECT', 'False')
-    # primary_settings['get_ad_object'] = get_ad_object.lower() == 'true'
-    primary_settings['get_ad_object'] = False
-
     if missing:
         msg = 'Missing settings in AD {}: {}'.format(index, missing)
         logger.error(msg)
@@ -118,63 +112,43 @@ def _read_primary_write_information(top_settings):
     the AD write will be disabled.
     """
     # TODO: Some happy day, we could check for the actual validity of these
-    primary_write_settings = {}
 
-    # Shared with read
-    primary_write_settings['cpr_field'] = top_settings.get(
-        'integrations.ad')[0]['cpr_field']
+    # Straight-forward field mappings
+    required_keys = {
+        "uuid_field", "level2orgunit_field", "level2orgunit_type", "upn_end",
+    }
+    conf = {
+        key: top_settings["integrations.ad.write.%s" % key]
+        for key in required_keys
+    }
 
-    # Field for writing the uuid of a user, used to sync to STS
-    primary_write_settings['uuid_field'] = top_settings.get(
-        'integrations.ad.write.uuid_field')
+    # Special field mappings
+    conf["cpr_field"] = top_settings["integrations.ad"][0]['cpr_field']
+    conf["org_field"] = top_settings["integrations.ad.write.org_unit_field"]
 
-    # Field for writing the name of the users level2orgunit (eg direktørområde)
-    primary_write_settings['level2orgunit_field'] = top_settings.get(
-        'integrations.ad.write.level2orgunit_field')
-
-    # Field for the path to the users unit
-    primary_write_settings['org_field'] = top_settings.get(
-        'integrations.ad.write.org_unit_field')
-
-    # Word to go after @ in UPN
-    primary_write_settings['upn_end'] = top_settings.get(
-        'integrations.ad.write.upn_end')
-
-    # These are technically speaking not used in this context, but it is needed for
-    # AD write and can benifit from the automated check.
-
-    # UUID for the unit type considered to be level2orgunit
-    primary_write_settings['level2orgunit_type'] = top_settings.get(
-        'integrations.ad.write.level2orgunit_type'
-    )
-
-    missing = []
-
-    for key, val in primary_write_settings.items():
-        if val is None:
-            missing.append(key)
-    if len(missing) > 0:
-        msg = 'Missing values for AD write {}'.format(missing)
-        logger.info(msg)
-        return {}
+    missing = {key for key, val in conf.items() if val is None}
+    if missing:
+        msg = "Missing values for AD write: %r"
+        logger.info(msg, missing)
+        raise ValueError(msg % missing)
 
     # Template fields
-    primary_write_settings['mo_to_ad_fields'] = top_settings.get(
+    conf['mo_to_ad_fields'] = top_settings.get(
         'integrations.ad_writer.mo_to_ad_fields', {}
     )
-    primary_write_settings['template_to_ad_fields'] = top_settings.get(
+    conf['template_to_ad_fields'] = top_settings.get(
         'integrations.ad_writer.template_to_ad_fields', {}
     )
 
     # Check for illegal configuration of AD Write.
-    mo_to_ad_fields = primary_write_settings['mo_to_ad_fields']
-    template_to_ad_fields = primary_write_settings['template_to_ad_fields']
+    mo_to_ad_fields = conf['mo_to_ad_fields']
+    template_to_ad_fields = conf['template_to_ad_fields']
     ad_field_names = (
         list(mo_to_ad_fields.values()) +
         list(template_to_ad_fields.keys()) + [
-            primary_write_settings['org_field'],
-            primary_write_settings['level2orgunit_field'],
-            primary_write_settings['uuid_field']
+            conf['org_field'],
+            conf['level2orgunit_field'],
+            conf['uuid_field']
         ]
     )
     # Conflicts are case-insensitive
@@ -186,7 +160,7 @@ def _read_primary_write_information(top_settings):
         logger.info(msg, dupes)
         raise ValueError(msg % dupes)
 
-    return primary_write_settings
+    return conf
 
 
 SETTINGS = LazyDict()
