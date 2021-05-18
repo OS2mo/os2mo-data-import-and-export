@@ -338,19 +338,16 @@ class AdMoSync(object):
             engagements = map(itemgetter(0), engagements)
             engagements = filter(lambda eng: eng["user"] == uuid, engagements)
             engagements = filter(itemgetter("primary_boolean"), engagements)
-            engagement = max(engagements, key=itemgetter("to_date"))
-            if engagement is None:
-                # No current primary engagment found
-                return False
             # Notice, this will only update current row, if more rows exists, they
             # will not be updated until the first run after that row has become
             # current. To fix this, we will need to ad option to LoRa cache to be
             # able to return entire object validity (poc-code exists).
-            validity = {
-                "from": VALIDITY["from"],  # today
-                "to": engagement["to_date"],
-            }
-            self._edit_engagement_post_to_mo(uuid, ad_object, engagement, validity)
+            for engagement in engagements:
+                validity = {
+                    "from": VALIDITY["from"],  # today
+                    "to": engagement["to_date"],
+                }
+                self._edit_engagement_post_to_mo(uuid, ad_object, engagement, validity)
         else:
             print("Read engagements from MO")
             # Read user's current engagements, e.g. exclude engagements that
@@ -359,8 +356,7 @@ class AdMoSync(object):
                 uuid, calculate_primary=True, read_all=True, skip_past=True,
             )
             engagements = filter(lambda eng: eng["is_primary"], engagements)
-            engagement = only(engagements)
-            if engagement:
+            for engagement in engagements:
                 validity = {
                     "from": VALIDITY["from"],  # today
                     "to": engagement.get("validity", {}).get("to"),
