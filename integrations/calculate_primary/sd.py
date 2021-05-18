@@ -55,7 +55,7 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
                 # non-integer user keys should universally be status0, and as such
                 # they should already have been filtered out, thus if they have not
                 # been filtered out, they must have the wrong primary_type.
-                int(eng['user_key'])
+                int(mo_engagement['user_key'])
             except ValueError:
                 self._fixup_status_0(mo_engagement)
                 # Filter it out, as it should have been
