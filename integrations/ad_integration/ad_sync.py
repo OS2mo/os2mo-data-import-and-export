@@ -1,6 +1,4 @@
-import json
 import logging
-import pathlib
 from datetime import datetime
 from functools import partial
 from operator import itemgetter
@@ -333,74 +331,98 @@ class AdMoSync(object):
 
     def _edit_engagement(self, uuid, ad_object):
         if self.lc:
+            print("Read engagements from LoraCache")
+            # Read user's current engagements, e.g. exclude engagements that
+            # ended in the past.
             engagements = self.lc.engagements.values()
             engagements = map(itemgetter(0), engagements)
             engagements = filter(lambda eng: eng["user"] == uuid, engagements)
             engagements = filter(itemgetter("primary_boolean"), engagements)
-            eng = next(engagements, None)
-
-            if eng is None:
+            engagement = max(engagements, key=itemgetter("to_date"))
+            if engagement is None:
                 # No current primary engagment found
                 return False
             # Notice, this will only update current row, if more rows exists, they
             # will not be updated until the first run after that row has become
             # current. To fix this, we will need to ad option to LoRa cache to be
             # able to return entire object validity (poc-code exists).
-            validity = {"from": VALIDITY["from"], "to": eng["to_date"]}
-
-            for ad_field, mo_field in self.mapping["engagements"].items():
-                self._edit_engagement_post_to_mo(
-                    ad_field, ad_object, mo_field, uuid, eng, validity
-                )
-        else:
-            print("No cache")
-            user_engagements = self.helper.read_user_engagement(
-                uuid, calculate_primary=True, read_all=True
-            )
-            for eng in user_engagements:
-                if not eng["is_primary"]:
-                    continue
-
-                validity = {"from": VALIDITY["from"], "to": eng["validity"]["to"]}
-                for ad_field, mo_field in self.mapping["engagements"].items():
-                    self._edit_engagement_post_to_mo(
-                        ad_field, ad_object, mo_field, uuid, eng, validity
-                    )
-
-    def _edit_engagement_post_to_mo(
-        self, ad_field, ad_object, mo_field, uuid, mo_engagement, validity
-    ):
-        # Default `mo_value` to an empty string. In case the field is dropped
-        # from the AD object, this will empty its value in MO.
-        new_mo_value = ad_object.get(ad_field, "")
-        old_mo_value = mo_engagement.get(mo_field, None)
-
-        # If we cannot read the field, maybe it is because our mo_engagement is from
-        # LoraCache, and thus is different from MO and must be read differently.
-        if old_mo_value is None and "extensions" in mo_engagement:
-            field_mapping = {
-                f"extension_{x}": mo_engagement["extensions"][f"udvidelse_{x}"]
-                for x in range(1, 11)
+            validity = {
+                "from": VALIDITY["from"],  # today
+                "to": engagement["to_date"],
             }
-            if mo_field not in field_mapping:
-                raise ConfigurationError("MO field %r is not mapped" % mo_field)
-            old_mo_value = field_mapping[mo_field]
+            self._edit_engagement_post_to_mo(uuid, ad_object, engagement, validity)
+        else:
+            print("Read engagements from MO")
+            # Read user's current engagements, e.g. exclude engagements that
+            # ended in the past.
+            engagements = self.helper.read_user_engagement(
+                uuid, calculate_primary=True, read_all=True, skip_past=True,
+            )
+            engagements = filter(lambda eng: eng["is_primary"], engagements)
+            engagement = only(engagements)
+            if engagement:
+                validity = {
+                    "from": VALIDITY["from"],  # today
+                    "to": engagement.get("validity", {}).get("to"),
+                }
+                self._edit_engagement_post_to_mo(uuid, ad_object, engagement, validity)
 
-        if old_mo_value == new_mo_value:
-            logger.debug("No change, not editing engagement")
+    def _edit_engagement_post_to_mo(self, uuid, ad_object, mo_engagement, validity):
+        mo_data = {
+            "validity": validity,
+        }
+
+        # Populate `mo_data` with a value for each mapped field whose value has
+        # changed when comparing the AD object to the current MO object.
+        for ad_field, mo_field in self.mapping["engagements"].items():
+            # Default `mo_value` to an empty string. In case the field is
+            # dropped from the AD object, this will empty its value in MO.
+            new_mo_value = ad_object.get(ad_field, "")
+            old_mo_value = mo_engagement.get(mo_field)
+
+            # If we cannot read the field, maybe it is because our
+            # mo_engagement is from LoraCache, and thus is different from MO
+            # and must be read differently.
+            if old_mo_value is None and "extensions" in mo_engagement:
+                old_mo_value = self._edit_engagement_read_lc_extensions(
+                    mo_field, mo_engagement,
+                )
+
+            if old_mo_value == new_mo_value:
+                logger.debug("No change, not editing engagement")
+                continue
+
+            mo_data[mo_field] = new_mo_value
+
+        if len(mo_data) == 1 and "validity" in mo_data:
+            # If `mo_data` contains *only* the `validity` key after the above
+            # for-loop has been run, the payload to MO is essentially empty.
+            # In that case, terminate early without posting anything to MO.
+            logger.debug("Nothing to post, returning")
             return
 
         payload = {
             "type": "engagement",
             "uuid": mo_engagement["uuid"],
-            "data": {mo_field: new_mo_value, "validity": validity},
+            "data": mo_data,
         }
         logger.debug("Edit payload: %r", payload)
-
         response = self.helper._mo_post("details/edit", payload)
         self.stats["engagements"] += 1
         self.stats["users"].add(uuid)
         logger.debug("Response: %r", response.text)
+
+    def _edit_engagement_read_lc_extensions(self, mo_field, mo_engagement):
+        # TODO: This is specific to the LoraCache-based implementation (when
+        # `self.lc` is not None.) Refactor to use a shared class for reading
+        # engagements from LoraCache.
+        field_mapping = {
+            f"extension_{x}": mo_engagement["extensions"][f"udvidelse_{x}"]
+            for x in range(1, 11)
+        }
+        if mo_field not in field_mapping:
+            raise ConfigurationError("MO field %r is not mapped" % mo_field)
+        return field_mapping[mo_field]
 
     def _create_it_system(self, person_uuid, ad_username, mo_itsystem_uuid):
         payload = {

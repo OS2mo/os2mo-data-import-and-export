@@ -46,7 +46,8 @@ class MockLoraCache:
                     "primary_boolean": True,
                     "to_date": None,
                     "extensions": {
-                        "udvidelse_%d" % n: "old mo value #%d" for n in range(1, 11)
+                        "udvidelse_%d" % n: "old mo value #%d" % n
+                        for n in range(1, 11)
                     },
                 }
             ]
