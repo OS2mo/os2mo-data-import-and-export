@@ -368,7 +368,8 @@ class AdMoSync(object):
             # will not be updated until the first run after that row has become
             # current. To fix this, we will need to ad option to LoRa cache to be
             # able to return entire object validity (poc-code exists).
-            for engagement in engagements:
+            engagement = only(engagements)
+            if engagement:
                 validity = {
                     "from": VALIDITY["from"],  # today
                     "to": engagement["to_date"],
@@ -387,8 +388,8 @@ class AdMoSync(object):
                 _make_exclude_function(lambda eng: eng["validity"]["from"]),
                 list(engagements),
             )
-            for engagement in engagements:
-                logger.debug('editing %r', engagement)
+            engagement = only(engagements)
+            if engagement:
                 validity = {
                     "from": VALIDITY["from"],  # today
                     "to": engagement.get("validity", {}).get("to"),
