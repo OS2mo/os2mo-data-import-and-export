@@ -309,7 +309,7 @@ class LoraCache:
             'relationer': ('overordnet', 'enhedstype', 'niveau'),
             'attributter': ('organisationenhedegenskaber',)
         }
-        
+
         unit_list = self._perform_lora_lookup(url, params, skip_history=skip_history, unit="unit")
 
         units = {}
@@ -895,14 +895,17 @@ class LoraCache:
             # this scope value will be considered primary.
             highest_scope = max(map(itemgetter(1), scope_values))
 
-            # Loop through all engagements and start marking them with primarity
+            # Loop through all engagements and initially set them as non-primary.
             for uuid, primary_scope in scope_values:
-                is_primary = (primary_scope == highest_scope)
-                if is_primary:
+                self.engagements[uuid][0]['primary_boolean'] = False
+
+            # Loop through all engagements and mark the first engagement of the
+            # highest scope as the primary engagement
+            for uuid, primary_scope in scope_values:
+                if primary_scope == highest_scope:
                     logger.debug('Primary for {} is {}'.format(user_uuid, uuid))
-                else:
-                    logger.debug('{} is not primary {}'.format(uuid, user_uuid))
-                self.engagements[uuid][0]['primary_boolean'] = is_primary
+                    self.engagements[uuid][0]['primary_boolean'] = True
+                    break
 
     def calculate_derived_unit_data(self):
         if self.full_history:
