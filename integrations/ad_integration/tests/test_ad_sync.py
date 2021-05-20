@@ -772,14 +772,14 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                             "validity": {
                                 "from": "2021-05-20",
                                 "to": "2030-12-31",
-                            }
+                            },
                         },
                         "type": "engagement",
-                        "uuid": "engagement_uuid_1"
+                        "uuid": "engagement_uuid_1",
                     },
-                    "url": "details/edit"
+                    "url": "details/edit",
                 }
-            ]
+            ],
         )
 
     @parameterized.expand(
