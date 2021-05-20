@@ -330,6 +330,27 @@ class AdMoSync(object):
         logger.debug("Response: {}".format(response.text))
 
     def _edit_engagement(self, uuid, ad_object):
+        def _make_exclude_function(fieldspec):
+            """Given a callable `fieldspec`, return a function which will
+            return True if the date found by `fieldspec` is before today, and
+            otherwise will return False.
+
+            This is used to exclude engagements with a "from date" in the
+            future.
+            """
+
+            threshold = datetime.now().date()
+
+            def _func(engagement):
+                value = fieldspec(engagement)
+                if value is None:
+                    return False  # from_date is infinitely far in the future
+                if isinstance(value, str):
+                    value = datetime.strptime(value, "%Y-%m-%d").date()
+                return value < threshold
+
+            return _func
+
         if self.lc:
             print("Read engagements from LoraCache")
             # Read user's current engagements, e.g. exclude engagements that
@@ -338,6 +359,11 @@ class AdMoSync(object):
             engagements = map(itemgetter(0), engagements)
             engagements = filter(lambda eng: eng["user"] == uuid, engagements)
             engagements = filter(itemgetter("primary_boolean"), engagements)
+            # Skip engagements beginning in the future
+            engagements = filter(
+                _make_exclude_function(itemgetter("from_date")),
+                list(engagements),
+            )
             # Notice, this will only update current row, if more rows exists, they
             # will not be updated until the first run after that row has become
             # current. To fix this, we will need to ad option to LoRa cache to be
@@ -356,7 +382,13 @@ class AdMoSync(object):
                 uuid, calculate_primary=True, read_all=True, skip_past=True,
             )
             engagements = filter(lambda eng: eng["is_primary"], engagements)
+            # Skip engagements beginning in the future
+            engagements = filter(
+                _make_exclude_function(lambda eng: eng["validity"]["from"]),
+                list(engagements),
+            )
             for engagement in engagements:
+                logger.debug('editing %r', engagement)
                 validity = {
                     "from": VALIDITY["from"],  # today
                     "to": engagement.get("validity", {}).get("to"),

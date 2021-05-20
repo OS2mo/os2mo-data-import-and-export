@@ -1,7 +1,6 @@
 # TODO: Fix imports in module
 import sys
 from datetime import date
-from functools import partial
 from itertools import chain
 from os.path import dirname
 from unittest import TestCase
@@ -29,8 +28,9 @@ class MockLoraCache:
     # This implements enough of the real `LoraCache` to make
     # `_edit_engagement` happy.
 
-    def __init__(self, mo_values):
+    def __init__(self, mo_values, mo_engagements=None):
         self._mo_values = mo_values
+        self._mo_engagements = mo_engagements
 
     @property
     def users(self):
@@ -38,20 +38,36 @@ class MockLoraCache:
 
     @property
     def engagements(self):
-        return {
-            "engagement_uuid": [
-                {
-                    "uuid": "engagement_uuid",
-                    "user": self._mo_values["uuid"],
-                    "primary_boolean": True,
-                    "to_date": None,
-                    "extensions": {
-                        "udvidelse_%d" % n: "old mo value #%d" % n
-                        for n in range(1, 11)
-                    },
-                }
-            ]
+        extensions = {
+            "udvidelse_%d" % n: "old mo value #%d" % n for n in range(1, 11)
         }
+        if self._mo_engagements:
+            return {
+                eng["uuid"]: [
+                    {
+                        "uuid": eng["uuid"],
+                        "user": self._mo_values["uuid"],
+                        "primary_boolean": eng["is_primary"],
+                        "from_date": eng["validity"]["from"],
+                        "to_date": eng["validity"]["to"],
+                        "extensions": extensions,
+                    }
+                ]
+                for eng in self._mo_engagements
+            }
+        else:
+            return {
+                "engagement_uuid": [
+                    {
+                        "uuid": "engagement_uuid",
+                        "user": self._mo_values["uuid"],
+                        "primary_boolean": True,
+                        "from_date": "1960-01-01",
+                        "to_date": None,
+                        "extensions": extensions,
+                    }
+                ]
+            }
 
 
 class TestADMoSync(TestCase, TestADMoSyncMixin):
@@ -702,6 +718,69 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         # Run full sync against the mocks
         with self.assertRaises(Exception):
             self.ad_sync.update_all_users()
+
+    @parameterized.expand(
+        [
+            (False,),  # test without LoraCache
+            (True,),  # test with LoraCache
+        ]
+    )
+    def test_sync_engagement_excludes_future_engagements(self, lora_cache):
+        def seed_mo():
+            current = {
+                "uuid": "engagement_uuid_1",
+                "extension_1": "1",
+                "is_primary": True,
+                "validity": {"from": "2010-12-31", "to": "2030-12-31"},
+            }
+            future = {
+                "uuid": "engagement_uuid_2",
+                "extension_1": "2",
+                "is_primary": True,
+                "validity": {"from": "2030-12-31", "to": None},
+            }
+            return {"engagement": [current, future]}
+
+        self._setup_admosync(
+            transform_settings=self._sync_engagement_mapping_transformer(
+                # Map an attr whose value is not equal to the MO value
+                {"ad_field": "extension_1"}
+            ),
+            # Mock an AD which always contains "foobar" in the field
+            # "ad_field"
+            transform_ad_values=dict_modifier({"ad_field": "foobar"}),
+            seed_mo=seed_mo,
+        )
+
+        if lora_cache:
+            self.ad_sync.lc = MockLoraCache(
+                self.mo_values_func(),
+                mo_engagements=seed_mo()["engagement"],
+            )
+
+        # Run full sync against the mocks
+        self.ad_sync.update_all_users()
+
+        self.assertEqual(
+            self.ad_sync.mo_post_calls,
+            [
+                {
+                    "force": True,
+                    "payload": {
+                        "data": {
+                            "extension_1": "foobar",
+                            "validity": {
+                                "from": "2021-05-20",
+                                "to": "2030-12-31",
+                            }
+                        },
+                        "type": "engagement",
+                        "uuid": "engagement_uuid_1"
+                    },
+                    "url": "details/edit"
+                }
+            ]
+        )
 
     @parameterized.expand(
         [
