@@ -397,12 +397,9 @@ class AdMoSync(object):
                 self._edit_engagement_post_to_mo(uuid, ad_object, engagement, validity)
 
     def _edit_engagement_post_to_mo(self, uuid, ad_object, mo_engagement, validity):
-        mo_data = {
-            "validity": validity,
-        }
-
         # Populate `mo_data` with a value for each mapped field whose value has
         # changed when comparing the AD object to the current MO object.
+        mo_data = {}
         for ad_field, mo_field in self.mapping["engagements"].items():
             # Default `mo_value` to an empty string. In case the field is
             # dropped from the AD object, this will empty its value in MO.
@@ -423,12 +420,13 @@ class AdMoSync(object):
 
             mo_data[mo_field] = new_mo_value
 
-        if len(mo_data) == 1 and "validity" in mo_data:
-            # If `mo_data` contains *only* the `validity` key after the above
-            # for-loop has been run, the payload to MO is essentially empty.
-            # In that case, terminate early without posting anything to MO.
+        # Check that the loop added at least one key/value pair to `mo_data`.
+        if not mo_data:
             logger.debug("Nothing to post, returning")
             return
+
+        # Then, add the validity.
+        mo_data["validity"] = validity
 
         payload = {
             "type": "engagement",
