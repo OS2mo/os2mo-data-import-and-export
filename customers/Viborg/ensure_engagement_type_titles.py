@@ -2,7 +2,7 @@ import asyncio
 
 from mox_helpers.mox_util import ensure_class_value_helper
 
-from exporters.utils.load_settings import load_settings
+from rautils.load_settings import load_settings
 
 settings = load_settings()
 

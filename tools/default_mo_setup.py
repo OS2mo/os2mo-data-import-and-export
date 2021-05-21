@@ -1,7 +1,7 @@
 import constants
 from os2mo_data_import import ImportHelper
 from mox_helpers import mox_util
-from exporters.utils.load_settings import load_settings
+from rautils.load_settings import load_settings
 from integrations.opus import opus_helpers
 
 

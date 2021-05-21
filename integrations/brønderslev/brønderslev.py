@@ -4,7 +4,7 @@ import pathlib
 import click
 from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
 
-from exporters.utils.load_settings import load_settings
+from rautils.load_settings import load_settings
 from integrations.ad_integration.ad_reader import ADParameterReader
 from integrations.opus.opus_helpers import update_employee
 from integrations.opus.opus_diff_import import start_opus_diff

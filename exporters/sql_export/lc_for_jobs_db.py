@@ -12,7 +12,7 @@ from sqlalchemy import create_engine
 from constants import lc_for_jobs_actual_db_name
 from customer_settings import PathDefaultMethod, get_settings
 from exporters.sql_export.sql_export import SqlExport
-from exporters.utils.load_settings import load_settings
+from rautils.load_settings import load_settings
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "lc-for-jobs.log"

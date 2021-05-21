@@ -26,7 +26,7 @@ from sqlalchemy import create_engine, event, or_
 from sqlalchemy.orm import sessionmaker
 
 from integrations.dar_helper.dar_helper import dar_fetch
-from exporters.utils.async_to_sync import async_to_sync
+from rautils.async_to_sync import async_to_sync
 
 
 LOG_LEVEL = logging.DEBUG

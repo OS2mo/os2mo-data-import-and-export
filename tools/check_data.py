@@ -1,6 +1,6 @@
 import requests
 
-from exporters.utils.load_settings import load_settings
+from rautils.load_settings import load_settings
 from tools.data_fixers.find_duplicate_users import check_duplicate_cpr
 from tools.data_fixers.remove_duplicate_classes import find_duplicates_classes
 

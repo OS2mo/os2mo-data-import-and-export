@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Union
 import requests
 
 from constants import AD_it_system
-from exporters.utils.priority_by_class import choose_public_address
+from rautils.priority_by_class import choose_public_address
 from integrations.os2sync import config
 from integrations.os2sync.templates import Person, User
 

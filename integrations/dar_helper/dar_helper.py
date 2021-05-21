@@ -6,7 +6,7 @@ from operator import itemgetter
 from aiohttp import ClientSession, TCPConnector
 from more_itertools import chunked, unzip
 
-from exporters.utils.async_to_sync import async_to_sync
+from rautils.async_to_sync import async_to_sync
 
 
 def ensure_session(func):

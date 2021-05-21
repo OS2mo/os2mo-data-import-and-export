@@ -8,7 +8,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from requests import Session
 
 import constants
-from exporters.utils.load_settings import load_settings
+from rautils.load_settings import load_settings
 from integrations import dawa_helper
 from integrations.opus import opus_helpers
 from integrations.opus.opus_exceptions import UnknownOpusAction

@@ -12,7 +12,7 @@ from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.payloads import lora_facet, lora_klasse
 from mox_helpers.utils import async_to_sync, dict_map
 
-from exporters.utils.load_settings import load_settings
+from rautils.load_settings import load_settings
 
 
 @click.group()

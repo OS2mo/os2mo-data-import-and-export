@@ -8,7 +8,7 @@ import pandas as pd
 import requests
 from more_itertools import one
 
-from exporters.utils.load_settings import load_settings
+from rautils.load_settings import load_settings
 
 # --------------------------------------------------------------------------------------
 # Get user engagements

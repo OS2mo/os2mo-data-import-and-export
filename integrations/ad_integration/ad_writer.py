@@ -14,6 +14,9 @@ from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from jinja2 import Template
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
+from rautils.lazy_dict import LazyDict
+from rautils.lazy_dict import LazyEval
+from rautils.lazy_dict import LazyEvalDerived
 
 from . import ad_templates
 from .ad_common import AD
@@ -32,9 +35,6 @@ from .utils import dict_exclude
 from .utils import dict_map
 from .utils import dict_subset
 from .utils import lower_list
-from exporters.utils.lazy_dict import LazyDict
-from exporters.utils.lazy_dict import LazyEval
-from exporters.utils.lazy_dict import LazyEvalDerived
 
 
 logger = logging.getLogger("AdWriter")

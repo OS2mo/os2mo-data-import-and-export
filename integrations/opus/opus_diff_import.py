@@ -15,7 +15,7 @@ from requests import Session
 from tqdm import tqdm
 
 import constants
-from exporters.utils.load_settings import load_settings
+from rautils.load_settings import load_settings
 from integrations import dawa_helper
 
 from integrations.ad_integration import ad_reader

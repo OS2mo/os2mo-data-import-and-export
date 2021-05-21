@@ -8,8 +8,8 @@ from uuid import UUID
 import click
 import jmespath
 import requests
-from exporters.utils.load_settings import load_settings
-from exporters.utils.transpose_dict import transpose_dict
+from rautils.load_settings import load_settings
+from rautils.transpose_dict import transpose_dict
 from more_itertools import one, only, unzip
 from tqdm import tqdm
 
