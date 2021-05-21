@@ -506,7 +506,7 @@ rådighed i dag:
      - Brugerens navn, opdelt i fornavn og efternavn. Fornavn kan fx tilgås via
        ``mo_values['name'][0]``, og efternavn via ``mo_values['name'][1]``.
    * - ``full_name``
-     - Brugerens fulde navn, dvs. fornavn og efternavn samlet i eet felt.
+     - Brugerens fulde navn, dvs. fornavn og efternavn samlet i et felt.
    * - ``nickname``
      - Brugerens kaldenavn, opdelt i fornavn og efternavn. Fornavn kan fx tilgås via
        ``mo_values['nickname'][0]``, og efternavn via ``mo_values['nickname'][1]``.
