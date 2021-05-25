@@ -399,7 +399,9 @@ class MOPrimaryEngagementUpdater(ABC):
             to = datetime.datetime.strftime(
                 end - datetime.timedelta(days=1), "%Y-%m-%d"
             )
-            if end == datetime.datetime(9999, 12, 30, 0, 0):
+            # Sentinel value for infinity is usually 9999-12-30 / 9999-12-31.
+            # We assume anything above 9999-1-1 is sentinel value for infinity.
+            if end >= datetime.datetime(9999, 1, 1, 0, 0):
                 to = None
             validity = {
                 "from": datetime.datetime.strftime(start, "%Y-%m-%d"),
