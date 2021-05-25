@@ -71,7 +71,7 @@ def find_bad_engagements(mora_base: AnyHttpUrl) -> Iterator[Tuple[UUID, List[UUI
     return user_tuples
 
 
-def fixup_user(
+def fixup_single_user(
     mora_base: AnyHttpUrl,
     person_uuid: UUID,
     engagement_uuid: UUID,
@@ -160,9 +160,9 @@ def find(mora_base: AnyHttpUrl, output_json: bool):
 @click.option("--mora-base", default="http://localhost:5000")
 @click.option("--person-uuid", required=True, type=click.UUID)
 @click.option("--engagement-uuid", required=True, type=click.UUID)
-def fixup(mora_base: AnyHttpUrl, person_uuid: UUID, engagement_uuid: UUID):
+def fixup_user(mora_base: AnyHttpUrl, person_uuid: UUID, engagement_uuid: UUID):
     """Fixup a single engagement end-date for a single user."""
-    payload, response = fixup_user(mora_base, person_uuid, engagement_uuid)
+    payload, response = fixup_single_user(mora_base, person_uuid, engagement_uuid)
     print(json.dumps(payload, indent=4))
     print(response.status_code)
     print(response.text)
@@ -171,14 +171,14 @@ def fixup(mora_base: AnyHttpUrl, person_uuid: UUID, engagement_uuid: UUID):
 @cli.command()
 @click.option("--mora-base", default="http://localhost:5000")
 @click.option("--dry-run", is_flag=True, default=False)
-def rework(mora_base: AnyHttpUrl, dry_run: bool):
+def fixup_all(mora_base: AnyHttpUrl, dry_run: bool):
     """Find and fixup all users with the issue."""
     all_users = find_bad_engagements(mora_base)
     for user_uuid, engagement_uuids in all_users:
         print(user_uuid, engagement_uuids)
         for engagement_uuid in engagement_uuids:
             try:
-                payload, response = fixup_user(
+                payload, response = fixup_single_user(
                     mora_base, user_uuid, engagement_uuid, dry_run=dry_run
                 )
             except ValueError:
