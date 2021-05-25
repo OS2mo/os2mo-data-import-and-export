@@ -63,7 +63,7 @@ def find_bad_engagements(mora_base: AnyHttpUrl) -> Iterator[Tuple[UUID, List[UUI
     users: Iterator[Dict] = tqdm(helper.read_all_users())
     user_uuid_strings: Iterator[str] = map(itemgetter("uuid"), users)
     user_uuids: Iterator[UUID] = map(UUID, user_uuid_strings)
-    # Enrich each user_uuid with a list of bad engagement uuids, filter empty lists
+    # Enrich each user_uuid with a list of uuids from engagements that has a bad end-date, filter empty lists
     user_tuples: Iterator[Tuple[UUID, List[UUID]]] = map(enrich_user_uuid, user_uuids)
     user_tuples = filter(
         apply(lambda user_uuid, engagement_uuids: bool(engagement_uuids)), user_tuples
