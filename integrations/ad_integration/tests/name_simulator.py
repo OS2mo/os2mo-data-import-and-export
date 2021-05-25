@@ -1,7 +1,7 @@
 import random
 from mimesis import Person
 
-person_gen = Person('da')
+person_gen = Person("da")
 
 
 def create_name():
