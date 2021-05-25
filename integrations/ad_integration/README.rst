@@ -948,9 +948,33 @@ Derudover kan programmet konfigureres med nøgler i ``settings.json`` specifikt:
 
  * ``integrations.ad.write.create_user_trees``
 
-   Liste over uuid'er på enheder, medarbejdere i disse enheder samt deres
-   underheder, vil få oprettet AD en konto af ad_life_cycle, hvis de ikke i
-   forvejen har en.
+   Her angives en liste over et eller flere UUID'er på organisationsenheder i
+   MO. Hvis en medarbejder optræder i en af disse enheder (samt deres
+   underenheder, underenhedernes underenheder, osv.) vil ``ad_life_cycle``
+   oprette en AD-konto for medarbejderen (såfremt de ikke allerede har en.)
+
+   Hvis man eksempelvis har et organisationstræ i MO, der ser således ud:
+
+   .. code-block::
+
+      Enhed A (uuid: aaaa)
+        - Enhed A1 (uuid: aaaa1111)
+      Enhed B (uuid: bbbb)
+        - Enhed B1 (uuid: bbbb1111)
+
+   og man ønsker, at ``ad_life_cycle`` kun må oprette AD-konti for MO-brugere i
+   enhederne A, A1, og B1, kan man angive:
+
+   .. code-block:: json
+
+      {
+        "integrations.ad.write.create_user_trees": [
+          "aaaa", "bbbb1111"
+        ]
+      }
+
+   Der vil ikke blive oprettet AD-konti for MO-brugere i enhed B med denne
+   opsætning.
 
  * ``integrations.ad.lifecycle.create_filters``
 
