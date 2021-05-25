@@ -9,22 +9,15 @@ setup(
     author="Magenta ApS",
     author_email="info@magenta.dk",
     license="MPL 2.0",
-    entry_points={
-        'console_scripts': [
-            'mo-populate = fixture_generator.populate_mo:main',
-        ],
-    },
+    entry_points={},
     packages=[
         "os2mo_data_import",
         "integration_abstraction",
         "os2mo_helpers",
         "mox_helpers",
-        "fixture_generator",
         "kle",
     ],
-    package_data={
-        "fixture_generator": ["navne/*.txt", "*.p"],
-    },
+    package_data={},
     zip_safe=False,
     install_requires=[
         "anytree",
