@@ -770,7 +770,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                         "data": {
                             "extension_1": "foobar",
                             "validity": {
-                                "from": "2021-05-20",
+                                "from": today_iso(),
                                 "to": "2030-12-31",
                             },
                         },
