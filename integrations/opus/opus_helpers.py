@@ -94,10 +94,8 @@ def next_xml_file(run_db, dumps):
         if date > latest_date:
             next_date = date
             break
-    if next_date is None:
-        # raise NoNewerDumpAvailable('No newer XML dump is available')
-        print('No newer dump is available - already done :)')
-    return (next_date, latest_date)
+
+    return next_date, latest_date
 
 
 def parse_phone(phone_number):
@@ -184,7 +182,7 @@ def find_changes(before: List[Dict], after: List[Dict], disable_tqdm: bool = Fal
 
     return changed_obj
 
-def file_diff(file1, file2, filter_ids, disable_tqdm=False):
+def file_diff(file1, file2, filter_ids, disable_tqdm=True):
     units1 = employees1 = {}
     if file1:
         units1, employees1 = parser(file1, filter_ids)
