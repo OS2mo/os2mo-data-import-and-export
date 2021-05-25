@@ -171,7 +171,9 @@ def read_settings(top_settings=SETTINGS, index=0):
     settings = {}
     settings['global'] = _read_global_settings(top_settings)
     settings['primary'] = _read_primary_ad_settings(top_settings, index)
-    settings['primary_write'] = _read_primary_write_information(top_settings)
+    # TODO: better check for AD-writer.
+    if "integrations.ad.write.uuid_field" in top_settings:
+        settings['primary_write'] = _read_primary_write_information(top_settings)
     return settings
 
 
