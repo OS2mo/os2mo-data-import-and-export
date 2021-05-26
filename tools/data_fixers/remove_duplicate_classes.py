@@ -48,7 +48,7 @@ def switch_class(
     Given an object payload and an uuid this function wil switch the class that an object is related to.
     Only switches class if it is in the set uuid_set.
     """
-    old_uuid = UUID(payload["id"])
+    object_uuid = UUID(payload["id"])
     payload = payload["registreringer"][0]
     # Drop data we don't need to post
     payload = {
@@ -62,7 +62,7 @@ def switch_class(
     payload = json.loads(p_string)
 
     r = session.put(
-        base + f"/organisation/organisationfunktion/{str(old_uuid)}", json=payload
+        base + f"/organisation/organisationfunktion/{str(object_uuid)}", json=payload
     )
     r.raise_for_status()
 
@@ -132,7 +132,12 @@ def find_duplicates_classes(session, mox_base: str) -> List[List[Tuple[UUID, str
     return filter_duplicates(*info)
 
 
-@click.command()
+@click.group()
+def cli():
+    pass
+
+
+@cli.command()
 @click.option(
     "--delete",
     type=click.BOOL,
@@ -141,7 +146,7 @@ def find_duplicates_classes(session, mox_base: str) -> List[List[Tuple[UUID, str
     required=False,
     help="Remove any class that has duplicates",
 )
-def cli(delete):
+def remove_dup_classes(delete):
     """Tool to help remove classes from MO that are duplicates.
 
     This tool is written to help clean up engagement_types that had the same name, but with different casing.
@@ -185,6 +190,27 @@ def cli(delete):
             for payload in tqdm(rel, desc="Changing class for objects"):
                 switch_class(session, mox_base, payload, kept_uuid, uuid_set)
             delete_class(session, mox_base, uuid)
+
+
+@cli.command()
+@click.option(
+    "--old-uuid",
+    required=True,
+    help="UUID of old class",
+)
+@click.option(
+    "--new-uuid",
+    required=True,
+    help="UUID of new class",
+)
+def switch_uuid(old_uuid: UUID, new_uuid: UUID):
+    """Switches class for all objects using this class given two uuids."""
+    settings = load_settings()
+    mox_base = settings.get("mox.base", "http://localhost:8080/")
+    session = requests.Session()
+    rel = check_relations(session, mox_base, old_uuid)
+    for payload in tqdm(rel, desc="Changing class for objects"):
+        switch_class(session, mox_base, payload, new_uuid, {old_uuid})
 
 
 if __name__ == "__main__":
