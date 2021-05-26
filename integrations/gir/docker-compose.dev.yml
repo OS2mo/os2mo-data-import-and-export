@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: Magenta ApS
+#
+# SPDX-License-Identifier: MPL-2.0
+
+version: "3.7"
+
+services:
+  import_gir:
+    environment:
+      - DATA_PATH=/data
+      - MO_URL=http://mo
+      - LORA_URL=http://mox
+
+    volumes:
+      - /home/mw/gir:/data
+
+networks:
+  default:
+    external: true
+    name: os2mo_default

@@ -1,7 +1,7 @@
 from pydantic import BaseModel
+from ramodels.lora import Facet, Organisation
 
-from os2mo_data_import.Clients.LoRa.model import Facet, Organisation
-from os2mo_data_import.util import generate_uuid
+from exporters.utils.uuid_helper import generate_uuid
 
 
 class ValidMo(BaseModel):

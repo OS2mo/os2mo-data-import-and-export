@@ -8,12 +8,17 @@ from uuid import UUID
 
 from more_itertools import flatten
 from pydantic import BaseModel, Field
+from ramodels.lora import Klasse
+from ramodels.mo import (
+    Address,
+    Employee,
+    Engagement,
+    EngagementAssociation,
+    OrganisationUnit,
+)
+from ramodels.mo._shared import MOBase
 
-from os2mo_data_import.Clients.LoRa.model import Klasse
-from os2mo_data_import.Clients.MO.model import Address, Employee, Engagement, \
-    EngagementAssociation, OrgUnit
-from os2mo_data_import.Clients.MO.model_parts.interface import MoObj
-from os2mo_data_import.util import generate_uuid
+from exporters.utils.uuid_helper import generate_uuid
 
 
 class OrstedBusinessError(Exception):
@@ -23,12 +28,12 @@ class OrstedBusinessError(Exception):
 class UUIDGenerator:
     def __init__(self, uuid_gen_seed: str = ""):
         self.__seed = uuid_gen_seed
-        self.__cache: Dict[str, str] = {}  # Dict[user_key: uuid]
+        self.__cache: Dict[str, UUID] = {}  # Dict[user_key: uuid]
 
-    def get_all(self) -> Dict[str, str]:
+    def get_all(self) -> Dict[str, UUID]:
         return deepcopy(self.__cache)
 
-    def get_uuid(self, key: str) -> str:
+    def get_uuid(self, key: str) -> UUID:
         """
         Generate uuid if missing
         :param key:
@@ -182,7 +187,11 @@ class RawEmdData(BaseModel):
     def __generate_employee(self) -> Employee:
         name = f"{self.First_Name} {self.Last_Name}"
         person_uuid = generate_uuid(name)
-        return Employee(uuid=person_uuid, name=name, seniority=self.Seniority)
+        return Employee(
+            uuid=person_uuid,
+            name=name,
+            seniority=datetime.strptime(self.Seniority, "%Y%m%d"),
+        )
 
     def __get_from_to_dates(self) -> Tuple[str, Optional[str]]:
         from_date = datetime.strptime(self.Employment_Date, "%d-%b-%y").strftime(
@@ -203,19 +212,15 @@ class RawEmdData(BaseModel):
         person_uuid: UUID,
         job_function_uuid_generator: UUIDGenerator,
         engagement_type_uuid_generator: UUIDGenerator,
-        org_unit_uuids: Dict[str, str],
+        org_unit_uuids: Dict[str, UUID],
         primary_uuid: UUID,
     ) -> Engagement:
         engagement_type = (
-            self.Hr_Employee_Type
-            if self.Hr_Employee_Type
-            else self.Hr_Consultant_Type
+            self.Hr_Employee_Type if self.Hr_Employee_Type else self.Hr_Consultant_Type
         )
 
         job_function_uuid = job_function_uuid_generator.get_uuid(self.Title)
-        engagement_type_uuid = engagement_type_uuid_generator.get_uuid(
-            engagement_type
-        )
+        engagement_type_uuid = engagement_type_uuid_generator.get_uuid(engagement_type)
 
         engagement_seed = "unique_engagement_salt_" + self.Initials
         engagement_uuid = generate_uuid(engagement_seed)
@@ -224,7 +229,7 @@ class RawEmdData(BaseModel):
 
         return Engagement.from_simplified_fields(
             uuid=engagement_uuid,
-            org_unit_uuid=org_unit_uuids[str(self.Hr_Department_No)],
+            org_unit_uuid=org_unit_uuids[self.Hr_Department_No],
             person_uuid=person_uuid,
             job_function_uuid=job_function_uuid,
             engagement_type_uuid=engagement_type_uuid,
@@ -252,9 +257,7 @@ class RawEmdData(BaseModel):
         person_uuid,
         org_uuid: UUID,
     ) -> List[Address]:
-        visibility_uuid = (
-            visible_uuid if self.Phonebook_Relevant else not_visible_uuid
-        )
+        visibility_uuid = visible_uuid if self.Phonebook_Relevant else not_visible_uuid
 
         address_candidates = [
             (self.Email, None, address_klasses.EMAIL),
@@ -283,7 +286,10 @@ class RawEmdData(BaseModel):
                     return None
             return Address.from_simplified_fields(
                 uuid=generate_uuid(
-                    str(engagement_uuid) + str(address_type_klasse.uuid) + value + str(value2)
+                    str(engagement_uuid)
+                    + str(address_type_klasse.uuid)
+                    + value
+                    + str(value2)
                 ),
                 value=value,
                 value2=value2,
@@ -331,10 +337,14 @@ class RawEmdData(BaseModel):
         org_unit_level_uuid,
         financial_org_unit_uuid,
         legal_org_unit_uuid,
-    ) -> Tuple[Optional[OrgUnit], Optional[OrgUnit], Optional[OrgUnit]]:
+    ) -> Tuple[
+        Optional[OrganisationUnit],
+        Optional[OrganisationUnit],
+        Optional[OrganisationUnit],
+    ]:
         cost_center = None
         if self.Hr_Cost_Center:
-            cost_center = OrgUnit.from_simplified_fields(
+            cost_center = OrganisationUnit.from_simplified_fields(
                 uuid=generate_uuid("unique_org_unit_seed" + self.Hr_Cost_Center),
                 user_key=self.Hr_Cost_Center,
                 name=self.Hr_Cost_Center,
@@ -346,7 +356,7 @@ class RawEmdData(BaseModel):
 
         sender_cost_center = None
         if self.Sender_Cost_Center:
-            sender_cost_center = OrgUnit.from_simplified_fields(
+            sender_cost_center = OrganisationUnit.from_simplified_fields(
                 uuid=generate_uuid("unique_org_unit_seed" + self.Sender_Cost_Center),
                 user_key=self.Sender_Cost_Center,
                 name=self.Sender_Cost_Center,
@@ -358,7 +368,7 @@ class RawEmdData(BaseModel):
 
         legal_company = None
         if self.Hr_Legal_Company:
-            legal_company = OrgUnit.from_simplified_fields(
+            legal_company = OrganisationUnit.from_simplified_fields(
                 uuid=generate_uuid("unique_org_unit_seed" + self.Hr_Legal_Company),
                 user_key=self.Hr_Company_Code,
                 name=self.Hr_Legal_Company,
@@ -396,7 +406,7 @@ class RawEmdData(BaseModel):
 
     def to_mo_objs(
         self,
-        org_unit_uuids: Dict[str, str],
+        org_unit_uuids: Dict[str, UUID],
         primary_uuid: UUID,
         engagement_type_uuid_generator: UUIDGenerator,
         job_function_uuid_generator: UUIDGenerator,
@@ -479,7 +489,7 @@ class RawEmdData(BaseModel):
 
 def read_emd(
     path: Path,
-    org_unit_uuids: Dict[str, str],
+    org_unit_uuids: Dict[str, UUID],
     primary_uuid: UUID,
     engagement_type_uuid_generator: UUIDGenerator,
     job_function_uuid_generator: UUIDGenerator,
@@ -492,7 +502,7 @@ def read_emd(
     engagement_association_type_uuid: UUID,
     org_unit_level_uuid: UUID,
     org_uuid: UUID,
-) -> Tuple[Iterable[Iterable[MoObj]], ...]:
+) -> Tuple[Iterable[Iterable[MOBase]], ...]:
     with path.open("r") as file:
         raw_emd_datas: Iterable[RawEmdData] = map(
             RawEmdData.parse_obj, DictReader(file, delimiter=";")
@@ -536,7 +546,6 @@ def read_emd(
 
 
 if __name__ == "__main__":
-
     with Path("/home/mw/gir/gir_from_emd.csv").open("r") as f:
         raw_emd_dat = map(RawEmdData.parse_obj, DictReader(f, delimiter=";"))
         for x in raw_emd_dat:

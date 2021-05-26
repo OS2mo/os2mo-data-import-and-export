@@ -1,3 +1,4 @@
+import os
 from asyncio import run, sleep
 from functools import partial
 from pathlib import Path
@@ -5,7 +6,13 @@ from typing import Dict, Iterable, Optional
 from uuid import UUID
 
 from more_itertools import flatten
+from pydantic import AnyHttpUrl
+from ramodels.lora import Klasse
+from ramodels.mo import Engagement, Manager, OrganisationUnit
+from ramodels.mo._shared import MOBase
 
+from exporters.utils.uuid_helper import generate_uuid
+from exporters.utils.valid_mo import ValidMo
 from integrations.gir.initial_read.emd_csv import (
     AddressKlasses,
     UUIDGenerator,
@@ -14,11 +21,6 @@ from integrations.gir.initial_read.emd_csv import (
 )
 from integrations.gir.initial_read.mo_lora_client import MoLoRaClient
 from integrations.gir.initial_read.org_unit_csv import PartialManager, read_csv
-from os2mo_data_import.Clients.LoRa.default_mo import ValidMo
-from os2mo_data_import.Clients.LoRa.model import Klasse
-from os2mo_data_import.Clients.MO.model import Engagement, Manager, OrgUnit
-from os2mo_data_import.Clients.MO.model_parts.interface import MoObj
-from os2mo_data_import.util import generate_uuid
 
 
 def missing_ous(outu, oulu):
@@ -36,7 +38,7 @@ def missing_ous(outu, oulu):
         :return:
         """
         return [
-            OrgUnit.from_simplified_fields(
+            OrganisationUnit.from_simplified_fields(
                 uuid=generate_uuid("ou_any_seed_yo" + user_key),
                 user_key=user_key,
                 name="MISSING INFO",
@@ -76,9 +78,7 @@ def klasses_from_uuid_gen(
             title=user_key,
         )
 
-    return [
-        klasse_gen(uuid, user_key) for user_key, uuid in uuid_gen.get_all().items()
-    ]
+    return [klasse_gen(uuid, user_key) for user_key, uuid in uuid_gen.get_all().items()]
 
 
 def gen_managers(
@@ -113,11 +113,9 @@ def gen_managers(
     return list(filter(lambda x: x is not None, map(manager_gen, filtered_pm)))
 
 
-def read_values(base_path: Path) -> Iterable[Iterable[MoObj]]:
+def read_values(base_path: Path) -> Iterable[Iterable[MOBase]]:
     base = ValidMo.from_scratch()
-    gen_org_klass = partial(
-        gen_single_klass, organisation_uuid=base.organisation.uuid
-    )
+    gen_org_klass = partial(gen_single_klass, organisation_uuid=base.organisation.uuid)
     base_objs = [x[1] for x in base]
     address_classes = AddressKlasses.from_simplified_fields(
         organisation_uuid=base.organisation.uuid,
@@ -192,14 +190,14 @@ def read_values(base_path: Path) -> Iterable[Iterable[MoObj]]:
     # department_no: uuid
     ou_mapping = {ou.user_key: ou.uuid for ou in flatten(org_units)}
 
-    ou_fin = OrgUnit.from_simplified_fields(
+    ou_fin = OrganisationUnit.from_simplified_fields(
         uuid=generate_uuid("w/e" + "fin"),
         user_key="financial_placeholder",
         name="Financial Organisation",
         org_unit_type_uuid=ou_type_unit.uuid,
         org_unit_level_uuid=ou_level_l1.uuid,
     )
-    ou_legal = OrgUnit.from_simplified_fields(
+    ou_legal = OrganisationUnit.from_simplified_fields(
         uuid=generate_uuid("w/e" + "legal"),
         user_key="legal_placeholder",
         name="Legal Organisation",
@@ -261,24 +259,27 @@ def read_values(base_path: Path) -> Iterable[Iterable[MoObj]]:
         )
     )
     fixture = base_objs, classes, *org_units, [ou_fin], [ou_legal]
-    # return (*fixture,)
-    # return (*fixture2,)
-    # return *engagement_associations, *managers, *addresses
-    # return *managers[10:20], *addresses[10:20]
-    # return (*managers,)
-    # return (*addresses[9:],)
-    return *fixture, *fixture2, *engagement_associations, *managers, *addresses
-    # return org_units[:1]
+    # return *fixture, *fixture2, *engagement_associations, *managers, *addresses
+    return *fixture2, *engagement_associations, *managers, *addresses
 
 
-async def main(base_path: Path):
-    client = MoLoRaClient()
+async def main(base_path: Path, mo_url: AnyHttpUrl, lora_url: AnyHttpUrl):
+    client = MoLoRaClient(mo_url=mo_url, lora_url=lora_url)
     values = read_values(base_path)
     async with client.context():
         for group in values:
+            await sleep(0.2)  # throttle
             await client.load_objs(group)
 
 
+def str_to_url(url: str) -> AnyHttpUrl:
+    scheme, host = url.split("://")
+    return AnyHttpUrl(url=url, scheme=scheme, host=host)
+
+
 if __name__ == "__main__":
-    # os.environ["gir_base_path"]
-    run(main(Path("/home/mw/gir")))
+    data_path = Path(os.environ["DATA_PATH"])
+    parsed_mo_url = str_to_url(os.environ["MO_URL"])
+    parsed_lora_url = str_to_url(os.environ["LORA_URL"])
+
+    run(main(data_path, parsed_mo_url, parsed_lora_url))

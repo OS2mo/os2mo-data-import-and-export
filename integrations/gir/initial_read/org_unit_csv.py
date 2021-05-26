@@ -3,13 +3,14 @@ from dataclasses import dataclass
 from itertools import groupby
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from more_itertools import flatten
 from pydantic import BaseModel, PrivateAttr
 
-from os2mo_data_import.Clients.MO.model import OrgUnit
-from os2mo_data_import.util import generate_uuid
+from ramodels.mo import OrganisationUnit
+
+from exporters.utils.uuid_helper import generate_uuid
 
 
 @dataclass(frozen=True)
@@ -85,8 +86,8 @@ class RawOrgUnit(BaseModel):
 
     def to_mo_org_unit(
             self, org_unit_type_uuid: UUID, org_unit_level_uuid: UUID
-    ) -> OrgUnit:
-        return OrgUnit.from_simplified_fields(
+    ) -> OrganisationUnit:
+        return OrganisationUnit.from_simplified_fields(
             uuid=self.__get_uuid(),
             user_key=str(self.Org_Unit_No),
             name=self.__path[-1],
@@ -103,7 +104,7 @@ class RawOrgUnit(BaseModel):
 
 def read_csv(
         path: Path, org_unit_type_uuid: UUID, org_unit_level_uuid: UUID
-) -> Tuple[List[List[OrgUnit]], List[PartialManager]]:
+) -> Tuple[List[List[OrganisationUnit]], List[PartialManager]]:
     with path.open("r") as file:
         raw_org_units = list(
             map(RawOrgUnit.from_dict_with_spaces_in_keys, DictReader(file))
@@ -140,5 +141,5 @@ if __name__ == "__main__":
     with Path("/home/mw/gir/gir_orsted_hierarki_linje.csv").open("r") as file:
         RawOrgUnits = map(RawOrgUnit.from_dict_with_spaces_in_keys, DictReader(file))
         for x in RawOrgUnits:
-            print(x)
+            print(x.to_mo_org_unit(uuid4(), uuid4()).dict())
             exit()
