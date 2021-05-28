@@ -24,27 +24,30 @@ def connect_it_system_to_user(ad_user, it_system):
 
 
 # almost all parameters could be replaced with direct reading from settings
-def create_engagement(ad_user, unit_uuid, job_function, engagement_type, validity):
+def create_engagement(ad_user, unit_uuid, person_uuid, job_function, engagement_type,
+                      validity):
     payload = {
-        "type": "engagement",
-        "org_unit": {"uuid": str(unit_uuid)},
-        "person": {"uuid": ad_user["ObjectGUID"]},
-        "job_function": {"uuid": job_function},
-        "engagement_type": {"uuid": engagement_type},
-        "user_key": ad_user["SamAccountName"],
-        "validity": validity,
+        'type': 'engagement',
+        'org_unit': {'uuid': str(unit_uuid)},
+        'person': {'uuid': str(person_uuid)},
+        'job_function': {'uuid': job_function},
+        'engagement_type': {'uuid': engagement_type},
+        'user_key': ad_user['SamAccountName'],
+        'validity': validity
     }
     return payload
 
-
-def unit_for_externals(uuid, unit_type, parent):
+def create_unit(uuid, unit_name, unit_type, parent):
     payload = {
-        "uuid": uuid,
-        "user_key": "external_employees",
-        "name": "Eksterne medarbejdere",
-        "parent": {"uuid": parent},
-        "org_unit_type": {"uuid": unit_type},
-        "validity": {"from": "1930-01-01", "to": None},
+        'uuid': uuid,
+        'user_key': unit_name,
+        'name': unit_name,
+        'parent': {'uuid': parent},
+        'org_unit_type': {'uuid': unit_type},
+        'validity': {
+            'from': '1930-01-01',
+            'to': None
+        }
     }
     return payload
 

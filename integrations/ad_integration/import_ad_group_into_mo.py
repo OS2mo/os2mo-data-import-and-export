@@ -4,12 +4,22 @@ import json
 import logging
 import pathlib
 import uuid
+from operator import itemgetter
+from typing import Dict, List
+from uuid import UUID
 
 import click
 import requests
-from click_option_group import optgroup
-from click_option_group import RequiredMutuallyExclusiveOptionGroup
+from click_option_group import RequiredMutuallyExclusiveOptionGroup, optgroup
+from more_itertools import only
+from mox_helpers.mox_util import ensure_class_in_lora
 from os2mo_helpers.mora_helpers import MoraHelper
+from tqdm import tqdm
+
+import constants
+from exporters.utils.load_settings import load_settings
+from integrations.ad_integration import payloads, read_ad_conf_settings
+from integrations.ad_integration.ad_reader import ADParameterReader
 
 from . import payloads
 from .ad_reader import ADParameterReader
@@ -21,7 +31,7 @@ logger = logging.getLogger("ImportADGroup")
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "external_ad_users.log"
 
-for name in logging.root.manager.loggerDict:  # type: ignore
+for name in logging.root.manager.loggerDict:
     if name in ("ImportADGroup", "AdReader", "mora-helper", "AdCommon"):
         logging.getLogger(name).setLevel(LOG_LEVEL)
     else:
@@ -36,198 +46,124 @@ logging.basicConfig(
 
 class ADMOImporter(object):
     def __init__(self):
-        all_settings = read_settings()
-        cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-        if not cfg_file.is_file():
-            raise Exception("No setting file")
-        self.settings = json.loads(cfg_file.read_text())
 
-        self.global_ad_settings = all_settings["global"]
-        self.primary_ad_settings = all_settings["primary"]
-
+        self.settings = load_settings()
+        self.root_ou_uuid = self.settings["integrations.ad.import_ou.mo_unit_uuid"]
         self.helper = MoraHelper(hostname=self.settings["mora.base"], use_cache=False)
-        try:
-            self.org_uuid = self.helper.read_organisation()
-        except requests.exceptions.RequestException as e:
-            logger.error(e)
-            print(e)
-            exit()
+        self.org_uuid = self.helper.read_organisation()
 
         self.ad_reader = ADParameterReader()
+        self.ad_reader.cache_all(print_progress=True)
 
-        # This will be populated by _find_or_create_unit_and_classes
-        self.uuids = None
-
-        # All relevant AD users, populated by _update_list_of_external_users_in_ad
-        self.users = None
-
-    # This function also exists i opus_helpers
-    def _generate_uuid(self, value):
-        """
-        Generate a predictable uuid based on org name and a unique value.
-        """
-        base_hash = hashlib.md5(self.settings["municipality.name"].encode())
-        base_digest = base_hash.hexdigest()
-        base_uuid = uuid.UUID(base_digest)
-
-        combined_value = (str(base_uuid) + str(value)).encode()
-        value_hash = hashlib.md5(combined_value)
-        value_digest = value_hash.hexdigest()
-        value_uuid = uuid.UUID(value_digest)
-        return value_uuid
-
-    # Similar versions exists in opus-diff-import and sd_changed_at
-    def _add_klasse_to_lora(self, bvn, navn, facet_uuid):
-        """
-        Helper to add a Klasse to LoRa.
-        :param bvn: BrugerVendtNøgle for the Klasse.
-        :param navn: Titel for the klasse.
-        :param facet_uuid: The facet that the Klasse will belong to.
-        :return uuid of the Klasse.
-        """
-        klasse_uuid = self._generate_uuid(bvn)
-        msg = "Adding Klasse: {}, bvn: {}, uuid: {}"
-        logger.debug(msg.format(navn, bvn, klasse_uuid))
-        payload = payloads.klasse(bvn, navn, self.org_uuid, facet_uuid)
-        url = "{}/klassifikation/klasse/{}"
-        response = requests.put(
-            url=url.format(self.settings["mox.base"], klasse_uuid), json=payload
-        )
-        response.raise_for_status()
-        return response.json()
-
-    def _fc_klasse(self, bvn, navn, facet):
-        """
-        Find or create Klasse.
-        Return the uuid of a given Klasse. If it does not exist, it will be created.
-        :param bvn: String with the user key of the Klasse.
-        :param facet: String with the name of the Facet for the Klasse.
-        :return: uuid of the Klasse
-        """
-        url = self.settings["mox.base"] + "/klassifikation/klasse?bvn=" + bvn
-        response = requests.get(url)
-        response.raise_for_status()
-        found_klasser = response.json()
-
-        if len(found_klasser["results"][0]) == 1:
-            klasse_uuid = found_klasser["results"][0][0]
-        elif len(found_klasser["results"]) > 1:
-            raise Exception("Inconsistent Klasser for external employees")
-        else:
-            _, facet_uuid = self.helper.read_classes_in_facet(facet)
-            logger.info("Creating Klasse: {} in {}".format(navn, facet_uuid))
-            klasse_uuid = self._add_klasse_to_lora(bvn, navn, facet_uuid)["uuid"]
-        return klasse_uuid
+        its = self.helper.read_it_systems()
+        AD_its = only(filter(lambda x: x["name"] == constants.AD_it_system, its))
+        self.AD_it_system_uuid = AD_its["uuid"]
 
     def _find_or_create_unit_and_classes(self):
         """
         Find uuids of the needed unit and classes for the import. If any unit or
-        class is missing from MO, it will be created. The function does not
-        return anything, but wil leave self.uuids in valid state.
+        class is missing from MO, it will be created. The function returns a dict containg
+        uuids needed to create users and engagements.
         """
-        job_type = self._fc_klasse("jobfunc_ext", "Ekstern", "engagement_job_function")
-        eng_type = self._fc_klasse("engtype_ext", "Ekstern", "engagement_type")
-        org_unit_type = self._fc_klasse("unittype_ext", "Ekstern", "org_unit_type")
+        # TODO: Add a dynamic creation of classes
+        job_type, _ = ensure_class_in_lora("engagement_job_function", "Ekstern")
+        eng_type, _ = ensure_class_in_lora("engagement_type", "Ekstern")
+        org_unit_type, _ = ensure_class_in_lora("org_unit_type", "Ekstern")
 
-        unit_uuid = self.settings["integrations.ad.import_ou.mo_unit_uuid"]
-        unit = self.helper.read_ou(uuid=unit_uuid)
+        unit = self.helper.read_ou(uuid=self.root_ou_uuid)
         if "status" in unit:  # Unit does not exist
-            payload = payloads.unit_for_externals(
-                unit_uuid, org_unit_type, self.org_uuid
+            payload = payloads.create_unit(
+                self.root_ou_uuid, "Eksterne Medarbejdere", org_unit_type, self.org_uuid
             )
             logger.debug("Create department payload: {}".format(payload))
             response = self.helper._mo_post("ou/create", payload)
-            response.raise_for_status()
+            assert response.status_code == 201
             logger.info("Created unit for external employees")
             logger.debug("Response: {}".format(response.text))
 
         uuids = {
             "job_function": job_type,
             "engagement_type": eng_type,
-            "unit_uuid": self.settings["integrations.ad.import_ou.mo_unit_uuid"],
+            "unit_uuid": self.root_ou_uuid,
         }
-        self.uuids = uuids
+        return uuids
 
-    def _find_external_users_in_mo(self):
+    def _find_ou_users_in_ad(self) -> Dict[UUID, List]:
         """
-        Find all MO users in the unit for external employees.
+        find users from AD that match a search string in DistinguishedName.
         """
-        mo_users = self.helper.read_organisation_people(
-            self.settings["integrations.ad.import_ou.mo_unit_uuid"]
-        )
-        return mo_users
+        search_string = self.settings["integrations.ad.import_ou.search_string"]
 
-    def _update_list_of_external_users_in_ad(self):
-        """
-        Read all users in AD, find the ones that match criterion as external
-        users and update self.ad_users to contain these users.
-        """
-        users = {}
+        def filter_users(user: Dict) -> bool:
+            if search_string in user.get("DistinguishedName"):
+                return True
+            return False
 
-        everything = self.ad_reader.read_it_all()
+        users = list(filter(filter_users, self.ad_reader.results.values()))
+        uuids = map(itemgetter("ObjectGUID"), users)
+        users_dict = dict(zip(uuids, users))
+        return users_dict
 
-        for user in everything:  # TODO: Name of OU should go in settings.
-            if user["DistinguishedName"].find("Ekstern Konsulenter") > 0:
-                uuid = user["ObjectGUID"]
-                users[uuid] = user
-        self.users = users
-
-    def _create_user(self, ad_user, uuid = None):
+    def _create_user(self, ad_user: Dict, cpr_field: str, uuid: UUID = None) -> UUID:
         """
         Create or update a user in MO using an AD user as a template.
         The user will share uuid between MO and AD.
         :param ad_user: The ad_object to use as template for MO.
         :return: uuid of the the user.
         """
-        cpr_raw = ad_user.get(self.primary_ad_settings["cpr_field"])
+        cpr_raw = ad_user.get(cpr_field)
         if cpr_raw is None:
             return None
         cpr = cpr_raw.replace("-", "")
 
-        payload = payloads.create_user(cpr, ad_user, self.org_uuid, uuid = uuid)
-        logger.info('Create user payload: {}'.format(payload))
-        try:
-            r = self.helper._mo_post('e/create', payload)
-            r.raise_for_status()
-            user_uuid = r.json()
-            logger.info('Created employee {}'.format(user_uuid))
-            return user_uuid
-        except:
-            return
+        payload = payloads.create_user(cpr, ad_user, self.org_uuid, uuid=uuid)
+        logger.info("Create user payload: {}".format(payload))
+        r = self.helper._mo_post("e/create", payload)
+        assert r.status_code == 201
+        user_uuid = UUID(r.json())
+        logger.info("Created employee {}".format(user_uuid))
+        return user_uuid
 
-    def _connect_user_to_ad(self, ad_user):
+    def _connect_user_to_ad(self, ad_user: Dict) -> None:
+        """ Write user AD username to the AD it system """
+
         logger.info("Connect user to AD: {}".format(ad_user["SamAccountName"]))
-        payload = payloads.connect_it_system_to_user(
-            ad_user, self.settings["integrations.opus.it_systems.ad"]
-        )
-        logger.debug('AD account payload: {}'.format(payload))
-        response = self.helper._mo_post('details/create', payload)
-        response.raise_for_status()
-        logger.debug('Added AD account info to {}'.format(ad_user['SamAccountName']))
-        return True
 
-    def _create_engagement(self, ad_user):
+        payload = payloads.connect_it_system_to_user(ad_user, self.AD_it_system_uuid)
+        logger.debug("AD account payload: {}".format(payload))
+        response = self.helper._mo_post("details/create", payload)
+        assert response.status_code == 201
+        logger.debug("Added AD account info to {}".format(ad_user["SamAccountName"]))
+
+    def _create_engagement(
+        self, ad_user: Dict, uuids: Dict[str, UUID], mo_uuid: UUID = None
+    ) -> None:
+        """ Create the engagement in MO"""
+        # TODO: Check if we have start/end date of engagements in AD
         validity = {"from": datetime.datetime.now().strftime("%Y-%m-%d"), "to": None}
 
-        payload = payloads.create_engagement(
-            ad_user=ad_user, validity=validity, **self.uuids
-        )
-        logger.info('Create engagement payload: {}'.format(payload))
-        response = self.helper._mo_post('details/create', payload)
-        response.raise_for_status()
-        logger.info('Added engagement to {}'.format(ad_user['SamAccountName']))
-        return True
+        person_uuid = ad_user["ObjectGUID"]
+        if mo_uuid:
+            person_uuid = mo_uuid
 
-    def cleanup_removed_users_from_mo(self):
-        """
-        Remove users in MO if they are no longer found as external users in AD.
-        """
+        # TODO: Check if we can use job title from AD
+        payload = payloads.create_engagement(
+            ad_user=ad_user, validity=validity, person_uuid=person_uuid, **uuids
+        )
+        logger.info("Create engagement payload: {}".format(payload))
+        response = self.helper._mo_post("details/create", payload)
+        assert response.status_code == 201
+        logger.info("Added engagement to {}".format(ad_user["SamAccountName"]))
+
+    def cleanup_removed_users_from_mo(self) -> None:
+        """ Remove users in MO if they are no longer found as external users in AD."""
         yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
-        if self.users is None:
-            self._update_list_of_external_users_in_ad()
-        mo_users = self._find_external_users_in_mo()
+        users = self._find_ou_users_in_ad()
+
+        mo_users = self.helper.read_organisation_people(self.root_ou_uuid)
+
         for key, user in mo_users.items():
-            if key not in self.users:
+            if key not in users:
                 # This users is in MO but not in AD:
                 payload = payloads.terminate_engagement(
                     user["Engagement UUID"], yesterday
@@ -235,60 +171,60 @@ class ADMOImporter(object):
                 logger.debug("Terminate payload: {}".format(payload))
                 response = self.helper._mo_post("details/terminate", payload)
                 logger.debug("Terminate response: {}".format(response.text))
-                assert response.status_code == 200
+                response.raise_for_status()
 
-    def create_or_update_users_in_mo(self):
+    def create_or_update_users_in_mo(self) -> None:
         """
         Create users in MO that exist in AD but not in MO.
         Update name of users that has changed name in AD.
         """
-        if self.uuids is None:
-            self._find_or_create_unit_and_classes()
-        if self.users is None:
-            self._update_list_of_external_users_in_ad()
-        
-        cpr_field = self.primary_ad_settings['cpr_field']
 
-        for user_uuid, ad_user in self.users.items():
-            logger.info('Updating {}'.format(ad_user['SamAccountName']))
-            cpr = ad_user[cpr_field]
-            mo_user = self.helper.read_user(user_cpr=cpr)
-            logger.info('Existing MO info: {}'.format(mo_user))
-            if mo_user:
-                mo_uuid = mo_user['uuid']
-                name_changed = (mo_user['givenname'] != ad_user['GivenName'] or
-                                mo_user['surname'] != ad_user['Surname'])
-                if name_changed:
-                    print('Update name')
-                    msg = '{}. Given: {}, Sur: {}'
-                    print(msg.format('AD', ad_user['GivenName'], ad_user['Surname']))
-                    self._create_user(ad_user, uuid=mo_uuid)
-            else:
-                print('Create user')
-                mo_uuid = self._create_user(ad_user)
-            
-            if not mo_uuid:
-                msg = f"User was not created:", ad_user
-                logger.warning(msg)
-                print(msg)
-                continue
-                
+        uuids = self._find_or_create_unit_and_classes()
+        users = self._find_ou_users_in_ad()
+        for AD in self.settings["integrations.ad"]:
+            cpr_field = AD["cpr_field"]
 
-            url = "e/{}/details/it"
-            found_it = False
-            it_systems = self.helper._mo_lookup(mo_uuid, url)
-            for it_system in it_systems:
-                it_uuid = it_system["itsystem"]["uuid"]
-                if it_uuid == self.settings["integrations.opus.it_systems.ad"]:
-                    found_it = True
-            if not found_it:
-                self._connect_user_to_ad(ad_user)
+            for user_uuid, ad_user in tqdm(
+                users.items(), unit="Users", desc="Updating units"
+            ):
+                logger.info("Updating {}".format(ad_user["SamAccountName"]))
+                cpr = ad_user[cpr_field]
+                mo_user = self.helper.read_user(user_cpr=cpr)
+                logger.info("Existing MO info: {}".format(mo_user))
+                if mo_user:
+                    mo_uuid = mo_user["uuid"]
+                    name_changed = (
+                        mo_user["givenname"] != ad_user["GivenName"]
+                        or mo_user["surname"] != ad_user["Surname"]
+                    )
+                    if name_changed:
+                        logger.debug(f"Changed name of user: {mo_uuid}")
+                        self._create_user(ad_user, cpr_field, uuid=mo_uuid)
+                else:
+                    mo_uuid = self._create_user(ad_user, cpr_field)
 
-            current_engagements = self.helper.read_user_engagement(
-                user=mo_uuid, only_primary=True
-            )
-            if not current_engagements:
-                self._create_engagement(ad_user)
+                if not mo_uuid:
+                    msg = f"User was not created:", ad_user
+                    logger.warning(msg)
+                    print(msg)
+                    continue
+
+                AD_username = self.helper.get_e_itsystems(
+                    mo_uuid, self.AD_it_system_uuid
+                )
+
+                if not AD_username:
+                    self._connect_user_to_ad(ad_user)
+
+                current_engagements = self.helper.read_user_engagement(user=mo_uuid)
+                this_engagement = list(
+                    filter(
+                        lambda x: x.get("org_unit").get("uuid") == uuids["unit_uuid"],
+                        current_engagements,
+                    )
+                )
+                if not this_engagement:
+                    self._create_engagement(ad_user, uuids, mo_uuid)
 
 
 @click.command(help="AD->MO user import")
@@ -296,7 +232,7 @@ class ADMOImporter(object):
 @optgroup.option("--create-or-update", is_flag=True)
 @optgroup.option("--cleanup-removed-users", is_flag=True)
 @optgroup.option("--full-sync", is_flag=True)
-def cli(**args):
+def import_ad_group(**args):
     """
     Command line interface for the AD to MO user import.
     """
@@ -314,4 +250,4 @@ def cli(**args):
 
 
 if __name__ == "__main__":
-    cli()
+    import_ad_group()
