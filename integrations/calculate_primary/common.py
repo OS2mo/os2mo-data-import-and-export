@@ -144,6 +144,9 @@ class MOPrimaryEngagementUpdater(ABC):
         """
         assert primary_type_key in self.primary_types
 
+        if not engagement.get("primary"):
+            return False
+
         if engagement["primary"]["uuid"] == self.primary_types[primary_type_key]:
             logger.info(
                 "Engagement {} is {}".format(engagement["uuid"], primary_type_key)
