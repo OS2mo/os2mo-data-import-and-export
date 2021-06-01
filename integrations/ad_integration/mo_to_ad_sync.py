@@ -1,7 +1,12 @@
+import time
 import json
 import logging
-import pathlib
-import time
+from typing import Optional
+from typing import Tuple
+from typing import Dict
+
+import click
+from tqdm import tqdm
 
 from .ad_exceptions import CprNotFoundInADException
 from .ad_exceptions import CprNotNotUnique
@@ -11,6 +16,8 @@ from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 from .ad_writer import ADWriter
 from exporters.sql_export.lora_cache import LoraCache
+from exporters.utils.load_settings import load_settings
+from exporters.utils.catchtime import catchtime
 
 
 LOG_FILE = "mo_to_ad_sync.log"
@@ -18,43 +25,98 @@ LOG_FILE = "mo_to_ad_sync.log"
 logger = logging.getLogger("MoAdSync")
 
 
-def main():
-    t_start = time.time()
-    start_logging(LOG_FILE)
-    cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-    if not cfg_file.is_file():
-        raise Exception("No setting file")
-    settings = json.loads(cfg_file.read_text())
+def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
+    # Here we should activate read-only mode, actual state and
+    # full history dumps needs to be in sync.
 
-    if settings["integrations.ad_writer.lora_speedup"]:
-        # Here we should activate read-only mode, actual state and
-        # full history dumps needs to be in sync.
+    # Full history does not calculate derived data, we must
+    # fetch both kinds.
+    lc = LoraCache(resolve_dar=False, full_history=False)
+    lc.populate_cache(dry_run=False, skip_associations=True)
+    lc.calculate_derived_unit_data()
+    lc.calculate_primary_engagements()
 
-        # Full history does not calculate derived data, we must
-        # fetch both kinds.
-        lc = LoraCache(resolve_dar=False, full_history=False)
-        lc.populate_cache(dry_run=False, skip_associations=True)
-        lc.calculate_derived_unit_data()
-        lc.calculate_primary_engagements()
+    # Todo, in principle it should be possible to run with skip_past True
+    # This is now fixed in a different branch, remember to update when
+    # merged.
+    lc_historic = LoraCache(resolve_dar=False, full_history=True,
+                            skip_past=False)
+    lc_historic.populate_cache(dry_run=False, skip_associations=True)
+    # Here we should de-activate read-only mode
+    return lc, lc_historic
 
-        # Todo, in principle it should be possible to run with skip_past True
-        # This is now fixed in a different branch, remember to update when
-        # merged.
-        lc_historic = LoraCache(resolve_dar=False, full_history=True, skip_past=False)
-        lc_historic.populate_cache(dry_run=False, skip_associations=True)
-        # Here we should de-activate read-only mode
+
+
+@click.command()
+@click.option(
+    "--lora-speedup/--no-lora-speedup",
+    help="Utilize LoraCache to speedup the operation",
+    is_flag=True,
+    type=click.BOOL,
+    default=lambda: load_settings()['integrations.ad_writer.lora_speedup']
+)
+@click.option(
+    "--mo-uuid-field",
+    type=click.STRING,
+    default=lambda: load_settings()['integrations.ad.write.uuid_field']
+)
+@click.option(
+    "--sync-cpr",
+    help="Synchronize the specified user instead of all users",
+    type=click.STRING,
+)
+@click.option("--ignore-occupied-names", is_flag=True, default=False)
+def main(lora_speedup: bool, mo_uuid_field: str, sync_cpr: Optional[str], ignore_occupied_names: bool):
+    ad_logger.start_logging(LOG_FILE)
+
+    lc, lc_historic = None, None
+    if lora_speedup:
+        lc, lc_historic = fetch_loracache()
+
+    reader = ad_reader.ADParameterReader()
+    writer = ad_writer.ADWriter(
+        lc=lc, lc_historic=lc_historic, 
+        occupied_names=[] if ignore_occupied_names else None
+    )
+
+    if sync_cpr:
+        print("Warning: --sync-cpr is for testing only")
+        all_users = [reader.read_user(cpr=sync_cpr)]
+        # XXX: occupied_names should not be an empty array, but it takes forever to
+        #      initalize, essentially reading all of AD.
+        # TODO: We should support on-demand name generation without pre-seed.
     else:
-        lc = None
-        lc_historic = None
+        all_users = reader.read_it_all(print_progress=True)
 
-    mo_uuid_field = settings["integrations.ad.write.uuid_field"]
+    logger.info('Will now attempt to sync {} users'.format(len(all_users)))
+    def filter_missing_uuid_field(user):
+        if mo_uuid_field not in user:
+            msg = 'User {} does not have a {} field - skipping'
+            logger.info(msg.format(user['SamAccountName'], mo_uuid_field))
+            return False
+        return True
 
-    reader = ADParameterReader()
-    writer = ADWriter(lc=lc, lc_historic=lc_historic)
+    all_users = filter(filter_missing_uuid_field, all_users)
 
-    all_users = reader.read_it_all()
+    def update_stats(stats: Dict[str, int], response) -> Dict[str, int]:
+        if response[0]:
+            stats['fully_synced'] += 1
+            if response[1] == 'Sync completed':
+                stats['updated'] += 1
+                if response[2] == False:
+                    stats['no_manager'] += 1
 
-    logger.info("Will now attempt to sync {} users".format(len(all_users)))
+            if response[1] == 'Nothing to edit':
+                stats['nothing_to_edit'] += 1
+                if response[2] == False:
+                    stats['no_manager'] += 1
+        else:
+            if response[1] == 'No active engagments':
+                stats['no_active_engagement'] += 1
+            else:
+                stats['unknown_failed_sync'] += 1
+        return stats
+
     stats = {
         "attempted_users": 0,
         "fully_synced": 0,
@@ -69,38 +131,20 @@ def main():
         "unknown_failed_sync": 0,
         "no_active_engagement": 0,
     }
-    for user in all_users:
-        t = time.time()
-        stats["attempted_users"] += 1
+    for user in tqdm(list(all_users), unit="user"):
+        stats['attempted_users'] += 1
 
-        if mo_uuid_field not in user:
-            msg = "User {} does not have a {} field - skipping"
-            logger.info(msg.format(user["SamAccountName"], mo_uuid_field))
-            continue
-        msg = "Now syncing: {}, {}".format(user["SamAccountName"], user[mo_uuid_field])
+        msg = 'Now syncing: {}, {}'.format(
+            user['SamAccountName'], user[mo_uuid_field]
+        )
         logger.info(msg)
-        print(msg)
         try:
-            response = writer.sync_user(user[mo_uuid_field], ad_dump=all_users)
-            # response = writer.sync_user(user[mo_uuid_field], ad_dump=None)
-            logger.debug("Respose to sync: {}".format(response))
-            if response[0]:
-                stats["fully_synced"] += 1
-                if response[1] == "Sync completed":
-                    stats["updated"] += 1
-                    if response[2] is False:
-                        stats["no_manager"] += 1
-
-                if response[1] == "Nothing to edit":
-                    stats["nothing_to_edit"] += 1
-                    if response[2] is False:
-                        stats["no_manager"] += 1
-
+            if sync_cpr:
+                response = writer.sync_user(user[mo_uuid_field], ad_dump=None, verbose=True)
             else:
-                if response[1] == "No active engagments":
-                    stats["no_active_engagement"] += 1
-                else:
-                    stats["unknown_failed_sync"] += 1
+                response = writer.sync_user(user[mo_uuid_field], ad_dump=all_users, verbose=True)
+            logger.debug('Respose to sync: {}'.format(response))
+            stats = update_stats(stats, response)
         except ManagerNotUniqueFromCprException:
             stats["unknown_manager_failure"] += 1
             msg = "Did not find a unique manager for {}".format(user[mo_uuid_field])
@@ -127,12 +171,9 @@ def main():
             logger.exception("Unhandled exception:")
             print("Unhandled exception: {}".format(e))
 
-        print("Sync time: {}".format(time.time() - t))
     print()
-    print("Total runtime: {}".format(time.time() - t_start))
-    print(stats)
-    logger.info("Total runtime: {}".format(time.time() - t_start))
-    logger.info("Stats: {}".format(stats))
+    print(json.dumps(stats, indent=4))
+    logger.info('Stats: {}'.format(stats))
 
 
 if __name__ == "__main__":
