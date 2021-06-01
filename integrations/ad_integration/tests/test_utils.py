@@ -197,6 +197,9 @@ class ADWriterTestSubclass(ADWriter):
     def read_ad_information_from_mo(self, uuid, read_manager=True, ad_dump=None):
         raise NotImplemented("Should be overridden in __init__")
 
+    def _read_ad_information_from_mo(self, uuid, read_manager=True, ad_dump=None):
+        return super().read_ad_information_from_mo(uuid, read_manager, ad_dump)
+
 
 def _no_transformation(default, *args, **kwargs):
     return default

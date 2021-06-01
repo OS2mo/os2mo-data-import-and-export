@@ -13,6 +13,10 @@ sys.path.append(dirname(__file__) + "/..")
 
 from test_utils import TestADWriterMixin, dict_modifier, mo_modifier
 
+from exporters.utils.lazy_dict import LazyDict
+
+from ..utils import AttrDict
+from ..ad_writer import LoraCacheSource
 from ..ad_exceptions import CprNotFoundInADException, CprNotNotUnique
 
 JOB_TITLE_AD_FIELD_NAME = "titel"
@@ -783,3 +787,59 @@ class TestADWriter(TestCase, TestADWriterMixin):
         self._setup_adwriter(early_transform_settings=settings_transformer)
         with self.assertRaises(UndefinedError):
             self.ad_writer.sync_user(mo_uuid="mo-uuid", sync_manager=False)
+
+    def test_fullnames_are_empty_when_constituants_are_empty(self):
+        self._setup_adwriter()
+        uuid = "some_uuid_here"
+
+        def get_mo_values(firstname, surname, nickname_firstname, nickname_surname):
+            self.user = {
+                "uuid": "some_uuid_here",
+                "navn": "some_name some_lastname",
+                "efternavn": surname,
+                "fornavn": firstname,
+                "kaldenavn": "",
+                "kaldenavn_fornavn": nickname_firstname,
+                "kaldenavn_efternavn": nickname_surname,
+                "cpr": "some_cpr",
+            }
+            self.lc = AttrDict(
+                {
+                    "users": {
+                        self.user["uuid"]: [self.user],
+                    },
+                    "engagements": {
+                        "engagement_uuid": [{
+                            "user": self.user["uuid"],
+                            "primary_boolean": True,
+                            "user_key": "some_userkey",
+                            "job_function": "job_function_title_uuid",
+                            "unit": "some_unit",
+                            "uuid": "engagement_uuid",
+                        }]
+                    },
+                    "classes": {
+                        "job_function_title_uuid": {"title": "some_job_title"}
+                    }
+                }
+            )
+            self.lc_historic = self.lc
+            self.ad_writer.datasource = LoraCacheSource(self.lc, self.lc_historic, None)
+            mo_values = self.ad_writer._read_ad_information_from_mo(uuid)
+            return mo_values
+
+        mo_values = get_mo_values("Ursula", "Uniknavn", "Anne", "Jensen")
+        assert isinstance(mo_values, LazyDict)
+        assert mo_values["name"] == ("Ursula", "Uniknavn")
+        assert mo_values["full_name"] == "Ursula Uniknavn"
+
+        assert mo_values["nickname"] == ("Anne", "Jensen")
+        assert mo_values["full_nickname"] == "Anne Jensen"
+
+        mo_values = get_mo_values("", "", "", "")
+        assert isinstance(mo_values, LazyDict)
+        assert mo_values["name"] == ("", "")
+        assert mo_values["full_name"] == ""
+
+        assert mo_values["nickname"] == ("", "")
+        assert mo_values["full_nickname"] == ""
