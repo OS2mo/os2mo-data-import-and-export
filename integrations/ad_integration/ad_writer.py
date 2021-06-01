@@ -587,7 +587,7 @@ class ADWriter(AD):
                 )
             ),
             'full_name': LazyEvalDerived(
-                lambda name: '{} {}'.format(*name)
+                lambda name: '{} {}'.format(*name).strip()
             ),
             'nickname': LazyEvalDerived(
                 lambda _mo_user: (
@@ -595,7 +595,7 @@ class ADWriter(AD):
                 )
             ),
             'full_nickname': LazyEvalDerived(
-                lambda nickname: '{} {}'.format(*nickname)
+                lambda nickname: '{} {}'.format(*nickname).strip()
             ),
             'cpr': LazyEvalDerived(
                 lambda _mo_user: _mo_user['cpr_no']
@@ -765,8 +765,8 @@ class ADWriter(AD):
         user_sam = self._get_sam_for_ad_user(ad_user)
 
         if ad_dump is None:
-            # Todo, we could also add the compare logic here, but
-            # the benifit will be max 40%
+            # TODO: We could also add the compare logic here,
+            # but the benefit will be max 40%
             mismatch = {'force re-sync': 'yes', 'manager': 'yes'}
         else:
             mismatch = self._sync_compare(mo_values, ad_dump)
@@ -999,12 +999,13 @@ class ADWriter(AD):
 @optgroup.option('--delete-user')
 @optgroup.option('--read-ad-information')
 @optgroup.option('--add-manager-to-user', nargs=2, type=str)
+@click.option("--ignore-occupied-names", is_flag=True, default=False)
 def cli(**args):
     """
     Command line interface for the AD writer class.
     """
 
-    ad_writer = ADWriter()
+    ad_writer = ADWriter(occupied_names=[] if args['ignore_occupied_names'] else None)
 
     if args.get('create_user_with_manager'):
         print('Create_user_with_manager:')
