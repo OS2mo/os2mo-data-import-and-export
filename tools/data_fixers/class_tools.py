@@ -3,7 +3,7 @@ import urllib.parse
 from collections import defaultdict
 from operator import itemgetter
 from typing import Dict, List, Set, Tuple
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import click
 import jmespath
@@ -41,7 +41,12 @@ def delete_class(session, base: str, uuid: UUID) -> None:
 
 
 def switch_class(
-    session, base: str, payload: str, new_uuid: UUID, uuid_set: Set[str]
+    session,
+    base: str,
+    payload: str,
+    new_uuid: UUID,
+    uuid_set: Set[str],
+    copy: bool = False,
 ) -> None:
     """Switch an objects related class.
 
@@ -60,6 +65,9 @@ def switch_class(
     for old_uuid in uuid_set:
         p_string = p_string.replace(str(old_uuid), str(new_uuid))
     payload = json.loads(p_string)
+
+    if copy:
+        object_uuid = uuid4()
 
     r = session.put(
         base + f"/organisation/organisationfunktion/{str(object_uuid)}", json=payload
@@ -146,7 +154,13 @@ def cli():
     required=False,
     help="Remove any class that has duplicates",
 )
-def remove_dup_classes(delete):
+@click.option(
+    "--mox-base",
+    help="URL for MOX",
+    type=click.STRING,
+    default=lambda: load_settings().get("mox.base", "http://localhost:8080/"),
+)
+def remove_dup_classes(delete: bool, mox_base: click.STRING):
     """Tool to help remove classes from MO that are duplicates.
 
     This tool is written to help clean up engagement_types that had the same name, but with different casing.
@@ -156,8 +170,6 @@ def remove_dup_classes(delete):
     Objects related to the other class will be transferred to the selected class and the other class deleted.
     """
 
-    settings = load_settings()
-    mox_base = settings.get("mox.base", "http://localhost:8080/")
     session = requests.Session()
 
     duplicate_bvn_facet = find_duplicates_classes(session=session, mox_base=mox_base)
@@ -196,21 +208,34 @@ def remove_dup_classes(delete):
 @click.option(
     "--old-uuid",
     required=True,
+    type=click.UUID,
     help="UUID of old class",
 )
 @click.option(
     "--new-uuid",
     required=True,
+    type=click.UUID,
     help="UUID of new class",
 )
-def switch_uuid(old_uuid: UUID, new_uuid: UUID):
-    """Switches class for all objects using this class given two uuids."""
-    settings = load_settings()
-    mox_base = settings.get("mox.base", "http://localhost:8080/")
+@click.option(
+    "--copy",
+    is_flag=True,
+    help="Copy to a new object instead of switching class",
+)
+@click.option(
+    "--mox-base",
+    help="URL for MOX",
+    type=click.STRING,
+    default=lambda: load_settings().get("mox.base", "http://localhost:8080/"),
+)
+def move_class(old_uuid: click.UUID, new_uuid: click.UUID, copy: bool, mox_base: str):
+    """Switches class, or copies to a new class for all objects using this class given two UUIDs.
+    if --copy is supplied a new UUID will be generated for each object so that no objects are moved, only copied.
+    """
     session = requests.Session()
     rel = check_relations(session, mox_base, old_uuid)
     for payload in tqdm(rel, desc="Changing class for objects"):
-        switch_class(session, mox_base, payload, new_uuid, {old_uuid})
+        switch_class(session, mox_base, payload, new_uuid, {old_uuid}, copy=copy)
 
 
 if __name__ == "__main__":
