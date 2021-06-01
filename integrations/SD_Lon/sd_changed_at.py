@@ -32,7 +32,7 @@ from integrations.SD_Lon.db_overview import DBOverview
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.calculate_primary.common import LOGGER_NAME, NoPrimaryFound
 from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
-
+from mox_helpers.mox_util import ensure_class_in_lora
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'
@@ -135,10 +135,8 @@ class ChangeAtSD:
         ))
 
         logger.info('Read leave types')
-        facet_info = self.helper.read_classes_in_facet('leave_type')
-        self.leave_uuid = facet_info[0][0]['uuid']
-        facet_info = self.helper.read_classes_in_facet('association_type')
-        self.association_uuid = facet_info[0][0]['uuid']
+        self.leave_uuid, _ = ensure_class_in_lora("leave_type", "Orlov")
+        self.association_uuid, _ = ensure_class_in_lora("association_type", "SD-medarbejder")
 
     def _get_mora_helper(self, mora_base):
         return MoraHelper(hostname=mora_base, use_cache=False)
@@ -436,10 +434,8 @@ class ChangeAtSD:
         """
         # Attempt to fetch the engagement type
         engagement_type_ref = 'engagement_type' + job_position
-        engagement_type_uuid = self.engagement_types.get(engagement_type_ref)
-        if engagement_type_uuid:
-            return engagement_type_uuid
-        return self._create_engagement_type(engagement_type_ref, job_position)
+        uuid, _ = ensure_class_in_lora('engagement_type', engagement_type_ref)
+        return
 
     def _fetch_professions(self, job_function, job_position):
         """Fetch an job function UUID, create if missing.
@@ -455,6 +451,7 @@ class ChangeAtSD:
             uuid of the job function or None if it could not be created.
         """
         # Add new profssions to LoRa
+        print(f"{job_function=} {job_position=}")
         job_uuid = self.job_functions.get(job_function)
         if job_uuid:
             return job_uuid
@@ -650,11 +647,8 @@ class ChangeAtSD:
         primary = self.primary_types['non_primary']
         if status['EmploymentStatusCode'] == '0':
             primary = self.primary_types['no_salary']
-
-        engagement_type = self.determine_engagement_type(engagement, job_position)
-        if engagement_type is None:
-            return False
-
+        engagement_type, _ = ensure_class_in_lora("engagement_type", job_position)
+        
         extension_field = self.settings.get('integrations.SD_Lon.employment_field')
         extension = {}
         if extension_field is not None:
@@ -1048,19 +1042,11 @@ class ChangeAtSD:
                 user_cpr=cpr, org_uuid=self.org_uuid
             )
             if not self.mo_person:
-                sd_engagement = filter(skip_initial_deleted, sd_engagement)
-                for employment_info in sd_engagement:
-                    logger.warning('This person should be in MO, but is not')
-                    try:
-                        self.update_changed_persons(cpr=cpr)
-                        self.mo_person = self.helper.read_user(
-                            user_cpr=cpr, org_uuid=self.org_uuid
+                self.update_changed_persons(cpr=cpr)
+                self.mo_person = self.helper.read_user(
+                    user_cpr=cpr, org_uuid=self.org_uuid
                         )
-                    except Exception as exp:
-                        logger.error(
-                            "Unable to find person in MO, SD error: " + str(exp)
-                        )
-            else:  # if self.mo_person:
+            else:  
                 self.mo_engagement = self.helper.read_user_engagement(
                     self.mo_person['uuid'],
                     read_all=True,
@@ -1114,7 +1100,7 @@ def initialize_changed_at(from_date, run_db, force=False):
 
     logger.info('Start initial ChangedAt')
     sd_updater = ChangeAtSD(from_date)
-    sd_updater.update_changed_persons()
+    #sd_updater.update_changed_persons()
     sd_updater.update_all_employments()
     logger.info('Ended initial ChangedAt')
 

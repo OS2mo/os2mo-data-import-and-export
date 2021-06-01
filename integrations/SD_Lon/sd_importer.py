@@ -321,7 +321,10 @@ class SdImport(object):
                 address_string = info['PostalAddress']['StandardAddressIdentifier']
                 zip_code = info['PostalAddress']['PostalCode']
                 logger.debug('Look in Dawa: {}'.format(address_string))
-                dar_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+                try:
+                    dar_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+                except:
+                    dar_uuid = None
                 logger.debug('DAR: {}'.format(dar_uuid))
 
                 if dar_uuid is not None:
@@ -756,9 +759,6 @@ def full_import(org_only):
     from os2mo_helpers.mora_helpers import MoraHelper
     mora_base = settings['mora.base']
     mh = MoraHelper(mora_base)
-    result = mh.check_connection()
-    if not result:
-        raise click.ClickException("No MO reply, aborting.")
 
     from os2mo_data_import import ImportHelper
     mox_base = settings['mox.base']

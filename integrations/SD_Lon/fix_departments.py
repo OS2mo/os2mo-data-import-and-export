@@ -10,6 +10,7 @@ from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.exceptions import NoCurrentValdityException
 from integrations.SD_Lon.sd_common import load_settings, mora_assert
 from integrations.SD_Lon.sd_common import sd_lookup as _sd_lookup
+from mox_helpers.mox_util import ensure_class_in_lora
 from os2mo_helpers.mora_helpers import MoraHelper
 
 sd_lookup = partial(_sd_lookup, use_cache=False)
@@ -63,13 +64,7 @@ class FixDepartments(object):
 
         # Currently only a single unit type exists, we will not do anything fancy
         # until it has been decided what the source for types should be.
-        self.unit_type = None
-        for unit in unit_types:
-            if unit["user_key"] == "Enhed":
-                self.unit_type = unit
-
-        if self.unit_type is None:
-            raise Exception("Unit types not correctly configured")
+        self.unit_type, _ = ensure_class_in_lora("org_unit_type", "Enhed")
 
     def get_institution(self):
         """
@@ -111,13 +106,13 @@ class FixDepartments(object):
         if parent is None:  # This is a root unit.
             parent = self.org_uuid
 
-        for unit_level in self.level_types:
-            if unit_level["user_key"] == department["DepartmentLevelIdentifier"]:
-                unit_level_uuid = unit_level["uuid"]
+        unit_level_uuid, _ = ensure_class_in_lora(
+            "org_unit_level", department["DepartmentLevelIdentifier"]
+        )
 
         payload = sd_payloads.create_single_org_unit(
             department=department,
-            unit_type=self.unit_type["uuid"],
+            unit_type=self.unit_type,
             unit_level=unit_level_uuid,
             parent=parent,
         )
@@ -144,14 +139,9 @@ class FixDepartments(object):
 
         department = self.get_department(validity, uuid=unit_uuid)[0]
 
-        unit_level_uuid = None
-        for unit_level in self.level_types:
-            if unit_level["user_key"] == department["DepartmentLevelIdentifier"]:
-                unit_level_uuid = unit_level["uuid"]
-        if unit_level_uuid is None:
-            msg = "Unknown department level {}!!"
-            logger.error(msg.format(department["DepartmentLevelIdentifier"]))
-            raise Exception(msg.format(department["DepartmentLevelIdentifier"]))
+        unit_level_uuid, _ = ensure_class_in_lora(
+            "org_unit_level", department["DepartmentLevelIdentifier"]
+        )
 
         try:
             parent = self.get_parent(unit_uuid, validity_date)
@@ -178,7 +168,7 @@ class FixDepartments(object):
             unit_uuid=unit_uuid,
             parent=parent,
             ou_level=unit_level_uuid,
-            ou_type=self.unit_type["uuid"],
+            ou_type=self.unit_type,
             from_date=from_date,  # End date is always infinity
         )
         logger.debug("Edit payload to fix unit: {}".format(payload))

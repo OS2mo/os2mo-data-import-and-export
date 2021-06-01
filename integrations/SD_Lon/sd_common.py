@@ -9,6 +9,7 @@ from pathlib import Path
 import requests
 import xmltodict
 from ra_utils.load_settings import load_settings
+from mox_helpers.mox_util import ensure_class_in_lora
 
 logger = logging.getLogger("sdCommon")
 
@@ -180,38 +181,28 @@ def primary_types(helper):
     :param helper: An instance of mora-helpers.
     :return: A dict matching up the engagement types with LoRa class uuids.
     """
-    # These constants are global in all SD municipalities (because they are created
-    # by the SD->MO importer.
-    PRIMARY = "Ansat"
-    NO_SALARY = "status0"
-    NON_PRIMARY = "non-primary"
-    FIXED_PRIMARY = "explicitly-primary"
-
-    logger.info("Read primary types")
-    primary = None
-    no_salary = None
-    non_primary = None
-    fixed_primary = None
-
-    primary_types = helper.read_classes_in_facet("primary_type")
-    for primary_type in primary_types[0]:
-        if primary_type["user_key"] == PRIMARY:
-            primary = primary_type["uuid"]
-        if primary_type["user_key"] == NON_PRIMARY:
-            non_primary = primary_type["uuid"]
-        if primary_type["user_key"] == NO_SALARY:
-            no_salary = primary_type["uuid"]
-        if primary_type["user_key"] == FIXED_PRIMARY:
-            fixed_primary = primary_type["uuid"]
-
+    primary, _ = ensure_class_in_lora(
+        "primary_type", "primary", title="Ansat", scope="3000"
+    )
+    non_primary, _ = ensure_class_in_lora(
+        "primary_type", "non_primary", title="Ikke-primær ansættelse", scope="3000"
+    )
+    no_salary, _ = ensure_class_in_lora(
+        "primary_type", "status0", title="Ansat uden løn", scope="3000"
+    )
+    fixed_primary, _ = ensure_class_in_lora(
+        "primary_type",
+        "explicitly-primary",
+        title="Manuelt primær ansættelse",
+        scope="3000",
+    )
     type_uuids = {
         "primary": primary,
         "non_primary": non_primary,
         "no_salary": no_salary,
         "fixed_primary": fixed_primary,
     }
-    if None in type_uuids.values():
-        raise Exception("Missing primary types: {}".format(type_uuids))
+
     return type_uuids
 
 

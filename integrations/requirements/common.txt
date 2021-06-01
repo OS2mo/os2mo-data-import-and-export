@@ -1,3 +1,4 @@
+aiohttp
 xmltodict
 anytree
 pika
@@ -15,3 +16,4 @@ google-cloud-storage
 fs.smbfs
 retrying
 ra-utils
+jsonschema

@@ -28,7 +28,7 @@ stages:
 # Lint stage
 ############
 
-.lint-python:
+.lint-python: &lint-python
   stage: lint
   needs: []
   image: python:3
@@ -37,6 +37,16 @@ stages:
     - pip install -r integrations/requirements/lint.txt
   tags:
     - docker
+
+
+Lint Dockerfiles:
+  <<: *lint-python
+  image: hadolint/hadolint:latest-debian
+  before_script:
+    - apt-get -y update
+    - apt-get -y install --no-install-recommends git
+  script:
+    - git ls-files --exclude='Dockerfile*' --ignored | xargs --max-lines=1 hadolint
 
 
 Lint Customers files:
@@ -219,3 +229,27 @@ Test data_fixers:
   extends: .test-python
   script:
     - python -m doctest -v tools/data_fixers/class_tools.py
+
+# Release stage
+###############
+
+Build DIPEX:
+  stage: release
+  needs: [ ]
+  image:
+    # We use kaniko v0.16.0 as both v0.17.0, v0.17.1, v0.18.0 and v0.19.0 contains fatal bugs.
+    name: gcr.io/kaniko-project/executor:debug-v0.16.0
+    entrypoint: [""]
+  tags:
+    - docker
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /^feature\/.+$/
+  script:
+    - export IMAGE_FEATURE=$(echo "$CI_COMMIT_REF_NAME" | sed 's/\//_/g')
+    - echo "Releasing ${CI_REGISTRY_IMAGE}/feature:${IMAGE_FEATURE}"
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor
+      --cache
+      --context=$CI_PROJECT_DIR
+      --dockerfile=$CI_PROJECT_DIR/Dockerfile
+      --destination=${CI_REGISTRY_IMAGE}/feature:${IMAGE_FEATURE}
