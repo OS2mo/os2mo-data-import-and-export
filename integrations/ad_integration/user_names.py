@@ -4,9 +4,9 @@ import random
 from typing import Optional
 
 import click
-from ad_reader import ADParameterReader
 from operator import itemgetter
 
+from .ad_reader import ADParameterReader
 import username_rules.method_2
 
 

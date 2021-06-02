@@ -1,7 +1,8 @@
 import logging
 import logging.config
 
-from read_ad_conf_settings import read_settings
+from .read_ad_conf_settings import read_settings
+
 
 class PasswordRemovalFormatter(logging.Formatter):
     def __init__(self, *args, **kwargs):

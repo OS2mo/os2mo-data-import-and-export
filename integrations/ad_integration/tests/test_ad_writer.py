@@ -6,10 +6,10 @@ from unittest import TestCase
 from jinja2.exceptions import UndefinedError
 from more_itertools import first_true
 from parameterized import parameterized
-from test_utils import dict_modifier
-from test_utils import mo_modifier
-from test_utils import TestADWriterMixin
 
+from .test_utils import dict_modifier
+from .test_utils import mo_modifier
+from .test_utils import TestADWriterMixin
 from ..ad_exceptions import CprNotFoundInADException
 from ..ad_exceptions import CprNotNotUnique
 from ..ad_writer import LoraCacheSource
