@@ -7,9 +7,9 @@ from unittest.mock import MagicMock
 
 from parameterized import parameterized
 
+from ..utils import AttrDict
 from .test_utils import dict_modifier
 from .test_utils import TestADMoSyncMixin
-from ..utils import AttrDict
 
 
 def iso_date(date):

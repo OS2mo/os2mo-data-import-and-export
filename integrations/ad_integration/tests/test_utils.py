@@ -8,13 +8,13 @@ from unittest import TestCase
 
 import requests
 
-from .name_simulator import create_name
-from ..user_names import CreateUserNames
-from ..utils import AttrDict
-from ..utils import recursive_dict_update
 from ..ad_sync import AdMoSync
 from ..ad_writer import ADWriter
 from ..read_ad_conf_settings import read_settings
+from ..user_names import CreateUserNames
+from ..utils import AttrDict
+from ..utils import recursive_dict_update
+from .name_simulator import create_name
 
 
 class MOTestMixin(object):
