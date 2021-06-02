@@ -10,11 +10,13 @@ from parameterized import parameterized
 from ..ad_exceptions import CprNotFoundInADException
 from ..ad_exceptions import CprNotNotUnique
 from ..ad_writer import LoraCacheSource
+from ..ad_template_engine import illegal_parameters
 from ..utils import AttrDict
 from .test_utils import dict_modifier
 from .test_utils import mo_modifier
 from .test_utils import TestADWriterMixin
 from exporters.utils.lazy_dict import LazyDict
+
 
 JOB_TITLE_AD_FIELD_NAME = "titel"
 JOB_TITLE_TEMPLATE = "{{ ad_values.get('titel') or mo_values['title'] }}"
@@ -115,7 +117,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
             + '" –AsPlainText -Force',
             '$TypeName = "System.Management.Automation.PSCredential"',
             (
-                "$UserCredential = New-Object –TypeName $TypeName"
+                "$UserCredential = New-Object –TypeName $TypeName "
                 "–ArgumentList $User, $PWord"
             ),
         ]
@@ -452,9 +454,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
         """
         # Assert no scripts were produced from initializing ad_writer itself
         self.assertGreaterEqual(len(self.ad_writer.scripts), 0)
-        import ad_template_engine
-
-        ad_template_engine.illegal_parameters["Set-ADUser"].append("Displayname")
+        illegal_parameters["Set-ADUser"].append("Displayname")
 
         settings_transformer = dict_modifier({})
         self._setup_adwriter(settings_transformer)
@@ -570,7 +570,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
                     {
                         "integrations.ad_writer.template_to_ad_fields": {
                             "adjusted_number": (
-                                "{{ mo_values['employment_number']|int + 5 }}",
+                                "{{ mo_values['employment_number']|int + 5 }}"
                             )
                         },
                     }
@@ -589,7 +589,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
                     {
                         "integrations.ad_writer.template_to_ad_fields": {
                             "adjusted_number": (
-                                "{{ mo_values['employment_number']|int + 5 }}",
+                                "{{ mo_values['employment_number']|int + 5 }}"
                             ),
                             "Enabled": "Invalid",
                         },

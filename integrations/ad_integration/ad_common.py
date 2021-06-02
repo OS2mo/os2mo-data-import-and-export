@@ -8,9 +8,12 @@ from typing import List
 from typing import Optional
 
 import more_itertools
-from winrm import Session
-from winrm.exceptions import WinRMTransportError
-from winrm.vendor.requests_kerberos.exceptions import KerberosExchangeError
+try:
+    from winrm import Session
+    from winrm.exceptions import WinRMTransportError
+    from winrm.vendor.requests_kerberos.exceptions import KerberosExchangeError
+except ImportError:
+    pass
 
 from .ad_exceptions import CommandFailure
 from .ad_exceptions import CprNotFoundInADException

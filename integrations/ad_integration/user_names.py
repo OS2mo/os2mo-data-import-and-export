@@ -5,8 +5,8 @@ from operator import itemgetter
 from typing import Optional
 
 import click
-import username_rules.method_2
 
+from .username_rules import method_2
 from .ad_reader import ADParameterReader
 
 
@@ -94,19 +94,19 @@ class CreateUserNames(object):
         self.method = METHOD
         self.set_occupied_names(occupied_names)
         self.combinations = [
-            username_rules.method_2.FIRST,
-            username_rules.method_2.SECOND,
-            username_rules.method_2.THIRD,
-            username_rules.method_2.FOURTH,
-            username_rules.method_2.FITFTH,
-            username_rules.method_2.SIXTH,
+            method_2.FIRST,
+            method_2.SECOND,
+            method_2.THIRD,
+            method_2.FOURTH,
+            method_2.FITFTH,
+            method_2.SIXTH,
         ]
 
     def _create_from_combi(self, name, combi):
         """
         Create a username from a name and a combination.
         """
-        (code, max_position) = username_rules.method_2._readable_combi(combi)
+        (code, max_position) = method_2._readable_combi(combi)
 
         # Do not use codes that uses more names than the actual person has
         if max_position > len(name) - 2:
