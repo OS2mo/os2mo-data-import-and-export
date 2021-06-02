@@ -11,6 +11,7 @@ import requests
 from operator import itemgetter
 from itertools import starmap
 from collections import defaultdict
+from typing import Tuple
 from tqdm import tqdm
 
 import click
@@ -1181,6 +1182,26 @@ class LoraCache:
                     pickle.dump(data, f, PICKLE_PROTOCOL)
 
         # Here we should de-activate read-only mode
+
+
+def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
+    # Here we should activate read-only mode, actual state and
+    # full history dumps needs to be in sync.
+
+    # Full history does not calculate derived data, we must
+    # fetch both kinds.
+    lc = LoraCache(resolve_dar=False, full_history=False)
+    lc.populate_cache(dry_run=False, skip_associations=True)
+    lc.calculate_derived_unit_data()
+    lc.calculate_primary_engagements()
+
+    # Todo, in principle it should be possible to run with skip_past True
+    # This is now fixed in a different branch, remember to update when
+    # merged.
+    lc_historic = LoraCache(resolve_dar=False, full_history=True, skip_past=False)
+    lc_historic.populate_cache(dry_run=False, skip_associations=True)
+    # Here we should de-activate read-only mode
+    return lc, lc_historic
 
 
 @click.command()
