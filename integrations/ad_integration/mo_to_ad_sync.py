@@ -2,7 +2,6 @@ import json
 import logging
 from typing import Dict
 from typing import Optional
-from typing import Tuple
 
 import click
 from tqdm import tqdm
@@ -14,33 +13,13 @@ from .ad_exceptions import UserNotFoundException
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 from .ad_writer import ADWriter
-from exporters.sql_export.lora_cache import LoraCache
+from exporters.sql_export.lora_cache import fetch_loracache
 from exporters.utils.load_settings import load_settings
 
 
 LOG_FILE = "mo_to_ad_sync.log"
 
 logger = logging.getLogger("MoAdSync")
-
-
-def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
-    # Here we should activate read-only mode, actual state and
-    # full history dumps needs to be in sync.
-
-    # Full history does not calculate derived data, we must
-    # fetch both kinds.
-    lc = LoraCache(resolve_dar=False, full_history=False)
-    lc.populate_cache(dry_run=False, skip_associations=True)
-    lc.calculate_derived_unit_data()
-    lc.calculate_primary_engagements()
-
-    # Todo, in principle it should be possible to run with skip_past True
-    # This is now fixed in a different branch, remember to update when
-    # merged.
-    lc_historic = LoraCache(resolve_dar=False, full_history=True, skip_past=False)
-    lc_historic.populate_cache(dry_run=False, skip_associations=True)
-    # Here we should de-activate read-only mode
-    return lc, lc_historic
 
 
 @click.command()
