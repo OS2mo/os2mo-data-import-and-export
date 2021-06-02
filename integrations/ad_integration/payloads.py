@@ -108,23 +108,3 @@ def klasse(bvn, navn, org, facet_uuid):
         "tilstande": tilstande
     }
     return payload
-
-
-# def edit_engagement(data, mo_engagement_uuid):
-#     payload = {
-#         'type': 'engagement',
-#         'uuid': mo_engagement_uuid,
-#         'data': data
-#     }
-#     return payload
-
-
-# def terminate_detail(uuid, terminate_date, detail_type):
-#     payload = {
-#         'type': detail_type,
-#         'uuid': uuid,
-#         'validity': {'to': terminate_date}
-#     }
-#     return payload
-
-

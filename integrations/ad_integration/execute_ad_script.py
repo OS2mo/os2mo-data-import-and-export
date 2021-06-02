@@ -1,11 +1,13 @@
 import logging
-
-import click
-from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
 from pathlib import Path
 
-import ad_exceptions
-from ad_writer import ADWriter
+import click
+from click_option_group import optgroup
+from click_option_group import RequiredMutuallyExclusiveOptionGroup
+
+from .ad_exceptions import NoScriptToExecuteException
+from .ad_exceptions import UnknownKeywordsInScriptException
+from .ad_writer import ADWriter
 
 
 logger = logging.getLogger("AdExecute")
@@ -54,7 +56,7 @@ class ADExecute(ADWriter):
             if pre_check:
                 return (False, msg)
             logger.error(msg)
-            raise ad_exceptions.NoScriptToExecuteException(msg)
+            raise NoScriptToExecuteException(msg)
 
         lines = self.script.split('\n')
 
@@ -79,7 +81,7 @@ class ADExecute(ADWriter):
             if pre_check:
                 return (False, msg)
             logger.error(msg)
-            raise ad_exceptions.UnknownKeywordsInScriptException(msg)
+            raise UnknownKeywordsInScriptException(msg)
         return (True, '')
 
     def fill_script_template(self, mo_user_uuid):

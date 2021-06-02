@@ -1,17 +1,17 @@
 import json
-import time
 import logging
 import pathlib
-
-from integrations.ad_integration import ad_reader
-from integrations.ad_integration import ad_writer
-from integrations.ad_integration import ad_logger
-from integrations.ad_integration.ad_exceptions import CprNotNotUnique
-from integrations.ad_integration.ad_exceptions import UserNotFoundException
-from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
-from integrations.ad_integration.ad_exceptions import ManagerNotUniqueFromCprException
+import time
 
 from exporters.sql_export.lora_cache import LoraCache
+
+from .ad_exceptions import CprNotFoundInADException
+from .ad_exceptions import CprNotNotUnique
+from .ad_exceptions import ManagerNotUniqueFromCprException
+from .ad_exceptions import UserNotFoundException
+from .ad_logger import start_logging
+from .ad_reader import ADParameterReader
+from .ad_writer import ADWriter
 
 
 LOG_FILE = 'mo_to_ad_sync.log'
@@ -21,7 +21,7 @@ logger = logging.getLogger('MoAdSync')
 
 def main():
     t_start = time.time()
-    ad_logger.start_logging(LOG_FILE)
+    start_logging(LOG_FILE)
     cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
     if not cfg_file.is_file():
         raise Exception('No setting file')
@@ -51,8 +51,8 @@ def main():
 
     mo_uuid_field = settings['integrations.ad.write.uuid_field']
 
-    reader = ad_reader.ADParameterReader()
-    writer = ad_writer.ADWriter(lc=lc, lc_historic=lc_historic)
+    reader = ADParameterReader()
+    writer = ADWriter(lc=lc, lc_historic=lc_historic)
 
     all_users = reader.read_it_all()
 

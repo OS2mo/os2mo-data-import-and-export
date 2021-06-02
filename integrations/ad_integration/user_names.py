@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import random
+from operator import itemgetter
 from typing import Optional
 
 import click
-from operator import itemgetter
 
-from .ad_reader import ADParameterReader
 import username_rules.method_2
+from .ad_reader import ADParameterReader
 
 
 METHOD = 'metode 2'

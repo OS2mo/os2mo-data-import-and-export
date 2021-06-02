@@ -1,23 +1,32 @@
 import logging
-from functools import lru_cache, partial
+from functools import lru_cache
+from functools import partial
 from operator import itemgetter
-from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple
+from os2mo_helpers.mora_helpers import MoraHelper
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Iterator
+from typing import List
+from typing import Optional
+from typing import Set
+from typing import Tuple
 
 import click
-from os2mo_helpers.mora_helpers import MoraHelper
-from tqdm import tqdm
-
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.apply import apply
 from exporters.utils.catchtime import catchtime
 from exporters.utils.jinja_filter import create_filters
-from exporters.utils.lazy_dict import LazyDict, LazyEval
+from exporters.utils.lazy_dict import LazyDict
+from exporters.utils.lazy_dict import LazyEval
 from exporters.utils.load_settings import load_settings
-from integrations.ad_integration import ad_logger, ad_reader, ad_writer
-from integrations.ad_integration.ad_exceptions import (
-    NoActiveEngagementsException,
-    NoPrimaryEngagementException,
-)
+from tqdm import tqdm
+
+from .ad_exceptions import NoActiveEngagementsException
+from .ad_exceptions import NoPrimaryEngagementException
+from .ad_logger import start_logging
+from .ad_reader import ADParameterReader
+from .ad_writer import ADWriter
 
 logger = logging.getLogger("CreateAdUsers")
 
@@ -42,7 +51,7 @@ class AdLifeCycle:
             settings.get("integrations.ad.lifecycle.disable_filters", [])
         )
 
-        self.ad_reader = ad_reader.ADParameterReader()
+        self.ad_reader = ADParameterReader()
 
         if skip_occupied_names_check:
             print("Skipping reading of occupied user names")
@@ -70,7 +79,7 @@ class AdLifeCycle:
         # This is a slow step (since ADWriter reads all SAM names in __init__)
         print("Retrieve AD Writer name list")
         with catchtime() as t:
-            self.ad_writer = ad_writer.ADWriter(
+            self.ad_writer = ADWriter(
                 lc=self.lc, lc_historic=self.lc_historic, occupied_names=occupied_names
             )
         print("Done with AD Writer init: {}".format(t()))
@@ -412,5 +421,5 @@ def ad_life_cycle(
 
 
 if __name__ == "__main__":
-    ad_logger.start_logging("AD_life_cycle.log")
+    start_logging("AD_life_cycle.log")
     ad_life_cycle()

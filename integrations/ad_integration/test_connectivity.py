@@ -4,14 +4,16 @@ import pathlib
 import click
 import requests
 import requests_kerberos
+from click_option_group import optgroup
+from click_option_group import RequiredMutuallyExclusiveOptionGroup
+from exporters.utils.load_settings import load_settings
 from winrm import Session
 from winrm.exceptions import InvalidCredentialsError
-from click_option_group import RequiredMutuallyExclusiveOptionGroup, optgroup
 
-from exporters.utils.load_settings import load_settings
-from integrations.ad_integration import ad_logger, read_ad_conf_settings
-from integrations.ad_integration.ad_common import AD
-from integrations.ad_integration.ad_reader import ADParameterReader
+from .ad_common import AD
+from .ad_logger import start_logging
+from .ad_reader import ADParameterReader
+from .read_ad_conf_settings import read_settings
 
 
 SETTINGS = load_settings()
@@ -113,7 +115,7 @@ def test_full_ad_read(index):
 
 
 def test_ad_write_settings():
-    all_settings = read_ad_conf_settings.read_settings()
+    all_settings = read_settings()
     if not all_settings["primary_write"]:
         return False
     else:
@@ -230,5 +232,5 @@ def cli(**args):
 
 if __name__ == "__main__":
     check_settings(SETTINGS)
-    ad_logger.start_logging("test_connectivity.log")
+    start_logging("test_connectivity.log")
     cli()

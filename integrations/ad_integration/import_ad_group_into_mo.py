@@ -1,18 +1,19 @@
-import pathlib
-import json
-import uuid
-import hashlib
-import logging
 import datetime
-
-import requests
-import click
-from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
-
+import hashlib
+import json
+import logging
+import pathlib
+import uuid
 from os2mo_helpers.mora_helpers import MoraHelper
-from integrations.ad_integration import payloads
-from integrations.ad_integration import read_ad_conf_settings
-from integrations.ad_integration.ad_reader import ADParameterReader
+
+import click
+import requests
+from click_option_group import optgroup
+from click_option_group import RequiredMutuallyExclusiveOptionGroup
+
+from . import payloads
+from .ad_reader import ADParameterReader
+from .read_ad_conf_settings import read_settings
 
 # Set up a real logger!
 logger = logging.getLogger("ImportADGroup")
@@ -35,7 +36,7 @@ logging.basicConfig(
 
 class ADMOImporter(object):
     def __init__(self):
-        all_settings = read_ad_conf_settings.read_settings()
+        all_settings = read_settings()
         cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
         if not cfg_file.is_file():
             raise Exception('No setting file')

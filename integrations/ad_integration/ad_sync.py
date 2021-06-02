@@ -2,19 +2,25 @@ import logging
 from datetime import datetime
 from functools import partial
 from operator import itemgetter
-from typing import Any, Dict, Iterator, Optional, Tuple, Union
+from os2mo_helpers.mora_helpers import MoraHelper
+from typing import Any
+from typing import Dict
+from typing import Iterator
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import click
-from more_itertools import only, partition
-from tqdm import tqdm
-
-import ad_logger
-import ad_reader as adreader
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.apply import apply
 from exporters.utils.jinja_filter import create_filters
-from integrations.ad_integration import read_ad_conf_settings
-from os2mo_helpers.mora_helpers import MoraHelper
+from more_itertools import only
+from more_itertools import partition
+from tqdm import tqdm
+
+from .ad_logger import start_logging
+from .ad_reader import ADParameterReader
+from .read_ad_conf_settings import SETTINGS
 
 logger = logging.getLogger("AdSyncRead")
 
@@ -164,7 +170,7 @@ class AdMoSync(object):
 
         self.settings = all_settings
         if self.settings is None:
-            self.settings = read_ad_conf_settings.SETTINGS
+            self.settings = SETTINGS
 
         self.helper = self._setup_mora_helper()
         self.org = self.helper.read_organisation()
@@ -656,7 +662,7 @@ class AdMoSync(object):
             self._edit_user_addresses(uuid, ad_object)
 
     def _setup_ad_reader_and_cache_all(self, index, cache_all=True):
-        ad_reader = adreader.ADParameterReader(index=index)
+        ad_reader = ADParameterReader(index=index)
         print("Retrieve AD dump")
         if cache_all:
             ad_reader.cache_all(print_progress=True)
@@ -824,6 +830,6 @@ def sync(sync_user):
 
 
 if __name__ == "__main__":
-    ad_logger.start_logging("ad_mo_sync.log")
+    start_logging("ad_mo_sync.log")
 
     sync()

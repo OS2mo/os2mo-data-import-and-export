@@ -1,17 +1,19 @@
 import logging
 import random
 from operator import itemgetter
+from os2mo_helpers.mora_helpers import MoraHelper
 
-import requests
 import click
-from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
+import requests
+from click_option_group import optgroup
+from click_option_group import RequiredMutuallyExclusiveOptionGroup
+from exporters.utils.apply import apply
+from exporters.utils.load_settings import load_settings
 from tqdm import tqdm
 
-from ad_common import AD
-from os2mo_helpers.mora_helpers import MoraHelper
-from integrations.ad_integration import ad_logger, ad_reader
-from exporters.utils.load_settings import load_settings
-from exporters.utils.apply import apply
+from .ad_common import AD
+from .ad_logger import start_logging
+from .ad_reader import ADParameterReader
 
 LOG_FILE = 'sync_mo_uuid_to_ad.log'
 logger = logging.getLogger('MoUuidAdSync')
@@ -46,7 +48,7 @@ class SyncMoUuidToAd(AD):
             print(e)
             exit()
 
-        self.reader = ad_reader.ADParameterReader()
+        self.reader = ADParameterReader()
 
         self.stats = {
             'attempted_users': 0,
@@ -203,7 +205,7 @@ class SyncMoUuidToAd(AD):
 @optgroup.option("--sync-all", is_flag=True)
 @optgroup.option("--sync-cpr")
 def cli(**args):
-    ad_logger.start_logging(LOG_FILE)
+    start_logging(LOG_FILE)
 
     # Set log level according to --debug command line arg
     logger.setLevel(logging.INFO)

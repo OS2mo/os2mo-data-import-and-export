@@ -1,7 +1,6 @@
 # TODO:
 # All templates might need to also inlclude bp['server'],
 # no relevant test-case is currently available.
-
 # Set password for account
 set_password_template = """
 Get-ADUser -Filter 'SamAccountName -eq \"{username}\"'

@@ -1,4 +1,3 @@
-import logging
 import logging.config
 
 from .read_ad_conf_settings import read_settings

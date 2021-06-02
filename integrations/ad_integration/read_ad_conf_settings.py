@@ -5,7 +5,8 @@ import os
 import pathlib
 
 from exporters.utils.load_settings import load_settings
-from integrations.ad_integration.utils import LazyDict
+
+from .utils import LazyDict
 
 logger = logging.getLogger("AdReader")
 

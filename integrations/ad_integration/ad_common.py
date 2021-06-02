@@ -3,17 +3,19 @@ import logging
 import random
 import subprocess
 import time
-from typing import Dict, List, Optional
+from typing import Dict
+from typing import List
+from typing import Optional
 
 import more_itertools
 from winrm import Session
 from winrm.exceptions import WinRMTransportError
 from winrm.vendor.requests_kerberos.exceptions import KerberosExchangeError
 
-from integrations.ad_integration import read_ad_conf_settings
-from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
-from integrations.ad_integration.ad_exceptions import CprNotNotUnique
-from integrations.ad_integration.ad_exceptions import CommandFailure
+from .ad_exceptions import CommandFailure
+from .ad_exceptions import CprNotFoundInADException
+from .ad_exceptions import CprNotNotUnique
+from .read_ad_conf_settings import read_settings
 
 logger = logging.getLogger("AdCommon")
 
@@ -130,7 +132,7 @@ class AD:
     def __init__(self, all_settings=None, index=0, **kwargs):
         self.all_settings = all_settings
         if self.all_settings is None:
-            self.all_settings = read_ad_conf_settings.read_settings(index=index)
+            self.all_settings = read_settings(index=index)
         self.session = self._create_session()
         self.retry_exceptions = self._get_retry_exceptions()
         self.results = {}

@@ -1,9 +1,7 @@
 import os
-
-import ad_logger
-
 from os2mo_helpers.mora_helpers import MoraHelper
 
+from .ad_logger import start_logging
 
 MORA_BASE = os.environ.get('MORA_BASE')
 
@@ -38,7 +36,7 @@ def find_mo_engagements_without_ad(helper):
 
 
 if __name__ == '__main__':
-    ad_logger.start_logging('ad_helpers.log')
+    start_logging('ad_helpers.log')
     helper = MoraHelper(hostname=MORA_BASE, use_cache=False)
 
     missing_in_ad = find_mo_engagements_without_ad(helper)

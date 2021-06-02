@@ -1,36 +1,44 @@
 # -*- coding: utf-8 -*-
-from abc import ABC, abstractmethod
-from functools import partial
-import re
+import datetime
 import json
-import time
-import random
 import logging
 import pathlib
-import datetime
+import random
+import re
+import time
+from abc import ABC
+from abc import abstractmethod
+from functools import partial
 from operator import itemgetter
-from more_itertools import unzip
+from os2mo_helpers.mora_helpers import MoraHelper
 
 import click
-from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
+from click_option_group import optgroup
+from click_option_group import RequiredMutuallyExclusiveOptionGroup
+from exporters.utils.lazy_dict import LazyDict
+from exporters.utils.lazy_dict import LazyEval
+from exporters.utils.lazy_dict import LazyEvalDerived
 from jinja2 import Template
+from more_itertools import unzip
 
-import ad_logger
-import ad_templates
-from ad_template_engine import template_powershell, prepare_field_templates
-from ad_common import AD
-from exporters.utils.lazy_dict import LazyDict, LazyEval, LazyEvalDerived
-from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
-from integrations.ad_integration.ad_exceptions import CprNotNotUnique
-from integrations.ad_integration.ad_exceptions import ManagerNotUniqueFromCprException
-from integrations.ad_integration.ad_exceptions import NoActiveEngagementsException
-from integrations.ad_integration.ad_exceptions import NoPrimaryEngagementException
-from integrations.ad_integration.ad_exceptions import ReplicationFailedException
-from integrations.ad_integration.ad_exceptions import SamAccountNameNotUnique
-from integrations.ad_integration.ad_exceptions import UserNotFoundException
-from os2mo_helpers.mora_helpers import MoraHelper
-from utils import dict_map, dict_exclude, lower_list, dict_subset
-from user_names import CreateUserNames
+from . import ad_templates
+from .ad_common import AD
+from .ad_exceptions import CprNotFoundInADException
+from .ad_exceptions import CprNotNotUnique
+from .ad_exceptions import ManagerNotUniqueFromCprException
+from .ad_exceptions import NoActiveEngagementsException
+from .ad_exceptions import NoPrimaryEngagementException
+from .ad_exceptions import ReplicationFailedException
+from .ad_exceptions import SamAccountNameNotUnique
+from .ad_exceptions import UserNotFoundException
+from .ad_logger import start_logging
+from .ad_template_engine import prepare_field_templates
+from .ad_template_engine import template_powershell
+from .user_names import CreateUserNames
+from .utils import dict_exclude
+from .utils import dict_map
+from .utils import dict_subset
+from .utils import lower_list
 
 
 logger = logging.getLogger("AdWriter")
@@ -1050,5 +1058,5 @@ def cli(**args):
 
 
 if __name__ == '__main__':
-    ad_logger.start_logging('ad_writer.log')
+    start_logging('ad_writer.log')
     cli()

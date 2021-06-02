@@ -1,12 +1,11 @@
-import time
-import random
 import logging
-from winrm import Session
+import random
+import time
 
 from tqdm import tqdm
+from winrm import Session
 
-from integrations.ad_integration.ad_common import AD
-from integrations.ad_integration import read_ad_conf_settings
+from .ad_common import AD
 
 logger = logging.getLogger("AdReader")
 
