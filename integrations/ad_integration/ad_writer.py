@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
-import datetime
-import json
 import logging
-import pathlib
 import random
 import re
 import time
@@ -10,22 +7,18 @@ from abc import ABC
 from abc import abstractmethod
 from functools import partial
 from operator import itemgetter
-from os2mo_helpers.mora_helpers import MoraHelper
 
 import click
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
-from exporters.utils.lazy_dict import LazyDict
-from exporters.utils.lazy_dict import LazyEval
-from exporters.utils.lazy_dict import LazyEvalDerived
 from jinja2 import Template
 from more_itertools import unzip
+from os2mo_helpers.mora_helpers import MoraHelper
 
 from . import ad_templates
 from .ad_common import AD
 from .ad_exceptions import CprNotFoundInADException
 from .ad_exceptions import CprNotNotUnique
-from .ad_exceptions import ManagerNotUniqueFromCprException
 from .ad_exceptions import NoActiveEngagementsException
 from .ad_exceptions import NoPrimaryEngagementException
 from .ad_exceptions import ReplicationFailedException
@@ -39,13 +32,15 @@ from .utils import dict_exclude
 from .utils import dict_map
 from .utils import dict_subset
 from .utils import lower_list
+from exporters.utils.lazy_dict import LazyDict
+from exporters.utils.lazy_dict import LazyEval
+from exporters.utils.lazy_dict import LazyEvalDerived
 
 
 logger = logging.getLogger("AdWriter")
 
 
 class MODataSource(ABC):
-
     @abstractmethod
     def read_user(self, uuid):
         """Read a user from MO using the provided uuid.
@@ -124,11 +119,11 @@ class MODataSource(ABC):
         """
         start_dates, end_dates = self.get_engagement_dates(uuid)
 
-        start_dates = filter(lambda date: date if date else '1800-01-01', start_dates)
-        start_date = min(start_dates, default='9999-12-31')
+        start_dates = filter(lambda date: date if date else "1800-01-01", start_dates)
+        start_date = min(start_dates, default="9999-12-31")
 
-        end_dates = filter(lambda date: date if date else '9999-12-31', end_dates)
-        end_date = max(end_dates, default='1800-01-01')
+        end_dates = filter(lambda date: date if date else "9999-12-31", end_dates)
+        end_date = max(end_dates, default="1800-01-01")
 
         return start_date, end_date
 
@@ -147,33 +142,30 @@ class LoraCacheSource(MODataSource):
 
         lc_user = self.lc.users[uuid][0]
         mo_user = {
-            'uuid': uuid,
-            'name': lc_user['navn'],
-            'surname': lc_user['efternavn'],
-            'givenname': lc_user['fornavn'],
-            'nickname': lc_user['kaldenavn'],
-            'nickname_givenname': lc_user['kaldenavn_fornavn'],
-            'nickname_surname': lc_user['kaldenavn_efternavn'],
-            'cpr_no': lc_user['cpr']
+            "uuid": uuid,
+            "name": lc_user["navn"],
+            "surname": lc_user["efternavn"],
+            "givenname": lc_user["fornavn"],
+            "nickname": lc_user["kaldenavn"],
+            "nickname_givenname": lc_user["kaldenavn_fornavn"],
+            "nickname_surname": lc_user["kaldenavn_efternavn"],
+            "cpr_no": lc_user["cpr"],
         }
         return mo_user
 
     def get_email_address(self, uuid):
         mail_dict = {}
         for addr in self.lc.addresses.values():
-            if addr[0]['user'] == uuid and addr[0]['scope'] == 'E-mail':
+            if addr[0]["user"] == uuid and addr[0]["scope"] == "E-mail":
                 mail_dict = addr[0]
-        return dict_subset(mail_dict, ['uuid', 'value'])
+        return dict_subset(mail_dict, ["uuid", "value"])
 
     def find_primary_engagement(self, uuid):
         def filter_for_user(engagements):
-            return filter(
-                lambda eng: eng[0]['user'] == uuid, engagements
-            )
+            return filter(lambda eng: eng[0]["user"] == uuid, engagements)
+
         def filter_primary(engagements):
-            return filter(
-                lambda eng: eng[0]['primary_boolean'], engagements
-            )
+            return filter(lambda eng: eng[0]["primary_boolean"], engagements)
 
         user_engagements = list(filter_for_user(self.lc.engagements.values()))
         # No user engagements
@@ -187,30 +179,28 @@ class LoraCacheSource(MODataSource):
                 raise NoActiveEngagementsException()
             # We have future engagements, but LoraCache does not handle that.
             # Delegate to MORESTSource
-            logger.info('Found future engagement')
+            logger.info("Found future engagement")
             return self.mo_rest_source.find_primary_engagement(uuid)
 
         primary_engagement = next(filter_primary(user_engagements), None)
         if primary_engagement is None:
-            raise NoPrimaryEngagementException('User: {}'.format(uuid))
+            raise NoPrimaryEngagementException("User: {}".format(uuid))
 
         primary_engagement = primary_engagement[0]
-        employment_number = primary_engagement['user_key']
-        title = self.lc.classes[primary_engagement['job_function']]['title']
-        eng_org_unit = primary_engagement['unit']
-        eng_uuid = primary_engagement['uuid']
+        employment_number = primary_engagement["user_key"]
+        title = self.lc.classes[primary_engagement["job_function"]]["title"]
+        eng_org_unit = primary_engagement["unit"]
+        eng_uuid = primary_engagement["uuid"]
         return employment_number, title, eng_org_unit, eng_uuid
 
     def get_manager_uuid(self, mo_user, eng_uuid):
         def org_uuid_parent(org_uuid):
-            parent_uuid = self.lc.units[org_uuid][0]['parent']
+            parent_uuid = self.lc.units[org_uuid][0]["parent"]
             return parent_uuid
 
         def org_uuid_to_manager(org_uuid):
             org_unit = self.lc.units[org_uuid][0]
-            manager_uuid = self.lc.managers[
-                org_unit['acting_manager_uuid']
-            ][0]['user']
+            manager_uuid = self.lc.managers[org_unit["acting_manager_uuid"]][0]["user"]
             return manager_uuid
 
         try:
@@ -218,22 +208,22 @@ class LoraCacheSource(MODataSource):
             # MORESTSource does an engagement lookup in the present, using
             # the org uuid from that and fails if it doesn't find anything
             engagement = self.lc.engagements[eng_uuid][0]
-            eng_org_unit = engagement['unit']
+            eng_org_unit = engagement["unit"]
             manager_uuid = org_uuid_to_manager(eng_org_unit)
             if manager_uuid is None:
                 raise Exception("Unable to find manager")
             # We found a manager directly
-            if manager_uuid != mo_user['uuid']:
+            if manager_uuid != mo_user["uuid"]:
                 return manager_uuid
             # Self manager, find a manager above us, if possible
             parent_uuid = org_uuid_parent(eng_org_unit)
-            while manager_uuid == mo_user['uuid']:
+            while manager_uuid == mo_user["uuid"]:
                 if parent_uuid is None:
                     return manager_uuid
                 manager_uuid = org_uuid_to_manager(parent_uuid)
                 parent_uuid = org_uuid_parent(parent_uuid)
             return manager_uuid
-        except KeyError as exp:
+        except KeyError:
             return None
 
     def get_engagement_dates(self, uuid):
@@ -246,10 +236,10 @@ class LoraCacheSource(MODataSource):
             tuple[list[str], list[str]]: A tuple of lists of start and end dates.
         """
         user_engagements = map(
-            lambda eng: eng['user'] == uuid,
-            map(itemgetter(0), self.lc_historic.engagements.values())
+            lambda eng: eng["user"] == uuid,
+            map(itemgetter(0), self.lc_historic.engagements.values()),
         )
-        dates = map(itemgetter('from_date', 'to_date'), user_engagements)
+        dates = map(itemgetter("from_date", "to_date"), user_engagements)
         unzipped = unzip(dates)
         if len(unzipped) == 0:
             return [], []
@@ -262,28 +252,26 @@ class MORESTSource(MODataSource):
 
     def __init__(self, settings):
         self.helper = MoraHelper(
-            hostname=settings['global']['mora.base'], use_cache=False
+            hostname=settings["global"]["mora.base"], use_cache=False
         )
 
     def read_user(self, uuid):
         mo_user = self.helper.read_user(user_uuid=uuid)
-        if 'uuid' not in mo_user:
+        if "uuid" not in mo_user:
             raise UserNotFoundException()
         else:
-            assert(mo_user['uuid'] == uuid)
-        exclude_fields = ['org', 'user_key']
+            assert mo_user["uuid"] == uuid
+        exclude_fields = ["org", "user_key"]
         mo_user = dict_exclude(mo_user, exclude_fields)
         return mo_user
 
     def get_email_address(self, uuid):
-        mail_dict = self.helper.get_e_address(uuid, scope='EMAIL')
-        return dict_subset(mail_dict, ['uuid', 'value'])
+        mail_dict = self.helper.get_e_address(uuid, scope="EMAIL")
+        return dict_subset(mail_dict, ["uuid", "value"])
 
     def find_primary_engagement(self, uuid):
         def filter_primary(engagements):
-            return filter(
-                lambda eng: eng['is_primary'], engagements
-            )
+            return filter(lambda eng: eng["is_primary"], engagements)
 
         user_engagements = self.helper.read_user_engagement(
             uuid, calculate_primary=True, read_all=True, skip_past=True
@@ -293,18 +281,18 @@ class MORESTSource(MODataSource):
 
         primary_engagement = next(filter_primary(user_engagements), None)
         if primary_engagement is None:
-            raise NoPrimaryEngagementException('User: {}'.format(uuid))
+            raise NoPrimaryEngagementException("User: {}".format(uuid))
 
-        employment_number = primary_engagement['user_key']
-        title = primary_engagement['job_function']['name']
-        eng_org_unit = primary_engagement['org_unit']['uuid']
-        eng_uuid = primary_engagement['uuid']
+        employment_number = primary_engagement["user_key"]
+        title = primary_engagement["job_function"]["name"]
+        eng_org_unit = primary_engagement["org_unit"]["uuid"]
+        eng_uuid = primary_engagement["uuid"]
         return employment_number, title, eng_org_unit, eng_uuid
 
     def get_manager_uuid(self, mo_user, eng_uuid):
         try:
             manager = self.helper.read_engagement_manager(eng_uuid)
-            manager_uuid = manager['uuid']
+            manager_uuid = manager["uuid"]
             return manager_uuid
         except KeyError:
             return None
@@ -321,8 +309,8 @@ class MORESTSource(MODataSource):
         user_engagements = self.helper.read_user_engagement(
             uuid, read_all=True, skip_past=True
         )
-        dates = map(itemgetter('validity'), user_engagements)
-        dates = map(itemgetter('from', 'to'), dates)
+        dates = map(itemgetter("validity"), user_engagements)
+        dates = map(itemgetter("from", "to"), dates)
         unzipped = unzip(dates)
         if len(unzipped) == 0:
             return [], []
@@ -349,51 +337,52 @@ class ADWriter(AD):
         #       MODataSource for all their mocking needs.
         self.lc = lc
         self.lc_historic = lc_historic
-        self.helper = MoraHelper(hostname=self.settings['global']['mora.base'],
-                                 use_cache=False)
+        self.helper = MoraHelper(
+            hostname=self.settings["global"]["mora.base"], use_cache=False
+        )
 
         self._init_name_creator(occupied_names)
 
     def _init_name_creator(self, occupied_names):
         self.name_creator = CreateUserNames(occupied_names)
         if occupied_names is None:
-            logger.info('Reading occupied names')
+            logger.info("Reading occupied names")
             self.name_creator.populate_occupied_names(**self.opts)
-        logger.info('Done reading occupied names')
+        logger.info("Done reading occupied names")
 
     def _get_write_setting(self):
-        if not self.all_settings['primary_write']:
-            msg = 'Trying to enable write access with broken settings.'
+        if not self.all_settings["primary_write"]:
+            msg = "Trying to enable write access with broken settings."
             logger.error(msg)
             raise Exception(msg)
-        return self.all_settings['primary_write']
+        return self.all_settings["primary_write"]
 
     def _wait_for_replication(self, sam):
         t_start = time.time()
-        logger.debug('Wait for replication of {}'.format(sam))
-        if not self.all_settings['global']['servers']:
-            logger.info('No server infomation, falling back to waiting')
+        logger.debug("Wait for replication of {}".format(sam))
+        if not self.all_settings["global"]["servers"]:
+            logger.info("No server infomation, falling back to waiting")
             time.sleep(15)
         else:
             # TODO, read from all AD servers and see when user is available
             replication_finished = False
             while not replication_finished:
                 if time.time() - t_start > 60:
-                    logger.error('Replication error')
+                    logger.error("Replication error")
                     raise ReplicationFailedException()
 
-                for server in self.all_settings['global']['servers']:
+                for server in self.all_settings["global"]["servers"]:
                     user = self.get_from_ad(user=sam, server=server)
-                    logger.debug('Testing {}, found: {}'.format(server, len(user)))
+                    logger.debug("Testing {}, found: {}".format(server, len(user)))
                     if user:
-                        logger.debug('Found successfully')
+                        logger.debug("Found successfully")
                         replication_finished = True
                     else:
-                        logger.debug('Did not find')
+                        logger.debug("Did not find")
                         replication_finished = False
                         time.sleep(0.25)
                         break
-        logger.info('replication_finished: {}s'.format(time.time() - t_start))
+        logger.info("replication_finished: {}s".format(time.time() - t_start))
 
     def _read_user(self, uuid):
         return self.datasource.read_user(uuid)
@@ -402,50 +391,50 @@ class ADWriter(AD):
         # TODO: Convert to datasource
         write_settings = self._get_write_setting()
 
-        level2orgunit = 'Ingen'
+        level2orgunit = "Ingen"
         unit_info = {}
         if self.lc:
-            unit_name = self.lc.units[eng_org_unit][0]['name']
-            unit_user_key = self.lc.units[eng_org_unit][0]['user_key']
-            location = self.lc.units[eng_org_unit][0]['location']
+            unit_name = self.lc.units[eng_org_unit][0]["name"]
+            unit_user_key = self.lc.units[eng_org_unit][0]["user_key"]
+            location = self.lc.units[eng_org_unit][0]["location"]
 
             # We initialize parent as the unit itself to ensure to catch if
             # a person is engaged directly in a level2org
-            parent_uuid = self.lc.units[eng_org_unit][0]['uuid']
+            parent_uuid = self.lc.units[eng_org_unit][0]["uuid"]
             while parent_uuid is not None:
                 parent_unit = self.lc.units[parent_uuid][0]
-                if write_settings['level2orgunit_type'] in (
-                    parent_unit['unit_type'],
-                    parent_unit['level']
+                if write_settings["level2orgunit_type"] in (
+                    parent_unit["unit_type"],
+                    parent_unit["level"],
                 ):
-                    level2orgunit = parent_unit['name']
-                parent_uuid = parent_unit['parent']
+                    level2orgunit = parent_unit["name"]
+                parent_uuid = parent_unit["parent"]
         else:
             mo_unit_info = self.helper.read_ou(eng_org_unit)
-            unit_name = mo_unit_info['name']
-            unit_user_key = mo_unit_info['user_key']
+            unit_name = mo_unit_info["name"]
+            unit_user_key = mo_unit_info["user_key"]
 
-            location = ''
+            location = ""
             current_unit = mo_unit_info
             while current_unit:
-                location = current_unit['name'] + '\\' + location
-                current_type = current_unit['org_unit_type']
-                current_level = current_unit['org_unit_level']
+                location = current_unit["name"] + "\\" + location
+                current_type = current_unit["org_unit_type"]
+                current_level = current_unit["org_unit_level"]
                 if current_level is None:
-                    current_level = {'uuid': None}
-                if write_settings['level2orgunit_type'] in (
-                    current_type['uuid'],
-                    current_level['uuid']
+                    current_level = {"uuid": None}
+                if write_settings["level2orgunit_type"] in (
+                    current_type["uuid"],
+                    current_level["uuid"],
                 ):
-                    level2orgunit = current_unit['name']
-                current_unit = current_unit['parent']
+                    level2orgunit = current_unit["name"]
+                current_unit = current_unit["parent"]
             location = location[:-1]
 
         unit_info = {
-            'name': unit_name,
-            'user_key': unit_user_key,
-            'location': location,
-            'level2orgunit': level2orgunit
+            "name": unit_name,
+            "user_key": unit_user_key,
+            "location": location,
+            "level2orgunit": level2orgunit,
         }
         return unit_info
 
@@ -456,42 +445,41 @@ class ADWriter(AD):
             email = []
             postal = {}
             for addr in self.lc.addresses.values():
-                if addr[0]['unit'] == eng_org_unit:
-                    if addr[0]['scope'] == 'DAR':
-                        postal = {'Adresse': addr[0]['value']}
-                    if addr[0]['scope'] == 'E-mail':
-                        visibility = addr[0]['visibility']
+                if addr[0]["unit"] == eng_org_unit:
+                    if addr[0]["scope"] == "DAR":
+                        postal = {"Adresse": addr[0]["value"]}
+                    if addr[0]["scope"] == "E-mail":
+                        visibility = addr[0]["visibility"]
                         visibility_class = None
                         if visibility is not None:
                             visibility_class = self.lc.classes[visibility]
                         email.append(
-                            {
-                                'visibility': visibility_class,
-                                'value': addr[0]['value']
-                            }
+                            {"visibility": visibility_class, "value": addr[0]["value"]}
                         )
         else:
-            email = self.helper.read_ou_address(eng_org_unit, scope='EMAIL',
-                                                return_all=True)
-            postal = self.helper.read_ou_address(eng_org_unit, scope='DAR',
-                                                 return_all=False)
+            email = self.helper.read_ou_address(
+                eng_org_unit, scope="EMAIL", return_all=True
+            )
+            postal = self.helper.read_ou_address(
+                eng_org_unit, scope="DAR", return_all=False
+            )
 
         unit_secure_email = None
         unit_public_email = None
         for mail in email:
-            if mail['visibility'] is None:
+            if mail["visibility"] is None:
                 # If visibility is not set, we assume it is non-public.
-                unit_secure_email = mail['value']
+                unit_secure_email = mail["value"]
             else:
-                if mail['visibility']['scope'] == 'PUBLIC':
-                    unit_public_email = mail['value']
-                if mail['visibility']['scope'] == 'SECRET':
-                    unit_secure_email = mail['value']
+                if mail["visibility"]["scope"] == "PUBLIC":
+                    unit_public_email = mail["value"]
+                if mail["visibility"]["scope"] == "SECRET":
+                    unit_secure_email = mail["value"]
 
         addresses = {
-            'unit_secure_email': unit_secure_email,
-            'unit_public_email': unit_public_email,
-            'postal': postal
+            "unit_secure_email": unit_secure_email,
+            "unit_public_email": unit_public_email,
+            "postal": postal,
         }
         return addresses
 
@@ -513,44 +501,47 @@ class ADWriter(AD):
             'manager_sam': 'DMILL'
         }
         """
-        logger.info('Read information for {}'.format(uuid))
+        logger.info("Read information for {}".format(uuid))
         try:
-            employment_number, title, eng_org_unit, eng_uuid = self.datasource.find_primary_engagement(uuid)
+            (
+                employment_number,
+                title,
+                eng_org_unit,
+                eng_uuid,
+            ) = self.datasource.find_primary_engagement(uuid)
         except NoActiveEngagementsException:
-            logger.info('No active engagements found')
+            logger.info("No active engagements found")
             return None
 
         def split_addresses(addresses):
-            postal_code = city = streetname = 'Ukendt'
-            if addresses.get('postal'):
-                postal = addresses['postal']
+            postal_code = city = streetname = "Ukendt"
+            if addresses.get("postal"):
+                postal = addresses["postal"]
                 try:
-                    postal_code = re.findall('[0-9]{4}', postal['Adresse'])[0]
-                    city_pos = postal['Adresse'].find(postal_code) + 5
-                    city = postal['Adresse'][city_pos:]
-                    streetname = postal['Adresse'][:city_pos - 7]
+                    postal_code = re.findall("[0-9]{4}", postal["Adresse"])[0]
+                    city_pos = postal["Adresse"].find(postal_code) + 5
+                    city = postal["Adresse"][city_pos:]
+                    streetname = postal["Adresse"][: city_pos - 7]
                 except IndexError:
-                    logger.error('Unable to read adresse from MO (no access to DAR?)')
+                    logger.error("Unable to read adresse from MO (no access to DAR?)")
                 except TypeError:
-                    logger.error('Unable to read adresse from MO (no access to DAR?)')
+                    logger.error("Unable to read adresse from MO (no access to DAR?)")
             return {
-                'postal_code': postal_code,
-                'city': city,
-                'streetname': streetname,
+                "postal_code": postal_code,
+                "city": city,
+                "streetname": streetname,
             }
 
         def read_manager_uuid(mo_user, eng_uuid):
-            manager_uuid = self.datasource.get_manager_uuid(
-                mo_user, eng_uuid
-            )
+            manager_uuid = self.datasource.get_manager_uuid(mo_user, eng_uuid)
             if manager_uuid is None:
-                logger.info('No managers found')
+                logger.info("No managers found")
             return manager_uuid
 
         def read_manager_mail(manager_uuid):
             manager_mail_dict = self.datasource.get_email_address(manager_uuid)
             if manager_mail_dict:
-                return manager_mail_dict['value']
+                return manager_mail_dict["value"]
             return None
 
         def read_manager_sam(manager_cpr):
@@ -565,117 +556,104 @@ class ADWriter(AD):
             return None
 
         # NOTE: Underscore fields should not be read
-        mo_values: LazyDict = LazyDict({
-            # Raw information
-            "uuid": uuid,
-
-            # Engagement information
-            "employment_number": employment_number,
-            "title": title,
-            "unit_uuid": eng_org_unit,
-            "_eng_uuid": eng_uuid,
-
-            '_dates': LazyEvalDerived(
-                lambda uuid: self.datasource.get_engagement_endpoint_dates(uuid)
-            ),
-            'start_date': LazyEvalDerived(
-                lambda _dates: _dates[0]
-            ),
-            'end_date': LazyEvalDerived(
-                lambda _dates: _dates[1]
-            ),
-
-            # Lazy MO User and associated fields
-            '_mo_user': LazyEvalDerived(
-                lambda uuid: self._read_user(uuid)
-            ),
-            'name': LazyEvalDerived(
-                lambda _mo_user: (
-                    _mo_user['givenname'], _mo_user['surname']
-                )
-            ),
-            'full_name': LazyEvalDerived(
-                lambda name: '{} {}'.format(*name).strip()
-            ),
-            'nickname': LazyEvalDerived(
-                lambda _mo_user: (
-                    _mo_user['nickname_givenname'], _mo_user['nickname_surname']
-                )
-            ),
-            'full_nickname': LazyEvalDerived(
-                lambda nickname: '{} {}'.format(*nickname).strip()
-            ),
-            'cpr': LazyEvalDerived(
-                lambda _mo_user: _mo_user['cpr_no']
-            ),
-
-            # Lazy Unit and associated fields
-            "_unit": LazyEvalDerived(
-                lambda unit_uuid: self._find_unit_info(unit_uuid)
-            ),
-            'unit': LazyEvalDerived(
-                lambda _unit: _unit["name"]
-            ),
-            'unit_user_key': LazyEvalDerived(
-                lambda _unit: _unit["user_key"]
-            ),
-            'location': LazyEvalDerived(
-                lambda _unit: _unit["location"]
-            ),
-            'level2orgunit': LazyEvalDerived(
-                lambda _unit: _unit["level2orgunit"]
-            ),
-
-            # Lazy addresses and associated fields
-            "_addresses": LazyEvalDerived(
-                lambda unit_uuid: self._read_user_addresses(unit_uuid)
-            ),
-            "_parsed_addresses": LazyEvalDerived(
-                lambda _addresses: split_addresses(_addresses)
-            ),
-            'unit_postal_code': LazyEvalDerived(
-                lambda _parsed_addresses: _parsed_addresses['postal_code']
-            ),
-            'unit_city': LazyEvalDerived(
-                lambda _parsed_addresses: _parsed_addresses['city']
-            ),
-            'unit_streetname': LazyEvalDerived(
-                lambda _parsed_addresses: _parsed_addresses['streetname']
-            ),
-            'unit_public_email': LazyEvalDerived(
-                lambda _addresses: _addresses['unit_public_email']
-            ),
-            'unit_secure_email': LazyEvalDerived(
-                lambda _addresses: _addresses['unit_secure_email']
-            ),
-
-            # Manager stuff
-            "_manager_uuid": LazyEval(
-                lambda key, dictionary: (
-                    read_manager_uuid(
-                        dictionary["_mo_user"], dictionary["_eng_uuid"]
-                    ) if read_manager else None
-                )
-            ),
-            "_manager_mo_user": LazyEvalDerived(
-                lambda _manager_uuid: self._read_user(_manager_uuid) if _manager_uuid else {}
-            ),
-            "manager_name": LazyEvalDerived(
-                lambda _manager_mo_user: _manager_mo_user.get("name")
-            ),
-            "manager_cpr": LazyEvalDerived(
-                lambda _manager_mo_user: _manager_mo_user.get("cpr_no")
-            ),
-            "manager_mail": LazyEvalDerived(
-                lambda _manager_uuid: read_manager_mail(_manager_uuid) if _manager_uuid else None
-            ),
-            "manager_sam": LazyEvalDerived(
-                lambda manager_cpr: read_manager_sam(manager_cpr) if manager_cpr else None
-            ),
-            "read_manager": LazyEvalDerived(
-                lambda _manager_uuid: bool(_manager_uuid)
-            ),
-        })
+        mo_values: LazyDict = LazyDict(
+            {
+                # Raw information
+                "uuid": uuid,
+                # Engagement information
+                "employment_number": employment_number,
+                "title": title,
+                "unit_uuid": eng_org_unit,
+                "_eng_uuid": eng_uuid,
+                "_dates": LazyEvalDerived(
+                    lambda uuid: self.datasource.get_engagement_endpoint_dates(uuid)
+                ),
+                "start_date": LazyEvalDerived(lambda _dates: _dates[0]),
+                "end_date": LazyEvalDerived(lambda _dates: _dates[1]),
+                # Lazy MO User and associated fields
+                "_mo_user": LazyEvalDerived(lambda uuid: self._read_user(uuid)),
+                "name": LazyEvalDerived(
+                    lambda _mo_user: (_mo_user["givenname"], _mo_user["surname"])
+                ),
+                "full_name": LazyEvalDerived(
+                    lambda name: "{} {}".format(*name).strip()
+                ),
+                "nickname": LazyEvalDerived(
+                    lambda _mo_user: (
+                        _mo_user["nickname_givenname"],
+                        _mo_user["nickname_surname"],
+                    )
+                ),
+                "full_nickname": LazyEvalDerived(
+                    lambda nickname: "{} {}".format(*nickname).strip()
+                ),
+                "cpr": LazyEvalDerived(lambda _mo_user: _mo_user["cpr_no"]),
+                # Lazy Unit and associated fields
+                "_unit": LazyEvalDerived(
+                    lambda unit_uuid: self._find_unit_info(unit_uuid)
+                ),
+                "unit": LazyEvalDerived(lambda _unit: _unit["name"]),
+                "unit_user_key": LazyEvalDerived(lambda _unit: _unit["user_key"]),
+                "location": LazyEvalDerived(lambda _unit: _unit["location"]),
+                "level2orgunit": LazyEvalDerived(lambda _unit: _unit["level2orgunit"]),
+                # Lazy addresses and associated fields
+                "_addresses": LazyEvalDerived(
+                    lambda unit_uuid: self._read_user_addresses(unit_uuid)
+                ),
+                "_parsed_addresses": LazyEvalDerived(
+                    lambda _addresses: split_addresses(_addresses)
+                ),
+                "unit_postal_code": LazyEvalDerived(
+                    lambda _parsed_addresses: _parsed_addresses["postal_code"]
+                ),
+                "unit_city": LazyEvalDerived(
+                    lambda _parsed_addresses: _parsed_addresses["city"]
+                ),
+                "unit_streetname": LazyEvalDerived(
+                    lambda _parsed_addresses: _parsed_addresses["streetname"]
+                ),
+                "unit_public_email": LazyEvalDerived(
+                    lambda _addresses: _addresses["unit_public_email"]
+                ),
+                "unit_secure_email": LazyEvalDerived(
+                    lambda _addresses: _addresses["unit_secure_email"]
+                ),
+                # Manager stuff
+                "_manager_uuid": LazyEval(
+                    lambda key, dictionary: (
+                        read_manager_uuid(
+                            dictionary["_mo_user"], dictionary["_eng_uuid"]
+                        )
+                        if read_manager
+                        else None
+                    )
+                ),
+                "_manager_mo_user": LazyEvalDerived(
+                    lambda _manager_uuid: self._read_user(_manager_uuid)
+                    if _manager_uuid
+                    else {}
+                ),
+                "manager_name": LazyEvalDerived(
+                    lambda _manager_mo_user: _manager_mo_user.get("name")
+                ),
+                "manager_cpr": LazyEvalDerived(
+                    lambda _manager_mo_user: _manager_mo_user.get("cpr_no")
+                ),
+                "manager_mail": LazyEvalDerived(
+                    lambda _manager_uuid: read_manager_mail(_manager_uuid)
+                    if _manager_uuid
+                    else None
+                ),
+                "manager_sam": LazyEvalDerived(
+                    lambda manager_cpr: read_manager_sam(manager_cpr)
+                    if manager_cpr
+                    else None
+                ),
+                "read_manager": LazyEvalDerived(
+                    lambda _manager_uuid: bool(_manager_uuid)
+                ),
+            }
+        )
         return mo_values
 
     def add_manager_to_user(self, user_sam, manager_sam):
@@ -684,39 +662,34 @@ class ADWriter(AD):
         :param user_sam: SamAccountName for the employee.
         :param manager_sam: SamAccountName for the manager.
         """
-        format_rules = {'user_sam': user_sam, 'manager_sam': manager_sam}
+        format_rules = {"user_sam": user_sam, "manager_sam": manager_sam}
         ps_script = self._build_ps(ad_templates.add_manager_template, format_rules)
 
         response = self._run_ps_script(ps_script)
         return response is {}
 
     def _cf(self, ad_field, value, ad):
-        logger.info('Check AD field: {}'.format(ad_field))
+        logger.info("Check AD field: {}".format(ad_field))
         mismatch = {}
         if value is None:
-            msg = 'Value for {} is None-type replace to string None'
+            msg = "Value for {} is None-type replace to string None"
             logger.debug(msg.format(ad_field))
-            value = 'None'
+            value = "None"
         if ad.get(ad_field) != value:
-            msg = '{}: AD value: {}, does not match MO value: {}'
+            msg = "{}: AD value: {}, does not match MO value: {}"
             logger.info(msg.format(ad_field, ad.get(ad_field), value))
-            mismatch = {
-                ad_field: (
-                    ad.get(ad_field),
-                    value
-                )
-            }
+            mismatch = {ad_field: (ad.get(ad_field), value)}
         return mismatch
 
     def _render_field_template(self, context, template):
         return Template(template.strip('"')).render(**context)
 
     def _sync_compare(self, mo_values, ad_dump):
-        ad_user = self._find_ad_user(mo_values['cpr'], ad_dump=ad_dump)
+        ad_user = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)
         user_sam = self._get_sam_for_ad_user(ad_user)
 
         # TODO: Why is this not generated along with all other info in mo_values?
-        mo_values['name_sam'] = '{} - {}'.format(mo_values['full_name'], user_sam)
+        mo_values["name_sam"] = "{} - {}".format(mo_values["full_name"], user_sam)
 
         fields = prepare_field_templates("Set-ADUser", settings=self.all_settings)
 
@@ -726,7 +699,7 @@ class ADWriter(AD):
         ad_user = dict_map(ad_user, key_func=to_lower)
         fields = dict_map(fields, key_func=to_lower)
 
-        never_compare = lower_list(['Credential', 'Manager'])
+        never_compare = lower_list(["Credential", "Manager"])
         fields = dict_exclude(fields, never_compare)
 
         context = {
@@ -742,20 +715,21 @@ class ADWriter(AD):
         #       the template once, potentially rendering a dict of results.
         # TODO: Make the above mentioned change.
         fields = dict_map(
-            fields, value_func=partial(self._render_field_template, context),
+            fields,
+            value_func=partial(self._render_field_template, context),
         )
         mismatch = {}
         for ad_field, rendered_value in fields.items():
             mismatch.update(self._cf(ad_field, rendered_value, ad_user))
 
-        if mo_values.get('manager_cpr'):
+        if mo_values.get("manager_cpr"):
             manager_ad_user = self._find_ad_user(
-                mo_values['manager_cpr'], ad_dump=ad_dump
+                mo_values["manager_cpr"], ad_dump=ad_dump
             )
-            manager_distinguished_name = manager_ad_user['DistinguishedName']
-            if ad_user['manager'] != manager_distinguished_name:
-                mismatch['manager'] = (ad_user['manager'], manager_distinguished_name)
-                logger.info('Manager should be updated')
+            manager_distinguished_name = manager_ad_user["DistinguishedName"]
+            if ad_user["manager"] != manager_distinguished_name:
+                mismatch["manager"] = (ad_user["manager"], manager_distinguished_name)
+                logger.info("Manager should be updated")
         return mismatch
 
     def sync_user(self, mo_uuid, ad_dump=None, sync_manager=True):
@@ -767,57 +741,55 @@ class ADWriter(AD):
         )
 
         if mo_values is None:
-            return (False, 'No active engagments')
+            return (False, "No active engagments")
 
-        ad_user = self._find_ad_user(mo_values['cpr'], ad_dump=ad_dump)
+        ad_user = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)
         user_sam = self._get_sam_for_ad_user(ad_user)
 
         if ad_dump is None:
             # TODO: We could also add the compare logic here,
             # but the benefit will be max 40%
-            mismatch = {'force re-sync': 'yes', 'manager': 'yes'}
+            mismatch = {"force re-sync": "yes", "manager": "yes"}
         else:
             mismatch = self._sync_compare(mo_values, ad_dump)
 
-        logger.debug('Sync compare: {}'.format(mismatch))
+        logger.debug("Sync compare: {}".format(mismatch))
 
-        if 'name' in mismatch:
-            logger.info('Rename user:')
+        if "name" in mismatch:
+            logger.info("Rename user:")
             # Todo: This code is a duplicate of code 15 lines further down...
             rename_user_template = ad_templates.rename_user_template
             rename_user_string = rename_user_template.format(
-                givenname=mo_values['name'][0],
-                surname=mo_values['name'][1],
-                sam_account_name=user_sam
+                givenname=mo_values["name"][0],
+                surname=mo_values["name"][1],
+                sam_account_name=user_sam,
             )
             rename_user_string = self.remove_redundant(rename_user_string)
-            server_string = ''
-            if self.all_settings['global'].get('servers') is not None:
-                server_string = ' -Server {} '.format(
-                    random.choice(self.all_settings['global']['servers'])
+            server_string = ""
+            if self.all_settings["global"].get("servers") is not None:
+                server_string = " -Server {} ".format(
+                    random.choice(self.all_settings["global"]["servers"])
                 )
             ps_script = (
-                self._build_user_credential() +
-                rename_user_string +
-                server_string
+                self._build_user_credential() + rename_user_string + server_string
             )
-            logger.debug('Rename user, ps_script: {}'.format(ps_script))
+            logger.debug("Rename user, ps_script: {}".format(ps_script))
             response = self._run_ps_script(ps_script)
-            logger.debug('Response from sync: {}'.format(response))
-            logger.debug('Wait for replication')
+            logger.debug("Response from sync: {}".format(response))
+            logger.debug("Wait for replication")
             # Todo: In principle we should ask all DCs, bu this will happen
             # very rarely, performance is not of great importance
             time.sleep(10)
-            del mismatch['name']
+            del mismatch["name"]
 
         if not mismatch:
-            logger.info('Nothing to edit')
-            return (True, 'Nothing to edit', mo_values['read_manager'])
+            logger.info("Nothing to edit")
+            return (True, "Nothing to edit", mo_values["read_manager"])
 
-        logger.info('Sync compare: {}'.format(mismatch))
+        logger.info("Sync compare: {}".format(mismatch))
 
         edit_user_string = template_powershell(
-            cmd='Set-ADUser',
+            cmd="Set-ADUser",
             context={
                 "ad_values": ad_user,
                 "mo_values": mo_values,
@@ -827,28 +799,25 @@ class ADWriter(AD):
         )
         edit_user_string = self.remove_redundant(edit_user_string)
 
-        server_string = ''
-        if self.all_settings['global'].get('servers') is not None:
-            server_string = ' -Server {} '.format(
-                random.choice(self.all_settings['global']['servers'])
+        server_string = ""
+        if self.all_settings["global"].get("servers") is not None:
+            server_string = " -Server {} ".format(
+                random.choice(self.all_settings["global"]["servers"])
             )
 
-        ps_script = (
-            self._build_user_credential() +
-            edit_user_string +
-            server_string
-        )
-        logger.debug('Sync user, ps_script: {}'.format(ps_script))
+        ps_script = self._build_user_credential() + edit_user_string + server_string
+        logger.debug("Sync user, ps_script: {}".format(ps_script))
 
         response = self._run_ps_script(ps_script)
-        logger.debug('Response from sync: {}'.format(response))
+        logger.debug("Response from sync: {}".format(response))
 
-        if sync_manager and 'manager' in mismatch:
-            logger.info('Add manager')
-            self.add_manager_to_user(user_sam=user_sam,
-                                     manager_sam=mo_values['manager_sam'])
+        if sync_manager and "manager" in mismatch:
+            logger.info("Add manager")
+            self.add_manager_to_user(
+                user_sam=user_sam, manager_sam=mo_values["manager_sam"]
+            )
 
-        return (True, 'Sync completed', mo_values['read_manager'])
+        return (True, "Sync completed", mo_values["read_manager"])
 
     def create_user(self, mo_uuid, create_manager, dry_run=False):
         """
@@ -865,21 +834,22 @@ class ADWriter(AD):
         bp = self._ps_boiler_plate()
         mo_values = self.read_ad_information_from_mo(mo_uuid, create_manager)
         if mo_values is None:
-            logger.error('Trying to create user with no engagements')
+            logger.error("Trying to create user with no engagements")
             raise NoPrimaryEngagementException
 
-        all_names = mo_values['name'][0].split(' ') + [mo_values['name'][1]]
-        sam_account_name = self.name_creator.create_username(all_names,
-                                                             dry_run=dry_run)[0]
+        all_names = mo_values["name"][0].split(" ") + [mo_values["name"][1]]
+        sam_account_name = self.name_creator.create_username(
+            all_names, dry_run=dry_run
+        )[0]
 
         existing_sam = self.get_from_ad(user=sam_account_name)
-        existing_cpr = self.get_from_ad(cpr=mo_values['cpr'])
+        existing_cpr = self.get_from_ad(cpr=mo_values["cpr"])
         if existing_sam:
-            logger.error('SamAccount already in use: {}'.format(sam_account_name))
+            logger.error("SamAccount already in use: {}".format(sam_account_name))
             raise SamAccountNameNotUnique(sam_account_name)
         if existing_cpr:
-            logger.error('cpr already in use: {}'.format(mo_values['cpr']))
-            raise CprNotNotUnique(mo_values['cpr'])
+            logger.error("cpr already in use: {}".format(mo_values["cpr"]))
+            raise CprNotNotUnique(mo_values["cpr"])
 
         create_user_string = template_powershell(
             context={
@@ -892,33 +862,40 @@ class ADWriter(AD):
         create_user_string = self.remove_redundant(create_user_string)
 
         # Should this go to self._ps_boiler_plate()?
-        server_string = ''
-        if self.all_settings['global'].get('servers'):
-            server_string = ' -Server {} '.format(
-                random.choice(self.all_settings['global']['servers'])
+        server_string = ""
+        if self.all_settings["global"].get("servers"):
+            server_string = " -Server {} ".format(
+                random.choice(self.all_settings["global"]["servers"])
             )
 
         ps_script = (
-            self._build_user_credential() +
-            create_user_string +
-            server_string +
-            bp['path']
+            self._build_user_credential()
+            + create_user_string
+            + server_string
+            + bp["path"]
         )
 
         response = self._run_ps_script(ps_script)
         if not response == {}:
-            msg = 'Create user failed, message: {}'.format(response)
+            msg = "Create user failed, message: {}".format(response)
             logger.error(msg)
             return (False, msg)
 
         if create_manager:
             self._wait_for_replication(sam_account_name)
-            print('Add {} as manager for {}'.format(mo_values['manager_sam'],
-                                                    sam_account_name))
-            logger.info('Add {} as manager for {}'.format(mo_values['manager_sam'],
-                                                          sam_account_name))
-            self.add_manager_to_user(user_sam=sam_account_name,
-                                     manager_sam=mo_values['manager_sam'])
+            print(
+                "Add {} as manager for {}".format(
+                    mo_values["manager_sam"], sam_account_name
+                )
+            )
+            logger.info(
+                "Add {} as manager for {}".format(
+                    mo_values["manager_sam"], sam_account_name
+                )
+            )
+            self.add_manager_to_user(
+                user_sam=sam_account_name, manager_sam=mo_values["manager_sam"]
+            )
 
         return (True, sam_account_name)
 
@@ -936,13 +913,13 @@ class ADWriter(AD):
         :return: True if success, otherwise False
         """
 
-        format_rules = {'username': username, 'password': password}
+        format_rules = {"username": username, "password": password}
         ps_script = self._build_ps(ad_templates.set_password_template, format_rules)
         response = self._run_ps_script(ps_script)
         if not response:
-            return (True, 'Password updated')
+            return (True, "Password updated")
         else:
-            msg = 'Failed to set password!: {}'.format(response)
+            msg = "Failed to set password!: {}".format(response)
             logger.error(msg)
             return (False, msg)
 
@@ -953,20 +930,18 @@ class ADWriter(AD):
         :param enable: If True enable account, if False, disbale account
         """
 
-        logger.info('Enable account: {}'.format(enable))
-        format_rules = {'username': username}
+        logger.info("Enable account: {}".format(enable))
+        format_rules = {"username": username}
         if enable:
-            ps_script = self._build_ps(ad_templates.enable_user_template,
-                                       format_rules)
+            ps_script = self._build_ps(ad_templates.enable_user_template, format_rules)
         else:
-            ps_script = self._build_ps(ad_templates.disable_user_template,
-                                       format_rules)
+            ps_script = self._build_ps(ad_templates.disable_user_template, format_rules)
 
         response = self._run_ps_script(ps_script)
         if not response:
-            return (True, 'Account enabled or disabled')
+            return (True, "Account enabled or disabled")
         else:
-            msg = 'Failed to update account!: {}'.format(response)
+            msg = "Failed to update account!: {}".format(response)
             logger.error(msg)
             return (False, msg)
 
@@ -977,86 +952,85 @@ class ADWriter(AD):
         deletetion.
         :param username: SamAccountName of the account to be deleted
         """
-        format_rules = {'username': username}
-        ps_script = self._build_ps(ad_templates.delete_user_template,
-                                   format_rules=format_rules)
+        format_rules = {"username": username}
+        ps_script = self._build_ps(
+            ad_templates.delete_user_template, format_rules=format_rules
+        )
 
         response = self._run_ps_script(ps_script)
         # TODO: Should we make a read to confirm the user is gone?
         if not response:
-            return (True, 'User deleted')
+            return (True, "User deleted")
         else:
-            logger.error('Failed to delete account!: {}'.format(response))
-            return (False, 'Failed to delete')
+            logger.error("Failed to delete account!: {}".format(response))
+            return (False, "Failed to delete")
 
 
 @click.command()
 @optgroup.group("Action", cls=RequiredMutuallyExclusiveOptionGroup)
 @optgroup.option(
-    '--create-user-with-manager',
-    help='Create a new user in AD, also assign a manager',
+    "--create-user-with-manager",
+    help="Create a new user in AD, also assign a manager",
 )
 @optgroup.option(
-    '--create-user',
-    help='Create a new user in AD, do not assign a manager',
+    "--create-user",
+    help="Create a new user in AD, do not assign a manager",
 )
 @optgroup.option(
-    '--sync-user',
-    help='Sync relevant fields from MO to AD',
+    "--sync-user",
+    help="Sync relevant fields from MO to AD",
 )
-@optgroup.option('--delete-user')
-@optgroup.option('--read-ad-information')
-@optgroup.option('--add-manager-to-user', nargs=2, type=str)
+@optgroup.option("--delete-user")
+@optgroup.option("--read-ad-information")
+@optgroup.option("--add-manager-to-user", nargs=2, type=str)
 @click.option("--ignore-occupied-names", is_flag=True, default=False)
 def cli(**args):
     """
     Command line interface for the AD writer class.
     """
 
-    ad_writer = ADWriter(occupied_names=[] if args['ignore_occupied_names'] else None)
+    ad_writer = ADWriter(occupied_names=[] if args["ignore_occupied_names"] else None)
 
-    if args.get('create_user_with_manager'):
-        print('Create_user_with_manager:')
+    if args.get("create_user_with_manager"):
+        print("Create_user_with_manager:")
         status = ad_writer.create_user(
-            args['create_user_with_manager'], create_manager=True
+            args["create_user_with_manager"], create_manager=True
         )
         # TODO: execute custom script? Or should this be done in
         # two steps.
         print(status[1])
 
-    if args.get('create_user'):
-        print('Create user, no link to manager:')
-        status = ad_writer.create_user(
-            args['create_user'], create_manager=False
-        )
+    if args.get("create_user"):
+        print("Create user, no link to manager:")
+        status = ad_writer.create_user(args["create_user"], create_manager=False)
         print(status[1])
 
-    if args.get('sync_user'):
-        print('Sync MO fields to AD')
-        status = ad_writer.sync_user(args['sync_user'])
+    if args.get("sync_user"):
+        print("Sync MO fields to AD")
+        status = ad_writer.sync_user(args["sync_user"])
         print(status[1])
 
-    if args.get('delete_user'):
-        print('Deleting user:')
-        status = ad_writer.delete_user(args['delete_user'])
+    if args.get("delete_user"):
+        print("Deleting user:")
+        status = ad_writer.delete_user(args["delete_user"])
         print(status[1])
 
-    if args.get('read_ad_information'):
-        print('AD information on user:')
-        sam = args['read_ad_information']
+    if args.get("read_ad_information"):
+        print("AD information on user:")
+        sam = args["read_ad_information"]
         user = ad_writer.get_from_ad(user=sam)
         if not user:
-            print('User not found')
+            print("User not found")
         else:
             for key, value in sorted(user[0].items()):
-                print('{}: {}'.format(key, value))
+                print("{}: {}".format(key, value))
 
-    if args.get('add_manager_to_user'):
-        manager, user = args['add_manager_to_user']
-        print('{} is now set as manager for {}'.format(manager, user))
+    if args.get("add_manager_to_user"):
+        manager, user = args["add_manager_to_user"]
+        print("{} is now set as manager for {}".format(manager, user))
         ad_writer.add_manager_to_user(manager_sam=manager, user_sam=user)
 
 
-if __name__ == '__main__':
-    start_logging('ad_writer.log')
+if __name__ == "__main__":
+    start_logging("ad_writer.log")
     cli()

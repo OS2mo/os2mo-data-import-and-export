@@ -51,6 +51,6 @@ def start_logging(log_file, **kwargs):
             "urllib3": {
                 "level": "WARNING",
             },
-        }
+        },
     }
     logging.config.dictConfig(config)

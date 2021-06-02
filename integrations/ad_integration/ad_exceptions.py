@@ -1,6 +1,7 @@
 class NoPrimaryEngagementException(Exception):
     pass
 
+
 class NoActiveEngagementsException(Exception):
     pass
 
@@ -8,8 +9,10 @@ class NoActiveEngagementsException(Exception):
 class UserNotFoundException(Exception):
     pass
 
+
 class CprNotFoundInADException(Exception):
     pass
+
 
 class ManagerNotUniqueFromCprException(Exception):
     pass
