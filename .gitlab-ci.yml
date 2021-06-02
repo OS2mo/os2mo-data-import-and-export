@@ -55,7 +55,7 @@ Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
-    - pip install pre-commit
+    - pip install mypy pre-commit
     - pre-commit run --files tests/* utils.py ad_template_engine.py
 
 Lint SetAlias Tool:
