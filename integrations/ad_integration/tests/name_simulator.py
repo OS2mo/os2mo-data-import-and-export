@@ -20,6 +20,8 @@ def create_name():
 
 
 if __name__ == "__main__":
+    import time
+
     t = time.time()
     for i in range(0, 1000):
         create_name()

@@ -2,19 +2,24 @@ import logging
 from datetime import datetime
 from functools import partial
 from operator import itemgetter
-from typing import Any, Dict, Iterator, Optional, Tuple, Union
+from typing import Any
+from typing import Dict
+from typing import Iterator
+from typing import Optional
+from typing import Tuple
 
 import click
-from more_itertools import only, partition
+from more_itertools import only
+from more_itertools import partition
+from os2mo_helpers.mora_helpers import MoraHelper
 from tqdm import tqdm
 
-import ad_logger
-import ad_reader as adreader
+from .ad_logger import start_logging
+from .ad_reader import ADParameterReader
+from .read_ad_conf_settings import SETTINGS
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.apply import apply
 from exporters.utils.jinja_filter import create_filters
-from integrations.ad_integration import read_ad_conf_settings
-from os2mo_helpers.mora_helpers import MoraHelper
 
 logger = logging.getLogger("AdSyncRead")
 
@@ -164,7 +169,7 @@ class AdMoSync(object):
 
         self.settings = all_settings
         if self.settings is None:
-            self.settings = read_ad_conf_settings.SETTINGS
+            self.settings = SETTINGS
 
         self.helper = self._setup_mora_helper()
         self.org = self.helper.read_organisation()
@@ -260,7 +265,7 @@ class AdMoSync(object):
                 "validity": {
                     "from": addr["from_date"],
                     "to": addr["to_date"],
-                }
+                },
             }
 
         # Populate list of `user_addresses`
@@ -380,7 +385,10 @@ class AdMoSync(object):
             # Read user's current engagements, e.g. exclude engagements that
             # ended in the past.
             engagements = self.helper.read_user_engagement(
-                uuid, calculate_primary=True, read_all=True, skip_past=True,
+                uuid,
+                calculate_primary=True,
+                read_all=True,
+                skip_past=True,
             )
             engagements = filter(lambda eng: eng["is_primary"], engagements)
             # Skip engagements beginning in the future
@@ -411,7 +419,8 @@ class AdMoSync(object):
             # and must be read differently.
             if old_mo_value is None and "extensions" in mo_engagement:
                 old_mo_value = self._edit_engagement_read_lc_extensions(
-                    mo_field, mo_engagement,
+                    mo_field,
+                    mo_engagement,
                 )
 
             if old_mo_value == new_mo_value:
@@ -520,11 +529,18 @@ class AdMoSync(object):
 
         # Figure out how to find the itsystems uuid
         # Differs by source, as LoraCache and MO are not equivalent!
-        itsystem_uuid_extractor = lambda it: it['itsystem']["uuid"]
+        def itsystem_uuid_extractor_mo(it):
+            return it["itsystem"]["uuid"]
+
+        def itsystem_uuid_extractor_lora(it):
+            return it["itsystem"]
+
+        itsystem_uuid_extractor = itsystem_uuid_extractor_mo
         if self.lc:
-            itsystem_uuid_extractor = lambda it: it['itsystem']
+            itsystem_uuid_extractor = itsystem_uuid_extractor_lora
 
         it_system_uuids = self.mapping["it_systems"].values()
+
         def _keep_only_mapped(itconnection):
             itsystem_uuid = itsystem_uuid_extractor(itconnection)
             return itsystem_uuid in it_system_uuids
@@ -593,8 +609,9 @@ class AdMoSync(object):
     def _edit_user_attrs(self, uuid, ad_object):
         user_attrs = {
             mo_field_name: ad_object.get(ad_field_name)
-            for ad_field_name, mo_field_name
-            in self.mapping.get("user_attrs", {}).items()
+            for ad_field_name, mo_field_name in self.mapping.get(
+                "user_attrs", {}
+            ).items()
             if ad_object.get(ad_field_name) is not None
         }
         if user_attrs:
@@ -656,7 +673,7 @@ class AdMoSync(object):
             self._edit_user_addresses(uuid, ad_object)
 
     def _setup_ad_reader_and_cache_all(self, index, cache_all=True):
-        ad_reader = adreader.ADParameterReader(index=index)
+        ad_reader = ADParameterReader(index=index)
         print("Retrieve AD dump")
         if cache_all:
             ad_reader.cache_all(print_progress=True)
@@ -706,7 +723,9 @@ class AdMoSync(object):
                 "users": set(),
             }
 
-            ad_reader = self._setup_ad_reader_and_cache_all(index=index, cache_all=ad_cache_all)
+            ad_reader = self._setup_ad_reader_and_cache_all(
+                index=index, cache_all=ad_cache_all
+            )
             ad_settings = ad_reader._get_setting()
 
             # move to read_conf_settings og valider på tværs af alle-ad'er
@@ -824,6 +843,6 @@ def sync(sync_user):
 
 
 if __name__ == "__main__":
-    ad_logger.start_logging("ad_mo_sync.log")
+    start_logging("ad_mo_sync.log")
 
     sync()

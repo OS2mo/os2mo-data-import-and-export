@@ -1,17 +1,17 @@
 import logging
-import pathlib
 
 import click
 import requests
 import requests_kerberos
-from winrm import Session
+from click_option_group import optgroup
+from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from winrm.exceptions import InvalidCredentialsError
-from click_option_group import RequiredMutuallyExclusiveOptionGroup, optgroup
 
+from .ad_common import AD
+from .ad_logger import start_logging
+from .ad_reader import ADParameterReader
+from .read_ad_conf_settings import read_settings
 from exporters.utils.load_settings import load_settings
-from integrations.ad_integration import ad_logger, read_ad_conf_settings
-from integrations.ad_integration.ad_common import AD
-from integrations.ad_integration.ad_reader import ADParameterReader
 
 
 SETTINGS = load_settings()
@@ -31,11 +31,11 @@ def test_basic_connectivity():
     except requests_kerberos.exceptions.KerberosExchangeError as e:
         error = str(e)
     except InvalidCredentialsError as e:
-        error = 'Credentails not accepted by remote management server: {}'
+        error = "Credentails not accepted by remote management server: {}"
         error = error.format(e)
     except requests.exceptions.ConnectionError as e:
         error = "Unable to contact winrm_host {}, message: {}"
-        error = error.format(SETTINGS['integrations.ad.winrm_host'], e)
+        error = error.format(SETTINGS["integrations.ad.winrm_host"], e)
 
     if error is None and r.status_code == 0:
         return True
@@ -105,15 +105,15 @@ def test_full_ad_read(index):
 
     for test_value in test_chars.values():
         if not test_value:
-            print('Finding occurences of special chars: {}'.format(test_chars))
-            print('(The more True the better)')
+            print("Finding occurences of special chars: {}".format(test_chars))
+            print("(The more True the better)")
             break
 
     return True
 
 
 def test_ad_write_settings():
-    all_settings = read_ad_conf_settings.read_settings()
+    all_settings = read_settings()
     if not all_settings["primary_write"]:
         return False
     else:
@@ -128,17 +128,17 @@ def perform_read_test():
         exit(1)
 
     for index in range(len(SETTINGS["integrations.ad"])):
-        print('Test AD {} contact'.format(index))
+        print("Test AD {} contact".format(index))
         ad_connection = test_ad_contact(index)
         if not ad_connection:
-            print('Unable to connect to AD {}'.format(index))
+            print("Unable to connect to AD {}".format(index))
             status = "Failure!!"
             continue
 
-        print('Test ability to read from AD {}'.format(index))
+        print("Test ability to read from AD {}".format(index))
         full_ad_read = test_full_ad_read(index)
         if not full_ad_read:
-            print('Unable to read users from AD {} correctly'.format(index))
+            print("Unable to read users from AD {} correctly".format(index))
             status = "Failure!!!"
             continue
 
@@ -197,20 +197,20 @@ def perform_write_test():
                 minimum_expected_fields[prop] = True
 
     if not all(minimum_expected_fields.values()):
-        print('An import field is now found on the tested users')
+        print("An import field is now found on the tested users")
         print(minimum_expected_fields)
     else:
-        print('Test of AD fields for writing is a success')
+        print("Test of AD fields for writing is a success")
 
 
 def check_settings(settings):
-    if not isinstance(settings.get('integrations.ad'), list):
-        raise Exception('integrations.ad skal angives som en liste af dicts (settings)')
+    if not isinstance(settings.get("integrations.ad"), list):
+        raise Exception("integrations.ad skal angives som en liste af dicts (settings)")
 
-    if len(settings.get('integrations.ad')) < 1:
-        raise Exception('integrations.ad skal indeholde mindst 1 AD (settings)')
+    if len(settings.get("integrations.ad")) < 1:
+        raise Exception("integrations.ad skal indeholde mindst 1 AD (settings)")
 
-    winrm_host_setting = 'integrations.ad.winrm_host'
+    winrm_host_setting = "integrations.ad.winrm_host"
     winrm_host_value = settings.get(winrm_host_setting)
     if winrm_host_value is None:
         raise Exception("%r is missing" % winrm_host_setting)
@@ -223,12 +223,12 @@ def check_settings(settings):
 def cli(**args):
     if args.get("test_read_settings"):
         perform_read_test()
-    if args.get('test_write_settings'):
+    if args.get("test_write_settings"):
         perform_read_test()
         perform_write_test()
 
 
 if __name__ == "__main__":
     check_settings(SETTINGS)
-    ad_logger.start_logging("test_connectivity.log")
+    start_logging("test_connectivity.log")
     cli()

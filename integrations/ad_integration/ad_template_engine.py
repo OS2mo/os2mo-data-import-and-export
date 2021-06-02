@@ -1,6 +1,11 @@
-from jinja2 import Environment, StrictUndefined, Template
+from jinja2 import Environment
+from jinja2 import StrictUndefined
+from jinja2 import Template
 
-from utils import dict_map, dict_partition, duplicates, lower_list
+from .utils import dict_map
+from .utils import dict_partition
+from .utils import duplicates
+from .utils import lower_list
 
 # Parameters that should not be quoted
 no_quote_list = ["Credential"]
@@ -196,6 +201,7 @@ def prepare_settings_based_field_templates(jinja_map, cmd, settings):
             result = settings[key]
         except KeyError:
             msg = "Unable to find settings type: " + key
+            print(msg)
         if not result:
             raise Exception("%r is empty" % key)
         return result
@@ -218,9 +224,7 @@ def prepare_settings_based_field_templates(jinja_map, cmd, settings):
         jinja_map[ad_field] = template
 
     if cmd == "New-ADUser":  # New user
-        jinja_map["UserPrincipalName"] = (
-            "{{ user_sam }}@" + write_settings["upn_end"]
-        )
+        jinja_map["UserPrincipalName"] = "{{ user_sam }}@" + write_settings["upn_end"]
         jinja_map[write_settings["uuid_field"]] = "{{ mo_values['uuid'] }}"
 
         # If local settings dictates a separator, we add it directly to the

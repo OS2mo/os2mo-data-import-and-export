@@ -1,19 +1,15 @@
-# TODO: Fix imports in module
-import sys
 from datetime import date
 from itertools import chain
-from os.path import dirname
+from typing import Callable
+from typing import Dict
 from unittest import TestCase
 from unittest.mock import MagicMock
 
 from parameterized import parameterized
 
-sys.path.append(dirname(__file__))
-sys.path.append(dirname(__file__) + "/..")
-
-from test_utils import TestADMoSyncMixin, dict_modifier, mo_modifier
-
-from utils import AttrDict
+from ..utils import AttrDict
+from .test_utils import dict_modifier
+from .test_utils import TestADMoSyncMixin
 
 
 def iso_date(date):
@@ -38,9 +34,7 @@ class MockLoraCache:
 
     @property
     def engagements(self):
-        extensions = {
-            "udvidelse_%d" % n: "old mo value #%d" % n for n in range(1, 11)
-        }
+        extensions = {"udvidelse_%d" % n: "old mo value #%d" % n for n in range(1, 11)}
         if self._mo_engagements:
             return {
                 eng["uuid"]: [
@@ -164,16 +158,17 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         )
 
         # Enrich expected with visibility
-        if setup.address_type_visibility:
+        address_type_visibility: str = setup.address_type_visibility  # type: ignore
+        if address_type_visibility:
             # Where to write visibility information
-            payload_table = {
+            payload_table: Dict[str, Callable] = {
                 "noop": lambda: {},  # aka. throw it away
                 "create": lambda: calls[0]["payload"],
                 "edit": lambda: payload_table["create"]()[0]["data"],
                 "terminate": lambda: {},
             }
             # Write the visibility into the table
-            visibility_lower = setup.address_type_visibility.lower()
+            visibility_lower = address_type_visibility.lower()
             payload_table[expected]()["visibility"] = {
                 "uuid": "address_visibility_" + visibility_lower + "_uuid"
             }
@@ -367,9 +362,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         # to keep only one of the three identical MO addresses.
         expected_calls = chain(
             *[
-                self._get_expected_mo_api_calls(
-                    setup, verb, mo_values, ad_value, today
-                )
+                self._get_expected_mo_api_calls(setup, verb, mo_values, ad_value, today)
                 for verb in ("edit", "terminate", "terminate")
             ]
         )
@@ -448,9 +441,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
                             "address_type": {"uuid": "office_uuid"},
                             "validity": {"from": today, "to": None},
                             "value": "11",
-                            "visibility": {
-                                "uuid": "address_visibility_internal_uuid"
-                            },
+                            "visibility": {"uuid": "address_visibility_internal_uuid"},
                         },
                         "type": "address",
                         "uuid": "address_uuid",
@@ -583,7 +574,6 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         """Verify engagement data is synced correctly from AD to MO."""
         today = today_iso()
         ad_values = self.ad_values_func()
-        mo_values = self.mo_values_func()
 
         def seed_mo():
             if not do_seed:
@@ -784,7 +774,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
     @parameterized.expand(
         [
-            ## Finalize
+            # - Finalize
             # Today
             [today_iso(), None, "terminate"],
             [today_iso(), today_iso(), "noop"],
@@ -857,7 +847,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
     @parameterized.expand(
         [
-            ## Finalize
+            # - Finalize
             # Today
             [today_iso(), None, "terminate"],
             [today_iso(), today_iso(), "noop"],

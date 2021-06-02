@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 import hypothesis.strategies as st
-from hypothesis import example, given
+from hypothesis import given
 
 from ..ad_reader import first_included
 

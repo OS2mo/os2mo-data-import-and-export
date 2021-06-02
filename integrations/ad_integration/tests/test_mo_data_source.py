@@ -1,16 +1,7 @@
-# TODO: Fix imports in module
-import sys
-from os.path import dirname
-
-sys.path.append(dirname(__file__))
-sys.path.append(dirname(__file__) + "/..")
-
 from unittest import TestCase
 
-from parameterized import parameterized
-
-from ad_writer import LoraCacheSource
-from utils import AttrDict
+from ..ad_writer import LoraCacheSource
+from ..utils import AttrDict
 
 
 class TestLoraCacheSource(TestCase):

@@ -1,12 +1,7 @@
-import sys
 import unittest
-from os.path import dirname
 
-sys.path.append(dirname(__file__) + "/..")
-sys.path.append(dirname(__file__) + "/../../..")
-
-import user_names
-
+from ..user_names import _name_fixer
+from ..user_names import CreateUserNames
 from .name_simulator import create_name
 
 # PIMJE is missing in specification documen
@@ -573,16 +568,14 @@ ooha = [
 
 class TestUsernameCreation(unittest.TestCase):
     def _test_person(self, name, reference, max_level):
-        name_creator = user_names.CreateUserNames(occupied_names=set())
+        name_creator = CreateUserNames(occupied_names=set())
         success = True
         for level in range(0, max_level):
             for correct_user_name in reference[level]:
                 user_name = name_creator.create_username(name)
                 if not user_name[0] == correct_user_name:
                     success = False
-                    print(
-                        "Got: {}, expected: {}".format(user_name, correct_user_name)
-                    )
+                    print("Got: {}, expected: {}".format(user_name, correct_user_name))
         return success
 
     def test_pia_munk_jensen(self):
@@ -622,7 +615,7 @@ class TestUsernameCreation(unittest.TestCase):
         should happen after 89 attempts.
         """
         name = ["Karina", "Jensen"]
-        name_creator = user_names.CreateUserNames(occupied_names=set())
+        name_creator = CreateUserNames(occupied_names=set())
         for i in range(1, 88):
             name_creator.create_username(name)
         with self.assertRaisesRegex(RuntimeError, "Failed to create user name"):
@@ -634,7 +627,7 @@ class TestUsernameCreation(unittest.TestCase):
         same person and never run into an answer of None.
         """
         name = ["Karina", "Jensen"]
-        name_creator = user_names.CreateUserNames(occupied_names=set())
+        name_creator = CreateUserNames(occupied_names=set())
         for i in range(1, 100):
             user_name = name_creator.create_username(name, dry_run=True)
         self.assertFalse(user_name[0] is None)
@@ -645,7 +638,7 @@ class TestUsernameCreation(unittest.TestCase):
         bug that stops the program. Test succeeds if the code does not raise an
         exception.
         """
-        name_creator = user_names.CreateUserNames(occupied_names=set())
+        name_creator = CreateUserNames(occupied_names=set())
         for i in range(0, 250):
             name = create_name()
             name_creator.create_username(name)
@@ -656,6 +649,6 @@ class TestUsernameCreation(unittest.TestCase):
         range.
         """
         name = ["Anders", "abzæ-{øå", "Andersen"]
-        fixed_name = user_names._name_fixer(name)
+        fixed_name = _name_fixer(name)
         expected_name = ["Anders", "abzaoa", "Andersen"]
         self.assertTrue(fixed_name == expected_name)

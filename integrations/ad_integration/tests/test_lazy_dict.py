@@ -1,6 +1,4 @@
-import sys
 import unittest
-from os.path import dirname
 
 from parameterized import parameterized
 
@@ -12,6 +10,7 @@ LOOKUP_KEYS = ["key", "john", "deere"]
 class TestLazyDict(unittest.TestCase):
     def test_happy_path(self):
         lazy_dict = LazyDict()
+
         # Initializer with call counter
         def initializer():
             initializer.call_count += 1

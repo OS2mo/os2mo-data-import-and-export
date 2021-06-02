@@ -1,23 +1,31 @@
 import logging
-from functools import lru_cache, partial
+from functools import lru_cache
+from functools import partial
 from operator import itemgetter
-from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import Iterator
+from typing import List
+from typing import Optional
+from typing import Set
+from typing import Tuple
 
 import click
-from os2mo_helpers.mora_helpers import MoraHelper
 from tqdm import tqdm
 
+from .ad_exceptions import NoActiveEngagementsException
+from .ad_exceptions import NoPrimaryEngagementException
+from .ad_logger import start_logging
+from .ad_reader import ADParameterReader
+from .ad_writer import ADWriter
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.apply import apply
 from exporters.utils.catchtime import catchtime
 from exporters.utils.jinja_filter import create_filters
-from exporters.utils.lazy_dict import LazyDict, LazyEval
+from exporters.utils.lazy_dict import LazyDict
+from exporters.utils.lazy_dict import LazyEval
 from exporters.utils.load_settings import load_settings
-from integrations.ad_integration import ad_logger, ad_reader, ad_writer
-from integrations.ad_integration.ad_exceptions import (
-    NoActiveEngagementsException,
-    NoPrimaryEngagementException,
-)
 
 logger = logging.getLogger("CreateAdUsers")
 
@@ -26,15 +34,15 @@ FilterFunction = Callable[[Tuple[Dict, Dict]], bool]
 
 class AdLifeCycle:
     def __init__(
-        self,
-        use_cached_mo: bool = False,
-        skip_occupied_names_check: bool = False
+        self, use_cached_mo: bool = False, skip_occupied_names_check: bool = False
     ) -> None:
         logger.info("AD Sync Started")
         settings = load_settings()
 
         self.roots = settings["integrations.ad.write.create_user_trees"]
-        seeded_create_filters = partial(create_filters, tuple_keys=("employee", "ad_object"))
+        seeded_create_filters = partial(
+            create_filters, tuple_keys=("employee", "ad_object")
+        )
         self.create_filters = seeded_create_filters(
             settings.get("integrations.ad.lifecycle.create_filters", [])
         )
@@ -42,19 +50,17 @@ class AdLifeCycle:
             settings.get("integrations.ad.lifecycle.disable_filters", [])
         )
 
-        self.ad_reader = ad_reader.ADParameterReader()
+        self.ad_reader = ADParameterReader()
 
+        occupied_names: Set[str] = set()
         if skip_occupied_names_check:
             print("Skipping reading of occupied user names")
-            occupied_names: Set[str] = set()
         else:
             # This is a slow step (since ADReader reads all users)
             print("Retrieve AD dump")
             with catchtime() as t:
                 all_users: List[Dict] = self.ad_reader.cache_all()
-                occupied_names: Set[str] = set(
-                    map(itemgetter("SamAccountName"), all_users)
-                )
+                occupied_names = set(map(itemgetter("SamAccountName"), all_users))
             print("Done with AD caching: {}".format(t()))
 
         # This is a potentially slow step (since it may read LoraCache)
@@ -70,7 +76,7 @@ class AdLifeCycle:
         # This is a slow step (since ADWriter reads all SAM names in __init__)
         print("Retrieve AD Writer name list")
         with catchtime() as t:
-            self.ad_writer = ad_writer.ADWriter(
+            self.ad_writer = ADWriter(
                 lc=self.lc, lc_historic=self.lc_historic, occupied_names=occupied_names
             )
         print("Done with AD Writer init: {}".format(t()))
@@ -412,5 +418,5 @@ def ad_life_cycle(
 
 
 if __name__ == "__main__":
-    ad_logger.start_logging("AD_life_cycle.log")
+    start_logging("AD_life_cycle.log")
     ad_life_cycle()

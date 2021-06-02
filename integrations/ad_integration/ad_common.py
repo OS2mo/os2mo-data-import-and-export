@@ -3,17 +3,23 @@ import logging
 import random
 import subprocess
 import time
-from typing import Dict, List, Optional
+from typing import Dict
+from typing import List
+from typing import Optional
 
 import more_itertools
-from winrm import Session
-from winrm.exceptions import WinRMTransportError
-from winrm.vendor.requests_kerberos.exceptions import KerberosExchangeError
 
-from integrations.ad_integration import read_ad_conf_settings
-from integrations.ad_integration.ad_exceptions import CprNotFoundInADException
-from integrations.ad_integration.ad_exceptions import CprNotNotUnique
-from integrations.ad_integration.ad_exceptions import CommandFailure
+try:
+    from winrm import Session
+    from winrm.exceptions import WinRMTransportError
+    from winrm.vendor.requests_kerberos.exceptions import KerberosExchangeError
+except ImportError:
+    pass
+
+from .ad_exceptions import CommandFailure
+from .ad_exceptions import CprNotFoundInADException
+from .ad_exceptions import CprNotNotUnique
+from .read_ad_conf_settings import read_settings
 
 logger = logging.getLogger("AdCommon")
 
@@ -57,7 +63,7 @@ class ReauthenticatingKerberosSession:
         Tries to generate a new Kerberos ticket, through a call to kinit
         Raises an exception if the subprocess has non-zero exit code
         """
-        cmd = ['kinit', self._username]
+        cmd = ["kinit", self._username]
         try:
             subprocess.run(
                 cmd,
@@ -78,9 +84,7 @@ class ReauthenticatingKerberosSession:
              so we have to create a new internal session object each time
         """
         self._session = Session(
-            target=self._target,
-            transport='kerberos',
-            auth=(None, None)
+            target=self._target, transport="kerberos", auth=(None, None)
         )
 
     def __init__(self, target: str, username: str, password: str):
@@ -130,7 +134,7 @@ class AD:
     def __init__(self, all_settings=None, index=0, **kwargs):
         self.all_settings = all_settings
         if self.all_settings is None:
-            self.all_settings = read_ad_conf_settings.read_settings(index=index)
+            self.all_settings = read_settings(index=index)
         self.session = self._create_session()
         self.retry_exceptions = self._get_retry_exceptions()
         self.results = {}
@@ -240,9 +244,8 @@ class AD:
         template.
         """
         formatted_script = ps_script.format(**format_rules)
-        finished_ps_script = (
-            self._build_user_credential() +
-            self.remove_redundant(formatted_script)
+        finished_ps_script = self._build_user_credential() + self.remove_redundant(
+            formatted_script
         )
         return finished_ps_script
 
@@ -263,8 +266,9 @@ class AD:
         $UserCredential = New-Object –TypeName $TypeName –ArgumentList $User, $PWord
         """
         settings = self._get_setting()
-        user_credential = credential_template.format(settings['system_user'],
-                                                     settings['password'])
+        user_credential = credential_template.format(
+            settings["system_user"], settings["password"]
+        )
         return user_credential
 
     def _properties(self):
@@ -276,20 +280,17 @@ class AD:
         return properties
 
     def _get_sam_for_ad_user(self, ad_user: ADUser) -> str:
-        return ad_user['SamAccountName']
+        return ad_user["SamAccountName"]
 
     def _find_ad_user(
-        self,
-        cpr: str,
-        ad_dump: Optional[List[Dict[str, str]]] = None
+        self, cpr: str, ad_dump: Optional[List[Dict[str, str]]] = None
     ) -> ADUser:
-        """Find a unique AD account from cpr, otherwise raise an exception.
-        """
+        """Find a unique AD account from cpr, otherwise raise an exception."""
         if ad_dump:
-            cpr_field = self.all_settings['primary']['cpr_field']
+            cpr_field = self.all_settings["primary"]["cpr_field"]
             ad_users = filter(lambda ad_user: ad_user.get(cpr_field) == cpr, ad_dump)
         else:
-            logger.debug('No AD information supplied, will look it up')
+            logger.debug("No AD information supplied, will look it up")
             ad_users = self.get_from_ad(cpr=cpr)
 
         return more_itertools.one(ad_users, CprNotFoundInADException, CprNotNotUnique)
@@ -306,7 +307,7 @@ class AD:
                     'ObjectGUID': '7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0',
                     'SID': {
                         'AccountDomainSid': {
-                            'AccountDomainSid': 'S-x-x-xx-xxxxxxxxxx-xxxxxxxxxx-xxxxxxxxxx',
+                            'AccountDomainSid': 'S-x-x-xx-...',
                             'BinaryLength': 24,
                             'Value': 'S-x-x-xx-xxxxxxxxxx-xxxxxxxxxx-xxxxxxxxxx'
                         },
@@ -327,7 +328,7 @@ class AD:
                         'UserPrincipalName'
                         'extensionAttribute1',
                     ],
-                    'DistinguishedName': 'CN=Martin Lee Gore,OU=Enhed,OU=Musik,DC=lee,DC=lee'
+                    'DistinguishedName': 'CN=Martin Lee Gore,OU=...'
                     'Enabled': True,
                     'GivenName': 'Martin Lee',
                     'Name': 'Martin Lee Gore',
@@ -384,12 +385,12 @@ class AD:
         )
 
         ps_script = (
-            self._build_user_credential() +
-            get_command +
-            server_string +
-            bp['complete'] +
-            self._properties() +
-            command_end
+            self._build_user_credential()
+            + get_command
+            + server_string
+            + bp["complete"]
+            + self._properties()
+            + command_end
         )
         response = self._run_ps_script(ps_script)
 
@@ -404,7 +405,10 @@ class AD:
         return return_val
 
     def _list_users(self):
-        cmd = "%(cred)s Get-ADUser -Properties * -Filter * %(search_base)s | ConvertTo-Json" % dict(
+        cmd = (
+            "%(cred)s Get-ADUser -Properties * -Filter * %(search_base)s"
+            "| ConvertTo-Json"
+        ) % dict(
             cred=self._build_user_credential(),
             search_base=self._ps_boiler_plate()["search_base"],
         )
