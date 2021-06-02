@@ -55,8 +55,8 @@ Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
-    - python -m black --diff --line-length 85 --check tests/* utils.py ad_template_engine.py
-    - python -m isort --diff --check-only tests/* utils.py ad_template_engine.py
+    - pip install pre-commit
+    - pre-commit run --files tests/* utils.py ad_template_engine.py
 
 Lint SetAlias Tool:
   extends: .lint-python

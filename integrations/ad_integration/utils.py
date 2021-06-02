@@ -36,7 +36,7 @@ class LazyDict(Mapping):
         Returns:
             bool: Whether the LazyDict has run the initializer.
         """
-        return self._raw_dict != None
+        return self._raw_dict is not None
 
     def _run_initializer_if_required(self):
         """Helper method called on access to run initializer.
@@ -74,8 +74,8 @@ class AttrDict(dict):
     """
 
     __getattr__ = dict.__getitem__
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
+    __setattr__ = dict.__setitem__  # type: ignore
+    __delattr__ = dict.__delitem__  # type: ignore
 
 
 def recursive_dict_update(original, updates):

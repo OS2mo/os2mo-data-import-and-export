@@ -178,7 +178,7 @@ class CreateUserNames(object):
         rule that ended up suceeding. Lower numbers means better usernames.
         """
         final_user_name = ''
-        quality = (0, 0)
+        quality = (0, 0, 0)
         name = _name_fixer(name)
 
         for permutation_counter in range(2, 10):
@@ -229,6 +229,7 @@ class CreateUserNames(object):
             return self._metode_2(name, dry_run)
         if self.method == 'metode 3':
             return self._metode_3(name, dry_run)
+        raise NotImplementedError("Unknown method")
 
     def stats(self, names, size=None, find_quality=None):
         if size is not None:

@@ -1,6 +1,5 @@
 import logging
 
-import pytest
 from integrations.ad_integration.ad_logger import PasswordRemovalFormatter
 
 

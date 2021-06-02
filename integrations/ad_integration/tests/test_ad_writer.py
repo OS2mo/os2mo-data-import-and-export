@@ -1,23 +1,20 @@
 # TODO: Fix imports in module
 import copy
-import sys
-from os.path import dirname
-from unittest import TestCase, mock
+from unittest import mock
+from unittest import TestCase
 
 from jinja2.exceptions import UndefinedError
 from more_itertools import first_true
 from parameterized import parameterized
+from test_utils import dict_modifier
+from test_utils import mo_modifier
+from test_utils import TestADWriterMixin
 
-sys.path.append(dirname(__file__))
-sys.path.append(dirname(__file__) + "/..")
-
-from test_utils import TestADWriterMixin, dict_modifier, mo_modifier
-
-from exporters.utils.lazy_dict import LazyDict
-
-from ..utils import AttrDict
+from ..ad_exceptions import CprNotFoundInADException
+from ..ad_exceptions import CprNotNotUnique
 from ..ad_writer import LoraCacheSource
-from ..ad_exceptions import CprNotFoundInADException, CprNotNotUnique
+from ..utils import AttrDict
+from exporters.utils.lazy_dict import LazyDict
 
 JOB_TITLE_AD_FIELD_NAME = "titel"
 JOB_TITLE_TEMPLATE = "{{ ad_values.get('titel') or mo_values['title'] }}"
@@ -27,9 +24,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
     def setUp(self):
         self._setup_adwriter()
 
-    def _verify_identitical_common_code(
-        self, num_expected_scripts, num_common_lines=5
-    ):
+    def _verify_identitical_common_code(self, num_expected_scripts, num_common_lines=5):
         """Verify that common code in all scripts is identitical.
 
         I.e. that all scripts start with the same num_common_lines lines.
@@ -55,11 +50,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
 
     def _add_to_template_to_ad_fields(self, ad_field_name, template):
         return dict_modifier(
-            {
-                "integrations.ad_writer.template_to_ad_fields": {
-                    ad_field_name: template
-                }
-            }
+            {"integrations.ad_writer.template_to_ad_fields": {ad_field_name: template}}
         )
 
     def _assert_script_contains_field(self, script, name, value):
@@ -123,7 +114,10 @@ class TestADWriter(TestCase, TestADWriterMixin):
             + self.settings["primary"]["password"]
             + '" –AsPlainText -Force',
             '$TypeName = "System.Management.Automation.PSCredential"',
-            "$UserCredential = New-Object –TypeName $TypeName –ArgumentList $User, $PWord",
+            (
+                "$UserCredential = New-Object –TypeName $TypeName"
+                "–ArgumentList $User, $PWord"
+            ),
         ]
         self.assertEqual(common_ps, expected_ps)
 
@@ -575,7 +569,9 @@ class TestADWriter(TestCase, TestADWriterMixin):
                 dict_modifier(
                     {
                         "integrations.ad_writer.template_to_ad_fields": {
-                            "adjusted_number": "{{ mo_values['employment_number']|int + 5 }}",
+                            "adjusted_number": (
+                                "{{ mo_values['employment_number']|int + 5 }}",
+                            )
                         },
                     }
                 ),
@@ -592,7 +588,9 @@ class TestADWriter(TestCase, TestADWriterMixin):
                 dict_modifier(
                     {
                         "integrations.ad_writer.template_to_ad_fields": {
-                            "adjusted_number": "{{ mo_values['employment_number']|int + 5 }}",
+                            "adjusted_number": (
+                                "{{ mo_values['employment_number']|int + 5 }}",
+                            ),
                             "Enabled": "Invalid",
                         },
                     }
@@ -631,9 +629,8 @@ class TestADWriter(TestCase, TestADWriterMixin):
                     del settings[key][field]
             return settings
 
-        actual_settings_transformer = lambda settings: settings_transformer(
-            remove_template_fields(settings)
-        )
+        def actual_settings_transformer(settings):
+            return settings_transformer(remove_template_fields(settings))
 
         self._setup_adwriter(
             early_transform_settings=actual_settings_transformer,
@@ -809,18 +806,18 @@ class TestADWriter(TestCase, TestADWriterMixin):
                         self.user["uuid"]: [self.user],
                     },
                     "engagements": {
-                        "engagement_uuid": [{
-                            "user": self.user["uuid"],
-                            "primary_boolean": True,
-                            "user_key": "some_userkey",
-                            "job_function": "job_function_title_uuid",
-                            "unit": "some_unit",
-                            "uuid": "engagement_uuid",
-                        }]
+                        "engagement_uuid": [
+                            {
+                                "user": self.user["uuid"],
+                                "primary_boolean": True,
+                                "user_key": "some_userkey",
+                                "job_function": "job_function_title_uuid",
+                                "unit": "some_unit",
+                                "uuid": "engagement_uuid",
+                            }
+                        ]
                     },
-                    "classes": {
-                        "job_function_title_uuid": {"title": "some_job_title"}
-                    }
+                    "classes": {"job_function_title_uuid": {"title": "some_job_title"}},
                 }
             )
             self.lc_historic = self.lc
