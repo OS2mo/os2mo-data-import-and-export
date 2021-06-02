@@ -8,6 +8,7 @@ from typing import List
 from typing import Optional
 
 import more_itertools
+
 try:
     from winrm import Session
     from winrm.exceptions import WinRMTransportError

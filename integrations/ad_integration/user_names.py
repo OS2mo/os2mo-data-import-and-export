@@ -6,8 +6,8 @@ from typing import Optional
 
 import click
 
-from .username_rules import method_2
 from .ad_reader import ADParameterReader
+from .username_rules import method_2
 
 
 METHOD = "metode 2"
