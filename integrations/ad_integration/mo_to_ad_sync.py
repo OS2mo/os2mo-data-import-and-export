@@ -1,9 +1,9 @@
-import time
 import json
 import logging
+import time
+from typing import Dict
 from typing import Optional
 from typing import Tuple
-from typing import Dict
 
 import click
 from tqdm import tqdm
@@ -39,12 +39,10 @@ def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
     # Todo, in principle it should be possible to run with skip_past True
     # This is now fixed in a different branch, remember to update when
     # merged.
-    lc_historic = LoraCache(resolve_dar=False, full_history=True,
-                            skip_past=False)
+    lc_historic = LoraCache(resolve_dar=False, full_history=True, skip_past=False)
     lc_historic.populate_cache(dry_run=False, skip_associations=True)
     # Here we should de-activate read-only mode
     return lc, lc_historic
-
 
 
 @click.command()
@@ -53,12 +51,12 @@ def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
     help="Utilize LoraCache to speedup the operation",
     is_flag=True,
     type=click.BOOL,
-    default=lambda: load_settings()['integrations.ad_writer.lora_speedup']
+    default=lambda: load_settings()["integrations.ad_writer.lora_speedup"],
 )
 @click.option(
     "--mo-uuid-field",
     type=click.STRING,
-    default=lambda: load_settings()['integrations.ad.write.uuid_field']
+    default=lambda: load_settings()["integrations.ad.write.uuid_field"],
 )
 @click.option(
     "--sync-cpr",
@@ -66,7 +64,12 @@ def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
     type=click.STRING,
 )
 @click.option("--ignore-occupied-names", is_flag=True, default=False)
-def main(lora_speedup: bool, mo_uuid_field: str, sync_cpr: Optional[str], ignore_occupied_names: bool):
+def main(
+    lora_speedup: bool,
+    mo_uuid_field: str,
+    sync_cpr: Optional[str],
+    ignore_occupied_names: bool,
+):
     ad_logger.start_logging(LOG_FILE)
 
     lc, lc_historic = None, None
@@ -75,8 +78,9 @@ def main(lora_speedup: bool, mo_uuid_field: str, sync_cpr: Optional[str], ignore
 
     reader = ad_reader.ADParameterReader()
     writer = ad_writer.ADWriter(
-        lc=lc, lc_historic=lc_historic, 
-        occupied_names=[] if ignore_occupied_names else None
+        lc=lc,
+        lc_historic=lc_historic,
+        occupied_names=[] if ignore_occupied_names else None,
     )
 
     if sync_cpr:
@@ -88,11 +92,12 @@ def main(lora_speedup: bool, mo_uuid_field: str, sync_cpr: Optional[str], ignore
     else:
         all_users = reader.read_it_all(print_progress=True)
 
-    logger.info('Will now attempt to sync {} users'.format(len(all_users)))
+    logger.info("Will now attempt to sync {} users".format(len(all_users)))
+
     def filter_missing_uuid_field(user):
         if mo_uuid_field not in user:
-            msg = 'User {} does not have a {} field - skipping'
-            logger.info(msg.format(user['SamAccountName'], mo_uuid_field))
+            msg = "User {} does not have a {} field - skipping"
+            logger.info(msg.format(user["SamAccountName"], mo_uuid_field))
             return False
         return True
 
@@ -100,21 +105,21 @@ def main(lora_speedup: bool, mo_uuid_field: str, sync_cpr: Optional[str], ignore
 
     def update_stats(stats: Dict[str, int], response) -> Dict[str, int]:
         if response[0]:
-            stats['fully_synced'] += 1
-            if response[1] == 'Sync completed':
-                stats['updated'] += 1
+            stats["fully_synced"] += 1
+            if response[1] == "Sync completed":
+                stats["updated"] += 1
                 if response[2] == False:
-                    stats['no_manager'] += 1
+                    stats["no_manager"] += 1
 
-            if response[1] == 'Nothing to edit':
-                stats['nothing_to_edit'] += 1
+            if response[1] == "Nothing to edit":
+                stats["nothing_to_edit"] += 1
                 if response[2] == False:
-                    stats['no_manager'] += 1
+                    stats["no_manager"] += 1
         else:
-            if response[1] == 'No active engagments':
-                stats['no_active_engagement'] += 1
+            if response[1] == "No active engagments":
+                stats["no_active_engagement"] += 1
             else:
-                stats['unknown_failed_sync'] += 1
+                stats["unknown_failed_sync"] += 1
         return stats
 
     stats = {
@@ -132,18 +137,20 @@ def main(lora_speedup: bool, mo_uuid_field: str, sync_cpr: Optional[str], ignore
         "no_active_engagement": 0,
     }
     for user in tqdm(list(all_users), unit="user"):
-        stats['attempted_users'] += 1
+        stats["attempted_users"] += 1
 
-        msg = 'Now syncing: {}, {}'.format(
-            user['SamAccountName'], user[mo_uuid_field]
-        )
+        msg = "Now syncing: {}, {}".format(user["SamAccountName"], user[mo_uuid_field])
         logger.info(msg)
         try:
             if sync_cpr:
-                response = writer.sync_user(user[mo_uuid_field], ad_dump=None, verbose=True)
+                response = writer.sync_user(
+                    user[mo_uuid_field], ad_dump=None, verbose=True
+                )
             else:
-                response = writer.sync_user(user[mo_uuid_field], ad_dump=all_users, verbose=True)
-            logger.debug('Respose to sync: {}'.format(response))
+                response = writer.sync_user(
+                    user[mo_uuid_field], ad_dump=all_users, verbose=True
+                )
+            logger.debug("Respose to sync: {}".format(response))
             stats = update_stats(stats, response)
         except ManagerNotUniqueFromCprException:
             stats["unknown_manager_failure"] += 1
@@ -173,7 +180,7 @@ def main(lora_speedup: bool, mo_uuid_field: str, sync_cpr: Optional[str], ignore
 
     print()
     print(json.dumps(stats, indent=4))
-    logger.info('Stats: {}'.format(stats))
+    logger.info("Stats: {}".format(stats))
 
 
 if __name__ == "__main__":
