@@ -1,6 +1,5 @@
 import json
 import logging
-import time
 from typing import Dict
 from typing import Optional
 from typing import Tuple
@@ -17,7 +16,6 @@ from .ad_reader import ADParameterReader
 from .ad_writer import ADWriter
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.load_settings import load_settings
-from exporters.utils.catchtime import catchtime
 
 
 LOG_FILE = "mo_to_ad_sync.log"
@@ -70,14 +68,14 @@ def main(
     sync_cpr: Optional[str],
     ignore_occupied_names: bool,
 ):
-    ad_logger.start_logging(LOG_FILE)
+    start_logging(LOG_FILE)
 
     lc, lc_historic = None, None
     if lora_speedup:
         lc, lc_historic = fetch_loracache()
 
-    reader = ad_reader.ADParameterReader()
-    writer = ad_writer.ADWriter(
+    reader = ADParameterReader()
+    writer = ADWriter(
         lc=lc,
         lc_historic=lc_historic,
         occupied_names=[] if ignore_occupied_names else None,
@@ -101,19 +99,17 @@ def main(
             return False
         return True
 
-    all_users = filter(filter_missing_uuid_field, all_users)
-
     def update_stats(stats: Dict[str, int], response) -> Dict[str, int]:
         if response[0]:
             stats["fully_synced"] += 1
             if response[1] == "Sync completed":
                 stats["updated"] += 1
-                if response[2] == False:
+                if response[2] is False:
                     stats["no_manager"] += 1
 
             if response[1] == "Nothing to edit":
                 stats["nothing_to_edit"] += 1
-                if response[2] == False:
+                if response[2] is False:
                     stats["no_manager"] += 1
         else:
             if response[1] == "No active engagments":
@@ -136,20 +132,17 @@ def main(
         "unknown_failed_sync": 0,
         "no_active_engagement": 0,
     }
-    for user in tqdm(list(all_users), unit="user"):
+    all_users = list(filter(filter_missing_uuid_field, all_users))
+    for user in tqdm(all_users, unit="user"):
         stats["attempted_users"] += 1
 
         msg = "Now syncing: {}, {}".format(user["SamAccountName"], user[mo_uuid_field])
         logger.info(msg)
         try:
             if sync_cpr:
-                response = writer.sync_user(
-                    user[mo_uuid_field], ad_dump=None, verbose=True
-                )
+                response = writer.sync_user(user[mo_uuid_field], ad_dump=None)
             else:
-                response = writer.sync_user(
-                    user[mo_uuid_field], ad_dump=all_users, verbose=True
-                )
+                response = writer.sync_user(user[mo_uuid_field], ad_dump=all_users)
             logger.debug("Respose to sync: {}".format(response))
             stats = update_stats(stats, response)
         except ManagerNotUniqueFromCprException:
