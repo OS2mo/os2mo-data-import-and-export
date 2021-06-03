@@ -814,13 +814,31 @@ class TestADWriter(TestCase, TestADWriterMixin):
                                 "job_function": "job_function_title_uuid",
                                 "unit": "some_unit",
                                 "uuid": "engagement_uuid",
+                                "from_date": None,
+                                "to_date": None,
                             }
                         ]
                     },
                     "classes": {"job_function_title_uuid": {"title": "some_job_title"}},
+                    "units": {
+                        "some_unit": [
+                            {
+                                "uuid": "some_unit",
+                                "name": "some_unit_name",
+                                "user_key": "some_unit_userkey",
+                                "location": "some_unit_location",
+                                "unit_type": "some_unit_type",
+                                "level": "some_unit_level",
+                                "parent": None,
+                            }
+                        ]
+                    },
+                    "addresses": {},
                 }
             )
             self.lc_historic = self.lc
+            self.ad_writer.lc = self.lc
+            self.ad_writer.lc_historic = self.lc_historic
             self.ad_writer.datasource = LoraCacheSource(self.lc, self.lc_historic, None)
             mo_values = self.ad_writer._read_ad_information_from_mo(uuid)
             return mo_values
@@ -840,3 +858,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
 
         assert mo_values["nickname"] == ("", "")
         assert mo_values["full_nickname"] == ""
+
+        # Test all fields can be read
+        for key in mo_values.keys():
+            mo_values[key]
