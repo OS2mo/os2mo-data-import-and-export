@@ -60,11 +60,6 @@ declare -a BACK_UP_AFTER_JOBS=(
     $([ -f "${DIPEXAR}/settings/cpr_uuid_map.csv" ] && echo "${DIPEXAR}/settings/cpr_uuid_map.csv")
 )
 
-show_git_commit(){
-    echo
-    echo "    CRON_GIT_COMMIT=$(git show -s --format=%H)"
-    echo
-}
 
 sanity_check_mo_data(){
     echo Performing sanity check on data
@@ -448,7 +443,6 @@ for module in tools/job-runner.d/*.sh; do
     source $module 
 done
 
-prometrics-git
 
 # imports are typically interdependent: -e
 imports(){
@@ -723,7 +717,7 @@ show_status(){
     run-job-log job job-runner enabled-jobs ! job-status info ! ${enabled_jobs} 
     echo ${enabled_jobs} | sed 's/! */\n/g'
     echo
-    run-job-log job job-runner version-info ! job-status info ! git-commit $(git show -s --format=%H)
+    run-job-log job job-runner version-info ! job-status info 
 }
 
 

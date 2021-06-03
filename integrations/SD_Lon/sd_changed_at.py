@@ -33,7 +33,7 @@ from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.calculate_primary.common import LOGGER_NAME, NoPrimaryFound
 from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
 from mox_helpers.mox_util import ensure_class_in_lora
-
+from exporters.utils.deprecation import deprecated
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'
 
@@ -377,6 +377,7 @@ class ChangeAtSD:
             logger.info(msg)
         return relevant_engagement
 
+    @deprecated
     def _create_class(self, payload):
         """Create a new class using the provided class payload.
 
@@ -1100,7 +1101,7 @@ def initialize_changed_at(from_date, run_db, force=False):
 
     logger.info('Start initial ChangedAt')
     sd_updater = ChangeAtSD(from_date)
-    #sd_updater.update_changed_persons()
+    sd_updater.update_changed_persons()
     sd_updater.update_all_employments()
     logger.info('Ended initial ChangedAt')
 

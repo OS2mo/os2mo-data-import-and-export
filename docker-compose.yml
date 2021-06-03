@@ -1,0 +1,15 @@
+version: '3.4'
+
+volumes:
+  runs:
+
+services:
+  os2modataimportandexport:
+    image: os2modataimportandexport
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: "host"        
+    volumes:
+      - runs:/opt/dipex
+      - /home/blj/os2mo/os2mo-data-import-and-export/settings:/code/settings
