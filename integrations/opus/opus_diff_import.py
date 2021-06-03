@@ -335,7 +335,7 @@ class OpusDiffImport(object):
         org_type = unit.get('orgTypeTxt', 'Enhed')
 
         unit_type, _ = mox_util.ensure_class_in_lora('org_unit_type', org_type)
-        from_date = unit.get('startDate', self.xml_date.strftime('%Y-%m-%d'))
+        from_date = unit.get('startDate', '01-01-1900')
         unit_args = {
             'unit': unit,
             'unit_uuid': str(calculated_uuid),
@@ -345,6 +345,7 @@ class OpusDiffImport(object):
         }
 
         if mo_unit.get('uuid'):  # Edit
+            unit_args['from_date'] = self.xml_date.strftime('%Y-%m-%d')
             payload = payloads.edit_org_unit(**unit_args)
             logger.info('Edit unit: {}'.format(payload))
             response = self.helper._mo_post('details/edit', payload)
