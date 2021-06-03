@@ -84,14 +84,14 @@ predefined_scopes = {
 
 
 class OpusDiffImport(object):
-    def __init__(self, xml_date, ad_reader, employee_mapping={}):
-        logger.info("Opus diff importer __init__ started")
+    def __init__(self, xml_date, ad_reader, employee_mapping={}, filter_ids={}):
+        logger.info('Opus diff importer __init__ started')
         self.xml_date = xml_date
         self.ad_reader = ad_reader
         self.employee_forced_uuids = employee_mapping
 
         self.settings = load_settings()
-        self.filter_ids = self.settings.get("integrations.opus.units.filter_ids", [])
+        self.filter_ids = filter_ids or self.settings.get('integrations.opus.units.filter_ids', [])
 
         self.session = Session()
         self.helper = self._get_mora_helper(
@@ -388,9 +388,6 @@ class OpusDiffImport(object):
         :param employee: Relevent Opus employee object.
         :return: True if update happended, False if not.
         """
-        if employee["orgUnit"] in self.filter_ids:
-            logger.warning("Engagement is to a filtered unit.")
-            return False
         job_function, eng_type = self._job_and_engagement_type(employee)
         unit_uuid = opus_helpers.generate_uuid(employee["orgUnit"])
 

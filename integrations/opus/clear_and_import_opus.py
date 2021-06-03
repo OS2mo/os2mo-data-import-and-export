@@ -104,6 +104,7 @@ def import_opus(ad_reader=None, import_all: bool = False) -> None:
     """
     settings = load_settings()
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
+    dumps = opus_helpers.read_available_dumps()
 
     employee_mapping = opus_helpers.read_cpr_mapping()
     date_units_and_employees = read_all_files(filter_ids)
@@ -114,9 +115,18 @@ def import_opus(ad_reader=None, import_all: bool = False) -> None:
         print(
             f"Importing from {date}: Found {len(units)} units and {len(employees)} employees"
         )
-        diff = OpusDiffImport(
-            date, ad_reader=ad_reader, employee_mapping=employee_mapping
-        )
+
+
+        all_units, _ = opus_helpers.file_diff(None, dumps[date], filter_ids)
+        all_filtered_units,_ = opus_helpers.filter_units(all_units, filter_ids)
+        all_filtered_ids = set(map(itemgetter('@id'), all_filtered_units))
+
+        opus_helpers.local_db_insert((date, 'Running diff update since {}'))
+        
+        diff = OpusDiffImport(date, ad_reader=ad_reader,
+                                            employee_mapping=employee_mapping,
+                                            filter_ids=all_filtered_ids)
+
         filtered_units, units = opus_helpers.filter_units(units, filter_ids)
         diff.start_import(units, employees, include_terminations=True)
         diff.handle_filtered_units(filtered_units)

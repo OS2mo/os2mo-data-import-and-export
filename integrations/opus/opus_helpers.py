@@ -79,11 +79,9 @@ def initialize_db(run_db):
     conn.close()
 
 
-def next_xml_file(run_db, dumps):
-    conn = sqlite3.connect(
-        SETTINGS["integrations.opus.import.run_db"],
-        detect_types=sqlite3.PARSE_DECLTYPES,
-    )
+def next_xml_file(run_db, dumps) -> Tuple[datetime.date, datetime.date]:
+    conn = sqlite3.connect(SETTINGS['integrations.opus.import.run_db'],
+                           detect_types=sqlite3.PARSE_DECLTYPES)
     c = conn.cursor()
     query = "select * from runs order by id desc limit 1"
     c.execute(query)
