@@ -7,7 +7,7 @@ RUN apt-get update &&  apt-get -y install \
     libkrb5-dev \
     libmariadb-dev \
     curl \
-    git \
+    jq \
     && rm -rf /var/lib/apt/lists/*
 
 ENV SUPERCRONIC_URL=https://github.com/aptible/supercronic/releases/download/v0.1.12/supercronic-linux-amd64 \

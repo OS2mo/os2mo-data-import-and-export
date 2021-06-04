@@ -1,2 +1,1 @@
-# Run every minute
-* */5 * * * * * bash /code/tools/job-runner.sh
+0 0 3 * * * * bash /code/tools/job-runner.sh
