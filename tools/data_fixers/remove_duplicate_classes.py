@@ -8,9 +8,9 @@ from uuid import UUID
 import click
 import jmespath
 import requests
-from exporters.utils.load_settings import load_settings
-from exporters.utils.transpose_dict import transpose_dict
 from more_itertools import one, only, unzip
+from ra_utils.load_settings import load_settings
+from ra_utils.transpose_dict import transpose_dict
 from tqdm import tqdm
 
 jms_bvn = jmespath.compile(

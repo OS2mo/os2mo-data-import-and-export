@@ -14,7 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from exporters.sql_export.lc_for_jobs_db import get_engine
 from exporters.sql_export.sql_table_defs import KLE
 
-from exporters.utils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 from os2mo_data_import.helpers import MoraHelper
 LOG_FILE = 'opgavefordeler.log'
 

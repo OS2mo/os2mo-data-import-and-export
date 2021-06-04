@@ -16,7 +16,7 @@ from tqdm import tqdm
 from collections import OrderedDict
 from more_itertools import partition
 
-from exporters.utils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 from integrations import cpr_mapper
 from integrations.opus import opus_diff_import, opus_import
 from integrations.opus.opus_file_reader import get_opus_filereader

@@ -13,7 +13,7 @@ from anytree import PreOrderIter
 from more_itertools import one
 from os2mo_helpers.mora_helpers import MoraHelper
 
-from exporters.utils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 
 
 # --------------------------------------------------------------------------------------

@@ -2,7 +2,7 @@ import json
 import requests
 import click
 
-from exporters.utils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 from pathlib import Path
 from os2mo_helpers.mora_helpers import MoraHelper
 

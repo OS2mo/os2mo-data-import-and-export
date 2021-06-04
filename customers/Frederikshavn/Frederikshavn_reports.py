@@ -2,7 +2,8 @@ import json
 import logging
 import pathlib
 
-from exporters.utils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
+
 from reports.query_actualstate import list_employees, list_MED_members, run_report
 
 LOG_LEVEL = logging.DEBUG

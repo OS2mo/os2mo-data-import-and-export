@@ -7,13 +7,13 @@ import requests
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.apply import apply
+from ra_utils.load_settings import load_settings
 from tqdm import tqdm
 
 from .ad_common import AD
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
-from exporters.utils.apply import apply
-from exporters.utils.load_settings import load_settings
 
 LOG_FILE = "sync_mo_uuid_to_ad.log"
 logger = logging.getLogger("MoUuidAdSync")

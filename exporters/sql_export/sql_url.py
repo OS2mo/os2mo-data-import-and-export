@@ -2,7 +2,7 @@ import urllib.parse
 from enum import Enum
 from typing import Any, Dict, Tuple
 
-from exporters.utils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 
 
 class DatabaseFunction(Enum):

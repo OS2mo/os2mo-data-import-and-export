@@ -42,7 +42,7 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 import click
 
-from exporters.utils.apply import apply
+from ra_utils.apply import apply
 
 
 ROOT_FOLDER = os.path.abspath(os.path.dirname(__file__))

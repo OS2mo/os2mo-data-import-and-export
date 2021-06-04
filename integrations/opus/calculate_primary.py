@@ -11,7 +11,7 @@ from click_option_group import optgroup, RequiredMutuallyExclusiveOptionGroup
 # from integrations.SD_Lon import sd_payloads
 from integrations.opus import payloads
 from os2mo_helpers.mora_helpers import MoraHelper
-from exporters.utils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 
 
 SETTINGS = load_settings()

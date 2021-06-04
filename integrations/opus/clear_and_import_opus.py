@@ -13,7 +13,7 @@ from more_itertools import first, flatten, pairwise, prepend
 from tqdm import tqdm
 
 import constants
-from exporters.utils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 from integrations.ad_integration import ad_reader
 from integrations.ad_integration.utils import apply
 from integrations.opus import opus_helpers

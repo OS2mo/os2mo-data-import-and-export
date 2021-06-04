@@ -4,7 +4,7 @@ import click
 
 from ftplib import FTP_TLS
 
-from exporters.utils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 
 
 def start_ftpes_connection(timeout=30):
