@@ -119,11 +119,11 @@ class MODataSource(ABC):
         """
         start_dates, end_dates = self.get_engagement_dates(uuid)
 
-        start_dates = filter(lambda date: date if date else "1800-01-01", start_dates)
+        start_dates = map(lambda date: date if date else "1930-01-01", start_dates)
         start_date = min(start_dates, default="9999-12-31")
 
-        end_dates = filter(lambda date: date if date else "9999-12-31", end_dates)
-        end_date = max(end_dates, default="1800-01-01")
+        end_dates = map(lambda date: date if date else "9999-12-31", end_dates)
+        end_date = max(end_dates, default="1930-01-01")
 
         return start_date, end_date
 
@@ -235,7 +235,7 @@ class LoraCacheSource(MODataSource):
         Returns:
             tuple[list[str], list[str]]: A tuple of lists of start and end dates.
         """
-        user_engagements = map(
+        user_engagements = filter(
             lambda eng: eng["user"] == uuid,
             map(itemgetter(0), self.lc_historic.engagements.values()),
         )
