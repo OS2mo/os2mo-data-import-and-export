@@ -4,8 +4,8 @@ import click
 from mox_helpers.mox_util import ensure_class_value_helper
 
 import constants
-from rautils.async_to_sync import async_to_sync
-from rautils.load_settings import load_settings
+from ra_utils.async_to_sync import async_to_sync
+from ra_utils.load_settings import load_settings
 
 settings = load_settings()
 # Mapped of settings (which has an uuid associated to it in the settings file)

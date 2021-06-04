@@ -1,7 +1,7 @@
 import click
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import OpusDiffImport
-from rautils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 
 
 def terminate_filtered_units(terminate):

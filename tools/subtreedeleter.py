@@ -14,7 +14,7 @@ from more_itertools import flatten, one
 from mox_helpers.utils import async_to_sync
 from tqdm.asyncio import tqdm
 
-from rautils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 
 
 all_functionnames = [

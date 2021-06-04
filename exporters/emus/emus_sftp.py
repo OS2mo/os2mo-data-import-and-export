@@ -6,7 +6,7 @@ import os
 import click
 from spsftp import SpSftp
 
-from rautils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 
 logger = logging.getLogger("emus-sftp")
 

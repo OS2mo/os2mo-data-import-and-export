@@ -5,7 +5,7 @@ import requests
 import requests_kerberos
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
-from rautils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 from winrm.exceptions import InvalidCredentialsError
 
 from .ad_common import AD

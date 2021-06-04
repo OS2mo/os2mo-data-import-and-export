@@ -8,7 +8,7 @@ from pathlib import Path
 
 import requests
 import xmltodict
-from rautils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 
 logger = logging.getLogger("sdCommon")
 

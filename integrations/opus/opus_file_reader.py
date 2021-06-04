@@ -9,7 +9,7 @@ import fs
 from google.cloud import storage
 from more_itertools import one
 
-from rautils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 
 
 class OpusReaderInterface(ABC):

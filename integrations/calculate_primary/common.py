@@ -7,8 +7,8 @@ from operator import itemgetter
 from more_itertools import ilen, pairwise, only
 from tqdm import tqdm
 
-from rautils.load_settings import load_settings
-from rautils.deprecation import deprecated
+from ra_utils.load_settings import load_settings
+from ra_utils.deprecation import deprecated
 from os2mo_helpers.mora_helpers import MoraHelper
 
 

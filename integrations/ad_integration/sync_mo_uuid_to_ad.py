@@ -7,8 +7,8 @@ import requests
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from os2mo_helpers.mora_helpers import MoraHelper
-from rautils.apply import apply
-from rautils.load_settings import load_settings
+from ra_utils.apply import apply
+from ra_utils.load_settings import load_settings
 from tqdm import tqdm
 
 from .ad_common import AD

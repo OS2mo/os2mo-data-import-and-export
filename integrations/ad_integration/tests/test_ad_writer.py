@@ -6,7 +6,7 @@ from unittest import TestCase
 from jinja2.exceptions import UndefinedError
 from more_itertools import first_true
 from parameterized import parameterized
-from rautils.lazy_dict import LazyDict
+from ra_utils.lazy_dict import LazyDict
 
 from ..ad_exceptions import CprNotFoundInADException
 from ..ad_exceptions import CprNotNotUnique

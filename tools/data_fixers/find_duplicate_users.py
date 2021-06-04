@@ -4,7 +4,7 @@ from operator import itemgetter
 import click
 import requests
 from os2mo_helpers.mora_helpers import MoraHelper
-from rautils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 
 
 def check_duplicate_cpr(mora_base: str) -> list:

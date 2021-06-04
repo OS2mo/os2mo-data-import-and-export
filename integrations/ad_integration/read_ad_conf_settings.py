@@ -1,7 +1,7 @@
 import collections
 import logging
 
-from rautils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 
 logger = logging.getLogger("AdReader")
 

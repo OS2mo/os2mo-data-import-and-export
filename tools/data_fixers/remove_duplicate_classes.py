@@ -9,8 +9,8 @@ import click
 import jmespath
 import requests
 from more_itertools import one, only, unzip
-from rautils.load_settings import load_settings
-from rautils.transpose_dict import transpose_dict
+from ra_utils.load_settings import load_settings
+from ra_utils.transpose_dict import transpose_dict
 from tqdm import tqdm
 
 jms_bvn = jmespath.compile(

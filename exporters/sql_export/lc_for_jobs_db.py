@@ -7,7 +7,7 @@ import json
 import logging
 
 import click
-from rautils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 from sqlalchemy import create_engine
 
 from constants import lc_for_jobs_actual_db_name

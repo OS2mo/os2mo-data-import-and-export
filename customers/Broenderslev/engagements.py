@@ -7,7 +7,7 @@ from typing import Any, Dict, List
 import pandas as pd
 import requests
 from more_itertools import one
-from rautils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 
 # --------------------------------------------------------------------------------------
 # Get user engagements
