@@ -21,7 +21,7 @@ from more_itertools import flatten, only
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
 from ra_utils.load_settings import load_settings
-from ra_utils.priority_by_class import choose_public_address, lc_choose_public_address
+from exporters.utils.priority_by_class import choose_public_address, lc_choose_public_address
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'plan2learn.log'

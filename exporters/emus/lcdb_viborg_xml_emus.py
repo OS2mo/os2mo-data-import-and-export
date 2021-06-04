@@ -32,7 +32,7 @@ from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
 from exporters.sql_export.sql_table_defs import (Adresse, Bruger, ItSystem,
                                                  Engagement, Enhed, Leder,
                                                  LederAnsvar, ItForbindelse)
-from ra_utils.priority_by_class import lcdb_choose_public_address
+from exporters.utils.priority_by_class import lcdb_choose_public_address
 
 
 logging.basicConfig(

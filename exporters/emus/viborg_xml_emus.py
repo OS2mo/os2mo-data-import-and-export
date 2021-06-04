@@ -25,7 +25,7 @@ import logging
 import collections
 import pathlib
 from xml.sax.saxutils import escape
-from ra_utils.priority_by_class import choose_public_address
+from exporters.utils.priority_by_class import choose_public_address
 
 
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)

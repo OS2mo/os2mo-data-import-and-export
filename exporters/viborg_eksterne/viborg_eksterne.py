@@ -17,7 +17,7 @@ import click
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
-from ra_utils.priority_by_class import lc_choose_public_address
+from exporters.utils.priority_by_class import lc_choose_public_address
 
 
 LOG_LEVEL = logging.DEBUG
