@@ -14,11 +14,11 @@ from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
 from rautils.apply import apply
 from rautils.jinja_filter import create_filters
+from rautils.load_settings import load_settings
 from tqdm import tqdm
 
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
-from .read_ad_conf_settings import SETTINGS
 from exporters.sql_export.lora_cache import LoraCache
 
 logger = logging.getLogger("AdSyncRead")
@@ -169,7 +169,7 @@ class AdMoSync(object):
 
         self.settings = all_settings
         if self.settings is None:
-            self.settings = SETTINGS
+            self.settings = load_settings()
 
         self.helper = self._setup_mora_helper()
         self.org = self.helper.read_organisation()

@@ -3,8 +3,6 @@ import logging
 
 from rautils.load_settings import load_settings
 
-from .utils import LazyDict
-
 logger = logging.getLogger("AdReader")
 
 
@@ -171,11 +169,10 @@ def _read_primary_write_information(top_settings):
     return conf
 
 
-SETTINGS = LazyDict()
-SETTINGS.set_initializer(load_settings)
+def read_settings(top_settings=None, index=0):
+    if top_settings is None:
+        top_settings = load_settings()
 
-
-def read_settings(top_settings=SETTINGS, index=0):
     settings = {}
     settings["global"] = _read_global_settings(top_settings)
     settings["primary"] = _read_primary_ad_settings(top_settings, index)
