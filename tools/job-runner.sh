@@ -82,6 +82,13 @@ imports_test_ad_connectivity(){
     )
     echo running imports_test_ad_connectivity
     ${VENV}/bin/python3 -m integrations.ad_integration.test_connectivity --test-read-settings
+}
+
+imports_test_ad_connectivity_writer(){
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/test_connectivity.log"
+    )
+    echo running imports_test_ad_connectivity_writer
     ${VENV}/bin/python3 -m integrations.ad_integration.test_connectivity --test-write-settings
 }
 
