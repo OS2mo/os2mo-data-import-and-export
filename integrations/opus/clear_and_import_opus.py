@@ -18,7 +18,7 @@ from integrations.ad_integration import ad_reader
 from integrations.ad_integration.utils import apply
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import OpusDiffImport
-from tools.data_fixers.remove_duplicate_classes import find_duplicates_classes
+from tools.data_fixers.class_tools import find_duplicates_classes
 from tools.default_mo_setup import create_new_root_and_it, ensure_default_classes
 from tools.subtreedeleter import subtreedeleter_helper
 
