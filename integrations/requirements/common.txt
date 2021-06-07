@@ -17,3 +17,4 @@ fs.smbfs
 retrying
 ra-utils
 jsonschema
+requests

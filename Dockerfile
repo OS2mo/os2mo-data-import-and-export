@@ -23,10 +23,9 @@ RUN curl -fsSLO "$SUPERCRONIC_URL" \
 
 # RUN groupadd -r dipex && useradd --no-log-init -r -g dipex sys_magenta_dipex
 # USER sys_magenta_dipex 
-WORKDIR /code
 COPY . /code
-RUN python -m venv venv && . /code/venv/bin/activate && pip install -r integrations/requirements/common.txt 
-RUN  pip install /code/os2mo_data_import/.
+WORKDIR /code
+RUN bash tools/update-dipex.sh && . /code/venv/bin/activate
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH="${PYTHONPATH}:"

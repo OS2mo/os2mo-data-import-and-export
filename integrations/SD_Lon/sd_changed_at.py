@@ -33,7 +33,6 @@ from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.calculate_primary.common import LOGGER_NAME, NoPrimaryFound
 from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
 from mox_helpers.mox_util import ensure_class_in_lora
-from exporters.utils.deprecation import deprecated
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'mo_integrations.log'
 
@@ -127,12 +126,6 @@ class ChangeAtSD:
         self.job_functions = dict(map(job_function_mapper, job_functions))
 
         logger.info('Read engagement types')
-        # The Opus diff-import contains a slightly more abstrac def to do this
-        engagement_types = self.helper.read_classes_in_facet('engagement_type')
-        self.engagement_type_facet = engagement_types[1]
-        self.engagement_types = dict(map(
-            itemgetter('user_key', 'uuid'), engagement_types[0]
-        ))
 
         logger.info('Read leave types')
         self.leave_uuid, _ = ensure_class_in_lora("leave_type", "Orlov")
@@ -377,7 +370,7 @@ class ChangeAtSD:
             logger.info(msg)
         return relevant_engagement
 
-    @deprecated
+    
     def _create_class(self, payload):
         """Create a new class using the provided class payload.
 
@@ -436,7 +429,7 @@ class ChangeAtSD:
         # Attempt to fetch the engagement type
         engagement_type_ref = 'engagement_type' + job_position
         uuid, _ = ensure_class_in_lora('engagement_type', engagement_type_ref)
-        return
+        return uuid
 
     def _fetch_professions(self, job_function, job_position):
         """Fetch an job function UUID, create if missing.
@@ -647,7 +640,10 @@ class ChangeAtSD:
         primary = self.primary_types['non_primary']
         if status['EmploymentStatusCode'] == '0':
             primary = self.primary_types['no_salary']
-        engagement_type, _ = ensure_class_in_lora("engagement_type", job_position)
+            
+        engagement_type = self.determine_engagement_type(engagement, job_position)
+        if engagement_type is None:
+            return False
         
         extension_field = self.settings.get('integrations.SD_Lon.employment_field')
         extension = {}
@@ -788,10 +784,12 @@ class ChangeAtSD:
         split = self.settings['integrations.SD_Lon.monthly_hourly_divide']
         employment_id = calc_employment_id(engagement)
         if employment_id['value'] < split:
-            return self.engagement_types.get('månedsløn')
+            engagement_type, _ = ensure_class_in_lora("engagement_type", 'månedsløn', title='Medarbejder (månedsløn)')
+            return engagement_type
         # XXX: Is the first condition not implied by not hitting the above case?
         if (split - 1) < employment_id['value'] < 999999:
-            return self.engagement_types.get('timeløn')
+            engagement_type, _ = ensure_class_in_lora("engagement_type", 'timeløn', title='Medarbejder (timeløn)')
+            return engagement_type
         # This happens if EmploymentID is not a number
         # XXX: Why are we checking against 999999 instead of checking the type?
         # Once we get here, we know that it is a no-salary employee

@@ -12,18 +12,6 @@ cd ${DIPEXAR}
 [ -d ./tmp ] || mkdir ./tmp
 
 
-# show a changelog after pull overview
-old_git=$(git show -s --format=%H)
-git pull
-new_git=$(git show -s --format=%H)
-git log --pretty=oneline ${old_git}..${new_git}
-
-#Send git_info to prometheus
-source tools/job-runner.sh
-prometrics-git
-
-#Add githooks
-find .git/hooks -type l -exec rm {} \; && find .githooks -type f -exec ln -sf ../../{} .git/hooks/ \;
 
 # NOTE: If you get an error, check if the following packages are installed:
 # * sudo apt-get install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmysqlclient-dev cifs-utils
@@ -32,7 +20,7 @@ find .git/hooks -type l -exec rm {} \; && find .githooks -type f -exec ln -sf ..
 # You might also need:
 # $ pip install --upgrade cython
 
-venv/bin/pip install pip --upgrade
+/code/venv/bin/pip install pip --upgrade
 find . -name 'requirements.txt' | grep -v venv/ | while read REQFILE
 do
     echo installing ${REQFILE}
