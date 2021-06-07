@@ -191,23 +191,10 @@ class ADMOImporter(object):
                 cpr = ad_user[cpr_field]
                 mo_user = self.helper.read_user(user_cpr=cpr)
                 logger.info("Existing MO info: {}".format(mo_user))
-                if mo_user:
-                    mo_uuid = mo_user["uuid"]
-                    name_changed = (
-                        mo_user["givenname"] != ad_user["GivenName"]
-                        or mo_user["surname"] != ad_user["Surname"]
-                    )
-                    if name_changed:
-                        logger.debug(f"Changed name of user: {mo_uuid}")
-                        self._create_user(ad_user, cpr_field, uuid=mo_uuid)
-                else:
-                    mo_uuid = self._create_user(ad_user, cpr_field)
-
+                
+                mo_uuid = mo_user.get("uuid")
                 if not mo_uuid:
-                    msg = f"User was not created:", ad_user
-                    logger.warning(msg)
-                    print(msg)
-                    continue
+                    mo_uuid = self._create_user(ad_user, cpr_field)
 
                 AD_username = self.helper.get_e_itsystems(
                     mo_uuid, self.AD_it_system_uuid
