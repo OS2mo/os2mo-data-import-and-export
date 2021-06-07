@@ -204,4 +204,4 @@ Test Exporter Utils:
 Test data_fixers:
   extends: .test-python
   script:
-    - python -m doctest -v tools/data_fixers/remove_duplicate_classes.py
+    - python -m doctest -v tools/data_fixers/class_tools.py
