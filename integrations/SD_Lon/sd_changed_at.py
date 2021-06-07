@@ -452,7 +452,6 @@ class ChangeAtSD:
             uuid of the job function or None if it could not be created.
         """
         # Add new profssions to LoRa
-        print(f"{job_function=} {job_position=}")
         job_uuid = self.job_functions.get(job_function)
         if job_uuid:
             return job_uuid

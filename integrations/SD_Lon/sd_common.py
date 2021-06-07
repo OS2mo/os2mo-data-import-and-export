@@ -185,16 +185,16 @@ def primary_types(helper):
         "primary_type", "primary", title="Ansat", scope="3000"
     )
     non_primary, _ = ensure_class_in_lora(
-        "primary_type", "non_primary", title="Ikke-primær ansættelse", scope="3000"
+        "primary_type", "non_primary", title="Ikke-primær ansættelse", scope="0"
     )
     no_salary, _ = ensure_class_in_lora(
-        "primary_type", "status0", title="Ansat uden løn", scope="3000"
+        "primary_type", "status0", title="Ansat uden løn", scope="1000"
     )
     fixed_primary, _ = ensure_class_in_lora(
         "primary_type",
         "explicitly-primary",
         title="Manuelt primær ansættelse",
-        scope="3000",
+        scope="5000",
     )
     type_uuids = {
         "primary": primary,
