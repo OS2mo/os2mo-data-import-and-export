@@ -40,11 +40,17 @@ logger = logging.getLogger("MoAdSync")
     help="Synchronize the specified user instead of all users",
     type=click.STRING,
 )
+@click.option(
+    "--sync-username",
+    help="Synchronize the specified user instead of all users",
+    type=click.STRING,
+)
 @click.option("--ignore-occupied-names", is_flag=True, default=False)
 def main(
     lora_speedup: bool,
     mo_uuid_field: str,
     sync_cpr: Optional[str],
+    sync_username: Optional[str],
     ignore_occupied_names: bool,
 ):
     start_logging(LOG_FILE)
@@ -60,9 +66,9 @@ def main(
         occupied_names=[] if ignore_occupied_names else None,
     )
 
-    if sync_cpr:
-        print("Warning: --sync-cpr is for testing only")
-        all_users = [reader.read_user(cpr=sync_cpr)]
+    if sync_cpr or sync_username:
+        print("Warning: --sync-cpr/--sync-username is for testing only")
+        all_users = [reader.read_user(user=sync_username, cpr=sync_cpr)]
         # XXX: occupied_names should not be an empty array, but it takes forever to
         #      initalize, essentially reading all of AD.
         # TODO: We should support on-demand name generation without pre-seed.

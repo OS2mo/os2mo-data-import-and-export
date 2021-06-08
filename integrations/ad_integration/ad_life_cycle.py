@@ -59,7 +59,7 @@ class AdLifeCycle:
             # This is a slow step (since ADReader reads all users)
             print("Retrieve AD dump")
             with catchtime() as t:
-                all_users: List[Dict] = self.ad_reader.cache_all()
+                all_users: List[Dict] = self.ad_reader.cache_all(print_progress=True)
                 occupied_names = set(map(itemgetter("SamAccountName"), all_users))
             print("Done with AD caching: {}".format(t()))
 
@@ -275,11 +275,17 @@ class AdLifeCycle:
 
     def create_ad_accounts(self, dry_run: bool = False) -> Dict[str, Any]:
         """Iterate over all users and create missing AD accounts."""
+        stats = self._gen_stats()
+        stats["already_in_ad"] = 0
+        stats["no_active_engagements"] = 0
+        stats["not_in_user_tree"] = 0
+        stats["create_filtered"] = 0
 
         @apply
         def filter_user_already_in_ad(employee, ad_object):
             in_ad = bool(ad_object)
             if in_ad:
+                stats["already_in_ad"] += 1
                 logger.debug("User {} is already in AD".format(employee))
                 return False
             return True
@@ -288,13 +294,25 @@ class AdLifeCycle:
         def filter_user_without_engagements(employee, ad_object):
             # TODO: Consider using the lazy properties for this
             if employee["uuid"] not in self.users_with_engagements:
+                stats["no_active_engagements"] += 1
                 logger.debug(
                     "User {} has no active engagements - skip".format(employee)
                 )
                 return False
             return True
 
-        stats = self._gen_stats()
+        def filter_users_outside_unit_tree(tup):
+            status = self._find_user_unit_tree(tup)
+            if status is False:
+                stats["not_in_user_tree"] += 1
+            return status
+
+        def run_create_filters(tup):
+            status = all(create_filter(tup) for create_filter in self.create_filters)
+            if status is False:
+                stats["create_filtered"] += 1
+            return status
+
         employees = self._gen_filtered_employees(
             [
                 # Remove users that already exist in AD
@@ -302,9 +320,10 @@ class AdLifeCycle:
                 # Remove users that have no active engagements at all
                 filter_user_without_engagements,
                 # Check if the user is in a create-user sub-tree
-                self._find_user_unit_tree,
+                filter_users_outside_unit_tree,
+                # Run all create_filters
+                run_create_filters,
             ]
-            + self.create_filters
         )
         # Employees now contain only employees which should be created
         for employee, ad_object in employees:
@@ -328,11 +347,11 @@ class AdLifeCycle:
                     logger.warning(message)
                     stats["critical_errors"] += 1
             except NoPrimaryEngagementException:
-                logger.error("No engagment found!")
+                logger.exception("No engagment found!")
                 stats["engagement_not_found"] += 1
-            # except:
-            #     logger.exception("Unknown error!")
-            #     stats["critical_errors"] += 1
+            except Exception:
+                logger.exception("Unknown error!")
+                stats["critical_errors"] += 1
 
         return stats
 
