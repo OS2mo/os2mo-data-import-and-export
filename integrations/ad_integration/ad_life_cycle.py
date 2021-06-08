@@ -350,8 +350,8 @@ class AdLifeCycle:
                 logger.exception("No engagment found!")
                 stats["engagement_not_found"] += 1
             except Exception:
-                 logger.exception("Unknown error!")
-                 stats["critical_errors"] += 1
+                logger.exception("Unknown error!")
+                stats["critical_errors"] += 1
 
         return stats
 
