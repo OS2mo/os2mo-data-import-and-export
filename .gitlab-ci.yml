@@ -55,7 +55,7 @@ Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
-    - pip install mypy pre-commit
+    - pip install mypy pre-commit types-Jinja2 types-click types-requests
     - pre-commit run --files tests/*.py *.py
 
 Lint SetAlias Tool:
