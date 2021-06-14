@@ -23,8 +23,6 @@ from .read_ad_conf_settings import read_settings
 
 logger = logging.getLogger("AdCommon")
 
-# Is this universal?
-ENCODING = "cp850"
 
 ADUser = Dict[str, str]
 
@@ -131,6 +129,8 @@ def generate_kerberos_session(hostname, username=None, password=None):
 
 
 class AD:
+    _encoding = "utf-8"
+
     def __init__(self, all_settings=None, index=0, **kwargs):
         self.all_settings = all_settings
         if self.all_settings is None:
@@ -156,31 +156,43 @@ class AD:
             winrm.Session
         """
 
-        if self.all_settings["primary"]["method"] == "ntlm":
+        all_settings = self.all_settings
+
+        if all_settings["primary"]["method"] == "ntlm":
             session = generate_ntlm_session(
-                self.all_settings["global"]["winrm_host"],
-                self.all_settings["primary"]["system_user"],
-                self.all_settings["primary"]["password"],
+                all_settings["global"]["winrm_host"],
+                all_settings["primary"]["system_user"],
+                all_settings["primary"]["password"],
             )
-        elif self.all_settings["primary"]["method"] == "kerberos":
+        elif all_settings["primary"]["method"] == "kerberos":
             session = generate_kerberos_session(
-                self.all_settings["global"]["winrm_host"],
-                self.all_settings["global"]["system_user"],
-                self.all_settings["global"]["password"],
+                all_settings["global"]["winrm_host"],
+                all_settings["global"]["system_user"],
+                all_settings["global"]["password"],
             )
         else:
             raise ValueError(
-                "Unknown WinRM method" + str(self.all_settings["primary"]["method"])
+                "Unknown WinRM method: %r" % all_settings["primary"]["method"]
             )
+
         return session
 
     def _run_ps_script(self, ps_script):
-        """
-        Run a power shell script and return the result. If it fails, the
-        error is returned in its raw form.
-        :param ps_script: The power shell script to run.
+        """Run a PowerShell script and return the result.
+
+        If the script fails, a `CommandFailure` exception is raised.
+        If the script output cannot be parsed as JSON, a `ValueError` exception
+        is raised.
+
+        :param ps_script: The PowerShell script to run.
         :return: A dictionary with the returned parameters.
         """
+
+        encoding = self._ps_boiler_plate()["encoding"]
+        if encoding not in ps_script:
+            sep = "\n" if not ps_script.startswith("\n") else ""
+            ps_script = f"{encoding}{sep}{ps_script}"
+
         logger.debug("Attempting to run script: {}".format(ps_script))
         response = {}
         if not self.session:
@@ -202,15 +214,28 @@ class AD:
         # TODO: We will need better error handling than this.
         assert retries < 10
 
-        if r.status_code == 0:
-            if r.std_out:
-                output = r.std_out.decode(ENCODING)
-                output = output.replace("&Oslash;", "Ø")
-                output = output.replace("&oslash;", "ø")
-                response = json.loads(output)
-        else:
+        if r.status_code != 0:
             raise CommandFailure(r.std_err)
-        return response
+        if not r.std_out:
+            logger.warning("status_code=0 but no std_out")
+            return None
+        return self._parse_ps_script_result(ps_script, r)
+
+    def _parse_ps_script_result(self, script, response):
+        output = response.std_out
+        if isinstance(output, bytes):
+            output = output.decode(self._encoding)
+
+        try:
+            return json.loads(output)
+        except json.JSONDecodeError as exc:
+            msg = "Could not parse JSON response, error in lines:\n%s\nscript:\n%s"
+            line_sep = b"\n" if isinstance(response.std_out, bytes) else "\n"
+            invalid_bound = slice(max(0, exc.lineno - 1), exc.lineno + 1)
+            invalid_lines = response.std_out.splitlines()[invalid_bound]
+            invalid_lines = line_sep.join(invalid_lines)
+            logger.error(msg, invalid_lines, script)
+            raise ValueError(msg % (invalid_lines, script))
 
     def _ps_boiler_plate(self):
         """
@@ -228,6 +253,7 @@ class AD:
         credentials = " -Credential $usercredential"
 
         boiler_plate = {
+            "encoding": "[Console]::OutputEncoding = [Text.UTF8Encoding]::UTF8",
             "path": path,
             "search_base": search_base,
             "credentials": credentials,
@@ -378,20 +404,16 @@ class AD:
                 random.choice(self.all_settings["global"]["servers"])
             )
 
-        command_end = (
-            " | ConvertTo-Json  | "
-            + ' % {$_.replace("ø","&oslash;")} | '
-            + '% {$_.replace("Ø","&Oslash;")} '
-        )
-
         ps_script = (
-            self._build_user_credential()
+            self._ps_boiler_plate()["encoding"]
+            + self._build_user_credential()
             + get_command
             + server_string
             + bp["complete"]
             + self._properties()
-            + command_end
+            + " | ConvertTo-Json"
         )
+
         response = self._run_ps_script(ps_script)
 
         if not response:
@@ -403,13 +425,3 @@ class AD:
                 return_val = response
 
         return return_val
-
-    def _list_users(self):
-        cmd = (
-            "%(cred)s Get-ADUser -Properties * -Filter * %(search_base)s"
-            "| ConvertTo-Json"
-        ) % dict(
-            cred=self._build_user_credential(),
-            search_base=self._ps_boiler_plate()["search_base"],
-        )
-        return self._run_ps_script(cmd)
