@@ -218,7 +218,7 @@ class AD:
             raise CommandFailure(r.std_err)
         if not r.std_out:
             logger.warning("status_code=0 but no std_out")
-            return None
+            return {}
         return self._parse_ps_script_result(ps_script, r)
 
     def _parse_ps_script_result(self, script, response):
