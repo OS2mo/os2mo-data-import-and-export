@@ -11,10 +11,41 @@ class TestLoraCacheSource(TestCase):
             {
                 "users": {
                     self.user["uuid"]: [self.user],
+                },
+                "engagements": {
+                    "key-1": [
+                        # Current registration
+                        {
+                            "user": self.user["uuid"],
+                            "from_date": "2020-01-01",
+                            "to_date": None,
+                        },
+                        # Previous registration
+                        {
+                            "user": self.user["uuid"],
+                            "from_date": "2019-01-01",
+                            "to_date": "2021-01-01",
+                        },
+                    ],
+                },
+            }
+        )
+        self.lc_historic = AttrDict(
+            {
+                "engagements": {
+                    # Add some historic engagements that must not be read by
+                    # `get_engagement_dates`.
+                    "key-1": [
+                        # Current historic registration
+                        {
+                            "user": self.user["uuid"],
+                            "from_date": "2010-01-01",
+                            "to_date": "2019-12-31",
+                        },
+                    ]
                 }
             }
         )
-        self.lc_historic = AttrDict({})
         self.datasource = LoraCacheSource(self.lc, self.lc_historic, None)
 
     def setup_user(self):
@@ -44,3 +75,15 @@ class TestLoraCacheSource(TestCase):
                 "cpr_no": "some_cpr",
             },
         )
+
+    def test_get_engagement_dates(self):
+        result = self.datasource.get_engagement_dates(self.user["uuid"])
+        self.assertEqual(
+            [list(elem) for elem in result],  # consume each iterable in result
+            [["2020-01-01"], [None]],
+        )
+
+    def test_get_engagement_endpoint_dates(self):
+        result = self.datasource.get_engagement_endpoint_dates(self.user["uuid"])
+        # "to_date" of None must be converted into "9999-12-31"
+        self.assertEqual(result, ("2020-01-01", "9999-12-31"))
