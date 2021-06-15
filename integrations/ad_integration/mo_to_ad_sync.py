@@ -4,6 +4,7 @@ from typing import Dict
 from typing import Optional
 
 import click
+from ra_utils.load_settings import load_settings
 from tqdm import tqdm
 
 from .ad_exceptions import CprNotFoundInADException
@@ -14,7 +15,6 @@ from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 from .ad_writer import ADWriter
 from exporters.sql_export.lora_cache import fetch_loracache
-from exporters.utils.load_settings import load_settings
 
 
 LOG_FILE = "mo_to_ad_sync.log"
