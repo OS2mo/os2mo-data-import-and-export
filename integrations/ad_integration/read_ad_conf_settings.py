@@ -169,9 +169,9 @@ def _read_primary_write_information(top_settings):
     # Check that all settings we write to are in properties for all ADs
     for ad_settings in top_settings["integrations.ad"]:
         properties = ad_settings.get("properties")
-        missing_properties = list(filter(
-            lambda ad_field: ad_field not in properties, ad_field_names
-        ))
+        missing_properties = list(
+            filter(lambda ad_field: ad_field not in properties, ad_field_names)
+        )
         if missing_properties:
             msg = "Missing AD field names in properties: %r"
             logger.info(msg, missing_properties)

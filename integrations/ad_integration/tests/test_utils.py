@@ -405,13 +405,26 @@ class TestADMixin(object):
         transformer_func = early_settings_transformer or _no_transformation
         modified_settings = transformer_func(default_settings)
         for ad_settings in modified_settings["integrations.ad"]:
-            ad_settings["properties"] = list(map(lambda x: x.lower(), chain(
-                modified_settings.get("integrations.ad_writer.template_to_ad_fields", {}).keys(),
-                modified_settings.get("integrations.ad_writer.mo_to_ad_fields", {}).values(),
-                [modified_settings["integrations.ad.write.org_unit_field"]],
-                [modified_settings["integrations.ad.write.level2orgunit_field"]],
-                [modified_settings["integrations.ad.write.uuid_field"]]
-            )))
+            ad_settings["properties"] = list(
+                map(
+                    lambda x: x.lower(),
+                    chain(
+                        modified_settings.get(
+                            "integrations.ad_writer.template_to_ad_fields", {}
+                        ).keys(),
+                        modified_settings.get(
+                            "integrations.ad_writer.mo_to_ad_fields", {}
+                        ).values(),
+                        [modified_settings["integrations.ad.write.org_unit_field"]],
+                        [
+                            modified_settings[
+                                "integrations.ad.write.level2orgunit_field"
+                            ]
+                        ],
+                        [modified_settings["integrations.ad.write.uuid_field"]],
+                    ),
+                )
+            )
             print(ad_settings["properties"])
         return modified_settings
 
