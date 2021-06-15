@@ -124,7 +124,7 @@ def main(
         msg = "Now syncing: {}, {}".format(user["SamAccountName"], user[mo_uuid_field])
         logger.info(msg)
         try:
-            if sync_cpr:
+            if sync_cpr or sync_username:
                 response = writer.sync_user(user[mo_uuid_field], ad_dump=None)
             else:
                 response = writer.sync_user(user[mo_uuid_field], ad_dump=all_users)

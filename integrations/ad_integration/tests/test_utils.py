@@ -2,6 +2,7 @@ import time
 import uuid
 from datetime import datetime
 from functools import partial
+from itertools import chain
 from random import choice
 from random import randint
 from unittest import TestCase
@@ -389,7 +390,6 @@ class TestADMixin(object):
             "integrations.ad.write.level2orgunit_field": "level2orgunit_field",
             "integrations.ad.write.org_unit_field": "org_field",
             "integrations.ad.write.upn_end": "epn_end",
-            "integrations.ad.write.org_unit_field": "org_field",
             "integrations.ad.write.level2orgunit_type": "level2orgunit_type",
             "integrations.ad_writer.template_to_ad_fields": {
                 "Name": "{{ mo_values['full_name'] }} - {{ user_sam }}",
@@ -403,7 +403,29 @@ class TestADMixin(object):
             "address.visibility.secret": "address_visibility_secret_uuid",
         }
         transformer_func = early_settings_transformer or _no_transformation
-        return transformer_func(default_settings)
+        modified_settings = transformer_func(default_settings)
+        for ad_settings in modified_settings["integrations.ad"]:
+            ad_settings["properties"] = list(
+                map(
+                    lambda x: x.lower(),
+                    chain(
+                        modified_settings.get(
+                            "integrations.ad_writer.template_to_ad_fields", {}
+                        ).keys(),
+                        modified_settings.get(
+                            "integrations.ad_writer.mo_to_ad_fields", {}
+                        ).values(),
+                        [modified_settings["integrations.ad.write.org_unit_field"]],
+                        [
+                            modified_settings[
+                                "integrations.ad.write.level2orgunit_field"
+                            ]
+                        ],
+                        [modified_settings["integrations.ad.write.uuid_field"]],
+                    ),
+                )
+            )
+        return modified_settings
 
 
 class TestADWriterMixin(TestADMixin):
