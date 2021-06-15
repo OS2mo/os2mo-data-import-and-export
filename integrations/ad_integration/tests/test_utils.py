@@ -425,7 +425,6 @@ class TestADMixin(object):
                     ),
                 )
             )
-            print(ad_settings["properties"])
         return modified_settings
 
 
