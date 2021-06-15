@@ -237,7 +237,7 @@ class LoraCacheSource(MODataSource):
         """
         user_engagements = filter(
             lambda eng: eng["user"] == uuid,
-            map(itemgetter(0), self.lc_historic.engagements.values()),
+            map(itemgetter(0), self.lc.engagements.values()),
         )
         dates = map(itemgetter("from_date", "to_date"), user_engagements)
         unzipped = unzip(dates)
