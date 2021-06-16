@@ -58,6 +58,13 @@ Lint AD Integration:
     - pip install mypy pre-commit types-Jinja2 types-click types-requests
     - pre-commit run --files tests/*.py *.py
 
+Lint Calculate Primary:
+  extends: .lint-python
+  script:
+    - cd integrations/calculate_primary/
+    - pip install mypy pre-commit
+    - pre-commit run --files tests/*.py *.py
+
 Lint SetAlias Tool:
   extends: .lint-python
   script:
@@ -155,6 +162,13 @@ Test AD Integration:  # runs outside image (unfortunately)
   script:
     - cd integrations/ad_integration/
     - pytest tests/
+
+Test Calculate Primary:
+  extends: .test-python
+  script:
+    - cd integrations/calculate_primary/
+    - pytest tests/
+
 
 Test OS2Sync Integration:
   extends: .test-python
