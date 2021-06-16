@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
+import json
 import logging
 import random
 import re
 import time
-import json
 from abc import ABC
 from abc import abstractmethod
 from functools import partial
@@ -13,8 +13,8 @@ import click
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from jinja2 import Template
-from more_itertools import unzip
 from more_itertools import flatten
+from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.lazy_dict import LazyDict
 from ra_utils.lazy_dict import LazyEval
@@ -254,10 +254,7 @@ class LoraCacheSource(MODataSource):
     def get_it_systems(self, uuid):
         lc_it = flatten(self.lc.it_connections)
         lc_it = filter(lambda it_system: it_system["user"] == uuid, lc_it)
-        return {
-            it_system['itsystem']: it_system
-            for it_system in lc_it
-        }
+        return {it_system["itsystem"]: it_system for it_system in lc_it}
 
 
 class MORESTSource(MODataSource):
@@ -332,17 +329,19 @@ class MORESTSource(MODataSource):
 
     def get_it_systems(self, uuid):
         itsystems = self.helper.get_e_itsystems(uuid)
+
         def to_lora_itsystem(it_system):
             print(it_system)
             return it_system["itsystem"]["uuid"], {
-                'uuid': it_system["uuid"],
-                'user': it_system["person"]["uuid"],
-                'unit': (it_system.get("org_unit") or {"uuid": None}).get("uuid"),
-                'username': it_system["user_key"],
-                'itsystem': it_system["itsystem"]["uuid"],
-                'from_date': it_system["validity"]["from"],
-                'to_date': it_system["validity"]["to"],
+                "uuid": it_system["uuid"],
+                "user": it_system["person"]["uuid"],
+                "unit": (it_system.get("org_unit") or {"uuid": None}).get("uuid"),
+                "username": it_system["user_key"],
+                "itsystem": it_system["itsystem"]["uuid"],
+                "from_date": it_system["validity"]["from"],
+                "to_date": it_system["validity"]["to"],
             }
+
         return dict(map(to_lora_itsystem, itsystems))
 
 
@@ -624,7 +623,6 @@ class ADWriter(AD):
                 "unit_user_key": LazyEvalDerived(lambda _unit: _unit["user_key"]),
                 "location": LazyEvalDerived(lambda _unit: _unit["location"]),
                 "level2orgunit": LazyEvalDerived(lambda _unit: _unit["level2orgunit"]),
-
                 # Lazy addresses and associated fields
                 "_addresses": LazyEvalDerived(
                     lambda unit_uuid: self._read_user_addresses(unit_uuid)
@@ -681,7 +679,6 @@ class ADWriter(AD):
                 "read_manager": LazyEvalDerived(
                     lambda _manager_uuid: bool(_manager_uuid)
                 ),
-
                 # IT systems
                 "it_systems": LazyEvalDerived(
                     lambda uuid: self.datasource.get_it_systems(uuid)
