@@ -62,7 +62,7 @@ Lint Calculate Primary:
   extends: .lint-python
   script:
     - cd integrations/calculate_primary/
-    - pip install mypy pre-commit
+    - pip install mypy pre-commit types-requests
     - pre-commit run --files tests/*.py *.py
 
 Lint SetAlias Tool:
