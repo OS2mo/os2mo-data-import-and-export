@@ -2,8 +2,9 @@ import logging
 
 import click
 
-# from click_option_group import RequiredMutuallyExclusiveOptionGroup, optgroup
 from integrations.calculate_primary.common import LOGGER_NAME
+
+# from click_option_group import RequiredMutuallyExclusiveOptionGroup, optgroup
 
 
 def setup_logging():
@@ -26,13 +27,11 @@ def setup_logging():
 
 def get_engagement_updater(integration):
     if integration == "SD":
-        from integrations.calculate_primary.sd import \
-            SDPrimaryEngagementUpdater
+        from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
 
         return SDPrimaryEngagementUpdater
     if integration == "OPUS":
-        from integrations.calculate_primary.opus import \
-            OPUSPrimaryEngagementUpdater
+        from integrations.calculate_primary.opus import OPUSPrimaryEngagementUpdater
 
         return OPUSPrimaryEngagementUpdater
     raise NotImplementedError("Unexpected integration: " + str(integration))

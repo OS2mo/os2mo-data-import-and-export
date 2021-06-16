@@ -1,6 +1,7 @@
 import math
 
-from integrations.calculate_primary.common import MOPrimaryEngagementUpdater, logger
+from integrations.calculate_primary.common import logger
+from integrations.calculate_primary.common import MOPrimaryEngagementUpdater
 
 
 class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
@@ -18,12 +19,14 @@ class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
                 "integrations.ad.import_ou.mo_unit_uuid", ""
             ):
                 # disregard engagements from externals
-                logger.warning("disregarding external engagement: {}".format(engagement))
+                logger.warning(
+                    "disregarding external engagement: {}".format(engagement)
+                )
                 return False
             return True
 
         def remove_missing_user_key(user_uuid, no_past, eng):
-            return 'user_key' in eng
+            return "user_key" in eng
 
         self.calculate_filters = [
             engagements_included_in_primary_calculation,
@@ -76,12 +79,13 @@ class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
             try:
                 eng_id = int(engagement["user_key"])
                 return eng_id
-            except:
+            except Exception as exp:
                 logger.warning(
                     "Skippning engangement with non-integer employment_id: {}".format(
-                        eng["user_key"]
+                        engagement["user_key"]
                     )
                 )
+                logger.exception(exp)
                 return math.inf
 
         primary_engagement = min(

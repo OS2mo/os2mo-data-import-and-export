@@ -1,15 +1,18 @@
 import datetime
 import logging
-from abc import ABC, abstractmethod
-from functools import lru_cache, partial
+from abc import ABC
+from abc import abstractmethod
+from functools import lru_cache
+from functools import partial
 from operator import itemgetter
 
-from more_itertools import ilen, pairwise, only
-from tqdm import tqdm
-
-from ra_utils.load_settings import load_settings
-from ra_utils.deprecation import deprecated
+from more_itertools import ilen
+from more_itertools import only
+from more_itertools import pairwise
 from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.deprecation import deprecated
+from ra_utils.load_settings import load_settings
+from tqdm import tqdm
 
 
 LOGGER_NAME = "updatePrimaryEngagements"
@@ -21,6 +24,7 @@ class MultipleFixedPrimaries(Exception):
 
     This means that a user entered invalid data in MO.
     """
+
     pass
 
 
@@ -30,6 +34,7 @@ class NoPrimaryFound(Exception):
     This means the implementation specific backend did not fulfill the interface for
     the _find_primary method.
     """
+
     pass
 
 
@@ -43,7 +48,7 @@ class MOPrimaryEngagementUpdater(ABC):
         self.settings = settings or load_settings()
         self.dry_run = dry_run
 
-        self.helper = self._get_mora_helper(self.settings['mora.base'])
+        self.helper = self._get_mora_helper(self.settings["mora.base"])
 
         # List of engagement filters to apply to check / recalculate respectively
         # NOTE: Should be overridden by subclasses
@@ -73,6 +78,7 @@ class MOPrimaryEngagementUpdater(ABC):
         Returns:
             user object from MoraHelper.
         """
+
         @lru_cache(maxsize=None)
         def _get_org_uuid():
             org_uuid = self.helper.read_organisation()
@@ -173,10 +179,12 @@ class MOPrimaryEngagementUpdater(ABC):
         engagement_count = len(mo_engagements)
 
         # Count number of primary engagements, by filtering on self.primary
-        primary_mo_engagements = list(filter(
-            lambda eng: eng["primary"]["uuid"] in self.primary,
-            mo_engagements,
-        ))
+        primary_mo_engagements = list(
+            filter(
+                lambda eng: eng["primary"]["uuid"] in self.primary,
+                mo_engagements,
+            )
+        )
         primary_count = len(primary_mo_engagements)
 
         # Count number of primary engagements, by filtering out special primaries
@@ -205,13 +213,11 @@ class MOPrimaryEngagementUpdater(ABC):
         date_list = self.helper.find_cut_dates(uuid=user_uuid)
         date_list = date_list[:-1]
         # Map all our dates, to their corresponding engagements.
-        mo_engagements = map(
-            partial(self._read_engagement, user_uuid), date_list
-        )
+        mo_engagements = map(partial(self._read_engagement, user_uuid), date_list)
         # Map mo_engagements to primary counts
         primary_counts = map(
             partial(self._count_primary_engagements, check_filters, user_uuid),
-            mo_engagements
+            mo_engagements,
         )
         # Create dicts from cut_dates --> primary_counts
         return dict(zip(date_list, primary_counts))
@@ -230,6 +236,7 @@ class MOPrimaryEngagementUpdater(ABC):
                 user_uuid: User UUID for the output string
                 date: Date for the output string
         """
+
         def to_output(e_count, p_count, fp_count):
             if e_count == 0:
                 return (noop, "")
@@ -243,9 +250,7 @@ class MOPrimaryEngagementUpdater(ABC):
                 return (logger.info, "Only one non-special primary")
             return (print, "Too many primaries")
 
-        user_results = self._check_user(
-            check_filters, user_uuid
-        )
+        user_results = self._check_user(check_filters, user_uuid)
         for date, (e_count, p_count, fp_count) in user_results.items():
             outputter, string = to_output(e_count, p_count, fp_count)
             yield outputter, string, user_uuid, date
@@ -307,10 +312,12 @@ class MOPrimaryEngagementUpdater(ABC):
 
         # Iterator of UUIDs of engagements with primary = fixed_primary
         fixed_primary_engagement_uuids = map(
-            itemgetter('uuid'), filter(find_fixed_primary, mo_engagements)
+            itemgetter("uuid"), filter(find_fixed_primary, mo_engagements)
         )
         # UUID of engagement with primary = fixed_primary, exception or None
-        fixed = only(fixed_primary_engagement_uuids, None, too_long=MultipleFixedPrimaries)
+        fixed = only(
+            fixed_primary_engagement_uuids, None, too_long=MultipleFixedPrimaries
+        )
         if fixed:
             return fixed, "fixed_primary"
 
@@ -341,9 +348,7 @@ class MOPrimaryEngagementUpdater(ABC):
         # Check if the required primary type is already set
         if engagement["primary"]["uuid"] == primary_type_uuid:
             logger.info(
-                "No update as primary type is not changed: {}".format(
-                    validity['from']
-                )
+                "No update as primary type is not changed: {}".format(validity["from"])
             )
             return False
 
@@ -352,10 +357,7 @@ class MOPrimaryEngagementUpdater(ABC):
         payload = {
             "type": "engagement",
             "uuid": engagement["uuid"],
-            "data": {
-                "primary": {"uuid": primary_type_uuid},
-                "validity": validity
-            }
+            "data": {"primary": {"uuid": primary_type_uuid}, "validity": validity},
         }
         logger.debug("Edit payload: {}".format(payload))
 
@@ -375,6 +377,7 @@ class MOPrimaryEngagementUpdater(ABC):
 
             Also ensures that the 'primary' attribute is set on all engagements.
             """
+
             def ensure_primary(engagement):
                 """Ensure that engagement has a primary field."""
                 # TODO: It would seem this happens for leaves, should we make a
@@ -445,12 +448,10 @@ class MOPrimaryEngagementUpdater(ABC):
                 primary_type_uuid = self.primary_types["non_primary"]
                 # Only the primary engagement is marked non_primary. The actual type
                 # is simply the one provided by _decide_primary.
-                if engagement['uuid'] == primary_uuid:
+                if engagement["uuid"] == primary_uuid:
                     primary_type_uuid = self.primary_types[primary_type_key]
 
-                changed = self._ensure_primary(
-                    engagement, primary_type_uuid, validity
-                )
+                changed = self._ensure_primary(engagement, primary_type_uuid, validity)
                 if changed:
                     number_of_edits += 1
 
@@ -472,7 +473,7 @@ class MOPrimaryEngagementUpdater(ABC):
         print("OK")
         edit_status = {}
         all_users = tqdm(all_users)
-        all_users = map(itemgetter('uuid'), all_users)
+        all_users = map(itemgetter("uuid"), all_users)
         for user_uuid in all_users:
             try:
                 status = self.recalculate_user(user_uuid, no_past=no_past)

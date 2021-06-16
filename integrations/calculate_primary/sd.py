@@ -1,7 +1,7 @@
 import datetime
 
-from integrations.calculate_primary.common import (MOPrimaryEngagementUpdater,
-                                                   logger)
+from integrations.calculate_primary.common import logger
+from integrations.calculate_primary.common import MOPrimaryEngagementUpdater
 from integrations.SD_Lon import sd_common
 
 
@@ -26,7 +26,7 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
             return remove_no_salary(eng)
 
         def remove_missing_user_key(user_uuid, no_past, eng):
-            return 'user_key' in eng
+            return "user_key" in eng
 
         self.check_filters = [
             remove_no_salary_check,
@@ -54,7 +54,7 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
                 # non-integer user keys should universally be status0, and as such
                 # they should already have been filtered out, thus if they have not
                 # been filtered out, they must have the wrong primary_type.
-                int(mo_engagement['user_key'])
+                int(mo_engagement["user_key"])
             except ValueError:
                 self._fixup_status_0(mo_engagement)
                 # Filter it out, as it should have been
@@ -75,20 +75,20 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         primary_engagement = max(
             mo_engagements,
             # Sort first by fraction, then reversely by user_key integer
-            key=lambda eng: (eng.get("fraction") or 0, -int(eng["user_key"]))
+            key=lambda eng: (eng.get("fraction") or 0, -int(eng["user_key"])),
         )
-        return primary_engagement['uuid']
+        return primary_engagement["uuid"]
 
     def _fixup_status_0(self, mo_engagement):
         logger.warning("Engagement type not status0. Will fix.")
-        validity = mo_engagement['validity']
+        validity = mo_engagement["validity"]
         payload = {
             "type": "engagement",
             "uuid": mo_engagement["uuid"],
             "data": {
                 "primary": {"uuid": self.primary_types["no_salary"]},
-                "validity": validity
-            }
+                "validity": validity,
+            },
         }
         logger.debug("Status0 edit payload: {}".format(payload))
         if not self.dry_run:
