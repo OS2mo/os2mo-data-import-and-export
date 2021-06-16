@@ -10,6 +10,8 @@ from ra_utils.lazy_dict import LazyDict
 
 from ..ad_exceptions import CprNotFoundInADException
 from ..ad_exceptions import CprNotNotUnique
+from ..ad_exceptions import NoPrimaryEngagementException
+from ..ad_exceptions import SamAccountNameNotUnique
 from ..ad_template_engine import illegal_parameters
 from ..ad_writer import LoraCacheSource
 from ..utils import AttrDict
@@ -867,3 +869,64 @@ class TestADWriter(TestCase, TestADWriterMixin):
         # Test all fields can be read
         for key in mo_values.keys():
             mo_values[key]
+
+    def test_create_user_can_create_manager(self):
+        # Test what happens when passing `create_manager=True` to `create_user`
+        self._setup_adwriter()
+        # Remember SamAccountName of user to be created
+        expected_sam_account_name = self.mo_values_func()["sam_account_name"]
+        # Replace `_wait_for_replication` with do-nothing stub.
+        self.ad_writer._wait_for_replication = lambda sam_account_name: None
+        # Create AD user and then set manager
+        status, actual_sam_account_name = self.ad_writer.create_user(
+            mo_uuid="mo-user-uuid", create_manager=True
+        )
+        # Assert we ran a PowerShell command to set user's manager
+        self.assertIn("Set-ADUser -Manager", self.ad_writer.scripts[-1])
+        # Assert we received the proper result from `create_user`
+        self.assertTrue(status)
+        self.assertEqual(actual_sam_account_name, expected_sam_account_name)
+
+    def test_create_user_non_empty_response_is_error(self):
+        # Test what happens when `create_user` encounters a non-empty response
+        # from `_run_ps_script`.
+        self._setup_adwriter()
+        # Replace `get_ad_user` with function which always returns empty
+        # response (otherwise `create_user` will raise an exception before we
+        # reach the code we want to test.)
+        self.ad_writer.get_from_ad = lambda **kwargs: {}
+        # Replace `_run_ps_script` with function returning non-empty response
+        self.ad_writer._run_ps_script = lambda ps_script: {"not": "empty"}
+        # Try to create AD user
+        status, msg = self.ad_writer.create_user(
+            mo_uuid="mo-user-uuid", create_manager=False
+        )
+        self.assertFalse(status)
+        self.assertRegexpMatches(msg, "Create user failed,.*")
+
+    def test_create_user_bails_early_if_engagements(self):
+        # Test what happens when `create_user` encounters an empty MO user
+        self._setup_adwriter()
+        # Replace `read_ad_information_from_mo` with function returning None
+        self.ad_writer.read_ad_information_from_mo = (
+            lambda mo_uuid, create_manager: None
+        )
+        # Assert that `create_user` bails early with an exception
+        with self.assertRaises(NoPrimaryEngagementException):
+            self.ad_writer.create_user(mo_uuid="mo-user-uuid", create_manager=False)
+
+    def test_create_user_bails_early_if_ad_user_exists(self):
+        # Test what happens if `create_user` encounters an already existing AD
+        # user (either by username or CPR number lookup.)
+
+        def assert_adwriter_get_ad_user_raises(matching_kwarg, expected_exception):
+            self._setup_adwriter()
+            # Replace `get_from_ad` with function returning True if the lookup
+            # kwarg matches `matching_kwarg`.
+            self.ad_writer.get_from_ad = lambda **kwargs: matching_kwarg in kwargs
+            # Assert we bail early with the proper exception
+            with self.assertRaises(expected_exception):
+                self.ad_writer.create_user(mo_uuid="mo-user-uuid", create_manager=False)
+
+        assert_adwriter_get_ad_user_raises("user", SamAccountNameNotUnique)
+        assert_adwriter_get_ad_user_raises("cpr", CprNotNotUnique)

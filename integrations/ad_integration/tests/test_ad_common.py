@@ -53,6 +53,11 @@ class TestRunPSScript(TestCase):
                 self._ad._run_ps_script(self._ps_script)
                 std_out.encode.assert_called_with(AD._encoding)
 
+    def test_empty_std_out_returns_empty_dict(self):
+        with self._mock_run_ps_response(std_out=None):
+            empty_dict = self._ad._run_ps_script(self._ps_script)
+            self.assertEqual(empty_dict, {})
+
     def _mock_run_ps_response(self, status_code=0, std_out=b"", std_err=b""):
         response = Mock()
         response.status_code = status_code
