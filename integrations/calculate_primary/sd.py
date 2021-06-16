@@ -25,6 +25,9 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         def remove_no_salary_calculate(user_uuid, no_past, eng):
             return remove_no_salary(eng)
 
+        def remove_missing_user_key(user_uuid, no_past, eng):
+            return 'user_key' in eng
+
         self.check_filters = [
             remove_no_salary_check,
         ]
@@ -32,6 +35,7 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         self.calculate_filters = [
             remove_past,
             remove_no_salary_calculate,
+            remove_missing_user_key,
         ]
 
     def _find_primary_types(self):
@@ -45,11 +49,6 @@ class SDPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         return primary_types, primary
 
     def _find_primary(self, mo_engagements):
-        # Ensure that all mo_engagements have user_keys.
-        for eng in mo_engagements:
-            if 'user_key' not in eng:
-                return None
-
         def non_integer_userkey(mo_engagement):
             try:
                 # non-integer user keys should universally be status0, and as such

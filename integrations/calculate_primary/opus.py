@@ -22,8 +22,12 @@ class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
                 return False
             return True
 
+        def remove_missing_user_key(user_uuid, no_past, eng):
+            return 'user_key' in eng
+
         self.calculate_filters = [
             engagements_included_in_primary_calculation,
+            remove_missing_user_key,
         ]
 
     def _find_primary_types(self):
@@ -58,24 +62,19 @@ class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         return primary_dict, primary_list
 
     def _find_primary(self, mo_engagements):
-        # Ensure that all mo_engagements have user_keys.
-        for eng in mo_engagements:
-            if "user_key" not in eng:
-                return None
-
         # The primary engagement is the engagement with the lowest engagement type.
         # - The order of engagement types is given by self.eng_types_order.
         #
         # If two engagements have the same engagement_type, the tie is broken by
         # picking the one with the lowest user-key integer.
         def get_engagement_type_id(engagement):
-            if eng["engagement_type"] in self.eng_types_order:
-                return self.eng_types_order.index(eng["engagement_type"])
+            if engagement["engagement_type"] in self.eng_types_order:
+                return self.eng_types_order.index(engagement["engagement_type"])
             return math.inf
 
         def get_engagement_order(engagement):
             try:
-                eng_id = int(eng["user_key"])
+                eng_id = int(engagement["user_key"])
                 return eng_id
             except:
                 logger.warning(
