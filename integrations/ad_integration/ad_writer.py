@@ -252,9 +252,11 @@ class LoraCacheSource(MODataSource):
         return self.mo_rest_source.get_engagement_dates(uuid)
 
     def get_it_systems(self, uuid):
-        lc_it = flatten(self.lc.it_connections)
-        lc_it = filter(lambda it_system: it_system["user"] == uuid, lc_it)
-        return {it_system["itsystem"]: it_system for it_system in lc_it}
+        user_itsystems = filter(
+            lambda eng: eng["user"] == uuid,
+            map(itemgetter(0), self.lc.it_connections.values())
+        )
+        return {it_system["itsystem"]: it_system for it_system in user_itsystems}
 
 
 class MORESTSource(MODataSource):
