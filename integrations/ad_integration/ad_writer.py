@@ -13,7 +13,6 @@ import click
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from jinja2 import Template
-from more_itertools import flatten
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.lazy_dict import LazyDict
@@ -254,7 +253,7 @@ class LoraCacheSource(MODataSource):
     def get_it_systems(self, uuid):
         user_itsystems = filter(
             lambda eng: eng["user"] == uuid,
-            map(itemgetter(0), self.lc.it_connections.values())
+            map(itemgetter(0), self.lc.it_connections.values()),
         )
         return {it_system["itsystem"]: it_system for it_system in user_itsystems}
 

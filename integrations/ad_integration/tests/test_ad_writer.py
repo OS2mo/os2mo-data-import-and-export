@@ -896,7 +896,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
                                 "to_date": None,
                             }
                         ]
-                    }
+                    },
                 }
             )
             self.lc_historic = self.lc
