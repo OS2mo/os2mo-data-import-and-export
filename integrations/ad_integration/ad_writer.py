@@ -3,6 +3,7 @@ import logging
 import random
 import re
 import time
+import json
 from abc import ABC
 from abc import abstractmethod
 from functools import partial
@@ -330,18 +331,19 @@ class MORESTSource(MODataSource):
         return from_dates, to_dates
 
     def get_it_systems(self, uuid):
-        return {
-            it_system["itsystem"]["uuid"]: {
+        itsystems = self.helper.get_e_itsystems(uuid)
+        def to_lora_itsystem(it_system):
+            print(it_system)
+            return it_system["itsystem"]["uuid"], {
                 'uuid': it_system["uuid"],
                 'user': it_system["person"]["uuid"],
-                'unit': it_system.get("org_unit", {}).get("uuid"),
+                'unit': (it_system.get("org_unit") or {"uuid": None}).get("uuid"),
                 'username': it_system["user_key"],
                 'itsystem': it_system["itsystem"]["uuid"],
                 'from_date': it_system["validity"]["from"],
                 'to_date': it_system["validity"]["to"],
             }
-            for it_system in self.helper.get_e_itsystems(uuid)
-        }
+        return dict(map(to_lora_itsystem, itsystems))
 
 
 class ADWriter(AD):
@@ -622,6 +624,7 @@ class ADWriter(AD):
                 "unit_user_key": LazyEvalDerived(lambda _unit: _unit["user_key"]),
                 "location": LazyEvalDerived(lambda _unit: _unit["location"]),
                 "level2orgunit": LazyEvalDerived(lambda _unit: _unit["level2orgunit"]),
+
                 # Lazy addresses and associated fields
                 "_addresses": LazyEvalDerived(
                     lambda unit_uuid: self._read_user_addresses(unit_uuid)
@@ -1012,6 +1015,11 @@ class ADWriter(AD):
     "--sync-user",
     help="Sync relevant fields from MO to AD",
 )
+@optgroup.option(
+    "--mo-values",
+    type=click.UUID,
+    help="Show mo-values for the user",
+)
 @optgroup.option("--delete-user")
 @optgroup.option("--read-ad-information")
 @optgroup.option("--add-manager-to-user", nargs=2, type=str)
@@ -1061,6 +1069,10 @@ def cli(**args):
         manager, user = args["add_manager_to_user"]
         print("{} is now set as manager for {}".format(manager, user))
         ad_writer.add_manager_to_user(manager_sam=manager, user_sam=user)
+
+    if args.get("mo_values"):
+        mo_values = ad_writer.read_ad_information_from_mo(str(args["mo_values"]))
+        print(json.dumps(dict(mo_values.items()), indent=4))
 
 
 if __name__ == "__main__":

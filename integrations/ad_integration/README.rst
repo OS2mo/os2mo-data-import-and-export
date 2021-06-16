@@ -593,6 +593,11 @@ Standard-opsætningen af AD-integrationen indeholder flg. Jinja-templates:
   }
 
 De felter, der er tilgængelige i ``mo_values``, er beskrevet her: :ref:`MO-værdier`.
+Desuden kan felter + faktiske værdier (for en given bruger) ses ved at køre følgende kommando:
+
+.. code-block:: bash
+
+  python -m integrations.ad_integration.ad_writer --mo-values MO_BRUGER_UUID_HER --ignore-occupied-names
 
 Med denne standard-opsætning oprettes der brugere i AD på denne form:
 
