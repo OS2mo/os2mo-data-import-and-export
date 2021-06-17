@@ -78,7 +78,7 @@ def main(
     logger.info("Will now attempt to sync {} users".format(len(all_users)))
 
     def filter_missing_uuid_field(user):
-        if mo_uuid_field.lower() in set(k.lower() for k in user):
+        if mo_uuid_field.lower() not in set(k.lower() for k in user):
             msg = "User {} does not have a {} field - skipping"
             logger.info(msg.format(user["SamAccountName"], mo_uuid_field))
             return False
