@@ -358,12 +358,12 @@ exports_queries_ballerup(){
 exports_actual_state_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(sql_export.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --resolve-dar
 }
 
 exports_historic_sql_export(){
     BACK_UP_AND_TRUNCATE+=(sql_export.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --historic
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --resolve-dar --historic
 }
 
 exports_os2phonebook_export(){
