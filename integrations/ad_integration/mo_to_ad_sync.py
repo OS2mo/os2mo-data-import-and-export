@@ -22,50 +22,13 @@ LOG_FILE = "mo_to_ad_sync.log"
 logger = logging.getLogger("MoAdSync")
 
 
-@click.command()
-@click.option(
-    "--lora-speedup/--no-lora-speedup",
-    help="Utilize LoraCache to speedup the operation",
-    is_flag=True,
-    type=click.BOOL,
-    default=lambda: load_settings()["integrations.ad_writer.lora_speedup"],
-)
-@click.option(
-    "--mo-uuid-field",
-    type=click.STRING,
-    default=lambda: load_settings()["integrations.ad.write.uuid_field"],
-)
-@click.option(
-    "--sync-cpr",
-    help="Synchronize the specified user instead of all users",
-    type=click.STRING,
-)
-@click.option(
-    "--sync-username",
-    help="Synchronize the specified user instead of all users",
-    type=click.STRING,
-)
-@click.option("--ignore-occupied-names", is_flag=True, default=False)
-def main(
-    lora_speedup: bool,
+def run_mo_to_ad_sync(
+    reader: ADParameterReader,
+    writer: ADWriter,
     mo_uuid_field: str,
-    sync_cpr: Optional[str],
-    sync_username: Optional[str],
-    ignore_occupied_names: bool,
+    sync_cpr: Optional[str] = None,
+    sync_username: Optional[str] = None,
 ):
-    start_logging(LOG_FILE)
-
-    lc, lc_historic = None, None
-    if lora_speedup:
-        lc, lc_historic = fetch_loracache()
-
-    reader = ADParameterReader()
-    writer = ADWriter(
-        lc=lc,
-        lc_historic=lc_historic,
-        occupied_names=[] if ignore_occupied_names else None,
-    )
-
     if sync_cpr or sync_username:
         print("Warning: --sync-cpr/--sync-username is for testing only")
         all_users = [reader.read_user(user=sync_username, cpr=sync_cpr)]
@@ -117,10 +80,10 @@ def main(
         "unknown_failed_sync": 0,
         "no_active_engagement": 0,
     }
+
     all_users = list(filter(filter_missing_uuid_field, all_users))
     for user in tqdm(all_users, unit="user"):
         stats["attempted_users"] += 1
-
         msg = "Now syncing: {}, {}".format(user["SamAccountName"], user[mo_uuid_field])
         logger.info(msg)
         try:
@@ -159,6 +122,59 @@ def main(
     print()
     print(json.dumps(stats, indent=4))
     logger.info("Stats: {}".format(stats))
+
+    return stats
+
+
+@click.command()
+@click.option(
+    "--lora-speedup/--no-lora-speedup",
+    help="Utilize LoraCache to speedup the operation",
+    is_flag=True,
+    type=click.BOOL,
+    default=lambda: load_settings()["integrations.ad_writer.lora_speedup"],
+)
+@click.option(
+    "--mo-uuid-field",
+    type=click.STRING,
+    default=lambda: load_settings()["integrations.ad.write.uuid_field"],
+)
+@click.option(
+    "--sync-cpr",
+    help="Synchronize the specified user instead of all users",
+    type=click.STRING,
+)
+@click.option(
+    "--sync-username",
+    help="Synchronize the specified user instead of all users",
+    type=click.STRING,
+)
+@click.option("--ignore-occupied-names", is_flag=True, default=False)
+def main(
+    lora_speedup: bool,
+    mo_uuid_field: str,
+    sync_cpr: Optional[str],
+    sync_username: Optional[str],
+    ignore_occupied_names: bool,
+):
+    start_logging(LOG_FILE)
+
+    reader = ADParameterReader()
+
+    lc, lc_historic = fetch_loracache() if lora_speedup else (None, None)
+    writer = ADWriter(
+        lc=lc,
+        lc_historic=lc_historic,
+        occupied_names=[] if ignore_occupied_names else None,
+    )
+
+    run_mo_to_ad_sync(
+        reader,
+        writer,
+        mo_uuid_field,
+        sync_cpr=sync_cpr,
+        sync_username=sync_username,
+    )
 
 
 if __name__ == "__main__":
