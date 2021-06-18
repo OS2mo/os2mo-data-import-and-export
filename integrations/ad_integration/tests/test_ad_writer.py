@@ -703,6 +703,48 @@ class TestADWriter(TestCase, TestADWriterMixin):
             all(context["ad_values"] == ad_values for context in template_contexts)
         )
 
+    def test_rename_ad_user(self):
+        # Configure ADWriter to write an AD "Name" attribute consisting of the
+        # user's full name, plus " testing".
+        settings_transformer = dict_modifier(
+            {
+                "integrations.ad_writer.template_to_ad_fields": {
+                    "Name": "{{ mo_values['full_name'] }} - testing"
+                },
+            }
+        )
+
+        # TODO: this duplicates code found in "test_mo_to_ad_sync.py".
+        def remove_manager_cpr(mo_values, *args, **kwargs):
+            del mo_values["manager_cpr"]
+            return mo_values
+
+        self._setup_adwriter(
+            early_transform_settings=settings_transformer,
+            transform_mo_values=remove_manager_cpr,
+        )
+
+        # Construct a mock AD dump, where the user has a Name attr consisting
+        # of their full name only.
+        ad_dump = [self._prepare_get_from_ad(ad_transformer=None)]
+
+        # Invoke the AD rename
+        mo_user_uuid = "not-really-a-uuid"
+        self.ad_writer.sync_user(mo_user_uuid, ad_dump=ad_dump)
+
+        # Assert that we issued two AD PowerShell commands: one for the rename,
+        # and one for updating the other AD user attributes.
+        self.assertEqual(len(self.ad_writer.scripts), 2)
+
+        # Fetch the "rename" command itself: the last line of the first script
+        rename_cmd = self.ad_writer.scripts[0].splitlines()[-1]
+        # Assert that the "rename" command does indeed attempt to rename the AD
+        # user to "Firstname Lastname - testing", due to the mapping in
+        # `settings_transformer`.
+        expected_new_name = "%s - testing" % ad_dump[0]["Name"]
+        expected_cmd_fragment = '-NewName "%s"' % expected_new_name
+        self.assertIn(expected_cmd_fragment, rename_cmd)
+
     def test_add_manager(self):
         mo_values = self.ad_writer.read_ad_information_from_mo(
             uuid="0", read_manager=True
