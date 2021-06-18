@@ -668,6 +668,29 @@ class ADWriter(AD):
         response = self._run_ps_script(ps_script)
         return response is {}
 
+    def _rename_ad_user(self, user_sam, new_name):
+        logger.info("Rename user: %s", user_sam)
+        # Todo: This code is a duplicate of code found elsewhere
+        rename_user_template = ad_templates.rename_user_template
+        rename_user_string = rename_user_template.format(
+            user_sam=user_sam,
+            new_name=new_name,
+        )
+        rename_user_string = self.remove_redundant(rename_user_string)
+        server_string = ""
+        if self.all_settings["global"].get("servers") is not None:
+            server_string = " -Server {} ".format(
+                random.choice(self.all_settings["global"]["servers"])
+            )
+        ps_script = self._build_user_credential() + rename_user_string + server_string
+        logger.debug("Rename user, ps_script: {}".format(ps_script))
+        response = self._run_ps_script(ps_script)
+        logger.debug("Response from sync: {}".format(response))
+        logger.debug("Wait for replication")
+        # Todo: In principle we should ask all DCs, bu this will happen
+        # very rarely, performance is not of great importance
+        time.sleep(10)
+
     def _cf(self, ad_field, value, ad):
         logger.info("Check AD field: {}".format(ad_field))
         mismatch = {}
@@ -730,6 +753,7 @@ class ADWriter(AD):
             if ad_user["manager"] != manager_distinguished_name:
                 mismatch["manager"] = (ad_user["manager"], manager_distinguished_name)
                 logger.info("Manager should be updated")
+
         return mismatch
 
     def sync_user(self, mo_uuid, ad_dump=None, sync_manager=True):
@@ -756,30 +780,7 @@ class ADWriter(AD):
         logger.debug("Sync compare: {}".format(mismatch))
 
         if "name" in mismatch:
-            logger.info("Rename user:")
-            # Todo: This code is a duplicate of code 15 lines further down...
-            rename_user_template = ad_templates.rename_user_template
-            rename_user_string = rename_user_template.format(
-                givenname=mo_values["name"][0],
-                surname=mo_values["name"][1],
-                sam_account_name=user_sam,
-            )
-            rename_user_string = self.remove_redundant(rename_user_string)
-            server_string = ""
-            if self.all_settings["global"].get("servers") is not None:
-                server_string = " -Server {} ".format(
-                    random.choice(self.all_settings["global"]["servers"])
-                )
-            ps_script = (
-                self._build_user_credential() + rename_user_string + server_string
-            )
-            logger.debug("Rename user, ps_script: {}".format(ps_script))
-            response = self._run_ps_script(ps_script)
-            logger.debug("Response from sync: {}".format(response))
-            logger.debug("Wait for replication")
-            # Todo: In principle we should ask all DCs, bu this will happen
-            # very rarely, performance is not of great importance
-            time.sleep(10)
+            response = self._rename_ad_user(user_sam, mismatch["name"][1])
             del mismatch["name"]
 
         if not mismatch:
