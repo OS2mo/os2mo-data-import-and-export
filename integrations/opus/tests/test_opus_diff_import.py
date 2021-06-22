@@ -112,38 +112,42 @@ class Opus_diff_import_tester(unittest.TestCase):
         self.expected_terminations = 1
 
         filter_ids = []
-        self.units, self.employees = opus_helpers.file_diff(
+        units, filtered_units, employees, terminated_employees = opus_helpers.read_and_transform_data(
             self.file1, self.file2, filter_ids
         )
+        self.units = list(units)
+        self.filtered_units = list(filtered_units)
+        self.employees = list(employees)
+        self.terminated_employees = list(terminated_employees)
 
     def test_file_diff(self):
         self.assertEqual(len(self.units), self.expected_unit_count)
         self.assertEqual(
             len(self.employees),
-            self.expected_employee_count + self.expected_terminations,
+            self.expected_employee_count,
         )
 
     @given(datetimes())
     def test_import_unit_count(self, xml_date):
         self.assertIsInstance(xml_date, datetime)
         diff = OpusDiffImportTest_counts(xml_date, ad_reader=None)
-        diff.start_import(self.units, self.employees, include_terminations=True)
+        diff.start_import(self.units, self.employees, self.terminated_employees)
         self.assertEqual(diff.update_unit.call_count, self.expected_unit_count)
 
     @given(datetimes())
     def test_import_employee_count(self, xml_date):
         self.assertIsInstance(xml_date, datetime)
         diff = OpusDiffImportTest_counts(xml_date, ad_reader=None)
-        diff.start_import(self.units, self.employees, include_terminations=True)
+        diff.start_import(self.units, self.employees, self.terminated_employees)
         self.assertEqual(diff.update_employee.call_count, self.expected_employee_count)
 
     @given(datetimes())
     def test_termination(self, xml_date):
         self.assertIsInstance(xml_date, datetime)
         diff = OpusDiffImportTest_counts(xml_date, ad_reader=None)
-        diff.start_import(self.units, self.employees, include_terminations=True)
+        diff.start_import(self.units, self.employees, self.terminated_employees)
         self.assertEqual(
-            diff.terminate_detail.call_count, self.expected_terminations * 2
+            diff._find_engagement.call_count, self.expected_terminations * 2
         )
 
     @patch("integrations.dawa_helper.dawa_lookup")

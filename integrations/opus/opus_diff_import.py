@@ -85,13 +85,15 @@ predefined_scopes = {
 
 class OpusDiffImport(object):
     def __init__(self, xml_date, ad_reader, employee_mapping={}, filter_ids={}):
-        logger.info('Opus diff importer __init__ started')
+        logger.info("Opus diff importer __init__ started")
         self.xml_date = xml_date
         self.ad_reader = ad_reader
         self.employee_forced_uuids = employee_mapping
 
         self.settings = load_settings()
-        self.filter_ids = filter_ids or self.settings.get('integrations.opus.units.filter_ids', [])
+        self.filter_ids = filter_ids or self.settings.get(
+            "integrations.opus.units.filter_ids", []
+        )
 
         self.session = Session()
         self.helper = self._get_mora_helper(
@@ -807,7 +809,7 @@ class OpusDiffImport(object):
                 print(f"There are units that should have been terminated:")
                 print(list(map(itemgetter("uuid"), mo_units)))
 
-    def start_import(self, units, employees, include_terminations=False):
+    def start_import(self, units, employees, terminated_employees):
         """
         Start an opus import, run the oldest available dump that
         has not already been imported.
@@ -817,34 +819,29 @@ class OpusDiffImport(object):
             self.update_unit(unit)
 
         for employee in tqdm(employees, desc="Update employees"):
-            last_changed_str = employee.get("@lastChanged")
-            if last_changed_str is not None:  # This is a true employee-object.
-                self.update_employee(employee)
+            self.update_employee(employee)
+            if "function" in employee:
+                self.update_roller(employee)
 
-                if "function" in employee:
-                    self.update_roller(employee)
-            else:  # This is an implicit termination.
-                if not include_terminations:
-                    continue
+        for employee in tqdm(terminated_employees, desc="Terminating employees"):
+            # This is a terminated employee, check if engagement is active
+            # terminate if it is.
+            if not employee["@action"] == "leave":
+                msg = "This should be a terminated employee!"
+                logger.error(msg)
+                raise Exception(msg)
 
-                # This is a terminated employee, check if engagement is active
-                # terminate if it is.
-                if not employee["@action"] == "leave":
-                    msg = "Missing date on a non-leave object!"
-                    logger.error(msg)
-                    raise Exception(msg)
-
-                eng_info = self._find_engagement(
-                    employee["@id"], "Engagement", present=True
+            eng_info = self._find_engagement(
+                employee["@id"], "Engagement", present=True
+            )
+            if eng_info:
+                logger.info("Terminating: {}".format(eng_info))
+                self.terminate_detail(eng_info)
+                manager_info = self._find_engagement(
+                    employee["@id"], "Leder", present=True
                 )
-                if eng_info:
-                    logger.info("Terminating: {}".format(eng_info))
-                    self.terminate_detail(eng_info)
-                    manager_info = self._find_engagement(
-                        employee["@id"], "Leder", present=True
-                    )
-                    if manager_info:
-                        self.terminate_detail(manager_info, detail_type="manager")
+                if manager_info:
+                    self.terminate_detail(manager_info, detail_type="manager")
 
         logger.info("Program ended correctly")
 
@@ -869,18 +866,19 @@ def start_opus_diff(ad_reader=None):
         logger.info(msg.format(xml_date, latest_date))
         print(msg.format(xml_date, latest_date))
         # Find changes to units and employees
-        units, employees = opus_helpers.file_diff(
+        units,filtered_units,employees,terminated_employees= opus_helpers.read_and_transform_data(
             dumps[latest_date], dumps[xml_date], filter_ids
         )
-        # Partition based on filtered units in settings
-        filtered_units, units = opus_helpers.filter_units(units, filter_ids)
-        units = list(units)
+
         opus_helpers.local_db_insert((xml_date, "Running diff update since {}"))
 
         diff = OpusDiffImport(
-            xml_date, ad_reader=ad_reader, employee_mapping=employee_mapping
+            xml_date,
+            ad_reader=ad_reader,
+            employee_mapping=employee_mapping,
+            filter_ids=filter_ids,
         )
-        diff.start_import(units, employees, include_terminations=True)
+        diff.start_import(units, employees, terminated_employees)
         diff.handle_filtered_units(filtered_units)
         logger.info("Ended update")
         opus_helpers.local_db_insert((xml_date, "Diff update ended: {}"))
