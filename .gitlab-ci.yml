@@ -139,7 +139,7 @@ Build TestImage:
     - /kaniko/executor
       --cache=true
       --context=$CI_PROJECT_DIR
-      --dockerfile=$CI_PROJECT_DIR/docker/Dockerfile
+      --dockerfile=$CI_PROJECT_DIR/Dockerfile
       --destination=${IMAGE_SHA}
 
 # Test stage
@@ -163,7 +163,7 @@ Build TestImage:
 Test LoraCache Exporter:
   extends: .test-python
   script:
-    - pytest exporters/sql_export/tests/
+    - venv/bin/pytest exporters/sql_export/tests/
 
 Test AD Integration:  # runs outside image (unfortunately)
   stage: test
@@ -175,7 +175,7 @@ Test AD Integration:  # runs outside image (unfortunately)
     - docker
   script:
     - cd integrations/ad_integration/
-    - pytest tests/
+    - venv/bin/pytest tests/
 
 Test Calculate Primary:
   extends: .test-python
@@ -189,29 +189,29 @@ Test OS2Sync Integration:
   variables:
     CUSTOMER_SETTINGS: /code/settings/kommune-andeby.json
   script:
-    - pytest integrations/os2sync/tests
+    - venv/bin/pytest integrations/os2sync/tests
 
 Test CPR Mapper:
   extends: .test-python
   script:
-    - python -m doctest -v integrations/cpr_mapper.py
+    - venv/bin/python -m doctest -v integrations/cpr_mapper.py
 
 Test OPUS Org Tree Print:
   extends: .test-python
   script:
-    - python -m doctest -v integrations/opus/org_tree_print/main.py
+    - venv/bin/python -m doctest -v integrations/opus/org_tree_print/main.py
 
 Test OPUS importers:
   extends: .test-python
   script:
     - cp settings/kommune-andeby.json settings/settings.json
-    - python -m pytest -v integrations/opus/tests
+    - venv/bin/python -m pytest -v integrations/opus/tests
 
 Test OPUS Helpers:
   extends: .test-python
   script:
     - cp settings/kommune-andeby.json settings/settings.json
-    - python -m doctest -v integrations/opus/opus_helpers.py
+    - venv/bin/python -m doctest -v integrations/opus/opus_helpers.py
 
 Test SDLoen Integration:
   extends: .test-python
@@ -238,21 +238,27 @@ Test data_fixers:
 ###############
 
 Build DIPEX:
+# Defaults for release jobs: Run in release stage, depend on all tests,
+# use a small image with skopeo installed.
+.release-default: &release-default
   stage: release
-  needs: [ 'Build TestImage' ]
-  image:
-    # We use kaniko v0.16.0 as both v0.17.0, v0.17.1, v0.18.0 and v0.19.0 contains fatal bugs.
-    name: gcr.io/kaniko-project/executor:debug
-    entrypoint: [""]
-  tags:
-    - docker
+  needs: [ "Build TestImage", "Test data_fixers",
+   "Test Exporter Utils", "Test Reports", "Test SDLoen Integration", "Test OPUS Helpers", "Test OPUS importers", "Test OPUS Org Tree Print", "Test CPR Mapper", "Test AD Integration"]
+  image: alpine
+  variables:
+    GIT_STRATEGY: none # We do not need the source code
+  before_script:
+    - apk add skopeo
+
+# Release job for rolling releases
+Release development:
+  <<: *release-default
   rules:
-    - if: $CI_COMMIT_REF_NAME =~ /^feature\/.+$/
+  # Run this job on all commits to development
+  - if: $CI_COMMIT_REF_NAME == "development"
   script:
-    - export IMAGE_FEATURE=$(echo "$CI_COMMIT_REF_NAME" | sed 's/\//_/g')
-    - echo "Releasing ${CI_REGISTRY_IMAGE}/feature:${IMAGE_FEATURE}"
-    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor
-      --cache=true
-      --context=$CI_PROJECT_DIR
-      --destination=${CI_REGISTRY_IMAGE}/feature:${IMAGE_FEATURE}
+  - skopeo copy
+      --src-creds=${CI_REGISTRY_USER}:${CI_BUILD_TOKEN}
+      --dest-creds=${RELEASE_REGISTRY_USER}:${RELEASE_REGISTRY_PASSWORD}
+      "docker://${IMAGE_SHA}"
+      "docker://${RELEASE_IMAGE_LATEST}"

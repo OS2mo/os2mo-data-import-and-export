@@ -8,6 +8,7 @@ RUN apt-get update &&  apt-get -y install \
     libmariadb-dev \
     curl \
     jq \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 ENV SUPERCRONIC_URL=https://github.com/aptible/supercronic/releases/download/v0.1.12/supercronic-linux-amd64 \
@@ -25,7 +26,11 @@ RUN curl -fsSLO "$SUPERCRONIC_URL" \
 # USER sys_magenta_dipex 
 COPY . /code
 WORKDIR /code
-RUN bash tools/update-dipex.sh && . /code/venv/bin/activate
+RUN bash tools/update-dipex.sh && \
+. /code/venv/bin/activate \
+pip install ./os2mo_data_import --upgrade \
+pip install -r ./integrations/requirements/common.txt \
+pip install -r ./integrations/requirements/test.txt 
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH="${PYTHONPATH}:"
