@@ -1,4 +1,4 @@
-FROM python:3.8-slim
+FROM python:3-slim
 RUN apt-get update &&  apt-get -y install \
     unixodbc-dev \
     freetds-dev \
@@ -28,9 +28,9 @@ COPY . /code
 WORKDIR /code
 RUN bash tools/update-dipex.sh && \
 . /code/venv/bin/activate \
-pip install ./os2mo_data_import --upgrade \
 pip install -r ./integrations/requirements/common.txt \
-pip install -r ./integrations/requirements/test.txt 
+pip install -r ./integrations/requirements/test.txt \
+pip install ./os2mo_data_import --upgrade 
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH="${PYTHONPATH}:"

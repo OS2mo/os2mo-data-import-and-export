@@ -13,7 +13,8 @@
 
 variables:
   # Project variables
-  RELEASE_REGISTRY: index.docker.io/magentaaps
+  RELEASE_REGISTRY: docker.io
+  RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/dipex
   IMAGE_SHA: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
 
 workflow:
@@ -163,7 +164,7 @@ Build TestImage:
 Test LoraCache Exporter:
   extends: .test-python
   script:
-    - venv/bin/pytest exporters/sql_export/tests/
+    - venv/bin/python -m pytest -v exporters/sql_export/tests/
 
 Test AD Integration:  # runs outside image (unfortunately)
   stage: test
@@ -174,8 +175,7 @@ Test AD Integration:  # runs outside image (unfortunately)
   tags:
     - docker
   script:
-    - cd integrations/ad_integration/
-    - venv/bin/pytest tests/
+    - venv/bin/python -m pytest -v integrations/ad_integration/tests/
 
 Test Calculate Primary:
   extends: .test-python
@@ -189,7 +189,7 @@ Test OS2Sync Integration:
   variables:
     CUSTOMER_SETTINGS: /code/settings/kommune-andeby.json
   script:
-    - venv/bin/pytest integrations/os2sync/tests
+    - venv/bin/python -m pytest -v integrations/os2sync/tests
 
 Test CPR Mapper:
   extends: .test-python
@@ -216,23 +216,24 @@ Test OPUS Helpers:
 Test SDLoen Integration:
   extends: .test-python
   script:
-    - python integrations/SD_Lon/sd_cli.py --help
-    - pytest integrations/SD_Lon/tests/
+    - venv/bin/python -m pytest -v integrations/SD_Lon/sd_cli.py --help
+    - venv/bin/python -m pytest -v integrations/SD_Lon/tests/
 
 Test Reports:
   extends: .test-python
   script:
-    - pytest reports/os2mo_tests/ --ignore reports/os2mo_tests/test_viborg_managers.py
+    - venv/bin/python -m pytest -v reports/os2mo_tests/ --ignore reports/os2mo_tests/test_viborg_managers.py
 
 Test Exporter Utils:
   extends: .test-python
   script:
-    - pytest exporters/utils/tests/
+    - venv/bin/python -m pytest -v exporters/utils/tests/
 
 Test data_fixers:
   extends: .test-python
   script:
-    - python -m doctest -v tools/data_fixers/class_tools.py
+    - venv/bin/python -m doctest -v tools/data_fixers/class_tools.py
+
 
 # Release stage
 ###############
@@ -242,23 +243,35 @@ Build DIPEX:
 # use a small image with skopeo installed.
 .release-default: &release-default
   stage: release
-  needs: [ "Build TestImage", "Test data_fixers",
-   "Test Exporter Utils", "Test Reports", "Test SDLoen Integration", "Test OPUS Helpers", "Test OPUS importers", "Test OPUS Org Tree Print", "Test CPR Mapper", "Test AD Integration"]
-  image: alpine
+  needs: ["Build TestImage", "Test data_fixers", "Test Exporter Utils", "Test Reports", "Test SDLoen Integration", "Test OPUS Helpers", "Test OPUS importers", "Test OPUS Org Tree Print", "Test CPR Mapper", "Test AD Integration"]
+  image: alpine:3.13
   variables:
     GIT_STRATEGY: none # We do not need the source code
+  tags:
+    - docker
   before_script:
-    - apk add skopeo
+    - apk add skopeo=1.2.1-r0
 
-# Release job for rolling releases
-Release development:
+Release feature branch:
   <<: *release-default
   rules:
-  # Run this job on all commits to development
-  - if: $CI_COMMIT_REF_NAME == "development"
+    - if: $CI_COMMIT_REF_NAME =~ /^feature\/.+$/
   script:
-  - skopeo copy
+    - export IMAGE_FEATURE=$(echo "$CI_COMMIT_REF_NAME" | sed 's/\//_/g')
+    - echo "Releasing ${RELEASE_REGISTRY_IMAGE}/${IMAGE_FEATURE}"
+    - skopeo copy
+      --src-creds=${CI_REGISTRY_USER}:${CI_BUILD_TOKEN}
+      --dest-creds=${CI_REGISTRY_USER}:${CI_BUILD_TOKEN}
+      "docker://${IMAGE_SHA}"
+      "docker://${RELEASE_REGISTRY_IMAGE}/${IMAGE_FEATURE}"
+
+Release dev:
+  <<: *release-default
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "development"
+  script:
+    - skopeo copy
       --src-creds=${CI_REGISTRY_USER}:${CI_BUILD_TOKEN}
       --dest-creds=${RELEASE_REGISTRY_USER}:${RELEASE_REGISTRY_PASSWORD}
       "docker://${IMAGE_SHA}"
-      "docker://${RELEASE_IMAGE_LATEST}"
+      "docker://${RELEASE_REGISTRY_IMAGE}":latest
