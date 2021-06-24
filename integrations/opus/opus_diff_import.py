@@ -136,17 +136,6 @@ class OpusDiffImport(object):
             logger.debug("Requst had no effect")
         return None
 
-    def _add_klasse_to_lora(self, klasse_name, facet_uuid):
-        klasse_uuid = opus_helpers.generate_uuid(klasse_name)
-        logger.debug("Adding Klasse: {}, uuid: {}".format(klasse_name, klasse_uuid))
-        payload = payloads.klasse(klasse_name, self.org_uuid, facet_uuid)
-        url = "{}/klassifikation/klasse/{}"
-        response = requests.put(
-            url=url.format(self.settings["mox.base"], klasse_uuid), json=payload
-        )
-        assert response.status_code == 200
-        return response.json()
-
     def _get_organisationfunktion(self, lora_uuid):
         resource = "/organisation/organisationfunktion/{}"
         resource = resource.format(lora_uuid)
@@ -496,7 +485,10 @@ class OpusDiffImport(object):
         # TODO: Edit it system if value has changed.
         if not current:
             payload = payloads.connect_it_system_to_user(
-                username, it_system_uuid, person_uuid
+                username,
+                it_system_uuid,
+                person_uuid,
+                self.xml_date.strftime("%Y-%m-%d"),
             )
             logger.debug(f"{it_system} account payload: {payload}")
             response = self.helper._mo_post("details/create", payload)
