@@ -2,14 +2,13 @@ import datetime
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, List, Optional
-from retrying import retry
 
-from smb.base import NotConnectedError
 import fs
 from google.cloud import storage
 from more_itertools import one
-
 from ra_utils.load_settings import load_settings
+from retrying import retry
+from smb.base import NotConnectedError
 
 
 class OpusReaderInterface(ABC):
@@ -35,8 +34,10 @@ class OpusReaderInterface(ABC):
         latest_date = max(all_files.keys())
         return self.read_file(all_files[latest_date])
 
+
 def retry_on_SMBerror(exc):
     return isinstance(exc, NotConnectedError)
+
 
 class GcloudOpusReader(OpusReaderInterface):
     def __init__(self, settings):
@@ -54,7 +55,14 @@ class GcloudOpusReader(OpusReaderInterface):
     def read_file(self, blob) -> str:
         return blob.download_as_text()
 
-retry_args = {"stop_max_attempt_number":7, "wait_fixed":2000, "retry_on_exception":retry_on_SMBerror}
+
+retry_args = {
+    "stop_max_attempt_number": 7,
+    "wait_fixed": 2000,
+    "retry_on_exception": retry_on_SMBerror,
+}
+
+
 class SMBOpusReader(OpusReaderInterface):
     @retry(**retry_args)
     def __init__(self, settings):
@@ -63,7 +71,7 @@ class SMBOpusReader(OpusReaderInterface):
         password = self.settings["integrations.opus.smb_password"]
         smb_host = self.settings["integrations.opus.smb_host"]
         self.smb_fs = fs.open_fs(f"smb://{user}:{password}@{smb_host}")
-    
+
     @retry(**retry_args)
     def list_opus_files(self) -> Dict[datetime.datetime, str]:
         all_files = self.smb_fs.glob("*.xml")
