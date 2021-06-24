@@ -99,13 +99,13 @@ def terminate_manager(uuid, terminate_date):
     return payload
 
 
-def connect_it_system_to_user(username, it_system, person_uuid):
+def connect_it_system_to_user(username, it_system, person_uuid, from_date):
     payload = {
         "type": "it",
         "user_key": username,
         "itsystem": {"uuid": it_system},
         "person": {"uuid": person_uuid},
-        "validity": {"from": "1930-01-01", "to": None},
+        "validity": {"from": from_date, "to": None},
     }
     return payload
 
@@ -168,35 +168,5 @@ def edit_manager(
             ],
             "validity": validity,
         },
-    }
-    return payload
-
-
-# Same code is found in sd_payloads
-def klasse(klasse_navn, org, facet_uuid):
-    validity = {"from": "1930-01-01", "to": "infinity"}
-
-    # "integrationsdata":
-    properties = {
-        "brugervendtnoegle": klasse_navn,
-        "titel": klasse_navn,
-        "omfang": "TEXT",
-        "virkning": validity,
-    }
-    attributter = {"klasseegenskaber": [properties]}
-    relationer = {
-        "ansvarlig": [
-            {"objekttype": "organisation", "uuid": org, "virkning": validity}
-        ],
-        "facet": [{"objekttype": "facet", "uuid": facet_uuid, "virkning": validity}],
-    }
-    tilstande = {
-        "klassepubliceret": [{"publiceret": "Publiceret", "virkning": validity}]
-    }
-
-    payload = {
-        "attributter": attributter,
-        "relationer": relationer,
-        "tilstande": tilstande,
     }
     return payload
