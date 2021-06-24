@@ -140,7 +140,7 @@ Build TestImage:
     - /kaniko/executor
       --cache=true
       --context=$CI_PROJECT_DIR
-      --dockerfile=$CI_PROJECT_DIR/Dockerfile
+      --dockerfile=$CI_PROJECT_DIR/docker/Dockerfile
       --destination=${IMAGE_SHA}
 
 # Test stage
@@ -159,12 +159,13 @@ Build TestImage:
     HYPOTHESIS_PROFILE: ci
   before_script:
     - cd /code
+    - cp settings/kommune-andeby.json settings/settings.json
 
 
 Test LoraCache Exporter:
   extends: .test-python
   script:
-    - venv/bin/python -m pytest -v exporters/sql_export/tests/
+    - python3 -m pytest -v exporters/sql_export/tests/
 
 Test AD Integration:  # runs outside image (unfortunately)
   stage: test
@@ -175,7 +176,7 @@ Test AD Integration:  # runs outside image (unfortunately)
   tags:
     - docker
   script:
-    - venv/bin/python -m pytest -v integrations/ad_integration/tests/
+    - python3 -m pytest -v integrations/ad_integration/tests/
 
 Test Calculate Primary:
   extends: .test-python
@@ -189,50 +190,48 @@ Test OS2Sync Integration:
   variables:
     CUSTOMER_SETTINGS: /code/settings/kommune-andeby.json
   script:
-    - venv/bin/python -m pytest -v integrations/os2sync/tests
+    - python3 -m pytest -v integrations/os2sync/tests
 
 Test CPR Mapper:
   extends: .test-python
   script:
-    - venv/bin/python -m doctest -v integrations/cpr_mapper.py
+    - python3 -m doctest -v integrations/cpr_mapper.py
 
 Test OPUS Org Tree Print:
   extends: .test-python
   script:
-    - venv/bin/python -m doctest -v integrations/opus/org_tree_print/main.py
+    - python3 -m doctest -v integrations/opus/org_tree_print/main.py
 
 Test OPUS importers:
   extends: .test-python
   script:
-    - cp settings/kommune-andeby.json settings/settings.json
-    - venv/bin/python -m pytest -v integrations/opus/tests
+    - python3 -m pytest -v integrations/opus/tests
 
 Test OPUS Helpers:
   extends: .test-python
   script:
-    - cp settings/kommune-andeby.json settings/settings.json
-    - venv/bin/python -m doctest -v integrations/opus/opus_helpers.py
+    - python3 -m doctest -v integrations/opus/opus_helpers.py
 
 Test SDLoen Integration:
   extends: .test-python
   script:
-    - venv/bin/python -m pytest -v integrations/SD_Lon/sd_cli.py --help
-    - venv/bin/python -m pytest -v integrations/SD_Lon/tests/
+    - python3 -m pytest -v integrations/SD_Lon/sd_cli.py --help
+    - python3 -m pytest -v integrations/SD_Lon/tests/
 
 Test Reports:
   extends: .test-python
   script:
-    - venv/bin/python -m pytest -v reports/os2mo_tests/ --ignore reports/os2mo_tests/test_viborg_managers.py
+    - python3 -m pytest -v reports/os2mo_tests/ --ignore reports/os2mo_tests/test_viborg_managers.py
 
 Test Exporter Utils:
   extends: .test-python
   script:
-    - venv/bin/python -m pytest -v exporters/utils/tests/
+    - python3 -m pytest -v exporters/utils/tests/
 
 Test data_fixers:
   extends: .test-python
   script:
-    - venv/bin/python -m doctest -v tools/data_fixers/class_tools.py
+    - python3 -m doctest -v tools/data_fixers/class_tools.py
 
 
 # Release stage
@@ -243,7 +242,7 @@ Build DIPEX:
 # use a small image with skopeo installed.
 .release-default: &release-default
   stage: release
-  needs: ["Build TestImage", "Test data_fixers", "Test Exporter Utils", "Test Reports", "Test SDLoen Integration", "Test OPUS Helpers", "Test OPUS importers", "Test OPUS Org Tree Print", "Test CPR Mapper", "Test AD Integration"]
+  needs: ["Build TestImage", "Test data_fixers", "Test Exporter Utils", "Test Reports", "Test OPUS Helpers", "Test OPUS importers", "Test OPUS Org Tree Print", "Test CPR Mapper", "Test AD Integration"]
   image: alpine:3.13
   variables:
     GIT_STRATEGY: none # We do not need the source code
@@ -258,12 +257,12 @@ Release feature branch:
     - if: $CI_COMMIT_REF_NAME =~ /^feature\/.+$/
   script:
     - export IMAGE_FEATURE=$(echo "$CI_COMMIT_REF_NAME" | sed 's/\//_/g')
-    - echo "Releasing ${RELEASE_REGISTRY_IMAGE}/${IMAGE_FEATURE}"
+    - echo "Releasing ${RELEASE_REGISTRY_IMAGE}:${IMAGE_FEATURE}"
     - skopeo copy
       --src-creds=${CI_REGISTRY_USER}:${CI_BUILD_TOKEN}
-      --dest-creds=${CI_REGISTRY_USER}:${CI_BUILD_TOKEN}
+      --dest-creds=${RELEASE_REGISTRY_USER}:${RELEASE_REGISTRY_PASSWORD}
       "docker://${IMAGE_SHA}"
-      "docker://${RELEASE_REGISTRY_IMAGE}/${IMAGE_FEATURE}"
+      "docker://${RELEASE_REGISTRY_IMAGE}:${IMAGE_FEATURE}"
 
 Release dev:
   <<: *release-default
