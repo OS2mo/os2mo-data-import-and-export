@@ -357,7 +357,6 @@ class AdMoSync(object):
             return _func
 
         if self.lc:
-            print("Read engagements from LoraCache")
             # Read user's current engagements, e.g. exclude engagements that
             # ended in the past.
             engagements = self.lc.engagements.values()
@@ -381,7 +380,6 @@ class AdMoSync(object):
                 }
                 self._edit_engagement_post_to_mo(uuid, ad_object, engagement, validity)
         else:
-            print("Read engagements from MO")
             # Read user's current engagements, e.g. exclude engagements that
             # ended in the past.
             engagements = self.helper.read_user_engagement(
