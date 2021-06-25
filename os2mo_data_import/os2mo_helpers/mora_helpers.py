@@ -167,10 +167,7 @@ class MoraHelper:
 
                 return_dict = response.json()
             self.cache[cache_id] = return_dict
-        if (
-            response.status_code == 500
-            and return_dict.get("description") == "Server disconnected"
-        ):
+        if (response.status_code == 500) and ("has been deleted" not in response.text):
             response.raise_for_status()
 
         return return_dict
