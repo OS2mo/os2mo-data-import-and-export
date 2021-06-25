@@ -2,6 +2,7 @@ from unittest import TestCase
 
 from ..ad_writer import LoraCacheSource
 from ..utils import AttrDict
+from .mocks import MockMORESTSource
 
 
 class TestLoraCacheSource(TestCase):
@@ -46,7 +47,6 @@ class TestLoraCacheSource(TestCase):
                 }
             }
         )
-        self.datasource = LoraCacheSource(self.lc, self.lc_historic, None)
 
     def setup_user(self):
         return {
@@ -61,7 +61,8 @@ class TestLoraCacheSource(TestCase):
         }
 
     def test_read_user(self):
-        result = self.datasource.read_user("some_uuid_here")
+        datasource = self._get_datasource(None, None)
+        result = datasource.read_user("some_uuid_here")
         self.assertEqual(
             result,
             {
@@ -77,13 +78,20 @@ class TestLoraCacheSource(TestCase):
         )
 
     def test_get_engagement_dates(self):
-        result = self.datasource.get_engagement_dates(self.user["uuid"])
+        datasource = self._get_datasource("2020-01-01", None)
+        result = datasource.get_engagement_dates(self.user["uuid"])
         self.assertEqual(
             [list(elem) for elem in result],  # consume each iterable in result
             [["2020-01-01"], [None]],
         )
 
     def test_get_engagement_endpoint_dates(self):
-        result = self.datasource.get_engagement_endpoint_dates(self.user["uuid"])
+        datasource = self._get_datasource("2020-01-01", None)
+        result = datasource.get_engagement_endpoint_dates(self.user["uuid"])
         # "to_date" of None must be converted into "9999-12-31"
         self.assertEqual(result, ("2020-01-01", "9999-12-31"))
+
+    def _get_datasource(self, from_date, to_date):
+        return LoraCacheSource(
+            self.lc, self.lc_historic, MockMORESTSource(from_date, to_date)
+        )

@@ -235,16 +235,7 @@ class LoraCacheSource(MODataSource):
         Returns:
             tuple[list[str], list[str]]: A tuple of lists of start and end dates.
         """
-        user_engagements = filter(
-            lambda eng: eng["user"] == uuid,
-            map(itemgetter(0), self.lc.engagements.values()),
-        )
-        dates = map(itemgetter("from_date", "to_date"), user_engagements)
-        unzipped = unzip(dates)
-        if len(unzipped) == 0:
-            return [], []
-        from_dates, to_dates = unzipped
-        return from_dates, to_dates
+        return self.mo_rest_source.get_engagement_dates(uuid)
 
 
 class MORESTSource(MODataSource):

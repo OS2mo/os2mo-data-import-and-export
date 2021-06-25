@@ -15,6 +15,7 @@ from ..ad_exceptions import SamAccountNameNotUnique
 from ..ad_template_engine import illegal_parameters
 from ..ad_writer import LoraCacheSource
 from ..utils import AttrDict
+from .mocks import MockMORESTSource
 from .test_utils import dict_modifier
 from .test_utils import mo_modifier
 from .test_utils import TestADWriterMixin
@@ -888,7 +889,11 @@ class TestADWriter(TestCase, TestADWriterMixin):
             self.lc_historic = self.lc
             self.ad_writer.lc = self.lc
             self.ad_writer.lc_historic = self.lc_historic
-            self.ad_writer.datasource = LoraCacheSource(self.lc, self.lc_historic, None)
+            self.ad_writer.datasource = LoraCacheSource(
+                self.lc,
+                self.lc_historic,
+                MockMORESTSource(from_date=None, to_date=None),
+            )
             mo_values = self.ad_writer._read_ad_information_from_mo(uuid)
             return mo_values
 
