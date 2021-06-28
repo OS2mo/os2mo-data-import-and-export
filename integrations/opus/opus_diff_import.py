@@ -14,6 +14,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
 from requests import Session
 from tqdm import tqdm
+from retrying import retry
 
 import constants
 from integrations import dawa_helper
@@ -234,7 +235,8 @@ class OpusDiffImport(object):
                 else:
                     logger.warning("Could not find address in DAR")
         return opus_addresses
-
+    
+    @retry(stop_max_attempt_number=7)
     def _perform_address_update(self, args, current):
         addr_type = args["address_type"]["uuid"]
         if current is None:  # Create address
