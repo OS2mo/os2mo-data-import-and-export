@@ -10,6 +10,7 @@ class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
 
         # Currently primary is set first by engagement type (order given in
         # settings) and secondly by job_id.
+        # TODO: Check that configured eng_types exist
         self.eng_types_order = self.settings[
             "integrations.opus.eng_types_primary_order"
         ]
@@ -25,8 +26,8 @@ class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
                 return False
             return True
 
-        def remove_missing_user_key(user_uuid, no_past, eng):
-            return "user_key" in eng
+        def remove_missing_user_key(user_uuid, no_past, engagement):
+            return "user_key" in engagement
 
         self.calculate_filters = [
             engagements_included_in_primary_calculation,
@@ -71,8 +72,8 @@ class OPUSPrimaryEngagementUpdater(MOPrimaryEngagementUpdater):
         # If two engagements have the same engagement_type, the tie is broken by
         # picking the one with the lowest user-key integer.
         def get_engagement_type_id(engagement):
-            if engagement["engagement_type"] in self.eng_types_order:
-                return self.eng_types_order.index(engagement["engagement_type"])
+            if engagement["engagement_type"]["uuid"] in self.eng_types_order:
+                return self.eng_types_order.index(engagement["engagement_type"]["uuid"])
             return math.inf
 
         def get_engagement_order(engagement):
