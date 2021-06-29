@@ -13,7 +13,7 @@ def list_files(path: str) -> Tuple[str]:
     subpaths = listdir(path)
     # Add prefix to subpaths, and check if they are files or not
     prefixed_subpaths = map(partial(join, path), subpaths)
-    is_file = map(isfile, prefixed_subpaths)))
+    is_file = map(isfile, prefixed_subpaths)
     # Compress to only keep subpaths that are files
     return tuple(compress(subpaths, is_file))
 
