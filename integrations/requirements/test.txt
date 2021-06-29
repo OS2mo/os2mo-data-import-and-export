@@ -2,3 +2,5 @@
 parameterized==0.7.4
 hypothesis
 pytest
+alchemy_mock
+mimesis

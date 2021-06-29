@@ -1,16 +1,8 @@
-# TODO: Fix imports in module
-import sys
-from os.path import dirname
-
-sys.path.append(dirname(__file__))
-sys.path.append(dirname(__file__) + "/..")
-
 from unittest import TestCase
 
-from parameterized import parameterized
-
-from ad_writer import LoraCacheSource
-from utils import AttrDict
+from ..ad_writer import LoraCacheSource
+from ..utils import AttrDict
+from .mocks import MockMORESTSource
 
 
 class TestLoraCacheSource(TestCase):
@@ -20,11 +12,41 @@ class TestLoraCacheSource(TestCase):
             {
                 "users": {
                     self.user["uuid"]: [self.user],
+                },
+                "engagements": {
+                    "key-1": [
+                        # Current registration
+                        {
+                            "user": self.user["uuid"],
+                            "from_date": "2020-01-01",
+                            "to_date": None,
+                        },
+                        # Previous registration
+                        {
+                            "user": self.user["uuid"],
+                            "from_date": "2019-01-01",
+                            "to_date": "2021-01-01",
+                        },
+                    ],
+                },
+            }
+        )
+        self.lc_historic = AttrDict(
+            {
+                "engagements": {
+                    # Add some historic engagements that must not be read by
+                    # `get_engagement_dates`.
+                    "key-1": [
+                        # Current historic registration
+                        {
+                            "user": self.user["uuid"],
+                            "from_date": "2010-01-01",
+                            "to_date": "2019-12-31",
+                        },
+                    ]
                 }
             }
         )
-        self.lc_historic = AttrDict({})
-        self.datasource = LoraCacheSource(self.lc, self.lc_historic, None)
 
     def setup_user(self):
         return {
@@ -39,7 +61,8 @@ class TestLoraCacheSource(TestCase):
         }
 
     def test_read_user(self):
-        result = self.datasource.read_user("some_uuid_here")
+        datasource = self._get_datasource(None, None)
+        result = datasource.read_user("some_uuid_here")
         self.assertEqual(
             result,
             {
@@ -52,4 +75,23 @@ class TestLoraCacheSource(TestCase):
                 "nickname_surname": "some_lastname_alias",
                 "cpr_no": "some_cpr",
             },
+        )
+
+    def test_get_engagement_dates(self):
+        datasource = self._get_datasource("2020-01-01", None)
+        result = datasource.get_engagement_dates(self.user["uuid"])
+        self.assertEqual(
+            [list(elem) for elem in result],  # consume each iterable in result
+            [["2020-01-01"], [None]],
+        )
+
+    def test_get_engagement_endpoint_dates(self):
+        datasource = self._get_datasource("2020-01-01", None)
+        result = datasource.get_engagement_endpoint_dates(self.user["uuid"])
+        # "to_date" of None must be converted into "9999-12-31"
+        self.assertEqual(result, ("2020-01-01", "9999-12-31"))
+
+    def _get_datasource(self, from_date, to_date):
+        return LoraCacheSource(
+            self.lc, self.lc_historic, MockMORESTSource(from_date, to_date)
         )

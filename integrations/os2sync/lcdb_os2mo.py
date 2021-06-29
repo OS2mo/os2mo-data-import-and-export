@@ -6,14 +6,17 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import logging
+from typing import Optional
 
+from more_itertools import flatten
 from sqlalchemy.orm import sessionmaker
 
+from constants import AD_it_system
 from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
-from exporters.sql_export.sql_table_defs import (KLE, Adresse, Bruger,
-                                                 Engagement, Enhed,
-                                                 ItForbindelse)
+from exporters.sql_export.sql_table_defs import (Adresse, Bruger, Engagement, Enhed,
+                                                 ItForbindelse, ItSystem, KLE)
 from integrations.os2sync import config, os2mo
+from integrations.os2sync.templates import Person, User
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
@@ -41,17 +44,61 @@ scope_to_scope = {
 }
 
 
-def get_sts_user(session, uuid, allowed_unitids):
-    base = session.query(Bruger).filter(Bruger.uuid == uuid).one()
+def try_get_ad_user_key(session, uuid: str) -> Optional[str]:
+    ad_system_user_names = session.query(
+        ItForbindelse.brugernavn).join(ItSystem,
+                                       ItForbindelse.it_system_uuid == ItSystem.uuid
+                                       ).filter(ItSystem.navn == AD_it_system,
+                                                ItForbindelse.bruger_uuid == uuid
+                                                ).all()
+    ad_system_user_names = list(flatten(ad_system_user_names))
 
-    sts_user = {
-        "Uuid": uuid,
-        "UserId": base.bvn,
-        "Positions": [],
-        "Person": {"Name": base.fornavn + " " + base.efternavn, "Cpr": base.cpr},
-    }
-    if not settings["OS2SYNC_XFER_CPR"]:
-        sts_user["Person"]["Cpr"] = None
+    if len(ad_system_user_names) != 1:
+        return
+    return ad_system_user_names[0]
+
+def to_mo_employee(employee):
+    """Convert `Bruger` row `employee` to something which resembles a MO
+    employee JSON response.
+
+    This is done so we can pass a suitable template context to
+    `os2sync.templates.Person` even when running with `OS2SYNC_USE_LC_DB=True`.
+    """
+
+    def or_none(val):
+        return val or None
+
+    def to_name(*parts):
+        return or_none(" ".join(part for part in parts if part))
+
+    return dict(
+        # Name
+        name=to_name(employee.fornavn, employee.efternavn),
+        givenname=or_none(employee.fornavn),
+        surname=or_none(employee.efternavn),
+        # Nickname
+        nickname=to_name(employee.kaldenavn_fornavn, employee.kaldenavn_efternavn),
+        nickname_givenname=or_none(employee.kaldenavn_fornavn),
+        nickname_surname=or_none(employee.kaldenavn_efternavn),
+        # Other fields
+        cpr_no=or_none(employee.cpr),
+        user_key=or_none(employee.bvn),
+        uuid=or_none(employee.uuid),
+    )
+
+def get_sts_user(session, uuid, allowed_unitids):
+    employee = session.query(Bruger).filter(Bruger.uuid == uuid).one()
+
+    user = User(
+        dict(
+            uuid=uuid,
+            candidate_user_id=try_get_ad_user_key(session, uuid),
+            person=Person(to_mo_employee(employee), settings=settings),
+        ),
+        settings=settings,
+    )
+
+    sts_user = user.to_json()
 
     addresses = []
     for lc_address in session.query(

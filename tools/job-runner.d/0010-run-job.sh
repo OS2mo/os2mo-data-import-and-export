@@ -38,10 +38,10 @@ run-job(){
     local JOB=$1
     run-job-log ! job $1 ! job-status starting !
 
-    prometrics-job-start mo_${JOB}
+    prometrics-job-start ${JOB}
     $JOB
     JOB_STATUS=$?
-    prometrics-job-end mo_${JOB} ${JOB_STATUS}
+    prometrics-job-end ${JOB} ${JOB_STATUS}
 
     if [ "$JOB_STATUS" = "0" ] ; then
         run-job-log ! job $JOB ! job-status success !

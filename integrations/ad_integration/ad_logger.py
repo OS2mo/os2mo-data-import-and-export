@@ -1,22 +1,56 @@
-import logging
+import logging.config
 
-LOG_LEVEL = logging.DEBUG
+from .read_ad_conf_settings import read_settings
 
 
-def start_logging(log_file, detail_logging=None):
-    if detail_logging is None:
-        detail_logging = ('MoAdSync', 'AdReader', 'AdWriter', 'mora-helper',
-                          'AdSyncRead', 'MoUuidAdSync', 'LoraCache',
-                          'CreateAdUsers')
+class PasswordRemovalFormatter(logging.Formatter):
+    def __init__(self, *args, **kwargs):
+        settings = kwargs.pop("settings")
+        super().__init__(*args, **kwargs)
+        self._passwords = set(self._get_passwords_from_settings(settings))
 
-    for name in logging.root.manager.loggerDict:
-        if name in detail_logging:
-            logging.getLogger(name).setLevel(LOG_LEVEL)
-        else:
-            logging.getLogger(name).setLevel(logging.ERROR)
+    def format(self, record):
+        original = logging.Formatter.format(self, record)
+        return self._remove_password(original)
 
-    logging.basicConfig(
-        format='%(levelname)s %(asctime)s %(name)s %(message)s',
-        level=LOG_LEVEL,
-        filename=log_file
-    )
+    def _get_passwords_from_settings(self, settings):
+        for key in ("primary", "global"):
+            password = settings.get(key, {}).get("password")
+            if password:
+                yield password
+
+    def _remove_password(self, s):
+        for password in self._passwords:
+            s = s.replace(password, "*" * len(password))
+        return s
+
+
+def start_logging(log_file, **kwargs):
+    config = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "default": {
+                "format": "%(levelname)s %(asctime)s %(name)s: %(message)s",
+                "()": PasswordRemovalFormatter,
+                "settings": kwargs.get("settings") or read_settings(),
+            },
+        },
+        "handlers": {
+            "file": {
+                "formatter": "default",
+                "class": "logging.FileHandler",
+                "filename": log_file,
+            },
+        },
+        "loggers": {
+            "": {
+                "handlers": ["file"],
+                "level": "DEBUG",
+            },
+            "urllib3": {
+                "level": "WARNING",
+            },
+        },
+    }
+    logging.config.dictConfig(config)

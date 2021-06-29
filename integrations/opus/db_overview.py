@@ -1,6 +1,7 @@
 import json
 import pathlib
 import sqlite3
+from ra_utils.load_settings import load_settings
 
 # TODO:
 # This file exists in two quite similar versions.
@@ -9,12 +10,7 @@ import sqlite3
 
 class DBOverview(object):
     def __init__(self):
-        # TODO: Soon we have done this 4 times. Should we make a small settings
-        # importer, that will also handle datatype for specicic keys?
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = load_settings()
 
     def read_db_content(self):
         conn = sqlite3.connect(self.settings['integrations.opus.import.run_db'],

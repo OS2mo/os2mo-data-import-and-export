@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<kmd>
+ <orgUnit id="1" client="813" lastChanged="2020-09-16">
+  <startDate>1900-01-01</startDate>
+  <endDate>9999-12-31</endDate>
+  <parentOrgUnit/>
+  <shortName>AND.K</shortName>
+  <longName>Andeby Kommune</longName>
+  <street>Paradisæblevej 1</street>
+  <zipCode>8880</zipCode>
+  <city>Andeby</city>
+  <phoneNumber>9109384</phoneNumber>
+  <cvrNr>1829458</cvrNr>
+  <eanNr>345839</eanNr>
+  <seNr>39583495</seNr>
+  <pNr>0000000000</pNr>
+  <orgType>00000</orgType>
+  <orgTypeTxt>Organisation</orgTypeTxt>
+ </orgUnit>
+ <orgUnit id="2" client="813" lastChanged="2020-09-16">
+  <startDate>1900-01-01</startDate>
+  <endDate>9999-12-31</endDate>
+  <parentOrgUnit>1</parentOrgUnit>
+  <shortName>Underenhed</shortName>
+  <longName>Underenhed 1</longName>
+  <street>Paradisæblevej 2</street>
+  <zipCode>8880</zipCode>
+  <city>Andeby</city>
+  <phoneNumber>94583958</phoneNumber>
+  <cvrNr>3459345788</cvrNr>
+  <eanNr>234528367</eanNr>
+  <seNr>34590365</seNr>
+  <pNr>923458347</pNr>
+  <costCenter>345300000000</costCenter>
+  <orgType>00001</orgType>
+  <orgTypeTxt>Direktion</orgTypeTxt>
+ </orgUnit>
+ <orgUnit id="3" client="813" lastChanged="2015-01-16">
+  <startDate>1900-01-01</startDate>
+  <endDate>9999-12-31</endDate>
+  <parentOrgUnit>2</parentOrgUnit>
+  <shortName>U-U-Enh</shortName>
+  <longName>Under-under-enhed</longName>
+  <street>Paradisæblevej 3</street>
+  <zipCode>8880</zipCode>
+  <city>Andeby</city>
+  <phoneNumber>89345738</phoneNumber>
+  <cvrNr>9347358</cvrNr>
+  <eanNr>82346427</eanNr>
+  <seNr>834738</seNr>
+  <pNr>9345738</pNr>
+  <costCenter>32492430</costCenter>
+  <orgType>00002</orgType>
+  <orgTypeTxt>Center</orgTypeTxt>
+ </orgUnit>
+  <employee id="1000" client="813" lastChanged="2020-10-01">
+  <entryDate/>
+  <leaveDate/>
+  <cpr suppId="0">0101010000</cpr>
+  <firstName>Fornavn</firstName>
+  <lastName>Efteravn</lastName>
+  <address>Testvej 10</address>
+  <postalCode>9900</postalCode>
+  <city>Frederikshavn</city>
+  <country>DK</country>
+  <workPhone/>
+  <workContract>08</workContract>
+  <workContractText>Ansat</workContractText>
+  <positionId>500</positionId>
+  <position>Ansat</position>
+  <positionShort>TESTER</positionShort>
+  <isManager>false</isManager>
+  <superiorLevel>0</superiorLevel>
+  <subordinateLevel>00</subordinateLevel>
+  <orgUnit>3</orgUnit>
+  <payGradeText>TEST.</payGradeText>
+  <numerator>1 </numerator>
+  <denominator>1 </denominator>
+ </employee>
+   <employee id="1001" client="813" lastChanged="2020-01-19">
+  <entryDate/>
+  <leaveDate/>
+  <cpr suppId="0">0101010000</cpr>
+  <firstName>Fornavn1</firstName>
+  <lastName>Efteravn2</lastName>
+  <address>Testvej 10</address>
+  <postalCode>9900</postalCode>
+  <city>Frederikshavn</city>
+  <country>DK</country>
+  <workPhone/>
+  <workContract>08</workContract>
+  <workContractText>Ansat</workContractText>
+  <positionId>500</positionId>
+  <position>Ansat</position>
+  <positionShort>TESTER</positionShort>
+  <isManager>false</isManager>
+  <superiorLevel>0</superiorLevel>
+  <subordinateLevel>00</subordinateLevel>
+  <orgUnit>3</orgUnit>
+  <payGradeText>TEST.</payGradeText>
+  <numerator>1 </numerator>
+  <denominator>1 </denominator>
+ </employee>
+    <employee id="1002" client="813" lastChanged="2020-01-19">
+  <entryDate/>
+  <leaveDate/>
+  <cpr suppId="0">0101010000</cpr>
+  <firstName>Fornavn1</firstName>
+  <lastName>Efteravn2</lastName>
+  <address>Testvej 10</address>
+  <postalCode>9900</postalCode>
+  <city>Frederikshavn</city>
+  <country>DK</country>
+  <workPhone/>
+  <workContract>08</workContract>
+  <workContractText>Ansat</workContractText>
+  <positionId>500</positionId>
+  <position>Ansat</position>
+  <positionShort>TESTER</positionShort>
+  <isManager>false</isManager>
+  <superiorLevel>0</superiorLevel>
+  <subordinateLevel>00</subordinateLevel>
+  <orgUnit>3</orgUnit>
+  <payGradeText>TEST.</payGradeText>
+  <numerator>1 </numerator>
+  <denominator>1 </denominator>
+ </employee>
+  <employee id="999" client="813" action="leave"/>
+</kmd>

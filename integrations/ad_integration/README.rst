@@ -29,7 +29,7 @@ Integrationen går via i alt tre maskiner:
 Når integrationen er i drift, genererer den PowerShell kommandoer som sendes til
 remote management serveren som afvikler dem mod AD serveren. Denne omvej hænger
 sammen med, at MO afvikles fra et Linux miljø, hvorimod PowerShell kommunikation
-med AD bedst afvikles fra et Windows miljø. 
+med AD bedst afvikles fra et Windows miljø.
 
 For at kunne afvikle integrationen kræves der udover den nævnte opsætning af enten Kerberos eller ntlm,
 at AD er sat op med cpr-numre på medarbejdere samt en servicebruger som har
@@ -37,21 +37,21 @@ rettigheder til at læse dette felt. Desuden skal et antal variable være sat i
 ``settings.json``
 
 Det er muligt at anvende flere AD til udlæsning af adresser og itsystemer til OS2MO
-Således er ``integrations.ad`` i ``settings.json`` et array med følgende 
+Således er ``integrations.ad`` i ``settings.json`` et array med følgende
 indbyggede betydning:
- 
- * Første AD i listen (index 0) anvendes til skrivning (hvis skrivning er aktiveret) 
+
+ * Første AD i listen (index 0) anvendes til skrivning (hvis skrivning er aktiveret)
    og til integrationer, som endnu ikke er forberedt for flere ad'er.
 
- * Alle AD'er anvendes af ad_sync til opdatering af og skabelse af adresser, itsystemer 
+ * Alle AD'er anvendes af ad_sync til opdatering af og skabelse af adresser, itsystemer
 
 Opsætning af ntlm over https
 ----------------------------
 For at kunne autentificere med ntlm over https kræver det at settingsfilen indeholder brugernavn og password
-til en systembruger fra et domæne - modsat lokalt oprettet bruger - samt metoden 'ntlm'. Se bekrivelsen af parametre herunder. Brugeren skal desuden have 
+til en systembruger fra et domæne - modsat lokalt oprettet bruger - samt metoden 'ntlm'. Se bekrivelsen af parametre herunder. Brugeren skal desuden have
 administratorrettigheder på windowsserveren, samt rettigheder til at læse og evt. skrive i AD.
-Dette gælder også feltet der indeholder CPR numre der kan være indstillet til 'confidential'. 
-I så fald skal rettigheden gives gennem programmet ldp. 
+Dette gælder også feltet der indeholder CPR numre der kan være indstillet til 'confidential'.
+I så fald skal rettigheden gives gennem programmet ldp.
 For at sætte winrm op med https vha. et SelfSignedCertificate kan man følge nedenstående:
 Erstat "Computernavn" med serverens Hostname.
 
@@ -65,7 +65,7 @@ Det giver et 'thumbprint' i stil med "54B8571D6D0C0C89473ED5470A45EDC5A68AA2C3"
 
 2. Dette sættes ind i følgende kommando i en kommandoprompt (ikke powershell) også som administrator:
 
-.. code-block:: 
+.. code-block::
 
   winrm create winrm/config/Listener?Address=*+Transport=HTTPS @{Hostname="Computernavn"; CertificateThumbprint="54B8571D6D0C0C89473ED5470A45EDC5A68AA2C3"}
 
@@ -114,7 +114,7 @@ For hvert ad angives
    at cpr-fremsøge medarbejder som har denne værdi foranstillet i SAM-navn.
    Funktionen muliggør at skelne mellem brugere og servicebrugere som har samme
    cpr-nummer.
- * ``caseless_samname``: Hvis denne værdi er ``true`` (Default) vil sam_filter 
+ * ``caseless_samname``: Hvis denne værdi er ``true`` (Default) vil sam_filter
    ikke se forskel på store og små bogstaver.
  * ``system_user``: Navnet på den systembruger som har rettighed til
    at læse fra AD.
@@ -178,7 +178,7 @@ En test af skrivning foregår efter denne opskrift:
 Hvis disse tests går igennem, anses opsætningen for at være klar til
 AD skriv integrationen.
 
-   
+
 Brug af integrationen
 =====================
 
@@ -229,7 +229,7 @@ Hvis man i dette tilfælde sætter ``integrations.ad.discriminator.function``
 til ``include`` vil kontoen opfattes som primær hvis 'Medarbejder' også findes i
 ``integrations.ad.discriminator.values``
 
-Opfattes mere end en konto som primær tages den første, man støder på - 
+Opfattes mere end en konto som primær tages den første, man støder på -
 I så tilfælde fungerer ``integrations.ad.discriminator.values`` som en prioriteret liste
 
 Findes nøglen ``integrations.ad.discriminator.field``, skal de andre to nøgler
@@ -262,9 +262,6 @@ skal være sat når programmet afvikles:
  * ``integrations.ad.write.level2orgunit_type``: uuid på den enhedstype som angiver
    at enheden er en organisatorisk hovedgruppering og derfor skal skrives i feltet
    angivet i ``integrations.ad.write.level2orgunit_field``.
- * ``integrations.ad.write.create_user_trees``: Liste over uuid'er på enheder,
-   medarbejdere i disse enheder samt deres underheder, vil få oprettet AD en
-   konto af scriptet `ad_life_cycle.py` hvis de ikke har en i forvejen.
 
 
 Skabelse af brugernavne
@@ -308,13 +305,17 @@ AD til MO
 
 Synkronisering fra AD til MO foregår via programmet ``ad_sync.py``.
 
-Programmet opdaterer alle værdier i MO i henhold til den feltmapning som er angivet
+Programmet opdaterer alle værdier i MO i henhold til den feltmapning, som er angivet
 i `settings.json`. Det er muligt at synkronisere adresseoplysninger, samt at
 oprette et IT-system på brugeren, hvis brugeren findes i AD, men endnu ikke har et
-tilknyttet IT-system i MO. Desuden er det muligt at synkronisere et AD felt til
-et felt på brugerens primærengagement (typisk stillingsbetegnelsen). 
+tilknyttet IT-system i MO. Desuden er det muligt at synkronisere et AD-felt til
+et felt på brugerens primærengagement (typisk stillingsbetegnelsen).
+
+``ad_sync.py`` er ejer over det MO-data, som programmet skriver til.
+
+Hvis ``ad_sync.py`` er sat op til udlæse fra flere AD-servere:
 Husk at efterfølgende AD kan overskrive. Derfor:
-Anvend ikke samme klasser, itsystemer eller extensionfelter i flere af 
+Anvend ikke samme klasser, itsystemer eller extensionfelter i flere af
 de specificerede AD'er
 
 Et eksempel på en feltmapning angives herunder:
@@ -322,6 +323,9 @@ Et eksempel på en feltmapning angives herunder:
 .. code-block:: json
 
     "ad_mo_sync_mapping": {
+        "user_attrs": {
+            "samAccountName": "user_key"
+        },
         "user_addresses": {
             "telephoneNumber": ["a6dbb837-5fca-4f05-b369-8476a35e0a95", "INTERNAL"],
             "pager": ["d9cd7a04-a992-4b31-9534-f375eba2f1f4 ", "PUBLIC"],
@@ -336,25 +340,25 @@ Et eksempel på en feltmapning angives herunder:
         }
     }
 
-For adresser angives en synlighed, som kan antage værdien `PUBLIC`, `INTERNAL`,
-`SECRET` eller `null` som angiver at synligheden i MO sættes til henholdsvis
-offentlig, intern, hemmelig, eller ikke angivet. UUID'er er på de tilhørende
-adresseklasser i MO som AD felterne skal mappes til.
+I ``user_attrs`` kan AD-felter på brugere mappes til tilsvarende felter i MO.
+I eksemplet er AD-feltet ``samAccountName`` således mappet til MO-feltet ``user_key``.
 
-Hvis der findes flere adresser i MO med samme type og synlighed, springer
-programmet den givne adresse over, og skriver en advarsel i loggen. Det
-forventes herefter at brugeren af programmet løser denne situation, enten ved
-at sikre unikheden direkte, eller ved oprettelse af en speciel adresseklasse
-som udelukkende benyttes af AD, hvormed unikheden sikres ad den vej.
+I ``user_addresses`` kan AD-felter mappes til MO-adresseoplysninger.
+Her angives en synlighed, som kan antage værdierne `PUBLIC`, `INTERNAL`, `SECRET`
+eller `null`, hvilket angiver at synligheden i MO sættes til hhv. offentlig, intern,
+hemmelig, eller ikke angivet.
+UUID'erne identificerer de adresseklasser i MO, som AD-felterne skal mappes til.
 
-Hvis der for en given bruger er felter i feltmapningen som ikke findes i AD, vil
-disse felter bliver sprunget over, men de øvrige felter vil stadig blive
-synkroniseret.
+Hvis der findes flere adresser i MO med samme type og synlighed, vil programmet
+opdatere den først fundne MO-adresse, og afslutte de andre matchende MO-adresser.
+
+Hvis der for en given bruger er felter i feltmapningen, som ikke findes i AD, vil
+disse felter blive sprunget over, men de øvrige felter vil stadig blive synkroniseret.
 
 Selve synkroniseringen foregår ved at programmet først udtrækker samtlige
 medarbejdere fra MO, der itereres hen over denne liste, og information fra AD'et
 slås op med cpr-nummer som nøgle. Hvis brugeren findes i AD, udlæses alle parametre
-angivet i `integrations.ad.properties` og de af dem som figurerer i feltmapningen
+angivet i `integrations.ad.properties` og de af dem, som figurerer i feltmapningen,
 synkroniseres til MO.
 
 Integrationen vil som udgangspunkt ikke synkronisere fra et eventuelt skole AD, med
@@ -366,120 +370,300 @@ afslutning af deaktiverede AD brugere.
 
 Deaktiverede AD brugere kan håndteres på forskellige måder.
 Som udgangspunkt synkroniseres de på præcis samme vis som almindelige brugere,
-med mindre nøglen `integrations.ad.ad_mo_sync_terminate_disabled` er sat til `True`.
+med mindre nøglen `ad_mo_sync_terminate_disabled` er sat til `True`.
 Hvis dette er tilfælde ophører den automatiske synkronisering, og deaktiverede
-brugere får deres AD data 'afsluttet'.
+brugere får i stedet deres AD data 'afsluttet'.
 Ved afslutning forstås at brugerens AD synkroniserede adresser og it-systemer
 flyttes til fortiden, såfremt de har en åben slutdato.
+
+Hvis nøglen `ad_mo_sync_terminate_disabled` ikke er fintmasket nok,
+f.eks. fordi deaktiverede brugere dækker over både brugere som er under oprettelse
+og brugere som er under nedlæggelse, kan et være nødvendigt at tage stilling til
+om en given deaktiveret bruger skal nedlægges eller synkroniseres på baggrund af
+AD dataene fra den enkelte bruger.
+
+Dette understøttes vha. `ad_mo_sync_terminate_disabled_filters` nøglen.
+Denne nøgle indeholder en liste af jinja templates.
+Disse templates kan returnere en sand værdi for at terminere brugeren, eller en
+falsk værdi for at synkronisere brugeren.
+Kun hvis samtlige filtre returnere sand vil brugeren blive termineret, hvis blot ét
+af filtrene returnerer falsk vil brugeren i stedet blive synkroniseret. Resultaterne
+for evaluering af filtrene sammenholdes altså med en 'AND' operation.
+
+Værdierne der vurderes som sande er "yes", "true", "1" og "1.0".
+
+   Eksempel 1:
+
+   Vi ønsker kun at terminere brugere, hvis MO UUID starter med 8 nuller, f.eks.:
+   '00000000-e4fe-47af-8ff6-187bca92f3f9'.
+
+   For at opnå dette kan vi lave følgende konfiguration:
+
+   .. code-block:: json
+
+       {
+           "ad_mo_sync_terminate_disabled_filters": [
+               "{{ uuid.startswith('00000000') }}"
+           ]
+       }
+
+   Eksempel 2:
+
+   Vi holder i vores AD et extensionAttribute felt til livtidstilstanden af brugerne.
+   Lad os antage at der er tale om feltet `extensionAttribute3`, der kan holde værdierne:
+
+   * `"Ny bruger"`: Som skal synkroniseres
+   * `"På orlov"`: Som skal synkroniseres
+   * `"Under sletning"`: Som skal termineres
+
+   Vi ønsker altså at termineringsadfærden skal afledes af feltets værdi i AD.
+
+   For at opnå dette kan vi lave følgende konfiguration:
+
+   .. code-block:: json
+
+       {
+           "ad_mo_sync_terminate_disabled_filters": [
+               "{{ ad_object['extenionAttribute3'] == 'Under sletning' }}"
+           ]
+       }
+
+Såfremt nogle brugere hverken ønskes terminerede eller synkroniserede kan de
+filtreres fra vha. `ad_mo_sync_pre_filters` nøglen.
+Denne nøgle indeholder en liste af jinja templates.
+Disse templates kan returnere en sand værdi for at beholde brugeren, eller en
+falsk værdi for filtrere brugeren fra.
+Kun hvis samtlige filtre returnerer sand vil brugeren blive beholdt, hvis blot ét
+af filtrene returnerer falsk vil brugeren i stedet blive filtreret fra.
+Resultaterne for evaluering af filtrene sammenholdes altså med en 'AND' operation.
+
+   Eksempel 1:
+
+   I det forrige Eksempel 2 så vi på en situation hvor et AD felt benyttes til at
+   afgøre om hvorvidt brugere skulle termineres eller synkroniseres.
+
+   Lad os antage at vi stadig har konfigurationen herfra i vores settings.json fil,
+   men nu ønsker slet ikke at synkronisere `"På orlov"` brugerne overhovedet.
+
+   For at opnå dette kan vi lave følgende konfiguration:
+
+   .. code-block:: json
+
+       {
+           "ad_mo_sync_terminate_disabled_filters": [
+               "{{ ad_object['extenionAttribute3'] == 'Under sletning' }}"
+           ],
+           "ad_mo_sync_pre_filters": [
+               "{{ ad_object['extenionAttribute3'] != 'På orlov' }}"
+           ]
+       }
+
+Foruden terminering af MO kontos hvor AD brugeren er deaktiveret, kan MO kontos
+hvor en tilsvarende AD bruger ikke kan findes, også termineres automatisk.
+Denne funktionalitet aktiveres ved at sætte med nøglen
+`ad_mo_sync_terminate_missing` til `True`.
+
+Disse brugere med manglende AD konti kan desuden begrænses således at der kun
+termineres brugere der tidligere har været oprettet i AD. Dette sker ved at tjekke
+om brugerens MO konti har et AD it-system svarende til konfigurationen i
+``it_systems -> samAccountName``. Denne adfærd kan slås fra ved at sætte nøglen:
+`ad_mo_sync_terminate_missing_require_itsystem` til `False`,
+hvorefter SAMTLIGE MO brugere uden en tilhørende AD konti vil blive termineret.
+Dette vil typisk betyde at et stort antal historiske brugere vil få termineret deres
+adresser og itsystemer.
 
 Slutteligt skal det nævnes, at implemeneringen af synkroniseringen understøtter
 muligheden for at opnå en betydelig hastighedsforbering ved at tillade direkte adgang
 til LoRa, denne funktion aktiveres med nøglen
-`integrations.ad.ad_mo_sync_direct_lora_speedup` og reducerer kørselstiden
-betragteligt. Hvis der er få ændringer vil afviklingstiden komme ned på nogle få
-minutter.
+`integrations.ad.ad_mo_sync_direct_lora_speedup` og reducerer kørselstiden betragteligt.
+Hvis der er få ændringer vil afviklingstiden komme ned på nogle få minutter.
 
 MO til AD
 +++++++++
 
-Synkronisering fra MO til AD foregår efter en algoritme hvor der itereres hen over
-alle AD brugere. Hver enkelt bruger slås op i MO via feltet angivet i nøglen
-`integrations.ad.write.uuid_field` og informatione fra MO synkroniseres
-til AD i henhold til den lokale feltmapning. AD-integrationen stiller et antal
-værdier til rådighed, som det er muligt at synkronisere til felter i AD. Flere
-kan tilføjes efterhånden som integrationen udvikles.
+Synkronisering fra MO til AD foregår således:
 
- * ``employment_number``: Lønsystemets ansættelsesnummer for medarbejderens primære
-   engagement.
- * ``end_date``: Slutdato for længste ansættelse i MO, hvis en ansættelse ikke har
-   nogen kendt slutdato, angives 9999-12-31.
- * ``uuid``: Brugerens UUID i MO.
- * ``title``: Stillingsbetegnelse for brugerens primære engagement.
- * ``unit``: Navn på enheden for brugerens primære engagement.
- * ``unit_uuid``: UUID på enheden for brugerens primære engagement.
- * ``unit_user_key``: Brugervendt nøgle for enheden for brugerens primære engagement,
-   dette vil typisk være lønssystemets kortnavn for enheden.
- * ``unit_public_email``: Email på brugerens primære enhed med synligheen ``offentlig``
- * ``unit_secure_email``: Email på brugerens primære enhed med synligheen ``hemmelig``.
-   Hvis enheden kun har email-adresser uden angivet synlighed, vil den blive agivet
-   her.
- * ``unit_postal_code``: Postnummer for brugerens primære enhed.
- * ``unit_city``: By for brugerens primære enhed.
- * ``unit_streetname``: Gadenavn for brugerens primære enhed.
- * ``location``: Fuld organisatorisk sti til brugerens primære enhed.
- * ``level2orgunit``: Den oganisatoreiske hovedgruppering (Magistrat, direktørområde,
-   eller forvalting) som brugerens primære engagement hører under.
- * ``manager_name``: Navn på leder for brugerens primære engagement.
- * ``manager_cpr``: CPR på leder for brugerens primære engagement.
- * ``manager_sam``: SamAccountName for leder for brugerens primære engagement.
- * ``manager_mail``: Email på lederen for brugerens primære engagement.
+* der itereres hen over alle AD-brugere
+* hver enkelt AD-bruger slås op i MO via feltet angivet i nøglen
+  `integrations.ad.write.uuid_field`
+* data om den tilsvarende MO-bruger synkroniseres til AD i henhold til konfigurationen
+  (se nedenfor)
 
-Felterne ``level2orgunit`` og ``location`` synkroniseres altid til felterne angivet i
-nøglerner ``integrations.ad.write.level2orgunit_type`` og
-``integrations.ad.write.org_unit_field``, og skal derfor ikke specificeres yderligere
-i feltmapningen.
+AD-integrationen stiller et antal MO-værdier til rådighed, som det er muligt at
+synkronisere til felter på AD-brugere. Flere MO-værdier kan tilføjes, efterhånden som
+integrationen udvikles. Her er en liste over de MO-værdier, integrationen stiller til
+rådighed i dag:
 
-Desuden synkroniseres  altid AD felterne:
- * `Displayname`: Synkroniseres til medarbejderens fulde navn
- * `GivenName`: Synkroniseres til medarbejderens fornavn
- * `SurName`: Synkroniseres til medarbejderens efternavn
- * `Name`: Synkroniseres til vædien
-   "`Givenname`  `Surname`  - `Sam_account_name`"
- * `EmployeeNumber`: Synkroniseres til `employment_number`
+.. _MO-værdier:
 
-Yderligere synkronisering fortages i henhold til en lokal feltmaping, som eksempelvis
+.. list-table:: MO-værdier
+   :widths: 15 85
+   :header-rows: 1
+
+   * - Feltnavn
+     - Beskrivelse af indhold
+   * - ``employment_number``
+     -  Lønsystemets ansættelsesnummer for medarbejderens primære engagement.
+   * - ``end_date``
+     - Slutdato for længste ansættelse i MO.
+       Hvis en ansættelse ikke har nogen kendt slutdato, angives 9999-12-31.
+   * - ``uuid``
+     - Brugerens UUID i MO.
+   * - ``title``
+     - Stillingsbetegnelsen for brugerens primære engagement.
+   * - ``unit``
+     - Navn på enheden for brugerens primære engagement.
+   * - ``unit_uuid``
+     - UUID på enheden for brugerens primære engagement.
+   * - ``unit_user_key``
+     - Brugervendt nøgle for enheden for brugerens primære engagement.
+       Dette vil typisk være lønsystemets korte navn for enheden.
+   * - ``unit_public_email``
+     - Email på brugerens primære enhed med synligheden ``offentlig``.
+   * - ``unit_secure_email``
+     - Email på brugerens primære enhed med synligheden ``hemmelig``.
+       Hvis enheden kun har email-adresser uden angivet synlighed, vil den blive angivet
+       her.
+   * - ``unit_postal_code``
+     - Postnummer for brugerens primære enhed.
+   * - ``unit_city``
+     - By for brugerens primære enhed.
+   * - ``unit_streetname``
+     - Gadenavn for brugerens primære enhed.
+   * - ``location``
+     - Fuld organisatorisk sti til brugerens primære enhed.
+   * - ``level2orgunit``
+     - Den organisatoriske hovedgruppering (magistrat, direktørområde, eller forvaltning)
+       som brugerens primære engagement hører under.
+   * - ``manager_name``
+     - Navn på leder for brugerens primære engagement.
+   * - ``manager_cpr``
+     - CPR-nummer på leder for brugerens primære engagement.
+   * - ``manager_sam``
+     - ``SamAccountName`` for leder for brugerens primære engagement.
+   * - ``manager_mail``
+     - Email på lederen for brugerens primære engagement.
+
+MO-felterne ``level2orgunit`` og ``location`` synkroniseres altid til felterne angivet i
+konfigurationsnøglerne ``integrations.ad.write.level2orgunit_type`` og
+``integrations.ad.write.org_unit_field``, og skal derfor ikke specificeres yderligere i
+feltmapningen.
+
+Synkroniseringen til AD foretages i henhold til en lokal feltmapning, som eksempelvis
 kan se ud som dette:
 
 .. code-block:: json
 
-   "integrations.ad_writer.mo_to_ad_fields": {
-	"unit_postal_code": "postalCode",
-	"unit_city": "l",
-	"unit_user_key": "department",
-	"unit_streetname": "streetAddress",
-	"unit_public_email": "extensionAttribute3",
-	"title": "Title",
-	"unit": "extensionAttribute2"
-   }
+  "integrations.ad_writer.mo_to_ad_fields": {
+    "unit_postal_code": "postalCode",
+    "unit_city": "l",
+    "unit_user_key": "department",
+    "unit_streetname": "streetAddress",
+    "unit_public_email": "extensionAttribute3",
+    "title": "Title",
+    "unit": "extensionAttribute2"
+  }
 
-Formattet for denne skal læses som: MO felt --> AD felt, altså mappes
-`unit_public_email` fra MO til `extensionAttribute3` i AD.
+Formatet for ``mo_to_ad_fields`` er: MO-felt -> AD-felt. Altså mappes
+`unit_public_email` fra MO til `extensionAttribute3` i AD i ovenstående eksempel.
 
-Som et alternativ til denne direkte 1-til-1 felt-mapning er der mulighed for en
-mere fleksibel mapning vha. `jinja` skabeloner (Se eventuelt her:
-https://jinja.palletsprojects.com/en/2.11.x/templates/ (Engelsk)).
+MO til AD - tilpasning vha. Jinja-templates
++++++++++++++++++++++++++++++++++++++++++++
 
-Brug af jinja skabelon for AD feltmapning, kan eksempelvis se ud som dette:
+Som et alternativ til den ovennævnte direkte 1-til-1 feltmapning (`mo_to_ad_fields`) er
+der også mulighed for en mere fleksibel felt-mapning vha. såkaldte `Jinja`-skabeloner.
+Dette giver yderligere muligheder for at tilpasse formatteringen af de enkelte værdier,
+der skrives i AD. Se eventuelt her: https://jinja.palletsprojects.com/en/2.11.x/templates/
+(linket er på engelsk.)
+
+Standard-opsætningen af AD-integrationen indeholder flg. Jinja-templates:
 
 .. code-block:: json
 
-   "integrations.ad_writer.template_to_ad_fields": {
-	"postalCode": "{{ mo_values['unit_postal_code'] }}",
-	"department": "{{ mo_values['unit_user_key'] }}",
-	"streetName": "{{ mo_values['unit_streetname'].split(' ')[0] }}",
+  "integrations.ad_writer.template_to_ad_fields": {
+    "Name": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }} - {{ user_sam }}",
+    "Displayname": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }}",
+    "GivenName": "{{ mo_values['name'][0] }}",
+    "SurName": "{{ mo_values['name'][1] }}",
+    "EmployeeNumber": "{{ mo_values['employment_number'] }}"
+  }
+
+De felter, der er tilgængelige i ``mo_values``, er beskrevet her: :ref:`MO-værdier`.
+
+Med denne standard-opsætning oprettes der brugere i AD på denne form:
+
+.. list-table:: Eksempel
+   :header-rows: 1
+
+   * - AD-felt
+     - Indhold
+   * - `Name`
+     - "Fornavn Efternavn - Sam_account_name"
+   * - `Displayname`
+     - "Fornavn Efternavn"
+   * - `GivenName`
+     - "Fornavn"
+   * - `SurName`
+     - "Efternavn"
+   * - `EmployeeNumber`
+     - "A1234"
+
+Standard-opsætningen kan udvides eller erstattes. Eksempelvis kan opsætningen udvides
+til også at udfylde postnummer, afdeling, gadenavn og en `extension attribute` således:
+
+.. code-block:: json
+
+  "integrations.ad_writer.template_to_ad_fields": {
+    "# standard-felter": "",
+    "Name": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }} - {{ user_sam }}",
+    "Displayname": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }}",
+    "GivenName": "{{ mo_values['name'][0] }}",
+    "SurName": "{{ mo_values['name'][1] }}",
+    "EmployeeNumber": "{{ mo_values['employment_number'] }}",
+
+    "# yderligere felter": "",
+    "postalCode": "{{ mo_values['unit_postal_code'] }}",
+    "department": "{{ mo_values['unit_user_key'] }}",
+    "streetName": "{{ mo_values['unit_streetname'].split(' ')[0] }}",
     "extensionAttribute3": "{{ mo_values['unit_public_email']|default('all@afdeling.dk') }}",
-   }
+  }
 
-Det er værd at bemærke at begge systemer; `mo_to_ad_fields` og
-`template_to_ad_fields` benytter jinja systemet i maven på eksporteren.
-
-Det er altså ækvivalent at skrive henholdvis:
+Det er værd at bemærke, at begge konfigurationsmuligheder (`mo_to_ad_fields` og
+`template_to_ad_fields`) benytter Jinja-skabeloner som grundlag for deres virkemåde. Det
+er altså ækvivalent at skrive henholdsvis:
 
 .. code-block:: json
 
-   "integrations.ad_writer.mo_to_ad_fields": {
-	"unit_postal_code": "postalCode",
-   }
+  "integrations.ad_writer.mo_to_ad_fields": {
+    "unit_postal_code": "postalCode",
+  }
 
 og:
 
 .. code-block:: json
 
-   "integrations.ad_writer.template_to_ad_fields": {
-	"postalCode": "{{ mo_values['unit_postal_code'] }}",
-   }
+  "integrations.ad_writer.template_to_ad_fields": {
+    "postalCode": "{{ mo_values['unit_postal_code'] }}",
+  }
 
-Da førstnævnte konverteres til sidstnævnte internt i programmet.
+Da førstnævnte konfiguration konverteres til sidstnævnte internt i programmet.
+
+Når man skriver Jinja-templates i `template_to_ad_fields` er data om MO-brugeren
+tilgængelige i objektet ``mo_values`` (som vist i eksemplerne ovenfor). Samtidig er data
+om AD-brugeren (før skrivning) ligeledes tilgængelige i objektet ``ad_values``.
+Når koden *opretter* en ny AD-bruger, er ``ad_values`` tilgængeligt for Jinja-templates,
+men er et tomt objekt. Dette kan fx anvendes til kun at synkronisere data fra MO til AD,
+såfremt der ikke allerede står noget i det pågældende AD-felt:
+
+.. code-block:: json
+
+  "integrations.ad_writer.template_to_ad_fields": {
+    "titel": "{{ ad_values.get('titel') or mo_values['title'] }}",
+  }
+
+I ovenstående eksempel vil værdien i AD-feltet `titel` kun blive udfyldt med MO's
+tilsvarende `title` hvis AD-brugeren ikke allerede har en titel. Og det har AD-brugeren
+ikke, såfremt programmet netop er i færd med at oprette selvsamme AD-bruger.
 
 
 Afvikling af PowerShell templates
@@ -554,58 +738,58 @@ eksempel på sådan en fil kunne se sådan ud:
        "integrations.ad.password": "sericeuser_password",
        "integrations.ad.cpr_field": "ad_cpr_field",
        "integrations.ad.write.servers": [
-	   "DC1",
-	   "DC2",
-	   "DC3",
-	   "DC4",
-	   "DC5"
+     "DC1",
+     "DC2",
+     "DC3",
+     "DC4",
+     "DC5"
        ],
        "integrations.ad.write.level2orgunit_type": "cdd1305d-ee6a-45ec-9652-44b2b720395f",
        "integrations.ad.write.primary_types": [
-	   "62e175e9-9173-4885-994b-9815a712bf42",
-	   "829ad880-c0b7-4f9e-8ef7-c682fb356077",
-	   "35c5804e-a9f8-496e-aa1d-4433cc38eb02"
+     "62e175e9-9173-4885-994b-9815a712bf42",
+     "829ad880-c0b7-4f9e-8ef7-c682fb356077",
+     "35c5804e-a9f8-496e-aa1d-4433cc38eb02"
        ],
        "integrations.ad_writer.mo_to_ad_fields": {
-	   "unit_user_key": "department",
-	   "level2orgunit": "company",
-	   "title": "Title",
-	   "unit": "extensionAttribute2"
+     "unit_user_key": "department",
+     "level2orgunit": "company",
+     "title": "Title",
+     "unit": "extensionAttribute2"
        },
        "integrations.ad.write.uuid_field": "sts_field",
        "integrations.ad.write.level2orgunit_field": "extensionAttribute1",
        "integrations.ad.write.org_unit_field": "extensionAttribute2",
        "integrations.ad.properties": [
-	   "manager",
-	   "ObjectGuid",
-	   "SamAccountName",
-	   "mail",
-	   "mobile",
-	   "pager",
-	   "givenName",
-	   "l",
-	   "sn",
-	   "st",
-	   "cn",
-	   "company",
-	   "title",
-	   "postalCode",
-	   "physicalDeliveryOfficeName",
-	   "extensionAttribute1",
-	   "extensionAttribute2",
-	   "ad_cpr_field"
+     "manager",
+     "ObjectGuid",
+     "SamAccountName",
+     "mail",
+     "mobile",
+     "pager",
+     "givenName",
+     "l",
+     "sn",
+     "st",
+     "cn",
+     "company",
+     "title",
+     "postalCode",
+     "physicalDeliveryOfficeName",
+     "extensionAttribute1",
+     "extensionAttribute2",
+     "ad_cpr_field"
        ],
        "integrations.ad.ad_mo_sync_mapping": {
-	   "user_addresses": {
-	       "telephoneNumber": ["51d4dbaa-cb59-4db0-b9b8-031001ae107d", "PUBLIC"],
-	       "pager": ["956712cd-5cde-4acc-ad0a-7d97c08a95ee", "SECRET"],
-	       "mail": ["c8a49f1b-fb39-4ce3-bdd0-b3b907262db3", null],
-	       "physicalDeliveryOfficeName": ["7ca6dfb1-5cc7-428c-b15f-a27056b90ae5", null],
-	       "mobile": ["43153f5d-e2d3-439f-b608-1afbae91ddf6", "PUBLIC"]
-	   },
-	   "it_systems": {
-	       "samAccountName": "fb2ac325-a1c4-4632-a254-3a7e2184eea7"
-	   }
+     "user_addresses": {
+         "telephoneNumber": ["51d4dbaa-cb59-4db0-b9b8-031001ae107d", "PUBLIC"],
+         "pager": ["956712cd-5cde-4acc-ad0a-7d97c08a95ee", "SECRET"],
+         "mail": ["c8a49f1b-fb39-4ce3-bdd0-b3b907262db3", null],
+         "physicalDeliveryOfficeName": ["7ca6dfb1-5cc7-428c-b15f-a27056b90ae5", null],
+         "mobile": ["43153f5d-e2d3-439f-b608-1afbae91ddf6", "PUBLIC"]
+     },
+     "it_systems": {
+         "samAccountName": "fb2ac325-a1c4-4632-a254-3a7e2184eea7"
+     }
        }
    }
 
@@ -662,10 +846,10 @@ Dette værktøj har følgende muligheder:
 
    usage: ad_writer.py [-h]
                     [--create-user-with-manager MO_uuid |
-		    --create-user MO_uuid |
-		    --sync-user MO_uuid | --delete-user User_SAM |
-		    --read-ad-information User_SAM |
-		    --add-manager-to-user Manager_SAM User_SAM]
+        --create-user MO_uuid |
+        --sync-user MO_uuid | --delete-user User_SAM |
+        --read-ad-information User_SAM |
+        --add-manager-to-user Manager_SAM User_SAM]
 
 De forskellige muligheder gennemgås her en ad gangen:
  * --create-user-with-manager MO uuid
@@ -723,35 +907,128 @@ på brugere som henholdsvis findes i MO men ikke i AD, eller findes i AD, men ik
 har aktive engagementer i MO.
 
 ::
-   usage: ad_life_cycle.py [-h]
+   usage: ad_life_cycle.py [-h/--help]
                            [--create-ad-accounts] [--disable-ad-accounts]
-                           [--dry-run]
+                           [--dry-run] [--use-cached-mo]
 
 Betydningen af disse parametre angives herunder, det er muligt at afvilke begge
 synkroniseringer i samme kørsel ved at angive begge parametre.
-			   
- * --create-ad-accounts
+
+ * ``--create-ad-accounts``
 
    Opret AD brugere til MO brugere som ikke i forvejen findes i AD efter de
-   regler som er angivet i settings-nøglen
-   ``integrations.ad.write.create_user_trees``.
+   regler som er angivet i settings-nøglerne:
 
- * --disable-ad-accounts
+   * ``integrations.ad.write.create_user_trees`` og
+   * ``integrations.ad.lifecycle.create_filters``
+
+   Se mere om disse herunder.
+
+ * ``--disable-ad-accounts``
 
    Sæt status til Disabled for AD konti hvor den tilhøende MO bruge ikke længere
-   har et aktivt engagement.
-			   
- * --dry-run
+   har et aktivt engagement og som opfylder reglerne angivet i settings-nøglen:
+
+   * ``integrations.ad.lifecycle.disable_filters``
+
+   Se mere om denne herunder.
+
+ * ``--dry-run``
 
    Programmet vil ikke forsøge at opdatere sit billede af MO, en vil anvende
    den aktuelt cache'de værdi. Dette kan være nyttigt til udvikling, eller
    hvis flere integrationer køres umidelbart efter hinanden.
 
+ * ``--use-cached-mo``
+
+   Programmet vil ikke genopfriske LoraCache, men blot benytte den aktuelle
+   LoraCache der findes på disken.
+
+Derudover kan programmet konfigureres med nøgler i ``settings.json`` specifikt:
+
+ * ``integrations.ad.write.create_user_trees``
+
+   Her angives en liste over et eller flere UUID'er på organisationsenheder i
+   MO. Hvis en medarbejder optræder i en af disse enheder (samt deres
+   underenheder, underenhedernes underenheder, osv.) vil ``ad_life_cycle``
+   oprette en AD-konto for medarbejderen (såfremt de ikke allerede har en.)
+
+   Hvis man eksempelvis har et organisationstræ i MO, der ser således ud:
+
+   .. code-block::
+
+      Enhed A (uuid: aaaa)
+        - Enhed A1 (uuid: aaaa1111)
+      Enhed B (uuid: bbbb)
+        - Enhed B1 (uuid: bbbb1111)
+
+   og man ønsker, at ``ad_life_cycle`` kun må oprette AD-konti for MO-brugere i
+   enhederne A, A1, og B1, kan man angive:
+
+   .. code-block:: json
+
+      {
+        "integrations.ad.write.create_user_trees": [
+          "aaaa", "bbbb1111"
+        ]
+      }
+
+   Der vil ikke blive oprettet AD-konti for MO-brugere i enhed B med denne
+   opsætning.
+
+ * ``integrations.ad.lifecycle.create_filters``
+
+   Se dokumentation herunder for ``integrations.ad.lifecycle.disable_filters``.
+   Denne nøgle gør det samme, blot som filter for oprettelse istedet for
+   som filter for deaktivering.
+
+ * ``integrations.ad.lifecycle.disable_filters``
+
+   Liste af jinja templates der evalueres på MO brugere, deres engagementer og
+   deres tilhørende AD konti. Disse templates kan returnere en sand værdi for
+   at beholde brugeren eller en falsk værdi for at sortere brugeren fra.
+
+   Værdierne der vurderes som sande er "yes", "true", "1" og "1.0".
+   De findes i ``string_to_bool`` metoden i ``exporters/utils/jinja_filter.py``.
+
+   Eksempel 1:
+
+   Vi ønsker kun at deaktivere brugere, hvis AD konto har et givent prefix (``X``)
+   i deres SAM Account Name. For at opnå dette kan vi lave følgende konfiguration:
+
+   .. code-block:: json
+
+       {
+           "integrations.ad.lifecycle.disable_filters": [
+               "{{ ad_object['SamAccountName'].startswith('X') }}"
+           ]
+       }
+
+   Hermed vil disable-ad-accounts kun deaktivere brugere med X som prefix.
+
+   Eksempel 2:
+
+   Vi ønsker ikke at oprette brugere i AD, såfremt de har en given
+   stillingsbetegnelse (`Bruger`) på deres primære engagement i MO.
+   For at opnå dette kan vi lave følgende konfiguration:
+
+   .. code-block:: json
+
+       {
+           "integrations.ad.lifecycle.create_filters": [
+               "{{ employee.get('primary_engagement', {}).get('job_function', {}).get('title', '') != 'Bruger' }}"
+           ]
+       }
+
+   Hermed vil create-ad-accounts oprette AD konti for alle brugere, undtagen
+   dem som har den givne stillingsbetegnelse.
+
+
 Det er værd at bemærke at brugerne som laves med ad_life_cycle *ikke* oprettes med
 relaterede data, de vil altså fremstå f.eks. uden adresser. Deres relaterede data
 kan tilførsel vha. ``ad_sync`` programmet.
 
-   
+
 execute_ad_script.py
 ++++++++++++++++++++
 
@@ -761,7 +1038,7 @@ Dette værktøj har følgende muligheder:
 
    usage: execute_ad_script.py [-h]
                                [--validate-script Script name |
-			       --execute-script Script name user_uuid]
+             --execute-script Script name user_uuid]
 
 De forskellige muligheder gennemgås her en ad gangen:
  * --validate-script Script_name

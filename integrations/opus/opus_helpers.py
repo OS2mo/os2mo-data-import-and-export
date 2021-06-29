@@ -1,107 +1,106 @@
-import uuid
-import json
-import pickle
-import pathlib
-import hashlib
-import logging
-import sqlite3
 import datetime
+import hashlib
+import json
+import logging
+import pathlib
+import pickle
+import sqlite3
+import uuid
+from collections import OrderedDict
+from functools import lru_cache
 from operator import itemgetter
 from pathlib import Path
+from typing import Dict, List, Tuple
 
 import xmltodict
+from deepdiff import DeepDiff
+from more_itertools import partition
+from ra_utils.load_settings import load_settings
+from tqdm import tqdm
 
 from integrations import cpr_mapper
-from integrations.opus import opus_import
-from integrations.opus import opus_diff_import
-from integrations.opus.opus_exceptions import RunDBInitException
+from integrations.opus import opus_diff_import, opus_import
+
 # from integrations.opus.opus_exceptions import NoNewerDumpAvailable
-from integrations.opus.opus_exceptions import RedundantForceException
-from integrations.opus.opus_exceptions import ImporterrunNotCompleted
+from integrations.opus.opus_exceptions import (
+    ImporterrunNotCompleted,
+    RedundantForceException,
+    RunDBInitException,
+)
+from integrations.opus.opus_file_reader import get_opus_filereader
 
-# TODO: Soon we have done this 4 times. Should we make a small settings
-# importer, that will also handle datatype for specicic keys?
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-SETTINGS = json.loads(cfg_file.read_text())
-
-DUMP_PATH = Path(SETTINGS['integrations.opus.import.xml_path'])
+SETTINGS = load_settings()
 START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
 
 logger = logging.getLogger("opusHelper")
 
 
-def _read_cpr_mapping():
-    cpr_map = pathlib.Path.cwd() / 'settings' / 'cpr_uuid_map.csv'
+def read_cpr_mapping():
+    cpr_map = pathlib.Path.cwd() / "settings" / "cpr_uuid_map.csv"
     if not cpr_map.is_file():
-        logger.error('Did not find cpr mapping')
-        raise Exception('Did not find cpr mapping')
+        logger.error("Did not find cpr mapping")
+        raise Exception("Did not find cpr mapping")
 
-    logger.info('Found cpr mapping')
+    logger.info("Found cpr mapping")
     employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
     return employee_forced_uuids
 
 
-def read_available_dumps():
-    dumps = {}
-
-    for opus_dump in DUMP_PATH.glob('*.xml'):
-        date_part = opus_dump.name[4:18]
-        export_time = datetime.datetime.strptime(date_part, '%Y%m%d%H%M%S')
-        if export_time > START_DATE:
-            dumps[export_time] = opus_dump
+def read_available_dumps() -> Dict[datetime.datetime, str]:
+    dumps = get_opus_filereader().list_opus_files()
+    assert len(dumps) > 0, "No Opus files found!"
     return dumps
 
 
-def _local_db_insert(insert_tuple):
-    conn = sqlite3.connect(SETTINGS['integrations.opus.import.run_db'],
-                           detect_types=sqlite3.PARSE_DECLTYPES)
-    c = conn.cursor()
-    query = 'insert into runs (dump_date, status) values (?, ?)'
-    final_tuple = (
-        insert_tuple[0],
-        insert_tuple[1].format(datetime.datetime.now())
+def local_db_insert(insert_tuple):
+    conn = sqlite3.connect(
+        SETTINGS["integrations.opus.import.run_db"],
+        detect_types=sqlite3.PARSE_DECLTYPES,
     )
+    c = conn.cursor()
+    query = "insert into runs (dump_date, status) values (?, ?)"
+    final_tuple = (insert_tuple[0], insert_tuple[1].format(datetime.datetime.now()))
     c.execute(query, final_tuple)
     conn.commit()
     conn.close()
 
 
-def _initialize_db(run_db):
-    logger.info('Force is true, create new db')
+def initialize_db(run_db):
+    logger.info("Force is true, create new db")
     conn = sqlite3.connect(str(run_db))
     c = conn.cursor()
-    c.execute("""
+    c.execute(
+        """
     CREATE TABLE runs (id INTEGER PRIMARY KEY,
     dump_date timestamp, status text)
-    """)
+    """
+    )
     conn.commit()
     conn.close()
 
 
-def _next_xml_file(run_db, dumps):
-    conn = sqlite3.connect(SETTINGS['integrations.opus.import.run_db'],
-                           detect_types=sqlite3.PARSE_DECLTYPES)
+def next_xml_file(run_db, dumps):
+    conn = sqlite3.connect(
+        SETTINGS["integrations.opus.import.run_db"],
+        detect_types=sqlite3.PARSE_DECLTYPES,
+    )
     c = conn.cursor()
-    query = 'select * from runs order by id desc limit 1'
+    query = "select * from runs order by id desc limit 1"
     c.execute(query)
     row = c.fetchone()
     latest_date = row[1]
     next_date = None
-    if 'Running' in row[2]:
-        print('Critical error')
-        logging.error('Previous run did not return!')
-        raise ImporterrunNotCompleted('Previous run did not return!')
+    if "Running" in row[2]:
+        print("Critical error")
+        logging.error("Previous run did not return!")
+        raise ImporterrunNotCompleted("Previous run did not return!")
 
     for date in sorted(dumps.keys()):
         if date > latest_date:
             next_date = date
             break
-    if next_date is None:
-        # raise NoNewerDumpAvailable('No newer XML dump is available')
-        print('No newer dump is available - already done :)')
-    return (next_date, latest_date)
+
+    return next_date, latest_date
 
 
 def parse_phone(phone_number):
@@ -109,20 +108,21 @@ def parse_phone(phone_number):
     if len(phone_number) == 8:
         validated_phone = phone_number
     elif len(phone_number) in (9, 11):
-        validated_phone = phone_number.replace(' ', '')
+        validated_phone = phone_number.replace(" ", "")
     elif len(phone_number) in (4, 5):
-        validated_phone = '0000' + phone_number.replace(' ', '')
+        validated_phone = "0000" + phone_number.replace(" ", "")
 
     if validated_phone is None:
-        logger.warning('Could not parse phone {}'.format(phone_number))
+        logger.warning("Could not parse phone {}".format(phone_number))
     return validated_phone
 
 
+@lru_cache(maxsize=None)
 def generate_uuid(value):
     """
     Generate a predictable uuid based on org name and a unique value.
     """
-    base_hash = hashlib.md5(SETTINGS['municipality.name'].encode())
+    base_hash = hashlib.md5(SETTINGS["municipality.name"].encode())
     base_digest = base_hash.hexdigest()
     base_uuid = uuid.UUID(base_digest)
 
@@ -133,104 +133,100 @@ def generate_uuid(value):
     return value_uuid
 
 
-def start_opus_import(importer, ad_reader=None, force=False):
+def parser(target_file: Path, filter_ids: List[str]) -> Tuple[List, List]:
+    """Read an opus file and return units and employees"""
+    text_input = get_opus_filereader().read_file(target_file)
+
+    data = xmltodict.parse(text_input)
+    data = data["kmd"]
+    units = data.get("orgUnit", [])
+    employees = data.get("employee", [])
+    return units, employees
+
+
+def find_changes(
+    before: List[Dict], after: List[Dict], disable_tqdm: bool = False
+) -> List[Dict]:
+    """Filter a list of dictionaries based on differences to another list of dictionaries
+    Used to find changes to org_units and employees in opus files.
+    Any registration in lastChanged is ignored here.
+    Use disable_tqdm in tests etc.
+
+    Returns: list of dictionaries from 'after' where there are changes from 'before'
+    >>> a = [{"@id":1, "text":"unchanged", '@lastChanged': 'some day'}, {"@id":2, "text":"before", '@lastChanged':'today'}]
+    >>> b = [{"@id":1, "text":"unchanged", '@lastChanged': 'another day'}, {"@id":2, "text":"after"}]
+    >>> c = [{"@id":1, "text":"unchanged", '@lastChanged': 'another day'}]
+    >>> find_changes(a, a, disable_tqdm=True)
+    []
+    >>> find_changes(a, b, disable_tqdm=True)
+    [{'@id': 2, 'text': 'after'}]
+    >>> find_changes(b, a, disable_tqdm=True)
+    [{'@id': 2, 'text': 'before', '@lastChanged': 'today'}]
+    >>> find_changes(a, c, disable_tqdm=True)
+    []
     """
-    Start an opus import, run the oldest available dump that
-    has not already been imported.
-    """
-    dumps = read_available_dumps()
+    old_ids = list(map(itemgetter("@id"), before))
+    old_map = dict(zip(old_ids, before))
+    changed_obj = []
 
-    run_db = Path(SETTINGS['integrations.opus.import.run_db'])
-    if not run_db.is_file():
-        logger.error('Local base not correctly initialized')
-        if not force:
-            raise RunDBInitException('Local base not correctly initialized')
-        else:
-            _initialize_db(run_db)
-        xml_date = sorted(dumps.keys())[0]
-    else:
-        if force:
-            raise RedundantForceException('Used force on existing db')
-        xml_date = _next_xml_file(run_db, dumps)
+    def find_changed(obj: Dict) -> bool:
+        # New object
+        if obj["@id"] not in old_ids:
+            return True
 
-    xml_file = dumps[xml_date]
-    _local_db_insert((xml_date, 'Running since {}'))
+        old_obj = old_map[obj["@id"]]
+        diff = DeepDiff(
+            obj,
+            old_obj,
+            exclude_paths={
+                "root['@lastChanged']",
+                "root['numerator']",
+                "root['denominator']",
+            },
+        )
+        # Changed object
+        if diff:
+            return True
 
-    employee_mapping = _read_cpr_mapping()
+        # Unchanged object
+        return False
 
-    opus_importer = opus_import.OpusImport(
-        importer,
-        org_name=SETTINGS['municipality.name'],
-        xml_data=str(xml_file),
-        ad_reader=ad_reader,
-        import_first=True,
-        employee_mapping=employee_mapping
-    )
-    logger.info('Start import')
-    opus_importer.insert_org_units()
-    opus_importer.insert_employees()
-    opus_importer.add_addresses_to_employees()
-    opus_importer.importer.import_all()
-    logger.info('Ended import')
+    after = tqdm(after, desc="Finding changes", disable=disable_tqdm)
+    changed_obj = list(filter(find_changed, after))
 
-    _local_db_insert((xml_date, 'Import ended: {}'))
+    return changed_obj
 
 
-def start_opus_diff(ad_reader=None):
-    """
-    Start an opus update, use the oldest available dump that has not
-    already been imported.
-    """
-    dumps = read_available_dumps()
-    run_db = Path(SETTINGS['integrations.opus.import.run_db'])
+def file_diff(file1, file2, filter_ids, disable_tqdm=True):
+    units1 = employees1 = {}
+    if file1:
+        units1, employees1 = parser(file1, filter_ids)
+    units2, employees2 = parser(file2, filter_ids)
 
-    employee_mapping = _read_cpr_mapping()
+    units = find_changes(units1, units2, disable_tqdm=disable_tqdm)
+    employees = find_changes(employees1, employees2, disable_tqdm=disable_tqdm)
 
-    if not run_db.is_file():
-        logger.error('Local base not correctly initialized')
-        raise RunDBInitException('Local base not correctly initialized')
-    xml_date, latest_date = _next_xml_file(run_db, dumps)
-
-    if xml_date is not None:
-        xml_file = dumps[xml_date]
-
-        _local_db_insert((xml_date, 'Running diff update since {}'))
-        msg = 'Start update: File: {}, update since: {}'
-        logger.info(msg.format(xml_file, latest_date))
-        print(msg.format(xml_file, latest_date))
-
-        diff = opus_diff_import.OpusDiffImport(latest_date, ad_reader=ad_reader,
-                                               employee_mapping=employee_mapping)
-        diff.start_re_import(xml_file, include_terminations=True)
-        logger.info('Ended update')
-        _local_db_insert((xml_date, 'Diff update ended: {}'))
-
-
-def read_dump_data(dump_file):
-    cache_file = pathlib.Path.cwd() / 'tmp' / (dump_file.stem + '.p')
-    if not cache_file.is_file():
-        data = xmltodict.parse(dump_file.read_text())['kmd']
-        with open(str(cache_file), 'wb') as f:
-            pickle.dump(data, f, pickle.HIGHEST_PROTOCOL)
-    else:
-        with open(str(cache_file), 'rb') as f:
-            data = pickle.load(f)
-    return data
+    return units, employees
 
 
 def compare_employees(original, new, force=False):
     # Differences is these keys will not be counted as a difference, unless force
     # is set to true. Notice lastChanged is included here, since we perform a
     # brute-force comparison and does not care for lastChanged.
-    skip_keys = ['productionNumber', 'entryIntoGroup', 'invoiceRecipient',
-                 '@lastChanged', 'cpr']
+    skip_keys = [
+        "productionNumber",
+        "entryIntoGroup",
+        "invoiceRecipient",
+        "@lastChanged",
+        "cpr",
+    ]
     identical = True
     for key in new.keys():
         if key in skip_keys and not force:
             continue
         if not original.get(key) == new[key]:
             identical = False
-            msg = 'Changed {} from {} to {}'
+            msg = "Changed {} from {} to {}"
             print(msg.format(key, original.get(key), new[key]))
     return identical
 
@@ -238,7 +234,7 @@ def compare_employees(original, new, force=False):
 def update_employee(employee_number, days):
     from integrations.ad_integration import ad_reader
 
-    employee_mapping = _read_cpr_mapping()
+    employee_mapping = read_cpr_mapping()
     ad_read = ad_reader.ADParameterReader()
     latest_date = None
 
@@ -253,9 +249,9 @@ def update_employee(employee_number, days):
         dump_file = dumps[date]
         data = read_dump_data(dump_file)
 
-        employees = data['employee']
+        employees = data["employee"]
         for employee in employees:
-            if employee['@id'] != employee_number:
+            if employee["@id"] != employee_number:
                 continue
 
             if employee == current_object:
@@ -263,44 +259,59 @@ def update_employee(employee_number, days):
             if not compare_employees(current_object, employee):
                 if not latest_date:
                     latest_date = date - datetime.timedelta(days=1)
-                msg = 'date: {}, lastChanged: {}'
-                print(msg.format(date, employee['@lastChanged']))
+                msg = "date: {}, lastChanged: {}"
+                print(msg.format(date, employee["@lastChanged"]))
 
                 diff = opus_diff_import.OpusDiffImport(
-                    latest_date,
-                    ad_reader=ad_read,
-                    employee_mapping=employee_mapping
+                    latest_date, ad_reader=ad_read, employee_mapping=employee_mapping
                 )
 
                 if current_object:
                     # If this is not the first edit, we force the lastChanged to that
                     # of the latest known edit.
-                    employee['@lastChanged'] = latest_date.strftime('%Y-%m-%d')
+                    employee["@lastChanged"] = latest_date.strftime("%Y-%m-%d")
                 else:
-                    employee['@lastChanged'] = employee['entryDate']
+                    employee["@lastChanged"] = employee["entryDate"]
                 diff.import_single_employment(employee)
                 current_object = employee
                 latest_date = date
 
 
 def filter_units(units, filter_ids):
-    """
-    Filter units such that no unit with a parent-id in filter_ids exist.
+    """Splits units into two based on filter_ids.
+
+    Partitions the units such that no unit with a parent-id in filter_ids exist in one list.
+    Any unit filtered like that is put in the other list.
 
     Example:
         >>> units = [(1, None), (2, 1), (3, 1), (4, 2), (5, 2), (6, 3), (7, 5)]
         >>> tup_to_unit = lambda tup: {'@id': tup[0], 'parentOrgUnit': tup[1]}
         >>> units = list(map(tup_to_unit, units))
         >>> get_ids = lambda units: list(map(itemgetter('@id'), units))
-        >>> get_ids(filter_units(units, [1]))
+        >>> a, b = filter_units(units, [1])
+        >>> get_ids(a)
+        [1, 2, 3, 4, 5, 6, 7]
+        >>> get_ids(b)
         []
-        >>> get_ids(filter_units(units, [2]))
+        >>> a, b = filter_units(units, [2])
+        >>> get_ids(a)
+        [2, 4, 5, 7]
+        >>> get_ids(b)
         [1, 3, 6]
-        >>> get_ids(filter_units(units, [3]))
+        >>> a, b = filter_units(units, [3])
+        >>> get_ids(a)
+        [3, 6]
+        >>> get_ids(b)
         [1, 2, 4, 5, 7]
-        >>> get_ids(filter_units(units, [3, 5]))
+        >>> a, b = filter_units(units, [3, 5])
+        >>> get_ids(a)
+        [3, 5, 6, 7]
+        >>> get_ids(b)
         [1, 2, 4]
-        >>> get_ids(filter_units(units, [3, 7]))
+        >>> a, b = filter_units(units, [3, 7])
+        >>> get_ids(a)
+        [3, 6, 7]
+        >>> get_ids(b)
         [1, 2, 4, 5]
 
     Args:
@@ -323,7 +334,18 @@ def filter_units(units, filter_ids):
 
     def is_disjoint_from_filter_ids(unit):
         """Test for overlap between parents and filter_set."""
-        parent_set = set(get_parent(parent_map, unit['@id']))
+        parent_set = set(get_parent(parent_map, unit["@id"]))
         return parent_set.isdisjoint(filter_set)
 
-    return list(filter(is_disjoint_from_filter_ids, units))
+    return partition(is_disjoint_from_filter_ids, units)
+
+
+def read_cpr(employee: OrderedDict) -> str:
+    cpr = employee.get("cpr")
+    if isinstance(cpr, OrderedDict):
+        cpr = employee["cpr"]["#text"]
+    elif isinstance(cpr, str):
+        assert isinstance(int(cpr), int)
+    else:
+        raise TypeError("Can't read cpr in this format")
+    return cpr

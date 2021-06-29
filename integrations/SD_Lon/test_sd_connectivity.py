@@ -1,17 +1,34 @@
 import click
-import json
+import logging
 import pathlib
 from uuid import UUID
+from integrations.SD_Lon.sd_common import sd_lookup
+from integrations.SD_Lon.sd_common import load_settings
+
+
+LOG_LEVEL = logging.DEBUG
+LOG_FILE = "test_sd_connectivity.log"
+
+def setup_logging():
+    detail_logging = ("sdCommon")
+    for name in logging.root.manager.loggerDict:
+        if name in detail_logging:
+            logging.getLogger(name).setLevel(LOG_LEVEL)
+        else:
+            logging.getLogger(name).setLevel(logging.ERROR)
+
+    logging.basicConfig(
+        format="%(levelname)s %(asctime)s %(name)s %(message)s",
+        level=LOG_LEVEL,
+        filename=LOG_FILE,
+    )
 
 
 class TestSdConnectivity(object):
     def __init__(self):
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
         try:
-            self.settings = json.loads(cfg_file.read_text())
-        except json.decoder.JSONDecodeError as e:
+            self.settings = load_settings()
+        except Exception as e:
             print('Syntax error in settings file: {}'.format(e))
             exit(1)
 
@@ -101,7 +118,8 @@ class TestSdConnectivity(object):
         print()
 
         skip_job_functions = self.settings.get(
-            'integrations.SD_Lon.skip_employment_types')
+            'integrations.SD_Lon.skip_employment_types'
+        )
         if skip_job_functions is not None:
             if not isinstance(skip_job_functions, list):
                 print('skip_employment_types skal være en liste')
@@ -116,8 +134,6 @@ class TestSdConnectivity(object):
 
     def _check_contact_to_sd(self):
         print('Tjekker at vi har kontakt til SD:')
-        from integrations.SD_Lon.sd_common import sd_lookup
-
         inst_id = self.settings['integrations.SD_Lon.institution_identifier']
         params = {
             'UUIDIndicator': 'true',
@@ -125,9 +141,10 @@ class TestSdConnectivity(object):
         }
         try:
             institution_info = sd_lookup(
-                'GetInstitution20111201', params, use_cache=False)
+                'GetInstitution20111201', params, use_cache=False
+            )
         except Exception as e:
-            print('Fejl i kontak til SD Løn: {}'.format(e))
+            print('Fejl i kontakt til SD Løn: {}'.format(e))
             exit(1)
 
         try:
@@ -154,4 +171,5 @@ def check_connectivity():
 
 
 if __name__ == '__main__':
+    setup_logging()
     check_connectivity()

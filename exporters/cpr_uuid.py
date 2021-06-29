@@ -3,9 +3,9 @@ import time
 import json
 import pathlib
 import logging
-import argparse
 from functools import partial
 
+import click
 from tqdm import tqdm
 
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -96,17 +96,11 @@ def main(use_ad):
     mh._write_csv(fields, mapping, 'cpr_mo_ad_map.csv')
 
 
-def cli():
-    """
-    Command line interface for the AD writer class.
-    """
-    parser = argparse.ArgumentParser(description='UUID exporter')
-    parser.add_argument('--use-ad', action='store_true')
-    args = vars(parser.parse_args())
-    logger.info('CLI arguments: {}'.format(args))
-
-    use_ad = args.get('use_ad')
-    main(use_ad)
+@click.command(help='UUID exporter')
+@click.option('--use-ad', is_flag=True)
+def cli(**args):
+    logger.info('CLI arguments: %r', args)
+    main(args['use_ad'])
 
 
 if __name__ == '__main__':

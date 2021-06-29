@@ -1,17 +1,30 @@
-import time
 import json
-import random
 import logging
+import random
+import subprocess
+import time
+from typing import Dict
+from typing import List
+from typing import Optional
 
-from winrm import Session
-from winrm.exceptions import WinRMTransportError
+import more_itertools
 
-from integrations.ad_integration import ad_exceptions
-from integrations.ad_integration import read_ad_conf_settings
+try:
+    from winrm import Session
+    from winrm.exceptions import WinRMTransportError
+    from winrm.vendor.requests_kerberos.exceptions import KerberosExchangeError
+except ImportError:
+    pass
+
+from .ad_exceptions import CommandFailure
+from .ad_exceptions import CprNotFoundInADException
+from .ad_exceptions import CprNotNotUnique
+from .read_ad_conf_settings import read_settings
 
 logger = logging.getLogger("AdCommon")
-# Is this universal?
-ENCODING = "cp850"
+
+
+ADUser = Dict[str, str]
 
 
 def ad_minify(text):
@@ -37,25 +50,91 @@ def generate_ntlm_session(hostname, system_user, password):
     return session
 
 
-def generate_kerberos_session(hostname):
-    """Method to create a kerberos session for running powershell scripts.
+class ReauthenticatingKerberosSession:
+    """
+    Wrapper around WinRM Session object that automatically tries to generate
+    a new Kerberos token and session if authentication fails
+    """
+
+    def _generate_kerberos_ticket(self):
+        """
+        Tries to generate a new Kerberos ticket, through a call to kinit
+        Raises an exception if the subprocess has non-zero exit code
+        """
+        cmd = ["kinit", self._username]
+        try:
+            subprocess.run(
+                cmd,
+                check=True,
+                input=self._password.encode(),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
+            )
+        except subprocess.CalledProcessError as e:
+            print(e.stderr.decode("utf-8"))
+            raise
+
+    def _create_new_session(self):
+        """
+        Generate new internal session
+
+        XXX: Session is not properly cleaned up when a command fails
+             so we have to create a new internal session object each time
+        """
+        self._session = Session(
+            target=self._target, transport="kerberos", auth=(None, None)
+        )
+
+    def __init__(self, target: str, username: str, password: str):
+        self._username = username
+        self._password = password
+        self._target = target
+        self._create_new_session()
+
+    def run_cmd(self, *args, **kwargs):
+        try:
+            rs = self._session.run_cmd(*args, **kwargs)
+        except KerberosExchangeError:
+            self._generate_kerberos_ticket()
+            self._create_new_session()
+            rs = self._session.run_cmd(*args, **kwargs)
+        return rs
+
+    def run_ps(self, *args, **kwargs):
+        try:
+            rs = self._session.run_ps(*args, **kwargs)
+        except KerberosExchangeError:
+            self._generate_kerberos_ticket()
+            self._create_new_session()
+            rs = self._session.run_ps(*args, **kwargs)
+        return rs
+
+
+def generate_kerberos_session(hostname, username=None, password=None):
+    """
+    Method to create a kerberos session for running powershell scripts.
+
+    Returned object will have same public interface as WinRM Session, despite
+    not inheriting from it
 
     Returns:
-        winrm.Session
+        ReauthenticatingKerberosSession
     """
-    session = Session(
+    session = ReauthenticatingKerberosSession(
         "http://{}:5985/wsman".format(hostname),
-        transport="kerberos",
-        auth=(None, None),
+        username=username,
+        password=password,
     )
     return session
 
 
 class AD:
-    def __init__(self, all_settings=None, index=0):
+    _encoding = "utf-8"
+
+    def __init__(self, all_settings=None, index=0, **kwargs):
         self.all_settings = all_settings
         if self.all_settings is None:
-            self.all_settings = read_ad_conf_settings.read_settings(index=index)
+            self.all_settings = read_settings(index=index)
         self.session = self._create_session()
         self.retry_exceptions = self._get_retry_exceptions()
         self.results = {}
@@ -77,27 +156,43 @@ class AD:
             winrm.Session
         """
 
-        if self.all_settings["primary"]["method"] == "ntlm":
+        all_settings = self.all_settings
+
+        if all_settings["primary"]["method"] == "ntlm":
             session = generate_ntlm_session(
-                self.all_settings["global"]["winrm_host"],
-                self.all_settings["primary"]["system_user"],
-                self.all_settings["primary"]["password"],
+                all_settings["global"]["winrm_host"],
+                all_settings["primary"]["system_user"],
+                all_settings["primary"]["password"],
             )
-        elif self.all_settings["primary"]["method"] == "kerberos":
+        elif all_settings["primary"]["method"] == "kerberos":
             session = generate_kerberos_session(
-                self.all_settings["global"]["winrm_host"]
+                all_settings["global"]["winrm_host"],
+                all_settings["global"]["system_user"],
+                all_settings["global"]["password"],
             )
         else:
-            raise ValueError("Unknown WinRM method" + str(self.all_settings["primary"]["method"]))
+            raise ValueError(
+                "Unknown WinRM method: %r" % all_settings["primary"]["method"]
+            )
+
         return session
 
     def _run_ps_script(self, ps_script):
-        """
-        Run a power shell script and return the result. If it fails, the
-        error is returned in its raw form.
-        :param ps_script: The power shell script to run.
+        """Run a PowerShell script and return the result.
+
+        If the script fails, a `CommandFailure` exception is raised.
+        If the script output cannot be parsed as JSON, a `ValueError` exception
+        is raised.
+
+        :param ps_script: The PowerShell script to run.
         :return: A dictionary with the returned parameters.
         """
+
+        encoding = self._ps_boiler_plate()["encoding"]
+        if encoding not in ps_script:
+            sep = "\n" if not ps_script.startswith("\n") else ""
+            ps_script = f"{encoding}{sep}{ps_script}"
+
         logger.debug("Attempting to run script: {}".format(ps_script))
         response = {}
         if not self.session:
@@ -119,27 +214,34 @@ class AD:
         # TODO: We will need better error handling than this.
         assert retries < 10
 
-        if r.status_code == 0:
-            if r.std_out:
-                output = r.std_out.decode(ENCODING)
-                output = output.replace("&Oslash;", "Ø")
-                output = output.replace("&oslash;", "ø")
-                response = json.loads(output)
-        else:
-            print("Error: {}".format(r.std_err))
-            response = r.std_err
-        return response
+        if r.status_code != 0:
+            raise CommandFailure(r.std_err)
+        if not r.std_out:
+            logger.warning("status_code=0 but no std_out")
+            return {}
+        return self._parse_ps_script_result(ps_script, r)
+
+    def _parse_ps_script_result(self, script, response):
+        output = response.std_out
+        if isinstance(output, bytes):
+            output = output.decode(self._encoding)
+
+        try:
+            return json.loads(output)
+        except json.JSONDecodeError as exc:
+            msg = "Could not parse JSON response, error in lines:\n%s\nscript:\n%s"
+            line_sep = b"\n" if isinstance(response.std_out, bytes) else "\n"
+            invalid_bound = slice(max(0, exc.lineno - 1), exc.lineno + 1)
+            invalid_lines = response.std_out.splitlines()[invalid_bound]
+            invalid_lines = line_sep.join(invalid_lines)
+            logger.error(msg, invalid_lines, script)
+            raise ValueError(msg % (invalid_lines, script))
 
     def _ps_boiler_plate(self):
         """
         Boiler plate that needs to go into all PowerShell code.
         """
         settings = self._get_setting()
-
-        # This is most likely never neeed.
-        # server = ''
-        # if settings['server']:
-        #     server = ' -Server {} '.format(settings['server'])
 
         # TODO: Are these really different?
         path = ""
@@ -148,20 +250,13 @@ class AD:
             path = ' -Path "{}" '.format(settings["search_base"])
             search_base = ' -SearchBase "{}" '.format(settings["search_base"])
 
-        get_ad_object = ""
-        # TODO: When do we need this?
-        # if settings['get_ad_object']:
-        #    get_ad_object = ' | Get-ADObject'
-
         credentials = " -Credential $usercredential"
 
         boiler_plate = {
-            # 'server': server,
+            "encoding": "[Console]::OutputEncoding = [Text.UTF8Encoding]::UTF8",
             "path": path,
-            "get_ad_object": get_ad_object,
             "search_base": search_base,
             "credentials": credentials,
-            # 'complete': server + search_base + credentials
             "complete": search_base + credentials,
         }
         return boiler_plate
@@ -175,9 +270,8 @@ class AD:
         template.
         """
         formatted_script = ps_script.format(**format_rules)
-        finished_ps_script = (
-            self._build_user_credential() +
-            self.remove_redundant(formatted_script)
+        finished_ps_script = self._build_user_credential() + self.remove_redundant(
+            formatted_script
         )
         return finished_ps_script
 
@@ -198,36 +292,34 @@ class AD:
         $UserCredential = New-Object –TypeName $TypeName –ArgumentList $User, $PWord
         """
         settings = self._get_setting()
-        user_credential = credential_template.format(settings['system_user'],
-                                                     settings['password'])
+        user_credential = credential_template.format(
+            settings["system_user"], settings["password"]
+        )
         return user_credential
 
     def _properties(self):
         settings = self._get_setting()
-        # properties = ' -Properties *'
         properties = " -Properties "
         for item in settings["properties"]:
             properties += item + ","
         properties = properties[:-1] + " "  # Remove trailing comma, add space
         return properties
 
-    def _find_unique_user(self, cpr):
-        """
-        Find a unique AD account from cpr, otherwise raise an exception.
-        """
-        user_ad_info = self.get_from_ad(cpr=cpr)
+    def _get_sam_for_ad_user(self, ad_user: ADUser) -> str:
+        return ad_user["SamAccountName"]
 
-        if len(user_ad_info) == 1:
-            user_sam = user_ad_info[0]["SamAccountName"]
-        elif len(user_ad_info) == 0:
-            msg = "Found no account for {}".format(cpr)
-            logger.error(msg)
-            raise ad_exceptions.UserNotFoundException(msg)
+    def _find_ad_user(
+        self, cpr: str, ad_dump: Optional[List[Dict[str, str]]] = None
+    ) -> ADUser:
+        """Find a unique AD account from cpr, otherwise raise an exception."""
+        if ad_dump:
+            cpr_field = self.all_settings["primary"]["cpr_field"]
+            ad_users = filter(lambda ad_user: ad_user.get(cpr_field) == cpr, ad_dump)
         else:
-            msg = "Too many SamAccounts for {}".format(cpr)
-            logger.error(msg)
-            raise ad_exceptions.CprNotNotUnique(msg)
-        return user_sam
+            logger.debug("No AD information supplied, will look it up")
+            ad_users = self.get_from_ad(cpr=cpr)
+
+        return more_itertools.one(ad_users, CprNotFoundInADException, CprNotNotUnique)
 
     def get_from_ad(self, user=None, cpr=None, server=None):
         """
@@ -241,7 +333,7 @@ class AD:
                     'ObjectGUID': '7ccbd9aa-gd60-4fa1-4571-0e6f41f6ebc0',
                     'SID': {
                         'AccountDomainSid': {
-                            'AccountDomainSid': 'S-x-x-xx-xxxxxxxxxx-xxxxxxxxxx-xxxxxxxxxx',
+                            'AccountDomainSid': 'S-x-x-xx-...',
                             'BinaryLength': 24,
                             'Value': 'S-x-x-xx-xxxxxxxxxx-xxxxxxxxxx-xxxxxxxxxx'
                         },
@@ -262,7 +354,7 @@ class AD:
                         'UserPrincipalName'
                         'extensionAttribute1',
                     ],
-                    'DistinguishedName': 'CN=Martin Lee Gore,OU=Enhed,OU=Musik,DC=lee,DC=lee'
+                    'DistinguishedName': 'CN=Martin Lee Gore,OU=...'
                     'Enabled': True,
                     'GivenName': 'Martin Lee',
                     'Name': 'Martin Lee Gore',
@@ -287,47 +379,41 @@ class AD:
         bp = self._ps_boiler_plate()
 
         if user:
-            dict_key = user
-            ps_template = "get-aduser -Filter 'SamAccountName -eq \"{}\"' "
+            ps_template = "Get-ADUser -Filter 'SamAccountName -eq \"{val}\"'"
+            get_command = ps_template.format(val=user)
 
         if cpr:
             # For wild-card searches, we do a litteral search.
             if cpr.find("*") > -1:
-                dict_key = cpr
+                val = cpr
             else:
                 # For direct cpr-search we obey the local separator setting.
-                dict_key = "{}{}{}".format(
-                    cpr[0:6], settings["cpr_separator"], cpr[6:10]
-                )
+                cpr_sep = settings["cpr_separator"]
+                val = f"{cpr[0:6]}{cpr_sep}{cpr[6:10]}"
 
             field = settings["cpr_field"]
-            ps_template = "get-aduser -Filter '" + field + ' -like "{}"\''
-
-        get_command = ps_template.format(dict_key)
+            operator = "-eq" if field.lower() == "objectguid" else "-like"
+            ps_template = "Get-ADUser -Filter '{field} {operator} \"{val}\"'"
+            get_command = ps_template.format(field=field, operator=operator, val=val)
 
         server_string = ""
         if server is not None:
             server_string = " -Server {}".format(server)
         elif self.all_settings["global"].get("servers"):
             server_string = " -Server {}".format(
-            random.choice(self.all_settings["global"]["servers"])
+                random.choice(self.all_settings["global"]["servers"])
             )
 
-        command_end = (
-            " | ConvertTo-Json  | "
-            + ' % {$_.replace("ø","&oslash;")} | '
-            + '% {$_.replace("Ø","&Oslash;")} '
+        ps_script = (
+            self._ps_boiler_plate()["encoding"]
+            + self._build_user_credential()
+            + get_command
+            + server_string
+            + bp["complete"]
+            + self._properties()
+            + " | ConvertTo-Json"
         )
 
-        ps_script = (
-            self._build_user_credential() +
-            get_command +
-            server_string +
-            bp['complete'] +
-            self._properties() +
-            # bp['get_ad_object'] +
-            command_end
-        )
         response = self._run_ps_script(ps_script)
 
         if not response:

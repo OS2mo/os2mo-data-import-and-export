@@ -33,9 +33,15 @@ find .git/hooks -type l -exec rm {} \; && find .githooks -type f -exec ln -sf ..
 # $ pip install --upgrade cython
 
 venv/bin/pip install pip --upgrade
-find . -name 'requirements.*' | grep -v venv/ | while read REQFILE
+find . -name 'requirements.txt' | grep -v venv/ | while read REQFILE
 do
     echo installing ${REQFILE}
     venv/bin/pip install -r $REQFILE --upgrade
 done
+venv/bin/pip install -r ./integrations/requirements/common.txt
+venv/bin/pip install -r ./integrations/requirements/test.txt
 venv/bin/pip install ./os2mo_data_import --upgrade
+
+# Install 'metacli' into venv
+source venv/bin/activate
+venv/bin/pip install --editable .

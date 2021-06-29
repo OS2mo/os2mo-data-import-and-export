@@ -37,6 +37,12 @@ Desuden kan disse ikke-påkrævede felter angives:
    en type fra listen, vil engagementet bliver ignoreret og ikke importeret i MO.
    Den tilhørende bruger vil dog blive oprettet, men vil optræde uden engagementer
    (med mindre personen har andre engagementer i kommunen).
+ * ``integrations.SD_Lon.no_salary_minimum_id``: Angiver en minimum påkrævet job
+   position id for ulønnede medarbejdere. Alle ulønnede medarbejder med et id
+   under dette minimum får aldrig deres engagement oprettet i MO.
+ * ``integrations.SD_Lon.fix_departments_root``: Angiver hvilken org_unit som skal
+   udgøre rodenhed for importerede organisationenheder fra SD. Hvis tom anvendes
+   MO's rodorganisation.
 
 Hvis ``integrations.SD_Lon.job_function`` har værdien `EmploymentName` vil
 ansættelsers stillingsbetegnelser bliver taget fra SDs felt af samme navn, som

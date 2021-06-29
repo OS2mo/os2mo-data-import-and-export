@@ -19,7 +19,7 @@ VIGTIGT: Det er nødvendigt at ændre gruppeejerskab, så det er alignet med den
 I praksis betyder det for os at vi ændrer ejerskabet på det dertil indrettede CRON-dicrectory i systembrugerens hjemmemappe.
 
 Afvikling af cron-jobs
-++++++++++++++++++++++
+----------------------
 
 Job runner scriptet er ment til at blive kaldt fra crontab på kundens maskiner
 Dets arbejde er:
@@ -29,17 +29,17 @@ Dets arbejde er:
 * at lave en backup af databasen og andre filer, der skal i spil for at få systemet tilbage til en veldefineret tilstand
 
 Læsning af konfiguration
-^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------
 
 Konfigurationen kan se således ud:
 
 .. code-block:: json
 
     {
-        "crontab.SVC_USER": "USER@KOMMUNE.NET", 
-        "crontab.SVC_KEYTAB": "/path/keytab-file", 
-        "crontab.CRON_BACKUP": "/path/backup-dir", 
-        "crontab.CRON_LOG_FILE": "/path/cron-log-file", 
+        "crontab.SVC_USER": "USER@KOMMUNE.NET",
+        "crontab.SVC_KEYTAB": "/path/keytab-file",
+        "crontab.CRON_BACKUP": "/path/backup-dir",
+        "crontab.CRON_LOG_FILE": "/path/cron-log-file",
         "crontab.RUN_MOX_DB_CLEAR": false,
         "crontab.RUN_CHECK_AD_CONNECTIVITY": false,
         "crontab.RUN_BALLERUP_APOS": false,
@@ -58,9 +58,9 @@ Konfigurationen kan se således ud:
     }
 
 
-En konfiguration som ovenstående kører ingen jobs, laver en backup i 
+En konfiguration som ovenstående kører ingen jobs, laver en backup i
 ``/path/backup-dir`` og sletter gamle backupper, når de er mere end ``60`` dage gamle.
-Det bruger AD-kontoen ``USER@KOMMUNE.NET`` når den skal connecte til AD og logger ind 
+Det bruger AD-kontoen ``USER@KOMMUNE.NET`` når den skal connecte til AD og logger ind
 med ``/path/keytab-file``, når det behøves og logger progress til ``/path/cron-log-file``.
 
 For at enable importen fra SD sættes ``crontab.RUN_SD_CHANGED_AT`` til ``true``.
@@ -68,17 +68,17 @@ For at enable importen fra SD sættes ``crontab.RUN_SD_CHANGED_AT`` til ``true``
 For at enable exporten til STS Organisation, sættes ``crontab.RUN_MOX_STS_ORGSYNC`` til ``true``.
 
 For at enable exporten to Rollekataloget, sættes ``crontab.RUN_MOX_ROLLE`` til ``true``
-og ``crontab.MOX_ROLLE_COMPOSE_YML`` udfyldes med stien til den gældende docker-compose.yml 
+og ``crontab.MOX_ROLLE_COMPOSE_YML`` udfyldes med stien til den gældende docker-compose.yml
 file for Rollekatalogseksporten.
 
 Ideen er at dette script kan kaldes fra cron, finder sin egen konfiguration, kører programmerne, hvorefter det
-laver en backup af ``/path/db-snapshot.sql`` og andre filer, der er nødvendige 
+laver en backup af ``/path/db-snapshot.sql`` og andre filer, der er nødvendige
 for at komme tilbage til en veldefineret tilstand.
 
 Der kan være mere konfiguration nødvendig for de enkelte jobs - se disse for detaljer
 
 Mountpoints
-^^^^^^^^^^^
+-----------
 Tilvejebringelse (og afslutning) af mountpoints styres af et script, cronhook.sh, som kaldes før og efter
 job-runner.sh. Dette script afvilker scripts i cronhook.pre.d og cronhook.post.d, hvis de er slået til i settings
 Sripts her afvikles i alfabetisk orden, og de bør hver især brokke sig over de settings de mangler
@@ -96,11 +96,11 @@ Det besværliggør fejlfinding, hvis ikke der hele tiden er kontakt til filerne
 
 * cronhook.unmount_opus_on: true/false
 
-Husk at mountpoints på windows ofte indeholder $-tegnet. Et sådan skal i settings escapes som \\$ 
+Husk at mountpoints på windows ofte indeholder $-tegnet. Et sådan skal i settings escapes som \\$
 
 
-Korsel af jobs
-^^^^^^^^^^^^^^
+Kørsel af jobs
+--------------
 
 job-runner.sh er ikke et smart program. Dert er til gengæld simpelt.: Job-afviklingen foregår i 3 afdelinger: imports, exports og reports.
 
@@ -131,7 +131,7 @@ I ovenstående konfiguration kan man slå jobs til med alle de tilgængeglige ``
 * RUN_AD_GROUP_INTO_MO - Importer en gruppe af eksterne ansatte som ikke findes i lønsystemet
 
 Pakning og lagring af Backup
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----------------------------
 
 Filer til backup er angivet i 3 afdelinger (bash-arrays):
 
@@ -142,15 +142,15 @@ Filer til backup er angivet i 3 afdelinger (bash-arrays):
 Pakning af backup foregår i to afdelinger:
 
 * pre_backup - her pakkes alle filer i BACK_UP_BEFORE_JOBS sammen i en tidsstemplet tarfil
-* post_backup - her pakkes filerne i BACK_UP_AFTER_JOBS og BACK_UP_AND_TRUNCATE ned i tarfilen, som gzippes og filerne i BACK_UP_AND_TRUNCATE trunkeres. 
+* post_backup - her pakkes filerne i BACK_UP_AFTER_JOBS og BACK_UP_AND_TRUNCATE ned i tarfilen, som gzippes og filerne i BACK_UP_AND_TRUNCATE trunkeres.
 
 Lagringen af backup foregår i servicebrugerens hjemmedirectory, se ``crontab.CRON_BACKUP`` i konfigurationseksemplet ovenfor.
 
 
 Afvikling af et enkelt job udenom cron
-++++++++++++++++++++++++++++++++++++++
+--------------------------------------
 
-Det kan, for eksempel under udfikling eller test, være nødvendigt at afvikle en kørsel 'i hånden'
+Det kan, for eksempel under udvikling eller test, være nødvendigt at starte et program manuelt.
 Den mulighed har man også med job-runner scriptet.  Man giver simpelhen navnet på den indre funktion med i kaldet.
 
 Herefter læses konfiguration på normal vis, men der tages nu ikke hensyn til om jobbet er slået til i konfigurationen eller ej, det køres
@@ -198,11 +198,11 @@ job-status json-logning
 
 i settings findes mulighed for at logge til distribueret log. Det er værdien ``crontab.CRON_LOG_JSON_SINK``,
 der bestemmer, hvor loggen skrives. Hvis den er slået til skrives der jsonlines til denne fil med status på
-både de store linier og de enkelte jobs. Hvis den ikke er slået til, gives der en warning i det almindelige 
+både de store linier og de enkelte jobs. Hvis den ikke er slået til, gives der en warning i det almindelige
 logoutput.
 
-I tillæg til denne fil pakker vi de jsonlinier, der vedrører nærværende kørsel af job-runner, ned i den 
-backup-fil, som vedrører kørslen. Det sker ved at vi skriver til filen ``crontab.CRON_LOG_JSON``, som 
+I tillæg til denne fil pakker vi de jsonlinier, der vedrører nærværende kørsel af job-runner, ned i den
+backup-fil, som vedrører kørslen. Det sker ved at vi skriver til filen ``crontab.CRON_LOG_JSON``, som
 trunkeres efter pakning til log og kørsel.
 
 
@@ -246,7 +246,7 @@ For at oprette en Email-addresse-klasse med en predefineret uuid under facetten 
 
 .. code-block:: bash
 
-    uuid=68d3d0ce-9fde-11ea-80b1-63a0ea904cea facet=employee_address_type bvn=test-moxklas titel=test-moxklas scope=EMAIL bash tools/moxklas.sh 
+    uuid=68d3d0ce-9fde-11ea-80b1-63a0ea904cea facet=employee_address_type bvn=test-moxklas titel=test-moxklas scope=EMAIL bash tools/moxklas.sh
 
 
 Man kan provokere et dry-run ved at sætte en parameter efter hele linien
@@ -370,5 +370,5 @@ terminate_orgfunc.py
 ====================
 
 Et tool, som terminerer ALLE brugeres adresser og it-forbindelser. Det er jo ikke særligt smart
-at køre sådan et, for så skal man oprette dem allesammen igen. Det er imidlertid nødvendigt, 
+at køre sådan et, for så skal man oprette dem allesammen igen. Det er imidlertid nødvendigt,
 hvis man er Viborg og tidligere har brugt Skole-AD eller man ændrer feltmapning

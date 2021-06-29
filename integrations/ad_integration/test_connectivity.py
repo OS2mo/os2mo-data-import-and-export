@@ -1,48 +1,42 @@
-import argparse
-import json
 import logging
-import pathlib
 
+import click
 import requests
 import requests_kerberos
-from integrations.ad_integration import ad_logger
-from integrations.ad_integration.ad_common import AD
-from winrm import Session
+from click_option_group import optgroup
+from click_option_group import RequiredMutuallyExclusiveOptionGroup
+from ra_utils.load_settings import load_settings
 from winrm.exceptions import InvalidCredentialsError
 
-cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-
-SETTINGS = json.loads(cfg_file.read_text())
-
-if not isinstance(SETTINGS.get('integrations.ad'), list):
-    raise Exception('integrations.ad skal angives som en liste af dicts (settings)')
-
-if len(SETTINGS.get('integrations.ad')) < 1:
-    raise Exception('integrations.ad skal indeholde mindst 1 AD (settings)')
+from .ad_common import AD
+from .ad_logger import start_logging
+from .ad_reader import ADParameterReader
+from .read_ad_conf_settings import read_settings
 
 
-WINRM_HOST = SETTINGS.get('integrations.ad.winrm_host')
-if not (WINRM_HOST):
-    raise Exception("WINRM_HOST is missing")
+SETTINGS = load_settings()
 
 logger = logging.getLogger("AdTestConnectivity")
 
 
 def test_basic_connectivity():
-    session=AD().session
+    ad = AD()
+    method = ad.all_settings["primary"]["method"]
+    print(f"Test basic connectivity (method={method})")
+    session = ad.session
+
     try:
         r = session.run_cmd("ipconfig", ["/all"])
         error = None
     except requests_kerberos.exceptions.KerberosExchangeError as e:
         error = str(e)
     except InvalidCredentialsError as e:
-        error = 'Credentails not accepted by remote management server: {}'
+        error = "Credentails not accepted by remote management server: {}"
         error = error.format(e)
     except requests.exceptions.ConnectionError as e:
         error = "Unable to contact winrm_host {}, message: {}"
-        error = error.format(WINRM_HOST, e)
+        error = error.format(SETTINGS["integrations.ad.winrm_host"], e)
+
     if error is None and r.status_code == 0:
         return True
     else:
@@ -55,8 +49,6 @@ def test_basic_connectivity():
 
 
 def test_ad_contact(index):
-    from ad_reader import ADParameterReader
-
     try:
         ad_reader = ADParameterReader(index=index)
     except Exception as e:
@@ -76,7 +68,6 @@ def test_full_ad_read(index):
     Test that we can read actual users from AD. This ensures suitable rights
     to access cpr-information in AD.
     """
-    from ad_reader import ADParameterReader
     ad_reader = ADParameterReader(index=index)
 
     ad_reader.uncached_read_user(cpr="3111*")
@@ -114,16 +105,15 @@ def test_full_ad_read(index):
 
     for test_value in test_chars.values():
         if not test_value:
-            print('Finding occurences of special chars: {}'.format(test_chars))
-            print('(The more True the better)')
+            print("Finding occurences of special chars: {}".format(test_chars))
+            print("(The more True the better)")
             break
+
     return True
 
 
 def test_ad_write_settings():
-    from integrations.ad_integration import read_ad_conf_settings
-
-    all_settings = read_ad_conf_settings.read_settings()
+    all_settings = read_settings()
     if not all_settings["primary_write"]:
         return False
     else:
@@ -131,7 +121,6 @@ def test_ad_write_settings():
 
 
 def perform_read_test():
-    print('Test basic connectivity (Kerberos)')
     status = "Success"
     basic_connection = test_basic_connectivity()
     if not basic_connection:
@@ -139,28 +128,26 @@ def perform_read_test():
         exit(1)
 
     for index in range(len(SETTINGS["integrations.ad"])):
-        print('Test AD {} contact'.format(index))
+        print("Test AD {} contact".format(index))
         ad_connection = test_ad_contact(index)
         if not ad_connection:
-            print('Unable to connect to AD {}'.format(index))
+            print("Unable to connect to AD {}".format(index))
             status = "Failure!!"
             continue
 
-        print('Test ability to read from AD {}'.format(index))
+        print("Test ability to read from AD {}".format(index))
         full_ad_read = test_full_ad_read(index)
         if not full_ad_read:
-            print('Unable to read users from AD {} correctly'.format(index))
+            print("Unable to read users from AD {} correctly".format(index))
             status = "Failure!!!"
             continue
 
     print(status)
-    if status != "Success":
-        exit(1)
+    # if status != "Success":
+    #     exit(1)
 
 
 def perform_write_test():
-    from ad_reader import ADParameterReader
-
     ad_reader = ADParameterReader()
 
     print("Test that AD write settings are set up")
@@ -210,31 +197,38 @@ def perform_write_test():
                 minimum_expected_fields[prop] = True
 
     if not all(minimum_expected_fields.values()):
-        print('An import field is now found on the tested users')
+        print("An import field is now found on the tested users")
         print(minimum_expected_fields)
     else:
-        print('Test of AD fields for writing is a success')
+        print("Test of AD fields for writing is a success")
 
 
-def cli():
-    """
-    Command line interface for the AD writer class.
-    """
-    parser = argparse.ArgumentParser(description="AD Writer")
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--test-read-settings", action="store_true")
-    group.add_argument("--test-write-settings", action="store_true")
+def check_settings(settings):
+    if not isinstance(settings.get("integrations.ad"), list):
+        raise Exception("integrations.ad skal angives som en liste af dicts (settings)")
 
-    args = vars(parser.parse_args())
+    if len(settings.get("integrations.ad")) < 1:
+        raise Exception("integrations.ad skal indeholde mindst 1 AD (settings)")
 
+    winrm_host_setting = "integrations.ad.winrm_host"
+    winrm_host_value = settings.get(winrm_host_setting)
+    if winrm_host_value is None:
+        raise Exception("%r is missing" % winrm_host_setting)
+
+
+@click.command(help="Test AD connectivity")
+@optgroup.group("Action", cls=RequiredMutuallyExclusiveOptionGroup)
+@optgroup.option("--test-read-settings", is_flag=True)
+@optgroup.option("--test-write-settings", is_flag=True)
+def cli(**args):
     if args.get("test_read_settings"):
         perform_read_test()
-
-    if args.get('test_write_settings'):
+    if args.get("test_write_settings"):
         perform_read_test()
         perform_write_test()
 
 
 if __name__ == "__main__":
-    ad_logger.start_logging("test_connectivity.log")
+    check_settings(SETTINGS)
+    start_logging("test_connectivity.log")
     cli()

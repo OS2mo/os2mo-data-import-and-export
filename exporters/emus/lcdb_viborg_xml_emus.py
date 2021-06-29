@@ -13,6 +13,7 @@ import sys
 import io
 import collections
 import datetime
+import time
 import requests
 from xml.sax.saxutils import escape
 from functools import partial
@@ -20,6 +21,7 @@ from itertools import filterfalse
 
 from exporters.emus import config
 
+import click
 from tqdm import tqdm
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import and_
@@ -79,8 +81,21 @@ def get_dar_address(db_address):
                 params = {'id': dar_uuid, 'struktur': 'mini'}
                 # Note: Dar accepts up to 10 simultanious
                 # connections, consider grequests.
-                r = requests.get(url=adr_url, params=params)
-                address_data = r.json()
+                counter = 0
+                max_tries = 10
+                while True:
+                    counter += 1
+                    try:
+                        r = requests.get(url=adr_url, params=params)
+                        address_data = r.json()
+                        break
+                    except json.decoder.JSONDecodeError:
+                        print(r.text)
+                        continue
+                    if counter > max_tries:
+                       raise Exception("DAR does not respond!")
+                    time.sleep(5)
+
                 if address_data:
                     dar_cache[dar_uuid] = address_data[0]
                     break
@@ -104,8 +119,9 @@ def read_ou_tree(session, org, nodes={}, parent=None):
     """
 
     if parent is None:
-        parent = nodes[org] = nodes['root'] = Node(
-            org, unit=session.query(Enhed).filter(Enhed.uuid == org).one())
+        org_unit = session.query(Enhed).filter(Enhed.uuid == org).one()
+        parent = nodes[org] = nodes['root'] = Node(org, unit=org_unit)
+
 
     units = session.query(Enhed).filter(Enhed.forældreenhed_uuid == org)
     for unit in units:
@@ -134,7 +150,15 @@ def export_ou_emus(session, nodes, emus_file=sys.stdout):
         manager = session.query(Leder).filter(
             Leder.uuid == ou.leder_uuid
         ).first()
+
         manager_uuid = manager.bruger_uuid if manager else ''
+        # Ensure that managers actually have an engagement
+        if manager_uuid:
+            entrydate, _ = get_manager_dates(session, manager_uuid)
+            if entrydate is None:
+                logger.info("skipping manager %s with no current employment (for ou)", manager_uuid)
+                manager_uuid = ''
+
         # manager_uuid = ou.leder_uuid or ''
 
         street_address = session.query(Adresse).filter(and_(
@@ -257,7 +281,7 @@ def build_engagement_row(session, settings, ou, engagement):
     return row
 
 
-def get_manager_dates(session, bruger):
+def get_manager_dates(session, bruger_uuid):
     """Man kan tydeligvis ikke regne med at chefens datoer
     på lederobjektet er korrekte. Derfor ser vi lige på
     om chefen fortsat er ansat, inden vi rapporterer.
@@ -266,7 +290,7 @@ def get_manager_dates(session, bruger):
     startdate = '9999-12-31'
     enddate = '0000-00-00'
     for engagement in session.query(Engagement).filter(
-        Engagement.bruger_uuid == bruger.uuid
+        Engagement.bruger_uuid == bruger_uuid
     ).all():
         if engagement.slutdato and enddate != '':
             # Enddate is finite, check if it is later than current
@@ -299,9 +323,9 @@ def build_manager_rows(session, settings, ou, manager):
     firstname = bruger.fornavn
     lastname = bruger.efternavn
 
-    entrydate, leavedate = get_manager_dates(session, bruger)
+    entrydate, leavedate = get_manager_dates(session, bruger.uuid)
     if entrydate is None:
-        logger.info("skipping manager %s with no current employment", manager.uuid)
+        logger.info("skipping manager %s with no current employment (for user)", manager.uuid)
         return []
 
     username = session.query(ItForbindelse.brugernavn).filter(and_(
@@ -459,6 +483,12 @@ def main(emus_xml_file, settings):
     emus_xml_file.write("</OS2MO>")
 
 
-if __name__ == '__main__':
-    with open(config.settings["EMUS_FILENAME"], "w", encoding="utf-8") as emus_f:
+@click.command()
+@click.argument('filename')
+def cli(filename):
+    with open(filename, "w", encoding="utf-8") as emus_f:
         main(emus_xml_file=emus_f, settings=config.settings)
+
+
+if __name__ == '__main__':
+    cli()

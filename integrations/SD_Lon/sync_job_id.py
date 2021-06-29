@@ -3,12 +3,12 @@ import json
 import atexit
 import pathlib
 import logging
-import argparse
 import requests
-import sd_payloads
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import mora_assert
+from integrations.SD_Lon.sd_common import load_settings
+from integrations.SD_Lon import sd_payloads
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'sync_job_id.log'
@@ -30,30 +30,32 @@ def setup_logging():
     )
 
 
-class JobIdSync(object):
-    def __init__(self):
+class JobIdSync:
+    def __init__(self, settings=None):
         logger.info('Start sync')
-        atexit.register(self.at_exit)
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        self.settings = json.loads(cfg_file.read_text())
+        self.settings = settings or load_settings()
 
-        helper = MoraHelper(hostname=self.settings['mora.base'], use_cache=False)
-        self.engagement_types = helper.read_classes_in_facet('engagement_type')
-
-        if self.settings[
-                'integrations.SD_Lon.job_function'] == 'JobPositionIdentifier':
+        sd_job_function = self.settings['integrations.SD_Lon.job_function']
+        if sd_job_function == 'JobPositionIdentifier':
             logger.info('Read settings. Update job_functions and engagment types')
-            self.job_function_types = helper.read_classes_in_facet(
-                'engagement_job_function')
             self.update_job_functions = True
         else:
             logger.info('Read settings. Do not update job_functions')
             self.update_job_functions = False
 
-    def at_exit(self):
-        logger.info('*Sync ended*')
+        self._read_classes()
+
+
+    def _read_classes(self):
+        """Read engagement_types and job_function types from MO."""
+        mora_base = self.settings['mora.base']
+        helper = MoraHelper(hostname=mora_base, use_cache=False)
+
+        self.engagement_types = helper.read_classes_in_facet('engagement_type')
+        if self.update_job_functions:
+            self.job_function_types = helper.read_classes_in_facet(
+                'engagement_job_function'
+            )
 
     def _find_engagement_type(self, job_pos_id):
         """
@@ -123,38 +125,54 @@ class JobIdSync(object):
         logger.info('Found {}'.format(job_pos_id))
         return job_pos
 
-    def sync_from_sd(self, job_pos_id):
+    def _sync_engagement_type_from_sd(self, job_pos_id, sd_job_pos_text):
+
+        mo_eng_type = self._find_engagement_type(job_pos_id)
+        if mo_eng_type is None:
+            logger.info('Engagement type {} not found i MO'.format(job_pos_id))
+            return False
+
+        self._edit_klasse_title(mo_eng_type['uuid'], sd_job_pos_text)
+        logger.info('Updated engagement type: {}'.format(job_pos_id))
+        return True
+
+    def _sync_job_function_from_sd(self, job_pos_id, sd_job_pos_text):
+
+        mo_job_function_type = self._find_job_function_type(job_pos_id)
+        if mo_job_function_type is None:
+            logger.info('job function type {} not found i MO'.format(job_pos_id))
+            return False
+
+        self._edit_klasse_title(mo_job_function_type['uuid'], sd_job_pos_text)
+        logger.info('Updated job function type type: {}'.format(job_pos_id))
+        return True
+
+    def sync_from_sd(self, job_pos_id, refresh=False):
         """
         Sync the titel of LoRa engagement type to the value current
         registred at SD.
         """
+        # If asked to refresh, reread the classes from MO. This may be necessary if
+        # new classes have been added since the creation of this JobIdSync object.
+        if refresh:
+            self._read_classes()
+
         logger.info('Sync {} to value found in SD'.format(job_pos_id))
         return_status = [None, None]
+
         sd_job_pos_text = self._get_job_pos_id_from_sd(job_pos_id)
         if sd_job_pos_text is None:
             logger.info('Job position {} not found i SD'.format(job_pos_id))
             return return_status
 
-        mo_eng_type = self._find_engagement_type(job_pos_id)
-        if mo_eng_type is None:
-            return_status[0] = False
-            logger.info('Engagement type {} not found i MO'.format(job_pos_id))
-        else:
-            return_status[0] = True
-            self._edit_klasse_title(mo_eng_type['uuid'], sd_job_pos_text)
-            logger.info('Updated engagement type: {}'.format(job_pos_id))
-
+        return_status[0] = self._sync_engagement_type_from_sd(
+            job_pos_id, sd_job_pos_text
+        )
         # Only run this part, if we are actually using
         if self.update_job_functions:
-            mo_job_function_type = self._find_job_function_type(job_pos_id)
-            if mo_job_function_type is None:
-                return_status[1] = False
-                logger.info('job function type {} not found i MO'.format(job_pos_id))
-            else:
-                self._edit_klasse_title(mo_job_function_type['uuid'],
-                                        sd_job_pos_text)
-                return_status[1] = True
-                logger.info('Updated job function type type: {}'.format(job_pos_id))
+            return_status[1] = self._sync_job_function_from_sd(
+                job_pos_id, sd_job_pos_text
+            )
 
         logger.info('Return status: {}'.format(return_status))
         return return_status
@@ -231,6 +249,7 @@ def sync_jobid(job_pos_id, title, sync_all):
 
     if sync_all:
         sync_tool.sync_all_from_sd()
+    logger.info('*Sync ended*')
 
 
 if __name__ == '__main__':

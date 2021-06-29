@@ -8,8 +8,8 @@ from integrations.SD_Lon.sd_common import load_settings
 
 
 class DBOverview(object):
-    def __init__(self):
-        settings = load_settings()
+    def __init__(self, settings=None):
+        settings = settings or load_settings()
         self.run_db = settings["integrations.SD_Lon.import.run_db"]
 
     def read_db_content(self):
@@ -27,9 +27,7 @@ class DBOverview(object):
         conn = sqlite3.connect(self.run_db, detect_types=sqlite3.PARSE_DECLTYPES)
         c = conn.cursor()
 
-        query = (
-            "SELECT " + ", ".join([*fields]) + " FROM runs ORDER BY id DESC LIMIT 1"
-        )
+        query = "SELECT " + ", ".join([*fields]) + " FROM runs ORDER BY id DESC LIMIT 1"
         c.execute(query)
         result = c.fetchone()
         if len(result) == 1:

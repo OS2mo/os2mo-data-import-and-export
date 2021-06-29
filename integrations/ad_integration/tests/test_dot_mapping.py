@@ -1,6 +1,4 @@
-import sys
 import unittest
-from os.path import dirname
 
 from parameterized import parameterized
 

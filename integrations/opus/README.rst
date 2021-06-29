@@ -11,15 +11,18 @@ medarbejderoplysninger fra XML dumps fra OPUS Løn til OS2MO
 Opsætning
 =========
 
-For at kunne afvikle integrationen, kræves adgang til en mappe med xml-dumps fra
-OPUS. Oplysninger om stien til denne mappe er øjeblikket skrevet direkte i
-importkoden og kan ikke ændres i runtime.
+Der er tre muligheder for læsning af opusfiler.
 
-Den forventede sti for mappen med opus dumps er:
-``/opt/customer/``
+* Lokalt: Opusfilerne kopieres direkte til serverne. Stien specificeres i settings.json som ``integrations.opus.import.xml_path``. Som regel er den ``/opt/customer/``.
+* Windows share. Filerne kan læses fra et windows share med SMB protokollen. Denne anvendes hvis ``integrations.opus.smb_host`` er udfyldt i settings.json.
+Bemærk den skal udfyldes som ``IP/sti``. Kræver desuden en bruger med rettighed til at læse filerne 
+og credentials sættes i settings.json som ``integrations.opus.smb_user`` og ``integrations.opus.smb_password``.
+* Google cloud storage: Filerne kan læses direkte fra google cloud storage. 
+Dette kræver en service konto der er sat op på serveren med rettigheder til at læse filerne. 
+Derudover er det kun ``integrations.opus.gcloud_bucket_name`` der skal udfyldes i settings.json med det navn som storage enheden har i google cloud.
 
-De enkelte dumps forventes at være navngivet systematisk som:
-``ZLPE<data + tid>_delta.xml``
+Fælles for dem alle gælder at de enkelte dumps forventes at være navngivet systematisk som:
+``ZLPE<dat0 + tid>_delta.xml``
 
 Eksempelvis ``ZLPE20190902224224_delta.xml``.
 
@@ -51,7 +54,7 @@ En import fra OPUS vil oprette IT-systemet 'Opus' i MO. Alle medarbejdere som ha
 en værdi i feltet ``userId`` vil få skrevet deres OPUS brugernavn på dette
 IT-system.
 
-.. _AD Integration til SD Opus:
+.. AD Integration til Opus:
 
 AD-Integration
 ==============
@@ -108,7 +111,7 @@ personen endnu ikke tiltrådt, og fremgår i fanen fremtid.
 
 
 Anvendelse af integrationen
-==========================
+===========================
 
 For at anvende integrationen kræves udover de nævnte xml-dumps, at der oprettes
 en gyldig konfiguration i ``settings.json``. De påkrævede nøgler er:
@@ -173,43 +176,6 @@ For at synkronisere en enkelt medarbejder anvedes disse kommandolinjeparametre:
 
 * ``--update-single-user``: Ansættelsesnummer på den relevante medarbejder
 * ``days``: Antal dage bagud integrationen skal søge.
-
-
-Opsætning af agenten til re-import
-----------------------------------
-
-For at kunne sammenligne objekter mellem MO og Opus, har integrationen brug for at
-kende de klasser som felterne mappes til i MO. Det er derfor nødvendigt at oprette
-disse nøgler i ``settings.json``:
-
- * ``opus.addresses.employee.dar``:  UUID på postaddresse for medarbejdere.
- * ``opus.addresses.employee.phone``: UUID på telefon for medarbejdere.
- * ``opus.addresses.employee.email``: UUID på email for medarbejdere.
- * ``opus.addresses.unit.se``: UUID på SE nummer for enheder.
- * ``opus.addresses.unit.cvr``: UUID på CVR nummer for enheder.
- * ``opus.addresses.unit.ean``: UUID på EAN nummer for enheder.
- * ``opus.addresses.unit.pnr``: UUID på p-nummer for enheder.
- * ``opus.addresses.unit.phoneNumber``:  UUID på telefonnummer for enheder.
- * ``opus.addresses.unit.dar``: UUID på postaddresser for enheder.
- * ``opus.it_systems.ad``:  UUID på IT-systemet 'Active Directory'
- * ``opus.it_systems.opus``: UUID på IT-systemet 'Opus'
-
-Klasserne oprettes i forbindelse med førstegangsimporten, og UUID'erne kan findes ved
-hjælp af disse tre end-points i MO:
-
- * ``/service/o/<org_uuid>/f/org_unit_address_type/``
- * ``/service/o/<org_uuid>/f/employee_address_type/``
- * ``/service/o/<org_uuid>/it/``
-   
-Værdien af org_uuid findes ved at tilgå:
-
- * ``/service/o/``
-
-Det er vigtigt, at disse klasser ikke også anvendes fra front-end'en da dette vil
-skabe en konflikt med synkroniseringen fra Opus (som ikke længere kan vide hvilke
-værdier, der skal rettes). Det er muligt at oprette yderligere typer, som ikke
-anvendes af Opus-agenten, hvis der brug for felter som kan oprettes og rettes fra
-front-end'en.
 
 
 Nuværende begrænsninger omkring re-import

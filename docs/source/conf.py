@@ -23,7 +23,7 @@ from recommonmark.transform import AutoStructify
 # -- Project information -----------------------------------------------------
 
 project = 'os2mo-data-import-and-export'
-copyright = '2019, Magenta'
+copyright = '2019-2021, Magenta'
 author = 'Magenta'
 master_doc = 'index'
 
@@ -32,7 +32,12 @@ master_doc = 'index'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['recommonmark', 'sphinx.ext.autodoc', 'sphinx.ext.napoleon']
+extensions = [
+    'recommonmark',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.autosummary',
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -57,12 +62,22 @@ html_theme_path = ["_themes", ]
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+# autodoc and autosummary setup
+autodoc_default_flags = ['members']
+autosummary_generate = True
 
 
-# At the bottom of conf.py
 def setup(app):
-    app.add_config_value('recommonmark_config', {
+    # recommonmark setup
+    app.add_config_value(
+        'recommonmark_config',
+        {
             #'url_resolver': lambda url: github_doc_root + url,
             'auto_toc_tree_section': 'Contents',
-            }, False)
+        },
+        False
+    )
     app.add_transform(AutoStructify)
+
+    # customize css
+    app.add_css_file('remove-table-scrollbars.css')

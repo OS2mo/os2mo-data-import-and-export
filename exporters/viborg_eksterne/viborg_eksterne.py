@@ -7,13 +7,13 @@
 Helper class to make a number of pre-defined queries into MO
 """
 import functools
-
 import time
 import json
 import logging
 import pathlib
-import argparse
 import datetime
+
+import click
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
@@ -237,26 +237,20 @@ def main(speedup, dry_run=False):
 
     logger.info('Export completed')
 
-
-def cli():
-    parser = argparse.ArgumentParser(description='Choose backend')
-    group = parser.add_mutually_exclusive_group(required=True)
-
-    group.add_argument('--lora',  action='store_true')
-    group.add_argument('--mo',  action='store_true')
-    parser.add_argument('--read-from-cache',  action='store_true')
-
-    args = vars(parser.parse_args())
-
-    logger.info('Starting with args: {}'.format(args))
-
-    if args['lora']:
+@click.command()
+@click.option(
+    '--lora/--mo', 'backend', required=True, default=None, help='Choose backend',
+)
+@click.option('--read-from-cache', is_flag=True)
+def cli(**args):
+    logger.info('Starting with args: %r', args)
+    if args['backend']:
+        # True -> use LoRa
         main(speedup=True, dry_run=args['read_from_cache'])
-
-    elif args['mo']:
-        main(speedup=False)
     else:
-        print('Either --mo or --lora must be given as argument')
+        # False -> use MO
+        main(speedup=False)
+
 
 if __name__ == '__main__':
     cli()
