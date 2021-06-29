@@ -66,6 +66,11 @@ show_git_commit(){
     echo
 }
 
+sanity_check_mo_data(){
+    echo Performing sanity check on data
+    ${VENV}/bin/python3 tools/check_data.py 
+}
+
 imports_mox_db_clear(){
     echo running imports_mox_db_clear
     ${VENV}/bin/python3 tools/clear_mox_tables.py
@@ -76,10 +81,21 @@ imports_test_ad_connectivity(){
         "${DIPEXAR}/test_connectivity.log"
     )
     echo running imports_test_ad_connectivity
-    ${VENV}/bin/python3 integrations/ad_integration/test_connectivity.py  --test-read-settings
+    ${VENV}/bin/python3 -m integrations.ad_integration.test_connectivity --test-read-settings
+}
+
+imports_test_ad_connectivity_writer(){
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/test_connectivity.log"
+    )
+    echo running imports_test_ad_connectivity_writer
+    ${VENV}/bin/python3 -m integrations.ad_integration.test_connectivity --test-write-settings
 }
 
 imports_test_sd_connectivity(){
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/test_sd_connectivity.log"
+    )
     echo running imports_test_sd_connectivity
     ${VENV}/bin/python3 integrations/SD_Lon/test_sd_connectivity.py
 }
@@ -132,8 +148,8 @@ imports_sd_update_primary(){
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/calculate_primary.log"
     )
-    echo updating primary engagements
-    ${VENV}/bin/python3 integrations/SD_Lon/calculate_primary.py --recalculate-all || (
+    echo "updating primary engagements"
+    ${VENV}/bin/python3 integrations/calculate_primary/calculate_primary.py --integration SD --recalculate-all || (
         # denne fejl skal ikke stoppe afviklingen, da en afbrudt kørsel blot kan gentages
         echo FEJL i updating primary engagements, men kører videre
     )
@@ -145,7 +161,7 @@ imports_ad_sync(){
         "${DIPEXAR}/ad_mo_sync.log"
     )
     echo running imports_ad_sync
-    ${VENV}/bin/python3 integrations/ad_integration/ad_sync.py
+    ${VENV}/bin/python3 -m integrations.ad_integration.ad_sync
 }
 
 imports_ballerup_apos(){
@@ -166,7 +182,7 @@ imports_ad_group_into_mo(){
         "${DIPEXAR}/external_ad_users.log"
     )
     echo running imports_ad_group_into_mo
-    ${VENV}/bin/python3 integrations/ad_integration/import_ad_group_into_mo.py --full-sync
+    ${VENV}/bin/python3 -m integrations.ad_integration.import_ad_group_into_mo --full-sync
 }
 
 imports_kle_online(){
@@ -244,7 +260,10 @@ exports_viborg_emus(){
         emus_log.txt
     )
     echo running viborg_emus
-    ${VENV}/bin/python3 exporters/emus/lcdb_viborg_xml_emus_sftp.py
+    EMUS_FILENAME="tmp/emus_export.xml"
+
+    ${VENV}/bin/python3 exporters/emus/lcdb_viborg_xml_emus.py ${EMUS_FILENAME}
+    ${VENV}/bin/python3 exporters/emus/emus_sftp.py ${EMUS_FILENAME}
 }
 
 exports_viborg_eksterne(){
@@ -281,7 +300,7 @@ exports_ad_life_cycle(){
         "${DIPEXAR}/AD_life_cycle.log"
     )
     echo "running exports_ad_life_cycle"
-    ${VENV}/bin/python3 integrations/ad_integration/ad_life_cycle.py --create-ad-accounts
+    ${VENV}/bin/python3 -m integrations.ad_integration.ad_life_cycle --create-ad-accounts
 }
 
 exports_mo_to_ad_sync(){
@@ -289,7 +308,7 @@ exports_mo_to_ad_sync(){
         "${DIPEXAR}/mo_to_ad_sync.log"
     )
     echo "running exports_mo_to_ad_sync"
-    ${VENV}/bin/python3 integrations/ad_integration/mo_to_ad_sync.py
+    ${VENV}/bin/python3 -m integrations.ad_integration.mo_to_ad_sync
 }
 
 exports_plan2learn(){
@@ -339,12 +358,12 @@ exports_queries_ballerup(){
 exports_actual_state_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(sql_export.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --resolve-dar
 }
 
 exports_historic_sql_export(){
     BACK_UP_AND_TRUNCATE+=(sql_export.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --historic
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --resolve-dar --historic
 }
 
 exports_os2phonebook_export(){
@@ -356,7 +375,7 @@ exports_os2phonebook_export(){
 
 exports_sync_mo_uuid_to_ad(){
     BACK_UP_AND_TRUNCATE+=(sync_mo_uuid_to_ad.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/integrations/ad_integration/sync_mo_uuid_to_ad.py --sync-all
+    ${VENV}/bin/python3 -m integrations.ad_integration.sync_mo_uuid_to_ad --sync-all
 }
 
 reports_viborg_managers(){
@@ -366,6 +385,10 @@ reports_viborg_managers(){
 reports_frederikshavn(){
     BACK_UP_AND_TRUNCATE+=(Frederikshavn_reports.log)
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/Frederikshavn_reports.py
+}
+
+reports_csv(){
+    ${VENV}/bin/python3 ${DIPEXAR}/reports/shared_reports.py
 }
 
 exports_lc_for_jobs_db(){
@@ -593,6 +616,10 @@ reports(){
         run-job reports_frederikshavn || return 2
     fi
 
+    if [ "${RUN_REPORTS_CSV}" == "true" ]; then
+        run-job reports_csv || return 2
+    fi
+
     if [ "${RUN_REPORTS_DUMMY}" == "true" ]; then
         run-job reports_dummy || return 2
     fi
@@ -783,6 +810,7 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
         export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
         pre_backup
+        run-job sanity_check_mo_data || echo Sanity check failed
         run-job imports && IMPORTS_OK=true
         run-job exports && EXPORTS_OK=true
         run-job reports && REPORTS_OK=true

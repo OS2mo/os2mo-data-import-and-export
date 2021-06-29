@@ -1,17 +1,17 @@
-from sqlalchemy import Column, ForeignKey, Boolean, Integer, String, DateTime
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
 
 
 class Facet(Base):
-    __tablename__ = "facetter"
+    __tablename__ = "wfacetter"
     uuid = Column(String(36), nullable=False, primary_key=True)
     bvn = Column(String(250), nullable=False)
 
 
 class Klasse(Base):
-    __tablename__ = "klasser"
+    __tablename__ = "wklasser"
 
     uuid = Column(String(36), nullable=False, primary_key=True)
     bvn = Column(String(250), nullable=False)
@@ -21,7 +21,7 @@ class Klasse(Base):
 
 
 class Bruger(Base):
-    __tablename__ = "brugere"
+    __tablename__ = "wbrugere"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -36,7 +36,7 @@ class Bruger(Base):
 
 
 class Enhed(Base):
-    __tablename__ = "enheder"
+    __tablename__ = "wenheder"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -44,9 +44,7 @@ class Enhed(Base):
     forældreenhed_uuid = Column(String(36), nullable=True, primary_key=False)
     enhedstype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     enhedstype_titel = Column(String(250), nullable=False)
-    enhedsniveau_uuid = Column(
-        String(36), nullable=True
-    )  # ForeignKey('klasser.uuid'))
+    enhedsniveau_uuid = Column(String(36), nullable=True)  # ForeignKey('klasser.uuid'))
     enhedsniveau_titel = Column(String(250), nullable=True)
     organisatorisk_sti = Column(String(1000), nullable=True)
     leder_uuid = Column(String(36))
@@ -56,21 +54,19 @@ class Enhed(Base):
 
 
 class Adresse(Base):
-    __tablename__ = "adresser"
+    __tablename__ = "wadresser"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     bruger_uuid = Column(String(36), nullable=True)  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
     værdi = Column(String(250), nullable=True)
-    dar_uuid = Column(String(36), nullable=True) # , ForeignKey('dar_adresser.uuid'))
-    adressetype_uuid = Column(String(36), ForeignKey("klasser.uuid"))
+    dar_uuid = Column(String(36), nullable=True)  # , ForeignKey('dar_adresser.uuid'))
+    adressetype_uuid = Column(String(36))  # , ForeignKey("klasser.uuid"))
     adressetype_bvn = Column(String(250), nullable=False)
     adressetype_scope = Column(String(250), nullable=False)
     adressetype_titel = Column(String(250), nullable=False)
-    synlighed_uuid = Column(
-        String(36), nullable=True
-    )  # , ForeignKey('klasser.uuid'))
+    synlighed_uuid = Column(String(36), nullable=True)  # , ForeignKey('klasser.uuid'))
     synlighed_scope = Column(String(250), nullable=True)
     synlighed_titel = Column(String(250), nullable=True)
     startdato = Column(String(10))
@@ -78,7 +74,7 @@ class Adresse(Base):
 
 
 class Engagement(Base):
-    __tablename__ = "engagementer"
+    __tablename__ = "wengagementer"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -88,9 +84,7 @@ class Engagement(Base):
     arbejdstidsfraktion = Column(Integer)
     engagementstype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     engagementstype_titel = Column(String(250), nullable=False)
-    primærtype_uuid = Column(
-        String(36), nullable=True
-    )  # , ForeignKey('klasser.uuid'))
+    primærtype_uuid = Column(String(36), nullable=True)  # , ForeignKey('klasser.uuid'))
     primærtype_titel = Column(String(250), nullable=True)
     stillingsbetegnelse_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     stillingsbetegnelse_titel = Column(String(250), nullable=False)
@@ -110,7 +104,7 @@ class Engagement(Base):
 
 
 class Rolle(Base):
-    __tablename__ = "roller"
+    __tablename__ = "wroller"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -123,7 +117,7 @@ class Rolle(Base):
 
 
 class Tilknytning(Base):
-    __tablename__ = "tilknytninger"
+    __tablename__ = "wtilknytninger"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -137,7 +131,7 @@ class Tilknytning(Base):
 
 
 class Orlov(Base):
-    __tablename__ = "orlover"
+    __tablename__ = "worlover"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -150,14 +144,14 @@ class Orlov(Base):
 
 
 class ItSystem(Base):
-    __tablename__ = "it_systemer"
+    __tablename__ = "wit_systemer"
 
     uuid = Column(String(36), nullable=False, primary_key=True)
     navn = Column(String(250), nullable=False)
 
 
 class ItForbindelse(Base):
-    __tablename__ = "it_forbindelser"
+    __tablename__ = "wit_forbindelser"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -170,7 +164,7 @@ class ItForbindelse(Base):
 
 
 class Leder(Base):
-    __tablename__ = "ledere"
+    __tablename__ = "wledere"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -185,7 +179,7 @@ class Leder(Base):
 
 
 class LederAnsvar(Base):
-    __tablename__ = "leder_ansvar"
+    __tablename__ = "wleder_ansvar"
 
     id = Column(Integer, nullable=False, primary_key=True)
     leder_uuid = Column(String(36))  # , ForeignKey('ledere.uuid'))
@@ -196,7 +190,7 @@ class LederAnsvar(Base):
 
 
 class KLE(Base):
-    __tablename__ = "kle"
+    __tablename__ = "wkle"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
@@ -219,18 +213,18 @@ class Kvittering(Base):
 
 
 class Enhedssammenkobling(Base):
-    __tablename__ = "enhedssammenkobling"
+    __tablename__ = "wenhedssammenkobling"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     enhed1_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
-    enhed2_uuid  = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
+    enhed2_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
     startdato = Column(String(10))
     slutdato = Column(String(10))
 
 
 class DARAdresse(Base):
-    __tablename__ = "dar_adresser"
+    __tablename__ = "wdar_adresser"
 
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)

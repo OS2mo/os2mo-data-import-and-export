@@ -80,8 +80,8 @@
     "integrations.SD_Lon.sd_password": "",
     "integrations.SD_Lon.institution_identifier": "",
     "integrations.SD_Lon.import.too_deep": [
-        "liste", 
-        "af", 
+        "liste",
+        "af",
         "ny-niveauer"
     ] ,
     "integrations.SD_Lon.global_from_date": "YYYY-mm-dd",
@@ -97,7 +97,7 @@
     "#integrations.SD_Lon.sd_mox.LOG_LEVEL": "",
     "#integrations.SD_Lon.sd_mox.LOG_FILE": "",
     "#integrations.SD_Lon.sd_mox.TRIGGERED_UUIDS": [
-        "uuid-for-triggered-undertræ1-i-is2mo", 
+        "uuid-for-triggered-undertræ1-i-is2mo",
         "der-kan-være-flere"
     ],
     "#integrations.SD_Lon.sd_mox.OS2MO_SERVICE": "http://localhost:5000/service/",
@@ -128,6 +128,14 @@
     },
     "integrations.ad.ad_mo_sync_direct_lora_speedup": false,
     "integrations.ad.skip_school_ad_to_mo": false,
+
+    "integrations.ad_writer.template_to_ad_fields": {
+        "Name": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }} - {{ user_sam }}",
+        "Displayname": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }}",
+        "GivenName": "{{ mo_values['name'][0] }}",
+        "SurName": "{{ mo_values['name'][1] }}",
+        "EmployeeNumber": "{{ mo_values['employment_number'] }}"
+    },
 
     "integrations.opus.import.run_db": "/path/to/CRON/run_db.sqlite",
     "integrations.opus.import.xml_path": "/path-to/customer-dumps",

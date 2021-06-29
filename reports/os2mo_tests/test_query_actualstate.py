@@ -29,6 +29,15 @@ class Tests_db(unittest.TestCase):
         self.session = sessionmaker(bind=self.engine, autoflush=False)()
         # Lav tables via tabledefs fra LoraCache og fyld dataen ind
         Base.metadata.create_all(self.engine)
+        enhed = Enhed(navn="LØN-org", uuid="LE1", enhedstype_titel="org_unit_type")
+        self.session.add(enhed)
+        enhed = Enhed(
+            navn="Under-Enhed",
+            uuid="LE2",
+            enhedstype_titel="org_unit_type",
+            forældreenhed_uuid="LE1",
+        )
+        self.session.add(enhed)
         enhed = Enhed(navn="Hoved-MED", uuid="E1", enhedstype_titel="org_unit_type")
         self.session.add(enhed)
         enhed = Enhed(
@@ -67,7 +76,7 @@ class Tests_db(unittest.TestCase):
             engagementstype_titel="test1",
             primærtype_titel="?",
             bruger_uuid="b1",
-            enhed_uuid="E3",
+            enhed_uuid="LE2",
             stillingsbetegnelse_titel="tester1",
         )
         self.session.add(engagement)
@@ -93,7 +102,7 @@ class Tests_db(unittest.TestCase):
             engagementstype_titel="test2",
             primærtype_titel="?",
             bruger_uuid="b2",
-            enhed_uuid="E2",
+            enhed_uuid="LE2",
             stillingsbetegnelse_titel="tester2",
         )
         self.session.add(engagement)
@@ -134,13 +143,41 @@ class Tests_db(unittest.TestCase):
 
     def test_MED_data(self):
         hoved_enhed = self.session.query(Enhed).all()
-        data = list_MED_members(self.session, "Hoved-MED")
-        self.assertEqual(data[0], ("Navn", "Email", "Tilknytningstype", "Enhed"))
-
-        self.assertEqual(data[1], ("fornavn efternavn", None, "titel", "Under-MED"))
+        data = list_MED_members(self.session, {"løn": "LØN-org", "MED": "Hoved-MED"})
+        self.assertEqual(
+            data[0],
+            (
+                "Navn",
+                "Email",
+                "Telefonnummer",
+                "Tilknytningstype",
+                "Tilknytningsenhed",
+                "Ansættelsesenhed",
+            ),
+        )
 
         self.assertEqual(
-            data[2], ("fornavn2 efternavn2", None, "titel2", "Under-under-MED")
+            data[1],
+            (
+                "fornavn efternavn",
+                "AD-email@email.dk",
+                "12345678",
+                "titel",
+                "Under-MED",
+                "Under-Enhed",
+            ),
+        )
+
+        self.assertEqual(
+            data[2],
+            (
+                "fornavn2 efternavn2",
+                None,
+                None,
+                "titel2",
+                "Under-under-MED",
+                "Under-Enhed",
+            ),
         )
 
     def test_set_of_org_units(self):
@@ -149,7 +186,7 @@ class Tests_db(unittest.TestCase):
 
     def test_EMP_data(self):
         hoved_enhed = self.session.query(Enhed).all()
-        data = list_employees(self.session, "Hoved-MED")
+        data = list_employees(self.session, "LØN-org")
         self.assertEqual(
             data[0],
             ("Navn", "cpr", "AD-Email", "AD-Telefonnummer", "Enhed", "Stilling"),
@@ -162,14 +199,14 @@ class Tests_db(unittest.TestCase):
                 "cpr1",
                 "AD-email@email.dk",
                 "12345678",
-                "Under-under-MED",
+                "Under-Enhed",
                 "tester1",
             ),
         )
 
         self.assertEqual(
             data[2],
-            ("fornavn2 efternavn2", "cpr2", None, None, "Under-MED", "tester2"),
+            ("fornavn2 efternavn2", "cpr2", None, None, "Under-Enhed", "tester2"),
         )
 
 

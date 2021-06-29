@@ -1,7 +1,8 @@
 import json
 import requests
-import argparse
+import click
 
+from ra_utils.load_settings import load_settings
 from pathlib import Path
 from os2mo_helpers.mora_helpers import MoraHelper
 
@@ -10,14 +11,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 
 class TestOpusConnectivity(object):
     def __init__(self):
-        cfg_file = Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        try:
-            self.settings = json.loads(cfg_file.read_text())
-        except json.decoder.JSONDecodeError as e:
-            print('Syntax error in settings file: {}'.format(e))
-            exit(1)
+        self.settings = load_settings()
 
         self.helper = MoraHelper(hostname=self.settings['mora.base'],
                                  use_cache=False)
@@ -248,19 +242,17 @@ class TestOpusConnectivity(object):
         self._check_is_systems()
         self._check_run_db(should_be_empty=False)
 
-    def cli(self):
-        parser = argparse.ArgumentParser(description='Test opus configuration')
-        parser.add_argument('--test-diff-import', action='store_true')
-        args = vars(parser.parse_args())
 
-        self.base_opus_check()
-
-        if args['test_diff_import']:
-            self.diff_opus_check()
-        else:
-            self._check_run_db(should_be_empty=True)
+@click.command(help="Test Opus configuration")
+@click.option("--test-diff-import", is_flag=True)
+def cli(**args):
+    toc = TestOpusConnectivity()
+    toc.base_opus_check()
+    if args['test_diff_import']:
+        toc.diff_opus_check()
+    else:
+        toc._check_run_db(should_be_empty=True)
 
 
 if __name__ == '__main__':
-    toc = TestOpusConnectivity()
-    toc.cli()
+    cli()

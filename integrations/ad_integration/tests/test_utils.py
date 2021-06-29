@@ -2,17 +2,20 @@ import time
 import uuid
 from datetime import datetime
 from functools import partial
-from random import choice, randint
+from itertools import chain
+from random import choice
+from random import randint
 from unittest import TestCase
 
 import requests
-from integrations.ad_integration.read_ad_conf_settings import read_settings
 
-from ad_sync import AdMoSync
-from ad_writer import ADWriter
-from tests.name_simulator import create_name
-from user_names import CreateUserNames
-from utils import AttrDict, recursive_dict_update
+from ..ad_sync import AdMoSync
+from ..ad_writer import ADWriter
+from ..read_ad_conf_settings import read_settings
+from ..user_names import CreateUserNames
+from ..utils import AttrDict
+from ..utils import recursive_dict_update
+from .name_simulator import create_name
 
 
 class MOTestMixin(object):
@@ -64,11 +67,11 @@ class MOTestMixin(object):
         """
         configuration = self._fetch_mo_service_configuration()
         read_only_key = "read_only"
-        if configuration == None:
+        if configuration is None:
             return "Unable to reach MO instance"
         elif read_only_key not in configuration:
             return "MO instance did not return readonly status"
-        if configuration[read_only_key] == False:
+        if configuration[read_only_key] is False:
             # Consider putting MO into read-only mode using:
             # curl -X PUT -H 'Content-Type: application/json' \
             #      -d '{"status": true}' http://localhost:5000/read_only/
@@ -137,23 +140,29 @@ def mo_modifier(updates):
 class ADWriterTestSubclass(ADWriter):
     """Testing subclass of ADWriter."""
 
-    def __init__(self, read_ad_information_from_mo, *args, **kwargs):
+    def __init__(
+        self,
+        read_ad_information_from_mo,
+        ad_values_func=None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         # List of scripts to be executed via run_ps
         self.scripts = []
         # Transformer for mo_values return
         self.read_ad_information_from_mo = read_ad_information_from_mo
-        self._find_unique_user = lambda cpr: read_ad_information_from_mo("")[
-            "sam_account_name"
-        ]
+        # Replace real `_find_ad_user` with mock
+        if kwargs.get("mock_find_ad_user", True):
+            self._find_ad_user = lambda ad_user, ad_dump=None: ad_values_func()
 
-    def _init_name_creator(self):
+    def _init_name_creator(self, occupied_names=None):
         """Mocked to pretend no names are occupied.
 
         This method would normally use ADReader to read usernames from AD.
         """
         # Simply leave out the call to populate_occupied_names
-        self.name_creator = CreateUserNames(occupied_names=set())
+        self.name_creator = CreateUserNames(occupied_names)
 
     def _create_session(self):
         """Mocked to return a fake-class which writes scripts to self.scripts.
@@ -189,7 +198,10 @@ class ADWriterTestSubclass(ADWriter):
         return []
 
     def read_ad_information_from_mo(self, uuid, read_manager=True, ad_dump=None):
-        raise NotImplemented("Should be overridden in __init__")
+        raise NotImplementedError("Should be overridden in __init__")
+
+    def _read_ad_information_from_mo(self, uuid, read_manager=True, ad_dump=None):
+        return super().read_ad_information_from_mo(uuid, read_manager, ad_dump)
 
 
 def _no_transformation(default, *args, **kwargs):
@@ -254,8 +266,7 @@ class TestADMixin(object):
                     "full_name": " ".join(default_person["name"]),
                     "sam_account_name": sam_account_name,
                     "manager_sam": default_person["manager_name"][0],
-                    "manager_email": default_person["manager_name"][0]
-                    + "@magenta.dk",
+                    "manager_email": default_person["manager_name"][0] + "@magenta.dk",
                 }
             )
             # Add static fields
@@ -323,7 +334,8 @@ class TestADMixin(object):
                 "ObjectClass",
                 "SamAccountName",
                 "Surname",
-                "UserPrincipalName" "extensionAttribute1",
+                "UserPrincipalName",
+                "extensionAttribute1",
             ],
             "DistinguishedName": "CN="
             + person["full_name"]
@@ -331,13 +343,11 @@ class TestADMixin(object):
             + person["unit"]
             + ",DC=lee",
             "Enabled": True,
-            "GivenName": person["name"][:-1],
             "Name": person["full_name"],
             "ObjectClass": "user",
             "SamAccountName": person["sam_account_name"],
             "GivenName": person["name"][-1:],
-            "UserPrincipalName": "_".join(person["full_name"]).lower()
-            + "@magenta.dk",
+            "UserPrincipalName": "_".join(person["full_name"]).lower() + "@magenta.dk",
             "extensionAttribute1": person["cpr"],
             "AddedProperties": [],
             "ModifiedProperties": [],
@@ -365,6 +375,11 @@ class TestADMixin(object):
                     "properties": [],
                     "search_base": "search_base",
                     "integrations.ad.ad_mo_sync_mapping": {},
+                    "ad_mo_sync_terminate_missing": False,
+                    "ad_mo_sync_terminate_missing_require_itsystem": True,
+                    "ad_mo_sync_terminate_disabled": True,
+                    "ad_mo_sync_pre_filters": [],
+                    "ad_mo_sync_terminate_disabled_filters": [],
                     "servers": ["server123"],
                 }
             ],
@@ -375,14 +390,42 @@ class TestADMixin(object):
             "integrations.ad.write.level2orgunit_field": "level2orgunit_field",
             "integrations.ad.write.org_unit_field": "org_field",
             "integrations.ad.write.upn_end": "epn_end",
-            "integrations.ad.write.org_unit_field": "org_field",
             "integrations.ad.write.level2orgunit_type": "level2orgunit_type",
+            "integrations.ad_writer.template_to_ad_fields": {
+                "Name": "{{ mo_values['full_name'] }} - {{ user_sam }}",
+                "Displayname": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }}",
+                "GivenName": "{{ mo_values['name'][0] }}",
+                "SurName": "{{ mo_values['name'][1] }}",
+                "EmployeeNumber": "{{ mo_values['employment_number'] }}",
+            },
             "address.visibility.public": "address_visibility_public_uuid",
             "address.visibility.internal": "address_visibility_internal_uuid",
             "address.visibility.secret": "address_visibility_secret_uuid",
         }
         transformer_func = early_settings_transformer or _no_transformation
-        return transformer_func(default_settings)
+        modified_settings = transformer_func(default_settings)
+        for ad_settings in modified_settings["integrations.ad"]:
+            ad_settings["properties"] = list(
+                map(
+                    lambda x: x.lower(),
+                    chain(
+                        modified_settings.get(
+                            "integrations.ad_writer.template_to_ad_fields", {}
+                        ).keys(),
+                        modified_settings.get(
+                            "integrations.ad_writer.mo_to_ad_fields", {}
+                        ).values(),
+                        [modified_settings["integrations.ad.write.org_unit_field"]],
+                        [
+                            modified_settings[
+                                "integrations.ad.write.level2orgunit_field"
+                            ]
+                        ],
+                        [modified_settings["integrations.ad.write.uuid_field"]],
+                    ),
+                )
+            )
+        return modified_settings
 
 
 class TestADWriterMixin(TestADMixin):
@@ -391,15 +434,20 @@ class TestADWriterMixin(TestADMixin):
         late_transform_settings=None,
         transform_mo_values=None,
         early_transform_settings=None,
+        transform_ad_values=lambda x: x,
+        **kwargs,
     ):
         transformer_func = late_transform_settings or _no_transformation
         self.settings = transformer_func(
             read_settings(self._prepare_settings(early_transform_settings))
         )
         self.mo_values_func = partial(self._prepare_mo_values, transform_mo_values)
+        self.ad_values_func = partial(self._prepare_get_from_ad, transform_ad_values)
         self.ad_writer = ADWriterTestSubclass(
             all_settings=self.settings,
             read_ad_information_from_mo=self.mo_values_func,
+            ad_values_func=self.ad_values_func,
+            **kwargs,
         )
 
 
@@ -411,7 +459,7 @@ class AdMoSyncTestSubclass(AdMoSync):
         ad_values_func,
         mo_seed_func,
         *args,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.mo_values = mo_values_func()
@@ -430,14 +478,16 @@ class AdMoSyncTestSubclass(AdMoSync):
 
         def _mo_post(url, payload, force=True):
             # Register the call, so we can test against it
-            self.mo_post_calls.append(
-                {"url": url, "payload": payload, "force": force}
-            )
+            self.mo_post_calls.append({"url": url, "payload": payload, "force": force})
             # response.text --> "OK"
             return AttrDict({"text": "OK", "raise_for_status": lambda: None})
 
         def read_user(uuid):
             return self.mo_values
+
+        def update_user(uuid, data):
+            payload = {"type": "employee", "uuid": uuid, "data": data}
+            return _mo_post("details/edit", payload)
 
         return AttrDict(
             {
@@ -454,15 +504,16 @@ class AdMoSyncTestSubclass(AdMoSync):
                 "read_user_engagement": get_e_details("engagement"),
                 "get_e_addresses": get_e_details("address"),
                 "get_e_itsystems": get_e_details("it"),
+                "update_user": update_user,
                 "_mo_post": _mo_post,
             }
         )
 
-    def _setup_ad_reader_and_cache_all(self, index):
+    def _setup_ad_reader_and_cache_all(self, index, cache_all=True):
         def read_user(cpr, cache_only):
             # We only support one person in our mocking
             if cpr != self.mo_values["cpr"]:
-                raise NotImplemented("Outside mocking")
+                raise NotImplementedError("Outside mocking")
             # If we got that one person, return it
             return self.ad_values
 
@@ -500,9 +551,7 @@ class TestADMoSyncMixin(TestADMixin):
         if transform_settings:
             self.settings = self._prepare_settings(transform_settings)
         if transform_mo_values:
-            self.mo_values_func = partial(
-                self._prepare_mo_values, transform_mo_values
-            )
+            self.mo_values_func = partial(self._prepare_mo_values, transform_mo_values)
         if transform_ad_values:
             self.ad_values_func = partial(
                 self._prepare_get_from_ad, transform_ad_values

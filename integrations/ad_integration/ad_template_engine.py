@@ -1,6 +1,11 @@
+from jinja2 import Environment
+from jinja2 import StrictUndefined
 from jinja2 import Template
 
-from utils import dict_map, dict_partition, duplicates, lower_list
+from .utils import dict_map
+from .utils import dict_partition
+from .utils import duplicates
+from .utils import lower_list
 
 # Parameters that should not be quoted
 no_quote_list = ["Credential"]
@@ -149,11 +154,13 @@ cmdlet_templates = {
         {%- for parameter, value in parameters.items() %}
           -{{ parameter }} {{ value }}
         {%- endfor %}
+        {% if other_attributes %}
           -OtherAttributes @{
         {%- for attribute, value in other_attributes.items() -%}
             "{{ attribute }}"={{ value }};
         {%- endfor -%}
         }
+        {% endif %}
     """,
     # Update information saved on a user
     # Notice: Name cannot be updated using Set-ADUser, this must be done
@@ -176,29 +183,6 @@ cmdlet_templates = {
 }
 
 
-def prepare_default_field_templates(jinja_map):
-    """Expand jinja_map with default templates.
-
-    Args:
-        jinja_map: dictionary from ad field names to jinja template strings.
-
-    Returns:
-        dict: A jinja_map which has been extended with default templates.
-    """
-    # Seed default templates
-    jinja_map.setdefault(
-        "Name",
-        "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }} - {{ user_sam }}",
-    )
-    jinja_map.setdefault(
-        "Displayname", "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }}"
-    )
-    jinja_map.setdefault("GivenName", "{{ mo_values['name'][0] }}")
-    jinja_map.setdefault("SurName", "{{ mo_values['name'][1] }}")
-    jinja_map.setdefault("EmployeeNumber", "{{ mo_values['employment_number'] }}")
-    return jinja_map
-
-
 def prepare_settings_based_field_templates(jinja_map, cmd, settings):
     """Expand jinja_map with settings based templates.
 
@@ -214,10 +198,13 @@ def prepare_settings_based_field_templates(jinja_map, cmd, settings):
     def _get_setting_type(settings, key):
         # TODO: Currently we ignore school
         try:
-            return settings[key]
+            result = settings[key]
         except KeyError:
             msg = "Unable to find settings type: " + key
-            raise Exception(msg)
+            print(msg)
+        if not result:
+            raise Exception("%r is empty" % key)
+        return result
 
     write_settings = _get_setting_type(settings, "primary_write")
     primary_settings = _get_setting_type(settings, "primary")
@@ -237,9 +224,7 @@ def prepare_settings_based_field_templates(jinja_map, cmd, settings):
         jinja_map[ad_field] = template
 
     if cmd == "New-ADUser":  # New user
-        jinja_map["UserPrincipalName"] = (
-            "{{ user_sam }}@" + write_settings["upn_end"]
-        )
+        jinja_map["UserPrincipalName"] = "{{ user_sam }}@" + write_settings["upn_end"]
         jinja_map[write_settings["uuid_field"]] = "{{ mo_values['uuid'] }}"
 
         # If local settings dictates a separator, we add it directly to the
@@ -295,7 +280,6 @@ def prepare_field_templates(cmd, settings, jinja_map=None):
     """
     # Load field templates (ad_field --> template)
     jinja_map = jinja_map or {}
-    jinja_map = prepare_default_field_templates(jinja_map)
     jinja_map = prepare_settings_based_field_templates(jinja_map, cmd, settings)
     jinja_map = prepare_and_check_login_field_templates(jinja_map)
 
@@ -342,6 +326,14 @@ def filter_illegal(cmd, parameters, other_attributes):
     return parameters, other_attributes
 
 
+def load_jinja_template(source: str) -> Template:
+    """Load Jinja template in the string `source` and return a `Template`
+    instance.
+    """
+    environment = Environment(undefined=StrictUndefined)
+    return environment.from_string(source)
+
+
 def prepare_template(cmd, settings, jinja_map=None):
     """Build a complete powershell command template.
 
@@ -360,7 +352,7 @@ def prepare_template(cmd, settings, jinja_map=None):
         raise ValueError(
             "prepare_template cmd must be one of: " + ",".join(cmd_options)
         )
-    command_template = Template(cmdlet_templates[cmd])
+    command_template = load_jinja_template(cmdlet_templates[cmd])
     parameters, other_attributes = filter_illegal(
         cmd,
         *partition_templates(
@@ -392,4 +384,5 @@ def template_powershell(context, settings, cmd="New-ADUser", jinja_map=None):
     full_template = prepare_template(cmd, settings)
 
     # Render the final template using the context
-    return Template(full_template).render(**context)
+    final_template = load_jinja_template(full_template)
+    return final_template.render(**context)

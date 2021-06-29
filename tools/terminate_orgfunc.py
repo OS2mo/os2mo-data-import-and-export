@@ -4,8 +4,9 @@ Helper class to make a number of pre-defined queries into MO
 import json
 import logging
 import pathlib
-import argparse
 import datetime
+
+import click
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from exporters.sql_export.lora_cache import LoraCache
@@ -91,11 +92,10 @@ def main(use_pickle):
     kill_it_connections(mh, lc)
 
 
-def cli():
-    parser = argparse.ArgumentParser(description='Choose backend')
-    parser.add_argument('--use-pickle',  action='store_true')
-    args = vars(parser.parse_args())
-    logger.info('Starting with args: {}'.format(args))
+@click.command()
+@click.option('--use-pickle', is_flag=True, default=False)
+def cli(**args):
+    logger.info('Starting with args: %r', args)
     main(use_pickle=args['use_pickle'])
 
 

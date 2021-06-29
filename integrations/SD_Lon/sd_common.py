@@ -1,7 +1,5 @@
 import hashlib
-import json
 import logging
-import pathlib
 import pickle
 import uuid
 from enum import Enum
@@ -10,18 +8,9 @@ from pathlib import Path
 
 import requests
 import xmltodict
+from ra_utils.load_settings import load_settings
 
 logger = logging.getLogger("sdCommon")
-
-
-@lru_cache(maxsize=None)
-def load_settings():
-    cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-    if not cfg_file.is_file():
-        raise Exception("No settings file: " + str(cfg_file))
-    # TODO: This must be clean up, settings should be loaded by __init__
-    # and no references should be needed in global scope.
-    return json.loads(cfg_file.read_text())
 
 
 @lru_cache(maxsize=None)
@@ -127,15 +116,16 @@ def sd_lookup(url, params={}, use_cache=True):
     payload.update(params)
     auth = (sd_user, sd_password)
     response = _sd_request(full_url, payload, auth, use_cache=use_cache)
+    logger.debug("Response: {}".format(response.text))
 
     dict_response = xmltodict.parse(response.text)
 
     if url in dict_response:
         xml_response = dict_response[url]
     else:
-        msg = "SD api error, envelope: {}"
-        logger.error(msg.format(dict_response["Envelope"]))
-        raise Exception(msg.format(dict_response["Envelope"]))
+        msg = "SD api error, envelope: {}, response: {}"
+        logger.error(msg.format(dict_response["Envelope"], response.text))
+        raise Exception(msg.format(dict_response["Envelope"], response.text))
     logger.debug("Done with {}".format(url))
     return xml_response
 

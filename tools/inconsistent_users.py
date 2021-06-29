@@ -1,9 +1,9 @@
-import argparse
 import csv
 import json
 import pathlib
 import pprint
 
+import click
 import pandas as pd
 
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -63,12 +63,10 @@ def load_settings():
     return json.loads(cfg_file.read_text())
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('user_file_path')
-    args = parser.parse_args()
-
-    user_file_path = args.user_file_path
+@click.command()
+@click.argument('user_file_path', type=click.File('rb'))
+def main(**args):
+    user_file_path = args['user_file_path']
     mapping_file_path = "cpr_mo_ad_map.csv"
 
     settings = load_settings()

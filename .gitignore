@@ -8,12 +8,13 @@
 *.gz
 *~
 .vscode
+*.swp
 
 # Mac
 .DS_Store
 
 # Python
-__pychache__
+__pycache__
 *.pyc
 *.egg-info
 build
@@ -36,3 +37,9 @@ emus_filename.xml
 # customer settings
 settings
 ActualState.db
+
+#IDE's
+.vscode
+
+# Sphinx temp files
+docs/source/stubs/*
