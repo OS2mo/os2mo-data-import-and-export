@@ -247,13 +247,17 @@ def addresses_to_orgunit(orgunit, addresses):
         elif a["address_type"]["scope"] == "PHONE":
             orgunit["PhoneNumber"] = a["name"]
         elif a["address_type"]["scope"] == "DAR":
-            orgunit["Post"] = a["name"]
+            address_field = "Post"
+            if address_type_is(a, user_key="Henvendelsessted"):
+                address_field = "Contact"
+            orgunit[address_field] = a["name"]
         elif a["address_type"]["scope"] == "PNUMBER":
             orgunit["Location"] = a["name"]
         elif address_type_is(a, user_key="ContactOpenHours"):
             orgunit["ContactOpenHours"] = a["name"]
         elif address_type_is(a, user_key="DtrId"):
             orgunit["DtrId"] = a["name"]
+    return orgunit
 
 
 def kle_to_orgunit(orgunit, kle):
@@ -326,10 +330,9 @@ def get_sts_orgunit(uuid):
     itsystems_to_orgunit(
         sts_org_unit, os2mo_get("{BASE}/ou/" + uuid + "/details/it").json()
     )
-    addresses_to_orgunit(
-        sts_org_unit,
-        os2mo_get("{BASE}/ou/" + uuid + "/details/address").json(),
-    )
+    org_unit_addresses = os2mo_get("{BASE}/ou/" + uuid + "/details/address").json()
+    sts_org_unit = addresses_to_orgunit(sts_org_unit, org_unit_addresses)
+    
     # this is set by __main__
     if settings["OS2MO_HAS_KLE"]:
         kle_to_orgunit(
