@@ -168,9 +168,11 @@ class MoraHelper:
                     raise requests.exceptions.RequestException(msg)
 
                 return_dict = response.json()
-            self.cache[cache_id] = return_dict
-        if (response.status_code == 500) and ("has been deleted" not in response.text):
-            response.raise_for_status()
+                
+            if (response.status_code == 500) and ("has been deleted" not in response.text):
+                response.raise_for_status()
+
+            self.cache[cache_id] = return_dict        
 
         return return_dict
 

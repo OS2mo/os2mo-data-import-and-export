@@ -630,10 +630,10 @@ class HolstebroHelper(object):
 
     def _get_manager_types(self):
         org_uuid = self.mh.read_organisation()
-        manager_types = self.mh._mo_lookup(org_uuid, 'o/{}/f/manager_type')
-        manager_levels = self.mh._mo_lookup(org_uuid, 'o/{}/f/manager_level')
+        manager_types = self.mh._mo_lookup(org_uuid, 'o/{}/f/manager_type/')
+        manager_levels = self.mh._mo_lookup(org_uuid, 'o/{}/f/manager_level/')
         manager_responsibility = self.mh._mo_lookup(
-            org_uuid, 'o/{}/f/responsibility')
+            org_uuid, 'o/{}/f/responsibility/')
 
         return_dict = {'manager_types': {},
                        'manager_levels': {},
