@@ -14,7 +14,7 @@ from tqdm import tqdm
 import constants
 from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
-from integrations.opus.opus_diff_import import OpusDiffImport
+from integrations.opus.opus_diff_import import import_one
 from tools.data_fixers.class_tools import find_duplicates_classes
 from tools.default_mo_setup import create_new_root_and_it, ensure_default_classes
 from tools.subtreedeleter import subtreedeleter_helper
@@ -38,6 +38,7 @@ def find_opus_name() -> str:
     main_unit = first(units)
     calculated_uuid = opus_helpers.generate_uuid(main_unit["@id"])
     return str(calculated_uuid)
+
 
 def prepare_re_import(
     settings: Optional[list] = None,
@@ -73,42 +74,18 @@ def prepare_re_import(
 
 
 def import_opus(ad_reader=None, import_all: bool = False) -> None:
-    """Do a clean import from all opus files.
-
-    Removes current OS2MO data and creates new installation with all the required classes etc.
-    Then reads all opus files from the path defined in settings
-    """
+    """Import one or all files from opus even if no previous files have been imported"""
     settings = load_settings()
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
     dumps = opus_helpers.read_available_dumps()
-    employee_mapping = opus_helpers.read_cpr_mapping()
 
     export_dates = prepend(None, sorted(dumps.keys()))
     date_pairs = pairwise(export_dates)
     for date1, date2 in date_pairs:
-        path1 = None
-        if date1:
-            path1 = dumps[date1]
-        path2 = dumps[date2]
-        # TODO: this is very close to the code in opus_diff_import and shoud be unified - or the delete/truncate could be added to diff_import.
-        (
-            units,
-            filtered_units,
-            employees,
-            terminated_employees,
-        ) = opus_helpers.read_and_transform_data(path1, path2, filter_ids)
-        print(f"\nImporting {date2}")
-        opus_helpers.local_db_insert((date2, "Running diff update since {}"))
-        diff = OpusDiffImport(
-            date2,
-            ad_reader=ad_reader,
-            employee_mapping=employee_mapping,
-            filter_ids=filter_ids,
-        )
-        diff.start_import(units, employees, terminated_employees)
-        diff.handle_filtered_units(filtered_units)
-        # Write latest successful import to rundb so opus_diff_import can continue from where this ended
-        opus_helpers.local_db_insert((date2, "Diff update ended: {}"))
+
+        import_one(ad_reader, date2, date1, dumps, filter_ids)
+        if not import_all:
+            break
 
 
 @click.command()

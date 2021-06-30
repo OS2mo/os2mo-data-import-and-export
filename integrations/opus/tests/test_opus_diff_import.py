@@ -130,21 +130,21 @@ class Opus_diff_import_tester(unittest.TestCase):
     @given(datetimes())
     def test_import_unit_count(self, xml_date):
         self.assertIsInstance(xml_date, datetime)
-        diff = OpusDiffImportTest_counts(xml_date, ad_reader=None)
+        diff = OpusDiffImportTest_counts(xml_date, ad_reader=None, employee_mapping="test")
         diff.start_import(self.units, self.employees, self.terminated_employees)
         self.assertEqual(diff.update_unit.call_count, self.expected_unit_count)
 
     @given(datetimes())
     def test_import_employee_count(self, xml_date):
         self.assertIsInstance(xml_date, datetime)
-        diff = OpusDiffImportTest_counts(xml_date, ad_reader=None)
-        diff.start_import(self.units, self.employees, self.terminated_employees)
+        diff = OpusDiffImportTest_counts(xml_date, ad_reader=None, employee_mapping="test")
+        diff.start_import(self.units, self.employees, self.terminated_employees )
         self.assertEqual(diff.update_employee.call_count, self.expected_employee_count)
 
     @given(datetimes())
     def test_termination(self, xml_date):
         self.assertIsInstance(xml_date, datetime)
-        diff = OpusDiffImportTest_counts(xml_date, ad_reader=None)
+        diff = OpusDiffImportTest_counts(xml_date, ad_reader=None, employee_mapping="test")
         diff.start_import(self.units, self.employees, self.terminated_employees)
         self.assertEqual(
             diff._find_engagement.call_count, self.expected_terminations * 2
@@ -158,7 +158,7 @@ class Opus_diff_import_tester(unittest.TestCase):
     @given(datetimes())
     def test_update_unit(self, classes_mock, dawa_helper_mock, xml_date):
         self.assertIsInstance(xml_date, datetime)
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None)
+        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
         for unit in self.units:
             diff.update_unit(unit)
             calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
@@ -182,7 +182,7 @@ class Opus_diff_import_tester(unittest.TestCase):
     @given(datetimes())
     def test_update_employee(self, dawa_helper_mock, classes_mock, xml_date):
         self.assertIsInstance(xml_date, datetime)
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None)
+        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
         diff.updater.primary_types = {"non_primary": "test"}
         diff.updater.set_current_person = MagicMock()
         diff.updater.recalculate_primary = MagicMock()
@@ -209,7 +209,7 @@ class Opus_diff_import_tester(unittest.TestCase):
     def test_perform_address_update_create(
         self, xml_date, fromdate, value, address_type_uuid, org_unit_uuid
     ):
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping={})
+        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping={"dummy": 1})
         address_type_uuid = str(address_type_uuid)
         args = {
             "address_type": {"uuid": address_type_uuid},
