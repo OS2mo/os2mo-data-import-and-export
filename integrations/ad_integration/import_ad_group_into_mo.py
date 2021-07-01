@@ -17,7 +17,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from tqdm import tqdm
 
 import constants
-from exporters.utils.load_settings import load_settings
+from ra_utils.load_settings import load_settings
 from integrations.ad_integration import payloads, read_ad_conf_settings
 from integrations.ad_integration.ad_reader import ADParameterReader
 
