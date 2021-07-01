@@ -192,8 +192,10 @@ class ADMOImporter(object):
                 mo_user = self.helper.read_user(user_cpr=cpr)
                 logger.info("Existing MO info: {}".format(mo_user))
                 
-                mo_uuid = mo_user.get("uuid")
-                if not mo_uuid:
+                
+                if mo_user:
+                    mo_uuid = mo_user.get("uuid")
+                else:
                     mo_uuid = self._create_user(ad_user, cpr_field)
 
                 AD_username = self.helper.get_e_itsystems(
