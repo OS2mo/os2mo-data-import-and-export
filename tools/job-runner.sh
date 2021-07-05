@@ -14,6 +14,8 @@ export BACKUP_OK=true
 export LC_ALL="C.UTF-8"
 export DOCKER_TAG=${DOCKER_TAG:=latest}
 export DIPEX_DOCKER_IMAGE=${DIPEX_DOCKER_IMAGE:=magentaaps/dipex:${DOCKER_TAG}}
+export CUSTOMER_FOLDER=${CUSTOMER_FOLDER:=customer}
+export RUN_DB=${RUN_DB:=run-db}
 
 cd ${DIPEXAR}
 source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -69,10 +71,13 @@ declare -a BACK_UP_AFTER_JOBS=(
     $([ -f "${DIPEXAR}/settings/cpr_uuid_map.csv" ] && echo "${DIPEXAR}/settings/cpr_uuid_map.csv")
 )
 run_job_in_docker(){
-    export COMMAND=$1
+    echo "$RUN_DB"
+    echo "$CUSTOMER_FOLDER"
     docker run --rm --network os2mo_default \
     -v ${DIPEXAR}/settings/settings.json:/code/settings/settings.json \
-    dipex $COMMAND
+    -v ${CUSTOMER_FOLDER}:/opt/customer \
+    -v ${RUN_DB}:/opt/dipex/run_db.sqlite \
+    dipex "$@"
 }
 
 show_git_commit(){
@@ -88,7 +93,7 @@ sanity_check_mo_data(){
 
 imports_mox_db_clear(){
     echo running imports_mox_db_clear
-    ${VENV}/bin/python3 tools/clear_mox_tables.py
+    run_job_in_docker python3 tools/clear_mox_tables.py
 }
 
 move_backup_to_archive() {
@@ -138,7 +143,7 @@ imports_test_ad_connectivity(){
         "${DIPEXAR}/test_connectivity.log"
     )
     echo running imports_test_ad_connectivity
-    ${VENV}/bin/python3 -m integrations.ad_integration.test_connectivity --test-read-settings
+    run_job_in_docker metacli test_connectivity --test-read-settings
 }
 
 imports_test_ad_connectivity_writer(){
@@ -146,7 +151,7 @@ imports_test_ad_connectivity_writer(){
         "${DIPEXAR}/test_connectivity.log"
     )
     echo running imports_test_ad_connectivity_writer
-    ${VENV}/bin/python3 -m integrations.ad_integration.test_connectivity --test-write-settings
+    run_job_in_docker metacli test_connectivity --test-write-settings
 }
 
 imports_test_sd_connectivity(){
@@ -154,12 +159,12 @@ imports_test_sd_connectivity(){
         "${DIPEXAR}/test_sd_connectivity.log"
     )
     echo running imports_test_sd_connectivity
-    ${VENV}/bin/python3 integrations/SD_Lon/test_sd_connectivity.py
+    run_job_in_docker metacli test_sd_connectivity
 }
 
 imports_test_opus_connectivity(){
     echo running imports_test_ops_connectivity
-    ${VENV}/bin/python3 integrations/opus/test_opus_connectivity.py --test-diff-import
+    run_job_in_docker python3 integrations/opus/test_opus_connectivity.py --test-diff-import
 }
 
 imports_sd_fix_departments(){
@@ -167,7 +172,7 @@ imports_sd_fix_departments(){
         "${DIPEXAR}/fix_sd_departments.log"
     )
     echo running imports_sd_fix_departments
-    ${VENV}/bin/python3 integrations/SD_Lon/sd_fix_departments.py
+    run_job_in_docker python3 integrations/SD_Lon/sd_fix_departments.py
 }
 
 imports_sd_changed_at(){
@@ -176,7 +181,7 @@ imports_sd_changed_at(){
         ${DIPEXAR}/cpr_mo_ad_map.csv
         ${DIPEXAR}/settings/cpr_uuid_map.csv
     )
-    ${VENV}/bin/python3 integrations/SD_Lon/sd_changed_at.py changed-at
+    run_job_in_docker python3 integrations/SD_Lon/sd_changed_at.py changed-at
 }
 
 imports_opus_diff_import(){
@@ -185,7 +190,7 @@ imports_opus_diff_import(){
         ${DIPEXAR}/cpr_mo_ad_map.csv
         ${DIPEXAR}/settings/cpr_uuid_map.csv
     )
-    ${VENV}/bin/python3 integrations/opus/opus_diff_import.py
+    run_job_in_docker python3 integrations/opus/opus_diff_import.py
 }
 
 imports_sd_update_primary(){
@@ -193,7 +198,7 @@ imports_sd_update_primary(){
         "${DIPEXAR}/calculate_primary.log"
     )
     echo "updating primary engagements"
-    ${VENV}/bin/python3 integrations/calculate_primary/calculate_primary.py --integration SD --recalculate-all || (
+    run_job_in_docker python3 integrations/calculate_primary/calculate_primary.py --integration SD --recalculate-all || (
         # denne fejl skal ikke stoppe afviklingen, da en afbrudt kørsel blot kan gentages
         echo FEJL i updating primary engagements, men kører videre
     )
@@ -205,12 +210,12 @@ imports_ad_sync(){
         "${DIPEXAR}/ad_mo_sync.log"
     )
     echo running imports_ad_sync
-    ${VENV}/bin/python3 -m integrations.ad_integration.ad_sync
+    run_job_in_docker python3 -m integrations.ad_integration.ad_sync
 }
 
 imports_ballerup_apos(){
     echo running imports_ballerup_apos
-    ${VENV}/bin/python3 integrations/ballerup/ballerup.py
+    run_job_in_docker python3 integrations/ballerup/ballerup.py
 }
 
 imports_ballerup_udvalg(){
@@ -218,7 +223,7 @@ imports_ballerup_udvalg(){
         "${DIPEXAR}/udvalg.log"
     )
     echo running imports_ballerup_udvalg
-    ${VENV}/bin/python3 integrations/ballerup/udvalg_import.py
+    run_job_in_docker python3 integrations/ballerup/udvalg_import.py
 }
 
 imports_ad_group_into_mo(){
@@ -226,7 +231,7 @@ imports_ad_group_into_mo(){
         "${DIPEXAR}/external_ad_users.log"
     )
     echo running imports_ad_group_into_mo
-    ${VENV}/bin/python3 -m integrations.ad_integration.import_ad_group_into_mo --full-sync
+    run_job_in_docker python3 -m integrations.ad_integration.import_ad_group_into_mo --full-sync
 }
 
 imports_kle_online(){
@@ -234,7 +239,7 @@ imports_kle_online(){
         "${DIPEXAR}/kle_online.log"
     )
     echo running imports_kle_online
-    "${VENV}/bin/python3" os2mo_data_import/kle/kle_import.py
+    run_job_in_docker python3 os2mo_data_import/kle/kle_import.py
 }
 
 imports_opgavefordeler(){
@@ -242,7 +247,7 @@ imports_opgavefordeler(){
         "${DIPEXAR}/opgavefordeler.log"
     )
     echo running imports_opgavefordeler
-    "${VENV}/bin/python3" integrations/kle/kle_import_export.py
+    run_job_in_docker python3 integrations/kle/kle_import_export.py
 }
 
 imports_aak_los(){
@@ -265,7 +270,7 @@ exports_mox_rollekatalog(){
         "$MOX_ROLLE_LOG_FILE"
     )
 
-    ${VENV}/bin/python3 exporters/os2rollekatalog/os2rollekatalog_integration.py
+    run_job_in_docker python3 exporters/os2rollekatalog/os2rollekatalog_integration.py
 }
 
 exports_os2sync(){
@@ -274,7 +279,7 @@ exports_os2sync(){
         echo ${log_file}
     ))
     echo running exports_os2sync
-    ${VENV}/bin/python3 -m integrations.os2sync
+    run_job_in_docker python3 -m integrations.os2sync
 }
 
 exports_mox_stsorgsync(){
@@ -287,7 +292,7 @@ exports_mox_stsorgsync(){
     (
         # get VENV, MOX_MO_CONFIG and LOGFILE
         SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
-        ${VENV}/bin/python3 -m mox_stsorgsync >> ${LOGFILE} 2>&1 || MOX_ERR_CODE=1
+        run_job_in_docker python3 -m mox_stsorgsync >> ${LOGFILE} 2>&1 || MOX_ERR_CODE=1
         echo "Last 50 lines from mox_stsorgsyncs log :"
         tail  -n 50  ${LOGFILE}
         echo "last 10 Errors from OS2sync"
@@ -303,7 +308,7 @@ exports_cpr_uuid(){
     )
     (
         SETTING_PREFIX="cpr.uuid" source ${DIPEXAR}/tools/prefixed_settings.sh
-        ${VENV}/bin/python3 exporters/cpr_uuid.py ${CPR_UUID_FLAGS}
+        run_job_in_docker python3 exporters/cpr_uuid.py ${CPR_UUID_FLAGS}
     )
 }
 
@@ -314,13 +319,13 @@ exports_viborg_emus(){
     echo running viborg_emus
     EMUS_FILENAME="tmp/emus_export.xml"
 
-    ${VENV}/bin/python3 exporters/emus/lcdb_viborg_xml_emus.py ${EMUS_FILENAME}
-    ${VENV}/bin/python3 exporters/emus/emus_sftp.py ${EMUS_FILENAME}
+    run_job_in_docker python3 exporters/emus/lcdb_viborg_xml_emus.py ${EMUS_FILENAME}
+    run_job_in_docker python3 exporters/emus/emus_sftp.py ${EMUS_FILENAME}
 }
 
 exports_viborg_eksterne(){
     echo "running viborgs eksterne"
-    ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py --lora|| exit 1
+    run_job_in_docker python3 exporters/viborg_eksterne/viborg_eksterne.py --lora|| exit 1
     (
         SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
         SETTING_PREFIX="integrations.ad" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -352,7 +357,7 @@ exports_ad_life_cycle(){
         "${DIPEXAR}/AD_life_cycle.log"
     )
     echo "running exports_ad_life_cycle"
-    ${VENV}/bin/python3 -m integrations.ad_integration.ad_life_cycle --create-ad-accounts
+    run_job_in_docker python3 -m integrations.ad_integration.ad_life_cycle --create-ad-accounts
 }
 
 exports_mo_to_ad_sync(){
@@ -360,7 +365,7 @@ exports_mo_to_ad_sync(){
         "${DIPEXAR}/mo_to_ad_sync.log"
     )
     echo "running exports_mo_to_ad_sync"
-    ${VENV}/bin/python3 -m integrations.ad_integration.mo_to_ad_sync
+    run_job_in_docker python3 -m integrations.ad_integration.mo_to_ad_sync
 }
 
 exports_ad_enddate_fixer(){
@@ -377,7 +382,7 @@ exports_plan2learn(){
 	organisation
 	stillingskode
     )
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py --lora
+    run_job_in_docker python3 ${DIPEXAR}/exporters/plan2learn/plan2learn.py --lora
     
     (
         # get OUT_DIR and EXPORTS_DIR
@@ -385,7 +390,7 @@ exports_plan2learn(){
 	[ -z "$query_export" ] && exit 1
 	for f in "${CSV_FILES[@]}"
 	do
-	    ${VENV}/bin/python3 ${DIPEXAR}/exporters/plan2learn/ship_files.py \
+	    run_job_in_docker python3 ${DIPEXAR}/exporters/plan2learn/ship_files.py \
 		   ${query_export}/plan2learn_${f}.csv ${f}.csv
 	done
     )
@@ -405,7 +410,7 @@ exports_queries_ballerup(){
         [ -z "${WORK_DIR}" ] && echo "WORK_DIR not spec'ed for exports_queries_ballerup" && exit 1
         [ -d "${WORK_DIR}" ] || mkdir "${WORK_DIR}"
         cd "${WORK_DIR}"
-        ${VENV}/bin/python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
+        run_job_in_docker python3 ${DIPEXAR}/exporters/ballerup.py > ${WORK_DIR}/export.log 2>&1
         local STATUS=$?
         cp "${WORK_DIR}"/*.csv "${EXPORTS_DIR}"
         return $STATUS
@@ -415,34 +420,34 @@ exports_queries_ballerup(){
 exports_actual_state_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(sql_export.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --resolve-dar
+    run_job_in_docker python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --resolve-dar
 }
 
 exports_historic_sql_export(){
     BACK_UP_AND_TRUNCATE+=(sql_export.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --resolve-dar --historic
+    run_job_in_docker python3 ${DIPEXAR}/exporters/sql_export/sql_export.py --resolve-dar --historic
 }
 
 exports_os2phonebook_export(){
     # kører en test-kørsel
     BACK_UP_AND_TRUNCATE+=(os2phonebook_export.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py generate-json
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py transfer-json
+    run_job_in_docker python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py generate-json
+    run_job_in_docker python3 ${DIPEXAR}/exporters/os2phonebook/os2phonebook_export.py transfer-json
 }
 
 exports_sync_mo_uuid_to_ad(){
     BACK_UP_AND_TRUNCATE+=(sync_mo_uuid_to_ad.log)
-    ${VENV}/bin/python3 -m integrations.ad_integration.sync_mo_uuid_to_ad --sync-all
+    run_job_in_docker python3 -m integrations.ad_integration.sync_mo_uuid_to_ad --sync-all
 }
 
 reports_viborg_managers(){
-    ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
+    run_job_in_docker python3 ${DIPEXAR}/reports/viborg_managers.py
 }
 
 reports_frederikshavn(){
     BACK_UP_AND_TRUNCATE+=(Frederikshavn_reports.log)
-    ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/Frederikshavn_reports.py
-    ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/employee_survey.py
+    run_job_in_docker python3 ${DIPEXAR}/customers/Frederikshavn/Frederikshavn_reports.py
+    run_job_in_docker python3 ${DIPEXAR}/customers/Frederikshavn/employee_survey.py
 }
 
 reports_svendborg(){
@@ -450,7 +455,7 @@ reports_svendborg(){
 }
 
 reports_csv(){
-    ${VENV}/bin/python3 ${DIPEXAR}/reports/shared_reports.py
+    run_job_in_docker python3 ${DIPEXAR}/reports/shared_reports.py
 }
 
 exports_lc_for_jobs_db(){
@@ -460,7 +465,7 @@ exports_lc_for_jobs_db(){
     db_file="${actual_db_name}.db"
 
     [ -f "${db_file}" ] && chmod 600 "${db_file}"
-    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lc_for_jobs_db.py sql-export --resolve-dar
+    run_job_in_docker python3 ${DIPEXAR}/exporters/sql_export/lc_for_jobs_db.py sql-export --resolve-dar
     local STATUS=$?    
     [ -f "${db_file}" ] && chmod 400 "${db_file}"
     return $STATUS
@@ -490,12 +495,13 @@ exports_dummy(){
 
 
 reports_viborg_managers(){
-    ${VENV}/bin/python3 ${DIPEXAR}/reports/viborg_managers.py
+    run_job_in_docker python3 ${DIPEXAR}/reports/viborg_managers.py
 }
 
 reports_sd_db_overview(){
     echo running reports_sd_db_overview
-    ${VENV}/bin/python3 integrations/rundb/db_overview.py --rundb-variable integrations.SD_Lon.import.run_db read-current-status
+    outfile=$(mktemp)
+    run_job_in_docker python3 integrations/rundb/db_overview.py --rundb-variable integrations.SD_Lon.import.run_db read-current-status > ${outfile}
     local STATUS=$?
     return $STATUS
 }
@@ -503,7 +509,7 @@ reports_sd_db_overview(){
 reports_opus_db_overview(){
     echo running reports_opus_db_overview
     outfile=$(mktemp)
-    ${VENV}/bin/python3 integrations/opus/db_overview.py > ${outfile}
+    run_job_in_docker python3 integrations/opus/db_overview.py > ${outfile}
     local STATUS=$?
     head -4 ${outfile}
     echo "..."
