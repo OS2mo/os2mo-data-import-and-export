@@ -12,7 +12,10 @@ export EXPORTS_OK=false
 export REPORTS_OK=false
 export BACKUP_OK=true
 export LC_ALL="C.UTF-8"
-export DOCKER_TAG=${DOCKER_TAG:=latest}
+
+#Get variables for Docker - see .env.sample
+source .env
+export DOCKER_TAG=${DOCKER_TAG:=dev}
 export DIPEX_DOCKER_IMAGE=${DIPEX_DOCKER_IMAGE:=magentaaps/dipex:${DOCKER_TAG}}
 export CUSTOMER_FOLDER=${CUSTOMER_FOLDER:=customer}
 export RUN_DB=${RUN_DB:=run-db}
@@ -71,13 +74,11 @@ declare -a BACK_UP_AFTER_JOBS=(
     $([ -f "${DIPEXAR}/settings/cpr_uuid_map.csv" ] && echo "${DIPEXAR}/settings/cpr_uuid_map.csv")
 )
 run_job_in_docker(){
-    echo "$RUN_DB"
-    echo "$CUSTOMER_FOLDER"
     docker run --rm --network os2mo_default \
     -v ${DIPEXAR}/settings/settings.json:/code/settings/settings.json \
     -v ${CUSTOMER_FOLDER}:/opt/customer \
     -v ${RUN_DB}:/opt/dipex/run_db.sqlite \
-    dipex "$@"
+    ${DIPEX_DOCKER_IMAGE} "$@"
 }
 
 show_git_commit(){

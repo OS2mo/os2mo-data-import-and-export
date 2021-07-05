@@ -81,6 +81,14 @@ workflow:
   tags:
     - docker
 
+Lint Dockerfiles:
+  image: hadolint/hadolint:latest-debian
+  before_script:
+    - apt-get -y update
+    - apt-get -y install --no-install-recommends git
+  script:
+    - git ls-files --exclude='Dockerfile*' --ignored | xargs --max-lines=1 hadolint
+
 Lint Customers files:
   extends: .lint-python
   script:
@@ -179,14 +187,14 @@ Build TestImage:
   needs: []
   image:
     # We use kaniko v0.16.0 as both v0.17.0, v0.17.1, v0.18.0 and v0.19.0 contains fatal bugs.
-    name: gcr.io/kaniko-project/executor:debug-v0.16.0
+    name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   tags:
     - docker
   script:
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
     - /kaniko/executor
-      --cache
+      --cache=true
       --context=$CI_PROJECT_DIR
       --dockerfile=$CI_PROJECT_DIR/docker/Dockerfile
       --destination=${IMAGE_SHA}
@@ -207,18 +215,18 @@ Build TestImage:
     HYPOTHESIS_PROFILE: ci
   before_script:
     - cd /code
+    - cp settings/kommune-andeby.json settings/settings.json
 
 
 Test LoraCache Exporter:
   extends: .test-python
   script:
-    - pytest exporters/sql_export/tests/
+    - python3 -m pytest -v exporters/sql_export/tests/
 
 Test AD Integration:  # runs outside image (unfortunately)
   extends: .test-python
   script:
-    - cd integrations/ad_integration/
-    - pytest tests/
+    - python3 -m pytest -v integrations/ad_integration/tests/
 
 Test Calculate Primary:
   extends: .test-python
@@ -232,35 +240,33 @@ Test OS2Sync Integration:
   variables:
     CUSTOMER_SETTINGS: /code/settings/kommune-andeby.json
   script:
-    - pytest integrations/os2sync/tests
+    - python3 -m pytest -v integrations/os2sync/tests
 
 Test CPR Mapper:
   extends: .test-python
   script:
-    - python -m doctest -v integrations/cpr_mapper.py
+    - python3 -m doctest -v integrations/cpr_mapper.py
 
 Test OPUS Org Tree Print:
   extends: .test-python
   script:
-    - python -m doctest -v integrations/opus/org_tree_print/main.py
+    - python3 -m doctest -v integrations/opus/org_tree_print/main.py
 
 Test OPUS importers:
   extends: .test-python
   script:
-    - cp settings/kommune-andeby.json settings/settings.json
-    - python -m pytest -v integrations/opus/tests
+    - python3 -m pytest -v integrations/opus/tests
 
 Test OPUS Helpers:
   extends: .test-python
   script:
-    - cp settings/kommune-andeby.json settings/settings.json
-    - python -m doctest -v integrations/opus/opus_helpers.py
+    - python3 -m doctest -v integrations/opus/opus_helpers.py
 
 Test SDLoen Integration:
   extends: .test-python
   script:
-    - python integrations/SD_Lon/sd_cli.py --help
-    - pytest integrations/SD_Lon/tests/
+    - python3 -m pytest -v integrations/SD_Lon/sd_cli.py --help
+    - python3 -m pytest -v integrations/SD_Lon/tests/
 
 Test RunDB Integration:
   extends: .test-python
@@ -278,12 +284,12 @@ Test AAK LOS Integration:
 Test Reports:
   extends: .test-python
   script:
-    - pytest reports/os2mo_tests/ --ignore reports/os2mo_tests/test_viborg_managers.py
+    - python3 -m pytest -v reports/os2mo_tests/ --ignore reports/os2mo_tests/test_viborg_managers.py
 
 Test Exporter Utils:
   extends: .test-python
   script:
-    - pytest exporters/utils/tests/
+    - python3 -m pytest -v exporters/utils/tests/
 
 Test tools:
   extends: .test-python
