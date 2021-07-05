@@ -16,7 +16,8 @@ export LC_ALL="C.UTF-8"
 #Get variables for Docker - see .env.sample
 source .env
 export DOCKER_TAG=${DOCKER_TAG:=dev}
-export DIPEX_DOCKER_IMAGE=${DIPEX_DOCKER_IMAGE:=magentaaps/dipex:${DOCKER_TAG}}
+export DIPEX_DOCKER_IMAGE=${DIPEX_DOCKER_IMAGE:=magentaaps/dipex}
+docker pull "${DIPEX_DOCKER_IMAGE}:${DOCKER_TAG}"
 export CUSTOMER_FOLDER=${CUSTOMER_FOLDER:=customer}
 export RUN_DB=${RUN_DB:=run-db}
 
@@ -78,7 +79,7 @@ run_job_in_docker(){
     -v ${DIPEXAR}/settings/settings.json:/code/settings/settings.json \
     -v ${CUSTOMER_FOLDER}:/opt/customer \
     -v ${RUN_DB}:/opt/dipex/run_db.sqlite \
-    ${DIPEX_DOCKER_IMAGE} "$@"
+    ${DIPEX_DOCKER_IMAGE}:${DOCKER_TAG} "$@"
 }
 
 show_git_commit(){
