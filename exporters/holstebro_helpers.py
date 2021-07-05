@@ -309,12 +309,18 @@ def export_to_intranote(mh, all_nodes, filename):
                     address = mh.read_user_address(uuid, username=True, cpr=True)
                     cut_dates = mh.find_cut_dates(uuid)
 
+                    if len(cut_dates) > 0:
+                        hire_date = cut_dates[0].strftime('%d.%m.%Y')
+                    else:
+                        hire_date = "01-01-1930"
+                        logger.error(f"No cutdates found for: {uuid}")
+
                     row.update(
                         {'Navn (for-/efternavn)': employee['Navn'],
                          'Tjenestenummer': employee['User Key'],
                          'CPR-nummer': address['CPR-Nummer'],
                          # dd.mm.yyyy
-                         'Ansættelsesdato': cut_dates[0].strftime('%d.%m.%Y'),
+                         'Ansættelsesdato': hire_date,
                          'Stilling': employee['Titel'] if employee['Titel'] is not None else employee['Stillingsbetegnelse']}
                     )
 

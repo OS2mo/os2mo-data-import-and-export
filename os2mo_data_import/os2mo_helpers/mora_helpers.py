@@ -9,6 +9,7 @@
 Helper class to make a number of pre-defined queries into MO
 """
 import codecs
+import json
 import csv
 import datetime
 import logging
@@ -423,19 +424,22 @@ class MoraHelper:
         addresses = self._mo_lookup(user, "e/{}/details/address", at, use_cache)
         return_address = {}
         for address in addresses:
-            if address["address_type"]["scope"] == "PHONE":
-                if phone_type is None:
-                    return_address["Telefon"] = address["name"]
-                else:
-                    if address["address_type"]["uuid"] == phone_type:
+            if "scope" in address["address_type"]:
+                if address["address_type"]["scope"] == "PHONE":
+                    if phone_type is None:
                         return_address["Telefon"] = address["name"]
+                    else:
+                        if address["address_type"]["uuid"] == phone_type:
+                            return_address["Telefon"] = address["name"]
 
-            if address["address_type"]["scope"] == "EMAIL":
-                if email_type is None:
-                    return_address["E-mail"] = address["name"]
-                else:
-                    if address["address_type"]["uuid"] == email_type:
+                if address["address_type"]["scope"] == "EMAIL":
+                    if email_type is None:
                         return_address["E-mail"] = address["name"]
+                    else:
+                        if address["address_type"]["uuid"] == email_type:
+                            return_address["E-mail"] = address["name"]
+            else:
+                logger.error("Scope missing from adresse_type dict: %s", json.dumps(address["address_type"]))
         if username or cpr:
             personal_info = self._mo_lookup(user, "e/{}/")
             if username:
