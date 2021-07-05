@@ -12,6 +12,8 @@ export EXPORTS_OK=false
 export REPORTS_OK=false
 export BACKUP_OK=true
 export LC_ALL="C.UTF-8"
+export DOCKER_TAG=${DOCKER_TAG:=latest}
+export DIPEX_DOCKER_IMAGE=${DIPEX_DOCKER_IMAGE:=magentaaps/dipex:${DOCKER_TAG}}
 
 cd ${DIPEXAR}
 source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -66,6 +68,12 @@ declare -a BACK_UP_AFTER_JOBS=(
     $([ -f "${DIPEXAR}/cpr_mo_ad_map.csv" ] && echo "${DIPEXAR}/cpr_mo_ad_map.csv")
     $([ -f "${DIPEXAR}/settings/cpr_uuid_map.csv" ] && echo "${DIPEXAR}/settings/cpr_uuid_map.csv")
 )
+run_job_in_docker(){
+    export COMMAND=$1
+    docker run --rm --network os2mo_default \
+    -v ${DIPEXAR}/settings/settings.json:/code/settings/settings.json \
+    dipex $COMMAND
+}
 
 show_git_commit(){
     echo
@@ -75,7 +83,7 @@ show_git_commit(){
 
 sanity_check_mo_data(){
     echo Performing sanity check on data
-    ${VENV}/bin/python3 tools/check_data.py 
+    run_job_in_docker "python3 tools/check_data.py"
 }
 
 imports_mox_db_clear(){
