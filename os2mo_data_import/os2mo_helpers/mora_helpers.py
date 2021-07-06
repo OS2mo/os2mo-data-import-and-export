@@ -14,6 +14,7 @@ import datetime
 import logging
 import os
 from operator import itemgetter
+from functools import lru_cache
 
 import requests
 from anytree import Node
@@ -21,6 +22,12 @@ from more_itertools import only
 from retrying import retry
 
 SAML_TOKEN = os.environ.get("SAML_TOKEN", None)
+
+CLIENT_ID = os.environ.get("CLIENT_ID", "dipex")
+CLIENT_SECRET = os.environ.get("CLIENT_SECRET", None)
+AUTH_REALM = os.environ.get("AUTH_REALM", "mo")
+AUTH_SERVER = os.environ.get("AUTH_SERVER", 'http://localhost:8081/auth')
+
 PRIMARY_RESPONSIBILITY = "Personale: ansættelse/afskedigelse"
 
 logger = logging.getLogger("mora-helper")
@@ -30,6 +37,7 @@ class MoraHelper:
     def __init__(
         self, hostname="http://localhost:5000", export_ansi=True, use_cache=True
     ):
+        self.hostname = hostname
         self.host = hostname + "/service/"
         self.cache = {}
         self.default_cache = use_cache
@@ -119,6 +127,19 @@ class MoraHelper:
             i += 1
         return path_dict
 
+    @lru_cache(maxsize=None)
+    def _fetch_auth_header(self) -> str:
+        # Get token from Keycloak
+        token_url = AUTH_SERVER + f'/realms/{AUTH_REALM}/protocol/openid-connect/token'
+        payload = {
+            'grant_type': 'client_credentials',
+            'client_id': CLIENT_ID,
+            'client_secret': CLIENT_SECRET,
+        }
+        response = requests.post(token_url, data=payload)
+        token = response.json()['access_token']
+        return "Bearer " + token
+
     @retry(stop_max_attempt_number=7)
     def _mo_lookup(
         self,
@@ -150,25 +171,25 @@ class MoraHelper:
             logger.debug("cache hit: %s", cache_id)
             return_dict = self.cache[cache_id]
         else:
-            if SAML_TOKEN is None:
-                response = requests.get(full_url, params=params)
-                if response.status_code == 401:
-                    msg = "Missing SAML token"
-                    logger.error(msg)
-                    raise requests.exceptions.RequestException(msg)
-                return_dict = response.json()
-            else:
-                header = {"SESSION": SAML_TOKEN}
-                response = requests.get(full_url, headers=header, params=params)
-                if response.status_code == 401:
-                    msg = "SAML token not accepted"
-                    logger.error(msg)
-                    raise requests.exceptions.RequestException(msg)
+            headers = {}
+            if SAML_TOKEN:
+                headers["Session"] = SAML_TOKEN
+            if CLIENT_SECRET:
+                headers["Authorization"] = self._fetch_auth_header()
 
-                return_dict = response.json()
+            response = requests.get(full_url, headers=headers, params=params)
+            if response.status_code == 401:
+                msg = "Missing Authorization"
+                if headers:
+                    msg = "Authorization not accepted"
+                logger.error(msg)
+                raise requests.exceptions.RequestException(msg)
+
+            if (response.status_code == 500) and ("has been deleted" not in response.text):
+                response.raise_for_status()
+
+            return_dict = response.json()
             self.cache[cache_id] = return_dict
-        if (response.status_code == 500) and ("has been deleted" not in response.text):
-            response.raise_for_status()
 
         return return_dict
 
@@ -178,13 +199,14 @@ class MoraHelper:
         else:
             params = None
 
+        headers = {}
         if SAML_TOKEN:
-            header = {"SESSION": SAML_TOKEN}
-        else:
-            header = None
+            headers["Session"] = SAML_TOKEN
+        if CLIENT_SECRET:
+            headers["Authorization"] = self._fetch_auth_header()
 
         full_url = self.host + url
-        response = requests.post(full_url, headers=header, params=params, json=payload)
+        response = requests.post(full_url, headers=headers, params=params, json=payload)
         return response
 
     def check_connection(self):
@@ -714,3 +736,10 @@ class MoraHelper:
     def update_user(self, uuid, data):
         payload = {"type": "employee", "uuid": uuid, "data": data}
         return self._mo_post("details/edit", payload)
+
+
+if __name__ == "__main__":
+    # Example usage: env CLIENT_SECRET=SECRET_UUID_HERE python3 mora_helpers.py
+    mh = MoraHelper()
+    print("Organisation UUID: " + mh.read_organisation())
+    print("Number of users: " + str(len(mh.read_all_users())))
