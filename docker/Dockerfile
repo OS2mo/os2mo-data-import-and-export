@@ -1,8 +1,9 @@
 FROM python:3
-
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get -y install --no-install-recommends \
     freetds-dev \
+    krb5-user \
     libkrb5-dev \
     libmariadb-dev \
     tdsodbc \
