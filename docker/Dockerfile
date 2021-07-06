@@ -1,14 +1,16 @@
 FROM python:3
-ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update && \
     apt-get -y install --no-install-recommends \
     freetds-dev \
-    krb5-user \
     libkrb5-dev \
     libmariadb-dev \
     tdsodbc \
     unixodbc \
     unixodbc-dev \
+    build-essential python3-dev python2.7-dev \
+    libldap2-dev libsasl2-dev ldap-utils tox \
+    lcov valgrind \
     && apt-get clean
 
 COPY . /code
@@ -39,7 +41,6 @@ RUN pip install -r requirements.txt
 
 COPY ./os2mo_data_import ./os2mo_data_import
 RUN pip install -e ./os2mo_data_import
-
 
 ENV PYTHONUNBUFFERED=1 \
     CUSTOMER_SETTINGS=/code/settings/settings.json \
