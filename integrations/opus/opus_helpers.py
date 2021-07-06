@@ -10,7 +10,7 @@ from collections import OrderedDict
 from functools import lru_cache
 from operator import itemgetter
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import xmltodict
 from deepdiff import DeepDiff
@@ -79,7 +79,7 @@ def initialize_db(run_db):
     conn.close()
 
 
-def next_xml_file(run_db, dumps):
+def next_xml_file(run_db, dumps) -> Tuple[datetime.date, datetime.date]:
     conn = sqlite3.connect(
         SETTINGS["integrations.opus.import.run_db"],
         detect_types=sqlite3.PARSE_DECLTYPES,
@@ -133,7 +133,7 @@ def generate_uuid(value):
     return value_uuid
 
 
-def parser(target_file: Path, filter_ids: List[str]) -> Tuple[List, List]:
+def parser(target_file: Path) -> Tuple[List, List]:
     """Read an opus file and return units and employees"""
     text_input = get_opus_filereader().read_file(target_file)
 
@@ -145,7 +145,7 @@ def parser(target_file: Path, filter_ids: List[str]) -> Tuple[List, List]:
 
 
 def find_changes(
-    before: List[Dict], after: List[Dict], disable_tqdm: bool = False
+    before: List[Dict], after: List[Dict], disable_tqdm: bool = True
 ) -> List[Dict]:
     """Filter a list of dictionaries based on differences to another list of dictionaries
     Used to find changes to org_units and employees in opus files.
@@ -197,11 +197,12 @@ def find_changes(
     return changed_obj
 
 
-def file_diff(file1, file2, filter_ids, disable_tqdm=True):
+def file_diff(file1: Optional[Path], file2: Path, disable_tqdm: bool = True):
+    """Compares two files and returns all units and employees that have been changed."""
     units1 = employees1 = {}
     if file1:
-        units1, employees1 = parser(file1, filter_ids)
-    units2, employees2 = parser(file2, filter_ids)
+        units1, employees1 = parser(file1)
+    units2, employees2 = parser(file2)
 
     units = find_changes(units1, units2, disable_tqdm=disable_tqdm)
     employees = find_changes(employees1, employees2, disable_tqdm=disable_tqdm)
@@ -210,9 +211,10 @@ def file_diff(file1, file2, filter_ids, disable_tqdm=True):
 
 
 def compare_employees(original, new, force=False):
-    # Differences is these keys will not be counted as a difference, unless force
-    # is set to true. Notice lastChanged is included here, since we perform a
-    # brute-force comparison and does not care for lastChanged.
+    """Differences is these keys will not be counted as a difference, unless force
+    is set to true. Notice lastChanged is included here, since we perform a
+    brute-force comparison and does not care for lastChanged.
+    """
     skip_keys = [
         "productionNumber",
         "entryIntoGroup",
@@ -340,6 +342,34 @@ def filter_units(units, filter_ids):
     return partition(is_disjoint_from_filter_ids, units)
 
 
+def filter_employees(employees: List[Dict], all_filtered_ids: set):
+    """Remove any employees that has an engagement in an unit that is in all_filtered_ids
+
+    >>> e = [{'orgUnit': "1"}, {'orgUnit': "2"}]
+    >>> ids = {"2", "3"}
+    >>> list(filter_employees(e, ids))
+    [{'orgUnit': '1'}]
+
+    """
+    is_filtered = lambda empl: empl.get("orgUnit") not in all_filtered_ids
+    return filter(is_filtered, employees)
+
+
+def split_employees_leaves(employees: List[Dict]) -> Tuple[Iterable, Iterable]:
+    """Split list of employees into two iterables, with either active employees or terminated employees
+
+    >>> e = [{'@action': "test"}, {'@action': "leave"}]
+    >>> e1, e2 = split_employees_leaves(e)
+    >>> list(e1)
+    [{'@action': 'test'}]
+
+    >>> list(e2)
+    [{'@action': 'leave'}]
+    """
+    is_leave = lambda empl: empl.get("@action") == "leave"
+    return partition(is_leave, employees)
+
+
 def read_cpr(employee: OrderedDict) -> str:
     cpr = employee.get("cpr")
     if isinstance(cpr, OrderedDict):
@@ -349,3 +379,23 @@ def read_cpr(employee: OrderedDict) -> str:
     else:
         raise TypeError("Can't read cpr in this format")
     return cpr
+
+
+def find_all_filtered_ids(inputfile, filter_ids):
+    all_units, _ = file_diff(None, inputfile)
+    all_filtered_units, _ = filter_units(all_units, filter_ids)
+    return set(map(itemgetter("@id"), all_filtered_units))
+
+
+def read_and_transform_data(
+    inputfile1: Optional[Path], inputfile2: Path, filter_ids: List[Optional[str]]
+) -> Tuple[Iterable, Iterable, Iterable, Iterable]:
+    """Gets the diff of two files and transporms the data based on filter_ids
+    Returns the active units, filtered units, active employees which are not in a filtered unit and employees which are terminated
+    """
+    units, employees = file_diff(inputfile1, inputfile2)
+    all_filtered_ids = find_all_filtered_ids(inputfile2, filter_ids)
+    filtered_units, units = filter_units(units, filter_ids)
+    employees, terminated_employees = split_employees_leaves(employees)
+    employees = filter_employees(employees, all_filtered_ids)
+    return list(units), list(filtered_units), list(employees), list(terminated_employees)

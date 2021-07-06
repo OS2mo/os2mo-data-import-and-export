@@ -1,23 +1,20 @@
 import asyncio
 import time
 from datetime import datetime
-from functools import lru_cache
-from itertools import islice
 from operator import itemgetter
 from pathlib import Path
 from typing import Optional
 
 import click
 import requests
-from more_itertools import first, flatten, pairwise, prepend
+from more_itertools import first, flatten, pairwise, partition, prepend
+from ra_utils.load_settings import load_settings
 from tqdm import tqdm
 
 import constants
-from ra_utils.load_settings import load_settings
 from integrations.ad_integration import ad_reader
-from integrations.ad_integration.utils import apply
 from integrations.opus import opus_helpers
-from integrations.opus.opus_diff_import import OpusDiffImport
+from integrations.opus.opus_diff_import import import_one
 from tools.data_fixers.class_tools import find_duplicates_classes
 from tools.default_mo_setup import create_new_root_and_it, ensure_default_classes
 from tools.subtreedeleter import subtreedeleter_helper
@@ -37,40 +34,17 @@ def find_opus_name() -> str:
     dumps = opus_helpers.read_available_dumps()
 
     first_date = min(sorted(dumps.keys()))
-    units, _ = opus_helpers.parser(dumps[first_date], [])
+    units, _ = opus_helpers.parser(dumps[first_date])
     main_unit = first(units)
     calculated_uuid = opus_helpers.generate_uuid(main_unit["@id"])
     return str(calculated_uuid)
-
-
-def read_all_files(filter_ids):
-    """Create full list of data to write to MO.
-
-    Searches files pairwise for changes and returns the date of change, units and employees with changes
-    """
-    dumps = opus_helpers.read_available_dumps()
-
-    # Prepend None to be able to start from the first file
-    export_dates = prepend(None, sorted(dumps.keys()))
-    date_pairs = pairwise(export_dates)
-
-    @apply
-    def lookup_units_and_employees(date1, date2):
-        filename1 = dumps.get(date1)
-        filename2 = dumps[date2]
-        units, employees = opus_helpers.file_diff(
-            filename1, filename2, filter_ids, disable_tqdm=True
-        )
-        return date2, units, employees
-
-    return map(lookup_units_and_employees, date_pairs)
 
 
 def prepare_re_import(
     settings: Optional[list] = None,
     opus_uuid: Optional[str] = None,
     truncate: Optional[bool] = None,
-    connections: int = 4
+    connections: int = 4,
 ) -> None:
     """Create a MO setup with necessary classes.
 
@@ -91,37 +65,27 @@ def prepare_re_import(
                 "There are duplicate classes, remove them with tools/data_fixers/remove_duplicate_classes.py --delete"
             )
         subtreedeleter_helper(
-            opus_uuid, delete_functions=True, keep_functions=["KLE", "Relateret Enhed"], connections=connections
+            opus_uuid,
+            delete_functions=True,
+            keep_functions=["KLE", "Relateret Enhed"],
+            connections=connections,
         )
     ensure_default_classes()
 
 
 def import_opus(ad_reader=None, import_all: bool = False) -> None:
-    """Do a clean import from all opus files.
-
-    Removes current OS2MO data and creates new installation with all the required classes etc.
-    Then reads all opus files from the path defined in settings
-    """
+    """Import one or all files from opus even if no previous files have been imported"""
     settings = load_settings()
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
+    dumps = opus_helpers.read_available_dumps()
 
-    employee_mapping = opus_helpers.read_cpr_mapping()
-    date_units_and_employees = read_all_files(filter_ids)
-    date_units_and_employees = islice(
-        date_units_and_employees, None if import_all else 1
-    )
-    for date, units, employees in date_units_and_employees:
-        print(
-            f"Importing from {date}: Found {len(units)} units and {len(employees)} employees"
-        )
-        diff = OpusDiffImport(
-            date, ad_reader=ad_reader, employee_mapping=employee_mapping
-        )
-        filtered_units, units = opus_helpers.filter_units(units, filter_ids)
-        diff.start_import(units, employees, include_terminations=True)
-        diff.handle_filtered_units(filtered_units)
-        # Write latest successful import to rundb so opus_diff_import can continue from where this ended
-        opus_helpers.local_db_insert((date, "Diff update ended: {}"))
+    export_dates = prepend(None, sorted(dumps.keys()))
+    date_pairs = pairwise(export_dates)
+    for date1, date2 in date_pairs:
+
+        import_one(ad_reader, date2, date1, dumps, filter_ids)
+        if not import_all:
+            break
 
 
 @click.command()
@@ -143,7 +107,7 @@ def import_opus(ad_reader=None, import_all: bool = False) -> None:
     help="The amount of concurrent requests made to OS2mo",
 )
 def clear_and_reload(
-    import_all: bool, delete_opus: bool, truncate: bool, use_ad: bool, connections:int
+    import_all: bool, delete_opus: bool, truncate: bool, use_ad: bool, connections: int
 ) -> None:
     """Tool for reimporting opus files.
 
@@ -159,7 +123,12 @@ def clear_and_reload(
             "This will purge ALL DATA FROM MO. Do you want to continue?", abort=True
         )
     opus_uuid = find_opus_name() if delete_opus else None
-    prepare_re_import(settings=settings, opus_uuid=opus_uuid, truncate=truncate, connections=connections)
+    prepare_re_import(
+        settings=settings,
+        opus_uuid=opus_uuid,
+        truncate=truncate,
+        connections=connections,
+    )
     AD = None
     if use_ad:
         AD = ad_reader.ADParameterReader()
