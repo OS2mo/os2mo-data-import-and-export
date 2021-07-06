@@ -29,9 +29,6 @@ from os2mo_data_import.mox_data_types import (
     Itsystem
 )
 
-import os
-SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
-
 logger = logging.getLogger("moImporterUtilities")
 
 
