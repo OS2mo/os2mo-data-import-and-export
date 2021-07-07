@@ -1,29 +1,23 @@
 import datetime
-import hashlib
-import json
 import logging
-import pathlib
-import uuid
 from operator import itemgetter
-from typing import Dict, List
+from typing import Dict
+from typing import List
+from typing import Optional
 from uuid import UUID
 
 import click
-import requests
-from click_option_group import RequiredMutuallyExclusiveOptionGroup, optgroup
+from click_option_group import optgroup
+from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from more_itertools import only
 from mox_helpers.mox_util import ensure_class_in_lora
 from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.load_settings import load_settings
 from tqdm import tqdm
 
 import constants
-from ra_utils.load_settings import load_settings
-from integrations.ad_integration import payloads, read_ad_conf_settings
-from integrations.ad_integration.ad_reader import ADParameterReader
-
 from . import payloads
 from .ad_reader import ADParameterReader
-from .read_ad_conf_settings import read_settings
 
 # Set up a real logger!
 logger = logging.getLogger("ImportADGroup")
@@ -62,8 +56,8 @@ class ADMOImporter(object):
     def _find_or_create_unit_and_classes(self):
         """
         Find uuids of the needed unit and classes for the import. If any unit or
-        class is missing from MO, it will be created. The function returns a dict containg
-        uuids needed to create users and engagements.
+        class is missing from MO, it will be created.The function returns a dict
+        containg uuids needed to create users and engagements.
         """
         # TODO: Add a dynamic creation of classes
         job_type, _ = ensure_class_in_lora("engagement_job_function", "Ekstern")
@@ -95,8 +89,10 @@ class ADMOImporter(object):
         search_string = self.settings["integrations.ad.import_ou.search_string"]
 
         def filter_users(user: Dict) -> bool:
-            if search_string in user.get("DistinguishedName"):
-                return True
+            name = user.get("DistinguishedName")
+            if name:
+                if search_string in name:
+                    return True
             return False
 
         users = list(filter(filter_users, self.ad_reader.results.values()))
@@ -104,7 +100,9 @@ class ADMOImporter(object):
         users_dict = dict(zip(uuids, users))
         return users_dict
 
-    def _create_user(self, ad_user: Dict, cpr_field: str, uuid: UUID = None) -> UUID:
+    def _create_user(
+        self, ad_user: Dict, cpr_field: str, uuid: Optional[str] = None
+    ) -> Optional[UUID]:
         """
         Create or update a user in MO using an AD user as a template.
         The user will share uuid between MO and AD.
@@ -125,7 +123,7 @@ class ADMOImporter(object):
         return user_uuid
 
     def _connect_user_to_ad(self, ad_user: Dict) -> None:
-        """ Write user AD username to the AD it system """
+        """Write user AD username to the AD it system"""
 
         logger.info("Connect user to AD: {}".format(ad_user["SamAccountName"]))
 
@@ -138,7 +136,7 @@ class ADMOImporter(object):
     def _create_engagement(
         self, ad_user: Dict, uuids: Dict[str, UUID], mo_uuid: UUID = None
     ) -> None:
-        """ Create the engagement in MO"""
+        """Create the engagement in MO"""
         # TODO: Check if we have start/end date of engagements in AD
         validity = {"from": datetime.datetime.now().strftime("%Y-%m-%d"), "to": None}
 
@@ -156,7 +154,7 @@ class ADMOImporter(object):
         logger.info("Added engagement to {}".format(ad_user["SamAccountName"]))
 
     def cleanup_removed_users_from_mo(self) -> None:
-        """ Remove users in MO if they are no longer found as external users in AD."""
+        """Remove users in MO if they are no longer found as external users in AD."""
         yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
         users = self._find_ou_users_in_ad()
 
@@ -191,8 +189,7 @@ class ADMOImporter(object):
                 cpr = ad_user[cpr_field]
                 mo_user = self.helper.read_user(user_cpr=cpr)
                 logger.info("Existing MO info: {}".format(mo_user))
-                
-                
+
                 if mo_user:
                     mo_uuid = mo_user.get("uuid")
                 else:
