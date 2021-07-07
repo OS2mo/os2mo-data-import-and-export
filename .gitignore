@@ -4,6 +4,7 @@
 !integrations/SD_Lon/tests/fixtures/tar_gz1/opt/dipex/os2mo-data-import-and-export/mo_integrations.log
 !integrations/SD_Lon/tests/fixtures/tar_gz2/opt/dipex/os2mo-data-import-and-export/mo_integrations.log
 *.csv
+.env
 
 # Development
 .idea
