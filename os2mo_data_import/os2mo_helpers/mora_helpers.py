@@ -12,7 +12,6 @@ import codecs
 import csv
 import datetime
 import logging
-import os
 import time
 from functools import lru_cache
 from operator import itemgetter
@@ -21,12 +20,7 @@ import requests
 from anytree import Node
 from more_itertools import only
 
-SAML_TOKEN = os.environ.get("SAML_TOKEN", None)
-
-CLIENT_ID = os.environ.get("CLIENT_ID", "dipex")
-CLIENT_SECRET = os.environ.get("CLIENT_SECRET", None)
-AUTH_REALM = os.environ.get("AUTH_REALM", "mo")
-AUTH_SERVER = os.environ.get("AUTH_SERVER", "http://localhost:8081/auth")
+from .settings import get_settings
 
 PRIMARY_RESPONSIBILITY = "Personale: ansættelse/afskedigelse"
 
@@ -41,6 +35,7 @@ class MoraHelper:
         self.cache = {}
         self.default_cache = use_cache
         self.export_ansi = export_ansi
+        self.settings = get_settings()
 
     def _split_name(self, name):
         """Split a name into first and last name.
@@ -129,11 +124,11 @@ class MoraHelper:
     @lru_cache(maxsize=None)
     def _fetch_keycloak_token(self) -> str:
         # Get token from Keycloak
-        token_url = AUTH_SERVER + f"/realms/{AUTH_REALM}/protocol/openid-connect/token"
+        token_url = self.settings.get_token_url()
         payload = {
             "grant_type": "client_credentials",
-            "client_id": CLIENT_ID,
-            "client_secret": CLIENT_SECRET,
+            "client_id": self.settings.client_id,
+            "client_secret": self.settings.client_secret,
         }
         response = requests.post(token_url, data=payload)
         response.raise_for_status()
@@ -180,9 +175,9 @@ class MoraHelper:
             return_dict = self.cache[cache_id]
         else:
             headers = {}
-            if SAML_TOKEN:
-                headers["Session"] = SAML_TOKEN
-            if CLIENT_SECRET:
+            if self.settings.saml_token:
+                headers["Session"] = self.settings.saml_token
+            if self.settings.client_secret:
                 headers["Authorization"] = self._fetch_auth_header()
 
             response = requests.get(full_url, headers=headers, params=params)
@@ -210,9 +205,9 @@ class MoraHelper:
             params = None
 
         headers = {}
-        if SAML_TOKEN:
-            headers["Session"] = SAML_TOKEN
-        if CLIENT_SECRET:
+        if self.settings.saml_token:
+            headers["Session"] = self.settings.saml_token
+        if self.settings.client_secret:
             headers["Authorization"] = self._fetch_auth_header()
 
         full_url = self.host + url
