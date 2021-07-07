@@ -13,6 +13,7 @@ import csv
 import datetime
 import logging
 import os
+import time
 from operator import itemgetter
 from functools import lru_cache
 
@@ -128,7 +129,7 @@ class MoraHelper:
         return path_dict
 
     @lru_cache(maxsize=None)
-    def _fetch_auth_header(self) -> str:
+    def _fetch_keycloak_token(self) -> str:
         # Get token from Keycloak
         token_url = AUTH_SERVER + f'/realms/{AUTH_REALM}/protocol/openid-connect/token'
         payload = {
@@ -137,7 +138,16 @@ class MoraHelper:
             'client_secret': CLIENT_SECRET,
         }
         response = requests.post(token_url, data=payload)
-        token = response.json()['access_token']
+        payload = response.json()
+        expires = payload['expires_in']
+        token = payload['access_token']
+        return time.time() + expires, token
+
+    def _fetch_auth_header(self) -> str:
+        expires, token = self._fetch_keycloak_token()
+        if expires < time.time():
+            self._fetch_keycloak_token.cache_clear()
+            _, token = self._fetch_keycloak_token()
         return "Bearer " + token
 
     @retry(stop_max_attempt_number=7)
