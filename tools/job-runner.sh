@@ -662,7 +662,7 @@ pre_backup(){
     BACK_UP_BEFORE_JOBS=($(printf "%s\n" "${BACK_UP_BEFORE_JOBS[@]}" | sort -u))
 
     # Create backup files archive
-    tar --ignore-failed-read -cf ${file_archive} ${BACK_UP_BEFORE_JOBS}
+    tar --ignore-failed-read -cf ${file_archive} ${BACK_UP_BEFORE_JOBS[@]}
     if [ $? -ne 0 ]; then
         echo "Issues create file-archive, continuing..."
     fi
@@ -690,7 +690,7 @@ post_backup(){
     BACK_UP_AND_TRUNCATE=($(printf "%s\n" "${BACK_UP_AND_TRUNCATE[@]}" | sort -u))
 
     # Create backup files archive
-    tar --ignore-failed-read -cf ${file_archive} ${BACK_UP_AFTER_JOBS} ${BACK_UP_AND_TRUNCATE}
+    tar --ignore-failed-read -cf ${file_archive} ${BACK_UP_AFTER_JOBS[@]} ${BACK_UP_AND_TRUNCATE[@]}
     if [ $? -ne 0 ]; then
         echo "Issues create file-archive, continuing..."
     fi
