@@ -28,6 +28,7 @@ from os2mo_data_import.mox_data_types import (
     Klasse,
     Itsystem
 )
+from os2mo_helpers.mora_helpers import MoraHelper
 
 logger = logging.getLogger("moImporterUtilities")
 
@@ -363,7 +364,7 @@ class ImportUtility(object):
             if payload['uuid'] in self.existing_uuids:
                 logger.info('Re-import org-unit: {}'.format(payload['uuid']))
                 re_import = 'NO'
-                resource = 'service/details/edit'
+                resource = 'details/edit'
                 payload_keys = list(payload.keys())
                 payload['data'] = {}
                 for key in payload_keys:
@@ -373,11 +374,11 @@ class ImportUtility(object):
             else:
                 re_import = 'NEW'
                 logger.info('New unit - Forced uuid: {}'.format(payload['uuid']))
-                resource = 'service/ou/create'
+                resource = 'ou/create'
         else:
             re_import = 'NEW'
             logger.info('New unit, random uuid')
-            resource = 'service/ou/create'
+            resource = 'ou/create'
 
         logger.debug('Unit payload: {}'.format(payload))
 
@@ -433,7 +434,7 @@ class ImportUtility(object):
         if re_import in ('YES', 'NEW'):
             logger.info('Re-import unit: {}'.format(re_import))
             self.insert_mora_data(
-                resource="service/details/create",
+                resource="details/create",
                 data=details_payload
             )
 
@@ -472,7 +473,7 @@ class ImportUtility(object):
 
         # We unconditionally create or update the user, this should
         # ensure that we are always updated with correct current information.
-        mora_resource = "service/e/create"
+        mora_resource = "e/create"
         uuid = self.insert_mora_data(
             resource=mora_resource,
             data=integration_data
@@ -564,7 +565,7 @@ class ImportUtility(object):
 
             if re_import in ('YES', 'NEW', 'UPDATE'):
                 self.insert_mora_data(
-                    resource="service/details/create",
+                    resource="details/create",
                     data=additional_payload
                 )
 
@@ -782,7 +783,7 @@ class ImportUtility(object):
         return uuid
 
     def _terminate_employee(self, uuid, date_from=None):
-        endpoint = 'service/e/{}/terminate'
+        endpoint = 'e/{}/terminate'
         yesterday = datetime.now() - timedelta(days=1)
         if date_from:
             to = date_from
@@ -816,7 +817,7 @@ class ImportUtility(object):
         logger.debug('Terminate detail payload: {}'.format(payload))
         try:
             self.insert_mora_data(
-                resource='service/details/terminate',
+                resource='details/terminate',
                 data=payload
             )
         except HTTPError:
