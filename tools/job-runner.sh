@@ -674,7 +674,7 @@ pre_backup(){
     echo ""
 
     echo -e "Creating backup: \c"
-    RESULT=$(curl --silent --fail -X POST --data-binary "@${file_archive}" ${BACKUP_SERVICE_URL}/snapshot)
+    RESULT=$(curl --silent --fail -X POST -F "file=@${file_archive}" ${BACKUP_SERVICE_URL}/snapshot)
     echo "${RESULT}"
     if [ "${RESULT}" != "true" ]; then
         BACKUP_OK=false
@@ -704,7 +704,7 @@ post_backup(){
     echo ""
 
     echo -e "Creating backup: \c"
-    RESULT=$(curl --silent --fail -X POST --data-binary "@${file_archive}" ${BACKUP_SERVICE_URL}/snapshot)
+    RESULT=$(curl --silent --fail -X POST -F "file=@${file_archive}" ${BACKUP_SERVICE_URL}/snapshot)
     echo "${RESULT}"
     if [ "${RESULT}" != "true" ]; then
         BACKUP_OK=false
