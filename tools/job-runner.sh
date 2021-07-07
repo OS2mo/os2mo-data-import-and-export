@@ -31,7 +31,7 @@ declare -a BACK_UP_AND_TRUNCATE=(
 # should be appended to BACK_UP_BEFORE_JOBS NOW - they can't
 # be added inside the job functions
 declare -a BACK_UP_BEFORE_JOBS=(
-    ${SNAPSHOT_LORA}
+    ${CUSTOMER_SETTINGS}
     $(readlink ${CUSTOMER_SETTINGS})
     $(
         SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -448,6 +448,36 @@ imports(){
         && echo ERROR: backup is in error - skipping imports \
         && return 1 # imports depend on backup
 
+    if [ "${RUN_CHECK_KEYTAB}" == "true" ]; then
+        if [ ! -n "${SVC_KEYTAB}" ]; then
+            REASON="WARNING: Service keytab not specified"
+            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
+            echo ${REASON}
+        fi
+
+        if [ -n "${SVC_KEYTAB}" -a ! -f "${SVC_KEYTAB}" ]; then
+            REASON="FATAL: Service keytab not found"
+            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
+            echo ${REASON}
+            exit 2
+        fi
+
+        if [ -n "${SVC_USER}" -a -n "${SVC_KEYTAB}" ]; then
+
+            [ -r "${SVC_KEYTAB}" ] || echo WARNING: cannot read keytab
+
+            kinit ${SVC_USER} -k -t ${SVC_KEYTAB} || (
+                REASON="WARNING: not able to refresh kerberos auth - authentication failure"
+                run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
+                echo ${REASON}
+            )
+        else
+            REASON="WARNING: not able to refresh kerberos auth - username or keytab missing"
+            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
+            echo ${REASON}
+        fi
+    fi
+
     if [ "${RUN_MOX_DB_CLEAR}" == "true" ]; then
         run-job imports_mox_db_clear || return 2
     fi
@@ -625,82 +655,70 @@ reports(){
     fi
 }
 
-pre_truncate_logfiles(){
-    # logfiles are truncated before each run as 
-    [ -f "udvalg.log" ] && truncate -s 0 "udvalg.log" 
-}
-
 pre_backup(){
-    temp_report=$(mktemp)
+    file_archive=$(mktemp).tar
 
-    # deduplicate
+    # Deduplicate backup files
     BACK_UP_BEFORE_JOBS=($(printf "%s\n" "${BACK_UP_BEFORE_JOBS[@]}" | sort -u))
 
-    for f in ${BACK_UP_BEFORE_JOBS[@]}
-    do
-        FILE_FAILED=false
-        # try to append to tar file and report if not found
-        tar -rf $BUPFILE "${f}" > ${temp_report} 2>&1 || FILE_FAILED=true
-        if [ "${FILE_FAILED}" = "true" ]; then
-            BACKUP_OK=false
-            run-job-log job pre-backup file ! job-status failed ! file $f
-            echo BACKUP ERROR
-            cat ${temp_report}
-        fi
-    done
-    rm ${temp_report}
-    declare -i age=$(stat -c%Y ${BUPFILE})-$(stat -c%Y ${SNAPSHOT_LORA})
-    if [[ ${age} -gt ${BACKUP_MAX_SECONDS_AGE} ]]; then
-        BACKUP_OK=false 
-        run-job-log job pre-backup lora ! job-status failed ! age $age
-        echo "ERROR database snapshot is more than ${BACKUP_MAX_SECONDS_AGE} seconds old: $age"
-	return 1
+    # Create backup files archive
+    tar -cf ${file_archive} ${BACK_UP_BEFORE_JOBS}
+    if [ $? -ne 0 ]; then
+        BACKUP_OK=false
+        echo "Unable to create file-archive"
+        exit 1
     fi
+
+    echo "Listing backup files:"
+    tar --list -f ${file_archive}
+    echo ""
+
+    echo -e "Creating backup: \c"
+    RESULT=$(curl --silent --fail -X POST --data-binary "@${file_archive}" ${BACKUP_SERVICE_URL}/snapshot)
+    echo "${RESULT}"
+    if [ "${RESULT}" != "true" ]; then
+        BACKUP_OK=false
+        echo "Unable to upload backup, status: ${RESULT}"
+        exit 1
+    fi
+    echo ""
 }
 
 post_backup(){
-    temp_report=$(mktemp)
+    file_archive=$(mktemp).tar
 
-    # deduplicate
+    # Deduplicate backup files
     BACK_UP_AFTER_JOBS=($(printf "%s\n" "${BACK_UP_AFTER_JOBS[@]}" | sort -u))
     BACK_UP_AND_TRUNCATE=($(printf "%s\n" "${BACK_UP_AND_TRUNCATE[@]}" | sort -u))
 
-    for f in ${BACK_UP_AFTER_JOBS[@]} ${BACK_UP_AND_TRUNCATE[@]}
-    do
-        FILE_FAILED=false
-        # try to append to tar file and report if not found
-        tar -rf $BUPFILE "${f}" > ${temp_report} 2>&1 || FILE_FAILED=true
-        if [ "${FILE_FAILED}" = "true" ]; then
-            BACKUP_OK=false
-            run-job-log job post-backup file ! job-status failed ! file $f
-            echo BACKUP ERROR
-            cat ${temp_report}
-        fi
-    done
-    rm ${temp_report}
-    echo
-    echo listing preliminary backup archive
-    echo ${BUPFILE}.gz
-    tar -tvf ${BUPFILE}
-    gzip  ${BUPFILE}
+    # Create backup files archive
+    tar -cf ${file_archive} ${BACK_UP_AFTER_JOBS} ${BACK_UP_AND_TRUNCATE}
+    if [ $? -ne 0 ]; then
+        BACKUP_OK=false
+        echo "Unable to create file-archive"
+        exit 1
+    fi
 
-    echo truncating backed up logfiles
-    for f in ${BACK_UP_AND_TRUNCATE[@]}
-    do
+    echo "Listing backup files:"
+    tar --list -f ${file_archive}
+    echo ""
+
+    echo -e "Creating backup: \c"
+    RESULT=$(curl --silent --fail -X POST --data-binary "@${file_archive}" ${BACKUP_SERVICE_URL}/snapshot)
+    echo "${RESULT}"
+    if [ "${RESULT}" != "true" ]; then
+        BACKUP_OK=false
+        echo "Unable to upload backup, status: ${RESULT}"
+        exit 1
+    fi
+    echo ""
+
+    echo "Truncating backed up logfiles"
+    for f in ${BACK_UP_AND_TRUNCATE[@]}; do
         [ -f "${f}" ] && truncate -s 0 "${f}"
     done
 
-    echo
-    BACKUP_SAVE_DAYS=${BACKUP_SAVE_DAYS:=90}
-    echo deleting backups older than "${BACKUP_SAVE_DAYS}" days
-    bupsave=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S -d "-${BACKUP_SAVE_DAYS} days")-cron-backup.tar.gz
-    for oldbup in ${CRON_BACKUP}/????-??-??-??-??-??-cron-backup.tar.gz
-    do
-        [ "${oldbup}" \< "${bupsave}" ] && (
-            rm -v ${oldbup}
-        )
-    done
-    echo backup done # do not remove this line
+    echo "backup done" # do not remove this line
 }
 
 show_status(){
@@ -749,19 +767,6 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
             echo ${REASON}
         fi
 
-        if [ ! -n "${SVC_KEYTAB}" ]; then
-            REASON="WARNING: Service keytab not specified"
-            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-            echo ${REASON}
-        fi
-
-        if [ -n "${SVC_KEYTAB}" -a ! -f "${SVC_KEYTAB}" ]; then
-            REASON="FATAL: Service keytab not found"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
-            exit 2
-        fi
-
         if [ ! -n "${CRON_LOG_FILE}" ]; then
             REASON="FATAL: Cron log file not specified"
             run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
@@ -769,45 +774,15 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
             exit 2
         fi
 
-        if [ ! -n "${CRON_BACKUP}" ]; then
-            REASON="FATAL: Backup directory not specified"
+        if [ ! -n "${BACKUP_SERVICE_URL}" ]; then
+            REASON="FATAL: Backup service url not specified"
             run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
             echo ${REASON}
             exit 2
-        fi
-
-        if [ ! -d "${CRON_BACKUP}" ]; then
-            REASON="FATAL: Backup directory non existing"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
-            exit 2
-        fi
-
-        if [ ! -f "${SNAPSHOT_LORA}" ]; then
-            REASON="FATAL: Database snapshot does not exist"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
-            exit 2
-        fi
-        if [ -n "${SVC_USER}" -a -n "${SVC_KEYTAB}" ]; then
-
-            [ -r "${SVC_KEYTAB}" ] || echo WARNING: cannot read keytab
-
-            kinit ${SVC_USER} -k -t ${SVC_KEYTAB} || (
-                REASON="WARNING: not able to refresh kerberos auth - authentication failure"
-                run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-                echo ${REASON}
-            )
-        else
-            REASON="WARNING: not able to refresh kerberos auth - username or keytab missing"
-            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-            echo ${REASON}
         fi
 
         # Vi sletter lora-cache-picklefiler og andet inden vi kører cronjobbet
         rm tmp/*.p 2>/dev/null || :
-
-        export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
         pre_backup
         run-job sanity_check_mo_data || echo Sanity check failed
