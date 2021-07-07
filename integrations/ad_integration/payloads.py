@@ -1,7 +1,10 @@
-def create_user(cpr, ad_user, org_uuid):
+from typing import Optional
+
+
+def create_user(cpr: str, ad_user: dict, org_uuid, uuid: Optional[str] = None) -> dict:
     payload = {
         "cpr_no": cpr,
-        "uuid": ad_user["ObjectGUID"],
+        "uuid": uuid or ad_user["ObjectGUID"],
         "givenname": ad_user["GivenName"],
         "surname": ad_user["Surname"],
         "org": {"uuid": org_uuid},
@@ -21,11 +24,13 @@ def connect_it_system_to_user(ad_user, it_system):
 
 
 # almost all parameters could be replaced with direct reading from settings
-def create_engagement(ad_user, unit_uuid, job_function, engagement_type, validity):
+def create_engagement(
+    ad_user, unit_uuid, person_uuid, job_function, engagement_type, validity
+):
     payload = {
         "type": "engagement",
         "org_unit": {"uuid": str(unit_uuid)},
-        "person": {"uuid": ad_user["ObjectGUID"]},
+        "person": {"uuid": str(person_uuid)},
         "job_function": {"uuid": job_function},
         "engagement_type": {"uuid": engagement_type},
         "user_key": ad_user["SamAccountName"],
@@ -34,11 +39,11 @@ def create_engagement(ad_user, unit_uuid, job_function, engagement_type, validit
     return payload
 
 
-def unit_for_externals(uuid, unit_type, parent):
+def create_unit(uuid, unit_name, unit_type, parent):
     payload = {
         "uuid": uuid,
-        "user_key": "external_employees",
-        "name": "Eksterne medarbejdere",
+        "user_key": unit_name,
+        "name": unit_name,
         "parent": {"uuid": parent},
         "org_unit_type": {"uuid": unit_type},
         "validity": {"from": "1930-01-01", "to": None},
