@@ -182,7 +182,7 @@ class SqlExport:
                     slutdato=user_info['to_date'],
                 )
                 self.session.add(sql_user)
-        self.session.commit()
+            self.session.commit()
 
         for unit, unit_validities in tqdm(self.lc.units.items(), desc="Export unit", unit="unit"):
             for unit_info in unit_validities:
@@ -209,7 +209,7 @@ class SqlExport:
                     slutdato=unit_info['to_date']
                 )
                 self.session.add(sql_unit)
-        self.session.commit()
+            self.session.commit()
 
         # create supplementary index for quick toplevel lookup
         # when rewriting whole table this is quicker than maintaining
@@ -263,7 +263,7 @@ class SqlExport:
                     **engagement_info['extensions']
                 )
                 self.session.add(sql_engagement)
-        self.session.commit()
+            self.session.commit()
 
         if output:
             for result in self.engine.execute('select * from engagementer limit 5'):
@@ -303,7 +303,7 @@ class SqlExport:
                     slutdato=address_info['to_date']
                 )
                 self.session.add(sql_address)
-        self.session.commit()
+            self.session.commit()
         if output:
             for result in self.engine.execute('select * from adresser limit 10'):
                 print(result.items())
@@ -338,7 +338,7 @@ class SqlExport:
                     slutdato=association_info['to_date']
                 )
                 self.session.add(sql_association)
-        self.session.commit()
+            self.session.commit()
 
         for role, role_validity in tqdm(self.lc.roles.items(), desc="Export role", unit="role"):
             for role_info in role_validity:
@@ -352,7 +352,7 @@ class SqlExport:
                     slutdato=role_info['to_date']
                 )
                 self.session.add(sql_role)
-        self.session.commit()
+            self.session.commit()
 
         for leave, leave_validity in tqdm(self.lc.leaves.items(), desc="Export leave", unit="leave"):
             for leave_info in leave_validity:
@@ -367,7 +367,7 @@ class SqlExport:
                     slutdato=leave_info['to_date']
                 )
                 self.session.add(sql_leave)
-        self.session.commit()
+            self.session.commit()
         if output:
             for result in self.engine.execute('select * from tilknytninger limit 4'):
                 print(result.items())
@@ -398,7 +398,7 @@ class SqlExport:
                     slutdato=it_connection_info['to_date']
                 )
                 self.session.add(sql_it_connection)
-        self.session.commit()
+            self.session.commit()
         if output:
             for result in self.engine.execute('select * from it_systemer limit 2'):
                 print(result.items())
@@ -422,7 +422,7 @@ class SqlExport:
                     slutdato=kle_info['to_date']
                 )
                 self.session.add(sql_kle)
-        self.session.commit()
+            self.session.commit()
         if output:
             for result in self.engine.execute('select * from kle limit 10'):
                 print(result.items())
@@ -462,7 +462,7 @@ class SqlExport:
                     slutdato=related_info['to_date']
                 )
                 self.session.add(sql_related)
-        self.session.commit()
+            self.session.commit()
         if output:
             for result in self.engine.execute('select * from enhedssammenkobling limit 10'):
                 print(result.items())
@@ -495,7 +495,7 @@ class SqlExport:
                         slutdato=manager_info['to_date']
                     )
                     self.session.add(sql_responsibility)
-        self.session.commit()
+            self.session.commit()
         if output:
             for result in self.engine.execute('select * from ledere limit 10'):
                 print(result.items())
