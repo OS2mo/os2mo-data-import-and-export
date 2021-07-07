@@ -14,20 +14,19 @@ import datetime
 import logging
 import os
 import time
-from operator import itemgetter
 from functools import lru_cache
+from operator import itemgetter
 
 import requests
 from anytree import Node
 from more_itertools import only
-from retrying import retry
 
 SAML_TOKEN = os.environ.get("SAML_TOKEN", None)
 
 CLIENT_ID = os.environ.get("CLIENT_ID", "dipex")
 CLIENT_SECRET = os.environ.get("CLIENT_SECRET", None)
 AUTH_REALM = os.environ.get("AUTH_REALM", "mo")
-AUTH_SERVER = os.environ.get("AUTH_SERVER", 'http://localhost:8081/auth')
+AUTH_SERVER = os.environ.get("AUTH_SERVER", "http://localhost:8081/auth")
 
 PRIMARY_RESPONSIBILITY = "Personale: ansættelse/afskedigelse"
 
@@ -130,17 +129,17 @@ class MoraHelper:
     @lru_cache(maxsize=None)
     def _fetch_keycloak_token(self) -> str:
         # Get token from Keycloak
-        token_url = AUTH_SERVER + f'/realms/{AUTH_REALM}/protocol/openid-connect/token'
+        token_url = AUTH_SERVER + f"/realms/{AUTH_REALM}/protocol/openid-connect/token"
         payload = {
-            'grant_type': 'client_credentials',
-            'client_id': CLIENT_ID,
-            'client_secret': CLIENT_SECRET,
+            "grant_type": "client_credentials",
+            "client_id": CLIENT_ID,
+            "client_secret": CLIENT_SECRET,
         }
         response = requests.post(token_url, data=payload)
         response.raise_for_status()
         payload = response.json()
-        expires = payload['expires_in']
-        token = payload['access_token']
+        expires = payload["expires_in"]
+        token = payload["access_token"]
         return time.time() + expires, token
 
     def _fetch_auth_header(self) -> str:
@@ -150,7 +149,6 @@ class MoraHelper:
             _, token = self._fetch_keycloak_token()
         return "Bearer " + token
 
-    @retry(stop_max_attempt_number=7)
     def _mo_lookup(
         self,
         uuid,
@@ -195,7 +193,9 @@ class MoraHelper:
                 logger.error(msg)
                 raise requests.exceptions.RequestException(msg)
 
-            if (response.status_code == 500) and ("has been deleted" not in response.text):
+            if (response.status_code == 500) and (
+                "has been deleted" not in response.text
+            ):
                 response.raise_for_status()
 
             return_dict = response.json()

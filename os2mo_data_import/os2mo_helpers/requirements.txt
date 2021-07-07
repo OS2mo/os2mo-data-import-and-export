@@ -1,4 +1,3 @@
 requests
 anytree
 more_itertools
-retrying
