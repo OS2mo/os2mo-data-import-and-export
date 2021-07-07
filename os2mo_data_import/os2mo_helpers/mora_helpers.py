@@ -13,6 +13,9 @@ import csv
 import datetime
 import logging
 import time
+from typing import Dict
+from typing import List
+from operator import itemgetter
 from functools import lru_cache
 from operator import itemgetter
 
