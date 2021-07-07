@@ -13,7 +13,6 @@
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 SCRIPT=${SCRIPT:-${DIR}/job-runner.sh}
-BACKUP_SCRIPT=${BACKUP_SCRIPT:-${DIR}/backup.sh}
 
 # Unix service account to run job-runner.sh under
 RUNAS=${RUNAS:-svc_os2mo}
@@ -42,25 +41,6 @@ if ! [ -x "$(command -v jq)" ]; then
     echo "Try: sudo apt-get install jq"
     exit 1
 fi
-
-# Database snapshot
-#------------------
-if [ "${INSTALLATION_TYPE}" == "docker" ]; then
-    bash ${BACKUP_SCRIPT}
-    EXIT_CODE=$?
-    if [ ${EXIT_CODE} -ne 0 ]; then
-        exit 1
-    fi
-elif [ "${INSTALLATION_TYPE}" == "legacy" ]; then
-    echo "Unsupported installation type: legacy"
-    exit 1
-elif [ "${INSTALLATION_TYPE}" == "none" ]; then
-    echo "WARNING: No snapshotting configured"
-else
-    echo "Unknown installation type: ${INSTALLATION_TYPE}"
-    exit 1
-fi
-
 
 # Run script between pre and post-hooks
 #-----------
