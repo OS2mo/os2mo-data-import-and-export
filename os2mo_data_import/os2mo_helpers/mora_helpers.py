@@ -38,7 +38,6 @@ class MoraHelper:
     def __init__(
         self, hostname="http://localhost:5000", export_ansi=True, use_cache=True
     ):
-        self.hostname = hostname
         self.host = hostname + "/service/"
         self.cache = {}
         self.default_cache = use_cache
