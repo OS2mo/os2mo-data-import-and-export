@@ -138,6 +138,7 @@ class MoraHelper:
             'client_secret': CLIENT_SECRET,
         }
         response = requests.post(token_url, data=payload)
+        response.raise_for_status()
         payload = response.json()
         expires = payload['expires_in']
         token = payload['access_token']
