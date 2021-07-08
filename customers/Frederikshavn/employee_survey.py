@@ -21,7 +21,8 @@ from reports.shared_reports import CustomerReports
 
 
 def age_from_cpr(cpr_no: str) -> int:
-    year, code_msd = map(int, (cpr_no[4:6], cpr_no[6]))
+    year = int(cpr_no[4:6])
+    code_msd = int(cpr_no[6])
     century: int = 0
     if code_msd < 4:
         century = 1900
