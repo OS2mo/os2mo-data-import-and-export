@@ -51,14 +51,12 @@ def sql_export(resolve_dar):
         "exporters.actual_state_historic.type": "SQLite",
         "exporters.actual_state.db_name": org_settings.get(
             "lc-for-jobs.actual_db_name", "ActualState"
-        ),
-        "exporters.actual_state.manager_responsibility_class": org_settings[
-            "exporters.actual_state.manager_responsibility_class"
-        ],
+        )
+
     }
 
     sql_export = SqlExport(force_sqlite=True, historic=False, settings=settings)
-    sql_export.perform_export(resolve_dar=resolve_dar, use_pickle=False)
+    sql_export.perform_export(resolve_dar=resolve_dar)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,5 @@
 import json
 import time
-import pickle
 import urllib
 import logging
 import pathlib
@@ -18,13 +17,14 @@ import click
 from more_itertools import bucket
 from retrying import retry
 from os2mo_helpers.mora_helpers import MoraHelper
+from mox_helpers.mox_util import ensure_class_in_lora
+from ra_utils.load_settings import load_settings
 from integrations.dar_helper import dar_helper
 
 logger = logging.getLogger("LoraCache")
 
 DEFAULT_TIMEZONE = dateutil.tz.gettz('Europe/Copenhagen')
 
-PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'lora_cache.log'
@@ -37,7 +37,7 @@ class LoraCache:
         logger.info(msg.format(resolve_dar, full_history))
         self.resolve_dar = resolve_dar
 
-        self.settings = self._load_settings()
+        self.settings = load_settings()
 
         self.additional = {
             'relationer': ('tilknyttedeorganisationer', 'tilhoerer')
@@ -48,12 +48,6 @@ class LoraCache:
         self.full_history = full_history
         self.skip_past = skip_past
         self.org_uuid = self._read_org_uuid()
-
-    def _load_settings(self):
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        return json.loads(cfg_file.read_text())
 
     def _read_org_uuid(self):
         mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
@@ -239,6 +233,7 @@ class LoraCache:
             }
         return itsystems
 
+
     def _cache_lora_users(self):
         params = {'bvn': '%'}
         url = '/organisation/bruger'
@@ -250,11 +245,10 @@ class LoraCache:
             "tilstande": ("brugergyldighed",),
         }
 
-        users = {}
-        for user in tqdm(user_list, desc="Processing user", unit="user"):
+        users = tqdm(user_list, desc="Processing user", unit="user")
+        def handle_user(user):
+            this_user = []
             uuid = user['id']
-            users[uuid] = []
-
             effects = list(self._get_effects(user, relevant))
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
@@ -283,8 +277,7 @@ class LoraCache:
                 efternavn = udv.get('efternavn', '')
                 kaldenavn_fornavn = udv.get('kaldenavn_fornavn', '')
                 kaldenavn_efternavn = udv.get('kaldenavn_efternavn', '')
-                users[uuid].append(
-                    {
+                this_user.append({
                         'uuid': uuid,
                         'cpr': cpr,
                         'user_key': user_key,
@@ -297,9 +290,13 @@ class LoraCache:
                                                kaldenavn_efternavn]).strip(),
                         'from_date': from_date,
                         'to_date': to_date
-                    }
+                        }
                 )
-        return users
+            return this_user
+
+        uuids = map(lambda u: u['id'], users)
+        users = map(handle_user, users)
+        return zip(uuids, users)
 
     def _cache_lora_units(self):
         params = {'bvn': '%'}
@@ -919,9 +916,8 @@ class LoraCache:
             print(msg)
             return
 
-        responsibility_class = self.settings.get(
-            'exporters.actual_state.manager_responsibility_class', None
-        )
+        responsibility_class, _ = ensure_class_in_lora('responsibility', 'Lederansvar')
+    
         for unit, unit_validities in self.units.items():
             assert(len(unit_validities)) == 1
             unit_info = unit_validities[0]
@@ -1005,84 +1001,11 @@ class LoraCache:
         logger.info('Total dar: {}, no-hit: {}'.format(total_dar, total_missing))
         return dar_cache
 
-    def populate_cache(self, dry_run=False, skip_associations=False):
-        """
-        Perform the actual data import.
-        :param skip_associations: If associations are not needed, they can be
-        skipped for increased performance.
-        :param dry_run: For testing purposes it is possible to read from cache.
-        """
-        if self.full_history:
-            facets_file = 'tmp/facets_historic.p'
-            classes_file = 'tmp/classes_historic.p'
-            users_file = 'tmp/users_historic.p'
-            units_file = 'tmp/units_historic.p'
-            addresses_file = 'tmp/addresses_historic.p'
-            engagements_file = 'tmp/engagements_historic.p'
-            managers_file = 'tmp/managers_historic.p'
-            associations_file = 'tmp/associations_historic.p'
-            leaves_file = 'tmp/leaves_historic.p'
-            roles_file = 'tmp/roles_historic.p'
-            itsystems_file = 'tmp/itsystems_historic.p'
-            it_connections_file = 'tmp/it_connections_historic.p'
-            kles_file = 'tmp/kles_historic.p'
-            related_file = 'tmp/related_historic.p'
-        else:
-            facets_file = 'tmp/facets.p'
-            classes_file = 'tmp/classes.p'
-            users_file = 'tmp/users.p'
-            units_file = 'tmp/units.p'
-            addresses_file = 'tmp/addresses.p'
-            engagements_file = 'tmp/engagements.p'
-            managers_file = 'tmp/managers.p'
-            associations_file = 'tmp/associations.p'
-            leaves_file = 'tmp/leaves.p'
-            roles_file = 'tmp/roles.p'
-            itsystems_file = 'tmp/itsystems.p'
-            it_connections_file = 'tmp/it_connections.p'
-            kles_file = 'tmp/kles.p'
-            related_file = 'tmp/related.p'
-
-        if dry_run:
-            logger.info('LoRa cache dry run - no actual read')
-            with open(facets_file, 'rb') as f:
-                self.facets = pickle.load(f)
-            with open(classes_file, 'rb') as f:
-                self.classes = pickle.load(f)
-            with open(users_file, 'rb') as f:
-                self.users = pickle.load(f)
-            with open(units_file, 'rb') as f:
-                self.units = pickle.load(f)
-            with open(addresses_file, 'rb') as f:
-                self.addresses = pickle.load(f)
-            with open(engagements_file, 'rb') as f:
-                self.engagements = pickle.load(f)
-            with open(managers_file, 'rb') as f:
-                self.managers = pickle.load(f)
-
-            if not skip_associations:
-                with open(associations_file, 'rb') as f:
-                    self.associations = pickle.load(f)
-
-            with open(leaves_file, 'rb') as f:
-                self.leaves = pickle.load(f)
-            with open(roles_file, 'rb') as f:
-                self.roles = pickle.load(f)
-            with open(itsystems_file, 'rb') as f:
-                self.itsystems = pickle.load(f)
-            with open(it_connections_file, 'rb') as f:
-                self.it_connections = pickle.load(f)
-            with open(kles_file, 'rb') as f:
-                self.kles = pickle.load(f)
-            with open(related_file, 'rb') as f:
-                self.related = pickle.load(f)
-            self.dar_cache = {}
-            return
+    def populate_cache(self, skip_associations=False):
 
         t = time.time()
         msg = 'Kørselstid: {:.1f}s, {} elementer, {:.0f}/s'
 
-        # Here we should activate read-only mode
         def read_facets():
             logger.info('Læs facetter')
             self.facets = self._cache_lora_facets()
@@ -1156,32 +1079,28 @@ class LoraCache:
         def read_dar():
             logger.info('Læs dar')
             self.dar_cache = self._cache_dar()
-            #with open(cache_file, 'wb') as f:
-            #    pickle.dump(self.dar_cache, f, pickle.HIGHEST_PROTOCOL)
 
         tasks = []
-        tasks.append((read_facets, facets_file))
-        tasks.append((read_classes, classes_file))
-        tasks.append((read_users, users_file))
-        tasks.append((read_units, units_file))
-        tasks.append((read_addresses, addresses_file))
-        tasks.append((read_engagements, engagements_file))
-        tasks.append((read_managers, managers_file))
+        tasks.append(read_facets)
+        tasks.append(read_classes)
+        tasks.append(read_users)
+        tasks.append(read_units)
+        tasks.append(read_addresses)
+        tasks.append(read_engagements)
+        tasks.append(read_managers)
         if not skip_associations:
-            tasks.append((read_associations, associations_file))
-        tasks.append((read_leaves, leaves_file))
-        tasks.append((read_roles, roles_file))
-        tasks.append((read_itsystems, itsystems_file))
-        tasks.append((read_it_connections, it_connections_file))
-        tasks.append((read_kles, kles_file))
-        tasks.append((read_related, related_file))
-        tasks.append((read_dar, None))
+            tasks.append(read_associations)
+        tasks.append(read_leaves)
+        tasks.append(read_roles)
+        tasks.append(read_itsystems)
+        tasks.append(read_it_connections)
+        tasks.append(read_kles)
+        tasks.append(read_related)
+        tasks.append(read_dar)
 
-        for task, filename in tqdm(tasks, desc="LoraCache", unit="task"):
-            data = task()
-            if filename:
-                with open(filename, 'wb') as f:
-                    pickle.dump(data, f, PICKLE_PROTOCOL)
+        for task in tqdm(tasks, desc="LoraCache", unit="task"):
+            task()
+            
 
         # Here we should de-activate read-only mode
 

@@ -9,6 +9,7 @@ from sqlalchemy import create_engine, Index
 from sqlalchemy.orm import sessionmaker
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
+from ra_utils.load_settings import load_settings
 
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.sql_export.sql_table_defs import (
@@ -40,18 +41,18 @@ class SqlExport:
         engine_settings = generate_engine_settings(database_function, force_sqlite=force_sqlite, settings=settings)
         self.engine = create_engine(db_string, **engine_settings)
 
-    def _get_lora_cache(self, resolve_dar, use_pickle):
+    def _get_lora_cache(self, resolve_dar):
         if self.historic:
             lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
-            lc.populate_cache(dry_run=use_pickle)
+            lc.populate_cache()
         else:
             lc = LoraCache(resolve_dar=resolve_dar)
-            lc.populate_cache(dry_run=use_pickle)
+            lc.populate_cache()
             lc.calculate_derived_unit_data()
             lc.calculate_primary_engagements()
         return lc
 
-    def perform_export(self, resolve_dar=True, use_pickle=False):
+    def perform_export(self, resolve_dar=True):
         def timestamp():
             return datetime.datetime.now()
 
@@ -65,7 +66,7 @@ class SqlExport:
 
         query_time = timestamp()
         kvittering = self._add_receipt(query_time)
-        self.lc = self._get_lora_cache(resolve_dar, use_pickle)
+        self.lc = self._get_lora_cache(resolve_dar)
 
         start_delivery_time = timestamp()
         self._update_receipt(kvittering, start_delivery_time)
@@ -87,6 +88,8 @@ class SqlExport:
 
         end_delivery_time = timestamp()
         self._update_receipt(kvittering, start_delivery_time, end_delivery_time)
+        self.swap_tables()
+
 
     def swap_tables(self):
         """Swap tables around to present the exported data.
@@ -168,7 +171,7 @@ class SqlExport:
 
     def _add_users_and_units(self, output=False):
         logger.info('Add users and units')
-        for user, user_effects in tqdm(self.lc.users.items(), desc="Export user", unit="user"):
+        for user, user_effects in tqdm(self.lc.users, desc="Export user", unit="user"):
             for user_info in user_effects:
                 sql_user = Bruger(
                     uuid=user,
@@ -506,18 +509,13 @@ class SqlExport:
 @click.command(help="SQL export")
 @click.option('--resolve-dar', is_flag=True)
 @click.option('--historic', is_flag=True)
-@click.option('--use-pickle', is_flag=True)
 @click.option('--force-sqlite', is_flag=True)
 def cli(**args):
     """
     Command line interface.
     """
     logger.info('Command line args: %r', args)
-
-    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-    if not cfg_file.is_file():
-        raise Exception('No setting file')
-    settings = json.loads(cfg_file.read_text())
+    settings = load_settings()
 
     sql_export = SqlExport(
         force_sqlite=args['force_sqlite'],
@@ -525,10 +523,8 @@ def cli(**args):
         settings=settings,
     )
     sql_export.perform_export(
-        resolve_dar=args['resolve_dar'],
-        use_pickle=args['use_pickle'],
-    )
-    sql_export.swap_tables()
+        resolve_dar=args['resolve_dar']
+        )
     logger.info('*SQL export ended*')
 
 
