@@ -53,7 +53,7 @@ class CustomerReports(MoraHelper):
             # Returns a CustomerReports object
         """
 
-        super().__init__(hostname=hostname)
+        super().__init__(hostname=hostname, use_cache=False)
         self.nodes: Dict[str, Any] = dict()
 
         # This sucks, sorry
