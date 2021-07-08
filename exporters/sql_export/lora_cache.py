@@ -13,9 +13,12 @@ from itertools import starmap
 from collections import defaultdict
 from typing import Tuple
 from tqdm import tqdm
+from functools import lru_cache
 
 import click
 from more_itertools import bucket
+from ra_utils.load_settings import load_settings
+
 from retrying import retry
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.dar_helper import dar_helper
@@ -37,7 +40,7 @@ class LoraCache:
         logger.info(msg.format(resolve_dar, full_history))
         self.resolve_dar = resolve_dar
 
-        self.settings = self._load_settings()
+        self.settings = load_settings()
 
         self.additional = {
             'relationer': ('tilknyttedeorganisationer', 'tilhoerer')
@@ -49,14 +52,13 @@ class LoraCache:
         self.skip_past = skip_past
         self.org_uuid = self._read_org_uuid()
 
-    def _load_settings(self):
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        return json.loads(cfg_file.read_text())
+    @lru_cache(maxsize=None)
+    def _get_mora_helper(self):
+        mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
+        return mh
 
     def _read_org_uuid(self):
-        mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
+        mh = self._get_mora_helper()
         for attempt in range(0, 10):
             try:
                 org_uuid = mh.read_organisation()
@@ -180,42 +182,28 @@ class LoraCache:
         return complete_data
 
     def _cache_lora_facets(self):
-        # Facets are eternal i MO and does not need a historic dump
-        params = {'bvn': '%'}
-        url = '/klassifikation/facet'
-        facet_list = self._perform_lora_lookup(url, params, skip_history=True, unit="facet")
-
-        facets = {}
-        for facet in tqdm(facet_list, desc="Processing facet", unit="facet"):
-            uuid = facet['id']
-            reg = facet['registreringer'][0]
-            user_key = reg['attributter']['facetegenskaber'][0]['brugervendtnoegle']
-            facets[uuid] = {
-                'user_key': user_key,
-            }
-        return facets
+        mh = self._get_mora_helper()
+        facets = mh.read_facets()
+        facet_tuples = map(itemgetter('uuid', 'user_key'), facets)
+        return {
+            uuid: {
+                "user_key": user_key
+            } for uuid, user_key in facet_tuples
+        }
 
     def _cache_lora_classes(self):
-        # MO itself will not read historic information on classes,
-        # currently we replicate this behaviour here.
-        params = {'bvn': '%'}
-        url = '/klassifikation/klasse'
-        class_list = self._perform_lora_lookup(url, params, skip_history=True, unit="class")
-
+        mh = self._get_mora_helper()
+        facets = mh.read_facets()
         classes = {}
-        for oio_class in tqdm(class_list, desc="Processing class", unit="class"):
-            uuid = oio_class['id']
-            reg = oio_class['registreringer'][0]
-            user_key = reg['attributter']['klasseegenskaber'][0]['brugervendtnoegle']
-            scope = reg['attributter']['klasseegenskaber'][0].get('omfang')
-            title = reg['attributter']['klasseegenskaber'][0]['titel']
-            facet = reg['relationer']['facet'][0]['uuid']
-            classes[uuid] = {
-                'user_key': user_key,
-                'title': title,
-                'scope': scope,
-                'facet': facet
-            }
+        for facet in facets:
+            facet_classes, facet_uuid = mh.read_classes_in_facet(facet["user_key"])
+            for facet_class in facet_classes:
+                classes[facet_class["uuid"]] = {
+                    'user_key': facet_class["user_key"],
+                    'title': facet_class["name"],
+                    'scope': facet_class["scope"],
+                    'facet': facet_uuid,
+                }
         return classes
 
     def _cache_lora_itsystems(self):
@@ -669,53 +657,19 @@ class LoraCache:
         return leaves
 
     def _cache_lora_it_connections(self):
-        params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'IT-system'}
-        url = '/organisation/organisationfunktion'
-        it_connection_list = self._perform_lora_lookup(url, params, unit="it connection")
-
-        it_connections = {}
-        for it_connection in tqdm(it_connection_list, desc="Processing it connection", unit="it connection"):
-            uuid = it_connection['id']
-            it_connections[uuid] = []
-
-            relevant = {
-                'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
-                               'tilknyttedeitsystemer'),
-                'attributter': ('organisationfunktionegenskaber',)
-            }
-
-            effects = self._get_effects(it_connection, relevant)
-            for effect in effects:
-                from_date, to_date = self._from_to_from_effect(effect)
-                if from_date is None and to_date is None:
-                    continue
-                user_key = (
-                    effect[2]['attributter']['organisationfunktionegenskaber']
-                    [0]['brugervendtnoegle']
-                )
-
-                rel = effect[2]['relationer']
-                itsystem = rel['tilknyttedeitsystemer'][0]['uuid']
-
-                if 'tilknyttedeenheder' in rel:
-                    unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
-                    user_uuid = None
-                else:
-                    user_uuid = rel['tilknyttedebrugere'][0]['uuid']
-                    unit_uuid = None
-
-                it_connections[uuid].append(
-                    {
-                        'uuid': uuid,
-                        'user': user_uuid,
-                        'unit': unit_uuid,
-                        'username': user_key,
-                        'itsystem': itsystem,
-                        'from_date': from_date,
-                        'to_date': to_date
-                    }
-                )
-        return it_connections
+        def construct_tuple(it_connection):
+            return it_connection["uuid"], [{
+                'uuid': it_connection["uuid"],
+                'user': it_connection["person"]["uuid"],
+                'unit': (it_connection["org_unit"] or {}).get("uuid", None),
+                'username': it_connection["user_key"],
+                'itsystem': it_connection["itsystem"]["uuid"],
+                'from_date': it_connection["validity"]["from"],
+                'to_date': it_connection["validity"]["to"]
+            }]
+        mh = self._get_mora_helper()
+        it_connections = mh._mo_get(self.settings['mora.base'] + "/api/v1/it")
+        return dict(map(construct_tuple, it_connections))
 
     def _cache_lora_kles(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'KLE'}

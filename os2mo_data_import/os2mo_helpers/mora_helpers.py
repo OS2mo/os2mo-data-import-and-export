@@ -123,6 +123,46 @@ class MoraHelper:
             i += 1
         return path_dict
 
+    @lru_cache(maxsize=None)
+    def _fetch_keycloak_token(self) -> str:
+        # Get token from Keycloak
+        token_url = self.settings.get_token_url()
+        payload = {
+            "grant_type": "client_credentials",
+            "client_id": self.settings.client_id,
+            "client_secret": self.settings.client_secret,
+        }
+        response = requests.post(token_url, data=payload)
+        response.raise_for_status()
+        payload = response.json()
+        expires = payload["expires_in"]
+        token = payload["access_token"]
+        return time.time() + expires, token
+
+    def _fetch_auth_header(self) -> str:
+        expires, token = self._fetch_keycloak_token()
+        if expires < time.time():
+            self._fetch_keycloak_token.cache_clear()
+            _, token = self._fetch_keycloak_token()
+        return "Bearer " + token
+
+    def _mo_get(self, full_url, params=None):
+        params = params or {}
+        headers = TokenSettings().get_headers()
+        response = requests.get(full_url, headers=headers, params=params)
+        if response.status_code == 401:
+            msg = "Missing Authorization"
+            if headers:
+                msg = "Authorization not accepted"
+            logger.error(msg)
+            raise requests.exceptions.RequestException(msg)
+
+        if (response.status_code == 500) and ("has been deleted" not in response.text):
+            response.raise_for_status()
+
+        return_dict = response.json()
+        return return_dict
+
     def _mo_lookup(
         self,
         uuid,
@@ -153,22 +193,7 @@ class MoraHelper:
             logger.debug("cache hit: %s", cache_id)
             return_dict = self.cache[cache_id]
         else:
-            headers = TokenSettings().get_headers()
-
-            response = requests.get(full_url, headers=headers, params=params)
-            if response.status_code == 401:
-                msg = "Missing Authorization"
-                if headers:
-                    msg = "Authorization not accepted"
-                logger.error(msg)
-                raise requests.exceptions.RequestException(msg)
-
-            if (response.status_code == 500) and (
-                "has been deleted" not in response.text
-            ):
-                response.raise_for_status()
-
-            return_dict = response.json()
+            return_dict = self._mo_get(full_url, params)
             self.cache[cache_id] = return_dict
 
         return return_dict
@@ -275,6 +300,16 @@ class MoraHelper:
         if return_list:
             return return_list[0]
         return {}
+
+    def read_facets(self, use_cache=False):
+        """Return all facets.
+
+        :return: List of classes in the facet and the uuid of the facet.
+        """
+        org_uuid = self.read_organisation()
+        url = "o/" + org_uuid + "/f/"
+        facets = self._mo_lookup("", url, use_cache=False)
+        return facets
 
     def read_classes_in_facet(self, facet, use_cache=False):
         """Return all classes belong to a given facet.
