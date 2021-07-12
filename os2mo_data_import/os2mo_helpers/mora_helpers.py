@@ -12,15 +12,16 @@ import codecs
 import csv
 import datetime
 import logging
-import os
+import time
+from functools import lru_cache
 from operator import itemgetter
 
 import requests
 from anytree import Node
 from more_itertools import only
-from retrying import retry
 
-SAML_TOKEN = os.environ.get("SAML_TOKEN", None)
+from .settings import get_settings
+
 PRIMARY_RESPONSIBILITY = "Personale: ansættelse/afskedigelse"
 
 logger = logging.getLogger("mora-helper")
@@ -34,6 +35,7 @@ class MoraHelper:
         self.cache = {}
         self.default_cache = use_cache
         self.export_ansi = export_ansi
+        self.settings = get_settings()
 
     def _split_name(self, name):
         """Split a name into first and last name.
@@ -119,7 +121,29 @@ class MoraHelper:
             i += 1
         return path_dict
 
-    @retry(stop_max_attempt_number=7)
+    @lru_cache(maxsize=None)
+    def _fetch_keycloak_token(self) -> str:
+        # Get token from Keycloak
+        token_url = self.settings.get_token_url()
+        payload = {
+            "grant_type": "client_credentials",
+            "client_id": self.settings.client_id,
+            "client_secret": self.settings.client_secret,
+        }
+        response = requests.post(token_url, data=payload)
+        response.raise_for_status()
+        payload = response.json()
+        expires = payload["expires_in"]
+        token = payload["access_token"]
+        return time.time() + expires, token
+
+    def _fetch_auth_header(self) -> str:
+        expires, token = self._fetch_keycloak_token()
+        if expires < time.time():
+            self._fetch_keycloak_token.cache_clear()
+            _, token = self._fetch_keycloak_token()
+        return "Bearer " + token
+
     def _mo_lookup(
         self,
         uuid,
@@ -150,25 +174,27 @@ class MoraHelper:
             logger.debug("cache hit: %s", cache_id)
             return_dict = self.cache[cache_id]
         else:
-            if SAML_TOKEN is None:
-                response = requests.get(full_url, params=params)
-                if response.status_code == 401:
-                    msg = "Missing SAML token"
-                    logger.error(msg)
-                    raise requests.exceptions.RequestException(msg)
-                return_dict = response.json()
-            else:
-                header = {"SESSION": SAML_TOKEN}
-                response = requests.get(full_url, headers=header, params=params)
-                if response.status_code == 401:
-                    msg = "SAML token not accepted"
-                    logger.error(msg)
-                    raise requests.exceptions.RequestException(msg)
+            headers = {}
+            if self.settings.saml_token:
+                headers["Session"] = self.settings.saml_token
+            if self.settings.client_secret:
+                headers["Authorization"] = self._fetch_auth_header()
 
-                return_dict = response.json()
+            response = requests.get(full_url, headers=headers, params=params)
+            if response.status_code == 401:
+                msg = "Missing Authorization"
+                if headers:
+                    msg = "Authorization not accepted"
+                logger.error(msg)
+                raise requests.exceptions.RequestException(msg)
+
+            if (response.status_code == 500) and (
+                "has been deleted" not in response.text
+            ):
+                response.raise_for_status()
+
+            return_dict = response.json()
             self.cache[cache_id] = return_dict
-        if (response.status_code == 500) and ("has been deleted" not in response.text):
-            response.raise_for_status()
 
         return return_dict
 
@@ -178,13 +204,14 @@ class MoraHelper:
         else:
             params = None
 
-        if SAML_TOKEN:
-            header = {"SESSION": SAML_TOKEN}
-        else:
-            header = None
+        headers = {}
+        if self.settings.saml_token:
+            headers["Session"] = self.settings.saml_token
+        if self.settings.client_secret:
+            headers["Authorization"] = self._fetch_auth_header()
 
         full_url = self.host + url
-        response = requests.post(full_url, headers=header, params=params, json=payload)
+        response = requests.post(full_url, headers=headers, params=params, json=payload)
         return response
 
     def check_connection(self):
@@ -714,3 +741,10 @@ class MoraHelper:
     def update_user(self, uuid, data):
         payload = {"type": "employee", "uuid": uuid, "data": data}
         return self._mo_post("details/edit", payload)
+
+
+if __name__ == "__main__":
+    # Example usage: env CLIENT_SECRET=SECRET_UUID_HERE python3 mora_helpers.py
+    mh = MoraHelper()
+    print("Organisation UUID: " + mh.read_organisation())
+    print("Number of users: " + str(len(mh.read_all_users())))
