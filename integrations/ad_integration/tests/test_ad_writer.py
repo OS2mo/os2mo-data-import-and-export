@@ -884,6 +884,19 @@ class TestADWriter(TestCase, TestADWriterMixin):
                         ]
                     },
                     "addresses": {},
+                    "it_connections": {
+                        "it_uuid": [
+                            {
+                                "uuid": "it_connection_uuid",
+                                "user": "user_uuid",
+                                "unit": None,
+                                "username": "opus_username",
+                                "itsystem": "it_uuid",
+                                "from_date": "1930-01-01",
+                                "to_date": None,
+                            }
+                        ]
+                    },
                 }
             )
             self.lc_historic = self.lc

@@ -543,6 +543,9 @@ rådighed i dag:
      - ``SamAccountName`` for leder for brugerens primære engagement.
    * - ``manager_mail``
      - Email på lederen for brugerens primære engagement.
+   * - ``itsystems``
+     - Et dictionary fra it-systems UUID til itsystemer.
+       I python-termer: {"opus_uuid": {"username": "brugernavn", "from_date": "1930-01-01"}}
 
 MO-felterne ``level2orgunit`` og ``location`` synkroniseres altid til felterne angivet i
 konfigurationsnøglerne ``integrations.ad.write.level2orgunit_type`` og
@@ -583,12 +586,18 @@ Standard-opsætningen af AD-integrationen indeholder flg. Jinja-templates:
   "integrations.ad_writer.template_to_ad_fields": {
     "Name": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }} - {{ user_sam }}",
     "Displayname": "{{ mo_values['name'][0] }} {{ mo_values['name'][1] }}",
-    "GivenName": "{{ mo_values['name'][0] }}",
-    "SurName": "{{ mo_values['name'][1] }}",
-    "EmployeeNumber": "{{ mo_values['employment_number'] }}"
+    "Givenname": "{{ mo_values['name'][0] }}",
+    "Surname": "{{ mo_values['name'][1] }}",
+    "EmployeeNumber": "{{ mo_values['employment_number'] }}",
+    "extensionAttribute7": "{{ mo_values['itsystems'].get('123e4567-e89b-12d3-a456-426614174000', {}).get('username') }}",
   }
 
 De felter, der er tilgængelige i ``mo_values``, er beskrevet her: :ref:`MO-værdier`.
+Desuden kan felter + faktiske værdier (for en given bruger) ses ved at køre følgende kommando:
+
+.. code-block:: bash
+
+  python -m integrations.ad_integration.ad_writer --mo-values MO_BRUGER_UUID_HER --ignore-occupied-names
 
 Med denne standard-opsætning oprettes der brugere i AD på denne form:
 

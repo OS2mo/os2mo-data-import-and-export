@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 import logging
 import random
 import re
@@ -127,6 +128,18 @@ class MODataSource(ABC):
 
         return start_date, end_date
 
+    @abstractmethod
+    def get_it_systems(self, uuid):
+        """Read the IT system bindings from the user using the provided uuid.
+
+        Args:
+            uuid: UUID for the user to lookup.
+
+        Returns:
+            dict of dicts: A dictionary it-system uuid to it-system dictionaries.
+        """
+        raise NotImplementedError
+
 
 class LoraCacheSource(MODataSource):
     """LoraCache implementation of the MODataSource interface."""
@@ -237,6 +250,13 @@ class LoraCacheSource(MODataSource):
         """
         return self.mo_rest_source.get_engagement_dates(uuid)
 
+    def get_it_systems(self, uuid):
+        user_itsystems = filter(
+            lambda eng: eng["user"] == uuid,
+            map(itemgetter(0), self.lc.it_connections.values()),
+        )
+        return {it_system["itsystem"]: it_system for it_system in user_itsystems}
+
 
 class MORESTSource(MODataSource):
     """MO REST implementation of the MODataSource interface."""
@@ -307,6 +327,23 @@ class MORESTSource(MODataSource):
             return [], []
         from_dates, to_dates = unzipped
         return from_dates, to_dates
+
+    def get_it_systems(self, uuid):
+        itsystems = self.helper.get_e_itsystems(uuid)
+
+        def to_lora_itsystem(it_system):
+            print(it_system)
+            return it_system["itsystem"]["uuid"], {
+                "uuid": it_system["uuid"],
+                "user": it_system["person"]["uuid"],
+                "unit": (it_system.get("org_unit") or {"uuid": None}).get("uuid"),
+                "username": it_system["user_key"],
+                "itsystem": it_system["itsystem"]["uuid"],
+                "from_date": it_system["validity"]["from"],
+                "to_date": it_system["validity"]["to"],
+            }
+
+        return dict(map(to_lora_itsystem, itsystems))
 
 
 class ADWriter(AD):
@@ -643,6 +680,10 @@ class ADWriter(AD):
                 "read_manager": LazyEvalDerived(
                     lambda _manager_uuid: bool(_manager_uuid)
                 ),
+                # IT systems
+                "it_systems": LazyEvalDerived(
+                    lambda uuid: self.datasource.get_it_systems(uuid)
+                ),
             }
         )
         return mo_values
@@ -972,6 +1013,11 @@ class ADWriter(AD):
     "--sync-user",
     help="Sync relevant fields from MO to AD",
 )
+@optgroup.option(
+    "--mo-values",
+    type=click.UUID,
+    help="Show mo-values for the user",
+)
 @optgroup.option("--delete-user")
 @optgroup.option("--read-ad-information")
 @optgroup.option("--add-manager-to-user", nargs=2, type=str)
@@ -1021,6 +1067,10 @@ def cli(**args):
         manager, user = args["add_manager_to_user"]
         print("{} is now set as manager for {}".format(manager, user))
         ad_writer.add_manager_to_user(manager_sam=manager, user_sam=user)
+
+    if args.get("mo_values"):
+        mo_values = ad_writer.read_ad_information_from_mo(str(args["mo_values"]))
+        print(json.dumps(dict(mo_values.items()), indent=4))
 
 
 if __name__ == "__main__":
