@@ -48,7 +48,3 @@ class CommandFailure(Exception):
 
 class ImproperlyConfigured(Exception):
     pass
-
-
-class MORequestError(Exception):
-    pass

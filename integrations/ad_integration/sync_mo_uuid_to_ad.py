@@ -3,7 +3,6 @@ import random
 from operator import itemgetter
 
 import click
-import requests
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -13,7 +12,6 @@ from tqdm import tqdm
 
 from .ad_common import AD
 from .ad_exceptions import ImproperlyConfigured
-from .ad_exceptions import MORequestError
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 
@@ -32,7 +30,8 @@ class SyncMoUuidToAd(AD):
         super().__init__()
         self.settings = load_settings()
         self._check_ad_uuid_field_is_configured()
-        self.helper, self.org_uuid = self._configure_mora_helper()
+        self.helper = self._get_mora_helper()
+        self.org_uuid = self.helper.read_organisation()
         self.reader = ADParameterReader()
         self.stats = {
             "attempted_users": 0,
@@ -193,16 +192,10 @@ class SyncMoUuidToAd(AD):
                 logger.warning(msg, ad_uuid_field, ad_index)
                 raise ImproperlyConfigured(msg % (ad_uuid_field, ad_index))
 
-    def _configure_mora_helper(self):
-        helper = MoraHelper(
+    def _get_mora_helper(self):
+        return MoraHelper(
             hostname=self.all_settings["global"]["mora.base"], use_cache=False
         )
-        try:
-            org_uuid = helper.read_organisation()
-        except requests.exceptions.RequestException as e:
-            raise MORequestError("could not find org uuid") from e
-        else:
-            return helper, org_uuid
 
 
 @click.command()

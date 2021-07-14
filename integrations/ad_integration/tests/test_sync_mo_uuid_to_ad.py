@@ -18,6 +18,9 @@ class _MockMoraHelper(MoraHelper):
         self._mo_user = {"cpr_no": cpr, "uuid": _MO_UUID}
         super().__init__()
 
+    def read_organisation(self):
+        return "not-a-org-uuid"
+
     def read_all_users(self):
         return [self._mo_user]
 
@@ -27,22 +30,22 @@ class _SyncMoUuidToAd(sync_mo_uuid_to_ad.SyncMoUuidToAd):
 
     def __init__(self, ad_cpr_no):
         self._ad_cpr_no = ad_cpr_no
+        self._scripts = []
         super().__init__()
 
-    def _configure_mora_helper(self):
-        return _MockMoraHelper(self._ad_cpr_no), "not-a-org-uuid"
-
-    def _create_session(self):
-        return mock.MagicMock()
+    def _get_mora_helper(self):
+        return _MockMoraHelper(self._ad_cpr_no)
 
     def _search_mo_cpr(self, cpr):
         return _MO_UUID
+
+    def _create_session(self):
+        return mock.MagicMock()
 
     def _build_user_credential(self):
         return ""
 
     def _run_ps_script(self, ps_script):
-        self._scripts = getattr(self, "_scripts", [])
         self._scripts.append(ps_script)
 
 
@@ -57,11 +60,6 @@ class TestSyncMoUuidToAd(TestCase):
                     "integrations.ad": [{"properties": ["bar", "baz"]}],
                 }
             )
-
-    def test_configure_mora_helper(self):
-        instance = self._get_instance()
-        self.assertIsInstance(instance.helper, MoraHelper)
-        self.assertIsInstance(instance.org_uuid, str)
 
     def test_sync_one(self):
         instance = self._get_instance()
