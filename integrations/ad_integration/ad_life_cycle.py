@@ -117,7 +117,7 @@ class AdLifeCycle:
                 eng_org_unit_uuid,
                 eng_uuid,
             ) = self.ad_writer.datasource.find_primary_engagement(user["uuid"])
-        except NoActiveEngagementsException:
+        except (NoActiveEngagementsException, NoPrimaryEngagementException):
             logger.warning(
                 "Warning: Unable to find primary for {}!".format(user["uuid"])
             )
