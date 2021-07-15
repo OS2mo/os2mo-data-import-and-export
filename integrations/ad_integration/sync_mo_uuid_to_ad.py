@@ -143,8 +143,8 @@ class SyncMoUuidToAd(AD):
 
     def sync_one(self, cprno):
         print("Fetch AD User")
-        ad_users = [self.reader.read_user(cpr=cprno)]
-        if not ad_users:
+        ad_user = self.reader.read_user(cpr=cprno)
+        if not ad_user:
             msg = "AD User not found"
             logger.exception(msg)
             raise Exception(msg)
@@ -155,6 +155,8 @@ class SyncMoUuidToAd(AD):
             msg = "MO User not found"
             logger.exception(msg)
             raise Exception(msg)
+
+        ad_users = [ad_user]
         mo_users = {cprno: mo_uuid}
 
         print("Starting Sync")

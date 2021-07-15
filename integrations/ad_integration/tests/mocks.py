@@ -3,7 +3,7 @@ from .test_utils import TestADWriterMixin
 
 
 class MockADParameterReader(TestADWriterMixin):
-    def read_user(self, **kwargs):
+    def read_user(self, cpr=None, **kwargs):
         return self._prepare_get_from_ad(ad_transformer=None)
 
     def read_it_all(self, **kwargs):
