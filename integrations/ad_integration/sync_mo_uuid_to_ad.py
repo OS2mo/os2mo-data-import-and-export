@@ -3,7 +3,6 @@ import random
 from operator import itemgetter
 
 import click
-import requests
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -12,6 +11,7 @@ from ra_utils.load_settings import load_settings
 from tqdm import tqdm
 
 from .ad_common import AD
+from .ad_exceptions import ImproperlyConfigured
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 
@@ -29,27 +29,10 @@ class SyncMoUuidToAd(AD):
     def __init__(self):
         super().__init__()
         self.settings = load_settings()
-
-        # Check configuration
-        ad_uuid_field = self.settings["integrations.ad.write.uuid_field"]
-        for ad_settings in self.settings["integrations.ad"]:
-            if ad_uuid_field not in ad_settings["properties"]:
-                msg = "'uuid_field' not in 'properies' for AD"
-                logger.warning(msg)
-                print(msg)
-
-        self.helper = MoraHelper(
-            hostname=self.all_settings["global"]["mora.base"], use_cache=False
-        )
-        try:
-            self.org_uuid = self.helper.read_organisation()
-        except requests.exceptions.RequestException as e:
-            logger.error(e)
-            print(e)
-            exit()
-
+        self._check_ad_uuid_field_is_configured()
+        self.helper = self._get_mora_helper()
+        self.org_uuid = self.helper.read_organisation()
         self.reader = ADParameterReader()
-
         self.stats = {
             "attempted_users": 0,
             "user_not_in_mo": 0,
@@ -158,6 +141,27 @@ class SyncMoUuidToAd(AD):
         print(self.stats)
         logger.info(self.stats)
 
+    def sync_one(self, cprno):
+        print("Fetch AD User")
+        ad_user = self.reader.read_user(cpr=cprno)
+        if not ad_user:
+            msg = "AD User not found"
+            logger.exception(msg)
+            raise Exception(msg)
+
+        print("Fetch MO User")
+        mo_uuid = self._search_mo_cpr(cprno)
+        if not mo_uuid:
+            msg = "MO User not found"
+            logger.exception(msg)
+            raise Exception(msg)
+
+        ad_users = [ad_user]
+        mo_users = {cprno: mo_uuid}
+
+        print("Starting Sync")
+        self.perform_sync(ad_users, mo_users)
+
     def sync_all(self):
         print("Fetch AD Users")
         ad_users = self.reader.read_it_all(print_progress=True)
@@ -181,24 +185,19 @@ class SyncMoUuidToAd(AD):
             uuid = user["items"][0]["uuid"]
         return uuid
 
-    def sync_one(self, cprno):
-        print("Fetch AD User")
-        ad_users = [self.reader.read_user(cpr=cprno)]
-        if not ad_users:
-            msg = "AD User not found"
-            logger.exception(msg)
-            raise Exception(msg)
+    def _check_ad_uuid_field_is_configured(self):
+        # Check configuration
+        ad_uuid_field = self.settings["integrations.ad.write.uuid_field"]
+        for ad_index, ad_settings in enumerate(self.settings["integrations.ad"]):
+            if ad_uuid_field not in ad_settings["properties"]:
+                msg = "'uuid_field' %r not in 'properties' of AD (index=%d)"
+                logger.warning(msg, ad_uuid_field, ad_index)
+                raise ImproperlyConfigured(msg % (ad_uuid_field, ad_index))
 
-        print("Fetch MO User")
-        mo_uuid = self._search_mo_cpr(cprno)
-        if not mo_uuid:
-            msg = "MO User not found"
-            logger.exception(msg)
-            raise Exception(msg)
-        mo_users = {cprno: mo_uuid}
-
-        print("Starting Sync")
-        self.perform_sync(ad_users, mo_users)
+    def _get_mora_helper(self):
+        return MoraHelper(
+            hostname=self.all_settings["global"]["mora.base"], use_cache=False
+        )
 
 
 @click.command()

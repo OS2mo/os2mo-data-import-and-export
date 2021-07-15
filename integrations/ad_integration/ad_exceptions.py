@@ -44,3 +44,7 @@ class UnknownKeywordsInScriptException(Exception):
 
 class CommandFailure(Exception):
     pass
+
+
+class ImproperlyConfigured(Exception):
+    pass

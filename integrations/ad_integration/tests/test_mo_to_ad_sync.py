@@ -2,15 +2,8 @@ from unittest import mock
 from unittest import TestCase
 
 from ..mo_to_ad_sync import run_mo_to_ad_sync
+from .mocks import MockADParameterReader
 from .test_utils import TestADWriterMixin
-
-
-class _MockADReader(TestADWriterMixin):
-    def read_user(self, **kwargs):
-        return self._prepare_get_from_ad(ad_transformer=None)
-
-    def read_it_all(self, **kwargs):
-        return [self.read_user()]
 
 
 class TestMoToAdSync(TestCase, TestADWriterMixin):
@@ -25,7 +18,7 @@ class TestMoToAdSync(TestCase, TestADWriterMixin):
 
         self._setup_adwriter(transform_mo_values=remove_manager_cpr)
         self.ad_writer._wait_for_replication = lambda: None
-        self._mock_reader = _MockADReader()
+        self._mock_reader = MockADParameterReader()
 
     def test_all_ad_users(self):
         self._assert_stats_ok(self._run())
