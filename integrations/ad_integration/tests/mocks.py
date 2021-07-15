@@ -9,6 +9,9 @@ class MockADParameterReader(TestADWriterMixin):
     def read_it_all(self, **kwargs):
         return [self.read_user()]
 
+    def cache_all(self, **kwargs):
+        return self.read_it_all()
+
 
 class MockMORESTSource(MORESTSource):
     def __init__(self, from_date, to_date):

@@ -59,6 +59,10 @@ class MockLoraCache:
                         "from_date": "1960-01-01",
                         "to_date": None,
                         "extensions": extensions,
+                        # Additional keys read by `AdLifeCycle._gen_filtered_employees`
+                        "job_function": None,
+                        "primary_type": None,
+                        "engagement_type": None,
                     }
                 ]
             }
