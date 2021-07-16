@@ -1,3 +1,4 @@
+# TODO: Fix imports in module
 import copy
 from unittest import mock
 from unittest import TestCase
@@ -703,8 +704,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
             all(context["ad_values"] == ad_values for context in template_contexts)
         )
 
-    @mock.patch("time.sleep")
-    def test_rename_ad_user(self, *args):
+    def test_rename_ad_user(self):
         # Configure ADWriter to write an AD "Name" attribute consisting of the
         # user's full name, plus " testing".
         settings_transformer = dict_modifier(
@@ -962,9 +962,9 @@ class TestADWriter(TestCase, TestADWriterMixin):
             mo_uuid="mo-user-uuid", create_manager=False
         )
         self.assertFalse(status)
-        self.assertRegex(msg, "Create user failed,.*")
+        self.assertRegexpMatches(msg, "Create user failed,.*")
 
-    def test_create_user_bails_early_if_no_engagements(self):
+    def test_create_user_bails_early_if_engagements(self):
         # Test what happens when `create_user` encounters an empty MO user
         self._setup_adwriter()
         # Replace `read_ad_information_from_mo` with function returning None
