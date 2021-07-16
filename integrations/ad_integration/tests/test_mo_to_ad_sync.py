@@ -3,37 +3,54 @@ from unittest import TestCase
 
 from ..mo_to_ad_sync import run_mo_to_ad_sync
 from .mocks import MockADParameterReader
+from .test_utils import dict_modifier
 from .test_utils import TestADWriterMixin
 
 
+@mock.patch("time.sleep")
 class TestMoToAdSync(TestCase, TestADWriterMixin):
     """Test `mo_to_ad_sync`"""
 
     def setUp(self):
         super().setUp()
 
+        settings_transformer = dict_modifier(
+            {
+                "integrations.ad_writer.template_to_ad_fields": {
+                    "Name": "{{ mo_values['full_name'] }} - testing"
+                },
+            }
+        )
+
         def remove_manager_cpr(mo_values, *args, **kwargs):
             del mo_values["manager_cpr"]
             return mo_values
 
-        self._setup_adwriter(transform_mo_values=remove_manager_cpr)
-        self.ad_writer._wait_for_replication = lambda: None
+        self._setup_adwriter(
+            early_transform_settings=settings_transformer,
+            transform_mo_values=remove_manager_cpr,
+        )
         self._mock_reader = MockADParameterReader()
 
-    def test_all_ad_users(self):
+    def test_all_ad_users(self, *args):
         self._assert_stats_ok(self._run())
 
-    def test_single_ad_user(self):
+    def test_single_ad_user(self, *args):
         self._assert_stats_ok(self._run(sync_username="not important"))
 
-    def test_invalid_uuid_field_does_nothing(self):
+    def test_single_ad_user_can_be_renamed(self, *args):
+        self._run(sync_username="not important")
+        rename_cmd = self.ad_writer.scripts[0].splitlines()[-1]
+        self.assertIn("-NewName", rename_cmd)
+
+    def test_invalid_uuid_field_does_nothing(self, *args):
         self._assert_stats_ok(
             self._run(mo_uuid_field="invalid field name"),
             num_attempted=0,
             num_successful=0,
         )
 
-    def test_unhandled_exception(self):
+    def test_unhandled_exception(self, *args):
         with mock.patch.object(self.ad_writer, "sync_user", side_effect=Exception):
             self._assert_stats_ok(
                 self._run(),
