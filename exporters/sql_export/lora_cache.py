@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 import click
 from more_itertools import bucket
-
+from retrying import retry
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.dar_helper import dar_helper
 
@@ -127,6 +127,7 @@ class LoraCache:
                 from_date = to_date = None
         return from_date, to_date
 
+    @retry(stop_max_attempt_number=7)
     def _perform_lora_lookup(self, url, params, skip_history=False, unit="it"):
         """
         Exctract a complete set of objects in LoRa.
