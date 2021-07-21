@@ -224,19 +224,16 @@ def get_users(
 @click.option(
     "--mora-base",
     default=load_setting("mora.base", "http://localhost:5000"),
-    required=True,
     help="URL for OS2mo.",
 )
 @click.option(
     "--rollekatalog-url",
     default=load_setting("exporters.os2rollekatalog.rollekatalog.url"),
-    required=True,
     help="URL for Rollekataloget.",
 )
 @click.option(
     "--rollekatalog-api-key",
     default=load_setting("exporters.os2rollekatalog.rollekatalog.api_token"),
-    required=True,
     type=click.UUID,
     help="API key to write to Rollekataloget.",
 )
@@ -244,7 +241,6 @@ def get_users(
     "--main-root-org-unit",
     default=load_setting("exporters.os2rollekatalog.main_root_org_unit"),
     type=click.UUID,
-    required=True,
     help=(
         "Rollekataloget only supports one root org unit. "
         "All other root org units in OS2mo will be made children of this one."
@@ -253,7 +249,6 @@ def get_users(
 @click.option(
     "--log-file-path",
     default="exports_mox_rollekatalog.log",
-    required=True,
     type=click.Path(),
     help="Path to write log file.",
     envvar="MOX_ROLLE_LOG_FILE",
@@ -261,7 +256,6 @@ def get_users(
 @click.option(
     "--mapping-file-path",
     default="cpr_mo_ad_map.csv",
-    required=True,
     type=click.Path(exists=True),
     help="Path to the cpr_mo_ad_map.csv file.",
     envvar="MOX_ROLLE_MAPPING",
@@ -270,7 +264,6 @@ def get_users(
     "--dry-run",
     default=False,
     is_flag=True,
-    required=True,
     help="Dump payload, rather than writing to rollekataloget.",
 )
 def main(
@@ -282,7 +275,11 @@ def main(
     mapping_file_path: str,
     dry_run: bool,
 ):
-    """Main function - download from OS2MO and export to OS2Rollekatalog."""
+    """OS2Rollekatalog exporter.
+
+    Reads data from OS2mo and exports it to OS2Rollekatalog.
+    Depends on cpr_mo_ad_map.csv from cpr_uuid.py to check users against AD.
+    """
     # AD_SYSTEM_NAME = SETTINGS["exporters.os2rollekatalog.ad_system_name"]
 
     init_log(log_file_path)

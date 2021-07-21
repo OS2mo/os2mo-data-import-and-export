@@ -94,24 +94,21 @@ def init_log(log_path: str) -> None:
     )
 
 
-@click.command(help="UUID exporter")
+@click.command()
 @click.option(
     "--mora-base",
     default=load_setting("mora.base", "http://localhost:5000"),
-    required=True,
     help="URL for OS2mo.",
 )
 @click.option(
     "--use-ad",
     default=False,
     is_flag=True,
-    required=True,
     help="Enrich with AD data.",
 )
 @click.option(
     "--log-file-path",
     default="cpr_uuid_export.log",
-    required=True,
     type=click.Path(),
     help="Path to write log file.",
     show_default=True,
@@ -119,7 +116,6 @@ def init_log(log_path: str) -> None:
 @click.option(
     "--output-file-path",
     default="cpr_mo_ad_map.csv",
-    required=True,
     type=click.Path(),
     help="Path to write output file to.",
     show_default=True,
@@ -127,6 +123,7 @@ def init_log(log_path: str) -> None:
 def cli(
     mora_base: str, use_ad: bool, log_file_path: str, output_file_path: str
 ) -> None:
+    """MO CPR, MO UUID, AD GUID, AD SAM CSV Exporter."""
     init_log(log_file_path)
     main(mora_base, use_ad, output_file_path)
 
