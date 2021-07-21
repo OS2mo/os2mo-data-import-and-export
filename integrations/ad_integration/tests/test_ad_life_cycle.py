@@ -77,8 +77,11 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         self._setup_adwriter()
 
     def test_create_ad_accounts_empty_ad(self):
-        # In this test, we mock an empty AD. Therefore we expect exactly one
-        # AD write (`New-ADUser`) to be performed.
+        """An AD user must be created when the AD is empty.
+
+        In this test, we mock an empty AD. Therefore we expect exactly one AD
+        write (`New-ADUser`) to be performed.
+        """
         instance = self._get_instance()
         stats = instance.create_ad_accounts()
         self._assert_stats_equal(
@@ -90,8 +93,12 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         self._assert_ad_write(num_scripts=3, expected_script_content="New-ADUser")
 
     def test_create_ad_accounts_empty_ad_and_no_primary_engagement(self):
-        # In this test, the AD is empty, but the MO user has no primary
-        # engagements. Consequently, no AD users are created.
+        """An AD user must *not* be created when the MO user has no primary
+        engagement.
+
+        In this test, the AD is empty, but the MO user has no primary
+        engagements. Consequently, no AD users are created.
+        """
         instance = self._get_instance(
             find_primary_engagement=mock.Mock(
                 side_effect=NoPrimaryEngagementException()
@@ -102,29 +109,38 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         self._assert_no_ad_writes()
 
     def test_create_ad_accounts_filter_user_without_engagements(self):
-        # In this test, the AD is empty, but the `users_with_engagements` dict
-        # is also empty. Therefore no AD users are created.
+        """An AD user must *not* be created when `users_with_engagements` is
+        empty.
+        """
         instance = self._get_instance(users_with_engagements={})
         stats = instance.create_ad_accounts()
         self._assert_stats_equal(stats, no_active_engagements=1)
         self._assert_no_ad_writes()
 
     def test_create_ad_accounts_user_already_in_ad(self):
-        # In this test, the MO user has already been "created" in AD, as the
-        # `MockADReader` always returns the same "person" regardless of the CPR
-        # number looked up.
+        """An AD user must *not* be created if the AD user already exists.
+
+        In this test, the MO user has already been "created" in AD, as the
+        `MockADReader` always returns the same "person" regardless of the CPR
+        number looked up.
+        """
         instance = self._get_instance(reader=MockADParameterReader())
         stats = instance.create_ad_accounts()
         self._assert_stats_equal(stats, already_in_ad=1)
         self._assert_no_ad_writes()
 
     def test_gen_filtered_employees(self):
+        """The lazy dicts produced by `_gen_filtered_employees` must be able
+        to be evaluated.
+        """
         # Consume the lazy dicts produced by `_gen_filtered_employees` to
-        # verify their contents
+        # verify their contents.
         instance = self._get_instance()
         for employee, _ad_object in instance._gen_filtered_employees():
             for engagement in employee["engagements"]:
-                self.assertIn("job_function", engagement)
+                # Cast `engagement` to dict to force evaluation of its lazy
+                # properties.
+                self.assertIsInstance(dict(engagement), dict)
 
     def _get_instance(
         self,
