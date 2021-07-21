@@ -6,3 +6,4 @@ click
 anytree
 tqdm
 git+https://github.com/magenta-aps/spsftp
+ra-utils>=0.3.1

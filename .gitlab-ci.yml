@@ -78,6 +78,21 @@ Lint SDLoen Integration:
     - python -m black --diff --check fix_departments.py db_overview.py sd_cli.py sd_common.py tests/*
     - python -m isort --profile black --diff --check-only fix_departments.py db_overview.py sd_cli.py sd_common.py tests/*
 
+Lint Rollekatalog Exporter:
+  extends: .lint-python
+  script:
+    - cd exporters/os2rollekatalog/
+    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+    - pre-commit run --files *.py
+
+Lint CPR UUID Exporter:
+  extends: .lint-python
+  script:
+    - cd exporters/
+    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+    - pre-commit run --files cpr_uuid.py
+
+
 Lint OPUS Org Tree Print:
   extends: .lint-python
   script:
