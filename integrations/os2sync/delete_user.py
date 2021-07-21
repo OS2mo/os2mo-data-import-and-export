@@ -9,7 +9,6 @@ BASE = settings["OS2MO_SERVICE_URL"]
 @click.command()
 @click.option('--uuid', type=click.UUID)
 def delete_fk_org_user(uuid):
-
     delete_user(str(uuid))
 
 if __name__ == '__main__':
