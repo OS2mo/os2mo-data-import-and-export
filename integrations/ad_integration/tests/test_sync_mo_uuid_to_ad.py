@@ -1,37 +1,17 @@
 from unittest import mock
 from unittest import TestCase
 
-from os2mo_helpers.mora_helpers import MoraHelper
 from parameterized import parameterized
 
 from .. import ad_common
 from .. import sync_mo_uuid_to_ad
 from ..ad_exceptions import ImproperlyConfigured
+from .mocks import AD_UUID_FIELD
+from .mocks import MO_UUID
 from .mocks import MockADParameterReader
-
-
-_MO_UUID = "not-a-uuid"
-_AD_UUID_FIELD = "uuidField"
-_UNKNOWN_CPR_NO = "not-a-cpr-no"
-
-
-class _MockUnknownCPRADParameterReader(MockADParameterReader):
-    def read_user(self, cpr=None, **kwargs):
-        if cpr == _UNKNOWN_CPR_NO:
-            return None
-        return super().read_user(cpr=cpr, **kwargs)
-
-
-class _MockMoraHelper(MoraHelper):
-    def __init__(self, cpr):
-        self._mo_user = {"cpr_no": cpr, "uuid": _MO_UUID}
-        super().__init__()
-
-    def read_organisation(self):
-        return "not-a-org-uuid"
-
-    def read_all_users(self):
-        return [self._mo_user]
+from .mocks import MockMoraHelper
+from .mocks import MockUnknownCPRADParameterReader
+from .mocks import UNKNOWN_CPR_NO
 
 
 class _SyncMoUuidToAd(sync_mo_uuid_to_ad.SyncMoUuidToAd):
@@ -43,12 +23,12 @@ class _SyncMoUuidToAd(sync_mo_uuid_to_ad.SyncMoUuidToAd):
         super().__init__()
 
     def _get_mora_helper(self):
-        return _MockMoraHelper(self._ad_cpr_no)
+        return MockMoraHelper(self._ad_cpr_no)
 
     def _search_mo_cpr(self, cpr):
-        if cpr == _UNKNOWN_CPR_NO:
+        if cpr == UNKNOWN_CPR_NO:
             return None
-        return _MO_UUID
+        return MO_UUID
 
     def _create_session(self):
         return mock.MagicMock()
@@ -80,7 +60,7 @@ class TestSyncMoUuidToAd(TestCase):
     @parameterized.expand(
         [
             # Look up bogus CPR in mock AD which will not find an AD user
-            (_MockUnknownCPRADParameterReader(), "AD User not found"),
+            (MockUnknownCPRADParameterReader(), "AD User not found"),
             # Look up bogus CPR in mock MO which will not find a MO user
             (MockADParameterReader(), "MO User not found"),
         ]
@@ -88,7 +68,7 @@ class TestSyncMoUuidToAd(TestCase):
     def test_sync_one_unknown_cpr_raises_exception(self, reader, expected_message):
         instance = self._get_instance(reader=reader)
         with self.assertRaisesRegex(Exception, expected_message):
-            instance.sync_one(_UNKNOWN_CPR_NO)
+            instance.sync_one(UNKNOWN_CPR_NO)
 
     def test_sync_all(self):
         instance = self._get_instance()
@@ -97,8 +77,8 @@ class TestSyncMoUuidToAd(TestCase):
 
     def _get_instance(self, settings=None, reader=None):
         _settings = {
-            "integrations.ad.write.uuid_field": _AD_UUID_FIELD,
-            "integrations.ad": [{"properties": [_AD_UUID_FIELD]}],
+            "integrations.ad.write.uuid_field": AD_UUID_FIELD,
+            "integrations.ad": [{"properties": [AD_UUID_FIELD]}],
             "primary": {"cpr_field": "extensionAttribute1", "cpr_separator": "-"},
             "global": {},
         }
@@ -139,6 +119,6 @@ class TestSyncMoUuidToAd(TestCase):
         # contents.
         self.assertEqual(len(instance._scripts), 1)
         self.assertIn(
-            '-Replace @{"%s"="%s"}' % (_AD_UUID_FIELD, _MO_UUID),
+            '-Replace @{"%s"="%s"}' % (AD_UUID_FIELD, MO_UUID),
             instance._scripts[0],
         )

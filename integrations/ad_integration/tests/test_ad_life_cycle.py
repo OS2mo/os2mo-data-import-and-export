@@ -5,11 +5,11 @@ from more_itertools import first_true
 
 from .. import ad_life_cycle
 from ..ad_exceptions import NoPrimaryEngagementException
+from .mocks import MO_ROOT_ORG_UNIT_UUID
 from .mocks import MockADParameterReader
-from .test_ad_sync import MockLoraCache
+from .mocks import MockEmptyADReader
+from .mocks import MockLoraCacheExtended
 from .test_utils import TestADWriterMixin
-
-_MO_ROOT_ORG_UNIT_UUID = "not-a-mo-org-unit-uuid"
 
 
 def default_find_primary_engagement(mo_user_uuid):
@@ -17,56 +17,9 @@ def default_find_primary_engagement(mo_user_uuid):
     return (
         None,  # = employment_number
         None,  # = title
-        _MO_ROOT_ORG_UNIT_UUID,  # = eng_org_unit_uuid
+        MO_ROOT_ORG_UNIT_UUID,  # = eng_org_unit_uuid
         None,  # = eng_uuid
     )
-
-
-class _MockEmptyADReader(MockADParameterReader):
-    """Mock implementation of `ADParameterReader` which simulates an empty AD"""
-
-    def read_user(self, **kwargs):
-        return None
-
-    def read_it_all(self, **kwargs):
-        return []
-
-    def cache_all(self, **kwargs):
-        return self.read_it_all()
-
-
-class _MockLoraCache(MockLoraCache):
-    """Mocks enough of `LoraCache` to test `AdLifeCycle`"""
-
-    def populate_cache(self, **kwargs):
-        pass
-
-    def calculate_derived_unit_data(self):
-        pass
-
-    def calculate_primary_engagements(self):
-        pass
-
-    @property
-    def units(self):
-        # Return a single org unit (= the root org unit)
-        return {
-            _MO_ROOT_ORG_UNIT_UUID: [
-                {
-                    "uuid": _MO_ROOT_ORG_UNIT_UUID,
-                }
-            ]
-        }
-
-    @property
-    def classes(self):
-        return {None: {}}
-
-    def _load_settings(self):
-        return {}
-
-    def _read_org_uuid(self):
-        return "not-a-mo-org-uuid"
 
 
 class TestAdLifeCycle(TestCase, TestADWriterMixin):
@@ -149,7 +102,7 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         users_with_engagements=None,
     ):
         settings = {
-            "integrations.ad.write.create_user_trees": [_MO_ROOT_ORG_UNIT_UUID],
+            "integrations.ad.write.create_user_trees": [MO_ROOT_ORG_UNIT_UUID],
         }
 
         # Replace `find_primary_engagement` with our mocked version
@@ -166,13 +119,13 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         lora_cache_mock = mock.patch.object(
             ad_life_cycle,
             "LoraCache",
-            new=lambda **kwargs: _MockLoraCache(self._prepare_static_person()),
+            new=lambda **kwargs: MockLoraCacheExtended(self._prepare_static_person()),
         )
 
         reader_mock = mock.patch.object(
             ad_life_cycle,
             "ADParameterReader",
-            new=lambda: reader or _MockEmptyADReader(),
+            new=lambda: reader or MockEmptyADReader(),
         )
 
         writer_mock = mock.patch.object(
