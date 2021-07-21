@@ -3,16 +3,10 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 from parameterized import parameterized
-from winrm import Session
 
 from ..ad_common import AD
 from ..ad_exceptions import CommandFailure
-
-
-class MockAD(AD):
-    def __init__(self):
-        self.session = Mock(spec=Session)
-        self.all_settings = {"primary": {"search_base": ""}}
+from .mocks import MockAD
 
 
 class TestRunPSScript(TestCase):

@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 from parameterized import parameterized
 
 from ..utils import AttrDict
+from .mocks import MockLoraCache
 from .test_utils import dict_modifier
 from .test_utils import TestADMoSyncMixin
 
@@ -18,50 +19,6 @@ def iso_date(date):
 
 def today_iso():
     return iso_date(date.today())
-
-
-class MockLoraCache:
-    # This implements enough of the real `LoraCache` to make
-    # `_edit_engagement` happy.
-
-    def __init__(self, mo_values, mo_engagements=None):
-        self._mo_values = mo_values
-        self._mo_engagements = mo_engagements
-
-    @property
-    def users(self):
-        return {self._mo_values["uuid"]: [self._mo_values]}
-
-    @property
-    def engagements(self):
-        extensions = {"udvidelse_%d" % n: "old mo value #%d" % n for n in range(1, 11)}
-        if self._mo_engagements:
-            return {
-                eng["uuid"]: [
-                    {
-                        "uuid": eng["uuid"],
-                        "user": self._mo_values["uuid"],
-                        "primary_boolean": eng["is_primary"],
-                        "from_date": eng["validity"]["from"],
-                        "to_date": eng["validity"]["to"],
-                        "extensions": extensions,
-                    }
-                ]
-                for eng in self._mo_engagements
-            }
-        else:
-            return {
-                "engagement_uuid": [
-                    {
-                        "uuid": "engagement_uuid",
-                        "user": self._mo_values["uuid"],
-                        "primary_boolean": True,
-                        "from_date": "1960-01-01",
-                        "to_date": None,
-                        "extensions": extensions,
-                    }
-                ]
-            }
 
 
 class TestADMoSync(TestCase, TestADMoSyncMixin):

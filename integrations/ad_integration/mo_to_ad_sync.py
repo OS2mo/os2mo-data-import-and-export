@@ -32,13 +32,8 @@ def run_mo_to_ad_sync(
     if sync_cpr or sync_username:
         print("Warning: --sync-cpr/--sync-username is for testing only")
         all_users = [reader.read_user(user=sync_username, cpr=sync_cpr)]
-        # XXX: occupied_names should not be an empty array, but it takes forever to
-        #      initalize, essentially reading all of AD.
-        # TODO: We should support on-demand name generation without pre-seed.
     else:
         all_users = reader.read_it_all(print_progress=True)
-
-    logger.info("Will now attempt to sync {} users".format(len(all_users)))
 
     def filter_missing_uuid_field(user):
         if mo_uuid_field.lower() not in set(k.lower() for k in user):
@@ -82,15 +77,14 @@ def run_mo_to_ad_sync(
     }
 
     all_users = list(filter(filter_missing_uuid_field, all_users))
+    logger.info("Will now attempt to sync {} users".format(len(all_users)))
+
     for user in tqdm(all_users, unit="user"):
         stats["attempted_users"] += 1
         msg = "Now syncing: {}, {}".format(user["SamAccountName"], user[mo_uuid_field])
         logger.info(msg)
         try:
-            if sync_cpr or sync_username:
-                response = writer.sync_user(user[mo_uuid_field], ad_dump=None)
-            else:
-                response = writer.sync_user(user[mo_uuid_field], ad_dump=all_users)
+            response = writer.sync_user(user[mo_uuid_field], ad_dump=all_users)
             logger.debug("Respose to sync: {}".format(response))
             stats = update_stats(stats, response)
         except ManagerNotUniqueFromCprException:
@@ -165,6 +159,9 @@ def main(
     writer = ADWriter(
         lc=lc,
         lc_historic=lc_historic,
+        # XXX: occupied_names should not be an empty array, but it takes
+        # forever to initialize, essentially reading all of AD.
+        # TODO: We should support on-demand name generation without pre-seed.
         occupied_names=[] if ignore_occupied_names else None,
     )
 

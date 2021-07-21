@@ -17,6 +17,7 @@ from ra_utils.catchtime import catchtime
 from ra_utils.jinja_filter import create_filters
 from ra_utils.lazy_dict import LazyDict
 from ra_utils.lazy_dict import LazyEval
+from ra_utils.lazy_dict import LazyEvalBare
 from ra_utils.load_settings import load_settings
 from tqdm import tqdm
 
@@ -116,7 +117,7 @@ class AdLifeCycle:
                 eng_org_unit_uuid,
                 eng_uuid,
             ) = self.ad_writer.datasource.find_primary_engagement(user["uuid"])
-        except NoActiveEngagementsException:
+        except (NoActiveEngagementsException, NoPrimaryEngagementException):
             logger.warning(
                 "Warning: Unable to find primary for {}!".format(user["uuid"])
             )
@@ -148,7 +149,7 @@ class AdLifeCycle:
                 """Create a lazily evaluated class property."""
                 class_uuid = mo_engagement[class_attribute]
                 mo_engagement[class_attribute + "_uuid"] = class_uuid
-                mo_engagement[class_attribute] = LazyEval(
+                mo_engagement[class_attribute] = LazyEvalBare(
                     lambda: {
                         **self.lc.classes[class_uuid],
                         "uuid": class_uuid,
@@ -183,7 +184,7 @@ class AdLifeCycle:
             # Turn mo_employee into a lazy dict and add lazy properties
             lazy_employee: LazyDict = LazyDict(mo_employee)
 
-            lazy_employee["engagements"] = LazyEval(
+            lazy_employee["engagements"] = LazyEvalBare(
                 lambda: list(
                     filter(
                         lambda engagement: engagement["user"] == mo_employee["uuid"],
