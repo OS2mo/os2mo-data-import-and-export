@@ -1,9 +1,9 @@
-import json
-import pathlib
 import sqlite3
-from datetime import date, datetime
+from datetime import date
+from datetime import datetime
 
 import click
+
 from integrations.SD_Lon.sd_common import load_settings
 
 

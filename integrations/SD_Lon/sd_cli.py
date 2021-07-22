@@ -1,5 +1,4 @@
 import click
-
 from db_overview import read_rundb
 from fix_departments import unit_fixer
 from sd_changed_at import changed_at
