@@ -75,22 +75,32 @@ def setup_logging():
 
 class ChangeAtSD:
     def __init__(self, mora_base, use_ad, from_date, to_date=None, settings=None):
-        self.settings = settings or load_settings()
+        settings = settings or load_settings()
 
-        if self.settings["integrations.SD_Lon.job_function"] == "JobPositionIdentifier":
+        self.too_deep = settings["integrations.SD_Lon.import.too_deep"]
+        self.employment_field = settings.get("integrations.SD_Lon.employment_field")
+        self.hourly_divide = settings["integrations.SD_Lon.monthly_hourly_divide"]
+        self.no_salary_minimum = settings.get(
+            "integrations.SD_Lon.no_salary_minimum_id"
+        )
+        self.mox_base = settings["mox.base"]
+        self.mora_base = settings["mora.base"]
+        # List of job_functions that should be ignored.
+        self.skip_job_functions = settings.get("skip_job_functions", [])
+
+        sd_job_function = settings["integrations.SD_Lon.job_function"]
+        if sd_job_function == "JobPositionIdentifier":
             logger.info("Read settings. JobPositionIdentifier for job_functions")
             self.use_jpi = True
-        elif self.settings["integrations.SD_Lon.job_function"] == "EmploymentName":
+        elif sd_job_function == "EmploymentName":
             logger.info("Read settings. Do not update job_functions")
             self.use_jpi = False
         else:
             raise exceptions.JobfunctionSettingsIsWrongException()
 
         self.employee_forced_uuids = self._read_forced_uuids()
-        self.helper = self._get_mora_helper(self.settings["mora.base"])
-
-        # List of job_functions that should be ignored.
-        self.skip_job_functions = self.settings.get("skip_job_functions", [])
+        self.helper = self._get_mora_helper(mora_base)
+        self.job_sync = self._get_job_sync(settings)
 
         self.ad_reader = None
         if use_ad:
@@ -408,7 +418,7 @@ class ChangeAtSD:
         """
         # TODO: Use new MO endpoint for making classes
         response = requests.post(
-            url=self.settings["mox.base"] + "/klassifikation/klasse", json=payload
+            url=self.mox_base + "/klassifikation/klasse", json=payload
         )
         assert response.status_code == 201
         return response.json()["uuid"]
@@ -424,7 +434,7 @@ class ChangeAtSD:
         engagement_type_uuid = self._create_class(payload)
         self.engagement_types[engagement_type_ref] = engagement_type_uuid
 
-        self._get_job_sync().sync_from_sd(job_position, refresh=True)
+        self.job_sync.sync_from_sd(job_position, refresh=True)
 
         return engagement_type_uuid
 
@@ -437,7 +447,7 @@ class ChangeAtSD:
         job_uuid = self._create_class(payload)
         self.job_functions[job_function] = job_uuid
 
-        self._get_job_sync().sync_from_sd(job_position, refresh=True)
+        self.job_sync.sync_from_sd(job_position, refresh=True)
 
         return job_uuid
 
@@ -542,7 +552,6 @@ class ChangeAtSD:
     def apply_NY_logic(self, org_unit, job_id, validity):
         msg = "Apply NY logic for job: {}, unit: {}, validity: {}"
         logger.debug(msg.format(job_id, org_unit, validity))
-        too_deep = self.settings["integrations.SD_Lon.import.too_deep"]
         # Move users and make associations according to NY logic
         today = datetime.today()
         ou_info = self.helper.read_ou(org_unit, use_cache=False)
@@ -553,11 +562,11 @@ class ChangeAtSD:
             self._get_department_fixer().fix_or_create_branch(org_unit, fix_date)
             ou_info = self.helper.read_ou(org_unit, use_cache=False)
 
-        if ou_info["org_unit_level"]["user_key"] in too_deep:
+        if ou_info["org_unit_level"]["user_key"] in self.too_deep:
             self.create_association(org_unit, self.mo_person, job_id, validity)
 
         # logger.debug('OU info is currently: {}'.format(ou_info))
-        while ou_info["org_unit_level"]["user_key"] in too_deep:
+        while ou_info["org_unit_level"]["user_key"] in self.too_deep:
             ou_info = ou_info["parent"]
             logger.debug("Parent unit: {}".format(ou_info))
         org_unit = ou_info["uuid"]
@@ -676,10 +685,9 @@ class ChangeAtSD:
         if engagement_type is None:
             return False
 
-        extension_field = self.settings.get("integrations.SD_Lon.employment_field")
         extension = {}
-        if extension_field is not None:
-            extension = {extension_field: emp_name}
+        if self.employment_field is not None:
+            extension = {self.employment_field: emp_name}
 
         job_function_uuid = self._fetch_professions(job_function, job_position)
 
@@ -802,12 +810,11 @@ class ChangeAtSD:
             mora_assert(response)
 
     def determine_engagement_type(self, engagement, job_position):
-        split = self.settings["integrations.SD_Lon.monthly_hourly_divide"]
         employment_id = calc_employment_id(engagement)
-        if employment_id["value"] < split:
+        if employment_id["value"] < self.hourly_divide:
             return self.engagement_types.get("månedsløn")
         # XXX: Is the first condition not implied by not hitting the above case?
-        if (split - 1) < employment_id["value"] < 999999:
+        if (self.hourly_divide - 1) < employment_id["value"] < 999999:
             return self.engagement_types.get("timeløn")
         # This happens if EmploymentID is not a number
         # XXX: Why are we checking against 999999 instead of checking the type?
@@ -815,10 +822,10 @@ class ChangeAtSD:
 
         # We should not create engagements (or engagement_types) for engagements
         # with too low of a job_position id compared to no_salary_minimum_id.
-        no_salary_minimum = self.settings.get(
-            "integrations.SD_Lon.no_salary_minimum_id", None
-        )
-        if no_salary_minimum is not None and int(job_position) < no_salary_minimum:
+        if (
+            self.no_salary_minimum is not None
+            and int(job_position) < self.no_salary_minimum
+        ):
             message = "No salary employee, with too low job_position id"
             logger.warning(message)
             return None
@@ -868,10 +875,9 @@ class ChangeAtSD:
                 job_function = job_position
             logger.debug("Employment name: {}".format(job_function))
 
-            ext_field = self.settings.get("integrations.SD_Lon.employment_field")
             extention = {}
-            if ext_field is not None:
-                extention = {ext_field: emp_name}
+            if self.employment_field is not None:
+                extention = {self.employment_field: emp_name}
 
             job_function_uuid = self._fetch_professions(job_function, job_position)
 
