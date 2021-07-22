@@ -3,7 +3,8 @@ import logging
 import pickle
 import uuid
 from enum import Enum
-from functools import lru_cache, wraps
+from functools import lru_cache
+from functools import wraps
 from pathlib import Path
 
 import requests
@@ -57,7 +58,7 @@ def _sd_lookup_cache(func):
     @wraps(func)
     def wrapper(full_url, payload, auth, use_cache=True):
         # Short-circuit as noop, if no caching is requested
-        if use_cache == False:
+        if use_cache is False:
             return func(full_url, payload, auth)
 
         # We need a cache dir to exist before we can proceed
