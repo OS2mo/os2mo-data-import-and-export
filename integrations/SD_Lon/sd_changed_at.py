@@ -1,18 +1,22 @@
-import datetime
 import logging
 import pathlib
-import sqlite3
-import sys
+from datetime import date
+from datetime import datetime
+from datetime import timedelta
 from functools import lru_cache
 from operator import itemgetter
+from sys import exit
 
 import click
-import pandas as pd
 import requests
-from more_itertools import only
 from more_itertools import last
+from more_itertools import only
 from more_itertools import pairwise
 from os2mo_helpers.mora_helpers import MoraHelper
+from pandas import date_range
+from ra_utils.load_settings import load_setting
+from ra_utils.load_settings import load_settings
+from requests.exceptions import RequestException
 from tqdm import tqdm
 
 from integrations import cpr_mapper
@@ -31,8 +35,6 @@ from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sync_job_id import JobIdSync
-from ra_utils.load_settings import load_settings
-from ra_utils.load_settings import load_setting
 
 
 logger = logging.getLogger("sdChangedAt")
@@ -90,7 +92,6 @@ class ChangeAtSD:
         # List of job_functions that should be ignored.
         self.skip_job_functions = self.settings.get("skip_job_functions", [])
 
-        use_ad = self.settings.get("integrations.SD_Lon.use_ad_integration", True)
         self.ad_reader = None
         if use_ad:
             logger.info("AD integration in use")
@@ -103,10 +104,10 @@ class ChangeAtSD:
 
         try:
             self.org_uuid = self.helper.read_organisation()
-        except requests.exceptions.RequestException as e:
+        except RequestException as e:
             logger.error(e)
             print(e)
-            exit()
+            exit(1)
 
         self.mo_person = None  # Updated continously with the person currently
         self.mo_engagement = None  # being processed.
@@ -115,10 +116,12 @@ class ChangeAtSD:
 
         logger.info("Read it systems")
         it_systems = self.helper.read_it_systems()
-        self.ad_uuid = only(map(itemgetter('uuid'), filter(
-            lambda system: system["name"] == "Active Directory",
-            it_systems
-        )))
+        self.ad_uuid = only(
+            map(
+                itemgetter("uuid"),
+                filter(lambda system: system["name"] == "Active Directory", it_systems),
+            )
+        )
 
         logger.info("Read job_functions")
         facet_info = self.helper.read_classes_in_facet("engagement_job_function")
@@ -323,10 +326,10 @@ class ChangeAtSD:
         Return true if the amount of days between second and first is smaller
         than  expected_diff.
         """
-        first = datetime.datetime.strptime(first_date, "%Y-%m-%d")
-        second = datetime.datetime.strptime(second_date, "%Y-%m-%d")
+        first = datetime.strptime(first_date, "%Y-%m-%d")
+        second = datetime.strptime(second_date, "%Y-%m-%d")
         delta = second - first
-        # compare = first + datetime.timedelta(days=expected_diff)
+        # compare = first + timedelta(days=expected_diff)
         compare = abs(delta.days) <= expected_diff
         logger.debug(
             "Compare. First: {}, second: {}, expected: {}, compare: {}".format(
@@ -352,16 +355,16 @@ class ChangeAtSD:
         to_date = engagement_info["DeactivationDate"]
 
         if original_end is not None:
-            edit_from = datetime.datetime.strptime(from_date, "%Y-%m-%d")
-            edit_end = datetime.datetime.strptime(to_date, "%Y-%m-%d")
-            eng_end = datetime.datetime.strptime(original_end, "%Y-%m-%d")
+            edit_from = datetime.strptime(from_date, "%Y-%m-%d")
+            edit_end = datetime.strptime(to_date, "%Y-%m-%d")
+            eng_end = datetime.strptime(original_end, "%Y-%m-%d")
             if edit_from >= eng_end:
                 logger.info("This edit starts after the end of the engagement")
                 return None
 
             if edit_end > eng_end:
                 if cut:
-                    to_date = datetime.datetime.strftime(eng_end, "%Y-%m-%d")
+                    to_date = datetime.strftime(eng_end, "%Y-%m-%d")
                 else:
                     logger.info("This edit would have extended outside engagement")
                     return None
@@ -403,6 +406,7 @@ class ChangeAtSD:
         Returns:
             uuid of the newly created class.
         """
+        # TODO: Use new MO endpoint for making classes
         response = requests.post(
             url=self.settings["mox.base"] + "/klassifikation/klasse", json=payload
         )
@@ -540,12 +544,12 @@ class ChangeAtSD:
         logger.debug(msg.format(job_id, org_unit, validity))
         too_deep = self.settings["integrations.SD_Lon.import.too_deep"]
         # Move users and make associations according to NY logic
-        today = datetime.datetime.today()
+        today = datetime.today()
         ou_info = self.helper.read_ou(org_unit, use_cache=False)
         if "status" in ou_info:
             # This unit does not exist, read its state in the not-too
             # distant future.
-            fix_date = today + datetime.timedelta(weeks=80)
+            fix_date = today + timedelta(weeks=80)
             self._get_department_fixer().fix_or_create_branch(org_unit, fix_date)
             ou_info = self.helper.read_ou(org_unit, use_cache=False)
 
@@ -600,7 +604,7 @@ class ChangeAtSD:
 
             activation_date_info = self.read_employment_at(
                 engagement["EmploymentIdentifier"],
-                datetime.datetime.strptime(status["ActivationDate"], "%Y-%m-%d").date(),
+                datetime.strptime(status["ActivationDate"], "%Y-%m-%d").date(),
             )
 
             # at least check the cpr
@@ -714,8 +718,8 @@ class ChangeAtSD:
 
         # In MO, the termination date is the last day of work,
         # in SD it is the first day of non-work.
-        date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
-        terminate_datetime = date - datetime.timedelta(days=1)
+        date = datetime.strptime(from_date, "%Y-%m-%d")
+        terminate_datetime = date - timedelta(days=1)
         terminate_date = terminate_datetime.strftime("%Y-%m-%d")
 
         payload = {
@@ -766,16 +770,21 @@ class ChangeAtSD:
                 org_unit = response["Department"]["DepartmentUUIDIdentifier"]
                 if org_unit is None:
                     logger.fatal("DepartmentUUIDIdentifier was None inside failover.")
-                    sys.exit(1)
+                    exit(1)
 
             associations = self.helper.read_user_association(
                 self.mo_person["uuid"], read_all=True
             )
             logger.debug("User associations: {}".format(associations))
-            current_association = only(map(itemgetter('uuid'), filter(
-                lambda association: association["user_key"] == job_id,
-                associations
-            )))
+            current_association = only(
+                map(
+                    itemgetter("uuid"),
+                    filter(
+                        lambda association: association["user_key"] == job_id,
+                        associations,
+                    ),
+                )
+            )
             if current_association:
                 logger.debug("We need to move {}".format(current_association))
                 data = {"org_unit": {"uuid": org_unit}, "validity": validity}
@@ -1082,63 +1091,17 @@ class ChangeAtSD:
                 )
 
 
-def _local_db_insert(insert_tuple):
-    settings = load_settings()
-    conn = sqlite3.connect(
-        settings["integrations.SD_Lon.import.run_db"],
-        detect_types=sqlite3.PARSE_DECLTYPES,
-    )
-    c = conn.cursor()
-    query = "INSERT INTO runs (from_date, to_date, status) VALUES (?, ?, ?)"
-    final_tuple = (
-        insert_tuple[0],
-        insert_tuple[1],
-        insert_tuple[2].format(datetime.datetime.now()),
-    )
-    c.execute(query, final_tuple)
-    conn.commit()
-    conn.close()
-
-
-def initialize_changed_at(mora_base, use_ad, from_date, run_db, force=False):
-    if not run_db.is_file():
-        logger.error("Local base not correctly initialized")
-        if not force:
-            raise Exception("Local base not correctly initialized")
-        logger.info("Force is true, create new db")
-        conn = sqlite3.connect(str(run_db))
-        c = conn.cursor()
-        c.execute(
-            """
-          CREATE TABLE runs (id INTEGER PRIMARY KEY,
-            from_date timestamp, to_date timestamp, status text)
-        """
-        )
-        conn.commit()
-        conn.close()
-
-    _local_db_insert((from_date, from_date, "Running since {}"))
-
-    logger.info("Start initial ChangedAt")
-    sd_updater = ChangeAtSD(mora_base, use_ad, from_date)
-    sd_updater.update_changed_persons()
-    sd_updater.update_all_employments()
-    logger.info("Ended initial ChangedAt")
-
-    _local_db_insert((from_date, from_date, "Initial import: {}"))
-
-
-def gen_date_pairs(from_date: datetime.datetime, one_day: bool = False):
+def gen_date_pairs(from_date: datetime, one_day: bool = False):
     def generate_date_tuples(from_date, to_date):
-        date_range = pd.date_range(from_date, to_date)
-        mapped_dates = map(lambda date: date.to_pydatetime(), date_range)
+        date_interval = date_range(from_date, to_date)
+        mapped_dates = map(lambda date: date.to_pydatetime(), date_interval)
         return pairwise(mapped_dates)
 
-    to_date = datetime.date.today()
+    to_date = date.today()
     if from_date.date() >= to_date:
         return iter(())
     if one_day:
-        to_date = from_date + datetime.timedelta(days=1)
+        to_date = from_date + timedelta(days=1)
     dates = generate_date_tuples(from_date, to_date)
     return dates
 
@@ -1176,27 +1139,38 @@ def gen_date_pairs(from_date: datetime.datetime, one_day: bool = False):
     default=load_setting("integrations.SD_Lon.use_ad_integration", True),
     help="Use AD to ensure MO UUID == AD GUID.",
 )
-def changed_at(init, force, one_day, mora_base, use_ad):
+@click.option(
+    "--global-from-date",
+    default=load_setting("integrations.SD_Lon.global_from_date"),
+    help="Date to use for initial import (with --init)",
+)
+def changed_at(init, force, one_day, mora_base, use_ad, global_from_date):
     """Tool to delta synchronize with MO with SD."""
     setup_logging()
-
-    settings = load_settings()
-    run_db = settings["integrations.SD_Lon.import.run_db"]
 
     logger.info("***************")
     logger.info("Program started")
     logger.info("***************")
 
-    if init:
-        run_db = pathlib.Path(run_db)
-
-        from_date = datetime.datetime.strptime(
-            settings["integrations.SD_Lon.global_from_date"], "%Y-%m-%d"
-        )
-        initialize_changed_at(mora_base, use_ad, from_date, run_db, force=True)
-        exit()
-
+    # Ensure that run_db exists
     db_overview = DBOverview()
+    if not db_overview.table_exists():
+        db_overview.create_table()
+
+    # Run first-time initialization if requested to do so
+    if init:
+        from_date = datetime.strptime(global_from_date, "%Y-%m-%d")
+        db_overview.insert_row(from_date, from_date, "Running since: {}")
+
+        logger.info("Start initial ChangedAt")
+        sd_updater = ChangeAtSD(mora_base, use_ad, from_date)
+        sd_updater.update_changed_persons()
+        sd_updater.update_all_employments()
+        logger.info("Ended initial ChangedAt")
+
+        db_overview.insert_row(from_date, from_date, "Initial import: {}")
+        exit(0)
+
     # To date from last entries, becomes from_date for current entry
     from_date, status = db_overview.read_last_line("to_date", "status")
 
@@ -1212,7 +1186,7 @@ def changed_at(init, force, one_day, mora_base, use_ad):
 
     for from_date, to_date in dates:
         logger.info("Importing {} to {}".format(from_date, to_date))
-        _local_db_insert((from_date, to_date, "Running since {}"))
+        db_overview.insert_row(from_date, to_date, "Running since: {}")
 
         logger.info("Start ChangedAt module")
         sd_updater = ChangeAtSD(mora_base, use_ad, from_date, to_date)
@@ -1223,7 +1197,7 @@ def changed_at(init, force, one_day, mora_base, use_ad):
         logger.info("Update all employments")
         sd_updater.update_all_employments()
 
-        _local_db_insert((from_date, to_date, "Update finished: {}"))
+        db_overview.insert_row(from_date, to_date, "Update finished: {}")
 
     logger.info("Program stopped.")
 
