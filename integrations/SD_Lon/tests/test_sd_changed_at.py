@@ -1,13 +1,20 @@
 from collections import OrderedDict
-from datetime import date, datetime, timedelta
-from unittest.mock import MagicMock, call, patch
+from datetime import date
+from datetime import datetime
+from datetime import timedelta
+from unittest.mock import call
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import hypothesis.strategies as st
-from hypothesis import example, given
+from hypothesis import example
+from hypothesis import given
+from parameterized import parameterized
+
 from integrations.ad_integration.utils import AttrDict
 from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
-from integrations.SD_Lon.sd_changed_at import ChangeAtSD, gen_date_pairs
-from parameterized import parameterized
+from integrations.SD_Lon.sd_changed_at import ChangeAtSD
+from integrations.SD_Lon.sd_changed_at import gen_date_pairs
 from test_case import DipexTestCase
 
 
@@ -45,14 +52,14 @@ def setup_sd_changed_at(updates=None):
     start_date = today
 
     # TODO: Consider interfacing these off in seperate methods inside ChangeAtSD
-    with patch("integrations.SD_Lon.sd_changed_at.primary_types", autospec=True) as pt:
+    with patch("integrations.SD_Lon.sd_changed_at.primary_types", autospec=True):
         with patch(
             "integrations.SD_Lon.sd_changed_at.SDPrimaryEngagementUpdater",
             autospec=True,
-        ) as pu:
+        ):
             with patch(
                 "integrations.SD_Lon.sd_changed_at.FixDepartments", autospec=True
-            ) as fd:
+            ):
                 sd_updater = ChangeAtSDTest(
                     start_date, start_date + timedelta(days=1), settings
                 )

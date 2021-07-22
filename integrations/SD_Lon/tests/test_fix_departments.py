@@ -1,8 +1,9 @@
 from unittest import TestCase
 from unittest.mock import patch
 
-from integrations.SD_Lon.fix_departments import FixDepartments
 from parameterized import parameterized
+
+from integrations.SD_Lon.fix_departments import FixDepartments
 
 default_root = "abc"
 alternate_root = "def"
