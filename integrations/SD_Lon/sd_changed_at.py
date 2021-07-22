@@ -9,6 +9,7 @@ from operator import itemgetter
 import click
 import pandas as pd
 import requests
+from more_itertools import only
 from more_itertools import last
 from more_itertools import pairwise
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -26,17 +27,13 @@ from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import LetGo
-from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sync_job_id import JobIdSync
+from ra_utils.load_settings import load_settings
+from ra_utils.load_settings import load_setting
 
-# from integrations.SD_Lon.sd_common import generate_uuid
-
-
-LOG_LEVEL = logging.DEBUG
-LOG_FILE = "mo_integrations.log"
 
 logger = logging.getLogger("sdChangedAt")
 
@@ -48,6 +45,9 @@ def ensure_list(element):
 
 
 def setup_logging():
+    LOG_LEVEL = logging.DEBUG
+    LOG_FILE = "mo_integrations.log"
+
     detail_logging = (
         "sdCommon",
         "sdChangedAt",
@@ -72,7 +72,7 @@ def setup_logging():
 
 
 class ChangeAtSD:
-    def __init__(self, from_date, to_date=None, settings=None):
+    def __init__(self, mora_base, use_ad, from_date, to_date=None, settings=None):
         self.settings = settings or load_settings()
 
         if self.settings["integrations.SD_Lon.job_function"] == "JobPositionIdentifier":
@@ -85,9 +85,7 @@ class ChangeAtSD:
             raise exceptions.JobfunctionSettingsIsWrongException()
 
         self.employee_forced_uuids = self._read_forced_uuids()
-        self.department_fixer = FixDepartments()
         self.helper = self._get_mora_helper(self.settings["mora.base"])
-        self.job_sync = self._get_job_sync(self.settings)
 
         # List of job_functions that should be ignored.
         self.skip_job_functions = self.settings.get("skip_job_functions", [])
@@ -100,7 +98,6 @@ class ChangeAtSD:
         else:
             logger.info("AD integration not in use")
 
-        self.updater = SDPrimaryEngagementUpdater()
         self.from_date = from_date
         self.to_date = to_date
 
@@ -118,9 +115,10 @@ class ChangeAtSD:
 
         logger.info("Read it systems")
         it_systems = self.helper.read_it_systems()
-        for system in it_systems:
-            if system["name"] == "Active Directory":
-                self.ad_uuid = system["uuid"]  # This could also be a conf-option.
+        self.ad_uuid = only(map(itemgetter('uuid'), filter(
+            lambda system: system["name"] == "Active Directory",
+            it_systems
+        )))
 
         logger.info("Read job_functions")
         facet_info = self.helper.read_classes_in_facet("engagement_job_function")
@@ -146,9 +144,15 @@ class ChangeAtSD:
         facet_info = self.helper.read_classes_in_facet("association_type")
         self.association_uuid = facet_info[0][0]["uuid"]
 
+    @lru_cache(maxsize=None)
+    def _get_department_fixer(self):
+        return FixDepartments()
+
+    @lru_cache(maxsize=None)
     def _get_mora_helper(self, mora_base):
         return MoraHelper(hostname=mora_base, use_cache=False)
 
+    @lru_cache(maxsize=None)
     def _get_job_sync(self, settings):
         return JobIdSync(settings)
 
@@ -416,7 +420,7 @@ class ChangeAtSD:
         engagement_type_uuid = self._create_class(payload)
         self.engagement_types[engagement_type_ref] = engagement_type_uuid
 
-        self.job_sync.sync_from_sd(job_position, refresh=True)
+        self._get_job_sync().sync_from_sd(job_position, refresh=True)
 
         return engagement_type_uuid
 
@@ -429,7 +433,7 @@ class ChangeAtSD:
         job_uuid = self._create_class(payload)
         self.job_functions[job_function] = job_uuid
 
-        self.job_sync.sync_from_sd(job_position, refresh=True)
+        self._get_job_sync().sync_from_sd(job_position, refresh=True)
 
         return job_uuid
 
@@ -542,7 +546,7 @@ class ChangeAtSD:
             # This unit does not exist, read its state in the not-too
             # distant future.
             fix_date = today + datetime.timedelta(weeks=80)
-            self.department_fixer.fix_or_create_branch(org_unit, fix_date)
+            self._get_department_fixer().fix_or_create_branch(org_unit, fix_date)
             ou_info = self.helper.read_ou(org_unit, use_cache=False)
 
         if ou_info["org_unit_level"]["user_key"] in too_deep:
@@ -768,12 +772,10 @@ class ChangeAtSD:
                 self.mo_person["uuid"], read_all=True
             )
             logger.debug("User associations: {}".format(associations))
-            current_association = None
-            # TODO: This is a filter + next (only?)
-            for association in associations:
-                if association["user_key"] == job_id:
-                    current_association = association["uuid"]
-
+            current_association = only(map(itemgetter('uuid'), filter(
+                lambda association: association["user_key"] == job_id,
+                associations
+            )))
             if current_association:
                 logger.debug("We need to move {}".format(current_association))
                 data = {"org_unit": {"uuid": org_unit}, "validity": validity}
@@ -1032,6 +1034,8 @@ class ChangeAtSD:
         employments_changed = tqdm(employments_changed, desc="update employments")
         employments_changed = filter(skip_fictional_users, employments_changed)
 
+        recalculate_users = set()
+
         for employment in employments_changed:
             cpr = employment["PersonCivilRegistrationIdentifier"]
             sd_engagement = ensure_list(employment["Employment"])
@@ -1066,12 +1070,16 @@ class ChangeAtSD:
                 self._update_user_employments(cpr, sd_engagement)
 
                 # Re-calculate primary after all updates for user has been performed.
-                try:
-                    self.updater.recalculate_primary(self.mo_person["uuid"])
-                except NoPrimaryFound:
-                    logger.warning(
-                        "Could not find primary for: " + str(self.mo_person["uuid"])
-                    )
+                recalculate_users.add(self.mo_person["uuid"])
+
+        primary_updater = SDPrimaryEngagementUpdater()
+        for mo_person_uuid in recalculate_users:
+            try:
+                primary_updater.recalculate_primary(mo_person_uuid)
+            except NoPrimaryFound:
+                logger.warning(
+                    "Could not find primary for: " + str(self.mo_person["uuid"])
+                )
 
 
 def _local_db_insert(insert_tuple):
@@ -1092,7 +1100,7 @@ def _local_db_insert(insert_tuple):
     conn.close()
 
 
-def initialize_changed_at(from_date, run_db, force=False):
+def initialize_changed_at(mora_base, use_ad, from_date, run_db, force=False):
     if not run_db.is_file():
         logger.error("Local base not correctly initialized")
         if not force:
@@ -1112,7 +1120,7 @@ def initialize_changed_at(from_date, run_db, force=False):
     _local_db_insert((from_date, from_date, "Running since {}"))
 
     logger.info("Start initial ChangedAt")
-    sd_updater = ChangeAtSD(from_date)
+    sd_updater = ChangeAtSD(mora_base, use_ad, from_date)
     sd_updater.update_changed_persons()
     sd_updater.update_all_employments()
     logger.info("Ended initial ChangedAt")
@@ -1157,7 +1165,18 @@ def gen_date_pairs(from_date: datetime.datetime, one_day: bool = False):
     default=False,
     help="Only import changes for the next missing day",
 )
-def changed_at(init, force, one_day):
+@click.option(
+    "--mora-base",
+    default=load_setting("mora.base", "http://localhost:5000"),
+    help="URL for OS2mo.",
+)
+@click.option(
+    "--use-ad/--no-use-ad",
+    is_flag=True,
+    default=load_setting("integrations.SD_Lon.use_ad_integration", True),
+    help="Use AD to ensure MO UUID == AD GUID.",
+)
+def changed_at(init, force, one_day, mora_base, use_ad):
     """Tool to delta synchronize with MO with SD."""
     setup_logging()
 
@@ -1166,6 +1185,7 @@ def changed_at(init, force, one_day):
 
     logger.info("***************")
     logger.info("Program started")
+    logger.info("***************")
 
     if init:
         run_db = pathlib.Path(run_db)
@@ -1173,7 +1193,7 @@ def changed_at(init, force, one_day):
         from_date = datetime.datetime.strptime(
             settings["integrations.SD_Lon.global_from_date"], "%Y-%m-%d"
         )
-        initialize_changed_at(from_date, run_db, force=True)
+        initialize_changed_at(mora_base, use_ad, from_date, run_db, force=True)
         exit()
 
     db_overview = DBOverview()
@@ -1195,7 +1215,7 @@ def changed_at(init, force, one_day):
         _local_db_insert((from_date, to_date, "Running since {}"))
 
         logger.info("Start ChangedAt module")
-        sd_updater = ChangeAtSD(from_date, to_date)
+        sd_updater = ChangeAtSD(mora_base, use_ad, from_date, to_date)
 
         logger.info("Update changed persons")
         sd_updater.update_changed_persons()
