@@ -224,9 +224,9 @@ class AsyncSDSoapClient(SDSoapClientBase):
         self, wsdl: StringIO, username: str, password: str
     ) -> AsyncClient:
         httpx_client = self._create_async_client(username, password)
-        # httpx_client = httpx.AsyncClient(auth=(username, password))
+        wsdl_client = httpx.Client(auth=(username, password))
         client = AsyncClient(
-            wsdl, transport=AsyncTransport(client=httpx_client, cache=SqliteCache())
+            wsdl, transport=AsyncTransport(client=httpx_client, wsdl_client=wsdl_client, cache=SqliteCache())
         )
         return client
 
