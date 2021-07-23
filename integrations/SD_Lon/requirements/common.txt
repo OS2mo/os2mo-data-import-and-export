@@ -1,3 +1,4 @@
 requests
-zeep
+zeep[async]
+ra_utils
 click
