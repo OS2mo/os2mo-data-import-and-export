@@ -20,6 +20,8 @@ from zeep.transports import AsyncTransport
 from zeep.transports import Transport
 
 
+# XXX: This is a hack since SD does not seem to have a top-level WSDL file
+#      We should probably verify that it really is the case, that they do not.
 WSDL_TOP = """<?xml version="1.0"?>
 <definitions
     xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
@@ -139,6 +141,34 @@ WSDL_TOP = """<?xml version="1.0"?>
 
 
 class SDSoapClientBase(ABC):
+    """SOAP Client for SDs SOAP service.
+
+    Dynamically loads endpoints based on SDs WSDL definitions in __init__, thus
+    endpoints could dynamically appear and disappear over time.
+
+    This is mainly a theoretical point, as endpoints are pretty static.
+    The endpoints are versioned using dates, and only the newest endpoints should
+    be used, thus the list of endpoints reduce to the following:
+
+    Organization Endpoints:
+    * GetDepartment20111201
+    * GetDepartmentParent20190701
+    * GetInstitution20111201
+    * GetOrganization20111201
+
+    Person and employment Endpoints:
+    * GetEmployment20111201
+    * GetEmploymentChanged20111201
+    * GetEmploymentChangedAtDate20111201
+    * GetPerson20111201
+    * GetPersonChangedAtDate20111201
+
+    Profession Endpoints:
+    * GetProfession20080201
+
+    A derived and more user-friendly client should probably be developed.
+    """
+
     def __init__(self, username: str, password: str):
         # Load our top-level wsdl (specifying all endpoints) into the client
         wsdl_top = StringIO(WSDL_TOP)
@@ -180,6 +210,12 @@ class SDSoapClientBase(ABC):
 
 
 class AsyncSDSoapClient(SDSoapClientBase):
+    """Async SOAP Client for SDs SOAP service.
+
+    Using this client all endpoint are now async and must be awaited.
+    Additionally `.aclose()` must be called to explicitly close the client.
+    """
+
     def _create_async_client(self, username: str, password: str):
         self.httpx_client = httpx.AsyncClient(auth=(username, password))
         return self.httpx_client
@@ -202,6 +238,8 @@ class AsyncSDSoapClient(SDSoapClientBase):
 
 
 class SDSoapClient(SDSoapClientBase):
+    """Sync SOAP Client for SDs SOAP service."""
+
     def _create_client(self, wsdl: StringIO, username: str, password: str) -> Client:
         session = Session()
         session.auth = HTTPBasicAuth(username, password)
