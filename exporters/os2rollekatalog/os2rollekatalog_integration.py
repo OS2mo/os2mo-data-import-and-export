@@ -6,42 +6,53 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import csv
-import json
 import logging
-import os
-import pathlib
 import sys
+from functools import lru_cache
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Tuple
+from uuid import UUID
 
+import click
 import requests
-
 from os2mo_tools import mo_api
-
-
-cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-if not cfg_file.is_file():
-    raise Exception("No setting file")
-SETTINGS = json.loads(cfg_file.read_text())
+from ra_utils.headers import TokenSettings
+from ra_utils.load_settings import load_setting
+from tenacity import retry
+from tenacity import stop_after_attempt
+from tenacity import wait_exponential
 
 logger = logging.getLogger(__name__)
 
-EMPLOYEE_MAPPING_PATH = os.environ.get("MOX_ROLLE_MAPPING")
-AD_SYSTEM_NAME = SETTINGS["exporters.os2rollekatalog.ad_system_name"]
-OS2MO_URL = SETTINGS["mora.base"]
-OS2MO_API_KEY = os.environ.get("SAML_TOKEN")
-ROLLEKATALOG_URL = SETTINGS["exporters.os2rollekatalog.rollekatalog.url"]
-ROLLEKATALOG_API_KEY = SETTINGS["exporters.os2rollekatalog.rollekatalog.api_token"]
-LOG_PATH = os.environ.get("MOX_ROLLE_LOG_FILE")
-# Rollekataloget only supports one root org unit.
-# All other root org units in OS2mo will be made children of this one
-MAIN_ROOT_ORG_UNIT = SETTINGS["exporters.os2rollekatalog.main_root_org_unit"]
+
+@lru_cache(maxsize=None)
+def get_employee_mapping(mapping_path_str: str) -> Dict[str, Tuple[str, str]]:
+    mapping_path = Path(mapping_path_str)
+    if not mapping_path.is_file():
+        logger.critical("Mapping file does not exist: %s", mapping_path)
+        sys.exit(3)
+
+    try:
+        with open(mapping_path) as f:
+            csv_reader = csv.DictReader(f, delimiter=";")
+            content = {
+                line["mo_uuid"]: (line["ad_guid"], line["sam_account_name"])
+                for line in csv_reader
+            }
+    except FileNotFoundError as err:
+        logger.critical("%s: %r", err.strerror, err.filename)
+        sys.exit(3)
+    return content
 
 
-MAPPING = {}
-
-
-def get_employee_from_map(employee_uuid):
-    mapping = get_employee_mapping()
+def get_employee_from_map(
+    employee_uuid: str, mapping_file_path: str
+) -> Tuple[str, str]:
+    mapping = get_employee_mapping(mapping_file_path)
 
     if employee_uuid not in mapping:
         logger.critical(
@@ -51,7 +62,7 @@ def get_employee_from_map(employee_uuid):
     return mapping[employee_uuid]
 
 
-def init_log():
+def init_log(log_path: str) -> None:
     logging.getLogger("urllib3").setLevel(logging.INFO)
 
     log_format = logging.Formatter(
@@ -68,7 +79,7 @@ def init_log():
     # write single lines and no exception tracebacks here as it is harder to
     # parse.
     try:
-        log_file_handler = RotatingFileHandler(filename=LOG_PATH, maxBytes=1000000)
+        log_file_handler = RotatingFileHandler(filename=log_path, maxBytes=1000000)
     except OSError as err:
         logger.critical("MOX_ROLLE_LOG_FILE: %s: %r", err.strerror, err.filename)
         sys.exit(3)
@@ -78,25 +89,9 @@ def init_log():
     logging.getLogger().addHandler(log_file_handler)
 
 
-def get_employee_mapping():
-    global MAPPING
-    if not MAPPING:
-        mapping_path = EMPLOYEE_MAPPING_PATH
-        try:
-            with open(mapping_path) as f:
-                csv_reader = csv.DictReader(f, delimiter=";")
-                content = {
-                    line["mo_uuid"]: (line["ad_guid"], line["sam_account_name"])
-                    for line in csv_reader
-                }
-        except FileNotFoundError as err:
-            logger.critical("%s: %r", err.strerror, err.filename)
-            sys.exit(3)
-        MAPPING = content
-    return MAPPING
-
-
-def get_org_units(connector):
+def get_org_units(
+    connector: mo_api.Connector, main_root_org_unit: str, mapping_file_path: str
+) -> List[Dict[str, Any]]:
     org_units = connector.get_ous()
 
     converted_org_units = []
@@ -105,8 +100,8 @@ def get_org_units(connector):
         org_unit_uuid = org_unit["uuid"]
         # Fetch the OU again, as the 'parent' field is missing in the data
         # when listing all org units
-        ou_present = connector.get_ou_connector(org_unit_uuid, validity='present')
-        ou_future = connector.get_ou_connector(org_unit_uuid, validity='future')
+        ou_present = connector.get_ou_connector(org_unit_uuid, validity="present")
+        ou_future = connector.get_ou_connector(org_unit_uuid, validity="future")
         ou_connectors = (ou_present, ou_future)
 
         def get_parent_org_unit_uuid(ou):
@@ -115,8 +110,8 @@ def get_org_units(connector):
                 return parent["uuid"]
             # Rollekataloget only support one root org unit, so all other org
             # units get put under the main one
-            elif ou.uuid != MAIN_ROOT_ORG_UNIT:
-                return MAIN_ROOT_ORG_UNIT
+            elif ou.uuid != main_root_org_unit:
+                return main_root_org_unit
 
             return None
 
@@ -136,9 +131,11 @@ def get_org_units(connector):
             if not person:
                 return None
 
-            ad_guid, sam_account_name = get_employee_from_map(person["uuid"])
+            ad_guid, sam_account_name = get_employee_from_map(
+                person["uuid"], mapping_file_path
+            )
+            # Only import users who are in AD
             if not ad_guid or not sam_account_name:
-                # Only import users who are in AD
                 return {}
 
             return {"uuid": person["uuid"], "userId": sam_account_name}
@@ -154,16 +151,26 @@ def get_org_units(connector):
     return converted_org_units
 
 
-def get_users(connector):
+def get_users(
+    connector: mo_api.Connector, mapping_file_path: str
+) -> List[Dict[str, Any]]:
     # read mapping
     employees = connector.get_employees()
 
     converted_users = []
     for employee in employees:
-
         employee_uuid = employee["uuid"]
-        e_present = connector.get_employee_connector(employee_uuid, validity='present')
-        e_future = connector.get_employee_connector(employee_uuid, validity='future')
+
+        ad_guid, sam_account_name = get_employee_from_map(
+            employee_uuid, mapping_file_path
+        )
+
+        # Only import users who are in AD
+        if not ad_guid or not sam_account_name:
+            continue
+
+        e_present = connector.get_employee_connector(employee_uuid, validity="present")
+        e_future = connector.get_employee_connector(employee_uuid, validity="future")
         e_connectors = (e_present, e_future)
 
         def get_employee_email(*engagement_connectors):
@@ -201,14 +208,8 @@ def get_users(connector):
                 )
             return converted_positions
 
-        ad_guid, sam_account_name = get_employee_from_map(employee_uuid)
-
-        if not ad_guid or not sam_account_name:
-            # Only import users who are in AD
-            continue
-
         payload = {
-            "extUuid": employee['uuid'],
+            "extUuid": employee["uuid"],
             "userId": sam_account_name,
             "name": employee["name"],
             "email": get_employee_email(*e_connectors),
@@ -219,20 +220,92 @@ def get_users(connector):
     return converted_users
 
 
-def main():
-    """Main function - download from OS2MO and export to OS2Rollekatalog."""
-    init_log()
+@click.command()
+@click.option(
+    "--mora-base",
+    default=load_setting("mora.base", "http://localhost:5000"),
+    help="URL for OS2mo.",
+)
+@click.option(
+    "--rollekatalog-url",
+    default=load_setting("exporters.os2rollekatalog.rollekatalog.url"),
+    help="URL for Rollekataloget.",
+)
+@click.option(
+    "--rollekatalog-api-key",
+    default=load_setting("exporters.os2rollekatalog.rollekatalog.api_token"),
+    type=click.UUID,
+    help="API key to write to Rollekataloget.",
+)
+@click.option(
+    "--main-root-org-unit",
+    default=load_setting("exporters.os2rollekatalog.main_root_org_unit"),
+    type=click.UUID,
+    help=(
+        "Rollekataloget only supports one root org unit. "
+        "All other root org units in OS2mo will be made children of this one."
+    ),
+)
+@click.option(
+    "--log-file-path",
+    default="exports_mox_rollekatalog.log",
+    type=click.Path(),
+    help="Path to write log file.",
+    envvar="MOX_ROLLE_LOG_FILE",
+)
+@click.option(
+    "--mapping-file-path",
+    default="cpr_mo_ad_map.csv",
+    type=click.Path(exists=True),
+    help="Path to the cpr_mo_ad_map.csv file.",
+    envvar="MOX_ROLLE_MAPPING",
+)
+@click.option(
+    "--dry-run",
+    default=False,
+    is_flag=True,
+    help="Dump payload, rather than writing to rollekataloget.",
+)
+def main(
+    mora_base: str,
+    rollekatalog_url: str,
+    rollekatalog_api_key: UUID,
+    main_root_org_unit: UUID,
+    log_file_path: str,
+    mapping_file_path: str,
+    dry_run: bool,
+):
+    """OS2Rollekatalog exporter.
+
+    Reads data from OS2mo and exports it to OS2Rollekatalog.
+    Depends on cpr_mo_ad_map.csv from cpr_uuid.py to check users against AD.
+    """
+    # AD_SYSTEM_NAME = SETTINGS["exporters.os2rollekatalog.ad_system_name"]
+
+    init_log(log_file_path)
 
     try:
-        service_url = OS2MO_URL + "/service"
-        mo_connector = mo_api.Connector(service_url, api_token=OS2MO_API_KEY)
+        service_url = mora_base + "/service"
+        mo_connector = mo_api.Connector(service_url, org_uuid=True)
+        # Hack to introduce retrying into os2mo_tools
+        mo_connector.mo_get = retry(
+            reraise=True,
+            wait=wait_exponential(multiplier=2, min=1),
+            stop=stop_after_attempt(7),
+        )(mo_connector.mo_get)
+        # Hack in auth headers (keycloak) into os2mo_tools
+        mo_connector.session.headers = TokenSettings().get_headers()
+        # Must re-read org-uuid, as we passed True instead in constructor
+        mo_connector.org_id = mo_connector._get_org()
     except requests.RequestException:
         logger.exception("An error occurred connecting to OS2mo")
         sys.exit(3)
 
     try:
         logger.info("Reading organisation")
-        org_units = get_org_units(mo_connector)
+        org_units = get_org_units(
+            mo_connector, str(main_root_org_unit), mapping_file_path
+        )
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch org units")
         sys.exit(3)
@@ -240,7 +313,7 @@ def main():
 
     try:
         logger.info("Reading employees")
-        users = get_users(mo_connector)
+        users = get_users(mo_connector, mapping_file_path)
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch employees")
         sys.exit(3)
@@ -248,12 +321,18 @@ def main():
 
     payload = {"orgUnits": org_units, "users": users}
 
+    if dry_run:
+        import json
+
+        print(json.dumps(payload, indent=4))
+        sys.exit(0)
+
     try:
         logger.info("Writing to Rollekataloget")
         result = requests.post(
-            ROLLEKATALOG_URL,
+            rollekatalog_url,
             json=payload,
-            headers={"ApiKey": ROLLEKATALOG_API_KEY},
+            headers={"ApiKey": str(rollekatalog_api_key)},
             verify=False,
         )
         logger.info(result.json())
