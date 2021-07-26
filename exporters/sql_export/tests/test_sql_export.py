@@ -37,7 +37,7 @@ class FakeLC:
 
 
 class FakeLCSqlExport(SqlExport):
-    def _get_lora_cache(self, resolve_dar, use_pickle):
+    def _get_lora_cache(self, resolve_dar):
         return FakeLC()
 
 
@@ -50,6 +50,7 @@ def check_tables(engine, expected):
     schema = schemas[0]
 
     table_names = inspector.get_table_names(schema=schema)
+    # import pdb; pdb.set_trace()
     assert table_names == expected
 
 
@@ -67,32 +68,8 @@ def test_sql_export_tables():
 
     sql_export.perform_export(
         resolve_dar=False,
-        use_pickle=False,
-    )
-    check_tables(
-        sql_export.engine,
-        [
-            "kvittering",
-            "wadresser",
-            "wbrugere",
-            "wdar_adresser",
-            "wengagementer",
-            "wenheder",
-            "wenhedssammenkobling",
-            "wfacetter",
-            "wit_forbindelser",
-            "wit_systemer",
-            "wklasser",
-            "wkle",
-            "wleder_ansvar",
-            "wledere",
-            "worlover",
-            "wroller",
-            "wtilknytninger",
-        ],
     )
 
-    sql_export.swap_tables()
     check_tables(
         sql_export.engine,
         [

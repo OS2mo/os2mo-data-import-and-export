@@ -20,7 +20,7 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from mox_helpers.mox_util import ensure_class_in_lora
 from ra_utils.load_settings import load_settings
 from integrations.dar_helper import dar_helper
-
+from ra_utils.load_settings import load_settings
 logger = logging.getLogger("LoraCache")
 
 DEFAULT_TIMEZONE = dateutil.tz.gettz('Europe/Copenhagen')
@@ -32,12 +32,12 @@ LOG_FILE = 'lora_cache.log'
 
 class LoraCache:
 
-    def __init__(self, resolve_dar=True, full_history=False, skip_past=False):
+    def __init__(self, resolve_dar=True, full_history=False, skip_past=False, settings: dict= {}):
         msg = 'Start LoRa cache, resolve dar: {}, full_history: {}'
         logger.info(msg.format(resolve_dar, full_history))
         self.resolve_dar = resolve_dar
 
-        self.settings = load_settings()
+        self.settings = settings or load_settings()
 
         self.additional = {
             'relationer': ('tilknyttedeorganisationer', 'tilhoerer')

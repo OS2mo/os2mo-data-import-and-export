@@ -51,8 +51,7 @@ def sql_export(resolve_dar):
         "exporters.actual_state_historic.type": "SQLite",
         "exporters.actual_state.db_name": org_settings.get(
             "lc-for-jobs.actual_db_name", "ActualState"
-        )
-
+        ),
     }
 
     sql_export = SqlExport(force_sqlite=True, historic=False, settings=settings)

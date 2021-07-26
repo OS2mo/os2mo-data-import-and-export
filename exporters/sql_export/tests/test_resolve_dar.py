@@ -14,10 +14,6 @@ from exporters.sql_export.lora_cache import LoraCache
 class LoraCacheTest(LoraCache):
     """Subclass to override methods with side-effects."""
 
-    def _load_settings(self):
-        """We want to avoid reading settings.json."""
-        return {}
-
     def _read_org_uuid(self):
         """We want to avoid MO lookups."""
         pass
@@ -35,14 +31,14 @@ class TestResolveDar(unittest.TestCase):
 
     def test_init(self):
         """Ensure we can create LoraCacheTest without issues."""
-        lc = LoraCacheTest()
+        lc = LoraCacheTest(settings={"Dummy": True})
         self.assertEqual(lc.resolve_dar, True)
         self.assertEqual(lc.dar_map, {})
 
     @given(booleans())
     def test_cache_dar_empty(self, resolve_dar):
         """With empty dar_map, resolve does not matter."""
-        lc = LoraCacheTest(resolve_dar)
+        lc = LoraCacheTest(resolve_dar, settings={"Dummy": True})
         self.assertEqual(lc.resolve_dar, resolve_dar)
         self.assertEqual(lc.dar_map, {})
 
@@ -63,7 +59,7 @@ class TestResolveDar(unittest.TestCase):
         sync_dar_fetch.side_effect = noop_sync_dar_fetch
 
         # Setup LoraCache Object
-        lc = LoraCacheTest(resolve_dar)
+        lc = LoraCacheTest(resolve_dar, settings={"Dummy": True})
         self.assertEqual(lc.resolve_dar, resolve_dar)
         self.assertEqual(lc.dar_map, {})
         lc.addresses = {}
