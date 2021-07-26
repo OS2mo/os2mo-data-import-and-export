@@ -248,7 +248,7 @@ def addresses_to_orgunit(orgunit, addresses):
             orgunit["PhoneNumber"] = a["name"]
         elif a["address_type"]["scope"] == "DAR":
             address_field = "Post"
-            if address_type_is(a, user_key="Henvendelsessted"):
+            if address_type_is(a, user_key="Henvendelsessted", scope="DAR"):
                 address_field = "Contact"
             orgunit[address_field] = a["name"]
         elif a["address_type"]["scope"] == "PNUMBER":
