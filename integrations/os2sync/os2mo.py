@@ -14,6 +14,7 @@ from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
 from integrations.os2sync import config
 from integrations.os2sync.templates import Person, User
+from ra_utils.lazy_dict import LazyDict, LazyEval
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
@@ -226,9 +227,10 @@ def org_unit_uuids(**kwargs):
     ]
 
 
-def itsystems_to_orgunit(orgunit, itsystems):
-    for i in itsystems:
-        orgunit["ItSystemUuids"].append(i["itsystem"]["uuid"])
+def itsystems_to_orgunit(uuid):
+    itsystems = os2mo_get("{BASE}/ou/" + uuid + "/details/it").json()
+    
+    return list(i["itsystem"]["uuid"] for i in itsystems)
 
 
 def address_type_is(address, user_key=None, scope="TEXT"):
@@ -323,13 +325,10 @@ def get_sts_orgunit(uuid):
     if base.get("parent") and "uuid" in base["parent"]:
         sts_org_unit["ParentOrgUnitUuid"] = base["parent"]["uuid"]
 
-    itsystems_to_orgunit(
-        sts_org_unit, os2mo_get("{BASE}/ou/" + uuid + "/details/it").json()
-    )
-    addresses_to_orgunit(
-        sts_org_unit,
-        os2mo_get("{BASE}/ou/" + uuid + "/details/address").json(),
-    )
+    itsystems_to_orgunit(uuid)
+    org_unit_addresses = os2mo_get("{BASE}/ou/" + uuid + "/details/address").json()
+    sts_org_unit = addresses_to_orgunit(sts_org_unit, org_unit_addresses)
+    
     # this is set by __main__
     if settings["OS2MO_HAS_KLE"]:
         kle_to_orgunit(
@@ -339,6 +338,15 @@ def get_sts_orgunit(uuid):
 
     # show_all_details(uuid,"ou")
     strip_truncate_and_warn(sts_org_unit, sts_org_unit)
+    sts_org_unit = LazyDict({
+        'ItSystemUuids': itsystems_to_orgunit(uuid), 
+        'Name': "", 
+        'Uuid': '72eae230-18b9-f18b-3cf5-fd521c448455', 
+        'ParentOrgUnitUuid': '3923ca2f-df25-a1b5-c930-751403a4062c',
+        'Post': 'Stiager 2, 3500 Værløse', 'Ean': '9999999999999',
+        'PhoneNumber': '72354000',
+         'Contact': 'Stiager 2, 3500 Værløse'}
+    )
     return sts_org_unit
 
 
