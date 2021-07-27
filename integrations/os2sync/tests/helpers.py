@@ -2,7 +2,7 @@ NICKNAME_TEMPLATE = "{% if nickname -%}{{ nickname }}{%- else %}{{ name }}{%- en
 
 
 class MoEmployeeMixin:
-    def mock_employee(self, nickname=False):
+    def mock_employee(self, cpr="0101012222", nickname=False):
         # Mock the result of `os2mo_get("{BASE}/e/" + uuid + "/").json()`
         # Only contains the keys relevant for testing
         return {
@@ -15,7 +15,7 @@ class MoEmployeeMixin:
             "nickname_givenname": "Kalde" if nickname else "",
             "nickname_surname": "Navn" if nickname else "",
             # Other fields
-            "cpr_no": "0101019999",
+            "cpr_no": cpr,
             "user_key": "testtestesen",
             "uuid": "mock-uuid"
         }

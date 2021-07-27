@@ -747,7 +747,9 @@ class AdMoSync(object):
                 if "cpr" in employee:
                     cpr = employee["cpr"]
                 else:
-                    cpr = self.helper.read_user(uuid)["cpr_no"]
+                    cpr = self.helper.read_user(uuid).get("cpr_no")
+                    if not cpr:
+                        logger.warning("no 'cpr_no' for MO user %r", uuid)
                 return cpr, uuid
 
             @apply
