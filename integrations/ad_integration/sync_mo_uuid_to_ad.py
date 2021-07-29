@@ -163,11 +163,18 @@ class SyncMoUuidToAd(AD):
         self.perform_sync(ad_users, mo_users)
 
     def sync_all(self):
+        def has_cpr_no(mo_user):
+            if "cpr_no" not in mo_user:
+                logger.warning("no 'cpr_no' for MO user %r", mo_user["uuid"])
+                return False
+            return True
+
         print("Fetch AD Users")
         ad_users = self.reader.read_it_all(print_progress=True)
 
         print("Fetch MO Users")
         mo_users = self.helper.read_all_users()
+        mo_users = filter(has_cpr_no, mo_users)
         mo_users = dict(map(itemgetter("cpr_no", "uuid"), mo_users))
 
         print("Starting Sync")

@@ -5,6 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import logging
 from typing import Any, Dict, Optional
 from uuid import UUID
 
@@ -13,7 +14,11 @@ from jinja2 import StrictUndefined
 from jinja2 import Template
 from jinja2.exceptions import TemplateSyntaxError
 
+from integrations.os2sync.config import loggername as _loggername
 from integrations.os2sync.config import settings as _settings
+
+
+logger = logging.getLogger(_loggername)
 
 
 class FieldTemplateSyntaxError(Exception):
@@ -140,12 +145,19 @@ class Person(Entity):
     """Models a `Person` entity in the OS2Sync REST API"""
 
     def to_json(self) -> Dict[str, Any]:
+        if self.settings["OS2SYNC_XFER_CPR"]:
+            cpr = self.context.get("cpr_no")
+            if not cpr:
+                logger.warning("no 'cpr_no' for user %r", self.context["uuid"])
+            else:
+                logger.debug("transferring CPR for user %r", self.context["uuid"])
+        else:
+            cpr = None
+            logger.debug("not configured to transfer CPR")
+
         return {
             "Name": self.field_renderer.render(
                 "person.name", self.context, fallback=self.context["name"],
             ),
-            "Cpr": (
-                self.context["cpr_no"]
-                if self.settings["OS2SYNC_XFER_CPR"] else None
-            ),
+            "Cpr": cpr,
         }

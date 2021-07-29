@@ -262,8 +262,9 @@ class LoraCache:
                     continue
                 reg = effect[2]
 
-                tilknyttedepersoner = reg['relationer']['tilknyttedepersoner']
+                tilknyttedepersoner = reg['relationer'].get('tilknyttedepersoner', [])
                 if len(tilknyttedepersoner) == 0:
+                    logger.warning("unable to find CPR for LoRa user %r", uuid)
                     continue
                 cpr = tilknyttedepersoner[0]['urn'][-10:]
 

@@ -18,7 +18,7 @@ logger = logging.getLogger("cpr_uuid")
 
 
 class ExportUser(BaseModel):
-    cpr: str
+    cpr: Optional[str]
     mo_uuid: UUID
     ad_guid: Optional[UUID]
     sam_account_name: Optional[str]
@@ -43,8 +43,11 @@ def create_mapping(helper, use_ad) -> List[ExportUser]:
 
     def to_user_dict(employee: Dict[str, Any]) -> ExportUser:
         # AD properties will be enriched if available
+        cpr = employee.get("cpr_no")
+        if not cpr:
+            logger.warning("no 'cpr_no' for MO user %r", employee["uuid"])
         return ExportUser(
-            cpr=employee["cpr_no"],
+            cpr=cpr,
             mo_uuid=employee["uuid"],
         )
 
