@@ -1,3 +1,5 @@
+from typing import List, Optional, Tuple
+
 import asyncio
 from collections import ChainMap
 from functools import partial
@@ -117,3 +119,34 @@ async def dar_fetch(uuids, addrtype="adresser", chunk_size=150, client=None):
 async def sync_dar_fetch(uuids, addrtype="adresser", chunk_size=150):
     """Syncronized version of dar_fetch."""
     return await dar_fetch(uuids, addrtype, chunk_size)
+
+
+@ensure_session
+async def dar_datavask(address: str, client: ClientSession) -> Tuple[str, Optional[dict]]:
+    """
+    Perform search in DAR using the 'datavask' API
+    """
+    url = "https://api.dataforsyningen.dk/datavask/adresser"
+    params = {"struktur": "mini", "betegnelse": address}
+    async with client.get(url, params=params) as response:
+        response.raise_for_status()
+        result = await response.json()
+        # A and B are safe matches, and will only have one result in the array
+        # https://dawadocs.dataforsyningen.dk/dok/api/adresse#datavask
+        if result['kategori'] in ['A', 'B']:
+            return address, result['resultater'][0]['adresse']['id']
+
+    return address, None
+
+
+@ensure_session
+async def dar_datavask_multiple(addresses: List[str], client: ClientSession) -> List[Tuple[str, Optional[dict]]]:
+    """Perform search in DAR on multiple address strings"""
+    def create_task(address):
+        return asyncio.ensure_future(
+            dar_datavask(address, client=client)
+        )
+
+    tasks = list(map(create_task, addresses))
+    results = await asyncio.gather(*tasks)
+    return results
