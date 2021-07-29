@@ -188,6 +188,11 @@ imports_opgavefordeler(){
     "${VENV}/bin/python3" integrations/kle/kle_import_export.py
 }
 
+imports_aak_los(){
+    echo "Running aak_los"
+    "${VENV}/bin/python3" integrations/aarhus/los_import.py
+}
+
 imports_dummy(){
     echo "Running imports_dummy"
 }
@@ -498,6 +503,10 @@ imports(){
 
     if [ "${RUN_OPGAVEFORDELER}" == "true" ]; then
         run-job imports_opgavefordeler || return 2
+    fi
+
+    if [ "${RUN_IMPORTS_AAK_LOS}" == "true" ]; then
+        run-job imports_aak_los || return 2
     fi
 
     if [ "${RUN_IMPORTS_DUMMY}" == "true" ]; then

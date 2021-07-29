@@ -134,10 +134,9 @@ class MoxHelper:
         self, session: aiosession, service: str, obj: str, payload: Any, uuid: UUIDstr
     ) -> UUIDstr:
         self._validate_payload(service, obj, payload)
+        url = f"{self.hostname}/{service}/{obj}"
         if uuid:
-            url = f"{self.hostname}/{service}/{obj}/{uuid}"
-        else:
-            url = self.hostname + "/" + service + "/" + obj
+            url = url + f"/{uuid}"
         async with session.put(url, json=payload) as response:
             return (await response.json())["uuid"]
 

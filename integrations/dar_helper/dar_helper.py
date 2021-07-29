@@ -142,11 +142,6 @@ async def dar_datavask(address: str, client: ClientSession) -> Tuple[str, Option
 @ensure_session
 async def dar_datavask_multiple(addresses: List[str], client: ClientSession) -> List[Tuple[str, Optional[dict]]]:
     """Perform search in DAR on multiple address strings"""
-    def create_task(address):
-        return asyncio.ensure_future(
-            dar_datavask(address, client=client)
-        )
-
-    tasks = list(map(create_task, addresses))
+    tasks = map(partial(dar_datavask, client=client), addresses)
     results = await asyncio.gather(*tasks)
     return results
