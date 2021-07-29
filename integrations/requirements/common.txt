@@ -15,3 +15,4 @@ google-cloud-storage
 fs.smbfs
 retrying
 ra-utils
+pydantic

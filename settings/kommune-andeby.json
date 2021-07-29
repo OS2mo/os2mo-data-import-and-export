@@ -15,6 +15,7 @@
     "crontab.RUN_SD_UPDATE_PRIMARY": false,
     "crontab.RUN_KLE_ONLINE": false,
     "crontab.RUN_OPGAVEFORDELER": false,
+    "crontab.RUN_AAK_LOS": false,
     "crontab.RUN_ACTUAL_STATE_EXPORT": false,
     "crontab.RUN_HISTORIC_SQL_EXPORT": false,
     "crontab.RUN_EXPORTS_AD_LIFE_CYCLE": false,
