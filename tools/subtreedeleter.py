@@ -92,12 +92,14 @@ class SubtreeDeleter:
     ):
         if funktionsnavne == []:
             return await tqdm.gather(
-                self.get_associated_org_func(uuid) for uuid in unit_uuids
+                *(self.get_associated_org_func(uuid) for uuid in unit_uuids)
             )
         return await tqdm.gather(
-            self.get_associated_org_func(uuid, f)
-            for uuid in unit_uuids
-            for f in funktionsnavne
+            *(
+                  self.get_associated_org_func(uuid, f)
+                  for uuid in unit_uuids
+                  for f in funktionsnavne
+            )
         )
 
     async def deleter(self, path, uuid):
@@ -108,7 +110,7 @@ class SubtreeDeleter:
                 return await r.json()
 
     async def delete_from_lora(self, uuids, path):
-        return await tqdm.gather(self.deleter(path, uuid) for uuid in uuids)
+        return await tqdm.gather(*(self.deleter(path, uuid) for uuid in uuids))
 
     async def run(
         self, subtree_uuid: str, delete_functions: bool, keep_functions: List[str] = []
