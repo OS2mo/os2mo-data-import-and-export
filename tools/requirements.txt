@@ -1,5 +1,5 @@
 psycopg2-binary
 pyyaml
 wheel
-tqdm
+tqdm>=4.62.0
 jmespath
