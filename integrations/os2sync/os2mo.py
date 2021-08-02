@@ -82,7 +82,10 @@ class IT:
 # truncate and warn all strings in dictionary,
 # ensure not shortening uuids
 def strip_truncate_and_warn(d, root):
-    length = max(36, int(settings.get("OS2SYNC_TRUNCATE", 200)))
+    length = 200
+    set_length = settings.get("OS2SYNC_TRUNCATE", length)
+    if isinstance(set_length, (int, str)):
+        length = max(36, int(set_length))
     for k, v in list(d.items()):
         if isinstance(v, dict):
             strip_truncate_and_warn(v, root)

@@ -7,7 +7,7 @@ from constants import AD_it_system
 from exporters.sql_export.lc_for_jobs_db import get_engine
 from exporters.sql_export.sql_table_defs import Adresse, Base, Bruger, Engagement, \
     ItForbindelse, ItSystem, Tilknytning
-from integrations.os2sync.lcdb_os2mo import get_sts_user, try_get_ad_user_key
+
 
 
 class Tests_lc_db(unittest.TestCase):
@@ -15,6 +15,7 @@ class Tests_lc_db(unittest.TestCase):
         """
         setup db and populate with quite minimal data
         """
+
         self.engine = get_engine(dbpath=":memory:")
         self.session = sessionmaker(bind=self.engine, autoflush=False)()
         # Lav tables via tabledefs fra LoraCache og fyld dataen ind
@@ -139,13 +140,16 @@ class Tests_lc_db(unittest.TestCase):
     def tearDown(self):
         Base.metadata.drop_all(self.engine)
 
+    @patch("ra_utils.load_settings.load_settings")
     def test_lcdb_get_ad(self):
         expected = 'AD-logon'
+        from integrations.os2sync.lcdb_os2mo import get_sts_user, try_get_ad_user_key
         self.assertEqual(expected, try_get_ad_user_key(session=self.session, uuid='b1'))
 
     @patch("ra_utils.load_settings.load_settings", return_value={'OS2SYNC_XFER_CPR': True})
     def test_lcdb_get_sts_user_default(self):
         self.setup_wide()
+        from integrations.os2sync.lcdb_os2mo import get_sts_user, try_get_ad_user_key
         settings =  {'OS2SYNC_XFER_CPR': True}
         expected = {'Email': 'test@email.dk',
                     'Person': {'Cpr': 'cpr1',

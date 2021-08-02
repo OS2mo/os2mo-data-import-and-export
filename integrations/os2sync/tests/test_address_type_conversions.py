@@ -1,5 +1,5 @@
 import unittest
-from integrations.os2sync.os2mo import addresses_to_orgunit
+from unittest.mock import patch
 
 class _AddressMixin:
     def mock_address_list(self, scope, user_key, value):
@@ -14,17 +14,20 @@ class _AddressMixin:
             "name": value,
         }]
 
-
+@patch("ra_utils.load_settings.load_settings")
 class TestContactOpenHours(unittest.TestCase, _AddressMixin):
-    def test_contact_open_hours(self):
+    def test_contact_open_hours(self, settings):
+        from integrations.os2sync.os2mo import addresses_to_orgunit
         result = {}
         mo_data = self.mock_address_list("TEXT", "ContactOpenHours", "Man-fre: 11-13.30")
         addresses_to_orgunit(result, mo_data)  # Mutates `result`
         self.assertDictEqual(result, {"ContactOpenHours": "Man-fre: 11-13.30"})
 
 
+@patch("ra_utils.load_settings.load_settings")
 class TestDtrId(unittest.TestCase, _AddressMixin):
-    def test_dtr_id(self):
+    def test_dtr_id(self, settings):
+        from integrations.os2sync.os2mo import addresses_to_orgunit
         result = {}
         mo_data = self.mock_address_list("TEXT", "DtrId", "G123456")
         addresses_to_orgunit(result, mo_data)  # Mutates `result`

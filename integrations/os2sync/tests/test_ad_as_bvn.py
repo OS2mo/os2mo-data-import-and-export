@@ -3,8 +3,7 @@ from copy import deepcopy
 from typing import Any, Dict
 from unittest.mock import patch
 
-from integrations.os2sync.os2mo import  get_sts_user, try_get_ad_user_key
-settings = {}
+
 uuid = '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'
 mo_employee_url_end = 'e/{}/'.format(uuid)
 mo_employee_address_url_end = mo_employee_url_end + 'details/address'
@@ -247,8 +246,9 @@ mo_employee_it = [{'itsystem': {'name': 'OpenDesk',
                    'uuid': 'a2fb2581-c57a-46ad-8a21-30118a3859b7',
                    'validity': {'from': '2003-08-13', 'to': None}}]
 
-@patch("ra_utils.load_settings")
+@patch("ra_utils.load_settings.load_settings")
 class MockResponse:
+
     def __init__(self, value):
         self.value = value
 
@@ -274,25 +274,31 @@ def patched_session_get(url: str, params: Dict[Any, Any], **kwargs):
 
     raise ValueError('unexpected url: {}'.format(url))
 
-@patch("ra_utils.load_settings")
 class TestsMOAd(unittest.TestCase):
 
     @patch('integrations.os2sync.os2mo.session.get', patched_session_get)
-    def test_get_ad_user_key(self):
+    @patch("ra_utils.load_settings.load_settings")
+    def test_get_ad_user_key(self, settings):
+        from integrations.os2sync.os2mo import  try_get_ad_user_key
         expected = 'SolveigK_AD_logon'
         self.assertEqual(expected, try_get_ad_user_key(uuid))
 
 
-    settings = {'OS2MO_SERVICE_URL': '',
-            'OS2MO_ORG_UUID': '',
-            'OS2SYNC_XFER_CPR': True,
-            }
     @patch('integrations.os2sync.os2mo.session.get', patched_session_get)
     def test_mo_client_default(self):
-        expected = {'Email': 'solveigk@kolding.dk',
-                    'Location': 'Bakkedraget 28, Vester Nebel, 6040 Egtved',
-                    'Person': {'Cpr': '0602602389', 'Name': 'Solveig Kuhlenhenke'},
-                    'Positions': [],
-                    'UserId': 'SolveigK_AD_logon',
-                    'Uuid': '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'}
-        self.assertEqual(expected, get_sts_user(uuid, []))
+
+        settings = {'OS2MO_SERVICE_URL': '',
+            'OS2MO_ORG_UUID': '',
+            'OS2SYNC_XFER_CPR': True,
+            'OS2SYNC_TRUNCATE': 200
+            }
+        with patch("ra_utils.load_settings.load_settings", return_value=settings):
+            from integrations.os2sync.os2mo import  get_sts_user
+            expected = {'Email': 'solveigk@kolding.dk',
+                        'Location': 'Bakkedraget 28, Vester Nebel, 6040 Egtved',
+                        'Person': {'Cpr': '0602602389', 'Name': 'Solveig Kuhlenhenke'},
+                        'Positions': [],
+                        'UserId': 'SolveigK_AD_logon',
+                        'Uuid': '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'}
+            result = get_sts_user(uuid, [])
+            self.assertEqual(expected, result)

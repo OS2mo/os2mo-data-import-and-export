@@ -5,9 +5,7 @@ from alchemy_mock.mocking import UnifiedAlchemyMagicMock
 from parameterized import parameterized
 
 from exporters.sql_export.sql_table_defs import Bruger
-from integrations.os2sync import lcdb_os2mo
 from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
-settings ={}
 
 
 # Mock contents of `Bruger` model
@@ -42,8 +40,9 @@ _lcdb_mock_users = [
     ),
 ]
 
-@patch("ra_utils.load_settings")
+
 class TestGetStsUser(unittest.TestCase):
+
     def setUp(self):
         super().setUp()
         self._session = UnifiedAlchemyMagicMock(data=_lcdb_mock_users)
@@ -70,7 +69,10 @@ class TestGetStsUser(unittest.TestCase):
             ),
         ]
     )
-    def test_person_template_nickname(self, template, uuid, expected_name):
+    @patch("ra_utils.load_settings.load_settings")
+    def test_person_template_nickname(self, template, uuid, expected_name, settings):
+        from integrations.os2sync import lcdb_os2mo
+
         if template:
             # Run with template
                 settings["os2sync.templates"] = {}
@@ -134,12 +136,17 @@ class TestGetStsUser(unittest.TestCase):
 
         ]
     )
+    
+    @patch("ra_utils.load_settings.load_settings")
     def test_user_template_user_id(
         self,
         os2sync_templates,
         given_ad_user_key,
         expected_user_id,
+        settings
     ):
+        from integrations.os2sync import lcdb_os2mo
+
         mo_user_uuid = "name only"
         settings["os2sync.templates"] = os2sync_templates or {}
         with self._patch("try_get_ad_user_key", given_ad_user_key):
@@ -158,5 +165,8 @@ class TestGetStsUser(unittest.TestCase):
             },
         )
 
-    def _patch(self, name, return_value):
+    @patch("ra_utils.load_settings.load_settings")
+    def _patch(self, name, return_value, settings):
+        from integrations.os2sync import lcdb_os2mo
+
         return patch.object(lcdb_os2mo, name, return_value=return_value)

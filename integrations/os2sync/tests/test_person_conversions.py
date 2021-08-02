@@ -10,7 +10,6 @@ from integrations.os2sync.templates import Person
 from integrations.os2sync.tests.helpers import MoEmployeeMixin
 from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
 
-
 class TestPerson(unittest.TestCase, MoEmployeeMixin):
     @parameterized.expand(
         [
