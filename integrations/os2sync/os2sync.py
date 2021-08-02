@@ -21,9 +21,9 @@ hash_cache = {}
 session = requests.Session()
 
 
-# if settings["OS2SYNC_API_URL"] == "stub":
-#     from integrations.os2sync import stub
-#     session = stub.Session()
+if settings["OS2SYNC_API_URL"] == "stub":
+    from integrations.os2sync import stub
+    session = stub.Session()
 
 
 session.verify = settings["os2sync.ca_verify_os2mo"]
