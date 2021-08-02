@@ -42,7 +42,6 @@ _lcdb_mock_users = [
 
 
 class TestGetStsUser(unittest.TestCase):
-
     def setUp(self):
         super().setUp()
         self._session = UnifiedAlchemyMagicMock(data=_lcdb_mock_users)
@@ -75,9 +74,9 @@ class TestGetStsUser(unittest.TestCase):
 
         if template:
             # Run with template
-                settings["os2sync.templates"] = {}
-                settings["os2sync.templates"]["person.name"] = template
-                sts_user = lcdb_os2mo.get_sts_user(self._session, uuid, [])
+            settings["os2sync.templates"] = {}
+            settings["os2sync.templates"]["person.name"] = template
+            sts_user = lcdb_os2mo.get_sts_user(self._session, uuid, [])
         else:
             # Run without template
             sts_user = lcdb_os2mo.get_sts_user(self._session, uuid, [])
@@ -133,17 +132,11 @@ class TestGetStsUser(unittest.TestCase):
                 "mock-ad-bvn",  # return value of `try_get_ad_user_key`
                 "mock-ad-bvn",  # expected value of `UserId` (AD BVN)
             ),
-
         ]
     )
-    
     @patch("ra_utils.load_settings.load_settings")
     def test_user_template_user_id(
-        self,
-        os2sync_templates,
-        given_ad_user_key,
-        expected_user_id,
-        settings
+        self, os2sync_templates, given_ad_user_key, expected_user_id, settings
     ):
         from integrations.os2sync import lcdb_os2mo
 

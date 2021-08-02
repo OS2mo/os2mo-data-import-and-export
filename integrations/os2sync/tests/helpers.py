@@ -17,7 +17,7 @@ class MoEmployeeMixin:
             # Other fields
             "cpr_no": cpr,
             "user_key": "testtestesen",
-            "uuid": "mock-uuid"
+            "uuid": "mock-uuid",
         }
 
     def mock_employee_response(self, **kwargs):
