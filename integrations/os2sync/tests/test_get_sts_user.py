@@ -8,7 +8,7 @@ from integrations.os2sync.os2mo import get_sts_user as os2mo_get_sts_user
 from integrations.os2sync.tests.helpers import MoEmployeeMixin
 from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
 
-
+@patch("ra_utils.load_settings")
 class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
     maxDiff = None
 
@@ -131,9 +131,11 @@ class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):
         )
 
     def _run(self, response, ad_user_key=None, os2sync_templates=None):
-        with patch.dict("integrations.os2sync.config.settings") as settings:
-            settings["OS2SYNC_XFER_CPR"] = True
-            settings["OS2SYNC_TEMPLATES"] = os2sync_templates or {}
+        with patch("ra_utils.load_settings.load_settings") as load_settings:
+            load_settings.return_value = {}
+            settings = {}
+            settings["os2sync.xfer_cpr"] = True
+            settings["os2sync.templates"] = os2sync_templates or {}
             with self._patch("os2mo_get", response):
                 with self._patch("try_get_ad_user_key", ad_user_key):
                     with self._patch("addresses_to_user", []):

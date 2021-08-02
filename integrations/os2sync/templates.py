@@ -14,11 +14,8 @@ from jinja2 import StrictUndefined
 from jinja2 import Template
 from jinja2.exceptions import TemplateSyntaxError
 
-from integrations.os2sync.config import loggername as _loggername
-from integrations.os2sync.config import settings as _settings
 
-
-logger = logging.getLogger(_loggername)
+logger = logging.getLogger()
 
 
 class FieldTemplateSyntaxError(Exception):
@@ -95,9 +92,9 @@ class Entity:
         """
 
         self.context = context
-        self.settings = settings or _settings
+        self.settings = settings or {}
         self.field_renderer = FieldRenderer(
-            self.settings.get("OS2SYNC_TEMPLATES", {})
+            self.settings.get("os2sync.templates", {})
         )
 
     def to_json(self) -> Dict[str, Any]:

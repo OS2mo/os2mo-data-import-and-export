@@ -12,9 +12,13 @@ import logging
 import pathlib
 from functools import partial
 
-from integrations.os2sync import config, lcdb_os2mo, os2mo, os2sync
+from integrations.os2sync import  lcdb_os2mo, os2mo, os2sync
+from ra_utils.load_settings import load_settings
 
 logger = None  # set in main()
+loggername = "os2sync"
+logformat = '%(levelname)s %(asctime)s %(name)s %(message)s'
+settings = load_settings()
 
 
 def log_mox_config(settings):
@@ -22,7 +26,7 @@ def log_mox_config(settings):
     much configuration as possible logged at program start
     and end.
     """
-    secrets = ["OS2MO_SAML_TOKEN"]
+    secrets = ["crontab.SAML_TOKEN"]
     logger.warning("-----------------------------------------")
     logger.warning("program configuration:")
     for k, v in sorted(settings.items()):
@@ -70,7 +74,7 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
             allowed_unitids.append(i)
             counter["Orgenheder som opdateres i OS2Sync"] += 1
             os2sync.upsert_orgunit(sts_orgunit)
-        elif settings["OS2SYNC_AUTOWASH"]:
+        elif settings.get("os2sync.autowash"):
             counter["Orgenheder som slettes i OS2Sync"] += 1
             os2sync.delete_orgunit(i)
 
@@ -128,25 +132,27 @@ def main(settings):
     [
         logging.getLogger(name).setLevel(logging.WARNING)
         for name in logging.root.manager.loggerDict
-        if name != config.loggername
+        if name != loggername
     ]
 
     logging.basicConfig(
-        format=config.logformat,
-        level=int(settings["MOX_LOG_LEVEL"]),
-        filename=settings["MOX_LOG_FILE"]
+        format=logformat,
+        level=settings.get("os2sync.log_level", logging.INFO),
+        filename=settings.get("os2sync.log_file", logging.INFO)
     )
-    logger = logging.getLogger(config.loggername)
-    logger.setLevel(int(settings["MOX_LOG_LEVEL"]))
+    logger = logging.getLogger(loggername)
+    logger.setLevel(settings.get("os2sync.log_level", logging.INFO))
 
-    if settings["OS2SYNC_USE_LC_DB"]:
+    if settings.get("os2sync.use_lc_db"):
         engine = lcdb_os2mo.get_engine()
         session = lcdb_os2mo.get_session(engine)
         os2mo.get_sts_user = partial(lcdb_os2mo.get_sts_user, session)
         os2mo.get_sts_orgunit = partial(lcdb_os2mo.get_sts_orgunit, session)
 
     prev_date = datetime.datetime.now() - datetime.timedelta(days=1)
-    hash_cache_file = pathlib.Path(settings["OS2SYNC_HASH_CACHE"])
+    hash_cache_file = pathlib.Path(
+        settings.get("os2sync.hash_cache", "../os2sync_hash_cache")
+        )
 
     if hash_cache_file.exists():
         prev_date = datetime.datetime.fromtimestamp(hash_cache_file.stat().st_mtime)
@@ -159,7 +165,7 @@ def main(settings):
     if hash_cache_file and hash_cache_file.exists():
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
 
-    if not settings["OS2MO_ORG_UUID"]:
+    if not settings.get("OS2MO_ORG_UUID"):
         settings["OS2MO_ORG_UUID"] = os2mo.os2mo_get("{BASE}/o/").json()[0][
             "uuid"
         ]
@@ -177,5 +183,5 @@ def main(settings):
 
 
 if __name__ == "__main__":
-    settings = config.settings
+    settings = load_settings()
     main(settings)

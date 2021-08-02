@@ -7,6 +7,7 @@ from parameterized import parameterized
 from exporters.sql_export.sql_table_defs import Bruger
 from integrations.os2sync import lcdb_os2mo
 from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
+settings ={}
 
 
 # Mock contents of `Bruger` model
@@ -41,7 +42,7 @@ _lcdb_mock_users = [
     ),
 ]
 
-
+@patch("ra_utils.load_settings")
 class TestGetStsUser(unittest.TestCase):
     def setUp(self):
         super().setUp()
@@ -72,8 +73,8 @@ class TestGetStsUser(unittest.TestCase):
     def test_person_template_nickname(self, template, uuid, expected_name):
         if template:
             # Run with template
-            with patch.dict("integrations.os2sync.config.settings") as settings:
-                settings["OS2SYNC_TEMPLATES"]["person.name"] = template
+                settings["os2sync.templates"] = {}
+                settings["os2sync.templates"]["person.name"] = template
                 sts_user = lcdb_os2mo.get_sts_user(self._session, uuid, [])
         else:
             # Run without template
@@ -140,10 +141,9 @@ class TestGetStsUser(unittest.TestCase):
         expected_user_id,
     ):
         mo_user_uuid = "name only"
-        with patch.dict("integrations.os2sync.config.settings") as settings:
-            settings["OS2SYNC_TEMPLATES"] = os2sync_templates or {}
-            with self._patch("try_get_ad_user_key", given_ad_user_key):
-                sts_user = lcdb_os2mo.get_sts_user(self._session, mo_user_uuid, [])
+        settings["os2sync.templates"] = os2sync_templates or {}
+        with self._patch("try_get_ad_user_key", given_ad_user_key):
+            sts_user = lcdb_os2mo.get_sts_user(self._session, mo_user_uuid, [])
 
         self.assertDictEqual(
             sts_user,

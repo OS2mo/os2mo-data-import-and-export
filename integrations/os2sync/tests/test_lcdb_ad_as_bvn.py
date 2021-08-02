@@ -7,7 +7,6 @@ from constants import AD_it_system
 from exporters.sql_export.lc_for_jobs_db import get_engine
 from exporters.sql_export.sql_table_defs import Adresse, Base, Bruger, Engagement, \
     ItForbindelse, ItSystem, Tilknytning
-from integrations.os2sync import config
 from integrations.os2sync.lcdb_os2mo import get_sts_user, try_get_ad_user_key
 
 
@@ -144,9 +143,10 @@ class Tests_lc_db(unittest.TestCase):
         expected = 'AD-logon'
         self.assertEqual(expected, try_get_ad_user_key(session=self.session, uuid='b1'))
 
-    @patch.dict(config.settings, {'OS2SYNC_XFER_CPR': True})
+    @patch("ra_utils.load_settings.load_settings", return_value={'OS2SYNC_XFER_CPR': True})
     def test_lcdb_get_sts_user_default(self):
         self.setup_wide()
+        settings =  {'OS2SYNC_XFER_CPR': True}
         expected = {'Email': 'test@email.dk',
                     'Person': {'Cpr': 'cpr1',
                                'Name': 'fornavn efternavn'},

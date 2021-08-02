@@ -3,8 +3,8 @@ from copy import deepcopy
 from typing import Any, Dict
 from unittest.mock import patch
 
-from integrations.os2sync.os2mo import config, get_sts_user, try_get_ad_user_key
-
+from integrations.os2sync.os2mo import  get_sts_user, try_get_ad_user_key
+settings = {}
 uuid = '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'
 mo_employee_url_end = 'e/{}/'.format(uuid)
 mo_employee_address_url_end = mo_employee_url_end + 'details/address'
@@ -247,7 +247,7 @@ mo_employee_it = [{'itsystem': {'name': 'OpenDesk',
                    'uuid': 'a2fb2581-c57a-46ad-8a21-30118a3859b7',
                    'validity': {'from': '2003-08-13', 'to': None}}]
 
-
+@patch("ra_utils.load_settings")
 class MockResponse:
     def __init__(self, value):
         self.value = value
@@ -274,7 +274,7 @@ def patched_session_get(url: str, params: Dict[Any, Any], **kwargs):
 
     raise ValueError('unexpected url: {}'.format(url))
 
-
+@patch("ra_utils.load_settings")
 class TestsMOAd(unittest.TestCase):
 
     @patch('integrations.os2sync.os2mo.session.get', patched_session_get)
@@ -282,14 +282,11 @@ class TestsMOAd(unittest.TestCase):
         expected = 'SolveigK_AD_logon'
         self.assertEqual(expected, try_get_ad_user_key(uuid))
 
-    @patch.dict(
-        config.settings,
-        {
-            'OS2MO_SERVICE_URL': '',
+
+    settings = {'OS2MO_SERVICE_URL': '',
             'OS2MO_ORG_UUID': '',
             'OS2SYNC_XFER_CPR': True,
-        },
-    )
+            }
     @patch('integrations.os2sync.os2mo.session.get', patched_session_get)
     def test_mo_client_default(self):
         expected = {'Email': 'solveigk@kolding.dk',

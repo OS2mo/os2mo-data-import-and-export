@@ -23,7 +23,7 @@ class TestPerson(unittest.TestCase, MoEmployeeMixin):
     )
     def test_transfer_cpr(self, cpr, flag, expected_key, expected_log_level):
         mo_employee = self.mock_employee(cpr=cpr)
-        person = Person(mo_employee, settings={"OS2SYNC_XFER_CPR": flag})
+        person = Person(mo_employee, settings={"os2sync.xfer_cpr": flag})
         expected_cpr = mo_employee.get(expected_key)
         with self.assertLogs(_loggername, expected_log_level):
             self.assertDictEqual(
@@ -69,6 +69,6 @@ class TestPersonNameTemplate(unittest.TestCase, MoEmployeeMixin):
 
     def _gen_settings(self, template):
         return {
-            "OS2SYNC_TEMPLATES": {"person.name": template},
-            "OS2SYNC_XFER_CPR": True,  # required by `Person.to_json`
+            "os2sync.templates": {"person.name": template},
+            "os2sync.xfer_cpr": True,  # required by `Person.to_json`
         }

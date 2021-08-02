@@ -15,12 +15,12 @@ from constants import AD_it_system
 from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
 from exporters.sql_export.sql_table_defs import (Adresse, Bruger, Engagement, Enhed,
                                                  ItForbindelse, ItSystem, KLE)
-from integrations.os2sync import config, os2mo
+from integrations.os2sync import os2mo
 from integrations.os2sync.templates import Person, User
+from ra_utils.load_settings import load_settings
 
-settings = config.settings
-logger = logging.getLogger(config.loggername)
-
+logger = logging.getLogger()
+settings = load_settings()
 
 def get_session(engine):
     return sessionmaker(bind=engine, autoflush=False)()
@@ -165,8 +165,8 @@ def is_ignored(unit, settings):
         >>> from unittest.mock import Mock
         >>> unit=Mock(enhedsniveau_uuid="1", enhedstype_uuid="2")
         >>> settings={
-        ... "OS2SYNC_IGNORED_UNIT_LEVELS": ["10","2"],
-        ... "OS2SYNC_IGNORED_UNIT_TYPES":['6','7']}
+        ... "os2sync.ignored.unit_levels": ["10","2"],
+        ... "os2sync.ignored.unit_types":['6','7']}
         >>> is_ignored(unit, settings)
         False
         >>> unit.enhedstype_uuid="6"
@@ -188,8 +188,8 @@ def is_ignored(unit, settings):
     """
 
     return (
-        unit.enhedstype_uuid in settings["OS2SYNC_IGNORED_UNIT_TYPES"] or
-        unit.enhedsniveau_uuid in settings["OS2SYNC_IGNORED_UNIT_LEVELS"])
+        unit.enhedstype_uuid in settings["os2sync.ignored.unit_types"] or
+        unit.enhedsniveau_uuid in settings["os2sync.ignored.unit_levels"])
 
 
 def get_sts_orgunit(session, uuid):
@@ -201,7 +201,7 @@ def get_sts_orgunit(session, uuid):
         return None
 
     top_unit = get_top_unit(session, base)
-    if top_unit != settings["OS2MO_TOP_UNIT_UUID"]:
+    if top_unit != settings["os2sync.top_unit_uuid"]:
         # not part of right tree
         return None
 

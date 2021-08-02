@@ -12,22 +12,22 @@ import requests
 
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
-from integrations.os2sync import config
 from integrations.os2sync.templates import Person, User
+from ra_utils.load_settings import load_settings
 
-settings = config.settings
-logger = logging.getLogger(config.loggername)
+logger = logging.getLogger()
+settings = load_settings()
 
 session = requests.Session()
-session.verify = settings["OS2MO_CA_BUNDLE"]
+session.verify = settings.get("os2sync.ca_verify_os2mo")
 session.headers = {
     "User-Agent": "os2mo-data-import-and-export",
 }
 
-if settings["OS2MO_SAML_TOKEN"] is not None:
-    session.headers["SESSION"] = settings["OS2MO_SAML_TOKEN"]
+SAML_TOKEN = settings.get("crontab.SAML_TOKEN")
+if SAML_TOKEN:
+    session.headers["SESSION"] = SAML_TOKEN
 
-TRUNCATE_LENGTH = max(36, int(settings.get("OS2SYNC_TRUNCATE", 200)))
 
 # Actually recursive, but couple of levels here
 JSON_TYPE = Dict[str, Union[None, str,
@@ -81,7 +81,8 @@ class IT:
 
 # truncate and warn all strings in dictionary,
 # ensure not shortening uuids
-def strip_truncate_and_warn(d, root, length=TRUNCATE_LENGTH):
+def strip_truncate_and_warn(d, root):
+    length = max(36, int(settings.get("OS2SYNC_TRUNCATE", 200)))
     for k, v in list(d.items()):
         if isinstance(v, dict):
             strip_truncate_and_warn(v, root)
@@ -102,8 +103,12 @@ def strip_truncate_and_warn(d, root, length=TRUNCATE_LENGTH):
 def os2mo_url(url):
     """format url like {BASE}/o/{ORG}/e
     """
+    settings = load_settings()
+
+    sevice_url = settings.get("mora.base", "http://localhost:5000") + "/service"
+    #TODO: find organisation med morahelpers
     url = url.format(
-        BASE=settings["OS2MO_SERVICE_URL"], ORG=settings["OS2MO_ORG_UUID"]
+        BASE=sevice_url, ORG=settings["os2sync.top_unit_uuid"]
     )
     return url
 
@@ -120,12 +125,13 @@ def os2mo_get(url, **params):
 
 
 def has_kle():
+    top_unit_uuid = settings["os2sync.top_unit_uuid"]
     try:
         os2mo_get("{BASE}/o/{ORG}/f/kle_aspect")
         os2mo_get("{BASE}/o/{ORG}/f/kle_number")
         os2mo_get(
             "{BASE}/ou/" +
-            settings["OS2MO_TOP_UNIT_UUID"] +
+            top_unit_uuid +
             "/details/kle"
         )
         return True
@@ -153,12 +159,12 @@ def addresses_to_user(user, addresses):
             user["Location"] = address["name"]
 
     # find phone using prioritized/empty list of address_type uuids
-    phone = choose_public_address(phones, settings["OS2SYNC_PHONE_SCOPE_CLASSES"])
+    phone = choose_public_address(phones, settings.get("os2sync.phone_scope_classes", []))
     if phone:
         user["PhoneNumber"] = phone["name"]
 
     # find email using prioritized/empty list of address_type uuids
-    email = choose_public_address(emails, settings["OS2SYNC_EMAIL_SCOPE_CLASSES"])
+    email = choose_public_address(emails, settings.get("os2sync.email_scope_classes", []))
     if email:
         user["Email"] = email["name"]
 
@@ -289,15 +295,13 @@ def is_ignored(unit, settings):
     Returns:
         Boolean
     """
-
+    ignored_unit_levels = settings.get("os2sync.ignored.unit_levels", [])
+    ignored_unit_types = settings.get("os2sync.ignored.unit_types", [])
+    
     return (
-        unit.get("org_unit_level") and unit["org_unit_level"]["uuid"] in settings[
-            "OS2SYNC_IGNORED_UNIT_LEVELS"
-        ]
+        unit.get("org_unit_level") and unit["org_unit_level"]["uuid"] in ignored_unit_levels
     ) or (
-        unit.get("org_unit_type") and unit["org_unit_type"]["uuid"] in settings[
-            "OS2SYNC_IGNORED_UNIT_TYPES"
-        ]
+        unit.get("org_unit_type") and unit["org_unit_type"]["uuid"] in ignored_unit_types
     )
 
 
@@ -307,14 +311,15 @@ def get_sts_orgunit(uuid):
     if is_ignored(base, settings):
         logger.info("Ignoring %r", base)
         return None
+    top_unit_uuid = settings["os2sync.top_unit_uuid"]
 
-    if not parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
+    if parent["uuid"] != top_unit_uuid:
         while parent.get("parent"):
-            if parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
+            if parent["uuid"] == top_unit_uuid:
                 break
             parent = parent["parent"]
 
-    if not parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
+    if parent["uuid"] != top_unit_uuid:
         # not part of right tree
         return None
 
