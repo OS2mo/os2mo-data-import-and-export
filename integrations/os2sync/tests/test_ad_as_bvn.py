@@ -289,7 +289,7 @@ class TestsMOAd(unittest.TestCase):
 
         settings = {'OS2MO_SERVICE_URL': '',
             'OS2MO_ORG_UUID': '',
-            'OS2SYNC_XFER_CPR': True,
+            'os2sync.xfer_cpr': True,
             'OS2SYNC_TRUNCATE': 200
             }
         with patch("ra_utils.load_settings.load_settings", return_value=settings):

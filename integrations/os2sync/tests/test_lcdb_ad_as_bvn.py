@@ -146,11 +146,10 @@ class Tests_lc_db(unittest.TestCase):
         from integrations.os2sync.lcdb_os2mo import get_sts_user, try_get_ad_user_key
         self.assertEqual(expected, try_get_ad_user_key(session=self.session, uuid='b1'))
 
-    @patch("ra_utils.load_settings.load_settings", return_value={'OS2SYNC_XFER_CPR': True})
+    @patch("ra_utils.load_settings.load_settings", return_value={'os2sync.xfer_cpr': True})
     def test_lcdb_get_sts_user_default(self):
         self.setup_wide()
         from integrations.os2sync.lcdb_os2mo import get_sts_user, try_get_ad_user_key
-        settings =  {'OS2SYNC_XFER_CPR': True}
         expected = {'Email': 'test@email.dk',
                     'Person': {'Cpr': 'cpr1',
                                'Name': 'fornavn efternavn'},
