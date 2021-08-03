@@ -7,6 +7,7 @@ from typing import Optional
 
 import click
 import requests
+from click_option_group import MutuallyExclusiveOptionGroup, optgroup
 from more_itertools import first, flatten, pairwise, partition, prepend
 from ra_utils.load_settings import load_settings
 from tqdm import tqdm
@@ -73,41 +74,64 @@ def prepare_re_import(
     ensure_default_classes()
 
 
-def import_opus(ad_reader=None, import_all: bool = False) -> None:
+def import_opus(ad_reader=None, import_all: bool = False, import_last=False) -> None:
     """Import one or all files from opus even if no previous files have been imported"""
     settings = load_settings()
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
     dumps = opus_helpers.read_available_dumps()
 
-    export_dates = prepend(None, sorted(dumps.keys()))
+    all_dates = dumps.keys()
+    #Default is read first file only
+    export_dates = [min(all_dates)]
+    if import_last:
+        export_dates = [max(all_dates)]
+    elif import_all:
+        export_dates = sorted(all_dates)
+
+    export_dates = prepend(None, export_dates)
     date_pairs = pairwise(export_dates)
     for date1, date2 in date_pairs:
-
         import_one(ad_reader, date2, date1, dumps, filter_ids)
-        if not import_all:
-            break
 
 
 @click.command()
-@click.option(
+@optgroup.group(
+    "Import Amount",
+    cls=MutuallyExclusiveOptionGroup,
+    help="Default: Imports first file",
+)
+@optgroup.option(
     "--import-all",
     is_flag=True,
-    help="Import all opus files. Default is only the first file.",
+    help="Import all opus files.",
 )
-@click.option(
+@optgroup.option(
+    "--import-last",
+    is_flag=True,
+    help="Import only latest file.",
+)
+@optgroup.group(
+    "Clear data", cls=MutuallyExclusiveOptionGroup, help="Default: No data deleted"
+)
+@optgroup.option("--truncate", is_flag=True, help="Truncate all MO tables")
+@optgroup.option(
     "--delete-opus",
     is_flag=True,
     help="Delete Opus subtree. Deletes all units, engagements etc, but not KLE and related units",
 )
-@click.option("--truncate", is_flag=True, help="Truncate all MO tables")
-@click.option("--use-ad", is_flag=True, help="Read from AD")
 @click.option(
     "--connections",
     default=4,
-    help="The amount of concurrent requests made to OS2mo",
+    help="The amount of concurrent requests made to OS2mo. Only applies to '--delete-opus'",
 )
+@click.option("--use-ad", is_flag=True, help="Read from AD")
 def clear_and_reload(
-    import_all: bool, delete_opus: bool, truncate: bool, use_ad: bool, connections: int
+    import_all: bool,
+    import_last: bool,
+    delete_opus: bool,
+    truncate: bool,
+    use_ad: bool,
+    connections: int,
 ) -> None:
     """Tool for reimporting opus files.
 
@@ -133,7 +157,7 @@ def clear_and_reload(
     if use_ad:
         AD = ad_reader.ADParameterReader()
         AD.cache_all(print_progress=True)
-    import_opus(ad_reader=AD, import_all=import_all)
+    import_opus(ad_reader=AD, import_all=import_all, import_last=import_last)
 
 
 if __name__ == "__main__":
