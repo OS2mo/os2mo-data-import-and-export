@@ -3,7 +3,6 @@ import unittest
 
 from parameterized import parameterized
 
-from integrations.os2sync.config import loggername as _loggername
 from integrations.os2sync.templates import FieldTemplateRenderError
 from integrations.os2sync.templates import FieldTemplateSyntaxError
 from integrations.os2sync.templates import Person
@@ -14,7 +13,7 @@ from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
 class TestPerson(unittest.TestCase, MoEmployeeMixin):
     @parameterized.expand(
         [
-            # mock CPR, OS2SYNC_XFER_CPR, key of expected CPR value, expected log level
+            # mock CPR, os2sync.xfer_cpr, key of expected CPR value, expected log level
             ("0101013333", True, "cpr_no", logging.DEBUG),
             (None, True, "cpr_no", logging.WARNING),
             ("0101013333", False, None, logging.DEBUG),
@@ -25,7 +24,7 @@ class TestPerson(unittest.TestCase, MoEmployeeMixin):
         mo_employee = self.mock_employee(cpr=cpr)
         person = Person(mo_employee, settings={"os2sync.xfer_cpr": flag})
         expected_cpr = mo_employee.get(expected_key)
-        with self.assertLogs(_loggername, expected_log_level):
+        with self.assertLogs("",expected_log_level):
             self.assertDictEqual(
                 person.to_json(),
                 {"Name": mo_employee["name"], "Cpr": expected_cpr},

@@ -14,6 +14,7 @@ from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
 from integrations.os2sync.templates import Person, User
 from ra_utils.load_settings import load_settings
+# from ra_utils.header import TokenSettings
 
 logger = logging.getLogger()
 settings = load_settings()
@@ -24,7 +25,7 @@ session.headers = {
     "User-Agent": "os2mo-data-import-and-export",
 }
 
-session.headers.update(TokenSettings().get_headers())
+# session.headers.update(TokenSettings().get_headers())
 
 
 # Actually recursive, but couple of levels here

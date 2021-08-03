@@ -142,7 +142,7 @@ class Person(Entity):
     """Models a `Person` entity in the OS2Sync REST API"""
 
     def to_json(self) -> Dict[str, Any]:
-        if self.settings["OS2SYNC_XFER_CPR"]:
+        if self.settings.get("os2sync.xfer_cpr"):
             cpr = self.context.get("cpr_no")
             if not cpr:
                 logger.warning("no 'cpr_no' for user %r", self.context["uuid"])
