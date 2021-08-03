@@ -287,11 +287,12 @@ class TestsMOAd(unittest.TestCase):
     @patch('integrations.os2sync.os2mo.session.get', patched_session_get)
     def test_mo_client_default(self):
 
-        settings = {'OS2MO_SERVICE_URL': '',
+        settings = {
+            'OS2MO_SERVICE_URL': '',
             'OS2MO_ORG_UUID': '',
             'os2sync.xfer_cpr': True,
             'OS2SYNC_TRUNCATE': 200
-            }
+        }
         with patch("ra_utils.load_settings.load_settings", return_value=settings):
             from integrations.os2sync.os2mo import  get_sts_user
             expected = {'Email': 'solveigk@kolding.dk',

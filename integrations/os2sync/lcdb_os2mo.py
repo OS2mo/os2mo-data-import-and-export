@@ -189,7 +189,8 @@ def is_ignored(unit, settings):
 
     return (
         unit.enhedstype_uuid in settings["os2sync.ignored.unit_types"] or
-        unit.enhedsniveau_uuid in settings["os2sync.ignored.unit_levels"])
+        unit.enhedsniveau_uuid in settings["os2sync.ignored.unit_levels"]
+    )
 
 
 def get_sts_orgunit(session, uuid):

@@ -92,7 +92,7 @@ class Entity:
         """
 
         self.context = context
-        self.settings = settings or {}
+        self.settings = settings or load_settings()
         self.field_renderer = FieldRenderer(
             self.settings.get("os2sync.templates", {})
         )

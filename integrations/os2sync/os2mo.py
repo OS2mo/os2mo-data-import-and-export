@@ -24,9 +24,7 @@ session.headers = {
     "User-Agent": "os2mo-data-import-and-export",
 }
 
-SAML_TOKEN = settings.get("crontab.SAML_TOKEN")
-if SAML_TOKEN:
-    session.headers["SESSION"] = SAML_TOKEN
+session.headers.update(TokenSettings().get_headers())
 
 
 # Actually recursive, but couple of levels here

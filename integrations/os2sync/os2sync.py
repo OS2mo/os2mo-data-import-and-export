@@ -60,9 +60,8 @@ def os2sync_get(url, **params):
         r = session.get(url, params=params)
         r.raise_for_status()
         return r
-    except Exception:
-        logger.error(url + " " + r.text)
-        logger.exception("")
+    except Exception as e:
+        logger.exception(e)
         raise
 
 
@@ -77,8 +76,7 @@ def os2sync_delete(url, **params):
             logger.warning("delete %r %r :404", url, params)
             return r
     except Exception as e:
-        logger.error(e)
-        logger.exception("")
+        logger.exception(e)
         raise
 
 
@@ -88,9 +86,8 @@ def os2sync_post(url, **params):
         r = session.post(url, **params)
         r.raise_for_status()
         return r
-    except Exception:
-        logger.error(url + " " + r.text)
-        logger.exception("")
+    except Exception as e:
+        logger.exception(e)
         raise
 
 
