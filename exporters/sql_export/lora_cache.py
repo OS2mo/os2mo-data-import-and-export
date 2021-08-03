@@ -916,7 +916,9 @@ class LoraCache:
             print(msg)
             return
 
-        responsibility_class, _ = ensure_class_in_lora('responsibility', 'Lederansvar')
+        responsibility_class = self.settings.get(
+            'exporters.actual_state.manager_responsibility_class', None
+        )
     
         for unit, unit_validities in self.units.items():
             assert(len(unit_validities)) == 1
