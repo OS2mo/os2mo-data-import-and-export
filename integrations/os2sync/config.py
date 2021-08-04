@@ -1,53 +1,74 @@
 import json
 import logging
 import os
-
-from customer_settings import get_settings
-from customer_settings import PathDefaultMethod
-
+from pydantic import BaseSettings
+from typing import List, Dict, Any, Optional
 # flake8: noqa
-
-settingsfile = get_settings(PathDefaultMethod.raw)
-top_settings = json.loads(settingsfile.read_text())
-
+from ra_utils.load_settings import load_settings
 
 def _relpath(filename):
     return os.path.join(os.getcwd(), filename)
 
+from pydantic import BaseSettings
 
-settings = {
-    # Fields without defaults
-    "OS2MO_CA_BUNDLE": top_settings["os2sync.ca_verify_os2mo"],
-    "OS2MO_TOP_UNIT_UUID": top_settings["os2sync.top_unit_uuid"],
-    "OS2SYNC_CA_BUNDLE": top_settings["os2sync.ca_verify_os2sync"],
-    "OS2SYNC_MUNICIPALITY": top_settings["municipality.cvr"],
-    # Fields with defaults
-    "MOX_LOG_LEVEL": top_settings.get("os2sync.log_level", logging.INFO),
-    "MOX_LOG_FILE": top_settings.get("os2sync.log_file", _relpath("os2sync.log")),
-    "OS2MO_SERVICE_URL": (
-        top_settings.get("mora.base", "http://localhost:5000") + "/service"
-    ),
-    "OS2MO_SAML_TOKEN": top_settings.get("crontab.SAML_TOKEN"),
-    "OS2MO_ORG_UUID": "",  # dont set - probed unless set
-    "OS2MO_HAS_KLE": "",  # dont set - probed only
-    "OS2SYNC_HASH_CACHE": top_settings.get(
-        "os2sync.hash_cache", _relpath("os2sync_hash_cache")
-    ),
-    "OS2SYNC_API_URL": top_settings.get("os2sync.api_url", "http://localhost:8081"),
-    "OS2SYNC_XFER_CPR": top_settings.get("os2sync.xfer_cpr", False),
-    "OS2SYNC_USE_LC_DB": top_settings.get("os2sync.use_lc_db", False),
-    "OS2SYNC_PHONE_SCOPE_CLASSES": top_settings.get("os2sync.phone_scope_classes", []),
-    "OS2SYNC_EMAIL_SCOPE_CLASSES": top_settings.get("os2sync.email_scope_classes", []),
-    "OS2SYNC_IGNORED_UNIT_LEVELS": top_settings.get("os2sync.ignored.unit_levels", []),
-    "OS2SYNC_IGNORED_UNIT_TYPES": top_settings.get("os2sync.ignored.unit_types", []),
-    "OS2SYNC_AUTOWASH": top_settings.get("os2sync.autowash", False),
-    "OS2SYNC_TEMPLATES": top_settings.get("os2sync.templates", {}),
-    "use_contact_for_tasks": top_settings.get("os2sync.use_contact_for_tasks"),
-    "sync_managers": top_settings.get("os2sync.sync_managers"),
-    "os2sync.employee_engagement_address": top_settings.get(
-        "os2sync.employee_engagement_address", []
-    ),
-}
+def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
+    """
+    A simple settings source that loads variables from a JSON file
+    at the project's root.
+
+    Here we happen to choose to use the `env_file_encoding` from Config
+    when reading `config.json`
+    """
+    all_settings = load_settings()
+    os2sync_settings = dict(filter(lambda x: x[0].startswith('os2sync'), all_settings.items()))
+    final_settings= {key[8:]:val for key, val in os2sync_settings.items()}
+    final_settings.update({"OS2MO_SAML_TOKEN":all_settings.get('crontab.SAML_TOKEN')})
+    return final_settings
+
+
+class Settings(BaseSettings):
+
+    os2sync_ca_bundle: Optional[str]
+
+    OS2MO_TOP_UNIT_UUID: Optional[str]
+    OS2SYNC_CA_BUNDLE: Optional[str]
+    OS2SYNC_MUNICIPALITY: Optional[str]
+    MOX_LOG_LEVEL: Optional[str]
+    MOX_LOG_FILE: Optional[str]
+    OS2MO_SERVICE_URL: Optional[str]
+    OS2MO_SAML_TOKEN: Optional[str]
+    OS2SYNC_HASH_CACHE: Optional[str]
+    OS2SYNC_API_URL: Optional[str]
+    OS2SYNC_XFER_CPR: Optional[str]
+    OS2SYNC_USE_LC_DB: Optional[str]
+    OS2SYNC_PHONE_SCOPE_CLASSES: Optional[List[str]]
+    OS2SYNC_EMAIL_SCOPE_CLASSES: Optional[List[str]]
+    OS2SYNC_IGNORED_UNIT_LEVELS: Optional[List[str]]
+    OS2SYNC_IGNORED_UNIT_TYPES: Optional[List[str]]
+    OS2SYNC_AUTOWASH: bool = False
+    OS2SYNC_TEMPLATES: Dict = {}
+    OS2MO_HAS_KLE: bool = True
+    OS2MO_ORG_UUID: str = ""
+
+    class Config:
+        env_file_encoding = 'utf-8'
+        extra='ignore'
+
+        @classmethod
+        def customise_sources(
+            cls,
+            init_settings,
+            env_settings,
+            file_secret_settings,
+        ):
+            return (
+                init_settings,
+                env_settings,
+                json_config_settings_source,
+                file_secret_settings,
+            )
+
+
 
 logformat = "%(levelname)s %(asctime)s %(name)s %(message)s"
 loggername = "os2sync"
