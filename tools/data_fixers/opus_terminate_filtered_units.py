@@ -9,7 +9,7 @@ def terminate_filtered_units(terminate):
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
     dumps = opus_helpers.read_available_dumps()
     latest_date = max(dumps.keys())
-    units, _ = opus_helpers.file_diff(None, dumps[latest_date], filter_ids)
+    units, _, _ = opus_helpers.file_diff(None, dumps[latest_date], filter_ids)
     filtered_units, _ = opus_helpers.filter_units(units, filter_ids)
     diff = OpusDiffImport(latest_date, ad_reader=None, employee_mapping={})
     diff.handle_filtered_units(filtered_units, terminate=terminate)

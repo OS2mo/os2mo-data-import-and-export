@@ -884,10 +884,8 @@ def import_one(
         filtered_units,
         employees,
         terminated_employees,
-    ) = opus_helpers.read_and_transform_data(
-        latest_path, xml_path, filter_ids, skip_employees=skip_employees
-    )
-
+        missing_employees,
+    ) = opus_helpers.read_and_transform_data(latest_path, xml_path, filter_ids)
     opus_helpers.local_db_insert((xml_date, "Running diff update since {}"))
     diff = OpusDiffImport(
         xml_date,

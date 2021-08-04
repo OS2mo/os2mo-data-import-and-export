@@ -196,6 +196,21 @@ def find_changes(
 
     return changed_obj
 
+def find_missing(before, after):
+    """Check if an element is missing. This happens when an engagement is cancled in Opus.
+    
+    >>> a = [{"@id":1}, {"@id":2}, {"@id":3}]
+    >>> b = [{"@id":1}, {"@id":3}]
+    >>> find_missing(a,b)
+    [{'@id': 2}]
+    """
+
+    old_ids = set(map(itemgetter("@id"), before))
+    new_ids = set(map(itemgetter("@id"), after))
+    missing = old_ids-new_ids
+    missing_elements = filter(lambda x: x.get('@id') in missing, before)
+    return missing_elements
+
 
 def file_diff(file1: Optional[Path], file2: Path, disable_tqdm: bool = True, skip_employees=False):
     """Compares two files and returns all units and employees that have been changed."""
@@ -206,10 +221,12 @@ def file_diff(file1: Optional[Path], file2: Path, disable_tqdm: bool = True, ski
 
     units = find_changes(units1, units2, disable_tqdm=disable_tqdm)
     employees = []
+    missing_employees = []
     if not skip_employees:
         employees = find_changes(employees1, employees2, disable_tqdm=disable_tqdm)
+        missing_employees = find_missing(employees1, employees2)
 
-    return units, employees
+    return units, employees, missing_employees
 
 
 def compare_employees(original, new, force=False):
@@ -384,7 +401,7 @@ def read_cpr(employee: OrderedDict) -> str:
 
 
 def find_all_filtered_ids(inputfile, filter_ids):
-    all_units, _ = file_diff(None, inputfile)
+    all_units, _, _ = file_diff(None, inputfile)
     all_filtered_units, _ = filter_units(all_units, filter_ids)
     return set(map(itemgetter("@id"), all_filtered_units))
 
@@ -395,9 +412,9 @@ def read_and_transform_data(
     """Gets the diff of two files and transporms the data based on filter_ids
     Returns the active units, filtered units, active employees which are not in a filtered unit and employees which are terminated
     """
-    units, employees = file_diff(inputfile1, inputfile2, disable_tqdm=disable_tqdm, skip_employees=skip_employees)
+    units, employees, missing_employees = file_diff(inputfile1, inputfile2, disable_tqdm=disable_tqdm, skip_employees=skip_employees)
     all_filtered_ids = find_all_filtered_ids(inputfile2, filter_ids)
     filtered_units, units = filter_units(units, filter_ids)
     employees, terminated_employees = split_employees_leaves(employees)
     employees = filter_employees(employees, all_filtered_ids)
-    return list(units), list(filtered_units), list(employees), list(terminated_employees)
+    return list(units), list(filtered_units), list(employees), list(terminated_employees), list(missing_employees)

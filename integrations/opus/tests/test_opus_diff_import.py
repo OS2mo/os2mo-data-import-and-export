@@ -117,6 +117,7 @@ class Opus_diff_import_tester(unittest.TestCase):
             filtered_units,
             employees,
             terminated_employees,
+            missing_employees
         ) = opus_helpers.read_and_transform_data(self.file1, self.file2, filter_ids)
         self.units = list(units)
         self.filtered_units = list(filtered_units)
