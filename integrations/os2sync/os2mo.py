@@ -224,6 +224,9 @@ def org_unit_uuids(**kwargs):
         ]
     ]
 
+def manager_to_orgunit(org_unit, manager):
+    if manager:
+        org_unit['ManagerUuid'] = only(manager).get('uuid')
 
 def itsystems_to_orgunit(orgunit, itsystems):
     for i in itsystems:
@@ -359,10 +362,14 @@ def get_sts_orgunit(uuid):
         os2mo_get("{BASE}/ou/" + uuid + "/details/address").json(),
     )
 
-    kle_to_orgunit(
-        sts_org_unit,
-        os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
-    )
+    manager_to_orgunit(sts_org_unit, os2mo_get("{BASE}/ou/" + uuid + "/details/manager").json())
+
+    # this is set by __main__
+    if settings["OS2MO_HAS_KLE"]:
+        kle_to_orgunit(
+            sts_org_unit,
+            os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
+        )
 
     # show_all_details(uuid,"ou")
     strip_truncate_and_warn(sts_org_unit, sts_org_unit)
