@@ -232,9 +232,8 @@ Test Calculate Primary:
 
 Test OS2Sync Integration:
   extends: .test-python
-  variables:
-    CUSTOMER_SETTINGS: /code/settings/kommune-andeby.json
   script:
+    - cp settings/kommune-andeby.json settings/settings.json
     - pytest integrations/os2sync/tests
 
 Test CPR Mapper:
