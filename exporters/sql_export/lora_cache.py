@@ -294,7 +294,7 @@ class LoraCache:
                 )
             return this_user
 
-        uuids = map(lambda u: u['id'], users)
+        uuids = map(itemgetter('id'), users)
         users = map(handle_user, users)
         return zip(uuids, users)
 
@@ -312,10 +312,11 @@ class LoraCache:
 
         unit_list = self._perform_lora_lookup(url, params, skip_history=skip_history, unit="unit")
 
-        units = {}
-        for unit in tqdm(unit_list, desc="Processing unit", unit="unit"):
+        unit_list = tqdm(unit_list, desc="Processing unit", unit="unit")
+
+        def handle_unit(unit):
             uuid = unit['id']
-            units[uuid] = []
+            this_unit = []
 
             effects = self._get_effects(unit, relevant)
             for effect in effects:
@@ -339,7 +340,7 @@ class LoraCache:
                     level = relationer['niveau'][0]['uuid']
                 else:
                     level = None
-                units[uuid].append(
+                this_unit.append(
                     {
                         'uuid': uuid,
                         'user_key': egenskaber['brugervendtnoegle'],
@@ -351,7 +352,11 @@ class LoraCache:
                         'to_date': to_date
                     }
                 )
-        return units
+            return this_unit
+
+        uuids = map(itemgetter('id'), unit_list)
+        units = map(handle_unit, unit_list)
+        return dict(zip(uuids, units))
 
     def _cache_lora_address(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Adresse'}
@@ -364,10 +369,12 @@ class LoraCache:
         }
         address_list = self._perform_lora_lookup(url, params, unit="address")
 
-        addresses = {}
-        for address in tqdm(address_list, desc="Processing address", unit="address"):
+
+        address_list = tqdm(address_list, desc="Processing address", unit="address")
+
+        def handle_address(address):
             uuid = address['id']
-            addresses[uuid] = []
+            addresses = []
 
             effects = self._get_effects(address, relevant)
             for effect in effects:
@@ -435,7 +442,7 @@ class LoraCache:
                     if relationer['opgaver'][0]['objekttype'] == 'synlighed':
                         synlighed = relationer['opgaver'][0]['uuid']
 
-                addresses[uuid].append(
+                addresses.append(
                     {
                         'uuid': uuid,
                         'user': user_uuid,
@@ -449,8 +456,12 @@ class LoraCache:
                         'to_date': to_date
                     }
                 )
-        return addresses
+            return addresses
 
+        uuids = map(itemgetter('id'), address_list)
+        users = map(handle_address, address_list)
+        return zip(uuids, users)
+        
     def _cache_lora_engagements(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Engagement'}
         relevant = {

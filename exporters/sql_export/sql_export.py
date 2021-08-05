@@ -275,7 +275,7 @@ class SqlExport:
 
     def _add_addresses(self, output=False):
         logger.info('Add addresses')
-        for address, address_validities in tqdm(self.lc.addresses.items(), desc="Export address", unit="address"):
+        for address, address_validities in tqdm(self.lc.addresses, desc="Export address", unit="address"):
             for address_info in address_validities:
                 visibility_text = None
                 if address_info['visibility'] is not None:
