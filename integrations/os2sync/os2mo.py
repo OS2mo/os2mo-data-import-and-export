@@ -224,7 +224,7 @@ def org_unit_uuids(**kwargs):
         ]
     ]
 
-def manager_to_orgunit(org_unit, manager):
+def manager_to_orgunit(org_unit: Dict[str, Any], manager: List[Dict[str, Any]]) -> None:
     if manager:
         org_unit['ManagerUuid'] = only(manager).get('uuid')
 

@@ -249,7 +249,7 @@ def get_sts_orgunit(session, uuid):
 
     lc_manager = session.query(Leder).filter(Leder.enhed_uuid == uuid).first()
     if lc_manager:
-        sts_org_unit.update({'ManagerUuid':lc_manager.bruger_uuid})
+        sts_org_unit.update({'ManagerUuid': lc_manager.bruger_uuid})
 
     mokles = {}
     lc_kles = session.query(KLE).filter(KLE.enhed_uuid == uuid).all()
