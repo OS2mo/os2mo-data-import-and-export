@@ -121,8 +121,8 @@ def os2mo_get(url, **params):
 
 def has_kle():
     try:
-        os2mo_get("{BASE}/o/{ORG}/f/kle_aspect")
-        os2mo_get("{BASE}/o/{ORG}/f/kle_number")
+        os2mo_get("{BASE}/o/{ORG}/f/kle_aspect/")
+        os2mo_get("{BASE}/o/{ORG}/f/kle_number/")
         os2mo_get(
             "{BASE}/ou/" +
             settings["OS2MO_TOP_UNIT_UUID"] +
