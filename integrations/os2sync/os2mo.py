@@ -9,8 +9,8 @@ import logging
 from typing import Any, Dict, List, Optional, Union
 
 import requests
-
-from constants import AD_it_system
+from functools import lru_cache
+from constants import AD_it_system, FK_ORG_it_system
 from exporters.utils.priority_by_class import choose_public_address
 from integrations.os2sync import config
 from integrations.os2sync.templates import Person, User
@@ -173,15 +173,19 @@ def engagements_to_user(user, engagements, allowed_unitids):
                     "Name": e["job_function"]["name"],
                 }
             )
-
-
-def try_get_ad_user_key(uuid: str) -> Optional[str]:
+@lru_cache
+def read_user_it(uuid):
+    it_response = os2mo_get("{BASE}/e/" + uuid + "/details/it")
+    it_response.raise_for_status()
+    return it_response.json()
+    
+def get_user_it_account(uuid: str, it_system_name: str):
     """
-    fetches all it-systems related to a user and return the ad-user_key if exists
+    fetches all it-systems related to a user and return the user_key if exists
     """
-    it_response = os2mo_get("{BASE}/e/" + uuid + "/details/it").json()
+    it_response = read_user_it(uuid)
     it_systems = IT.from_mo_json(it_response)
-    ad_systems = list(filter(lambda x: x.system_name == AD_it_system,
+    ad_systems = list(filter(lambda x: x.system_name == it_system_name,
                              it_systems))
 
     # if no ad OR multiple
@@ -189,13 +193,18 @@ def try_get_ad_user_key(uuid: str) -> Optional[str]:
         return
     return ad_systems[0].user_key
 
+def try_get_ad_user_key(uuid: str) -> Optional[str]:
+    return get_user_it_account(uuid, AD_it_system)
+    
+def try_get_fk_org_uuid(uuid:str) -> str:
+    return get_user_it_account(uuid, FK_ORG_it_system) or uuid
 
 def get_sts_user(uuid, allowed_unitids):
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
 
     user = User(
         dict(
-            uuid=uuid,
+            uuid=try_get_fk_org_uuid(uuid),
             candidate_user_id=try_get_ad_user_key(uuid),
             person=Person(employee, settings=settings),
         ),
