@@ -30,8 +30,12 @@ def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
         )
     )
     # Trim leading 'os2sync.'
-    trimlen = len("os2sync.")
-    final_settings = {key[trimlen:]: val for key, val in os2sync_settings.items()}
+    trim_len = len("os2sync.")
+    final_settings = {key[trim_len:]: val for key, val in os2sync_settings.items()}
+    deprecated_settings = ("ignored.unit_types", "ignored.unit_types")
+    for ds in deprecated_settings:
+        if ds in final_settings.keys():
+            raise ValueError(f"The setting {ds} has been changed, please change to {ds.replace('.', '_')}")
     #Add needed common settings
     final_settings.update(
         {
