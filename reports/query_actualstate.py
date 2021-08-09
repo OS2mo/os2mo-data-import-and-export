@@ -5,6 +5,7 @@
 # Program to fetch data from an actualstate sqlitedatabase, written for creating
 #  excel-reports with XLSXExporte.py
 # See customers/Frederikshavn/Frederikshavn_reports.py for an example
+import pandas as pd
 import xlsxwriter
 from more_itertools import prepend
 from sqlalchemy import or_
@@ -63,7 +64,7 @@ def list_MED_members(session, org_names: dict) -> list:
         .filter(
             Adresse.adressetype_titel == "AD-Email",
             or_(
-                Adresse.synlighed_titel is None,
+                Adresse.synlighed_titel.is_(None),
                 Adresse.synlighed_titel != "Hemmelig",
             ),
         )
@@ -74,7 +75,7 @@ def list_MED_members(session, org_names: dict) -> list:
         .filter(
             Adresse.adressetype_titel == "AD-Telefonnummer",
             or_(
-                Adresse.synlighed_titel is None,
+                Adresse.synlighed_titel.is_(None),
                 Adresse.synlighed_titel != "Hemmelig",
             ),
         )
@@ -130,7 +131,7 @@ def list_employees(session, org_name: str) -> list:
     Returns a list of tuples with titles as first element
     and data on employees in subsequent tuples. Example:
     [
-        (Navn", "cpr", "Email", "Telefon", "Enhed", "Stilling"),
+        (Navn", "CPR", "Email", "Telefon", "Enhed", "Stilling"),
         ("Fornavn Efternavn", 0123456789,  "email@example.com", "12345678",
             "Enhedsnavn", "Stillingsbetegnelse")
     ]
@@ -142,7 +143,7 @@ def list_employees(session, org_name: str) -> list:
         .filter(
             Adresse.adressetype_titel == "AD-Email",
             or_(
-                Adresse.synlighed_titel is None,
+                Adresse.synlighed_titel.is_(None),
                 Adresse.synlighed_titel != "Hemmelig",
             ),
         )
@@ -153,7 +154,7 @@ def list_employees(session, org_name: str) -> list:
         .filter(
             Adresse.adressetype_titel == "AD-Telefonnummer",
             or_(
-                Adresse.synlighed_titel is None,
+                Adresse.synlighed_titel.is_(None),
                 Adresse.synlighed_titel != "Hemmelig",
             ),
         )
@@ -166,6 +167,7 @@ def list_employees(session, org_name: str) -> list:
             Emails.c.værdi,
             Phonenr.c.værdi,
             Enhed.navn,
+            Enhed.organisatorisk_sti,
             Engagement.stillingsbetegnelse_titel,
         )
         .filter(
@@ -178,14 +180,32 @@ def list_employees(session, org_name: str) -> list:
         .order_by(Bruger.efternavn)
     )
     data = query.all()
-    data = list(
-        prepend(
-            ("Navn", "cpr", "AD-Email", "AD-Telefonnummer", "Enhed", "Stilling"),
-            data,
-        )
+    data_df = pd.DataFrame(
+        data,
+        columns=[
+            "Navn",
+            "CPR",
+            "AD-Email",
+            "AD-Telefonnummer",
+            "Enhed",
+            "Sti",
+            "Stilling",
+        ],
     )
+    # Create new dataframe with organisational path as columns
+    org_paths = data_df["Sti"].str.split("\\", expand=True)
+    new_cols = []
+    for column in org_paths.columns:
+        new_cols.append(f"Enhed {column+1}")
+    org_paths.columns = new_cols
 
-    return data
+    # Remove the "Sti" column and join org_paths instead
+    data_df.drop(columns="Sti", inplace=True)
+    df = data_df.join(org_paths)
+
+    # Return data as a list of tuples with columns as the first element
+    parsed_data = list(prepend(df.columns, df.to_records(index=False)))
+    return parsed_data
 
 
 def run_report(reporttype, sheetname: str, org_name: str, xlsx_file: str):
