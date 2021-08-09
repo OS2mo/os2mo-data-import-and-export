@@ -2,9 +2,7 @@ import logging
 
 from ra_utils.load_settings import load_settings
 
-from reports.query_actualstate import list_employees
-from reports.query_actualstate import list_MED_members
-from reports.query_actualstate import run_report
+from reports.query_actualstate import list_employees, list_MED_members, run_report
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "Frederikshavn_reports.log"
