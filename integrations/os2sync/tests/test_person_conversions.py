@@ -70,6 +70,6 @@ class TestPersonNameTemplate(unittest.TestCase, MoEmployeeMixin):
 
     def _gen_settings(self, template):
         return {
-            "OS2SYNC_TEMPLATES": {"person.name": template},
+            "templates": {"person.name": template},
             "xfer_cpr": True,  # required by `Person.to_json`
         }

@@ -52,16 +52,19 @@ class Settings(BaseSettings):
     
     #os2sync:
     top_unit_uuid: str
-    os2sync_ca_bundle: str
-    os2sync_api_url: str
+    api_url: str = "http://localhost:8081"
+    
+    use_lc_db: bool = False
     
     log_level: int = logging.INFO
     log_file: Path = _relpath("../os2sync.log")
     hash_cache: Path = _relpath("../os2sync_hash_cache")
     xfer_cpr: bool = False
-    use_lc_db: bool = False
-    autowash: bool = False
     
+    autowash: bool = False
+    ca_verify_os2sync: bool = True
+    ca_verify_os2mo: bool = True
+
     phone_scope_classes: List[str] = []
     email_scope_classes: List[str] = []
     ignored_unit_levels: List[str] = []
