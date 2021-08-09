@@ -5,9 +5,11 @@ import xlsxwriter.worksheet
 
 
 class XLSXExporter:
-    """Exporter for writing xlsx files with autofilters and columnwidts ajusted to its content.
+    """Exporter for writing xlsx files with autofilters and columnwidts ajusted to its
+    content.
 
-    Accepts data in lists of lists where first lists contains the title of the columns, eg:
+    Accepts data in lists of lists where first lists contains the title of the columns,
+    eg:
     [["Navn", "Email", "Tilknytningstype", "Enhed"]
     ["Fornavn Efternavn", "email@example.com", "Formand", "Enhed"]]
     """
