@@ -9,7 +9,6 @@ from ra_utils.load_settings import load_settings
 def _relpath(filename):
     return os.path.join(os.getcwd(), filename)
 
-from pydantic import BaseSettings
 
 def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
     """
@@ -20,8 +19,11 @@ def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
     when reading `config.json`
     """
     all_settings = load_settings()
-    os2sync_settings = dict(filter(lambda x: x[0].startswith('os2sync'), all_settings.items()))
-    final_settings= {key[8:]:val for key, val in os2sync_settings.items()}
+    os2sync_settings = dict(filter(apply(
+        lambda key, value: key.startswith('os2sync')),
+        all_settings.items()
+    ))
+    final_settings = {key.lstrip("os2sync"): val for key, val in os2sync_settings.items()}
     final_settings.update({"OS2MO_SAML_TOKEN":all_settings.get('crontab.SAML_TOKEN')})
     return final_settings
 
@@ -70,5 +72,7 @@ class Settings(BaseSettings):
 
 
 
-logformat = "%(levelname)s %(asctime)s %(name)s %(message)s"
+
+settings = Settings().dict()
+logformat = '%(levelname)s %(asctime)s %(name)s %(message)s'
 loggername = "os2sync"
