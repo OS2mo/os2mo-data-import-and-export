@@ -2,29 +2,28 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Program to fetch data from an actualstate sqlitedatabase, written for creating excel-reports with XLSXExporte.py
+# Program to fetch data from an actualstate sqlitedatabase, written for creating
+#  excel-reports with XLSXExporte.py
 # See customers/Frederikshavn/Frederikshavn_reports.py for an example
-
 import xlsxwriter
 from more_itertools import prepend
-from sqlalchemy import case, literal_column, or_
-from sqlalchemy.orm import Bundle, sessionmaker
+from sqlalchemy import or_
+from sqlalchemy.orm import sessionmaker
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import (
-    Adresse,
-    Bruger,
-    Engagement,
-    Enhed,
-    Tilknytning,
-)
+from exporters.sql_export.sql_table_defs import Adresse
+from exporters.sql_export.sql_table_defs import Bruger
+from exporters.sql_export.sql_table_defs import Engagement
+from exporters.sql_export.sql_table_defs import Enhed
+from exporters.sql_export.sql_table_defs import Tilknytning
 from reports.XLSXExporter import XLSXExporter
 
 
 def set_of_org_units(session, org_name: str) -> set:
-    """Find all uuids of org_units under the organisation  :code:`org_name`. """
+    """Find all uuids of org_units under the organisation  :code:`org_name`."""
 
     hoved_enhed = session.query(Enhed.uuid).filter(Enhed.navn == org_name).one()[0]
+
     # Find all children of the unit and collect in a set
     def find_children(enheder):
         """Return a set of children under :code:`enheder`."""
@@ -33,7 +32,8 @@ def set_of_org_units(session, org_name: str) -> set:
             .filter(Enhed.forældreenhed_uuid.in_(enheder))
             .all()
         )
-        # query returns a list of tuples like [(uuid2,),(uuid2,)], so extract the first item in each.
+        # query returns a list of tuples like [(uuid2,),(uuid2,)],
+        # so extract the first item in each.
         return set(enheder[0] for enheder in under_enheder)
 
     under_enheder = find_children(set([hoved_enhed]))
@@ -49,9 +49,12 @@ def set_of_org_units(session, org_name: str) -> set:
 def list_MED_members(session, org_names: dict) -> list:
     """Lists all "tilknyntninger" to an organisation.
 
-    Returns a list of tuples with titles as first element and data on members in subsequent tuples
-    [("Navn", "Email", "Tilknytningstype", "Enhed"),
-     ("Fornavn Efternavn", "email@example.com", "Formand", "Enhed")]
+    Returns a list of tuples with titles as first element
+    and data on members in subsequent tuples. Example:
+    [
+        ("Navn", "Email", "Tilknytningstype", "Enhed"),
+        ("Fornavn Efternavn", "email@example.com", "Formand", "Enhed")
+    ]
     """
     alle_enheder = set_of_org_units(session, org_names["løn"])
     alle_MED_enheder = set_of_org_units(session, org_names["MED"])
@@ -60,7 +63,7 @@ def list_MED_members(session, org_names: dict) -> list:
         .filter(
             Adresse.adressetype_titel == "AD-Email",
             or_(
-                Adresse.synlighed_titel == None,
+                Adresse.synlighed_titel is None,
                 Adresse.synlighed_titel != "Hemmelig",
             ),
         )
@@ -71,7 +74,7 @@ def list_MED_members(session, org_names: dict) -> list:
         .filter(
             Adresse.adressetype_titel == "AD-Telefonnummer",
             or_(
-                Adresse.synlighed_titel == None,
+                Adresse.synlighed_titel is None,
                 Adresse.synlighed_titel != "Hemmelig",
             ),
         )
@@ -124,9 +127,13 @@ def list_MED_members(session, org_names: dict) -> list:
 def list_employees(session, org_name: str) -> list:
     """Lists all employees in organisation.
 
-    Returns a list of tuples with titles as first element and data on employees in subsequent tuples
-    [(Navn", "cpr", "Email", "Telefon", "Enhed", "Stilling"),
-     ("Fornavn Efternavn", 0123456789,  "email@example.com", "12345678", "Enhedsnavn", "Stillingsbetegnelse")]
+    Returns a list of tuples with titles as first element
+    and data on employees in subsequent tuples. Example:
+    [
+        (Navn", "cpr", "Email", "Telefon", "Enhed", "Stilling"),
+        ("Fornavn Efternavn", 0123456789,  "email@example.com", "12345678",
+            "Enhedsnavn", "Stillingsbetegnelse")
+    ]
     """
     alle_enheder = set_of_org_units(session, org_name)
 
@@ -135,7 +142,7 @@ def list_employees(session, org_name: str) -> list:
         .filter(
             Adresse.adressetype_titel == "AD-Email",
             or_(
-                Adresse.synlighed_titel == None,
+                Adresse.synlighed_titel is None,
                 Adresse.synlighed_titel != "Hemmelig",
             ),
         )
@@ -146,7 +153,7 @@ def list_employees(session, org_name: str) -> list:
         .filter(
             Adresse.adressetype_titel == "AD-Telefonnummer",
             or_(
-                Adresse.synlighed_titel == None,
+                Adresse.synlighed_titel is None,
                 Adresse.synlighed_titel != "Hemmelig",
             ),
         )
@@ -185,6 +192,7 @@ def run_report(reporttype, sheetname: str, org_name: str, xlsx_file: str):
 
     # Make a sqlalchemy session - Name of database is read from settings
     session = sessionmaker(bind=get_engine(), autoflush=False)()
+
     # Make the query
     data = reporttype(session, org_name)
 
