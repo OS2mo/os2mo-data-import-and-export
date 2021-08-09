@@ -31,14 +31,11 @@ def log_mox_config(settings):
     much configuration as possible logged at program start
     and end.
     """
-    secrets = ["OS2MO_SAML_TOKEN"]
+
     logger.warning("-----------------------------------------")
     logger.warning("program configuration:")
     for k, v in sorted(settings.items()):
-        if k in secrets:
-            logger.warning("    %s=********", k)
-        else:
-            logger.warning("    %s=%r", k, v)
+        logger.warning("    %s=%r", k, v)
 
 
 def log_mox_counters(counter):
@@ -85,7 +82,7 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
             allowed_unitids.append(i)
             counter["Orgenheder som opdateres i OS2Sync"] += 1
             os2sync.upsert_orgunit(sts_orgunit)
-        elif settings["OS2SYNC_AUTOWASH"]:
+        elif settings["autowash"]:
             counter["Orgenheder som slettes i OS2Sync"] += 1
             os2sync.delete_orgunit(i)
 
@@ -153,20 +150,20 @@ def main(settings):
 
     logging.basicConfig(
         format=config.logformat,
-        level=int(settings["MOX_LOG_LEVEL"]),
-        filename=settings["MOX_LOG_FILE"],
+        level=int(settings["log_level"]),
+        filename=settings["log_file"]
     )
     logger = logging.getLogger(config.loggername)
-    logger.setLevel(int(settings["MOX_LOG_LEVEL"]))
+    logger.setLevel(settings["log_level"])
 
-    if settings["OS2SYNC_USE_LC_DB"]:
+    if settings["use_lc_db"]:
         engine = lcdb_os2mo.get_engine()
         session = lcdb_os2mo.get_session(engine)
         os2mo.get_sts_user = partial(lcdb_os2mo.get_sts_user, session)
         os2mo.get_sts_orgunit = partial(lcdb_os2mo.get_sts_orgunit, session)
 
     prev_date = datetime.datetime.now() - datetime.timedelta(days=1)
-    hash_cache_file = pathlib.Path(settings["OS2SYNC_HASH_CACHE"])
+    hash_cache_file = pathlib.Path(settings["hash_cache"])
 
     if hash_cache_file.exists():
         prev_date = datetime.datetime.fromtimestamp(hash_cache_file.stat().st_mtime)

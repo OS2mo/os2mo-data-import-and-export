@@ -287,7 +287,7 @@ class TestsMOAd(unittest.TestCase):
         {
             'OS2MO_SERVICE_URL': '',
             'OS2MO_ORG_UUID': '',
-            'OS2SYNC_XFER_CPR': True,
+            'xfer_cpr': True,
         },
     )
     @patch('integrations.os2sync.os2mo.os2mo_get', patched_session_get)

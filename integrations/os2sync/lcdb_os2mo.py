@@ -177,8 +177,8 @@ def is_ignored(unit, settings):
         >>> from unittest.mock import Mock
         >>> unit=Mock(enhedsniveau_uuid="1", enhedstype_uuid="2")
         >>> settings={
-        ... "OS2SYNC_IGNORED_UNIT_LEVELS": ["10","2"],
-        ... "OS2SYNC_IGNORED_UNIT_TYPES":['6','7']}
+        ... "ignored_unit_levels": ["10","2"],
+        ... "ignored_unit_types":['6','7']}
         >>> is_ignored(unit, settings)
         False
         >>> unit.enhedstype_uuid="6"
@@ -200,9 +200,8 @@ def is_ignored(unit, settings):
     """
 
     return (
-        unit.enhedstype_uuid in settings["OS2SYNC_IGNORED_UNIT_TYPES"]
-        or unit.enhedsniveau_uuid in settings["OS2SYNC_IGNORED_UNIT_LEVELS"]
-    )
+        unit.enhedstype_uuid in settings["ignored_unit_types"] or
+        unit.enhedsniveau_uuid in settings["ignored_unit_levels"])
 
 
 def get_sts_orgunit(session, uuid):
@@ -218,7 +217,7 @@ def get_sts_orgunit(session, uuid):
         return None
 
     top_unit = get_top_unit(session, base)
-    if top_unit != settings["OS2MO_TOP_UNIT_UUID"]:
+    if top_unit != settings["top_unit_uuid"]:
         # not part of right tree
         return None
 

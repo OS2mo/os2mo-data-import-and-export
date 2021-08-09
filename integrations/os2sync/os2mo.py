@@ -138,7 +138,11 @@ def has_kle():
     try:
         os2mo_get("{BASE}/o/{ORG}/f/kle_aspect/")
         os2mo_get("{BASE}/o/{ORG}/f/kle_number/")
-        os2mo_get("{BASE}/ou/" + settings["OS2MO_TOP_UNIT_UUID"] + "/details/kle")
+        os2mo_get(
+            "{BASE}/ou/" +
+            settings["top_unit_uuid"] +
+            "/details/kle"
+        )
         return True
     except requests.exceptions.HTTPError:
         return False
@@ -155,12 +159,12 @@ def addresses_to_user(user, addresses):
             phones.append(address)
 
     # find phone using prioritized/empty list of address_type uuids
-    phone = choose_public_address(phones, settings["OS2SYNC_PHONE_SCOPE_CLASSES"])
+    phone = choose_public_address(phones, settings["phone_scope_classes"])
     if phone:
         user["PhoneNumber"] = phone["name"]
 
     # find email using prioritized/empty list of address_type uuids
-    email = choose_public_address(emails, settings["OS2SYNC_EMAIL_SCOPE_CLASSES"])
+    email = choose_public_address(emails, settings["email_scope_classes"])
     if email:
         user["Email"] = email["name"]
 
@@ -356,11 +360,13 @@ def is_ignored(unit, settings):
     """
 
     return (
-        unit.get("org_unit_level")
-        and unit["org_unit_level"]["uuid"] in settings["OS2SYNC_IGNORED_UNIT_LEVELS"]
+        unit.get("org_unit_level") and unit["org_unit_level"]["uuid"] in settings[
+            "ignored_unit_levels"
+        ]
     ) or (
-        unit.get("org_unit_type")
-        and unit["org_unit_type"]["uuid"] in settings["OS2SYNC_IGNORED_UNIT_TYPES"]
+        unit.get("org_unit_type") and unit["org_unit_type"]["uuid"] in settings[
+            "ignored_unit_types"
+        ]
     )
 
 
@@ -371,13 +377,13 @@ def get_sts_orgunit(uuid):
         logger.info("Ignoring %r", base)
         return None
 
-    if not parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
+    if not parent["uuid"] == settings["top_unit_uuid"]:
         while parent.get("parent"):
-            if parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
+            if parent["uuid"] == settings["top_unit_uuid"]:
                 break
             parent = parent["parent"]
 
-    if not parent["uuid"] == settings["OS2MO_TOP_UNIT_UUID"]:
+    if not parent["uuid"] == settings["top_unit_uuid"]:
         # not part of right tree
         return None
 

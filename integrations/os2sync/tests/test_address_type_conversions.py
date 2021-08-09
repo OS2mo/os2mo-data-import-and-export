@@ -1,5 +1,7 @@
 import unittest
+
 from integrations.os2sync.os2mo import addresses_to_orgunit
+
 
 class _AddressMixin:
     def mock_address_list(self, scope, user_key, value):

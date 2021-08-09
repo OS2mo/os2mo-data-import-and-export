@@ -8,7 +8,6 @@ from exporters.sql_export.sql_table_defs import Bruger
 from integrations.os2sync import lcdb_os2mo
 from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
 
-
 # Mock contents of `Bruger` model
 _lcdb_mock_users = [
     (

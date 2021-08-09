@@ -1,9 +1,10 @@
-import unittest
-from integrations.os2sync import config, __main__
-import pathlib
-import os
 import json
+import os
+import pathlib
 import time
+import unittest
+
+from integrations.os2sync import __main__, config
 
 config.logformat = "%(message)s"
 
