@@ -1,6 +1,4 @@
-import json
 import logging
-import pathlib
 
 from ra_utils.load_settings import load_settings
 

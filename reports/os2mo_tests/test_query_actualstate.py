@@ -188,12 +188,19 @@ class Tests_db(unittest.TestCase):
         hoved_enhed = self.session.query(Enhed).all()
         data = list_employees(self.session, "LØN-org")
         self.assertEqual(
-            data[0],
-            ("Navn", "cpr", "AD-Email", "AD-Telefonnummer", "Enhed", "Stilling"),
+            tuple(data[0]),
+            (
+                "Navn",
+                "CPR",
+                "AD-Email",
+                "AD-Telefonnummer",
+                "Enhed",
+                "Stilling",
+                "Enhed 1",
+            ),
         )
-
         self.assertEqual(
-            data[1],
+            tuple(data[1]),
             (
                 "fornavn efternavn",
                 "cpr1",
@@ -201,12 +208,13 @@ class Tests_db(unittest.TestCase):
                 "12345678",
                 "Under-Enhed",
                 "tester1",
+                None,
             ),
         )
 
         self.assertEqual(
-            data[2],
-            ("fornavn2 efternavn2", "cpr2", None, None, "Under-Enhed", "tester2"),
+            tuple(data[2]),
+            ("fornavn2 efternavn2", "cpr2", None, None, "Under-Enhed", "tester2", None),
         )
 
 
