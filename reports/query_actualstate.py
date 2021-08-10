@@ -22,6 +22,17 @@ from exporters.sql_export.sql_table_defs import (
 from reports.XLSXExporter import XLSXExporter
 
 
+def expand_org_path(df: pd.DataFrame, path_col: str) -> pd.DataFrame:
+    # Create new dataframe with organisational path as columns
+    org_paths = df[path_col].str.split("\\", expand=True)
+    new_cols = [f"Enhed {column+1}" for column in org_paths.columns]
+    org_paths.columns = new_cols
+
+    # Remove the path column and join org_paths instead
+    df = df.drop(columns=path_col)
+    return df.join(org_paths)
+
+
 def set_of_org_units(session, org_name: str) -> set:
     """Find all uuids of org_units under the organisation  :code:`org_name`."""
 
@@ -98,6 +109,7 @@ def list_MED_members(session, org_names: dict) -> list:
             Phonenr.c.værdi,
             Tilknytning.tilknytningstype_titel,
             Enhed.navn,
+            Enhed.organisatorisk_sti,
             eng_unit.c.navn,
         )
         .filter(
@@ -111,20 +123,22 @@ def list_MED_members(session, org_names: dict) -> list:
         .order_by(Bruger.efternavn)
     )
     data = query.all()
-    data = list(
-        prepend(
-            (
-                "Navn",
-                "Email",
-                "Telefonnummer",
-                "Tilknytningstype",
-                "Tilknytningsenhed",
-                "Ansættelsesenhed",
-            ),
-            data,
-        )
+    data_df = pd.DataFrame(
+        data,
+        columns=[
+            "Navn",
+            "Email",
+            "Telefonnummer",
+            "Tilknytningstype",
+            "Tilknytningsenhed",
+            "Sti",
+            "Ansættelsesenhed",
+        ],
     )
-    return data
+    data_df = expand_org_path(data_df, "Sti")
+    # Return data as a list of tuples with columns as the first element
+    parsed_data = list(prepend(data_df.columns, data_df.to_records(index=False)))
+    return parsed_data
 
 
 def list_employees(session, org_name: str) -> list:
@@ -194,19 +208,9 @@ def list_employees(session, org_name: str) -> list:
             "Stilling",
         ],
     )
-    # Create new dataframe with organisational path as columns
-    org_paths = data_df["Sti"].str.split("\\", expand=True)
-    new_cols = []
-    for column in org_paths.columns:
-        new_cols.append(f"Enhed {column+1}")
-    org_paths.columns = new_cols
-
-    # Remove the "Sti" column and join org_paths instead
-    data_df.drop(columns="Sti", inplace=True)
-    df = data_df.join(org_paths)
-
+    data_df = expand_org_path(data_df, "Sti")
     # Return data as a list of tuples with columns as the first element
-    parsed_data = list(prepend(df.columns, df.to_records(index=False)))
+    parsed_data = list(prepend(data_df.columns, data_df.to_records(index=False)))
     return parsed_data
 
 
