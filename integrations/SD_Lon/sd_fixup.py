@@ -61,7 +61,7 @@ def fixup(ctx, mo_employees):
         mo_cpr = mo_employee["cpr_no"]
         sd_employments = fetch_user_employments(mo_cpr)
         sd_ids = map(itemgetter('EmploymentIdentifier'), sd_employment)
-        sd_dict = dict(zip(sd_ids, sd_employment)
+        sd_dict = dict(zip(sd_ids, sd_employment))
         return sd_dict
 
     def fetch_pairs(mo_employee):
