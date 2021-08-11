@@ -18,10 +18,11 @@ def _dawa_request(street_name, postal_code, adgangsadresse=False,
         base = 'https://dawa.aws.dk/adresser?strukur=mini'
     params = '&postnr={}&q={}'
 
-    last_is_letter = (street_name[-1].isalpha() and
-                      (not street_name[-2].isalpha()))
-    if (skip_letters and last_is_letter):
-        street_name = street_name[:-1]
+    if len(street_name) > 2:
+        last_is_letter = (street_name[-1].isalpha() and
+                          (not street_name[-2].isalpha()))
+        if (skip_letters and last_is_letter):
+            street_name = street_name[:-1]
     full_url = base + params.format(postal_code, street_name)
     path_url = full_url.replace('/', '_')
 

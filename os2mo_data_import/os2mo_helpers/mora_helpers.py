@@ -13,6 +13,9 @@ import csv
 import datetime
 import logging
 import time
+from typing import Dict
+from typing import List
+from operator import itemgetter
 from functools import lru_cache
 from operator import itemgetter
 
@@ -199,10 +202,9 @@ class MoraHelper:
         return return_dict
 
     def _mo_post(self, url, payload, force=True):
+        params = {}
         if force:
-            params = {"force": 1}
-        else:
-            params = None
+            params["force"] = 1
 
         headers = {}
         if self.settings.saml_token:
@@ -741,6 +743,22 @@ class MoraHelper:
     def update_user(self, uuid, data):
         payload = {"type": "employee", "uuid": uuid, "data": data}
         return self._mo_post("details/edit", payload)
+
+    def _get_detail(self, uuid, field_type, object_type='e') -> List[Dict]:
+        """Get information from /detail for an employee or unit.
+        :param uuid: uuid for the object
+        :param field_type: detail field type
+        :return: dict with the relevant information
+        """
+        all_data = []
+        for validity in ['past', 'present', 'future']:
+            data = self._mo_lookup(
+                uuid,
+                object_type + "/{}/details/" + field_type,
+                validity=validity,
+            )
+            all_data += data
+        return all_data
 
 
 if __name__ == "__main__":

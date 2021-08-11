@@ -7,7 +7,6 @@
 #
 
 import logging
-import os
 from urllib.parse import urljoin
 
 from os2mo_data_import.mox_data_types import (
@@ -18,8 +17,6 @@ from os2mo_data_import.mox_data_types import (
     Itsystem,
 )
 from os2mo_data_import.utilities import ImportUtility
-
-SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
 
 logger = logging.getLogger("moImporterUtilities")
 

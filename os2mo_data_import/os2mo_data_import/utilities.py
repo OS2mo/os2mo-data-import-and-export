@@ -28,9 +28,7 @@ from os2mo_data_import.mox_data_types import (
     Klasse,
     Itsystem
 )
-
-import os
-SAML_TOKEN = os.environ.get('SAML_TOKEN', None)
+from os2mo_helpers.mora_helpers import MoraHelper
 
 logger = logging.getLogger("moImporterUtilities")
 
@@ -58,6 +56,7 @@ class ImportUtility(object):
         self.mora_base = mora_base
 
         # Session
+        self.mh = MoraHelper(self.mora_base, use_cache=False)
         self.session = Session()
 
         # Placeholder for UUID import
@@ -365,7 +364,7 @@ class ImportUtility(object):
             if payload['uuid'] in self.existing_uuids:
                 logger.info('Re-import org-unit: {}'.format(payload['uuid']))
                 re_import = 'NO'
-                resource = 'service/details/edit'
+                resource = 'details/edit'
                 payload_keys = list(payload.keys())
                 payload['data'] = {}
                 for key in payload_keys:
@@ -375,11 +374,11 @@ class ImportUtility(object):
             else:
                 re_import = 'NEW'
                 logger.info('New unit - Forced uuid: {}'.format(payload['uuid']))
-                resource = 'service/ou/create'
+                resource = 'ou/create'
         else:
             re_import = 'NEW'
             logger.info('New unit, random uuid')
-            resource = 'service/ou/create'
+            resource = 'ou/create'
 
         logger.debug('Unit payload: {}'.format(payload))
 
@@ -397,7 +396,7 @@ class ImportUtility(object):
         self.inserted_org_unit_map[reference] = uuid
 
         data = {}
-        data['address'] = self._get_detail(uuid, 'address', object_type='ou')
+        data['address'] = self.mh._get_detail(uuid, 'address', object_type='ou')
 
         # Build details (if any)
         details_payload = []
@@ -435,7 +434,7 @@ class ImportUtility(object):
         if re_import in ('YES', 'NEW'):
             logger.info('Re-import unit: {}'.format(re_import))
             self.insert_mora_data(
-                resource="service/details/create",
+                resource="details/create",
                 data=details_payload
             )
 
@@ -474,7 +473,7 @@ class ImportUtility(object):
 
         # We unconditionally create or update the user, this should
         # ensure that we are always updated with correct current information.
-        mora_resource = "service/e/create"
+        mora_resource = "e/create"
         uuid = self.insert_mora_data(
             resource=mora_resource,
             data=integration_data
@@ -487,13 +486,13 @@ class ImportUtility(object):
         self.inserted_employee_map[reference] = uuid
 
         data = {}
-        data['it'] = self._get_detail(uuid, 'it')
-        data['role'] = self._get_detail(uuid, 'role')
-        data['leave'] = self._get_detail(uuid, 'leave')
-        data['address'] = self._get_detail(uuid, 'address')
-        data['manager'] = self._get_detail(uuid, 'manager')
-        data['engagement'] = self._get_detail(uuid, 'engagement')
-        data['association'] = self._get_detail(uuid, 'association')
+        data['it'] = self.mh._get_detail(uuid, 'it')
+        data['role'] = self.mh._get_detail(uuid, 'role')
+        data['leave'] = self.mh._get_detail(uuid, 'leave')
+        data['address'] = self.mh._get_detail(uuid, 'address')
+        data['manager'] = self.mh._get_detail(uuid, 'manager')
+        data['engagement'] = self.mh._get_detail(uuid, 'engagement')
+        data['association'] = self.mh._get_detail(uuid, 'association')
 
         # In case of en explicit termination, we terminate the employee or
         # employment and return imidiately.
@@ -566,7 +565,7 @@ class ImportUtility(object):
 
             if re_import in ('YES', 'NEW', 'UPDATE'):
                 self.insert_mora_data(
-                    resource="service/details/create",
+                    resource="details/create",
                     data=additional_payload
                 )
 
@@ -754,25 +753,10 @@ class ImportUtility(object):
             uuid = uuid4()
             return str(uuid)
 
-        params = {
-            "force": 1
-        }
-
-        service_url = urljoin(
-            base=self.mora_base,
-            url=resource
-        )
-
-        if SAML_TOKEN:
-            header = {"SESSION": SAML_TOKEN}
-        else:
-            header = None
-
-        response = self.session.post(
-            url=service_url,
-            headers=header,
-            json=data,
-            params=params
+        response = self.mh._mo_post(
+            url=resource,
+            payload=data,
+            force=True,
         )
 
         if response.status_code == 400:
@@ -785,33 +769,21 @@ class ImportUtility(object):
                 except ValueError:
                     raise Exception('Unable to read uuid')
             else:
+                logger.error(
+                    'MO post. Error: {}, data: {}'.format(error, data)
+                )
                 raise HTTPError("Inserting mora data failed")
         elif response.status_code not in (200, 201):
             logger.error(
-                'MO post. Response: {}, data'.format(response.text, data)
+                'MO post. Response: {}, data: {}'.format(response.text, data)
             )
             raise HTTPError("Inserting mora data failed")
         else:
             uuid = response.json()
         return uuid
 
-    def _get_detail(self, uuid, field_type, object_type='e'):
-        """ Get information from /detail for an employee or unit
-        :param uuid: uuid for the object
-        :param field_type: detail field type
-        :return: dict with the relevant information
-        """
-        all_data = []
-        for validity in ['past', 'present', 'future']:
-            service = urljoin(self.mora_base, 'service/{}/{}/details/{}?validity={}')
-            url = service.format(object_type, uuid, field_type, validity)
-            data = self.session.get(url)
-            data = data.json()
-            all_data += data
-        return all_data
-
     def _terminate_employee(self, uuid, date_from=None):
-        endpoint = 'service/e/{}/terminate'
+        endpoint = 'e/{}/terminate'
         yesterday = datetime.now() - timedelta(days=1)
         if date_from:
             to = date_from
@@ -845,7 +817,7 @@ class ImportUtility(object):
         logger.debug('Terminate detail payload: {}'.format(payload))
         try:
             self.insert_mora_data(
-                resource='service/details/terminate',
+                resource='details/terminate',
                 data=payload
             )
         except HTTPError:
