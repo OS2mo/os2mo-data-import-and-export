@@ -4,6 +4,8 @@ import pathlib
 import requests
 import xmltodict
 
+from ra_utils.headers import TokenSettings
+
 from kle import payloads
 
 LOG_FILE = 'kle_online.log'
@@ -42,8 +44,7 @@ class KleImporter(object):
         self.mox_base = mox_base
         self.mora_base = mora_base
         self.mo_session = requests.Session()
-        if api_token:
-            self.mo_session.headers = {"SESSION": api_token}
+        self.mo_session.headers = TokenSettings().get_headers()
 
     def _read_kle_dict(self, facet='emne', local=False):
         """ Read the entire KLE file
