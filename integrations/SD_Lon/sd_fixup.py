@@ -49,16 +49,12 @@ def fixup(ctx, mo_employees):
     def fetch_mo_engagements(mo_employee):
         mo_uuid = mo_employee["uuid"]
         mo_engagements = mora_helper.read_user_engagement(user=mo_uuid, read_all=True)
-        no_salary_mo_engagements = filter(
+        no_salary_mo_engagements = list(filter(
             lambda mo_engagement: mo_engagement["primary"]["user_key"] == "status0",
             mo_engagements,
-        )
-        mo_dict = dict(
-            map(
-                lambda mo_engagement: (mo_engagement["user_key"], mo_engagement),
-                no_salary_mo_engagements,
-            )
-        )
+        ))
+        mo_salary_userkeys = map(itemgetter("user_key"), no_salary_mo_engagements)
+        mo_dict = dict(zip(mo_salary_userkeys, no_salary_mo_engagements))
         return mo_dict
 
     def fetch_sd_employments(mo_employee):
