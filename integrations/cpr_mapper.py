@@ -19,4 +19,4 @@ def employee_mapper(filename:str) -> dict:
     """
     with open(filename) as csvfile:
         reader = csv.DictReader(csvfile, delimiter=';')
-        return dict(map(itemgetter('cpr', 'mo_uuid'), reader))
+        return dict(map(itemgetter('cpr', 'mo_uuid'), reader))  # type: ignore

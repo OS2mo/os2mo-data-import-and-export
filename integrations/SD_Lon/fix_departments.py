@@ -6,11 +6,13 @@ from itertools import chain
 
 import click
 import requests
+from os2mo_helpers.mora_helpers import MoraHelper
+
 from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.exceptions import NoCurrentValdityException
-from integrations.SD_Lon.sd_common import load_settings, mora_assert
+from integrations.SD_Lon.sd_common import load_settings
+from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import sd_lookup as _sd_lookup
-from os2mo_helpers.mora_helpers import MoraHelper
 
 sd_lookup = partial(_sd_lookup, use_cache=False)
 

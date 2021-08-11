@@ -5,17 +5,17 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-
 import unittest
 
-from integrations.SD_Lon.sd import CFG_PREFIX, SD
+from integrations.SD_Lon.sd import CFG_PREFIX
+from integrations.SD_Lon.sd import SD
 
 
 class Tests(unittest.TestCase):
     maxDiff = None
 
     def test_create(self):
-        """ prefix can be removed from config vars and cache can be disabled"""
+        """prefix can be removed from config vars and cache can be disabled"""
         config = {
             CFG_PREFIX + "USE_PICKLE_CACHE": False,
             CFG_PREFIX + "INSTITUTION_IDENTIFIER": "x",
