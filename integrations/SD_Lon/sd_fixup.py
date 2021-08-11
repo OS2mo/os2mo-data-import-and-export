@@ -1,4 +1,5 @@
 from datetime import date
+from operator import itemgetter
 
 import click
 from more_itertools import flatten
@@ -60,8 +61,8 @@ def fixup(ctx, mo_employees):
     def fetch_sd_employments(mo_employee):
         mo_cpr = mo_employee["cpr_no"]
         sd_employments = fetch_user_employments(mo_cpr)
-        sd_ids = map(itemgetter('EmploymentIdentifier'), sd_employment)
-        sd_dict = dict(zip(sd_ids, sd_employment))
+        sd_ids = map(itemgetter('EmploymentIdentifier'), sd_employments)
+        sd_dict = dict(zip(sd_ids, sd_employments))
         return sd_dict
 
     def fetch_pairs(mo_employee):
