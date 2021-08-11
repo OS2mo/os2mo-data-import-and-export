@@ -1,9 +1,5 @@
-import tempfile
+# import tempfile
 import unittest
-
-import xlsxwriter
-from openpyxl import load_workbook
-from sqlalchemy import create_engine
 
 from exporters.sql_export.sql_table_defs import (
     Adresse,
@@ -20,7 +16,11 @@ from reports.query_actualstate import (
     sessionmaker,
     set_of_org_units,
 )
-from reports.XLSXExporter import XLSXExporter
+
+# import xlsxwriter
+# from openpyxl import load_workbook
+# from sqlalchemy import create_engine
+# from reports.XLSXExporter import XLSXExporter
 
 
 class Tests_db(unittest.TestCase):
@@ -36,6 +36,7 @@ class Tests_db(unittest.TestCase):
             uuid="LE2",
             enhedstype_titel="org_unit_type",
             forældreenhed_uuid="LE1",
+            organisatorisk_sti="LØN-org\\Under-Enhed",
         )
         self.session.add(enhed)
         enhed = Enhed(navn="Hoved-MED", uuid="E1", enhedstype_titel="org_unit_type")
@@ -142,7 +143,7 @@ class Tests_db(unittest.TestCase):
         Base.metadata.drop_all(self.engine)
 
     def test_MED_data(self):
-        hoved_enhed = self.session.query(Enhed).all()
+        # hoved_enhed = self.session.query(Enhed).all()
         data = list_MED_members(self.session, {"løn": "LØN-org", "MED": "Hoved-MED"})
         self.assertEqual(
             tuple(data[0]),
@@ -154,6 +155,7 @@ class Tests_db(unittest.TestCase):
                 "Tilknytningsenhed",
                 "Ansættelsesenhed",
                 "Enhed 1",
+                "Enhed 2",
             ),
         )
 
@@ -166,7 +168,8 @@ class Tests_db(unittest.TestCase):
                 "titel",
                 "Under-MED",
                 "Under-Enhed",
-                None,
+                "LØN-org",
+                "Under-Enhed",
             ),
         )
 
@@ -179,7 +182,8 @@ class Tests_db(unittest.TestCase):
                 "titel2",
                 "Under-under-MED",
                 "Under-Enhed",
-                None,
+                "LØN-org",
+                "Under-Enhed",
             ),
         )
 
@@ -188,7 +192,7 @@ class Tests_db(unittest.TestCase):
         self.assertEqual(alle_enheder, set(["E2", "E3"]))
 
     def test_EMP_data(self):
-        hoved_enhed = self.session.query(Enhed).all()
+        # hoved_enhed = self.session.query(Enhed).all()
         data = list_employees(self.session, "LØN-org")
         self.assertEqual(
             tuple(data[0]),
@@ -200,6 +204,7 @@ class Tests_db(unittest.TestCase):
                 "Enhed",
                 "Stilling",
                 "Enhed 1",
+                "Enhed 2",
             ),
         )
         self.assertEqual(
@@ -211,13 +216,23 @@ class Tests_db(unittest.TestCase):
                 "12345678",
                 "Under-Enhed",
                 "tester1",
-                None,
+                "LØN-org",
+                "Under-Enhed",
             ),
         )
 
         self.assertEqual(
             tuple(data[2]),
-            ("fornavn2 efternavn2", "cpr2", None, None, "Under-Enhed", "tester2", None),
+            (
+                "fornavn2 efternavn2",
+                "cpr2",
+                None,
+                None,
+                "Under-Enhed",
+                "tester2",
+                "LØN-org",
+                "Under-Enhed",
+            ),
         )
 
 
