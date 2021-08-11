@@ -95,7 +95,9 @@ def list_MED_members(session, org_names: dict) -> list:
         .subquery()
     )
     eng_unit = (
-        session.query(Enhed.navn, Engagement.bruger_uuid).filter(
+        session.query(
+            Enhed.navn, Enhed.organisatorisk_sti, Engagement.bruger_uuid
+        ).filter(
             Enhed.uuid == Engagement.enhed_uuid,
             Engagement.enhed_uuid.in_(alle_enheder),
             Engagement.bruger_uuid == Bruger.uuid,
@@ -109,8 +111,8 @@ def list_MED_members(session, org_names: dict) -> list:
             Phonenr.c.værdi,
             Tilknytning.tilknytningstype_titel,
             Enhed.navn,
-            Enhed.organisatorisk_sti,
             eng_unit.c.navn,
+            eng_unit.c.organisatorisk_sti,
         )
         .filter(
             Enhed.uuid == Tilknytning.enhed_uuid,
@@ -131,8 +133,8 @@ def list_MED_members(session, org_names: dict) -> list:
             "Telefonnummer",
             "Tilknytningstype",
             "Tilknytningsenhed",
-            "Sti",
             "Ansættelsesenhed",
+            "Sti",
         ],
     )
     data_df = expand_org_path(data_df, "Sti")
