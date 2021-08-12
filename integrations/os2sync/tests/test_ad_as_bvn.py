@@ -277,7 +277,7 @@ def patched_session_get(url: str, params: Optional[Dict[Any, Any]] = None, **kwa
 
 class TestsMOAd(unittest.TestCase):
 
-    @patch('integrations.os2sync.os2mo.os2mo_get', patched_session_get)
+    @patch('integrations.os2sync.os2mo.get_mo_session', patched_session_get)
     def test_get_ad_user_key(self):
         expected = 'SolveigK_AD_logon'
         self.assertEqual(expected, try_get_ad_user_key(uuid))
@@ -290,7 +290,7 @@ class TestsMOAd(unittest.TestCase):
             'xfer_cpr': True,
         },
     )
-    @patch('integrations.os2sync.os2mo.os2mo_get', patched_session_get)
+    @patch('integrations.os2sync.os2mo.get_mo_session', patched_session_get)
     def test_mo_client_default(self):
         expected = {'Email': 'solveigk@kolding.dk',
                     'Person': {'Cpr': '0602602389', 'Name': 'Solveig Kuhlenhenke'},
