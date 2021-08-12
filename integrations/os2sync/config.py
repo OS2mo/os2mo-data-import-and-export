@@ -39,9 +39,8 @@ def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
     #Add needed common settings
     final_settings.update(
         {
-            "OS2SYNC_MUNICIPALITY": all_settings.get("municipality.cvr"),
-            "OS2MO_SERVICE_URL": all_settings.get("mora.base", "http://localhost:5000")
-            + "/service",
+            "os2sync_municipality": all_settings.get("municipality.cvr"),
+            "mora_base": all_settings.get("mora.base")
         }
     )
 
@@ -51,8 +50,8 @@ def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
 class Settings(BaseSettings):
 
     #common:
-    OS2SYNC_MUNICIPALITY: str   #Called "municipality.cvr" in settings.json
-    OS2MO_SERVICE_URL: str      #"mora.base" from settings.json + /service
+    os2sync_municipality: str   #Called "municipality.cvr" in settings.json
+    mora_base: str = "http://localhost:5000"     #"mora.base" from settings.json + /service
     
     #os2sync:
     top_unit_uuid: str
@@ -75,10 +74,6 @@ class Settings(BaseSettings):
     ignored_unit_types: List[str] = []
     templates: Dict = {}
 
-    # dont set - probed unless set:
-    OS2MO_ORG_UUID: str = ""   
-    OS2MO_HAS_KLE: bool = False  
-    OS2SYNC_TRUNCATE: int = 200 
 
 
     class Config:

@@ -116,8 +116,11 @@ def strip_truncate_and_warn(d, root, length=TRUNCATE_LENGTH):
 
 
 def os2mo_url(url):
-    """format url like {BASE}/o/{ORG}/e"""
-    url = url.format(BASE=settings["OS2MO_SERVICE_URL"], ORG=settings["OS2MO_ORG_UUID"])
+    """format url like {BASE}/o/{ORG}/e
+    """
+    url = url.format(
+        BASE=f"{settings['mora_base']}/service", ORG=settings["os2mo_org_uuid"]
+    )
     return url
 
 
@@ -406,7 +409,7 @@ def get_sts_orgunit(uuid):
             sts_org_unit["managerUuid"] = str(manager_uuid)
 
     # this is set by __main__
-    if settings["OS2MO_HAS_KLE"]:
+    if settings["os2mo_has_kle"]:
         kle_to_orgunit(
             sts_org_unit,
             os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
