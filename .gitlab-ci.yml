@@ -233,6 +233,7 @@ Test Calculate Primary:
 Test OS2Sync Integration:
   extends: .test-python
   script:
+    - export top_unit_uuid=$(uuidgen)
     - cp settings/kommune-andeby.json settings/settings.json
     - pytest integrations/os2sync/tests
 

@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseSettings
 from ra_utils.apply import apply
 from ra_utils.headers import TokenSettings
+from uuid import UUID
 
 # flake8: noqa
 from ra_utils.load_settings import load_settings
@@ -54,7 +55,7 @@ class Settings(BaseSettings):
     mora_base: str = "http://localhost:5000"     #"mora.base" from settings.json + /service
     
     #os2sync:
-    top_unit_uuid: str
+    top_unit_uuid: UUID
     api_url: str = "http://localhost:8081"
     
     use_lc_db: bool = False
@@ -68,10 +69,10 @@ class Settings(BaseSettings):
     ca_verify_os2sync: bool = True
     ca_verify_os2mo: bool = True
 
-    phone_scope_classes: List[str] = []
-    email_scope_classes: List[str] = []
-    ignored_unit_levels: List[str] = []
-    ignored_unit_types: List[str] = []
+    phone_scope_classes: List[UUID] = []
+    email_scope_classes: List[UUID] = []
+    ignored_unit_levels: List[UUID] = []
+    ignored_unit_types: List[UUID] = []
     templates: Dict = {}
 
 
