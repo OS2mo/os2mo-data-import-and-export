@@ -175,9 +175,8 @@ def main(settings):
 
     if hash_cache_file and hash_cache_file.exists():
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
-
-    if not settings["os2mo_org_uuid"]:
-        settings["os2mo_org_uuid"] = os2mo.os2mo_get("{BASE}/o/").json()[0][
+    
+    settings["os2mo_org_uuid"] = os2mo.os2mo_get("{BASE}/o/").json()[0][
             "uuid"
         ]
     settings["os2mo_has_kle"] = os2mo.has_kle()

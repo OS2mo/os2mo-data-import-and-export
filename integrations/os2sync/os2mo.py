@@ -119,7 +119,7 @@ def os2mo_url(url):
     """format url like {BASE}/o/{ORG}/e
     """
     url = url.format(
-        BASE=f"{settings['mora_base']}/service", ORG=settings["os2mo_org_uuid"]
+        BASE=f"{settings['mora_base']}/service", ORG=settings.get("os2mo_org_uuid")
     )
     return url
 
@@ -143,7 +143,7 @@ def has_kle():
         os2mo_get("{BASE}/o/{ORG}/f/kle_number/")
         os2mo_get(
             "{BASE}/ou/" +
-            settings["top_unit_uuid"] +
+            str(settings["top_unit_uuid"]) +
             "/details/kle"
         )
         return True
