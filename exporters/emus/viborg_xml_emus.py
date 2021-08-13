@@ -26,6 +26,7 @@ import collections
 import pathlib
 from xml.sax.saxutils import escape
 from exporters.utils.priority_by_class import choose_public_address
+from ra_utils.load_settings import load_settings
 
 
 LOG_LEVEL = logging._nameToLevel.get(os.environ.get('LOG_LEVEL', 'WARNING'), 20)
@@ -42,12 +43,7 @@ for i in logging.root.manager.loggerDict:
     else:
         logging.getLogger(i).setLevel(logging.WARNING)
 
-
-# TODO: Refactor this
-cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-if not cfg_file.is_file():
-    raise Exception('No setting file')
-settings = json.loads(cfg_file.read_text())
+settings = load_settings()
 
 MORA_BASE = settings.get("mora.base", 'http://localhost:5000')
 MORA_ROOT_ORG_UNIT_UUID = settings.get("mora.admin_top_unit")
@@ -149,11 +145,6 @@ def export_ou_emus(mh, nodes, emus_file):
             emus_file.write("</orgUnit>\n")
 
 
-def get_e_username(e_uuid, id_it_system, mh):
-    for its in mh._mo_lookup(e_uuid, 'e/{}/details/it'):
-        if its['itsystem']["user_key"] == id_it_system:
-            return its['user_key']
-    return ''
 
 
 def get_e_address(e_uuid, scope, mh):
@@ -187,7 +178,7 @@ def build_engagement_row(mh, ou, engagement):
     leavedate = engagement.get("validity", {}).get("to")
     employee = mh._mo_lookup(
         engagement["person"]["uuid"],
-        'e/{}'
+        'e/{}/'
     )
 
     if "surname" in engagement["person"]:
@@ -264,7 +255,7 @@ def build_manager_rows(mh, ou, manager):
 
     employee = mh._mo_lookup(
         person["uuid"],
-        'e/{}'
+        'e/{}/'
     )
     entrydate, leavedate = get_manager_dates(mh, person)
 
@@ -399,8 +390,9 @@ def export_e_emus(mh, nodes, emus_file):
                 len(engagement_rows), len(manager_rows))
     last_changed = datetime.datetime.now().strftime("%Y-%m-%d")
     for r in rows:
-        emus_file.write("<employee id=\"%s\" client=\"%s\" lastChanged=\"%s\">\n" % (
+        emus_file.write("<employee id=\"%s\" uuid=\"%s\" client=\"%s\" lastChanged=\"%s\">\n" % (
             r["employee_id"],
+            r["personUUID"],
             r["client"],
             last_changed,
         ))
