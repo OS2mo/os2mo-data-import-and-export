@@ -3,11 +3,11 @@ import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from uuid import UUID
 
 from pydantic import BaseSettings
 from ra_utils.apply import apply
 from ra_utils.headers import TokenSettings
-from uuid import UUID
 
 # flake8: noqa
 from ra_utils.load_settings import load_settings

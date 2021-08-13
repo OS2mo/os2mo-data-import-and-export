@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch
+from uuid import uuid4
 
 from parameterized import parameterized
 
@@ -22,13 +23,23 @@ class MockOs2moGet:
 
 class TestsMOAd(unittest.TestCase):
     def test_is_ignored(self):
-        settings = {"ignored_unit_levels": ["10", "2"],
-                    "ignored_unit_types": ['6', '7']}
-        unit = {"org_unit_level": {"uuid": "1"}, "org_unit_type": {"uuid": "5"}}
+
+        il1, il2, iu1, iu2 = [uuid4() for u in range(4)]
+        settings = {"ignored_unit_levels": [il1, il2], "ignored_unit_types": [iu1, iu2]}
+        unit = {
+            "org_unit_level": {"uuid": str(uuid4())},
+            "org_unit_type": {"uuid": str(uuid4())},
+        }
         self.assertFalse(is_ignored(unit, settings))
-        unit = {"org_unit_level": {"uuid": "2"}, "org_unit_type": {"uuid": "5"}}
+        unit = {
+            "org_unit_level": {"uuid": str(uuid4())},
+            "org_unit_type": {"uuid": str(iu2)},
+        }
         self.assertTrue(is_ignored(unit, settings))
-        unit = {"org_unit_level": {"uuid": "1"}, "org_unit_type": {"uuid": "6"}}
+        unit = {
+            "org_unit_level": {"uuid": str(il1)},
+            "org_unit_type": {"uuid": str(uuid4())},
+        }
         self.assertTrue(is_ignored(unit, settings))
 
     @parameterized.expand(

@@ -5,8 +5,7 @@ from parameterized import parameterized
 
 from integrations.os2sync import os2mo
 from integrations.os2sync.os2mo import get_sts_user as os2mo_get_sts_user
-from integrations.os2sync.tests.helpers import MoEmployeeMixin
-from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
+from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE, MoEmployeeMixin
 
 
 class TestGetStsUser(unittest.TestCase, MoEmployeeMixin):

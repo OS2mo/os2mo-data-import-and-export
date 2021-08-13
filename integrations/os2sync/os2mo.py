@@ -21,10 +21,10 @@ from more_itertools import one
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
 from integrations.os2sync import config
-from integrations.os2sync.templates import Person
-from integrations.os2sync.templates import User
+from integrations.os2sync.templates import Person, User
+from more_itertools import only
 from ra_utils.headers import TokenSettings
-from functools import lru_cache
+
 settings = config.settings
 logger = logging.getLogger(config.loggername)
 
@@ -363,11 +363,11 @@ def is_ignored(unit, settings):
     """
 
     return (
-        unit.get("org_unit_level") and unit["org_unit_level"]["uuid"] in settings[
+        unit.get("org_unit_level") and UUID(unit["org_unit_level"]["uuid"]) in settings[
             "ignored_unit_levels"
         ]
     ) or (
-        unit.get("org_unit_type") and unit["org_unit_type"]["uuid"] in settings[
+        unit.get("org_unit_type") and UUID(unit["org_unit_type"]["uuid"]) in settings[
             "ignored_unit_types"
         ]
     )
@@ -380,13 +380,13 @@ def get_sts_orgunit(uuid):
         logger.info("Ignoring %r", base)
         return None
 
-    if not parent["uuid"] == settings["top_unit_uuid"]:
+    if not parent["uuid"] == str(settings["top_unit_uuid"]):
         while parent.get("parent"):
-            if parent["uuid"] == settings["top_unit_uuid"]:
+            if parent["uuid"] == str(settings["top_unit_uuid"]):
                 break
             parent = parent["parent"]
 
-    if not parent["uuid"] == settings["top_unit_uuid"]:
+    if not parent["uuid"] == str(settings["top_unit_uuid"]):
         # not part of right tree
         return None
 

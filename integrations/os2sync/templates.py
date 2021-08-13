@@ -9,14 +9,11 @@ import logging
 from typing import Any, Dict, Optional
 from uuid import UUID
 
-from jinja2 import Environment
-from jinja2 import StrictUndefined
-from jinja2 import Template
+from jinja2 import Environment, StrictUndefined, Template
 from jinja2.exceptions import TemplateSyntaxError
 
 from integrations.os2sync.config import loggername as _loggername
 from integrations.os2sync.config import settings as _settings
-
 
 logger = logging.getLogger(_loggername)
 
