@@ -1,1 +1,2 @@
 -r requirements/common.txt
+-r SD_Lon/requirements.txt

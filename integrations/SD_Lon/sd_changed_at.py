@@ -6,6 +6,7 @@ import sys
 from functools import lru_cache
 from operator import itemgetter
 from typing import Tuple
+from uuid import uuid4
 
 import click
 import pandas as pd
@@ -15,6 +16,9 @@ from more_itertools import pairwise
 from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
 from tqdm import tqdm
+from fastapi.encoders import jsonable_encoder
+from ramodels.mo import Employee
+from ramodels.mo._shared import OrganisationRef
 
 from integrations import cpr_mapper
 from integrations.ad_integration import ad_reader
@@ -286,32 +290,33 @@ class ChangeAtSD:
             if mo_person and mo_person["name"] == sd_name:
                 continue
 
+            old_uuid = old_values.get("uuid")
+            forced_uuid = self.employee_forced_uuids.get(cpr)
             sam_account_name, object_guid = self._fetch_ad_information(cpr)
 
             uuid = None
-            if mo_person:
-                uuid = mo_person["uuid"]
+            if old_uuid:
+                uuid = old_uuid
+            elif forced_uuid:
+                uuid = forced_uuid
+                logger.info("Employee in force list: {}".format(uuid))
+            elif object_guid:
+                uuid = object_guid
+                logger.debug("Using ObjectGuid as MO UUID: {}".format(uuid))
             else:
-                uuid = self.employee_forced_uuids.get(cpr)
-                logger.info("Employee in force list: {} {}".format(cpr, uuid))
-                if uuid is None:
-                    if object_guid:
-                        uuid = ad_info["ObjectGuid"]
-                        msg = "Using ObjectGuid as MO UUID: {}"
-                        logger.debug(msg.format(uuid))
-                    else:
-                        msg = "{} not in MO, UUID list or AD, assign random uuid"
-                        logger.debug(msg.format(cpr))
+                uuid = uuid4()
+                logger.debug(
+                    "User not in MO, UUID list or AD, assigning UUID: {}".format(uuid)
+                )
 
-            payload = {
-                "givenname": given_name,
-                "surname": sur_name,
-                "cpr_no": cpr,
-                "org": {"uuid": self.org_uuid},
-            }
-
-            if uuid:
-                payload["uuid"] = uuid
+            model = Employee(
+                uuid=uuid,
+                givenname=given_name,
+                surname=sur_name,
+                cpr_no=cpr,
+                org=OrganisationRef(uuid=self.org_uuid),
+            )
+            payload = jsonable_encoder(model.dict(by_alias=True, exclude_none=True))
 
             return_uuid = self.helper._mo_post("e/create", payload).json()
             logger.info(
