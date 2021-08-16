@@ -251,10 +251,10 @@ class EmploymentStatus(Enum):
     Slettet = "S"
 
 
-Employeed = [
+EmploymentStatus.Employeed = [
     EmploymentStatus.AnsatUdenLoen,
     EmploymentStatus.AnsatMedLoen,
     EmploymentStatus.Overlov,
 ]
-LetGo = [EmploymentStatus.Migreret, EmploymentStatus.Ophoert, EmploymentStatus.Doed]
-OnPayroll = [EmploymentStatus.AnsatMedLoen, EmploymentStatus.Overlov]
+EmploymentStatus.LetGo = [EmploymentStatus.Migreret, EmploymentStatus.Ophoert, EmploymentStatus.Doed]
+EmploymentStatus.OnPayroll = [EmploymentStatus.AnsatMedLoen, EmploymentStatus.Overlov]

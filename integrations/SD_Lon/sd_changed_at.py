@@ -10,6 +10,7 @@ from typing import Any
 from typing import Dict
 from typing import Optional
 from typing import Set
+from typing import List
 from typing import Tuple
 from uuid import UUID
 from uuid import uuid4
@@ -39,7 +40,6 @@ from integrations.SD_Lon.db_overview import DBOverview
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
-from integrations.SD_Lon.sd_common import LetGo
 from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
@@ -94,25 +94,15 @@ def skip_fictional_users(entity):
     return True
 
 
-def engagement_components(engagement_info):
+def engagement_components(engagement_info) -> Tuple[str, Dict[str, List[Any]]]:
     job_id = engagement_info["EmploymentIdentifier"]
 
-    components = {}
-    status_list = ensure_list(engagement_info.get("EmploymentStatus", []))
-    components["status_list"] = status_list
-
-    professions = ensure_list(engagement_info.get("Profession", []))
-    components["professions"] = professions
-
-    departments = ensure_list(engagement_info.get("EmploymentDepartment", []))
-    components["departments"] = departments
-
-    working_time = ensure_list(engagement_info.get("WorkingTime", []))
-    components["working_time"] = working_time
-
-    # Employment date is not used for anyting
-    # components['employment_date'] = engagement_info.get('EmploymentDate')
-    return job_id, components
+    return job_id, {
+        "status_list": ensure_list(engagement_info.get("EmploymentStatus", [])),
+        "professions": ensure_list(engagement_info.get("Profession", [])),
+        "departments": ensure_list(engagement_info.get("EmploymentDepartment", [])),
+        "working_time": ensure_list(engagement_info.get("WorkingTime", [])),
+    }
 
 
 class ChangeAtSD:
@@ -947,7 +937,23 @@ class ChangeAtSD:
             response = self.helper._mo_post("details/edit", payload)
             mora_assert(response)
 
-    def edit_engagement(self, engagement, validity=None, status0=False):
+    def _set_non_primary(self, status, mo_eng):
+        logger.debug("Setting non-primary for: {}".format(mo_eng["uuid"]))
+
+        validity = self._validity(status)
+        logger.debug("Validity for edit: {}".format(validity))
+
+        data = {
+            "primary": {"uuid": self.primary_types["non_primary"]},
+            "validity": validity,
+        }
+        payload = sd_payloads.engagement(data, mo_eng)
+        logger.debug("Setting non-primary payload: {}".format(payload))
+
+        response = self.helper._mo_post("details/edit", payload)
+        mora_assert(response)
+
+    def edit_engagement(self, engagement, validity=None):
         """
         Edit an engagement
         """
@@ -961,23 +967,12 @@ class ChangeAtSD:
 
         validity = validity or mo_eng["validity"]
 
-        if status0:
-            logger.info("Setting {} to status0".format(job_id))
-            data = {
-                "primary": {"uuid": self.primary_types["non_primary"]},
-                "validity": validity,
-            }
-            payload = sd_payloads.engagement(data, mo_eng)
-            logger.debug("Status0 payload: {}".format(payload))
-            response = self.helper._mo_post("details/edit", payload)
-            mora_assert(response)
-
         self._edit_engagement_department(engagement, mo_eng)
         self._edit_engagement_profession(engagement, mo_eng)
         self._edit_engagement_type(engagement, mo_eng)
         self._edit_engagement_worktime(engagement, mo_eng)
 
-    def _handle_status_changes(self, cpr, engagement):
+    def _handle_status_changes(self, cpr: str, engagement) -> bool:
         skip = False
         # The EmploymentStatusCode can take a number of magical values.
         # that must be handled seperately.
@@ -985,75 +980,64 @@ class ChangeAtSD:
         for status in eng["status_list"]:
             logger.info("Status is: {}".format(status))
             code = status["EmploymentStatusCode"]
+            code = EmploymentStatus(code)
 
-            if code not in ("0", "1", "3", "7", "8", "9", "S"):
-                logger.error("Unknown status code {}!".format(status))
-                raise ValueError("Unknown status code")
-
-            if status["EmploymentStatusCode"] == "0":
+            if code == EmploymentStatus.AnsatUdenLoen:
                 logger.info("Status 0. Cpr: {}, job: {}".format(cpr, job_id))
                 mo_eng = self._find_engagement(job_id)
                 if mo_eng:
                     logger.info("Status 0, edit eng {}".format(mo_eng["uuid"]))
-                    self.edit_engagement(engagement, status0=True)
+
+                    self._set_non_primary(status, mo_eng)
+
+                    self.edit_engagement(engagement)
                 else:
                     logger.info("Status 0, create new engagement")
                     self.create_new_engagement(engagement, status, cpr)
                 skip = True
-
-            if status["EmploymentStatusCode"] == "1":
+            elif code == EmploymentStatus.AnsatMedLoen:
                 logger.info("Setting {} to status 1".format(job_id))
                 mo_eng = self._find_engagement(job_id)
                 if mo_eng:
                     logger.info("Status 1, edit eng. {}".format(mo_eng["uuid"]))
 
-                    validity = self._validity(status)
-                    logger.debug("Validity for edit: {}".format(validity))
-                    data = {
-                        "validity": validity,
-                        "primary": {"uuid": self.primary_types["non_primary"]},
-                    }
-                    payload = sd_payloads.engagement(data, mo_eng)
-                    logger.debug("Edit status 1, payload: {}".format(payload))
-                    response = self.helper._mo_post("details/edit", payload)
-                    mora_assert(response)
+                    self._set_non_primary(status, mo_eng)
+
                     self.mo_engagement = self.helper.read_user_engagement(
                         self.mo_person["uuid"],
                         read_all=True,
                         only_primary=True,
                         use_cache=False,
                     )
+                    validity = self._validity(status)
                     self.edit_engagement(engagement, validity)
                 else:
                     logger.info("Status 1: Create new engagement")
                     self.create_new_engagement(engagement, status, cpr)
                 skip = True
-
-            if status["EmploymentStatusCode"] == "3":
+            elif code == EmploymentStatus.Overlov:
                 mo_eng = self._find_engagement(job_id)
                 if not mo_eng:
                     logger.info("Leave for non existent eng., create one")
                     self.create_new_engagement(engagement, status, cpr)
                 logger.info("Create a leave for {} ".format(cpr))
                 self.create_leave(status, job_id)
-
-            if status["EmploymentStatusCode"] in ("7", "8"):
+            elif code in EmploymentStatus.LetGo:
                 from_date = status["ActivationDate"]
                 logger.info("Terminate {}, job_id {} ".format(cpr, job_id))
                 success = self._terminate_engagement(from_date, job_id)
                 if not success:
                     logger.error("Problem with job-id: {}".format(job_id))
                     skip = True
-
-            if status["EmploymentStatusCode"] in ("S", "9"):
+            elif code == EmploymentStatus.Slettet:
                 for mo_eng in self.mo_engagement:
                     if mo_eng["user_key"] == job_id:
-                        logger.info("Status S, 9: Terminate {}".format(job_id))
+                        logger.info("Status S: Terminate {}".format(job_id))
                         self._terminate_engagement(status["ActivationDate"], job_id)
                 skip = True
         return skip
 
-    def _update_user_employments(self, cpr, sd_engagement):
+    def _update_user_employments(self, cpr: str, sd_engagement) -> None:
         for engagement in sd_engagement:
             job_id, eng = engagement_components(engagement)
             logger.info("Update Job id: {}".format(job_id))
@@ -1063,7 +1047,7 @@ class ChangeAtSD:
                 continue
             self.edit_engagement(engagement)
 
-    def update_all_employments(self):
+    def update_all_employments(self) -> None:
         logger.info("Update all employments:")
         employments_changed = self.read_employment_changed()
         logger.info("Update a total of {} employments".format(len(employments_changed)))
@@ -1072,7 +1056,7 @@ class ChangeAtSD:
             emp_status = ensure_list(employment_info["EmploymentStatus"])
             code = emp_status[0]["EmploymentStatusCode"]
             code = EmploymentStatus(code)
-            if code in LetGo:
+            if code in EmploymentStatus.LetGo:
                 # NOTE: I think we should still import Migreret and Ophørt,
                 #       as you might change from that to Ansat later.
                 logger.warning("Employment deleted or ended before initial import.")
