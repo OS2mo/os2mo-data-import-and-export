@@ -13,7 +13,8 @@ from typing import Union
 from uuid import UUID
 
 import requests
-from more_itertools import only
+from more_itertools import first
+from uuid import UUID
 
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
@@ -224,9 +225,10 @@ def org_unit_uuids(**kwargs):
         ]
     ]
 
-def manager_to_orgunit(org_unit: Dict[str, Any], manager: List[Dict[str, Any]]) -> None:
+def manager_to_orgunit(unit_uuid: UUID) -> UUID:
+    manager = os2mo_get("{BASE}/ou/" + str(unit_uuid) + "/details/manager").json()
     if manager:
-        org_unit['ManagerUuid'] = only(manager).get('uuid')
+        return UUID(first(manager)['person']['uuid'])
 
 def itsystems_to_orgunit(orgunit, itsystems):
     for i in itsystems:
@@ -362,7 +364,9 @@ def get_sts_orgunit(uuid):
         os2mo_get("{BASE}/ou/" + uuid + "/details/address").json(),
     )
 
-    manager_to_orgunit(sts_org_unit, os2mo_get("{BASE}/ou/" + uuid + "/details/manager").json())
+    manager_uuid = manager_to_orgunit(uuid)
+    if manager_uuid:
+        sts_org_unit['ManagerUuid'] = str(manager_uuid)
 
     # this is set by __main__
     if settings["OS2MO_HAS_KLE"]:
