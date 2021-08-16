@@ -77,6 +77,15 @@ def setup_logging():
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
 
 
+
+def skip_fictional_users(entity):
+    cpr = entity["PersonCivilRegistrationIdentifier"]
+    if cpr[-4:] == "0000":
+        logger.warning("Skipping fictional user: {}".format(cpr))
+        return False
+    return True
+
+
 class ChangeAtSD:
     def __init__(self, from_date, to_date=None, settings=None):
         self.settings = settings or load_settings()
@@ -271,13 +280,12 @@ class ChangeAtSD:
             person_changed = self.read_person_changed()
 
         logger.info("Number of changed persons: {}".format(len(person_changed)))
+        person_changed = tqdm(person_changed, desc="update persons")
+        person_changed = filter(skip_fictional_users, person_changed)
 
-        for person in tqdm(person_changed, desc="update persons"):
+        for person in person_changed:
             cpr = person["PersonCivilRegistrationIdentifier"]
             logger.debug("Updating: {}".format(cpr))
-            if cpr[-4:] == "0000":
-                logger.warning("Skipping fictional user: {}".format(cpr))
-                continue
 
             old_values = mo_person = self.helper.read_user(
                 user_cpr=cpr, org_uuid=self.org_uuid
@@ -1027,13 +1035,6 @@ class ChangeAtSD:
         logger.info("Update all employments:")
         employments_changed = self.read_employment_changed()
         logger.info("Update a total of {} employments".format(len(employments_changed)))
-
-        def skip_fictional_users(employment):
-            cpr = employment["PersonCivilRegistrationIdentifier"]
-            if cpr[-4:] == "0000":
-                logger.warning("Skipping fictional user: {}".format(cpr))
-                return False
-            return True
 
         def skip_initial_deleted(employment_info):
             emp_status = employment_info["EmploymentStatus"]
