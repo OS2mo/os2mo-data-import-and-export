@@ -207,25 +207,18 @@ class LoraCache:
         return classes
 
     def _cache_lora_itsystems(self):
-        # IT-systems are eternal i MO and does not need a historic dump
-        params = {'bvn': '%'}
-        url = '/organisation/itsystem'
-        itsystem_list = self._perform_lora_lookup(url, params, skip_history=True, unit="itsystem")
-
-        itsystems = {}
-        for itsystem in tqdm(itsystem_list, desc="Processing itsystem", unit="itsystem"):
-            uuid = itsystem['id']
-            reg = itsystem['registreringer'][0]
-            user_key = (reg['attributter']['itsystemegenskaber'][0]
-                        ['brugervendtnoegle'])
-            name = (reg['attributter']['itsystemegenskaber'][0]
-                    ['itsystemnavn'])
-
-            itsystems[uuid] = {
-                'user_key': user_key,
-                'name': name,
+        mh = self._get_mora_helper()
+        it_systems = (
+            x["itsystem"]
+            for x in mh._mo_get(self.settings["mora.base"] + "/api/v1/it")
+        )
+        return {
+            it_system["uuid"]: {
+                "user_key": it_system["user_key"],
+                "name": it_system["name"],
             }
-        return itsystems
+            for it_system in it_systems
+        }
 
     def _cache_lora_users(self):
         params = {'bvn': '%'}

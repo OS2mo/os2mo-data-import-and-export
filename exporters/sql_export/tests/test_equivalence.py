@@ -75,6 +75,35 @@ def test_class_equivalence():
     assert new_classes == old_classes
 
 
+def old_cache_lora_itsystems(self):
+    # IT-systems are eternal i MO and does not need a historic dump
+    params = {'bvn': '%'}
+    url = '/organisation/itsystem'
+    itsystem_list = self._perform_lora_lookup(url, params, skip_history=True, unit="itsystem")
+
+    itsystems = {}
+    for itsystem in tqdm(itsystem_list, desc="Processing itsystem", unit="itsystem"):
+        uuid = itsystem['id']
+        reg = itsystem['registreringer'][0]
+        user_key = (reg['attributter']['itsystemegenskaber'][0]
+        ['brugervendtnoegle'])
+        name = (reg['attributter']['itsystemegenskaber'][0]
+        ['itsystemnavn'])
+
+        itsystems[uuid] = {
+            'user_key': user_key,
+            'name': name,
+        }
+    return itsystems
+
+
+def test_itsystems_equivalence():
+    lc = LoraCache(full_history=False, skip_past=True, resolve_dar=False)
+    new_itsystems = lc._cache_lora_itsystems()
+    old_itsystems = old_cache_lora_itsystems(lc)
+    assert new_itsystems == old_itsystems
+
+
 def _old_cache_lora_it_connections(self):
     params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'IT-system'}
     url = '/organisation/organisationfunktion'
