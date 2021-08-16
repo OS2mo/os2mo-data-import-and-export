@@ -11,6 +11,7 @@ import pandas as pd
 import requests
 from more_itertools import last
 from more_itertools import pairwise
+from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
 from tqdm import tqdm
 
@@ -91,18 +92,7 @@ class ChangeAtSD:
 
         # List of job_functions that should be ignored.
         self.skip_job_functions = self.settings.get("skip_job_functions", [])
-
-        use_ad = self.settings.get("integrations.SD_Lon.use_ad_integration", True)
-        self.ad_reader = None
-        if use_ad:
-            logger.info("AD integration in use")
-            self.ad_reader = ad_reader.ADParameterReader()
-        else:
-            logger.info("AD integration not in use")
-
-        self.updater = SDPrimaryEngagementUpdater()
-        self.from_date = from_date
-        self.to_date = to_date
+        self.use_ad = self.settings.get("integrations.SD_Lon.use_ad_integration", True)
 
         try:
             self.org_uuid = self.helper.read_organisation()
@@ -111,16 +101,14 @@ class ChangeAtSD:
             print(e)
             exit()
 
+        self.updater = SDPrimaryEngagementUpdater()
+        self.from_date = from_date
+        self.to_date = to_date
+
         self.mo_person = None  # Updated continously with the person currently
         self.mo_engagement = None  # being processed.
 
         self.primary_types = primary_types(self.helper)
-
-        logger.info("Read it systems")
-        it_systems = self.helper.read_it_systems()
-        for system in it_systems:
-            if system["name"] == "Active Directory":
-                self.ad_uuid = system["uuid"]  # This could also be a conf-option.
 
         logger.info("Read job_functions")
         facet_info = self.helper.read_classes_in_facet("engagement_job_function")
@@ -161,6 +149,34 @@ class ChangeAtSD:
         logger.info("Found cpr mapping")
         employee_forced_uuids = cpr_mapper.employee_mapper(str(cpr_map))
         return employee_forced_uuids
+
+    @lru_cache(maxsize=None)
+    def _get_ad_reader(self):
+        if self.use_ad:
+            logger.info("AD integration in use")
+            return ad_reader.ADParameterReader()
+        logger.info("AD integration not in use")
+        return None
+
+    def _fetch_ad_information(self, cpr) -> Tuple[str, str]:
+        ad_reader = self._get_ad_reader()
+        if ad_reader is None:
+            return None, None
+
+        ad_info = ad_reader.read_user(cpr=cpr)
+        object_guid = ad_info.get("ObjectGuid", None)
+        sam_account_name = ad_info.get("SamAccountName", None)
+        return sam_account_name, object_guid
+
+    @lru_cache(maxsize=None)
+    def _fetch_ad_it_system_uuid(self):
+        if self.use_ad:
+            raise ValueError("_fetch_ad_it_system_uuid called without AD enabled")
+        it_systems = self.helper.read_it_systems()
+        return one(map(itemgetter('uuid'), filter(
+            lambda system: system["name"] == "Active Directory",
+            it_systems
+        ))
 
     @lru_cache(maxsize=None)
     def read_employment_changed(
@@ -267,9 +283,7 @@ class ChangeAtSD:
             sur_name = person.get("PersonSurnameName", old_values.get("surname", ""))
             sd_name = "{} {}".format(given_name, sur_name)
 
-            ad_info = {}
-            if self.ad_reader is not None:
-                ad_info = self.ad_reader.read_user(cpr=cpr)
+            sam_account_name, object_guid = self._fetch_ad_information(cpr)
 
             uuid = None
             if mo_person:
@@ -279,13 +293,14 @@ class ChangeAtSD:
             else:
                 uuid = self.employee_forced_uuids.get(cpr)
                 logger.info("Employee in force list: {} {}".format(cpr, uuid))
-                if uuid is None and "ObjectGuid" in ad_info:
-                    uuid = ad_info["ObjectGuid"]
-                    msg = "Using ObjectGuid as MO UUID: {}"
-                    logger.debug(msg.format(uuid))
                 if uuid is None:
-                    msg = "{} not in MO, UUID list or AD, assign random uuid"
-                    logger.debug(msg.format(cpr))
+                    if object_guid:
+                        uuid = ad_info["ObjectGuid"]
+                        msg = "Using ObjectGuid as MO UUID: {}"
+                        logger.debug(msg.format(uuid))
+                    else:
+                        msg = "{} not in MO, UUID list or AD, assign random uuid"
+                        logger.debug(msg.format(cpr))
 
             payload = {
                 "givenname": given_name,
@@ -304,10 +319,9 @@ class ChangeAtSD:
                 )
             )
 
-            sam_account = ad_info.get("SamAccountName", None)
-            if (not mo_person) and sam_account:
+            if (not mo_person) and sam_account_name:
                 payload = sd_payloads.connect_it_system_to_user(
-                    sam_account, self.ad_uuid, return_uuid
+                    sam_account_name, self._fetch_ad_it_system_uuid(), return_uuid
                 )
                 logger.debug("Connect it-system: {}".format(payload))
                 response = self.helper._mo_post("details/create", payload)
