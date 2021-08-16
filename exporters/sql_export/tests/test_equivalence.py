@@ -104,6 +104,75 @@ def test_itsystems_equivalence():
     assert new_itsystems == old_itsystems
 
 
+def old_cache_lora_users(self):
+    params = {'bvn': '%'}
+    url = '/organisation/bruger'
+    user_list = self._perform_lora_lookup(url, params, unit="user")
+
+    relevant = {
+        "attributter": ("brugeregenskaber", "brugerudvidelser"),
+        "relationer": ("tilknyttedepersoner", "tilhoerer"),
+        "tilstande": ("brugergyldighed",),
+    }
+
+    users = {}
+    for user in tqdm(user_list, desc="Processing user", unit="user"):
+        uuid = user['id']
+        users[uuid] = []
+
+        effects = list(self._get_effects(user, relevant))
+        for effect in effects:
+            from_date, to_date = self._from_to_from_effect(effect)
+            if from_date is None and to_date is None:
+                continue
+            reg = effect[2]
+
+            tilknyttedepersoner = reg['relationer']['tilknyttedepersoner']
+            if len(tilknyttedepersoner) == 0:
+                continue
+            cpr = tilknyttedepersoner[0]['urn'][-10:]
+
+            egenskaber = reg['attributter']['brugeregenskaber']
+            if len(egenskaber) == 0:
+                continue
+            egenskaber = egenskaber[0]
+
+            udv = reg['attributter']['brugerudvidelser']
+            if len(udv) == 0:
+                continue
+            udv = udv[0]
+
+            user_key = egenskaber.get('brugervendtnoegle', '')
+            fornavn = udv.get('fornavn', '')
+            efternavn = udv.get('efternavn', '')
+            kaldenavn_fornavn = udv.get('kaldenavn_fornavn', '')
+            kaldenavn_efternavn = udv.get('kaldenavn_efternavn', '')
+            users[uuid].append(
+                {
+                    'uuid': uuid,
+                    'cpr': cpr,
+                    'user_key': user_key,
+                    'fornavn': fornavn,
+                    'efternavn': efternavn,
+                    'navn': ' '.join([fornavn, efternavn]).strip(),
+                    'kaldenavn_fornavn': kaldenavn_fornavn,
+                    'kaldenavn_efternavn': kaldenavn_efternavn,
+                    'kaldenavn': ' '.join([kaldenavn_fornavn,
+                                           kaldenavn_efternavn]).strip(),
+                    'from_date': from_date,
+                    'to_date': to_date
+                }
+            )
+    return users
+
+
+def test_users_equivalence():
+    lc = LoraCache(full_history=False, skip_past=True, resolve_dar=False)
+    new_users = lc._cache_lora_users()
+    old_users = old_cache_lora_users(lc)
+    assert new_users == old_users
+
+
 def _old_cache_lora_it_connections(self):
     params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'IT-system'}
     url = '/organisation/organisationfunktion'

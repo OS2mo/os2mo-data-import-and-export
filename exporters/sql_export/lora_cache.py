@@ -221,66 +221,24 @@ class LoraCache:
         }
 
     def _cache_lora_users(self):
-        params = {'bvn': '%'}
-        url = '/organisation/bruger'
-        user_list = self._perform_lora_lookup(url, params, unit="user")
-
-        relevant = {
-            "attributter": ("brugeregenskaber", "brugerudvidelser"),
-            "relationer": ("tilknyttedepersoner", "tilhoerer"),
-            "tilstande": ("brugergyldighed",),
+        mh = self._get_mora_helper()
+        employees = mh._mo_get(self.settings["mora.base"] + "/api/v1/employee")
+        return {
+            employee["uuid"]: [{
+                "uuid": employee["uuid"],
+                "cpr": employee["cpr_no"],
+                "user_key": employee["user_key"],
+                "fornavn": employee["givenname"],
+                "efternavn": employee["surname"],
+                "navn": employee["name"],
+                "kaldenavn_fornavn": employee["nickname_givenname"],
+                "kaldenavn_efternavn": employee["nickname_surname"],
+                "kaldenavn": employee["nickname"],
+                "from_date": self._format_optional_datetime_string(employee["validity"]["from"]),
+                "to_date": self._format_optional_datetime_string(employee["validity"]["to"]),
+            }]
+            for employee in employees
         }
-
-        users = {}
-        for user in tqdm(user_list, desc="Processing user", unit="user"):
-            uuid = user['id']
-            users[uuid] = []
-
-            effects = list(self._get_effects(user, relevant))
-            for effect in effects:
-                from_date, to_date = self._from_to_from_effect(effect)
-                if from_date is None and to_date is None:
-                    continue
-                reg = effect[2]
-
-                tilknyttedepersoner = reg['relationer'].get('tilknyttedepersoner', [])
-                if len(tilknyttedepersoner) == 0:
-                    logger.warning("unable to find CPR for LoRa user %r", uuid)
-                    continue
-                cpr = tilknyttedepersoner[0]['urn'][-10:]
-
-                egenskaber = reg['attributter']['brugeregenskaber']
-                if len(egenskaber) == 0:
-                    continue
-                egenskaber = egenskaber[0]
-
-                udv = reg['attributter']['brugerudvidelser']
-                if len(udv) == 0:
-                    continue
-                udv = udv[0]
-
-                user_key = egenskaber.get('brugervendtnoegle', '')
-                fornavn = udv.get('fornavn', '')
-                efternavn = udv.get('efternavn', '')
-                kaldenavn_fornavn = udv.get('kaldenavn_fornavn', '')
-                kaldenavn_efternavn = udv.get('kaldenavn_efternavn', '')
-                users[uuid].append(
-                    {
-                        'uuid': uuid,
-                        'cpr': cpr,
-                        'user_key': user_key,
-                        'fornavn': fornavn,
-                        'efternavn': efternavn,
-                        'navn': ' '.join([fornavn, efternavn]).strip(),
-                        'kaldenavn_fornavn': kaldenavn_fornavn,
-                        'kaldenavn_efternavn': kaldenavn_efternavn,
-                        'kaldenavn': ' '.join([kaldenavn_fornavn,
-                                               kaldenavn_efternavn]).strip(),
-                        'from_date': from_date,
-                        'to_date': to_date
-                    }
-                )
-        return users
 
     def _cache_lora_units(self):
         params = {'bvn': '%'}
