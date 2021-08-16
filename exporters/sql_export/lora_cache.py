@@ -723,16 +723,16 @@ class LoraCache:
 
     def _cache_lora_related(self):
         mh = self._get_mora_helper()
-        related = mh._mo_get(self.settings["mora.base"] + "/api/v1/related_unit")
+        related_units = mh._mo_get(self.settings["mora.base"] + "/api/v1/related_unit")
         return {
-            r["uuid"]: [{
-                "uuid": r["uuid"],
-                "unit1_uuid": r["org_unit"][0]["uuid"],
-                "unit2_uuid": r["org_unit"][1]["uuid"],
-                "from_date": r["validity"]["from"],
-                "to_date": self._format_optional_datetime_string(r["validity"]["to"]),
+            related_unit["uuid"]: [{
+                "uuid": related_unit["uuid"],
+                "unit1_uuid": related_unit["org_unit"][0]["uuid"],
+                "unit2_uuid": related_unit["org_unit"][1]["uuid"],
+                "from_date": self._format_optional_datetime_string(related_unit["validity"]["from"]),
+                "to_date": self._format_optional_datetime_string(related_unit["validity"]["to"]),
             }]
-            for r in related
+            for related_unit in related_units
         }
 
     def _cache_lora_managers(self):
