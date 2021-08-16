@@ -722,39 +722,18 @@ class LoraCache:
         return kles
 
     def _cache_lora_related(self):
-        params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Relateret Enhed'}
-        url = '/organisation/organisationfunktion'
-        related_list = self._perform_lora_lookup(url, params, unit="related")
-        related = {}
-        for relate in tqdm(related_list, desc="Processing related", unit="related"):
-            uuid = relate['id']
-            related[uuid] = []
-
-            relevant = {
-                'relationer': ('tilknyttedeenheder',),
-                'attributter': ()
-            }
-
-            effects = self._get_effects(relate, relevant)
-            for effect in effects:
-                from_date, to_date = self._from_to_from_effect(effect)
-                if from_date is None and to_date is None:
-                    continue
-
-                rel = effect[2]['relationer']
-                unit1_uuid = rel['tilknyttedeenheder'][0]['uuid']
-                unit2_uuid = rel['tilknyttedeenheder'][1]['uuid']
-
-                related[uuid].append(
-                    {
-                        'uuid': uuid,
-                        'unit1_uuid': unit1_uuid,
-                        'unit2_uuid': unit2_uuid,
-                        'from_date': from_date,
-                        'to_date': to_date
-                    }
-                )
-        return related
+        mh = self._get_mora_helper()
+        related = mh._mo_get(self.settings["mora.base"] + "/api/v1/related_unit")
+        return {
+            r["uuid"]: [{
+                "uuid": r["uuid"],
+                "unit1_uuid": r["org_unit"][0]["uuid"],
+                "unit2_uuid": r["org_unit"][1]["uuid"],
+                "from_date": r["validity"]["from"],
+                "to_date": self._format_optional_datetime_string(r["validity"]["to"]),
+            }]
+            for r in related
+        }
 
     def _cache_lora_managers(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Leder'}
