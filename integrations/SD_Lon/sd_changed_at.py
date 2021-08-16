@@ -5,6 +5,7 @@ import sqlite3
 import sys
 from functools import lru_cache
 from operator import itemgetter
+from typing import Tuple
 
 import click
 import pandas as pd
@@ -176,7 +177,7 @@ class ChangeAtSD:
         return one(map(itemgetter('uuid'), filter(
             lambda system: system["name"] == "Active Directory",
             it_systems
-        ))
+        )))
 
     @lru_cache(maxsize=None)
     def read_employment_changed(
@@ -266,6 +267,7 @@ class ChangeAtSD:
             person_changed = self.read_person_changed()
 
         logger.info("Number of changed persons: {}".format(len(person_changed)))
+
         for person in tqdm(person_changed, desc="update persons"):
             cpr = person["PersonCivilRegistrationIdentifier"]
             logger.debug("Updating: {}".format(cpr))
@@ -278,17 +280,16 @@ class ChangeAtSD:
             )
             old_values = old_values or {}
 
-            # TODO: Should this go in sd_common?
             given_name = person.get("PersonGivenName", old_values.get("givenname", ""))
             sur_name = person.get("PersonSurnameName", old_values.get("surname", ""))
-            sd_name = "{} {}".format(given_name, sur_name)
+            sd_name = " ".join([given_name, sur_name])
+            if mo_person and mo_person["name"] == sd_name:
+                continue
 
             sam_account_name, object_guid = self._fetch_ad_information(cpr)
 
             uuid = None
             if mo_person:
-                if mo_person["name"] == sd_name:
-                    continue
                 uuid = mo_person["uuid"]
             else:
                 uuid = self.employee_forced_uuids.get(cpr)
