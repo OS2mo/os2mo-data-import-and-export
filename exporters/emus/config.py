@@ -1,13 +1,11 @@
 import json
 import os
 import pathlib
-
+from ra_utils.load_settings import load_settings
 # flake8: noqa
 
+top_settings = load_settings()
 # TODO: Refactor this
-settingsfile = pathlib.Path("settings") / "settings.json"
-top_settings = json.loads(settingsfile.read_text())
-
 
 settings = {
     "MORA_ROOT_ORG_UNIT_UUID": top_settings.get("mora.admin_top_unit"),

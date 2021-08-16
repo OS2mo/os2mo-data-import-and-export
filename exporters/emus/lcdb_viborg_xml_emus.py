@@ -451,8 +451,9 @@ def export_e_emus(session, settings, nodes, emus_file):
 
     last_changed = datetime.datetime.now().strftime("%Y-%m-%d")
     for r in rows:
-        emus_file.write("<employee id=\"%s\" client=\"%s\" lastChanged=\"%s\">\n" % (
+        emus_file.write("<employee id=\"%s\" uuid=\"%s\" client=\"%s\" lastChanged=\"%s\">\n" % (
             r["employee_id"],
+            r["personUUID"],
             r["client"],
             last_changed,
         ))
