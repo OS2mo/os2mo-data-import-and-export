@@ -198,6 +198,7 @@ def build_engagement_row(mh, ou, engagement):
 
     row = {
         'personUUID': engagement["person"]["uuid"],
+        'engagementUUID': engagement["uuid"],
         # employee_id is tjenestenr by default
         'employee_id': engagement.get("user_key", ''),
         # client is 1 by default
@@ -390,9 +391,10 @@ def export_e_emus(mh, nodes, emus_file):
                 len(engagement_rows), len(manager_rows))
     last_changed = datetime.datetime.now().strftime("%Y-%m-%d")
     for r in rows:
+        eng_uuid = r.get("engagementUUID") or r['personUUID']
         emus_file.write("<employee id=\"%s\" uuid=\"%s\" client=\"%s\" lastChanged=\"%s\">\n" % (
             r["employee_id"],
-            r["personUUID"],
+            eng_uuid,
             r["client"],
             last_changed,
         ))
