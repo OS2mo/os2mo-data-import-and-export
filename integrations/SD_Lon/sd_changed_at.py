@@ -7,6 +7,7 @@ from itertools import tee
 from functools import lru_cache
 from operator import itemgetter
 from typing import Any
+from typing import Dict
 from typing import Optional
 from typing import Set
 from typing import Tuple
@@ -91,6 +92,27 @@ def skip_fictional_users(entity):
         logger.warning("Skipping fictional user: {}".format(cpr))
         return False
     return True
+
+
+def engagement_components(engagement_info):
+    job_id = engagement_info["EmploymentIdentifier"]
+
+    components = {}
+    status_list = ensure_list(engagement_info.get("EmploymentStatus", []))
+    components["status_list"] = status_list
+
+    professions = ensure_list(engagement_info.get("Profession", []))
+    components["professions"] = professions
+
+    departments = ensure_list(engagement_info.get("EmploymentDepartment", []))
+    components["departments"] = departments
+
+    working_time = ensure_list(engagement_info.get("WorkingTime", []))
+    components["working_time"] = working_time
+
+    # Employment date is not used for anyting
+    # components['employment_date'] = engagement_info.get('EmploymentDate')
+    return job_id, components
 
 
 class ChangeAtSD:
@@ -526,26 +548,6 @@ class ChangeAtSD:
             return job_uuid
         return self._create_professions(job_function, job_position)
 
-    def engagement_components(self, engagement_info):
-        job_id = engagement_info["EmploymentIdentifier"]
-
-        components = {}
-        status_list = ensure_list(engagement_info.get("EmploymentStatus", []))
-        components["status_list"] = status_list
-
-        professions = ensure_list(engagement_info.get("Profession", []))
-        components["professions"] = professions
-
-        departments = ensure_list(engagement_info.get("EmploymentDepartment", []))
-        components["departments"] = departments
-
-        working_time = ensure_list(engagement_info.get("WorkingTime", []))
-        components["working_time"] = working_time
-
-        # Employment date is not used for anyting
-        # components['employment_date'] = engagement_info.get('EmploymentDate')
-        return job_id, components
-
     def create_leave(self, status, job_id):
         """Create a leave for a user"""
         logger.info("Create leave, job_id: {}, status: {}".format(job_id, status))
@@ -638,7 +640,7 @@ class ChangeAtSD:
         AD integration handled in check for primary engagement.
         """
         # beware - name engagement_info used for engagement in engagement_components
-        user_key, engagement_info = self.engagement_components(engagement)
+        user_key, engagement_info = engagement_components(engagement)
         if not engagement_info["departments"] or not engagement_info["professions"]:
 
             # I am looking into the possibility that creating AND finishing
@@ -669,7 +671,7 @@ class ChangeAtSD:
                 raise ValueError("unexpected cpr, see log")
 
             activation_date_engagement = activation_date_info["Employment"]
-            _, activation_date_engagement_info = self.engagement_components(
+            _, activation_date_engagement_info = engagement_components(
                 activation_date_engagement
             )
 
@@ -790,7 +792,7 @@ class ChangeAtSD:
         return True
 
     def _edit_engagement_department(self, engagement, mo_eng):
-        job_id, engagement_info = self.engagement_components(engagement)
+        job_id, engagement_info = engagement_components(engagement)
         for department in engagement_info["departments"]:
             logger.info("Change department of engagement {}:".format(job_id))
             logger.debug("Department object: {}".format(department))
@@ -876,7 +878,7 @@ class ChangeAtSD:
         return self._fetch_engagement_type(job_position)
 
     def _edit_engagement_type(self, engagement, mo_eng):
-        job_id, engagement_info = self.engagement_components(engagement)
+        job_id, engagement_info = engagement_components(engagement)
         for profession_info in engagement_info["professions"]:
             logger.info("Change engagement type of engagement {}".format(job_id))
             job_position = profession_info["JobPositionIdentifier"]
@@ -897,7 +899,7 @@ class ChangeAtSD:
             mora_assert(response)
 
     def _edit_engagement_profession(self, engagement, mo_eng):
-        job_id, engagement_info = self.engagement_components(engagement)
+        job_id, engagement_info = engagement_components(engagement)
         for profession_info in engagement_info["professions"]:
             logger.info("Change profession of engagement {}".format(job_id))
             job_position = profession_info["JobPositionIdentifier"]
@@ -930,7 +932,7 @@ class ChangeAtSD:
             mora_assert(response)
 
     def _edit_engagement_worktime(self, engagement, mo_eng):
-        job_id, engagement_info = self.engagement_components(engagement)
+        job_id, engagement_info = engagement_components(engagement)
         for worktime_info in engagement_info["working_time"]:
             logger.info("Change working time of engagement {}".format(job_id))
 
@@ -949,7 +951,7 @@ class ChangeAtSD:
         """
         Edit an engagement
         """
-        job_id, engagement_info = self.engagement_components(engagement)
+        job_id, engagement_info = engagement_components(engagement)
 
         mo_eng = self._find_engagement(job_id)
         if not mo_eng:
@@ -979,7 +981,7 @@ class ChangeAtSD:
         skip = False
         # The EmploymentStatusCode can take a number of magical values.
         # that must be handled seperately.
-        job_id, eng = self.engagement_components(engagement)
+        job_id, eng = engagement_components(engagement)
         for status in eng["status_list"]:
             logger.info("Status is: {}".format(status))
             code = status["EmploymentStatusCode"]
@@ -1053,7 +1055,7 @@ class ChangeAtSD:
 
     def _update_user_employments(self, cpr, sd_engagement):
         for engagement in sd_engagement:
-            job_id, eng = self.engagement_components(engagement)
+            job_id, eng = engagement_components(engagement)
             logger.info("Update Job id: {}".format(job_id))
             logger.debug("SD Engagement: {}".format(engagement))
             # If status is present, we have a potential creation
