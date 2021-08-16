@@ -5,6 +5,8 @@ from abc import abstractmethod
 from functools import lru_cache
 from functools import partial
 from operator import itemgetter
+from typing import Union
+from uuid import UUID
 
 from more_itertools import ilen
 from more_itertools import only
@@ -369,8 +371,9 @@ class MOPrimaryEngagementUpdater(ABC):
                 logger.warn("Attempted edit, but no change needed.")
         return True
 
-    def recalculate_user(self, user_uuid, no_past=False):
+    def recalculate_user(self, user_uuid: Union[UUID, str], no_past=False):
         """(Re)calculate primary engagement for the entire history the user."""
+        user_uuid = str(user_uuid)
 
         def fetch_mo_engagements(date):
             """Fetch engagements which are active at 'date' and fulfill our filters.

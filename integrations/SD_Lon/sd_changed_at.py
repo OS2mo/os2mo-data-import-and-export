@@ -8,7 +8,9 @@ from functools import lru_cache
 from operator import itemgetter
 from typing import Any
 from typing import Optional
+from typing import Set
 from typing import Tuple
+from uuid import UUID
 from uuid import uuid4
 
 import click
@@ -1065,11 +1067,8 @@ class ChangeAtSD:
         logger.info("Update a total of {} employments".format(len(employments_changed)))
 
         def skip_initial_deleted(employment_info):
-            emp_status = employment_info["EmploymentStatus"]
-            if isinstance(emp_status, list):
-                code = emp_status[0]["EmploymentStatusCode"]
-            else:
-                code = emp_status["EmploymentStatusCode"]
+            emp_status = ensure_list(employment_info["EmploymentStatus"])
+            code = emp_status[0]["EmploymentStatusCode"]
             code = EmploymentStatus(code)
             if code in LetGo:
                 # NOTE: I think we should still import Migreret and Ophørt,
@@ -1080,6 +1079,7 @@ class ChangeAtSD:
 
         employments_changed = tqdm(employments_changed, desc="update employments")
         employments_changed = filter(skip_fictional_users, employments_changed)
+        recalculate_users: Set[UUID] = set()
 
         for employment in employments_changed:
             cpr = employment["PersonCivilRegistrationIdentifier"]
@@ -1092,35 +1092,37 @@ class ChangeAtSD:
             logger.debug("Employment: {}".format(employment))
 
             self.mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
+            # Person not in MO, but they should be
             if not self.mo_person:
-                sd_engagement = filter(skip_initial_deleted, sd_engagement)
-                for employment_info in sd_engagement:
-                    logger.warning("This person should be in MO, but is not")
-                    try:
-                        self.update_changed_persons(cpr=cpr)
-                        self.mo_person = self.helper.read_user(
-                            user_cpr=cpr, org_uuid=self.org_uuid
-                        )
-                    except Exception as exp:
-                        logger.error(
-                            "Unable to find person in MO, SD error: " + str(exp)
-                        )
-            else:  # if self.mo_person:
-                self.mo_engagement = self.helper.read_user_engagement(
-                    self.mo_person["uuid"],
-                    read_all=True,
-                    only_primary=True,
-                    use_cache=False,
-                )
-                self._update_user_employments(cpr, sd_engagement)
-
-                # Re-calculate primary after all updates for user has been performed.
+                sd_engagement = only(filter(skip_initial_deleted, sd_engagement))
+                if not sd_engagement:
+                    continue
+                logger.warning("This person should be in MO, but is not")
                 try:
-                    self.updater.recalculate_primary(self.mo_person["uuid"])
-                except NoPrimaryFound:
-                    logger.warning(
-                        "Could not find primary for: " + str(self.mo_person["uuid"])
+                    self.update_changed_persons(cpr=cpr)
+                    self.mo_person = self.helper.read_user(
+                        user_cpr=cpr, org_uuid=self.org_uuid
                     )
+                except Exception as exp:
+                    logger.error(
+                        "Unable to find person in MO, SD error: " + str(exp)
+                    )
+
+            self.mo_engagement = self.helper.read_user_engagement(
+                self.mo_person["uuid"],
+                read_all=True,
+                only_primary=True,
+                use_cache=False,
+            )
+            self._update_user_employments(cpr, sd_engagement)
+            # Re-calculate primary after all updates for user has been performed.
+            recalculate_users.add(self.mo_person["uuid"])
+
+        for user_uuid in recalculate_users:
+            try:
+                self.updater.recalculate_user(user_uuid)
+            except NoPrimaryFound:
+                logger.warning("Could not find primary for: {}".format(user_uuid))
 
 
 def _local_db_insert(insert_tuple):
