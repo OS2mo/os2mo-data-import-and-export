@@ -656,6 +656,11 @@ class LoraCache:
                 )
         return leaves
 
+    def _format_optional_datetime_string(self, timestamp: str, fmt="%Y-%m-%d"):
+        if timestamp is None:
+            return None
+        return datetime.datetime.fromisoformat(timestamp).strftime(fmt)
+
     def _cache_lora_it_connections(self):
         def construct_tuple(it_connection):
             return it_connection["uuid"], [{
@@ -664,8 +669,8 @@ class LoraCache:
                 'unit': (it_connection["org_unit"] or {}).get("uuid", None),
                 'username': it_connection["user_key"],
                 'itsystem': it_connection["itsystem"]["uuid"],
-                'from_date': it_connection["validity"]["from"],
-                'to_date': it_connection["validity"]["to"]
+                'from_date': self._format_optional_datetime_string(it_connection["validity"]["from"]),
+                'to_date': self._format_optional_datetime_string(it_connection["validity"]["to"])
             }]
         mh = self._get_mora_helper()
         it_connections = mh._mo_get(self.settings['mora.base'] + "/api/v1/it")

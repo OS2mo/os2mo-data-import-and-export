@@ -36,7 +36,7 @@ def test_facet_equivalence():
     )
     old_facets = _old_cache_lora_facets(lc)
     new_facets = lc._cache_lora_facets()
-    assert old_facets == new_facets
+    assert new_facets == old_facets
 
 
 def _old_cache_lora_classes(self):
@@ -72,7 +72,7 @@ def test_class_equivalence():
     )
     old_classes = _old_cache_lora_classes(lc)
     new_classes = lc._cache_lora_classes()
-    assert old_classes == new_classes
+    assert new_classes == old_classes
 
 
 def _old_cache_lora_it_connections(self):
@@ -88,7 +88,8 @@ def _old_cache_lora_it_connections(self):
         relevant = {
             'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
                            'tilknyttedeitsystemer'),
-            'attributter': ('organisationfunktionegenskaber',)
+            'attributter': ('organisationfunktionegenskaber',),
+            # "tilstande": ("organisationfunktiongyldighed",)  # bug in old cache; is needed for equivalence
         }
 
         effects = self._get_effects(it_connection, relevant)
