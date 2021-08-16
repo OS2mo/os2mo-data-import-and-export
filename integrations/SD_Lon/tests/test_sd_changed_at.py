@@ -11,7 +11,7 @@ from hypothesis import example
 from hypothesis import given
 from parameterized import parameterized
 
-from integrations.ad_integration.utils import AttrDict
+from ra_utils.attrdict import attrdict
 from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 from integrations.SD_Lon.sd_changed_at import gen_date_pairs
@@ -70,7 +70,7 @@ def setup_sd_changed_at(updates=None):
 def read_person_fixture(cpr, first_name, last_name, employment_id):
     institution_id = "XX"
 
-    sd_request_reply = AttrDict(
+    sd_request_reply = attrdict(
         {
             "text": """
         <GetPerson20111201 creationDateTime="2020-12-03T17:40:10">
@@ -318,7 +318,7 @@ def read_employment_fixture(cpr, employment_id, job_id, job_title, status="1"):
         </GetEmploymentChangedAtDate20111201>
     """
     )
-    sd_request_reply = AttrDict({"text": sd_response})
+    sd_request_reply = attrdict({"text": sd_response})
     expected_read_employment_result = [person_table[status][1]]
     return sd_request_reply, expected_read_employment_result
 
@@ -482,7 +482,7 @@ class Test_sd_changed_at(DipexTestCase):
         status = read_employment_result[0]["Employment"]["EmploymentStatus"][0]
 
         _mo_post = morahelper._mo_post
-        _mo_post.return_value = AttrDict(
+        _mo_post.return_value = attrdict(
             {
                 "status_code": 201,
             }
@@ -542,7 +542,7 @@ class Test_sd_changed_at(DipexTestCase):
         ]
 
         _mo_post = morahelper._mo_post
-        _mo_post.return_value = AttrDict({"status_code": 201, "text": lambda: "OK"})
+        _mo_post.return_value = attrdict({"status_code": 201, "text": lambda: "OK"})
         self.assertFalse(_mo_post.called)
         sd_updater._terminate_engagement(status["ActivationDate"], employment_id)
         _mo_post.assert_called_with(
@@ -603,7 +603,7 @@ class Test_sd_changed_at(DipexTestCase):
         }
 
         _mo_post = morahelper._mo_post
-        _mo_post.return_value = AttrDict({"status_code": 201, "text": lambda: "OK"})
+        _mo_post.return_value = attrdict({"status_code": 201, "text": lambda: "OK"})
         self.assertFalse(_mo_post.called)
 
         sd_updater._create_engagement_type = MagicMock()
@@ -741,7 +741,7 @@ class Test_sd_changed_at(DipexTestCase):
             "uuid": "uuid-a",
         }
         _mo_post = morahelper._mo_post
-        _mo_post.return_value = AttrDict({"status_code": 201, "text": lambda: "OK"})
+        _mo_post.return_value = attrdict({"status_code": 201, "text": lambda: "OK"})
 
         sd_updater.mo_person = {
             "uuid": "uuid-b",
@@ -834,7 +834,7 @@ class Test_sd_changed_at(DipexTestCase):
 
         morahelper = sd_updater.morahelper_mock
         _mo_post = morahelper._mo_post
-        _mo_post.return_value = AttrDict(
+        _mo_post.return_value = attrdict(
             {
                 "status_code": 201,
             }
