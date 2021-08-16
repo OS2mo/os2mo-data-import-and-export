@@ -11,6 +11,7 @@ from typing import Tuple
 import click
 from more_itertools import only
 from more_itertools import partition
+from mox_helpers.mox_util import ensure_class_in_lora
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.apply import apply
 from ra_utils.jinja_filter import create_filters
@@ -29,9 +30,6 @@ logger = logging.getLogger("AdSyncRead")
 # It must be addresses, so we find the address thing for employees
 # https://os2mo-test.holstebro.dk/service/o/ORGUUID/f/employee_address_type/
 # There You have it - for example the mobile phone
-# Now You may wonder if the VISIBLE/SECRET are right:
-# Find them here https://os2mo-test.holstebro.dk/service/o/ORGUUID/f/visibility/
-
 
 # AD has no concept of temporality, validity is always from now to infinity.
 VALIDITY = {"from": datetime.strftime(datetime.now(), "%Y-%m-%d"), "to": None}
@@ -177,19 +175,15 @@ class AdMoSync(object):
         # Possibly get IT-system directly from LoRa for better performance.
         self.lc = self._setup_lora_cache()
 
-        mo_visibilities = self.helper.read_classes_in_facet("visibility")[0]
-        self.visibility = {
-            "PUBLIC": self.settings["address.visibility.public"],
-            "INTERNAL": self.settings["address.visibility.internal"],
-            "SECRET": self.settings["address.visibility.secret"],
-        }
+        visibility_public, _ = ensure_class_in_lora("visibility", "PUBLIC")
+        visibility_internal, _ = ensure_class_in_lora("visibility", "INTERNAL")
+        visibility_secret, _ = ensure_class_in_lora("visibility", "SECRET")
 
-        # Check that the configured visibilities are found in MO
-        configured_visibilities = set(self.visibility.values())
-        mo_visibilities = set(map(itemgetter("uuid"), mo_visibilities))
-        # If the configured visibiltities are not a subset, at least one is missing.
-        if not configured_visibilities.issubset(mo_visibilities):
-            raise Exception("Error in visibility class configuration")
+        self.visibility = {
+            "PUBLIC": visibility_public,
+            "INTERNAL": visibility_internal,
+            "SECRET": visibility_secret,
+        }
 
     def _setup_mora_helper(self):
         return MoraHelper(hostname=self.settings["mora.base"], use_cache=False)
