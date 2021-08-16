@@ -3,8 +3,11 @@ import logging
 import pathlib
 import sqlite3
 import sys
+from itertools import tee
 from functools import lru_cache
 from operator import itemgetter
+from typing import Any
+from typing import Optional
 from typing import Tuple
 from uuid import uuid4
 
@@ -12,11 +15,13 @@ import click
 import pandas as pd
 import requests
 from more_itertools import last
+from more_itertools import partition
 from more_itertools import pairwise
 from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
 from tqdm import tqdm
 from fastapi.encoders import jsonable_encoder
+from ra_utils.apply import apply
 from ramodels.mo import Employee
 from ramodels.mo._shared import OrganisationRef
 
@@ -271,52 +276,25 @@ class ChangeAtSD:
         person = ensure_list(response.get("Person", []))
         return person
 
-    def update_changed_persons(self, cpr=None):
+    def update_changed_persons(self, cpr: Optional[str] = None):
         # Ansættelser håndteres af update_employment, så vi tjekker for ændringer i
         # navn og opdaterer disse poster. Nye personer oprettes.
-        if cpr is not None:
-            person_changed = self.read_person(cpr)
-        else:
-            person_changed = self.read_person_changed()
 
-        logger.info("Number of changed persons: {}".format(len(person_changed)))
-        person_changed = tqdm(person_changed, desc="update persons")
-        person_changed = filter(skip_fictional_users, person_changed)
+        def extract_cpr_and_name(person: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
+            return (
+                person["PersonCivilRegistrationIdentifier"],
+                person.get("PersonGivenName"),
+                person.get("PersonSurnameName"),
+            )
 
-        for person in person_changed:
-            cpr = person["PersonCivilRegistrationIdentifier"]
-            logger.debug("Updating: {}".format(cpr))
-
-            old_values = mo_person = self.helper.read_user(
+        @apply
+        def fetch_mo_person(cpr: str, _1: Any, _2: Any) -> Dict[str, Any]:
+            mo_person = self.helper.read_user(
                 user_cpr=cpr, org_uuid=self.org_uuid
             )
-            old_values = old_values or {}
+            return mo_person
 
-            given_name = person.get("PersonGivenName", old_values.get("givenname", ""))
-            sur_name = person.get("PersonSurnameName", old_values.get("surname", ""))
-            sd_name = " ".join([given_name, sur_name])
-            if mo_person and mo_person["name"] == sd_name:
-                continue
-
-            old_uuid = old_values.get("uuid")
-            forced_uuid = self.employee_forced_uuids.get(cpr)
-            sam_account_name, object_guid = self._fetch_ad_information(cpr)
-
-            uuid = None
-            if old_uuid:
-                uuid = old_uuid
-            elif forced_uuid:
-                uuid = forced_uuid
-                logger.info("Employee in force list: {}".format(uuid))
-            elif object_guid:
-                uuid = object_guid
-                logger.debug("Using ObjectGuid as MO UUID: {}".format(uuid))
-            else:
-                uuid = uuid4()
-                logger.debug(
-                    "User not in MO, UUID list or AD, assigning UUID: {}".format(uuid)
-                )
-
+        def upsert_employee(uuid: str, given_name: str, sur_name: str, cpr: str) -> str:
             model = Employee(
                 uuid=uuid,
                 givenname=given_name,
@@ -332,8 +310,58 @@ class ChangeAtSD:
                     sd_name, return_uuid
                 )
             )
+            return return_uuid
 
-            if (not mo_person) and sam_account_name:
+        # Fetch a list of persons to update
+        if cpr is not None:
+            person_changed = self.read_person(cpr)
+        else:
+            person_changed = self.read_person_changed()
+        logger.info("Number of changed persons: {}".format(len(person_changed)))
+        person_changed = tqdm(person_changed, desc="update persons")
+        person_changed = filter(skip_fictional_users, person_changed)
+        person_changed = map(extract_cpr_and_name, person_changed)
+
+        person_changed, mo_persons = tee(person_changed)
+        mo_persons = map(fetch_mo_person, mo_persons)
+
+        person_pairs = zip(person_changed, mo_persons)
+        has_mo_person = itemgetter(1)
+
+        new_pairs, current_pairs = partition(has_mo_person, person_pairs)
+
+        for (cpr, given_name, sur_name), mo_person in current_pairs:
+            given_name = given_name or mo_person.get("givenname", "")
+            sur_name = sur_name or mo_person.get("surname", "")
+            sd_name = " ".join([given_name, sur_name])
+            if mo_person["name"] == sd_name:
+                continue
+            uuid = mo_person["uuid"]
+            return_uuid = upsert_employee(uuid, given_name, sur_name, cpr)
+
+        for (cpr, given_name, sur_name), _ in new_pairs:
+            given_name = given_name or ""
+            sur_name = sur_name or ""
+
+            forced_uuid = self.employee_forced_uuids.get(cpr)
+            sam_account_name, object_guid = self._fetch_ad_information(cpr)
+
+            uuid = None
+            if forced_uuid:
+                uuid = forced_uuid
+                logger.info("Employee in force list: {}".format(uuid))
+            elif object_guid:
+                uuid = object_guid
+                logger.debug("Using ObjectGuid as MO UUID: {}".format(uuid))
+            else:
+                uuid = uuid4()
+                logger.debug(
+                    "User not in MO, UUID list or AD, assigning UUID: {}".format(uuid)
+                )
+
+            return_uuid = upsert_employee(uuid, given_name, sur_name, cpr)
+
+            if sam_account_name:
                 payload = sd_payloads.connect_it_system_to_user(
                     sam_account_name, self._fetch_ad_it_system_uuid(), return_uuid
                 )
