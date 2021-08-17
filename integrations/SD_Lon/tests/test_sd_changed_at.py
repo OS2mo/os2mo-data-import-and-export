@@ -10,16 +10,14 @@ import hypothesis.strategies as st
 from hypothesis import example
 from hypothesis import given
 from parameterized import parameterized
-
 from ra_utils.attrdict import attrdict
 from ra_utils.generate_uuid import uuid_generator
 
+from .fixtures import read_employment_fixture
+from .fixtures import read_person_fixture
 from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 from integrations.SD_Lon.sd_changed_at import gen_date_pairs
-from .fixtures import read_person_fixture
-from .fixtures import read_employment_fixture
-
 from test_case import DipexTestCase
 
 
@@ -183,7 +181,9 @@ class Test_sd_changed_at(DipexTestCase):
 
             self.assertFalse(sd_updater.create_new_engagement.called)
             sd_updater.update_all_employments()
-            sd_updater.create_new_engagement.assert_called_with(engagement, status, cpr, "user_uuid")
+            sd_updater.create_new_engagement.assert_called_with(
+                engagement, status, cpr, "user_uuid"
+            )
         elif status == "S":  # Deletes call terminante engagement
             morahelper.read_user_engagement.return_value = [{"user_key": employment_id}]
             sd_updater._terminate_engagement = MagicMock()
@@ -226,7 +226,9 @@ class Test_sd_changed_at(DipexTestCase):
         morahelper = sd_updater.morahelper_mock
 
         # Load noop NY logic
-        sd_updater.apply_NY_logic = lambda org_unit, user_key, validity, person_uuid: org_unit
+        sd_updater.apply_NY_logic = (
+            lambda org_unit, user_key, validity, person_uuid: org_unit
+        )
         # Set primary types
         sd_updater.primary_types = {
             "primary": "primary_uuid",
@@ -299,7 +301,9 @@ class Test_sd_changed_at(DipexTestCase):
         _mo_post = morahelper._mo_post
         _mo_post.return_value = attrdict({"status_code": 201, "text": lambda: "OK"})
         self.assertFalse(_mo_post.called)
-        sd_updater._terminate_engagement(status["ActivationDate"], employment_id, "user_uuid")
+        sd_updater._terminate_engagement(
+            status["ActivationDate"], employment_id, "user_uuid"
+        )
         _mo_post.assert_called_with(
             "details/terminate",
             {
@@ -337,7 +341,9 @@ class Test_sd_changed_at(DipexTestCase):
 
         sd_updater.read_employment_changed = lambda: read_employment_result
         # Load noop NY logic
-        sd_updater.apply_NY_logic = lambda org_unit, user_key, validity, person_uuid: org_unit
+        sd_updater.apply_NY_logic = (
+            lambda org_unit, user_key, validity, person_uuid: org_unit
+        )
 
         morahelper = sd_updater.morahelper_mock
         morahelper.read_user.return_value.__getitem__.return_value = "user_uuid"
@@ -486,7 +492,9 @@ class Test_sd_changed_at(DipexTestCase):
                 "integrations.SD_Lon.no_salary_minimum_id": no_salary_minimum,
             }
         )
-        sd_updater.apply_NY_logic = lambda org_unit, user_key, validity, person_uuid: org_unit
+        sd_updater.apply_NY_logic = (
+            lambda org_unit, user_key, validity, person_uuid: org_unit
+        )
 
         morahelper = sd_updater.morahelper_mock
         morahelper.read_ou.return_value = {
