@@ -62,7 +62,7 @@ def decorate_leaders(hostname):
         logger.info('Updating hierarchy took: {}s'.format(time.time() - t))
 
     except Exception as excep:
-        logger.info(f"Export af data fejlede: {excep}")
+        logger.error(f"Opdatering af leder hierarki fejlede: {excep}")
         raise
 
 

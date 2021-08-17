@@ -554,35 +554,46 @@ def update_org_with_hk_managers(mh, nodes):
     """
     managerHelper = HolstebroHelper(mh)
 
+    def _find_newest_manager(associated_leaders):
+
+        manager = {}
+        if len(associated_leaders) > 0:
+            leader_engagements = list(associated_leaders.values())
+            leader_engagements.sort(key = lambda x: datetime.strptime(x['Ansættelse gyldig fra'], '%Y-%m-%d'), reverse=True)
+
+            # Take the first employees associated with the ou and make them leader
+            manager_uuid = leader_engagements[0]['Person UUID']
+            manager = associated_leaders[manager_uuid]
+
+        if len(associated_leaders) > 1:
+            # This is an error. There should be no more than one employeen in manager unit.
+            # Log this as an error.
+            logger.error(
+                "More than one manager associated with: {}".format(ou['name']))
+
+        return manager
+
+
+
     for node in PreOrderIter(nodes['root']):
         ou = mh.read_ou(node.name)
         # for each ou, check if name contains _leder
         # if so, check ou for "tilknytninger" and set this as leader for ou.parent
+
         if _is_leader_unit(ou):
             # We have an Afdeling with name _leder, find associated employees and make them leaders in the parent ou
             associated_employees = mh.read_organisation_people(
                 node.name, 'association', False)
 
             # Find the manager if an employee is associated with manager departement
-            manager = {}
-            if len(associated_employees) > 0:
-                # Take the first employees associated with the ou and make them leader
-                manager_uuid = list(associated_employees)[0]
-                manager = associated_employees[manager_uuid]
-
-            if len(associated_employees) > 1:
-                # This is an error. There should be no more than one employeen in manager unit.
-                # Log this as an error.
-                logger.error(
-                    "More than one manager associated with: {}".format(ou['name']))
-
+            manager = _find_newest_manager(associated_employees)
+            
             if ou['parent'] != None:
                 managerHelper.update_manager(
                     ou['parent'], manager)
-
-            # This manager is now manager for parent ou - or has been removed
-            # if parent ou's name ends with "led-adm", make employee
-            # manager for the parent ou's parent as well.
+                # This manager is now manager for parent ou - or has been removed
+                # if parent ou's name ends with "led-adm", make employee
+                # manager for the parent ou's parent as well.
             if _is_cm_unit(ou):
                 managerHelper.update_manager(
                     ou['parent']['parent'], manager)
