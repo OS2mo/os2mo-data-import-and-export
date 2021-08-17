@@ -3,31 +3,33 @@ import logging
 import pathlib
 import sqlite3
 import sys
-from itertools import tee
 from functools import lru_cache
+from itertools import tee
 from operator import itemgetter
 from typing import Any
 from typing import Dict
+from typing import List
 from typing import Optional
 from typing import Set
-from typing import List
 from typing import Tuple
+from typing import Union
 from uuid import UUID
 from uuid import uuid4
 
 import click
 import pandas as pd
 import requests
-from more_itertools import last
-from more_itertools import partition
-from more_itertools import pairwise
-from more_itertools import only
-from os2mo_helpers.mora_helpers import MoraHelper
-from tqdm import tqdm
 from fastapi.encoders import jsonable_encoder
+from more_itertools import last
+from more_itertools import one
+from more_itertools import only
+from more_itertools import pairwise
+from more_itertools import partition
+from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.apply import apply
 from ramodels.mo import Employee
 from ramodels.mo._shared import OrganisationRef
+from tqdm import tqdm
 
 from integrations import cpr_mapper
 from integrations.ad_integration import ad_reader
@@ -83,7 +85,6 @@ def setup_logging():
 
 
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
-
 
 
 def skip_fictional_users(entity):
@@ -191,7 +192,7 @@ class ChangeAtSD:
         logger.info("AD integration not in use")
         return None
 
-    def _fetch_ad_information(self, cpr) -> Tuple[str, str]:
+    def _fetch_ad_information(self, cpr) -> Union[Tuple[None, None], Tuple[str, str]]:
         ad_reader = self._get_ad_reader()
         if ad_reader is None:
             return None, None
@@ -206,10 +207,12 @@ class ChangeAtSD:
         if self.use_ad:
             raise ValueError("_fetch_ad_it_system_uuid called without AD enabled")
         it_systems = self.helper.read_it_systems()
-        return one(map(itemgetter('uuid'), filter(
-            lambda system: system["name"] == "Active Directory",
-            it_systems
-        )))
+        return one(
+            map(
+                itemgetter("uuid"),
+                filter(lambda system: system["name"] == "Active Directory", it_systems),
+            )
+        )
 
     @lru_cache(maxsize=None)
     def read_employment_changed(
@@ -290,11 +293,13 @@ class ChangeAtSD:
         person = ensure_list(response.get("Person", []))
         return person
 
-    def update_changed_persons(self, cpr: Optional[str] = None):
+    def update_changed_persons(self, in_cpr: Optional[str] = None):
         # Ansættelser håndteres af update_employment, så vi tjekker for ændringer i
         # navn og opdaterer disse poster. Nye personer oprettes.
 
-        def extract_cpr_and_name(person: Dict[str, Any]) -> Tuple[str, Optional[str], Optional[str]]:
+        def extract_cpr_and_name(
+            person: Dict[str, Any]
+        ) -> Tuple[str, Optional[str], Optional[str]]:
             return (
                 person["PersonCivilRegistrationIdentifier"],
                 person.get("PersonGivenName"),
@@ -303,9 +308,7 @@ class ChangeAtSD:
 
         @apply
         def fetch_mo_person(cpr: str, _1: Any, _2: Any) -> Dict[str, Any]:
-            mo_person = self.helper.read_user(
-                user_cpr=cpr, org_uuid=self.org_uuid
-            )
+            mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
             return mo_person
 
         def upsert_employee(uuid: str, given_name: str, sur_name: str, cpr: str) -> str:
@@ -327,10 +330,11 @@ class ChangeAtSD:
             return return_uuid
 
         # Fetch a list of persons to update
-        if cpr is not None:
-            person_changed = self.read_person(cpr)
+        if in_cpr is not None:
+            person_changed = self.read_person(in_cpr)
         else:
             person_changed = self.read_person_changed()
+
         logger.info("Number of changed persons: {}".format(len(person_changed)))
         person_changed = tqdm(person_changed, desc="update persons")
         person_changed = filter(skip_fictional_users, person_changed)
@@ -825,9 +829,7 @@ class ChangeAtSD:
                     logger.fatal("DepartmentUUIDIdentifier was None inside failover.")
                     sys.exit(1)
 
-            associations = self.helper.read_user_association(
-                person_uuid, read_all=True
-            )
+            associations = self.helper.read_user_association(person_uuid, read_all=True)
             logger.debug("User associations: {}".format(associations))
             current_association = None
             # TODO: This is a filter + next (only?)
@@ -1028,7 +1030,7 @@ class ChangeAtSD:
                     self.create_new_engagement(engagement, status, cpr, person_uuid)
                 logger.info("Create a leave for {} ".format(cpr))
                 self.create_leave(status, job_id, person_uuid)
-            elif code in EmploymentStatus.LetGo:
+            elif code in EmploymentStatus.let_go():
                 from_date = status["ActivationDate"]
                 logger.info("Terminate {}, job_id {} ".format(cpr, job_id))
                 success = self._terminate_engagement(from_date, job_id, person_uuid)
@@ -1039,17 +1041,23 @@ class ChangeAtSD:
                 for mo_eng in self._fetch_mo_engagements(person_uuid):
                     if mo_eng["user_key"] == job_id:
                         logger.info("Status S: Terminate {}".format(job_id))
-                        self._terminate_engagement(status["ActivationDate"], job_id, person_uuid)
+                        self._terminate_engagement(
+                            status["ActivationDate"], job_id, person_uuid
+                        )
                 skip = True
         return skip
 
-    def _update_user_employments(self, cpr: str, sd_engagement, person_uuid: str) -> None:
+    def _update_user_employments(
+        self, cpr: str, sd_engagement, person_uuid: str
+    ) -> None:
         for engagement in sd_engagement:
             job_id, eng = engagement_components(engagement)
             logger.info("Update Job id: {}".format(job_id))
             logger.debug("SD Engagement: {}".format(engagement))
             # If status is present, we have a potential creation
-            if eng["status_list"] and self._handle_status_changes(cpr, engagement, person_uuid):
+            if eng["status_list"] and self._handle_status_changes(
+                cpr, engagement, person_uuid
+            ):
                 continue
             self.edit_engagement(engagement, person_uuid)
 
@@ -1091,14 +1099,12 @@ class ChangeAtSD:
                     continue
                 logger.warning("This person should be in MO, but is not")
                 try:
-                    self.update_changed_persons(cpr=cpr)
+                    self.update_changed_persons(in_cpr=cpr)
                     mo_person = self.helper.read_user(
                         user_cpr=cpr, org_uuid=self.org_uuid
                     )
                 except Exception as exp:
-                    logger.error(
-                        "Unable to find person in MO, SD error: " + str(exp)
-                    )
+                    logger.error("Unable to find person in MO, SD error: " + str(exp))
 
             person_uuid = mo_person["uuid"]
 

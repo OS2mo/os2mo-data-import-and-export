@@ -15,7 +15,6 @@ from integrations.ad_integration import ad_reader
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import generate_uuid
-from integrations.SD_Lon.sd_common import LetGo
 from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.sd_common import sd_lookup
 
@@ -529,7 +528,7 @@ class SdImport(object):
             if status == EmploymentStatus.Overlov:
                 # Orlov
                 pass
-            if status in LetGo:
+            if status in EmploymentStatus.let_go():
                 # Fratrådt eller pensioneret.
                 continue
 
@@ -598,7 +597,7 @@ class SdImport(object):
             emp_dep = employment["EmploymentDepartment"]
             unit = emp_dep["DepartmentUUIDIdentifier"]
 
-            if status in LetGo:
+            if status in EmploymentStatus.let_go():
                 date_from = datetime.datetime.strptime(
                     employment["EmploymentDate"], "%Y-%m-%d"
                 )

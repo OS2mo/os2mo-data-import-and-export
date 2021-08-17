@@ -6,6 +6,7 @@ from enum import Enum
 from functools import lru_cache
 from functools import wraps
 from pathlib import Path
+from typing import List
 
 import requests
 import xmltodict
@@ -250,11 +251,22 @@ class EmploymentStatus(Enum):
     # This status is the special terminal state
     Slettet = "S"
 
+    @staticmethod
+    def employeed() -> List["EmploymentStatus"]:
+        return [
+            EmploymentStatus.AnsatUdenLoen,
+            EmploymentStatus.AnsatMedLoen,
+            EmploymentStatus.Overlov,
+        ]
 
-EmploymentStatus.Employeed = [
-    EmploymentStatus.AnsatUdenLoen,
-    EmploymentStatus.AnsatMedLoen,
-    EmploymentStatus.Overlov,
-]
-EmploymentStatus.LetGo = [EmploymentStatus.Migreret, EmploymentStatus.Ophoert, EmploymentStatus.Doed]
-EmploymentStatus.OnPayroll = [EmploymentStatus.AnsatMedLoen, EmploymentStatus.Overlov]
+    @staticmethod
+    def let_go() -> List["EmploymentStatus"]:
+        return [
+            EmploymentStatus.Migreret,
+            EmploymentStatus.Ophoert,
+            EmploymentStatus.Doed,
+        ]
+
+    @staticmethod
+    def on_payroll() -> List["EmploymentStatus"]:
+        return [EmploymentStatus.AnsatMedLoen, EmploymentStatus.Overlov]
