@@ -138,7 +138,8 @@ class ChangeAtSD:
         self.from_date = from_date
         self.to_date = to_date
 
-        self.mo_engagement = None  # being processed.
+        # Cache of mo engagements
+        self.mo_engagements_cache = {}
 
         self.primary_types = primary_types(self.helper)
 
@@ -437,7 +438,20 @@ class ChangeAtSD:
 
         return validity
 
-    def _find_engagement(self, job_id):
+    def _refresh_mo_engagements(self, person_uuid):
+        self.mo_engagements_cache.pop(person_uuid, None)
+
+    def _fetch_mo_engagements(self, person_uuid):
+        if person_uuid in self.mo_engagements_cache:
+            return self.mo_engagements_cache[person_uuid]
+
+        mo_engagements = self.helper.read_user_engagement(
+            person_uuid, read_all=True, only_primary=True, use_cache=False
+        )
+        self.mo_engagements_cache[person_uuid] = mo_engagements
+        return mo_engagements
+
+    def _find_engagement(self, job_id, person_uuid):
         try:
             user_key = str(int(job_id)).zfill(5)
         except ValueError:  # We will end here, if int(job_id) fails
@@ -449,13 +463,15 @@ class ChangeAtSD:
             )
         )
 
+        mo_engagements = self._fetch_mo_engagements(person_uuid)
+
         relevant_engagements = filter(
-            lambda mo_eng: mo_eng["user_key"] == user_key, self.mo_engagement
+            lambda mo_eng: mo_eng["user_key"] == user_key, mo_engagements
         )
         relevant_engagement = last(relevant_engagements, None)
 
         if relevant_engagement is None:
-            msg = "Fruitlessly searched for {} in {}".format(job_id, self.mo_engagement)
+            msg = "Fruitlessly searched for {} in {}".format(job_id, mo_engagements)
             logger.info(msg)
         return relevant_engagement
 
@@ -548,7 +564,7 @@ class ChangeAtSD:
         # forces an edit to the engagement that will extend it to span the
         # leave. If this ever turns out not to hold, add a dummy-edit to the
         # engagement here.
-        mo_eng = self._find_engagement(job_id)
+        mo_eng = self._find_engagement(job_id, person_uuid)
         payload = sd_payloads.create_leave(
             mo_eng, person_uuid, self.leave_uuid, job_id, self._validity(status)
         )
@@ -739,9 +755,7 @@ class ChangeAtSD:
         response = self.helper._mo_post("details/create", payload)
         assert response.status_code == 201
 
-        self.mo_engagement = self.helper.read_user_engagement(
-            person_uuid, read_all=True, only_primary=True, use_cache=False
-        )
+        self._refresh_mo_engagements(person_uuid)
         logger.info("Engagement {} created".format(user_key))
 
         if also_edit:
@@ -751,7 +765,7 @@ class ChangeAtSD:
         return True
 
     def _terminate_engagement(self, from_date, job_id, person_uuid):
-        mo_engagement = self._find_engagement(job_id)
+        mo_engagement = self._find_engagement(job_id, person_uuid)
 
         if not mo_engagement:
             logger.warning("Terminating non-existing job: {}!".format(job_id))
@@ -774,9 +788,7 @@ class ChangeAtSD:
         logger.debug("Terminate response: {}".format(response.text))
         mora_assert(response)
 
-        self.mo_engagement = self.helper.read_user_engagement(
-            person_uuid, read_all=True, only_primary=True, use_cache=False
-        )
+        self._refresh_mo_engagements(person_uuid)
 
         return True
 
@@ -958,7 +970,7 @@ class ChangeAtSD:
         """
         job_id, engagement_info = engagement_components(engagement)
 
-        mo_eng = self._find_engagement(job_id)
+        mo_eng = self._find_engagement(job_id, person_uuid)
         if not mo_eng:
             # Should have been created at an earlier status-code
             logger.error("Engagement {} has never existed!".format(job_id))
@@ -983,7 +995,7 @@ class ChangeAtSD:
 
             if code == EmploymentStatus.AnsatUdenLoen:
                 logger.info("Status 0. Cpr: {}, job: {}".format(cpr, job_id))
-                mo_eng = self._find_engagement(job_id)
+                mo_eng = self._find_engagement(job_id, person_uuid)
                 if mo_eng:
                     logger.info("Status 0, edit eng {}".format(mo_eng["uuid"]))
 
@@ -996,18 +1008,13 @@ class ChangeAtSD:
                 skip = True
             elif code == EmploymentStatus.AnsatMedLoen:
                 logger.info("Setting {} to status 1".format(job_id))
-                mo_eng = self._find_engagement(job_id)
+                mo_eng = self._find_engagement(job_id, person_uuid)
                 if mo_eng:
                     logger.info("Status 1, edit eng. {}".format(mo_eng["uuid"]))
 
                     self._set_non_primary(status, mo_eng)
+                    self._refresh_mo_engagements(person_uuid)
 
-                    self.mo_engagement = self.helper.read_user_engagement(
-                        person_uuid,
-                        read_all=True,
-                        only_primary=True,
-                        use_cache=False,
-                    )
                     validity = self._validity(status)
                     self.edit_engagement(engagement, person_uuid, validity)
                 else:
@@ -1015,7 +1022,7 @@ class ChangeAtSD:
                     self.create_new_engagement(engagement, status, cpr, person_uuid)
                 skip = True
             elif code == EmploymentStatus.Overlov:
-                mo_eng = self._find_engagement(job_id)
+                mo_eng = self._find_engagement(job_id, person_uuid)
                 if not mo_eng:
                     logger.info("Leave for non existent eng., create one")
                     self.create_new_engagement(engagement, status, cpr, person_uuid)
@@ -1029,7 +1036,7 @@ class ChangeAtSD:
                     logger.error("Problem with job-id: {}".format(job_id))
                     skip = True
             elif code == EmploymentStatus.Slettet:
-                for mo_eng in self.mo_engagement:
+                for mo_eng in self._fetch_mo_engagements(person_uuid):
                     if mo_eng["user_key"] == job_id:
                         logger.info("Status S: Terminate {}".format(job_id))
                         self._terminate_engagement(status["ActivationDate"], job_id, person_uuid)
@@ -1095,12 +1102,7 @@ class ChangeAtSD:
 
             person_uuid = mo_person["uuid"]
 
-            self.mo_engagement = self.helper.read_user_engagement(
-                person_uuid,
-                read_all=True,
-                only_primary=True,
-                use_cache=False,
-            )
+            self._refresh_mo_engagements(person_uuid)
             self._update_user_employments(cpr, sd_engagement, person_uuid)
             # Re-calculate primary after all updates for user has been performed.
             recalculate_users.add(person_uuid)

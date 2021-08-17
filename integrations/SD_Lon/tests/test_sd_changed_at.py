@@ -289,7 +289,7 @@ class Test_sd_changed_at(DipexTestCase):
 
         status = read_employment_result[0]["Employment"]["EmploymentStatus"]
 
-        sd_updater.mo_engagement = [
+        sd_updater.mo_engagements_cache["user_uuid"] = [
             {
                 "user_key": employment_id,
                 "uuid": "mo_engagement_uuid",
@@ -576,7 +576,7 @@ class Test_sd_changed_at(DipexTestCase):
             "månedsløn": "monthly pay",
             "timeløn": "hourly pay",
         }
-        sd_updater.mo_engagement = [
+        sd_updater.mo_engagements_cache["person_uuid"] = [
             {
                 "user_key": engagement["EmploymentIdentifier"],
                 "uuid": "mo_engagement_uuid",
