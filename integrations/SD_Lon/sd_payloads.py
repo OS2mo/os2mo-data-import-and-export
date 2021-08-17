@@ -54,11 +54,11 @@ def association(data, uuid):
     return payload
 
 
-def create_leave(mo_eng, mo_person, leave_uuid, job_id, validity):
+def create_leave(mo_eng, person_uuid, leave_uuid, job_id, validity):
     payload = {
         "type": "leave",
         "org_unit": {"uuid": mo_eng["org_unit"]["uuid"]},
-        "person": {"uuid": mo_person["uuid"]},
+        "person": {"uuid": person_uuid},
         "leave_type": {"uuid": leave_uuid},
         "user_key": job_id,
         "validity": validity,
@@ -68,7 +68,7 @@ def create_leave(mo_eng, mo_person, leave_uuid, job_id, validity):
 
 def create_engagement(
     org_unit,
-    mo_person,
+    person_uuid,
     job_function,
     engagement_type,
     primary,
@@ -84,7 +84,7 @@ def create_engagement(
     payload = {
         "type": "engagement",
         "org_unit": {"uuid": org_unit},
-        "person": {"uuid": mo_person["uuid"]},
+        "person": {"uuid": person_uuid},
         "job_function": {"uuid": job_function},
         "primary": {"uuid": primary},
         "engagement_type": {"uuid": engagement_type},
@@ -96,11 +96,11 @@ def create_engagement(
     return payload
 
 
-def create_association(org_unit, mo_person, association_uuid, job_id, validity):
+def create_association(org_unit, person_uuid, association_uuid, job_id, validity):
     payload = {
         "type": "association",
         "org_unit": {"uuid": org_unit},
-        "person": {"uuid": mo_person["uuid"]},
+        "person": {"uuid": person_uuid},
         "association_type": {"uuid": association_uuid},
         "user_key": job_id,
         "validity": validity,

@@ -183,7 +183,7 @@ class Test_sd_changed_at(DipexTestCase):
 
             self.assertFalse(sd_updater.create_new_engagement.called)
             sd_updater.update_all_employments()
-            sd_updater.create_new_engagement.assert_called_with(engagement, status, cpr)
+            sd_updater.create_new_engagement.assert_called_with(engagement, status, cpr, "user_uuid")
         elif status == "S":  # Deletes call terminante engagement
             morahelper.read_user_engagement.return_value = [{"user_key": employment_id}]
             sd_updater._terminate_engagement = MagicMock()
@@ -193,7 +193,7 @@ class Test_sd_changed_at(DipexTestCase):
             self.assertFalse(sd_updater._terminate_engagement.called)
             sd_updater.update_all_employments()
             sd_updater._terminate_engagement.assert_called_with(
-                status["ActivationDate"], employment_id
+                status["ActivationDate"], employment_id, "user_uuid"
             )
 
     @parameterized.expand(
@@ -226,9 +226,7 @@ class Test_sd_changed_at(DipexTestCase):
         morahelper = sd_updater.morahelper_mock
 
         # Load noop NY logic
-        sd_updater.apply_NY_logic = lambda org_unit, user_key, validity: org_unit
-        # Set globally shared state x(
-        sd_updater.mo_person = {"uuid": "user_uuid"}
+        sd_updater.apply_NY_logic = lambda org_unit, user_key, validity, person_uuid: org_unit
         # Set primary types
         sd_updater.primary_types = {
             "primary": "primary_uuid",
@@ -255,7 +253,7 @@ class Test_sd_changed_at(DipexTestCase):
         sd_updater._create_professions = MagicMock()
         sd_updater._create_professions.return_value = "new_profession_uuid"
 
-        sd_updater.create_new_engagement(engagement, status, cpr)
+        sd_updater.create_new_engagement(engagement, status, cpr, "user_uuid")
         _mo_post.assert_called_with(
             "details/create",
             {
@@ -289,9 +287,6 @@ class Test_sd_changed_at(DipexTestCase):
 
         morahelper = sd_updater.morahelper_mock
 
-        # Set globally shared state x(
-        sd_updater.mo_person = {"uuid": "user_uuid"}
-
         status = read_employment_result[0]["Employment"]["EmploymentStatus"]
 
         sd_updater.mo_engagement = [
@@ -304,7 +299,7 @@ class Test_sd_changed_at(DipexTestCase):
         _mo_post = morahelper._mo_post
         _mo_post.return_value = attrdict({"status_code": 201, "text": lambda: "OK"})
         self.assertFalse(_mo_post.called)
-        sd_updater._terminate_engagement(status["ActivationDate"], employment_id)
+        sd_updater._terminate_engagement(status["ActivationDate"], employment_id, "user_uuid")
         _mo_post.assert_called_with(
             "details/terminate",
             {
@@ -342,7 +337,7 @@ class Test_sd_changed_at(DipexTestCase):
 
         sd_updater.read_employment_changed = lambda: read_employment_result
         # Load noop NY logic
-        sd_updater.apply_NY_logic = lambda org_unit, user_key, validity: org_unit
+        sd_updater.apply_NY_logic = lambda org_unit, user_key, validity, person_uuid: org_unit
 
         morahelper = sd_updater.morahelper_mock
         morahelper.read_user.return_value.__getitem__.return_value = "user_uuid"
@@ -491,7 +486,7 @@ class Test_sd_changed_at(DipexTestCase):
                 "integrations.SD_Lon.no_salary_minimum_id": no_salary_minimum,
             }
         )
-        sd_updater.apply_NY_logic = lambda org_unit, user_key, validity: org_unit
+        sd_updater.apply_NY_logic = lambda org_unit, user_key, validity, person_uuid: org_unit
 
         morahelper = sd_updater.morahelper_mock
         morahelper.read_ou.return_value = {
@@ -503,9 +498,6 @@ class Test_sd_changed_at(DipexTestCase):
         _mo_post = morahelper._mo_post
         _mo_post.return_value = attrdict({"status_code": 201, "text": lambda: "OK"})
 
-        sd_updater.mo_person = {
-            "uuid": "uuid-b",
-        }
         engagement = {
             "EmploymentIdentifier": "BIGAL",
             "EmploymentDepartment": [{"DepartmentUUIDIdentifier": "uuid-c"}],
@@ -517,7 +509,7 @@ class Test_sd_changed_at(DipexTestCase):
             "EmploymentStatusCode": "",
         }
         cpr = ""
-        result = sd_updater.create_new_engagement(engagement, status, cpr)
+        result = sd_updater.create_new_engagement(engagement, status, cpr, "uuid-b")
         self.assertEqual(result, expected)
         if expected:
             sd_payloads_mock.create_engagement.assert_called_once()
@@ -609,7 +601,7 @@ class Test_sd_changed_at(DipexTestCase):
             "new_class_2_uuid",
         ]
 
-        sd_updater.edit_engagement(engagement)
+        sd_updater.edit_engagement(engagement, "person_uuid")
 
         # Check that the create functions are both called
         sd_updater._create_engagement_type.assert_called_with(
