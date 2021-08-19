@@ -43,6 +43,19 @@ workflow:
 # Lint stage
 ############
 
+.Lint Dockerfiles:
+  stage: lint
+  needs: []
+  image: hadolint/hadolint:latest-debian
+  before_script:
+    - apt-get -y update
+    - apt-get -y install --no-install-recommends git
+  script:
+    - git ls-files --exclude='Dockerfile*' --ignored | xargs --max-lines=1 hadolint
+  tags:
+    - docker
+
+
 .lint-python:
   stage: lint
   needs: []
@@ -52,7 +65,6 @@ workflow:
     - pip install -r integrations/requirements/lint.txt
   tags:
     - docker
-
 
 Lint Customers files:
   extends: .lint-python

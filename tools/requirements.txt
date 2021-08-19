@@ -3,3 +3,4 @@ pyyaml
 wheel
 tqdm>=4.62.0
 jmespath
+-r check_connectivity/requirements.txt
