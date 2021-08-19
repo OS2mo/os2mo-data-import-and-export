@@ -1,0 +1,15 @@
+version: '3.4'
+
+volumes:
+  runs:
+
+services:
+  dipex:
+    image: dipex
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: "host"        
+    volumes:
+      - runs:/opt/dipex
+      - ./settings:/code/settings
