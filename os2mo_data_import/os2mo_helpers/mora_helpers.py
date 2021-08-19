@@ -186,7 +186,7 @@ class MoraHelper:
         """Check that a connection can be established to MO."""
         # Really any endpoint could be used here
         response = self._mo_lookup(uuid=None, url="configuration")
-        return "read_only" in response
+        return "show_roles" in response
 
     def read_organisation(self):
         """Read the main Organisation, all OU's will have this as root.
