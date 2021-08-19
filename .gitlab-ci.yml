@@ -194,13 +194,7 @@ Test LoraCache Exporter:
     - pytest exporters/sql_export/tests/
 
 Test AD Integration:  # runs outside image (unfortunately)
-  stage: test
-  needs: [ 'Build TestImage' ]
-  image:
-    name: ${IMAGE_SHA}
-  services: [ ]
-  tags:
-    - docker
+  extends: .test-python
   script:
     - cd integrations/ad_integration/
     - pytest tests/
