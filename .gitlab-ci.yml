@@ -10,19 +10,34 @@
 # to set in the Gitlab UI.
 # RELEASE_REGISTRY_USER
 # RELEASE_REGISTRY_PASSWORD
-
-variables:
-  # Project variables
-  RELEASE_REGISTRY: index.docker.io/magentaaps
-  IMAGE_SHA: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
-
-
+#
 stages:
   - lint
   - build
   - test
-  - prerelease
   - release
+
+variables:
+  # Project variables
+  RELEASE_REGISTRY: docker.io
+  RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/dipex
+
+  IMAGE_SHA: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
+
+  IMAGE_DEV: ${RELEASE_REGISTRY_IMAGE}:dev
+  IMAGE_RC: ${RELEASE_REGISTRY_IMAGE}:rc
+  IMAGE_VERSION: ${RELEASE_REGISTRY_IMAGE}:${CI_COMMIT_TAG}
+  IMAGE_LATEST: ${RELEASE_REGISTRY_IMAGE}:latest
+
+
+# Only run pipeline when pushing a tag or a branch.
+# This is a workaround for a bug causing detached pipelines on MRs
+# See: https://gitlab.com/gitlab-org/gitlab/-/issues/34756
+#      https://docs.gitlab.com/ee/ci/yaml/#workflowrules-templates
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH
 
 
 # Lint stage
@@ -234,3 +249,68 @@ Test data_fixers:
   extends: .test-python
   script:
     - python -m doctest -v tools/data_fixers/class_tools.py
+
+# Release stage
+###############
+
+.release-default: &release-default
+  stage: release
+  image: alpine:3.13
+  variables:
+    GIT_STRATEGY: none # We do not need the source code
+  tags:
+    - docker
+  before_script:
+    - apk add skopeo=1.2.1-r0
+
+Release feature branch:
+  <<: *release-default
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /^feature\/.+$/
+  script:
+    - export IMAGE_FEATURE=$(echo "$CI_COMMIT_REF_NAME" | sed 's/\//_/g')
+    - echo "Releasing ${CI_REGISTRY_IMAGE}/feature:${IMAGE_FEATURE}"
+    - skopeo copy
+      --src-creds=${CI_REGISTRY_USER}:${CI_BUILD_TOKEN}
+      --dest-creds=${CI_REGISTRY_USER}:${CI_BUILD_TOKEN}
+      "docker://${IMAGE_SHA}"
+      "docker://${CI_REGISTRY_IMAGE}/feature:${IMAGE_FEATURE}"
+
+Release dev:
+  <<: *release-default
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "development"
+  script:
+    - skopeo copy
+      --src-creds=${CI_REGISTRY_USER}:${CI_BUILD_TOKEN}
+      --dest-creds=${RELEASE_REGISTRY_USER}:${RELEASE_REGISTRY_PASSWORD}
+      "docker://${IMAGE_SHA}"
+      "docker://${IMAGE_DEV}"
+
+Release rc:
+  <<: *release-default
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /^release\/.+$/
+  script:
+    - skopeo copy
+      --src-creds=${CI_REGISTRY_USER}:${CI_BUILD_TOKEN}
+      --dest-creds=${RELEASE_REGISTRY_USER}:${RELEASE_REGISTRY_PASSWORD}
+      "docker://${IMAGE_SHA}"
+      "docker://${IMAGE_RC}"
+
+Release master:
+  <<: *release-default
+  rules:
+      # Matches <version core> from SemVer 2.0.0 BNF grammar. Ex. 2.3.4, but not 2.3.4-rc
+      - if: $CI_COMMIT_TAG =~ /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
+  script:
+    - skopeo copy
+      --src-creds=${CI_REGISTRY_USER}:${CI_BUILD_TOKEN}
+      --dest-creds=${RELEASE_REGISTRY_USER}:${RELEASE_REGISTRY_PASSWORD}
+      "docker://${IMAGE_SHA}"
+      "docker://${IMAGE_VERSION}"
+    - skopeo copy
+      --src-creds=${CI_REGISTRY_USER}:${CI_BUILD_TOKEN}
+      --dest-creds=${RELEASE_REGISTRY_USER}:${RELEASE_REGISTRY_PASSWORD}
+      "docker://${IMAGE_SHA}"
+      "docker://${IMAGE_LATEST}"
