@@ -57,6 +57,25 @@ class LoraCache:
         mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
         return mh
 
+    def _validity_params(self, full_history: bool = None, skip_past: bool = None):
+        if full_history is None:
+            full_history = self.full_history
+        if skip_past is None:
+            skip_past = self.skip_past
+
+        if full_history:
+            if skip_past:
+                return {
+                    "validity": "future",
+                }
+            return {
+                "at": "9999-12-31",
+                "validity": "past",
+            }
+        return {
+            "validity": "present",
+        }
+
     def _read_org_uuid(self):
         mh = self._get_mora_helper()
         for attempt in range(0, 10):
@@ -210,7 +229,10 @@ class LoraCache:
         mh = self._get_mora_helper()
         it_systems = (
             x["itsystem"]
-            for x in mh._mo_get(self.settings["mora.base"] + "/api/v1/it")
+            for x in mh._mo_get(
+                self.settings["mora.base"] + "/api/v1/it",
+                params=self._validity_params()
+            )
         )
         return {
             it_system["uuid"]: {
@@ -222,7 +244,7 @@ class LoraCache:
 
     def _cache_lora_users(self):
         mh = self._get_mora_helper()
-        employees = mh._mo_get(self.settings["mora.base"] + "/api/v1/employee")
+        employees = mh._mo_get(self.settings["mora.base"] + "/api/v1/employee")  # todo params=self._validity_params()
         return {
             employee["uuid"]: [{
                 "uuid": employee["uuid"],
@@ -674,7 +696,7 @@ class LoraCache:
 
     def _cache_lora_related(self):
         mh = self._get_mora_helper()
-        related_units = mh._mo_get(self.settings["mora.base"] + "/api/v1/related_unit")
+        related_units = mh._mo_get(self.settings["mora.base"] + "/api/v1/related_unit", params=self._validity_params())
         return {
             related_unit["uuid"]: [{
                 "uuid": related_unit["uuid"],
