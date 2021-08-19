@@ -173,6 +173,72 @@ def test_users_equivalence(full_history, skip_past):
     assert new_users == old_users
 
 
+def old_cache_lora_units(self):
+    params = {'bvn': '%'}
+    skip_history = False
+    if not self.full_history:
+        params['gyldighed'] = 'Aktiv'
+        skip_history = True
+    url = '/organisation/organisationenhed'
+    relevant = {
+        'relationer': ('overordnet', 'enhedstype', 'niveau'),
+        'attributter': ('organisationenhedegenskaber',)
+    }
+
+    unit_list = self._perform_lora_lookup(url, params, skip_history=skip_history, unit="unit")
+
+    units = {}
+    for unit in tqdm(unit_list, desc="Processing unit", unit="unit"):
+        uuid = unit['id']
+        units[uuid] = []
+
+        effects = self._get_effects(unit, relevant)
+        for effect in effects:
+            from_date, to_date = self._from_to_from_effect(effect)
+            if from_date is None and to_date is None:
+                continue
+            relationer = effect[2]['relationer']
+
+            orgegenskaber = (effect[2]['attributter']
+            ['organisationenhedegenskaber'])
+            if len(orgegenskaber) == 0:
+                continue
+            egenskaber = orgegenskaber[0]
+            parent_raw = relationer['overordnet'][0]['uuid']
+            if parent_raw == self.org_uuid:
+                parent = None
+            else:
+                parent = parent_raw
+
+            if 'niveau' in relationer and len(relationer['niveau']) > 0:
+                level = relationer['niveau'][0]['uuid']
+            else:
+                level = None
+            units[uuid].append(
+                {
+                    'uuid': uuid,
+                    'user_key': egenskaber['brugervendtnoegle'],
+                    'name': egenskaber['enhedsnavn'],
+                    'unit_type': relationer['enhedstype'][0]['uuid'],
+                    'level': level,
+                    'parent': parent,
+                    'from_date': from_date,
+                    'to_date': to_date
+                }
+            )
+    return units
+
+
+#@skip
+@pytest.mark.parametrize("full_history", [True, False])
+@pytest.mark.parametrize("skip_past", [True, False])
+def test_units_equivalence(full_history, skip_past):
+    lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
+    new_units = lc._cache_lora_units()
+    old_units = old_cache_lora_units(lc)
+    assert new_units == old_units
+
+
 def _old_cache_lora_it_connections(self):
     params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'IT-system'}
     url = '/organisation/organisationfunktion'

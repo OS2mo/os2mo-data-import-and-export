@@ -263,59 +263,22 @@ class LoraCache:
         }
 
     def _cache_lora_units(self):
-        params = {'bvn': '%'}
-        skip_history = False
-        if not self.full_history:
-            params['gyldighed'] = 'Aktiv'
-            skip_history = True
-        url = '/organisation/organisationenhed'
-        relevant = {
-            'relationer': ('overordnet', 'enhedstype', 'niveau'),
-            'attributter': ('organisationenhedegenskaber',)
+        mh = self._get_mora_helper()
+        units = mh._mo_get(self.settings["mora.base"] + "/api/v1/org_unit")  # todo params=self._validity_params()
+        return {
+            unit["uuid"]: [{
+                "uuid": unit["uuid"],
+                "user_key": unit["user_key"],
+                "name": unit["name"],
+                "unit_type": unit["org_unit_type"]["uuid"],
+                "level": unit["org_unit_level"]["uuid"],
+                "parent": (unit["parent"] or {}).get("uuid", None),  # parent is optional
+                "from_date": self._format_optional_datetime_string(unit["validity"]["from"]),
+                "to_date": self._format_optional_datetime_string(unit["validity"]["to"]),
+            }]
+            for unit in units
         }
 
-        unit_list = self._perform_lora_lookup(url, params, skip_history=skip_history, unit="unit")
-
-        units = {}
-        for unit in tqdm(unit_list, desc="Processing unit", unit="unit"):
-            uuid = unit['id']
-            units[uuid] = []
-
-            effects = self._get_effects(unit, relevant)
-            for effect in effects:
-                from_date, to_date = self._from_to_from_effect(effect)
-                if from_date is None and to_date is None:
-                    continue
-                relationer = effect[2]['relationer']
-
-                orgegenskaber = (effect[2]['attributter']
-                                 ['organisationenhedegenskaber'])
-                if len(orgegenskaber) == 0:
-                    continue
-                egenskaber = orgegenskaber[0]
-                parent_raw = relationer['overordnet'][0]['uuid']
-                if parent_raw == self.org_uuid:
-                    parent = None
-                else:
-                    parent = parent_raw
-
-                if 'niveau' in relationer and len(relationer['niveau']) > 0:
-                    level = relationer['niveau'][0]['uuid']
-                else:
-                    level = None
-                units[uuid].append(
-                    {
-                        'uuid': uuid,
-                        'user_key': egenskaber['brugervendtnoegle'],
-                        'name': egenskaber['enhedsnavn'],
-                        'unit_type': relationer['enhedstype'][0]['uuid'],
-                        'level': level,
-                        'parent': parent,
-                        'from_date': from_date,
-                        'to_date': to_date
-                    }
-                )
-        return units
 
     def _cache_lora_address(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Adresse'}
