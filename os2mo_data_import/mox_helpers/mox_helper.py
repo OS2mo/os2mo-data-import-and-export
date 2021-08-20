@@ -84,6 +84,7 @@ class MoxHelper:
             "validate": self._validate_payload,
             "update": self._update,
             "search": self._search,
+            "insert": self._insert,
         }
         # Generate each method for each service / object
         service_method_map = product(service_tuples, method_map.items())
@@ -126,6 +127,17 @@ class MoxHelper:
         self._validate_payload(service, obj, payload)
         url = self.hostname + "/" + service + "/" + obj
         async with session.post(url, json=payload) as response:
+            return (await response.json())["uuid"]
+
+    @ensure_session
+    async def _insert(
+        self, session: aiosession, service: str, obj: str, payload: Any, uuid: UUIDstr
+    ) -> UUIDstr:
+        self._validate_payload(service, obj, payload)
+        url = f"{self.hostname}/{service}/{obj}"
+        if uuid:
+            url = url + f"/{uuid}"
+        async with session.put(url, json=payload) as response:
             return (await response.json())["uuid"]
 
     @ensure_session
