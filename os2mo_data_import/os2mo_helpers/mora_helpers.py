@@ -16,14 +16,12 @@ import time
 from typing import Dict
 from typing import List
 from operator import itemgetter
-from functools import lru_cache
-from operator import itemgetter
 
 import requests
 from anytree import Node
 from more_itertools import only
 
-from .settings import get_settings
+from ra_utils.headers import TokenSettings
 
 PRIMARY_RESPONSIBILITY = "Personale: ansættelse/afskedigelse"
 
@@ -38,7 +36,6 @@ class MoraHelper:
         self.cache = {}
         self.default_cache = use_cache
         self.export_ansi = export_ansi
-        self.settings = get_settings()
 
     def _split_name(self, name):
         """Split a name into first and last name.
@@ -124,29 +121,6 @@ class MoraHelper:
             i += 1
         return path_dict
 
-    @lru_cache(maxsize=None)
-    def _fetch_keycloak_token(self) -> str:
-        # Get token from Keycloak
-        token_url = self.settings.get_token_url()
-        payload = {
-            "grant_type": "client_credentials",
-            "client_id": self.settings.client_id,
-            "client_secret": self.settings.client_secret,
-        }
-        response = requests.post(token_url, data=payload)
-        response.raise_for_status()
-        payload = response.json()
-        expires = payload["expires_in"]
-        token = payload["access_token"]
-        return time.time() + expires, token
-
-    def _fetch_auth_header(self) -> str:
-        expires, token = self._fetch_keycloak_token()
-        if expires < time.time():
-            self._fetch_keycloak_token.cache_clear()
-            _, token = self._fetch_keycloak_token()
-        return "Bearer " + token
-
     def _mo_lookup(
         self,
         uuid,
@@ -177,11 +151,7 @@ class MoraHelper:
             logger.debug("cache hit: %s", cache_id)
             return_dict = self.cache[cache_id]
         else:
-            headers = {}
-            if self.settings.saml_token:
-                headers["Session"] = self.settings.saml_token
-            if self.settings.client_secret:
-                headers["Authorization"] = self._fetch_auth_header()
+            headers = TokenSettings().get_headers()
 
             response = requests.get(full_url, headers=headers, params=params)
             if response.status_code == 401:
@@ -206,11 +176,7 @@ class MoraHelper:
         if force:
             params["force"] = 1
 
-        headers = {}
-        if self.settings.saml_token:
-            headers["Session"] = self.settings.saml_token
-        if self.settings.client_secret:
-            headers["Authorization"] = self._fetch_auth_header()
+        headers = TokenSettings().get_headers()
 
         full_url = self.host + url
         response = requests.post(full_url, headers=headers, params=params, json=payload)
@@ -220,7 +186,7 @@ class MoraHelper:
         """Check that a connection can be established to MO."""
         # Really any endpoint could be used here
         response = self._mo_lookup(uuid=None, url="configuration")
-        return "read_only" in response
+        return "show_roles" in response
 
     def read_organisation(self):
         """Read the main Organisation, all OU's will have this as root.

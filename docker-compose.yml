@@ -1,0 +1,25 @@
+# SPDX-FileCopyrightText: 2019-2020 Magenta ApS
+# SPDX-License-Identifier: MPL-2.0
+version: "3.9"
+services:
+  dipex:
+    image: dipex
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: ["sleep", "infinity"]
+    environment:
+      CLIENT_ID: "dipex"
+      AUTH_SERVER: "http://keycloak:8080/auth"
+      CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
+      MORA_BASE: "http://mo:80"
+    networks:
+      - os2mo
+    volumes:
+      - runs:/opt/dipex
+      - .:/code/
+networks:
+  os2mo:
+    name: os2mo_default
+volumes:
+  runs:

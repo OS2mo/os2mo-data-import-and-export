@@ -1,0 +1,4 @@
+-r exporters/requirements.txt
+-r integrations/requirements.txt
+-r os2mo_data_import/requirements.txt
+-r tools/requirements.txt
