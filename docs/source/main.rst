@@ -9,6 +9,7 @@ Integrationer
 .. include:: ../../integrations/opus/README.rst
 .. include:: ../../integrations/ad_integration/README.rst
 .. include:: ../../integrations/os2sync/readme.rst
+.. include:: ../../integrations/aarhus/README.rst
 
 #########
 Exporters
