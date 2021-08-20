@@ -16,3 +16,5 @@ fs.smbfs
 retrying
 ra-utils
 pydantic
+raclients
+ramodels

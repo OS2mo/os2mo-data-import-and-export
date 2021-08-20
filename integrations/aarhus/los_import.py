@@ -3,10 +3,9 @@ import datetime
 from pathlib import Path
 
 import click
-from dateutil import parser
-
 import config
-import initial
+from dateutil import parser
+from initial import InitialDataImporter
 from los_leder import ManagerImporter
 from los_org import OrgUnitImporter
 from los_pers import PersonImporter
@@ -54,7 +53,7 @@ def main(import_from_date):
 
     loop = asyncio.get_event_loop()
 
-    initial_import = asyncio.ensure_future(initial.perform_initial_setup())
+    initial_import = asyncio.ensure_future(InitialDataImporter().run(last_import))
     loop.run_until_complete(initial_import)
 
     # Import STAM

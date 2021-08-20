@@ -1,205 +1,285 @@
-import mox_helpers.payloads as mox_payloads
+from datetime import datetime
+from uuid import UUID
+
+import config
+import pydantic
+import uuids
+from aiohttp import ClientSession
+from more_itertools import one
 from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import ElementNotFound
+from raclients.lora import ModelClient as LoraModelClient
+from ramodels.lora.klasse import Klasse
+
 from os2mo_data_import import ImportHelper
 from os2mo_data_import.mox_data_types import Itsystem
 
-import config
-import uuids
+
+class ClassData(pydantic.BaseModel):
+    facet_user_key: str
+    user_key: str
+    title: str
+    uuid: UUID
+    scope: str
+
 
 CLASSES = [
-    (
-        "Postadresse",
-        "org_unit_address_type",
-        "DAR",
-        "AddressMailUnit",
-        uuids.UNIT_POSTADDR,
+    # Org unit address types
+    ClassData(
+        title="Postadresse",
+        facet_user_key="org_unit_address_type",
+        scope="DAR",
+        user_key="AddressMailUnit",
+        uuid=uuids.UNIT_POSTADDR,
     ),
-    ("LOS ID", "org_unit_address_type", "TEXT", "LOSID", uuids.UNIT_LOS),
-    ("CVR nummer", "org_unit_address_type", "TEXT", "CVRUnit", uuids.UNIT_CVR),
-    ("EAN nummer", "org_unit_address_type", "EAN", "EANUnit", uuids.UNIT_EAN),
-    (
-        "P-nummer",
-        "org_unit_address_type",
-        "PNUMBER",
-        "PNumber",
-        uuids.UNIT_PNR,
+    ClassData(
+        title="LOS ID",
+        facet_user_key="org_unit_address_type",
+        scope="TEXT",
+        user_key="LOSID",
+        uuid=uuids.UNIT_LOS,
     ),
-    ("SE-nummer", "org_unit_address_type", "TEXT", "SENumber", uuids.UNIT_SENR),
-    (
-        "IntDebitor-Nr",
-        "org_unit_address_type",
-        "TEXT",
-        "intdebit",
-        uuids.UNIT_DEBITORNR,
+    ClassData(
+        title="CVR nummer",
+        facet_user_key="org_unit_address_type",
+        scope="TEXT",
+        user_key="CVRUnit",
+        uuid=uuids.UNIT_CVR,
     ),
-    ("WWW", "org_unit_address_type", "WWW", "UnitWeb", uuids.UNIT_WWW),
-    (
-        "Ekspeditionstid",
-        "org_unit_address_type",
-        "TEXT",
-        "UnitHours",
-        uuids.UNIT_HOURS,
+    ClassData(
+        title="EAN nummer",
+        facet_user_key="org_unit_address_type",
+        scope="EAN",
+        user_key="EANUnit",
+        uuid=uuids.UNIT_EAN,
     ),
-    (
-        "Telefontid",
-        "org_unit_address_type",
-        "TEXT",
-        "UnitPhoneHours",
-        uuids.UNIT_PHONEHOURS,
+    ClassData(
+        title="P-nummer",
+        facet_user_key="org_unit_address_type",
+        scope="PNUMBER",
+        user_key="PNumber",
+        uuid=uuids.UNIT_PNR,
     ),
-    (
-        "Telefon",
-        "org_unit_address_type",
-        "PHONE",
-        "UnitPhone",
-        uuids.UNIT_PHONE,
+    ClassData(
+        title="SE-nummer",
+        facet_user_key="org_unit_address_type",
+        scope="TEXT",
+        user_key="SENumber",
+        uuid=uuids.UNIT_SENR,
     ),
-    ("Fax", "org_unit_address_type", "PHONE", "UnitFax", uuids.UNIT_FAX),
-    ("Email", "org_unit_address_type", "EMAIL", "UnitEmail", uuids.UNIT_EMAIL),
-    (
-        "Magkort",
-        "org_unit_address_type",
-        "TEXT",
-        "UnitMagID",
-        uuids.UNIT_MAG_ID,
+    ClassData(
+        title="IntDebitor-Nr",
+        facet_user_key="org_unit_address_type",
+        scope="TEXT",
+        user_key="intdebit",
+        uuid=uuids.UNIT_DEBITORNR,
     ),
-    (
-        "Alternativt navn",
-        "org_unit_address_type",
-        "TEXT",
-        "UnitNameAlt",
-        uuids.UNIT_NAME_ALT,
+    ClassData(
+        title="WWW",
+        facet_user_key="org_unit_address_type",
+        scope="WWW",
+        user_key="UnitWeb",
+        uuid=uuids.UNIT_WWW,
     ),
-    (
-        "Phone",
-        "employee_address_type",
-        "PHONE",
-        "PhoneEmployee",
-        uuids.PERSON_PHONE,
+    ClassData(
+        title="Ekspeditionstid",
+        facet_user_key="org_unit_address_type",
+        scope="TEXT",
+        user_key="UnitHours",
+        uuid=uuids.UNIT_HOURS,
     ),
-    (
-        "Email",
-        "employee_address_type",
-        "EMAIL",
-        "EmailEmployee",
-        uuids.PERSON_EMAIL,
+    ClassData(
+        title="Telefontid",
+        facet_user_key="org_unit_address_type",
+        scope="TEXT",
+        user_key="UnitPhoneHours",
+        uuid=uuids.UNIT_PHONEHOURS,
     ),
-    (
-        "Lokale",
-        "employee_address_type",
-        "TEXT",
-        "RoomEmployee",
-        uuids.PERSON_ROOM,
+    ClassData(
+        title="Telefon",
+        facet_user_key="org_unit_address_type",
+        scope="PHONE",
+        user_key="UnitPhone",
+        uuid=uuids.UNIT_PHONE,
     ),
-    ("Primær", "primary_type", "100000", "primary", uuids.PRIMARY),
-    ("Ikke-primær", "primary_type", "0", "not_primary", uuids.NOT_PRIMARY),
-    (
-        "Linjeorganisation",
-        "org_unit_hierarchy",
-        "TEXT",
-        "linjeorg",
-        uuids.LINJE_ORG_HIERARCHY,
+    ClassData(
+        title="Fax",
+        facet_user_key="org_unit_address_type",
+        scope="PHONE",
+        user_key="UnitFax",
+        uuid=uuids.UNIT_FAX,
     ),
-    (
-        "Sikkerhedsorganisation",
-        "org_unit_hierarchy",
-        "TEXT",
-        "sikkerhedsorg",
-        uuids.SIKKERHEDS_ORG_HIERARCHY,
+    ClassData(
+        title="Email",
+        facet_user_key="org_unit_address_type",
+        scope="EMAIL",
+        user_key="UnitEmail",
+        uuid=uuids.UNIT_EMAIL,
     ),
-    (
-        "Rolletype",
-        "role_type",
-        "TEXT",
-        "role_type",
-        "964c31a2-6267-4388-bff5-42d6f3c5f708",
+    ClassData(
+        title="Magkort",
+        facet_user_key="org_unit_address_type",
+        scope="TEXT",
+        user_key="UnitMagID",
+        uuid=uuids.UNIT_MAG_ID,
     ),
-    (
-        "Tilknytningsrolle",
-        "association_type",
-        "TEXT",
-        "association_type",
-        "ec534b86-3d9b-42d8-bff0-afc4f81719af",
+    ClassData(
+        title="Alternativt navn",
+        facet_user_key="org_unit_address_type",
+        scope="TEXT",
+        user_key="UnitNameAlt",
+        uuid=uuids.UNIT_NAME_ALT,
     ),
-    (
-        "Orlovstype",
-        "leave_type",
-        "TEXT",
-        "leave_type",
-        "d2892fa6-bc56-4c14-bd24-74ae0c71fa3a",
+    # Employee address types
+    ClassData(
+        title="Phone",  # "Telefon"?
+        facet_user_key="employee_address_type",
+        scope="PHONE",
+        user_key="PhoneEmployee",
+        uuid=uuids.PERSON_PHONE,
+    ),
+    ClassData(
+        title="Email",
+        facet_user_key="employee_address_type",
+        scope="EMAIL",
+        user_key="EmailEmployee",
+        uuid=uuids.PERSON_EMAIL,
+    ),
+    ClassData(
+        title="Lokale",
+        facet_user_key="employee_address_type",
+        scope="TEXT",
+        user_key="RoomEmployee",
+        uuid=uuids.PERSON_ROOM,
+    ),
+    # Engagements (?): primary and not primary
+    ClassData(
+        title="Primær",
+        facet_user_key="primary_type",
+        scope="100000",
+        user_key="primary",
+        uuid=uuids.PRIMARY,
+    ),
+    ClassData(
+        title="Ikke-primær",
+        facet_user_key="primary_type",
+        scope="0",
+        user_key="not_primary",
+        uuid=uuids.NOT_PRIMARY,
+    ),
+    # Hierarchy names
+    ClassData(
+        title="Linjeorganisation",
+        facet_user_key="org_unit_hierarchy",
+        scope="TEXT",
+        user_key="linjeorg",
+        uuid=uuids.LINJE_ORG_HIERARCHY,
+    ),
+    ClassData(
+        title="Sikkerhedsorganisation",
+        facet_user_key="org_unit_hierarchy",
+        scope="TEXT",
+        user_key="sikkerhedsorg",
+        uuid=uuids.SIKKERHEDS_ORG_HIERARCHY,
+    ),
+    # Miscellaneous placeholder (?) classes for predefined facets
+    ClassData(
+        title="Rolletype",
+        facet_user_key="role_type",
+        scope="TEXT",
+        user_key="role_type",
+        uuid="964c31a2-6267-4388-bff5-42d6f3c5f708",
+    ),
+    ClassData(
+        title="Tilknytningsrolle",
+        facet_user_key="association_type",
+        scope="TEXT",
+        user_key="association_type",
+        uuid="ec534b86-3d9b-42d8-bff0-afc4f81719af",
+    ),
+    ClassData(
+        title="Orlovstype",
+        facet_user_key="leave_type",
+        scope="TEXT",
+        user_key="leave_type",
+        uuid="d2892fa6-bc56-4c14-bd24-74ae0c71fa3a",
     ),
 ]
 
 
-async def perform_initial_setup():
-    """
-    Perform all initial bootstrapping of OS2mo.
-    Imports an organisation if missing, and adds all base facets
-    Imports all pretedetermined classes and it systems
-    """
-    settings = config.get_config()
-    mox_helper = await create_mox_helper(settings.mox_base)
-    try:
-        await mox_helper.read_element_organisation_organisation(bvn="%")
-    except ElementNotFound:
-        print("No org found in LoRa. Performing initial setup.")
-        importer = ImportHelper(
-            create_defaults=True,
-            mox_base=settings.mox_base,
-            mora_base=settings.mora_base,
-            store_integration_data=False,
-            seperate_names=True,
-        )
-        importer.add_organisation(
-            identifier="Århus Kommune",
-            user_key="Århus Kommune",
-            municipality_code=751,
-            uuid=uuids.ORG_UUID,
-        )
-        # Perform initial import of org and facets
-        importer.import_all()
+class LoraClass(LoraModelClient):
+    @classmethod
+    async def create(cls, data: ClassData):
+        settings = config.get_config()
+        client = cls(settings.mox_base)
+        async with client.context():
+            facet_uuid = await client._get_facet_uuid(data.facet_user_key)
+            mox_class = Klasse.from_simplified_fields(
+                facet_uuid=facet_uuid,
+                uuid=data.uuid,
+                user_key=data.user_key,
+                organisation_uuid=uuids.ORG_UUID,
+                title=data.title,
+                scope=data.scope,
+            )
+            return await client.load_lora_objs([mox_class], disable_progressbar=True)
 
-    await import_remaining_classes()
-    await import_it()
+    async def _get_facet_uuid(self, facet_user_key: str):
+        session: ClientSession = await self._verify_session()
+        url = f"{self._base_url}/klassifikation/facet"
+        async with session.get(url, params={"bvn": facet_user_key}) as response:
+            resp_json = await response.json()
+            return one(resp_json["results"][0])
 
 
-async def import_remaining_classes():
-    """
-    Import a set of predetermined classes. All the classes have predefined UUIDs
-    which makes this function idempotent
-    """
-    settings = config.get_config()
-    mox_helper = await create_mox_helper(settings.mox_base)
+class InitialDataImporter:
+    async def run(self, last_import: datetime):
+        """Perform all initial bootstrapping of OS2mo."""
+        await self._import_organisation()
+        await self._import_classes()
+        await self._import_it_systems()
 
-    for clazz in CLASSES:
-        titel, facet, scope, bvn, uuid = clazz
+    async def _import_organisation(self):
+        """Imports an organisation if missing, and adds all base facets"""
+        settings = config.get_config()
+        mox_helper = await create_mox_helper(settings.mox_base)
+        try:
+            await mox_helper.read_element_organisation_organisation(bvn="%")
+        except ElementNotFound:
+            print("No org found in LoRa. Performing initial setup.")
+            importer = ImportHelper(
+                create_defaults=True,
+                mox_base=settings.mox_base,
+                mora_base=settings.mora_base,
+                store_integration_data=False,
+                seperate_names=True,
+            )
+            importer.add_organisation(
+                identifier="Århus Kommune",
+                user_key="Århus Kommune",
+                municipality_code=751,
+                uuid=uuids.ORG_UUID,
+            )
+            # Perform initial import of org and facets
+            importer.import_all()
+        else:
+            print("LoRa organisation already exists")
 
-        facet_uuid = await mox_helper.read_element_klassifikation_facet(bvn=facet)
+    async def _import_classes(self):
+        """Import a set of predetermined classes. All the classes have
+        predefined UUIDs which makes this function idempotent.
+        """
+        for class_data in CLASSES:
+            await LoraClass.create(class_data)
 
-        klasse = mox_payloads.lora_klasse(
-            bvn=bvn,
-            title=titel,
-            facet_uuid=str(facet_uuid),
-            org_uuid=str(uuids.ORG_UUID),
-            scope=scope,
-        )
-        await mox_helper.insert_klassifikation_klasse(klasse, str(uuid))
-
-
-async def import_it():
-    """
-    Import predetermined IT systems. The UUID(s) are predefined which makes this
-    function idempotent.
-    """
-    settings = config.get_config()
-    mox_helper = await create_mox_helper(settings.mox_base)
-    it_system = Itsystem(
-        system_name="AZ",
-        user_key="AZ",
-    )
-    it_system.organisation_uuid = str(uuids.ORG_UUID)
-    uuid = uuids.AZID_SYSTEM
-
-    json = it_system.build()
-    await mox_helper.insert_organisation_itsystem(json, str(uuid))
+    async def _import_it_systems(self):
+        """Import predetermined IT systems. The UUID(s) are predefined which
+        makes this function idempotent.
+        """
+        settings = config.get_config()
+        mox_helper = await create_mox_helper(settings.mox_base)
+        it_system = Itsystem(system_name="AZ", user_key="AZ")
+        it_system.organisation_uuid = str(uuids.ORG_UUID)
+        uuid = uuids.AZID_SYSTEM
+        json = it_system.build()
+        await mox_helper.insert_organisation_itsystem(json, str(uuid))
