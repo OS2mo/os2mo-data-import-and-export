@@ -3,15 +3,13 @@ import datetime
 from pathlib import Path
 
 import click
-from dateutil import parser
-
 import config
 import initial
+from dateutil import parser
 from los_leder import ManagerImporter
 from los_org import OrgUnitImporter
 from los_pers import PersonImporter
 from los_stam import StamImporter
-from ra_utils.load_settings import load_setting
 
 
 def get_or_create_import_state(settings: config.Settings) -> datetime.datetime:

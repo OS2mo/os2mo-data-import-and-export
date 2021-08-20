@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 
@@ -15,7 +16,7 @@ def create_engagement(
     job_function_uuid: UUID,
     engagement_type_uuid: UUID,
     from_date: str,
-    to_date: str,
+    to_date: Optional[str],
     primary_uuid: UUID,
     user_key=str,
 ):
@@ -40,12 +41,12 @@ def create_org_unit(
     *,
     uuid: UUID,
     user_key: str,
-    name: str,
+    name: Optional[str],
     parent_uuid: UUID,
-    org_unit_hierarchy: UUID,
-    org_unit_type_uuid: UUID,
+    org_unit_hierarchy: Optional[UUID],
+    org_unit_type_uuid: Optional[UUID],
     from_date: str,
-    to_date: str,
+    to_date: Optional[str],
 ):
     payload = {
         "type": "org_unit",
@@ -66,12 +67,12 @@ def create_org_unit(
 def create_address(
     *,
     uuid: UUID,
-    value: str,
+    value: Optional[str],
     address_type_uuid: UUID,
     person_uuid: UUID = None,
     org_unit_uuid: UUID = None,
     from_date: str,
-    to_date: str,
+    to_date: Optional[str],
 ):
     payload = {
         "type": "address",
@@ -89,10 +90,10 @@ def create_address(
 
 def create_it_rel(
     *,
-    uuid: UUID,
-    user_key: str,
+    uuid: Optional[UUID],
+    user_key: Optional[str],
     person_uuid: UUID,
-    itsystem_uuid: UUID,
+    itsystem_uuid: Optional[UUID],
     from_date: str,
     to_date: str = None,
 ):
