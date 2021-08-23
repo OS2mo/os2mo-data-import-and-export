@@ -414,42 +414,29 @@ class LoraCache:
         }
 
     def _cache_lora_roles(self):
-        params = {"gyldighed": "Aktiv", "funktionsnavn": "Rolle"}
-        relevant = {
-            "relationer": (
-                "tilknyttedeenheder",
-                "tilknyttedebrugere",
-                "organisatoriskfunktionstype",
-            )
+        mh = self._get_mora_helper()
+        roles = mh._mo_get(
+            self.settings["mora.base"] + "/api/v1/role",
+            params=self._validity_params(),
+        )
+        return {
+            uuid: [
+                {
+                    "uuid": uuid,
+                    "user": (role["person"] or {}).get("uuid", None),
+                    "unit": (role["org_unit"] or {}).get("uuid", None),
+                    "role_type": role["role_type"]["uuid"],
+                    "from_date": self._format_optional_datetime_string(
+                        role["validity"]["from"]
+                    ),
+                    "to_date": self._format_optional_datetime_string(
+                        role["validity"]["to"]
+                    ),
+                }
+                for role in group
+            ]
+            for uuid, group in itertools.groupby(roles, key=lambda r: r["uuid"])
         }
-        url = "/organisation/organisationfunktion"
-        roles = {}
-        role_list = self._perform_lora_lookup(url, params, unit="role")
-        for role in tqdm(role_list, desc="Processing role", unit="role"):
-            uuid = role["id"]
-            roles[uuid] = []
-
-            effects = self._get_effects(role, relevant)
-            for effect in effects:
-                from_date, to_date = self._from_to_from_effect(effect)
-                if from_date is None and to_date is None:
-                    continue
-                rel = effect[2]["relationer"]
-                role_type = rel["organisatoriskfunktionstype"][0]["uuid"]
-                user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
-                unit_uuid = rel["tilknyttedeenheder"][0]["uuid"]
-
-                roles[uuid].append(
-                    {
-                        "uuid": uuid,
-                        "user": user_uuid,
-                        "unit": unit_uuid,
-                        "role_type": role_type,
-                        "from_date": from_date,
-                        "to_date": to_date,
-                    }
-                )
-        return roles
 
     def _cache_lora_leaves(self):
         params = {"gyldighed": "Aktiv", "funktionsnavn": "Orlov"}

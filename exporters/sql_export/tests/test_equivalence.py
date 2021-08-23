@@ -648,3 +648,52 @@ def test_associations_equivalence(full_history, skip_past):
     new_associations = lc._cache_lora_associations()
     old_associations = old_cache_lora_associations(lc)
     assert new_associations == old_associations
+
+
+def old_cache_lora_roles(self):
+    params = {"gyldighed": "Aktiv", "funktionsnavn": "Rolle"}
+    relevant = {
+        "relationer": (
+            "tilknyttedeenheder",
+            "tilknyttedebrugere",
+            "organisatoriskfunktionstype",
+        )
+    }
+    url = "/organisation/organisationfunktion"
+    roles = {}
+    role_list = self._perform_lora_lookup(url, params, unit="role")
+    for role in tqdm(role_list, desc="Processing role", unit="role"):
+        uuid = role["id"]
+        roles[uuid] = []
+
+        effects = self._get_effects(role, relevant)
+        for effect in effects:
+            from_date, to_date = self._from_to_from_effect(effect)
+            if from_date is None and to_date is None:
+                continue
+            rel = effect[2]["relationer"]
+            role_type = rel["organisatoriskfunktionstype"][0]["uuid"]
+            user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
+            unit_uuid = rel["tilknyttedeenheder"][0]["uuid"]
+
+            roles[uuid].append(
+                {
+                    "uuid": uuid,
+                    "user": user_uuid,
+                    "unit": unit_uuid,
+                    "role_type": role_type,
+                    "from_date": from_date,
+                    "to_date": to_date,
+                }
+            )
+    return roles
+
+
+@skip  # TODO
+@pytest.mark.parametrize("full_history", [True, False])
+@pytest.mark.parametrize("skip_past", [True, False])
+def test_roles_equivalence(full_history, skip_past):
+    lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
+    new_roles = lc._cache_lora_roles()
+    old_roles = old_cache_lora_roles(lc)
+    assert new_roles == old_roles
