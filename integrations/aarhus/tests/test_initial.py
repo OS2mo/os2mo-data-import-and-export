@@ -12,16 +12,27 @@ from initial import LoraClass
 from ramodels.lora.klasse import Klasse
 
 
-MOCK_LORA_URL = "http://example.com:8080"
-MOCK_FACET_UUID = str(uuid.uuid4())
-
-
-class MockConfig:
-    mox_base = MOCK_LORA_URL
+@pytest.mark.asyncio
+async def test_initialdataimporter_run():
+    importer = InitialDataImporter()
+    with mock.patch.object(importer, "_import_organisation") as mock_import_org:
+        with mock.patch.object(importer, "_import_classes") as mock_import_classes:
+            with mock.patch.object(importer, "_import_it_systems") as mock_import_it:
+                await importer.run(None)
+                mock_import_org.assert_awaited_once_with()
+                mock_import_classes.assert_awaited_once_with()
+                mock_import_it.assert_awaited_once_with()
 
 
 @pytest.mark.asyncio
 async def test_loraclass_create(aioresponses):
+    # Test
+    MOCK_LORA_URL = "http://example.com:8080"
+    MOCK_FACET_UUID = str(uuid.uuid4())
+
+    class MockConfig:
+        mox_base = MOCK_LORA_URL
+
     def lora_class_creation_response(url, **kwargs):
         # Assert that the given class UUID is the last part of the PUT URL
         assert url.path.split("/")[-1] == str(CLASSES[0].uuid)

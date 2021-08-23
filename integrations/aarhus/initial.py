@@ -237,8 +237,7 @@ class InitialDataImporter:
     async def run(self, last_import: datetime):
         """Perform all initial bootstrapping of OS2mo."""
         await self._import_organisation()
-        await self._import_classes()
-        await self._import_it_systems()
+        await asyncio.gather(self._import_classes(), self._import_it_systems())
 
     async def _import_organisation(self):
         """Imports an organisation if missing, and adds all base facets"""
