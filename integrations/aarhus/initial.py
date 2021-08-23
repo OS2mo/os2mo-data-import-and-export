@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from uuid import UUID
 
@@ -11,7 +12,7 @@ from mox_helpers.mox_helper import ElementNotFound
 from raclients.lora import ModelClient as LoraModelClient
 from ramodels.lora.klasse import Klasse
 
-from os2mo_data_import import ImportHelper
+from os2mo_data_import import ImportHelper  # type: ignore
 from os2mo_data_import.mox_data_types import Itsystem
 
 
@@ -269,8 +270,7 @@ class InitialDataImporter:
         """Import a set of predetermined classes. All the classes have
         predefined UUIDs which makes this function idempotent.
         """
-        for class_data in CLASSES:
-            await LoraClass.create(class_data)
+        await asyncio.gather(*[LoraClass.create(cls) for cls in CLASSES])
 
     async def _import_it_systems(self):
         """Import predetermined IT systems. The UUID(s) are predefined which
