@@ -347,110 +347,45 @@ class LoraCache:
         return addresses
 
     def _cache_lora_engagements(self):
-        params = {"gyldighed": "Aktiv", "funktionsnavn": "Engagement"}
-        relevant = {
-            "relationer": (
-                "opgaver",
-                "tilknyttedeenheder",
-                "tilknyttedebrugere",
-                "organisatoriskfunktionstype",
-                "primær",
-            ),
-            "attributter": (
-                "organisationfunktionegenskaber",
-                "organisationfunktionudvidelser",
-            ),
-            "tilstande": ("organisationfunktiongyldighed",),
-        }
-        url = "/organisation/organisationfunktion"
-        engagements = {}
-        engagement_list = self._perform_lora_lookup(url, params, unit="engagement")
-        for engagement in tqdm(
-            engagement_list, desc="Processing engagement", unit="engagement"
-        ):
-            uuid = engagement["id"]
-
-            effects = self._get_effects(engagement, relevant)
-            engagement_effects = []
-            for effect in effects:
-                from_date, to_date = self._from_to_from_effect(effect)
-                if from_date is None and to_date is None:
-                    continue
-
-                # Todo, this should be consistently implemented for all objects
-                gyldighed = effect[2]["tilstande"]["organisationfunktiongyldighed"]
-                if not gyldighed:
-                    continue
-                if not gyldighed[0]["gyldighed"] == "Aktiv":
-                    continue
-
-                attr = effect[2]["attributter"]
-                rel = effect[2]["relationer"]
-
-                if not rel["organisatoriskfunktionstype"]:
-                    msg = "Missing in organisatoriskfunktionstype in {}"
-                    logger.error(msg.format(engagement))
-                    continue
-
-                user_key = attr["organisationfunktionegenskaber"][0][
-                    "brugervendtnoegle"
-                ]
-
-                engagement_type = rel["organisatoriskfunktionstype"][0]["uuid"]
-
-                primary_type = None
-                primær = rel.get("primær")
-                if primær:
-                    primary_type = primær[0]["uuid"]
-
-                try:
-                    job_function = rel["opgaver"][0]["uuid"]
-                except:
-                    continue
-
-                user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
-                unit_uuid = rel["tilknyttedeenheder"][0]["uuid"]
-
-                udvidelser = {}
-                udv_raw = attr.get("organisationfunktionudvidelser")
-                if isinstance(udv_raw, list):
-                    if len(udv_raw) == 1:
-                        udvidelser = udv_raw[0]
-                    if len(udv_raw) > 1:
-                        msg = "Ugyldig organisationfunktionudvidelser: {}"
-                        raise Exception(msg.format(udv_raw))
-                fraction = udvidelser.get("fraktion")
-                extensions = {
-                    "udvidelse_1": udvidelser.get("udvidelse_1"),
-                    "udvidelse_2": udvidelser.get("udvidelse_2"),
-                    "udvidelse_3": udvidelser.get("udvidelse_3"),
-                    "udvidelse_4": udvidelser.get("udvidelse_4"),
-                    "udvidelse_5": udvidelser.get("udvidelse_5"),
-                    "udvidelse_6": udvidelser.get("udvidelse_6"),
-                    "udvidelse_7": udvidelser.get("udvidelse_7"),
-                    "udvidelse_8": udvidelser.get("udvidelse_8"),
-                    "udvidelse_9": udvidelser.get("udvidelse_9"),
-                    "udvidelse_10": udvidelser.get("udvidelse_10"),
+        mh = self._get_mora_helper()
+        engagements = mh._mo_get(
+            self.settings["mora.base"] + "/api/v1/engagement",
+            params=self._validity_params(),
+        )
+        return {
+            uuid: [
+                {
+                    "uuid": uuid,
+                    "user": (engagement["person"] or {}).get("uuid", None),
+                    "unit": (engagement["org_unit"] or {}).get("uuid", None),
+                    "fraction": engagement["fraction"],
+                    "user_key": engagement["user_key"],
+                    "engagement_type": engagement["engagement_type"]["uuid"],
+                    "primary_type": (engagement["primary"] or {}).get("uuid", None),
+                    "job_function": engagement["job_function"]["uuid"],
+                    "extensions": {
+                        "udvidelse_1": engagement["extension_1"],
+                        "udvidelse_2": engagement["extension_2"],
+                        "udvidelse_3": engagement["extension_3"],
+                        "udvidelse_4": engagement["extension_4"],
+                        "udvidelse_5": engagement["extension_5"],
+                        "udvidelse_6": engagement["extension_6"],
+                        "udvidelse_7": engagement["extension_7"],
+                        "udvidelse_8": engagement["extension_8"],
+                        "udvidelse_9": engagement["extension_9"],
+                        "udvidelse_10": engagement["extension_10"],
+                    },
+                    "from_date": self._format_optional_datetime_string(
+                        engagement["validity"]["from"]
+                    ),
+                    "to_date": self._format_optional_datetime_string(
+                        engagement["validity"]["to"]
+                    ),
                 }
-
-                engagement_effects.append(
-                    {
-                        "uuid": uuid,
-                        "user": user_uuid,
-                        "unit": unit_uuid,
-                        "fraction": fraction,
-                        "user_key": user_key,
-                        "engagement_type": engagement_type,
-                        "primary_type": primary_type,
-                        "job_function": job_function,
-                        "extensions": extensions,
-                        "from_date": from_date,
-                        "to_date": to_date,
-                    }
-                )
-            if engagement_effects:
-                engagements[uuid] = engagement_effects
-        return engagements
+                for engagement in group
+            ]
+            for uuid, group in itertools.groupby(engagements, key=lambda e: e["uuid"])
+        }
 
     def _cache_lora_associations(self):
         params = {"gyldighed": "Aktiv", "funktionsnavn": "Tilknytning"}

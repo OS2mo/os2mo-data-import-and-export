@@ -471,3 +471,118 @@ def test_addresses_equivalence(full_history, skip_past):
     old_addresses = old_cache_lora_address(lc)
     # test fails because the old LoRa cache sometimes returns wrong dates.
     assert new_addresses == old_addresses
+
+
+def old_cache_lora_engagements(self):
+    params = {"gyldighed": "Aktiv", "funktionsnavn": "Engagement"}
+    relevant = {
+        "relationer": (
+            "opgaver",
+            "tilknyttedeenheder",
+            "tilknyttedebrugere",
+            "organisatoriskfunktionstype",
+            "primær",
+        ),
+        "attributter": (
+            "organisationfunktionegenskaber",
+            "organisationfunktionudvidelser",
+        ),
+        "tilstande": ("organisationfunktiongyldighed",),
+    }
+    url = "/organisation/organisationfunktion"
+    engagements = {}
+    engagement_list = self._perform_lora_lookup(url, params, unit="engagement")
+    for engagement in tqdm(
+        engagement_list, desc="Processing engagement", unit="engagement"
+    ):
+        uuid = engagement["id"]
+
+        effects = self._get_effects(engagement, relevant)
+        engagement_effects = []
+        for effect in effects:
+            from_date, to_date = self._from_to_from_effect(effect)
+            if from_date is None and to_date is None:
+                continue
+
+            # Todo, this should be consistently implemented for all objects
+            gyldighed = effect[2]["tilstande"]["organisationfunktiongyldighed"]
+            if not gyldighed:
+                continue
+            if not gyldighed[0]["gyldighed"] == "Aktiv":
+                continue
+
+            attr = effect[2]["attributter"]
+            rel = effect[2]["relationer"]
+
+            if not rel["organisatoriskfunktionstype"]:
+                msg = "Missing in organisatoriskfunktionstype in {}"
+                # logger.error(msg.format(engagement))
+                continue
+
+            user_key = attr["organisationfunktionegenskaber"][0]["brugervendtnoegle"]
+
+            engagement_type = rel["organisatoriskfunktionstype"][0]["uuid"]
+
+            primary_type = None
+            primær = rel.get("primær")
+            if primær:
+                primary_type = primær[0]["uuid"]
+
+            try:
+                job_function = rel["opgaver"][0]["uuid"]
+            except:
+                continue
+
+            user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
+            unit_uuid = rel["tilknyttedeenheder"][0]["uuid"]
+
+            udvidelser = {}
+            udv_raw = attr.get("organisationfunktionudvidelser")
+            if isinstance(udv_raw, list):
+                if len(udv_raw) == 1:
+                    udvidelser = udv_raw[0]
+                if len(udv_raw) > 1:
+                    msg = "Ugyldig organisationfunktionudvidelser: {}"
+                    raise Exception(msg.format(udv_raw))
+            fraction = udvidelser.get("fraktion")
+            extensions = {
+                "udvidelse_1": udvidelser.get("udvidelse_1"),
+                "udvidelse_2": udvidelser.get("udvidelse_2"),
+                "udvidelse_3": udvidelser.get("udvidelse_3"),
+                "udvidelse_4": udvidelser.get("udvidelse_4"),
+                "udvidelse_5": udvidelser.get("udvidelse_5"),
+                "udvidelse_6": udvidelser.get("udvidelse_6"),
+                "udvidelse_7": udvidelser.get("udvidelse_7"),
+                "udvidelse_8": udvidelser.get("udvidelse_8"),
+                "udvidelse_9": udvidelser.get("udvidelse_9"),
+                "udvidelse_10": udvidelser.get("udvidelse_10"),
+            }
+
+            engagement_effects.append(
+                {
+                    "uuid": uuid,
+                    "user": user_uuid,
+                    "unit": unit_uuid,
+                    "fraction": fraction,
+                    "user_key": user_key,
+                    "engagement_type": engagement_type,
+                    "primary_type": primary_type,
+                    "job_function": job_function,
+                    "extensions": extensions,
+                    "from_date": from_date,
+                    "to_date": to_date,
+                }
+            )
+        if engagement_effects:
+            engagements[uuid] = engagement_effects
+    return engagements
+
+
+@skip  # TODO
+@pytest.mark.parametrize("full_history", [True, False])
+@pytest.mark.parametrize("skip_past", [True, False])
+def test_engagements_equivalence(full_history, skip_past):
+    lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
+    new_engagements = lc._cache_lora_engagements()
+    old_engagements = old_cache_lora_engagements(lc)
+    assert new_engagements == old_engagements
