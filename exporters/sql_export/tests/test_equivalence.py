@@ -93,7 +93,8 @@ def old_cache_lora_itsystems(self):
         }
     return itsystems
 
-@skip
+
+@skip  # TODO
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_itsystems_equivalence(full_history, skip_past):
@@ -165,7 +166,8 @@ def old_cache_lora_users(self):
             )
     return users
 
-@skip
+
+@skip  # TODO
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_users_equivalence(full_history, skip_past):
@@ -232,7 +234,7 @@ def old_cache_lora_units(self):
     return units
 
 
-#@skip
+@skip  # TODO
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_units_equivalence(full_history, skip_past):
@@ -297,7 +299,7 @@ def _old_cache_lora_it_connections(self):
     return it_connections
 
 
-#@skip
+@skip  # TODO
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_itconnections_equivalence(full_history, skip_past):
@@ -340,7 +342,7 @@ def _old_cache_lora_related(self):
     return related
 
 
-@skip
+@skip  # TODO
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_related_equivalence(full_history, skip_past):
@@ -460,10 +462,10 @@ def old_cache_lora_address(self):
     return addresses
 
 
-@skip
-# @pytest.mark.parametrize("full_history", [True, False])
-# @pytest.mark.parametrize("skip_past", [True, False])
-def test_addresses_equivalence(full_history=False, skip_past=False):
+@skip  # TODO
+@pytest.mark.parametrize("full_history", [True, False])
+@pytest.mark.parametrize("skip_past", [True, False])
+def test_addresses_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     new_addresses = lc._cache_lora_address()
     old_addresses = old_cache_lora_address(lc)
