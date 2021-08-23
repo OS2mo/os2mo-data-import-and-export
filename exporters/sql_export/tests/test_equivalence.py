@@ -697,3 +697,49 @@ def test_roles_equivalence(full_history, skip_past):
     new_roles = lc._cache_lora_roles()
     old_roles = old_cache_lora_roles(lc)
     assert new_roles == old_roles
+
+
+def old_cache_lora_leaves(self):
+    params = {"gyldighed": "Aktiv", "funktionsnavn": "Orlov"}
+    relevant = {
+        "relationer": ("tilknyttedebrugere", "organisatoriskfunktionstype"),
+        "attributter": ("organisationfunktionegenskaber",),
+    }
+    url = "/organisation/organisationfunktion"
+    leaves = {}
+    leave_list = self._perform_lora_lookup(url, params, unit="leave")
+    for leave in tqdm(leave_list, desc="Processing leave", unit="leave"):
+        uuid = leave["id"]
+        leaves[uuid] = []
+        effects = self._get_effects(leave, relevant)
+        for effect in effects:
+            from_date, to_date = self._from_to_from_effect(effect)
+            if from_date is None and to_date is None:
+                continue
+            attr = effect[2]["attributter"]
+            rel = effect[2]["relationer"]
+            user_key = attr["organisationfunktionegenskaber"][0]["brugervendtnoegle"]
+            leave_type = rel["organisatoriskfunktionstype"][0]["uuid"]
+            user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
+
+            leaves[uuid].append(
+                {
+                    "uuid": uuid,
+                    "user": user_uuid,
+                    "user_key": user_key,
+                    "leave_type": leave_type,
+                    "from_date": from_date,
+                    "to_date": to_date,
+                }
+            )
+    return leaves
+
+
+@skip  # TODO
+@pytest.mark.parametrize("full_history", [True, False])
+@pytest.mark.parametrize("skip_past", [True, False])
+def test_leaves_equivalence(full_history, skip_past):
+    lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
+    new_leaves = lc._cache_lora_leaves()
+    old_leaves = old_cache_lora_leaves(lc)
+    assert new_leaves == old_leaves

@@ -439,41 +439,29 @@ class LoraCache:
         }
 
     def _cache_lora_leaves(self):
-        params = {"gyldighed": "Aktiv", "funktionsnavn": "Orlov"}
-        relevant = {
-            "relationer": ("tilknyttedebrugere", "organisatoriskfunktionstype"),
-            "attributter": ("organisationfunktionegenskaber",),
+        mh = self._get_mora_helper()
+        leaves = mh._mo_get(
+            self.settings["mora.base"] + "/api/v1/leave",
+            params=self._validity_params(),
+        )
+        return {
+            uuid: [
+                {
+                    "uuid": uuid,
+                    "user": (leave["person"] or {}).get("uuid", None),
+                    "user_key": leave["user_key"],
+                    "leave_type": leave["leave_type"]["uuid"],
+                    "from_date": self._format_optional_datetime_string(
+                        leave["validity"]["from"]
+                    ),
+                    "to_date": self._format_optional_datetime_string(
+                        leave["validity"]["to"]
+                    ),
+                }
+                for leave in group
+            ]
+            for uuid, group in itertools.groupby(leaves, key=lambda l: l["uuid"])
         }
-        url = "/organisation/organisationfunktion"
-        leaves = {}
-        leave_list = self._perform_lora_lookup(url, params, unit="leave")
-        for leave in tqdm(leave_list, desc="Processing leave", unit="leave"):
-            uuid = leave["id"]
-            leaves[uuid] = []
-            effects = self._get_effects(leave, relevant)
-            for effect in effects:
-                from_date, to_date = self._from_to_from_effect(effect)
-                if from_date is None and to_date is None:
-                    continue
-                attr = effect[2]["attributter"]
-                rel = effect[2]["relationer"]
-                user_key = attr["organisationfunktionegenskaber"][0][
-                    "brugervendtnoegle"
-                ]
-                leave_type = rel["organisatoriskfunktionstype"][0]["uuid"]
-                user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
-
-                leaves[uuid].append(
-                    {
-                        "uuid": uuid,
-                        "user": user_uuid,
-                        "user_key": user_key,
-                        "leave_type": leave_type,
-                        "from_date": from_date,
-                        "to_date": to_date,
-                    }
-                )
-        return leaves
 
     def _format_optional_datetime_string(self, timestamp: str, fmt="%Y-%m-%d"):
         if timestamp is None:
