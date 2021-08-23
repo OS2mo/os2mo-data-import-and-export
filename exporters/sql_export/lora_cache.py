@@ -55,6 +55,7 @@ class LoraCache:
         return mh
 
     def _validity_params(self, full_history: bool = None, skip_past: bool = None):
+        return {}  # TODO
         if full_history is None:
             full_history = self.full_history
         if skip_past is None:
@@ -245,8 +246,9 @@ class LoraCache:
     def _cache_lora_users(self):
         mh = self._get_mora_helper()
         employees = mh._mo_get(
-            self.settings["mora.base"] + "/api/v1/employee"
-        )  # todo params=self._validity_params()
+            self.settings["mora.base"] + "/api/v1/employee",
+            params=self._validity_params(),
+        )
         return {
             employee["uuid"]: [
                 {
@@ -273,8 +275,9 @@ class LoraCache:
     def _cache_lora_units(self):
         mh = self._get_mora_helper()
         units = mh._mo_get(
-            self.settings["mora.base"] + "/api/v1/org_unit"
-        )  # todo params=self._validity_params()
+            self.settings["mora.base"] + "/api/v1/org_unit",
+            params=self._validity_params(),
+        )
         return {
             unit["uuid"]: [
                 {
@@ -665,7 +668,10 @@ class LoraCache:
             ]
 
         mh = self._get_mora_helper()
-        it_connections = mh._mo_get(self.settings["mora.base"] + "/api/v1/it")
+        it_connections = mh._mo_get(
+            self.settings["mora.base"] + "/api/v1/it",
+            params=self._validity_params(),
+        )
         return dict(map(construct_tuple, it_connections))
 
     def _cache_lora_kles(self):
