@@ -586,3 +586,65 @@ def test_engagements_equivalence(full_history, skip_past):
     new_engagements = lc._cache_lora_engagements()
     old_engagements = old_cache_lora_engagements(lc)
     assert new_engagements == old_engagements
+
+
+def old_cache_lora_associations(self):
+    params = {"gyldighed": "Aktiv", "funktionsnavn": "Tilknytning"}
+    relevant = {
+        "relationer": (
+            "tilknyttedeenheder",
+            "tilknyttedebrugere",
+            "organisatoriskfunktionstype",
+        ),
+        "attributter": ("organisationfunktionegenskaber",),
+    }
+    url = "/organisation/organisationfunktion"
+    associations = {}
+    association_list = self._perform_lora_lookup(url, params, unit="association")
+    for association in tqdm(
+        association_list, desc="Processing association", unit="association"
+    ):
+        uuid = association["id"]
+        associations[uuid] = []
+
+        effects = self._get_effects(association, relevant)
+        for effect in effects:
+            from_date, to_date = self._from_to_from_effect(effect)
+            if from_date is None and to_date is None:
+                continue
+
+            attr = effect[2]["attributter"]
+            rel = effect[2]["relationer"]
+
+            if rel["tilknyttedeenheder"]:
+                unit_uuid = rel["tilknyttedeenheder"][0]["uuid"]
+            else:
+                unit_uuid = None
+                # logger.error("Error: Unable to find unit in {}".format(uuid))
+
+            user_key = attr["organisationfunktionegenskaber"][0]["brugervendtnoegle"]
+            association_type = rel["organisatoriskfunktionstype"][0]["uuid"]
+            user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
+
+            associations[uuid].append(
+                {
+                    "uuid": uuid,
+                    "user": user_uuid,
+                    "unit": unit_uuid,
+                    "user_key": user_key,
+                    "association_type": association_type,
+                    "from_date": from_date,
+                    "to_date": to_date,
+                }
+            )
+    return associations
+
+
+@skip  # TODO
+@pytest.mark.parametrize("full_history", [True, False])
+@pytest.mark.parametrize("skip_past", [True, False])
+def test_associations_equivalence(full_history, skip_past):
+    lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
+    new_associations = lc._cache_lora_associations()
+    old_associations = old_cache_lora_associations(lc)
+    assert new_associations == old_associations
