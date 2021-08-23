@@ -301,113 +301,49 @@ class LoraCache:
         }
 
     def _cache_lora_address(self):
-        params = {"gyldighed": "Aktiv", "funktionsnavn": "Adresse"}
+        mh = self._get_mora_helper()
+        mo_addresses = mh._mo_get(
+            self.settings["mora.base"] + "/api/v1/address",
+            params=self._validity_params(),
+        )
 
-        url = "/organisation/organisationfunktion"
-        relevant = {
-            "relationer": (
-                "tilknyttedeenheder",
-                "tilknyttedebrugere",
-                "adresser",
-                "organisatoriskfunktionstype",
-                "opgaver",
-            ),
-            "attributter": ("organisationfunktionegenskaber",),
+        # The old LoRa Cache hardcoded the following scope translations:
+        mo_to_lora_scope = {
+            "EMAIL": "E-mail",
+            "WWW": "Url",
+            "PHONE": "Telefon",
+            "PNUMBER": "P-nummer",
+            "EAN": "EAN",
+            "TEXT": "Text",
+            "DAR": "DAR",
         }
-        address_list = self._perform_lora_lookup(url, params, unit="address")
 
         addresses = {}
-        for address in tqdm(address_list, desc="Processing address", unit="address"):
-            uuid = address["id"]
-            addresses[uuid] = []
+        for mo_address in mo_addresses:
+            uuid = mo_address["uuid"]
+            scope = mo_address["address_type"]["scope"]
+            address = {
+                "uuid": uuid,
+                "user": (mo_address["person"] or {}).get("uuid", None),
+                "unit": (mo_address["org_unit"] or {}).get("uuid", None),
+                "value": mo_address["value"],
+                "scope": mo_to_lora_scope[scope],
+                "dar_uuid": None,
+                "adresse_type": mo_address["address_type"]["uuid"],
+                "visibility": (mo_address["visibility"] or {}).get("uuid", None),
+                "from_date": self._format_optional_datetime_string(
+                    mo_address["validity"]["from"]
+                ),
+                "to_date": self._format_optional_datetime_string(
+                    mo_address["validity"]["to"]
+                ),
+            }
+            # DAR addresses are treated in a special way
+            if scope == "DAR":
+                address["dar_uuid"] = address["value"]
+                address["value"] = None
+            addresses[uuid] = [address]
 
-            effects = self._get_effects(address, relevant)
-            for effect in effects:
-                from_date, to_date = self._from_to_from_effect(effect)
-                if from_date is None and to_date is None:
-                    continue
-                relationer = effect[2]["relationer"]
-
-                if (
-                    "tilknyttedeenheder" in relationer
-                    and len(relationer["tilknyttedeenheder"]) > 0
-                ):
-                    unit_uuid = relationer["tilknyttedeenheder"][0]["uuid"]
-                    user_uuid = None
-                elif (
-                    "tilknyttedebrugere" in relationer
-                    and len(relationer["tilknyttedebrugere"]) > 0
-                ):
-                    user_uuid = relationer["tilknyttedebrugere"][0]["uuid"]
-                    unit_uuid = None
-                else:
-                    # Skip if address is not attached to anything
-                    continue
-
-                dar_uuid = None
-                value_raw = relationer["adresser"][0]["urn"]
-                address_type = relationer["adresser"][0]["objekttype"]
-                if address_type == "EMAIL":
-                    scope = "E-mail"
-                    skip_len = len("urn:mailto:")
-                    value = value_raw[skip_len:]
-                elif address_type == "WWW":
-                    scope = "Url"
-                    skip_len = len("urn:magenta.dk:www:")
-                    value = value_raw[skip_len:]
-                elif address_type == "PHONE":
-                    scope = "Telefon"
-                    skip_len = len("urn:magenta.dk:telefon:")
-                    value = value_raw[skip_len:]
-                elif address_type == "PNUMBER":
-                    scope = "P-nummer"
-                    skip_len = len("urn:dk:cvr:produktionsenhed:")
-                    value = value_raw[skip_len:]
-                elif address_type == "EAN":
-                    scope = "EAN"
-                    skip_len = len("urn:magenta.dk:ean:")
-                    value = value_raw[skip_len:]
-                elif address_type == "TEXT":
-                    scope = "Text"
-                    skip_len = len("urn:text:")
-                    value = urllib.parse.unquote(value_raw[skip_len:])
-                elif address_type == "DAR":
-                    scope = "DAR"
-                    skip_len = len("urn:dar:")
-                    dar_uuid = value_raw[skip_len:]
-                    value = None
-
-                    if self.dar_map is not None:
-                        self.dar_map[dar_uuid].append(uuid)
-                else:
-                    print("Ny type: {}".format(address_type))
-                    msg = "Unknown addresse type: {}, value: {}"
-                    logger.error(msg.format(address_type, value_raw))
-                    raise ("Unknown address type: {}".format(address_type))
-
-                address_type_class = relationer["organisatoriskfunktionstype"][0][
-                    "uuid"
-                ]
-
-                synlighed = None
-                if relationer.get("opgaver"):
-                    if relationer["opgaver"][0]["objekttype"] == "synlighed":
-                        synlighed = relationer["opgaver"][0]["uuid"]
-
-                addresses[uuid].append(
-                    {
-                        "uuid": uuid,
-                        "user": user_uuid,
-                        "unit": unit_uuid,
-                        "value": value,
-                        "scope": scope,
-                        "dar_uuid": dar_uuid,
-                        "adresse_type": address_type_class,
-                        "visibility": synlighed,
-                        "from_date": from_date,
-                        "to_date": to_date,
-                    }
-                )
         return addresses
 
     def _cache_lora_engagements(self):

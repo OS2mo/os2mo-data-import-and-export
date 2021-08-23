@@ -349,3 +349,123 @@ def test_related_equivalence(full_history, skip_past):
     old_related = _old_cache_lora_related(lc)
     # test fails because LoRa sometimes sorts the relationship tuple differently
     assert new_related == old_related
+
+
+def old_cache_lora_address(self):
+    params = {"gyldighed": "Aktiv", "funktionsnavn": "Adresse"}
+
+    url = "/organisation/organisationfunktion"
+    relevant = {
+        "relationer": (
+            "tilknyttedeenheder",
+            "tilknyttedebrugere",
+            "adresser",
+            "organisatoriskfunktionstype",
+            "opgaver",
+        ),
+        "attributter": ("organisationfunktionegenskaber",),
+    }
+    address_list = self._perform_lora_lookup(url, params, unit="address")
+
+    addresses = {}
+    for address in tqdm(address_list, desc="Processing address", unit="address"):
+        uuid = address["id"]
+        addresses[uuid] = []
+
+        effects = self._get_effects(address, relevant)
+        for effect in effects:
+            from_date, to_date = self._from_to_from_effect(effect)
+            if from_date is None and to_date is None:
+                continue
+            relationer = effect[2]["relationer"]
+
+            if (
+                "tilknyttedeenheder" in relationer
+                and len(relationer["tilknyttedeenheder"]) > 0
+            ):
+                unit_uuid = relationer["tilknyttedeenheder"][0]["uuid"]
+                user_uuid = None
+            elif (
+                "tilknyttedebrugere" in relationer
+                and len(relationer["tilknyttedebrugere"]) > 0
+            ):
+                user_uuid = relationer["tilknyttedebrugere"][0]["uuid"]
+                unit_uuid = None
+            else:
+                # Skip if address is not attached to anything
+                continue
+
+            dar_uuid = None
+            value_raw = relationer["adresser"][0]["urn"]
+            address_type = relationer["adresser"][0]["objekttype"]
+            if address_type == "EMAIL":
+                scope = "E-mail"
+                skip_len = len("urn:mailto:")
+                value = value_raw[skip_len:]
+            elif address_type == "WWW":
+                scope = "Url"
+                skip_len = len("urn:magenta.dk:www:")
+                value = value_raw[skip_len:]
+            elif address_type == "PHONE":
+                scope = "Telefon"
+                skip_len = len("urn:magenta.dk:telefon:")
+                value = value_raw[skip_len:]
+            elif address_type == "PNUMBER":
+                scope = "P-nummer"
+                skip_len = len("urn:dk:cvr:produktionsenhed:")
+                value = value_raw[skip_len:]
+            elif address_type == "EAN":
+                scope = "EAN"
+                skip_len = len("urn:magenta.dk:ean:")
+                value = value_raw[skip_len:]
+            elif address_type == "TEXT":
+                scope = "Text"
+                skip_len = len("urn:text:")
+                value = urllib.parse.unquote(value_raw[skip_len:])
+            elif address_type == "DAR":
+                scope = "DAR"
+                skip_len = len("urn:dar:")
+                dar_uuid = value_raw[skip_len:]
+                value = None
+
+                if self.dar_map is not None:
+                    self.dar_map[dar_uuid].append(uuid)
+            else:
+                print("Ny type: {}".format(address_type))
+                msg = "Unknown addresse type: {}, value: {}"
+                # logger.error(msg.format(address_type, value_raw))
+                raise ("Unknown address type: {}".format(address_type))
+
+            address_type_class = relationer["organisatoriskfunktionstype"][0]["uuid"]
+
+            synlighed = None
+            if relationer.get("opgaver"):
+                if relationer["opgaver"][0]["objekttype"] == "synlighed":
+                    synlighed = relationer["opgaver"][0]["uuid"]
+
+            addresses[uuid].append(
+                {
+                    "uuid": uuid,
+                    "user": user_uuid,
+                    "unit": unit_uuid,
+                    "value": value,
+                    "scope": scope,
+                    "dar_uuid": dar_uuid,
+                    "adresse_type": address_type_class,
+                    "visibility": synlighed,
+                    "from_date": from_date,
+                    "to_date": to_date,
+                }
+            )
+    return addresses
+
+
+@skip
+# @pytest.mark.parametrize("full_history", [True, False])
+# @pytest.mark.parametrize("skip_past", [True, False])
+def test_addresses_equivalence(full_history=False, skip_past=False):
+    lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
+    new_addresses = lc._cache_lora_address()
+    old_addresses = old_cache_lora_address(lc)
+    # test fails because the old LoRa cache sometimes returns wrong dates.
+    assert new_addresses == old_addresses
