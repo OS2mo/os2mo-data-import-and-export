@@ -473,7 +473,7 @@ class LoraCache:
             return it_connection["uuid"], [
                 {
                     "uuid": it_connection["uuid"],
-                    "user": it_connection["person"]["uuid"],
+                    "user": (it_connection["person"] or {}).get("uuid", None),
                     "unit": (it_connection["org_unit"] or {}).get("uuid", None),
                     "username": it_connection["user_key"],
                     "itsystem": it_connection["itsystem"]["uuid"],
