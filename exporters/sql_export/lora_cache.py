@@ -494,51 +494,31 @@ class LoraCache:
         return dict(map(construct_tuple, it_connections))
 
     def _cache_lora_kles(self):
-        params = {"gyldighed": "Aktiv", "funktionsnavn": "KLE"}
-        url = "/organisation/organisationfunktion"
-        kle_list = self._perform_lora_lookup(url, params, unit="KLE")
-        kles = {}
-        for kle in tqdm(kle_list, desc="Processing KLE", unit="KLE"):
-            uuid = kle["id"]
-            kles[uuid] = []
-
-            relevant = {
-                "relationer": (
-                    "opgaver",
-                    "tilknyttedeenheder",
-                    "organisatoriskfunktionstype",
-                ),
-                "attributter": ("organisationfunktionegenskaber",),
-            }
-
-            effects = self._get_effects(kle, relevant)
-            for effect in effects:
-                from_date, to_date = self._from_to_from_effect(effect)
-                if from_date is None and to_date is None:
-                    continue
-
-                user_key = effect[2]["attributter"]["organisationfunktionegenskaber"][
-                    0
-                ]["brugervendtnoegle"]
-
-                rel = effect[2]["relationer"]
-                unit_uuid = rel["tilknyttedeenheder"][0]["uuid"]
-                kle_number = rel["organisatoriskfunktionstype"][0]["uuid"]
-
-                for aspekt in rel["opgaver"]:
-                    kle_aspect = aspekt["uuid"]
-                    kles[uuid].append(
-                        {
-                            "uuid": uuid,
-                            "unit": unit_uuid,
-                            "kle_number": kle_number,
-                            "kle_aspect": kle_aspect,
-                            "user_key": user_key,
-                            "from_date": from_date,
-                            "to_date": to_date,
-                        }
-                    )
-        return kles
+        mh = self._get_mora_helper()
+        mo_kles = mh._mo_get(
+            self.settings["mora.base"] + "/api/v1/kle",
+            params=self._validity_params(),
+        )
+        kles = defaultdict(list)
+        for kle in mo_kles:
+            uuid = kle["uuid"]
+            for aspect in kle["kle_aspect"]:
+                kles[uuid].append(
+                    {
+                        "uuid": uuid,
+                        "unit": (kle["org_unit"] or {}).get("uuid", None),
+                        "kle_number": kle["kle_number"]["uuid"],
+                        "kle_aspect": aspect["uuid"],
+                        "user_key": kle["user_key"],
+                        "from_date": self._format_optional_datetime_string(
+                            kle["validity"]["from"]
+                        ),
+                        "to_date": self._format_optional_datetime_string(
+                            kle["validity"]["to"]
+                        ),
+                    }
+                )
+        return dict(kles)
 
     def _cache_lora_related(self):
         mh = self._get_mora_helper()

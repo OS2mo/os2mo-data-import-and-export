@@ -746,6 +746,64 @@ def test_leaves_equivalence(full_history, skip_past):
     assert new_leaves == old_leaves
 
 
+def old_cache_lora_kles(self):
+    params = {"gyldighed": "Aktiv", "funktionsnavn": "KLE"}
+    url = "/organisation/organisationfunktion"
+    kle_list = self._perform_lora_lookup(url, params, unit="KLE")
+    kles = {}
+    for kle in tqdm(kle_list, desc="Processing KLE", unit="KLE"):
+        uuid = kle["id"]
+        kles[uuid] = []
+
+        relevant = {
+            "relationer": (
+                "opgaver",
+                "tilknyttedeenheder",
+                "organisatoriskfunktionstype",
+            ),
+            "attributter": ("organisationfunktionegenskaber",),
+        }
+
+        effects = self._get_effects(kle, relevant)
+        for effect in effects:
+            from_date, to_date = self._from_to_from_effect(effect)
+            if from_date is None and to_date is None:
+                continue
+
+            user_key = effect[2]["attributter"]["organisationfunktionegenskaber"][0][
+                "brugervendtnoegle"
+            ]
+
+            rel = effect[2]["relationer"]
+            unit_uuid = rel["tilknyttedeenheder"][0]["uuid"]
+            kle_number = rel["organisatoriskfunktionstype"][0]["uuid"]
+
+            for aspekt in rel["opgaver"]:
+                kle_aspect = aspekt["uuid"]
+                kles[uuid].append(
+                    {
+                        "uuid": uuid,
+                        "unit": unit_uuid,
+                        "kle_number": kle_number,
+                        "kle_aspect": kle_aspect,
+                        "user_key": user_key,
+                        "from_date": from_date,
+                        "to_date": to_date,
+                    }
+                )
+    return kles
+
+
+@skip  # TODO
+@pytest.mark.parametrize("full_history", [True, False])
+@pytest.mark.parametrize("skip_past", [True, False])
+def test_kles_equivalence(full_history, skip_past):
+    lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
+    new_kles = lc._cache_lora_kles()
+    old_kles = old_cache_lora_kles(lc)
+    assert new_kles == old_kles
+
+
 def old_cache_lora_managers(self):
     params = {"gyldighed": "Aktiv", "funktionsnavn": "Leder"}
     url = "/organisation/organisationfunktion"
