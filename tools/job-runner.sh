@@ -131,15 +131,12 @@ imports_opus_diff_import(){
     ${VENV}/bin/python3 integrations/opus/opus_diff_import.py
 }
 
-imports_sd_update_primary(){
+imports_update_primary(){
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/calculate_primary.log"
     )
-    echo "updating primary engagements"
-    ${VENV}/bin/python3 integrations/calculate_primary/calculate_primary.py --integration SD --recalculate-all || (
-        # denne fejl skal ikke stoppe afviklingen, da en afbrudt kørsel blot kan gentages
-        echo FEJL i updating primary engagements, men kører videre
-    )
+    echo "updating $RUN_UPDATE_PRIMARY primary engagements"
+    ${VENV}/bin/python3 integrations/calculate_primary/calculate_primary.py --integration "$RUN_UPDATE_PRIMARY" --recalculate-all 
 }
 
 
@@ -473,8 +470,8 @@ imports(){
         run-job imports_sd_changed_at || return 2
     fi
 
-    if [ "${RUN_SD_UPDATE_PRIMARY}" == "true" ]; then
-        run-job imports_sd_update_primary || return 2
+    if [ "${RUN_UPDATE_PRIMARY}" == "OPUS" || "${RUN_UPDATE_PRIMARY}" == "SD" ]; then
+        run-job imports_update_primary || echo "Error in calculate primary, continuing jobrunner"
     fi
 
     if [ "${RUN_OPUS_DIFF_IMPORT}" == "true" ]; then
