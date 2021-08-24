@@ -43,6 +43,7 @@ settings = {
     "OS2SYNC_AUTOWASH": top_settings.get("os2sync.autowash", False),
     "OS2SYNC_TEMPLATES": top_settings.get("os2sync.templates", {}),
     "use_contact_for_tasks": top_settings.get("os2sync.use_contact_for_tasks"),
+    "sync_managers": top_settings.get("os2sync.sync_managers")
 }
 
 logformat = "%(levelname)s %(asctime)s %(name)s %(message)s"
