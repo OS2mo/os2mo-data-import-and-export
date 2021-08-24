@@ -1,8 +1,11 @@
 import asyncio
+import codecs
 import csv
 from datetime import date
 from datetime import datetime
 from ftplib import FTP
+from io import BytesIO
+from io import StringIO
 from operator import itemgetter
 from typing import Iterable
 from typing import List
@@ -36,21 +39,27 @@ def get_client_session():
     )
 
 
-def read_csv(filename: str, model: pydantic.BaseModel) -> List[pydantic.BaseModel]:
-    """Read CSV file from FTP into list of model objects"""
-    print(f"Processing {filename}")
-
+def get_ftp_file(filename: str) -> List[str]:
     ftp = get_ftp_connector()
-
     lines: List[str] = []
     ftp.retrlines(f"RETR {filename}", lines.append)
+    return lines
 
+
+def parse_csv(lines: List[str], model: pydantic.BaseModel) -> List[pydantic.BaseModel]:
     def strip_empty(val: dict):
         return {k: v for k, v in val.items() if v != ""}
 
     reader = csv.DictReader(lines, delimiter=";")
     parsed = map(strip_empty, reader)
     return parse_obj_as(List[model], list(parsed))  # type: ignore
+
+
+def read_csv(filename: str, model: pydantic.BaseModel) -> List[pydantic.BaseModel]:
+    """Read CSV file from FTP into list of model objects"""
+    print(f"Processing {filename}")
+    lines = get_ftp_file(filename)
+    return parse_csv(lines, model)
 
 
 async def create_details(
@@ -186,3 +195,22 @@ def convert_validities(from_time: date, to_time: date) -> Tuple[str, Optional[st
     from_time_str = from_time.isoformat()
     to_time_str = to_time.isoformat()
     return from_time_str, to_time_str if to_time_str != "9999-12-31" else None
+
+
+def convert_stringio_to_bytesio(output: StringIO, encoding: str = "utf-8") -> BytesIO:
+    """Convert StringIO object `output` to a BytesIO object using `encoding`"""
+    output.seek(0)
+    bytes_output = BytesIO()
+    bytes_writer = codecs.getwriter(encoding)(bytes_output)
+    bytes_writer.write(output.getvalue())
+    bytes_output.seek(0)
+    return bytes_output
+
+
+def write_csv_to_ftp(filename: str, csv_stream: StringIO, folder: str = "DARfejlliste"):
+    """Write CSV data in `csv_stream` to FTP file `filename`"""
+    ftp = get_ftp_connector()
+    ftp.cwd(folder)
+    result = ftp.storlines(f"STOR {filename}", convert_stringio_to_bytesio(csv_stream))
+    ftp.close()
+    return result
