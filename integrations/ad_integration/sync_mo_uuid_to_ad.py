@@ -195,11 +195,13 @@ class SyncMoUuidToAd(AD):
     def _check_ad_uuid_field_is_configured(self):
         # Check configuration
         ad_uuid_field = self.settings["integrations.ad.write.uuid_field"]
-        for ad_index, ad_settings in enumerate(self.settings["integrations.ad"]):
-            if ad_uuid_field not in ad_settings["properties"]:
-                msg = "'uuid_field' %r not in 'properties' of AD (index=%d)"
-                logger.warning(msg, ad_uuid_field, ad_index)
-                raise ImproperlyConfigured(msg % (ad_uuid_field, ad_index))
+        if not any(
+            ad_uuid_field in ad_settings["properties"]
+            for ad_settings in self.settings["integrations.ad"]
+        ):
+            msg = "'uuid_field' %r not in 'properties' of any AD"
+            logger.warning(msg, ad_uuid_field)
+            raise ImproperlyConfigured(msg % (ad_uuid_field))
 
     def _get_mora_helper(self):
         return MoraHelper(
