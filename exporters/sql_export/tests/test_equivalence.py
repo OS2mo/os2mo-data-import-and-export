@@ -1,3 +1,4 @@
+import lora_utils
 import pytest
 import json
 from tqdm import tqdm
@@ -743,3 +744,76 @@ def test_leaves_equivalence(full_history, skip_past):
     new_leaves = lc._cache_lora_leaves()
     old_leaves = old_cache_lora_leaves(lc)
     assert new_leaves == old_leaves
+
+
+def old_cache_lora_managers(self):
+    params = {"gyldighed": "Aktiv", "funktionsnavn": "Leder"}
+    url = "/organisation/organisationfunktion"
+    manager_list = self._perform_lora_lookup(url, params, unit="manager")
+
+    managers = {}
+    for manager in tqdm(manager_list, desc="Processing manager", unit="manager"):
+        uuid = manager["id"]
+        managers[uuid] = []
+        relevant = {
+            "relationer": (
+                "opgaver",
+                "tilknyttedeenheder",
+                "tilknyttedebrugere",
+                "organisatoriskfunktionstype",
+            )
+        }
+
+        if self.full_history:
+            effects = lora_utils.get_effects(
+                manager["registreringer"][0],
+                relevant=relevant,
+                additional=self.additional,
+            )
+        else:
+            effects = lora_utils.get_effects(
+                manager["registreringer"][0],
+                relevant=self.additional,
+                additional=relevant,
+            )
+
+        for effect in effects:
+            from_date, to_date = self._from_to_from_effect(effect)
+            rel = effect[2]["relationer"]
+            try:
+                user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
+            except:
+                user_uuid = None
+            unit_uuid = rel["tilknyttedeenheder"][0]["uuid"]
+            manager_type = rel["organisatoriskfunktionstype"][0]["uuid"]
+            manager_responsibility = []
+
+            for opgave in rel["opgaver"]:
+                if opgave["objekttype"] == "lederniveau":
+                    manager_level = opgave["uuid"]
+                if opgave["objekttype"] == "lederansvar":
+                    manager_responsibility.append(opgave["uuid"])
+
+            managers[uuid].append(
+                {
+                    "uuid": uuid,
+                    "user": user_uuid,
+                    "unit": unit_uuid,
+                    "manager_type": manager_type,
+                    "manager_level": manager_level,
+                    "manager_responsibility": manager_responsibility,
+                    "from_date": from_date,
+                    "to_date": to_date,
+                }
+            )
+    return managers
+
+
+@skip  # TODO
+@pytest.mark.parametrize("full_history", [True, False])
+@pytest.mark.parametrize("skip_past", [True, False])
+def test_managers_equivalence(full_history, skip_past):
+    lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
+    new_managers = lc._cache_lora_managers()
+    old_managers = old_cache_lora_managers(lc)
+    assert new_managers == old_managers

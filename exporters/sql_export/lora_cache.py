@@ -564,66 +564,34 @@ class LoraCache:
         }
 
     def _cache_lora_managers(self):
-        params = {"gyldighed": "Aktiv", "funktionsnavn": "Leder"}
-        url = "/organisation/organisationfunktion"
-        manager_list = self._perform_lora_lookup(url, params, unit="manager")
-
-        managers = {}
-        for manager in tqdm(manager_list, desc="Processing manager", unit="manager"):
-            uuid = manager["id"]
-            managers[uuid] = []
-            relevant = {
-                "relationer": (
-                    "opgaver",
-                    "tilknyttedeenheder",
-                    "tilknyttedebrugere",
-                    "organisatoriskfunktionstype",
-                )
-            }
-
-            if self.full_history:
-                effects = lora_utils.get_effects(
-                    manager["registreringer"][0],
-                    relevant=relevant,
-                    additional=self.additional,
-                )
-            else:
-                effects = lora_utils.get_effects(
-                    manager["registreringer"][0],
-                    relevant=self.additional,
-                    additional=relevant,
-                )
-
-            for effect in effects:
-                from_date, to_date = self._from_to_from_effect(effect)
-                rel = effect[2]["relationer"]
-                try:
-                    user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
-                except:
-                    user_uuid = None
-                unit_uuid = rel["tilknyttedeenheder"][0]["uuid"]
-                manager_type = rel["organisatoriskfunktionstype"][0]["uuid"]
-                manager_responsibility = []
-
-                for opgave in rel["opgaver"]:
-                    if opgave["objekttype"] == "lederniveau":
-                        manager_level = opgave["uuid"]
-                    if opgave["objekttype"] == "lederansvar":
-                        manager_responsibility.append(opgave["uuid"])
-
-                managers[uuid].append(
-                    {
-                        "uuid": uuid,
-                        "user": user_uuid,
-                        "unit": unit_uuid,
-                        "manager_type": manager_type,
-                        "manager_level": manager_level,
-                        "manager_responsibility": manager_responsibility,
-                        "from_date": from_date,
-                        "to_date": to_date,
-                    }
-                )
-        return managers
+        mh = self._get_mora_helper()
+        managers = mh._mo_get(
+            self.settings["mora.base"] + "/api/v1/manager",
+            params=self._validity_params(),
+        )
+        return {
+            uuid: [
+                {
+                    "uuid": uuid,
+                    "user": (manager["person"] or {}).get("uuid", None),
+                    "unit": (manager["org_unit"] or {}).get("uuid", None),
+                    "manager_type": manager["manager_type"]["uuid"],
+                    "manager_level": manager["manager_level"]["uuid"],
+                    "manager_responsibility": [
+                        responsibility["uuid"]
+                        for responsibility in manager["responsibility"]
+                    ],
+                    "from_date": self._format_optional_datetime_string(
+                        manager["validity"]["from"]
+                    ),
+                    "to_date": self._format_optional_datetime_string(
+                        manager["validity"]["to"]
+                    ),
+                }
+                for manager in group
+            ]
+            for uuid, group in itertools.groupby(managers, key=lambda m: m["uuid"])
+        }
 
     def calculate_primary_engagements(self):
         if self.full_history:
