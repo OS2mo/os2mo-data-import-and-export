@@ -1,6 +1,8 @@
+from contextlib import contextmanager
 from unittest import mock
 from unittest import TestCase
 
+import pytest
 from parameterized import parameterized
 
 from .. import ad_common
@@ -40,17 +42,42 @@ class _SyncMoUuidToAd(sync_mo_uuid_to_ad.SyncMoUuidToAd):
         self._scripts.append(ps_script)
 
 
+# Based on this example:
+# https://docs.pytest.org/en/stable/example/parametrize.html#parametrizing-conditional-raising
+
+
+@contextmanager
+def does_not_raise():
+    yield
+
+
+@pytest.mark.parametrize(
+    "example_input,expectation",
+    [
+        ([{"properties": ["foo"]}], does_not_raise()),
+        ([{"properties": ["bar", "baz"]}], pytest.raises(ImproperlyConfigured)),
+        (
+            [{"properties": ["bar", "baz"]}, {"properties": ["bar", "baz"]}],
+            pytest.raises(ImproperlyConfigured),
+        ),
+        (
+            [{"properties": ["foo", "baz"]}, {"properties": ["bar", "baz"]}],
+            does_not_raise(),
+        ),
+    ],
+)
+def test_invalid_configuration(example_input, expectation):
+    with expectation:
+        TestSyncMoUuidToAd()._get_instance(
+            {
+                "integrations.ad.write.uuid_field": "foo",
+                "integrations.ad": example_input,
+            }
+        )
+
+
 class TestSyncMoUuidToAd(TestCase):
     """Test `sync_mo_uuid_to_ad`"""
-
-    def test_invalid_configuration(self):
-        with self.assertRaises(ImproperlyConfigured):
-            self._get_instance(
-                {
-                    "integrations.ad.write.uuid_field": "foo",
-                    "integrations.ad": [{"properties": ["bar", "baz"]}],
-                }
-            )
 
     def test_sync_one(self):
         instance = self._get_instance()
