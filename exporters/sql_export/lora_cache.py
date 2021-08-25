@@ -228,19 +228,12 @@ class LoraCache:
 
     def _cache_lora_itsystems(self):
         mh = self._get_mora_helper()
-        it_systems = (
-            x["itsystem"]
-            for x in mh._mo_get(
-                self.settings["mora.base"] + "/api/v1/it",
-                params=self._validity_params(),
-            )
-        )
         return {
             it_system["uuid"]: {
                 "user_key": it_system["user_key"],
                 "name": it_system["name"],
             }
-            for it_system in it_systems
+            for it_system in mh.read_it_systems()  # no v1 endpoint for this resource
         }
 
     def _cache_lora_users(self):
