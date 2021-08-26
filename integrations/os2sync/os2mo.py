@@ -13,6 +13,7 @@ import requests
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
 from integrations.os2sync import config
+from more_itertools import only
 from integrations.os2sync.templates import Person, User
 
 settings = config.settings
@@ -269,14 +270,12 @@ def kle_to_orgunit(orgunit, kle):
     Returns:
         None
     """
-    tasks = set()
-
-    for k in kle:
-        uuid = k["kle_number"]["uuid"]
-        tasks.add(uuid)
-
-    if len(tasks):
-        orgunit["Tasks"] = list(sorted(tasks))
+    for aspect, os2sync_field in (("Udførende", "Tasks"), ("Ansvarlig", "ContactForTasks")):
+    
+        tasks_kle = filter(lambda k: only(k["kle_aspect"])["name"] == aspect,kle)
+        task_uuids = set(k["kle_number"]["uuid"] for k in tasks_kle)
+        if len(task_uuids):
+            orgunit[os2sync_field] = list(sorted(task_uuids))
 
 
 def is_ignored(unit, settings):
