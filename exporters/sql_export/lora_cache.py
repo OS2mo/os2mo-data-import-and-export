@@ -272,16 +272,14 @@ class LoraCache:
             params=self._validity_params(),
         )
         return {
-            unit["uuid"]: [
+            uuid: [
                 {
-                    "uuid": unit["uuid"],
+                    "uuid": uuid,
                     "user_key": unit["user_key"],
                     "name": unit["name"],
                     "unit_type": unit["org_unit_type"]["uuid"],
-                    "level": unit["org_unit_level"]["uuid"],
-                    "parent": (unit["parent"] or {}).get(
-                        "uuid", None
-                    ),  # parent is optional
+                    "level": (unit["org_unit_level"] or {}).get("uuid", None),
+                    "parent": (unit["parent"] or {}).get("uuid", None),
                     "from_date": self._format_optional_datetime_string(
                         unit["validity"]["from"]
                     ),
@@ -289,8 +287,9 @@ class LoraCache:
                         unit["validity"]["to"]
                     ),
                 }
+                for unit in group
             ]
-            for unit in units
+            for uuid, group in itertools.groupby(units, key=lambda u: u["uuid"])
         }
 
     def _cache_lora_address(self):
