@@ -1,18 +1,17 @@
-import io
 import datetime
+import io
 import logging
 import os
 
 import click
-from spsftp import SpSftp
-
 from ra_utils.load_settings import load_settings
+from spsftp import SpSftp
 
 logger = logging.getLogger("emus-sftp")
 
 
 @click.command()
-@click.argument('filename')
+@click.argument("filename")
 def main(filename):
     logger.info("reading top_settings")
     top_settings = load_settings()
@@ -45,7 +44,9 @@ def main(filename):
         raise
     sp.connect()
 
-    output_filename = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_os2mo2musskema.xml")
+    output_filename = datetime.datetime.now().strftime(
+        "%Y%m%d_%H%M%S_os2mo2musskema.xml"
+    )
     logger.info("sending %s to %s", output_filename, MUSSKEMA_RECIPIENT)
     sp.send(filetosend, output_filename, MUSSKEMA_RECIPIENT)
     sp.disconnect()
