@@ -346,10 +346,15 @@ class LoraCache:
         }
 
     def _cache_lora_it_connections(self):
-        def construct_tuple(it_connection):
-            return it_connection["uuid"], [
+        mh = self._get_mora_helper()
+        it_connections = mh._mo_get(
+            self.settings["mora.base"] + "/api/v1/it",
+            params=self._validity_params(),
+        )
+        return {
+            uuid: [
                 {
-                    "uuid": it_connection["uuid"],
+                    "uuid": uuid,
                     "user": (it_connection["person"] or {}).get("uuid", None),
                     "unit": (it_connection["org_unit"] or {}).get("uuid", None),
                     "username": it_connection["user_key"],
@@ -361,14 +366,12 @@ class LoraCache:
                         it_connection["validity"]["to"]
                     ),
                 }
+                for it_connection in group
             ]
-
-        mh = self._get_mora_helper()
-        it_connections = mh._mo_get(
-            self.settings["mora.base"] + "/api/v1/it",
-            params=self._validity_params(),
-        )
-        return dict(map(construct_tuple, it_connections))
+            for uuid, group in itertools.groupby(
+                it_connections, key=lambda i: i["uuid"]
+            )
+        }
 
     def _cache_lora_kles(self):
         mh = self._get_mora_helper()
