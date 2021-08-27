@@ -20,7 +20,7 @@ DEFAULT_TIMEZONE = dateutil.tz.gettz("Europe/Copenhagen")
 skip = pytest.mark.skip
 # Uncomment the line below to actually run all these equivalence tests.
 # NOTE: They will run against the configured live MO / LoRa instances.
-skip = lambda func: func
+# skip = lambda func: func
 
 
 class OldLoraCache(LoraCache):
