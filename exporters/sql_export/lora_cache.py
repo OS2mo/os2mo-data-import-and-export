@@ -407,9 +407,9 @@ class LoraCache:
             params=self._validity_params(),
         )
         return {
-            related_unit["uuid"]: [
+            uuid: [
                 {
-                    "uuid": related_unit["uuid"],
+                    "uuid": uuid,
                     "unit1_uuid": related_unit["org_unit"][0]["uuid"],
                     "unit2_uuid": related_unit["org_unit"][1]["uuid"],
                     "from_date": self._format_optional_datetime_string(
@@ -419,8 +419,9 @@ class LoraCache:
                         related_unit["validity"]["to"]
                     ),
                 }
+                for related_unit in group
             ]
-            for related_unit in related_units
+            for uuid, group in itertools.groupby(related_units, key=lambda r: r["uuid"])
         }
 
     def _cache_lora_managers(self):
