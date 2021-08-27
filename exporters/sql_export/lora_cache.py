@@ -52,24 +52,18 @@ class LoraCache:
         return mh
 
     def _validity_params(self, full_history: bool = None, skip_past: bool = None):
-        return {}  # TODO
         if full_history is None:
             full_history = self.full_history
         if skip_past is None:
             skip_past = self.skip_past
 
         if full_history:
+            start = "-infinity"
+            end = "infinity"
             if skip_past:
-                return {
-                    "validity": "future",
-                }
-            return {
-                "at": "9999-12-31",
-                "validity": "past",
-            }
-        return {
-            "validity": "present",
-        }
+                start = datetime.datetime.now(tz=DEFAULT_TIMEZONE).isoformat()
+            return {"validity": f"{start}/{end}"}
+        return {}
 
     def _read_org_uuid(self):
         mh = self._get_mora_helper()
