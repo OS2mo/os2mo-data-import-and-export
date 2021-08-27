@@ -1,4 +1,5 @@
 import datetime
+import itertools
 import json
 import logging
 import pickle
@@ -131,9 +132,9 @@ class LoraCache:
             params=self._validity_params(),
         )
         return {
-            employee["uuid"]: [
+            uuid: [
                 {
-                    "uuid": employee["uuid"],
+                    "uuid": uuid,
                     "cpr": employee["cpr_no"],
                     "user_key": employee["user_key"],
                     "fornavn": employee["givenname"],
@@ -149,8 +150,9 @@ class LoraCache:
                         employee["validity"]["to"]
                     ),
                 }
+                for employee in group
             ]
-            for employee in employees
+            for uuid, group in itertools.groupby(employees, key=lambda e: e["uuid"])
         }
 
     def _cache_lora_units(self):
