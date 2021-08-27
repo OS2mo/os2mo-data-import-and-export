@@ -123,29 +123,6 @@ class MoraHelper:
             i += 1
         return path_dict
 
-    @lru_cache(maxsize=None)
-    def _fetch_keycloak_token(self) -> str:
-        # Get token from Keycloak
-        token_url = self.settings.get_token_url()
-        payload = {
-            "grant_type": "client_credentials",
-            "client_id": self.settings.client_id,
-            "client_secret": self.settings.client_secret,
-        }
-        response = requests.post(token_url, data=payload)
-        response.raise_for_status()
-        payload = response.json()
-        expires = payload["expires_in"]
-        token = payload["access_token"]
-        return time.time() + expires, token
-
-    def _fetch_auth_header(self) -> str:
-        expires, token = self._fetch_keycloak_token()
-        if expires < time.time():
-            self._fetch_keycloak_token.cache_clear()
-            _, token = self._fetch_keycloak_token()
-        return "Bearer " + token
-
     def _mo_get(self, full_url, params=None):
         params = params or {}
         headers = TokenSettings().get_headers()
