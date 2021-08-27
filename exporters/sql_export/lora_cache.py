@@ -183,21 +183,19 @@ class LoraCache:
             params=self._validity_params(),
         )
 
-        # The old LoRa Cache hardcoded the following scope translations:
-        mo_to_lora_scope = {
-            "EMAIL": "E-mail",
-            "WWW": "Url",
-            "PHONE": "Telefon",
-            "PNUMBER": "P-nummer",
-            "EAN": "EAN",
-            "TEXT": "Text",
-            "DAR": "DAR",
-        }
-
-        addresses = {}
-        for mo_address in mo_addresses:
-            uuid = mo_address["uuid"]
+        def entry(uuid, mo_address):
             scope = mo_address["address_type"]["scope"]
+            # The old LoRa Cache hardcoded the following scope translations:
+            mo_to_lora_scope = {
+                "EMAIL": "E-mail",
+                "WWW": "Url",
+                "PHONE": "Telefon",
+                "PNUMBER": "P-nummer",
+                "EAN": "EAN",
+                "TEXT": "Text",
+                "DAR": "DAR",
+            }
+
             address = {
                 "uuid": uuid,
                 "user": (mo_address["person"] or {}).get("uuid", None),
@@ -214,13 +212,18 @@ class LoraCache:
                     mo_address["validity"]["to"]
                 ),
             }
+
             # DAR addresses are treated in a special way
             if scope == "DAR":
                 address["dar_uuid"] = address["value"]
                 address["value"] = None
-            addresses[uuid] = [address]
 
-        return addresses
+            return address
+
+        return {
+            uuid: [entry(uuid, mo_address) for mo_address in group]
+            for uuid, group in itertools.groupby(mo_addresses, key=lambda a: a["uuid"])
+        }
 
     def _cache_lora_engagements(self):
         mh = self._get_mora_helper()

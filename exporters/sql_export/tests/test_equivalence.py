@@ -967,13 +967,15 @@ def test_related_equivalence(full_history, skip_past):
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_addresses_equivalence(full_history, skip_past):
+    """
+    Test (sometimes) fails because the old LoRa cache may include historical addresses even though skip_past=True.
+    """
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     olc = OldLoraCache(
         full_history=full_history, skip_past=skip_past, resolve_dar=False
     )
     new_addresses = lc._cache_lora_address()
     old_addresses = olc._cache_lora_address()
-    # test fails because the old LoRa cache sometimes returns wrong dates.
     assert new_addresses == old_addresses
     assert len(new_addresses) >= 1
 
