@@ -1,26 +1,22 @@
-import json
-import time
-import pickle
-import urllib
-import logging
-import pathlib
 import datetime
-import dateutil
-import lora_utils
-import requests
-from operator import itemgetter
-from itertools import starmap
+import json
+import logging
+import pickle
+import time
 from collections import defaultdict
-from typing import Tuple
-from tqdm import tqdm
 from functools import lru_cache
+from itertools import starmap
+from operator import itemgetter
+from typing import Tuple
 
 import click
+import dateutil.tz
+import requests
 from more_itertools import bucket
-from ra_utils.load_settings import load_settings
-
-from retrying import retry
 from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.load_settings import load_settings
+from tqdm import tqdm
+
 from integrations.dar_helper import dar_helper
 
 logger = logging.getLogger("LoraCache")
@@ -91,119 +87,11 @@ class LoraCache:
         # Unable to read org_uuid, must abort
         exit()
 
-    def _get_effects(self, lora_object, relevant):
-        effects = lora_utils.get_effects(
-            lora_object["registreringer"][0],
-            relevant=relevant,
-            additional=self.additional,
-        )
-        # Notice, the code below will return the entire validity of an object
-        # in the case of non-historic export, this could be handy in some
-        # situations, eg ad->mo sync
-        # if self.full_history:
-        #     effects = lora_utils.get_effects(lora_object['registreringer'][0],
-        #                                      relevant=relevant,
-        #                                      additional=self.additional)
-        # else:
-        #     effects = lora_utils.get_effects(lora_object['registreringer'][0],
-        #                                      relevant=self.additional,
-        #                                      additional=relevant)
-        return effects
-
-    def _from_to_from_effect(self, effect):
-        """
-        Finds to and from date from an effect-row as returned by  iterating over the
-        result of _get_effects().
-        :param effect: The effect to analyse.
-        :return: from_date and to_date. To date can be None, which should be
-        interpreted as an infinite validity. In non-historic exports, both values
-        can be None, meaning that this row is not the actual-state value.
-        """
-        dt_from = dateutil.parser.isoparse(str(effect[0]))
-        dt_from = dt_from.astimezone(DEFAULT_TIMEZONE)
-        from_date = dt_from.date().isoformat()
-
-        if effect[1].replace(tzinfo=None) == datetime.datetime.max:
-            to_date = None
-        else:
-            dt_to = dateutil.parser.isoparse(str(effect[1]))
-            dt_to = dt_to.astimezone(DEFAULT_TIMEZONE)
-            # MO considers end-dates inclusive, we need to subtract a day
-            to_date = (dt_to.date() - datetime.timedelta(days=1)).isoformat()
-
-        now = datetime.datetime.now(DEFAULT_TIMEZONE)
-        # If this is an actual state export, we should only return a value if
-        # the row is valid today.
-        if not self.full_history:
-            if to_date is None:
-                # In this case, make sure dt_to is bigger than now
-                dt_to = now + datetime.timedelta(days=1)
-            if not dt_from < now < dt_to:
-                from_date = to_date = None
-
-        if self.skip_past:
-            if to_date is None:
-                # In this case, make sure dt_to is bigger than now
-                dt_to = now + datetime.timedelta(days=1)
-            if dt_to < now:
-                from_date = to_date = None
-        return from_date, to_date
-
-    @retry(stop_max_attempt_number=7)
-    def _perform_lora_lookup(self, url, params, skip_history=False, unit="it"):
-        """
-        Exctract a complete set of objects in LoRa.
-        :param url: The url that should be used to extract data.
-        :param skip_history: Force a validity of today, even if self.full_history
-        is true.
-        """
-        t = time.time()
-        logger.debug("Start reading {}, params: {}, at t={}".format(url, params, t))
-        results_pr_request = 5000
-        params["foersteresultat"] = 0
-
-        # Default, this can be overwritten in the lines below
-        now = datetime.datetime.today()
-        params["virkningFra"] = now.strftime("%Y-%m-%d") + " 00:00:00"
-        params["virkningTil"] = now.strftime("%Y-%m-%d") + " 00:00:01"
-        if self.full_history and not skip_history:
-            params["virkningTil"] = "infinity"
-            if not self.skip_past:
-                params["virkningFra"] = "-infinity"
-
-        response = requests.get(self.settings["mox.base"] + url, params=params)
-        data = response.json()
-        total = len(data["results"][0])
-
-        params["list"] = 1
-        params["maximalantalresultater"] = results_pr_request
-
-        complete_data = []
-
-        with tqdm(total=total, desc="Fetching " + unit, unit=unit) as pbar:
-            while True:
-                response = requests.get(self.settings["mox.base"] + url, params=params)
-                data = response.json()
-                results = data["results"]
-                data_list = []
-                if results:
-                    data_list = data["results"][0]
-                pbar.update(len(data_list))
-                complete_data = complete_data + data_list
-                if len(data_list) == 0:
-                    break
-                params["foersteresultat"] += results_pr_request
-                logger.debug(
-                    "Mellemtid, {} læsninger: {}s".format(
-                        params["foersteresultat"], time.time() - t
-                    )
-                )
-        logger.debug(
-            "LoRa læsning færdig. {} elementer, {}s".format(
-                len(complete_data), time.time() - t
-            )
-        )
-        return complete_data
+    @staticmethod
+    def _format_optional_datetime_string(timestamp: str, fmt="%Y-%m-%d"):
+        if timestamp is None:
+            return None
+        return datetime.datetime.fromisoformat(timestamp).strftime(fmt)
 
     def _cache_lora_facets(self):
         mh = self._get_mora_helper()
@@ -454,11 +342,6 @@ class LoraCache:
             ]
             for uuid, group in itertools.groupby(leaves, key=lambda l: l["uuid"])
         }
-
-    def _format_optional_datetime_string(self, timestamp: str, fmt="%Y-%m-%d"):
-        if timestamp is None:
-            return None
-        return datetime.datetime.fromisoformat(timestamp).strftime(fmt)
 
     def _cache_lora_it_connections(self):
         def construct_tuple(it_connection):
