@@ -37,6 +37,7 @@ def test_facet_equivalence(full_history, skip_past):
     old_facets = _old_cache_lora_facets(lc)
     new_facets = lc._cache_lora_facets()
     assert new_facets == old_facets
+    assert len(new_facets) >= 1
 
 
 def _old_cache_lora_classes(self):
@@ -71,6 +72,7 @@ def test_class_equivalence(full_history, skip_past):
     old_classes = _old_cache_lora_classes(lc)
     new_classes = lc._cache_lora_classes()
     assert new_classes == old_classes
+    assert len(new_classes) >= 1
 
 
 def old_cache_lora_itsystems(self):
@@ -95,14 +97,13 @@ def old_cache_lora_itsystems(self):
     return itsystems
 
 
-@skip  # TODO
-@pytest.mark.parametrize("full_history", [True, False])
-@pytest.mark.parametrize("skip_past", [True, False])
-def test_itsystems_equivalence(full_history, skip_past):
-    lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
+@skip
+def test_itsystems_equivalence():
+    lc = LoraCache(resolve_dar=False)
     new_itsystems = lc._cache_lora_itsystems()
     old_itsystems = old_cache_lora_itsystems(lc)
     assert new_itsystems == old_itsystems
+    assert len(new_itsystems) >= 1
 
 
 def old_cache_lora_users(self):
@@ -168,7 +169,7 @@ def old_cache_lora_users(self):
     return users
 
 
-@skip  # TODO
+@skip
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_users_equivalence(full_history, skip_past):
@@ -176,6 +177,7 @@ def test_users_equivalence(full_history, skip_past):
     new_users = lc._cache_lora_users()
     old_users = old_cache_lora_users(lc)
     assert new_users == old_users
+    assert len(new_users) >= 1
 
 
 def old_cache_lora_units(self):
@@ -235,7 +237,7 @@ def old_cache_lora_units(self):
     return units
 
 
-@skip  # TODO
+@skip
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_units_equivalence(full_history, skip_past):
@@ -243,6 +245,7 @@ def test_units_equivalence(full_history, skip_past):
     new_units = lc._cache_lora_units()
     old_units = old_cache_lora_units(lc)
     assert new_units == old_units
+    assert len(new_units) >= 1
 
 
 def _old_cache_lora_it_connections(self):
@@ -300,7 +303,7 @@ def _old_cache_lora_it_connections(self):
     return it_connections
 
 
-@skip  # TODO
+@skip
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_itconnections_equivalence(full_history, skip_past):
@@ -308,7 +311,7 @@ def test_itconnections_equivalence(full_history, skip_past):
     new_itconnections = lc._cache_lora_it_connections()
     old_itconnections = _old_cache_lora_it_connections(lc)
     assert new_itconnections == old_itconnections
-
+    assert len(new_itconnections) >= 1
 
 def _old_cache_lora_related(self):
     params = {"gyldighed": "Aktiv", "funktionsnavn": "Relateret Enhed"}
@@ -343,15 +346,20 @@ def _old_cache_lora_related(self):
     return related
 
 
-@skip  # TODO
+@skip
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_related_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     new_related = lc._cache_lora_related()
     old_related = _old_cache_lora_related(lc)
-    # test fails because LoRa sometimes sorts the relationship tuple differently
+
+    # test would fail because LoRa sometimes sorts the relationship tuple differently
+    for related in itertools.chain(new_related.values(), old_related.values()):
+        s = sorted((related[0]["unit1_uuid"], related[0]["unit2_uuid"]))
+        related[0]["unit1_uuid"], related[0]["unit2_uuid"] = s
     assert new_related == old_related
+    assert len(new_related) >= 1
 
 
 def old_cache_lora_address(self):
@@ -463,7 +471,7 @@ def old_cache_lora_address(self):
     return addresses
 
 
-@skip  # TODO
+@skip
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_addresses_equivalence(full_history, skip_past):
@@ -472,6 +480,7 @@ def test_addresses_equivalence(full_history, skip_past):
     old_addresses = old_cache_lora_address(lc)
     # test fails because the old LoRa cache sometimes returns wrong dates.
     assert new_addresses == old_addresses
+    assert len(new_addresses) >= 1
 
 
 def old_cache_lora_engagements(self):
@@ -579,7 +588,7 @@ def old_cache_lora_engagements(self):
     return engagements
 
 
-@skip  # TODO
+@skip
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_engagements_equivalence(full_history, skip_past):
@@ -587,6 +596,7 @@ def test_engagements_equivalence(full_history, skip_past):
     new_engagements = lc._cache_lora_engagements()
     old_engagements = old_cache_lora_engagements(lc)
     assert new_engagements == old_engagements
+    assert len(new_engagements) >= 1
 
 
 def old_cache_lora_associations(self):
@@ -641,7 +651,7 @@ def old_cache_lora_associations(self):
     return associations
 
 
-@skip  # TODO
+@skip
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_associations_equivalence(full_history, skip_past):
@@ -649,6 +659,7 @@ def test_associations_equivalence(full_history, skip_past):
     new_associations = lc._cache_lora_associations()
     old_associations = old_cache_lora_associations(lc)
     assert new_associations == old_associations
+    assert len(new_associations) >= 1
 
 
 def old_cache_lora_roles(self):
@@ -690,7 +701,7 @@ def old_cache_lora_roles(self):
     return roles
 
 
-@skip  # TODO
+@skip
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_roles_equivalence(full_history, skip_past):
@@ -698,6 +709,7 @@ def test_roles_equivalence(full_history, skip_past):
     new_roles = lc._cache_lora_roles()
     old_roles = old_cache_lora_roles(lc)
     assert new_roles == old_roles
+    assert len(new_roles) >= 1
 
 
 def old_cache_lora_leaves(self):
@@ -736,7 +748,7 @@ def old_cache_lora_leaves(self):
     return leaves
 
 
-@skip  # TODO
+@skip
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_leaves_equivalence(full_history, skip_past):
@@ -744,6 +756,7 @@ def test_leaves_equivalence(full_history, skip_past):
     new_leaves = lc._cache_lora_leaves()
     old_leaves = old_cache_lora_leaves(lc)
     assert new_leaves == old_leaves
+    assert len(new_leaves) >= 1
 
 
 def old_cache_lora_kles(self):
@@ -794,14 +807,23 @@ def old_cache_lora_kles(self):
     return kles
 
 
-@skip  # TODO
+@skip
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_kles_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     new_kles = lc._cache_lora_kles()
     old_kles = old_cache_lora_kles(lc)
+
+    # sort kle aspects to ensure we validate the data, not the order
+    def sort_kles(kles: dict[str, list]):
+        for kle in kles.values():
+            kle.sort(key=lambda x: x["kle_aspect"])
+    sort_kles(new_kles)
+    sort_kles(old_kles)
+
     assert new_kles == old_kles
+    assert len(new_kles) >= 1
 
 
 def old_cache_lora_managers(self):
@@ -867,7 +889,7 @@ def old_cache_lora_managers(self):
     return managers
 
 
-@skip  # TODO
+@skip
 @pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
 def test_managers_equivalence(full_history, skip_past):
@@ -875,3 +897,4 @@ def test_managers_equivalence(full_history, skip_past):
     new_managers = lc._cache_lora_managers()
     old_managers = old_cache_lora_managers(lc)
     assert new_managers == old_managers
+    assert len(new_managers) >= 1
