@@ -187,6 +187,14 @@ class ADMOImporter(object):
             ):
                 logger.info("Updating {}".format(ad_user["SamAccountName"]))
                 cpr = ad_user[cpr_field]
+                # Sometimes there is a temporary change of cpr in wich the
+                # last character is replaced with an 'x'.
+                # This user is ignored by the importer
+                # until the cpr has been changed back.
+                if cpr[-1].lower() == "x":
+                    logger.info("Skipped due to 'x' in cpr.")
+                    continue
+
                 mo_user = self.helper.read_user(user_cpr=cpr)
                 logger.info("Existing MO info: {}".format(mo_user))
 
