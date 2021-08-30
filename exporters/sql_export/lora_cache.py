@@ -80,7 +80,7 @@ class LoraCache:
         exit()
 
     @staticmethod
-    def _format_optional_datetime_string(timestamp: str, fmt="%Y-%m-%d"):
+    def _format_optional_datetime_string(timestamp: str, fmt: str = "%Y-%m-%d"):
         if timestamp is None:
             return None
         return datetime.datetime.fromisoformat(timestamp).strftime(fmt)
