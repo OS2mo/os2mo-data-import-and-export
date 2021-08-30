@@ -278,14 +278,13 @@ class MoraHelper:
             return return_list[0]
         return {}
 
-    def read_facets(self, use_cache=False):
+    def read_facets(self, use_cache: bool = False):
         """Return all facets.
 
         :return: List of classes in the facet and the uuid of the facet.
         """
         org_uuid = self.read_organisation()
-        url = "o/" + org_uuid + "/f/"
-        facets = self._mo_lookup("", url, use_cache=False)
+        facets = self._mo_lookup("", url=f"o/{org_uuid}/f/", use_cache=use_cache)
         return facets
 
     def read_classes_in_facet(self, facet, use_cache=False):
