@@ -64,6 +64,34 @@ class LoraCache:
             return {"validity": f"{start}/{end}"}
         return {}
 
+    @staticmethod
+    def _format_optional_datetime_string(timestamp: str, fmt: str = "%Y-%m-%d"):
+        if timestamp is None:
+            return None
+        return datetime.datetime.fromisoformat(timestamp).strftime(fmt)
+
+    def convert_from_mo(self, endpoint: str, mapping: callable):
+        mh = self._get_mora_helper()
+        objects = mh._mo_get(
+            f"{self.settings['mora.base']}/api/v1/{endpoint}",
+            params=self._validity_params(),
+        )
+        return {
+            uuid: [
+                {
+                    **mapping(x),
+                    "from_date": self._format_optional_datetime_string(
+                        x["validity"]["from"]
+                    ),
+                    "to_date": self._format_optional_datetime_string(
+                        x["validity"]["to"]
+                    ),
+                }
+                for x in group
+            ]
+            for uuid, group in itertools.groupby(objects, key=lambda x: x["uuid"])
+        }
+
     def _read_org_uuid(self):
         mh = self._get_mora_helper()
         for attempt in range(0, 10):
@@ -80,12 +108,6 @@ class LoraCache:
                 continue
         # Unable to read org_uuid, must abort
         exit()
-
-    @staticmethod
-    def _format_optional_datetime_string(timestamp: str, fmt: str = "%Y-%m-%d"):
-        if timestamp is None:
-            return None
-        return datetime.datetime.fromisoformat(timestamp).strftime(fmt)
 
     def _cache_lora_facets(self):
         mh = self._get_mora_helper()
@@ -119,71 +141,36 @@ class LoraCache:
         }
 
     def _cache_lora_users(self):
-        mh = self._get_mora_helper()
-        employees = mh._mo_get(
-            self.settings["mora.base"] + "/api/v1/employee",
-            params=self._validity_params(),
-        )
-        return {
-            uuid: [
-                {
-                    "uuid": uuid,
-                    "cpr": employee["cpr_no"],
-                    "user_key": employee["user_key"],
-                    "fornavn": employee["givenname"],
-                    "efternavn": employee["surname"],
-                    "navn": employee["name"],
-                    "kaldenavn_fornavn": employee["nickname_givenname"],
-                    "kaldenavn_efternavn": employee["nickname_surname"],
-                    "kaldenavn": employee["nickname"],
-                    "from_date": self._format_optional_datetime_string(
-                        employee["validity"]["from"]
-                    ),
-                    "to_date": self._format_optional_datetime_string(
-                        employee["validity"]["to"]
-                    ),
-                }
-                for employee in group
-            ]
-            for uuid, group in itertools.groupby(employees, key=lambda e: e["uuid"])
-        }
+        def mapping(employee):
+            return {
+                "uuid": employee["uuid"],
+                "cpr": employee["cpr_no"],
+                "user_key": employee["user_key"],
+                "fornavn": employee["givenname"],
+                "efternavn": employee["surname"],
+                "navn": employee["name"],
+                "kaldenavn_fornavn": employee["nickname_givenname"],
+                "kaldenavn_efternavn": employee["nickname_surname"],
+                "kaldenavn": employee["nickname"],
+            }
+
+        return self.convert_from_mo("employee", mapping)
 
     def _cache_lora_units(self):
-        mh = self._get_mora_helper()
-        units = mh._mo_get(
-            self.settings["mora.base"] + "/api/v1/org_unit",
-            params=self._validity_params(),
-        )
-        return {
-            uuid: [
-                {
-                    "uuid": uuid,
-                    "user_key": unit["user_key"],
-                    "name": unit["name"],
-                    "unit_type": unit["org_unit_type"]["uuid"],
-                    "level": (unit["org_unit_level"] or {}).get("uuid", None),
-                    "parent": (unit["parent"] or {}).get("uuid", None),
-                    "from_date": self._format_optional_datetime_string(
-                        unit["validity"]["from"]
-                    ),
-                    "to_date": self._format_optional_datetime_string(
-                        unit["validity"]["to"]
-                    ),
-                }
-                for unit in group
-            ]
-            for uuid, group in itertools.groupby(units, key=lambda u: u["uuid"])
-        }
+        def mapping(unit):
+            return {
+                "uuid": unit["uuid"],
+                "user_key": unit["user_key"],
+                "name": unit["name"],
+                "unit_type": unit["org_unit_type"]["uuid"],
+                "level": (unit["org_unit_level"] or {}).get("uuid", None),
+                "parent": (unit["parent"] or {}).get("uuid", None),
+            }
+
+        return self.convert_from_mo("org_unit", mapping)
 
     def _cache_lora_address(self):
-        mh = self._get_mora_helper()
-        mo_addresses = mh._mo_get(
-            self.settings["mora.base"] + "/api/v1/address",
-            params=self._validity_params(),
-        )
-
-        def entry(uuid, mo_address):
-            scope = mo_address["address_type"]["scope"]
+        def mapping(mo_address):
             # The old LoRa Cache hardcoded the following scope translations:
             mo_to_lora_scope = {
                 "EMAIL": "E-mail",
@@ -195,8 +182,9 @@ class LoraCache:
                 "DAR": "DAR",
             }
 
+            scope = mo_address["address_type"]["scope"]
             address = {
-                "uuid": uuid,
+                "uuid": mo_address["uuid"],
                 "user": (mo_address["person"] or {}).get("uuid", None),
                 "unit": (mo_address["org_unit"] or {}).get("uuid", None),
                 "value": mo_address["value"],
@@ -204,170 +192,88 @@ class LoraCache:
                 "dar_uuid": None,
                 "adresse_type": mo_address["address_type"]["uuid"],
                 "visibility": (mo_address["visibility"] or {}).get("uuid", None),
-                "from_date": self._format_optional_datetime_string(
-                    mo_address["validity"]["from"]
-                ),
-                "to_date": self._format_optional_datetime_string(
-                    mo_address["validity"]["to"]
-                ),
             }
 
-            # DAR addresses are treated in a special way
+            # DAR addresses are treated in a special way, for some reason
             if scope == "DAR":
                 address["dar_uuid"] = address["value"]
                 address["value"] = None
-
             return address
 
-        return {
-            uuid: [entry(uuid, mo_address) for mo_address in group]
-            for uuid, group in itertools.groupby(mo_addresses, key=lambda a: a["uuid"])
-        }
+        return self.convert_from_mo("address", mapping)
 
     def _cache_lora_engagements(self):
-        mh = self._get_mora_helper()
-        engagements = mh._mo_get(
-            self.settings["mora.base"] + "/api/v1/engagement",
-            params=self._validity_params(),
-        )
-        return {
-            uuid: [
-                {
-                    "uuid": uuid,
-                    "user": (engagement["person"] or {}).get("uuid", None),
-                    "unit": (engagement["org_unit"] or {}).get("uuid", None),
-                    "fraction": engagement["fraction"],
-                    "user_key": engagement["user_key"],
-                    "engagement_type": engagement["engagement_type"]["uuid"],
-                    "primary_type": (engagement["primary"] or {}).get("uuid", None),
-                    "job_function": engagement["job_function"]["uuid"],
-                    "extensions": {
-                        "udvidelse_1": engagement["extension_1"],
-                        "udvidelse_2": engagement["extension_2"],
-                        "udvidelse_3": engagement["extension_3"],
-                        "udvidelse_4": engagement["extension_4"],
-                        "udvidelse_5": engagement["extension_5"],
-                        "udvidelse_6": engagement["extension_6"],
-                        "udvidelse_7": engagement["extension_7"],
-                        "udvidelse_8": engagement["extension_8"],
-                        "udvidelse_9": engagement["extension_9"],
-                        "udvidelse_10": engagement["extension_10"],
-                    },
-                    "from_date": self._format_optional_datetime_string(
-                        engagement["validity"]["from"]
-                    ),
-                    "to_date": self._format_optional_datetime_string(
-                        engagement["validity"]["to"]
-                    ),
-                }
-                for engagement in group
-            ]
-            for uuid, group in itertools.groupby(engagements, key=lambda e: e["uuid"])
-        }
+        def mapping(engagement):
+            return {
+                "uuid": engagement["uuid"],
+                "user": (engagement["person"] or {}).get("uuid", None),
+                "unit": (engagement["org_unit"] or {}).get("uuid", None),
+                "fraction": engagement["fraction"],
+                "user_key": engagement["user_key"],
+                "engagement_type": engagement["engagement_type"]["uuid"],
+                "primary_type": (engagement["primary"] or {}).get("uuid", None),
+                "job_function": engagement["job_function"]["uuid"],
+                "extensions": {
+                    "udvidelse_1": engagement["extension_1"],
+                    "udvidelse_2": engagement["extension_2"],
+                    "udvidelse_3": engagement["extension_3"],
+                    "udvidelse_4": engagement["extension_4"],
+                    "udvidelse_5": engagement["extension_5"],
+                    "udvidelse_6": engagement["extension_6"],
+                    "udvidelse_7": engagement["extension_7"],
+                    "udvidelse_8": engagement["extension_8"],
+                    "udvidelse_9": engagement["extension_9"],
+                    "udvidelse_10": engagement["extension_10"],
+                },
+            }
+
+        return self.convert_from_mo("engagement", mapping)
 
     def _cache_lora_associations(self):
-        mh = self._get_mora_helper()
-        associations = mh._mo_get(
-            self.settings["mora.base"] + "/api/v1/association",
-            params=self._validity_params(),
-        )
-        return {
-            uuid: [
-                {
-                    "uuid": uuid,
-                    "user": (association["person"] or {}).get("uuid", None),
-                    "unit": (association["org_unit"] or {}).get("uuid", None),
-                    "user_key": association["user_key"],
-                    "association_type": association["association_type"]["uuid"],
-                    "from_date": self._format_optional_datetime_string(
-                        association["validity"]["from"]
-                    ),
-                    "to_date": self._format_optional_datetime_string(
-                        association["validity"]["to"]
-                    ),
-                }
-                for association in group
-            ]
-            for uuid, group in itertools.groupby(associations, key=lambda a: a["uuid"])
-        }
+        def mapping(association):
+            return {
+                "uuid": association["uuid"],
+                "user": (association["person"] or {}).get("uuid", None),
+                "unit": (association["org_unit"] or {}).get("uuid", None),
+                "user_key": association["user_key"],
+                "association_type": association["association_type"]["uuid"],
+            }
+
+        return self.convert_from_mo("association", mapping)
 
     def _cache_lora_roles(self):
-        mh = self._get_mora_helper()
-        roles = mh._mo_get(
-            self.settings["mora.base"] + "/api/v1/role",
-            params=self._validity_params(),
-        )
-        return {
-            uuid: [
-                {
-                    "uuid": uuid,
-                    "user": (role["person"] or {}).get("uuid", None),
-                    "unit": (role["org_unit"] or {}).get("uuid", None),
-                    "role_type": role["role_type"]["uuid"],
-                    "from_date": self._format_optional_datetime_string(
-                        role["validity"]["from"]
-                    ),
-                    "to_date": self._format_optional_datetime_string(
-                        role["validity"]["to"]
-                    ),
-                }
-                for role in group
-            ]
-            for uuid, group in itertools.groupby(roles, key=lambda r: r["uuid"])
-        }
+        def mapping(role):
+            return {
+                "uuid": role["uuid"],
+                "user": (role["person"] or {}).get("uuid", None),
+                "unit": (role["org_unit"] or {}).get("uuid", None),
+                "role_type": role["role_type"]["uuid"],
+            }
+
+        return self.convert_from_mo("role", mapping)
 
     def _cache_lora_leaves(self):
-        mh = self._get_mora_helper()
-        leaves = mh._mo_get(
-            self.settings["mora.base"] + "/api/v1/leave",
-            params=self._validity_params(),
-        )
-        return {
-            uuid: [
-                {
-                    "uuid": uuid,
-                    "user": (leave["person"] or {}).get("uuid", None),
-                    "user_key": leave["user_key"],
-                    "leave_type": leave["leave_type"]["uuid"],
-                    "from_date": self._format_optional_datetime_string(
-                        leave["validity"]["from"]
-                    ),
-                    "to_date": self._format_optional_datetime_string(
-                        leave["validity"]["to"]
-                    ),
-                }
-                for leave in group
-            ]
-            for uuid, group in itertools.groupby(leaves, key=lambda l: l["uuid"])
-        }
+        def mapping(leave):
+            return {
+                "uuid": leave["uuid"],
+                "user": (leave["person"] or {}).get("uuid", None),
+                "user_key": leave["user_key"],
+                "leave_type": leave["leave_type"]["uuid"],
+            }
+
+        return self.convert_from_mo("leave", mapping)
 
     def _cache_lora_it_connections(self):
-        mh = self._get_mora_helper()
-        it_connections = mh._mo_get(
-            self.settings["mora.base"] + "/api/v1/it",
-            params=self._validity_params(),
-        )
-        return {
-            uuid: [
-                {
-                    "uuid": uuid,
-                    "user": (it_connection["person"] or {}).get("uuid", None),
-                    "unit": (it_connection["org_unit"] or {}).get("uuid", None),
-                    "username": it_connection["user_key"],
-                    "itsystem": it_connection["itsystem"]["uuid"],
-                    "from_date": self._format_optional_datetime_string(
-                        it_connection["validity"]["from"]
-                    ),
-                    "to_date": self._format_optional_datetime_string(
-                        it_connection["validity"]["to"]
-                    ),
-                }
-                for it_connection in group
-            ]
-            for uuid, group in itertools.groupby(
-                it_connections, key=lambda i: i["uuid"]
-            )
-        }
+        def mapping(it_connection):
+            return {
+                "uuid": it_connection["uuid"],
+                "user": (it_connection["person"] or {}).get("uuid", None),
+                "unit": (it_connection["org_unit"] or {}).get("uuid", None),
+                "username": it_connection["user_key"],
+                "itsystem": it_connection["itsystem"]["uuid"],
+            }
+
+        return self.convert_from_mo("it", mapping)
 
     def _cache_lora_kles(self):
         mh = self._get_mora_helper()
@@ -397,58 +303,30 @@ class LoraCache:
         return dict(kles)
 
     def _cache_lora_related(self):
-        mh = self._get_mora_helper()
-        related_units = mh._mo_get(
-            self.settings["mora.base"] + "/api/v1/related_unit",
-            params=self._validity_params(),
-        )
-        return {
-            uuid: [
-                {
-                    "uuid": uuid,
-                    "unit1_uuid": related_unit["org_unit"][0]["uuid"],
-                    "unit2_uuid": related_unit["org_unit"][1]["uuid"],
-                    "from_date": self._format_optional_datetime_string(
-                        related_unit["validity"]["from"]
-                    ),
-                    "to_date": self._format_optional_datetime_string(
-                        related_unit["validity"]["to"]
-                    ),
-                }
-                for related_unit in group
-            ]
-            for uuid, group in itertools.groupby(related_units, key=lambda r: r["uuid"])
-        }
+        def mapping(related_unit):
+            return {
+                "uuid": related_unit["uuid"],
+                "unit1_uuid": related_unit["org_unit"][0]["uuid"],
+                "unit2_uuid": related_unit["org_unit"][1]["uuid"],
+            }
+
+        return self.convert_from_mo("related_unit", mapping)
 
     def _cache_lora_managers(self):
-        mh = self._get_mora_helper()
-        managers = mh._mo_get(
-            self.settings["mora.base"] + "/api/v1/manager",
-            params=self._validity_params(),
-        )
-        return {
-            uuid: [
-                {
-                    "uuid": uuid,
-                    "user": (manager["person"] or {}).get("uuid", None),
-                    "unit": (manager["org_unit"] or {}).get("uuid", None),
-                    "manager_type": manager["manager_type"]["uuid"],
-                    "manager_level": manager["manager_level"]["uuid"],
-                    "manager_responsibility": [
-                        responsibility["uuid"]
-                        for responsibility in manager["responsibility"]
-                    ],
-                    "from_date": self._format_optional_datetime_string(
-                        manager["validity"]["from"]
-                    ),
-                    "to_date": self._format_optional_datetime_string(
-                        manager["validity"]["to"]
-                    ),
-                }
-                for manager in group
-            ]
-            for uuid, group in itertools.groupby(managers, key=lambda m: m["uuid"])
-        }
+        def mapping(manager):
+            return {
+                "uuid": manager["uuid"],
+                "user": (manager["person"] or {}).get("uuid", None),
+                "unit": (manager["org_unit"] or {}).get("uuid", None),
+                "manager_type": manager["manager_type"]["uuid"],
+                "manager_level": manager["manager_level"]["uuid"],
+                "manager_responsibility": [
+                    responsibility["uuid"]
+                    for responsibility in manager["responsibility"]
+                ],
+            }
+
+        return self.convert_from_mo("manager", mapping)
 
     def calculate_primary_engagements(self):
         if self.full_history:
