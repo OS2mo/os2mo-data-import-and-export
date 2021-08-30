@@ -37,9 +37,6 @@ class LoraCache:
         self.resolve_dar = resolve_dar
 
         self.settings = load_settings()
-
-        self.additional = {"relationer": ("tilknyttedeorganisationer", "tilhoerer")}
-
         self.dar_map = defaultdict(list)
 
         self.full_history = full_history

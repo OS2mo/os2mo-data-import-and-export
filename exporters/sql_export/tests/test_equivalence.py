@@ -24,6 +24,10 @@ skip = pytest.mark.skip
 
 
 class OldLoraCache(LoraCache):
+    def __init__(self, resolve_dar=True, full_history=False, skip_past=False):
+        super().__init__(resolve_dar, full_history, skip_past)
+        self.additional = {"relationer": ("tilknyttedeorganisationer", "tilhoerer")}
+
     def _get_effects(self, lora_object, relevant):
         effects = lora_utils.get_effects(
             lora_object["registreringer"][0],
