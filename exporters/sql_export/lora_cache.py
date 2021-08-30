@@ -8,7 +8,7 @@ from collections import defaultdict
 from functools import lru_cache
 from itertools import starmap
 from operator import itemgetter
-from typing import Tuple
+from typing import Optional, Tuple
 
 import click
 import dateutil.tz
@@ -48,7 +48,9 @@ class LoraCache:
         mh = MoraHelper(hostname=self.settings["mora.base"], export_ansi=False)
         return mh
 
-    def _validity_params(self, full_history: bool = None, skip_past: bool = None):
+    def _validity_params(
+        self, full_history: Optional[bool] = None, skip_past: Optional[bool] = None
+    ):
         if full_history is None:
             full_history = self.full_history
         if skip_past is None:
