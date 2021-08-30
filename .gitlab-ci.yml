@@ -203,6 +203,7 @@ Build TestImage:
 Test LoraCache Exporter:
   extends: .test-python
   script:
+    - cp settings/kommune-andeby.json settings/settings.json
     - pytest exporters/sql_export/tests/
 
 Test AD Integration:  # runs outside image (unfortunately)

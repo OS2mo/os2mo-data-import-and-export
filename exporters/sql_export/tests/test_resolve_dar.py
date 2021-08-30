@@ -1,22 +1,16 @@
 import logging
 import unittest
 from unittest.mock import call, patch
-from uuid import uuid4
 
 import pytest
 from hypothesis import given
 from hypothesis.strategies import booleans, lists, uuids
 
-import exporters.sql_export.lora_cache
 from exporters.sql_export.lora_cache import LoraCache
 
 
 class LoraCacheTest(LoraCache):
     """Subclass to override methods with side-effects."""
-
-    def _load_settings(self):
-        """We want to avoid reading settings.json."""
-        return {}
 
     def _read_org_uuid(self):
         """We want to avoid MO lookups."""
