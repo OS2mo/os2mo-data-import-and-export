@@ -609,6 +609,11 @@ class MoraHelper:
 
             if "association_type" in person:
                 data["Post"] = person["association_type"]["name"]
+            
+            if "primary" in person:
+                data['primary_type_uuid'] = person['primary']['uuid']
+            else:
+                data['primary_type_uuid'] = ''
 
             # Finally, add name
             if split_name:

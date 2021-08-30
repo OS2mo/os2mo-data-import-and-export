@@ -435,7 +435,8 @@ def export_to_planorama(mh, all_nodes, filename_org, filename_persons, org_root_
                           'Mobile',
                           'Telephone',
                           'Responsible',
-                          'Company']
+                          'Company',
+                          'Type']
     fieldnames_org = ['Root', 'Number', 'Name', 'Manager']
 
     rows_org = []
@@ -443,6 +444,7 @@ def export_to_planorama(mh, all_nodes, filename_org, filename_persons, org_root_
 
     roots = SETTINGS['exports.holstebro.roots']
     org_root_name = SETTINGS['municipality.name']
+    non_primary_types = SETTINGS['exports.holstebro.non_primary_types']
     # insert root
     row_org = {'Root': '', 'Number': org_root_uuid, 'Name': org_root_name}
     rows_org.append(row_org)
@@ -526,7 +528,7 @@ def export_to_planorama(mh, all_nodes, filename_org, filename_persons, org_root_
                             pmanager_engagement = [{'user_key': ''}]
 
                         responsible = pmanager_engagement[0]['user_key']
-
+                    
                     row = {'integrationsid': uuid,
                            'Username': f"HK-{employee['User Key']}",
                            'Name': employee['Navn'],
@@ -536,7 +538,8 @@ def export_to_planorama(mh, all_nodes, filename_org, filename_persons, org_root_
                            'Mobile': address['Mobiltelefon'] if 'Mobiltelefon' in address else '',
                            'Telephone': address['Telefon'] if 'Telefon' in address else '',
                            'Responsible': f"HK-{responsible}" if responsible != '' else '',
-                           'Company': employee['Org-enhed UUID']
+                           'Company': employee['Org-enhed UUID'], 
+                           'Type': "Ikke-primær ansættelse" if employee['primary_type_uuid'] in non_primary_types else "Primær ansættelse"
                            }
 
                     rows_persons.append(row)
