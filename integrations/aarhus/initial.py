@@ -129,6 +129,13 @@ CLASSES = [
         "leave_type",
         "d2892fa6-bc56-4c14-bd24-74ae0c71fa3a",
     ),
+    (
+        "Alternativ stillingsbetegnelse",
+        "employee_address_type",
+        "TEXT",
+        "AltJobTitle",
+        uuids.PERSON_JOB_TITLE_ALT,
+    )
 ]
 
 
