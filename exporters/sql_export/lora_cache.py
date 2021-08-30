@@ -1,6 +1,5 @@
 import datetime
 import itertools
-import json
 import logging
 import pickle
 import time
@@ -12,10 +11,10 @@ from typing import Optional, Tuple
 
 import click
 import dateutil.tz
-import requests
 from more_itertools import bucket
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
+from tenacity import retry, stop_after_attempt, wait_exponential
 from tqdm import tqdm
 
 from integrations.dar_helper import dar_helper
@@ -92,22 +91,15 @@ class LoraCache:
             for uuid, group in itertools.groupby(objects, key=lambda x: x["uuid"])
         }
 
+    @retry(
+        stop=stop_after_attempt(10),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        reraise=True,
+    )
     def _read_org_uuid(self):
         mh = self._get_mora_helper()
-        for attempt in range(0, 10):
-            try:
-                org_uuid = mh.read_organisation()
-                return org_uuid
-            except (
-                json.decoder.JSONDecodeError,
-                requests.exceptions.RequestException,
-            ) as e:
-                logger.error(e)
-                print(e)
-                time.sleep(5)
-                continue
-        # Unable to read org_uuid, must abort
-        exit()
+        org_uuid = mh.read_organisation()
+        return org_uuid
 
     def _cache_lora_facets(self):
         mh = self._get_mora_helper()
