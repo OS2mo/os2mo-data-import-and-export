@@ -28,6 +28,7 @@ from more_itertools import one
 from more_itertools import only
 from more_itertools import pairwise
 from more_itertools import partition
+from mox_helpers.mox_util import ensure_class_in_lora
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.apply import apply
 from ra_utils.load_settings import load_setting
@@ -181,9 +182,9 @@ class ChangeAtSD:
             map(engagement_type_mapper, engagement_types[0])
         )
 
-        logger.info("Read leave types")
-        facet_info = self.helper.read_classes_in_facet("leave_type")
-        self.leave_uuid = facet_info[0][0]["uuid"]
+        # SD supports only one type of leave
+        self.leave_uuid = ensure_class_in_lora("leave_type", "Orlov")
+
         facet_info = self.helper.read_classes_in_facet("association_type")
         self.association_uuid = facet_info[0][0]["uuid"]
 
