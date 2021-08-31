@@ -5,6 +5,7 @@ import pickle
 import time
 from collections import defaultdict
 from functools import lru_cache
+from functools import partial
 from itertools import starmap
 from operator import itemgetter
 from typing import Optional
@@ -79,10 +80,7 @@ class LoraCache:
         group: Optional[callable] = None,
     ):
         if group is None:
-
-            def group(objects):
-                yield from itertools.groupby(objects, key=lambda x: x["uuid"])
-
+            group = partial(itertools.groupby, key=lambda x: x["uuid"])
         mh = self._get_mora_helper()
         objects = mh._mo_get(
             f"{self.settings['mora.base']}/api/v1/{endpoint}",
