@@ -75,8 +75,7 @@ Lint Customers files:
 Lint LoraCache Integration:
   extends: .lint-python
   script:
-    - pip install mypy pre-commit
-    - pre-commit run --files exporters/sql_export/tests/*.py exporters/sql_export/sql_table_defs.py exporters/sql_export/sql_url.py exporters/sql_export/lc_for_jobs_db.py exporters/sql_export/lora_cache.py
+    - reorder-python-imports exporters/sql_export/tests/*.py exporters/sql_export/sql_table_defs.py exporters/sql_export/sql_url.py exporters/sql_export/lc_for_jobs_db.py exporters/sql_export/lora_cache.py
 
 Lint AD Integration:
   extends: .lint-python
