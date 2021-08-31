@@ -1,6 +1,8 @@
 import urllib.parse
 from enum import Enum
-from typing import Any, Dict, Tuple
+from typing import Any
+from typing import Dict
+from typing import Tuple
 
 from ra_utils.load_settings import load_settings
 

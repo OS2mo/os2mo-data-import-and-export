@@ -7,14 +7,17 @@ from collections import defaultdict
 from functools import lru_cache
 from itertools import starmap
 from operator import itemgetter
-from typing import Optional, Tuple
+from typing import Optional
+from typing import Tuple
 
 import click
 import dateutil.tz
 from more_itertools import bucket
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry
+from tenacity import stop_after_attempt
+from tenacity import wait_exponential
 from tqdm import tqdm
 
 from integrations.dar_helper import dar_helper
