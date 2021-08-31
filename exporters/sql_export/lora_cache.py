@@ -69,7 +69,17 @@ class LoraCache:
             return None
         return datetime.datetime.fromisoformat(timestamp).strftime(fmt)
 
-    def convert_from_mo(self, endpoint: str, mapping: callable):
+    def convert_from_mo(
+        self,
+        endpoint: str,
+        mapping: callable,
+        group: Optional[callable] = None,
+    ):
+        if group is None:
+
+            def group(objects):
+                yield from itertools.groupby(objects, key=lambda x: x["uuid"])
+
         mh = self._get_mora_helper()
         objects = mh._mo_get(
             f"{self.settings['mora.base']}/api/v1/{endpoint}",
@@ -88,7 +98,7 @@ class LoraCache:
                 }
                 for x in group
             ]
-            for uuid, group in itertools.groupby(objects, key=lambda x: x["uuid"])
+            for uuid, group in group(objects)
         }
 
     @retry(
@@ -268,31 +278,24 @@ class LoraCache:
         return self.convert_from_mo("it", mapping)
 
     def _cache_lora_kles(self):
-        mh = self._get_mora_helper()
-        mo_kles = mh._mo_get(
-            self.settings["mora.base"] + "/api/v1/kle",
-            params=self._validity_params(),
-        )
-        kles = defaultdict(list)
-        for kle in mo_kles:
-            uuid = kle["uuid"]
-            for aspect in kle["kle_aspect"]:
-                kles[uuid].append(
-                    {
-                        "uuid": uuid,
-                        "unit": (kle["org_unit"] or {}).get("uuid", None),
-                        "kle_number": kle["kle_number"]["uuid"],
-                        "kle_aspect": aspect["uuid"],
-                        "user_key": kle["user_key"],
-                        "from_date": self._format_optional_datetime_string(
-                            kle["validity"]["from"]
-                        ),
-                        "to_date": self._format_optional_datetime_string(
-                            kle["validity"]["to"]
-                        ),
-                    }
+        def mapping(kle):
+            return {
+                "uuid": kle["uuid"],
+                "unit": (kle["org_unit"] or {}).get("uuid", None),
+                "kle_number": kle["kle_number"]["uuid"],
+                "kle_aspect": kle["kle_aspect"]["uuid"],
+                "user_key": kle["user_key"],
+            }
+
+        def grouper(objects):
+            for uuid, kles in itertools.groupby(objects, key=lambda x: x["uuid"]):
+                yield uuid, (
+                    {**kle, "kle_aspect": aspect}
+                    for kle in kles
+                    for aspect in kle["kle_aspect"]
                 )
-        return dict(kles)
+
+        return self.convert_from_mo("kle", mapping, group=grouper)
 
     def _cache_lora_related(self):
         def mapping(related_unit):
