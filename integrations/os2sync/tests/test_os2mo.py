@@ -1,6 +1,11 @@
 import unittest
+from unittest.mock import patch
 
-from integrations.os2sync.os2mo import is_ignored, kle_to_orgunit
+from parameterized import parameterized
+
+from integrations.os2sync import config
+from integrations.os2sync.os2mo import is_ignored
+from integrations.os2sync.os2mo import kle_to_orgunit
 
 
 class TestsMOAd(unittest.TestCase):
@@ -16,8 +21,16 @@ class TestsMOAd(unittest.TestCase):
         unit = {"org_unit_level": {"uuid": "1"}, "org_unit_type": {"uuid": "6"}}
         self.assertTrue(is_ignored(unit, settings))
 
-    def test_kle_to_orgunit(self):
-        orgunit = {}
+    @parameterized.expand(
+        [
+            ({}, ["2", "4", "6"], []),
+            ({"use_contact_for_tasks": True}, ["2", "4"], ["6"]),
+        ]
+    )
+    def test_kle_to_orgunit(
+        self, testsettings, expected_tasks, expected_contactfortasks
+    ):
+
         kles = [
             {
                 "uuid": 1,
@@ -35,5 +48,7 @@ class TestsMOAd(unittest.TestCase):
                 "kle_number": {"uuid": "6"},
             },
         ]
-        kle_to_orgunit(orgunit, kles)
-        self.assertDictEqual({"Tasks": ["2", "4"], "ContactForTasks": ["6"]}, orgunit)
+        with patch.dict(config.settings, testsettings):
+            tasks, contact_for_tasks = kle_to_orgunit(kles)
+            self.assertListEqual(expected_tasks, tasks)
+            self.assertListEqual(expected_contactfortasks, contact_for_tasks)
