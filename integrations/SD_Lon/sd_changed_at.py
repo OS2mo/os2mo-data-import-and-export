@@ -628,7 +628,7 @@ class ChangeAtSD:
         # engagement here.
         mo_eng = self._find_engagement(job_id, person_uuid)
         payload = sd_payloads.create_leave(
-            mo_eng, person_uuid, self.leave_uuid, job_id, self._validity(status)
+            mo_eng, person_uuid, str(self.leave_uuid), job_id, self._validity(status)
         )
 
         response = self.helper._mo_post("details/create", payload)

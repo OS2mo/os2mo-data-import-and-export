@@ -12,9 +12,11 @@ import codecs
 import csv
 import datetime
 import logging
+from functools import lru_cache
 from operator import itemgetter
 from typing import Dict
 from typing import List
+from typing import Optional
 from uuid import UUID
 
 import requests
@@ -188,10 +190,10 @@ class MoraHelper:
         response = self._mo_lookup(uuid=None, url="configuration")
         return "show_roles" in response
 
+    @lru_cache
     def read_organisation(self):
-        """Read the main Organisation, all OU's will have this as root.
+        """Read the main Organisation, all OU's will have this as root
 
-        Currently reads only one, theroretically more than root org can exist.
         :return: UUID of root organisation
         """
         org_id = self._mo_lookup(uuid=None, url="o/")
@@ -287,12 +289,13 @@ class MoraHelper:
         facet_uuid = class_list["uuid"]
         return (classes, facet_uuid)
 
+    @lru_cache
     def ensure_class_in_facet(
-        self, facet: str, bvn: str, title: str = None, scope: str = "TEXT"
+        self, facet: str, bvn: str, title: Optional[str] = None, scope: str = "TEXT"
     ) -> UUID:
         """Ensures class exists in given facet"""
 
-        classes, facet_uuid = self.read_classes_in_facet(facet)
+        classes, _ = self.read_classes_in_facet(facet)
         current = list(filter(lambda c: c["user_key"] == bvn, classes))
 
         if current:
