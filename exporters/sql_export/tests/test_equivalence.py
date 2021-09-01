@@ -869,8 +869,8 @@ class OldLoraCache(LoraCache):
 
 
 @skip
-@pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
+@pytest.mark.parametrize("full_history", [True, False])
 def test_facet_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     olc = OldLoraCache(
@@ -883,8 +883,8 @@ def test_facet_equivalence(full_history, skip_past):
 
 
 @skip
-@pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
+@pytest.mark.parametrize("full_history", [True, False])
 def test_class_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     olc = OldLoraCache(
@@ -907,8 +907,8 @@ def test_itsystems_equivalence():
 
 
 @skip
-@pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
+@pytest.mark.parametrize("full_history", [True, False])
 def test_users_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     olc = OldLoraCache(
@@ -921,8 +921,8 @@ def test_users_equivalence(full_history, skip_past):
 
 
 @skip
-@pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
+@pytest.mark.parametrize("full_history", [True, False])
 def test_units_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     olc = OldLoraCache(
@@ -935,8 +935,8 @@ def test_units_equivalence(full_history, skip_past):
 
 
 @skip
-@pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
+@pytest.mark.parametrize("full_history", [True, False])
 def test_itconnections_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     olc = OldLoraCache(
@@ -949,8 +949,8 @@ def test_itconnections_equivalence(full_history, skip_past):
 
 
 @skip
-@pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
+@pytest.mark.parametrize("full_history", [True, False])
 def test_related_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     olc = OldLoraCache(
@@ -968,8 +968,8 @@ def test_related_equivalence(full_history, skip_past):
 
 
 @skip
-@pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
+@pytest.mark.parametrize("full_history", [True, False])
 def test_addresses_equivalence(full_history, skip_past):
     """
     Test (sometimes) fails because the old LoRa cache may include historical addresses even though skip_past=True.
@@ -985,8 +985,8 @@ def test_addresses_equivalence(full_history, skip_past):
 
 
 @skip
-@pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
+@pytest.mark.parametrize("full_history", [True, False])
 def test_engagements_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     olc = OldLoraCache(
@@ -999,8 +999,8 @@ def test_engagements_equivalence(full_history, skip_past):
 
 
 @skip
-@pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
+@pytest.mark.parametrize("full_history", [True, False])
 def test_associations_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     olc = OldLoraCache(
@@ -1013,8 +1013,8 @@ def test_associations_equivalence(full_history, skip_past):
 
 
 @skip
-@pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
+@pytest.mark.parametrize("full_history", [True, False])
 def test_roles_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     olc = OldLoraCache(
@@ -1027,8 +1027,8 @@ def test_roles_equivalence(full_history, skip_past):
 
 
 @skip
-@pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
+@pytest.mark.parametrize("full_history", [True, False])
 def test_leaves_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     olc = OldLoraCache(
@@ -1041,8 +1041,8 @@ def test_leaves_equivalence(full_history, skip_past):
 
 
 @skip
-@pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
+@pytest.mark.parametrize("full_history", [True, False])
 def test_kles_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     olc = OldLoraCache(
@@ -1064,8 +1064,8 @@ def test_kles_equivalence(full_history, skip_past):
 
 
 @skip
-@pytest.mark.parametrize("full_history", [True, False])
 @pytest.mark.parametrize("skip_past", [True, False])
+@pytest.mark.parametrize("full_history", [True, False])
 def test_managers_equivalence(full_history, skip_past):
     lc = LoraCache(full_history=full_history, skip_past=skip_past, resolve_dar=False)
     olc = OldLoraCache(
