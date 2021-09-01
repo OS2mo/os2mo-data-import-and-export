@@ -2,8 +2,10 @@ import json
 import logging
 import os
 
+from customer_settings import get_settings
+from customer_settings import PathDefaultMethod
+
 # flake8: noqa
-from customer_settings import PathDefaultMethod, get_settings
 
 settingsfile = get_settings(PathDefaultMethod.raw)
 top_settings = json.loads(settingsfile.read_text())
@@ -19,7 +21,6 @@ settings = {
     "OS2MO_TOP_UNIT_UUID": top_settings["os2sync.top_unit_uuid"],
     "OS2SYNC_CA_BUNDLE": top_settings["os2sync.ca_verify_os2sync"],
     "OS2SYNC_MUNICIPALITY": top_settings["municipality.cvr"],
-
     # Fields with defaults
     "MOX_LOG_LEVEL": top_settings.get("os2sync.log_level", logging.INFO),
     "MOX_LOG_FILE": top_settings.get("os2sync.log_file", _relpath("os2sync.log")),
@@ -40,8 +41,9 @@ settings = {
     "OS2SYNC_IGNORED_UNIT_LEVELS": top_settings.get("os2sync.ignored.unit_levels", []),
     "OS2SYNC_IGNORED_UNIT_TYPES": top_settings.get("os2sync.ignored.unit_types", []),
     "OS2SYNC_AUTOWASH": top_settings.get("os2sync.autowash", False),
-    "OS2SYNC_TEMPLATES": top_settings.get("os2sync.templates", {})
+    "OS2SYNC_TEMPLATES": top_settings.get("os2sync.templates", {}),
+    "use_contact_for_tasks": top_settings.get("os2sync.use_contact_for_tasks"),
 }
 
-logformat = '%(levelname)s %(asctime)s %(name)s %(message)s'
+logformat = "%(levelname)s %(asctime)s %(name)s %(message)s"
 loggername = "os2sync"
