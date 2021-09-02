@@ -55,7 +55,7 @@ class TestsMOAd(unittest.TestCase):
             self.assertListEqual(expected_tasks, tasks)
             self.assertListEqual(expected_contactfortasks, contact_for_tasks)
             org_unit = {}
-            org_unit = kle_to_orgunit(org_unit, kles)
+            kle_to_orgunit(org_unit, kles)
             if testsettings.get("OS2MO_HAS_KLE"):
                 self.assertListEqual(expected_tasks, org_unit.get("Tasks"))
                 self.assertListEqual(

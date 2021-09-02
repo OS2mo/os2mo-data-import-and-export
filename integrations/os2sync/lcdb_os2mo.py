@@ -253,7 +253,7 @@ def get_sts_orgunit(session, uuid):
         mokles[lc_kle.uuid] = {
             "kle_number": {"uuid": lc_kle.kle_nummer_uuid},
         }
-    sts_org_unit = os2mo.kle_to_orgunit(sts_org_unit, mokles.values())
+    os2mo.kle_to_orgunit(sts_org_unit, mokles.values())
     os2mo.strip_truncate_and_warn(sts_org_unit, sts_org_unit)
 
     return sts_org_unit

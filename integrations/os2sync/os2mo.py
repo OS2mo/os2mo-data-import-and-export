@@ -308,8 +308,6 @@ def kle_to_orgunit(org_unit: Dict, kle: Dict) -> Dict:
         if contactfortasks:
             org_unit["ContactForTasks"] = contactfortasks
 
-    return org_unit
-
 
 def is_ignored(unit, settings):
     """Determine if unit should be left out of transfer
@@ -361,7 +359,7 @@ def get_sts_orgunit(uuid):
         os2mo_get("{BASE}/ou/" + uuid + "/details/address").json(),
     )
 
-    sts_org_unit = kle_to_orgunit(
+    kle_to_orgunit(
         sts_org_unit,
         os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
     )
