@@ -568,21 +568,18 @@ def update_org_with_hk_managers(mh, nodes):
             manager_uuid = leader_engagements[0]['Person UUID']
             manager = associated_leaders[manager_uuid]
 
-        if len(associated_leaders) > 1:
-            # This is an error. There should be no more than one employeen in manager unit.
-            # Log this as an error.
-            logger.error(
-                "More than one manager associated with: {}".format(ou['name']))
-
         return manager
 
 
 
     for node in PreOrderIter(nodes['root']):
         ou = mh.read_ou(node.name)
+
+        #perform check that manager for current ou is valid, ie. has active engagements
+        managerHelper.check_current_manager(ou)
+
         # for each ou, check if name contains _leder
         # if so, check ou for "tilknytninger" and set this as leader for ou.parent
-
         if _is_leader_unit(ou):
             # We have an Afdeling with name _leder, find associated employees and make them leaders in the parent ou
             associated_employees = mh.read_organisation_people(
@@ -590,6 +587,17 @@ def update_org_with_hk_managers(mh, nodes):
 
             # Find the manager if an employee is associated with manager departement
             manager = _find_newest_manager(associated_employees)
+
+            if len(associated_employees) > 1:
+                # This is an error. There should be no more than one employeen in manager unit.
+                logger.error(
+                    "More than one manager associated with: {}".format(ou['name']))
+
+                # Do some clean up
+                for person_uuid, associated_employee in associated_employees.items():
+                    if person_uuid != manager['Person UUID']:
+                        managerHelper._terminate_association(associated_employee['Engagement UUID'])
+
             
             if ou['parent'] != None:
                 managerHelper.update_manager(
@@ -727,23 +735,47 @@ class HolstebroHelper(object):
         logger.info("Manager created")
 
     def _terminate_manager(self, manager_releation_uuid):
+        self._terminate_relation("manager", manager_releation_uuid)
+    
+    def _terminate_association(self, association_uuid):
+        self._terminate_relation("association", association_uuid)
+
+    def _terminate_relation(self, relation_type, releation_uuid):
         payload = {
-            'type': 'manager',
-            'uuid': manager_releation_uuid,
+            'type': relation_type,
+            'uuid': releation_uuid,
             'validity': {
                     'to': self._get_date(1)
             }
         }
 
         logger.info(
-            "Attempting to terminate manager relation uuid: {}".format(manager_releation_uuid))
+            "Attempting to terminate {} relation uuid: {}".format(relation_type, releation_uuid))
         self.mh._mo_post('details/terminate', payload, True)
-        logger.info("Manager terminated")
+        logger.info("{} terminated".format(relation_type))
 
     def _get_date(self, td=0):
         rdate = datetime.today() - timedelta(days=td)
         return rdate.strftime('%Y-%m-%d')
 
+    def check_current_manager(self, ou):
+        
+        manager = self.mh.read_ou_manager(ou['uuid']) #Only check the direct manager of this unit
+
+        manager_engagements = []
+        if manager != {}:
+            manager_engagements = self.mh.read_user_engagement(manager['uuid'])
+        # First check that the new manager has active engagements
+        has_engagements = True if len(manager_engagements) > 0 else False
+
+        if manager != {} and not has_engagements:
+            logger.info("Manager for {} is {} and has no engagements. Will be removed as manager.".format(
+                ou['name'], manager['Navn']))
+            self._terminate_manager(manager['relation_uuid'])
+
+
+    
+    
     def update_manager(self, ou, manager):
         """Checks if manager is manger for the given ou
         Update the ou with new manager and deletes ones found
@@ -777,6 +809,10 @@ class HolstebroHelper(object):
                 else:
                     logger.error(
                         f"Manager with uuid: {manager_uuid} has no active engagements and will not be made manager")
+
+                    logger.info(
+                        f"Removing association to ou with uuid: {ou['uuid']} for manager with uuid: {manager_uuid}")
+                    self._terminate_association(manager['Engagement UUID'])
 
             elif ou_manager['uuid'] != manager_uuid:
                 logger.info("Manager for {} should be {}".format(
