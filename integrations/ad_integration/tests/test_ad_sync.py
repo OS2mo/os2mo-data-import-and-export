@@ -3,7 +3,7 @@ from itertools import chain
 from typing import Callable
 from typing import Dict
 from unittest import TestCase
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from parameterized import parameterized
 
@@ -504,6 +504,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
 
     def _sync_engagement_mapping_transformer(self, mo_to_ad):
         def add_sync_mapping(settings):
+            mo_to_ad["primary_type"] = "SD"
             settings["integrations.ad"][0]["ad_mo_sync_mapping"] = {
                 "engagements": mo_to_ad
             }
@@ -553,7 +554,8 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         self.assertEqual(self.ad_sync.mo_post_calls, [])
 
         # Run full sync against the mocks
-        self.ad_sync.update_all_users()
+        with patch('integrations.calculate_primary.SD.SDPrimaryEngagementUpdater'):
+            self.ad_sync.update_all_users()
 
         # Expected outcome
         expected_sync = {
@@ -596,7 +598,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         self._setup_admosync(
             transform_settings=self._sync_engagement_mapping_transformer(
                 # Map an attr which does not exist in the AD object
-                {"extensionAttribute2": "extension_2"}
+                {"extensionAttribute2": "extension_2", "primary_type": "SD"}
             ),
             seed_mo=seed_mo,
         )
@@ -625,7 +627,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         self._setup_admosync(
             transform_settings=self._sync_engagement_mapping_transformer(
                 # Map an attr which does not exist in the AD object
-                {"extensionAttribute2": "extension_2"}
+                {"extensionAttribute2": "extension_2", "primary_type": "SD"}
             ),
         )
 
@@ -656,7 +658,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         self._setup_admosync(
             transform_settings=self._sync_engagement_mapping_transformer(
                 # Map an attr which does not exist in field mapping
-                {"extensionAttribute2": "unknown_field"}
+                {"extensionAttribute2": "unknown_field", "primary_type": "SD"}
             ),
         )
 
@@ -691,7 +693,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
         self._setup_admosync(
             transform_settings=self._sync_engagement_mapping_transformer(
                 # Map an attr whose value is not equal to the MO value
-                {"ad_field": "extension_1"}
+                {"ad_field": "extension_1", "primary_type": "SD"}
             ),
             # Mock an AD which always contains "foobar" in the field
             # "ad_field"
@@ -706,6 +708,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             )
 
         # Run full sync against the mocks
+        
         self.ad_sync.update_all_users()
 
         self.assertEqual(

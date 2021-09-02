@@ -337,6 +337,7 @@ Et eksempel på en feltmapning angives herunder:
         },
         "engagements": {
             "Title": "extension_2"
+            "primary_type": "OPUS"
         }
     }
 
@@ -511,6 +512,8 @@ rådighed i dag:
      - Brugerens UUID i MO.
    * - ``title``
      - Stillingsbetegnelsen for brugerens primære engagement.
+       Kræver at ``primary_type`` udfyldes med enten ``OPUS`` eller ``SD``,
+       afhænigt af hvilken metode der ønskes til udregning af primært engagement. 
    * - ``unit``
      - Navn på enheden for brugerens primære engagement.
    * - ``unit_uuid``

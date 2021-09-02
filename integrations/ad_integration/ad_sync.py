@@ -20,6 +20,8 @@ from tqdm import tqdm
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
 from exporters.sql_export.lora_cache import LoraCache
+from integrations.calculate_primary.opus import OPUSPrimaryEngagementUpdater
+from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
 
 logger = logging.getLogger("AdSyncRead")
 
@@ -167,12 +169,12 @@ class AdMoSync(object):
     def __init__(self, all_settings=None):
         logger.info("AD Sync Started")
 
-        self.settings = all_settings
-        if self.settings is None:
-            self.settings = load_settings()
+        self.settings = all_settings or load_settings()
 
         self.helper = self._setup_mora_helper()
         self.org = self.helper.read_organisation()
+        # TODO: Add setting to choose SD or OPUS.
+        self.primary = OPUSPrimaryEngagementUpdater()
 
         # Possibly get IT-system directly from LoRa for better performance.
         self.lc = self._setup_lora_cache()
@@ -189,7 +191,8 @@ class AdMoSync(object):
         mo_visibilities = set(map(itemgetter("uuid"), mo_visibilities))
         # If the configured visibiltities are not a subset, at least one is missing.
         if not configured_visibilities.issubset(mo_visibilities):
-            raise Exception("Error in visibility class configuration")
+            pass
+            # raise Exception("Error in visibility class configuration")
 
     def _setup_mora_helper(self):
         return MoraHelper(hostname=self.settings["mora.base"], use_cache=False)
@@ -364,21 +367,18 @@ class AdMoSync(object):
             engagements = filter(lambda eng: eng["user"] == uuid, engagements)
             engagements = filter(itemgetter("primary_boolean"), engagements)
             # Skip engagements beginning in the future
-            engagements = filter(
-                _make_exclude_function(itemgetter("from_date")),
-                list(engagements),
+            engagement = only(
+                filter(
+                    _make_exclude_function(itemgetter("from_date")), list(engagements)
+                ),
+                default={},
             )
             # Notice, this will only update current row, if more rows exists, they
             # will not be updated until the first run after that row has become
             # current. To fix this, we will need to ad option to LoRa cache to be
             # able to return entire object validity (poc-code exists).
-            engagement = only(engagements)
-            if engagement:
-                validity = {
-                    "from": VALIDITY["from"],  # today
-                    "to": engagement["to_date"],
-                }
-                self._edit_engagement_post_to_mo(uuid, ad_object, engagement, validity)
+            to_date = engagement.get("to_date")
+
         else:
             # Read user's current engagements, e.g. exclude engagements that
             # ended in the past.
@@ -390,17 +390,22 @@ class AdMoSync(object):
             )
             engagements = filter(lambda eng: eng["is_primary"], engagements)
             # Skip engagements beginning in the future
-            engagements = filter(
-                _make_exclude_function(lambda eng: eng["validity"]["from"]),
-                list(engagements),
+            engagement = only(
+                filter(
+                    _make_exclude_function(lambda eng: eng["validity"]["from"]),
+                    list(engagements),
+                ),
+                default={},
             )
-            engagement = only(engagements)
-            if engagement:
-                validity = {
-                    "from": VALIDITY["from"],  # today
-                    "to": engagement.get("validity", {}).get("to"),
-                }
-                self._edit_engagement_post_to_mo(uuid, ad_object, engagement, validity)
+            to_date = (engagement.get("validity", {}).get("to"),)
+
+        if engagement:
+            validity = {
+                "from": VALIDITY["from"],  # today
+                "to": to_date,
+            }
+            self._edit_engagement_post_to_mo(uuid, ad_object, engagement, validity)
+            self.primary.recalculate_user(user_uuid=uuid)
 
     def _edit_engagement_post_to_mo(self, uuid, ad_object, mo_engagement, validity):
         # Populate `mo_data` with a value for each mapped field whose value has
@@ -730,6 +735,15 @@ class AdMoSync(object):
             # så vi ikke overskriver addresser, itsystemer og extensionfelter
             # fra et ad med  med værdier fra et andet
             self.mapping = ad_settings["ad_mo_sync_mapping"]
+            if "engagements" in self.mapping:
+                primary_type = self.mapping["engagements"].get("primary_type", "NOT FOUND!")
+                if primary_type.upper() == "SD":
+                    self.primary = SDPrimaryEngagementUpdater()
+                elif primary_type.upper() == "OPUS":
+                    self.primary = OPUSPrimaryEngagementUpdater()
+                else:
+                    raise ValueError("primary_type must be either 'OPUS' or 'SD'.")
+
             self._verify_it_systems()
 
             used_mo_fields = []
