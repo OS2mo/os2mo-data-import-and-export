@@ -1,11 +1,13 @@
 from datetime import datetime
+from io import BytesIO
+from io import StringIO
 from operator import itemgetter
+from unittest import mock
 
+import util
 from hypothesis import given
 from hypothesis import strategies as st
 from more_itertools import one
-
-import util
 
 
 class TestParseFilenames:
@@ -64,3 +66,26 @@ class TestParseFilenames:
         actual_dates = list(map(itemgetter(1), actual))
 
         assert expected_dates == actual_dates
+
+
+class TestConvertBytesIOToStringIO:
+    @given(st.text())
+    def test_converts_ok(self, text):
+        stringio = StringIO(text)
+        bytesio = util.convert_stringio_to_bytesio(stringio)
+        assert isinstance(bytesio, BytesIO)
+
+
+class TestWriteCSVToFTP:
+    @given(st.text(), st.text(), st.text())
+    def test_makes_ftp_calls(self, filename, text, folder):
+        csv_stream = StringIO(text)
+        mock_ftp = mock.MagicMock()
+        with mock.patch.object(util, "get_ftp_connector", return_value=mock_ftp):
+            util.write_csv_to_ftp(filename, csv_stream, folder)
+            mock_ftp.cwd.assert_called_once_with(folder)
+            mock_ftp.storlines.assert_called_once_with(f"STOR {filename}", mock.ANY)
+            mock_ftp.close.assert_called_once()
+            csv_bytes = mock_ftp.storlines.call_args.args[1]
+            csv_stream_as_bytes = util.convert_stringio_to_bytesio(csv_stream)
+            assert csv_bytes.getvalue() == csv_stream_as_bytes.getvalue()

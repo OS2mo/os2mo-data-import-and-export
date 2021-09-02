@@ -1,9 +1,12 @@
+import ftplib
 import os
 import uuid
+from csv import DictWriter
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from functools import partial
+from io import StringIO
 from itertools import chain
 from itertools import starmap
 from itertools import zip_longest
@@ -29,8 +32,6 @@ from more_itertools import unzip
 from pydantic import Field
 from pydantic import validator
 from ra_utils.generate_uuid import uuid_generator
-from util import parse_filenames
-from util import read_csv
 
 from integrations.dar_helper import dar_helper
 
@@ -41,6 +42,9 @@ class OrgUnitBase(pydantic.BaseModel):
 
     @validator("start_date", "end_date", pre=True)
     def validate_date(cls, v, values):
+        if isinstance(v, date):
+            return v
+
         formats = ["%d-%m-%Y", "%Y-%m-%d %H:%M:%S.%f"]
         for format in formats:
             try:
@@ -57,7 +61,7 @@ class OrgUnit(OrgUnitBase):
     org_unit_name: Optional[str] = Field(alias="OrgEnhedsNavn")
     org_unit_type_uuid: Optional[uuid.UUID] = Field(alias="OrgEnhedsTypeUUID")
     parent_uuid: uuid.UUID = Field(alias="ParentUUID")
-    is_in_line_org: bool = Field(alias="Med-i-LinjeOrg")
+    is_in_line_org: bool = Field(default=False, alias="Med-i-LinjeOrg")
     los_id: Optional[str] = Field(alias="LOSID")
     cvr: Optional[str] = Field(alias="CVR")
     ean: Optional[str] = Field(alias="EAN")
@@ -65,7 +69,12 @@ class OrgUnit(OrgUnitBase):
     se_number: Optional[str] = Field(alias="SE-Nr")
     int_debitor_number: Optional[str] = Field(alias="IntDebitor-Nr")
     mag_id: Optional[str] = Field(alias="MagID")
-    post_address: Optional[str] = Field(alias="PostAdresse")
+    post_address: Optional[str] = Field(default="", alias="PostAdresse")
+
+
+class FailedDARLookup(pydantic.BaseModel):
+    org_uuid: uuid.UUID
+    post_address: str
 
 
 class OrgUnitImporter:
@@ -245,13 +254,36 @@ class OrgUnitImporter:
         consecutive_groups = split_when(payload_list, is_not_consecutive)
         return list(map(merge_objects, consecutive_groups))
 
-    def write_failed_addresses(self, addresses: Iterable[str], filename: str):
+    def write_failed_addresses(
+        self,
+        failed: List[FailedDARLookup],
+        filename: str,
+        delimiter: str = "#",
+    ):
         """Write failed addresses to an external file"""
+        output_filename = f"failed_addr_{filename}"  # `filename` is `xxx.csv`
+
+        # Write CSV to output buffer
+        output = StringIO()
+        writer = DictWriter(output, ["org_uuid", "post_address"], delimiter=delimiter)
+        writer.writeheader()
+        writer.writerows(f.dict() for f in failed)
+
+        # Write CSV file to FTP folder
+        try:
+            result = util.write_csv_to_ftp(output_filename, output)
+        except ftplib.Error as exc:
+            print("Could not write %r to FTP, error = %r" % (output_filename, str(exc)))
+        else:
+            print("Wrote %r to FTP, result = %r" % (output_filename, result))
+
+        # Write CSV file to MO queries folder
         settings = config.get_config()
-        export_path = os.path.join(settings.queries_dir, f"failed_addr_{filename}")
+        export_path = os.path.join(settings.queries_dir, output_filename)
         with open(export_path, "w") as f:
             print(f"Writing failed addresses to {export_path}")
-            f.writelines("\n".join(addresses))
+            output.seek(0)
+            f.writelines(output.getvalue())
 
     async def handle_addresses(self, org_units, filename):
         addresses = map(attrgetter("post_address"), org_units)
@@ -272,7 +304,17 @@ class OrgUnitImporter:
         failed_addresses = set(map(itemgetter(0), failure))
         print(f"{len(failed_addresses)} addresses could not be found")
         if failed_addresses:
-            self.write_failed_addresses(failed_addresses, filename)
+            # Join `failed_addresses` with `org_units` on `post_address` to get
+            # `org_uuid` for each failed address lookup.
+            joined: List[FailedDARLookup] = [
+                FailedDARLookup(
+                    org_uuid=org_unit.org_uuid,
+                    post_address=org_unit.post_address,
+                )
+                for org_unit in org_units
+                if org_unit.post_address in failed_addresses
+            ]
+            self.write_failed_addresses(joined, filename)
 
     def create_unit_payloads(self, org_units) -> Iterable[dict]:
         return map(self.generate_unit_payload, org_units)
@@ -315,7 +357,7 @@ class OrgUnitImporter:
         The initial org unit file contains historic data, so a minimal set of
         create/edit payloads are created accordingly
         """
-        org_units = read_csv(filename, OrgUnit)
+        org_units = util.read_csv(filename, OrgUnit)
 
         await self.handle_addresses(org_units, filename)
 
@@ -356,7 +398,7 @@ class OrgUnitImporter:
         Handle creating new org units and details
         We are guaranteed to only have one row per org unit
         """
-        org_units = read_csv(filename, OrgUnit)
+        org_units = util.read_csv(filename, OrgUnit)
 
         await self.handle_addresses(org_units, filename)
 
@@ -381,7 +423,7 @@ class OrgUnitImporter:
         by the external system so we can safely reimport the "same" data, as opposed to
         trying to compare the existing objects in OS2mo
         """
-        org_units = read_csv(filename, OrgUnit)
+        org_units = util.read_csv(filename, OrgUnit)
         org_unit_payloads = self.create_unit_payloads(org_units)
         detail_payloads = await self.create_detail_payloads(org_units)
 
@@ -407,11 +449,15 @@ class OrgUnitImporter:
         ftp = util.get_ftp_connector()
         filenames = ftp.nlst()
 
-        initials = parse_filenames(
+        initials = util.parse_filenames(
             filenames, prefix="Org_inital", last_import=last_import
         )
-        creates = parse_filenames(filenames, prefix="Org_nye", last_import=last_import)
-        edits = parse_filenames(filenames, prefix="Org_ret", last_import=last_import)
+        creates = util.parse_filenames(
+            filenames, prefix="Org_nye", last_import=last_import
+        )
+        edits = util.parse_filenames(
+            filenames, prefix="Org_ret", last_import=last_import
+        )
 
         for filename, _ in initials:
             await self.handle_initial(filename)
