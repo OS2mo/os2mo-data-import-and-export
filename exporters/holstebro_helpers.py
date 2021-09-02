@@ -529,7 +529,7 @@ def export_to_planorama(mh, all_nodes, filename_org, filename_persons, org_root_
 
                         responsible = pmanager_engagement[0]['user_key']
                     
-                    row = {'integrationsid': uuid,
+                    row = {'integrationid': uuid,
                            'Username': f"HK-{employee['User Key']}",
                            'Name': employee['Navn'],
                            'Title': employee['Titel'] if employee['Titel'] is not None else employee['Stillingsbetegnelse'],
