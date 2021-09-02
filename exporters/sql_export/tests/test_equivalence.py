@@ -2,6 +2,7 @@ import datetime
 import itertools
 import logging
 import time
+import timeit
 import urllib.parse
 
 import dateutil.tz
@@ -1075,3 +1076,38 @@ def test_managers_equivalence(full_history, skip_past):
     old_managers = olc._cache_lora_managers()
     assert new_managers == old_managers
     assert len(new_managers) >= 1
+
+
+def compare_performance():
+    lc = LoraCache(full_history=True, skip_past=False, resolve_dar=False)
+    olc = OldLoraCache(full_history=True, skip_past=False, resolve_dar=False)
+    functions = (
+        "_cache_lora_facets",
+        "_cache_lora_classes",
+        "_cache_lora_itsystems",
+        "_cache_lora_users",
+        "_cache_lora_units",
+        "_cache_lora_address",
+        "_cache_lora_engagements",
+        "_cache_lora_associations",
+        "_cache_lora_roles",
+        "_cache_lora_leaves",
+        "_cache_lora_it_connections",
+        "_cache_lora_kles",
+        "_cache_lora_related",
+        "_cache_lora_managers",
+    )
+    print("========================")
+    results = []  # collect for easier import into sheets for graphing
+    for func in functions:
+        time_new = timeit.timeit(getattr(lc, func), number=1)
+        time_old = timeit.timeit(getattr(olc, func), number=1)
+        print(func, time_old, time_new)
+        results.append((func, time_old, time_new))
+    print("======================== RESULTS ========================")
+    for result in results:
+        print(*result)
+
+
+if __name__ == "__main__":
+    compare_performance()
