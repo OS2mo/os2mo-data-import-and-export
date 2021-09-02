@@ -268,7 +268,7 @@ def filter_kle(aspect: str, kle) -> List[UUID]:
     return list(sorted(task_uuids))
 
 
-def kle_to_orgunit(kle) -> (List[UUID], List[UUID]):
+def partition_kle(kle) -> (List[UUID], List[UUID]):
     """Collect kle uuids according to kle_aspect.
 
     Default is to return all KLE uuids as Tasks,
@@ -278,7 +278,6 @@ def kle_to_orgunit(kle) -> (List[UUID], List[UUID]):
     * Aspect "Ansvarlig" goes into "ContactForTasks"
 
     Args:
-        orgunit: The organization unit to enrich with kle information.
         kle: A list of KLEs.
 
     Returns:
@@ -297,8 +296,19 @@ def kle_to_orgunit(kle) -> (List[UUID], List[UUID]):
         uuid = k["kle_number"]["uuid"]
         tasks.add(uuid)
 
-    if len(tasks):
-        return list(sorted(tasks)), []
+    return list(sorted(tasks)), []
+
+
+def kle_to_orgunit(org_unit: Dict, kle: Dict) -> Dict:
+    """Mutates the dict "org_unit" to include KLE data"""
+    if settings["OS2MO_HAS_KLE"]:  # this is set by __main__
+        tasks, contactfortasks = partition_kle(kle)
+        if tasks:
+            org_unit["Tasks"] = tasks
+        if contactfortasks:
+            org_unit["ContactForTasks"] = contactfortasks
+
+    return org_unit
 
 
 def is_ignored(unit, settings):
@@ -350,15 +360,11 @@ def get_sts_orgunit(uuid):
         sts_org_unit,
         os2mo_get("{BASE}/ou/" + uuid + "/details/address").json(),
     )
-    # this is set by __main__
-    if settings["OS2MO_HAS_KLE"]:
-        tasks, contactfortasks = kle_to_orgunit(
-            os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
-        )
-        if tasks:
-            sts_org_unit["Tasks"] = tasks
-        if contactfortasks:
-            sts_org_unit["ContactForTasks"] = tasks
+
+    sts_org_unit = kle_to_orgunit(
+        sts_org_unit,
+        os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
+    )
 
     # show_all_details(uuid,"ou")
     strip_truncate_and_warn(sts_org_unit, sts_org_unit)
