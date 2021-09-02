@@ -607,14 +607,15 @@ class MoraHelper:
                 data["engagement_type_uuid"] = person["engagement_type"]["uuid"]
                 data["Engagementstype"] = person["engagement_type"]["name"]
 
+                if "primary" in person:
+                    data['primary_type_uuid'] = person['primary']['uuid']
+                else:
+                    data['primary_type_uuid'] = ''
+
+
             if "association_type" in person:
                 data["Post"] = person["association_type"]["name"]
             
-            if "primary" in person:
-                data['primary_type_uuid'] = person['primary']['uuid']
-            else:
-                data['primary_type_uuid'] = ''
-
             # Finally, add name
             if split_name:
                 # If a split name i wanted, we prefer to get i directly from MO

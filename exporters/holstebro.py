@@ -83,36 +83,41 @@ def export_from_mo(hostname):
 
     try:
 
-        logger.info(f"Exporting org. with managers")
-        logger.info("Setting export format to UTF-8")
-        mh.export_ansi = False
-        hh.export_orgs(
-            mh, all_nodes[SETTINGS['municipality.uuid']], org_hierarchy_filename)
-        logger.info(f"{org_hierarchy_filename}: {time.time() - t}")
+        if SETTINGS['crontab.RUN_HOLSTEBRO_ORG']:
+            logger.info(f"Exporting org. with managers")
+            logger.info("Setting export format to UTF-8")
+            mh.export_ansi = False
+            hh.export_orgs(
+                mh, all_nodes[SETTINGS['municipality.uuid']], org_hierarchy_filename)
+            logger.info(f"{org_hierarchy_filename}: {time.time() - t}")
 
-        logger.info(f"Exporting data to Intranote")
-        logger.info("Setting export format to ANSI")
-        mh.export_ansi = True
-        hh.export_to_intranote(
-            mh, all_nodes, intranote_filename)
-        logger.info(f"{intranote_filename}: {time.time() - t}")
+        if SETTINGS['crontab.RUN_HOLSTEBRO_INTRANOTE']:
+            logger.info(f"Exporting data to Intranote")
+            logger.info("Setting export format to ANSI")
+            mh.export_ansi = True
+            hh.export_to_intranote(
+                mh, all_nodes, intranote_filename)
+            logger.info(f"{intranote_filename}: {time.time() - t}")
 
-        logger.info(f"Exporting data to Planorama")
-        logger.info("Setting export format to UTF-8")
-        mh.export_ansi = False
-        hh.export_to_planorama(
-            mh, all_nodes, planorama_org, planorama_employee, org)
-        logger.info(f"{planorama_org}: {time.time() - t}")
+        if SETTINGS['crontab.RUN_HOLSTEBRO_PLANORAMA']:
+            logger.info(f"Exporting data to Planorama")
+            logger.info("Setting export format to UTF-8")
+            mh.export_ansi = False
+            hh.export_to_planorama(
+                mh, all_nodes, planorama_org, planorama_employee, org)
+            logger.info(f"{planorama_org}: {time.time() - t}")
 
-        logger.info(f"Exporting data to EssensLMS")
-        hh.export_to_essenslms(
-            mh, all_nodes, essens_lms_filename)
-        logger.info(f"{essens_lms_filename}: {time.time() - t}")
+        if SETTINGS['crontab.RUN_HOLSTEBRO_ESSENSLMS']:
+            logger.info(f"Exporting data to EssensLMS")
+            hh.export_to_essenslms(
+                mh, all_nodes, essens_lms_filename)
+            logger.info(f"{essens_lms_filename}: {time.time() - t}")
 
-        logger.info(f"Exporting data to Org Viewer")
-        hh.export_to_orgviewer(
-            mh, all_nodes)
-        logger.info(f"{org_viewer_filename}: {time.time() - t}")
+        if SETTINGS['crontab.RUN_HOLSTEBRO_ORGVIEWER']:
+            logger.info(f"Exporting data to Org Viewer")
+            hh.export_to_orgviewer(
+                mh, all_nodes)
+            logger.info(f"{org_viewer_filename}: {time.time() - t}")
 
     except Exception as excep:
         logger.info(f"Export af data fejlede: {excep}")
