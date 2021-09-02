@@ -27,8 +27,6 @@ def get_config() -> Settings:
         ),
         ftp_user=top_settings["integrations.aarhus_los.ftp_user"],
         ftp_pass=top_settings["integrations.aarhus_los.ftp_pass"],
-        ftp_folder=top_settings.get(
-            "integrations.aarhus_los.ftp_folder", "TEST"
-        ),
+        ftp_folder=top_settings.get("integrations.aarhus_los.ftp_folder", "TEST"),
         import_state_file=top_settings["integrations.aarhus_los.state_file"],
     )

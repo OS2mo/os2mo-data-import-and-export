@@ -4,16 +4,15 @@ from functools import partial
 from itertools import chain
 from typing import Optional
 
+import payloads as mo_payloads
 import pydantic
+import util
+import uuids
 from more_itertools import bucket
 from more_itertools import first
 from more_itertools import partition
 from pydantic import Field
 from ra_utils.generate_uuid import uuid_generator
-
-import payloads as mo_payloads
-import util
-import uuids
 
 
 class Person(pydantic.BaseModel):
@@ -154,7 +153,6 @@ class PersonImporter:
         employee_payloads = self.create_employee_payloads(persons)
         detail_payloads = self.create_detail_payloads(persons)
 
-        connector = util.get_tcp_connector()
         async with util.get_client_session() as session:
             await util.create_details(
                 session, chain(employee_payloads, detail_payloads)
@@ -186,7 +184,6 @@ class PersonImporter:
         )
         edits = map(converter, chain(employee_payloads, detail_edits))
 
-        connector = util.get_tcp_connector()
         async with util.get_client_session() as session:
             await util.create_details(session, detail_creates)
             await util.edit_details(session, edits)
@@ -201,7 +198,6 @@ class PersonImporter:
         )
         payloads = map(termination_fn, persons)
 
-        connector = util.get_tcp_connector()
         async with util.get_client_session() as session:
             await util.terminate_details(session, payloads)
 

@@ -4,9 +4,8 @@ from datetime import datetime
 from operator import itemgetter
 from typing import Iterable
 
-import pydantic
-
 import payloads as mo_payloads
+import pydantic
 import util
 from ra_utils.generate_uuid import uuid_generator
 

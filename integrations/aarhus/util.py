@@ -1,31 +1,28 @@
 import asyncio
 import csv
-import hashlib
-import uuid
-from datetime import datetime
 from datetime import date
+from datetime import datetime
 from ftplib import FTP
-from functools import lru_cache
 from operator import itemgetter
 from typing import Iterable
 from typing import List
+from typing import Optional
 from typing import Tuple
 
+import config
 import pydantic
 import tqdm
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientSession
+from aiohttp import ClientTimeout
 from aiohttp import TCPConnector
 from more_itertools import chunked
 from more_itertools import one
-from pydantic import parse_obj_as
-from ra_utils.apply import apply
-
 from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import MoxHelper
 from os2mo_helpers.mora_helpers import MoraHelper
+from pydantic import parse_obj_as
+from ra_utils.apply import apply
 from ra_utils.headers import TokenSettings
-
-import config
 
 
 def get_tcp_connector():
@@ -53,7 +50,7 @@ def read_csv(filename: str, model: pydantic.BaseModel) -> List[pydantic.BaseMode
 
     reader = csv.DictReader(lines, delimiter=";")
     parsed = map(strip_empty, reader)
-    return parse_obj_as(List[model], list(parsed))
+    return parse_obj_as(List[model], list(parsed))  # type: ignore
 
 
 async def create_details(
@@ -185,7 +182,7 @@ def get_ftp_connector() -> FTP:
     return ftp
 
 
-def convert_validities(from_time: date, to_time: date) -> Tuple[str, str]:
+def convert_validities(from_time: date, to_time: date) -> Tuple[str, Optional[str]]:
     from_time_str = from_time.isoformat()
     to_time_str = to_time.isoformat()
     return from_time_str, to_time_str if to_time_str != "9999-12-31" else None

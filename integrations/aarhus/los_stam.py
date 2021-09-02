@@ -1,16 +1,15 @@
 import uuid
 from datetime import datetime
 
-from pydantic import Field
-
 import config
 import mox_helpers.payloads as mox_payloads
 import pydantic
-from mox_helpers.mox_helper import create_mox_helper
-from os2mo_data_import.mox_data_types import Itsystem
-
 import util
 import uuids
+from mox_helpers.mox_helper import create_mox_helper
+from pydantic import Field
+
+from os2mo_data_import.mox_data_types import Itsystem
 
 
 class Engagementstype(pydantic.BaseModel):
@@ -153,7 +152,8 @@ class StamImporter:
                 scope="TEXT",
             )
             await mox_helper.insert_klassifikation_klasse(
-                klasse, str(row.job_function_uuid),
+                klasse,
+                str(row.job_function_uuid),
             )
 
     async def run(self, last_import: datetime):

@@ -1,11 +1,11 @@
+import config
 import mox_helpers.payloads as mox_payloads
+import uuids
 from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import ElementNotFound
-from os2mo_data_import import ImportHelper
-from os2mo_data_import.mox_data_types import Itsystem
 
-import config
-import uuids
+from os2mo_data_import import ImportHelper  # type: ignore
+from os2mo_data_import.mox_data_types import Itsystem
 
 CLASSES = [
     (
@@ -135,7 +135,7 @@ CLASSES = [
         "TEXT",
         "AltJobTitle",
         uuids.PERSON_JOB_TITLE_ALT,
-    )
+    ),
 ]
 
 

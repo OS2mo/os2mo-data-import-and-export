@@ -119,7 +119,6 @@ Lint CPR UUID Exporter:
     - pip install mypy pre-commit types-Jinja2 types-click types-requests
     - pre-commit run --files cpr_uuid.py
 
-
 Lint OPUS Org Tree Print:
   extends: .lint-python
   script:
@@ -131,7 +130,8 @@ Lint AAK LOS Integration:
   extends: .lint-python
   script:
     - cd integrations/aarhus/
-    - python -m black --diff .
+    - pip install mypy pre-commit types-python-dateutil
+    - pre-commit run --files *.py
 
 Lint Reports:
   extends: .lint-python
@@ -145,7 +145,6 @@ Lint Exporter Utils:
     - python -m isort --profile black --diff --check-only exporters/utils/*.py exporters/utils/tests/*.py
     - cd exporters/utils/
     - python -m black --diff --check *.py tests/*.py
-
 
 Lint Tools:
   extends: .lint-python
