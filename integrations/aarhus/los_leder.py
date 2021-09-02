@@ -3,6 +3,7 @@ from datetime import date
 from datetime import datetime
 from operator import itemgetter
 from typing import Iterable
+from typing import List
 
 import payloads as mo_payloads
 import pydantic
@@ -46,7 +47,7 @@ class ManagerImporter:
             to_date=None,
         )
 
-    def create_manager_payloads(self, managers: Iterable[Manager]) -> Iterable[dict]:
+    def create_manager_payloads(self, managers: List[Manager]) -> Iterable[dict]:
         return map(self.generate_manager_payload, managers)
 
     async def handle_create(self, filename: str, filedate: datetime):
@@ -55,7 +56,7 @@ class ManagerImporter:
         """
         managers = util.read_csv(filename, Manager)
 
-        manager_payloads = self.create_manager_payloads(managers)
+        manager_payloads = self.create_manager_payloads(managers)  # type: ignore
 
         async with util.get_client_session() as session:
             await util.create_details(session, manager_payloads)
