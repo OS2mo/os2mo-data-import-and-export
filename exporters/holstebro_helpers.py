@@ -426,7 +426,7 @@ def export_to_planorama(mh, all_nodes, filename_org, filename_persons, org_root_
     """ Traverses a tree of OUs, for each OU finds the manager of the OU.
     : param nodes: The nodes of the OU tree
     """
-    fieldnames_persons = ['integrationsid',
+    fieldnames_persons = ['integrationid',
                           'Username',
                           'Name',
                           'Title',
