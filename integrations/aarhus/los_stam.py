@@ -1,6 +1,8 @@
 import uuid
 from datetime import datetime
 from typing import List
+from typing import Optional
+from typing import Type
 from typing import Union
 
 import config
@@ -57,7 +59,7 @@ class Engagementstype(StamCSV):
         return self.engagement_type
 
     @property
-    def class_uuid(self) -> str:
+    def class_uuid(self) -> uuid.UUID:
         return self.engagement_type_uuid
 
 
@@ -82,7 +84,7 @@ class Enhedstype(StamCSV):
         return self.org_unit_type
 
     @property
-    def class_uuid(self) -> str:
+    def class_uuid(self) -> uuid.UUID:
         return self.org_unit_type_uuid
 
 
@@ -117,7 +119,7 @@ class Stillingsbetegnelse(StamCSV):
         return self.job_function
 
     @property
-    def class_uuid(self) -> str:
+    def class_uuid(self) -> uuid.UUID:
         return self.job_function_uuid
 
 
@@ -143,7 +145,7 @@ class Lederansvar(StamCSV):
         return self.responsibility
 
     @property
-    def class_uuid(self) -> str:
+    def class_uuid(self) -> uuid.UUID:
         return self.responsibility_uuid
 
 
@@ -169,7 +171,7 @@ class Lederniveau(StamCSV):
         return self.level
 
     @property
-    def class_uuid(self) -> str:
+    def class_uuid(self) -> uuid.UUID:
         return self.level_uuid
 
 
@@ -195,8 +197,19 @@ class Ledertype(StamCSV):
         return self.type
 
     @property
-    def class_uuid(self) -> str:
+    def class_uuid(self) -> uuid.UUID:
         return self.type_uuid
+
+
+StamCSVType = Union[
+    Type[Engagementstype],
+    Type[Enhedstype],
+    Type[ITSystem],
+    Type[Stillingsbetegnelse],
+    Type[Lederansvar],
+    Type[Lederniveau],
+    Type[Ledertype],
+]
 
 
 class StamImporter:
@@ -225,17 +238,22 @@ class StamImporter:
         newer than last import.
         """
         rows = cls._load_csv_if_newer(ITSystem, last_import)
+        if rows is None:
+            return
 
         settings = config.get_config()
         mox_helper = await create_mox_helper(settings.mox_base)
         for row in rows:
             it_system = Itsystem(
-                system_name=row.name,
-                user_key=row.user_key,
+                system_name=row.name,  # type: ignore
+                user_key=row.user_key,  # type: ignore
             )
             it_system.organisation_uuid = str(uuids.ORG_UUID)
             json = it_system.build()
-            await mox_helper.insert_organisation_itsystem(json, str(row.it_system_uuid))
+            await mox_helper.insert_organisation_itsystem(
+                json,
+                str(row.it_system_uuid),  # type: ignore
+            )
 
     @classmethod
     async def handle_stillingsbetegnelse(cls, last_import: datetime):
@@ -275,17 +293,19 @@ class StamImporter:
 
     @classmethod
     def _load_csv_if_newer(
-        cls, csv_class: StamCSV, last_import: datetime
-    ) -> Union[List[pydantic.BaseModel], None]:
+        cls, csv_class: StamCSVType, last_import: datetime
+    ) -> Union[List[StamCSVType], None]:
         filename = csv_class.get_filename()
         if util.get_modified_datetime_for_file(filename) <= last_import:
-            return
+            return None
         return util.read_csv(filename, csv_class)
 
     @classmethod
     async def _create_classes_from_csv(
-        cls, csv_class: StamCSV, rows: List[pydantic.BaseModel]
+        cls, csv_class: StamCSVType, rows: Optional[List[StamCSVType]] = None
     ) -> None:
+        if rows is None:
+            return
         settings = config.get_config()
         mox_helper = await create_mox_helper(settings.mox_base)
         facet_bvn = csv_class.get_facet_bvn()

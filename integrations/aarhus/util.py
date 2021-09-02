@@ -11,9 +11,9 @@ from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Tuple
+from typing import TypeVar
 
 import config
-import pydantic
 import tqdm
 from aiohttp import ClientSession
 from aiohttp import ClientTimeout
@@ -26,6 +26,9 @@ from os2mo_helpers.mora_helpers import MoraHelper
 from pydantic import parse_obj_as
 from ra_utils.apply import apply
 from ra_utils.headers import TokenSettings
+
+
+T = TypeVar("T")
 
 
 def get_tcp_connector():
@@ -46,7 +49,7 @@ def get_ftp_file(filename: str) -> List[str]:
     return lines
 
 
-def parse_csv(lines: List[str], model: pydantic.BaseModel) -> List[pydantic.BaseModel]:
+def parse_csv(lines: List[str], model: T) -> List[T]:
     def strip_empty(val: dict):
         return {k: v for k, v in val.items() if v != ""}
 
@@ -55,7 +58,7 @@ def parse_csv(lines: List[str], model: pydantic.BaseModel) -> List[pydantic.Base
     return parse_obj_as(List[model], list(parsed))  # type: ignore
 
 
-def read_csv(filename: str, model: pydantic.BaseModel) -> List[pydantic.BaseModel]:
+def read_csv(filename: str, model: T) -> List[T]:
     """Read CSV file from FTP into list of model objects"""
     print(f"Processing {filename}")
     lines = get_ftp_file(filename)
