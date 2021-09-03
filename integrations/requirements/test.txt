@@ -4,3 +4,4 @@ hypothesis
 pytest
 alchemy_mock
 mimesis
+pytest-aioresponses

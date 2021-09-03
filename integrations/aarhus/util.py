@@ -80,11 +80,19 @@ async def edit_details(session: ClientSession, detail_payloads: Iterable[dict]) 
 
 
 async def terminate_details(
-    session: ClientSession, detail_payloads: Iterable[dict]
+    session: ClientSession,
+    detail_payloads: Iterable[dict],
+    ignored_http_statuses: Optional[Tuple[int]] = (404,),
 ) -> None:
     """Helper function for submitting terminate detail payloads"""
     url = "/service/details/terminate"
-    await submit_payloads(session, url, detail_payloads, "terminate details")
+    await submit_payloads(
+        session,
+        url,
+        detail_payloads,
+        "terminate details",
+        ignored_http_statuses=ignored_http_statuses,
+    )
 
 
 async def create_it(payload: dict, obj_uuid: str, mox_helper: MoxHelper) -> None:
@@ -98,7 +106,11 @@ async def create_klasse(payload: dict, obj_uuid: str, mox_helper: MoxHelper) -> 
 
 
 async def submit_payloads(
-    session: ClientSession, endpoint: str, payloads: Iterable[dict], description: str
+    session: ClientSession,
+    endpoint: str,
+    payloads: Iterable[dict],
+    description: str,
+    ignored_http_statuses: Optional[Tuple[int]] = None,
 ) -> None:
     """
     Send a list of payloads to OS2mo. The payloads are chunked based on preset variable
@@ -121,7 +133,10 @@ async def submit_payloads(
             json=list(data),
             headers=headers,
         ) as response:
-            response.raise_for_status()
+            if ignored_http_statuses and response.status in ignored_http_statuses:
+                print(f"{endpoint} returned status {response.status}, ignoring")
+            else:
+                response.raise_for_status()
 
     chunks = chunked(payloads, settings.os2mo_chunk_size)
     tasks = list(map(submit, chunks))
