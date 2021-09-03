@@ -250,6 +250,7 @@ Test AAK LOS Integration:
   extends: .test-python
   script:
     - cd integrations/aarhus
+    - pip install -r ../requirements/test.txt
     - pytest tests/
 
 Test Reports:
