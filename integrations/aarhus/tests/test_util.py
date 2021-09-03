@@ -4,7 +4,10 @@ from io import StringIO
 from operator import itemgetter
 from unittest import mock
 
+import config
+import pytest
 import util
+from aiohttp import ClientResponseError
 from hypothesis import given
 from hypothesis import strategies as st
 from more_itertools import one
@@ -89,3 +92,34 @@ class TestWriteCSVToFTP:
             csv_bytes = mock_ftp.storlines.call_args.args[1]
             csv_stream_as_bytes = util.convert_stringio_to_bytesio(csv_stream)
             assert csv_bytes.getvalue() == csv_stream_as_bytes.getvalue()
+
+
+@pytest.mark.asyncio
+async def test_terminate_details_handles_404_response(aioresponses):
+    async def _run_test(ignored_http_statuses):
+        class _MockConfig:
+            mora_base = "http://example.com:8080"
+            max_concurrent_requests = 1
+            os2mo_chunk_size = 1
+
+        # Mock a 404 response from MO "terminate" API
+        aioresponses.post(
+            f"{_MockConfig.mora_base}/service/details/terminate?force=1",
+            status=404,
+        )
+        # Run `terminate_details`
+        with mock.patch.object(config, "get_config", return_value=_MockConfig()):
+            async with util.get_client_session() as client_session:
+                detail_payloads = [{"foo": "bar"}]
+                await util.terminate_details(
+                    client_session,
+                    detail_payloads,
+                    ignored_http_statuses=ignored_http_statuses,
+                )
+
+    # Expect no exceptions if 404 is ignored
+    await _run_test(ignored_http_statuses=(404,))
+
+    # Expect an exception if `raise_for_status` is called in `submit_payloads`
+    with pytest.raises(ClientResponseError):
+        await _run_test(ignored_http_statuses=None)
