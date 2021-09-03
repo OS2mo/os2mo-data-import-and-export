@@ -8,6 +8,7 @@ import datetime
 import dateutil
 import lora_utils
 import requests
+from pathlib import Path
 from operator import itemgetter
 from itertools import starmap
 from collections import defaultdict
@@ -1020,6 +1021,9 @@ class LoraCache:
         skipped for increased performance.
         :param dry_run: For testing purposes it is possible to read from cache.
         """
+        # Ensure that tmp/ exists
+        Path("tmp/").mkdir(exist_ok=True)
+
         if self.full_history:
             facets_file = 'tmp/facets_historic.p'
             classes_file = 'tmp/classes_historic.p'
