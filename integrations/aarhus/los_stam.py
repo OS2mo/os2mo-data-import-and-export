@@ -296,9 +296,16 @@ class StamImporter:
         cls, csv_class: StamCSVType, last_import: datetime
     ) -> Union[List[StamCSVType], None]:
         filename = csv_class.get_filename()
-        if util.get_modified_datetime_for_file(filename) <= last_import:
+        try:
+            modified_datetime = util.get_modified_datetime_for_file(filename)
+        except ValueError:
+            # Raised by `util.get_modified_datetime_for_file` if file could
+            # not be found.
             return None
-        return util.read_csv(filename, csv_class)
+        else:
+            if modified_datetime <= last_import:
+                return None
+            return util.read_csv(filename, csv_class)
 
     @classmethod
     async def _create_classes_from_csv(
