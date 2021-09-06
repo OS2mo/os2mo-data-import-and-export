@@ -20,7 +20,6 @@ def cli(url):
 
     r = requests.get(url, headers=headers)
     r.raise_for_status()
-    print(r.json())
     click.echo(json.dumps(r.json(), indent=2))
 
 
