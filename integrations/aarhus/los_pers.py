@@ -4,6 +4,7 @@ from functools import partial
 from itertools import chain
 from typing import Optional
 
+import los_files
 import payloads as mo_payloads
 import pydantic
 import util
@@ -110,11 +111,9 @@ class PersonImporter:
     def generate_engagement_termination_payload(
         termination: PersonTermination, to_date: datetime
     ):
-        return {
-            "type": "engagement",
-            "uuid": str(termination.engagement_uuid),
-            "validity": {"to": to_date.date().isoformat()},
-        }
+        return mo_payloads.terminate_detail(
+            "engagement", termination.engagement_uuid, to_date
+        )
 
     def create_employee_payloads(self, persons):
         cpr_buckets = bucket(persons, key=lambda x: x.cpr)
@@ -149,7 +148,7 @@ class PersonImporter:
         Handle creating new persons and details
         We are guaranteed to only have one row per person
         """
-        persons = util.read_csv(filename, Person)
+        persons = los_files.read_csv(filename, Person)
         employee_payloads = self.create_employee_payloads(persons)
         detail_payloads = self.create_detail_payloads(persons)
 
@@ -171,7 +170,7 @@ class PersonImporter:
         by the external system so we can safely reimport the "same" data, as opposed to
         trying to compare the existing objects in OS2mo
         """
-        persons = util.read_csv(filename, Person)
+        persons = los_files.read_csv(filename, Person)
         employee_payloads = self.create_employee_payloads(persons)
         detail_payloads = self.create_detail_payloads(persons)
 
@@ -192,7 +191,7 @@ class PersonImporter:
         """
         Handle termination of engagements. We are guaranteed one row per engagement.
         """
-        persons = util.read_csv(filename, PersonTermination)
+        persons = los_files.read_csv(filename, PersonTermination)
         termination_fn = partial(
             self.generate_engagement_termination_payload, to_date=filedate
         )
@@ -203,16 +202,15 @@ class PersonImporter:
 
     async def run(self, last_import: datetime):
         print("Starting person import")
-        ftp = util.get_ftp_connector()
-        filenames = ftp.nlst()
+        filenames = los_files.fileset.get_import_filenames()
 
-        creates = util.parse_filenames(
+        creates = los_files.parse_filenames(
             filenames, prefix="Pers_nye", last_import=last_import
         )
-        edits = util.parse_filenames(
+        edits = los_files.parse_filenames(
             filenames, prefix="Pers_ret", last_import=last_import
         )
-        terminates = util.parse_filenames(
+        terminates = los_files.parse_filenames(
             filenames, prefix="Pers_luk", last_import=last_import
         )
 

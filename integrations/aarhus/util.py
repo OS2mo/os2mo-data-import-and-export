@@ -1,17 +1,9 @@
 import asyncio
-import codecs
-import csv
 from datetime import date
-from datetime import datetime
-from ftplib import FTP
-from io import BytesIO
-from io import StringIO
-from operator import itemgetter
 from typing import Iterable
 from typing import List
 from typing import Optional
 from typing import Tuple
-from typing import TypeVar
 
 import config
 import tqdm
@@ -19,16 +11,10 @@ from aiohttp import ClientSession
 from aiohttp import ClientTimeout
 from aiohttp import TCPConnector
 from more_itertools import chunked
-from more_itertools import one
 from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import MoxHelper
 from os2mo_helpers.mora_helpers import MoraHelper
-from pydantic import parse_obj_as
-from ra_utils.apply import apply
 from ra_utils.headers import TokenSettings
-
-
-T = TypeVar("T")
 
 
 def get_tcp_connector():
@@ -40,29 +26,6 @@ def get_client_session():
     return ClientSession(
         connector=get_tcp_connector(), timeout=ClientTimeout(total=None)
     )
-
-
-def get_ftp_file(filename: str) -> List[str]:
-    ftp = get_ftp_connector()
-    lines: List[str] = []
-    ftp.retrlines(f"RETR {filename}", lines.append)
-    return lines
-
-
-def parse_csv(lines: List[str], model: T) -> List[T]:
-    def strip_empty(val: dict):
-        return {k: v for k, v in val.items() if v != ""}
-
-    reader = csv.DictReader(lines, delimiter=";")
-    parsed = map(strip_empty, reader)
-    return parse_obj_as(List[model], list(parsed))  # type: ignore
-
-
-def read_csv(filename: str, model: T) -> List[T]:
-    """Read CSV file from FTP into list of model objects"""
-    print(f"Processing {filename}")
-    lines = get_ftp_file(filename)
-    return parse_csv(lines, model)
 
 
 async def create_details(
@@ -149,31 +112,6 @@ async def submit_payloads(
         await f
 
 
-def parse_filenames(
-    filenames: Iterable[str], prefix: str, last_import: datetime
-) -> List[Tuple[str, datetime]]:
-    """
-    Get valid filenames matching a prefix and date newer than last_import
-
-    All valid filenames are on the form: {{prefix}}_20210131_221600.csv
-    """
-
-    def parse_filepath(filepath: str) -> Tuple[str, datetime]:
-        date_part = filepath[-19:-4]
-        parsed_datetime = datetime.strptime(date_part, "%Y%m%d_%H%M%S")
-
-        return filepath, parsed_datetime
-
-    filtered_names = filter(lambda x: x.startswith(prefix), filenames)
-    parsed_names = map(parse_filepath, filtered_names)
-    # Only use files that are newer than last import
-    new_files = filter(
-        apply(lambda filepath, filedate: filedate > last_import), parsed_names
-    )
-    sorted_filenames = sorted(new_files, key=itemgetter(1))
-    return sorted_filenames
-
-
 async def lookup_organisationfunktion():
     """Helper function for fetching all available 'organisationfunktion' objects."""
     settings = config.get_config()
@@ -188,47 +126,7 @@ def lookup_employees():
     return mh.read_all_users()
 
 
-def get_modified_datetime_for_file(filename: str) -> datetime:
-    """Read the 'modified' field from an FTP file"""
-    ftp = get_ftp_connector()
-    files = ftp.mlsd()
-    found_file = one(filter(lambda x: x[0] == filename, files))
-    filename, facts = found_file
-    # String is on the form: "20210323153241.448"
-    modify_string = facts["modify"][:-4]
-    return datetime.strptime(modify_string, "%Y%m%d%H%M%S")
-
-
-def get_ftp_connector() -> FTP:
-    """Helper function for fetching an FTP connector for the configured ftp server"""
-    settings = config.get_config()
-    ftp = FTP(settings.ftp_url)
-    ftp.encoding = "utf-8"
-    ftp.login(user=settings.ftp_user, passwd=settings.ftp_pass)
-    ftp.cwd(settings.ftp_folder)
-    return ftp
-
-
 def convert_validities(from_time: date, to_time: date) -> Tuple[str, Optional[str]]:
     from_time_str = from_time.isoformat()
     to_time_str = to_time.isoformat()
     return from_time_str, to_time_str if to_time_str != "9999-12-31" else None
-
-
-def convert_stringio_to_bytesio(output: StringIO, encoding: str = "utf-8") -> BytesIO:
-    """Convert StringIO object `output` to a BytesIO object using `encoding`"""
-    output.seek(0)
-    bytes_output = BytesIO()
-    bytes_writer = codecs.getwriter(encoding)(bytes_output)
-    bytes_writer.write(output.getvalue())
-    bytes_output.seek(0)
-    return bytes_output
-
-
-def write_csv_to_ftp(filename: str, csv_stream: StringIO, folder: str = "DARfejlliste"):
-    """Write CSV data in `csv_stream` to FTP file `filename`"""
-    ftp = get_ftp_connector()
-    ftp.cwd(folder)
-    result = ftp.storlines(f"STOR {filename}", convert_stringio_to_bytesio(csv_stream))
-    ftp.close()
-    return result

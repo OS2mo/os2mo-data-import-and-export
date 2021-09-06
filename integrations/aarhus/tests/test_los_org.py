@@ -1,21 +1,18 @@
-import asyncio
 import csv
 from datetime import datetime
 from typing import List
-from typing import Optional
-from typing import Tuple
 from unittest import mock
 from uuid import UUID
 
-import config
+import los_files
 import los_org
-import util
 from hypothesis import given
 from hypothesis import settings
 from hypothesis import strategies as st
 
+from .helpers import HelperMixin
+from .helpers import mock_config
 from .strategies import csv_buf_from_model
-from integrations.dar_helper import dar_helper
 
 
 class TestConsolidatePayloads:
@@ -123,50 +120,18 @@ class TestConsolidatePayloads:
         assert expected == actual
 
 
-class _HelperMixin:
-    def _run_until_complete(self, coro):
-        future = asyncio.ensure_future(coro)
-        loop = asyncio.get_event_loop()
-        return loop.run_until_complete(future)
-
-    def _mock_dar_lookup(self, return_value: Tuple[Optional[str], Optional[UUID]]):
-        return mock.patch.object(
-            dar_helper,
-            "dar_datavask_multiple",
-            return_value=[return_value],
-        )
-
-    def _mock_get_client_session(self):
-        return mock.patch.object(
-            util,
-            "get_client_session",
-            return_value=mock.MagicMock(),
-        )
-
-    def _mock_create_details(self):
-        return mock.patch.object(util, "create_details", return_value=mock.MagicMock())
-
-    def _mock_edit_details(self):
-        return mock.patch.object(util, "edit_details", return_value=mock.MagicMock())
-
-    def _mock_lookup_organisationfunktion(self):
-        return mock.patch.object(
-            util, "lookup_organisationfunktion", return_value=mock.MagicMock()
-        )
-
-
 class TestParseOrgUnitCSV:
     @given(csv_buf_from_model(model=los_org.OrgUnit))
     def test_parse_raises_nothing(self, csv_buf):
-        util.parse_csv(csv_buf.readlines(), los_org.OrgUnit)
+        los_files.parse_csv(csv_buf.readlines(), los_org.OrgUnit)
 
 
-class TestHandleInitial(_HelperMixin):
+class TestHandleInitial(HelperMixin):
     @given(st.builds(los_org.OrgUnit), st.uuids())
     def test_handle_initial(self, instance: los_org.OrgUnit, dar_uuid: UUID):
         importer = los_org.OrgUnitImporter()
         with self._mock_dar_lookup((instance.post_address, dar_uuid)):
-            with mock.patch.object(util, "read_csv", return_value=[instance]):
+            with self._mock_read_csv(instance):
                 with self._mock_get_client_session():
                     with self._mock_create_details() as mock_create_details:
                         self._run_until_complete(
@@ -188,12 +153,12 @@ class TestHandleInitial(_HelperMixin):
                         ]
 
 
-class TestHandleCreate(_HelperMixin):
+class TestHandleCreate(HelperMixin):
     @given(st.builds(los_org.OrgUnit), st.uuids())
     def test_handle_create(self, instance: los_org.OrgUnit, dar_uuid: UUID):
         importer = los_org.OrgUnitImporter()
         with self._mock_dar_lookup((instance.post_address, dar_uuid)):
-            with mock.patch.object(util, "read_csv", return_value=[instance]):
+            with self._mock_read_csv(instance):
                 with self._mock_get_client_session():
                     with self._mock_create_details() as mock_create_details:
                         self._run_until_complete(
@@ -202,7 +167,7 @@ class TestHandleCreate(_HelperMixin):
                         mock_create_details.assert_called_once()
 
 
-class TestHandleEdit(_HelperMixin):
+class TestHandleEdit(HelperMixin):
     @given(st.builds(los_org.OrgUnit), st.uuids(), st.datetimes())
     def test_handle_edit(
         self,
@@ -212,7 +177,7 @@ class TestHandleEdit(_HelperMixin):
     ):
         importer = los_org.OrgUnitImporter()
         with self._mock_dar_lookup((instance.post_address, dar_uuid)):
-            with mock.patch.object(util, "read_csv", return_value=[instance]):
+            with self._mock_read_csv(instance):
                 with self._mock_get_client_session():
                     with self._mock_create_details() as mock_create_details:
                         with self._mock_edit_details() as mock_edit_details:
@@ -226,7 +191,7 @@ class TestHandleEdit(_HelperMixin):
                                 mock_edit_details.assert_called_once()
 
 
-class TestHandleAddresses(_HelperMixin):
+class TestHandleAddresses(HelperMixin):
     @given(st.builds(los_org.OrgUnit))
     def test_finds_failed_addresses(self, instance: los_org.OrgUnit):
         importer = los_org.OrgUnitImporter()
@@ -264,7 +229,7 @@ class TestHandleAddresses(_HelperMixin):
 
 
 class TestWriteFailedAddresses:
-    @settings(max_examples=1000)
+    @settings(max_examples=1000, deadline=None)
     @given(
         st.builds(
             los_org.FailedDARLookup,
@@ -277,18 +242,15 @@ class TestWriteFailedAddresses:
         )
     )
     def test_writes_csv_to_ftp(self, instance: los_org.FailedDARLookup):
-        class MockConfig:
-            queries_dir = "/tmp"
-
         # Patch `config.get_config` so `write_failed_addresses` sees
         # `MockConfig.queries_dir` instead of actual setting.
-        with mock.patch.object(config, "get_config", return_value=MockConfig()):
-            # Patch `util.write_csv_to_ftp` so we can test its arguments
-            with mock.patch.object(util, "write_csv_to_ftp") as mock_write:
+        with mock_config(queries_dir="/tmp/"):
+            # Patch `FTPFileSet.write_file` so we can test its arguments
+            with mock.patch.object(los_files.FTPFileSet, "write_file") as mock_write:
                 # Run `write_failed_addresses`
                 importer = los_org.OrgUnitImporter()
                 importer.write_failed_addresses([instance], "filename.csv")
-                # Assert our mocked `write_csv_to_ftp` got the expected args
+                # Assert our mocked `write_file` got the expected args
                 mock_write.assert_called_once()
                 # First arg is filename, second arg is CSV file (as bytes)
                 filename, csv_buf = mock_write.call_args_list[0].args
