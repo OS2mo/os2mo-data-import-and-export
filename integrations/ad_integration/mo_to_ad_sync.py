@@ -125,7 +125,6 @@ def run_mo_to_ad_sync(
     "--lora-speedup/--no-lora-speedup",
     help="Utilize LoraCache to speedup the operation",
     is_flag=True,
-    type=click.BOOL,
     default=lambda: load_settings()["integrations.ad_writer.lora_speedup"],
 )
 @click.option(

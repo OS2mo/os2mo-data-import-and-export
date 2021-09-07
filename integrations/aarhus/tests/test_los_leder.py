@@ -1,19 +1,14 @@
 from datetime import date
 from datetime import datetime
-from unittest import mock
 from uuid import uuid4
 
+import los_files
+import los_leder
 from hypothesis import given
 from hypothesis import strategies as st
 
 from .helpers import HelperMixin
-from .helpers import import_los_files
-from .helpers import import_los_leder
 from .strategies import csv_buf_from_model
-
-
-los_files = import_los_files()
-los_leder = import_los_leder()
 
 
 class _TestableManagerImporter(los_leder.ManagerImporter):  # type: ignore
@@ -188,9 +183,8 @@ class TestManagerImporter(HelperMixin):
             "Leder_luk_20200101_000001.csv",
         ]
         expected_filedate = datetime(2020, 1, 1, 0, 0, 1)
-        los_files = import_los_files()
-        with mock.patch.object(
-            los_files.fileset, "get_import_filenames", return_value=mock_filenames
+        with self._mock_get_import_filenames(
+            mock_filenames
         ) as mock_get_import_filenames:
             importer = _TestableManagerImporter()
             # Run method under test

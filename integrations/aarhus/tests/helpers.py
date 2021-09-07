@@ -1,5 +1,4 @@
 import asyncio
-from importlib import import_module
 from typing import Optional
 from typing import Tuple
 from unittest import mock
@@ -7,6 +6,7 @@ from uuid import UUID
 
 import config
 import initial
+import los_files
 import util
 
 from integrations.dar_helper import dar_helper
@@ -26,7 +26,6 @@ class HelperMixin:
         )
 
     def _mock_read_csv(self, instance):
-        los_files = import_los_files()
         return mock.patch.object(los_files, "read_csv", return_value=[instance])
 
     def _mock_util_call(self, name, return_value=None):
@@ -54,6 +53,26 @@ class HelperMixin:
             "lookup_organisationfunktion", return_value=return_value
         )
 
+    def _mock_get_fileset_implementation(self, fileset):
+        return mock.patch.object(
+            los_files, "get_fileset_implementation", return_value=fileset
+        )
+
+    def _mock_get_import_filenames(self, filenames):
+        fileset = mock.Mock(spec=los_files.FileSet)
+        fileset.get_import_filenames = mock.Mock(return_value=filenames)
+        return self._mock_get_fileset_implementation(fileset)
+
+    def _mock_get_modified_datetime(self, return_value=None, side_effect=None):
+        fileset = mock.Mock(spec=los_files.FileSet)
+        fileset.get_modified_datetime = mock.Mock(
+            return_value=return_value, side_effect=side_effect
+        )
+        return self._mock_get_fileset_implementation(fileset)
+
+    def _mock_settings_json(self, settings=None):
+        return mock.patch("config.load_settings", return_value=settings)
+
 
 def mock_config(**kwargs):
     class MockConfig:
@@ -70,16 +89,3 @@ def mock_create_mox_helper():
     return mock.patch.object(
         initial, "create_mox_helper", return_value=mock.AsyncMock()
     )
-
-
-def _import_with_config(module_name):
-    with mock_config(import_csv_folder="unused-path"):
-        return import_module(module_name)
-
-
-def import_los_files():
-    return _import_with_config("los_files")
-
-
-def import_los_leder():
-    return _import_with_config("los_leder")

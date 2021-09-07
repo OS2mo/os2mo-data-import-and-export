@@ -40,16 +40,7 @@ def set_import_state(settings: config.Settings, import_date: datetime.datetime):
         f.write(import_date_string)
 
 
-@click.command()
-@click.option("--import-from-date")
-def main(import_from_date):
-    settings = config.get_config()
-
-    if import_from_date:
-        last_import = datetime.date.fromisoformat(import_from_date)
-    else:
-        last_import = get_or_create_import_state(settings)
-
+def run_los_import(settings, last_import):
     loop = asyncio.get_event_loop()
 
     initial_import = asyncio.ensure_future(initial.perform_initial_setup())
@@ -74,6 +65,50 @@ def main(import_from_date):
     loop.close()
 
     set_import_state(settings, datetime.datetime.now())
+
+
+@click.command()
+@click.option("--import-from-date")
+@click.option(
+    "--ftp-url",
+    help="URL of FTP where CSV files will be retrieved from",
+)
+@click.option(
+    "--ftp-user",
+    help="Username to use when logging into FTP server",
+)
+@click.option(
+    "--ftp-pass",
+    help="Password to use when logging into FTP server",
+)
+@click.option(
+    "--ftp-folder",
+    help="FTP folder where CSV files are retrieved from",
+)
+@click.option(
+    "--import-state-file",
+    help="Name of import state file",
+)
+@click.option(
+    "--import-csv-folder",
+    help="Path to folder containing CSV files to import. Disables FTP reading",
+)
+@click.option(
+    "--azid-it-system-uuid",
+    type=click.UUID,
+    help="UUID of MO IT system used for the `AZID` column of `Pers_*.csv` files",
+)
+def main(**kwargs):
+    import_from_date = kwargs.pop("import_from_date", None)
+    command_line_options = {key: value for key, value in kwargs.items() if value}
+    settings = config.Settings.from_kwargs(**command_line_options)
+
+    if import_from_date:
+        last_import = datetime.date.fromisoformat(import_from_date)
+    else:
+        last_import = get_or_create_import_state(settings)
+
+    return run_los_import(settings, last_import)
 
 
 if __name__ == "__main__":

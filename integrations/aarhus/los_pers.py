@@ -4,6 +4,7 @@ from functools import partial
 from itertools import chain
 from typing import Optional
 
+import config
 import los_files
 import payloads as mo_payloads
 import pydantic
@@ -43,6 +44,7 @@ class PersonTermination(pydantic.BaseModel):
 class PersonImporter:
     def __init__(self):
         self.uuid_generator = uuid_generator("AAK")
+        self.settings = config.get_config()
 
     def generate_employee_email_payload(self, person: Person):
         from_date, to_date = util.convert_validities(
@@ -65,7 +67,7 @@ class PersonImporter:
             uuid=self.uuid_generator(person.cpr + "azid"),
             user_key=person.az_id,
             person_uuid=self.uuid_generator(person.cpr),
-            itsystem_uuid=uuids.AZID_SYSTEM,
+            itsystem_uuid=self.settings.azid_it_system_uuid,
             from_date=from_date,
             to_date=to_date,
         )
@@ -202,7 +204,7 @@ class PersonImporter:
 
     async def run(self, last_import: datetime):
         print("Starting person import")
-        filenames = los_files.fileset.get_import_filenames()
+        filenames = los_files.get_fileset_implementation().get_import_filenames()
 
         creates = los_files.parse_filenames(
             filenames, prefix="Pers_nye", last_import=last_import

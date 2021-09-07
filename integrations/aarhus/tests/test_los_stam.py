@@ -1,7 +1,5 @@
 from datetime import datetime
-from unittest import mock
 
-import los_files
 import los_stam
 from pydantic import Field
 
@@ -25,7 +23,9 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
     def test_returns_csv_if_file_is_newer(self):
         # Pretend that `get_modified_datetime_for_file` finds a file, and that
         # `read_csv` returns its parsed contents.
-        with self._mock_get_modified_datetime():
+        with self._mock_get_modified_datetime(
+            return_value=self._datetime_last_modified
+        ):
             with self._mock_read_csv(MockStamCSV()):
                 result = self._run_load_csv_if_newer()
                 assert len(result) == 1
@@ -36,7 +36,9 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
         # Pretend that `get_modified_datetime_for_file` finds a file, but its
         # modified date is equal to the date of the last import run. In that
         # case, return nothing.
-        with self._mock_get_modified_datetime(value=self._datetime_last_imported):
+        with self._mock_get_modified_datetime(
+            return_value=self._datetime_last_imported
+        ):
             result = self._run_load_csv_if_newer()
             assert result is None
 
@@ -45,14 +47,6 @@ class TestStamImporterLoadCSVIfNewer(HelperMixin):
         with self._mock_get_modified_datetime(side_effect=ValueError()):
             result = self._run_load_csv_if_newer()
             assert result is None
-
-    def _mock_get_modified_datetime(self, value=None, side_effect=None):
-        return mock.patch.object(
-            los_files.fileset,
-            "get_modified_datetime",
-            return_value=value or self._datetime_last_modified,
-            side_effect=side_effect,
-        )
 
     def _run_load_csv_if_newer(self):
         return los_stam.StamImporter._load_csv_if_newer(
