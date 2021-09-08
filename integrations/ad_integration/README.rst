@@ -48,52 +48,37 @@ indbyggede betydning:
 Opsætning af ntlm over https
 ----------------------------
 For at kunne autentificere med ntlm over https kræver det at settingsfilen indeholder brugernavn og password
-til en systembruger fra et domæne - modsat lokalt oprettet bruger - samt metoden 'ntlm'. Se bekrivelsen af parametre herunder. Brugeren skal desuden have
+til en systembruger fra et domæne (modsat lokalt oprettet bruger). Derudover skal det i settings.json specificeres 
+at metoden skal være 'ntlm'. Se bekrivelsen af parametre herunder. Brugeren skal desuden have
 administratorrettigheder på windowsserveren, samt rettigheder til at læse og evt. skrive i AD.
 Dette gælder også feltet der indeholder CPR numre der kan være indstillet til 'confidential'.
 I så fald skal rettigheden gives gennem programmet ldp.
-For at sætte winrm op med https vha. et SelfSignedCertificate kan man følge nedenstående:
-Erstat "Computernavn" med serverens Hostname.
 
-1. I powershell som administrator køres
+SSL certifikatet skal dannes via en windows server der er konfigureret som CA server. Det er en forudsætning at det oprettes med: `Intended purpose: Server Authentication`
+Fra WinRM serveren åbnes "certificate management" hvori der kan anmodes om et nyt certifikat. Her skal som minimum `Common Name` udfyldes med serverens hostnavn.
+Under det nye certifikats 'Egenskaber' findes dens 'CertificateThumbprint'.
 
-.. code-block:: powershell
+Hvis der allerede er opsat en winrm listener på HTTPS, skal den fjernes først:
 
-  New-SelfSignedCertificate -DnsName "Computernavn" -CertStoreLocation Cert:\LocalMachine\My
+`winrm remove winrm/config/Listener?Address=*+Transport=HTTPS`
 
-Det giver et 'thumbprint' i stil med "54B8571D6D0C0C89473ED5470A45EDC5A68AA2C3"
+Konfigurer WinRM til at bruge certifikatet:
 
-2. Dette sættes ind i følgende kommando i en kommandoprompt (ikke powershell) også som administrator:
+`winrm set winrm/config/Listener?Address=*+Transport=HTTPS @{Hostname="hostname"; CertificateThumbprint="02E4XXXXXXXXXXXXXXXXXXXXXXXXXX"}`
 
-.. code-block::
-
-  winrm create winrm/config/Listener?Address=*+Transport=HTTPS @{Hostname="Computernavn"; CertificateThumbprint="54B8571D6D0C0C89473ED5470A45EDC5A68AA2C3"}
-
-
-derefter i administrator powershell igen:
+Derefter skal winrm sættes op til at tillade NTLM, men ikke ukrypteret:
 
 .. code-block:: powershell
 
-  netsh advfirewall firewall add rule name="WinRM-HTTPS" dir=in localport=5986 protocol=TCP action=allow
-  winrm quickconfig -q
-  winrm quickconfig -transport:http
-  $enableArgs=@{Force=$true}
-  try {
-    $command=Get-Command Enable-PSRemoting
-    if($command.Parameters.Keys -contains "skipnetworkprofilecheck"){
-        $enableArgs.skipnetworkprofilecheck=$true
-    }
-  }
-  catch {
-    $global:error.RemoveAt(0)
-  }
-  Enable-PSRemoting @enableArgs
-  winrm set winrm/config/client/auth '@{Basic="true"}'
-  winrm set winrm/config/service/auth '@{Basic="true"}'
+  
+  winrm set winrm/config/service/auth '@{Negotiate="true"}'
   winrm set winrm/config/service '@{AllowUnencrypted="false"}'
 
-Nu skulle der være adgang til winrm med ntlm, krypteret med https, via port 5986.
+Der kan også være behov for at åbne en port i firewall med:
 
+`netsh advfirewall firewall add rule name="WinRM-HTTPS" dir=in localport=5986 protocol=TCP action=allow`
+
+Nu skulle der være adgang til winrm med ntlm, krypteret med https, via port 5986.
 
 
 Fælles parametre
