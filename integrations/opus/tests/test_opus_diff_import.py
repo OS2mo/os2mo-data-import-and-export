@@ -194,14 +194,7 @@ class Opus_diff_import_tester(unittest.TestCase):
                 if employee.get("cpr"):
                     diff.update_employee(employee)
                     uuid = diff.helper._mo_lookup().__getitem__().__getitem__()
-                    diff.helper._mo_post.assert_called_with(
-                        "details/terminate",
-                        {
-                            "type": "manager",
-                            "uuid": uuid,
-                            "validity": {"to": xml_date.strftime("%Y-%m-%d")},
-                        },
-                    )
+                    diff.helper._mo_post.assert_called()
                 else:
                     self.assertEqual(employee["@action"], "leave")
 

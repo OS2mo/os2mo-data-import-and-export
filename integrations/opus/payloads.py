@@ -1,6 +1,8 @@
 # from collections import OrderedDict
 
 from integrations.opus import opus_helpers
+from uuid import UUID
+from typing import Optional
 
 
 def create_user(employee, org_uuid, uuid=None):
@@ -35,7 +37,7 @@ def edit_role(validity, mo_role_uuid):
 
 
 def create_engagement(
-    employee, user_uuid, unit_uuid, job_function, engagement_type, primary, validity
+    employee, user_uuid, unit_uuid, job_function, engagement_type, primary, validity, manager_uuid: Optional[UUID] = None
 ):
     payload = {
         "type": "engagement",
@@ -46,6 +48,7 @@ def create_engagement(
         "engagement_type": {"uuid": engagement_type},
         "user_key": employee["@id"],
         "validity": validity,
+        "extension_5": str(manager_uuid)
     }
     return payload
 

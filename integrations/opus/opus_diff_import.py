@@ -1,3 +1,4 @@
+from uuid import UUID
 import json
 import logging
 from collections import OrderedDict
@@ -6,6 +7,7 @@ from operator import itemgetter
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from more_itertools import one
 import click
 import requests
 import xmltodict
@@ -130,10 +132,10 @@ class OpusDiffImport(object):
     # This exact function also exists in sd_changed_at
     def _assert(self, response):
         """Check response is as expected"""
-        assert response.status_code in (200, 400, 404)
+        assert response.status_code in (200, 400, 404), f"response was {response.text}"
         if response.status_code == 400:
             # Check actual response
-            assert response.text.find("not give raise to a new registration") > 0
+            assert response.text.find("not give raise to a new registration") > 0, f"response was {response.text}"
             logger.debug("Requst had no effect")
         return None
 
@@ -275,6 +277,7 @@ class OpusDiffImport(object):
             self._perform_address_update(address_args, current)
 
     def _update_unit_addresses(self, unit):
+        return
         calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
         unit_addresses = self.helper.read_ou_address(
             calculated_uuid, scope=None, return_all=True
@@ -435,7 +438,7 @@ class OpusDiffImport(object):
             )
         return something_new
 
-    def create_engagement(self, mo_user_uuid, opus_employee):
+    def create_engagement(self, mo_user_uuid, opus_employee, manager_uuid: Optional[UUID] = None):
         job_function, eng_type = self._job_and_engagement_type(opus_employee)
         unit_uuid = opus_helpers.generate_uuid(opus_employee["orgUnit"])
 
@@ -454,6 +457,7 @@ class OpusDiffImport(object):
             engagement_type=eng_type,
             primary=self.updater.primary_types["non_primary"],
             validity=validity,
+            manager_uuid=manager_uuid
         )
         logger.debug("Create engagement payload: {}".format(payload))
         response = self.helper._mo_post("details/create", payload)
@@ -500,99 +504,114 @@ class OpusDiffImport(object):
             item_datetime = datetime.strptime(item, "%Y-%m-%d")
         return item_datetime
 
-    def update_manager_status(self, employee_mo_uuid, employee):
+    def find_manager_role(self, employee_mo_uuid, employee, manager_uuid) -> Optional[UUID]:
         url = "e/{}/details/manager?at=" + self.validity(employee, edit=True)["from"]
         manager_functions = self.helper._mo_lookup(employee_mo_uuid, url)
-        logger.debug("Manager functions to update: {}".format(manager_functions))
-        if manager_functions:
-            logger.debug("Manager functions to update: {}".format(manager_functions))
+        
+        #There are no manager roles 
+        if not manager_functions:
+            return None
 
-        if employee["isManager"] == "false":
-            if manager_functions:
-                logger.info("Terminate manager function")
-                self.terminate_detail(
-                    manager_functions[0]["uuid"], detail_type="manager"
-                )
-            else:
-                logger.debug("Correctly not a manager")
+        #try to get correct manager by uuid
+        this_manager_role = list(filter(lambda man: man['uuid'] == manager_uuid, manager_functions))
+        if len(this_manager_role) == 1:
+            return one(this_manager_role)
 
-        if employee["isManager"] == "true":
-            manager_level = "{}.{}".format(
-                employee["superiorLevel"], employee["subordinateLevel"]
+        #try to get the manager role by comparing data
+        filters = [
+            lambda man: man['org_unit']['uuid'] == str(opus_helpers.generate_uuid(employee["orgUnit"])),
+            lambda man: man['manager_type']['name'] == employee['position'],
+            lambda man: man['manager_level']['name'] == "{}.{}".format(employee["superiorLevel"], employee["subordinateLevel"])
+        ]
+        for fil in filters:
+            manager_functions = filter(fil, manager_functions)
+        manager_functions = list(manager_functions)
+        if len(manager_functions) == 1:
+            return one(manager_functions)
+
+        logger.warning("manager role not found.")
+        return None
+            
+
+
+    def update_manager_status(self, employee_mo_uuid, employee, manager_uuid: Optional[UUID] = None):
+        this_manager_role = self.find_manager_role(employee_mo_uuid, employee, manager_uuid)
+        logger.debug("Manager functions to update: {}".format(this_manager_role))
+
+        #Terminate existing manager role
+        if employee["isManager"] == "false" and this_manager_role:
+            logger.info("Terminate manager function")
+            self.terminate_detail(
+                this_manager_role['uuid'], detail_type="manager"
             )
-            manager_level_uuid, _ = mox_util.ensure_class_in_lora(
+            return None
+
+        #Make payload for manager role
+        manager_level = "{}.{}".format(
+            employee["superiorLevel"], employee["subordinateLevel"]
+            )
+        manager_level_uuid, _ = mox_util.ensure_class_in_lora(
                 "manager_level", manager_level
             )
-            manager_type = employee["position"]
-            manager_type_uuid, _ = mox_util.ensure_class_in_lora(
+        manager_type = employee["position"]
+        manager_type_uuid, _ = mox_util.ensure_class_in_lora(
                 "manager_type", manager_type
             )
-            responsibility_uuid, _ = mox_util.ensure_class_in_lora(
+        responsibility_uuid, _ = mox_util.ensure_class_in_lora(
                 "responsibility", "Lederansvar"
             )
 
-            args = {
+        args = {
                 "unit": str(opus_helpers.generate_uuid(employee["orgUnit"])),
                 "person": employee_mo_uuid,
                 "manager_type": manager_type_uuid,
                 "level": manager_level_uuid,
                 "responsibility": responsibility_uuid,
-                "validity": self.validity(employee, edit=True),
+
             }
-            if manager_functions:
-                logger.info("Attempt manager update of {}:".format(employee_mo_uuid))
-                # Currently Opus supports only a single manager object pr employee
-                assert len(manager_functions) == 1
-
-                mf = manager_functions[0]
-
-                payload = payloads.edit_manager(
-                    object_uuid=manager_functions[0]["uuid"], **args
-                )
-
-                something_new = not (
-                    mf["org_unit"]["uuid"] == args["unit"]
-                    and mf["person"]["uuid"] == args["person"]
-                    and mf["manager_type"]["uuid"] == args["manager_type"]
-                    and mf["manager_level"]["uuid"] == args["level"]
-                    and mf["responsibility"][0]["uuid"] == args["responsibility"]
-                )
-
-                if something_new:
-                    logger.debug("Something is changed, execute payload")
-                else:
-                    mo_end_datetime = self._to_datetime(mf["validity"]["to"])
-                    opus_end_datetime = self._to_datetime(args["validity"]["to"])
-                    logger.info("MO end datetime: {}".format(mo_end_datetime))
-                    logger.info("OPUS end datetime: {}".format(opus_end_datetime))
-
-                    if mo_end_datetime == opus_end_datetime:
-                        logger.info("No edit of manager object")
-                        payload = None
-                    elif opus_end_datetime > mo_end_datetime:
-                        logger.info("Extend validity, send payload to MO")
-                    else:  # opus_end_datetime < mo_end_datetime:
-                        logger.info("Terminate mangement role")
-                        payload = None
-                        self.terminate_detail(
-                            mf["uuid"],
-                            detail_type="manager",
-                            end_date=opus_end_datetime,
-                        )
-
-                logger.debug("Update manager payload: {}".format(payload))
-                if payload is not None:
-                    response = self.helper._mo_post("details/edit", payload)
-                    self._assert(response)
-            else:  # No existing manager functions
-                logger.info("Turn this person into a manager")
-                # Validity is set to edit=True since the validiy should
-                # calculated as an edit to the engagement
+        #Create new manager role
+        if not this_manager_role:
+            # Validity is set to edit=True since the validiy should
+            # calculated as an edit to the engagement
+                args["validity"] = self.validity(employee, edit=False)
                 payload = payloads.create_manager(user_key=employee["@id"], **args)
                 logger.debug("Create manager payload: {}".format(payload))
                 response = self.helper._mo_post("details/create", payload)
-                assert response.status_code == 201
+                assert response.status_code == 201, f"Response was {response.text}"
+                return UUID(response.json())
 
+        #Update existing manager role
+        logger.info(f"Attempt manager update of {employee_mo_uuid}")
+        args["validity"] = self.validity(employee, edit=True)
+        mo_end_datetime = self._to_datetime(this_manager_role["validity"]["to"])
+        opus_end_datetime = self._to_datetime(args["validity"]["to"])
+        something_new = any([
+                    this_manager_role["org_unit"]["uuid"] != args["unit"],
+                    this_manager_role["person"]["uuid"] != args["person"],
+                    this_manager_role["manager_type"]["uuid"] != args["manager_type"],
+                    this_manager_role["manager_level"]["uuid"] != args["level"],
+                    this_manager_role["responsibility"][0]["uuid"] != args["responsibility"],
+                    mo_end_datetime != opus_end_datetime]
+                )
+
+        if not something_new:
+            logger.debug("Nothing is changed in manager role")
+            return UUID(this_manager_role['uuid'])
+        
+        #Change enddate for manager role
+        if opus_end_datetime < mo_end_datetime:
+            self.terminate_detail(this_manager_role['uuid'], detail_type='manager', end_date=opus_end_datetime)
+            logger.debug(f'Manager role was terminated from {opus_end_datetime}')
+        
+        payload = payloads.edit_manager(
+                    object_uuid=this_manager_role['uuid'], **args
+                )
+        logger.debug("Update manager payload: {}".format(payload))
+        response = self.helper._mo_post("details/edit", payload)
+        self._assert(response)
+        return UUID(response.json())
+            
+            
     def update_roller(self, employee):
         cpr = employee["cpr"]["#text"]
         mo_user = self.helper.read_user(user_cpr=cpr)
@@ -732,13 +751,20 @@ class OpusDiffImport(object):
                 logger.info("Found current validty {}".format(eng["validity"]))
                 break
 
+        current_manager_uuid = None
+        if current_mo_eng and eng['extension_5']:
+            current_manager_uuid = eng['extension_5']
+
+        manager_uuid = None
+        if current_manager_uuid or (employee['isManager'] == 'true'):
+            manager_uuid = self.update_manager_status(employee_mo_uuid, employee,  current_manager_uuid)
+
         if current_mo_eng is None:
-            self.create_engagement(employee_mo_uuid, employee)
+            self.create_engagement(employee_mo_uuid, employee, manager_uuid=manager_uuid)
         else:
             logger.info("Validity for {}: {}".format(employee["@id"], eng["validity"]))
             self.update_engagement(eng, employee)
 
-        self.update_manager_status(employee_mo_uuid, employee)
         self.updater.recalculate_primary(employee_mo_uuid)
 
     def terminate_detail(self, uuid, detail_type="engagement", end_date=None):
@@ -904,7 +930,7 @@ def start_opus_diff(ad_reader=None):
 
 if __name__ == "__main__":
 
-    ad_reader = ad_reader.ADParameterReader()
+    ad_reader = None
 
     try:
         start_opus_diff(ad_reader=ad_reader)
