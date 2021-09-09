@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Optional
 
 from pydantic import BaseModel
 from ra_utils.load_settings import load_settings
@@ -10,6 +11,7 @@ class Settings(BaseModel):
     ftp_pass: str
     ftp_folder: str
     import_state_file: str
+    import_csv_folder: Optional[str]
     mox_base: str = "http://localhost:8080"
     mora_base: str = "http://localhost:5000"
     queries_dir: str = "/opt/docker/os2mo/queries"
@@ -29,4 +31,5 @@ def get_config() -> Settings:
         ftp_pass=top_settings["integrations.aarhus_los.ftp_pass"],
         ftp_folder=top_settings.get("integrations.aarhus_los.ftp_folder", "TEST"),
         import_state_file=top_settings["integrations.aarhus_los.state_file"],
+        import_csv_folder=top_settings.get("integrations.aarhus_los.import_csv_folder"),
     )

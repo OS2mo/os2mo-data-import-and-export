@@ -1,5 +1,4 @@
 import ftplib
-import os
 import uuid
 from csv import DictWriter
 from datetime import date
@@ -17,7 +16,7 @@ from typing import Iterator
 from typing import List
 from typing import Optional
 
-import config
+import los_files
 import payloads as mo_payloads
 import pydantic
 import util
@@ -270,20 +269,27 @@ class OrgUnitImporter:
         writer.writerows(f.dict() for f in failed)
 
         # Write CSV file to FTP folder
+        ftp_fileset = los_files.FTPFileSet()
         try:
-            result = util.write_csv_to_ftp(output_filename, output)
+            result = ftp_fileset.write_file(
+                output_filename, output, folder="DARfejlliste"
+            )
         except ftplib.Error as exc:
             print("Could not write %r to FTP, error = %r" % (output_filename, str(exc)))
         else:
             print("Wrote %r to FTP, result = %r" % (output_filename, result))
 
         # Write CSV file to MO queries folder
-        settings = config.get_config()
-        export_path = os.path.join(settings.queries_dir, output_filename)
-        with open(export_path, "w") as f:
-            print(f"Writing failed addresses to {export_path}")
-            output.seek(0)
-            f.writelines(output.getvalue())
+        fs_fileset = los_files.FSFileSet()
+        try:
+            result = fs_fileset.write_file(output_filename, output)
+        except IOError as exc:
+            print(
+                "Could not write %r to queries folder, error = %r"
+                % (output_filename, str(exc))
+            )
+        else:
+            print("Wrote %r to queries folder, result = %r" % (output_filename, result))
 
     async def handle_addresses(self, org_units, filename):
         addresses = map(attrgetter("post_address"), org_units)
@@ -357,7 +363,7 @@ class OrgUnitImporter:
         The initial org unit file contains historic data, so a minimal set of
         create/edit payloads are created accordingly
         """
-        org_units = util.read_csv(filename, OrgUnit)
+        org_units = los_files.read_csv(filename, OrgUnit)
 
         await self.handle_addresses(org_units, filename)
 
@@ -398,7 +404,7 @@ class OrgUnitImporter:
         Handle creating new org units and details
         We are guaranteed to only have one row per org unit
         """
-        org_units = util.read_csv(filename, OrgUnit)
+        org_units = los_files.read_csv(filename, OrgUnit)
 
         await self.handle_addresses(org_units, filename)
 
@@ -423,7 +429,7 @@ class OrgUnitImporter:
         by the external system so we can safely reimport the "same" data, as opposed to
         trying to compare the existing objects in OS2mo
         """
-        org_units = util.read_csv(filename, OrgUnit)
+        org_units = los_files.read_csv(filename, OrgUnit)
         org_unit_payloads = self.create_unit_payloads(org_units)
         detail_payloads = await self.create_detail_payloads(org_units)
 
@@ -446,16 +452,15 @@ class OrgUnitImporter:
         and performs inserts/updates as needed
         """
         print("Starting org unit import")
-        ftp = util.get_ftp_connector()
-        filenames = ftp.nlst()
+        filenames = los_files.fileset.get_import_filenames()
 
-        initials = util.parse_filenames(
+        initials = los_files.parse_filenames(
             filenames, prefix="Org_inital", last_import=last_import
         )
-        creates = util.parse_filenames(
+        creates = los_files.parse_filenames(
             filenames, prefix="Org_nye", last_import=last_import
         )
-        edits = util.parse_filenames(
+        edits = los_files.parse_filenames(
             filenames, prefix="Org_ret", last_import=last_import
         )
 

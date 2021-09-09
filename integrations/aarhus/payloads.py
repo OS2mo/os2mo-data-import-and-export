@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -144,3 +145,13 @@ def convert_create_to_edit(payload: dict, from_date: str = None):
         edit_payload["data"]["validity"] = {"from": from_date}
 
     return edit_payload
+
+
+def terminate_detail(type: str, uuid: UUID, to_date: datetime):
+    """Create payload for terminating a MO detail"""
+    payload = {
+        "type": type,
+        "uuid": str(uuid),
+        "validity": {"to": to_date.date().isoformat()},
+    }
+    return payload

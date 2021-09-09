@@ -6,9 +6,9 @@ from typing import Type
 from typing import Union
 
 import config
+import los_files
 import mox_helpers.payloads as mox_payloads
 import pydantic
-import util
 import uuids
 from mox_helpers.mox_helper import create_mox_helper
 from pydantic import Field
@@ -297,15 +297,15 @@ class StamImporter:
     ) -> Union[List[StamCSVType], None]:
         filename = csv_class.get_filename()
         try:
-            modified_datetime = util.get_modified_datetime_for_file(filename)
+            modified_datetime = los_files.fileset.get_modified_datetime(filename)
         except ValueError:
-            # Raised by `util.get_modified_datetime_for_file` if file could
+            # Raised by `los_files.fileset.get_modified_datetime` if file could
             # not be found.
             return None
         else:
             if modified_datetime <= last_import:
                 return None
-            return util.read_csv(filename, csv_class)
+            return los_files.read_csv(filename, csv_class)
 
     @classmethod
     async def _create_classes_from_csv(
