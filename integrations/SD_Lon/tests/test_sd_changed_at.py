@@ -36,13 +36,13 @@ class ChangeAtSDTest(ChangeAtSD):
 
         super().__init__(*args, **kwargs)
 
-    def _get_primary_types(self, mora_helper: MoraHelper):
+    def _get_primary_types(self, mora_helper):
         return self.primary_types_mock
 
-    def _get_primary_engagement_updater(self) -> SDPrimaryEngagementUpdater:
+    def _get_primary_engagement_updater(self):
         return self.primary_engagement_mock
 
-    def _get_fix_departments(self) -> FixDepartments:
+    def _get_fix_departments(self):
         return self.fix_departments_mock
 
     def _read_forced_uuids(self):
@@ -66,9 +66,7 @@ def setup_sd_changed_at(updates=None):
     today = date.today()
     start_date = today
 
-    sd_updater = ChangeAtSDTest(
-        start_date, start_date + timedelta(days=1), settings
-    )
+    sd_updater = ChangeAtSDTest(start_date, start_date + timedelta(days=1), settings)
 
     return sd_updater
 
