@@ -268,7 +268,7 @@ def filter_kle(aspect: str, kle) -> List[UUID]:
     Returns:
         list of uuids
     """
-    tasks_kle = filter(lambda k: only(k["kle_aspect"])["name"] == aspect, kle)
+    tasks_kle = filter(lambda k: one(k["kle_aspect"])["name"] == aspect, kle)
     task_uuids = set(k["kle_number"]["uuid"] for k in tasks_kle)
     return list(sorted(task_uuids))
 
