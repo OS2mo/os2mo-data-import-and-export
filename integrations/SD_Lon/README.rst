@@ -445,8 +445,8 @@ Direkctory for den pågældende bruger.
 
 .. _ChangedAt.db:
 
-ChangedAt.db
-============
+run_db.sqlite
+=============
 
 For at holde rede på hvornår MO sidst er opdateret fra SD Løn, findes en SQLite
 database som indeholder to rækker for hver færdiggjort kørsel. Adressen på denne
