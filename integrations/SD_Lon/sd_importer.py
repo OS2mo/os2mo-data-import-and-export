@@ -15,9 +15,9 @@ from integrations.ad_integration import ad_reader
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import generate_uuid
+from integrations.SD_Lon.sd_common import get_import_date
 from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.sd_common import sd_lookup
-from integrations.SD_Lon.sd_common import get_import_date
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_initial_import.log"
