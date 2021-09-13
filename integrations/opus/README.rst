@@ -197,41 +197,11 @@ Nuværende begrænsninger omkring re-import
 run_db.sqlite
 =============
 
-For at holde rede på hvornår MO sidst er opdateret fra Opus, findes en SQLite
+For at holde rede på hvornår MO sidst er opdateret fra OPUS, findes en SQLite
 database som indeholder to rækker for hver færdiggjort kørsel. Adressen på denne
-database er angivet i ``settings.json`` under nøglen ``opus.import.run_db``.
+database er angivet i settings med nøglen ``integrations.opus.import.run_db``.
 
-Programmet ``db_overview.py`` er i stand til at læse denne database og giver et
-outut som dette:
-
-::
-
-   id: 1, dump date: 2019-09-02 22:41:28, status: Running since 2019-11-19 08:32:30.575527
-   id: 2, dump date: 2019-09-02 22:41:28, status: Import ended: 2019-11-19 08:55:32.455146
-   id: 3, dump date: 2019-09-03 22:40:12, status: Running diff update since 2019-11-19 10:18:35.859294
-   id: 4, dump date: 2019-09-03 22:40:12, status: Diff update ended: 2019-11-19 10:19:15.806079
-   id: 5, dump date: 2019-09-04 22:40:12, status: Running diff update since 2019-11-19 10:19:16.006959
-   id: 6, dump date: 2019-09-04 22:40:12, status: Diff update ended: 2019-11-19 10:19:48.980694
-   id: 7, dump date: 2019-09-05 22:40:12, status: Running diff update since 2019-11-19 10:19:49.187977
-   id: 8, dump date: 2019-09-05 22:40:12, status: Diff update ended: 2019-11-19 10:20:23.547771
-   id: 9, dump date: 2019-09-06 22:40:13, status: Running diff update since 2019-11-19 10:20:23.745032
-   id: 10, dump date: 2019-09-06 22:40:13, status: Diff update ended: 2019-11-19 10:20:54.931163
-   id: 11, dump date: 2019-09-09 22:40:12, status: Running diff update since 2019-11-19 10:20:55.123478
-   id: 12, dump date: 2019-09-09 22:40:12, status: Diff update ended: 2019-11-19 10:21:35.481189
-   id: 13, dump date: 2019-09-10 22:40:12, status: Running diff update since 2019-11-19 10:21:35.682252
-   id: 14, dump date: 2019-09-10 22:40:12, status: Diff update ended: 2019-11-19 10:22:12.298526
-   id: 15, dump date: 2019-09-11 22:41:48, status: Running diff update since 2019-11-19 10:22:12.496829
-   id: 16, dump date: 2019-09-11 22:41:48, status: Diff update ended: 2019-11-19 10:22:45.317372
-   id: 17, dump date: 2019-09-12 22:40:12, status: Running diff update since 2019-11-19 10:22:45.517679
-   id: 18, dump date: 2019-09-12 22:40:12, status: Diff update ended: 2019-11-19 10:23:20.548220
-   id: 19, dump date: 2019-09-13 22:40:14, status: Running diff update since 2019-11-19 10:23:20.744435
-   id: 20, dump date: 2019-09-13 22:40:14, status: Diff update ended: 2019-11-19 10:23:51.416625
-   id: 21, dump date: 2019-09-16 22:40:12, status: Running diff update since 2019-11-19 10:23:51.610555
-   id: 22, dump date: 2019-09-16 22:40:12, status: Diff update ended: 2019-11-19 10:24:44.799932
-   id: 23, dump date: 2019-09-17 22:40:12, status: Running diff update since 2019-11-19 10:24:45.000445
-   id: 24, dump date: 2019-09-17 22:40:12, status: Diff update ended: 2019-11-19 10:25:25.651491
-   (True, 'Status ok')
-
+Programmet ``db_overview.py`` er i stand til at læse denne database.
 
 Ved starten af alle opus_diff_import kørsler, skrives en linje med status ``Running``
 og efter hver kørsel skrives en linje med status ``Diff update ended``. En kørsel kan

@@ -1,5 +1,5 @@
-rundb
-=====
+run_db.sqlite
+=============
 
 For at holde rede på hvornår MO sidst har hentet ekstern data, findes en SQLite
 database som indeholder to rækker for hver færdiggjort kørsel. Adressen på denne
