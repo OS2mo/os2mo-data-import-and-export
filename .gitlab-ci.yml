@@ -105,6 +105,13 @@ Lint SDLoen Integration:
     - pip install mypy pre-commit types-Jinja2 types-click types-requests
     - pre-commit run --files tests/*.py *.py
 
+Lint RunDB Integration:
+  extends: .lint-python
+  script:
+    - cd integrations/rundb/
+    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+    - pre-commit run --files tests/*.py *.py
+
 Lint Rollekatalog Exporter:
   extends: .lint-python
   script:
@@ -245,6 +252,12 @@ Test SDLoen Integration:
   script:
     - python integrations/SD_Lon/sd_cli.py --help
     - pytest integrations/SD_Lon/tests/
+
+Test RunDB Integration:
+  extends: .test-python
+  script:
+    - python integrations/rundb/db_overview.py --help
+    - pytest integrations/rundb/tests/
 
 Test AAK LOS Integration:
   extends: .test-python
