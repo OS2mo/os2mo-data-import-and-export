@@ -15,6 +15,7 @@ COPY ./exporters/os2phonebook/requirements.txt ./exporters/os2phonebook/requirem
 COPY ./exporters/emus/requirements.txt ./exporters/emus/requirements.txt
 COPY ./integrations/calculate_primary/requirements.txt ./integrations/calculate_primary/requirements.txt
 COPY ./integrations/requirements.txt ./integrations/requirements.txt
+COPY ./integrations/SD_Lon/requirements.txt ./integrations/SD_Lon/requirements.txt
 COPY ./integrations/opus/org_tree_print/requirements.txt ./integrations/opus/org_tree_print/requirements.txt
 COPY ./integrations/dar_helper/requirements.txt ./integrations/dar_helper/requirements.txt
 COPY ./requirements.txt ./requirements.txt
