@@ -8,9 +8,7 @@ from more_itertools import flatten
 from os2mo_helpers.mora_helpers import MoraHelper
 
 from integrations.SD_Lon.sd_common import EmploymentStatus
-from integrations.SD_Lon.sd_common import LetGo
 from integrations.SD_Lon.sd_common import load_settings
-from integrations.SD_Lon.sd_common import OnPayroll
 from integrations.SD_Lon.sd_common import sd_lookup
 
 
@@ -36,7 +34,7 @@ class TestMOAgainstSd(object):
         )
         # TODO, we should also consider to check for actual date_values.
         # This would need a loop that finds the entire validity of the engagement
-        if status in OnPayroll:
+        if status in EmploymentStatus.on_payroll():
             # Check that MO agrees that the engagement is active
             is_ok = (
                 mo_engagement["validity"]["from"]
@@ -45,7 +43,7 @@ class TestMOAgainstSd(object):
             )
             # If false, should be current
             return "dates_current", is_ok
-        if status in LetGo:
+        if status in EmploymentStatus.let_go():
             # employment_end_date = sd_employment['EmploymentStatus']['ActivationDate']
             is_ok = mo_engagement["validity"]["to"] < self.date
             # If false, should have been terminated
