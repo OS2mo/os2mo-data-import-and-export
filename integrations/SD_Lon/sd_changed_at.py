@@ -71,18 +71,21 @@ def setup_logging():
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
 
 
+def use_job_position_identifier(settings: dict) -> bool:
+    job_function_type = settings["integrations.SD_Lon.job_function"]
+    if job_function_type == "JobPositionIdentifier":
+        logger.info("Read settings. JobPositionIdentifier for job_functions")
+        return True
+    elif job_function_type == "EmploymentName":
+        logger.info("Read settings. Do not update job_functions")
+        return False
+    raise exceptions.JobfunctionSettingsIsWrongException()
+
+
 class ChangeAtSD:
     def __init__(self, from_date, to_date=None, settings=None):
         self.settings = settings or load_settings()
-
-        if self.settings["integrations.SD_Lon.job_function"] == "JobPositionIdentifier":
-            logger.info("Read settings. JobPositionIdentifier for job_functions")
-            self.use_jpi = True
-        elif self.settings["integrations.SD_Lon.job_function"] == "EmploymentName":
-            logger.info("Read settings. Do not update job_functions")
-            self.use_jpi = False
-        else:
-            raise exceptions.JobfunctionSettingsIsWrongException()
+        self.use_jpi = use_job_position_identifier(self.settings)
 
         self.employee_forced_uuids = self._read_forced_uuids()
         self.department_fixer = FixDepartments()

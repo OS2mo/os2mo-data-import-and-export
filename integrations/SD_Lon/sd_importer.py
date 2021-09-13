@@ -19,6 +19,9 @@ from integrations.SD_Lon.sd_common import LetGo
 from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.sd_common import sd_lookup
 
+from integrations.SD_Lon.sd_changed_at import ensure_list
+from integrations.SD_Lon.sd_changed_at import use_job_position_identifier
+
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_initial_import.log"
 
@@ -50,6 +53,7 @@ class SdImport(object):
         employee_mapping = employee_mapping or {}
 
         self.settings = load_settings()
+        self.use_jpi = use_job_position_identifier(self.settings)
 
         self.base_url = "https://service.sd.dk/sdws/"
         self.double_employment = []
@@ -168,7 +172,7 @@ class SdImport(object):
                 self._add_klasse(klasse_id, klasse, facet, scope)
 
     def _update_ad_map(self, cpr):
-        logger.debug("Update cpr{}".format(cpr))
+        logger.debug("Update cpr: {}".format(cpr))
         self.ad_people[cpr] = {}
         if self.ad_reader:
             response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
@@ -378,7 +382,7 @@ class SdImport(object):
         return nodes
 
     def add_people(self):
-        """Load all person details and store for later user"""
+        """Load all person details and store for later user."""
         params = {
             "StatusActiveIndicator": "true",
             "StatusPassiveIndicator": "false",
@@ -387,26 +391,29 @@ class SdImport(object):
             "EffectiveDate": self.import_date,
         }
         active_people = sd_lookup("GetPerson20111201", params)
-        if not isinstance(active_people["Person"], list):
-            active_people["Person"] = [active_people["Person"]]
+        active_people = active_people["Person"]
+        active_people = ensure_list(active_people)
 
         params["StatusActiveIndicator"] = False
         params["StatusPassiveIndicator"] = True
         passive_people = sd_lookup("GetPerson20111201", params)
-        if not isinstance(passive_people["Person"], list):
-            passive_people["Person"] = [passive_people["Person"]]
+        passive_people = passive_people["Person"]
+        passive_people = ensure_list(passive_people)
 
-        people = active_people["Person"]
+        def get_cpr(person):
+            return person["PersonCivilRegistrationIdentifier"]
 
-        cprs = []
-        for person in active_people["Person"]:
-            cprs.append(person["PersonCivilRegistrationIdentifier"])
-        for person in passive_people["Person"]:
-            if not person["PersonCivilRegistrationIdentifier"] in cprs:
-                people.append(person)
+        # Include all active people, and passive if a corresponding active is not found
+        people = {}
+        for person in active_people:
+            cpr = get_cpr(person)
+            people[cpr] = person
+        for person in passive_people:
+            cpr = get_cpr(person)
+            if cpr not in people:
+                people[cpr] = person
 
-        for person in people:
-            cpr = person["PersonCivilRegistrationIdentifier"]
+        for cpr, person in people:
             logger.info("Importing {}".format(cpr))
             if cpr[-4:] == "0000":
                 logger.warning("Skipping fictional user: {}".format(cpr))
@@ -423,10 +430,9 @@ class SdImport(object):
                 uuid = self.ad_people[cpr]["ObjectGuid"]
 
             # Name is placeholder for initals, do not know which field to extract
+            user_key = "{} {}".format(given_name, sur_name)
             if "Name" in self.ad_people[cpr]:
                 user_key = self.ad_people[cpr]["Name"]
-            else:
-                user_key = "{} {}".format(given_name, sur_name)
 
             self.importer.add_employee(
                 name=(given_name, sur_name),
@@ -512,38 +518,8 @@ class SdImport(object):
             return
 
         employments = person["Employment"]
-        if not isinstance(employments, list):
-            employments = [employments]
+        employments = ensure_list(employments)
 
-        max_rate = -1
-        min_id = 999999
-        for employment in employments:
-            job_position_id = employment["Profession"]["JobPositionIdentifier"]
-            if job_position_id in self.skip_job_functions:
-                logger.info("Skipping {} due to job_pos_id".format(employment))
-                continue
-
-            status = EmploymentStatus(
-                employment["EmploymentStatus"]["EmploymentStatusCode"]
-            )
-            if status == EmploymentStatus.Overlov:
-                # Orlov
-                pass
-            if status in LetGo:
-                # Fratrådt eller pensioneret.
-                continue
-
-            employment_id = calc_employment_id(employment)
-            occupation_rate = float(employment["WorkingTime"]["OccupationRate"])
-
-            if occupation_rate == max_rate:
-                if employment_id["value"] < min_id:
-                    min_id = employment_id["value"]
-            if occupation_rate > max_rate:
-                max_rate = occupation_rate
-                min_id = employment_id["value"]
-
-        exactly_one_primary = False
         for employment in employments:
             status = EmploymentStatus(
                 employment["EmploymentStatus"]["EmploymentStatusCode"]
@@ -560,6 +536,7 @@ class SdImport(object):
 
             employment_id = calc_employment_id(employment)
 
+            # This code exists in SD Changed At aswell
             split = self.settings["integrations.SD_Lon.monthly_hourly_divide"]
             if employment_id["value"] < split:
                 engagement_type_ref = "månedsløn"
@@ -572,28 +549,21 @@ class SdImport(object):
                 )
                 logger.info("Non-nummeric id. Job pos id: {}".format(job_position_id))
 
-            if occupation_rate == max_rate and employment_id["value"] == min_id:
-                assert exactly_one_primary is False, "More than one primary found"
-                primary_type_ref = "Ansat"
-                exactly_one_primary = True
-            else:
-                primary_type_ref = "non-primary"
-
+            # All is set non-primary and fixed up by recalculate_primary
+            primary_type_ref = "non-primary"
             if status == EmploymentStatus.AnsatUdenLoen:
                 # If status 0, uncondtionally override
                 primary_type_ref = "status0"
 
-            job_function_type = self.settings["integrations.SD_Lon.job_function"]
-            if job_function_type == "EmploymentName":
-                job_func_ref = self._add_klasse(
-                    job_name, job_name, "engagement_job_function"
-                )
-            elif job_function_type == "JobPositionIdentifier":
+            # TODO: This should probably use _fetch_professions
+            if self.use_jpi:
                 job_func_ref = self._add_klasse(
                     job_position_id, job_position_id, "engagement_job_function"
                 )
             else:
-                raise Exception("integrations.SD_Lon.job_function is wrong")
+                job_func_ref = self._add_klasse(
+                    job_name, job_name, "engagement_job_function"
+                )
 
             emp_dep = employment["EmploymentDepartment"]
             unit = emp_dep["DepartmentUUIDIdentifier"]
@@ -614,6 +584,7 @@ class SdImport(object):
                     employment["EmploymentStatus"]["DeactivationDate"], "%Y-%m-%d"
                 )
 
+            # XXX: When does this occur?
             if date_from > date_to:
                 date_from = date_to
 
@@ -687,6 +658,7 @@ class SdImport(object):
             if not self.manager_rows:
                 # These job functions will normally (but necessarily)
                 #  correlate to a manager position
+                # TODO: XXX: Why these numbers?
                 if job_position_id in ["1040", "1035", "1030"]:
                     self.importer.add_manager(
                         employee=cpr,
@@ -721,13 +693,6 @@ class SdImport(object):
                         date_from="1930-01-01",
                         date_to=None,
                     )
-
-        # This assertment really should hold...
-        # assert(exactly_one_primary is True)
-        if exactly_one_primary is not True:
-            pass
-            # print()
-            # print('More than one primary: {}'.format(employments))
 
 
 @click.group()
@@ -792,6 +757,11 @@ def full_import(org_only):
         sd.create_employees()
 
     importer.import_all()
+
+    # Recalculate primary for everyone
+    from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
+    updater = SDPrimaryEngagementUpdater()
+    updater.recalculate_all()
 
 
 @cli.command()
