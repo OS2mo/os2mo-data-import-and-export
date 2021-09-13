@@ -30,6 +30,8 @@ from ra_utils.apply import apply
 from ramodels.mo import Employee
 from ramodels.mo._shared import OrganisationRef
 from tqdm import tqdm
+from ra_utils.load_settings import load_settings
+from ra_utils.load_settings import load_setting
 
 from integrations import cpr_mapper
 from integrations.ad_integration import ad_reader
@@ -42,11 +44,11 @@ from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
-from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sync_job_id import JobIdSync
+from integrations.SD_Lon.sd_common import get_import_date
 
 # from integrations.SD_Lon.sd_common import generate_uuid
 
@@ -110,17 +112,18 @@ class ChangeAtSD:
     def __init__(self, from_date, to_date=None, settings=None):
         self.settings = settings or load_settings()
 
-        if self.settings["integrations.SD_Lon.job_function"] == "JobPositionIdentifier":
+        job_function_type = self.settings["integrations.SD_Lon.job_function"]
+        if job_function_type == "JobPositionIdentifier":
             logger.info("Read settings. JobPositionIdentifier for job_functions")
             self.use_jpi = True
-        elif self.settings["integrations.SD_Lon.job_function"] == "EmploymentName":
+        elif job_function_type == "EmploymentName":
             logger.info("Read settings. Do not update job_functions")
             self.use_jpi = False
         else:
             raise exceptions.JobfunctionSettingsIsWrongException()
 
         self.employee_forced_uuids = self._read_forced_uuids()
-        self.department_fixer = FixDepartments()
+        self.department_fixer = self._get_fix_departments()
         self.helper = self._get_mora_helper(self.settings["mora.base"])
         self.job_sync = self._get_job_sync(self.settings)
 
@@ -135,14 +138,14 @@ class ChangeAtSD:
             print(e)
             exit()
 
-        self.updater = SDPrimaryEngagementUpdater()
+        self.updater = self._get_primary_engagement_updater()
         self.from_date = from_date
         self.to_date = to_date
 
         # Cache of mo engagements
         self.mo_engagements_cache = {}
 
-        self.primary_types = primary_types(self.helper)
+        self.primary_types = self._get_primary_types(self.helper)
 
         logger.info("Read job_functions")
         facet_info = self.helper.read_classes_in_facet("engagement_job_function")
@@ -168,10 +171,19 @@ class ChangeAtSD:
         facet_info = self.helper.read_classes_in_facet("association_type")
         self.association_uuid = facet_info[0][0]["uuid"]
 
-    def _get_mora_helper(self, mora_base):
+    def _get_primary_types(self, mora_helper: MoraHelper):
+        return primary_types(mora_helper)
+
+    def _get_primary_engagement_updater(self) -> SDPrimaryEngagementUpdater:
+        return SDPrimaryEngagementUpdater()
+
+    def _get_fix_departments(self) -> FixDepartments:
+        return FixDepartments()
+
+    def _get_mora_helper(self, mora_base) -> MoraHelper:
         return MoraHelper(hostname=mora_base, use_cache=False)
 
-    def _get_job_sync(self, settings):
+    def _get_job_sync(self, settings) -> JobIdSync:
         return JobIdSync(settings)
 
     def _read_forced_uuids(self):
@@ -216,7 +228,11 @@ class ChangeAtSD:
 
     @lru_cache(maxsize=None)
     def read_employment_changed(
-        self, from_date=None, to_date=None, employment_identifier=None
+            self,
+            from_date: Optional[datetime.datetime] = None,
+            to_date: Optional[datetime.datetime] = None,
+            employment_identifier: Optional[str] = None,
+            in_cpr: Optional[str] = None
     ):
         from_date = from_date or self.from_date
         to_date = to_date or self.to_date
@@ -236,6 +252,12 @@ class ChangeAtSD:
             params.update(
                 {
                     "EmploymentIdentifier": employment_identifier,
+                }
+            )
+        if in_cpr:
+            params.update(
+                {
+                    "PersonCivilRegistrationIdentifier": in_cpr,
                 }
             )
 
@@ -293,9 +315,17 @@ class ChangeAtSD:
         person = ensure_list(response.get("Person", []))
         return person
 
-    def update_changed_persons(self, in_cpr: Optional[str] = None):
-        # Ansættelser håndteres af update_employment, så vi tjekker for ændringer i
-        # navn og opdaterer disse poster. Nye personer oprettes.
+    def update_changed_persons(self, in_cpr: Optional[str] = None) -> None:
+        """Update and insert (upsert) changed persons.
+
+        Args:
+            in_cpr: Optional CPR number of a specific person to upsert instead of
+                    using SDs GetPersonChangedAtDate endpoint.
+
+        Note:
+            This method not create employments at all, as this responsibility is
+            handled by the update_employment method instead.
+        """
 
         def extract_cpr_and_name(
             person: Dict[str, Any]
@@ -333,6 +363,7 @@ class ChangeAtSD:
         if in_cpr is not None:
             person_changed = self.read_person(in_cpr)
         else:
+            logger.info("Update all persons")
             person_changed = self.read_person_changed()
 
         logger.info("Number of changed persons: {}".format(len(person_changed)))
@@ -1061,9 +1092,13 @@ class ChangeAtSD:
                 continue
             self.edit_engagement(engagement, person_uuid)
 
-    def update_all_employments(self) -> None:
-        logger.info("Update all employments:")
-        employments_changed = self.read_employment_changed()
+    def update_all_employments(self, in_cpr: Optional[str] = None) -> None:
+        if in_cpr is not None:
+            employments_changed = self.read_employment_changed(in_cpr=in_cpr)
+        else:
+            logger.info("Update all employments")
+            employments_changed = self.read_employment_changed()
+
         logger.info("Update a total of {} employments".format(len(employments_changed)))
 
         def skip_initial_deleted(employment_info):
@@ -1168,7 +1203,12 @@ def gen_date_pairs(from_date: datetime.datetime, one_day: bool = False):
     return dates
 
 
-@click.command()
+@click.group()
+def cli():
+    pass
+
+
+@cli.command()
 @click.option(
     "--init",
     is_flag=True,
@@ -1190,7 +1230,14 @@ def gen_date_pairs(from_date: datetime.datetime, one_day: bool = False):
     default=False,
     help="Only import changes for the next missing day",
 )
-def changed_at(init, force, one_day):
+@click.option(
+    "--from-date",
+    type=click.STRING,
+    required=True,
+    default=load_setting("integrations.SD_Lon.global_from_date"),
+    help="Global import from-date, only used if init is True",
+)
+def changed_at(init: bool, force: bool, one_day: bool, from_date: str):
     """Tool to delta synchronize with MO with SD."""
     setup_logging()
 
@@ -1203,9 +1250,7 @@ def changed_at(init, force, one_day):
     if init:
         run_db = pathlib.Path(run_db)
 
-        from_date = datetime.datetime.strptime(
-            settings["integrations.SD_Lon.global_from_date"], "%Y-%m-%d"
-        )
+        from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
         initialize_changed_at(from_date, run_db, force=True)
         exit()
 
@@ -1241,5 +1286,27 @@ def changed_at(init, force, one_day):
     logger.info("Program stopped.")
 
 
+@cli.command()
+@click.option(
+    "--cpr",
+    required=True,
+    type=click.STRING,
+    help="CPR number of the person to import",
+)
+@click.option(
+    "--from-date",
+    type=click.STRING,
+    required=True,
+    default=load_setting("integrations.SD_Lon.global_from_date"),
+    help="Global import from-date",
+)
+def import_single_user(cpr: str, from_date: str):
+    """Import a single user into MO."""
+    from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
+    sd_updater = ChangeAtSDTest(from_date, None)
+    sd_updater.update_changed_persons(cpr)
+    sd_updater.update_all_employments(cpr)
+
+
 if __name__ == "__main__":
-    changed_at()
+    cli()

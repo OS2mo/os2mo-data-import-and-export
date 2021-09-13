@@ -25,6 +25,9 @@ class ChangeAtSDTest(ChangeAtSD):
     def __init__(self, *args, **kwargs):
         self.morahelper_mock = MagicMock()
         self.morahelper_mock.read_organisation.return_value = "org_uuid"
+        self.primary_types_mock = MagicMock()
+        self.primary_engagement_mock = MagicMock()
+        self.fix_departments_mock = MagicMock()
 
         self._get_job_sync = MagicMock()
 
@@ -32,6 +35,15 @@ class ChangeAtSDTest(ChangeAtSD):
         self._create_class.return_value = "new_class_uuid"
 
         super().__init__(*args, **kwargs)
+
+    def _get_primary_types(self, mora_helper: MoraHelper):
+        return self.primary_types_mock
+
+    def _get_primary_engagement_updater(self) -> SDPrimaryEngagementUpdater:
+        return self.primary_engagement_mock
+
+    def _get_fix_departments(self) -> FixDepartments:
+        return self.fix_departments_mock
 
     def _read_forced_uuids(self):
         return {}
@@ -54,18 +66,9 @@ def setup_sd_changed_at(updates=None):
     today = date.today()
     start_date = today
 
-    # TODO: Consider interfacing these off in seperate methods inside ChangeAtSD
-    with patch("integrations.SD_Lon.sd_changed_at.primary_types", autospec=True):
-        with patch(
-            "integrations.SD_Lon.sd_changed_at.SDPrimaryEngagementUpdater",
-            autospec=True,
-        ):
-            with patch(
-                "integrations.SD_Lon.sd_changed_at.FixDepartments", autospec=True
-            ):
-                sd_updater = ChangeAtSDTest(
-                    start_date, start_date + timedelta(days=1), settings
-                )
+    sd_updater = ChangeAtSDTest(
+        start_date, start_date + timedelta(days=1), settings
+    )
 
     return sd_updater
 
