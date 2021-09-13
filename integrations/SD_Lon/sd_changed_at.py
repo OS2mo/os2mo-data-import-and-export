@@ -36,9 +36,9 @@ from integrations.ad_integration import ad_reader
 from integrations.calculate_primary.common import LOGGER_NAME
 from integrations.calculate_primary.common import NoPrimaryFound
 from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
+from integrations.rundb.db_overview import DBOverview
 from integrations.SD_Lon import exceptions
 from integrations.SD_Lon import sd_payloads
-from integrations.rundb.db_overview import DBOverview
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus

@@ -1,13 +1,14 @@
-from typing import Any
-from typing import Union
-from typing import Tuple
-from typing import Optional
-from typing import List
+import sqlite3
 from datetime import date
 from datetime import datetime
+from typing import Any
+from typing import cast
+from typing import List
+from typing import Optional
+from typing import Tuple
+from typing import Union
 
 import click
-import sqlite3
 from ra_utils.load_settings import load_setting
 
 
@@ -66,7 +67,7 @@ class DBOverview:
         if current_status[0] and not force:
             return (True, "Status ok, no delete")
 
-        last_id = self._read_last_line("id")
+        last_id: int = cast(int, self._read_last_line("id"))
         status, msg = self._delete_line(last_id)
         if status:
             return (True, "Deleted last row")
@@ -76,7 +77,7 @@ class DBOverview:
         conn = sqlite3.connect(self.run_db, detect_types=sqlite3.PARSE_DECLTYPES)
         c = conn.cursor()
         c.execute(
-        """
+            """
             CREATE TABLE runs (
                 id INTEGER PRIMARY KEY,
                 from_date timestamp,
@@ -91,26 +92,20 @@ class DBOverview:
 
 
 @click.group()
-@click.option(
-    "--rundb-path",
-    help="Path to the rundb to operate on."
-)
-@click.option(
-    "--rundb-variable",
-    help="Settings.json variable to use for rundb path."
-)
+@click.option("--rundb-path", help="Path to the rundb to operate on.")
+@click.option("--rundb-variable", help="Settings.json variable to use for rundb path.")
 @click.pass_context
 def cli(ctx, rundb_path: Optional[str] = None, rundb_variable: Optional[str] = None):
-    dboverview = None
+    rundb: str = ""
     if rundb_path:
-        pass
+        rundb = cast(str, rundb_path)
     elif rundb_variable:
-        rundb_path = load_setting(rundb_variable)()
+        rundb = load_setting(rundb_variable)()
     else:
         raise click.ClickException("Must provide either rundb-path or rundb-variable")
 
     ctx.ensure_object(dict)
-    ctx.obj["dboverview"] = DBOverview(rundb_path)
+    ctx.obj["dboverview"] = DBOverview(rundb)
 
 
 @cli.command()
@@ -146,7 +141,7 @@ def read_current_status(ctx):
     "--force",
     is_flag=True,
     default=False,
-    help="Remove last line regardless of if it is problematic or not"
+    help="Remove last line regardless of if it is problematic or not",
 )
 @click.pass_context
 def remove_already_running(ctx, force: bool):

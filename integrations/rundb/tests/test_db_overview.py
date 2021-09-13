@@ -22,7 +22,7 @@ class Test_db_overview(unittest.TestCase):
             [(datetime.now(), "Running"), (False, "Not ready to run")],
         ]
     )
-    @patch("integrations.SD_Lon.db_overview.sqlite3", autospec=True)
+    @patch("integrations.rundb.db_overview.sqlite3", autospec=True)
     def test_read_current_status(self, fixture_row, expected, sqlite3_mock):
         sqlite3_mock.connect.return_value.cursor.return_value.fetchone.return_value = (
             fixture_row
