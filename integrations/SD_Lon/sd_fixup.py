@@ -3,6 +3,7 @@ from operator import itemgetter
 
 import click
 from more_itertools import flatten
+from more_itertools import one
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
 
@@ -10,6 +11,7 @@ from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
+import requests
 
 
 def progress_iterator(elements, outputter, mod=10):
@@ -45,6 +47,23 @@ def fetch_user_employments(cpr):
 
     return employments
 
+
+def uuid_to_cpr(uuid):
+    r = requests.get(f'http://localhost:8080/organisation/bruger/{uuid}')
+    r.raise_for_status()
+    user = r.json()
+    print(one(one(one(user.values()))['registreringer']))
+    return user
+
+def get_users_with_rel(class_uuid):
+    r = requests.get(f'http://localhost:8080/organisation/organisationfunktion?vilkaarligrel={class_uuid}&list=true')
+    r.raise_for_status()
+    relations = r.json()['results']
+    result = []
+    if relations:
+        for r in one(relations):
+            result.append(one(one(r['registreringer'])['relationer']['tilknyttedebrugere'])['uuid'])
+    return result
 
 def fixup(ctx, mo_employees):
     def fetch_mo_engagements(mo_employee):
@@ -164,6 +183,20 @@ def fixup_user(ctx, uuid):
     mo_employees = [ctx.obj["mora_helper"].read_user(user_uuid=uuid)]
     fixup(ctx.obj, mo_employees)
 
+@cli.command()
+@click.pass_context
+def fixup_leaves(ctx):
+    """Fix all leaves"""
+    mora_helper = ctx.obj["mora_helper"]
+    import pdb;pdb.set_trace()
+    leave_types, _ = mora_helper.read_classes_in_facet('leave_type')
+    leave_type_uuids = list(map(itemgetter('uuid'), leave_types))
+    user_uuids = set(flatten(map(get_users_with_rel, leave_type_uuids)))
+    users = list(map(mora_helper.read_user, user_uuids))
+    
+    cprs = set(map(itemgetter('cpr_no'), users))
+    # employments = list(map(fetch_user_employments, cprs))
+    click.echo(cprs)
 
 @cli.command()
 @click.option(
