@@ -27,6 +27,7 @@ from more_itertools import last
 from more_itertools import one
 from more_itertools import only
 from more_itertools import pairwise
+from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.apply import apply
 from ra_utils.load_settings import load_setting

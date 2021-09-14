@@ -188,14 +188,17 @@ def fixup_user(ctx, uuid):
 def fixup_leaves(ctx):
     """Fix all leaves"""
     mora_helper = ctx.obj["mora_helper"]
-    import pdb;pdb.set_trace()
     leave_types, _ = mora_helper.read_classes_in_facet('leave_type')
     leave_type_uuids = list(map(itemgetter('uuid'), leave_types))
     user_uuids = set(flatten(map(get_users_with_rel, leave_type_uuids)))
     users = list(map(mora_helper.read_user, user_uuids))
     
     cprs = set(map(itemgetter('cpr_no'), users))
-    # employments = list(map(fetch_user_employments, cprs))
+    for cpr in cprs:
+        try:
+            empl = fetch_user_employments(cpr)
+        except:
+            click.echo(f"Couldn't find user with {cpr[0:6]=}")
     click.echo(cprs)
 
 @cli.command()
