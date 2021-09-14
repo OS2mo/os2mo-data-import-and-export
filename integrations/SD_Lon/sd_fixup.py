@@ -48,23 +48,28 @@ def fetch_user_employments(cpr):
 
     return employments
 
-
-def uuid_to_cpr(uuid):
-    r = requests.get(f'http://localhost:8080/organisation/bruger/{uuid}')
-    r.raise_for_status()
-    user = r.json()
-    print(one(one(one(user.values()))['registreringer']))
-    return user
-
-def get_users_with_rel(class_uuid):
+def get_orgfunc_from_vilkaarligrel(class_uuid):
     r = requests.get(f'http://localhost:8080/organisation/organisationfunktion?vilkaarligrel={class_uuid}&list=true')
     r.raise_for_status()
-    relations = r.json()['results']
-    result = []
-    if relations:
-        for r in one(relations):
-            result.append(one(one(r['registreringer'])['relationer']['tilknyttedebrugere'])['uuid'])
-    return result
+    return one(r.json()['results'])
+
+def get_user_from_org_func(org_func):
+
+    #TODO: rewrite with jmspath + map
+    if org_func:
+        return one(one(org_func['registreringer'])['relationer']['tilknyttedebrugere'])['uuid']
+
+
+def filter_missing_data(leave):
+    if not leave.get('engagement'):
+        return True
+    return False
+
+
+def delete_orgfunc(uuid):
+    click.echo(f"delete {uuid}")
+    # r = requests.delete(f"http://localhost:8080/organisation/organisationfunktion/{uuid}")
+    # r.raise_for_status()
 
 def fixup(ctx, mo_employees):
     def fetch_mo_engagements(mo_employee):
@@ -187,26 +192,40 @@ def fixup_user(ctx, uuid):
 @cli.command()
 @click.pass_context
 def fixup_leaves(ctx):
-    """Fix all leaves"""
+    """Fix all leaves that are missing the 'engagement' value"""
     mora_helper = ctx.obj["mora_helper"]
+    #Find all classes of leave_types
     leave_types, _ = mora_helper.read_classes_in_facet('leave_type')
     leave_type_uuids = list(map(itemgetter('uuid'), leave_types))
-    user_uuids = set(flatten(map(get_users_with_rel, leave_type_uuids)))
+    #Get all leave objects
+    leave_objects = list(flatten(map(get_orgfunc_from_vilkaarligrel, leave_type_uuids)))
+    #Filter to get only those missing the 'engagement'.
+    leave_objects = list(filter(filter_missing_data, leave_objects))
+    leave_uuids = set(map(itemgetter('id'), leave_objects))
+    #Delete old leave objects
+    list(map(delete_orgfunc, leave_uuids))
+
+    #Find all user uuids and cprs
+    user_uuids = set(map(get_user_from_org_func, leave_objects))
     users = list(map(mora_helper.read_user, user_uuids))
-    
+
     cprs = set(map(itemgetter('cpr_no'), users))
     cpr_uuid_map = dict(zip(cprs, user_uuids))
     changed_at = ChangeAtSD(date.today())
     for cpr in cprs:
         try:
+            #try to read employment from SD
             empl = fetch_user_employments(cpr)
         except:
-            click.echo(f"Couldn't find user with {cpr[0:6]=}")
+            click.echo(f"Couldn't find user with {cpr[0:6]=} in SD")
             continue
-        for e in empl:
-                if e['EmploymentStatus']['EmploymentStatusCode'] == 3:
-                    changed_at.create_leave(3, e['EmploymentIdentifier'], cpr_uuid_map(cpr) )
-    click.echo(cprs)
+        
+        leaves = filter(lambda e: e['EmploymentStatus']['EmploymentStatusCode'] == '3', empl)
+        for e in leaves:
+            print(f"Creating leave!")
+            changed_at.create_leave(e['EmploymentStatus'], e['EmploymentIdentifier'], cpr_uuid_map[cpr])
+
+
 
 @cli.command()
 @click.option(
