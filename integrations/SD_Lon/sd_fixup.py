@@ -11,6 +11,7 @@ from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
+from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 import requests
 
 
@@ -194,11 +195,17 @@ def fixup_leaves(ctx):
     users = list(map(mora_helper.read_user, user_uuids))
     
     cprs = set(map(itemgetter('cpr_no'), users))
+    cpr_uuid_map = dict(zip(cprs, user_uuids))
+    changed_at = ChangeAtSD(date.today())
     for cpr in cprs:
         try:
             empl = fetch_user_employments(cpr)
         except:
             click.echo(f"Couldn't find user with {cpr[0:6]=}")
+            continue
+        for e in empl:
+                if e['EmploymentStatus']['EmploymentStatusCode'] == 3:
+                    changed_at.create_leave(3, e['EmploymentIdentifier'], cpr_uuid_map(cpr) )
     click.echo(cprs)
 
 @cli.command()
