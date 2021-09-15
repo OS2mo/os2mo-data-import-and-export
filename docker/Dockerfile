@@ -2,18 +2,16 @@ FROM python:3
 
 RUN apt-get update && \
     apt-get -y install --no-install-recommends \
+    unixodbc-dev \
     freetds-dev \
+    unixodbc \
+    tdsodbc \
     libkrb5-dev \
     libmariadb-dev \
-    tdsodbc \
-    unixodbc \
-    unixodbc-dev \
-    build-essential python3-dev python2.7-dev \
-    libldap2-dev libsasl2-dev ldap-utils tox \
-    lcov valgrind \
+    vim \
+    jq \
     && apt-get clean
 
-COPY . /code
 WORKDIR /code
 COPY ./reports/requirements ./reports/requirements
 COPY ./integrations/requirements ./integrations/requirements
