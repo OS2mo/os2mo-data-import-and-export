@@ -62,6 +62,10 @@ Hvis der allerede er opsat en winrm listener på HTTPS, skal den fjernes først:
 
 `winrm remove winrm/config/Listener?Address=*+Transport=HTTPS`
 
+Hvis ikke det allerede er sat op kan winrm sættes til at bruge https med: 
+
+`winrm quickconfig -transport:https`
+
 Konfigurer WinRM til at bruge certifikatet:
 
 `winrm set winrm/config/Listener?Address=*+Transport=HTTPS @{Hostname="hostname"; CertificateThumbprint="02E4XXXXXXXXXXXXXXXXXXXXXXXXXX"}`
