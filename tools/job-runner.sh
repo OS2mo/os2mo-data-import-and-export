@@ -408,14 +408,14 @@ reports_viborg_managers(){
 
 reports_sd_db_overview(){
     echo running reports_sd_db_overview
-    ${VENV}/bin/python3 integrations/db_overview.py --rundb-variable integrations.SD_Lon.import.run_db read-current-status
+    ${VENV}/bin/python3 integrations/rundb/db_overview.py --rundb-variable integrations.SD_Lon.import.run_db read-current-status
     local STATUS=$?
     return $STATUS
 }
 
 reports_opus_db_overview(){
     echo running reports_opus_db_overview
-    ${VENV}/bin/python3 integrations/db_overview.py --rundb-variable integrations.opus.import.run_db read-current-status
+    ${VENV}/bin/python3 integrations/rundb/db_overview.py --rundb-variable integrations.opus.import.run_db read-current-status
     local STATUS=$?
     return $STATUS
 }
