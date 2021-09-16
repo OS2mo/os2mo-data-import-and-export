@@ -457,7 +457,7 @@ reports_frederikshavn(){
 }
 
 reports_svendborg(){
-    ${VENV}/bin/python3 ${DIPEXAR}/customers/Svendborg/svendborg_reports.py
+    run_job_in_docker python3 ${DIPEXAR}/customers/Svendborg/svendborg_reports.py
 }
 
 reports_csv(){
