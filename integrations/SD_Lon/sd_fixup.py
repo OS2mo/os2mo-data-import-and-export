@@ -48,7 +48,7 @@ def fetch_user_employments(cpr):
 
     return employments
 
-def get_orgfunc_from_vilkaarligrel(class_uuid):
+def get_orgfunc_from_vilkaarligrel(class_uuid: str) -> dict:
     r = requests.get(f'http://localhost:8080/organisation/organisationfunktion?vilkaarligrel={class_uuid}&list=true')
     r.raise_for_status()
     return one(r.json()['results'])
@@ -60,10 +60,8 @@ def get_user_from_org_func(org_func):
         return one(one(org_func['registreringer'])['relationer']['tilknyttedebrugere'])['uuid']
 
 
-def filter_missing_data(leave):
-    if not leave.get('engagement'):
-        return True
-    return False
+def filter_missing_data(leave) -> bool:
+    return not leave.get('engagement')
 
 
 def delete_orgfunc(uuid):
