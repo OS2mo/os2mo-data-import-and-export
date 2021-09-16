@@ -58,7 +58,7 @@ def create_leave(mo_eng, person_uuid, leave_uuid, job_id, validity):
     payload = {
         "type": "leave",
         "engagement": {"uuid": mo_eng["uuid"]},
-        "person": {"uuid": mo_person["uuid"]},
+        "person": {"uuid": person_uuid},
         "leave_type": {"uuid": leave_uuid},
         "user_key": job_id,
         "validity": validity,
