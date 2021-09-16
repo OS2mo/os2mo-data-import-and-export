@@ -197,7 +197,7 @@ class SqlExport:
                 sql_unit = Enhed(
                     uuid=unit,
                     navn=unit_info['name'],
-                    user_key=unit_info['user_key'],
+                    bvn=unit_info['user_key'],
                     forældreenhed_uuid=unit_info['parent'],
                     enhedstype_uuid=unit_type,
                     enhedsniveau_uuid=unit_info['level'],
