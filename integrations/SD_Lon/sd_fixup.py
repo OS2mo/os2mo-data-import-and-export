@@ -1,6 +1,8 @@
 from datetime import date
 from operator import itemgetter
-
+from typing import List
+from typing import Optional
+from tqdm import tqdm
 import click
 from more_itertools import flatten
 from more_itertools import one
@@ -15,15 +17,7 @@ from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 import requests
 
 
-def progress_iterator(elements, outputter, mod=10):
-    total = len(elements)
-    for i, element in enumerate(elements, start=1):
-        if i == 1 or i % mod == 0 or i == total:
-            outputter("{}/{}".format(i, total))
-        yield element
-
-
-def fetch_user_employments(cpr):
+def fetch_user_employments(cpr) -> List:
     # Notice, this will not get future engagements
     params = {
         "PersonCivilRegistrationIdentifier": cpr,
@@ -53,18 +47,18 @@ def get_orgfunc_from_vilkaarligrel(class_uuid: str) -> dict:
     r.raise_for_status()
     return one(r.json()['results'])
 
-def get_user_from_org_func(org_func):
+def get_user_from_org_func(org_func: dict) -> Optional[str]:
 
     #TODO: rewrite with jmspath + map
     if org_func:
         return one(one(org_func['registreringer'])['relationer']['tilknyttedebrugere'])['uuid']
 
 
-def filter_missing_data(leave) -> bool:
+def filter_missing_data(leave: dict) -> bool:
     return not leave.get('engagement')
 
 
-def delete_orgfunc(uuid):
+def delete_orgfunc(uuid: str) -> None:
     click.echo(f"delete {uuid}")
     # r = requests.delete(f"http://localhost:8080/organisation/organisationfunktion/{uuid}")
     # r.raise_for_status()
@@ -127,7 +121,7 @@ def fixup(ctx, mo_employees):
     primary = primary_types(mora_helper)
 
     if ctx["progress"]:
-        mo_employees = progress_iterator(mo_employees, print)
+        mo_employees = tqdm(mo_employees, unit='Employee')
 
     # Dict pair is an iterator of (dict, dict) tuples or None
     # First dict is a mapping from employment_id to mo_engagement
