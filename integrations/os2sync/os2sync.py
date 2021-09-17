@@ -5,7 +5,6 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
 import hashlib
 import json
 import logging
@@ -23,13 +22,14 @@ session = requests.Session()
 
 if settings["OS2SYNC_API_URL"] == "stub":
     from integrations.os2sync import stub
+
     session = stub.Session()
 
 
 session.verify = settings["OS2SYNC_CA_BUNDLE"]
 session.headers = {
     "User-Agent": "os2mo-data-import-and-export",
-    "CVR": settings["OS2SYNC_MUNICIPALITY"]
+    "CVR": settings["OS2SYNC_MUNICIPALITY"],
 }
 
 
@@ -48,8 +48,7 @@ def already_xferred(url, params, method):
 
 
 def os2sync_url(url):
-    """format url like {BASE}/user
-    """
+    """format url like {BASE}/user"""
     url = url.format(BASE=settings["OS2SYNC_API_URL"])
     return url
 
@@ -76,9 +75,8 @@ def os2sync_delete(url, **params):
         if e.response.status_code == 404:
             logger.warning("delete %r %r :404", url, params)
             return r
-    except Exception:
-        logger.error(url + " " + r.text)
-        logger.exception("")
+    except Exception as e:
+        logger.exception(e)
         raise
 
 
@@ -88,9 +86,8 @@ def os2sync_post(url, **params):
         r = session.post(url, **params)
         r.raise_for_status()
         return r
-    except Exception:
-        logger.error(url + " " + r.text)
-        logger.exception("")
+    except Exception as e:
+        logger.exception(e)
         raise
 
 
@@ -103,7 +100,7 @@ def delete_user(uuid):
         logger.info("delete user %s", uuid)
         os2sync_delete("{BASE}/user/" + uuid)
     else:
-        logger.info("delete user %s - cached", uuid)
+        logger.info("Dont delete user %s - cached", uuid)
 
 
 def upsert_user(user):
@@ -111,7 +108,7 @@ def upsert_user(user):
         logger.info("upsert user %s", user["Uuid"])
         os2sync_post("{BASE}/user", json=user)
     else:
-        logger.info("upsert user %s - cached", user["Uuid"])
+        logger.info("Dont upsert user %s - cached", user["Uuid"])
 
 
 def orgunit_uuids():
@@ -123,7 +120,7 @@ def delete_orgunit(uuid):
         logger.info("delete orgunit %s", uuid)
         os2sync_delete("{BASE}/orgUnit/" + uuid)
     else:
-        logger.info("delete orgunit %s - cached", uuid)
+        logger.info("Dont delete orgunit %s - cached", uuid)
 
 
 def upsert_orgunit(org_unit):
@@ -131,4 +128,4 @@ def upsert_orgunit(org_unit):
         logger.info("upsert orgunit %s", org_unit["Uuid"])
         os2sync_post("{BASE}/orgUnit/", json=org_unit)
     else:
-        logger.info("upsert orgunit %s - cached", org_unit["Uuid"])
+        logger.info("Dont upsert orgunit %s - cached", org_unit["Uuid"])
