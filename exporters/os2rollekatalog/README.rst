@@ -5,8 +5,10 @@ Eksport til OS2Rollekatalog
 Indledning
 ==========
 
-Dette program udfylder OS2Rollekataloget med organisation og medarbejdere fra OS2MO.
-Det sender alle informationerne i ét payload som overskriver det der ligger i rollekataloget i forvejen.
+Dette program udfylder OS2Rollekataloget med organisation og medarbejdere fra OS2MO. Kræver opsætning af AD i settings, og der skrives kun brugere til OS2Rollekataloget der findes både i OS2MO og i AD.
+
+Eksporten sender alle informationerne i ét payload som overskriver det der ligger i rollekataloget i forvejen.
+
 
 Konfiguration
 =============
