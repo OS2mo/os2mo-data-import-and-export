@@ -415,8 +415,14 @@ reports_sd_db_overview(){
 
 reports_opus_db_overview(){
     echo running reports_opus_db_overview
-    ${VENV}/bin/python3 integrations/rundb/db_overview.py --rundb-variable integrations.opus.import.run_db read-current-status
+    outfile=$(mktemp)
+    ${VENV}/bin/python3 integrations/opus/db_overview.py > ${outfile}
     local STATUS=$?
+    head -4 ${outfile}
+    echo "..."
+    tail -3 ${outfile}
+    rm ${outfile}
+
     return $STATUS
 }
 
@@ -592,7 +598,7 @@ reports(){
     fi
     
     if [ "${RUN_OPUS_DB_OVERVIEW}" == "true" ]; then
-        run-job reports_opus_db_overview || return 2
+        run-job reports_opus_db_overview || echo "error in reports_opus_db_overview - continuing"
     fi
 
     if [ "${RUN_VIBORG_MANAGERS}" == "true" ]; then
