@@ -408,13 +408,8 @@ reports_viborg_managers(){
 
 reports_sd_db_overview(){
     echo running reports_sd_db_overview
-    outfile=$(mktemp)
-    ${VENV}/bin/python3 integrations/SD_Lon/db_overview.py > ${outfile}
+    ${VENV}/bin/python3 integrations/rundb/db_overview.py --rundb-variable integrations.SD_Lon.import.run_db read-current-status
     local STATUS=$?
-    head -2 ${outfile}
-    echo "..."
-    tail -3 ${outfile}
-    rm ${outfile}
     return $STATUS
 }
 

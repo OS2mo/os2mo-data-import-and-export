@@ -36,9 +36,9 @@ from integrations.ad_integration import ad_reader
 from integrations.calculate_primary.common import LOGGER_NAME
 from integrations.calculate_primary.common import NoPrimaryFound
 from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
+from integrations.rundb.db_overview import DBOverview
 from integrations.SD_Lon import exceptions
 from integrations.SD_Lon import sd_payloads
-from integrations.SD_Lon.db_overview import DBOverview
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
@@ -1140,20 +1140,7 @@ def _local_db_insert(insert_tuple):
 
 def initialize_changed_at(from_date, run_db, force=False):
     if not run_db.is_file():
-        logger.error("Local base not correctly initialized")
-        if not force:
-            raise Exception("Local base not correctly initialized")
-        logger.info("Force is true, create new db")
-        conn = sqlite3.connect(str(run_db))
-        c = conn.cursor()
-        c.execute(
-            """
-          CREATE TABLE runs (id INTEGER PRIMARY KEY,
-            from_date timestamp, to_date timestamp, status text)
-        """
-        )
-        conn.commit()
-        conn.close()
+        raise Exception("RunDB not created, use 'db_overview.py' to create it")
 
     _local_db_insert((from_date, from_date, "Running since {}"))
 
@@ -1222,7 +1209,7 @@ def changed_at(init, force, one_day):
         initialize_changed_at(from_date, run_db, force=True)
         exit()
 
-    db_overview = DBOverview()
+    db_overview = DBOverview(run_db)
     # To date from last entries, becomes from_date for current entry
     from_date, status = db_overview.read_last_line("to_date", "status")
 
