@@ -1,4 +1,3 @@
-import datetime
 import hashlib
 import logging
 import pickle
@@ -271,11 +270,3 @@ class EmploymentStatus(Enum):
     @staticmethod
     def on_payroll() -> List["EmploymentStatus"]:
         return [EmploymentStatus.AnsatMedLoen, EmploymentStatus.Overlov]
-
-
-def get_import_date(settings: dict) -> str:
-    import_date_from = datetime.datetime.strptime(
-        settings["integrations.SD_Lon.global_from_date"], "%Y-%m-%d"
-    )
-    import_date = import_date_from.strftime("%d.%m.%Y")
-    return import_date

@@ -15,7 +15,6 @@ from integrations.ad_integration import ad_reader
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import generate_uuid
-from integrations.SD_Lon.sd_common import get_import_date
 from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.sd_common import sd_lookup
 
@@ -23,6 +22,14 @@ LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_initial_import.log"
 
 logger = logging.getLogger("sdImport")
+
+
+def get_import_date(settings):
+    import_date_from = datetime.datetime.strptime(
+        settings["integrations.SD_Lon.global_from_date"], "%Y-%m-%d"
+    )
+    import_date = import_date_from.strftime("%d.%m.%Y")
+    return import_date
 
 
 class SdImport(object):
