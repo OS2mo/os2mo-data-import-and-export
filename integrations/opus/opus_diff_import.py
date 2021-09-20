@@ -26,6 +26,7 @@ from integrations.opus.opus_exceptions import (
     RunDBInitException,
     UnknownOpusUnit,
 )
+from integrations.SD_Lon.db_overview import DBOverview
 from os2mo_data_import import ImportHelper
 
 logger = logging.getLogger("opusDiff")
