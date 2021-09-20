@@ -422,7 +422,6 @@ reports_opus_db_overview(){
     echo "..."
     tail -3 ${outfile}
     rm ${outfile}
-
     return $STATUS
 }
 
