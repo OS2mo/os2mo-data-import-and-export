@@ -204,9 +204,8 @@ def fixup_leaves(ctx):
 
     #TODO: This will only reimport current leaves, not historic ones
     changed_at = ChangeAtSD(date.today())
-    cpr_uuid_map = tqdm(cpr_uuid_map, unit='leaves', desc="Reimporting leaves")
 
-    for cpr, uuid in cpr_uuid_map.items():
+    for cpr, uuid in tqdm(cpr_uuid_map.items(), unit='leaves', desc="Reimporting leaves"):
         try:
             #try to read employment from SD
             empl = fetch_user_employments(cpr)
