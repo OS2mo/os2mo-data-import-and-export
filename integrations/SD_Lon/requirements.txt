@@ -1,3 +1,5 @@
 fastapi
 ramodels
 rautils
+more_itertools
+pandas
