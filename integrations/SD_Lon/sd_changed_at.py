@@ -339,7 +339,7 @@ class ChangeAtSD:
                     using SDs GetPersonChangedAtDate endpoint.
 
         Note:
-            This method not create employments at all, as this responsibility is
+            This method does not create employments at all, as this responsibility is
             handled by the update_employment method instead.
         """
 
