@@ -23,7 +23,11 @@ def json_config_settings_source(settings: BaseSettings) -> Dict[str, Any]:
 
     Reads all keys starting with 'os2sync.' and a few common settings into Settings.
     """
-    all_settings = load_settings()
+    try: 
+        all_settings = load_settings()
+    except FileNotFoundError:
+        print("No settingsfile found. Using environment variables")
+        return {}
     #Read os2sync specific settings
     os2sync_settings = dict(
         filter(
