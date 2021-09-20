@@ -2,22 +2,23 @@ from datetime import date
 from operator import itemgetter
 from typing import List
 from typing import Optional
-from tqdm import tqdm
+
 import click
+import requests
 from more_itertools import flatten
 from more_itertools import one
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
+from tqdm import tqdm
 
 from integrations.SD_Lon import sd_payloads
+from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
-from integrations.SD_Lon.sd_changed_at import ChangeAtSD
-import requests
 
 
-def fetch_user_employments(cpr, effectivedate: Optional[date] = date.today()) -> List:
+def fetch_user_employments(cpr, effectivedate: Optional[date] = date.today().strftime("%d.%m.%Y")) -> List:
     # Notice, this will not get future engagements
     params = {
         "PersonCivilRegistrationIdentifier": cpr,
@@ -30,9 +31,9 @@ def fetch_user_employments(cpr, effectivedate: Optional[date] = date.today()) ->
         "UUIDIndicator": "true",
         "SalaryAgreementIndicator": "false",
         "SalaryCodeGroupIndicator": "false",
+        "EffectiveDate" : effectivedate,
     }
-    if effectivedate:
-        params["EffectiveDate"] = effectivedate.strftime("%d.%m.%Y")
+
     sd_employments_response = sd_lookup("GetEmployment20111201", params)
     if "Person" not in sd_employments_response:
         return []
@@ -43,26 +44,34 @@ def fetch_user_employments(cpr, effectivedate: Optional[date] = date.today()) ->
 
     return employments
 
+
 def get_orgfunc_from_vilkaarligrel(class_uuid: str) -> dict:
-    r = requests.get(f'http://localhost:8080/organisation/organisationfunktion?vilkaarligrel={class_uuid}&list=true&virkningfra=-infinity')
+    r = requests.get(
+        f"http://localhost:8080/organisation/organisationfunktion?vilkaarligrel={class_uuid}&list=true&virkningfra=-infinity"
+    )
     r.raise_for_status()
-    return one(r.json()['results'])
+    return one(r.json()["results"])
+
 
 def get_user_from_org_func(org_func: dict) -> Optional[str]:
 
-    #TODO: rewrite with jmspath + map
+    # TODO: rewrite with jmspath + map
     if org_func:
-        return one(one(org_func['registreringer'])['relationer']['tilknyttedebrugere'])['uuid']
+        return one(one(org_func["registreringer"])["relationer"]["tilknyttedebrugere"])[
+            "uuid"
+        ]
 
 
 def filter_missing_data(leave: dict) -> bool:
-    return not one(leave['registreringer'])['relationer'].get('tilknyttedefunktioner')
-
+    return not one(leave["registreringer"])["relationer"].get("tilknyttedefunktioner")
 
 
 def delete_orgfunc(uuid: str) -> None:
-    r = requests.delete(f"http://localhost:8080/organisation/organisationfunktion/{uuid}")
+    r = requests.delete(
+        f"http://localhost:8080/organisation/organisationfunktion/{uuid}"
+    )
     r.raise_for_status()
+
 
 def fixup(ctx, mo_employees):
     def fetch_mo_engagements(mo_employee):
@@ -122,7 +131,7 @@ def fixup(ctx, mo_employees):
     primary = primary_types(mora_helper)
 
     if ctx["progress"]:
-        mo_employees = tqdm(mo_employees, unit='Employee')
+        mo_employees = tqdm(mo_employees, unit="Employee")
 
     # Dict pair is an iterator of (dict, dict) tuples or None
     # First dict is a mapping from employment_id to mo_engagement
@@ -182,43 +191,49 @@ def fixup_user(ctx, uuid):
     mo_employees = [ctx.obj["mora_helper"].read_user(user_uuid=uuid)]
     fixup(ctx.obj, mo_employees)
 
+
 @cli.command()
 @click.pass_context
 def fixup_leaves(ctx):
     """Fix all leaves that are missing the 'engagement' value"""
     mora_helper = ctx.obj["mora_helper"]
-    #Find all classes of leave_types
-    leave_types, _ = mora_helper.read_classes_in_facet('leave_type')
-    leave_type_uuids = list(map(itemgetter('uuid'), leave_types))
-    #Get all leave objects
+    # Find all classes of leave_types
+    leave_types, _ = mora_helper.read_classes_in_facet("leave_type")
+    leave_type_uuids = list(map(itemgetter("uuid"), leave_types))
+    # Get all leave objects
     leave_objects = list(flatten(map(get_orgfunc_from_vilkaarligrel, leave_type_uuids)))
-    #Filter to get only those missing the 'engagement'.
+    # Filter to get only those missing the 'engagement'.
     leave_objects = list(filter(filter_missing_data, leave_objects))
-    leave_uuids = set(map(itemgetter('id'), leave_objects))
-    #Delete old leave objects
-    leave_uuids = tqdm(leave_uuids, unit='leaves', desc="Deleting old leaves")
+    leave_uuids = set(map(itemgetter("id"), leave_objects))
+    # Delete old leave objects
+    leave_uuids = tqdm(leave_uuids, unit="leaves", desc="Deleting old leaves")
     list(map(delete_orgfunc, leave_uuids))
 
-    #Find all user uuids and cprs
+    # Find all user uuids and cprs
     user_uuids = set(map(get_user_from_org_func, leave_objects))
     users = list(map(mora_helper.read_user, user_uuids))
-    cpr_uuid_map = dict(map(itemgetter('cpr_no', 'uuid'), users))
+    cpr_uuid_map = dict(map(itemgetter("cpr_no", "uuid"), users))
 
-    #TODO: This will only reimport current leaves, not historic ones
+    # TODO: This will only reimport current leaves, not historic ones
     changed_at = ChangeAtSD(date.today())
 
-    for cpr, uuid in tqdm(cpr_uuid_map.items(), unit='leaves', desc="Reimporting leaves"):
+    for cpr, uuid in tqdm(
+        cpr_uuid_map.items(), unit="leaves", desc="Reimporting leaves"
+    ):
         try:
-            #try to read employment from SD
-            empl = fetch_user_employments(cpr=cpr, effectivedate=None)
+            # try to read employment from SD
+            empl = fetch_user_employments(cpr=cpr, effectivedate=settings["integrations.SD_Lon.global_from_date"])
         except:
             click.echo(f"Couldn't find user with {cpr[0:6]=} in SD")
             continue
-        
-        leaves = filter(lambda e: e['EmploymentStatus']['EmploymentStatusCode'] == '3', empl)
-        for e in leaves:
-            changed_at.create_leave(e['EmploymentStatus'], e['EmploymentIdentifier'], uuid)
 
+        leaves = filter(
+            lambda e: e["EmploymentStatus"]["EmploymentStatusCode"] == "3", empl
+        )
+        for e in leaves:
+            changed_at.create_leave(
+                e["EmploymentStatus"], e["EmploymentIdentifier"], uuid
+            )
 
 
 @cli.command()
