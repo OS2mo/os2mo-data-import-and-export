@@ -17,7 +17,7 @@ from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 import requests
 
 
-def fetch_user_employments(cpr) -> List:
+def fetch_user_employments(cpr, effectivedate: Optional[date] = date.today()) -> List:
     # Notice, this will not get future engagements
     params = {
         "PersonCivilRegistrationIdentifier": cpr,
@@ -30,8 +30,9 @@ def fetch_user_employments(cpr) -> List:
         "UUIDIndicator": "true",
         "SalaryAgreementIndicator": "false",
         "SalaryCodeGroupIndicator": "false",
-        "EffectiveDate": date.today().strftime("%d.%m.%Y"),
     }
+    if effectivedate:
+        params["EffectiveDate"] = effectivedate.strftime("%d.%m.%Y")
     sd_employments_response = sd_lookup("GetEmployment20111201", params)
     if "Person" not in sd_employments_response:
         return []
@@ -55,7 +56,8 @@ def get_user_from_org_func(org_func: dict) -> Optional[str]:
 
 
 def filter_missing_data(leave: dict) -> bool:
-    return not leave.get('engagement')
+    return not one(leave['registreringer'])['relationer'].get('tilknyttedefunktioner')
+
 
 
 def delete_orgfunc(uuid: str) -> None:
@@ -208,14 +210,13 @@ def fixup_leaves(ctx):
     for cpr, uuid in tqdm(cpr_uuid_map.items(), unit='leaves', desc="Reimporting leaves"):
         try:
             #try to read employment from SD
-            empl = fetch_user_employments(cpr)
+            empl = fetch_user_employments(cpr=cpr, effectivedate=None)
         except:
             click.echo(f"Couldn't find user with {cpr[0:6]=} in SD")
             continue
         
         leaves = filter(lambda e: e['EmploymentStatus']['EmploymentStatusCode'] == '3', empl)
         for e in leaves:
-            click.echo(f"Creating leave for user {uuid}")
             changed_at.create_leave(e['EmploymentStatus'], e['EmploymentIdentifier'], uuid)
 
 
