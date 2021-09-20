@@ -21,9 +21,8 @@ from more_itertools import one
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
 from integrations.os2sync import config
-from integrations.os2sync.templates import Person, User
-from more_itertools import only
-from ra_utils.headers import TokenSettings
+from integrations.os2sync.templates import Person
+from integrations.os2sync.templates import User
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
@@ -40,6 +39,7 @@ def get_mo_session():
     if session_headers:
         session.headers.update(session_headers)
     return session
+
 
 TRUNCATE_LENGTH = max(36, int(settings.get("OS2SYNC_TRUNCATE", 200)))
 
@@ -116,8 +116,7 @@ def strip_truncate_and_warn(d, root, length=TRUNCATE_LENGTH):
 
 
 def os2mo_url(url):
-    """format url like {BASE}/o/{ORG}/e
-    """
+    """format url like {BASE}/o/{ORG}/e"""
     url = url.format(
         BASE=f"{settings['mora_base']}/service", ORG=settings.get("os2mo_org_uuid")
     )
@@ -141,11 +140,7 @@ def has_kle():
     try:
         os2mo_get("{BASE}/o/{ORG}/f/kle_aspect/")
         os2mo_get("{BASE}/o/{ORG}/f/kle_number/")
-        os2mo_get(
-            "{BASE}/ou/" +
-            str(settings["top_unit_uuid"]) +
-            "/details/kle"
-        )
+        os2mo_get("{BASE}/ou/" + str(settings["top_unit_uuid"]) + "/details/kle")
         return True
     except requests.exceptions.HTTPError:
         return False
@@ -363,13 +358,11 @@ def is_ignored(unit, settings):
     """
 
     return (
-        unit.get("org_unit_level") and UUID(unit["org_unit_level"]["uuid"]) in settings[
-            "ignored_unit_levels"
-        ]
+        unit.get("org_unit_level")
+        and UUID(unit["org_unit_level"]["uuid"]) in settings["ignored_unit_levels"]
     ) or (
-        unit.get("org_unit_type") and UUID(unit["org_unit_type"]["uuid"]) in settings[
-            "ignored_unit_types"
-        ]
+        unit.get("org_unit_type")
+        and UUID(unit["org_unit_type"]["uuid"]) in settings["ignored_unit_types"]
     )
 
 
