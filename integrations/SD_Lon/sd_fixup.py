@@ -59,7 +59,6 @@ def filter_missing_data(leave: dict) -> bool:
 
 
 def delete_orgfunc(uuid: str) -> None:
-    click.echo(f"delete {uuid}")
     r = requests.delete(f"http://localhost:8080/organisation/organisationfunktion/{uuid}")
     r.raise_for_status()
 
@@ -195,9 +194,7 @@ def fixup_leaves(ctx):
     leave_objects = list(filter(filter_missing_data, leave_objects))
     leave_uuids = set(map(itemgetter('id'), leave_objects))
     #Delete old leave objects
-    if ctx["progress"]:
-        leave_uuids = tqdm(leave_uuids, unit='leaves', desc="Deleting old leaves")
-
+    leave_uuids = tqdm(leave_uuids, unit='leaves', desc="Deleting old leaves")
     list(map(delete_orgfunc, leave_uuids))
 
     #Find all user uuids and cprs
@@ -205,9 +202,9 @@ def fixup_leaves(ctx):
     users = list(map(mora_helper.read_user, user_uuids))
     cpr_uuid_map = dict(map(itemgetter('cpr_no', 'uuid'), users))
 
+    #TODO: This will only reimport current leaves, not historic ones
     changed_at = ChangeAtSD(date.today())
-    if ctx["progress"]:
-        cpr_uuid_map = tqdm(cpr_uuid_map, unit='leaves', desc="Reimporting leaves")
+    cpr_uuid_map = tqdm(cpr_uuid_map, unit='leaves', desc="Reimporting leaves")
 
     for cpr, uuid in cpr_uuid_map.items():
         try:
