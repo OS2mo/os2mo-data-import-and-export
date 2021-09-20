@@ -201,10 +201,9 @@ def fixup_leaves(ctx):
     user_uuids = set(map(get_user_from_org_func, leave_objects))
     users = list(map(mora_helper.read_user, user_uuids))
 
-    cprs = set(map(itemgetter('cpr_no'), users))
-    cpr_uuid_map = dict(zip(cprs, user_uuids))
+    cprs = dict(map(itemgetter('cpr_no', 'uuid'), users))
     changed_at = ChangeAtSD(date.today())
-    for cpr in cprs:
+    for cpr, uuid in cprs.items():
         try:
             #try to read employment from SD
             empl = fetch_user_employments(cpr)
@@ -215,7 +214,7 @@ def fixup_leaves(ctx):
         leaves = filter(lambda e: e['EmploymentStatus']['EmploymentStatusCode'] == '3', empl)
         for e in leaves:
             print(f"Creating leave!")
-            changed_at.create_leave(e['EmploymentStatus'], e['EmploymentIdentifier'], cpr_uuid_map[cpr])
+            changed_at.create_leave(e['EmploymentStatus'], e['EmploymentIdentifier'], uuid)
 
 
 
