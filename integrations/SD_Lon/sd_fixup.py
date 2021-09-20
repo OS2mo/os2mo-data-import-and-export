@@ -60,8 +60,8 @@ def filter_missing_data(leave: dict) -> bool:
 
 def delete_orgfunc(uuid: str) -> None:
     click.echo(f"delete {uuid}")
-    # r = requests.delete(f"http://localhost:8080/organisation/organisationfunktion/{uuid}")
-    # r.raise_for_status()
+    r = requests.delete(f"http://localhost:8080/organisation/organisationfunktion/{uuid}")
+    r.raise_for_status()
 
 def fixup(ctx, mo_employees):
     def fetch_mo_engagements(mo_employee):
@@ -200,10 +200,10 @@ def fixup_leaves(ctx):
     #Find all user uuids and cprs
     user_uuids = set(map(get_user_from_org_func, leave_objects))
     users = list(map(mora_helper.read_user, user_uuids))
+    cpr_uuid_map = dict(map(itemgetter('cpr_no', 'uuid'), users))
 
-    cprs = dict(map(itemgetter('cpr_no', 'uuid'), users))
     changed_at = ChangeAtSD(date.today())
-    for cpr, uuid in cprs.items():
+    for cpr, uuid in cpr_uuid_map.items():
         try:
             #try to read employment from SD
             empl = fetch_user_employments(cpr)
@@ -213,7 +213,7 @@ def fixup_leaves(ctx):
         
         leaves = filter(lambda e: e['EmploymentStatus']['EmploymentStatusCode'] == '3', empl)
         for e in leaves:
-            print(f"Creating leave!")
+            click.echo(f"Creating leave for user {uuid}")
             changed_at.create_leave(e['EmploymentStatus'], e['EmploymentIdentifier'], uuid)
 
 
