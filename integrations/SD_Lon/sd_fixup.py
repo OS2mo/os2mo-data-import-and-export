@@ -198,13 +198,13 @@ def fixup_user(ctx, uuid):
 @cli.command()
 @click.option(
     "--mox-base",
-    default=load_setting("mox.base", "http://localhost:8080")(),
     help="URL for Lora",
 )
 @click.pass_context
 def fixup_leaves(ctx, mox_base):
     """Fix all leaves that are missing a link to an engagement."""
     mora_helper = ctx.obj["mora_helper"]
+    mox_base = mox_base or load_setting("mox.base", "http://localhost:8080")()
     # Find all classes of leave_types
     leave_types, _ = mora_helper.read_classes_in_facet("leave_type")
     leave_type_uuids = list(map(itemgetter("uuid"), leave_types))
