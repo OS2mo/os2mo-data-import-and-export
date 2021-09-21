@@ -13,7 +13,8 @@ from typing import Union
 from uuid import UUID
 
 import requests
-from more_itertools import only
+from more_itertools import one
+from uuid import UUID
 
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
@@ -224,6 +225,10 @@ def org_unit_uuids(**kwargs):
         ]
     ]
 
+def manager_to_orgunit(unit_uuid: UUID) -> UUID:
+    manager = os2mo_get("{BASE}/ou/" + str(unit_uuid) + "/details/manager").json()
+    if manager:
+        return UUID(one(manager)['person']['uuid'])
 
 def itsystems_to_orgunit(orgunit, itsystems):
     for i in itsystems:
@@ -263,7 +268,7 @@ def filter_kle(aspect: str, kle) -> List[UUID]:
     Returns:
         list of uuids
     """
-    tasks_kle = filter(lambda k: only(k["kle_aspect"])["name"] == aspect, kle)
+    tasks_kle = filter(lambda k: one(k["kle_aspect"])["name"] == aspect, kle)
     task_uuids = set(k["kle_number"]["uuid"] for k in tasks_kle)
     return list(sorted(task_uuids))
 
@@ -359,10 +364,17 @@ def get_sts_orgunit(uuid):
         os2mo_get("{BASE}/ou/" + uuid + "/details/address").json(),
     )
 
-    kle_to_orgunit(
-        sts_org_unit,
-        os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
-    )
+    if settings.get("sync_managers"):
+        manager_uuid = manager_to_orgunit(uuid)
+        if manager_uuid:
+            sts_org_unit['ManagerUuid'] = str(manager_uuid)
+
+    # this is set by __main__
+    if settings["OS2MO_HAS_KLE"]:
+        kle_to_orgunit(
+            sts_org_unit,
+            os2mo_get("{BASE}/ou/" + uuid + "/details/kle").json(),
+        )
 
     # show_all_details(uuid,"ou")
     strip_truncate_and_warn(sts_org_unit, sts_org_unit)

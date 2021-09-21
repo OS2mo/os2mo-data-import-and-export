@@ -247,6 +247,10 @@ def get_sts_orgunit(session, uuid):
         addresses.append(address)
     os2mo.addresses_to_orgunit(sts_org_unit, addresses)
 
+    lc_manager = session.query(Leder).filter(Leder.enhed_uuid == uuid).first()
+    if lc_manager and settings.get("sync_managers"):
+        sts_org_unit.update({'ManagerUuid': lc_manager.bruger_uuid})
+
     mokles = {}
     lc_kles = session.query(KLE).filter(KLE.enhed_uuid == uuid).all()
     for lc_kle in lc_kles:
