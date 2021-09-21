@@ -22,7 +22,7 @@ from integrations.SD_Lon.sd_common import sd_lookup
 
 
 def fetch_user_employments(
-    cpr: str, effectivedate: str = date.today().strftime("%d.%m.%Y")
+    cpr: str
 ) -> List:
     # Notice, this will not get future engagements
     params = {
@@ -36,7 +36,7 @@ def fetch_user_employments(
         "UUIDIndicator": "true",
         "SalaryAgreementIndicator": "false",
         "SalaryCodeGroupIndicator": "false",
-        "EffectiveDate": effectivedate,
+        "EffectiveDate":  date.today().strftime("%d.%m.%Y"),
     }
 
     sd_employments_response = sd_lookup("GetEmployment20111201", params)
@@ -231,7 +231,7 @@ def fixup_leaves(ctx, mox_base):
         cpr_uuid_map.items(), unit="leaves", desc="Reimporting leaves"
     ):
         try:
-            employments = fetch_user_employments(cpr=cpr, effectivedate="1930-01-001")
+            employments = fetch_user_employments(cpr=cpr)
         except Exception as e:
             click.echo(e)
             continue
