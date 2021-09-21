@@ -1,8 +1,10 @@
 from datetime import date
 from functools import partial
 from operator import itemgetter
+from typing import Any
 from typing import List
 from typing import Optional
+from typing import Tuple
 
 import click
 import requests
@@ -21,9 +23,7 @@ from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
 
 
-def fetch_user_employments(
-    cpr: str
-) -> List:
+def fetch_user_employments(cpr: str) -> List:
     # Notice, this will not get future engagements
     params = {
         "PersonCivilRegistrationIdentifier": cpr,
@@ -36,7 +36,7 @@ def fetch_user_employments(
         "UUIDIndicator": "true",
         "SalaryAgreementIndicator": "false",
         "SalaryCodeGroupIndicator": "false",
-        "EffectiveDate":  date.today().strftime("%d.%m.%Y"),
+        "EffectiveDate": date.today().strftime("%d.%m.%Y"),
     }
 
     sd_employments_response = sd_lookup("GetEmployment20111201", params)
@@ -215,7 +215,7 @@ def fixup_leaves(ctx, mox_base):
     leave_objects = list(filter(filter_missing_data, leave_objects))
     leave_uuids = set(map(itemgetter("id"), leave_objects))
     # Delete old leave objects
-    leave_uuids = tqdm(leave_uuids, unit="leaves", desc="Deleting old leaves")
+    leave_uuids = tqdm(leave_uuids, unit="leave", desc="Deleting old leaves")
     orgfunc_deleter = partial(delete_orgfunc, mox_base=mox_base)
     list(map(orgfunc_deleter, leave_uuids))
 
@@ -223,27 +223,46 @@ def fixup_leaves(ctx, mox_base):
     user_uuids = set(map(get_user_from_org_func, leave_objects))
     users = list(map(mora_helper.read_user, user_uuids))
     cpr_uuid_map = dict(map(itemgetter("cpr_no", "uuid"), users))
-
-    # TODO: This will only reimport current leaves, not historic ones
+    # NOTE: This will only reimport current leaves, not historic ones
     changed_at = ChangeAtSD(date.today())
 
-    for cpr, uuid in tqdm(
-        cpr_uuid_map.items(), unit="leaves", desc="Reimporting leaves"
-    ):
+    def try_fetch_leave(cpr: str) -> Tuple[str, List[Any]]:
+        """Attempt to lookup engagements from a CPR.
+
+        Prints any errors but continues
+
+        """
+        engagement = []
         try:
-            employments = fetch_user_employments(cpr=cpr)
+            engagement = fetch_user_employments(cpr=cpr)
         except Exception as e:
             click.echo(e)
-            continue
-
-        leaves = filter(
-            lambda employment: employment["EmploymentStatus"]["EmploymentStatusCode"]
-            == "3",
-            employments,
+        # filter leaves
+        engagement = list(
+            filter(
+                lambda employment: employment["EmploymentStatus"][
+                    "EmploymentStatusCode"
+                ]
+                == "3",
+                engagement,
+            )
         )
+        return cpr, engagement
+
+    cprs = tqdm(cpr_uuid_map.keys(), desc="Lookup users in SD", unit="User")
+    leaves = dict(map(try_fetch_leave, cprs))
+
+    # Filter users with leave
+    leaves = dict(filter(lambda e: e[1], leaves.items()))
+
+    for cpr, leaves in tqdm(
+        leaves.items(), unit="user", desc="Reimporting leaves for users"
+    ):
         for leave in leaves:
             changed_at.create_leave(
-                leave["EmploymentStatus"], leave["EmploymentIdentifier"], uuid
+                leave["EmploymentStatus"],
+                leave["EmploymentIdentifier"],
+                cpr_uuid_map[cpr],
             )
 
 
