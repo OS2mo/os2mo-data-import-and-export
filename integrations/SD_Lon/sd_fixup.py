@@ -6,7 +6,7 @@ from typing import Optional
 import click
 import requests
 from more_itertools import flatten
-from more_itertools import one
+from more_itertools import one, only
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
 from tqdm import tqdm
@@ -16,9 +16,9 @@ from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
+from ra_utils.load_settings import load_setting
 
-
-def fetch_user_employments(cpr, effectivedate: Optional[date] = date.today().strftime("%d.%m.%Y")) -> List:
+def fetch_user_employments(cpr: str, effectivedate: str = date.today().strftime("%d.%m.%Y")) -> List:
     # Notice, this will not get future engagements
     params = {
         "PersonCivilRegistrationIdentifier": cpr,
@@ -50,7 +50,7 @@ def get_orgfunc_from_vilkaarligrel(class_uuid: str) -> dict:
         f"http://localhost:8080/organisation/organisationfunktion?vilkaarligrel={class_uuid}&list=true&virkningfra=-infinity"
     )
     r.raise_for_status()
-    return one(r.json()["results"])
+    return only(r.json()["results"], default={})
 
 
 def get_user_from_org_func(org_func: dict) -> Optional[str]:
@@ -67,10 +67,11 @@ def filter_missing_data(leave: dict) -> bool:
 
 
 def delete_orgfunc(uuid: str) -> None:
-    r = requests.delete(
-        f"http://localhost:8080/organisation/organisationfunktion/{uuid}"
-    )
-    r.raise_for_status()
+    pass
+    # r = requests.delete(
+    #     f"http://localhost:8080/organisation/organisationfunktion/{uuid}"
+    # )
+    # r.raise_for_status()
 
 
 def fixup(ctx, mo_employees):
@@ -220,13 +221,8 @@ def fixup_leaves(ctx):
     for cpr, uuid in tqdm(
         cpr_uuid_map.items(), unit="leaves", desc="Reimporting leaves"
     ):
-        try:
-            # try to read employment from SD
-            empl = fetch_user_employments(cpr=cpr, effectivedate=settings["integrations.SD_Lon.global_from_date"])
-        except:
-            click.echo(f"Couldn't find user with {cpr[0:6]=} in SD")
-            continue
-
+        empl = fetch_user_employments(cpr=cpr, effectivedate=load_setting("integrations.SD_Lon.global_from_date")())
+        
         leaves = filter(
             lambda e: e["EmploymentStatus"]["EmploymentStatusCode"] == "3", empl
         )
