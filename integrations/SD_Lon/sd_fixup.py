@@ -54,7 +54,6 @@ def get_orgfunc_from_vilkaarligrel(class_uuid: str) -> dict:
 
 def get_user_from_org_func(org_func: dict) -> Optional[str]:
 
-    # TODO: rewrite with jmspath + map
     if org_func:
         return one(one(org_func["registreringer"])["relationer"]["tilknyttedebrugere"])[
             "uuid"
@@ -66,11 +65,10 @@ def filter_missing_data(leave: dict) -> bool:
 
 
 def delete_orgfunc(uuid: str) -> None:
-    pass
-    # r = requests.delete(
-    #     f"http://localhost:8080/organisation/organisationfunktion/{uuid}"
-    # )
-    # r.raise_for_status()
+    r = requests.delete(
+        f"http://localhost:8080/organisation/organisationfunktion/{uuid}"
+    )
+    r.raise_for_status()
 
 
 def fixup(ctx, mo_employees):
@@ -195,7 +193,7 @@ def fixup_user(ctx, uuid):
 @cli.command()
 @click.pass_context
 def fixup_leaves(ctx):
-    """Fix all leaves that are missing the 'engagement' value"""
+    """Fix all leaves that are missing a link to an engagement."""
     mora_helper = ctx.obj["mora_helper"]
     # Find all classes of leave_types
     leave_types, _ = mora_helper.read_classes_in_facet("leave_type")
