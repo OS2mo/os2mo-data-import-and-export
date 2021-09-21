@@ -1,4 +1,5 @@
 from datetime import date
+from functools import partial
 from operator import itemgetter
 from typing import List
 from typing import Optional
@@ -6,9 +7,11 @@ from typing import Optional
 import click
 import requests
 from more_itertools import flatten
-from more_itertools import one, only
+from more_itertools import one
+from more_itertools import only
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.load_settings import load_setting
 from tqdm import tqdm
 
 from integrations.SD_Lon import sd_payloads
@@ -17,7 +20,10 @@ from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
 
-def fetch_user_employments(cpr: str, effectivedate: str = date.today().strftime("%d.%m.%Y")) -> List:
+
+def fetch_user_employments(
+    cpr: str, effectivedate: str = date.today().strftime("%d.%m.%Y")
+) -> List:
     # Notice, this will not get future engagements
     params = {
         "PersonCivilRegistrationIdentifier": cpr,
@@ -30,7 +36,7 @@ def fetch_user_employments(cpr: str, effectivedate: str = date.today().strftime(
         "UUIDIndicator": "true",
         "SalaryAgreementIndicator": "false",
         "SalaryCodeGroupIndicator": "false",
-        "EffectiveDate" : effectivedate,
+        "EffectiveDate": effectivedate,
     }
 
     sd_employments_response = sd_lookup("GetEmployment20111201", params)
@@ -44,30 +50,29 @@ def fetch_user_employments(cpr: str, effectivedate: str = date.today().strftime(
     return employments
 
 
-def get_orgfunc_from_vilkaarligrel(class_uuid: str) -> dict:
-    r = requests.get(
-        f"http://localhost:8080/organisation/organisationfunktion?vilkaarligrel={class_uuid}&list=true&virkningfra=-infinity"
-    )
+def get_orgfunc_from_vilkaarligrel(
+    class_uuid: str, mox_base: str = "http://localhost:8080"
+) -> dict:
+    url = f"{mox_base}/organisation/organisationfunktion?vilkaarligrel={class_uuid}"
+    parameters = "&list=true&virkningfra=-infinity"
+    r = requests.get(url + parameters)
     r.raise_for_status()
     return only(r.json()["results"], default={})
 
 
 def get_user_from_org_func(org_func: dict) -> Optional[str]:
 
-    if org_func:
-        return one(one(org_func["registreringer"])["relationer"]["tilknyttedebrugere"])[
-            "uuid"
-        ]
+    return one(one(org_func["registreringer"])["relationer"]["tilknyttedebrugere"])[
+        "uuid"
+    ]
 
 
 def filter_missing_data(leave: dict) -> bool:
     return not one(leave["registreringer"])["relationer"].get("tilknyttedefunktioner")
 
 
-def delete_orgfunc(uuid: str) -> None:
-    r = requests.delete(
-        f"http://localhost:8080/organisation/organisationfunktion/{uuid}"
-    )
+def delete_orgfunc(uuid: str, mox_base: str = "http://localhost:8080") -> None:
+    r = requests.delete(f"{mox_base}/organisation/organisationfunktion/{uuid}")
     r.raise_for_status()
 
 
@@ -191,21 +196,28 @@ def fixup_user(ctx, uuid):
 
 
 @cli.command()
+@click.option(
+    "--mox-base",
+    default=load_setting("mox.base", "http://localhost:8080")(),
+    help="URL for Lora",
+)
 @click.pass_context
-def fixup_leaves(ctx):
+def fixup_leaves(ctx, mox_base):
     """Fix all leaves that are missing a link to an engagement."""
     mora_helper = ctx.obj["mora_helper"]
     # Find all classes of leave_types
     leave_types, _ = mora_helper.read_classes_in_facet("leave_type")
     leave_type_uuids = list(map(itemgetter("uuid"), leave_types))
     # Get all leave objects
-    leave_objects = list(flatten(map(get_orgfunc_from_vilkaarligrel, leave_type_uuids)))
+    orgfunc_getter = partial(get_orgfunc_from_vilkaarligrel, mox_base=mox_base)
+    leave_objects = list(flatten(map(orgfunc_getter, leave_type_uuids)))
     # Filter to get only those missing the 'engagement'.
     leave_objects = list(filter(filter_missing_data, leave_objects))
     leave_uuids = set(map(itemgetter("id"), leave_objects))
     # Delete old leave objects
     leave_uuids = tqdm(leave_uuids, unit="leaves", desc="Deleting old leaves")
-    list(map(delete_orgfunc, leave_uuids))
+    orgfunc_deleter = partial(delete_orgfunc, mox_base=mox_base)
+    list(map(orgfunc_deleter, leave_uuids))
 
     # Find all user uuids and cprs
     user_uuids = set(map(get_user_from_org_func, leave_objects))
@@ -219,17 +231,19 @@ def fixup_leaves(ctx):
         cpr_uuid_map.items(), unit="leaves", desc="Reimporting leaves"
     ):
         try:
-            empl = fetch_user_employments(cpr=cpr, effectivedate="1930-01-001")
+            employments = fetch_user_employments(cpr=cpr, effectivedate="1930-01-001")
         except Exception as e:
             click.echo(e)
             continue
 
         leaves = filter(
-            lambda e: e["EmploymentStatus"]["EmploymentStatusCode"] == "3", empl
+            lambda employment: employment["EmploymentStatus"]["EmploymentStatusCode"]
+            == "3",
+            employments,
         )
-        for e in leaves:
+        for leave in leaves:
             changed_at.create_leave(
-                e["EmploymentStatus"], e["EmploymentIdentifier"], uuid
+                leave["EmploymentStatus"], leave["EmploymentIdentifier"], uuid
             )
 
 
