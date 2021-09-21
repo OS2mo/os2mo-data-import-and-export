@@ -248,7 +248,7 @@ def get_sts_orgunit(session, uuid):
     os2mo.addresses_to_orgunit(sts_org_unit, addresses)
 
     lc_manager = session.query(Leder).filter(Leder.enhed_uuid == uuid).first()
-    if lc_manager:
+    if lc_manager and settings.get("sync_managers"):
         sts_org_unit.update({'ManagerUuid': lc_manager.bruger_uuid})
 
     mokles = {}
