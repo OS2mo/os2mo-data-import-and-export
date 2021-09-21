@@ -221,8 +221,12 @@ def fixup_leaves(ctx):
     for cpr, uuid in tqdm(
         cpr_uuid_map.items(), unit="leaves", desc="Reimporting leaves"
     ):
-        empl = fetch_user_employments(cpr=cpr, effectivedate=load_setting("integrations.SD_Lon.global_from_date")())
-        
+        try:
+            empl = fetch_user_employments(cpr=cpr, effectivedate=load_setting("integrations.SD_Lon.global_from_date")())
+        except Exception as e:
+            print(e)
+            continue
+                
         leaves = filter(
             lambda e: e["EmploymentStatus"]["EmploymentStatusCode"] == "3", empl
         )
