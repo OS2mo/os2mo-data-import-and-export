@@ -16,7 +16,6 @@ from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
-from ra_utils.load_settings import load_setting
 
 def fetch_user_employments(cpr: str, effectivedate: str = date.today().strftime("%d.%m.%Y")) -> List:
     # Notice, this will not get future engagements
@@ -222,11 +221,11 @@ def fixup_leaves(ctx):
         cpr_uuid_map.items(), unit="leaves", desc="Reimporting leaves"
     ):
         try:
-            empl = fetch_user_employments(cpr=cpr, effectivedate=load_setting("integrations.SD_Lon.global_from_date")())
+            empl = fetch_user_employments(cpr=cpr, effectivedate="1930-01-001")
         except Exception as e:
-            print(e)
+            click.echo(e)
             continue
-                
+
         leaves = filter(
             lambda e: e["EmploymentStatus"]["EmploymentStatusCode"] == "3", empl
         )
