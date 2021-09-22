@@ -380,6 +380,10 @@ reports_frederikshavn(){
     ${VENV}/bin/python3 ${DIPEXAR}/customers/Frederikshavn/employee_survey.py
 }
 
+reports_svendborg(){
+    ${VENV}/bin/python3 ${DIPEXAR}/customers/Svendborg/svendborg_reports.py
+}
+
 reports_csv(){
     ${VENV}/bin/python3 ${DIPEXAR}/reports/shared_reports.py
 }
@@ -606,6 +610,10 @@ reports(){
 
     if [ "${RUN_REPORTS_FREDERIKSHAVN}" == "true" ]; then
         run-job reports_frederikshavn || return 2
+    fi
+
+    if [ "${RUN_REPORTS_SVENDBORG}" == "true" ]; then
+        run-job reports_svendborg || return 2
     fi
 
     if [ "${RUN_REPORTS_CSV}" == "true" ]; then
