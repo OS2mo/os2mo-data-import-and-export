@@ -124,6 +124,9 @@ def fixup(ctx, mo_employees):
     # Convert all the remaining tuples to MO payloads
     payloads = map(generate_payload, work_tuples)
 
+    if ctx["dry_run"]:
+        return
+
     for payload in payloads:
         response = mora_helper._mo_post("details/edit", payload)
         mora_assert(response)
@@ -134,6 +137,7 @@ def fixup(ctx, mo_employees):
 @click.option("--json/--no-json", default=False, help="Output as JSON.")
 @click.option("--progress/--no-progress", default=False, help="Print progress.")
 @click.option("--fixup-status-0", default=False, help="Attempt to fix status-0 issues.")
+@click.option("--dry-run/--no-dry-run", default=False, help="Dry-run making no actual changes.")
 @click.pass_context
 def cli(ctx, mora_base, **kwargs):
     """Tool to fixup MO entries according to SD data.
