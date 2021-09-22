@@ -293,7 +293,7 @@ class MoraHelper:
     def ensure_class_in_facet(
         self, facet: str, bvn: str, title: Optional[str] = None, scope: str = "TEXT"
     ) -> UUID:
-        """Ensures class exists in given facet"""
+        """Ensures class exists in given facet."""
 
         classes, _ = self.read_classes_in_facet(facet)
         current = list(filter(lambda c: c["user_key"] == bvn, classes))

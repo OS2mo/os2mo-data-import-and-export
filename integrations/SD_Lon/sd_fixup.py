@@ -61,7 +61,6 @@ def get_orgfunc_from_vilkaarligrel(
 
 
 def get_user_from_org_func(org_func: dict) -> Optional[str]:
-
     return one(one(org_func["registreringer"])["relationer"]["tilknyttedebrugere"])[
         "uuid"
     ]
@@ -221,16 +220,16 @@ def fixup_leaves(ctx, mox_base):
 
     # Find all user uuids and cprs
     user_uuids = set(map(get_user_from_org_func, leave_objects))
-    users = list(map(mora_helper.read_user, user_uuids))
+    users = map(mora_helper.read_user, user_uuids)
     cpr_uuid_map = dict(map(itemgetter("cpr_no", "uuid"), users))
     # NOTE: This will only reimport current leaves, not historic ones
+    #       This behavior is inline with sd_importer.py
     changed_at = ChangeAtSD(date.today())
 
-    def try_fetch_leave(cpr: str) -> Tuple[str, List[Any]]:
+    def try_fetch_leave(cpr: str) -> Tuple[str, List[dict]]:
         """Attempt to lookup engagements from a CPR.
 
         Prints any errors but continues
-
         """
         engagement = []
         try:
@@ -253,7 +252,7 @@ def fixup_leaves(ctx, mox_base):
     leaves = dict(map(try_fetch_leave, cprs))
 
     # Filter users with leave
-    leaves = dict(filter(lambda e: e[1], leaves.items()))
+    leaves = dict(filter(apply(lambda cpr, engagement: engagement), leaves.items()))
 
     for cpr, leaves in tqdm(
         leaves.items(), unit="user", desc="Reimporting leaves for users"
