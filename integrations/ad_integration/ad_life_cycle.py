@@ -1,6 +1,7 @@
 import logging
 from functools import lru_cache
 from functools import partial
+from functools import wraps
 from operator import itemgetter
 from typing import Any
 from typing import Callable
@@ -38,18 +39,14 @@ class AdLifeCycle:
         self, use_cached_mo: bool = False, skip_occupied_names_check: bool = False
     ) -> None:
         logger.info("AD Sync Started")
-        settings = load_settings()
+        self._settings = load_settings()
 
-        self.roots = settings["integrations.ad.write.create_user_trees"]
-        seeded_create_filters = partial(
-            create_filters, tuple_keys=("employee", "ad_object")
-        )
-        self.create_filters = seeded_create_filters(
-            settings.get("integrations.ad.lifecycle.create_filters", [])
-        )
-        self.disable_filters = seeded_create_filters(
-            settings.get("integrations.ad.lifecycle.disable_filters", [])
-        )
+        self.roots = self._settings["integrations.ad.write.create_user_trees"]
+
+        self.stats = self._gen_stats()
+
+        self.create_filters = self._load_jinja_filters("create_filters")
+        self.disable_filters = self._load_jinja_filters("disable_filters")
 
         self.ad_reader = ADParameterReader()
 
@@ -84,6 +81,43 @@ class AdLifeCycle:
 
         logger.debug("__init__() done")
 
+    def _load_jinja_filters(self, source: str) -> List[Callable]:
+        seeded_create_filters = partial(
+            create_filters, tuple_keys=("employee", "ad_object")
+        )
+        setting_name = f"integrations.ad.lifecycle.{source}"
+        filter_templates = self._settings.get(setting_name, [])
+        return [
+            # Decorate each `filter_func` so it will log skipped users under
+            # a name such as "create_filters_num_0", etc.
+            self.log_skipped(f"{source}_num_{num}")(filter_func)
+            for num, filter_func in enumerate(seeded_create_filters(filter_templates))
+        ]
+
+    def log_skipped(self, filtername):
+        """Return decorated version of a filter function taking a single
+        `tup` arg, which is an `(employee, ad_object)` tuple.
+        If the filter function returns `False`, store the result in the
+        `stats["skipped"][filtername]` dictionary by the employee UUID.
+        """
+
+        def decorator(f):
+            @wraps(f)
+            def wrapper(tup):
+                # Call the filter function saving its status
+                status = f(tup)
+                if status is False:
+                    skipped = self.stats.setdefault("skipped", {})
+                    users = skipped.setdefault(filtername, {})
+                    # Add user UUID to dictionary (name is used for the value)
+                    employee = tup[0]
+                    users[employee["uuid"]] = " ".join(employee["name"])
+                return status
+
+            return wrapper
+
+        return decorator
+
     def _update_lora_cache(self, dry_run: bool = False) -> Tuple[LoraCache, LoraCache]:
         """
         Read all information from AD and LoRa.
@@ -105,6 +139,10 @@ class AdLifeCycle:
             "engagement_not_found": 0,
             "created_users": 0,
             "disabled_users": 0,
+            "already_in_ad": 0,
+            "no_active_engagements": 0,
+            "not_in_user_tree": 0,
+            "create_filtered": 0,
             "users": set(),
         }
 
@@ -245,7 +283,6 @@ class AdLifeCycle:
                 return False
             return True
 
-        stats = self._gen_stats()
         employees = self._gen_filtered_employees(
             [
                 # Remove users that does not exist in AD
@@ -266,52 +303,51 @@ class AdLifeCycle:
                 status, message = self.ad_writer.enable_user(username=sam, enable=False)
             if status:
                 logger.debug("Disabled: {}".format(sam))
-                stats["disabled_users"] += 1
+                self.stats["disabled_users"] += 1
+                self.stats["users"].add(employee["uuid"])
             else:
                 logger.warning("enable_user call failed!")
                 logger.warning(message)
-                stats["critical_errors"] += 1
+                self.stats["critical_errors"] += 1
 
-        return stats
+        return self.stats
 
     def create_ad_accounts(self, dry_run: bool = False) -> Dict[str, Any]:
         """Iterate over all users and create missing AD accounts."""
-        stats = self._gen_stats()
-        stats["already_in_ad"] = 0
-        stats["no_active_engagements"] = 0
-        stats["not_in_user_tree"] = 0
-        stats["create_filtered"] = 0
 
+        @self.log_skipped("filter_user_already_in_ad")
         @apply
         def filter_user_already_in_ad(employee, ad_object):
             in_ad = bool(ad_object)
             if in_ad:
-                stats["already_in_ad"] += 1
+                self.stats["already_in_ad"] += 1
                 logger.debug("User {} is already in AD".format(employee))
                 return False
             return True
 
+        @self.log_skipped("filter_user_without_engagements")
         @apply
         def filter_user_without_engagements(employee, ad_object):
             # TODO: Consider using the lazy properties for this
             if employee["uuid"] not in self.users_with_engagements:
-                stats["no_active_engagements"] += 1
+                self.stats["no_active_engagements"] += 1
                 logger.debug(
                     "User {} has no active engagements - skip".format(employee)
                 )
                 return False
             return True
 
+        @self.log_skipped("filter_users_outside_unit_tree")
         def filter_users_outside_unit_tree(tup):
             status = self._find_user_unit_tree(tup)
             if status is False:
-                stats["not_in_user_tree"] += 1
+                self.stats["not_in_user_tree"] += 1
             return status
 
         def run_create_filters(tup):
             status = all(create_filter(tup) for create_filter in self.create_filters)
             if status is False:
-                stats["create_filtered"] += 1
+                self.stats["create_filtered"] += 1
             return status
 
         employees = self._gen_filtered_employees(
@@ -341,20 +377,20 @@ class AdLifeCycle:
                     )
                 if status:
                     logger.debug("New username: {}".format(message))
-                    stats["created_users"] += 1
-                    stats["users"].add(employee["uuid"])
+                    self.stats["created_users"] += 1
+                    self.stats["users"].add(employee["uuid"])
                 else:
                     logger.warning("create_user call failed!")
                     logger.warning(message)
-                    stats["critical_errors"] += 1
+                    self.stats["critical_errors"] += 1
             except NoPrimaryEngagementException:
                 logger.exception("No engagment found!")
-                stats["engagement_not_found"] += 1
+                self.stats["engagement_not_found"] += 1
             except Exception:
                 logger.exception("Unknown error!")
-                stats["critical_errors"] += 1
+                self.stats["critical_errors"] += 1
 
-        return stats
+        return self.stats
 
 
 def write_stats(stats: Dict[str, Any]) -> None:
