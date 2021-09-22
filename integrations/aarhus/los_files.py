@@ -46,11 +46,17 @@ class FileSet(ABC):
 
 class FTPFileSet(FileSet):
     def _get_ftp_connector(self) -> FTP:
-        ftp = FTP(self._settings.ftp_url)
-        ftp.encoding = "utf-8"
-        ftp.login(user=self._settings.ftp_user, passwd=self._settings.ftp_pass)
-        ftp.cwd(self._settings.ftp_folder)
-        return ftp
+        try:
+            ftp = FTP(self._settings.ftp_url)
+        except Exception as e:
+            raise config.ImproperlyConfigured(
+                "cannot connect to FTP server %r" % self._settings.ftp_url
+            ) from e
+        else:
+            ftp.encoding = "utf-8"
+            ftp.login(user=self._settings.ftp_user, passwd=self._settings.ftp_pass)
+            ftp.cwd(self._settings.ftp_folder)
+            return ftp
 
     def _convert_stringio_to_bytesio(
         self, output: StringIO, encoding: str = "utf-8"
@@ -139,10 +145,6 @@ def get_fileset_implementation() -> Union[FTPFileSet, FSFileSet]:
         return FTPFileSet()
 
 
-# Default FileSet implementation is available as module-level name
-fileset = get_fileset_implementation()
-
-
 def parse_filenames(
     filenames: Iterable[str], prefix: str, last_import: datetime
 ) -> List[Tuple[str, datetime]]:
@@ -183,5 +185,6 @@ def parse_csv(lines: List[str], model: BaseModel) -> List[BaseModel]:
 def read_csv(filename: str, model: T) -> List[T]:
     """Read CSV file from FTP into list of model objects"""
     print(f"Processing {filename}")
+    fileset = get_fileset_implementation()
     lines = fileset.read_file(filename)
     return parse_csv(lines, model)

@@ -121,7 +121,7 @@ class ManagerImporter:
 
     async def run(self, last_import: datetime):
         print("Starting manager import")
-        filenames = los_files.fileset.get_import_filenames()
+        filenames = los_files.get_fileset_implementation().get_import_filenames()
 
         self.cache_cpr()
 

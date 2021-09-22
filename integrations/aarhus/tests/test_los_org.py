@@ -127,6 +127,7 @@ class TestParseOrgUnitCSV:
 
 
 class TestHandleInitial(HelperMixin):
+    @settings(deadline=None)
     @given(st.builds(los_org.OrgUnit), st.uuids())
     def test_handle_initial(self, instance: los_org.OrgUnit, dar_uuid: UUID):
         importer = los_org.OrgUnitImporter()

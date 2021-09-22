@@ -296,11 +296,12 @@ class StamImporter:
         cls, csv_class: StamCSVType, last_import: datetime
     ) -> Union[List[StamCSVType], None]:
         filename = csv_class.get_filename()
+        fileset = los_files.get_fileset_implementation()
         try:
-            modified_datetime = los_files.fileset.get_modified_datetime(filename)
+            modified_datetime = fileset.get_modified_datetime(filename)
         except ValueError:
-            # Raised by `los_files.fileset.get_modified_datetime` if file could
-            # not be found.
+            # Raised by `fileset.get_modified_datetime` if file could not be
+            # found.
             return None
         else:
             if modified_datetime <= last_import:

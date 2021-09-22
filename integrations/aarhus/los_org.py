@@ -452,7 +452,7 @@ class OrgUnitImporter:
         and performs inserts/updates as needed
         """
         print("Starting org unit import")
-        filenames = los_files.fileset.get_import_filenames()
+        filenames = los_files.get_fileset_implementation().get_import_filenames()
 
         initials = los_files.parse_filenames(
             filenames, prefix="Org_inital", last_import=last_import

@@ -200,13 +200,15 @@ async def import_it():
     function idempotent.
     """
     settings = config.get_config()
-    mox_helper = await create_mox_helper(settings.mox_base)
-    it_system = Itsystem(
-        system_name="AZ",
-        user_key="AZ",
-    )
-    it_system.organisation_uuid = str(uuids.ORG_UUID)
-    uuid = uuids.AZID_SYSTEM
-
-    json = it_system.build()
-    await mox_helper.insert_organisation_itsystem(json, str(uuid))
+    if settings.azid_it_system_uuid == uuids.AZID_SYSTEM:
+        mox_helper = await create_mox_helper(settings.mox_base)
+        it_system = Itsystem(system_name="AZ", user_key="AZ")
+        it_system.organisation_uuid = str(uuids.ORG_UUID)
+        uuid = uuids.AZID_SYSTEM
+        json = it_system.build()
+        await mox_helper.insert_organisation_itsystem(json, str(uuid))
+    else:
+        print(
+            """Settings specify a non-default AZID IT system UUID, not creating
+            default AZ IT system"""
+        )
