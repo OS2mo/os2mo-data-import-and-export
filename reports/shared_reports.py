@@ -222,7 +222,7 @@ def report_to_csv(df: pd.DataFrame, csv_out: Path) -> None:
         df (pd.DataFrame): DataFrame to export to CSV
         csv_out (Path): File to output CSV to.
     """
-    df.to_csv(csv_out, sep=";", index=False, quoting=QUOTE_ALL)
+    df.to_csv(csv_out, sep=";", index=False, quoting=QUOTE_ALL, encoding="utf-8-sig")
 
 
 # --------------------------------------------------------------------------------------
