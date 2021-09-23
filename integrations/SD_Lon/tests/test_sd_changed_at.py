@@ -120,6 +120,9 @@ class Test_sd_changed_at(DipexTestCase):
         }
 
         _mo_post = morahelper._mo_post
+        _mo_post.return_value = attrdict(
+            {"status_code": 201, "json": lambda: user_uuid}
+        )
         self.assertFalse(_mo_post.called)
         sd_updater.update_changed_persons(in_cpr=cpr)
         _mo_post.assert_called_with(

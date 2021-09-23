@@ -331,7 +331,9 @@ class ChangeAtSD:
         person = ensure_list(response.get("Person", []))
         return person
 
-    def update_changed_persons(self, in_cpr: Optional[str] = None) -> None:
+    def update_changed_persons(
+        self, in_cpr: Optional[str] = None, dry_run: bool = False
+    ) -> None:
         """Update and insert (upsert) changed persons.
 
         Args:
@@ -366,14 +368,30 @@ class ChangeAtSD:
                 org=OrganisationRef(uuid=self.org_uuid),
             )
             payload = jsonable_encoder(model.dict(by_alias=True, exclude_none=True))
-
-            return_uuid = self.helper._mo_post("e/create", payload).json()
+            if dry_run:
+                print("Dry-run: upsert_employee", payload)
+                return "invalid-uuid"
+            response = self.helper._mo_post("e/create", payload)
+            assert response.status_code == 201
+            return_uuid = response.json()
             logger.info(
                 "Created or updated employee {} with uuid {}".format(
                     sd_name, return_uuid
                 )
             )
             return return_uuid
+
+        def create_itsystem_connection(sam_account_name: str, user_uuid: str):
+            payload = sd_payloads.connect_it_system_to_user(
+                sam_account_name, self._fetch_ad_it_system_uuid(), user_uuid
+            )
+            if dry_run:
+                print("Dry-run: create_itsystem_connection", payload)
+                return
+            logger.debug("Connect it-system: {}".format(payload))
+            response = self.helper._mo_post("details/create", payload)
+            assert response.status_code == 201
+            logger.info("Added AD account info to {}".format(user_uuid))
 
         # Fetch a list of persons to update
         if in_cpr is not None:
@@ -402,7 +420,7 @@ class ChangeAtSD:
             if mo_person["name"] == sd_name:
                 continue
             uuid = mo_person["uuid"]
-            return_uuid = upsert_employee(uuid, given_name, sur_name, cpr)
+            upsert_employee(uuid, given_name, sur_name, cpr)
 
         for (cpr, given_name, sur_name), _ in new_pairs:
             given_name = given_name or ""
@@ -427,13 +445,7 @@ class ChangeAtSD:
             return_uuid = upsert_employee(uuid, given_name, sur_name, cpr)
 
             if sam_account_name:
-                payload = sd_payloads.connect_it_system_to_user(
-                    sam_account_name, self._fetch_ad_it_system_uuid(), return_uuid
-                )
-                logger.debug("Connect it-system: {}".format(payload))
-                response = self.helper._mo_post("details/create", payload)
-                assert response.status_code == 201
-                logger.info("Added AD account info to {}".format(cpr))
+                create_itsystem_connection(sam_account_name, return_uuid)
 
     def _compare_dates(self, first_date, second_date, expected_diff=1):
         """
@@ -1108,7 +1120,9 @@ class ChangeAtSD:
                 continue
             self.edit_engagement(engagement, person_uuid)
 
-    def update_all_employments(self, in_cpr: Optional[str] = None) -> None:
+    def update_all_employments(
+        self, in_cpr: Optional[str] = None, dry_run: bool = False
+    ) -> None:
         if in_cpr is not None:
             employments_changed = self.read_employment_changed(in_cpr=in_cpr)
         else:
@@ -1150,7 +1164,7 @@ class ChangeAtSD:
                     continue
                 logger.warning("This person should be in MO, but is not")
                 try:
-                    self.update_changed_persons(in_cpr=cpr)
+                    self.update_changed_persons(in_cpr=cpr, dry_run=dry_run)
                     mo_person = self.helper.read_user(
                         user_cpr=cpr, org_uuid=self.org_uuid
                     )
@@ -1160,11 +1174,18 @@ class ChangeAtSD:
             person_uuid = mo_person["uuid"]
 
             self._refresh_mo_engagements(person_uuid)
-            self._update_user_employments(cpr, sd_engagement, person_uuid)
+            if dry_run:
+                print("Dry-run: update_user_employments", sd_engagement, person_uuid)
+            else:
+                self._update_user_employments(cpr, sd_engagement, person_uuid)
             # Re-calculate primary after all updates for user has been performed.
             recalculate_users.add(person_uuid)
 
         for user_uuid in recalculate_users:
+            if dry_run:
+                print("Dry-run: recalculate_user", user_uuid)
+                continue
+
             try:
                 self.updater.recalculate_user(user_uuid)
             except NoPrimaryFound:
@@ -1323,12 +1344,15 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: str):
     default=load_setting("integrations.SD_Lon.global_from_date"),
     help="Global import from-date",
 )
-def import_single_user(cpr: str, from_date: str):
+@click.option(
+    "--dry-run", is_flag=True, default=False, help="Dry-run making no actual changes."
+)
+def import_single_user(cpr: str, from_date: str, dry_run: bool):
     """Import a single user into MO."""
     parsed_from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
     sd_updater = ChangeAtSD(parsed_from_date, None)
-    sd_updater.update_changed_persons(cpr)
-    sd_updater.update_all_employments(cpr)
+    sd_updater.update_changed_persons(cpr, dry_run=dry_run)
+    sd_updater.update_all_employments(cpr, dry_run=dry_run)
 
 
 if __name__ == "__main__":
