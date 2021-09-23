@@ -367,7 +367,7 @@ def get_sts_orgunit(uuid):
     if settings.get("sync_managers"):
         manager_uuid = manager_to_orgunit(uuid)
         if manager_uuid:
-            sts_org_unit['ManagerUuid'] = str(manager_uuid)
+            sts_org_unit['managerUuid'] = str(manager_uuid)
 
     # this is set by __main__
     if settings["OS2MO_HAS_KLE"]:
