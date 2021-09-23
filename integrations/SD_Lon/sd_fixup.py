@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date
 from functools import partial
 from operator import itemgetter
@@ -73,9 +74,10 @@ def filter_missing_data(leave: dict) -> bool:
     return not one(leave["registreringer"])["relationer"].get("tilknyttedefunktioner")
 
 
-def delete_orgfunc(uuid: str, mox_base: str = "http://localhost:8080") -> None:
-    r = httpx.delete(f"{mox_base}/organisation/organisationfunktion/{uuid}")
-    r.raise_for_status()
+async def delete_orgfunc(uuid: str, mox_base: str = "http://localhost:8080") -> None:
+    async with httpx.AsyncClient() as client:
+        r = await client.delete(f"{mox_base}/organisation/organisationfunktion/{uuid}")
+        r.raise_for_status()
 
 
 def fixup(ctx, mo_employees):
@@ -228,7 +230,7 @@ def fixup_leaves(ctx, mox_base):
             disable=not ctx.obj["progress"],
         )
         orgfunc_deleter = partial(delete_orgfunc, mox_base=mox_base)
-        consume(side_effect(orgfunc_deleter, leave_uuids))
+        asyncio.gather(*[orgfunc_deleter(uuid) for uuid in leave_uuids])
 
     # Find all user uuids and cprs
     user_uuids = set(map(get_user_from_org_func, leave_objects))
