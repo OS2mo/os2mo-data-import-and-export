@@ -29,7 +29,9 @@ class Tests_db(unittest.TestCase):
         self.session = sessionmaker(bind=self.engine, autoflush=False)()
         # Lav tables via tabledefs fra LoraCache og fyld dataen ind
         Base.metadata.create_all(self.engine)
-        enhed = Enhed(navn="LØN-org", uuid="LE1", enhedstype_titel="org_unit_type")
+        enhed = Enhed(
+            navn="LØN-org", uuid="LE1", bvn="Løn", enhedstype_titel="org_unit_type"
+        )
         self.session.add(enhed)
         enhed = Enhed(
             navn="Under-Enhed",
@@ -37,13 +39,17 @@ class Tests_db(unittest.TestCase):
             enhedstype_titel="org_unit_type",
             forældreenhed_uuid="LE1",
             organisatorisk_sti="LØN-org\\Under-Enhed",
+            bvn="UUM",
         )
         self.session.add(enhed)
-        enhed = Enhed(navn="Hoved-MED", uuid="E1", enhedstype_titel="org_unit_type")
+        enhed = Enhed(
+            navn="Hoved-MED", uuid="E1", enhedstype_titel="org_unit_type", bvn="HM"
+        )
         self.session.add(enhed)
         enhed = Enhed(
             navn="Under-MED",
             uuid="E2",
+            bvn="UM",
             enhedstype_titel="org_unit_type",
             forældreenhed_uuid="E1",
         )
@@ -51,6 +57,7 @@ class Tests_db(unittest.TestCase):
         enhed = Enhed(
             navn="Under-under-MED",
             uuid="E3",
+            bvn="UUM",
             enhedstype_titel="org_unit_type",
             forældreenhed_uuid="E2",
         )

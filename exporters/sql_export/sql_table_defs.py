@@ -41,6 +41,7 @@ class Enhed(Base):
     id = Column(Integer, nullable=False, primary_key=True)
     uuid = Column(String(36), nullable=False)
     navn = Column(String(250), nullable=False)
+    bvn = Column(String(250), nullable=False)
     forældreenhed_uuid = Column(String(36), nullable=True, primary_key=False)
     enhedstype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     enhedstype_titel = Column(String(250), nullable=False)
