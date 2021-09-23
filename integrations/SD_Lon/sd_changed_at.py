@@ -1070,7 +1070,7 @@ class ChangeAtSD:
                     logger.info("Status 1: Create new engagement")
                     self.create_new_engagement(engagement, status, cpr, person_uuid)
                 skip = True
-            elif code == EmploymentStatus.Overlov:
+            elif code == EmploymentStatus.Orlov:
                 mo_eng = self._find_engagement(job_id, person_uuid)
                 if not mo_eng:
                     logger.info("Leave for non existent eng., create one")

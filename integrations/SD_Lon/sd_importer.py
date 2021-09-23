@@ -525,7 +525,7 @@ class SdImport(object):
             status = EmploymentStatus(
                 employment["EmploymentStatus"]["EmploymentStatusCode"]
             )
-            if status == EmploymentStatus.Overlov:
+            if status == EmploymentStatus.Orlov:
                 # Orlov
                 pass
             if status in EmploymentStatus.let_go():
@@ -671,7 +671,7 @@ class SdImport(object):
                     date_from=date_from,
                     date_to=date_to,
                 )
-                if status == EmploymentStatus.Overlov:
+                if status == EmploymentStatus.Orlov:
                     self.importer.add_leave(
                         employee=cpr,
                         leave_type_ref="Orlov",
