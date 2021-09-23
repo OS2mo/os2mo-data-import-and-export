@@ -8,11 +8,9 @@ from typing import Tuple
 
 import click
 import httpx
-from more_itertools import consume
 from more_itertools import flatten
 from more_itertools import one
 from more_itertools import only
-from more_itertools import side_effect
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.apply import apply
@@ -215,8 +213,10 @@ def fixup_leaves(ctx, mox_base):
     leave_types, _ = mora_helper.read_classes_in_facet("leave_type")
     leave_type_uuids = map(itemgetter("uuid"), leave_types)
     # Get all leave objects
+
     async def find_and_delete_leaves(leave_type_uuids):
-        async with httpx.AsyncClient() as client:
+        limits = httpx.Limits(max_keepalive_connections=5, max_connections=4)
+        async with httpx.AsyncClient(timeout=None, limits=limits) as client:
 
             orgfunc_getter = partial(
                 get_orgfunc_from_vilkaarligrel, client=client, mox_base=mox_base
