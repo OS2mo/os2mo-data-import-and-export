@@ -54,12 +54,12 @@ def fetch_user_employments(cpr: str) -> List:
     return employments
 
 
-def get_orgfunc_from_vilkaarligrel(
-    class_uuid: str, mox_base: str = "http://localhost:8080"
+async def get_orgfunc_from_vilkaarligrel(
+    class_uuid: str, client: httpx.AsyncClient, mox_base: str = "http://localhost:8080"
 ) -> dict:
     url = f"{mox_base}/organisation/organisationfunktion"
     params = {"vilkaarligrel": class_uuid, "list": "true", "virkningfra": "-infinity"}
-    r = httpx.get(url, params=params)
+    r = await client.get(url, params=params)
     r.raise_for_status()
     return only(r.json()["results"], default={})
 
@@ -71,13 +71,15 @@ def get_user_from_org_func(org_func: dict) -> Optional[str]:
 
 
 def filter_missing_data(leave: dict) -> bool:
-    return not one(leave["registreringer"])["relationer"].get("tilknyttedefunktioner")
+    return True
+    #  not one(leave["registreringer"])["relationer"].get("tilknyttedefunktioner")
 
 
-async def delete_orgfunc(uuid: str, mox_base: str = "http://localhost:8080") -> None:
-    async with httpx.AsyncClient() as client:
-        r = await client.delete(f"{mox_base}/organisation/organisationfunktion/{uuid}")
-        r.raise_for_status()
+async def delete_orgfunc(
+    uuid: str, client: httpx.AsyncClient, mox_base: str = "http://localhost:8080"
+) -> None:
+    r = await client.delete(f"{mox_base}/organisation/organisationfunktion/{uuid}")
+    r.raise_for_status()
 
 
 def fixup(ctx, mo_employees):
@@ -213,25 +215,35 @@ def fixup_leaves(ctx, mox_base):
     leave_types, _ = mora_helper.read_classes_in_facet("leave_type")
     leave_type_uuids = map(itemgetter("uuid"), leave_types)
     # Get all leave objects
-    orgfunc_getter = partial(get_orgfunc_from_vilkaarligrel, mox_base=mox_base)
-    leave_objects = flatten(map(orgfunc_getter, leave_type_uuids))
-    # Filter to get only those missing the 'engagement'.
-    leave_objects = list(filter(filter_missing_data, leave_objects))
-    leave_uuids = set(map(itemgetter("id"), leave_objects))
+    async def find_and_delete_leaves(leave_type_uuids):
+        async with httpx.AsyncClient() as client:
 
-    # Delete old leave objects
-    if ctx.obj["dry_run"]:
-        click.echo(f"Dry-run. Would delete {len(leave_uuids)} leave objects")
-    else:
-        leave_uuids = tqdm(
-            leave_uuids,
-            unit="leave",
-            desc="Deleting old leaves",
-            disable=not ctx.obj["progress"],
-        )
-        orgfunc_deleter = partial(delete_orgfunc, mox_base=mox_base)
-        asyncio.gather(*[orgfunc_deleter(uuid) for uuid in leave_uuids])
+            orgfunc_getter = partial(
+                get_orgfunc_from_vilkaarligrel, client=client, mox_base=mox_base
+            )
+            leave_objects = await asyncio.gather(*map(orgfunc_getter, leave_type_uuids))
+            leave_objects = list(flatten(leave_objects))
 
+            # Filter to get only those missing the 'engagement'.
+            leave_objects = list(filter(filter_missing_data, leave_objects))
+            leave_uuids = set(map(itemgetter("id"), leave_objects))
+
+            # Delete old leave objects
+
+            if ctx.obj["dry_run"]:
+                click.echo(f"Dry-run. Would delete {len(leave_uuids)} leave objects")
+                return leave_objects
+            leave_uuids = tqdm(
+                leave_uuids,
+                unit="leave",
+                desc="Deleting old leaves",
+                disable=not ctx.obj["progress"],
+            )
+            orgfunc_deleter = partial(delete_orgfunc, client=client, mox_base=mox_base)
+            await asyncio.gather(*map(orgfunc_deleter, leave_uuids))
+        return leave_objects
+
+    leave_objects = asyncio.run(find_and_delete_leaves(leave_type_uuids))
     # Find all user uuids and cprs
     user_uuids = set(map(get_user_from_org_func, leave_objects))
     user_uuids = tqdm(
