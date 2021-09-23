@@ -143,6 +143,16 @@ def list_MED_members(session, org_names: dict) -> list:
     return parsed_data
 
 
+def list_org_units(session, org_name: str) -> list:
+    query = session.query(Enhed.organisatorisk_sti)
+    data = query.all()
+    data_df = pd.DataFrame(data, columns=["Sti"])
+    data_df = expand_org_path(data_df, "Sti")
+    # Return data as a list of tuples with columns as the first element
+    parsed_data = list(prepend(data_df.columns, data_df.to_records(index=False)))
+    return parsed_data
+
+
 def list_employees(session, org_name: str) -> list:
     """Lists all employees in organisation.
 
