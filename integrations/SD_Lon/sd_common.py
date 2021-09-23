@@ -241,7 +241,7 @@ class EmploymentStatus(Enum):
 
     # These statusses represent being at work
     AnsatMedLoen = "1"
-    Overlov = "3"
+    Orlov = "3"
 
     # These statusses represent being let go
     Migreret = "7"
@@ -256,7 +256,7 @@ class EmploymentStatus(Enum):
         return [
             EmploymentStatus.AnsatUdenLoen,
             EmploymentStatus.AnsatMedLoen,
-            EmploymentStatus.Overlov,
+            EmploymentStatus.Orlov,
         ]
 
     @staticmethod
@@ -269,4 +269,4 @@ class EmploymentStatus(Enum):
 
     @staticmethod
     def on_payroll() -> List["EmploymentStatus"]:
-        return [EmploymentStatus.AnsatMedLoen, EmploymentStatus.Overlov]
+        return [EmploymentStatus.AnsatMedLoen, EmploymentStatus.Orlov]
