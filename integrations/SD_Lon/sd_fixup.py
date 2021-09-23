@@ -271,9 +271,9 @@ def fixup_leaves(ctx, mox_base):
         # filter leaves
         leaves = list(
             filter(
-                lambda employment: employment["EmploymentStatus"][
-                    "EmploymentStatusCode"
-                ]
+                lambda employment: EmploymentStatus(
+                    employment["EmploymentStatus"]["EmploymentStatusCode"]
+                )
                 == EmploymentStatus.Orlov,
                 employments,
             )
