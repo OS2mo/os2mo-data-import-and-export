@@ -1,27 +1,26 @@
 from datetime import date
 from functools import partial
 from operator import itemgetter
-from typing import Any
 from typing import List
 from typing import Optional
 from typing import Tuple
 
 import click
 import httpx
+from more_itertools import consume
 from more_itertools import flatten
 from more_itertools import one
 from more_itertools import only
-from more_itertools import unzip
 from more_itertools import side_effect
-from more_itertools import consume
-
+from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_setting
 from ra_utils.apply import apply
+from ra_utils.load_settings import load_setting
 from tqdm import tqdm
 
 from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
+from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
@@ -57,17 +56,17 @@ def fetch_user_employments(cpr: str) -> List:
 def get_orgfunc_from_vilkaarligrel(
     class_uuid: str, mox_base: str = "http://localhost:8080"
 ) -> dict:
-    url = f"{mox_base}/organisation/organisationfunktion?vilkaarligrel={class_uuid}"
-    parameters = {"list":"true", "virkningfra": "-infinity"}
-    r = httpz.get(url, param=parameters)
+    url = f"{mox_base}/organisation/organisationfunktion"
+    params = {"vilkaarligrel": class_uuid, "list": "true", "virkningfra": "-infinity"}
+    r = httpx.get(url, params=params)
     r.raise_for_status()
     return only(r.json()["results"], default={})
 
 
 def get_user_from_org_func(org_func: dict) -> Optional[str]:
-    return one(one(org_func["registreringer"])["relationer"]["tilknyttedebrugere"])[
-        "uuid"
-    ]
+    registrations = one(org_func["registreringer"])
+    user = one(registrations["relationer"]["tilknyttedebrugere"])
+    return user["uuid"]
 
 
 def filter_missing_data(leave: dict) -> bool:
@@ -75,7 +74,7 @@ def filter_missing_data(leave: dict) -> bool:
 
 
 def delete_orgfunc(uuid: str, mox_base: str = "http://localhost:8080") -> None:
-    r = requests.delete(f"{mox_base}/organisation/organisationfunktion/{uuid}")
+    r = httpx.delete(f"{mox_base}/organisation/organisationfunktion/{uuid}")
     r.raise_for_status()
 
 
@@ -201,29 +200,44 @@ def fixup_user(ctx, uuid):
 @cli.command()
 @click.option(
     "--mox-base",
+    default=load_setting("mox.base", "http://localhost:8080"),
     help="URL for Lora",
 )
 @click.pass_context
 def fixup_leaves(ctx, mox_base):
     """Fix all leaves that are missing a link to an engagement."""
     mora_helper = ctx.obj["mora_helper"]
-    mox_base = mox_base or load_setting("mox.base", "http://localhost:8080")()
     # Find all classes of leave_types
     leave_types, _ = mora_helper.read_classes_in_facet("leave_type")
-    leave_type_uuids = list(map(itemgetter("uuid"), leave_types))
+    leave_type_uuids = map(itemgetter("uuid"), leave_types)
     # Get all leave objects
     orgfunc_getter = partial(get_orgfunc_from_vilkaarligrel, mox_base=mox_base)
-    leave_objects = list(flatten(map(orgfunc_getter, leave_type_uuids)))
+    leave_objects = flatten(map(orgfunc_getter, leave_type_uuids))
     # Filter to get only those missing the 'engagement'.
     leave_objects = list(filter(filter_missing_data, leave_objects))
     leave_uuids = set(map(itemgetter("id"), leave_objects))
+
     # Delete old leave objects
-    leave_uuids = tqdm(leave_uuids, unit="leave", desc="Deleting old leaves")
-    orgfunc_deleter = partial(delete_orgfunc, mox_base=mox_base)
-    list(map(orgfunc_deleter, leave_uuids))
+    if ctx.obj["dry_run"]:
+        click.echo(f"Dry-run. Would delete {len(leave_uuids)} leave objects")
+    else:
+        leave_uuids = tqdm(
+            leave_uuids,
+            unit="leave",
+            desc="Deleting old leaves",
+            disable=not ctx.obj["progress"],
+        )
+        orgfunc_deleter = partial(delete_orgfunc, mox_base=mox_base)
+        consume(side_effect(orgfunc_deleter, leave_uuids))
 
     # Find all user uuids and cprs
     user_uuids = set(map(get_user_from_org_func, leave_objects))
+    user_uuids = tqdm(
+        user_uuids,
+        unit="user",
+        desc="Looking up users in MO",
+        disable=not ctx.obj["progress"],
+    )
     users = map(mora_helper.read_user, user_uuids)
     cpr_uuid_map = dict(map(itemgetter("cpr_no", "uuid"), users))
     # NOTE: This will only reimport current leaves, not historic ones
@@ -235,31 +249,43 @@ def fixup_leaves(ctx, mox_base):
 
         Prints any errors but continues
         """
-        engagement = []
+        employments = []
         try:
-            engagement = fetch_user_employments(cpr=cpr)
+            employments = fetch_user_employments(cpr=cpr)
         except Exception as e:
             click.echo(e)
         # filter leaves
-        engagement = list(
+        leaves = list(
             filter(
                 lambda employment: employment["EmploymentStatus"][
                     "EmploymentStatusCode"
                 ]
-                == "3",
-                engagement,
+                == EmploymentStatus.Orlov,
+                employments,
             )
         )
-        return cpr, engagement
+        return cpr, leaves
 
-    cprs = tqdm(cpr_uuid_map.keys(), desc="Lookup users in SD", unit="User")
+    cprs = tqdm(
+        cpr_uuid_map.keys(),
+        desc="Lookup users in SD",
+        unit="User",
+        disable=not ctx.obj["progress"],
+    )
     leaves = dict(map(try_fetch_leave, cprs))
 
     # Filter users with leave
     leaves = dict(filter(apply(lambda cpr, engagement: engagement), leaves.items()))
 
+    if ctx.obj["dry_run"]:
+        click.echo(f"Dry-run. Would reimport leaves for {len(leaves)} users.")
+        return
+
     for cpr, leaves in tqdm(
-        leaves.items(), unit="user", desc="Reimporting leaves for users"
+        leaves.items(),
+        unit="user",
+        desc="Reimporting leaves for users",
+        disable=not ctx.obj["progress"],
     ):
         for leave in leaves:
             changed_at.create_leave(
