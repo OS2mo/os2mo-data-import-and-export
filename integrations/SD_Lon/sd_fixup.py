@@ -7,13 +7,17 @@ from typing import Optional
 from typing import Tuple
 
 import click
-import requests
+import httpx
 from more_itertools import flatten
 from more_itertools import one
 from more_itertools import only
 from more_itertools import unzip
+from more_itertools import side_effect
+from more_itertools import consume
+
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
+from ra_utils.apply import apply
 from tqdm import tqdm
 
 from integrations.SD_Lon import sd_payloads
@@ -54,8 +58,8 @@ def get_orgfunc_from_vilkaarligrel(
     class_uuid: str, mox_base: str = "http://localhost:8080"
 ) -> dict:
     url = f"{mox_base}/organisation/organisationfunktion?vilkaarligrel={class_uuid}"
-    parameters = "&list=true&virkningfra=-infinity"
-    r = requests.get(url + parameters)
+    parameters = {"list":"true", "virkningfra": "-infinity"}
+    r = httpz.get(url, param=parameters)
     r.raise_for_status()
     return only(r.json()["results"], default={})
 

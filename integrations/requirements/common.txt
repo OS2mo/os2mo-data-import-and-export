@@ -19,3 +19,4 @@ pydantic
 alchemy_mock
 mimesis
 asciitree
+httpx
