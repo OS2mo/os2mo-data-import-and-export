@@ -8,6 +8,7 @@ import logging
 from typing import Optional
 
 from more_itertools import flatten
+from more_itertools import only
 from sqlalchemy.orm import sessionmaker
 
 from constants import AD_it_system
@@ -19,6 +20,7 @@ from exporters.sql_export.sql_table_defs import Enhed
 from exporters.sql_export.sql_table_defs import ItForbindelse
 from exporters.sql_export.sql_table_defs import ItSystem
 from exporters.sql_export.sql_table_defs import KLE
+from exporters.sql_export.sql_table_defs import Leder
 from integrations.os2sync import config
 from integrations.os2sync import os2mo
 from integrations.os2sync.templates import Person
@@ -247,9 +249,10 @@ def get_sts_orgunit(session, uuid):
         addresses.append(address)
     os2mo.addresses_to_orgunit(sts_org_unit, addresses)
 
-    lc_manager = session.query(Leder).filter(Leder.enhed_uuid == uuid).first()
-    if lc_manager and settings.get("sync_managers"):
-        sts_org_unit.update({'managerUuid': lc_manager.bruger_uuid})
+    if settings.get("sync_managers"):
+        lc_manager = session.query(Leder).filter(Leder.enhed_uuid == uuid).all()
+        manager_uuid = only(lc_manager.bruger_uuid)
+        sts_org_unit.update({'managerUuid': manager_uuid})
 
     mokles = {}
     lc_kles = session.query(KLE).filter(KLE.enhed_uuid == uuid).all()
