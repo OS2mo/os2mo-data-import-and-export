@@ -1296,7 +1296,7 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: str):
     db_overview = DBOverview(run_db)
     # To date from last entries, becomes from_date for current entry
     parsed_from_date, status = cast(
-        Tuple[datetime.datetime, str], db_overview.read_last_line("to_date", "status")
+        Tuple[datetime.datetime, str], db_overview._read_last_line("to_date", "status")
     )
 
     if "Running" in status:
@@ -1304,7 +1304,7 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: str):
             db_overview.delete_last_row()
             parsed_from_date, status = cast(
                 Tuple[datetime.datetime, str],
-                db_overview.read_last_line("to_date", "status"),
+                db_overview._read_last_line("to_date", "status"),
             )
         else:
             logging.error("Previous ChangedAt run did not return!")
