@@ -69,8 +69,7 @@ def get_user_from_org_func(org_func: dict) -> Optional[str]:
 
 
 def filter_missing_data(leave: dict) -> bool:
-    return True
-    #  not one(leave["registreringer"])["relationer"].get("tilknyttedefunktioner")
+    return not one(leave["registreringer"])["relationer"].get("tilknyttedefunktioner")
 
 
 async def delete_orgfunc(
