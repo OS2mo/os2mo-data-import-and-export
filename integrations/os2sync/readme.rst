@@ -9,23 +9,24 @@ Denne integration gør det muligt at sende data fra OS2MO til `OS2Sync <https://
 OS2Sync er i stand til at sende data videre til FK ORG, såfremt det er installeret og konfigureret.
 Integrationen læser flg. oplysninger i OS2MO, og sender dem til OS2Sync:
 
-======================  =================
+======================  ========================
 OS2MO                   Oplysninger
-======================  =================
+======================  ========================
 Ansatte                 * UUID
                         * UserId
                         * Navn
                         * CPR-nummer
                         * Adresser
                         * Engagementer
-----------------------  -----------------
+----------------------  ------------------------
 Organisationsenheder    * UUID
                         * Parent UUID
                         * Navn
                         * IT-systemer
                         * Adresser
                         * KLE-opmærkninger
-======================  =================
+                        * Leder UUID (Optionelt)
+======================  ========================
 
 Når integrationen sender *ansatte* til OS2Sync, sker det efter nedenstående skema:
 
@@ -87,6 +88,7 @@ os2syncs parametre
  * ``os2sync.ignored.unit_levels``: liste af unit-level-klasser, der skal ignoreres i overførslen
  * ``os2sync.ignored.unit_types``: liste af unit-type-klasser, der skal ignoreres i overførslen
  * ``os2sync.autowash``: sletning uden filter. Normalt slettes kun afdelinger i os2sync, som er forsvundet fra OS2MO. Med autowash slettes alt i os2syncs version af den administrative org, som ikke vil blive overført fra os2mo.
+ * ``os2sync.sync_managers``: Skriv leders uuid til orgunits. Kræver at der kun er en leder pr. enhed.
  * ``os2sync.templates``: Giver mulighed for at styre formatteringen af data vha. Jinja-templates.
 
 ``os2sync.templates``
