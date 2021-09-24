@@ -15,7 +15,7 @@ from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.apply import apply
 from ra_utils.load_settings import load_setting
-from tqdm import tqdm
+from tqdm.asyncio import tqdm
 
 from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
@@ -214,7 +214,7 @@ def fixup_leaves(ctx, mox_base):
     leave_type_uuids = map(itemgetter("uuid"), leave_types)
     # Get all leave objects
 
-    async def find_and_delete_leaves(leave_type_uuids):
+    async def find_and_delete_leaves(leave_type_uuids) -> List[dict]:
         limits = httpx.Limits(max_keepalive_connections=5, max_connections=4)
         async with httpx.AsyncClient(timeout=None, limits=limits) as client:
 
@@ -233,14 +233,13 @@ def fixup_leaves(ctx, mox_base):
             if ctx.obj["dry_run"]:
                 click.echo(f"Dry-run. Would delete {len(leave_uuids)} leave objects")
                 return leave_objects
-            leave_uuids = tqdm(
-                leave_uuids,
+            orgfunc_deleter = partial(delete_orgfunc, client=client, mox_base=mox_base)
+            await tqdm.gather(
+                *map(orgfunc_deleter, leave_uuids),
                 unit="leave",
                 desc="Deleting old leaves",
                 disable=not ctx.obj["progress"],
             )
-            orgfunc_deleter = partial(delete_orgfunc, client=client, mox_base=mox_base)
-            await asyncio.gather(*map(orgfunc_deleter, leave_uuids))
         return leave_objects
 
     leave_objects = asyncio.run(find_and_delete_leaves(leave_type_uuids))
