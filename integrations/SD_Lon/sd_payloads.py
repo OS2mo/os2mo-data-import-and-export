@@ -57,7 +57,7 @@ def association(data, uuid):
 def create_leave(mo_eng, person_uuid, leave_uuid, job_id, validity):
     payload = {
         "type": "leave",
-        "org_unit": {"uuid": mo_eng["org_unit"]["uuid"]},
+        "engagement": {"uuid": mo_eng["uuid"]},
         "person": {"uuid": person_uuid},
         "leave_type": {"uuid": leave_uuid},
         "user_key": job_id,

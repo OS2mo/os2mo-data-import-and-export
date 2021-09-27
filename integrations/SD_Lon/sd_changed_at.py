@@ -181,9 +181,9 @@ class ChangeAtSD:
             map(engagement_type_mapper, engagement_types[0])
         )
 
-        logger.info("Read leave types")
-        facet_info = self.helper.read_classes_in_facet("leave_type")
-        self.leave_uuid = facet_info[0][0]["uuid"]
+        # SD supports only one type of leave
+        self.leave_uuid = self.helper.ensure_class_in_facet("leave_type", "Orlov")
+
         facet_info = self.helper.read_classes_in_facet("association_type")
         self.association_uuid = facet_info[0][0]["uuid"]
 
@@ -629,7 +629,7 @@ class ChangeAtSD:
         # engagement here.
         mo_eng = self._find_engagement(job_id, person_uuid)
         payload = sd_payloads.create_leave(
-            mo_eng, person_uuid, self.leave_uuid, job_id, self._validity(status)
+            mo_eng, person_uuid, str(self.leave_uuid), job_id, self._validity(status)
         )
 
         response = self.helper._mo_post("details/create", payload)

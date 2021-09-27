@@ -1,26 +1,32 @@
 from datetime import date
+from functools import partial
 from operator import itemgetter
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 import click
+import httpx
+from more_itertools import consume
 from more_itertools import flatten
+from more_itertools import one
+from more_itertools import only
+from more_itertools import side_effect
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.apply import apply
+from ra_utils.load_settings import load_setting
+from tqdm import tqdm
 
 from integrations.SD_Lon import sd_payloads
+from integrations.SD_Lon.sd_changed_at import ChangeAtSD
+from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
 
 
-def progress_iterator(elements, outputter, mod=10):
-    total = len(elements)
-    for i, element in enumerate(elements, start=1):
-        if i == 1 or i % mod == 0 or i == total:
-            outputter("{}/{}".format(i, total))
-        yield element
-
-
-def fetch_user_employments(cpr):
+def fetch_user_employments(cpr: str) -> List:
     # Notice, this will not get future engagements
     params = {
         "PersonCivilRegistrationIdentifier": cpr,
@@ -35,6 +41,7 @@ def fetch_user_employments(cpr):
         "SalaryCodeGroupIndicator": "false",
         "EffectiveDate": date.today().strftime("%d.%m.%Y"),
     }
+
     sd_employments_response = sd_lookup("GetEmployment20111201", params)
     if "Person" not in sd_employments_response:
         return []
@@ -44,6 +51,31 @@ def fetch_user_employments(cpr):
         employments = [employments]
 
     return employments
+
+
+def get_orgfunc_from_vilkaarligrel(
+    class_uuid: str, mox_base: str = "http://localhost:8080"
+) -> dict:
+    url = f"{mox_base}/organisation/organisationfunktion"
+    params = {"vilkaarligrel": class_uuid, "list": "true", "virkningfra": "-infinity"}
+    r = httpx.get(url, params=params)
+    r.raise_for_status()
+    return only(r.json()["results"], default={})
+
+
+def get_user_from_org_func(org_func: dict) -> Optional[str]:
+    registrations = one(org_func["registreringer"])
+    user = one(registrations["relationer"]["tilknyttedebrugere"])
+    return user["uuid"]
+
+
+def filter_missing_data(leave: dict) -> bool:
+    return not one(leave["registreringer"])["relationer"].get("tilknyttedefunktioner")
+
+
+def delete_orgfunc(uuid: str, mox_base: str = "http://localhost:8080") -> None:
+    r = httpx.delete(f"{mox_base}/organisation/organisationfunktion/{uuid}")
+    r.raise_for_status()
 
 
 def fixup(ctx, mo_employees):
@@ -104,7 +136,7 @@ def fixup(ctx, mo_employees):
     primary = primary_types(mora_helper)
 
     if ctx["progress"]:
-        mo_employees = progress_iterator(mo_employees, print)
+        mo_employees = tqdm(mo_employees, unit="Employee")
 
     # Dict pair is an iterator of (dict, dict) tuples or None
     # First dict is a mapping from employment_id to mo_engagement
@@ -163,6 +195,106 @@ def fixup_user(ctx, uuid):
     """Fix a single employee."""
     mo_employees = [ctx.obj["mora_helper"].read_user(user_uuid=uuid)]
     fixup(ctx.obj, mo_employees)
+
+
+@cli.command()
+@click.option(
+    "--mox-base",
+    default=load_setting("mox.base", "http://localhost:8080"),
+    help="URL for Lora",
+)
+@click.pass_context
+def fixup_leaves(ctx, mox_base):
+    """Fix all leaves that are missing a link to an engagement."""
+    mora_helper = ctx.obj["mora_helper"]
+    # Find all classes of leave_types
+    leave_types, _ = mora_helper.read_classes_in_facet("leave_type")
+    leave_type_uuids = map(itemgetter("uuid"), leave_types)
+
+    # Get all leave objects
+    orgfunc_getter = partial(get_orgfunc_from_vilkaarligrel, mox_base=mox_base)
+    leave_objects = map(orgfunc_getter, leave_type_uuids)
+    leave_objects = list(flatten(leave_objects))
+
+    # Filter to get only those missing the 'engagement'.
+    leave_objects = list(filter(filter_missing_data, leave_objects))
+    leave_uuids = set(map(itemgetter("id"), leave_objects))
+    # Delete old leave objects
+    if ctx.obj["dry_run"]:
+        click.echo(f"Dry-run. Would delete {len(leave_uuids)} leave objects")
+    else:
+        orgfunc_deleter = partial(delete_orgfunc, mox_base=mox_base)
+        leave_uuids = tqdm(
+            leave_uuids,
+            unit="leave",
+            desc="Deleting old leaves",
+            disable=not ctx.obj["progress"],
+        )
+        consume(side_effect(orgfunc_deleter, leave_uuids))
+
+    # Find all user uuids and cprs
+    user_uuids = set(map(get_user_from_org_func, leave_objects))
+    user_uuids = tqdm(
+        user_uuids,
+        unit="user",
+        desc="Looking up users in MO",
+        disable=not ctx.obj["progress"],
+    )
+    users = map(mora_helper.read_user, user_uuids)
+    cpr_uuid_map = dict(map(itemgetter("cpr_no", "uuid"), users))
+    # NOTE: This will only reimport current leaves, not historic ones
+    #       This behavior is inline with sd_importer.py
+    changed_at = ChangeAtSD(date.today())
+
+    def try_fetch_leave(cpr: str) -> Tuple[str, List[dict]]:
+        """Attempt to lookup engagements from a CPR.
+
+        Prints any errors but continues
+        """
+        employments = []
+        try:
+            employments = fetch_user_employments(cpr=cpr)
+        except Exception as e:
+            click.echo(e)
+        # filter leaves
+        leaves = list(
+            filter(
+                lambda employment: EmploymentStatus(
+                    employment["EmploymentStatus"]["EmploymentStatusCode"]
+                )
+                == EmploymentStatus.Orlov,
+                employments,
+            )
+        )
+        return cpr, leaves
+
+    cprs = tqdm(
+        cpr_uuid_map.keys(),
+        desc="Lookup users in SD",
+        unit="User",
+        disable=not ctx.obj["progress"],
+    )
+    leaves = dict(map(try_fetch_leave, cprs))
+
+    # Filter users with leave
+    leaves = dict(filter(apply(lambda cpr, engagement: engagement), leaves.items()))
+
+    if ctx.obj["dry_run"]:
+        click.echo(f"Dry-run. Would reimport leaves for {len(leaves)} users.")
+        return
+
+    for cpr, leaves in tqdm(
+        leaves.items(),
+        unit="user",
+        desc="Reimporting leaves for users",
+        disable=not ctx.obj["progress"],
+    ):
+        for leave in leaves:
+            changed_at.create_leave(
+                leave["EmploymentStatus"],
+                leave["EmploymentIdentifier"],
+                cpr_uuid_map[cpr],
+            )
 
 
 @cli.command()

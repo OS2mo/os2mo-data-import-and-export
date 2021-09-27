@@ -12,15 +12,17 @@ import codecs
 import csv
 import datetime
 import logging
-import time
+from functools import lru_cache
+from operator import itemgetter
 from typing import Dict
 from typing import List
-from operator import itemgetter
+from typing import Optional
+from uuid import UUID
 
 import requests
 from anytree import Node
+from more_itertools import one
 from more_itertools import only
-
 from ra_utils.headers import TokenSettings
 
 PRIMARY_RESPONSIBILITY = "Personale: ansættelse/afskedigelse"
@@ -188,10 +190,10 @@ class MoraHelper:
         response = self._mo_lookup(uuid=None, url="configuration")
         return "show_roles" in response
 
+    @lru_cache
     def read_organisation(self):
-        """Read the main Organisation, all OU's will have this as root.
+        """Read the main Organisation, all OU's will have this as root
 
-        Currently reads only one, theroretically more than root org can exist.
         :return: UUID of root organisation
         """
         org_id = self._mo_lookup(uuid=None, url="o/")
@@ -230,8 +232,15 @@ class MoraHelper:
         org_enhed = self._mo_lookup(uuid, "ou/{}/", at, use_cache)
         return org_enhed
 
-    def read_ou_address(self, uuid, at=None, use_cache=None, scope="DAR",
-                        return_all=False, reformat=True):
+    def read_ou_address(
+        self,
+        uuid,
+        at=None,
+        use_cache=None,
+        scope="DAR",
+        return_all=False,
+        reformat=True,
+    ):
         """Return a dict with the data available about an OU.
 
         :param uuid: The UUID of the OU
@@ -239,6 +248,7 @@ class MoraHelper:
         rather than a dict, and all adresses will be returned.
         :return: Dict (or list) with the information about the OU
         """
+
         def reformat_address(address):
             return {
                 "type": address["address_type"]["uuid"],
@@ -249,17 +259,15 @@ class MoraHelper:
                 "value": address["value"],
                 "uuid": address["uuid"],
             }
-            return return_address
 
-        addresses = self._mo_lookup(uuid, 'ou/{}/details/address', at, use_cache)
+        addresses = self._mo_lookup(uuid, "ou/{}/details/address", at, use_cache)
         if scope is not None:
             addresses = filter(
-                lambda address: address['address_type']['scope'] == scope,
-                addresses
+                lambda address: address["address_type"]["scope"] == scope, addresses
             )
         # TODO: Eliminiate this random intermediate format?
         if reformat:
-           addresses = map(reformat_address, addresses)
+            addresses = map(reformat_address, addresses)
         return_list = list(addresses)
 
         if return_all:
@@ -280,6 +288,26 @@ class MoraHelper:
         classes = class_list["data"]["items"]
         facet_uuid = class_list["uuid"]
         return (classes, facet_uuid)
+
+    @lru_cache
+    def ensure_class_in_facet(
+        self, facet: str, bvn: str, title: Optional[str] = None, scope: str = "TEXT"
+    ) -> UUID:
+        """Ensures class exists in given facet."""
+
+        classes, _ = self.read_classes_in_facet(facet)
+        current = list(filter(lambda c: c["user_key"] == bvn, classes))
+
+        if current:
+            return UUID(one(current)["uuid"])
+
+        org_uuid = self.read_organisation()
+        title = title or bvn
+        payload = {"name": title, "user_key": bvn, "scope": scope, "org_uuid": org_uuid}
+        url = f"f/{facet}/"
+        r = self._mo_post(url, payload)
+        r.raise_for_status()
+        return UUID(r.json())
 
     def read_user(
         self, user_uuid=None, user_cpr=None, at=None, use_cache=None, org_uuid=None
@@ -714,14 +742,14 @@ class MoraHelper:
         payload = {"type": "employee", "uuid": uuid, "data": data}
         return self._mo_post("details/edit", payload)
 
-    def _get_detail(self, uuid, field_type, object_type='e') -> List[Dict]:
+    def _get_detail(self, uuid, field_type, object_type="e") -> List[Dict]:
         """Get information from /detail for an employee or unit.
         :param uuid: uuid for the object
         :param field_type: detail field type
         :return: dict with the relevant information
         """
         all_data = []
-        for validity in ['past', 'present', 'future']:
+        for validity in ["past", "present", "future"]:
             data = self._mo_lookup(
                 uuid,
                 object_type + "/{}/details/" + field_type,
