@@ -3,6 +3,7 @@ from typing import Dict
 from typing import Optional
 from unittest import mock
 from unittest import TestCase
+from uuid import uuid4
 
 from more_itertools import first_true
 from parameterized import parameterized
@@ -252,6 +253,48 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
                 # Cast `engagement` to dict to force evaluation of its lazy
                 # properties.
                 self.assertIsInstance(dict(engagement), dict)
+
+    @parameterized.expand(
+        [
+            # 1. Mock employee data from MO API
+            (
+                # Mock employee data
+                dict(uuid=uuid4(), name=("Givenname Middlename", "Surname")),
+                # Expected name in log
+                "Givenname Middlename Surname",
+            ),
+            # 2. Mock employee data from LoraCache
+            (
+                # Mock employee data
+                dict(uuid=uuid4(), navn="Givenname Middlename Surname"),
+                # Expected name in log
+                "Givenname Middlename Surname",
+            ),
+            # 3. Mock bogus employee data without "name" or "navn" keys
+            (
+                # Mock employee data
+                dict(uuid=uuid4()),
+                # Expected name in log
+                "unknown",
+            ),
+        ]
+    )
+    def test_log_skipped_decorator(self, employee, expected_name):
+        instance = self._get_instance()
+
+        @instance.log_skipped("foobar")
+        def foobar(tup):
+            return False
+
+        # Call decorated function with mock `(employee, ad_user)` tuple
+        foobar((employee, None))
+
+        # Expect to find a dictionary mapping employee UUID to employee name
+        # under `instance.stats["skipped"]["foobar"]`.
+        self.assertDictEqual(
+            instance.stats["skipped"]["foobar"],
+            {employee["uuid"]: expected_name},
+        )
 
     def test_skip_occupied_names_check(self):
         """If `skip_occupied_names_check` is passed, don't call
