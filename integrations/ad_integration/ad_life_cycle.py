@@ -101,6 +101,14 @@ class AdLifeCycle:
         `stats["skipped"][filtername]` dictionary by the employee UUID.
         """
 
+        def get_employee_name(employee):
+            if "name" in employee:
+                return " ".join(employee["name"])
+            elif "navn" in employee:
+                return employee["navn"]
+            else:
+                return "unknown"
+
         def decorator(f):
             @wraps(f)
             def wrapper(tup):
@@ -111,7 +119,7 @@ class AdLifeCycle:
                     users = skipped.setdefault(filtername, {})
                     # Add user UUID to dictionary (name is used for the value)
                     employee = tup[0]
-                    users[employee["uuid"]] = " ".join(employee["name"])
+                    users[employee["uuid"]] = get_employee_name(employee)
                 return status
 
             return wrapper
