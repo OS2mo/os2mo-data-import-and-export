@@ -1,3 +1,4 @@
+from copy import deepcopy
 import unittest
 from collections import OrderedDict
 from datetime import datetime
@@ -31,14 +32,12 @@ class test_opus_helpers(TestCase):
         ]
     )
     def test_file_diff_same(self, file):
-        filter_ids = []
-        units, employees = opus_helpers.file_diff(file, file, filter_ids)
+        units, employees = opus_helpers.file_diff(file, file, disable_tqdm=True)
         self.assertEqual(units, [])
         self.assertEqual(employees, [])
 
     def test_file_diff(self):
-        filter_ids = []
-        units, employees = opus_helpers.file_diff(testfile1, testfile2, filter_ids)
+        units, employees = opus_helpers.file_diff(testfile1, testfile2, disable_tqdm=True)
         self.assertNotEqual(units, [])
         self.assertNotEqual(employees, [])
 
@@ -77,7 +76,7 @@ class test_opus_helpers(TestCase):
     def test_split_employees_active(self, inputfile, expected):
         filter_ids = ["1"]
         all_filtered_ids = opus_helpers.find_all_filtered_ids(inputfile, filter_ids)
-        units, employees = opus_helpers.file_diff(None, inputfile, filter_ids)
+        units, employees = opus_helpers.file_diff(None, inputfile, disable_tqdm=True)
         emplyees, leaves = opus_helpers.split_employees_leaves(employees)
         employees = list(employees)
         leaves = list(leaves)
@@ -95,6 +94,14 @@ class test_opus_helpers(TestCase):
             this = list(x)
             l = len(this)
             self.assertEqual(l, expected[i])
+    
+    
+    def test_find_changed_parent(self):
+        org1, _ = opus_helpers.parser(testfile1)
+        org2 = deepcopy(org1)
+        org2[2]['parentOrgUnit'] = "CHANGED!"
+        diffs = opus_helpers.find_changes(before=org1, after=org2, disable_tqdm=True)
+        self.assertEqual(diffs, [org2[2]])
 
 
 if __name__ == "__main__":
