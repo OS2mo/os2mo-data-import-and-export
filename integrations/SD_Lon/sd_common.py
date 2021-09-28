@@ -75,11 +75,11 @@ def _sd_lookup_cache(func):
         if cache_file.is_file():
             response = read_response(cache_file)
             logger.info("This SD lookup was found in cache: {}".format(lookup_id))
-            logger.debug(full_url, "read from cache")
+            logger.debug(full_url + " - read from cache")
         else:  # No cache
             response = func(full_url, payload, auth)
             write_response(cache_file, response)
-            logger.debug(full_url, "requested from SD")
+            logger.debug(full_url + " - requested from SD")
         return response
 
     return wrapper
