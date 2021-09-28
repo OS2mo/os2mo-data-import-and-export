@@ -232,7 +232,7 @@ class ChangeAtSD:
 
     @lru_cache(maxsize=None)
     def _fetch_ad_it_system_uuid(self):
-        if self.use_ad:
+        if not self.use_ad:
             raise ValueError("_fetch_ad_it_system_uuid called without AD enabled")
         it_systems = self.helper.read_it_systems()
         return one(
