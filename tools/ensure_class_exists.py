@@ -22,6 +22,7 @@ def ensure_class_in_facet(mora_base, bvn, facet, title, uuid, scope):
     """
     helper = MoraHelper(hostname=mora_base, use_cache=False)
     title = title or bvn
+    assert all(arg != "" for arg in (bvn, title, facet, scope)), "Inputs can't be empty"
     class_uuid = helper.ensure_class_in_facet(
         facet=facet, bvn=bvn, title=title, uuid=uuid, scope=scope
     )
