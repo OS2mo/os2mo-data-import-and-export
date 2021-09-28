@@ -291,7 +291,7 @@ class MoraHelper:
 
     @lru_cache
     def ensure_class_in_facet(
-        self, facet: str, bvn: str, title: Optional[str] = None, scope: str = "TEXT"
+        self, facet: str, bvn: str, title: Optional[str] = None, scope: str = "TEXT", uuid: Optional[UUID] = None
     ) -> UUID:
         """Ensures class exists in given facet."""
 
@@ -305,6 +305,8 @@ class MoraHelper:
         title = title or bvn
         payload = {"name": title, "user_key": bvn, "scope": scope, "org_uuid": org_uuid}
         url = f"f/{facet}/"
+        if uuid:
+            payload.update({"uuid": str(uuid)})
         r = self._mo_post(url, payload)
         r.raise_for_status()
         return UUID(r.json())
