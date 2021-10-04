@@ -5,6 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import logging
+from functools import lru_cache
 from typing import Any
 from typing import Dict
 from typing import List
@@ -14,18 +15,13 @@ from uuid import UUID
 
 import requests
 from more_itertools import one
-from uuid import UUID
+from more_itertools import only
 
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
 from integrations.os2sync import config
 from integrations.os2sync.templates import Person
 from integrations.os2sync.templates import User
-from more_itertools import first
-from integrations.os2sync.templates import Person, User
-from functools import lru_cache
-from more_itertools import one, only
-from constants import addresses_unit_dar
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
@@ -175,7 +171,7 @@ def engagements_to_user(user, engagements, allowed_unitids):
                 {
                     "OrgUnitUuid": e["org_unit"]["uuid"],
                     "Name": e["job_function"]["name"],
-                    "is_primary": e["is_primary"]
+                    "is_primary": e["is_primary"],
                 }
             )
 
@@ -212,14 +208,22 @@ def get_sts_user(uuid, allowed_unitids):
         sts_user, os2mo_get("{BASE}/e/" + uuid + "/details/address").json()
     )
     engagements_to_user(
-        sts_user, os2mo_get("{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true").json(),
-        allowed_unitids
+        sts_user,
+        os2mo_get(
+            "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
+        ).json(),
+        allowed_unitids,
     )
 
     if settings.get("os2sync.employee_engagement_address") and sts_user["Positions"]:
         primary_eng = one(filter(lambda e: e["is_primary"], sts_user["Positions"]))
-        org_addresses = os2mo_get("{BASE}/ou/" + primary_eng["OrgUnitUuid"] + "/details/address").json()
-        work_address = only(filter(lambda addr: addr["address_type"]["scope"]=="DAR", org_addresses), default={})
+        org_addresses = os2mo_get(
+            "{BASE}/ou/" + primary_eng["OrgUnitUuid"] + "/details/address"
+        ).json()
+        work_address = only(
+            filter(lambda addr: addr["address_type"]["scope"] == "DAR", org_addresses),
+            default={},
+        )
         sts_user["Location"] = work_address.get("name")
 
     strip_truncate_and_warn(sts_user, sts_user)
@@ -234,10 +238,12 @@ def org_unit_uuids(**kwargs):
         ]
     ]
 
+
 def manager_to_orgunit(unit_uuid: UUID) -> UUID:
     manager = os2mo_get("{BASE}/ou/" + str(unit_uuid) + "/details/manager").json()
     if manager:
-        return UUID(one(manager)['person']['uuid'])
+        return UUID(one(manager)["person"]["uuid"])
+
 
 def itsystems_to_orgunit(orgunit, itsystems):
     for i in itsystems:
@@ -376,7 +382,7 @@ def get_sts_orgunit(uuid):
     if settings.get("sync_managers"):
         manager_uuid = manager_to_orgunit(uuid)
         if manager_uuid:
-            sts_org_unit['managerUuid'] = str(manager_uuid)
+            sts_org_unit["managerUuid"] = str(manager_uuid)
 
     # this is set by __main__
     if settings["OS2MO_HAS_KLE"]:
