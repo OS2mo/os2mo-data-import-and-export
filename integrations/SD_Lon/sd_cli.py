@@ -21,7 +21,6 @@ SDTool.add_command(unit_fixer)
 SDTool.add_command(sync_jobid)
 SDTool.add_command(changed_at)
 SDTool.add_command(sd_fixup)
-SDTool.add_command(sd_importer, "sd_importer")
 
 
 if __name__ == "__main__":

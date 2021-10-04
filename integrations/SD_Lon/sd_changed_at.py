@@ -1170,6 +1170,7 @@ class ChangeAtSD:
                     )
                 except Exception as exp:
                     logger.error("Unable to find person in MO, SD error: " + str(exp))
+                    continue
 
             person_uuid = mo_person["uuid"]
 
