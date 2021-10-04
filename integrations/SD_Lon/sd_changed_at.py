@@ -375,8 +375,8 @@ class ChangeAtSD:
             assert response.status_code == 201
             return_uuid = response.json()
             logger.info(
-                "Created or updated employee {} with uuid {}".format(
-                    sd_name, return_uuid
+                "Created or updated employee {} {} with uuid {}".format(
+                    given_name, sur_name, return_uuid
                 )
             )
             return return_uuid
@@ -1170,6 +1170,7 @@ class ChangeAtSD:
                     )
                 except Exception as exp:
                     logger.error("Unable to find person in MO, SD error: " + str(exp))
+                    continue
 
             person_uuid = mo_person["uuid"]
 
