@@ -21,6 +21,11 @@ from exporters.utils.priority_by_class import choose_public_address
 from integrations.os2sync import config
 from integrations.os2sync.templates import Person
 from integrations.os2sync.templates import User
+from more_itertools import first
+from integrations.os2sync.templates import Person, User
+from functools import lru_cache
+from more_itertools import one, only
+from constants import addresses_unit_dar
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
@@ -114,6 +119,7 @@ def os2mo_url(url):
     return url
 
 
+@lru_cache
 def os2mo_get(url, **params):
     url = os2mo_url(url)
     try:
@@ -150,8 +156,6 @@ def addresses_to_user(user, addresses):
             emails.append(address)
         if address["address_type"]["scope"] == "PHONE":
             phones.append(address)
-        if address["address_type"]["scope"] == "DAR":
-            user["Location"] = address["name"]
 
     # find phone using prioritized/empty list of address_type uuids
     phone = choose_public_address(phones, settings["OS2SYNC_PHONE_SCOPE_CLASSES"])
@@ -171,6 +175,7 @@ def engagements_to_user(user, engagements, allowed_unitids):
                 {
                     "OrgUnitUuid": e["org_unit"]["uuid"],
                     "Name": e["job_function"]["name"],
+                    "is_primary": e["is_primary"]
                 }
             )
 
@@ -206,12 +211,16 @@ def get_sts_user(uuid, allowed_unitids):
     addresses_to_user(
         sts_user, os2mo_get("{BASE}/e/" + uuid + "/details/address").json()
     )
-
     engagements_to_user(
-        sts_user,
-        os2mo_get("{BASE}/e/" + uuid + "/details/engagement").json(),
-        allowed_unitids,
+        sts_user, os2mo_get("{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true").json(),
+        allowed_unitids
     )
+
+    if settings.get("os2sync.employee_engagement_address") and sts_user["Positions"]:
+        primary_eng = one(filter(lambda e: e["is_primary"], sts_user["Positions"]))
+        org_addresses = os2mo_get("{BASE}/ou/" + primary_eng["OrgUnitUuid"] + "/details/address").json()
+        work_address = only(filter(lambda addr: addr["address_type"]["scope"]=="DAR", org_addresses), default={})
+        sts_user["Location"] = work_address.get("name")
 
     strip_truncate_and_warn(sts_user, sts_user)
     return sts_user
