@@ -43,7 +43,7 @@ class FixDepartments(object):
         self.settings = load_settings()
 
         self.institution_uuid = self.get_institution()
-        self.helper = MoraHelper(hostname=self.settings["mora.base"], use_cache=False)
+        self.helper = self._get_mora_helper(self.settings)
 
         try:
             self.org_uuid = self.settings.get(
@@ -72,6 +72,9 @@ class FixDepartments(object):
 
         if self.unit_type is None:
             raise Exception("Unit types not correctly configured")
+
+    def _get_mora_helper(self, settings):
+        return MoraHelper(hostname=self.settings["mora.base"], use_cache=False)
 
     def get_institution(self):
         """
