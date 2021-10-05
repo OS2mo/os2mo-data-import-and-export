@@ -70,6 +70,10 @@ class ADParameterReader(AD):
         # 'read it all' function, so there is now only one function
         # reading from AD.
         settings = self._get_setting()
+        cpr_field = settings["cpr_field"]
+        cpr_separator = settings.get("cpr_separator", "")
+        caseless_samname = settings.get("caseless_samname", False)
+        sam_filter = settings.get("sam_filter", "")
 
         logger.debug("Uncached AD read, user {}, cpr {}".format(user, cpr))
 
@@ -85,28 +89,23 @@ class ADParameterReader(AD):
 
         try:
             for userlist in users_by_cpr.values():
-
                 current_user = first_included(settings, userlist)
+                current_user_samaccountname = current_user["SamAccountName"]
 
                 if current_user:
+                    cpr = current_user.get(cpr_field, "")
+                    if cpr is not None:
+                        cpr = cpr.replace(cpr_separator, "")
 
-                    cpr = current_user[settings["cpr_field"]].replace(
-                        settings["cpr_separator"], ""
-                    )
+                    self.results[current_user_samaccountname] = current_user
 
-                    self.results[current_user["SamAccountName"]] = current_user
-
-                    if settings.get("caseless_samname", False):
-                        if (
-                            current_user["SamAccountName"]
-                            .lower()
-                            .startswith(settings["sam_filter"].lower())
+                    if caseless_samname:
+                        if current_user_samaccountname.lower().startswith(
+                            sam_filter.lower()
                         ):
                             self.results[cpr] = current_user
                     else:
-                        if current_user["SamAccountName"].startswith(
-                            settings["sam_filter"]
-                        ):
+                        if current_user_samaccountname.startswith(sam_filter):
                             self.results[cpr] = current_user
 
                     if ria is not None:
