@@ -14,6 +14,7 @@ from typing import Union
 from uuid import UUID
 
 import requests
+from more_itertools import first
 from more_itertools import one
 from more_itertools import only
 
@@ -171,6 +172,7 @@ def engagements_to_user(user, engagements, allowed_unitids):
                 {
                     "OrgUnitUuid": e["org_unit"]["uuid"],
                     "Name": e["job_function"]["name"],
+                    #Only used to find primary engamgements work-address
                     "is_primary": e["is_primary"],
                 }
             )
@@ -189,6 +191,17 @@ def try_get_ad_user_key(uuid: str) -> Optional[str]:
         return
     return ad_systems[0].user_key
 
+def get_work_address(positions, work_address_names):
+    #find the primary engagement and lookup the addresses for that unit
+    primary_eng = one(filter(lambda e: e["is_primary"], positions))
+    org_addresses = os2mo_get(
+        "{BASE}/ou/" + primary_eng["OrgUnitUuid"] + "/details/address"
+    ).json()
+    #filter and sort based on settings and use the first match if any
+    work_address = filter(lambda addr: addr["address_type"]["name"] in work_address_names , org_addresses)
+    work_address = sorted(work_address, key=lambda a: work_address_names.index(a["address_type"]["name"]))
+    chosen_work_address= first(work_address, default={})
+    return chosen_work_address.get("name")
 
 def get_sts_user(uuid, allowed_unitids):
     employee = os2mo_get("{BASE}/e/" + uuid + "/").json()
@@ -207,24 +220,20 @@ def get_sts_user(uuid, allowed_unitids):
     addresses_to_user(
         sts_user, os2mo_get("{BASE}/e/" + uuid + "/details/address").json()
     )
+    #use calculate_primary flag to get the is_primary boolean used in getting work-address
+    engagements = os2mo_get(
+            "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
+        ).json()
     engagements_to_user(
         sts_user,
-        os2mo_get(
-            "{BASE}/e/" + uuid + "/details/engagement?calculate_primary=true"
-        ).json(),
+        engagements,
         allowed_unitids,
     )
 
-    if settings.get("os2sync.employee_engagement_address") and sts_user["Positions"]:
-        primary_eng = one(filter(lambda e: e["is_primary"], sts_user["Positions"]))
-        org_addresses = os2mo_get(
-            "{BASE}/ou/" + primary_eng["OrgUnitUuid"] + "/details/address"
-        ).json()
-        work_address = only(
-            filter(lambda addr: addr["address_type"]["scope"] == "DAR", org_addresses),
-            default={},
-        )
-        sts_user["Location"] = work_address.get("name")
+    # Optionally find the work address of employees primary engagement.
+    work_address_names = settings.get("os2sync.employee_engagement_address")
+    if sts_user["Positions"] and work_address_names:
+        sts_user["Location"] = get_work_address(sts_user["Positions"], work_address_names)
 
     strip_truncate_and_warn(sts_user, sts_user)
     return sts_user
