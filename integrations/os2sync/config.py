@@ -45,7 +45,7 @@ settings = {
     "use_contact_for_tasks": top_settings.get("os2sync.use_contact_for_tasks"),
     "sync_managers": top_settings.get("os2sync.sync_managers"),
     "os2sync.employee_engagement_address": top_settings.get(
-        "os2sync.employee_engagement_address", False
+        "os2sync.employee_engagement_address", []
     ),
 }
 
