@@ -18,6 +18,7 @@ from typing import Tuple
 from uuid import UUID
 
 import click
+from operator import itemgetter
 import requests
 from os2mo_tools import mo_api
 from ra_utils.headers import TokenSettings
@@ -88,11 +89,24 @@ def init_log(log_path: str) -> None:
     log_file_handler.setLevel(logging.DEBUG)
     logging.getLogger().addHandler(log_file_handler)
 
+def get_parent_org_unit_uuid(ou, ou_limit_uuid, main_root_org_unit):
+    parent = ou.json["parent"]
+    if parent:
+        #if a limit is set use that as the main root uuid.
+        if parent["uuid"] == str(ou_limit_uuid):
+            return main_root_org_unit
+        return UUID(parent["uuid"])
+    # Rollekataloget only support one root org unit, so all other org
+    # units get put under the main one
+    elif ou.uuid != main_root_org_unit:
+        return main_root_org_unit
+    return None
+
 
 def get_org_units(
-    connector: mo_api.Connector, main_root_org_unit: str, mapping_file_path: str
+    connector: mo_api.Connector, main_root_org_unit: str, ou_limit_uuid:UUID, mapping_file_path: str
 ) -> List[Dict[str, Any]]:
-    org_units = connector.get_ous()
+    org_units = connector.get_ous(root=ou_limit_uuid)
 
     converted_org_units = []
     for org_unit in org_units:
@@ -104,16 +118,7 @@ def get_org_units(
         ou_future = connector.get_ou_connector(org_unit_uuid, validity="future")
         ou_connectors = (ou_present, ou_future)
 
-        def get_parent_org_unit_uuid(ou):
-            parent = ou.json["parent"]
-            if parent:
-                return parent["uuid"]
-            # Rollekataloget only support one root org unit, so all other org
-            # units get put under the main one
-            elif ou.uuid != main_root_org_unit:
-                return main_root_org_unit
 
-            return None
 
         def get_manager(*ou_connectors):
             managers = []
@@ -143,7 +148,7 @@ def get_org_units(
         payload = {
             "uuid": org_unit_uuid,
             "name": org_unit["name"],
-            "parentOrgUnitUuid": get_parent_org_unit_uuid(ou_present),
+            "parentOrgUnitUuid": str(get_parent_org_unit_uuid(ou_present, ou_limit_uuid, main_root_org_unit)),
             "manager": get_manager(*ou_connectors),
         }
         converted_org_units.append(payload)
@@ -152,7 +157,7 @@ def get_org_units(
 
 
 def get_users(
-    connector: mo_api.Connector, mapping_file_path: str
+    connector: mo_api.Connector, mapping_file_path: str, org_unit_uuids: set
 ) -> List[Dict[str, Any]]:
     # read mapping
     employees = connector.get_employees()
@@ -207,13 +212,21 @@ def get_users(
                     }
                 )
             return converted_positions
+        
+        #read positions first to filter any persons with engagements to organisations not in org_unit_uuids
+        positions = get_employee_positions(*e_connectors)
+        positions_in_units = list(filter(lambda position: position["orgUnitUuid"] in org_unit_uuids, positions))
+        if not positions_in_units:
+            continue
+
+
 
         payload = {
             "extUuid": employee["uuid"],
             "userId": sam_account_name,
             "name": employee["name"],
             "email": get_employee_email(*e_connectors),
-            "positions": get_employee_positions(*e_connectors),
+            "positions": positions_in_units,
         }
         converted_users.append(payload)
 
@@ -230,20 +243,34 @@ def get_users(
     "--rollekatalog-url",
     default=load_setting("exporters.os2rollekatalog.rollekatalog.url"),
     help="URL for Rollekataloget.",
+    required=True
 )
 @click.option(
     "--rollekatalog-api-key",
     default=load_setting("exporters.os2rollekatalog.rollekatalog.api_token"),
     type=click.UUID,
+    required=True,
     help="API key to write to Rollekataloget.",
 )
 @click.option(
     "--main-root-org-unit",
     default=load_setting("exporters.os2rollekatalog.main_root_org_unit"),
     type=click.UUID,
+    required=True,
     help=(
+        "Root uuid in rollekataloget - Can be different from MO UUID"
         "Rollekataloget only supports one root org unit. "
         "All other root org units in OS2mo will be made children of this one."
+    ),
+)
+@click.option(
+    "--ou-limit-uuid",
+    default=load_setting("exporters.os2rollekatalog.ou_limit_uuid", None),
+    type=click.UUID,
+    help=(
+        "UUID of the MO org-unit used as root in rollekataloget"
+        "Only organisations and employees with engagements in "
+        "organisations below this org-unit is synced to os2rollekataloget"
     ),
 )
 @click.option(
@@ -271,6 +298,7 @@ def main(
     rollekatalog_url: str,
     rollekatalog_api_key: UUID,
     main_root_org_unit: UUID,
+    ou_limit_uuid: UUID,
     log_file_path: str,
     mapping_file_path: str,
     dry_run: bool,
@@ -304,16 +332,17 @@ def main(
     try:
         logger.info("Reading organisation")
         org_units = get_org_units(
-            mo_connector, str(main_root_org_unit), mapping_file_path
+            mo_connector, main_root_org_unit, ou_limit_uuid, mapping_file_path
         )
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch org units")
         sys.exit(3)
     logger.info("Found {} org units".format(len(org_units)))
+    org_unit_uuids = set(map(itemgetter('uuid'), org_units))
 
     try:
         logger.info("Reading employees")
-        users = get_users(mo_connector, mapping_file_path)
+        users = get_users(mo_connector, mapping_file_path, org_unit_uuids)
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch employees")
         sys.exit(3)
