@@ -4,7 +4,6 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-
 import collections
 import datetime
 import json
@@ -12,8 +11,13 @@ import logging
 import pathlib
 from functools import partial
 
-from integrations.os2sync import config, lcdb_os2mo, os2mo, os2sync
 from tqdm import tqdm
+
+from integrations.os2sync import config
+from integrations.os2sync import lcdb_os2mo
+from integrations.os2sync import os2mo
+from integrations.os2sync import os2sync
+
 logger = None  # set in main()
 
 
@@ -42,27 +46,32 @@ def log_mox_counters(counter):
 def sync_os2sync_orgunits(settings, counter, prev_date):
     logger.info("sync_os2sync_orgunits starting")
 
-    logger.info("sync_os2sync_orgunits getting "
-                "all current organisational units from os2mo")
+    logger.info(
+        "sync_os2sync_orgunits getting " "all current organisational units from os2mo"
+    )
     os2mo_uuids_present = set(os2mo.org_unit_uuids())
 
-    logger.info("sync_os2sync_orgunits getting "
-                "units from os2mo from previous xfer date")
+    logger.info(
+        "sync_os2sync_orgunits getting " "units from os2mo from previous xfer date"
+    )
     os2mo_uuids_past = set(os2mo.org_unit_uuids(at=prev_date))
 
     counter["Aktive Orgenheder fundet i OS2MO"] = len(os2mo_uuids_present)
     counter["Orgenheder tidligere"] = len(os2mo_uuids_past)
 
-    logger.info("sync_os2sync_orgunits deleting organisational "
-                "units from os2sync if deleted in os2mo")
+    logger.info(
+        "sync_os2sync_orgunits deleting organisational "
+        "units from os2sync if deleted in os2mo"
+    )
     if len(os2mo_uuids_present):
         terminated_org_units = set(os2mo_uuids_past - os2mo_uuids_present)
-        for uuid in tqdm(terminated_org_units, desc="Deleting terminated org_units", unit="org_unit"):
+        for uuid in tqdm(
+            terminated_org_units, desc="Deleting terminated org_units", unit="org_unit"
+        ):
             counter["Orgenheder som slettes i OS2Sync"] += 1
             os2sync.delete_orgunit(uuid)
 
-    logger.info("sync_os2sync_orgunits upserting "
-                "organisational units in os2sync")
+    logger.info("sync_os2sync_orgunits upserting " "organisational units in os2sync")
 
     allowed_unitids = []
     for i in tqdm(os2mo_uuids_present, desc="Syncing org_units", unit="org_unit"):
@@ -84,8 +93,9 @@ def sync_os2sync_users(settings, allowed_unitids, counter, prev_date):
 
     logger.info("sync_os2sync_users starting")
 
-    logger.info("sync_os2sync_users getting "
-                "users from os2mo from previous xfer date")
+    logger.info(
+        "sync_os2sync_users getting " "users from os2mo from previous xfer date"
+    )
     os2mo_uuids_past = set(os2mo.user_uuids(at=prev_date))
 
     logger.info("sync_os2sync_users getting list of users from os2mo")
@@ -94,12 +104,13 @@ def sync_os2sync_users(settings, allowed_unitids, counter, prev_date):
     counter["Medarbejdere fundet i OS2Mo"] = len(os2mo_uuids_present)
     counter["Medarbejdere tidligere"] = len(os2mo_uuids_past)
 
-    logger.info("sync_os2sync_users deleting "
-                "os2mo-deleted users in os2sync")
+    logger.info("sync_os2sync_users deleting " "os2mo-deleted users in os2sync")
 
     if len(os2mo_uuids_present):
         terminated_users = set(os2mo_uuids_past - os2mo_uuids_present)
-        for uuid in tqdm(terminated_users, desc="Deleting terminated users", unit="user"):
+        for uuid in tqdm(
+            terminated_users, desc="Deleting terminated users", unit="user"
+        ):
             counter["Medarbejdere slettes i OS2Sync (del)"] += 1
             os2sync.delete_user(uuid)
 
@@ -136,7 +147,7 @@ def main(settings):
     logging.basicConfig(
         format=config.logformat,
         level=int(settings["MOX_LOG_LEVEL"]),
-        filename=settings["MOX_LOG_FILE"]
+        filename=settings["MOX_LOG_FILE"],
     )
     logger = logging.getLogger(config.loggername)
     logger.setLevel(int(settings["MOX_LOG_LEVEL"]))
@@ -162,9 +173,7 @@ def main(settings):
         os2sync.hash_cache.update(json.loads(hash_cache_file.read_text()))
 
     if not settings["OS2MO_ORG_UUID"]:
-        settings["OS2MO_ORG_UUID"] = os2mo.os2mo_get("{BASE}/o/").json()[0][
-            "uuid"
-        ]
+        settings["OS2MO_ORG_UUID"] = os2mo.os2mo_get("{BASE}/o/").json()[0]["uuid"]
     settings["OS2MO_HAS_KLE"] = os2mo.has_kle()
 
     orgunit_uuids = sync_os2sync_orgunits(settings, counter, prev_date)
