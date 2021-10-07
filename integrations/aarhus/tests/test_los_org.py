@@ -13,6 +13,7 @@ from hypothesis import strategies as st
 from .helpers import HelperMixin
 from .helpers import mock_config
 from .strategies import csv_buf_from_model
+from .strategies import text_except
 
 
 class TestConsolidatePayloads:
@@ -230,18 +231,12 @@ class TestHandleAddresses(HelperMixin):
 
 
 class TestWriteFailedAddresses:
+    # Construct a `FailedDARLookup` where the `post_address` does not contain
+    # ASCII NUL characters nor the CSV delimiter character
+    # (which in this case is "#" as per customer spec, see
+    # `OrgUnitImporter.write_failed_addresses`.)
     @settings(max_examples=1000, deadline=None)
-    @given(
-        st.builds(
-            los_org.FailedDARLookup,
-            post_address=st.text(
-                alphabet=st.characters(
-                    blacklist_categories=("Cs",),
-                    blacklist_characters=chr(0),  # Skip ASCII NUL characters
-                )
-            ),
-        )
-    )
+    @given(st.builds(los_org.FailedDARLookup, post_address=text_except(chr(0), "#")))
     def test_writes_csv_to_ftp(self, instance: los_org.FailedDARLookup):
         # Patch `config.get_config` so `write_failed_addresses` sees
         # `MockConfig.queries_dir` instead of actual setting.
