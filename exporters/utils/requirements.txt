@@ -3,4 +3,4 @@ pytest
 parameterized
 hypothesis
 jinja2
-ra-utils
+ra-utils>=0.3.1

@@ -86,7 +86,7 @@ class Test_sd_changed_at(DipexTestCase):
         sd_request.return_value = sd_reply
 
         sd_updater = setup_sd_changed_at()
-        result = sd_updater.read_person(cpr=cpr)
+        result = sd_updater.get_sd_person(cpr=cpr)
         self.assertEqual(result, expected_read_person_result)
 
     def test_update_changed_persons(self):
@@ -103,7 +103,7 @@ class Test_sd_changed_at(DipexTestCase):
         )
 
         sd_updater = setup_sd_changed_at()
-        sd_updater.read_person = lambda cpr: read_person_result
+        sd_updater.get_sd_person = lambda cpr: read_person_result
 
         generate_uuid = uuid_generator("test")
         org_uuid = str(generate_uuid("org_uuid"))
@@ -439,11 +439,9 @@ class Test_sd_changed_at(DipexTestCase):
         sd_updater._create_engagement_type.assert_not_called()
         sd_updater._create_professions.assert_called_once()
 
-    @given(
-        from_date=st.dates(date(1970, 1, 1), date(2060, 1, 1)), one_day=st.booleans()
-    )
-    @example(from_date=date.today(), one_day=True)
-    def test_date_tuples(self, from_date, one_day):
+    @given(from_date=st.dates(date(1970, 1, 1), date(2060, 1, 1)))
+    @example(from_date=date.today())
+    def test_date_tuples(self, from_date):
         def num_days_between(start, end):
             delta = end - start
             return delta.days
@@ -452,16 +450,13 @@ class Test_sd_changed_at(DipexTestCase):
         if from_date >= today:
             # Cannot synchronize into the future
             num_expected_intervals = 0
-        elif one_day:
-            # one_day should always produce exactly one interval
-            num_expected_intervals = 1
         else:
             num_expected_intervals = num_days_between(from_date, today)
 
         # Construct datetime at from_date midnight
         from_datetime = datetime.combine(from_date, datetime.min.time())
 
-        dates = list(gen_date_pairs(from_datetime, one_day))
+        dates = list(gen_date_pairs(from_datetime))
         self.assertEqual(len(dates), num_expected_intervals)
         # We always expect intervals to be exactly one day long
         for from_date, to_date in dates:

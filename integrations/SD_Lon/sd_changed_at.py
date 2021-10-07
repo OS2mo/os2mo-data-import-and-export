@@ -45,6 +45,7 @@ from integrations.rundb.db_overview import DBOverview
 from integrations.SD_Lon import exceptions
 from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.fix_departments import FixDepartments
+from integrations.SD_Lon.models import SDBasePerson
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import mora_assert
@@ -299,12 +300,22 @@ class ChangeAtSD:
 
         return employment_response
 
-    def read_person_changed(self):
+    def get_sd_persons_changed(
+        self, from_date: datetime.datetime, to_date: Optional[datetime.datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Get list of SD Løn persons that have changed between `from_date`
+        and `to_date`
+
+        Returns:
+            List of SD Løn persons changed between the two dates
+        """
+
         deactivate_date = "31.12.9999"
-        if self.to_date:
-            deactivate_date = self.to_date.strftime("%d.%m.%Y")
+        if to_date:
+            deactivate_date = to_date.strftime("%d.%m.%Y")
         params = {
-            "ActivationDate": self.from_date.strftime("%d.%m.%Y"),
+            "ActivationDate": from_date.strftime("%d.%m.%Y"),
             "DeactivationDate": deactivate_date,
             "StatusActiveIndicator": "true",
             "StatusPassiveIndicator": "true",
@@ -314,10 +325,21 @@ class ChangeAtSD:
         }
         url = "GetPersonChangedAtDate20111201"
         response = sd_lookup(url, params=params)
-        person_changed = ensure_list(response.get("Person", []))
-        return person_changed
+        persons_changed = ensure_list(response.get("Person", []))
+        return persons_changed
 
-    def read_person(self, cpr):
+    def get_sd_person(self, cpr: str) -> List[Dict[str, Any]]:
+        """
+        Get a single person from SD Løn at `self.from_date`
+
+        Args:
+            cpr: the cpr number of the person
+
+        Returns:
+            A list containing the person (or an empty list if no person
+            is found)
+        """
+
         params = {
             "EffectiveDate": self.from_date.strftime("%d.%m.%Y"),
             "PersonCivilRegistrationIdentifier": cpr,
@@ -345,13 +367,22 @@ class ChangeAtSD:
             handled by the update_employment method instead.
         """
 
-        def extract_cpr_and_name(
-            person: Dict[str, Any]
-        ) -> Tuple[str, Optional[str], Optional[str]]:
-            return (
-                person["PersonCivilRegistrationIdentifier"],
-                person.get("PersonGivenName"),
-                person.get("PersonSurnameName"),
+        def extract_cpr_and_name(person: Dict[str, Any]) -> SDBasePerson:
+            """
+            Get CPR, given name (firstname) and surname (lastname) of
+            SD Løn person.
+
+            Args:
+                person: the person from SD Løn
+
+            Returns:
+                Basic SD person with cpr and names
+            """
+
+            return SDBasePerson(
+                cpr=person["PersonCivilRegistrationIdentifier"],
+                given_name=person.get("PersonGivenName"),
+                surname=person.get("PersonSurnameName"),
             )
 
         @apply
@@ -395,39 +426,45 @@ class ChangeAtSD:
 
         # Fetch a list of persons to update
         if in_cpr is not None:
-            person_changed = self.read_person(in_cpr)
+            all_sd_persons_changed = self.get_sd_person(in_cpr)
         else:
             logger.info("Update all persons")
-            person_changed = self.read_person_changed()
+            all_sd_persons_changed = self.get_sd_persons_changed(
+                self.from_date, self.to_date
+            )
 
-        logger.info("Number of changed persons: {}".format(len(person_changed)))
-        person_changed = tqdm(person_changed, desc="update persons")
-        person_changed = filter(skip_fictional_users, person_changed)
-        person_changed = map(extract_cpr_and_name, person_changed)
+        logger.info(f"Number of changed persons: {len(all_sd_persons_changed)}")
+        all_sd_persons_changed = tqdm(all_sd_persons_changed, desc="update persons")
+        real_sd_persons_changed = filter(skip_fictional_users, all_sd_persons_changed)
+        sd_persons_changed = map(extract_cpr_and_name, real_sd_persons_changed)
 
-        person_changed, mo_persons = tee(person_changed)
-        mo_persons = map(fetch_mo_person, mo_persons)
+        sd_persons_iter1, sd_persons_iter2 = tee(sd_persons_changed)
+        mo_persons_iter = map(fetch_mo_person, sd_persons_iter2)
 
-        person_pairs = zip(person_changed, mo_persons)
+        person_pairs = zip(sd_persons_iter1, mo_persons_iter)
         has_mo_person = itemgetter(1)
 
         new_pairs, current_pairs = partition(has_mo_person, person_pairs)
 
-        for (cpr, given_name, sur_name), mo_person in current_pairs:
-            given_name = given_name or mo_person.get("givenname", "")
-            sur_name = sur_name or mo_person.get("surname", "")
-            sd_name = " ".join([given_name, sur_name])
+        # Update the names of the persons already in MO
+        for sd_person, mo_person in current_pairs:
+            given_name = sd_person.given_name or mo_person.get("givenname", "")
+            surname = sd_person.surname or mo_person.get("surname", "")
+            sd_name = f"{sd_person.given_name} {sd_person.surname}"
             if mo_person["name"] == sd_name:
                 continue
             uuid = mo_person["uuid"]
-            upsert_employee(uuid, given_name, sur_name, cpr)
+            upsert_employee(uuid, given_name, surname, sd_person.cpr)
 
-        for (cpr, given_name, sur_name), _ in new_pairs:
-            given_name = given_name or ""
-            sur_name = sur_name or ""
+        # Create new SD persons in MO
+        for sd_person, _ in new_pairs:
+            given_name = sd_person.given_name or ""
+            surname = sd_person.surname or ""
 
-            forced_uuid = self.employee_forced_uuids.get(cpr)
-            sam_account_name, object_guid = self._fetch_ad_information(cpr)
+            # Use previously created UUID (if such exists) for MO person
+            # to be created
+            forced_uuid = self.employee_forced_uuids.get(sd_person.cpr)
+            sam_account_name, object_guid = self._fetch_ad_information(sd_person.cpr)
 
             uuid = None
             if forced_uuid:
@@ -442,9 +479,10 @@ class ChangeAtSD:
                     "User not in MO, UUID list or AD, assigning UUID: {}".format(uuid)
                 )
 
-            return_uuid = upsert_employee(uuid, given_name, sur_name, cpr)
+            return_uuid = upsert_employee(uuid, given_name, surname, sd_person.cpr)
 
             if sam_account_name:
+                # Create an IT system for the person If the person is found in the AD
                 create_itsystem_connection(sam_account_name, return_uuid)
 
     def _compare_dates(self, first_date, second_date, expected_diff=1):
@@ -1227,8 +1265,38 @@ def initialize_changed_at(from_date, run_db, force=False):
 
 
 def gen_date_pairs(
-    from_date: datetime.datetime, one_day: bool = False
+    from_date: datetime.datetime,
 ) -> Iterator[Tuple[datetime.datetime, datetime.datetime]]:
+    """
+    Get iterator capable of generating af sequence of datetime pairs
+    incrementing one day at a time. The latter date in a pair is
+    advanced by exactly one day compared to the former date in the pair.
+
+    Args:
+        from_date: the start date
+
+    Yields:
+        The next date pair in the sequence of pairs
+
+    Example:
+        If called on 2021-10-04:
+        >>> print([pair for pair in gen_date_pairs(datetime.datetime(2021,10,1))])
+        [
+            (
+                datetime.datetime(2021, 10, 1, 0, 0),
+                datetime.datetime(2021, 10, 2, 0, 0)
+            ),
+            (
+                datetime.datetime(2021, 10, 2, 0, 0),
+                datetime.datetime(2021, 10, 3, 0, 0)
+            ),
+            (
+                datetime.datetime(2021, 10, 3, 0, 0),
+                datetime.datetime(2021, 10, 4, 0, 0)
+            )
+        ]
+    """
+
     def generate_date_tuples(from_date, to_date):
         date_range = pd.date_range(from_date, to_date)
         mapped_dates = map(lambda date: date.to_pydatetime(), date_range)
@@ -1237,8 +1305,6 @@ def gen_date_pairs(
     to_date = datetime.date.today()
     if from_date.date() >= to_date:
         return iter(())
-    if one_day:
-        to_date = from_date + datetime.timedelta(days=1)
     dates = generate_date_tuples(from_date, to_date)
     return dates
 
@@ -1313,6 +1379,7 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: str):
 
     dates = gen_date_pairs(parsed_from_date)
 
+    # Update changes one day at a time
     for parsed_from_date, parsed_to_date in dates:
         logger.info("Importing {} to {}".format(parsed_from_date, parsed_to_date))
         _local_db_insert((parsed_from_date, parsed_to_date, "Running since {}"))
