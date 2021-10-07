@@ -13,7 +13,7 @@ import pathlib
 from functools import partial
 
 from integrations.os2sync import config, lcdb_os2mo, os2mo, os2sync
-
+from tqdm import tqdm
 logger = None  # set in main()
 
 
@@ -56,7 +56,8 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
     logger.info("sync_os2sync_orgunits deleting organisational "
                 "units from os2sync if deleted in os2mo")
     if len(os2mo_uuids_present):
-        for uuid in set(os2mo_uuids_past - os2mo_uuids_present):
+        terminated_org_units = set(os2mo_uuids_past - os2mo_uuids_present)
+        for uuid in tqdm(terminated_org_units, desc="Deleting terminated org_units", unit="org_unit"):
             counter["Orgenheder som slettes i OS2Sync"] += 1
             os2sync.delete_orgunit(uuid)
 
@@ -64,7 +65,7 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
                 "organisational units in os2sync")
 
     allowed_unitids = []
-    for i in os2mo_uuids_present:
+    for i in tqdm(os2mo_uuids_present, desc="Syncing org_units", unit="org_unit"):
         sts_orgunit = os2mo.get_sts_orgunit(i)
         if sts_orgunit:
             allowed_unitids.append(i)
@@ -97,7 +98,8 @@ def sync_os2sync_users(settings, allowed_unitids, counter, prev_date):
                 "os2mo-deleted users in os2sync")
 
     if len(os2mo_uuids_present):
-        for uuid in set(os2mo_uuids_past - os2mo_uuids_present):
+        terminated_users = set(os2mo_uuids_past - os2mo_uuids_present)
+        for uuid in tqdm(terminated_users, desc="Deleting terminated users", unit="user"):
             counter["Medarbejdere slettes i OS2Sync (del)"] += 1
             os2sync.delete_user(uuid)
 
@@ -105,7 +107,7 @@ def sync_os2sync_users(settings, allowed_unitids, counter, prev_date):
     # maybe delete if user has no more positions
     logger.info("sync_os2sync_users upserting os2sync users")
 
-    for i in os2mo_uuids_present:
+    for i in tqdm(os2mo_uuids_present, "Updating users", unit="user"):
         # medarbejdere er allerede omfattet af autowash
         # fordi de ikke får nogen 'Positions' hvis de ikke
         # har en ansættelse i en af allowed_unitids
