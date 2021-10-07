@@ -608,6 +608,10 @@ class AdMoSync(object):
         response = self.helper._mo_post("details/terminate", payload)
         logger.debug("Response: {}".format(response.text))
         return response
+    
+    def _finalize_engagement_title(self, uuid, ad_object):
+        self._edit_engagement(uuid, {})
+
 
     def _edit_user_attrs(self, uuid, ad_object):
         user_attrs = {
@@ -625,6 +629,7 @@ class AdMoSync(object):
     def _terminate_single_user(self, uuid, ad_object):
         self._finalize_it_system(uuid)
         self._finalize_user_addresses(uuid, ad_object)
+        self._finalize_engagement_title(uuid, ad_object)
 
     def _update_single_user(
         self,
