@@ -445,13 +445,6 @@ class ChangeAtSD:
         has_mo_person = itemgetter(1)
 
         new_pairs, current_pairs = partition(has_mo_person, person_pairs)
-        new_pairs = list(new_pairs)
-        print(new_pairs)
-
-        current_pairs = list(current_pairs)
-        print(current_pairs)
-
-        1 / 0
 
         # Update the names of the persons already in MO
         for sd_person, mo_person in current_pairs:
