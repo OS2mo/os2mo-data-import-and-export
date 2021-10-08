@@ -29,7 +29,6 @@ from more_itertools import only
 from more_itertools import pairwise
 from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.apply import apply
 from ra_utils.load_settings import load_setting
 from ra_utils.load_settings import load_settings
 from ramodels.mo import Employee
@@ -385,9 +384,10 @@ class ChangeAtSD:
                 surname=person.get("PersonSurnameName"),
             )
 
-        @apply
-        def fetch_mo_person(cpr: str, _1: Any, _2: Any) -> Dict[str, Any]:
-            mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
+        def fetch_mo_person(person: SDBasePerson) -> Dict[str, Any]:
+            mo_person = self.helper.read_user(
+                user_cpr=person.cpr, org_uuid=self.org_uuid
+            )
             return mo_person
 
         def upsert_employee(uuid: str, given_name: str, sur_name: str, cpr: str) -> str:
@@ -445,6 +445,13 @@ class ChangeAtSD:
         has_mo_person = itemgetter(1)
 
         new_pairs, current_pairs = partition(has_mo_person, person_pairs)
+        new_pairs = list(new_pairs)
+        print(new_pairs)
+
+        current_pairs = list(current_pairs)
+        print(current_pairs)
+
+        1 / 0
 
         # Update the names of the persons already in MO
         for sd_person, mo_person in current_pairs:
