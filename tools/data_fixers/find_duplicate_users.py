@@ -1,13 +1,12 @@
-from typing import Dict
-from typing import List
 from operator import itemgetter
+from typing import Dict, List
 
 import click
 import requests
 from more_itertools import bucket
 from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_settings
 from ra_utils.apply import apply
+from ra_utils.load_settings import load_settings
 
 
 def check_duplicate_cpr(mora_base: str) -> Dict[str, List[str]]:
