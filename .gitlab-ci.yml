@@ -284,6 +284,7 @@ Test data_fixers:
 Test rollekatalog:
   extends: .test-python
   script:
+    - pip install -r exporters/os2rollekatalog/requirements.txt
     - pytest exporters/os2rollekatalog/tests/
 
 # Release stage

@@ -10,6 +10,7 @@ import logging
 import sys
 from functools import lru_cache
 from logging.handlers import RotatingFileHandler
+from operator import itemgetter
 from pathlib import Path
 from typing import Any
 from typing import Dict
@@ -18,7 +19,6 @@ from typing import Tuple
 from uuid import UUID
 
 import click
-from operator import itemgetter
 import requests
 from os2mo_tools import mo_api
 from ra_utils.headers import TokenSettings
@@ -89,10 +89,11 @@ def init_log(log_path: str) -> None:
     log_file_handler.setLevel(logging.DEBUG)
     logging.getLogger().addHandler(log_file_handler)
 
+
 def get_parent_org_unit_uuid(ou, ou_limit_uuid, main_root_org_unit):
     parent = ou.json["parent"]
     if parent:
-        #if a limit is set use that as the main root uuid.
+        # if a limit is set use that as the main root uuid.
         if parent["uuid"] == str(ou_limit_uuid):
             return main_root_org_unit
         return UUID(parent["uuid"])
@@ -104,7 +105,10 @@ def get_parent_org_unit_uuid(ou, ou_limit_uuid, main_root_org_unit):
 
 
 def get_org_units(
-    connector: mo_api.Connector, main_root_org_unit: str, ou_limit_uuid:UUID, mapping_file_path: str
+    connector: mo_api.Connector,
+    main_root_org_unit: UUID,
+    ou_limit_uuid: UUID,
+    mapping_file_path: str,
 ) -> List[Dict[str, Any]]:
     org_units = connector.get_ous(root=ou_limit_uuid)
 
@@ -117,8 +121,6 @@ def get_org_units(
         ou_present = connector.get_ou_connector(org_unit_uuid, validity="present")
         ou_future = connector.get_ou_connector(org_unit_uuid, validity="future")
         ou_connectors = (ou_present, ou_future)
-
-
 
         def get_manager(*ou_connectors):
             managers = []
@@ -148,7 +150,9 @@ def get_org_units(
         payload = {
             "uuid": org_unit_uuid,
             "name": org_unit["name"],
-            "parentOrgUnitUuid": str(get_parent_org_unit_uuid(ou_present, ou_limit_uuid, main_root_org_unit)),
+            "parentOrgUnitUuid": str(
+                get_parent_org_unit_uuid(ou_present, ou_limit_uuid, main_root_org_unit)
+            ),
             "manager": get_manager(*ou_connectors),
         }
         converted_org_units.append(payload)
@@ -212,14 +216,17 @@ def get_users(
                     }
                 )
             return converted_positions
-        
-        #read positions first to filter any persons with engagements to organisations not in org_unit_uuids
+
+        # read positions first to filter any persons with engagements
+        # in organisations not in org_unit_uuids
         positions = get_employee_positions(*e_connectors)
-        positions_in_units = list(filter(lambda position: position["orgUnitUuid"] in org_unit_uuids, positions))
+        positions_in_units = list(
+            filter(
+                lambda position: position["orgUnitUuid"] in org_unit_uuids, positions
+            )
+        )
         if not positions_in_units:
             continue
-
-
 
         payload = {
             "extUuid": employee["uuid"],
@@ -243,7 +250,7 @@ def get_users(
     "--rollekatalog-url",
     default=load_setting("exporters.os2rollekatalog.rollekatalog.url"),
     help="URL for Rollekataloget.",
-    required=True
+    required=True,
 )
 @click.option(
     "--rollekatalog-api-key",
@@ -338,7 +345,7 @@ def main(
         logger.exception("An error occurred trying to fetch org units")
         sys.exit(3)
     logger.info("Found {} org units".format(len(org_units)))
-    org_unit_uuids = set(map(itemgetter('uuid'), org_units))
+    org_unit_uuids = set(map(itemgetter("uuid"), org_units))
 
     try:
         logger.info("Reading employees")
