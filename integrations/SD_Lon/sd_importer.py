@@ -82,6 +82,10 @@ class SdImport(object):
         self.skip_job_functions = self.settings.get(
             "integrations.SD_Lon.skip_employment_types", []
         )
+        # Whether to create SD-medarbejder associations
+        self.create_associations = self.settings.get(
+            "integrations.SD_Lon.sd_importer.create_associations", True
+        )
 
         # CPR indexed dictionary of AD users
         self.ad_people: Dict[str, Dict] = {}
@@ -674,14 +678,15 @@ class SdImport(object):
                 )
                 # Remove this to remove any sign of the employee from the
                 # lowest levels of the org
-                self.importer.add_association(
-                    employee=cpr,
-                    user_key=employment_id["id"],
-                    organisation_unit=original_unit,
-                    association_type_ref="SD-medarbejder",
-                    date_from=date_from,
-                    date_to=date_to,
-                )
+                if self.create_associations:
+                    self.importer.add_association(
+                        employee=cpr,
+                        user_key=employment_id["id"],
+                        organisation_unit=original_unit,
+                        association_type_ref="SD-medarbejder",
+                        date_from=date_from,
+                        date_to=date_to,
+                    )
                 if status == EmploymentStatus.Orlov:
                     self.importer.add_leave(
                         employee=cpr,

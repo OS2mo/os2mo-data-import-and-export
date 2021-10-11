@@ -101,12 +101,14 @@ def test_instantiation(municipality_name: str, municipality_code: str, org_only:
     get_sd_importer(municipality_name, municipality_code, org_only)
 
 
-def test_create_employee():
+@given(st.booleans())
+def test_create_employee(create_associations: bool):
     sd = get_sd_importer(
         override_settings={
             "integrations.SD_Lon.monthly_hourly_divide": 9000,
             "integrations.SD_Lon.job_function": "EmploymentName",
             "integrations.SD_Lon.import.too_deep": [],
+            "integrations.SD_Lon.sd_importer.create_associations": create_associations,
         }
     )
     sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit"})
@@ -188,9 +190,23 @@ def test_create_employee():
 
     assert len(sd.importer.employee_details) == 1
     details = sd.importer.employee_details[cpr_no]
-    # We expect one engagement, and one association
-    assert len(details) == 2
-    engagement, association = details
+
+    if create_associations:
+        # We expect one engagement, and one association
+        assert len(details) == 2
+        engagement, association = details
+
+        assert association.type_id == "association"
+        assert association.date_from == "1970-01-01"
+        assert association.date_to is None
+        assert association.user_key == "TEST123"
+        assert association.org_unit_ref == "org_unit_uuid"
+        assert association.type_ref == "SD-medarbejder"
+    else:
+        # We expect just an engagement
+        assert len(details) == 1
+        engagement = details[0]
+
     assert engagement.type_id == "engagement"
     assert engagement.date_from == "1970-01-01"
     assert engagement.date_to is None
@@ -200,10 +216,3 @@ def test_create_employee():
     assert engagement.org_unit_ref == "org_unit_uuid"
     assert engagement.type_ref == "engagement_typejob_id_123"
     assert engagement.job_function_ref == "job_id_123"
-
-    assert association.type_id == "association"
-    assert association.date_from == "1970-01-01"
-    assert association.date_to is None
-    assert association.user_key == "TEST123"
-    assert association.org_unit_ref == "org_unit_uuid"
-    assert association.type_ref == "SD-medarbejder"
