@@ -74,7 +74,7 @@ def sync_os2sync_orgunits(settings, counter, prev_date):
     logger.info("sync_os2sync_orgunits upserting " "organisational units in os2sync")
 
     allowed_unitids = []
-    for i in tqdm(os2mo_uuids_present, desc="Syncing org_units", unit="org_unit"):
+    for i in tqdm(os2mo_uuids_present, desc="Updating org_units", unit="org_unit"):
         sts_orgunit = os2mo.get_sts_orgunit(i)
         if sts_orgunit:
             allowed_unitids.append(i)
