@@ -16,6 +16,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
+from typing import Set
 from typing import Tuple
 from uuid import UUID
 
@@ -169,7 +170,10 @@ def get_org_units(
 
 
 def get_users(
-    connector: mo_api.Connector, mapping_file_path: str, org_unit_uuids: set
+    connector: mo_api.Connector,
+    mapping_file_path: str,
+    org_unit_uuids: Set[str],
+    ou_filter: bool,
 ) -> List[Dict[str, Any]]:
     # read mapping
     employees = connector.get_employees()
@@ -228,20 +232,22 @@ def get_users(
         # read positions first to filter any persons with engagements
         # in organisations not in org_unit_uuids
         positions = get_employee_positions(*e_connectors)
-        positions_in_units = list(
-            filter(
-                lambda position: position["orgUnitUuid"] in org_unit_uuids, positions
+        if ou_filter:
+            positions = list(
+                filter(
+                    lambda position: position["orgUnitUuid"] in org_unit_uuids,
+                    positions,
+                )
             )
-        )
-        if not positions_in_units:
-            continue
+            if not positions:
+                continue
 
         payload = {
             "extUuid": employee["uuid"],
             "userId": sam_account_name,
             "name": employee["name"],
             "email": get_employee_email(*e_connectors),
-            "positions": positions_in_units,
+            "positions": positions,
         }
         converted_users.append(payload)
 
@@ -355,11 +361,12 @@ def main(
         logger.exception("An error occurred trying to fetch org units")
         sys.exit(3)
     logger.info("Found {} org units".format(len(org_units)))
+    # Create a set of uuids for all org_units
     org_unit_uuids = set(map(itemgetter("uuid"), org_units))
 
     try:
         logger.info("Reading employees")
-        users = get_users(mo_connector, mapping_file_path, org_unit_uuids)
+        users = get_users(mo_connector, mapping_file_path, org_unit_uuids, ou_filter)
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch employees")
         sys.exit(3)
