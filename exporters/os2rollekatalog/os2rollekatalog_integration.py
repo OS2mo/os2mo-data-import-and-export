@@ -96,7 +96,7 @@ def get_parent_org_unit_uuid(
     ou, ou_filter: bool, main_root_org_unit: UUID
 ) -> Optional[UUID]:
 
-    if ou.uuid == main_root_org_unit:
+    if str(ou.uuid) == str(main_root_org_unit):
         # This is the root, there are no parents
         return None
 
