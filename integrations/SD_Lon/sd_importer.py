@@ -6,17 +6,25 @@
 #
 import datetime
 import logging
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 import click
 from anytree import Node
+from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.load_settings import load_setting
+from ra_utils.load_settings import load_settings
 
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import generate_uuid
-from integrations.SD_Lon.sd_common import load_settings
 from integrations.SD_Lon.sd_common import sd_lookup
+from os2mo_data_import import ImportHelper
+
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_initial_import.log"
@@ -44,15 +52,17 @@ class SdImport(object):
         manager_rows=None,
         super_unit=None,
         employee_mapping=None,
+        settings: Optional[Dict[str, Any]] = None,
     ):
         manager_rows = manager_rows or []
         employee_mapping = employee_mapping or {}
 
-        self.settings = load_settings()
+        self.settings = settings or load_settings()
 
         self.base_url = "https://service.sd.dk/sdws/"
-        self.double_employment = []
-        self.address_errors = {}
+        # List of CPR numbers for users with multiple employments
+        self.double_employment: List[str] = []
+        self.address_errors: Dict[str, Dict] = {}
         self.manager_rows = manager_rows
 
         self.importer = importer
@@ -73,7 +83,8 @@ class SdImport(object):
             "integrations.SD_Lon.skip_employment_types", []
         )
 
-        self.ad_people = {}
+        # CPR indexed dictionary of AD users
+        self.ad_people: Dict[str, Dict] = {}
         self.employee_forced_uuids = employee_mapping
         self.ad_reader = None
         if isinstance(ad_info, ad_reader.ADParameterReader):
@@ -81,7 +92,7 @@ class SdImport(object):
             self.importer.new_itsystem(identifier="AD", system_name="Active Directory")
             self.ad_reader.cache_all()
 
-        self.nodes = {}  # Will be populated when org-tree is created
+        self.nodes: Dict[str, Dict] = {}  # Will be populated when org-tree is created
 
         self.org_only = org_only
         if not org_only:
@@ -760,22 +771,23 @@ def cli():
     type=click.BOOL,
     help="Only import organisation structure",
 )
-def full_import(org_only):
+@click.option(
+    "--mora-base",
+    default=load_setting("mora.base", "http://localhost:5000"),
+    help="URL for OS2mo.",
+)
+@click.option(
+    "--mox-base",
+    default=load_setting("mox.base", "http://localhost:8080"),
+    help="URL for LoRa.",
+)
+def full_import(org_only: bool, mora_base: str, mox_base: str):
     """Tool to do an initial full import."""
-    settings = load_settings()
-
     # Check connection to MO before we fire requests against SD
-    from os2mo_helpers.mora_helpers import MoraHelper
-
-    mora_base = settings["mora.base"]
     mh = MoraHelper(mora_base)
-    result = mh.check_connection()
-    if not result:
+    if not mh.check_connection():
         raise click.ClickException("No MO reply, aborting.")
 
-    from os2mo_data_import import ImportHelper
-
-    mox_base = settings["mox.base"]
     importer = ImportHelper(
         create_defaults=True,
         mox_base=mox_base,
@@ -783,7 +795,6 @@ def full_import(org_only):
         store_integration_data=False,
         seperate_names=True,
     )
-
     sd = SdImport(importer, org_only=org_only, ad_info=None, manager_rows=None)
 
     sd.create_ou_tree(create_orphan_container=False, sub_tree=None, super_unit=None)
@@ -791,67 +802,6 @@ def full_import(org_only):
         sd.create_employees()
 
     importer.import_all()
-
-
-@cli.command()
-@click.option(
-    "--cpr",
-    required=True,
-    type=click.STRING,
-    help="CPR number for the person to import",
-)
-def import_user(cpr):
-    settings = load_settings()
-    params = {
-        "StatusActiveIndicator": "true",
-        "StatusPassiveIndicator": "false",
-        "DepartmentIndicator": "true",
-        "EmploymentStatusIndicator": "true",
-        "ProfessionIndicator": "true",
-        "WorkingTimeIndicator": "true",
-        "UUIDIndicator": "true",
-        "SalaryAgreementIndicator": "false",
-        "SalaryCodeGroupIndicator": "false",
-        "EffectiveDate": get_import_date(settings),
-        "PersonCivilRegistrationIdentifier": cpr,
-    }
-    result = sd_lookup("GetEmployment20111201", params)
-    if not isinstance(result["Person"], list):
-        result["Person"] = [result["Person"]]
-    people = result["Person"]
-    if len(people) < 1:
-        raise click.ClickException("No people found for CPR.")
-    if len(people) > 1:
-        raise click.ClickException("Multiple people found for CPR.")
-    person = people[0]
-
-    # Check connection to MO before we fire requests against SD
-    from os2mo_helpers.mora_helpers import MoraHelper
-
-    mora_base = settings["mora.base"]
-    mh = MoraHelper(mora_base)
-    result = mh.check_connection()
-    if not result:
-        raise click.ClickException("No MO reply, aborting.")
-
-    from os2mo_data_import import ImportHelper
-
-    mox_base = settings["mox.base"]
-    importer = ImportHelper(
-        create_defaults=True,
-        mox_base=mox_base,
-        mora_base=mora_base,
-        store_integration_data=False,
-        seperate_names=True,
-    )
-
-    sd = SdImport(importer, org_only=False, ad_info=None, manager_rows=None)
-
-    sd.create_ou_tree(create_orphan_container=False, sub_tree=None, super_unit=None)
-
-    sd.create_employee(person)
-
-    # importer.import_all()
 
 
 if __name__ == "__main__":
