@@ -22,9 +22,9 @@ For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
    fx. https://os2mo.rollekatalog.dk/api/organisation/v3
  * ``exporters.os2rollekatalog.rollekatalog.api_token``: API token til autentificering med rollekataloget
  * ``exporters.os2rollekatalog.main_root_org_unit``: UUID på rod-enheden i rollekataloget.
- * ``exporters.os2rollekatalog.ou_limit_uuid``: Optionelt: UUID på rod-enheden i MO. 
-    Begrænser eksporten til kun at sende enheder der hører under den givne organisationsenhed
-    samt medarbejdere der har et engagement i en af de enheder.
+ * ``exporters.os2rollekatalog.ou_filter``: `true` eller `false`. 
+    Filtrer enheder og engagementer der ikke hører under main_root_org_unit fra. 
+    Default er `false`. 
  
 
 Eksporteret data

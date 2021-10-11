@@ -11,9 +11,10 @@ from exporters.os2rollekatalog.os2rollekatalog_integration import (
 class MockOU:
     "Mock class for api-object"
 
-    def __init__(self, value):
-        self.json = value
-        self.uuid = uuid4()
+    def __init__(self, uuid, parent_uuid):
+        parent_json = {"uuid": str(parent_uuid)} if parent_uuid else None
+        self.json = {"parent": parent_json}
+        self.uuid = uuid
 
 
 root = uuid4()
@@ -23,17 +24,36 @@ testparent = uuid4()
 class RollekatalogTestUnits(unittest.TestCase):
     @parameterized.expand(
         [
-            # If there are no parent allways use root uuid
-            ({"parent": None}, limit, root),
-            ({"parent": None}, None, root),
-            # If there is a parent use it.
-            ({"parent": {"uuid": str(testparent)}}, limit, testparent),
-            ({"parent": {"uuid": str(testparent)}}, None, testparent),
-            # If there is a limit set and the parent is this limit, use root uuid.
-            ({"parent": {"uuid": str(limit)}}, limit, root),
+        #No ou filtering:
+            #Unit is actual root and returns None
+            (None,root, False, None),
+            #unit is not root but has no parent, returns root
+            (None,uuid4(), False, root),
+            #unit has a parent, parent is returned
+            (testparent,uuid4(), False, testparent),
+            
+        #Filtering is on. 
+            # Root unit still returns None as parent
+            (None, root, True, None),
+            #unit has a parent, parent is returned
+            (testparent,uuid4(), True, testparent),
         ]
     )
-    def test_get_parent(self, ou, limit, expected):
-        mocked_ou = MockOU(ou)
+    def test_get_parent(self, parent_uuid,uuid, limit, expected):
+        mocked_ou = MockOU(uuid, parent_uuid)
         res = get_parent_org_unit_uuid(mocked_ou, limit, root)
         self.assertEqual(res, expected)
+        
+    @parameterized.expand(
+        [
+        #Filtering is on
+            #Unit has a no parent and is not the root
+            #this should never happen because it should have been filtered. 
+            #Assert that an exception is raised 
+            (None, uuid4(), True, None),
+        ]
+    )
+    def test_assert_filtered(self, parent_uuid,uuid, limit, expected):
+        mocked_ou = MockOU(uuid, parent_uuid)
+        with self.assertRaises(AssertionError):
+            res = get_parent_org_unit_uuid(mocked_ou, limit, root)

@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 from typing import Tuple
 from uuid import UUID
 
@@ -90,27 +91,32 @@ def init_log(log_path: str) -> None:
     logging.getLogger().addHandler(log_file_handler)
 
 
-def get_parent_org_unit_uuid(ou, ou_limit_uuid, main_root_org_unit):
+def get_parent_org_unit_uuid(
+    ou, ou_filter: bool, main_root_org_unit: UUID
+) -> Optional[UUID]:
+
+    if ou.uuid == main_root_org_unit:
+        # This is the root, there are no parents
+        return None
+
     parent = ou.json["parent"]
+    if ou_filter:
+        assert parent, f"The org_unit {ou.uuid} should have been filtered"
+
     if parent:
-        # if a limit is set use that as the main root uuid.
-        if parent["uuid"] == str(ou_limit_uuid):
-            return main_root_org_unit
         return UUID(parent["uuid"])
-    # Rollekataloget only support one root org unit, so all other org
-    # units get put under the main one
-    elif ou.uuid != main_root_org_unit:
-        return main_root_org_unit
-    return None
+    # Rollekataloget only support one root org unit, so all other root org
+    # units get put under the main one, if filtering is not active.
+    return main_root_org_unit
 
 
 def get_org_units(
     connector: mo_api.Connector,
     main_root_org_unit: UUID,
-    ou_limit_uuid: UUID,
+    ou_filter: bool,
     mapping_file_path: str,
 ) -> List[Dict[str, Any]]:
-    org_units = connector.get_ous(root=ou_limit_uuid)
+    org_units = connector.get_ous(root=ou_filter)
 
     converted_org_units = []
     for org_unit in org_units:
@@ -147,12 +153,14 @@ def get_org_units(
 
             return {"uuid": person["uuid"], "userId": sam_account_name}
 
+        parent_uuid = (
+            str(get_parent_org_unit_uuid(ou_present, ou_filter, main_root_org_unit))
+            or None
+        )
         payload = {
             "uuid": org_unit_uuid,
             "name": org_unit["name"],
-            "parentOrgUnitUuid": str(
-                get_parent_org_unit_uuid(ou_present, ou_limit_uuid, main_root_org_unit)
-            ),
+            "parentOrgUnitUuid": parent_uuid,
             "manager": get_manager(*ou_connectors),
         }
         converted_org_units.append(payload)
@@ -265,19 +273,21 @@ def get_users(
     type=click.UUID,
     required=True,
     help=(
-        "Root uuid in rollekataloget - Can be different from MO UUID"
+        "Root uuid in rollekataloget"
         "Rollekataloget only supports one root org unit. "
         "All other root org units in OS2mo will be made children of this one."
+        "Unless they are filtered by setting ou_filter=true"
     ),
 )
 @click.option(
-    "--ou-limit-uuid",
-    default=load_setting("exporters.os2rollekatalog.ou_limit_uuid", None),
-    type=click.UUID,
+    "--ou-filter",
+    default=load_setting("exporters.os2rollekatalog.ou_filter", False),
+    type=click.BOOL,
     help=(
-        "UUID of the MO org-unit used as root in rollekataloget"
-        "Only organisations and employees with engagements in "
-        "organisations below this org-unit is synced to os2rollekataloget"
+        "Option to filter by main_root_org_unit."
+        "Only get org_units below main_root_org_unit and employees in these org units."
+        "Defaults to false (select every org unit and put other root units "
+        "below main_root)"
     ),
 )
 @click.option(
@@ -305,7 +315,7 @@ def main(
     rollekatalog_url: str,
     rollekatalog_api_key: UUID,
     main_root_org_unit: UUID,
-    ou_limit_uuid: UUID,
+    ou_filter: bool,
     log_file_path: str,
     mapping_file_path: str,
     dry_run: bool,
@@ -339,7 +349,7 @@ def main(
     try:
         logger.info("Reading organisation")
         org_units = get_org_units(
-            mo_connector, main_root_org_unit, ou_limit_uuid, mapping_file_path
+            mo_connector, main_root_org_unit, ou_filter, mapping_file_path
         )
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch org units")
