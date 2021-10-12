@@ -28,15 +28,15 @@ class RollekatalogTestUnits(unittest.TestCase):
             #Unit is actual root and returns None
             (None,root, False, None),
             #unit is not root but has no parent, returns root
-            (None,uuid4(), False, root),
+            (None,uuid4(), False, str(root)),
             #unit has a parent, parent is returned
-            (testparent,uuid4(), False, testparent),
+            (testparent,uuid4(), False, str(testparent)),
             
         #Filtering is on. 
             # Root unit still returns None as parent
             (None, root, True, None),
             #unit has a parent, parent is returned
-            (testparent,uuid4(), True, testparent),
+            (testparent,uuid4(), True, str(testparent)),
         ]
     )
     def test_get_parent(self, parent_uuid,uuid, limit, expected):

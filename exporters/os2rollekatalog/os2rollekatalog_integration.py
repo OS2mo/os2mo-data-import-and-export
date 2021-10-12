@@ -94,7 +94,7 @@ def init_log(log_path: str) -> None:
 
 def get_parent_org_unit_uuid(
     ou, ou_filter: bool, main_root_org_unit: UUID
-) -> Optional[UUID]:
+) -> Optional[str]:
 
     if str(ou.uuid) == str(main_root_org_unit):
         # This is the root, there are no parents
@@ -105,10 +105,10 @@ def get_parent_org_unit_uuid(
         assert parent, f"The org_unit {ou.uuid} should have been filtered"
 
     if parent:
-        return UUID(parent["uuid"])
+        return parent["uuid"]
     # Rollekataloget only support one root org unit, so all other root org
     # units get put under the main one, if filtering is not active.
-    return main_root_org_unit
+    return str(main_root_org_unit)
 
 
 def get_org_units(
@@ -154,14 +154,11 @@ def get_org_units(
 
             return {"uuid": person["uuid"], "userId": sam_account_name}
 
-        parent_uuid = (
-            str(get_parent_org_unit_uuid(ou_present, ou_filter, main_root_org_unit))
-            or None
-        )
+        
         payload = {
             "uuid": org_unit_uuid,
             "name": org_unit["name"],
-            "parentOrgUnitUuid": parent_uuid,
+            "parentOrgUnitUuid": get_parent_org_unit_uuid(ou_present, ou_filter, main_root_org_unit),
             "manager": get_manager(*ou_connectors),
         }
         converted_org_units.append(payload)
