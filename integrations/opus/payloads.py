@@ -1,6 +1,7 @@
 # from collections import OrderedDict
 
 from integrations.opus import opus_helpers
+from uuid import UUID
 
 
 def create_user(employee, org_uuid, uuid=None):
@@ -110,18 +111,21 @@ def connect_it_system_to_user(username, it_system, person_uuid, from_date):
     return payload
 
 
-def create_address(validity, address_type, value, unit_uuid=None, user_uuid=None):
+def create_address(validity, address_type, value, unit_uuid=None, user_uuid=None, visibility: UUID=None):
     if unit_uuid is None and user_uuid is None:
         raise Exception("Either unit or user must be specified")
     if unit_uuid and user_uuid:
         raise Exception("Only a unit or a person can be specified")
-
+    
+    
     payload = {
         "type": "address",
         "value": value,
         "address_type": address_type,
-        "validity": validity,
+        "validity": validity
     }
+    if visibility:
+        payload["visibility"] = {"uuid": str(visibility)}
     if unit_uuid is not None:
         payload["org_unit"] = {"uuid": unit_uuid}
     if user_uuid is not None:
