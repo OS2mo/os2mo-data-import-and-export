@@ -861,6 +861,7 @@ def import_one(
     latest_date: Optional[datetime],
     dumps: Dict,
     filter_ids: Optional[List],
+    skip_employees: bool = False
 ):
     """Import one file at the date xml_date."""
     msg = "Start update: File: {}, update since: {}"
@@ -876,7 +877,8 @@ def import_one(
         filtered_units,
         employees,
         terminated_employees,
-    ) = opus_helpers.read_and_transform_data(latest_path, xml_path, filter_ids)
+    ) = opus_helpers.read_and_transform_data(latest_path, xml_path, filter_ids, skip_employees=skip_employees)
+    
     opus_helpers.local_db_insert((xml_date, "Running diff update since {}"))
     diff = OpusDiffImport(
         xml_date,
@@ -899,6 +901,7 @@ def start_opus_diff(ad_reader=None):
     dumps = opus_helpers.read_available_dumps()
     run_db = Path(SETTINGS["integrations.opus.import.run_db"])
     filter_ids = SETTINGS.get("integrations.opus.units.filter_ids", [])
+    skip_employees = SETTINGS.get("integrations.opus.skip_employees", False)
 
     if not run_db.is_file():
         logger.error("Local base not correctly initialized")
@@ -906,7 +909,7 @@ def start_opus_diff(ad_reader=None):
     xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
 
     while xml_date:
-        import_one(ad_reader, xml_date, latest_date, dumps, filter_ids)
+        import_one(ad_reader, xml_date, latest_date, dumps, filter_ids, skip_employees)
         # Check if there are more files to import
         xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
         logger.info("Ended update")

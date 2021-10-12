@@ -197,7 +197,7 @@ def find_changes(
     return changed_obj
 
 
-def file_diff(file1: Optional[Path], file2: Path, disable_tqdm: bool = True):
+def file_diff(file1: Optional[Path], file2: Path, disable_tqdm: bool = True, skip_employees=False):
     """Compares two files and returns all units and employees that have been changed."""
     units1 = employees1 = {}
     if file1:
@@ -205,7 +205,9 @@ def file_diff(file1: Optional[Path], file2: Path, disable_tqdm: bool = True):
     units2, employees2 = parser(file2)
 
     units = find_changes(units1, units2, disable_tqdm=disable_tqdm)
-    employees = find_changes(employees1, employees2, disable_tqdm=disable_tqdm)
+    employees = []
+    if not skip_employees:
+        employees = find_changes(employees1, employees2, disable_tqdm=disable_tqdm)
 
     return units, employees
 
@@ -388,12 +390,12 @@ def find_all_filtered_ids(inputfile, filter_ids):
 
 
 def read_and_transform_data(
-    inputfile1: Optional[Path], inputfile2: Path, filter_ids: List[Optional[str]]
+    inputfile1: Optional[Path], inputfile2: Path, filter_ids: List[Optional[str]], disable_tqdm=False, skip_employees:bool = False
 ) -> Tuple[Iterable, Iterable, Iterable, Iterable]:
     """Gets the diff of two files and transporms the data based on filter_ids
     Returns the active units, filtered units, active employees which are not in a filtered unit and employees which are terminated
     """
-    units, employees = file_diff(inputfile1, inputfile2)
+    units, employees = file_diff(inputfile1, inputfile2, disable_tqdm=disable_tqdm, skip_employees=skip_employees)
     all_filtered_ids = find_all_filtered_ids(inputfile2, filter_ids)
     filtered_units, units = filter_units(units, filter_ids)
     employees, terminated_employees = split_employees_leaves(employees)
