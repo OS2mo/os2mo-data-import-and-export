@@ -1,4 +1,6 @@
+from contextlib import nullcontext
 from operator import itemgetter
+from unittest import mock
 from unittest import TestCase
 
 from hypothesis import given
@@ -12,7 +14,6 @@ from .mocks import MockAD
 
 AD_SAM_ACCOUNT_NAME = "SamAccountName"
 AD_CPR_FIELD_NAME = "CprFieldName"
-CPR_SEPARATOR = "-"
 
 
 class _TestableADParameterReader(MockAD, ADParameterReader):
@@ -27,11 +28,11 @@ class _TestableADParameterReader(MockAD, ADParameterReader):
             "primary": {
                 "servers": None,
                 "search_base": "",
-                "cpr_field": AD_CPR_FIELD_NAME,
-                "cpr_separator": AD_CPR_FIELD_NAME,
                 "properties": [AD_SAM_ACCOUNT_NAME, AD_CPR_FIELD_NAME],
-                "sam_filter": "",
-                "caseless_samname": True,
+                "cpr_field": AD_CPR_FIELD_NAME,
+                "cpr_separator": None,
+                "sam_filter": None,
+                "caseless_samname": None,
             },
         }
         if overridden_settings:
@@ -44,7 +45,7 @@ class _TestableADParameterReader(MockAD, ADParameterReader):
 class TestADParameterReader(TestCase):
     """Test `ADParameterReader`"""
 
-    @settings(deadline=None)
+    @settings(max_examples=1000, deadline=None)
     @given(
         # Build simulated AD response
         st.lists(
@@ -58,36 +59,58 @@ class TestADParameterReader(TestCase):
         # Build simulated settings
         st.fixed_dictionaries(
             {
+                "cpr_separator": st.text(max_size=1),
+                "caseless_samname": st.booleans(),
                 "sam_filter": st.text(),
-                "caseless_samname": st.text(),
             }
         ),
+        # Decide whether `first_included` returns an AD user or an empty dict
+        st.booleans(),
     )
-    def test_uncached_read_user(self, response, settings):
+    def test_uncached_read_user(self, response, settings, first_included_is_empty):
         reader = _TestableADParameterReader(response, **settings)
         ria = []  # accumulates all AD users found
         user = "foobar"
-        reader.uncached_read_user(user=user, ria=ria)
 
-        # Test contents of the `ria` accumulator variable. Must contain an AD
-        # user for each non-blank SamAccountName *or* CPR. Each AD user must
-        # only show up *once* in `ria`.
-        expected_ad_users = list(
-            unique_everseen(
-                filter(
-                    lambda ad_user: (
-                        ad_user.get(AD_SAM_ACCOUNT_NAME)
-                        or ad_user.get(AD_CPR_FIELD_NAME)
+        with self._mock_first_included(first_included_is_empty):
+            reader.uncached_read_user(user=user, ria=ria)
+
+        # Test contents of the `ria` accumulator variable
+        if first_included_is_empty:
+            # `ria` is expected to be empty if `first_included` returns an
+            # empty dict.
+            expected_ad_users = []
+        else:
+            # `ria` must contain an AD user for each non-blank SamAccountName
+            # *or* CPR. Each AD user must only show up *once* in `ria`.
+            expected_ad_users = list(
+                unique_everseen(
+                    filter(
+                        lambda ad_user: (
+                            ad_user.get(AD_SAM_ACCOUNT_NAME)
+                            or ad_user.get(AD_CPR_FIELD_NAME)
+                        ),
+                        response,
                     ),
-                    response,
-                ),
-                key=itemgetter(AD_CPR_FIELD_NAME),
+                    key=itemgetter(AD_CPR_FIELD_NAME),
+                )
             )
-        )
         self.assertListEqual(
             ria,
             expected_ad_users,
             "\nria:\nactual:   %r\nexpected: %r" % (ria, expected_ad_users),
         )
 
-        # TODO: Assert contents of `reader.results`
+        # TODO: Test contents of `reader.results`
+        self.assertTrue(
+            len(reader.results) > 0
+            if (response and not first_included_is_empty)
+            else len(reader.results) == 0
+        )
+
+    def _mock_first_included(self, first_included_is_empty):
+        if first_included_is_empty:
+            path = "integrations.ad_integration.ad_reader.first_included"
+            return mock.patch(path, return_value={})
+        else:
+            return nullcontext()

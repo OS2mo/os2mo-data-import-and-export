@@ -90,15 +90,16 @@ class ADParameterReader(AD):
         try:
             for userlist in users_by_cpr.values():
                 current_user = first_included(settings, userlist)
-                current_user_samaccountname = current_user["SamAccountName"]
-
                 if current_user:
+                    current_user_samaccountname = current_user["SamAccountName"]
+                    self.results[current_user_samaccountname] = current_user
+
+                    # Remove CPR separator if found
                     cpr = current_user.get(cpr_field, "")
                     if cpr is not None:
                         cpr = cpr.replace(cpr_separator, "")
 
-                    self.results[current_user_samaccountname] = current_user
-
+                    # Filter on SamAccountName
                     if caseless_samname:
                         if current_user_samaccountname.lower().startswith(
                             sam_filter.lower()
@@ -108,6 +109,7 @@ class ADParameterReader(AD):
                         if current_user_samaccountname.startswith(sam_filter):
                             self.results[cpr] = current_user
 
+                    # Store in accumulator variable, if given
                     if ria is not None:
                         ria.append(current_user)
 
