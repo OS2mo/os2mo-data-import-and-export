@@ -117,7 +117,7 @@ def get_org_units(
     ou_filter: bool,
     mapping_file_path: str,
 ) -> List[Dict[str, Any]]:
-    org_units = connector.get_ous(root=ou_filter)
+    org_units = connector.get_ous(root=main_root_org_unit)
 
     converted_org_units = []
     for org_unit in org_units:
@@ -154,11 +154,12 @@ def get_org_units(
 
             return {"uuid": person["uuid"], "userId": sam_account_name}
 
-        
         payload = {
             "uuid": org_unit_uuid,
             "name": org_unit["name"],
-            "parentOrgUnitUuid": get_parent_org_unit_uuid(ou_present, ou_filter, main_root_org_unit),
+            "parentOrgUnitUuid": get_parent_org_unit_uuid(
+                ou_present, ou_filter, main_root_org_unit
+            ),
             "manager": get_manager(*ou_connectors),
         }
         converted_org_units.append(payload)
