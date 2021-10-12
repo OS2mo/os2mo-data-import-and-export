@@ -54,10 +54,10 @@ def get_sd_importer(
 
     # add_people should not be called when rg-only
     if org_only:
-        sd.add_people_mock.assert_has_calls([])
+        sd.add_people_mock.assert_not_called()
     else:
-        sd.add_people_mock.assert_has_calls([call()])
-    sd.read_department_info_mock.assert_has_calls([call()])
+        sd.add_people_mock.assert_called_once()
+    sd.read_department_info_mock.assert_called_once()
 
     assert sd.importer.organisation is not None
     assert sd.importer.organisation[0] == municipality_name
