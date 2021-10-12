@@ -9,8 +9,8 @@ import logging
 
 import click
 from anytree import Node
+from os2mo_dar_client import DARClient
 
-from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
@@ -320,24 +320,34 @@ class SdImport(object):
                 date_from=date_from,
             )
 
+        def postal_address_to_dar_uuid(postal_address: Dict[str, Any]) -> Optional[str]:
+            address_string = postal_address["StandardAddressIdentifier"]
+            zip_code = postal_address["PostalCode"]
+            city = postal_address["DistrictName"]
+            combined_address_string = f"{address_string}, {zip_code} {city}"
+
+            logger.debug("Look in Dawa: {}".format(combined_address_string))
+            darclient = DARClient()
+            with darclient:
+                dar_reply = darclient.cleanse_single(combined_address_string)
+                dar_uuid = dar_reply["id"]
+                return dar_uuid
+
         if "PostalAddress" in info:
-            needed = ["StandardAddressIdentifier", "PostalCode"]
-            if all(element in info["PostalAddress"] for element in needed):
-                address_string = info["PostalAddress"]["StandardAddressIdentifier"]
-                zip_code = info["PostalAddress"]["PostalCode"]
-                logger.debug("Look in Dawa: {}".format(address_string))
-                dar_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+            postal_address = info["PostalAddress"]
+            try:
+                dar_uuid = postal_address_to_dar_uuid(postal_address)
                 logger.debug("DAR: {}".format(dar_uuid))
 
-                if dar_uuid is not None:
-                    self.importer.add_address_type(
-                        organisation_unit=unit_id,
-                        type_ref="AddressMailUnit",
-                        value=dar_uuid,
-                        date_from=date_from,
-                    )
-                else:
-                    self.address_errors[unit_id] = info
+                self.importer.add_address_type(
+                    organisation_unit=unit_id,
+                    type_ref="AddressMailUnit",
+                    value=dar_uuid,
+                    date_from=date_from,
+                )
+            except Exception as exp:
+                print(exp)
+                self.address_errors[unit_id] = postal_address
 
         # Include higher level OUs, these do not have their own entry in SD
         if "DepartmentReference" in department:

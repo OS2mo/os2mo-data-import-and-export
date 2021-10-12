@@ -3,3 +3,4 @@ ramodels
 ra-utils
 more_itertools
 pandas
+os2mo-dar-client>=0.2.0
