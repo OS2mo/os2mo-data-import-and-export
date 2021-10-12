@@ -12,7 +12,7 @@ import logging
 import requests
 import xmltodict
 import collections
-from integrations import dawa_helper
+from os2mo_dar_client import DARClient
 from datetime import datetime
 from uuid import UUID
 
@@ -135,10 +135,16 @@ class AposImport(object):
                 address_string = apos_address['adresse']['@vejadresseringsnavn']
                 zip_code = apos_address['adresse']['@postnummer']
 
+            dawa_uuid = None
             if address_string:
-                dawa_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
-            else:
-                dawa_uuid = None
+                combined_address_string = f"{address_string}, {zip_code}"
+                try:
+                    darclient = DARClient()
+                    with darclient:
+                        dar_reply = darclient.cleanse_single(combined_address_string)
+                        dawa_uuid = dar_reply["id"]
+                except Exception:
+                    pass
 
             pnummer = location.get('@pnummer', None)
             primary = (location.get('@primary', None) == 'JA')
