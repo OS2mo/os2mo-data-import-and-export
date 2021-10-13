@@ -78,6 +78,7 @@ def import_opus(ad_reader=None, import_all: bool = False, import_last=False) -> 
     """Import one or all files from opus even if no previous files have been imported"""
     settings = load_settings()
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
+    skip_employees = settings.get("integrations.opus.skip_employees", False)
     dumps = opus_helpers.read_available_dumps()
 
     all_dates = dumps.keys()
@@ -91,7 +92,7 @@ def import_opus(ad_reader=None, import_all: bool = False, import_last=False) -> 
     export_dates = prepend(None, export_dates)
     date_pairs = pairwise(export_dates)
     for date1, date2 in date_pairs:
-        import_one(ad_reader, date2, date1, dumps, filter_ids)
+        import_one(ad_reader, date2, date1, dumps, filter_ids, skip_employees=skip_employees)
 
 
 @click.command()
