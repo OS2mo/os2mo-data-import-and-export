@@ -894,10 +894,8 @@ def import_one(
         "employees_terminated": len(terminated_employees),
         "import_date": xml_date.timestamp(),
     }
-    [
+    for metric, value in exported_metrics.items():
         export_metric(f"opus_{metric}", value)
-        for metric, value in exported_metrics.items()
-    ]
 
     opus_helpers.local_db_insert((xml_date, "Diff update ended: {}"))
     print()
