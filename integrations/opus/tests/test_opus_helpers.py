@@ -81,12 +81,17 @@ class test_opus_helpers(TestCase):
 
     @parameterized.expand(
         [
-            ([], [3, 0, 3, 1]),
-            (["1"], [0, 3, 0, 1]),
+            ([], [3, 0, 3, 1], False),
+            (["1"], [0, 3, 0, 1], False),
+            #Skip reading employees
+            ([], [3, 0, 0, 0], True),
+            (["1"], [0, 3, 0, 0], True),
         ]
     )
-    def test_full_(self, filter_ids, expected):
-        data = opus_helpers.read_and_transform_data(None, testfile1, filter_ids)
+    def test_full_(self, filter_ids, expected, skip_employees):
+        data = opus_helpers.read_and_transform_data(None, testfile1, filter_ids, disable_tqdm=True, skip_employees=skip_employees)
+        #data is a tuple of units, filtered units, employess, terminated employees
+        #test that the length of each is as expected
         for i, x in enumerate(data):
             this = list(x)
             length = len(this)
