@@ -260,17 +260,27 @@ class OpusDiffImport(object):
             if opus_addresses.get(addr_type) is None:
                 continue
 
-            addr_type_uuid, _ = mox_util.ensure_class_in_lora(
+            addr_type_uuid = self.helper.ensure_class_in_facet(
                 "employee_address_type",
-                mo_addr_type,
+                str(mo_addr_type),
                 scope=predefined_scopes.get(mo_addr_type),
             )
+            visibility = None
+            if mo_addr_type == "Adresse":
+                visibility = self.helper.ensure_class_in_facet(
+                    facet="visibility",
+                    bvn="Hemmelig",
+                    title="Må vises internt",
+                    scope="SECRET",
+                    )
+
             current = mo_addresses.get(addr_type_uuid)
             address_args = {
-                "address_type": {"uuid": addr_type_uuid},
+                "address_type": {"uuid": str(addr_type_uuid)},
                 "value": opus_addresses[addr_type],
                 "validity": {"from": self.xml_date.strftime("%Y-%m-%d"), "to": None},
                 "user_uuid": mo_uuid,
+                "visibility" : visibility
             }
             self._perform_address_update(address_args, current)
 

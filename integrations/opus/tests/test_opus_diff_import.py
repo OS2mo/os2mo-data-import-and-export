@@ -205,9 +205,9 @@ class Opus_diff_import_tester(unittest.TestCase):
                 else:
                     self.assertEqual(employee["@action"], "leave")
 
-    @given(datetimes(), datetimes(), text(), uuids(), uuids())
+    @given(datetimes(), datetimes(), text(), uuids(), uuids(), uuids())
     def test_perform_address_update_create(
-        self, xml_date, fromdate, value, address_type_uuid, org_unit_uuid
+        self, xml_date, fromdate, value, address_type_uuid, org_unit_uuid, visibility
     ):
         diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping={"dummy": 1})
         address_type_uuid = str(address_type_uuid)
@@ -216,6 +216,7 @@ class Opus_diff_import_tester(unittest.TestCase):
             "value": value,
             "validity": {"from": fromdate.strftime("%Y-%m-%d"), "to": None},
             "unit_uuid": str(org_unit_uuid),
+            "visibility": visibility
         }
         current = {"uuid": address_type_uuid}
         # Same
@@ -231,6 +232,7 @@ class Opus_diff_import_tester(unittest.TestCase):
                 "address_type": {"uuid": address_type_uuid},
                 "validity": {"from": fromdate.strftime("%Y-%m-%d"), "to": None},
                 "org_unit": {"uuid": str(org_unit_uuid)},
+                "visibility": {"uuid": str(visibility)},
             },
         )
 
