@@ -16,7 +16,7 @@ from uuid import UUID
 import requests
 from more_itertools import first
 from more_itertools import one
-from more_itertools import only
+
 
 from constants import AD_it_system
 from exporters.utils.priority_by_class import choose_public_address
@@ -193,7 +193,13 @@ def try_get_ad_user_key(uuid: str) -> Optional[str]:
 
 def get_work_address(positions, work_address_names):
     #find the primary engagement and lookup the addresses for that unit
-    primary_eng = one(filter(lambda e: e["is_primary"], positions))
+    primary = filter(lambda e: e["is_primary"], positions)
+    try:
+        primary_eng = one(primary)
+    except ValueError:
+        logger.error("Could not get unique primary engagement, using first")
+        primary_eng = first(primary)
+
     org_addresses = os2mo_get(
         "{BASE}/ou/" + primary_eng["OrgUnitUuid"] + "/details/address"
     ).json()
