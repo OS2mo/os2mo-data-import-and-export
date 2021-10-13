@@ -27,6 +27,7 @@ from integrations.opus.opus_exceptions import (
     UnknownOpusUnit,
 )
 from os2mo_data_import import ImportHelper
+from tools.metric_exporter import export_metric
 
 logger = logging.getLogger("opusDiff")
 
@@ -272,7 +273,7 @@ class OpusDiffImport(object):
                     bvn="Hemmelig",
                     title="Må vises internt",
                     scope="SECRET",
-                    )
+                )
 
             current = mo_addresses.get(addr_type_uuid)
             address_args = {
@@ -280,7 +281,7 @@ class OpusDiffImport(object):
                 "value": opus_addresses[addr_type],
                 "validity": {"from": self.xml_date.strftime("%Y-%m-%d"), "to": None},
                 "user_uuid": mo_uuid,
-                "visibility" : visibility
+                "visibility": visibility,
             }
             self._perform_address_update(address_args, current)
 
@@ -885,6 +886,19 @@ def import_one(
     )
     diff.start_import(units, employees, terminated_employees)
     diff.handle_filtered_units(filtered_units)
+
+    exported_metrics = {
+        "units_imported": len(units),
+        "filtered_units_terminated": len(filtered_units),
+        "employees_imported": len(employees),
+        "employees_terminated": len(terminated_employees),
+        "import_date": xml_date.timestamp(),
+    }
+    [
+        export_metric(f"opus_{metric}", value)
+        for metric, value in exported_metrics.items()
+    ]
+
     opus_helpers.local_db_insert((xml_date, "Diff update ended: {}"))
     print()
 

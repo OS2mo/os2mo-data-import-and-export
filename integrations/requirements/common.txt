@@ -20,3 +20,4 @@ alchemy_mock
 mimesis
 asciitree
 httpx
+prometheus_client

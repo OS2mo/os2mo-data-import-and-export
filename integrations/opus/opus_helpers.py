@@ -20,6 +20,7 @@ from tqdm import tqdm
 
 from integrations import cpr_mapper
 from integrations.opus import opus_diff_import, opus_import
+from tools.metric_exporter import export_metric
 
 # from integrations.opus.opus_exceptions import NoNewerDumpAvailable
 from integrations.opus.opus_exceptions import (
@@ -141,6 +142,8 @@ def parser(target_file: Path) -> Tuple[List, List]:
     data = data["kmd"]
     units = data.get("orgUnit", [])
     employees = data.get("employee", [])
+    export_metric("opus_total_units", len(units))
+    export_metric("opus_total_employees", len(employees))
     return units, employees
 
 
@@ -398,4 +401,9 @@ def read_and_transform_data(
     filtered_units, units = filter_units(units, filter_ids)
     employees, terminated_employees = split_employees_leaves(employees)
     employees = filter_employees(employees, all_filtered_ids)
-    return list(units), list(filtered_units), list(employees), list(terminated_employees)
+    return (
+        list(units),
+        list(filtered_units),
+        list(employees),
+        list(terminated_employees),
+    )
