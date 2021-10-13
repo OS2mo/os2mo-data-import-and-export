@@ -118,11 +118,14 @@ en gyldig konfiguration i ``settings.json``. De påkrævede nøgler er:
 
  * ``mox.base``: Adressen på LoRa.
  * ``mora.base``: Adressen på MO.
- * ``opus.import.run_db``: Stien til den database som gemmer information om kørsler
+ * ``integrations.opus.import.run_db``: Stien til den database som gemmer information om kørsler
    af integrationen. Hvis integrationen skal køre som mere end et engangsimport har
    denne fil en vigtig betydning.
  * ``municipality.name``: Navnet på kommunen.
  * ``crontab.SAML_TOKEN``: saml token til forbindelse til OS2MO
+ * ``integrations.opus.skip_employees``: Optionelt. 
+    Kan sættes til `true` for kun at læse organisationsenheder fra opus-filerne.
+
 
 Til at hjælpe med afviklingen af importen, findes en hjælpefunktion i
 ``opus_helpers.py`` som afvikler selve importen og initialiserer databasen i
