@@ -10,10 +10,13 @@ import logging
 import sys
 from functools import lru_cache
 from logging.handlers import RotatingFileHandler
+from operator import itemgetter
 from pathlib import Path
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
+from typing import Set
 from typing import Tuple
 from uuid import UUID
 
@@ -89,10 +92,32 @@ def init_log(log_path: str) -> None:
     logging.getLogger().addHandler(log_file_handler)
 
 
+def get_parent_org_unit_uuid(
+    ou, ou_filter: bool, main_root_org_unit: UUID
+) -> Optional[str]:
+
+    if str(ou.uuid) == str(main_root_org_unit):
+        # This is the root, there are no parents
+        return None
+
+    parent = ou.json["parent"]
+    if ou_filter:
+        assert parent, f"The org_unit {ou.uuid} should have been filtered"
+
+    if parent:
+        return parent["uuid"]
+    # Rollekataloget only support one root org unit, so all other root org
+    # units get put under the main one, if filtering is not active.
+    return str(main_root_org_unit)
+
+
 def get_org_units(
-    connector: mo_api.Connector, main_root_org_unit: str, mapping_file_path: str
+    connector: mo_api.Connector,
+    main_root_org_unit: UUID,
+    ou_filter: bool,
+    mapping_file_path: str,
 ) -> List[Dict[str, Any]]:
-    org_units = connector.get_ous()
+    org_units = connector.get_ous(root=main_root_org_unit)
 
     converted_org_units = []
     for org_unit in org_units:
@@ -103,17 +128,6 @@ def get_org_units(
         ou_present = connector.get_ou_connector(org_unit_uuid, validity="present")
         ou_future = connector.get_ou_connector(org_unit_uuid, validity="future")
         ou_connectors = (ou_present, ou_future)
-
-        def get_parent_org_unit_uuid(ou):
-            parent = ou.json["parent"]
-            if parent:
-                return parent["uuid"]
-            # Rollekataloget only support one root org unit, so all other org
-            # units get put under the main one
-            elif ou.uuid != main_root_org_unit:
-                return main_root_org_unit
-
-            return None
 
         def get_manager(*ou_connectors):
             managers = []
@@ -143,7 +157,9 @@ def get_org_units(
         payload = {
             "uuid": org_unit_uuid,
             "name": org_unit["name"],
-            "parentOrgUnitUuid": get_parent_org_unit_uuid(ou_present),
+            "parentOrgUnitUuid": get_parent_org_unit_uuid(
+                ou_present, ou_filter, main_root_org_unit
+            ),
             "manager": get_manager(*ou_connectors),
         }
         converted_org_units.append(payload)
@@ -152,7 +168,10 @@ def get_org_units(
 
 
 def get_users(
-    connector: mo_api.Connector, mapping_file_path: str
+    connector: mo_api.Connector,
+    mapping_file_path: str,
+    org_unit_uuids: Set[str],
+    ou_filter: bool,
 ) -> List[Dict[str, Any]]:
     # read mapping
     employees = connector.get_employees()
@@ -208,12 +227,25 @@ def get_users(
                 )
             return converted_positions
 
+        # read positions first to filter any persons with engagements
+        # in organisations not in org_unit_uuids
+        positions = get_employee_positions(*e_connectors)
+        if ou_filter:
+            positions = list(
+                filter(
+                    lambda position: position["orgUnitUuid"] in org_unit_uuids,
+                    positions,
+                )
+            )
+            if not positions:
+                continue
+
         payload = {
             "extUuid": employee["uuid"],
             "userId": sam_account_name,
             "name": employee["name"],
             "email": get_employee_email(*e_connectors),
-            "positions": get_employee_positions(*e_connectors),
+            "positions": positions,
         }
         converted_users.append(payload)
 
@@ -230,20 +262,36 @@ def get_users(
     "--rollekatalog-url",
     default=load_setting("exporters.os2rollekatalog.rollekatalog.url"),
     help="URL for Rollekataloget.",
+    required=True,
 )
 @click.option(
     "--rollekatalog-api-key",
     default=load_setting("exporters.os2rollekatalog.rollekatalog.api_token"),
     type=click.UUID,
+    required=True,
     help="API key to write to Rollekataloget.",
 )
 @click.option(
     "--main-root-org-unit",
     default=load_setting("exporters.os2rollekatalog.main_root_org_unit"),
     type=click.UUID,
+    required=True,
     help=(
+        "Root uuid in rollekataloget"
         "Rollekataloget only supports one root org unit. "
         "All other root org units in OS2mo will be made children of this one."
+        "Unless they are filtered by setting ou_filter=true"
+    ),
+)
+@click.option(
+    "--ou-filter",
+    default=load_setting("exporters.os2rollekatalog.ou_filter", False),
+    type=click.BOOL,
+    help=(
+        "Option to filter by main_root_org_unit."
+        "Only get org_units below main_root_org_unit and employees in these org units."
+        "Defaults to false (select every org unit and put other root units "
+        "below main_root)"
     ),
 )
 @click.option(
@@ -271,6 +319,7 @@ def main(
     rollekatalog_url: str,
     rollekatalog_api_key: UUID,
     main_root_org_unit: UUID,
+    ou_filter: bool,
     log_file_path: str,
     mapping_file_path: str,
     dry_run: bool,
@@ -304,16 +353,18 @@ def main(
     try:
         logger.info("Reading organisation")
         org_units = get_org_units(
-            mo_connector, str(main_root_org_unit), mapping_file_path
+            mo_connector, main_root_org_unit, ou_filter, mapping_file_path
         )
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch org units")
         sys.exit(3)
     logger.info("Found {} org units".format(len(org_units)))
+    # Create a set of uuids for all org_units
+    org_unit_uuids = set(map(itemgetter("uuid"), org_units))
 
     try:
         logger.info("Reading employees")
-        users = get_users(mo_connector, mapping_file_path)
+        users = get_users(mo_connector, mapping_file_path, org_unit_uuids, ou_filter)
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch employees")
         sys.exit(3)
