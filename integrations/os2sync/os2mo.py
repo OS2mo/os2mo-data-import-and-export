@@ -197,8 +197,8 @@ def get_work_address(positions, work_address_names):
     try:
         primary_eng = one(primary)
     except ValueError:
-        logger.error("Could not get unique primary engagement, using first")
-        primary_eng = first(primary)
+        logger.error("Could not get unique primary engagement, using first found position")
+        primary_eng = first(positions)
 
     org_addresses = os2mo_get(
         "{BASE}/ou/" + primary_eng["OrgUnitUuid"] + "/details/address"
