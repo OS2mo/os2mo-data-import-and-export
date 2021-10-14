@@ -37,7 +37,7 @@ from os2mo_data_import.mox_data_types import (
 logger = logging.getLogger("moImporterHelpers")
 
 
-class ImportHelper(object):
+class ImportHelper:
     """
     The entry point of an import is the ImportHelper.
 
