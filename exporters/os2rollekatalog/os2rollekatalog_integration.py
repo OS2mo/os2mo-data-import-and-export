@@ -116,7 +116,6 @@ def get_org_units(
     mo_root_org_unit: UUID,
     ou_filter: bool,
     mapping_file_path: str,
-    rollekatalog_root_uuid: UUID = None,
 ) -> List[Dict[str, Any]]:
     org_units = connector.get_ous(root=mo_root_org_unit)
 
@@ -155,15 +154,12 @@ def get_org_units(
 
             return {"uuid": person["uuid"], "userId": sam_account_name}
 
-        parent = get_parent_org_unit_uuid(ou_present, ou_filter, mo_root_org_unit)
-        if rollekatalog_root_uuid and (parent is None):
-            # Overwrite root uuid if specified in settings.
-            org_unit_uuid = rollekatalog_root_uuid
-
         payload = {
             "uuid": str(org_unit_uuid),
             "name": org_unit["name"],
-            "parentOrgUnitUuid": parent,
+            "parentOrgUnitUuid": get_parent_org_unit_uuid(
+                ou_present, ou_filter, mo_root_org_unit
+            ),
             "manager": get_manager(*ou_connectors),
         }
         converted_org_units.append(payload)
@@ -369,11 +365,7 @@ def main(
     try:
         logger.info("Reading organisation")
         org_units = get_org_units(
-            mo_connector,
-            mo_root_org_unit,
-            ou_filter,
-            mapping_file_path,
-            rollekatalog_root_uuid=rollekatalog_root_uuid,
+            mo_connector, mo_root_org_unit, ou_filter, mapping_file_path
         )
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch org units")
@@ -389,6 +381,12 @@ def main(
         logger.exception("An error occurred trying to fetch employees")
         sys.exit(3)
     logger.info("Found {} employees".format(len(users)))
+
+    # Option to replace root organisations uuid with one given in settings
+    if rollekatalog_root_uuid:
+        for unit in org_units:
+            if unit["uuid"] == str(mo_root_org_unit):
+                unit["uuid"] = str(rollekatalog_root_uuid)
 
     payload = {"orgUnits": org_units, "users": users}
 
