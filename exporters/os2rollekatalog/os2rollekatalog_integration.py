@@ -6,11 +6,11 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import csv
+import json
 import logging
 import sys
 from functools import lru_cache
 from logging.handlers import RotatingFileHandler
-from operator import itemgetter
 from pathlib import Path
 from typing import Any
 from typing import Dict
@@ -93,10 +93,10 @@ def init_log(log_path: str) -> None:
 
 
 def get_parent_org_unit_uuid(
-    ou, ou_filter: bool, main_root_org_unit: UUID
+    ou, ou_filter: bool, mo_root_org_unit: UUID
 ) -> Optional[str]:
 
-    if str(ou.uuid) == str(main_root_org_unit):
+    if str(ou.uuid) == str(mo_root_org_unit):
         # This is the root, there are no parents
         return None
 
@@ -108,18 +108,18 @@ def get_parent_org_unit_uuid(
         return parent["uuid"]
     # Rollekataloget only support one root org unit, so all other root org
     # units get put under the main one, if filtering is not active.
-    return str(main_root_org_unit)
+    return str(mo_root_org_unit)
 
 
 def get_org_units(
     connector: mo_api.Connector,
-    main_root_org_unit: UUID,
+    mo_root_org_unit: UUID,
     ou_filter: bool,
     mapping_file_path: str,
-) -> List[Dict[str, Any]]:
-    org_units = connector.get_ous(root=main_root_org_unit)
+) -> Dict[str, Dict[str, Any]]:
+    org_units = connector.get_ous(root=mo_root_org_unit)
 
-    converted_org_units = []
+    converted_org_units = {}
     for org_unit in org_units:
 
         org_unit_uuid = org_unit["uuid"]
@@ -158,11 +158,11 @@ def get_org_units(
             "uuid": org_unit_uuid,
             "name": org_unit["name"],
             "parentOrgUnitUuid": get_parent_org_unit_uuid(
-                ou_present, ou_filter, main_root_org_unit
+                ou_present, ou_filter, mo_root_org_unit
             ),
             "manager": get_manager(*ou_connectors),
         }
-        converted_org_units.append(payload)
+        converted_org_units[org_unit_uuid] = payload
 
     return converted_org_units
 
@@ -272,12 +272,13 @@ def get_users(
     help="API key to write to Rollekataloget.",
 )
 @click.option(
-    "--main-root-org-unit",
+    "--mo-root-org-unit",
     default=load_setting("exporters.os2rollekatalog.main_root_org_unit"),
     type=click.UUID,
     required=True,
     help=(
-        "Root uuid in rollekataloget"
+        "Root uuid in os2mo"
+        "Also root in rollekataloget unless rollekatalog_root_uuid is specified."
         "Rollekataloget only supports one root org unit. "
         "All other root org units in OS2mo will be made children of this one."
         "Unless they are filtered by setting ou_filter=true"
@@ -288,10 +289,20 @@ def get_users(
     default=load_setting("exporters.os2rollekatalog.ou_filter", False),
     type=click.BOOL,
     help=(
-        "Option to filter by main_root_org_unit."
-        "Only get org_units below main_root_org_unit and employees in these org units."
+        "Option to filter by mo_root_org_unit."
+        "Only get org_units below mo_root_org_unit and employees in these org units."
         "Defaults to false (select every org unit and put other root units "
         "below main_root)"
+    ),
+)
+@click.option(
+    "--rollekatalog-root-uuid",
+    default=load_setting("exporters.os2rollekatalog.rollekatalog_root_uuid", None),
+    type=click.UUID,
+    required=False,
+    help=(
+        "Root uuid in rollekataloget"
+        "Optional setting if the root uuid in rollekataloget is different to MO"
     ),
 )
 @click.option(
@@ -318,8 +329,9 @@ def main(
     mora_base: str,
     rollekatalog_url: str,
     rollekatalog_api_key: UUID,
-    main_root_org_unit: UUID,
+    mo_root_org_unit: UUID,
     ou_filter: bool,
+    rollekatalog_root_uuid: UUID,
     log_file_path: str,
     mapping_file_path: str,
     dry_run: bool,
@@ -353,14 +365,14 @@ def main(
     try:
         logger.info("Reading organisation")
         org_units = get_org_units(
-            mo_connector, main_root_org_unit, ou_filter, mapping_file_path
+            mo_connector, mo_root_org_unit, ou_filter, mapping_file_path
         )
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch org units")
         sys.exit(3)
     logger.info("Found {} org units".format(len(org_units)))
     # Create a set of uuids for all org_units
-    org_unit_uuids = set(map(itemgetter("uuid"), org_units))
+    org_unit_uuids = set(org_units.keys())
 
     try:
         logger.info("Reading employees")
@@ -370,11 +382,14 @@ def main(
         sys.exit(3)
     logger.info("Found {} employees".format(len(users)))
 
-    payload = {"orgUnits": org_units, "users": users}
+    payload = {"orgUnits": list(org_units.values()), "users": users}
+    # Option to replace root organisations uuid with one given in settings
+    if rollekatalog_root_uuid:
+        p = json.dumps(payload)
+        p = p.replace(str(mo_root_org_unit), str(rollekatalog_root_uuid))
+        payload = json.loads(p)
 
     if dry_run:
-        import json
-
         print(json.dumps(payload, indent=4))
         sys.exit(0)
 
