@@ -27,7 +27,7 @@ from integrations.opus.opus_exceptions import (
     UnknownOpusUnit,
 )
 from os2mo_data_import import ImportHelper
-from tools.metric_exporter import export_metric
+from tools.metric_exporter import export_metrics
 
 logger = logging.getLogger("opusDiff")
 
@@ -887,15 +887,15 @@ def import_one(
     diff.start_import(units, employees, terminated_employees)
     diff.handle_filtered_units(filtered_units)
 
-    exported_metrics = {
-        "units_imported": len(units),
-        "filtered_units_terminated": len(filtered_units),
-        "employees_imported": len(employees),
-        "employees_terminated": len(terminated_employees),
-        "import_date": xml_date.timestamp(),
-    }
-    for metric, value in exported_metrics.items():
-        export_metric(f"opus_{metric}", value)
+    export_metrics(
+        {
+            "opus_units_imported": len(units),
+            "opus_filtered_units_terminated": len(filtered_units),
+            "opus_employees_imported": len(employees),
+            "opus_employees_terminated": len(terminated_employees),
+            "opus_import_date": xml_date.timestamp(),
+        }
+    )
 
     opus_helpers.local_db_insert((xml_date, "Diff update ended: {}"))
     print()
