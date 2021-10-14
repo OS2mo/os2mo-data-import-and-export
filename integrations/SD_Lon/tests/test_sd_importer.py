@@ -1,7 +1,6 @@
 from typing import Any
 from typing import Dict
 from typing import Optional
-from unittest.mock import call
 from unittest.mock import MagicMock
 from uuid import UUID
 
