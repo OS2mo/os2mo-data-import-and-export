@@ -93,10 +93,10 @@ def init_log(log_path: str) -> None:
 
 
 def get_parent_org_unit_uuid(
-    ou, ou_filter: bool, main_root_org_unit: UUID
+    ou, ou_filter: bool, mo_root_org_unit: UUID
 ) -> Optional[str]:
 
-    if str(ou.uuid) == str(main_root_org_unit):
+    if str(ou.uuid) == str(mo_root_org_unit):
         # This is the root, there are no parents
         return None
 
@@ -108,16 +108,17 @@ def get_parent_org_unit_uuid(
         return parent["uuid"]
     # Rollekataloget only support one root org unit, so all other root org
     # units get put under the main one, if filtering is not active.
-    return str(main_root_org_unit)
+    return str(mo_root_org_unit)
 
 
 def get_org_units(
     connector: mo_api.Connector,
-    main_root_org_unit: UUID,
+    mo_root_org_unit: UUID,
     ou_filter: bool,
     mapping_file_path: str,
+    rollekatalog_root_uuid: UUID = None,
 ) -> List[Dict[str, Any]]:
-    org_units = connector.get_ous(root=main_root_org_unit)
+    org_units = connector.get_ous(root=mo_root_org_unit)
 
     converted_org_units = []
     for org_unit in org_units:
@@ -154,12 +155,15 @@ def get_org_units(
 
             return {"uuid": person["uuid"], "userId": sam_account_name}
 
+        parent = get_parent_org_unit_uuid(ou_present, ou_filter, mo_root_org_unit)
+        if rollekatalog_root_uuid and (parent is None):
+            # Overwrite root uuid if specified in settings.
+            org_unit_uuid = rollekatalog_root_uuid
+
         payload = {
-            "uuid": org_unit_uuid,
+            "uuid": str(org_unit_uuid),
             "name": org_unit["name"],
-            "parentOrgUnitUuid": get_parent_org_unit_uuid(
-                ou_present, ou_filter, main_root_org_unit
-            ),
+            "parentOrgUnitUuid": parent,
             "manager": get_manager(*ou_connectors),
         }
         converted_org_units.append(payload)
@@ -272,12 +276,13 @@ def get_users(
     help="API key to write to Rollekataloget.",
 )
 @click.option(
-    "--main-root-org-unit",
+    "--mo-root-org-unit",
     default=load_setting("exporters.os2rollekatalog.main_root_org_unit"),
     type=click.UUID,
     required=True,
     help=(
-        "Root uuid in rollekataloget"
+        "Root uuid in os2mo"
+        "Also root in rollekataloget unless rollekatalog_root_uuid is specified."
         "Rollekataloget only supports one root org unit. "
         "All other root org units in OS2mo will be made children of this one."
         "Unless they are filtered by setting ou_filter=true"
@@ -288,10 +293,20 @@ def get_users(
     default=load_setting("exporters.os2rollekatalog.ou_filter", False),
     type=click.BOOL,
     help=(
-        "Option to filter by main_root_org_unit."
-        "Only get org_units below main_root_org_unit and employees in these org units."
+        "Option to filter by mo_root_org_unit."
+        "Only get org_units below mo_root_org_unit and employees in these org units."
         "Defaults to false (select every org unit and put other root units "
         "below main_root)"
+    ),
+)
+@click.option(
+    "--rollekatalog-root-uuid",
+    default=load_setting("exporters.os2rollekatalog.rollekatalog_root_uuid", None),
+    type=click.UUID,
+    required=False,
+    help=(
+        "Root uuid in rollekataloget"
+        "Optional setting if the root uuid in rollekataloget is different to MO"
     ),
 )
 @click.option(
@@ -318,8 +333,9 @@ def main(
     mora_base: str,
     rollekatalog_url: str,
     rollekatalog_api_key: UUID,
-    main_root_org_unit: UUID,
+    mo_root_org_unit: UUID,
     ou_filter: bool,
+    rollekatalog_root_uuid: UUID,
     log_file_path: str,
     mapping_file_path: str,
     dry_run: bool,
@@ -353,7 +369,11 @@ def main(
     try:
         logger.info("Reading organisation")
         org_units = get_org_units(
-            mo_connector, main_root_org_unit, ou_filter, mapping_file_path
+            mo_connector,
+            mo_root_org_unit,
+            ou_filter,
+            mapping_file_path,
+            rollekatalog_root_uuid=rollekatalog_root_uuid,
         )
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch org units")
