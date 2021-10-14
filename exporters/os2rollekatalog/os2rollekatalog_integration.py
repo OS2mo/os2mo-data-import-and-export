@@ -6,6 +6,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import csv
+import json
 import logging
 import sys
 from functools import lru_cache
@@ -381,15 +382,14 @@ def main(
         sys.exit(3)
     logger.info("Found {} employees".format(len(users)))
 
+    payload = {"orgUnits": list(org_units.values()), "users": users}
     # Option to replace root organisations uuid with one given in settings
     if rollekatalog_root_uuid:
-        org_units[str(mo_root_org_unit)]["uuid"] = str(rollekatalog_root_uuid)
-
-    payload = {"orgUnits": list(org_units.values()), "users": users}
+        p = json.dumps(payload)
+        p = p.replace(str(mo_root_org_unit), str(rollekatalog_root_uuid))
+        payload = json.loads(p)
 
     if dry_run:
-        import json
-
         print(json.dumps(payload, indent=4))
         sys.exit(0)
 
