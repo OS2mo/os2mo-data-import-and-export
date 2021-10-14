@@ -10,7 +10,6 @@ import logging
 import sys
 from functools import lru_cache
 from logging.handlers import RotatingFileHandler
-from operator import itemgetter
 from pathlib import Path
 from typing import Any
 from typing import Dict
@@ -116,10 +115,10 @@ def get_org_units(
     mo_root_org_unit: UUID,
     ou_filter: bool,
     mapping_file_path: str,
-) -> List[Dict[str, Any]]:
+) -> Dict[str, Dict[str, Any]]:
     org_units = connector.get_ous(root=mo_root_org_unit)
 
-    converted_org_units = []
+    converted_org_units = {}
     for org_unit in org_units:
 
         org_unit_uuid = org_unit["uuid"]
@@ -155,14 +154,14 @@ def get_org_units(
             return {"uuid": person["uuid"], "userId": sam_account_name}
 
         payload = {
-            "uuid": str(org_unit_uuid),
+            "uuid": org_unit_uuid,
             "name": org_unit["name"],
             "parentOrgUnitUuid": get_parent_org_unit_uuid(
                 ou_present, ou_filter, mo_root_org_unit
             ),
             "manager": get_manager(*ou_connectors),
         }
-        converted_org_units.append(payload)
+        converted_org_units[org_unit_uuid] = payload
 
     return converted_org_units
 
@@ -372,7 +371,7 @@ def main(
         sys.exit(3)
     logger.info("Found {} org units".format(len(org_units)))
     # Create a set of uuids for all org_units
-    org_unit_uuids = set(map(itemgetter("uuid"), org_units))
+    org_unit_uuids = set(org_units.keys())
 
     try:
         logger.info("Reading employees")
@@ -384,11 +383,9 @@ def main(
 
     # Option to replace root organisations uuid with one given in settings
     if rollekatalog_root_uuid:
-        for unit in org_units:
-            if unit["uuid"] == str(mo_root_org_unit):
-                unit["uuid"] = str(rollekatalog_root_uuid)
+        org_units[str(mo_root_org_unit)]["uuid"] = str(rollekatalog_root_uuid)
 
-    payload = {"orgUnits": org_units, "users": users}
+    payload = {"orgUnits": list(org_units.values()), "users": users}
 
     if dry_run:
         import json
