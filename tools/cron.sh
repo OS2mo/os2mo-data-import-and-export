@@ -62,13 +62,10 @@ else
 fi
 
 
-# Run script between pre and post-hooks
+# Run script
 #-----------
-PREOUT=(${DIR}/cronhook.sh pre)
 SCRIPT_OUTPUT=$(su --preserve-environment --shell /bin/bash --command "${SCRIPT}" ${RUNAS})
 EXIT_CODE=$?
-POSTOUT=(${DIR}/cronhook.sh post)
-SCRIPT_OUTPUT="${PREOUT}${SCRIPT_OUTPUT}${POSTOUT}"
 
 
 EVENT_NAMESPACE=magenta/project/os2mo/integration/script
