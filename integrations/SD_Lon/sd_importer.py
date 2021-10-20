@@ -86,6 +86,10 @@ class SdImport(object):
         self.create_associations = self.settings.get(
             "integrations.SD_Lon.sd_importer.create_associations", True
         )
+        # Whether to import email addresses for organisations
+        self.create_email_addresses = self.settings.get(
+            "integrations.SD_Lon.sd_importer.create_email_addresses", True
+        )
 
         # CPR indexed dictionary of AD users
         self.ad_people: Dict[str, Dict] = {}
@@ -311,23 +315,26 @@ class SdImport(object):
                 if row["afdeling"].upper() == user_key.upper():
                     row["uuid"] = unit_id
 
-        if "ContactInformation" in info:
-            if "EmailAddressIdentifier" in info["ContactInformation"]:
-                emails = info["ContactInformation"]["EmailAddressIdentifier"]
-                for email in emails:
-                    if email.find("Empty") == -1:
-                        self.importer.add_address_type(
-                            organisation_unit=unit_id,
-                            type_ref="EmailUnit",
-                            value=email,
-                            date_from=date_from,
-                        )
-            if "TelephoneNumberIdentifier" in info["ContactInformation"]:
-                # We only a sinlge phnone number, this is most likely
-                # no a real number
-                pass
+        def import_email_addresses(info: Dict[str, Any]) -> None:
+            if "ContactInformation" not in info:
+                return
+            if "EmailAddressIdentifier" not in info["ContactInformation"]:
+                return
 
-        if "ProductionUnitIdentifier" in info:
+            emails = info["ContactInformation"]["EmailAddressIdentifier"]
+            # filter empty entities
+            emails = filter(lambda email: email.find("Empty") == -1, emails)
+            for email in emails:
+                self.importer.add_address_type(
+                    organisation_unit=unit_id,
+                    type_ref="EmailUnit",
+                    value=email,
+                    date_from=date_from,
+                )
+
+        def import_pnumber(info: Dict[str, Any]) -> None:
+            if "ProductionUnitIdentifier" not in info:
+                return
             self.importer.add_address_type(
                 organisation_unit=unit_id,
                 type_ref="Pnummer",
@@ -335,26 +342,42 @@ class SdImport(object):
                 date_from=date_from,
             )
 
-        if "PostalAddress" in info:
-            needed = ["StandardAddressIdentifier", "PostalCode"]
-            if all(element in info["PostalAddress"] for element in needed):
-                address_string = info["PostalAddress"]["StandardAddressIdentifier"]
-                zip_code = info["PostalAddress"]["PostalCode"]
-                logger.debug("Look in Dawa: {}".format(address_string))
-                dar_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
-                logger.debug("DAR: {}".format(dar_uuid))
+        def import_postal_address(info: Dict[str, Any]) -> None:
+            if "PostalAddress" not in info:
+                return
+            postal_address = info["PostalAddress"]
 
-                if dar_uuid is not None:
-                    self.importer.add_address_type(
-                        organisation_unit=unit_id,
-                        type_ref="AddressMailUnit",
-                        value=dar_uuid,
-                        date_from=date_from,
-                    )
-                else:
-                    self.address_errors[unit_id] = info
+            if "StandardAddressIdentifier" not in postal_address:
+                return
+            address_string = postal_address["StandardAddressIdentifier"]
 
-        # Include higher level OUs, these do not have their own entry in SD
+            if "PostalCode" not in postal_address:
+                return
+            zip_code = postal_address["PostalCode"]
+
+            logger.debug("Look in Dawa: {}".format(address_string))
+            dar_uuid = dawa_helper.dawa_lookup(address_string, zip_code)
+            logger.debug("DAR: {}".format(dar_uuid))
+
+            if dar_uuid is None:
+                logger.error("Unable to lookup address: {}".format(address_string))
+                self.address_errors[unit_id] = info
+                return
+
+            self.importer.add_address_type(
+                organisation_unit=unit_id,
+                type_ref="AddressMailUnit",
+                value=dar_uuid,
+                date_from=date_from,
+            )
+
+        if self.create_email_addresses:
+            import_email_addresses(info)
+        import_pnumber(info)
+        import_postal_address(info)
+
+        # Recursively create parents (higher level OUs)
+        # Note: These do not have their own entry in SD
         if "DepartmentReference" in department:
             self._add_sd_department(
                 department["DepartmentReference"],
