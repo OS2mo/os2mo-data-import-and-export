@@ -15,6 +15,9 @@ from mox_helpers.mox_helper import create_mox_helper
 from mox_helpers.mox_helper import MoxHelper
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.headers import TokenSettings
+from tenacity import retry
+from tenacity import stop_after_attempt
+from tenacity import wait_exponential
 
 
 def get_tcp_connector():
@@ -88,6 +91,11 @@ async def submit_payloads(
     base_url = settings.mora_base
     headers = TokenSettings().get_headers()
 
+    @retry(
+        reraise=True,
+        wait=wait_exponential(multiplier=2, min=1),
+        stop=stop_after_attempt(7),
+    )
     async def submit(data: List[dict]) -> None:
         # Use semaphore to throttle the amount of concurrent requests
         async with session.post(
