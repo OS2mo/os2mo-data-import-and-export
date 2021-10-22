@@ -9,6 +9,7 @@ from sqlalchemy import create_engine, Index
 from sqlalchemy.orm import sessionmaker
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
+from ra_utils.load_settings import load_settings
 
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.sql_export.sql_table_defs import (
@@ -39,6 +40,8 @@ class SqlExport:
         db_string = generate_connection_url(database_function, force_sqlite=force_sqlite, settings=settings)
         engine_settings = generate_engine_settings(database_function, force_sqlite=force_sqlite, settings=settings)
         self.engine = create_engine(db_string, **engine_settings)
+
+        self.export_cpr = settings.get("exporters.actual_state.export_cpr", True)
 
     def _get_lora_cache(self, resolve_dar, use_pickle):
         if self.historic:
@@ -177,7 +180,7 @@ class SqlExport:
                     efternavn=user_info['efternavn'],
                     kaldenavn_fornavn=user_info['kaldenavn_fornavn'],
                     kaldenavn_efternavn=user_info['kaldenavn_efternavn'],
-                    cpr=user_info['cpr'],
+                    cpr=user_info['cpr'] if self.export_cpr else "",
                     startdato=user_info['from_date'],
                     slutdato=user_info['to_date'],
                 )
@@ -514,10 +517,7 @@ def cli(**args):
     """
     logger.info('Command line args: %r', args)
 
-    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-    if not cfg_file.is_file():
-        raise Exception('No setting file')
-    settings = json.loads(cfg_file.read_text())
+    settings = load_settings()
 
     sql_export = SqlExport(
         force_sqlite=args['force_sqlite'],
