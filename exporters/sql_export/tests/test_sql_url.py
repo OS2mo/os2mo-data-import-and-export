@@ -57,7 +57,7 @@ def test_generate_db_type_and_name(settings, expected):
         ({"dummy": 1}, Exception("Configuration error, missing db name or type")),
         (
             {"exporters.actual_state.type": "SQLite"},
-            Exception("Configuration error, missing db name or type"),
+            {"pool_pre_ping": True},
         ),
         (
             {"exporters.actual_state.db_name": "ActualState.db"},

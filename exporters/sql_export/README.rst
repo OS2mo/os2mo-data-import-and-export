@@ -36,11 +36,14 @@ For at anvende eksporten er det nødvendigt at oprette et antal nøgler i
    installationer.
  * ``exporters.actual_state_historic.type``: Som ovenfor, men for historisk eksport.
  * ``exporters.actual_state.user``:  Brugernavn for sql bruger.
+ * ``exporters.actual_state_historic.user``: Som ovenfor, men for historisk eksport.
  * ``exporters.actual_state.password``: Password til sql bruger.
+ * ``exporters.actual_state_historic.password``: Som ovenfor, men for historisk eksport.
  * ``exporters.actual_state.db_name``: Navn på databasen for actual state eksport.
  * ``exporters.actual_state_historic.db_name``: Navnet på databasen for historisk
    eksport.
  * ``exporters.actual_state.host``: Hostnavn på SQL-serveren.
+ * ``exporters.actual_state_historic.host``: Som ovenfor, men for historisk eksport.
 
  For typen `SQLite` kan user, password og host være tomme felter.
 
