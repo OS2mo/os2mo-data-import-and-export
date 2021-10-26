@@ -243,7 +243,9 @@ class OpusDiffImport(object):
             logger.debug("Create {} address payload: {}".format(addr_type, payload))
             response = self.helper._mo_post("details/create", payload)
             assert response.status_code == 201
-        elif args.get("value") == current.get("value"):  # Nothing changed
+        elif (args.get("value") == current.get("value")) and (
+            args.get("visibility") == current.get("visibility")
+        ):  # Nothing changed
             logger.info("{} not updated".format(addr_type))
         else:  # Edit address
             payload = payloads.edit_address(args, current["uuid"])
@@ -262,7 +264,7 @@ class OpusDiffImport(object):
 
             addr_type_uuid = self.helper.ensure_class_in_facet(
                 "employee_address_type",
-                str(mo_addr_type),
+                mo_addr_type,
                 scope=predefined_scopes.get(mo_addr_type),
             )
             visibility = None
@@ -272,16 +274,17 @@ class OpusDiffImport(object):
                     bvn="Hemmelig",
                     title="Må vises internt",
                     scope="SECRET",
-                    )
+                )
 
-            current = mo_addresses.get(addr_type_uuid)
+            current = mo_addresses.get(str(addr_type_uuid))
             address_args = {
                 "address_type": {"uuid": str(addr_type_uuid)},
                 "value": opus_addresses[addr_type],
                 "validity": {"from": self.xml_date.strftime("%Y-%m-%d"), "to": None},
                 "user_uuid": mo_uuid,
-                "visibility" : visibility
             }
+            if visibility:
+                address_args["visibility"] = {"uuid": str(visibility)}
             self._perform_address_update(address_args, current)
 
     def _update_unit_addresses(self, unit):
@@ -861,7 +864,7 @@ def import_one(
     latest_date: Optional[datetime],
     dumps: Dict,
     filter_ids: Optional[List],
-    skip_employees: bool = False
+    skip_employees: bool = False,
 ):
     """Import one file at the date xml_date."""
     msg = "Start update: File: {}, update since: {}"
@@ -877,8 +880,10 @@ def import_one(
         filtered_units,
         employees,
         terminated_employees,
-    ) = opus_helpers.read_and_transform_data(latest_path, xml_path, filter_ids, skip_employees=skip_employees)
-    
+    ) = opus_helpers.read_and_transform_data(
+        latest_path, xml_path, filter_ids, skip_employees=skip_employees
+    )
+
     opus_helpers.local_db_insert((xml_date, "Running diff update since {}"))
     diff = OpusDiffImport(
         xml_date,
