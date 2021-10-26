@@ -112,9 +112,12 @@ class Opus_diff_import_tester(unittest.TestCase):
         self.expected_terminations = 1
 
         filter_ids = []
-        units, filtered_units, employees, terminated_employees = opus_helpers.read_and_transform_data(
-            self.file1, self.file2, filter_ids
-        )
+        (
+            units,
+            filtered_units,
+            employees,
+            terminated_employees,
+        ) = opus_helpers.read_and_transform_data(self.file1, self.file2, filter_ids)
         self.units = list(units)
         self.filtered_units = list(filtered_units)
         self.employees = list(employees)
@@ -130,21 +133,27 @@ class Opus_diff_import_tester(unittest.TestCase):
     @given(datetimes())
     def test_import_unit_count(self, xml_date):
         self.assertIsInstance(xml_date, datetime)
-        diff = OpusDiffImportTest_counts(xml_date, ad_reader=None, employee_mapping="test")
+        diff = OpusDiffImportTest_counts(
+            xml_date, ad_reader=None, employee_mapping="test"
+        )
         diff.start_import(self.units, self.employees, self.terminated_employees)
         self.assertEqual(diff.update_unit.call_count, self.expected_unit_count)
 
     @given(datetimes())
     def test_import_employee_count(self, xml_date):
         self.assertIsInstance(xml_date, datetime)
-        diff = OpusDiffImportTest_counts(xml_date, ad_reader=None, employee_mapping="test")
-        diff.start_import(self.units, self.employees, self.terminated_employees )
+        diff = OpusDiffImportTest_counts(
+            xml_date, ad_reader=None, employee_mapping="test"
+        )
+        diff.start_import(self.units, self.employees, self.terminated_employees)
         self.assertEqual(diff.update_employee.call_count, self.expected_employee_count)
 
     @given(datetimes())
     def test_termination(self, xml_date):
         self.assertIsInstance(xml_date, datetime)
-        diff = OpusDiffImportTest_counts(xml_date, ad_reader=None, employee_mapping="test")
+        diff = OpusDiffImportTest_counts(
+            xml_date, ad_reader=None, employee_mapping="test"
+        )
         diff.start_import(self.units, self.employees, self.terminated_employees)
         self.assertEqual(
             diff._find_engagement.call_count, self.expected_terminations * 2
@@ -171,6 +180,7 @@ class Opus_diff_import_tester(unittest.TestCase):
                     "address_type": {"uuid": add_type_uuid},
                     "validity": {"from": xml_date.strftime("%Y-%m-%d"), "to": None},
                     "org_unit": {"uuid": str(calculated_uuid)},
+                    "visibility": None,
                 },
             )
 
@@ -209,14 +219,16 @@ class Opus_diff_import_tester(unittest.TestCase):
     def test_perform_address_update_create(
         self, xml_date, fromdate, value, address_type_uuid, org_unit_uuid, visibility
     ):
-        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping={"dummy": 1})
+        diff = OpusDiffImportTestbase(
+            xml_date, ad_reader=None, employee_mapping={"dummy": 1}
+        )
         address_type_uuid = str(address_type_uuid)
         args = {
             "address_type": {"uuid": address_type_uuid},
             "value": value,
             "validity": {"from": fromdate.strftime("%Y-%m-%d"), "to": None},
             "unit_uuid": str(org_unit_uuid),
-            "visibility": visibility
+            "visibility": {"uuid": str(visibility)},
         }
         current = {"uuid": address_type_uuid}
         # Same
