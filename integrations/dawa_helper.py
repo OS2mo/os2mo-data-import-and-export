@@ -1,8 +1,10 @@
+from functools import lru_cache
 from typing import Optional
 
 from os2mo_dar_client import DARClient
 
 
+@lru_cache(maxsize=None)
 def dawa_lookup(street_name: str, postal_code: str) -> Optional[str]:
     """Lookup an address object in DAWA and try to find an UUID for the address.
 
