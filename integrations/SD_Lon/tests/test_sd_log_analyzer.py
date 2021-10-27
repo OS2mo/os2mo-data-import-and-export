@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import patch
 
 from lxml import etree
 from parameterized import parameterized
@@ -10,6 +11,8 @@ from integrations.SD_Lon.sd_log_analyzer import get_sd_person_changed_at_date_re
 from integrations.SD_Lon.sd_log_analyzer import get_sd_xml_responses
 from integrations.SD_Lon.sd_log_analyzer import get_tar_gz_archive_files
 from integrations.SD_Lon.sd_log_analyzer import IdType
+from integrations.SD_Lon.sd_log_analyzer import output_to_file
+from integrations.SD_Lon.sd_log_analyzer import SdPersonChange
 
 remove_blank_parser = etree.XMLParser(remove_blank_text=True)
 
@@ -168,3 +171,22 @@ class TestGetAllSdPersonChanges:
         assert "2021-09-19" == all_changes[1].start_date
         assert "2021-09-20" == all_changes[1].end_date
         assert etree.tostring(BRUCE_LEE) == etree.tostring(all_changes[1].change)
+
+
+class TestOutputToFile:
+    @patch("builtins.open")
+    @patch("lxml.etree.tostring")
+    def test_skip_tars_with_no_changes(self, mock_etree, mock_open):
+        all_changes = [
+            SdPersonChange(
+                start_date="not used here", end_date="not used here", change=BRUCE_LEE
+            ),
+            SdPersonChange(start_date="not used here", end_date="not used here"),
+            SdPersonChange(
+                start_date="not used here", end_date="not used here", change=BRUCE_LEE
+            ),
+        ]
+
+        output_to_file(all_changes, Path("/tmp/dipex-writeable-file.txt"))
+
+        assert 2 == mock_etree.call_count

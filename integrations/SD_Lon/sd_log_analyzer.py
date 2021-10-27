@@ -154,7 +154,10 @@ def get_all_sd_person_changes(
 
 def output_to_file(all_changes: List[SdPersonChange], file: Path) -> None:
     with open(file, "w") as fp:
-        for sd_person_change in all_changes:
+        non_empty_changes = filter(
+            lambda person: person.change is not None, all_changes
+        )
+        for sd_person_change in non_empty_changes:
             fp.write(40 * "-" + "\n")
             fp.write(f"Start date: {sd_person_change.start_date}\n")
             fp.write(f"End date: {sd_person_change.end_date}\n\n")
