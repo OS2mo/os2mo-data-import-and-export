@@ -68,8 +68,11 @@ def extract_log_file_lines(tar_gz_file: Path) -> List[str]:
         List of log files lines as UTF-8 strings.
     """
     with tarfile.open(str(tar_gz_file), "r:gz") as tar:
-        log_file = tar.extractfile(LOG_FILE)
-        return [s.decode("utf-8")[:-1] for s in log_file.readlines()]  # type: ignore
+        try:
+            log_file = tar.extractfile(LOG_FILE)
+            return [s.decode("utf-8")[:-1] for s in log_file.readlines()]  # type: ignore
+        except KeyError:
+            return []
 
 
 def get_sd_xml_responses(log_file_lines: List[str]) -> List[_Element]:

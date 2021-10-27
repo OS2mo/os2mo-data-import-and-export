@@ -88,6 +88,16 @@ class TestGetTarGzArchiveFiles:
         assert [] == tar_gz_files
 
 
+class TestExtractLogFileLines:
+    @patch('tarfile.TarFile.extractfile')
+    def test_log_file_does_not_exist(self, mock_tarfile):
+        mock_tarfile.side_effect = KeyError()
+
+        assert [] == extract_log_file_lines(
+            Path("integrations/SD_Lon/tests/fixtures/" "2021-09-21-06-06-55-cron-backup.tar.gz")
+        )
+
+
 class TestGetSdXmlResponses:
     def test_log_file_should_contain_two_elements(self):
         xml_responses = get_xml_responses_from_tar_gz_file()
