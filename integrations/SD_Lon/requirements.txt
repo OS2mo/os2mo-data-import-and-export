@@ -1,5 +1,6 @@
 fastapi
-ramodels
-ra-utils
+lxml
 more_itertools
 pandas
+ramodels
+ra-utils
