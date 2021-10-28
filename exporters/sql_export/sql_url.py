@@ -1,8 +1,16 @@
+import logging
 import urllib.parse
 from enum import Enum
-from typing import Any, Dict, Tuple
+from functools import partial
+from typing import Any
+from typing import Dict
+from typing import Optional
+from typing import Tuple
 
 from ra_utils.load_settings import load_settings
+
+
+logger = logging.getLogger("SqlExport")
 
 
 class DatabaseFunction(Enum):
@@ -10,35 +18,104 @@ class DatabaseFunction(Enum):
     ACTUAL_STATE_HISTORIC = 2
 
 
+# Mapping from DatabaseFunction + conceptual key to actual keys in settings.json
+SETTINGS_MAP = {
+    DatabaseFunction.ACTUAL_STATE: {
+        "type": "exporters.actual_state.type",
+        "host": "exporters.actual_state.host",
+        "db_name": "exporters.actual_state.db_name",
+        "username": "exporters.actual_state.user",
+        "password": "exporters.actual_state.password",
+    },
+    DatabaseFunction.ACTUAL_STATE_HISTORIC: {
+        "type": "exporters.actual_state_historic.type",
+        "host": "exporters.actual_state_historic.host",
+        "db_name": "exporters.actual_state_historic.db_name",
+        "username": "exporters.actual_state_historic.user",
+        "password": "exporters.actual_state_historic.password",
+    },
+}
+
+# Mapping from DatabaseFunction + conceptual key to fallback keys in settings.json
+# These are used if the settings map above does not yield a value
+FALLBACK_MAP = {
+    DatabaseFunction.ACTUAL_STATE_HISTORIC: {
+        "host": "exporters.actual_state.host",
+        "username": "exporters.actual_state.user",
+        "password": "exporters.actual_state.password",
+    },
+}
+
+
+class ConfigurationError(Exception):
+    """Throw whenever a configuration issue in settings.json is detected."""
+
+    pass
+
+
+def convert_key_to_setting(key: str, database_function: DatabaseFunction) -> str:
+    """Convert a connection key to an actual setting in settings.json."""
+    return SETTINGS_MAP[database_function][key]
+
+
+def convert_key_to_fallback(
+    key: str, database_function: DatabaseFunction
+) -> Optional[str]:
+    """Convert a connection key to a fallback setting in settings.json."""
+    return FALLBACK_MAP.get(database_function, {}).get(key)
+
+
+def load_setting(
+    key: str,
+    database_function: DatabaseFunction,
+    settings: Dict,
+) -> Optional[str]:
+    setting = convert_key_to_setting(key, database_function)
+    fallback_setting = convert_key_to_fallback(key, database_function)
+
+    value = settings.get(setting)
+    if value is None and fallback_setting:
+        logger.warning(f"Utilizing {fallback_setting} in place of {setting}!")
+        value = settings.get(fallback_setting)
+    return value
+
+
+def get_db_type(
+    database_function: DatabaseFunction, force_sqlite: bool, settings: Dict
+) -> str:
+    if force_sqlite:
+        return "SQLite"
+    value = load_setting("type", database_function, settings)
+    if value is None:
+        raise ConfigurationError("Missing value in db_type")
+    return value
+
+
+def get_db_name(database_function: DatabaseFunction, settings: Dict) -> str:
+    value = load_setting("db_name", database_function, settings)
+    if value is None:
+        raise ConfigurationError("Missing value in db_name")
+    return value
+
+
+get_db_host = partial(load_setting, "host")
+get_db_username = partial(load_setting, "username")
+get_db_password = partial(load_setting, "password")
+
+
 def generate_db_type_and_name(
     database_function: DatabaseFunction, force_sqlite: bool, settings: Dict
 ) -> Tuple[str, str]:
-    keymap = {
-        DatabaseFunction.ACTUAL_STATE: (
-            "exporters.actual_state.type",
-            "exporters.actual_state.db_name",
-        ),
-        DatabaseFunction.ACTUAL_STATE_HISTORIC: (
-            "exporters.actual_state_historic.type",
-            "exporters.actual_state_historic.db_name",
-        ),
-    }
-    db_type_key, db_name_key = keymap[database_function]
-    db_type = settings.get(db_type_key)
-    db_name = settings.get(db_name_key)
-
-    if force_sqlite:
-        db_type = "SQLite"
-
-    if None in [db_type, db_name]:
-        msg = "Configuration error, missing db name or type"
-        raise Exception(msg)
-
-    return str(db_type), str(db_name)
+    return (
+        get_db_type(database_function, force_sqlite, settings),
+        get_db_name(database_function, settings),
+    )
 
 
 def generate_connection_url(
-    database_function: DatabaseFunction, force_sqlite: bool = False, settings=None
+    database_function: DatabaseFunction,
+    force_sqlite: bool = False,
+    settings: Optional[Dict] = None,
 ) -> str:
     """Utilize settings or settings from disk to derive database connection url."""
     settings = settings or load_settings()
@@ -46,9 +123,10 @@ def generate_connection_url(
     db_type, db_name = generate_db_type_and_name(
         database_function, force_sqlite, settings
     )
-    user = settings.get("exporters.actual_state.user")
-    db_host = settings.get("exporters.actual_state.host")
-    pw_raw = settings.get("exporters.actual_state.password", "")
+    user = get_db_username(database_function, settings)
+    db_host = get_db_host(database_function, settings)
+    pw_raw = get_db_password(database_function, settings)
+    pw_raw = pw_raw or ""
     pw = urllib.parse.quote_plus(pw_raw)
 
     if db_type == "Memory":
@@ -73,11 +151,13 @@ def generate_connection_url(
 
 
 def generate_engine_settings(
-    database_function: DatabaseFunction, force_sqlite: bool = False, settings=None
+    database_function: DatabaseFunction,
+    force_sqlite: bool = False,
+    settings: Optional[Dict] = None,
 ) -> Dict[str, Any]:
     settings = settings or load_settings()
 
-    db_type, _ = generate_db_type_and_name(database_function, force_sqlite, settings)
+    db_type = get_db_type(database_function, force_sqlite, settings)
     engine_settings: Dict = {"pool_pre_ping": True}
     if db_type == "Mysql":
         engine_settings.update({"pool_recycle": 3600})

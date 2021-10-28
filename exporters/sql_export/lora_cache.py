@@ -16,13 +16,14 @@ from tqdm import tqdm
 
 import click
 from more_itertools import bucket
+from ra_utils.load_settings import load_settings
 from retrying import retry
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.dar_helper import dar_helper
 
 logger = logging.getLogger("LoraCache")
 
-DEFAULT_TIMEZONE = dateutil.tz.gettz('Europe/Copenhagen')
+DEFAULT_TIMEZONE = dateutil.tz.gettz('Europe/Copenhagen')  # type: ignore
 
 PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
 
@@ -50,10 +51,7 @@ class LoraCache:
         self.org_uuid = self._read_org_uuid()
 
     def _load_settings(self):
-        cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
-        if not cfg_file.is_file():
-            raise Exception('No setting file')
-        return json.loads(cfg_file.read_text())
+        return load_settings()
 
     def _read_org_uuid(self):
         mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
@@ -1224,7 +1222,7 @@ def cli(historic, resolve_dar):
 
 if __name__ == '__main__':
 
-    for name in logging.root.manager.loggerDict:
+    for name in logging.root.manager.loggerDict:  # type: ignore
         if name in ('LoraCache'):
             logging.getLogger(name).setLevel(LOG_LEVEL)
         else:

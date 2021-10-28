@@ -1,4 +1,5 @@
-from unittest import TestCase, mock
+from unittest import mock
+from unittest import TestCase
 
 from ..lora_cache import LoraCache
 

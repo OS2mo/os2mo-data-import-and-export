@@ -2,12 +2,10 @@ from functools import partial
 
 import pytest
 
-from exporters.sql_export.sql_url import (
-    DatabaseFunction,
-    generate_connection_url,
-    generate_db_type_and_name,
-    generate_engine_settings,
-)
+from exporters.sql_export.sql_url import DatabaseFunction
+from exporters.sql_export.sql_url import generate_connection_url
+from exporters.sql_export.sql_url import generate_db_type_and_name
+from exporters.sql_export.sql_url import generate_engine_settings
 
 
 @pytest.mark.parametrize(
@@ -57,7 +55,7 @@ def test_generate_db_type_and_name(settings, expected):
         ({"dummy": 1}, Exception("Configuration error, missing db name or type")),
         (
             {"exporters.actual_state.type": "SQLite"},
-            Exception("Configuration error, missing db name or type"),
+            {"pool_pre_ping": True},
         ),
         (
             {"exporters.actual_state.db_name": "ActualState.db"},
