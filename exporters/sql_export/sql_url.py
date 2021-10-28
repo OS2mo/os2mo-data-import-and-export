@@ -1,8 +1,11 @@
-import urllib.parse
 import logging
+import urllib.parse
 from enum import Enum
 from functools import partial
-from typing import Any, Dict, Tuple, Optional
+from typing import Any
+from typing import Dict
+from typing import Optional
+from typing import Tuple
 
 from ra_utils.load_settings import load_settings
 
@@ -84,14 +87,14 @@ def get_db_type(
         return "SQLite"
     value = load_setting("type", database_function, settings)
     if value is None:
-        raise ConfigurationError(f"Missing value in db_type")
+        raise ConfigurationError("Missing value in db_type")
     return value
 
 
 def get_db_name(database_function: DatabaseFunction, settings: Dict) -> str:
     value = load_setting("db_name", database_function, settings)
     if value is None:
-        raise ConfigurationError(f"Missing value in db_name")
+        raise ConfigurationError("Missing value in db_name")
     return value
 
 
