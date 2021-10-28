@@ -38,7 +38,7 @@ class LoraCache:
         logger.info(msg.format(resolve_dar, full_history))
         self.resolve_dar = resolve_dar
 
-        self.settings = load_settings()
+        self.settings = self._load_settings()
 
         self.additional = {
             'relationer': ('tilknyttedeorganisationer', 'tilhoerer')
@@ -49,6 +49,9 @@ class LoraCache:
         self.full_history = full_history
         self.skip_past = skip_past
         self.org_uuid = self._read_org_uuid()
+
+    def _load_settings(self):
+        return load_settings()
 
     def _read_org_uuid(self):
         mh = MoraHelper(hostname=self.settings['mora.base'], export_ansi=False)
