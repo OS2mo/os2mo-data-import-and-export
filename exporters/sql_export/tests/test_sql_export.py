@@ -1,4 +1,6 @@
-import pytest
+from typing import Any
+from typing import Dict
+
 from sqlalchemy import inspect
 
 from exporters.sql_export.sql_export import SqlExport
@@ -10,21 +12,21 @@ class FakeLC:
     LoraCache's interface is essentially just these dictionaries.
     """
 
-    classes = {}
-    addresses = {}
-    facets = {}
-    users = {}
-    units = {}
-    dar_cache = {}
-    engagements = {}
-    associations = {}
-    roles = {}
-    leaves = {}
-    managers = {}
-    itsystems = {}
-    it_connections = {}
-    kles = {}
-    related = {}
+    classes: Dict[str, Any] = {}
+    addresses: Dict[str, Any] = {}
+    facets: Dict[str, Any] = {}
+    users: Dict[str, Any] = {}
+    units: Dict[str, Any] = {}
+    dar_cache: Dict[str, Any] = {}
+    engagements: Dict[str, Any] = {}
+    associations: Dict[str, Any] = {}
+    roles: Dict[str, Any] = {}
+    leaves: Dict[str, Any] = {}
+    managers: Dict[str, Any] = {}
+    itsystems: Dict[str, Any] = {}
+    it_connections: Dict[str, Any] = {}
+    kles: Dict[str, Any] = {}
+    related: Dict[str, Any] = {}
 
     def calculate_primary_engagements(self):
         raise NotImplementedError()

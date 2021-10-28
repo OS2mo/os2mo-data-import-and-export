@@ -1,13 +1,14 @@
 import logging
 import unittest
-from unittest.mock import call, patch
-from uuid import uuid4
+from unittest.mock import call
+from unittest.mock import patch
 
 import pytest
 from hypothesis import given
-from hypothesis.strategies import booleans, lists, uuids
+from hypothesis.strategies import booleans
+from hypothesis.strategies import lists
+from hypothesis.strategies import uuids
 
-import exporters.sql_export.lora_cache
 from exporters.sql_export.lora_cache import LoraCache
 
 
@@ -56,8 +57,9 @@ class TestResolveDar(unittest.TestCase):
     def test_cache_dar(self, sync_dar_fetch, resolve_dar, dar_uuids):
         """With filled dar_map, resolve does matter."""
         sync_dar_fetch.reset_mock()
-        # Mock sync_dar_fetch to be noop
+
         def noop_sync_dar_fetch(dar_uuids, addrtype="adresser"):
+            """Mock sync_dar_fetch to be noop."""
             return {}, dar_uuids
 
         sync_dar_fetch.side_effect = noop_sync_dar_fetch

@@ -75,8 +75,8 @@ Lint Customers files:
 Lint LoraCache Integration:
   extends: .lint-python
   script:
-    - python -m black --diff --check exporters/sql_export/tests/*.py exporters/sql_export/sql_table_defs.py exporters/sql_export/sql_url.py exporters/sql_export/lc_for_jobs_db.py
-    - python -m isort --profile black --diff --check-only exporters/sql_export/tests/*.py exporters/sql_export/sql_table_defs.py exporters/sql_export/sql_url.py exporters/sql_export/lc_for_jobs_db.py
+    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+    - pre-commit run --files exporters/sql_export/tests/*.py exporters/sql_export/sql_table_defs.py exporters/sql_export/sql_url.py exporters/sql_export/lc_for_jobs_db.py
 
 Lint AD Integration:
   extends: .lint-python
