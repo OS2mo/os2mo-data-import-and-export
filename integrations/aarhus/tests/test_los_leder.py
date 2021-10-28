@@ -5,6 +5,7 @@ from uuid import uuid4
 import los_files
 import los_leder
 from hypothesis import given
+from hypothesis import settings
 from hypothesis import strategies as st
 
 from .helpers import HelperMixin
@@ -218,3 +219,25 @@ class TestManagerImporter(HelperMixin):
         call.assert_called_once()
         payloads = list(call.call_args[0][1])
         assert len(payloads) == 0
+
+
+class TestManagerImporterCacheCpr(HelperMixin):
+    @settings(max_examples=1000, deadline=None)
+    @given(
+        # Build simulated return value of `util.lookup_employees`
+        st.lists(
+            # Employees with both UUID and CPR
+            st.fixed_dictionaries({"uuid": st.text(), "cpr_no": st.text()})
+            |
+            # Employees with only UUID
+            st.fixed_dictionaries({"uuid": st.text()})
+        )
+    )
+    def test_cache_cpr_handles_missing_cpr(self, mock_employee_list):
+        instance = los_leder.ManagerImporter()
+        with self._mock_lookup_employees(return_value=mock_employee_list):
+            instance.cache_cpr()
+            unique_mock_cprs = set(
+                emp["cpr_no"] for emp in mock_employee_list if emp.get("cpr_no")
+            )
+            assert set(instance.cpr_cache.keys()) == unique_mock_cprs

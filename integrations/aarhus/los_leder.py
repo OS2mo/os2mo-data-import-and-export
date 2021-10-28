@@ -50,7 +50,12 @@ class ManagerImporter:
         """Read all employees from OS2mo and cache them based on their CPR no."""
         print("Caching employees")
         employees = util.lookup_employees()
-        cache = map(itemgetter("cpr_no", "uuid"), employees)
+        # Not really a cache - but a mapping from the CPR found in the CSV file
+        # to the MO user's UUID. Needed in `generate_manager_payload`.
+        cache = map(
+            itemgetter("cpr_no", "uuid"),
+            filter(lambda employee: employee.get("cpr_no"), employees),
+        )
         self.cpr_cache = dict(cache)
 
     def generate_manager_payload(
