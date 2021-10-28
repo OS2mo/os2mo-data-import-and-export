@@ -12,7 +12,7 @@ class IntegratioAbstractionTests(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         self.session = requests.Session()
-        self.mox_base = 'http://localhost:5000/'
+        self.mox_base = 'http://localhost:8080/'
         self.resource = 'klassifikation/facet'
         self.uuids = ['00000000-0000-0000-0000-000000000001',
                       '00000000-0000-0000-0000-000000000002',
@@ -26,7 +26,8 @@ class IntegratioAbstractionTests(unittest.TestCase):
 
         service = self.mox_base + self.resource
         for uuid in self.uuids:
-            self.session.put(url=service + '/' + uuid, json=payload)
+            r = self.session.put(url=service + '/' + uuid, json=payload)
+            print(r.status_code, r.url)
 
     def test_raw_write(self):
         """ Test that we can write a litteral string and read a key back """
