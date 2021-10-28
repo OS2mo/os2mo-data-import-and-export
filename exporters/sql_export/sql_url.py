@@ -46,6 +46,7 @@ FALLBACK_MAP = {
 
 class ConfigurationError(Exception):
     """Throw whenever a configuration issue in settings.json is detected."""
+
     pass
 
 
@@ -87,9 +88,7 @@ def get_db_type(
     return value
 
 
-def get_db_name(
-    database_function: DatabaseFunction, settings: Dict
-) -> str:
+def get_db_name(database_function: DatabaseFunction, settings: Dict) -> str:
     value = load_setting("db_name", database_function, settings)
     if value is None:
         raise ConfigurationError(f"Missing value in db_name")
