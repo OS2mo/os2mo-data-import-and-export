@@ -32,12 +32,13 @@ logger = logging.getLogger("mora-helper")
 
 class MoraHelper:
     def __init__(
-        self, hostname="http://localhost:5000", export_ansi=True, use_cache=True
+        self, hostname="http://localhost:5000", export_ansi=True, use_cache=True, auth_enabled=True
     ):
         self.host = hostname + "/service/"
         self.cache = {}
         self.default_cache = use_cache
-        self.export_ansi = export_ansi
+        self.export_ansi = export_ansi,
+        self.auth_enabled = auth_enabled
 
     def _split_name(self, name):
         """Split a name into first and last name.
@@ -153,7 +154,9 @@ class MoraHelper:
             logger.debug("cache hit: %s", cache_id)
             return_dict = self.cache[cache_id]
         else:
-            headers = TokenSettings().get_headers()
+            headers = dict()
+            if self.auth_enabled:
+                headers = TokenSettings().get_headers()
 
             response = requests.get(full_url, headers=headers, params=params)
             if response.status_code == 401:
