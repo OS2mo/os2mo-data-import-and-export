@@ -5,3 +5,4 @@ alembic
 mysqlclient
 pyodbc
 git+https://github.com/magenta-aps/lora-utils.git@master#egg=lora_utils
+types-python-dateutil

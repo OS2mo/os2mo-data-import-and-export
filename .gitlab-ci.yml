@@ -75,7 +75,7 @@ Lint Customers files:
 Lint LoraCache Integration:
   extends: .lint-python
   script:
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+    - pip install mypy pre-commit types-Jinja2 types-click types-requests types-python-dateutil
     - pre-commit run --files exporters/sql_export/tests/*.py exporters/sql_export/sql_table_defs.py exporters/sql_export/sql_url.py exporters/sql_export/lc_for_jobs_db.py
 
 Lint AD Integration:
