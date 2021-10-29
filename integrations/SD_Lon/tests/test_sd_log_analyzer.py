@@ -13,6 +13,8 @@ from integrations.SD_Lon.sd_log_analyzer import get_tar_gz_archive_files
 from integrations.SD_Lon.sd_log_analyzer import IdType
 from integrations.SD_Lon.sd_log_analyzer import output_to_file
 from integrations.SD_Lon.sd_log_analyzer import SdPersonChange
+import tarfile
+import shutil
 
 remove_blank_parser = etree.XMLParser(remove_blank_text=True)
 
@@ -63,23 +65,48 @@ BRUCE_LEE = etree.XML(
 )
 
 
-def get_xml_responses_from_tar_gz_file():
-    tar_gz_file = Path(
-        "integrations/SD_Lon/tests/fixtures/2021-09-21-06-06-55-cron-backup.tar.gz"
-    )
-    log_file_lines = extract_log_file_lines(tar_gz_file)
-    xml_responses = get_sd_xml_responses(log_file_lines)
-    return xml_responses
+class TestTarGzHelper:
+    """
+    Generate .tar.gz files to be used as test fixtures
+    """
+
+    FIXTURE_FOLDER = Path("/tmp/dipex-sd-test")
+
+    def setup_class(self):
+        TestTarGzHelper.remove_fixture_folder()
+        TestTarGzHelper.FIXTURE_FOLDER.mkdir()
+
+        self.tar_gz_file1 = TestTarGzHelper.FIXTURE_FOLDER.joinpath(Path("tar1.tar.gz"))
+        with tarfile.open(str(self.tar_gz_file1), "w:gz") as tar:
+            tar.add("integrations/SD_Lon/tests/fixtures/tar_gz1/opt", arcname="opt")
+
+        self.tar_gz_file2 = TestTarGzHelper.FIXTURE_FOLDER.joinpath(Path("tar2.tar.gz"))
+        with tarfile.open(str(self.tar_gz_file2), "w:gz") as tar:
+            tar.add("integrations/SD_Lon/tests/fixtures/tar_gz2/opt", arcname="opt")
+
+    def teardown_class(self):
+        TestTarGzHelper.remove_fixture_folder()
+
+    @staticmethod
+    def remove_fixture_folder():
+        if TestTarGzHelper.FIXTURE_FOLDER.is_dir():
+            shutil.rmtree(TestTarGzHelper.FIXTURE_FOLDER)
+
+    def get_xml_responses_from_tar_gz_file(self):
+        log_file_lines = extract_log_file_lines(self.tar_gz_file1)
+        xml_responses = get_sd_xml_responses(log_file_lines)
+        return xml_responses
 
 
-class TestGetTarGzArchiveFiles:
+class TestGetTarGzArchiveFiles(TestTarGzHelper):
+
     def test_returns_tar_gz_files_in_folder(self):
-        path = Path("integrations/SD_Lon/tests/fixtures")
+        path = TestTarGzHelper.FIXTURE_FOLDER
         tar_gz_files = get_tar_gz_archive_files(path)
 
         assert len(tar_gz_files) == 2
-        assert "2021-09-21-06-06-55-cron-backup.tar.gz" == tar_gz_files[0].name
-        assert "2021-09-22-06-06-55-cron-backup.tar.gz" == tar_gz_files[1].name
+        assert "tar1.tar.gz" == tar_gz_files[0].name
+        assert "tar2.tar.gz" == tar_gz_files[1].name
 
     def test_returns_empty_list_when_no_tar_files_in_folder(self):
         path = Path("integrations/SD_Lon/tests")
@@ -88,22 +115,19 @@ class TestGetTarGzArchiveFiles:
         assert [] == tar_gz_files
 
 
-class TestExtractLogFileLines:
+class TestExtractLogFileLines(TestTarGzHelper):
     @patch("tarfile.TarFile.extractfile")
     def test_log_file_does_not_exist(self, mock_tarfile):
         mock_tarfile.side_effect = KeyError()
 
-        assert [] == extract_log_file_lines(
-            Path(
-                "integrations/SD_Lon/tests/fixtures/"
-                "2021-09-21-06-06-55-cron-backup.tar.gz"
-            )
-        )
+        assert [] == extract_log_file_lines(self.tar_gz_file1)
 
 
-class TestGetSdXmlResponses:
+class TestGetSdXmlResponses(TestTarGzHelper):
     def test_log_file_should_contain_two_elements(self):
-        xml_responses = get_xml_responses_from_tar_gz_file()
+        print(self.tar_gz_file1)
+        xml_responses = self.get_xml_responses_from_tar_gz_file()
+        print(xml_responses)
 
         assert isinstance(xml_responses, list)
         assert len(xml_responses) == 2
@@ -117,9 +141,9 @@ class TestGetSdXmlResponses:
         assert [] == xml_responses
 
 
-class TestGetSdPersonChangedAtDateResponses:
+class TestGetSdPersonChangedAtDateResponses(TestTarGzHelper):
     def test_should_contain_a_single_person_changed_at_date_response(self):
-        xml_responses = get_xml_responses_from_tar_gz_file()
+        xml_responses = self.get_xml_responses_from_tar_gz_file()
         changed_at_date_responses = get_sd_person_changed_at_date_responses(
             xml_responses
         )
@@ -132,7 +156,7 @@ class TestGetSdPersonChangedAtDateResponses:
         )
 
 
-class TestGetPerson:
+class TestGetPerson(TestTarGzHelper):
     @parameterized.expand([(IdType.CPR, "1111111111"), (IdType.EMPLOYMENT_ID, "11111")])
     def test_get_person_from_identifier(self, id_type, id_):
         actual_person = get_sd_person_changed(id_type, id_, XML_FIXTURE).change
@@ -170,10 +194,10 @@ class TestGetPerson:
         assert "2021-09-15" == sd_person_changed.end_date
 
 
-class TestGetAllSdPersonChanges:
+class TestGetAllSdPersonChanges(TestTarGzHelper):
     def test_get_sd_person_changes_from_all_tar_gz_files(self):
         all_changes = get_all_sd_person_changes(
-            IdType.EMPLOYMENT_ID, "11111", Path("integrations/SD_Lon/tests/fixtures")
+            IdType.EMPLOYMENT_ID, "11111", TestTarGzHelper.FIXTURE_FOLDER
         )
 
         assert "2021-09-14" == all_changes[0].start_date
