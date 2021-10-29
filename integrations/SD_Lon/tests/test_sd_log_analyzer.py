@@ -89,12 +89,15 @@ class TestGetTarGzArchiveFiles:
 
 
 class TestExtractLogFileLines:
-    @patch('tarfile.TarFile.extractfile')
+    @patch("tarfile.TarFile.extractfile")
     def test_log_file_does_not_exist(self, mock_tarfile):
         mock_tarfile.side_effect = KeyError()
 
         assert [] == extract_log_file_lines(
-            Path("integrations/SD_Lon/tests/fixtures/2021-09-21-06-06-55-cron-backup.tar.gz")
+            Path(
+                "integrations/SD_Lon/tests/fixtures/"
+                "2021-09-21-06-06-55-cron-backup.tar.gz"
+            )
         )
 
 
