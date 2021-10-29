@@ -187,9 +187,26 @@ def primary_types(helper):
     """
     Read the engagement types from MO and match them up against the four
     known types in the SD->MO import.
-    :param helper: An instance of mora-helpers.
-    :return: A dict matching up the engagement types with LoRa class uuids.
+
+    Args:
+        helper: An instance of mora-helpers.
+
+    Returns:
+        A dict matching up the engagement types with LoRa class uuids (
+        i.e. UUIDs of facets).
+
+    Example:
+        An example return value:
+        ```python
+        {
+            "primary": "697c8838-ba0f-4e74-90f8-4e7c31d4e7e7",
+            "non_primary": "b9543f90-9511-494b-bbf5-f15678502c2d",
+            "no_salary": "88589e84-5736-4f8c-9c0c-2e29046d7471",
+            "fixed_primary": "c95a1999-9f95-4458-a218-e9c96e7ad3db",
+        }
+        ```
     """
+
     # These constants are global in all SD municipalities (because they are created
     # by the SD->MO importer.
     PRIMARY = "Ansat"

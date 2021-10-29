@@ -79,7 +79,7 @@ def delete_orgfunc(uuid: str, mox_base: str = "http://localhost:8080") -> None:
 
 
 def fixup(ctx, mo_employees):
-    def fetch_mo_engagements(mo_employee):
+    def fetch_mo_engagements(mo_employee) -> dict:
         mo_uuid = mo_employee["uuid"]
         mo_engagements = mora_helper.read_user_engagement(user=mo_uuid, read_all=True)
         no_salary_mo_engagements = list(
