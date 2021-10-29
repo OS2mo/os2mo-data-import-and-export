@@ -1,3 +1,4 @@
+import uuid
 from collections import OrderedDict
 from datetime import date
 from datetime import datetime
@@ -13,8 +14,9 @@ from parameterized import parameterized
 from ra_utils.attrdict import attrdict
 from ra_utils.generate_uuid import uuid_generator
 
+from .fixtures import get_sd_person_fixture
 from .fixtures import read_employment_fixture
-from .fixtures import read_person_fixture
+from integrations.SD_Lon.convert import sd_to_mo_termination_date
 from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 from integrations.SD_Lon.sd_changed_at import gen_date_pairs
@@ -74,12 +76,12 @@ def setup_sd_changed_at(updates=None):
 class Test_sd_changed_at(DipexTestCase):
     @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
     @patch("integrations.SD_Lon.sd_common._sd_request")
-    def test_read_person(self, sd_request, sd_settings):
+    def test_get_sd_person(self, sd_request, sd_settings):
         """Test that read_person does the expected transformation."""
         sd_settings.return_value = ("", "", "")
 
         cpr = "0101709999"
-        sd_reply, expected_read_person_result = read_person_fixture(
+        sd_reply, expected_read_person_result = get_sd_person_fixture(
             cpr=cpr, first_name="John", last_name="Deere", employment_id="01337"
         )
 
@@ -95,7 +97,7 @@ class Test_sd_changed_at(DipexTestCase):
         first_name = "John"
         last_name = "Deere"
 
-        _, read_person_result = read_person_fixture(
+        _, read_person_result = get_sd_person_fixture(
             cpr=cpr,
             first_name=first_name,
             last_name=last_name,
@@ -197,7 +199,9 @@ class Test_sd_changed_at(DipexTestCase):
             self.assertFalse(sd_updater._terminate_engagement.called)
             sd_updater.update_all_employments()
             sd_updater._terminate_engagement.assert_called_with(
-                status["ActivationDate"], employment_id, "user_uuid"
+                user_key=employment_id,
+                person_uuid="user_uuid",
+                from_date=sd_to_mo_termination_date(status["ActivationDate"]),
             )
 
     @parameterized.expand(
@@ -281,19 +285,8 @@ class Test_sd_changed_at(DipexTestCase):
 
         employment_id = "01337"
 
-        _, read_employment_result = read_employment_fixture(
-            cpr="0101709999",
-            employment_id=employment_id,
-            job_id="1234",
-            job_title="EDB-Mand",
-            status="S",
-        )
-
         sd_updater = setup_sd_changed_at()
-
         morahelper = sd_updater.morahelper_mock
-
-        status = read_employment_result[0]["Employment"]["EmploymentStatus"]
 
         sd_updater.mo_engagements_cache["user_uuid"] = [
             {
@@ -303,17 +296,147 @@ class Test_sd_changed_at(DipexTestCase):
         ]
 
         _mo_post = morahelper._mo_post
-        _mo_post.return_value = attrdict({"status_code": 201, "text": lambda: "OK"})
+        _mo_post.return_value = attrdict(
+            {"status_code": 200, "text": lambda: "mo_engagement_uuid"}
+        )
         self.assertFalse(_mo_post.called)
         sd_updater._terminate_engagement(
-            status["ActivationDate"], employment_id, "user_uuid"
+            user_key=employment_id, person_uuid="user_uuid", from_date="2020-11-01"
         )
-        _mo_post.assert_called_with(
+        _mo_post.assert_called_once_with(
             "details/terminate",
             {
                 "type": "engagement",
                 "uuid": "mo_engagement_uuid",
-                "validity": {"to": "2020-10-31"},
+                "validity": {"from": "2020-11-01", "to": "infinity"},
+            },
+        )
+
+    def test_terminate_engagement_returns_false_when_no_mo_engagement(self):
+        sd_updater = setup_sd_changed_at()
+
+        morahelper = sd_updater.morahelper_mock
+        mock_read_user_engagement = morahelper.read_user_engagement
+        mock_read_user_engagement.return_value = []
+
+        self.assertFalse(
+            sd_updater._terminate_engagement(
+                user_key="12345", person_uuid=str(uuid.uuid4()), from_date="2021-10-05"
+            )
+        )
+
+    def test_terminate_engagement_when_to_date_set(self):
+        sd_updater = setup_sd_changed_at()
+        sd_updater.mo_engagements_cache["person_uuid"] = [
+            {
+                "user_key": "00000",
+                "uuid": "mo_engagement_uuid",
+            }
+        ]
+
+        morahelper = sd_updater.morahelper_mock
+        mock_post_mo = morahelper._mo_post
+        mock_post_mo.return_value = attrdict(
+            {"status_code": 200, "text": lambda: "mo_engagement_uuid"}
+        )
+
+        sd_updater._terminate_engagement(
+            user_key="00000",
+            person_uuid="person_uuid",
+            from_date="2021-10-15",
+            to_date="2021-10-20",
+        )
+        mock_post_mo.assert_called_once_with(
+            "details/terminate",
+            {
+                "type": "engagement",
+                "uuid": "mo_engagement_uuid",
+                "validity": {"from": "2021-10-15", "to": "2021-10-20"},
+            },
+        )
+
+    @parameterized.expand([("2021-10-15", "2021-10-14"), ("9999-12-31", "infinity")])
+    def test_handle_status_changes_terminates_let_go_employment_status(
+        self, sd_deactivation_date, mo_termination_to_date
+    ):
+        cpr = "0101709999"
+        employment_id = "01337"
+
+        _, read_employment_result = read_employment_fixture(
+            cpr=cpr,
+            employment_id=employment_id,
+            job_id="1234",
+            job_title="EDB-Mand",
+            status="1",
+        )
+        sd_employment = read_employment_result[0]["Employment"]
+        sd_employment["EmploymentStatus"].pop(0)  # Remove the one with status 8
+        sd_employment["EmploymentStatus"][0]["DeactivationDate"] = sd_deactivation_date
+
+        sd_updater = setup_sd_changed_at()
+        sd_updater.mo_engagements_cache["person_uuid"] = [
+            {
+                "user_key": employment_id,
+                "uuid": "mo_engagement_uuid",
+            }
+        ]
+
+        morahelper = sd_updater.morahelper_mock
+        mock_mo_post = morahelper._mo_post
+        mock_mo_post.return_value = attrdict(
+            {"status_code": 200, "text": lambda: "mo_engagement_uuid"}
+        )
+
+        sd_updater._handle_employment_status_changes(
+            cpr=cpr, sd_employment=sd_employment, person_uuid="person_uuid"
+        )
+
+        mock_mo_post.assert_called_once_with(
+            "details/terminate",
+            {
+                "type": "engagement",
+                "uuid": "mo_engagement_uuid",
+                "validity": {"from": "2021-02-09", "to": mo_termination_to_date},
+            },
+        )
+
+    def test_handle_status_changes_terminates_slettet_employment_status(self):
+        cpr = "0101709999"
+        employment_id = "01337"
+
+        _, read_employment_result = read_employment_fixture(
+            cpr=cpr,
+            employment_id=employment_id,
+            job_id="1234",
+            job_title="EDB-Mand",
+            status="S",
+        )
+        sd_employment = read_employment_result[0]["Employment"]
+
+        sd_updater = setup_sd_changed_at()
+        sd_updater.mo_engagements_cache["person_uuid"] = [
+            {
+                "user_key": employment_id,
+                "uuid": "mo_engagement_uuid",
+            }
+        ]
+
+        morahelper = sd_updater.morahelper_mock
+        mock_mo_post = morahelper._mo_post
+        mock_mo_post.return_value = attrdict(
+            {"status_code": 200, "text": lambda: "mo_engagement_uuid"}
+        )
+
+        sd_updater._handle_employment_status_changes(
+            cpr=cpr, sd_employment=sd_employment, person_uuid="person_uuid"
+        )
+
+        mock_mo_post.assert_called_once_with(
+            "details/terminate",
+            {
+                "type": "engagement",
+                "uuid": "mo_engagement_uuid",
+                "validity": {"from": "2020-10-31", "to": "infinity"},
             },
         )
 
@@ -431,7 +554,7 @@ class Test_sd_changed_at(DipexTestCase):
                     {
                         "type": "engagement",
                         "uuid": "mo_engagement_uuid",
-                        "validity": {"to": "2021-02-09"},
+                        "validity": {"from": "2021-02-09", "to": "infinity"},
                     },
                 ),
             ]

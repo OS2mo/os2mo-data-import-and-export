@@ -1,10 +1,70 @@
+import typing
 from collections import OrderedDict
+from typing import Any
+from typing import List
+from typing import Tuple
 from uuid import uuid4
 
+from ra_utils.attrdict import AttrDict
 from ra_utils.attrdict import attrdict
 
 
-def read_person_fixture(cpr, first_name, last_name, employment_id):
+def get_sd_person_fixture(
+    cpr: str, first_name: str, last_name: str, employment_id: str
+) -> Tuple[AttrDict, List[typing.OrderedDict[str, Any]]]:
+    """
+    Get an SD person fixture. The function generates both the XML response
+    returned from the SD API endpoint "GetPerson20111201" and the expected
+    `OrderedDict` after parsing the XML.
+
+    Args:
+        cpr: The CPR number of the SD person.
+        first_name: The first name (given name) of the SD person.
+        last_name: The last name (surname) of the SD person.
+        employment_id: The employmentID, e.g. 12345, of the SD person.
+
+    Returns:
+        Tuple with two elements. The first element is the raw XML response
+        from the "GetPerson20111201" SD endpoint. The second element is the
+        `OrderedDict` expected to be returned from get_sd_person.
+
+    Example:
+        ```
+        >>> fix = get_sd_person_fixture('123456-1234', 'Bruce', 'Lee', "12345")
+        >>> print(fix[0].text)
+            <GetPerson20111201 creationDateTime="2020-12-03T17:40:10">
+                <RequestStructure>
+                    <InstitutionIdentifier>XX</InstitutionIdentifier>
+                    <PersonCivilRegistrationIdentifier>123456-1234</PersonCivilRegistrationIdentifier>
+                    <EffectiveDate>2020-12-03</EffectiveDate>
+                    <StatusActiveIndicator>true</StatusActiveIndicator>
+                    <StatusPassiveIndicator>false</StatusPassiveIndicator>
+                    <ContactInformationIndicator>false</ContactInformationIndicator>
+                    <PostalAddressIndicator>false</PostalAddressIndicator>
+                </RequestStructure>
+                <Person>
+                    <PersonCivilRegistrationIdentifier>123456-1234</PersonCivilRegistrationIdentifier>
+                    <PersonGivenName>Bruce</PersonGivenName>
+                    <PersonSurnameName>Lee</PersonSurnameName>
+                    <Employment>
+                        <EmploymentIdentifier>12345</EmploymentIdentifier>
+                    </Employment>
+                </Person>
+            </GetPerson20111201>
+        >>> print(fix[1])
+            [
+                OrderedDict([
+                    ('PersonCivilRegistrationIdentifier', '123456-1234'),
+                    ('PersonGivenName', 'Bruce'),
+                    ('PersonSurnameName', 'Lee'),
+                    ('Employment', OrderedDict([
+                        ('EmploymentIdentifier', '12345')
+                    ]))
+                ])
+            ]
+        ```
+    """
+
     institution_id = "XX"
 
     sd_request_reply = attrdict(
@@ -50,7 +110,71 @@ def read_person_fixture(cpr, first_name, last_name, employment_id):
     return sd_request_reply, expected_read_person_result
 
 
-def read_employment_fixture(cpr, employment_id, job_id, job_title, status="1"):
+def read_employment_fixture(
+    cpr: str, employment_id: str, job_id: str, job_title: str, status: str = "1"
+) -> Tuple[AttrDict, List[typing.OrderedDict[str, Any]]]:
+    """
+    Get an SD employment fixture. The function is use for mocking calls to
+    the "GetEmploymentChangedAtDate20111201" SD API endpoint, i.e. the endpoint
+    that gets new changes *registered* between a from date and a to date. The
+    function generates both the XML response endpoint "GetPerson20111201" and
+    the expected `OrderedDict` after parsing the XML.
+
+    Args:
+        cpr: The CPR number of the SD person.
+        first_name: The first name (given name) of the SD person.
+        last_name: The last name (surname) of the SD person.
+        employment_id: The employmentID, e.g. 12345, of the SD person.
+
+    Returns:
+        Tuple with two elements. The first element is the raw XML response
+        from the "GetPerson20111201" SD endpoint. The second element is the
+        `OrderedDict` expected to be returned from get_sd_person.
+
+    Example:
+        ```
+        >>> fix=read_employment_fixture("123456-1234", "12345", "1", "chief", "1")
+        >>> print(fix[1])
+            [
+                OrderedDict([
+                    ('PersonCivilRegistrationIdentifier', '123456-1234'),
+                    ('Employment', OrderedDict([
+                        ('EmploymentIdentifier', '12345'),
+                        ('EmploymentDate', '2020-11-10'),
+                        ('EmploymentDepartment', OrderedDict([
+                            ('@changedAtDate', '2020-11-10'),
+                            ('ActivationDate', '2020-11-10'),
+                            ('DeactivationDate', '9999-12-31'),
+                            ('DepartmentIdentifier', 'deprtment_id'),
+                            ('DepartmentUUIDIdentifier', 'department_uuid')
+                        ])),
+                        ('Profession', OrderedDict([
+                            ('@changedAtDate', '2020-11-10'),
+                            ('ActivationDate', '2020-11-10'),
+                            ('DeactivationDate', '9999-12-31'),
+                            ('JobPositionIdentifier', '1'),
+                            ('EmploymentName', 'chief'),
+                            ('AppointmentCode', '0')
+                        ])),
+                        ('EmploymentStatus', [
+                            OrderedDict([
+                                ('@changedAtDate', '2020-11-10'),
+                                ('ActivationDate', '2020-11-10'),
+                                ('DeactivationDate', '2021-02-09'),
+                                ('EmploymentStatusCode', '1')
+                            ]),
+                            OrderedDict([
+                                ('@changedAtDate', '2020-11-10'),
+                                ('ActivationDate', '2021-02-10'),
+                                ('DeactivationDate', '9999-12-31'),
+                                ('EmploymentStatusCode', '8')
+                            ])
+                        ])
+                    ]))
+                ])
+            ]
+        ```
+    """
     institution_id = "institution_id"
     department_id = "deprtment_id"
     department_uuid = "department_uuid"

@@ -6,7 +6,11 @@ from enum import Enum
 from functools import lru_cache
 from functools import wraps
 from pathlib import Path
+from typing import Any
+from typing import Dict
 from typing import List
+from typing import Optional
+from typing import OrderedDict
 
 import requests
 import xmltodict
@@ -98,7 +102,9 @@ def _sd_request(full_url, payload, auth):
     )
 
 
-def sd_lookup(url, params={}, use_cache=True):
+def sd_lookup(
+    url: str, params: Optional[Dict[str, Any]] = None, use_cache: bool = True
+) -> OrderedDict:
     """Fire a requests against SD.
 
     Utilizes _sd_request to fire the actual request, which in turn utilize
@@ -106,6 +112,8 @@ def sd_lookup(url, params={}, use_cache=True):
     """
     logger.info("Retrieve: {}".format(url))
     logger.debug("Params: {}".format(params))
+
+    params = params or dict()
 
     BASE_URL = "https://service.sd.dk/sdws/"
     full_url = BASE_URL + url
