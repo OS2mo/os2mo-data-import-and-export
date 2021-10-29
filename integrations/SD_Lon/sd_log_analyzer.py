@@ -70,17 +70,18 @@ def extract_log_file_lines(tar_gz_file: Path) -> List[str]:
     with tarfile.open(str(tar_gz_file), "r:gz") as tar:
         try:
             log_file = tar.extractfile(LOG_FILE)
-            if not log_file:
-                return []
-
-            # List of byte strings
-            lines = log_file.readlines()
-            uft8_lines = map(lambda line: line.decode("utf-8"), lines)
-            lines_without_newline = map(lambda line: line[:-1], uft8_lines)
-
-            return list(lines_without_newline)
         except KeyError:
             return []
+
+        if not log_file:
+            return []
+
+        # List of byte strings
+        lines = log_file.readlines()
+        uft8_lines = map(lambda line: line.decode("utf-8"), lines)
+        lines_without_newline = map(lambda line: line[:-1], uft8_lines)
+
+        return list(lines_without_newline)
 
 
 def get_sd_xml_responses(log_file_lines: List[str]) -> List[_Element]:
