@@ -374,7 +374,7 @@ def export_to_essenslms(mh, all_nodes, filename):
             if ou['org_unit_level']['name'] != 'Afdelings-niveau':
 
                 employees = mh.read_organisation_people(
-                    node.name, 'engagement', False)
+                    node.name, 'engagement', False, primary_types=SETTINGS['exports.holstebro.primary_types'])
                 manager = find_org_manager(mh, node)
 
                 org_path = f"/Root/MOCH/Holstebro/Holstebro/{ou['location']}/{ou['name']}"
