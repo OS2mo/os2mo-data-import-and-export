@@ -70,7 +70,13 @@ def extract_log_file_lines(tar_gz_file: Path) -> List[str]:
     with tarfile.open(str(tar_gz_file), "r:gz") as tar:
         try:
             log_file = tar.extractfile(LOG_FILE)
-            return [s.decode("utf-8")[:-1] for s in log_file.readlines()]  # type: ignore
+
+            # List of byte strings
+            lines = log_file.readlines()
+            uft8_lines = map(lambda line: line.decode("utf-8"), lines)
+            lines_without_newline = map(lambda line: line[:-1], uft8_lines)
+
+            return list(lines_without_newline)  # type: ignore
         except KeyError:
             return []
 
