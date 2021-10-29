@@ -6,8 +6,6 @@
 # Development
 .idea
 *.gz
-!integrations/SD_Lon/tests/fixtures/2021-09-21-06-06-55-cron-backup.tar.gz
-!integrations/SD_Lon/tests/fixtures/2021-09-22-06-06-55-cron-backup.tar.gz
 *~
 *.swp
 
