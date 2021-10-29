@@ -71,11 +71,9 @@ def extract_log_file_lines(tar_gz_file: Path) -> List[str]:
         try:
             log_file = tar.extractfile(LOG_FILE)
         except KeyError:
-            print('KeyError')
             return []
 
         if not log_file:
-            print('not log file')
             return []
 
         # List of byte strings

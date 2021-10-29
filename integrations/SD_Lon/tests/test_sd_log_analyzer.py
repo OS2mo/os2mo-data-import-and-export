@@ -1,3 +1,5 @@
+import shutil
+import tarfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,8 +15,6 @@ from integrations.SD_Lon.sd_log_analyzer import get_tar_gz_archive_files
 from integrations.SD_Lon.sd_log_analyzer import IdType
 from integrations.SD_Lon.sd_log_analyzer import output_to_file
 from integrations.SD_Lon.sd_log_analyzer import SdPersonChange
-import tarfile
-import shutil
 
 remove_blank_parser = etree.XMLParser(remove_blank_text=True)
 
@@ -99,7 +99,6 @@ class TestTarGzHelper:
 
 
 class TestGetTarGzArchiveFiles(TestTarGzHelper):
-
     def test_returns_tar_gz_files_in_folder(self):
         path = TestTarGzHelper.FIXTURE_FOLDER
         tar_gz_files = get_tar_gz_archive_files(path)
