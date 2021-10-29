@@ -65,7 +65,7 @@ BRUCE_LEE = etree.XML(
 
 def get_xml_responses_from_tar_gz_file():
     tar_gz_file = Path(
-        "integrations/SD_Lon/tests/fixtures/" "2021-09-21-06-06-55-cron-backup.tar.gz"
+        "integrations/SD_Lon/tests/fixtures/2021-09-21-06-06-55-cron-backup.tar.gz"
     )
     log_file_lines = extract_log_file_lines(tar_gz_file)
     xml_responses = get_sd_xml_responses(log_file_lines)
@@ -94,7 +94,7 @@ class TestExtractLogFileLines:
         mock_tarfile.side_effect = KeyError()
 
         assert [] == extract_log_file_lines(
-            Path("integrations/SD_Lon/tests/fixtures/" "2021-09-21-06-06-55-cron-backup.tar.gz")
+            Path("integrations/SD_Lon/tests/fixtures/2021-09-21-06-06-55-cron-backup.tar.gz")
         )
 
 
