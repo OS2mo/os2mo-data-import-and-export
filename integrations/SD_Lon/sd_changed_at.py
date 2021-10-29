@@ -13,6 +13,7 @@ from typing import Dict
 from typing import Iterator
 from typing import List
 from typing import Optional
+from typing import OrderedDict
 from typing import Set
 from typing import Tuple
 from typing import Union
@@ -43,6 +44,7 @@ from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
 from integrations.rundb.db_overview import DBOverview
 from integrations.SD_Lon import exceptions
 from integrations.SD_Lon import sd_payloads
+from integrations.SD_Lon.convert import sd_to_mo_termination_date
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.models import SDBasePerson
 from integrations.SD_Lon.sd_common import calc_employment_id
@@ -150,7 +152,7 @@ class ChangeAtSD:
         self.to_date = to_date
 
         # Cache of mo engagements
-        self.mo_engagements_cache: Dict[str, dict] = {}
+        self.mo_engagements_cache: Dict[str, list] = {}
 
         self.primary_types = self._get_primary_types(self.helper)
 
@@ -301,7 +303,7 @@ class ChangeAtSD:
 
     def get_sd_persons_changed(
         self, from_date: datetime.datetime, to_date: Optional[datetime.datetime] = None
-    ) -> List[Dict[str, Any]]:
+    ) -> List[OrderedDict[str, Any]]:
         """
         Get list of SD Løn persons that have changed between `from_date`
         and `to_date`
@@ -327,7 +329,7 @@ class ChangeAtSD:
         persons_changed = ensure_list(response.get("Person", []))
         return persons_changed
 
-    def get_sd_person(self, cpr: str) -> List[Dict[str, Any]]:
+    def get_sd_person(self, cpr: str) -> List[OrderedDict[str, Any]]:
         """
         Get a single person from SD Løn at `self.from_date`
 
@@ -390,7 +392,9 @@ class ChangeAtSD:
             )
             return mo_person
 
-        def upsert_employee(uuid: str, given_name: str, sur_name: str, cpr: str) -> str:
+        def upsert_employee(
+            uuid: str, given_name: Optional[str], sur_name: Optional[str], cpr: str
+        ) -> str:
             model = Employee(
                 uuid=uuid,
                 givenname=given_name,
@@ -454,6 +458,7 @@ class ChangeAtSD:
             if mo_person["name"] == sd_name:
                 continue
             uuid = mo_person["uuid"]
+
             upsert_employee(uuid, given_name, surname, sd_person.cpr)
 
         # Create new SD persons in MO
@@ -865,23 +870,40 @@ class ChangeAtSD:
 
         return True
 
-    def _terminate_engagement(self, from_date, job_id, person_uuid):
-        mo_engagement = self._find_engagement(job_id, person_uuid)
+    def _terminate_engagement(
+        self,
+        user_key: str,
+        person_uuid: str,  # TODO: change type to UUID
+        from_date: str,  # TODO: Introduce MO date version
+        to_date: str = "infinity",
+    ) -> bool:
+        """
+        Terminate an employment (engagement) in MO. Since this function calls
+        MO, the parameters are adapted to accommodate MO instead of SD Løn,
+        i.e. SD dates should be converted to MO dates before the function is
+        invoked.
+
+        Args:
+            user_key: SD Løn employment ID. Used as BVN (user_key) in MO.
+            person_uuid: The employee UUID in MO.
+            from_date: The MO "from" date (to be set in virkning).
+            to_date: The MO "to" date (to be set in virkning).
+
+        Returns:
+            `True` if the termination in MO was successful and `False`
+            otherwise
+        """
+        mo_engagement = self._find_engagement(user_key, person_uuid)
 
         if not mo_engagement:
-            logger.warning("Terminating non-existing job: {}!".format(job_id))
+            logger.warning(f"Terminating non-existing job: {user_key}!")
             return False
 
-        # In MO, the termination date is the last day of work,
-        # in SD it is the first day of non-work.
-        date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
-        terminate_datetime = date - datetime.timedelta(days=1)
-        terminate_date = terminate_datetime.strftime("%Y-%m-%d")
-
+        # TODO: use/create termination object from RA Models
         payload = {
             "type": "engagement",
             "uuid": mo_engagement["uuid"],
-            "validity": {"to": terminate_date},
+            "validity": {"from": from_date, "to": to_date},
         }
 
         logger.debug("Terminate payload: {}".format(payload))
@@ -1082,32 +1104,85 @@ class ChangeAtSD:
         self._edit_engagement_type(engagement, mo_eng)
         self._edit_engagement_worktime(engagement, mo_eng)
 
-    def _handle_status_changes(self, cpr: str, engagement, person_uuid: str) -> bool:
+    def _handle_employment_status_changes(
+        self, cpr: str, sd_employment: OrderedDict, person_uuid: str
+    ) -> bool:
+        """
+        Update MO with SD employment changes.
+
+        Args:
+            cpr: The CPR number of the person.
+            sd_employment: The SD employment (see example below).
+            person_uuid: The UUID of the MO employee.
+
+        Returns:
+            `True` if an employment CRUD operation has been executed and
+            `False` otherwise.
+
+        Examples:
+            The sd_employment could for example look like this:
+                ```python
+                OrderedDict([
+                    ('EmploymentIdentifier', '12345'),
+                    ('EmploymentDate', '2020-11-10'),
+                    ('EmploymentDepartment', OrderedDict([
+                        ('@changedAtDate', '2020-11-10'),
+                        ('ActivationDate', '2020-11-10'),
+                        ('DeactivationDate', '9999-12-31'),
+                        ('DepartmentIdentifier', 'department_id'),
+                        ('DepartmentUUIDIdentifier', 'department_uuid')
+                    ])),
+                    ('Profession', OrderedDict([
+                        ('@changedAtDate', '2020-11-10'),
+                        ('ActivationDate', '2020-11-10'),
+                        ('DeactivationDate', '9999-12-31'),
+                        ('JobPositionIdentifier', '1'),
+                        ('EmploymentName', 'chief'),
+                        ('AppointmentCode', '0')
+                    ])),
+                    ('EmploymentStatus', [
+                        OrderedDict([
+                            ('@changedAtDate', '2020-11-10'),
+                            ('ActivationDate', '2020-11-10'),
+                            ('DeactivationDate', '2021-02-09'),
+                            ('EmploymentStatusCode', '1')
+                        ]),
+                        OrderedDict([
+                            ('@changedAtDate', '2020-11-10'),
+                            ('ActivationDate', '2021-02-10'),
+                            ('DeactivationDate', '9999-12-31'),
+                            ('EmploymentStatusCode', '8')
+                        ])
+                    ])
+                ])
+                ```
+        """
+
         skip = False
         # The EmploymentStatusCode can take a number of magical values.
         # that must be handled seperately.
-        job_id, eng = engagement_components(engagement)
+        employment_id, eng = engagement_components(sd_employment)
         for status in eng["status_list"]:
             logger.info("Status is: {}".format(status))
             code = status["EmploymentStatusCode"]
             code = EmploymentStatus(code)
 
             if code == EmploymentStatus.AnsatUdenLoen:
-                logger.info("Status 0. Cpr: {}, job: {}".format(cpr, job_id))
-                mo_eng = self._find_engagement(job_id, person_uuid)
+                logger.info("Status 0. Cpr: {}, job: {}".format(cpr, employment_id))
+                mo_eng = self._find_engagement(employment_id, person_uuid)
                 if mo_eng:
                     logger.info("Status 0, edit eng {}".format(mo_eng["uuid"]))
 
                     self._set_non_primary(status, mo_eng)
 
-                    self.edit_engagement(engagement, person_uuid)
+                    self.edit_engagement(sd_employment, person_uuid)
                 else:
                     logger.info("Status 0, create new engagement")
-                    self.create_new_engagement(engagement, status, cpr, person_uuid)
+                    self.create_new_engagement(sd_employment, status, cpr, person_uuid)
                 skip = True
             elif code == EmploymentStatus.AnsatMedLoen:
-                logger.info("Setting {} to status 1".format(job_id))
-                mo_eng = self._find_engagement(job_id, person_uuid)
+                logger.info("Setting {} to status 1".format(employment_id))
+                mo_eng = self._find_engagement(employment_id, person_uuid)
                 if mo_eng:
                     logger.info("Status 1, edit eng. {}".format(mo_eng["uuid"]))
 
@@ -1115,31 +1190,57 @@ class ChangeAtSD:
                     self._refresh_mo_engagements(person_uuid)
 
                     validity = self._validity(status)
-                    self.edit_engagement(engagement, person_uuid, validity)
+                    self.edit_engagement(sd_employment, person_uuid, validity)
                 else:
                     logger.info("Status 1: Create new engagement")
-                    self.create_new_engagement(engagement, status, cpr, person_uuid)
+                    self.create_new_engagement(sd_employment, status, cpr, person_uuid)
                 skip = True
             elif code == EmploymentStatus.Orlov:
-                mo_eng = self._find_engagement(job_id, person_uuid)
+                mo_eng = self._find_engagement(employment_id, person_uuid)
                 if not mo_eng:
                     logger.info("Leave for non existent eng., create one")
-                    self.create_new_engagement(engagement, status, cpr, person_uuid)
+                    self.create_new_engagement(sd_employment, status, cpr, person_uuid)
                 logger.info("Create a leave for {} ".format(cpr))
-                self.create_leave(status, job_id, person_uuid)
+                self.create_leave(status, employment_id, person_uuid)
             elif code in EmploymentStatus.let_go():
-                from_date = status["ActivationDate"]
-                logger.info("Terminate {}, job_id {} ".format(cpr, job_id))
-                success = self._terminate_engagement(from_date, job_id, person_uuid)
+                sd_from_date = status["ActivationDate"]
+                sd_to_date = status["DeactivationDate"]
+                logger.info("Terminate {}, job_id {} ".format(cpr, employment_id))
+                success = self._terminate_engagement(
+                    user_key=employment_id,
+                    person_uuid=person_uuid,
+                    from_date=sd_to_mo_termination_date(sd_from_date),
+                    to_date=sd_to_mo_termination_date(sd_to_date),
+                )
                 if not success:
-                    logger.error("Problem with job-id: {}".format(job_id))
+                    logger.error("Problem with job-id: {}".format(employment_id))
                     skip = True
             elif code == EmploymentStatus.Slettet:
+
+                # TODO: rename user_key to something unique in MO when employee
+                # is terminated.
+                #
+                # The reason for this is that SD Løn sometimes reuses the same
+                # job_id for *different* persons, e.g. if a person with
+                # job_id=12345 is set to "Slettet" then a different newly
+                # employed SD person can get the SAME job_id!
+                #
+                # In MO we therefore have to do the following. When a MO person
+                # is terminated, we have to make sure the the user_key (BVN) of
+                # that user is changed to some unique, e.g. "old user_key +
+                # UUID (or date)". In that way we can avoid user_key conflicts
+                # between different employees.
+                #
+                # Note that an SD person can jump from any status to "Slettet"
+
                 for mo_eng in self._fetch_mo_engagements(person_uuid):
-                    if mo_eng["user_key"] == job_id:
-                        logger.info("Status S: Terminate {}".format(job_id))
+                    if mo_eng["user_key"] == employment_id:
+                        sd_from_date = status["ActivationDate"]
+                        logger.info("Status S: Terminate {}".format(employment_id))
                         self._terminate_engagement(
-                            status["ActivationDate"], job_id, person_uuid
+                            user_key=employment_id,
+                            person_uuid=person_uuid,
+                            from_date=sd_to_mo_termination_date(sd_from_date),
                         )
                 skip = True
         return skip
@@ -1152,7 +1253,7 @@ class ChangeAtSD:
             logger.info("Update Job id: {}".format(job_id))
             logger.debug("SD Engagement: {}".format(engagement))
             # If status is present, we have a potential creation
-            if eng["status_list"] and self._handle_status_changes(
+            if eng["status_list"] and self._handle_employment_status_changes(
                 cpr, engagement, person_uuid
             ):
                 continue
