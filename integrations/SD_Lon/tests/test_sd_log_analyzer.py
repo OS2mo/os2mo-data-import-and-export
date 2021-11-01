@@ -1,5 +1,5 @@
-import shutil
 import tarfile
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -70,27 +70,19 @@ class TestTarGzHelper:
     Generate .tar.gz files to be used as test fixtures
     """
 
-    FIXTURE_FOLDER = Path("/tmp/dipex-sd-test")
-
     def setup_class(self):
-        TestTarGzHelper.remove_fixture_folder()
-        TestTarGzHelper.FIXTURE_FOLDER.mkdir()
+        self.FIXTURE_FOLDER = tempfile.TemporaryDirectory()
 
-        self.tar_gz_file1 = TestTarGzHelper.FIXTURE_FOLDER.joinpath(Path("tar1.tar.gz"))
+        self.tar_gz_file1 = Path(self.FIXTURE_FOLDER.name).joinpath(Path("tar1.tar.gz"))
         with tarfile.open(str(self.tar_gz_file1), "w:gz") as tar:
             tar.add("integrations/SD_Lon/tests/fixtures/tar_gz1/opt", arcname="opt")
 
-        self.tar_gz_file2 = TestTarGzHelper.FIXTURE_FOLDER.joinpath(Path("tar2.tar.gz"))
+        self.tar_gz_file2 = Path(self.FIXTURE_FOLDER.name).joinpath(Path("tar2.tar.gz"))
         with tarfile.open(str(self.tar_gz_file2), "w:gz") as tar:
             tar.add("integrations/SD_Lon/tests/fixtures/tar_gz2/opt", arcname="opt")
 
     def teardown_class(self):
-        TestTarGzHelper.remove_fixture_folder()
-
-    @staticmethod
-    def remove_fixture_folder():
-        if TestTarGzHelper.FIXTURE_FOLDER.is_dir():
-            shutil.rmtree(TestTarGzHelper.FIXTURE_FOLDER)
+        self.FIXTURE_FOLDER.cleanup()
 
     def get_xml_responses_from_tar_gz_file(self):
         log_file_lines = extract_log_file_lines(self.tar_gz_file1)
@@ -100,7 +92,7 @@ class TestTarGzHelper:
 
 class TestGetTarGzArchiveFiles(TestTarGzHelper):
     def test_returns_tar_gz_files_in_folder(self):
-        path = TestTarGzHelper.FIXTURE_FOLDER
+        path = Path(self.FIXTURE_FOLDER.name)
         tar_gz_files = get_tar_gz_archive_files(path)
 
         assert len(tar_gz_files) == 2
@@ -196,7 +188,7 @@ class TestGetPerson(TestTarGzHelper):
 class TestGetAllSdPersonChanges(TestTarGzHelper):
     def test_get_sd_person_changes_from_all_tar_gz_files(self):
         all_changes = get_all_sd_person_changes(
-            IdType.EMPLOYMENT_ID, "11111", TestTarGzHelper.FIXTURE_FOLDER
+            IdType.EMPLOYMENT_ID, "11111", Path(self.FIXTURE_FOLDER.name)
         )
 
         assert "2021-09-14" == all_changes[0].start_date
