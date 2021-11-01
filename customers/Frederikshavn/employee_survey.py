@@ -73,27 +73,25 @@ class Survey(CustomerReports):
                 gender = "Kvinde"
                 if int(address["CPR-Nummer"]) % 2:
                     gender = "Mand"
-                user_id = ", ".join([eng.get("user_key") for eng in engagements])
-                org_id = ", ".join([eng["org_unit"]["user_key"] for eng in engagements])
-                org_name = ", ".join([eng["org_unit"]["name"] for eng in engagements])
                 emp_type = (
                     "Leder"
                     if self._mo_lookup(uuid, "e/{}/details/")["manager"]
                     else "Medarbejder"
                 )
                 name = employee["Fornavn"] + " " + employee["Efternavn"]
-                rows.append(
-                    {
-                        "Medarbejdernr": user_id,
-                        "Respondentnavn": name,
-                        "OrgID": org_id,
-                        "Enhedsnavn": org_name,
-                        "E-mail": address.get("E-mail") or "",
-                        "Type": emp_type,
-                        "Alder": age_from_cpr(address["CPR-Nummer"]),
-                        "Køn": gender,
-                    }
-                )
+                for eng in engagements:
+                    rows.append(
+                        {
+                            "Medarbejdernr": eng.get("user_key"),
+                            "Respondentnavn": name,
+                            "OrgID": eng["org_unit"]["user_key"],
+                            "Enhedsnavn": eng["org_unit"]["name"],
+                            "E-mail": address.get("E-mail") or "",
+                            "Type": emp_type,
+                            "Alder": age_from_cpr(address["CPR-Nummer"]),
+                            "Køn": gender,
+                        }
+                    )
 
         return pd.DataFrame(rows)
 
