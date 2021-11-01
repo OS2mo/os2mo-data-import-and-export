@@ -516,6 +516,8 @@ rådighed i dag:
      - Brugerens CPR-nummer.
    * - ``unit``
      - Navn på enheden for brugerens primære engagement.
+   * - ``unit_uuid``
+     - UUID på enheden for brugerens primære engagement.
    * - ``unit_user_key``
      - Brugervendt nøgle for enheden for brugerens primære engagement.
        Dette vil typisk være lønsystemets korte navn for enheden.
