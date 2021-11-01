@@ -498,9 +498,9 @@ rådighed i dag:
    * - ``title``
      - Stillingsbetegnelsen for brugerens primære engagement.
    * - ``start_date``
-     - Startdato for længste ansættelse i MO.
+     - Startdato for aktuelle engagement i MO.
    * - ``end_date``
-     - Slutdato for længste ansættelse i MO.
+     - Slutdato for aktuelle engagement i MO.
        Hvis en ansættelse ikke har nogen kendt slutdato, angives 9999-12-31.
    * - ``name``
      - Brugerens navn, opdelt i fornavn og efternavn. Fornavn kan fx tilgås via
