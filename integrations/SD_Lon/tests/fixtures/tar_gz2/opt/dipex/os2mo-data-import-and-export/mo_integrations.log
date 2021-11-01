@@ -1,0 +1,15 @@
+DEBUG 2021-09-20 09:53:32,259 sdCommon Response: <?xml version="1.0" encoding="UTF-8" ?><GetInstitution20111201 creationDateTime="2021-09-20T09:53:32" ></GetInstitution20111201>
+DEBUG 2021-09-20 09:53:32,260 sdCommon Done with GetInstitution20111201
+INFO 2021-09-20 09:53:32,358 fixDepartments Read org_unit types
+INFO 2021-09-20 09:53:32,589 sdSyncJobId Start sync
+INFO 2021-09-20 09:53:32,589 sdSyncJobId Read settings. Update job_functions and engagment types
+INFO 2021-09-20 09:53:32,907 sdCommon Read primary types
+INFO 2021-09-20 09:53:32,966 sdCommon Read primary types
+INFO 2021-09-20 09:53:33,017 sdChangedAt Read job_functions
+INFO 2021-09-20 09:53:33,179 sdChangedAt Read engagement types
+INFO 2021-09-20 09:53:33,343 sdChangedAt Update changed persons
+INFO 2021-09-20 09:53:33,343 sdCommon Retrieve: GetPersonChangedAtDate20111201
+DEBUG 2021-09-20 09:53:34,473 sdCommon Response: <?xml version="1.0" encoding="UTF-8" ?><GetPersonChangedAtDate20111201><RequestStructure><InstitutionIdentifier>XY</InstitutionIdentifier><ActivationDate>2021-09-19</ActivationDate><ActivationTime>00:00:00</ActivationTime><DeactivationDate>2021-09-20</DeactivationDate><DeactivationTime>00:00:59</DeactivationTime><ContactInformationIndicator>false</ContactInformationIndicator><PostalAddressIndicator>false</PostalAddressIndicator></RequestStructure><Person><PersonCivilRegistrationIdentifier>1111111111</PersonCivilRegistrationIdentifier><PersonGivenName>Bruce</PersonGivenName><PersonSurnameName>Lee</PersonSurnameName><Employment><EmploymentIdentifier>11111</EmploymentIdentifier></Employment></Person></GetPersonChangedAtDate20111201>
+DEBUG 2021-09-20 09:53:34,474 sdCommon Done with GetPersonChangedAtDate20111201
+INFO 2021-09-20 09:53:34,474 sdChangedAt Number of changed persons: 32
+INFO 2021-09-20 09:53:52,187 sdChangedAt AD integration in use
