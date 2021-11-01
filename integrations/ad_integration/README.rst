@@ -491,15 +491,29 @@ rådighed i dag:
 
    * - Feltnavn
      - Beskrivelse af indhold
-   * - ``employment_number``
-     -  Lønsystemets ansættelsesnummer for medarbejderens primære engagement.
-   * - ``end_date``
-     - Slutdato for længste ansættelse i MO.
-       Hvis en ansættelse ikke har nogen kendt slutdato, angives 9999-12-31.
    * - ``uuid``
      - Brugerens UUID i MO.
+   * - ``employment_number``
+     -  Lønsystemets ansættelsesnummer for medarbejderens primære engagement.
    * - ``title``
      - Stillingsbetegnelsen for brugerens primære engagement.
+   * - ``start_date``
+     - Startdato for aktuelle engagement i MO.
+   * - ``end_date``
+     - Slutdato for aktuelle engagement i MO.
+       Hvis en ansættelse ikke har nogen kendt slutdato, angives 9999-12-31.
+   * - ``name``
+     - Brugerens navn, opdelt i fornavn og efternavn. Fornavn kan fx tilgås via
+       ``mo_values['name'][0]``, og efternavn via ``mo_values['name'][1]``.
+   * - ``full_name``
+     - Brugerens fulde navn, dvs. fornavn og efternavn samlet i et felt.
+   * - ``nickname``
+     - Brugerens kaldenavn, opdelt i fornavn og efternavn. Fornavn kan fx tilgås via
+       ``mo_values['nickname'][0]``, og efternavn via ``mo_values['nickname'][1]``.
+   * - ``full_nickname``
+     - Brugerens fulde kaldenavn, dvs. fornavn og efternavn samlet i eet felt.
+   * - ``cpr``
+     - Brugerens CPR-nummer.
    * - ``unit``
      - Navn på enheden for brugerens primære engagement.
    * - ``unit_uuid``
