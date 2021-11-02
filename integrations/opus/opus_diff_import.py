@@ -923,9 +923,9 @@ def start_opus_diff(ad_reader=None):
 if __name__ == "__main__":
 
     if load_settings().get("integrations.opus.skip_employees"):
-        ad_reader = ad_reader.ADParameterReader()
-    else:
         ad_reader = None
+    else:
+        ad_reader = ad_reader.ADParameterReader()
 
     try:
         start_opus_diff(ad_reader=ad_reader)
