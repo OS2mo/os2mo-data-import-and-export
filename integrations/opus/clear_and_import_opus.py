@@ -125,12 +125,14 @@ def import_opus(ad_reader=None, import_all: bool = False, import_last=False) -> 
     default=4,
     help="The amount of concurrent requests made to OS2mo. Only applies to '--delete-opus'",
 )
+@click.option("--new-rundb", is_flag=True, help="Initialize new run-db")
 @click.option("--use-ad", is_flag=True, help="Read from AD")
 def clear_and_reload(
     import_all: bool,
     import_last: bool,
     delete_opus: bool,
     truncate: bool,
+    new_rundb: bool,
     use_ad: bool,
     connections: int,
 ) -> None:
@@ -147,6 +149,9 @@ def clear_and_reload(
         click.confirm(
             "This will purge ALL DATA FROM MO. Do you want to continue?", abort=True
         )
+    if new_rundb:
+        opus_helpers.initialize_db(settings["integrations.opus.import.run_db"])
+
     opus_uuid = find_opus_name() if delete_opus else None
     prepare_re_import(
         settings=settings,
