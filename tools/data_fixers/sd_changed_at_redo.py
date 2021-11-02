@@ -5,9 +5,10 @@
 #
 # angiv uuider for de berørte på kommandolinien
 
-import sys
 import datetime
-from integrations.SD_Lon.sd_changed_at import ChangeAtSD, SETTINGS
+import sys
+
+from integrations.SD_Lon.sd_changed_at import SETTINGS, ChangeAtSD
 from integrations.SD_Lon.sd_common import sd_lookup
 
 

@@ -1,15 +1,15 @@
 import asyncio
+import csv
 import json
 import random
 import string
-import csv
-from tqdm import tqdm
 from datetime import date
 from functools import wraps
 from operator import itemgetter
 
 import aiohttp
 import click
+from tqdm import tqdm
 
 
 def async_to_sync(f):

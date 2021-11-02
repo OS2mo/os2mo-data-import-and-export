@@ -15,19 +15,17 @@
 #
 # Forvent ikke at du kan genbruge andet end strukturen (gennemløb/opretning)
 
+import json
 import logging
 import pathlib
-
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import or_, and_
-from os2mo_helpers.mora_helpers import MoraHelper
 from pprint import pprint
-from integrations.opus import payloads
-
 
 from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
 from exporters.sql_export.sql_table_defs import Adresse, ItForbindelse
-import json
+from integrations.opus import payloads
+from os2mo_helpers.mora_helpers import MoraHelper
+from sqlalchemy import and_, or_
+from sqlalchemy.orm import sessionmaker
 
 settings = json.loads((pathlib.Path(".") / "settings/settings.json").read_text())
 
