@@ -13,11 +13,11 @@ from more_itertools import one
 from more_itertools import only
 from more_itertools import side_effect
 from more_itertools import unzip
-from os2mo_helpers.mora_helpers import MoraHelper
+
 from ra_utils.apply import apply
 from ra_utils.load_settings import load_setting
 from tqdm import tqdm
-
+from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 from integrations.SD_Lon.sd_common import EmploymentStatus
