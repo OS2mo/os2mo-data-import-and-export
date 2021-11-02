@@ -79,9 +79,9 @@ async def set_aliases(edit_payload, client, mo_url):
     async with client.post(mo_url + url, json=edit_payload) as response:
         payloads = await response.json()
         if response.status == 400:
-            if 'description' not in payloads:
+            if "description" not in payloads:
                 response.raise_for_status()
-            if 'raise to a new registration.' not in payloads['description']:
+            if "raise to a new registration." not in payloads["description"]:
                 response.raise_for_status()
             return False
         response.raise_for_status()
@@ -117,13 +117,13 @@ async def set_aliases(edit_payload, client, mo_url):
     show_default=True,
     type=click.BOOL,
 )
-@click.argument('csv_file', type=click.Path(exists=True))
+@click.argument("csv_file", type=click.Path(exists=True))
 @async_to_sync
 async def alias(mo_url, saml_token, verify_name, dry_run, csv_file):
     """Update a number of employees in MO with random aliases."""
     rows = []
-    with open(csv_file, "r", encoding='iso-8859-1') as csv_file:
-        csvreader = csv.DictReader(csv_file, delimiter=';', quotechar='"')
+    with open(csv_file, "r", encoding="iso-8859-1") as csv_file:
+        csvreader = csv.DictReader(csv_file, delimiter=";", quotechar='"')
         rows = [row for row in csvreader]
 
     # Prepare headers
@@ -134,15 +134,15 @@ async def alias(mo_url, saml_token, verify_name, dry_run, csv_file):
     # CPR;Firstname;Lastname;Displayname;MO.cpr;MO.firstName;MO.lastName
 
     status = {
-        'unable_to_find_user': 0,
-        'found_multiple_users': 0,
-        'cpr_mismatch': 0,
-        'mo_name_mismatch_givenname': 0,
-        'mo_name_mismatch_surname': 0,
-        'csv_name_mismatch_givenname': 0,
-        'csv_name_mismatch_surname': 0,
-        'succes': 0,
-        'no_change': 0,
+        "unable_to_find_user": 0,
+        "found_multiple_users": 0,
+        "cpr_mismatch": 0,
+        "mo_name_mismatch_givenname": 0,
+        "mo_name_mismatch_surname": 0,
+        "csv_name_mismatch_givenname": 0,
+        "csv_name_mismatch_surname": 0,
+        "succes": 0,
+        "no_change": 0,
     }
 
     try:
@@ -151,42 +151,46 @@ async def alias(mo_url, saml_token, verify_name, dry_run, csv_file):
             root_org_uuid = await find_root_org_uuid(client, mo_url)
             # Fetch list of users
             for row in tqdm(rows):
-                csv_cpr = row['CPR'].zfill(10)
-                mo_cpr = row['MO.cpr'].zfill(10)
+                csv_cpr = row["CPR"].zfill(10)
+                mo_cpr = row["MO.cpr"].zfill(10)
                 # givenname, surname, displayname, cpr, samaccountname = row
                 found_users = await search_employees(
                     root_org_uuid, csv_cpr, client, mo_url
                 )
                 if len(found_users) == 0:
                     print("Unable to find user:", csv_cpr)
-                    status['unable_to_find_user'] += 1
+                    status["unable_to_find_user"] += 1
                     continue
                 elif len(found_users) > 1:
                     print("Found multiple users:", csv_cpr)
-                    status['found_multiple_users'] += 1
+                    status["found_multiple_users"] += 1
                     continue
                 mo_user = found_users[0]
-                csv_givenname, csv_surname = itemgetter('Firstname', 'Lastname')(row)
-                csv_mo_givenname, csv_mo_surname = itemgetter('MO.firstName', 'MO.lastName')(row)
-                mo_givenname, mo_surname = itemgetter('givenname', 'surname')(mo_user)
+                csv_givenname, csv_surname = itemgetter("Firstname", "Lastname")(row)
+                csv_mo_givenname, csv_mo_surname = itemgetter(
+                    "MO.firstName", "MO.lastName"
+                )(row)
+                mo_givenname, mo_surname = itemgetter("givenname", "surname")(mo_user)
                 if verify_name and csv_cpr != mo_cpr:
                     print("CPR mismatch", csv_cpr, "!=", mo_cpr)
-                    status['cpr_mismatch'] += 1
+                    status["cpr_mismatch"] += 1
                 if verify_name and csv_mo_givenname != mo_givenname:
                     print("MO Givenname mismatch", csv_mo_givenname, "!=", mo_givenname)
-                    status['mo_name_mismatch_givenname'] += 1
+                    status["mo_name_mismatch_givenname"] += 1
                 if verify_name and csv_mo_surname != mo_surname:
                     print("MO Surname mismatch", csv_mo_surname, "!=", mo_surname)
-                    status['mo_name_mismatch_surname'] += 1
+                    status["mo_name_mismatch_surname"] += 1
                 if verify_name and csv_givenname not in mo_givenname:
                     print("Givenname mismatch", csv_givenname, "!=", mo_givenname)
-                    status['csv_name_mismatch_givenname'] += 1
+                    status["csv_name_mismatch_givenname"] += 1
                 if verify_name and csv_surname not in mo_surname:
                     print("Surname mismatch", csv_surname, "!=", mo_surname)
-                    status['csv_name_mismatch_surname'] += 1
-                csv_displayname = row['Displayname']
-                nickname_givenname, nickname_surname = csv_displayname.rsplit(' ', 1)
-                edit_payload = construct_edit_payload(mo_user['uuid'], nickname_givenname, nickname_surname)
+                    status["csv_name_mismatch_surname"] += 1
+                csv_displayname = row["Displayname"]
+                nickname_givenname, nickname_surname = csv_displayname.rsplit(" ", 1)
+                edit_payload = construct_edit_payload(
+                    mo_user["uuid"], nickname_givenname, nickname_surname
+                )
                 # If dry-run, print payload and exit
                 if dry_run:
                     print(json.dumps(edit_payload, indent=2))
