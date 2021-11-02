@@ -1,7 +1,7 @@
 import click
 from fix_departments import unit_fixer
 from sd_changed_at import changed_at
-from sd_fixup import cli as sd_fixup
+from tools.data_fixers.sd_fixup import cli as sd_fixup
 from sd_importer import cli as sd_importer
 from sync_job_id import sync_jobid
 from test_mo_against_sd import cli as mo_against_sd
