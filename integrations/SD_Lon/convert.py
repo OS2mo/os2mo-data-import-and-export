@@ -1,15 +1,19 @@
 import datetime
 import re
+from typing import Optional
 
 # TODO: move constants elsewhere
-MO_INFINITY: str = "infinity"
+# TODO: set back to "infinity" when MO can handle this
+# MO_INFINITY: str = "infinity"
+
+MO_INFINITY=None
 SD_INFINITY: str = "9999-12-31"
 
 # TODO: Create "MoValidity" and "SdValidity" classes based on the RA Models
 #  "Validity" class and use these as input to the function below
 
 
-def sd_to_mo_termination_date(sd_date: str) -> str:
+def sd_to_mo_termination_date(sd_date: str) -> Optional[str]:
     """
     Convert SD termination date to MO termination date.
 
