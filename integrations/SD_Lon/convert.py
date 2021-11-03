@@ -6,7 +6,7 @@ from typing import Optional
 # TODO: set back to "infinity" when MO can handle this
 # MO_INFINITY: str = "infinity"
 
-MO_INFINITY=None
+MO_INFINITY = None
 SD_INFINITY: str = "9999-12-31"
 
 # TODO: Create "MoValidity" and "SdValidity" classes based on the RA Models
