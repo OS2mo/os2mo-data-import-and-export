@@ -633,7 +633,11 @@ class LoraCache:
     def _cache_lora_leaves(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Orlov'}
         relevant = {
-            'relationer': ('tilknyttedebrugere', 'organisatoriskfunktionstype'),
+            'relationer': (
+                'tilknyttedebrugere',
+                'organisatoriskfunktionstype',
+                'tilknyttedefunktioner'
+            ),
             'attributter': ('organisationfunktionegenskaber',)
         }
         url = '/organisation/organisationfunktion'
@@ -654,12 +658,18 @@ class LoraCache:
                 leave_type = rel['organisatoriskfunktionstype'][0]['uuid']
                 user_uuid = rel['tilknyttedebrugere'][0]['uuid']
 
+                if 'tilknyttedefunktioner' in rel:
+                    engagement_uuid = rel['tilknyttedefunktioner'][0]['uuid']
+                else:
+                    engagement_uuid = None
+
                 leaves[uuid].append(
                     {
                         'uuid': uuid,
                         'user': user_uuid,
                         'user_key': user_key,
                         'leave_type': leave_type,
+                        'engagement': engagement_uuid,
                         'from_date': from_date,
                         'to_date': to_date
                     }

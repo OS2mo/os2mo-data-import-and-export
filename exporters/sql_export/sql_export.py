@@ -367,6 +367,7 @@ class SqlExport:
                     bruger_uuid=leave_info['user'],
                     orlovstype_uuid=leave_type,
                     orlovstype_titel=self.lc.classes[leave_type]['title'],
+                    engagement_uuid=leave_info['engagement'],
                     startdato=leave_info['from_date'],
                     slutdato=leave_info['to_date']
                 )
