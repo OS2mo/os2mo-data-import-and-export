@@ -874,8 +874,8 @@ class ChangeAtSD:
         self,
         user_key: str,
         person_uuid: str,  # TODO: change type to UUID
-        from_date: str,  # TODO: Introduce MO date version
-        to_date: str = "infinity",
+        from_date: Optional[str],  # TODO: Introduce MO date version
+        to_date: Optional[str] = None,
     ) -> bool:
         """
         Terminate an employment (engagement) in MO. Since this function calls
