@@ -1,9 +1,8 @@
 import asyncio
 
 import click
-from mox_helpers.mox_util import ensure_class_value_helper
-
 import constants
+from mox_helpers.mox_util import ensure_class_value_helper
 from ra_utils.async_to_sync import async_to_sync
 from ra_utils.load_settings import load_settings
 

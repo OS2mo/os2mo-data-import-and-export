@@ -92,12 +92,6 @@ Lint Calculate Primary:
     - pip install mypy pre-commit types-requests
     - pre-commit run --files tests/*.py *.py
 
-Lint SetAlias Tool:
-  extends: .lint-python
-  script:
-    - python -m black --diff --check tools/snurrebasser/set_alias.py
-    - python -m isort --diff --check-only tools/snurrebasser/set_alias.py
-
 Lint SDLoen Integration:
   extends: .lint-python
   script:

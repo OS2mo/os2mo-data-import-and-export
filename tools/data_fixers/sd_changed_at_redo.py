@@ -5,24 +5,25 @@
 #
 # angiv uuider for de berørte på kommandolinien
 
-import sys
 import datetime
-from integrations.SD_Lon.sd_changed_at import ChangeAtSD, SETTINGS
+import sys
+
+from integrations.SD_Lon.sd_changed_at import SETTINGS, ChangeAtSD
 from integrations.SD_Lon.sd_common import sd_lookup
 
 
 def read_person(cat, cpr):
     params = {
-        'EffectiveDate': cat.from_date.strftime('%d.%m.%Y'),
-        'PersonCivilRegistrationIdentifier': cpr,
-        'StatusActiveIndicator': 'true',
-        'StatusPassiveIndicator': 'true',
-        'ContactInformationIndicator': 'false',
-        'PostalAddressIndicator': 'false'
+        "EffectiveDate": cat.from_date.strftime("%d.%m.%Y"),
+        "PersonCivilRegistrationIdentifier": cpr,
+        "StatusActiveIndicator": "true",
+        "StatusPassiveIndicator": "true",
+        "ContactInformationIndicator": "false",
+        "PostalAddressIndicator": "false",
     }
-    url = 'GetPerson20111201'
+    url = "GetPerson20111201"
     response = sd_lookup(url, params=params)
-    person = response.get('Person', [])
+    person = response.get("Person", [])
 
     if not isinstance(person, list):
         person = [person]
@@ -43,21 +44,19 @@ def run(uuids):
             print(sdnow)
         else:
             person = sdnow[0]
-            given_name = person.get('PersonGivenName', mouser.get("givenname", ""))
-            sur_name = person.get('PersonSurnameName', mouser.get("surname", ""))
+            given_name = person.get("PersonGivenName", mouser.get("givenname", ""))
+            sur_name = person.get("PersonSurnameName", mouser.get("surname", ""))
             payload = {
-                'uuid': uuid,
-                'givenname': given_name,
-                'surname': sur_name,
-                'cpr_no': mouser["cpr_no"],
-                'org': {
-                    'uuid': mouser["org"]["uuid"]
-                }
+                "uuid": uuid,
+                "givenname": given_name,
+                "surname": sur_name,
+                "cpr_no": mouser["cpr_no"],
+                "org": {"uuid": mouser["org"]["uuid"]},
             }
 
             print(payload)
-            mh._mo_post('e/create', payload).json()
+            mh._mo_post("e/create", payload).json()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run(sys.argv[1:])

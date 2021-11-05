@@ -6,15 +6,14 @@ from operator import attrgetter
 
 import click
 import requests
+from exporters.sql_export.lc_for_jobs_db import get_engine
+from exporters.sql_export.sql_table_defs import ItForbindelse
 from sqlalchemy import func
 from sqlalchemy.orm import sessionmaker
 
-from exporters.sql_export.lc_for_jobs_db import get_engine
-from exporters.sql_export.sql_table_defs import ItForbindelse
-
 
 def get_settings():
-    cfg_file = pathlib.Path.cwd() / 'settings' / 'settings.json'
+    cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
     return json.loads(cfg_file.read_text())
 
 
@@ -62,7 +61,7 @@ def construct_duplicate_dict(session, duplicate_entry):
 
 @click.command()
 @click.option(
-    '--delete',
+    "--delete",
     is_flag=True,
     default=False,
     type=click.BOOL,
@@ -84,7 +83,7 @@ def main(delete):
 
     if delete:
         settings = get_settings()
-        delete_from_lora(settings['mox.base'], output.values())
+        delete_from_lora(settings["mox.base"], output.values())
     else:
         # Output delete-map
         print(json.dumps(output, indent=4, sort_keys=True))
@@ -93,7 +92,7 @@ def main(delete):
 def delete_from_lora(mox_base, duplicate_items):
     for uuid in duplicate_items:
         r = requests.delete(
-            '{}/organisation/organisationfunktion/{}'.format(mox_base, uuid)
+            "{}/organisation/organisationfunktion/{}".format(mox_base, uuid)
         )
         r.raise_for_status()
 
