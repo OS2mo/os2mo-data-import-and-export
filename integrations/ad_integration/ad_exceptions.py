@@ -2,6 +2,10 @@ class ADError(Exception):
     """Superclass for AD related exceptions."""
 
 
+class EngagementDatesError(ADError):
+    """Error to raise when errors in engagement dates occur."""
+
+
 class NoPrimaryEngagementException(ADError):
     pass
 

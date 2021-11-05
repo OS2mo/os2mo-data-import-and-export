@@ -6,6 +6,7 @@ import re
 import time
 from abc import ABC
 from abc import abstractmethod
+from datetime import date
 from functools import partial
 from operator import itemgetter
 
@@ -23,6 +24,7 @@ from . import ad_templates
 from .ad_common import AD
 from .ad_exceptions import CprNotFoundInADException
 from .ad_exceptions import CprNotNotUnique
+from .ad_exceptions import EngagementDatesError
 from .ad_exceptions import NoActiveEngagementsException
 from .ad_exceptions import NoPrimaryEngagementException
 from .ad_exceptions import ReplicationFailedException
@@ -125,6 +127,12 @@ class MODataSource(ABC):
 
         end_dates = map(lambda date: date if date else "9999-12-31", end_dates)
         end_date = max(end_dates, default="1930-01-01")
+
+        if date.fromisoformat(start_date) > date.fromisoformat(end_date):
+            raise EngagementDatesError(
+                "Invalid Engagement dates interval. "
+                f"Start date {start_date} is greater than end date {end_date}"
+            )
 
         return start_date, end_date
 
