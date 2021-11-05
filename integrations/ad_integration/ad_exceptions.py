@@ -1,50 +1,54 @@
-class NoPrimaryEngagementException(Exception):
+class ADError(Exception):
+    """Superclass for AD related exceptions."""
+
+
+class NoPrimaryEngagementException(ADError):
     pass
 
 
-class NoActiveEngagementsException(Exception):
+class NoActiveEngagementsException(ADError):
     pass
 
 
-class UserNotFoundException(Exception):
+class UserNotFoundException(ADError):
     pass
 
 
-class CprNotFoundInADException(Exception):
+class CprNotFoundInADException(ADError):
     pass
 
 
-class ManagerNotUniqueFromCprException(Exception):
+class ManagerNotUniqueFromCprException(ADError):
     pass
 
 
-class CprNotNotUnique(Exception):
+class CprNotNotUnique(ADError):
     pass
 
 
-class SamAccountNameNotUnique(Exception):
+class SamAccountNameNotUnique(ADError):
     pass
 
 
-class SamAccountDoesNotExist(Exception):
+class SamAccountDoesNotExist(ADError):
     pass
 
 
-class ReplicationFailedException(Exception):
+class ReplicationFailedException(ADError):
     pass
 
 
-class NoScriptToExecuteException(Exception):
+class NoScriptToExecuteException(ADError):
     pass
 
 
-class UnknownKeywordsInScriptException(Exception):
+class UnknownKeywordsInScriptException(ADError):
     pass
 
 
-class CommandFailure(Exception):
+class CommandFailure(ADError):
     pass
 
 
-class ImproperlyConfigured(Exception):
+class ImproperlyConfigured(ADError):
     pass
