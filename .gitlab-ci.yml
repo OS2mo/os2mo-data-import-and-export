@@ -310,7 +310,7 @@ Release feature branch:
 Release dev:
   <<: *release-default
   rules:
-    - if: $CI_COMMIT_REF_NAME == "development"
+    - if: $CI_COMMIT_REF_NAME == "master"
   script:
     - skopeo copy
       --src-creds=${CI_REGISTRY_USER}:${CI_BUILD_TOKEN}
