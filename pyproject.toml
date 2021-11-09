@@ -2,3 +2,25 @@
 max-line-length = 100
 extend-ignore = "E203, E501"
 statistics = "true"
+
+[tool.poetry]
+name = "DIPEX"
+version = "1.0.0"
+authors = ["Magenta ApS <info@magenta.dk>"]
+description = "OS2mo-data-import-and-export"
+license = "MPL-2.0"
+readme = "README.rst"
+homepage = "https://magenta.dk/"
+repository = "https://git.magenta.dk/rammearkitektur/os2mo-data-import-and-export"
+keywords = ["DIPEX", "OS2mo-data-import-and-export"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.autopub]
+git-username = "MagentaBot"
+git-email = "info@magenta.dk"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
