@@ -140,6 +140,11 @@ class ChangeAtSD:
         self.skip_job_functions = self.settings.get("skip_job_functions", [])
         self.use_ad = self.settings.get("integrations.SD_Lon.use_ad_integration", True)
 
+        # TODO: remove when MO is updated to a version greater than 2.7.0
+        self.terminate_engagement_with_to_only = self.settings.get(
+            "integrations.SD_Lon.terminate_engagement_with_to_only", True
+        )
+
         try:
             self.org_uuid = self.helper.read_organisation()
         except requests.exceptions.RequestException as e:
@@ -899,11 +904,18 @@ class ChangeAtSD:
             logger.warning(f"Terminating non-existing job: {user_key}!")
             return False
 
+        # TODO: remove this hack when MO is updated to a version greater
+        #  than 2.7.0 !!
+
+        validity = {"from": from_date, "to": to_date}
+        if self.terminate_engagement_with_to_only:
+            validity = {"to": from_date}
+
         # TODO: use/create termination object from RA Models
         payload = {
             "type": "engagement",
             "uuid": mo_engagement["uuid"],
-            "validity": {"from": from_date, "to": to_date},
+            "validity": validity,
         }
 
         logger.debug("Terminate payload: {}".format(payload))
