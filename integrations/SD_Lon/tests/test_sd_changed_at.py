@@ -55,12 +55,14 @@ class ChangeAtSDTest(ChangeAtSD):
 
 
 def setup_sd_changed_at(updates=None):
+    # TODO: remove integrations.SD_Lon.terminate_engagement_with_to_only
     settings = {
         "integrations.SD_Lon.job_function": "JobPositionIdentifier",
         "integrations.SD_Lon.use_ad_integration": False,
         "integrations.SD_Lon.monthly_hourly_divide": 8000,
         "mora.base": "dummy",
         "mox.base": "dummy",
+        "integrations.SD_Lon.terminate_engagement_with_to_only": False,
     }
     if updates:
         settings.update(updates)
