@@ -26,7 +26,6 @@ import requests
 from fastapi.encoders import jsonable_encoder
 from more_itertools import last
 from more_itertools import one
-from more_itertools import only
 from more_itertools import pairwise
 from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -1258,18 +1257,18 @@ class ChangeAtSD:
         return skip
 
     def _update_user_employments(
-        self, cpr: str, sd_engagement, person_uuid: str
+        self, cpr: str, sd_employments, person_uuid: str
     ) -> None:
-        for engagement in sd_engagement:
-            job_id, eng = engagement_components(engagement)
+        for sd_employment in sd_employments:
+            job_id, eng = engagement_components(sd_employment)
             logger.info("Update Job id: {}".format(job_id))
-            logger.debug("SD Engagement: {}".format(engagement))
+            logger.debug("SD Engagement: {}".format(sd_employment))
             # If status is present, we have a potential creation
             if eng["status_list"] and self._handle_employment_status_changes(
-                cpr, engagement, person_uuid
+                cpr, sd_employment, person_uuid
             ):
                 continue
-            self.edit_engagement(engagement, person_uuid)
+            self.edit_engagement(sd_employment, person_uuid)
 
     def update_all_employments(
         self, in_cpr: Optional[str] = None, dry_run: bool = False
@@ -1282,24 +1281,13 @@ class ChangeAtSD:
 
         logger.info("Update a total of {} employments".format(len(employments_changed)))
 
-        def skip_initial_deleted(employment_info):
-            emp_status = ensure_list(employment_info["EmploymentStatus"])
-            code = emp_status[0]["EmploymentStatusCode"]
-            code = EmploymentStatus(code)
-            if code in EmploymentStatus.LetGo:
-                # NOTE: I think we should still import Migreret and Ophørt,
-                #       as you might change from that to Ansat later.
-                logger.warning("Employment deleted or ended before initial import.")
-                return False
-            return True
-
         employments_changed = tqdm(employments_changed, desc="update employments")
         employments_changed = filter(skip_fictional_users, employments_changed)
         recalculate_users: Set[UUID] = set()
 
         for employment in employments_changed:
             cpr = employment["PersonCivilRegistrationIdentifier"]
-            sd_engagement = ensure_list(employment["Employment"])
+            sd_employments = ensure_list(employment["Employment"])
 
             logger.info("---------------------")
             logger.info("We are now updating {}".format(cpr))
@@ -1310,9 +1298,6 @@ class ChangeAtSD:
             mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
             # Person not in MO, but they should be
             if not mo_person:
-                sd_engagement = only(filter(skip_initial_deleted, sd_engagement))
-                if not sd_engagement:
-                    continue
                 logger.warning("This person should be in MO, but is not")
                 try:
                     self.update_changed_persons(in_cpr=cpr, dry_run=dry_run)
@@ -1327,9 +1312,9 @@ class ChangeAtSD:
 
             self._refresh_mo_engagements(person_uuid)
             if dry_run:
-                print("Dry-run: update_user_employments", sd_engagement, person_uuid)
+                print("Dry-run: update_user_employments", sd_employments, person_uuid)
             else:
-                self._update_user_employments(cpr, sd_engagement, person_uuid)
+                self._update_user_employments(cpr, sd_employments, person_uuid)
             # Re-calculate primary after all updates for user has been performed.
             recalculate_users.add(person_uuid)
 
