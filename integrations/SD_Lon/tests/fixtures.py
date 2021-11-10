@@ -117,19 +117,22 @@ def read_employment_fixture(
     Get an SD employment fixture. The function is use for mocking calls to
     the "GetEmploymentChangedAtDate20111201" SD API endpoint, i.e. the endpoint
     that gets new changes *registered* between a from date and a to date. The
-    function generates both the XML response endpoint "GetPerson20111201" and
-    the expected `OrderedDict` after parsing the XML.
+    function generates both the XML response endpoint
+    "GetEmploymentChangedAtDate20111201" and the expected `OrderedDict` after
+    parsing the XML.
 
     Args:
         cpr: The CPR number of the SD person.
-        first_name: The first name (given name) of the SD person.
-        last_name: The last name (surname) of the SD person.
-        employment_id: The employmentID, e.g. 12345, of the SD person.
+        employment_id: The SD employment ID.
+        job_id: The SD job ID.
+        job_title: The SD profession.
+        status: SD employment status.
 
     Returns:
         Tuple with two elements. The first element is the raw XML response
-        from the "GetPerson20111201" SD endpoint. The second element is the
-        `OrderedDict` expected to be returned from get_sd_person.
+        from the "GetEmploymentChangedAtDate20111201" SD endpoint. The second
+        element is the `OrderedDict` expected to be returned from
+        read_employment_changed.
 
     Example:
         ```
