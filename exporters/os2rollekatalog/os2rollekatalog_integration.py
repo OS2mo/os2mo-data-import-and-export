@@ -172,6 +172,7 @@ def get_users(
     mapping_file_path: str,
     org_unit_uuids: Set[str],
     ou_filter: bool,
+    use_nickname: bool = False,
 ) -> List[Dict[str, Any]]:
     # read mapping
     employees = connector.get_employees()
@@ -240,10 +241,17 @@ def get_users(
             if not positions:
                 continue
 
+        def get_employee_name(employee: dict) -> str:
+            name = employee["name"]
+            if not use_nickname:
+                return name
+            nickname = employee.get("nickname")
+            return nickname or name
+
         payload = {
             "extUuid": employee["uuid"],
             "userId": sam_account_name,
-            "name": employee["name"],
+            "name": get_employee_name(employee),
             "email": get_employee_email(*e_connectors),
             "positions": positions,
         }
@@ -320,6 +328,15 @@ def get_users(
     envvar="MOX_ROLLE_MAPPING",
 )
 @click.option(
+    "--use-nickname",
+    default=load_setting("exporters.os2rollekatalog.use_nickname", False),
+    type=click.BOOL,
+    required=False,
+    help=(
+        "Use employee nicknames if available. Will use name if nickname is unavailable"
+    ),
+)
+@click.option(
     "--dry-run",
     default=False,
     is_flag=True,
@@ -334,6 +351,7 @@ def main(
     rollekatalog_root_uuid: UUID,
     log_file_path: str,
     mapping_file_path: str,
+    use_nickname: bool,
     dry_run: bool,
 ):
     """OS2Rollekatalog exporter.
@@ -376,7 +394,9 @@ def main(
 
     try:
         logger.info("Reading employees")
-        users = get_users(mo_connector, mapping_file_path, org_unit_uuids, ou_filter)
+        users = get_users(
+            mo_connector, mapping_file_path, org_unit_uuids, ou_filter, use_nickname
+        )
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch employees")
         sys.exit(3)
