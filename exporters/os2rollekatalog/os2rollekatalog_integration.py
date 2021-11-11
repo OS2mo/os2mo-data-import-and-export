@@ -22,12 +22,8 @@ from uuid import UUID
 
 import click
 import requests
-from os2mo_tools import mo_api
-from ra_utils.headers import TokenSettings
+from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
-from tenacity import retry
-from tenacity import stop_after_attempt
-from tenacity import wait_exponential
 
 logger = logging.getLogger(__name__)
 
@@ -93,16 +89,16 @@ def init_log(log_path: str) -> None:
 
 
 def get_parent_org_unit_uuid(
-    ou, ou_filter: bool, mo_root_org_unit: UUID
+    ou: dict, ou_filter: bool, mo_root_org_unit: UUID
 ) -> Optional[str]:
 
-    if str(ou.uuid) == str(mo_root_org_unit):
+    if str(ou["uuid"]) == str(mo_root_org_unit):
         # This is the root, there are no parents
         return None
 
-    parent = ou.json["parent"]
+    parent = ou["parent"]
     if ou_filter:
-        assert parent, f"The org_unit {ou.uuid} should have been filtered"
+        assert parent, f"The org_unit {ou['uuid']} should have been filtered"
 
     if parent:
         return parent["uuid"]
@@ -112,12 +108,14 @@ def get_parent_org_unit_uuid(
 
 
 def get_org_units(
-    connector: mo_api.Connector,
+    mh: MoraHelper,
     mo_root_org_unit: UUID,
     ou_filter: bool,
     mapping_file_path: str,
 ) -> Dict[str, Dict[str, Any]]:
-    org_units = connector.get_ous(root=mo_root_org_unit)
+    org = mh.read_organisation()
+    url = "o/{}/ou/?root={}".format(org, mo_root_org_unit)
+    org_units = mh._mo_lookup(None, url)["items"]
 
     converted_org_units = {}
     for org_unit in org_units:
@@ -125,14 +123,18 @@ def get_org_units(
         org_unit_uuid = org_unit["uuid"]
         # Fetch the OU again, as the 'parent' field is missing in the data
         # when listing all org units
-        ou_present = connector.get_ou_connector(org_unit_uuid, validity="present")
-        ou_future = connector.get_ou_connector(org_unit_uuid, validity="future")
-        ou_connectors = (ou_present, ou_future)
+        ou = mh.read_ou(org_unit_uuid)
 
-        def get_manager(*ou_connectors):
-            managers = []
-            for ou in ou_connectors:
-                managers.extend(ou.manager)
+        def get_manager(org_unit_uuid, mh: MoraHelper):
+
+            present = mh._mo_lookup(
+                org_unit_uuid, "ou/{}/details/manager?validity=present"
+            )
+            future = mh._mo_lookup(
+                org_unit_uuid, "ou/{}/details/manager?validity=future"
+            )
+            managers = present + future
+
             if not managers:
                 return None
             if len(managers) > 1:
@@ -156,11 +158,11 @@ def get_org_units(
 
         payload = {
             "uuid": org_unit_uuid,
-            "name": org_unit["name"],
+            "name": ou["name"],
             "parentOrgUnitUuid": get_parent_org_unit_uuid(
-                ou_present, ou_filter, mo_root_org_unit
+                ou, ou_filter, mo_root_org_unit
             ),
-            "manager": get_manager(*ou_connectors),
+            "manager": get_manager(org_unit_uuid, mh),
         }
         converted_org_units[org_unit_uuid] = payload
 
@@ -168,14 +170,15 @@ def get_org_units(
 
 
 def get_users(
-    connector: mo_api.Connector,
+    mh: MoraHelper,
     mapping_file_path: str,
     org_unit_uuids: Set[str],
     ou_filter: bool,
     use_nickname: bool = False,
 ) -> List[Dict[str, Any]]:
     # read mapping
-    employees = connector.get_employees()
+    # employees = connector.get_employees()
+    employees = mh.read_all_users()
 
     converted_users = []
     for employee in employees:
@@ -189,14 +192,14 @@ def get_users(
         if not ad_guid or not sam_account_name:
             continue
 
-        e_present = connector.get_employee_connector(employee_uuid, validity="present")
-        e_future = connector.get_employee_connector(employee_uuid, validity="future")
-        e_connectors = (e_present, e_future)
-
-        def get_employee_email(*engagement_connectors):
-            addresses = []
-            for e in engagement_connectors:
-                addresses.extend(e.address)
+        def get_employee_email(employee_uuid, mh: MoraHelper):
+            present = mh._mo_lookup(
+                employee_uuid, "e/{}/details/address?validity=present"
+            )
+            future = mh._mo_lookup(
+                employee_uuid, "e/{}/details/address?validity=future"
+            )
+            addresses = present + future
 
             emails = list(
                 filter(
@@ -213,10 +216,14 @@ def get_users(
                 return emails[0]["value"]
             return None
 
-        def get_employee_positions(*engagement_connectors):
-            engagements = []
-            for e in engagement_connectors:
-                engagements.extend(e.engagement)
+        def get_employee_positions(employee_uuid, mh: MoraHelper):
+            present = mh._mo_lookup(
+                employee_uuid, "e/{}/details/engagement?validity=present"
+            )
+            future = mh._mo_lookup(
+                employee_uuid, "e/{}/details/engagement?validity=future"
+            )
+            engagements = present + future
 
             converted_positions = []
             for engagement in engagements:
@@ -230,7 +237,7 @@ def get_users(
 
         # read positions first to filter any persons with engagements
         # in organisations not in org_unit_uuids
-        positions = get_employee_positions(*e_connectors)
+        positions = get_employee_positions(employee_uuid, mh)
         if ou_filter:
             positions = list(
                 filter(
@@ -252,7 +259,7 @@ def get_users(
             "extUuid": employee["uuid"],
             "userId": sam_account_name,
             "name": get_employee_name(employee),
-            "email": get_employee_email(*e_connectors),
+            "email": get_employee_email(employee_uuid, mh),
             "positions": positions,
         }
         converted_users.append(payload)
@@ -359,32 +366,13 @@ def main(
     Reads data from OS2mo and exports it to OS2Rollekatalog.
     Depends on cpr_mo_ad_map.csv from cpr_uuid.py to check users against AD.
     """
-    # AD_SYSTEM_NAME = SETTINGS["exporters.os2rollekatalog.ad_system_name"]
-
     init_log(log_file_path)
 
-    try:
-        service_url = mora_base + "/service"
-        mo_connector = mo_api.Connector(service_url, org_uuid=True)
-        # Hack to introduce retrying into os2mo_tools
-        mo_connector.mo_get = retry(
-            reraise=True,
-            wait=wait_exponential(multiplier=2, min=1),
-            stop=stop_after_attempt(7),
-        )(mo_connector.mo_get)
-        # Hack in auth headers (keycloak) into os2mo_tools
-        mo_connector.session.headers = TokenSettings().get_headers()
-        # Must re-read org-uuid, as we passed True instead in constructor
-        mo_connector.org_id = mo_connector._get_org()
-    except requests.RequestException:
-        logger.exception("An error occurred connecting to OS2mo")
-        sys.exit(3)
+    mh = MoraHelper(hostname=mora_base, export_ansi=False)
 
     try:
         logger.info("Reading organisation")
-        org_units = get_org_units(
-            mo_connector, mo_root_org_unit, ou_filter, mapping_file_path
-        )
+        org_units = get_org_units(mh, mo_root_org_unit, ou_filter, mapping_file_path)
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch org units")
         sys.exit(3)
@@ -395,7 +383,7 @@ def main(
     try:
         logger.info("Reading employees")
         users = get_users(
-            mo_connector, mapping_file_path, org_unit_uuids, ou_filter, use_nickname
+            mh, mapping_file_path, org_unit_uuids, ou_filter, use_nickname
         )
     except requests.RequestException:
         logger.exception("An error occurred trying to fetch employees")
