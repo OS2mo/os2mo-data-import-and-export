@@ -156,6 +156,25 @@ def get_org_units(
 
             return {"uuid": person["uuid"], "userId": sam_account_name}
 
+        def get_kle(org_unit_uuid: str, mh: MoraHelper) -> Tuple[List[str], List[str]]:
+            present = mh._mo_lookup(org_unit_uuid, "ou/{}/details/kle?validity=present")
+            future = mh._mo_lookup(org_unit_uuid, "ou/{}/details/kle?validity=future")
+            kles = present + future
+
+            interest = []
+            performing = []
+
+            for kle in kles:
+                number = kle["kle_number"]["user_key"]
+                for aspect in kle["kle_aspect"]:
+                    if aspect["scope"] == "INDSIGT":
+                        interest.append(number)
+                    if aspect["scope"] == "UDFOERENDE":
+                        performing.append(number)
+            return interest, performing
+
+        kle_performing, kle_interest = get_kle(org_unit_uuid, mh)
+
         payload = {
             "uuid": org_unit_uuid,
             "name": ou["name"],
@@ -163,6 +182,8 @@ def get_org_units(
                 ou, ou_filter, mo_root_org_unit
             ),
             "manager": get_manager(org_unit_uuid, mh),
+            "klePerforming": kle_performing,
+            "kleInterest": kle_interest,
         }
         converted_org_units[org_unit_uuid] = payload
 
@@ -177,7 +198,6 @@ def get_users(
     use_nickname: bool = False,
 ) -> List[Dict[str, Any]]:
     # read mapping
-    # employees = connector.get_employees()
     employees = mh.read_all_users()
 
     converted_users = []
