@@ -674,6 +674,16 @@ class MoraHelper:
                 nodes = self.read_ou_tree(uuid, nodes, nodes[uuid])
         return nodes
 
+    def read_ou_root(self, org: str, root: Optional[str] = None):
+        """Find all org units below an optional root node
+        :param org: The organisation to search in
+        :param root: The UUID of an optional root node
+        :return: A list of all org units bounded by the root node
+        """
+        url = "o/{}/ou/?root={}".format(org, root)
+        org_units = self._mo_lookup(None, url)["items"]
+        return org_units
+
     def find_cut_dates(self, uuid, no_past=False):
         """Find dates with changes in engagement history.
 

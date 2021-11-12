@@ -11,9 +11,11 @@ import logging
 import sys
 from functools import lru_cache
 from logging.handlers import RotatingFileHandler
+from operator import itemgetter
 from pathlib import Path
 from typing import Any
 from typing import Dict
+from typing import Generator
 from typing import List
 from typing import Optional
 from typing import Set
@@ -22,6 +24,7 @@ from uuid import UUID
 
 import click
 import requests
+from more_itertools import bucket
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
 
@@ -114,8 +117,7 @@ def get_org_units(
     mapping_file_path: str,
 ) -> Dict[str, Dict[str, Any]]:
     org = mh.read_organisation()
-    url = "o/{}/ou/?root={}".format(org, mo_root_org_unit)
-    org_units = mh._mo_lookup(None, url)["items"]
+    org_units = mh.read_ou_root(org, mo_root_org_unit)
 
     converted_org_units = {}
     for org_unit in org_units:
@@ -161,17 +163,21 @@ def get_org_units(
             future = mh._mo_lookup(org_unit_uuid, "ou/{}/details/kle?validity=future")
             kles = present + future
 
-            interest = []
-            performing = []
+            def get_kle_tuples(
+                kles: List[dict],
+            ) -> Generator[Tuple[str, str], None, None]:
+                for kle in kles:
+                    number = kle["kle_number"]["user_key"]
+                    for aspect in kle["kle_aspect"]:
+                        yield number, aspect["scope"]
 
-            for kle in kles:
-                number = kle["kle_number"]["user_key"]
-                for aspect in kle["kle_aspect"]:
-                    if aspect["scope"] == "INDSIGT":
-                        interest.append(number)
-                    if aspect["scope"] == "UDFOERENDE":
-                        performing.append(number)
-            return interest, performing
+            kle_tuples = get_kle_tuples(kles)
+            buckets = bucket(kle_tuples, key=itemgetter(1))
+
+            interest = map(itemgetter(0), buckets["INDSIGT"])
+            performing = map(itemgetter(0), buckets["UDFOERENDE"])
+
+            return list(interest), list(performing)
 
         kle_performing, kle_interest = get_kle(org_unit_uuid, mh)
 
