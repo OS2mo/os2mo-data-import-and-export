@@ -2,7 +2,7 @@ from typing import List
 
 import click
 
-from os2mo_helpers.mora_helpers import MoraHelper
+from os2mo_data_import.os2mo_helpers.mora_helpers import MoraHelper
 from tools.data_fixers.sd_fixup import fetch_sd_employments
 
 mora_helper = MoraHelper(use_cache=False)
