@@ -8,7 +8,7 @@ from integrations.os2sync.os2mo import config, get_sts_user, try_get_ad_user_key
 uuid = '23d2dfc7-6ceb-47cf-97ed-db6beadcb09b'
 mo_employee_url_end = 'e/{}/'.format(uuid)
 mo_employee_address_url_end = mo_employee_url_end + 'details/address'
-mo_employee_engagement_url_end = mo_employee_url_end + 'details/engagement'
+mo_employee_engagement_url_end = mo_employee_url_end + 'details/engagement?calculate_primary=true'
 mo_employee_it_url_end = mo_employee_url_end + 'details/it'
 
 mo_employee = {'cpr_no': '0602602389',
@@ -293,7 +293,6 @@ class TestsMOAd(unittest.TestCase):
     @patch('integrations.os2sync.os2mo.session.get', patched_session_get)
     def test_mo_client_default(self):
         expected = {'Email': 'solveigk@kolding.dk',
-                    'Location': 'Bakkedraget 28, Vester Nebel, 6040 Egtved',
                     'Person': {'Cpr': '0602602389', 'Name': 'Solveig Kuhlenhenke'},
                     'Positions': [],
                     'UserId': 'SolveigK_AD_logon',

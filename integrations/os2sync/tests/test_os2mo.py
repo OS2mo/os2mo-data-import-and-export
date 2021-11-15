@@ -4,9 +4,20 @@ from unittest.mock import patch
 from parameterized import parameterized
 
 from integrations.os2sync import config
+from integrations.os2sync.os2mo import get_work_address
 from integrations.os2sync.os2mo import is_ignored
 from integrations.os2sync.os2mo import kle_to_orgunit
 from integrations.os2sync.os2mo import partition_kle
+
+
+class MockOs2moGet:
+    """Class which allows patching to have a json() method"""
+
+    def __init__(self, return_value):
+        self.return_value = return_value
+
+    def json(self):
+        return self.return_value
 
 
 class TestsMOAd(unittest.TestCase):
@@ -64,3 +75,27 @@ class TestsMOAd(unittest.TestCase):
             else:
                 assert org_unit.get("Tasks") is None
                 assert org_unit.get("ContactForTasks") is None
+
+    @parameterized.expand(
+        [
+            (["Henvendelsessted", "Adresse"], "Henvendelsesstednavn"),
+            (["Adresse", "Henvendelsessted"], "Adressenavn"),
+            ([], None),
+        ]
+    )
+    def test_get_work_address(self, work_address_names, expected):
+        addresses = [
+            {
+                "name": "Henvendelsesstednavn",
+                "address_type": {"name": "Henvendelsessted"},
+            },
+            {"name": "Adressenavn", "address_type": {"name": "Adresse"}},
+            {"name": "Adressenavn2", "address_type": {"name": "Adresse"}},
+        ]
+        positions = [{"is_primary": True, "OrgUnitUuid": "Some_unit_uuid"}]
+        with patch(
+            "integrations.os2sync.os2mo.os2mo_get", return_value=MockOs2moGet(addresses)
+        ):
+
+            work_address = get_work_address(positions, work_address_names)
+            self.assertEqual(work_address, expected)
