@@ -47,6 +47,14 @@ def fetch_user_employments(cpr: str) -> List:
     return employments
 
 
+def fetch_sd_employments(mo_employee):
+    mo_cpr = mo_employee["cpr_no"]
+    sd_employments = fetch_user_employments(mo_cpr)
+    sd_ids = map(itemgetter("EmploymentIdentifier"), sd_employments)
+    sd_dict = dict(zip(sd_ids, sd_employments))
+    return sd_dict
+
+
 def get_orgfunc_from_vilkaarligrel(
     class_uuid: str, mox_base: str = "http://localhost:8080"
 ) -> dict:
@@ -85,13 +93,6 @@ def fixup(ctx, mo_employees):
         mo_salary_userkeys = map(itemgetter("user_key"), no_salary_mo_engagements)
         mo_dict = dict(zip(mo_salary_userkeys, no_salary_mo_engagements))
         return mo_dict
-
-    def fetch_sd_employments(mo_employee):
-        mo_cpr = mo_employee["cpr_no"]
-        sd_employments = fetch_user_employments(mo_cpr)
-        sd_ids = map(itemgetter("EmploymentIdentifier"), sd_employments)
-        sd_dict = dict(zip(sd_ids, sd_employments))
-        return sd_dict
 
     def fetch_pairs(mo_employee):
         try:
