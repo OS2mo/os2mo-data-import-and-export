@@ -8,9 +8,6 @@ from tools.data_fixers.sd_fixup import fetch_sd_employments
 mora_helper = MoraHelper(use_cache=False)
 
 
-# def get_mo_employees(limit: int = 0, start: int = 0) -> List[dict]:
-#     return mora_helper.read_all_users(limit=limit, start=start)
-
 def compare_mo_to_sd(mo_employee_batch: List[dict]):
     for mo_employee in mo_employee_batch:
         mo_engagement = mora_helper.read_user_engagement(user=mo_employee["uuid"])
@@ -41,6 +38,8 @@ def check_employment(bulk_size):
     #       bulk_size: The number of employees to fetch from MO at a time.
     """
 
+    assert bulk_size > 0
+
     start = 0
     mo_employee_batch = mora_helper.read_all_users(limit=bulk_size, start=start)
     while mo_employee_batch:
@@ -50,6 +49,7 @@ def check_employment(bulk_size):
             limit=bulk_size, start=start
         )
 
-
+print("sd_employment_checker " + __name__)
 if __name__ == "__main__":
+    print("sd_employment_checker " + __name__)
     cli()
