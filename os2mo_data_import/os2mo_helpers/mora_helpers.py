@@ -199,7 +199,7 @@ class MoraHelper:
         org_id = self._mo_lookup(uuid=None, url="o/")
         return org_id[0]["uuid"]
 
-    def read_all_users(self, limit=None) -> List[dict]:
+    def read_all_users(self, limit=None, start=0) -> List[dict]:
         """Return a list of all employees in MO.
 
         :param limit: If set, only less large sub-set wll be retrived,
@@ -209,7 +209,7 @@ class MoraHelper:
         logger.info("Read all MO users")
         org = self.read_organisation()
         limit = limit or 0
-        employee_list = self._mo_lookup(org, "o/{}/e/?limit=" + str(limit))
+        employee_list = self._mo_lookup(org, f"o/{{}}/e/?limit={limit}&start={start}")
         employees = employee_list["items"]
         logger.info("Done reading all MO users")
         return employees
