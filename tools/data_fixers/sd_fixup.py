@@ -20,9 +20,9 @@ from ra_utils.load_settings import load_setting
 from tqdm import tqdm
 
 
-def fetch_user_employments(cpr: str) -> List:
+def fetch_user_employments(cpr: str, params: Optional[dict] = None) -> List:
     # Notice, this will not get future engagements
-    params = {
+    default_params = {
         "PersonCivilRegistrationIdentifier": cpr,
         "StatusActiveIndicator": "true",
         "StatusPassiveIndicator": "true",
@@ -35,8 +35,10 @@ def fetch_user_employments(cpr: str) -> List:
         "SalaryCodeGroupIndicator": "false",
         "EffectiveDate": date.today().strftime("%d.%m.%Y"),
     }
+    if params:
+        default_params.update(params)
 
-    sd_employments_response = sd_lookup("GetEmployment20111201", params)
+    sd_employments_response = sd_lookup("GetEmployment20111201", default_params)
     if "Person" not in sd_employments_response:
         return []
 
