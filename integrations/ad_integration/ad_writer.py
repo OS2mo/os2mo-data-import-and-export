@@ -7,6 +7,7 @@ import time
 from abc import ABC
 from abc import abstractmethod
 from datetime import date
+from datetime import datetime
 from functools import partial
 from operator import itemgetter
 
@@ -897,6 +898,7 @@ class ADWriter(AD):
                 "ad_values": {},
                 "mo_values": mo_values,
                 "user_sam": sam_account_name,
+                "sync_timestamp": str(datetime.now()),
             },
             settings=self.all_settings,
         )
