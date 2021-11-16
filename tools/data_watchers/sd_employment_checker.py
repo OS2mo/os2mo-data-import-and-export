@@ -24,32 +24,40 @@ def cli():
 
 @cli.command()
 @click.option(
-    "--bulk-size",
+    "--batch-size",
     type=click.INT,
     help="The number of employees to fetch per request from MO",
     default=50
 )
-def check_employment(bulk_size):
+@click.option(
+    "--max-iterations",
+    type=click.INT,
+    help="The maximum number of times to compare 'batch-size' users (for testing)",
+    default=10000
+)
+def check_employment(batch_size, max_iterations):
     """
     Compare MO engagement end dates with SD employment end dates for all users
     and log any inconsistencies.
 
-    # Args:
-    #       bulk_size: The number of employees to fetch from MO at a time.
+    Args:
+          batch_size: The number of employees to fetch from MO at a time.
+          max_iterations: The maximum number of times to compare 'batch-size' users
     """
 
-    assert bulk_size > 0
+    assert batch_size > 0
 
     start = 0
-    mo_employee_batch = mora_helper.read_all_users(limit=bulk_size, start=start)
-    while mo_employee_batch:
+    mo_employee_batch = mora_helper.read_all_users(limit=batch_size, start=start)
+    while mo_employee_batch and start / batch_size < max_iterations:
+        # We have to compare the users in batches since MO will crash otherwise
+        # on servers with many (~20000) users
         compare_mo_to_sd(mo_employee_batch)
-        start += bulk_size
+        start += batch_size
         mo_employee_batch = mora_helper.read_all_users(
-            limit=bulk_size, start=start
+            limit=batch_size, start=start
         )
 
-print("sd_employment_checker " + __name__)
+
 if __name__ == "__main__":
-    print("sd_employment_checker " + __name__)
     cli()
