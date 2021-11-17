@@ -46,21 +46,27 @@ class PersonImporter:
         self.uuid_generator = uuid_generator("AAK")
         self.settings = config.get_config()
 
-    def generate_employee_email_payload(self, person: Person):
-        from_date, to_date = util.convert_validities(
+    def generate_employee_email_payload(self, person: Person, filedate: str):
+        # For creation of Employee address/IT details we always
+        # use the parsed file-date as from-date
+        # The start_time field is still used for creating engagements
+        _, to_date = util.convert_validities(
             person.start_time.date(), person.end_time.date()
         )
         return mo_payloads.create_address(
             uuid=self.uuid_generator(person.cpr + "email"),
             value=person.email,
-            from_date=from_date,
+            from_date=filedate,
             to_date=to_date,
             person_uuid=self.uuid_generator(person.cpr),
             address_type_uuid=uuids.PERSON_EMAIL,
         )
 
-    def generate_employee_az_id_payload(self, person: Person):
-        from_date, to_date = util.convert_validities(
+    def generate_employee_az_id_payload(self, person: Person, filedate: str):
+        # For creation of Employee address/IT details we always
+        # use the parsed file-date as from-date
+        # The start_time field is still used for creating engagements
+        _, to_date = util.convert_validities(
             person.start_time.date(), person.end_time.date()
         )
         return mo_payloads.create_it_rel(
@@ -68,12 +74,15 @@ class PersonImporter:
             user_key=person.az_id,
             person_uuid=self.uuid_generator(person.cpr),
             itsystem_uuid=self.settings.azid_it_system_uuid,
-            from_date=from_date,
+            from_date=filedate,
             to_date=to_date,
         )
 
-    def generate_employee_ad_account_payload(self, person: Person):
-        from_date, to_date = util.convert_validities(
+    def generate_employee_ad_account_payload(self, person: Person, filedate: str):
+        # For creation of Employee address/IT details we always
+        # use the parsed file-date as from-date
+        # The start_time field is still used for creating engagements
+        _, to_date = util.convert_validities(
             person.start_time.date(), person.end_time.date()
         )
         return mo_payloads.create_it_rel(
@@ -81,7 +90,7 @@ class PersonImporter:
             user_key=person.ad_account,
             person_uuid=self.uuid_generator(person.cpr),
             itsystem_uuid=person.ad_it_system_uuid,
-            from_date=from_date,
+            from_date=filedate,
             to_date=to_date,
         )
 
@@ -124,18 +133,18 @@ class PersonImporter:
         unique_persons = map(lambda key: first(cpr_buckets[key]), cpr_buckets)
         return map(self.generate_employee_payload, unique_persons)
 
-    def create_detail_payloads(self, persons):
+    def create_detail_payloads(self, persons, filedate: str):
         engagement_payloads = map(self.generate_engagement_payload, persons)
         email_payloads = map(
-            self.generate_employee_email_payload,
+            partial(self.generate_employee_email_payload, filedate=filedate),
             filter(lambda person: person.email, persons),
         )
         az_id_payloads = map(
-            self.generate_employee_az_id_payload,
+            partial(self.generate_employee_az_id_payload, filedate=filedate),
             filter(lambda person: person.az_id, persons),
         )
         ad_account_payloads = map(
-            self.generate_employee_ad_account_payload,
+            partial(self.generate_employee_ad_account_payload, filedate=filedate),
             filter(lambda person: person.ad_account, persons),
         )
         return chain(
@@ -152,7 +161,9 @@ class PersonImporter:
         """
         persons = los_files.read_csv(filename, Person)
         employee_payloads = self.create_employee_payloads(persons)
-        detail_payloads = self.create_detail_payloads(persons)
+        detail_payloads = self.create_detail_payloads(
+            persons, filedate.date().isoformat()
+        )
 
         async with util.get_client_session() as session:
             await util.create_details(
@@ -174,7 +185,9 @@ class PersonImporter:
         """
         persons = los_files.read_csv(filename, Person)
         employee_payloads = self.create_employee_payloads(persons)
-        detail_payloads = self.create_detail_payloads(persons)
+        detail_payloads = self.create_detail_payloads(
+            persons, filedate.date().isoformat()
+        )
 
         orgfunk_uuids = set(await util.lookup_organisationfunktion())
         detail_creates, detail_edits = partition(
