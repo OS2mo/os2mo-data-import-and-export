@@ -555,6 +555,12 @@ konfigurationsnøglerne ``integrations.ad.write.level2orgunit_type`` og
 ``integrations.ad.write.org_unit_field``, og skal derfor ikke specificeres yderligere i
 feltmapningen.
 
+MO-felterne ``manager_name``, ``manager_cpr``, ``manager_sam`` og ``manager_mail`` får
+indhold ud fra brugerens primære engagement. Derfor har disse felter kun et indhold fra
+den dato, hvor brugerens engagement i enheden begynder. Hvis der køres en synkronisering
+til et AD inden denne dato, vil felterne være tomme, da engagementet ikke er begyndt
+endnu.
+
 Synkroniseringen til AD foretages i henhold til en lokal feltmapning, som eksempelvis
 kan se ud som dette:
 
