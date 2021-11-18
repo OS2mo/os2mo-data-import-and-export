@@ -220,7 +220,11 @@ class OpusDiffImport(object):
             if phone is not None:
                 opus_addresses["phone"] = phone
 
-        if "postalCode" in employee and employee["address"]:
+        if (
+            "postalCode" in employee
+            and employee["address"]
+            and not self.settings.get("integrations.opus.skip_employee_address", False)
+        ):
             if isinstance(employee["address"], dict):
                 logger.info("Protected addres, cannont import")
             else:
