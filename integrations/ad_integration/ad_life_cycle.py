@@ -254,7 +254,8 @@ class AdLifeCycle:
         filters: List[FilterFunction] = in_filters or []
 
         lc_employees: List[List[Dict]] = self.lc.users.values()
-        tqdm_employees: List[List[Dict]] = tqdm(lc_employees)
+        nonempty_employees = filter(lambda val: len(val) > 0, lc_employees)
+        tqdm_employees: List[List[Dict]] = tqdm(nonempty_employees)
         # From employee_effects --> employees
         employees: Iterator[Dict] = map(itemgetter(0), tqdm_employees)
 

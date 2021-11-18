@@ -27,6 +27,12 @@ def default_find_primary_engagement(mo_user_uuid):
     )
 
 
+class MockLoraCacheEmptyEmployee(MockLoraCacheExtended):
+    @property
+    def users(self):
+        return {self._mo_values["uuid"]: []}
+
+
 class TestAdLifeCycle(TestCase, TestADWriterMixin):
     """Test `ad_life_cycle`"""
 
@@ -248,11 +254,18 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         # Consume the lazy dicts produced by `_gen_filtered_employees` to
         # verify their contents.
         instance = self._get_instance()
-        for employee, _ad_object in instance._gen_filtered_employees():
+        consumed = list(instance._gen_filtered_employees())
+        self.assertNotEqual(consumed, [])
+        for employee, _ad_object in consumed:
             for engagement in employee["engagements"]:
                 # Cast `engagement` to dict to force evaluation of its lazy
                 # properties.
                 self.assertIsInstance(dict(engagement), dict)
+
+    def test_gen_filtered_employees_handles_empty_employees(self):
+        instance = self._get_instance(mock_lora_cache_class=MockLoraCacheEmptyEmployee)
+        consumed = list(instance._gen_filtered_employees())
+        self.assertListEqual(consumed, [])
 
     @parameterized.expand(
         [
@@ -312,6 +325,7 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         users_with_engagements=None,
         create_filters=None,
         disable_filters=None,
+        mock_lora_cache_class=MockLoraCacheExtended,
         **kwargs,
     ):
         settings = {
@@ -338,7 +352,7 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         lora_cache_mock = mock.patch.object(
             ad_life_cycle,
             "LoraCache",
-            new=lambda **kwargs: MockLoraCacheExtended(self._prepare_static_person()),
+            new=lambda **kwargs: mock_lora_cache_class(self._prepare_static_person()),
         )
 
         reader_mock = mock.patch.object(
