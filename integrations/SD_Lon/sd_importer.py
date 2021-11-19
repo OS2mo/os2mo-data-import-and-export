@@ -238,15 +238,14 @@ class SdImport(object):
 
     def _check_subtree(self, department, sub_tree):
         """Check if a department is member of given sub-tree"""
-        in_sub_tree = False
         while "DepartmentReference" in department:
             department = department["DepartmentReference"]
             dep_uuid = department["DepartmentUUIDIdentifier"]
             if self.org_id_prefix:
                 dep_uuid = generate_uuid(dep_uuid, self.org_id_prefix)
             if dep_uuid == sub_tree:
-                in_sub_tree = True
-        return in_sub_tree
+                return True
+        return False
 
     def _add_sd_department(
         self, department, contains_subunits=False, sub_tree=None, super_unit=None
