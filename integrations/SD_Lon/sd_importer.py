@@ -551,39 +551,8 @@ class SdImport(object):
         logger.debug("Person object to create: {}".format(person))
         cpr = person["PersonCivilRegistrationIdentifier"]
 
-        employments = person["Employment"]
-        if not isinstance(employments, list):
-            employments = [employments]
+        employments = ensure_list(person["Employment"])
 
-        max_rate = -1
-        min_id = 999999
-        for employment in employments:
-            job_position_id = employment["Profession"]["JobPositionIdentifier"]
-            if job_position_id in self.skip_job_functions:
-                logger.info("Skipping {} due to job_pos_id".format(employment))
-                continue
-
-            status = EmploymentStatus(
-                employment["EmploymentStatus"]["EmploymentStatusCode"]
-            )
-            if status == EmploymentStatus.Orlov:
-                # Orlov
-                pass
-            if status in EmploymentStatus.let_go():
-                # Fratrådt eller pensioneret.
-                continue
-
-            employment_id = calc_employment_id(employment)
-            occupation_rate = float(employment["WorkingTime"]["OccupationRate"])
-
-            if occupation_rate == max_rate:
-                if employment_id["value"] < min_id:
-                    min_id = employment_id["value"]
-            if occupation_rate > max_rate:
-                max_rate = occupation_rate
-                min_id = employment_id["value"]
-
-        exactly_one_primary = False
         for employment in employments:
             status = EmploymentStatus(
                 employment["EmploymentStatus"]["EmploymentStatusCode"]
@@ -612,13 +581,7 @@ class SdImport(object):
                 )
                 logger.info("Non-nummeric id. Job pos id: {}".format(job_position_id))
 
-            if occupation_rate == max_rate and employment_id["value"] == min_id:
-                assert exactly_one_primary is False, "More than one primary found"
-                primary_type_ref = "Ansat"
-                exactly_one_primary = True
-            else:
-                primary_type_ref = "non-primary"
-
+            primary_type_ref = "non-primary"
             if status == EmploymentStatus.AnsatUdenLoen:
                 # If status 0, uncondtionally override
                 primary_type_ref = "status0"
@@ -762,13 +725,6 @@ class SdImport(object):
                         date_from="1930-01-01",
                         date_to=None,
                     )
-
-        # This assertment really should hold...
-        # assert(exactly_one_primary is True)
-        if exactly_one_primary is not True:
-            pass
-            # print()
-            # print('More than one primary: {}'.format(employments))
 
 
 @click.group()
