@@ -51,6 +51,8 @@ from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
+from integrations.SD_Lon.sd_common import skip_fictional_users
+from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sync_job_id import JobIdSync
 
 # from integrations.SD_Lon.sd_common import generate_uuid
@@ -60,12 +62,6 @@ LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_integrations.log"
 
 logger = logging.getLogger("sdChangedAt")
-
-
-def ensure_list(element):
-    if not isinstance(element, list):
-        return [element]
-    return element
 
 
 def setup_logging():
@@ -90,14 +86,6 @@ def setup_logging():
 
 
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
-
-
-def skip_fictional_users(entity):
-    cpr = entity["PersonCivilRegistrationIdentifier"]
-    if cpr[-4:] == "0000":
-        logger.warning("Skipping fictional user: {}".format(cpr))
-        return False
-    return True
 
 
 def engagement_components(engagement_info) -> Tuple[str, Dict[str, List[Any]]]:

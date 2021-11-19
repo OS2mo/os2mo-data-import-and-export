@@ -6,6 +6,7 @@
 #
 import datetime
 import logging
+from operator import itemgetter
 from typing import Any
 from typing import Dict
 from typing import List
@@ -23,6 +24,8 @@ from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import generate_uuid
 from integrations.SD_Lon.sd_common import sd_lookup
+from integrations.SD_Lon.sd_common import skip_fictional_users
+from integrations.SD_Lon.sd_common import ensure_list
 from os2mo_data_import import ImportHelper
 
 
@@ -186,7 +189,7 @@ class SdImport(object):
                 self._add_klasse(klasse_id, klasse, facet, scope)
 
     def _update_ad_map(self, cpr):
-        logger.debug("Update cpr{}".format(cpr))
+        logger.debug("_update_ad_map called")
         self.ad_people[cpr] = {}
         if self.ad_reader:
             response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
@@ -433,22 +436,23 @@ class SdImport(object):
         if not isinstance(passive_people["Person"], list):
             passive_people["Person"] = [passive_people["Person"]]
 
+        cprs = set(map(
+            itemgetter("PersonCivilRegistrationIdentifier"),
+            active_people["Person"]
+        ))
+        # Collect all people, prefering their active variants
+        # TODO: Consider doing this with a dict keyed by cpr number
         people = active_people["Person"]
-
-        cprs = []
-        for person in active_people["Person"]:
-            cprs.append(person["PersonCivilRegistrationIdentifier"])
         for person in passive_people["Person"]:
-            if not person["PersonCivilRegistrationIdentifier"] in cprs:
+            cpr = person["PersonCivilRegistrationIdentifier"]
+            if cpr not in cprs:
                 people.append(person)
 
+        people = filter(skip_fictional_users, people)
+
+        # TODO: Almost identitcal code exists in sd_changed_at's update_changed_persons
         for person in people:
             cpr = person["PersonCivilRegistrationIdentifier"]
-            logger.info("Importing {}".format(cpr))
-            if cpr[-4:] == "0000":
-                logger.warning("Skipping fictional user: {}".format(cpr))
-                continue
-
             self._update_ad_map(cpr)
 
             given_name = person.get("PersonGivenName", "")
@@ -538,15 +542,14 @@ class SdImport(object):
         self._create_employees(passive_people, skip_manager=True)
 
     def _create_employees(self, persons, skip_manager=False):
-        for person in persons["Person"]:
+        people = persons["Person"]
+        people = filter(skip_fictional_users, people)
+        for person in people:
             self.create_employee(person, skip_manager=skip_manager)
 
     def create_employee(self, person, skip_manager=False):
         logger.debug("Person object to create: {}".format(person))
         cpr = person["PersonCivilRegistrationIdentifier"]
-        if cpr[-4:] == "0000":
-            logger.warning("Skipping fictional user: {}".format(cpr))
-            return
 
         employments = person["Employment"]
         if not isinstance(employments, list):

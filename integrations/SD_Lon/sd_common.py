@@ -295,3 +295,17 @@ class EmploymentStatus(Enum):
     @staticmethod
     def on_payroll() -> List["EmploymentStatus"]:
         return [EmploymentStatus.AnsatMedLoen, EmploymentStatus.Orlov]
+
+
+def skip_fictional_users(entity):
+    cpr = entity["PersonCivilRegistrationIdentifier"]
+    if cpr[-4:] == "0000":
+        logger.warning("Skipping fictional user: {}".format(cpr))
+        return False
+    return True
+
+
+def ensure_list(element):
+    if not isinstance(element, list):
+        return [element]
+    return element
