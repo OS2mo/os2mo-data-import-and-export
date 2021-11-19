@@ -63,8 +63,6 @@ class SdImport(object):
         self.settings = settings or load_settings()
 
         self.base_url = "https://service.sd.dk/sdws/"
-        # List of CPR numbers for users with multiple employments
-        self.double_employment: List[str] = []
         self.address_errors: Dict[str, Dict] = {}
         self.manager_rows = manager_rows
 
@@ -569,6 +567,7 @@ class SdImport(object):
 
             employment_id = calc_employment_id(employment)
 
+            # TODO: Identital code to this exists in sd_changed_at
             split = self.settings["integrations.SD_Lon.monthly_hourly_divide"]
             if employment_id["value"] < split:
                 engagement_type_ref = "månedsløn"
@@ -582,8 +581,8 @@ class SdImport(object):
                 logger.info("Non-nummeric id. Job pos id: {}".format(job_position_id))
 
             primary_type_ref = "non-primary"
+            # If status 0, uncondtionally override
             if status == EmploymentStatus.AnsatUdenLoen:
-                # If status 0, uncondtionally override
                 primary_type_ref = "status0"
 
             job_function_type = self.settings["integrations.SD_Lon.job_function"]
@@ -632,59 +631,50 @@ class SdImport(object):
                 )
             )
 
+            original_unit = unit
+            # Remove this to remove any sign of the employee from the
+            # lowest levels of the org
+            if self.create_associations:
+                self.importer.add_association(
+                    employee=cpr,
+                    user_key=employment_id["id"],
+                    organisation_unit=original_unit,
+                    association_type_ref="SD-medarbejder",
+                    date_from=date_from,
+                    date_to=date_to,
+                )
+
             # Employees are not allowed to be in these units (allthough
             # we do make an association). We must instead find the lowest
             # higher level to put she or he.
             too_deep = self.settings["integrations.SD_Lon.import.too_deep"]
-            original_unit = unit
             while self.nodes[unit].name in too_deep:
                 unit = self.nodes[unit].parent.uuid
-            try:
-                # In a distant future, an employment id will be re-used and
-                # then a more refined version of this code will be needed.
-                # engagement_uuid = generate_uuid(employment_id['id'],
-                #                                 self.org_id_prefix,
-                #                                 self.org_name)
 
-                ext_field = self.settings.get("integrations.SD_Lon.employment_field")
-                if ext_field is not None:
-                    extention = {ext_field: job_name}
-                else:
-                    extention = {}
+            ext_field = self.settings.get("integrations.SD_Lon.employment_field")
+            extention = {}
+            if ext_field is not None:
+                extention[ext_field] = job_name
 
-                self.importer.add_engagement(
+            self.importer.add_engagement(
+                employee=cpr,
+                user_key=employment_id["id"],
+                organisation_unit=unit,
+                job_function_ref=job_func_ref,
+                fraction=int(occupation_rate * 1000000),
+                primary_ref=primary_type_ref,
+                engagement_type_ref=engagement_type_ref,
+                date_from=date_from,
+                date_to=date_to,
+                **extention,
+            )
+            if status == EmploymentStatus.Orlov:
+                self.importer.add_leave(
                     employee=cpr,
-                    # uuid=engagement_uuid,
-                    user_key=employment_id["id"],
-                    organisation_unit=unit,
-                    job_function_ref=job_func_ref,
-                    fraction=int(occupation_rate * 1000000),
-                    primary_ref=primary_type_ref,
-                    engagement_type_ref=engagement_type_ref,
+                    leave_type_ref="Orlov",
                     date_from=date_from,
                     date_to=date_to,
-                    **extention,
                 )
-                # Remove this to remove any sign of the employee from the
-                # lowest levels of the org
-                if self.create_associations:
-                    self.importer.add_association(
-                        employee=cpr,
-                        user_key=employment_id["id"],
-                        organisation_unit=original_unit,
-                        association_type_ref="SD-medarbejder",
-                        date_from=date_from,
-                        date_to=date_to,
-                    )
-                if status == EmploymentStatus.Orlov:
-                    self.importer.add_leave(
-                        employee=cpr,
-                        leave_type_ref="Orlov",
-                        date_from=date_from,
-                        date_to=date_to,
-                    )
-            except AssertionError:
-                self.double_employment.append(cpr)
 
             # If we do not have a list of managers, we take the manager,
             # information from the job_function_code.
