@@ -836,6 +836,7 @@ class ADWriter(AD):
                 "ad_values": ad_user,
                 "mo_values": mo_values,
                 "user_sam": user_sam,
+                "sync_timestamp": str(datetime.now()),
             },
             settings=self.all_settings,
         )
