@@ -76,6 +76,22 @@ imports_mox_db_clear(){
     ${VENV}/bin/python3 tools/clear_mox_tables.py
 }
 
+move_backup_to_archive() {
+    if [ -z $1 ]; then
+        # This should never happen, but just in case...
+        echo "Backup file argument must be provided to function"
+        exit 3
+    fi
+
+    echo "Moving $1 to archive"
+
+    local archive=${CRON_BACKUP}/sql_removed
+    if [[ ! -d ${archive} ]]; then
+        mkdir ${archive}
+    fi
+    mv $1 ${archive}
+}
+
 remove_db_from_backup() {
     if [ -z $1 ]; then
         # This should never happen, but just in case...
@@ -720,6 +736,7 @@ post_backup(){
     do
         [ "${oldbup}" \< "${bupsave}" ] && (
             remove_db_from_backup $oldbup
+            move_backup_to_archive $oldbup
         )
     done
     echo backup done # do not remove this line
