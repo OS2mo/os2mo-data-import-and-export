@@ -824,7 +824,8 @@ class ADWriter(AD):
             response = self._rename_ad_user(user_sam, mismatch["name"][1])
             del mismatch["name"]
 
-        if not mismatch:
+        if not mismatch and ("sync_timestamp" not in str(self.all_settings)):
+            # If "sync_timestamp" is in settings we assume the intent is to always write a timestamp.
             logger.info("Nothing to edit")
             return (True, "Nothing to edit", mo_values["read_manager"])
 
