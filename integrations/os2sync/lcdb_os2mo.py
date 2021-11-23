@@ -5,6 +5,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import logging
+from typing import Dict
 from typing import Optional
 
 from more_itertools import flatten
@@ -62,7 +63,7 @@ def try_get_ad_user_key(session, uuid: str) -> Optional[str]:
     ad_system_user_names = list(flatten(ad_system_user_names))
 
     if len(ad_system_user_names) != 1:
-        return
+        return None
     return ad_system_user_names[0]
 
 
@@ -142,7 +143,7 @@ def get_sts_user(session, uuid, allowed_unitids):
     return sts_user
 
 
-top_per_unit = {}
+top_per_unit: Dict[str, str] = {}
 
 
 def get_top_unit(session, lc_enhed):
@@ -253,7 +254,7 @@ def get_sts_orgunit(session, uuid):
     if settings.get("sync_managers"):
         lc_manager = session.query(Leder).filter(Leder.enhed_uuid == uuid).all()
         manager_uuid = only(lc_manager.bruger_uuid)
-        sts_org_unit.update({'managerUuid': manager_uuid})
+        sts_org_unit.update({"managerUuid": manager_uuid})
 
     mokles = {}
     lc_kles = session.query(KLE).filter(KLE.enhed_uuid == uuid).all()

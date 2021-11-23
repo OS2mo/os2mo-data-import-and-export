@@ -5,47 +5,61 @@ from alchemy_mock.mocking import UnifiedAlchemyMagicMock
 from parameterized import parameterized
 
 from exporters.sql_export.sql_table_defs import Bruger
+from exporters.sql_export.sql_table_defs import Engagement
 from integrations.os2sync import lcdb_os2mo
 from integrations.os2sync.tests.helpers import NICKNAME_TEMPLATE
 
 
-# Mock contents of `Bruger` model
-_lcdb_mock_users = [
-    (
+# Mock contents of `Bruger` and `Engagement` database models
+def _lcdb_mock_user(
+    bruger_uuid, fornavn, efternavn, kaldenavn_fornavn="", kaldenavn_efternavn=""
+):
+    return (
         # When this query occurs:
-        [unittest.mock.call.filter(Bruger.uuid == "name only")],
+        [unittest.mock.call.filter(Bruger.uuid == bruger_uuid)],
         # Return this object:
         [
             Bruger(
-                fornavn="Test",
-                efternavn="Testesen",
-                kaldenavn_fornavn="",
-                kaldenavn_efternavn="",
+                fornavn=fornavn,
+                efternavn=efternavn,
+                kaldenavn_fornavn=kaldenavn_fornavn,
+                kaldenavn_efternavn=kaldenavn_efternavn,
                 bvn="mo-user-key",
             ),
         ],
-    ),
-    (
+    )
+
+
+def _lcdb_mock_engagement(bruger_uuid):
+    return (
         # When this query occurs:
-        [unittest.mock.call.filter(Bruger.uuid == "name and nickname")],
+        [unittest.mock.call.filter(Engagement.bruger_uuid == bruger_uuid)],
         # Return this object:
         [
-            Bruger(
-                fornavn="Test",
-                efternavn="Testesen",
-                kaldenavn_fornavn="Teste",
-                kaldenavn_efternavn="Testersen",
-                bvn="mo-user-key",
+            Engagement(
+                uuid="engagements-uuid",
+                bruger_uuid=bruger_uuid,
+                enhed_uuid="enheds-uuid",
+                primær_boolean=True,
+                stillingsbetegnelse_titel="stillingsbetegnelse-titel",
             ),
         ],
-    ),
+    )
+
+
+_lcdb_mock_database = [
+    _lcdb_mock_user("name only", "Test", "Testesen"),
+    _lcdb_mock_user("name and nickname", "Test", "Testesen", "Teste", "Testersen"),
+    # For "test_reads_is_primary"
+    _lcdb_mock_user("bruger-uuid", "Bla", "Blabla"),
+    _lcdb_mock_engagement("bruger-uuid"),
 ]
 
 
 class TestGetStsUser(unittest.TestCase):
     def setUp(self):
         super().setUp()
-        self._session = UnifiedAlchemyMagicMock(data=_lcdb_mock_users)
+        self._session = UnifiedAlchemyMagicMock(data=_lcdb_mock_database)
 
     @parameterized.expand(
         [
@@ -130,7 +144,6 @@ class TestGetStsUser(unittest.TestCase):
                 "mock-ad-bvn",  # return value of `try_get_ad_user_key`
                 "mock-ad-bvn",  # expected value of `UserId` (AD BVN)
             ),
-
         ]
     )
     def test_user_template_user_id(
@@ -156,6 +169,21 @@ class TestGetStsUser(unittest.TestCase):
                     "Cpr": None,
                 },
             },
+        )
+
+    def test_reads_is_primary(self):
+        sts_user = lcdb_os2mo.get_sts_user(
+            self._session, "bruger-uuid", ["enheds-uuid"]
+        )
+        self.assertListEqual(
+            sts_user["Positions"],
+            [
+                {
+                    "OrgUnitUuid": "enheds-uuid",
+                    "Name": "stillingsbetegnelse-titel",
+                    "is_primary": True,
+                }
+            ],
         )
 
     def _patch(self, name, return_value):
