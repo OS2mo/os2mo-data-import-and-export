@@ -13,6 +13,11 @@ export REPORTS_OK=false
 export BACKUP_OK=true
 export LC_ALL="C.UTF-8"
 
+# Enable DB backup per default (override in settings.json
+# prefixed with "crontab" if needed)
+RUN_DB_BACKUP=true
+RUN_MO_DATA_SANITY_CHECK=true
+
 cd ${DIPEXAR}
 source ${DIPEXAR}/tools/prefixed_settings.sh
 cd ${DIPEXAR}
@@ -30,8 +35,12 @@ declare -a BACK_UP_AND_TRUNCATE=(
 # files that need to be backed up BEFORE running the jobs
 # should be appended to BACK_UP_BEFORE_JOBS NOW - they can't
 # be added inside the job functions
-declare -a BACK_UP_BEFORE_JOBS=(
-    ${SNAPSHOT_LORA}
+
+declare -a BACK_UP_BEFORE_JOBS=()
+if [[ $RUN_DB_BACKUP == "true" ]]; then
+    BACK_UP_BEFORE_JOBS+=(${SNAPSHOT_LORA})
+fi
+BACK_UP_BEFORE_JOBS+=(
     $(readlink ${CUSTOMER_SETTINGS})
     $(
         SETTING_PREFIX="mox_stsorgsync" source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -691,12 +700,14 @@ pre_backup(){
         fi
     done
     rm ${temp_report}
-    declare -i age=$(stat -c%Y ${BUPFILE})-$(stat -c%Y ${SNAPSHOT_LORA})
-    if [[ ${age} -gt ${BACKUP_MAX_SECONDS_AGE} ]]; then
-        BACKUP_OK=false 
-        run-job-log job pre-backup lora ! job-status failed ! age $age
-        echo "ERROR database snapshot is more than ${BACKUP_MAX_SECONDS_AGE} seconds old: $age"
-	return 1
+    if [[ ${RUN_DB_BACKUP} == "true" ]]; then
+        declare -i age=$(stat -c%Y ${BUPFILE})-$(stat -c%Y ${SNAPSHOT_LORA})
+        if [[ ${age} -gt ${BACKUP_MAX_SECONDS_AGE} ]]; then
+            BACKUP_OK=false
+            run-job-log job pre-backup lora ! job-status failed ! age $age
+            echo "ERROR database snapshot is more than ${BACKUP_MAX_SECONDS_AGE} seconds old: $age"
+            return 1
+        fi
     fi
 }
 
@@ -826,7 +837,7 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
             exit 2
         fi
 
-        if [ ! -f "${SNAPSHOT_LORA}" ]; then
+        if [[ ${RUN_DB_BACKUP} == "true" ]] && [[ ! -f "${SNAPSHOT_LORA}" ]]; then
             REASON="FATAL: Database snapshot does not exist"
             run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
             echo ${REASON}
@@ -853,7 +864,11 @@ if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
         export BUPFILE=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S)-cron-backup.tar
 
         pre_backup
-        run-job sanity_check_mo_data || echo Sanity check failed
+        if [[ ${RUN_MO_DATA_SANITY_CHECK} == "true" ]]; then
+            run-job sanity_check_mo_data || echo Sanity check failed
+        else
+            echo "Skipping MO data sanity check"
+        fi
         run-job imports && IMPORTS_OK=true
         run-job exports && EXPORTS_OK=true
         run-job reports && REPORTS_OK=true

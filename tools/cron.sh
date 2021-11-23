@@ -15,6 +15,10 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 SCRIPT=${SCRIPT:-${DIR}/job-runner.sh}
 BACKUP_SCRIPT=${BACKUP_SCRIPT:-${DIR}/backup.sh}
 
+# Enable DB backup per default (override in settings.json
+# prefixed with "crontab" if needed)
+RUN_DB_BACKUP=true
+
 # Unix service account to run job-runner.sh under
 RUNAS=${RUNAS:-svc_os2mo}
 
@@ -46,11 +50,18 @@ fi
 # Database snapshot
 #------------------
 if [ "${INSTALLATION_TYPE}" == "docker" ]; then
-    bash ${BACKUP_SCRIPT}
-    EXIT_CODE=$?
-    if [ ${EXIT_CODE} -ne 0 ]; then
-        exit 1
-    fi
+    (
+        source ${DIR}/prefixed_settings.sh
+        if [[ ${RUN_DB_BACKUP} == "true" ]]; then
+            bash ${BACKUP_SCRIPT}
+        else
+            echo "Skip DB snapshot due to e.g. lack of disk space"
+        fi
+        EXIT_CODE=$?
+        if [ ${EXIT_CODE} -ne 0 ]; then
+            exit 1
+        fi
+    )
 elif [ "${INSTALLATION_TYPE}" == "legacy" ]; then
     echo "Unsupported installation type: legacy"
     exit 1
