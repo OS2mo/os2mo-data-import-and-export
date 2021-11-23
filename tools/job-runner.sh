@@ -13,14 +13,12 @@ export REPORTS_OK=false
 export BACKUP_OK=true
 export LC_ALL="C.UTF-8"
 
-# Enable DB backup per default (override in settings.json
-# prefixed with "crontab" if needed)
-RUN_DB_BACKUP=true
-RUN_MO_DATA_SANITY_CHECK=true
-
 cd ${DIPEXAR}
 source ${DIPEXAR}/tools/prefixed_settings.sh
 cd ${DIPEXAR}
+
+RUN_DB_BACKUP=${RUN_DB_BACKUP:-true}
+RUN_MO_DATA_SANITY_CHECK=${RUN_MO_DATA_SANITY_CHECK:-true}
 
 export PYTHONPATH=$PWD:$PYTHONPATH
 
