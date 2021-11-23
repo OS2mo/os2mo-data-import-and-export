@@ -54,12 +54,12 @@ if [ "${INSTALLATION_TYPE}" == "docker" ]; then
         source ${DIR}/prefixed_settings.sh
         if [[ ${RUN_DB_BACKUP} == "true" ]]; then
             bash ${BACKUP_SCRIPT}
+            EXIT_CODE=$?
+            if [ ${EXIT_CODE} -ne 0 ]; then
+                exit 1
+            fi
         else
             echo "Skip DB snapshot due to e.g. lack of disk space"
-        fi
-        EXIT_CODE=$?
-        if [ ${EXIT_CODE} -ne 0 ]; then
-            exit 1
         fi
     )
 elif [ "${INSTALLATION_TYPE}" == "legacy" ]; then
