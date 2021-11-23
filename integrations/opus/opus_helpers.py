@@ -196,7 +196,7 @@ def find_changes(
 
     return changed_obj
 
-def find_missing(before, after):
+def find_missing(before:Dict, after:Dict) -> List[Dict]:
     """Check if an element is missing. This happens when an engagement is cancled in Opus.
     
     >>> a = [{"@id":1}, {"@id":2}, {"@id":3}]
@@ -209,7 +209,7 @@ def find_missing(before, after):
     new_ids = set(map(itemgetter("@id"), after))
     missing = old_ids-new_ids
     missing_elements = filter(lambda x: x.get('@id') in missing, before)
-    return missing_elements
+    return list(missing_elements)
 
 
 def file_diff(file1: Optional[Path], file2: Path, disable_tqdm: bool = True, skip_employees=False):
