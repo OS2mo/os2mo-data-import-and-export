@@ -76,6 +76,48 @@ imports_mox_db_clear(){
     ${VENV}/bin/python3 tools/clear_mox_tables.py
 }
 
+move_backup_to_archive() {
+    if [ -z $1 ]; then
+        # This should never happen, but just in case...
+        echo "Backup file argument must be provided to function"
+        exit 3
+    fi
+
+    echo "Moving $1 to archive"
+
+    local archive=${CRON_BACKUP}/sql_removed
+    if [[ ! -d ${archive} ]]; then
+        mkdir ${archive}
+    fi
+    mv $1 ${archive}
+}
+
+remove_db_from_backup() {
+    if [ -z $1 ]; then
+        # This should never happen, but just in case...
+        echo "Backup file argument must be provided to function"
+        exit 3
+    fi
+
+    echo "Removing database dump from $1"
+
+    local folder=/tmp/dipex-temp-untar-folder
+    rm -rf $folder
+    mkdir $folder
+
+    tar xzf $1 -C "$folder/"
+    rm $folder/opt/docker/os2mo/database_snapshot/os2mo_database.sql
+    rm $1
+
+    cd $folder
+    tar -czf $1 *
+    cd $OLDPWD
+
+    rm -rf $folder
+
+    echo "Database dump removed from $1"
+}
+
 imports_test_ad_connectivity(){
     BACK_UP_AND_TRUNCATE+=(
         "${DIPEXAR}/test_connectivity.log"
@@ -691,13 +733,14 @@ post_backup(){
     done
 
     echo
-    BACKUP_SAVE_DAYS=${BACKUP_SAVE_DAYS:=90}
+    BACKUP_SAVE_DAYS=${BACKUP_SAVE_DAYS:=60}
     echo deleting backups older than "${BACKUP_SAVE_DAYS}" days
     bupsave=${CRON_BACKUP}/$(date +%Y-%m-%d-%H-%M-%S -d "-${BACKUP_SAVE_DAYS} days")-cron-backup.tar.gz
     for oldbup in ${CRON_BACKUP}/????-??-??-??-??-??-cron-backup.tar.gz
     do
         [ "${oldbup}" \< "${bupsave}" ] && (
-            rm -v ${oldbup}
+            remove_db_from_backup $oldbup
+            move_backup_to_archive $oldbup
         )
     done
     echo backup done # do not remove this line
