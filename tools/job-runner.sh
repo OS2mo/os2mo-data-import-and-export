@@ -108,7 +108,7 @@ remove_db_from_backup() {
     tar xzf $1 -C "$folder/"
     rm $folder/opt/docker/os2mo/database_snapshot/os2mo_database.sql
     rm $1
-    tar -C "$folder/" -czf $1 opt
+    tar -C "$folder/" -czf $1 *
     rm -rf $folder
 
     echo "Database dump removed from $1"
