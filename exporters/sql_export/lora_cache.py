@@ -431,11 +431,17 @@ class LoraCache:
                     scope = 'Text'
                     skip_len = len('urn:text:')
                     value = urllib.parse.unquote(value_raw[skip_len:])
+                elif address_type == 'TEXT':
+                    scope = 'Multifield_text'
+                    skip_len = len('urn:multifield_text2:')
+                    value = urllib.parse.unquote(value_raw[skip_len:])
                 elif address_type == 'DAR':
                     scope = 'DAR'
                     skip_len = len('urn:dar:')
                     dar_uuid = value_raw[skip_len:]
                     value = None
+                    
+
 
                     if self.dar_map is not None:
                         self.dar_map[dar_uuid].append(uuid)
