@@ -17,7 +17,8 @@ from typing import Tuple
 from tqdm import tqdm
 
 import click
-from more_itertools import bucket
+import re
+from more_itertools import bucket, one
 from ra_utils.load_settings import load_settings
 from typing import Optional
 from retrying import retry
@@ -431,10 +432,16 @@ class LoraCache:
                     scope = 'Text'
                     skip_len = len('urn:text:')
                     value = urllib.parse.unquote(value_raw[skip_len:])
-                elif address_type == 'TEXT':
+                elif address_type == 'MULTIFIELD_TEXT':
+                    value_raw1 = relationer['adresser'][1]['urn']
                     scope = 'Multifield_text'
-                    skip_len = len('urn:multifield_text2:')
-                    value = urllib.parse.unquote(value_raw[skip_len:])
+                    r1 = re.compile("urn:multifield_text:(.*)")
+                    r2 = re.compile("urn:multifield_text2:(.*)")
+                    
+                    value1 = r1.findall(value_raw) or r1.findall(value_raw1)
+                    value2 = r2.findall(value_raw) or r2.findall(value_raw1)
+                    value = f"{one(value1)} :: {one(value1)}"
+                    value = urllib.parse.unquote(value)
                 elif address_type == 'DAR':
                     scope = 'DAR'
                     skip_len = len('urn:dar:')
