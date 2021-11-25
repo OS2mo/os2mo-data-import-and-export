@@ -11,8 +11,8 @@ from parameterized import parameterized
 from integrations.opus import opus_helpers
 
 
-testfile1 = Path.cwd() / "integrations/opus/tests/ZLPETESTER_delta.xml"
-testfile2 = Path.cwd() / "integrations/opus/tests/ZLPETESTER2_delta.xml"
+testfile1 = Path.cwd() / "integrations/opus/tests/ZLPE20200101_delta.xml"
+testfile2 = Path.cwd() / "integrations/opus/tests/ZLPE20200102_delta.xml"
 
 
 class test_opus_helpers(TestCase):
@@ -29,12 +29,12 @@ class test_opus_helpers(TestCase):
         ]
     )
     def test_file_diff_same(self, file):
-        units, employees, _ = opus_helpers.file_diff(file, file, disable_tqdm=True)
+        units, employees, _, _ = opus_helpers.file_diff(file, file, disable_tqdm=True)
         self.assertEqual(units, [])
         self.assertEqual(employees, [])
 
     def test_file_diff(self):
-        units, employees, _ = opus_helpers.file_diff(
+        units, employees, _, _ = opus_helpers.file_diff(
             testfile1, testfile2, disable_tqdm=True
         )
         self.assertNotEqual(units, [])
@@ -69,11 +69,11 @@ class test_opus_helpers(TestCase):
     @parameterized.expand(
         [
             (testfile1, 1),
-            (testfile2, 1),
+            (testfile2, 2),
         ]
     )
     def test_split_employees_active(self, inputfile, expected):
-        units, employees, missing_employees = opus_helpers.file_diff(None, inputfile, disable_tqdm=True)
+        _, employees, _, _ = opus_helpers.file_diff(None, inputfile, disable_tqdm=True)
         emplyees, leaves = opus_helpers.split_employees_leaves(employees)
         employees = list(employees)
         leaves = list(leaves)
@@ -81,21 +81,28 @@ class test_opus_helpers(TestCase):
 
     @parameterized.expand(
         [
-            ([], [3, 0, 3, 1, 0], False),
-            (["1"], [0, 3, 0, 1, 0], False),
-            #Skip reading employees
-            ([], [3, 0, 0, 0, 0], True),
-            (["1"], [0, 3, 0, 0, 0], True),
+            ([], [3, 0, 3, 1], False),
+            (["1"], [0, 3, 0, 1], False),
+            # Skip reading employees
+            ([], [3, 0, 0, 0], True),
+            (["1"], [0, 3, 0, 0], True),
         ]
     )
     def test_full_(self, filter_ids, expected, skip_employees):
-        data = opus_helpers.read_and_transform_data(None, testfile1, filter_ids, disable_tqdm=True, skip_employees=skip_employees)
-        #data is a tuple of units, filtered units, employess, terminated employees
-        #test that the length of each is as expected
+        data = opus_helpers.read_and_transform_data(
+            None,
+            testfile1,
+            filter_ids,
+            disable_tqdm=True,
+            skip_employees=skip_employees,
+        )
+        # data is a tuple of units, filtered units, employess, terminated employees
+        # test that the length of each is as expected
         for i, x in enumerate(data):
             this = list(x)
-            length = len(this)
-            self.assertEqual(length, expected[i])
+            assert (
+                len(this) == expected[i]
+            ), f"Expected {expected[i]} objects, got {len(this) }\n{this}"
 
     def test_find_changed_parent(self):
         org1, _ = opus_helpers.parser(testfile1)

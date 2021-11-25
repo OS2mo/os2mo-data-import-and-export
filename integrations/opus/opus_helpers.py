@@ -4,13 +4,18 @@ import json
 import logging
 import pathlib
 import pickle
+import re
 import sqlite3
 import uuid
 from collections import OrderedDict
 from functools import lru_cache
 from operator import itemgetter
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict
+from typing import Iterable
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 import xmltodict
 from deepdiff import DeepDiff
@@ -19,15 +24,13 @@ from ra_utils.load_settings import load_settings
 from tqdm import tqdm
 
 from integrations import cpr_mapper
-from integrations.opus import opus_diff_import, opus_import
-
-# from integrations.opus.opus_exceptions import NoNewerDumpAvailable
-from integrations.opus.opus_exceptions import (
-    ImporterrunNotCompleted,
-    RedundantForceException,
-    RunDBInitException,
-)
+from integrations.opus import opus_diff_import
+from integrations.opus import opus_import
+from integrations.opus.opus_exceptions import ImporterrunNotCompleted
+from integrations.opus.opus_exceptions import RedundantForceException
+from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_file_reader import get_opus_filereader
+# from integrations.opus.opus_exceptions import NoNewerDumpAvailable
 
 SETTINGS = load_settings()
 START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
@@ -196,23 +199,28 @@ def find_changes(
 
     return changed_obj
 
-def find_missing(before:Dict, after:Dict) -> List[Dict]:
-    """Check if an element is missing. This happens when an engagement is cancled in Opus.
-    
+
+def find_missing(before: Dict, after: Dict) -> List[Dict]:
+    """Check if an element is missing. This happens when an object is cancled in Opus.
+
     >>> a = [{"@id":1}, {"@id":2}, {"@id":3}]
     >>> b = [{"@id":1}, {"@id":3}]
     >>> find_missing(a,b)
     [{'@id': 2}]
+    >>> find_missing(b,a)
+    []
     """
 
     old_ids = set(map(itemgetter("@id"), before))
     new_ids = set(map(itemgetter("@id"), after))
-    missing = old_ids-new_ids
-    missing_elements = filter(lambda x: x.get('@id') in missing, before)
+    missing = old_ids - new_ids
+    missing_elements = filter(lambda x: x.get("@id") in missing, before)
     return list(missing_elements)
 
 
-def file_diff(file1: Optional[Path], file2: Path, disable_tqdm: bool = True, skip_employees=False):
+def file_diff(
+    file1: Optional[Path], file2: Path, disable_tqdm: bool = True, skip_employees=False
+):
     """Compares two files and returns all units and employees that have been changed."""
     units1 = employees1 = {}
     if file1:
@@ -220,13 +228,15 @@ def file_diff(file1: Optional[Path], file2: Path, disable_tqdm: bool = True, ski
     units2, employees2 = parser(file2)
 
     units = find_changes(units1, units2, disable_tqdm=disable_tqdm)
+    cancelled_units = find_missing(units1, units2)
+
     employees = []
-    missing_employees = []
+    cancelled_employees = []
     if not skip_employees:
         employees = find_changes(employees1, employees2, disable_tqdm=disable_tqdm)
-        missing_employees = find_missing(employees1, employees2)
+        cancelled_employees = find_missing(employees1, employees2)
 
-    return units, employees, missing_employees
+    return units, employees, cancelled_units, cancelled_employees
 
 
 def compare_employees(original, new, force=False):
@@ -401,20 +411,49 @@ def read_cpr(employee: OrderedDict) -> str:
 
 
 def find_all_filtered_ids(inputfile, filter_ids):
-    all_units, _, _ = file_diff(None, inputfile)
+    all_units, _, cancelled_units, _ = file_diff(None, inputfile)
+    all_units.extend(cancelled_units)
     all_filtered_units, _ = filter_units(all_units, filter_ids)
     return set(map(itemgetter("@id"), all_filtered_units))
 
 
+def include_cancelled(filename: Path, employees, cancelled_employees) -> List:
+    """Add cancelled employees to employees list, but set leavedate to date from filename
+
+    >>> include_cancelled('./ZLPE202001010253_delta.xml', [], [{"id":1}])
+    [{'id': 1, 'leaveDate': '2020-01-01'}]
+    """
+
+    filedate = re.search("\d{8}", str(filename))
+    filedate = datetime.datetime.strptime(filedate.group(), "%Y%m%d")
+    filedate = filedate.strftime("%Y-%m-%d")
+    for empl in cancelled_employees:
+        empl["leaveDate"] = filedate
+    employees.extend(cancelled_employees)
+    return employees
+
+
 def read_and_transform_data(
-    inputfile1: Optional[Path], inputfile2: Path, filter_ids: List[Optional[str]], disable_tqdm=False, skip_employees:bool = False
+    inputfile1: Optional[Path],
+    inputfile2: Path,
+    filter_ids: List[Optional[str]],
+    disable_tqdm=False,
+    skip_employees: bool = False,
 ) -> Tuple[Iterable, Iterable, Iterable, Iterable]:
     """Gets the diff of two files and transporms the data based on filter_ids
     Returns the active units, filtered units, active employees which are not in a filtered unit and employees which are terminated
     """
-    units, employees, missing_employees = file_diff(inputfile1, inputfile2, disable_tqdm=disable_tqdm, skip_employees=skip_employees)
+    units, employees, cancelled_units, cancelled_employees = file_diff(
+        inputfile1, inputfile2, disable_tqdm=disable_tqdm, skip_employees=skip_employees
+    )
+    employees = include_cancelled(inputfile2, employees, cancelled_employees)
     all_filtered_ids = find_all_filtered_ids(inputfile2, filter_ids)
     filtered_units, units = filter_units(units, filter_ids)
     employees, terminated_employees = split_employees_leaves(employees)
     employees = filter_employees(employees, all_filtered_ids)
-    return list(units), list(filtered_units), list(employees), list(terminated_employees), list(missing_employees)
+    return (
+        list(units),
+        list(filtered_units),
+        list(employees),
+        list(terminated_employees),
+    )

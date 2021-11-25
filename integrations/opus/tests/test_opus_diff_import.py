@@ -1,17 +1,16 @@
 import unittest
-from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
-import xmltodict
-from click.testing import CliRunner
 from hypothesis import given
-from hypothesis.strategies import datetimes, dictionaries, text, uuids
-from parameterized import parameterized, parameterized_class
+from hypothesis.strategies import datetimes
+from hypothesis.strategies import text
+from hypothesis.strategies import uuids
 
 from integrations.opus import opus_helpers
-from integrations.opus.opus_diff_import import OpusDiffImport, start_opus_diff
+from integrations.opus.opus_diff_import import OpusDiffImport
 
 
 class OpusDiffImportTestbase(OpusDiffImport):
@@ -105,8 +104,8 @@ class Opus_diff_import_tester(unittest.TestCase):
     """Tests for opus_diff_import funktions that does not use input from testfiles"""
 
     def setUp(self):
-        self.file1 = Path.cwd() / "integrations/opus/tests/ZLPETESTER_delta.xml"
-        self.file2 = Path.cwd() / "integrations/opus/tests/ZLPETESTER2_delta.xml"
+        self.file1 = Path.cwd() / "integrations/opus/tests/ZLPE20200101_delta.xml"
+        self.file2 = Path.cwd() / "integrations/opus/tests/ZLPE20200102_delta.xml"
         self.expected_unit_count = 3
         self.expected_employee_count = 2
         self.expected_terminations = 1
@@ -117,7 +116,6 @@ class Opus_diff_import_tester(unittest.TestCase):
             filtered_units,
             employees,
             terminated_employees,
-            missing_employees
         ) = opus_helpers.read_and_transform_data(self.file1, self.file2, filter_ids)
         self.units = list(units)
         self.filtered_units = list(filtered_units)
