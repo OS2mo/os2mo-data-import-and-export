@@ -209,94 +209,6 @@ class OldLoraCache(LoraCache):
             }
         return itsystems
 
-    def _cache_lora_it_connections(self):
-        params = {"gyldighed": "Aktiv", "funktionsnavn": "IT-system"}
-        url = "/organisation/organisationfunktion"
-        it_connection_list = self._perform_lora_lookup(
-            url, params, unit="it connection"
-        )
-
-        it_connections = {}
-        for it_connection in tqdm(
-            it_connection_list, desc="Processing it connection", unit="it connection"
-        ):
-            uuid = it_connection["id"]
-            it_connections[uuid] = []
-
-            relevant = {
-                "relationer": (
-                    "tilknyttedeenheder",
-                    "tilknyttedebrugere",
-                    "tilknyttedeitsystemer",
-                ),
-                "attributter": ("organisationfunktionegenskaber",),
-                # "tilstande": ("organisationfunktiongyldighed",)  # bug in old cache; is needed for equivalence
-            }
-
-            effects = self._get_effects(it_connection, relevant)
-            for effect in effects:
-                from_date, to_date = self._from_to_from_effect(effect)
-                if from_date is None and to_date is None:
-                    continue
-                user_key = effect[2]["attributter"]["organisationfunktionegenskaber"][
-                    0
-                ]["brugervendtnoegle"]
-
-                rel = effect[2]["relationer"]
-                itsystem = rel["tilknyttedeitsystemer"][0]["uuid"]
-
-                if "tilknyttedeenheder" in rel:
-                    unit_uuid = rel["tilknyttedeenheder"][0]["uuid"]
-                    user_uuid = None
-                else:
-                    user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
-                    unit_uuid = None
-
-                it_connections[uuid].append(
-                    {
-                        "uuid": uuid,
-                        "user": user_uuid,
-                        "unit": unit_uuid,
-                        "username": user_key,
-                        "itsystem": itsystem,
-                        "from_date": from_date,
-                        "to_date": to_date,
-                    }
-                )
-        return it_connections
-
-    def _cache_lora_related(self):
-        params = {"gyldighed": "Aktiv", "funktionsnavn": "Relateret Enhed"}
-        url = "/organisation/organisationfunktion"
-        related_list = self._perform_lora_lookup(url, params, unit="related")
-        related = {}
-        for relate in tqdm(related_list, desc="Processing related", unit="related"):
-            uuid = relate["id"]
-            related[uuid] = []
-
-            relevant = {"relationer": ("tilknyttedeenheder",), "attributter": ()}
-
-            effects = self._get_effects(relate, relevant)
-            for effect in effects:
-                from_date, to_date = self._from_to_from_effect(effect)
-                if from_date is None and to_date is None:
-                    continue
-
-                rel = effect[2]["relationer"]
-                unit1_uuid = rel["tilknyttedeenheder"][0]["uuid"]
-                unit2_uuid = rel["tilknyttedeenheder"][1]["uuid"]
-                print(len(rel["tilknyttedeenheder"]))
-                related[uuid].append(
-                    {
-                        "uuid": uuid,
-                        "unit1_uuid": unit1_uuid,
-                        "unit2_uuid": unit2_uuid,
-                        "from_date": from_date,
-                        "to_date": to_date,
-                    }
-                )
-        return related
-
     def _cache_lora_users(self):
         params = {"bvn": "%"}
         url = "/organisation/bruger"
@@ -320,8 +232,9 @@ class OldLoraCache(LoraCache):
                     continue
                 reg = effect[2]
 
-                tilknyttedepersoner = reg["relationer"]["tilknyttedepersoner"]
+                tilknyttedepersoner = reg["relationer"].get("tilknyttedepersoner", [])
                 if len(tilknyttedepersoner) == 0:
+                    logger.warning("unable to find CPR for LoRa user %r", uuid)
                     continue
                 cpr = tilknyttedepersoner[0]["urn"][-10:]
 
@@ -497,7 +410,7 @@ class OldLoraCache(LoraCache):
                 else:
                     print("Ny type: {}".format(address_type))
                     msg = "Unknown addresse type: {}, value: {}"
-                    # logger.error(msg.format(address_type, value_raw))
+                    logger.error(msg.format(address_type, value_raw))
                     raise ("Unknown address type: {}".format(address_type))
 
                 address_type_class = relationer["organisatoriskfunktionstype"][0][
@@ -568,7 +481,7 @@ class OldLoraCache(LoraCache):
 
                 if not rel["organisatoriskfunktionstype"]:
                     msg = "Missing in organisatoriskfunktionstype in {}"
-                    # logger.error(msg.format(engagement))
+                    logger.error(msg.format(engagement))
                     continue
 
                 user_key = attr["organisationfunktionegenskaber"][0][
@@ -663,7 +576,7 @@ class OldLoraCache(LoraCache):
                     unit_uuid = rel["tilknyttedeenheder"][0]["uuid"]
                 else:
                     unit_uuid = None
-                    # logger.error("Error: Unable to find unit in {}".format(uuid))
+                    logger.error("Error: Unable to find unit in {}".format(uuid))
 
                 user_key = attr["organisationfunktionegenskaber"][0][
                     "brugervendtnoegle"
@@ -725,7 +638,11 @@ class OldLoraCache(LoraCache):
     def _cache_lora_leaves(self):
         params = {"gyldighed": "Aktiv", "funktionsnavn": "Orlov"}
         relevant = {
-            "relationer": ("tilknyttedebrugere", "organisatoriskfunktionstype"),
+            "relationer": (
+                "tilknyttedebrugere",
+                "organisatoriskfunktionstype",
+                "tilknyttedefunktioner",
+            ),
             "attributter": ("organisationfunktionegenskaber",),
         }
         url = "/organisation/organisationfunktion"
@@ -747,17 +664,79 @@ class OldLoraCache(LoraCache):
                 leave_type = rel["organisatoriskfunktionstype"][0]["uuid"]
                 user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
 
+                if "tilknyttedefunktioner" in rel:
+                    engagement_uuid = rel["tilknyttedefunktioner"][0]["uuid"]
+                else:
+                    engagement_uuid = None
+
                 leaves[uuid].append(
                     {
                         "uuid": uuid,
                         "user": user_uuid,
                         "user_key": user_key,
                         "leave_type": leave_type,
+                        "engagement": engagement_uuid,
                         "from_date": from_date,
                         "to_date": to_date,
                     }
                 )
         return leaves
+
+    def _cache_lora_it_connections(self):
+        params = {"gyldighed": "Aktiv", "funktionsnavn": "IT-system"}
+        url = "/organisation/organisationfunktion"
+        it_connection_list = self._perform_lora_lookup(
+            url, params, unit="it connection"
+        )
+
+        it_connections = {}
+        for it_connection in tqdm(
+            it_connection_list, desc="Processing it connection", unit="it connection"
+        ):
+            uuid = it_connection["id"]
+            it_connections[uuid] = []
+
+            relevant = {
+                "relationer": (
+                    "tilknyttedeenheder",
+                    "tilknyttedebrugere",
+                    "tilknyttedeitsystemer",
+                ),
+                "attributter": ("organisationfunktionegenskaber",),
+                # "tilstande": ("organisationfunktiongyldighed",)  # bug in old cache; is needed for equivalence
+            }
+
+            effects = self._get_effects(it_connection, relevant)
+            for effect in effects:
+                from_date, to_date = self._from_to_from_effect(effect)
+                if from_date is None and to_date is None:
+                    continue
+                user_key = effect[2]["attributter"]["organisationfunktionegenskaber"][
+                    0
+                ]["brugervendtnoegle"]
+
+                rel = effect[2]["relationer"]
+                itsystem = rel["tilknyttedeitsystemer"][0]["uuid"]
+
+                if "tilknyttedeenheder" in rel:
+                    unit_uuid = rel["tilknyttedeenheder"][0]["uuid"]
+                    user_uuid = None
+                else:
+                    user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
+                    unit_uuid = None
+
+                it_connections[uuid].append(
+                    {
+                        "uuid": uuid,
+                        "user": user_uuid,
+                        "unit": unit_uuid,
+                        "username": user_key,
+                        "itsystem": itsystem,
+                        "from_date": from_date,
+                        "to_date": to_date,
+                    }
+                )
+        return it_connections
 
     def _cache_lora_kles(self):
         params = {"gyldighed": "Aktiv", "funktionsnavn": "KLE"}
@@ -805,6 +784,38 @@ class OldLoraCache(LoraCache):
                         }
                     )
         return kles
+
+    def _cache_lora_related(self):
+        params = {"gyldighed": "Aktiv", "funktionsnavn": "Relateret Enhed"}
+        url = "/organisation/organisationfunktion"
+        related_list = self._perform_lora_lookup(url, params, unit="related")
+        related = {}
+        for relate in tqdm(related_list, desc="Processing related", unit="related"):
+            uuid = relate["id"]
+            related[uuid] = []
+
+            relevant = {"relationer": ("tilknyttedeenheder",), "attributter": ()}
+
+            effects = self._get_effects(relate, relevant)
+            for effect in effects:
+                from_date, to_date = self._from_to_from_effect(effect)
+                if from_date is None and to_date is None:
+                    continue
+
+                rel = effect[2]["relationer"]
+                unit1_uuid = rel["tilknyttedeenheder"][0]["uuid"]
+                unit2_uuid = rel["tilknyttedeenheder"][1]["uuid"]
+
+                related[uuid].append(
+                    {
+                        "uuid": uuid,
+                        "unit1_uuid": unit1_uuid,
+                        "unit2_uuid": unit2_uuid,
+                        "from_date": from_date,
+                        "to_date": to_date,
+                    }
+                )
+        return related
 
     def _cache_lora_managers(self):
         params = {"gyldighed": "Aktiv", "funktionsnavn": "Leder"}
