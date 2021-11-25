@@ -114,7 +114,7 @@ class LoraCache:
             if to_date is None:
                 # In this case, make sure dt_to is bigger than now
                 dt_to = now + datetime.timedelta(days=1)
-            if not dt_from < now < dt_to:
+            if not dt_from <= now <= dt_to:
                 from_date = to_date = None
 
         if self.skip_past:
