@@ -123,6 +123,23 @@ class MoraHelper:
             i += 1
         return path_dict
 
+    def _mo_get(self, full_url, params=None):
+        params = params or {}
+        headers = TokenSettings().get_headers()
+        response = requests.get(full_url, headers=headers, params=params)
+        if response.status_code == 401:
+            msg = "Missing Authorization"
+            if headers:
+                msg = "Authorization not accepted"
+            logger.error(msg)
+            raise requests.exceptions.RequestException(msg)
+
+        if (response.status_code == 500) and ("has been deleted" not in response.text):
+            response.raise_for_status()
+
+        return_dict = response.json()
+        return return_dict
+
     def _mo_lookup(
         self,
         uuid,
@@ -153,22 +170,7 @@ class MoraHelper:
             logger.debug("cache hit: %s", cache_id)
             return_dict = self.cache[cache_id]
         else:
-            headers = TokenSettings().get_headers()
-
-            response = requests.get(full_url, headers=headers, params=params)
-            if response.status_code == 401:
-                msg = "Missing Authorization"
-                if headers:
-                    msg = "Authorization not accepted"
-                logger.error(msg)
-                raise requests.exceptions.RequestException(msg)
-
-            if (response.status_code == 500) and (
-                "has been deleted" not in response.text
-            ):
-                response.raise_for_status()
-
-            return_dict = response.json()
+            return_dict = self._mo_get(full_url, params)
             self.cache[cache_id] = return_dict
 
         return return_dict
@@ -275,6 +277,15 @@ class MoraHelper:
         if return_list:
             return return_list[0]
         return {}
+
+    def read_facets(self, use_cache: bool = False):
+        """Return all facets.
+
+        :return: List of classes in the facet and the uuid of the facet.
+        """
+        org_uuid = self.read_organisation()
+        facets = self._mo_lookup("", url=f"o/{org_uuid}/f/", use_cache=use_cache)
+        return facets
 
     def read_classes_in_facet(self, facet, use_cache=False):
         """Return all classes belong to a given facet.
