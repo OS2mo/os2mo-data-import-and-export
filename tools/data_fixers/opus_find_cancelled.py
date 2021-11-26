@@ -1,10 +1,9 @@
 import click
+from integrations.opus import opus_helpers
+from integrations.opus.opus_diff_import import OpusDiffImport
 from more_itertools import pairwise
 from ra_utils.load_settings import load_settings
 from tqdm import tqdm
-
-from integrations.opus import opus_helpers
-from integrations.opus.opus_diff_import import OpusDiffImport
 
 
 def find_cancelled():
