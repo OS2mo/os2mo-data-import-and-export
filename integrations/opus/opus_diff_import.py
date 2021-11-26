@@ -205,7 +205,7 @@ class OpusDiffImport(object):
 
     def _condense_employee_opus_addresses(self, employee):
         opus_addresses = {}
-        if "email" in employee:
+        if "email" in employee and not self.settings.get("integrations.opus.skip_employee_email", False):
             opus_addresses["email"] = employee["email"]
 
         opus_addresses["phone"] = None

@@ -66,7 +66,7 @@ def create_role(employee, user_uuid, unit_uuid, role_type, validity):
 def create_org_unit(unit, unit_uuid, parent, unit_type, from_date):
     payload = {
         "uuid": unit_uuid,
-        "user_key": unit["@id"],
+        "user_key": unit["shortName"],
         "name": unit["longName"],
         "parent": {"uuid": parent},
         "org_unit_type": {"uuid": unit_type},
@@ -80,7 +80,7 @@ def edit_org_unit(unit, unit_uuid, parent, unit_type, from_date):
         "type": "org_unit",
         "data": {
             "uuid": unit_uuid,
-            "user_key": unit["@id"],
+            "user_key": unit["shortName"],
             "name": unit["longName"],
             "parent": {"uuid": parent},
             "org_unit_type": {"uuid": unit_type},
