@@ -825,8 +825,8 @@ class LoraCache:
                                                  additional=self.additional)
             else:
                 effects = lora_utils.get_effects(manager['registreringer'][0],
-                                                 relevant=self.additional,
-                                                 additional=relevant)
+                                                 relevant=relevant,
+                                                 additional=self.additional)
 
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
