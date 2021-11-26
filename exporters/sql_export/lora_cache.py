@@ -40,6 +40,25 @@ class LoraCache:
 
         self.settings = self._load_settings()
 
+        self.relevant = {
+            "attributter": (
+                "organisationfunktionegenskaber",
+                "organisationfunktionudvidelser",
+            ),
+            "relationer": (
+                "opgaver",
+                "adresser",
+                "organisatoriskfunktionstype",
+                "tilknyttedeenheder",
+                "tilknyttedeklasser",
+                "tilknyttedebrugere",
+                "tilknyttedefunktioner",
+                "tilknyttedeitsystemer",
+                "tilknyttedepersoner",
+                "primær",
+            ),
+            "tilstande": ("organisationfunktiongyldighed",),
+        }
         self.additional = {
             'relationer': ('tilknyttedeorganisationer', 'tilhoerer')
         }
@@ -67,10 +86,10 @@ class LoraCache:
         # Unable to read org_uuid, must abort
         exit()
 
-    def _get_effects(self, lora_object, relevant):
+    def _get_effects(self, lora_object):
         effects = lora_utils.get_effects(
             lora_object['registreringer'][0],
-            relevant=relevant,
+            relevant=self.relevant,
             additional=self.additional
         )
         # Notice, the code below will return the entire validity of an object
@@ -242,18 +261,12 @@ class LoraCache:
         url = '/organisation/bruger'
         user_list = self._perform_lora_lookup(url, params, unit="user")
 
-        relevant = {
-            "attributter": ("brugeregenskaber", "brugerudvidelser"),
-            "relationer": ("tilknyttedepersoner", "tilhoerer"),
-            "tilstande": ("brugergyldighed",),
-        }
-
         users = {}
         for user in tqdm(user_list, desc="Processing user", unit="user"):
             uuid = user['id']
             users[uuid] = []
 
-            effects = list(self._get_effects(user, relevant))
+            effects = list(self._get_effects(user))
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 if from_date is None and to_date is None:
@@ -306,10 +319,6 @@ class LoraCache:
             params['gyldighed'] = 'Aktiv'
             skip_history = True
         url = '/organisation/organisationenhed'
-        relevant = {
-            'relationer': ('overordnet', 'enhedstype', 'niveau'),
-            'attributter': ('organisationenhedegenskaber',)
-        }
 
         unit_list = self._perform_lora_lookup(url, params, skip_history=skip_history, unit="unit")
 
@@ -318,7 +327,7 @@ class LoraCache:
             uuid = unit['id']
             units[uuid] = []
 
-            effects = self._get_effects(unit, relevant)
+            effects = self._get_effects(unit)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 if from_date is None and to_date is None:
@@ -358,11 +367,6 @@ class LoraCache:
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Adresse'}
 
         url = '/organisation/organisationfunktion'
-        relevant = {
-            'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
-                           'adresser', 'organisatoriskfunktionstype', 'opgaver'),
-            'attributter': ('organisationfunktionegenskaber',)
-        }
         address_list = self._perform_lora_lookup(url, params, unit="address")
 
         addresses = {}
@@ -370,7 +374,7 @@ class LoraCache:
             uuid = address['id']
             addresses[uuid] = []
 
-            effects = self._get_effects(address, relevant)
+            effects = self._get_effects(address)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 if from_date is None and to_date is None:
@@ -454,20 +458,13 @@ class LoraCache:
 
     def _cache_lora_engagements(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Engagement'}
-        relevant = {
-            'relationer': ('opgaver', 'tilknyttedeenheder', 'tilknyttedebrugere',
-                           'organisatoriskfunktionstype', 'primær'),
-            'attributter': ('organisationfunktionegenskaber',
-                            'organisationfunktionudvidelser'),
-            'tilstande': ('organisationfunktiongyldighed',)
-        }
         url = '/organisation/organisationfunktion'
         engagements = {}
         engagement_list = self._perform_lora_lookup(url, params, unit="engagement")
         for engagement in tqdm(engagement_list, desc="Processing engagement", unit="engagement"):
             uuid = engagement['id']
 
-            effects = self._get_effects(engagement, relevant)
+            effects = self._get_effects(engagement)
             engagement_effects = []
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
@@ -550,11 +547,6 @@ class LoraCache:
 
     def _cache_lora_associations(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Tilknytning'}
-        relevant = {
-            'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
-                           'organisatoriskfunktionstype'),
-            'attributter': ('organisationfunktionegenskaber',)
-        }
         url = '/organisation/organisationfunktion'
         associations = {}
         association_list = self._perform_lora_lookup(url, params, unit="association")
@@ -562,7 +554,7 @@ class LoraCache:
             uuid = association['id']
             associations[uuid] = []
 
-            effects = self._get_effects(association, relevant)
+            effects = self._get_effects(association)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 if from_date is None and to_date is None:
@@ -597,10 +589,6 @@ class LoraCache:
 
     def _cache_lora_roles(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Rolle'}
-        relevant = {
-            'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
-                           'organisatoriskfunktionstype')
-        }
         url = '/organisation/organisationfunktion'
         roles = {}
         role_list = self._perform_lora_lookup(url, params, unit="role")
@@ -608,7 +596,7 @@ class LoraCache:
             uuid = role['id']
             roles[uuid] = []
 
-            effects = self._get_effects(role, relevant)
+            effects = self._get_effects(role)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 if from_date is None and to_date is None:
@@ -632,21 +620,13 @@ class LoraCache:
 
     def _cache_lora_leaves(self):
         params = {'gyldighed': 'Aktiv', 'funktionsnavn': 'Orlov'}
-        relevant = {
-            'relationer': (
-                'tilknyttedebrugere',
-                'organisatoriskfunktionstype',
-                'tilknyttedefunktioner'
-            ),
-            'attributter': ('organisationfunktionegenskaber',)
-        }
         url = '/organisation/organisationfunktion'
         leaves = {}
         leave_list = self._perform_lora_lookup(url, params, unit="leave")
         for leave in tqdm(leave_list, desc="Processing leave", unit="leave"):
             uuid = leave['id']
             leaves[uuid] = []
-            effects = self._get_effects(leave, relevant)
+            effects = self._get_effects(leave)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 if from_date is None and to_date is None:
@@ -686,13 +666,7 @@ class LoraCache:
             uuid = it_connection['id']
             it_connections[uuid] = []
 
-            relevant = {
-                'relationer': ('tilknyttedeenheder', 'tilknyttedebrugere',
-                               'tilknyttedeitsystemer'),
-                'attributter': ('organisationfunktionegenskaber',)
-            }
-
-            effects = self._get_effects(it_connection, relevant)
+            effects = self._get_effects(it_connection)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 if from_date is None and to_date is None:
@@ -734,13 +708,7 @@ class LoraCache:
             uuid = kle['id']
             kles[uuid] = []
 
-            relevant = {
-                'relationer': ('opgaver', 'tilknyttedeenheder',
-                               'organisatoriskfunktionstype'),
-                'attributter': ('organisationfunktionegenskaber',)
-            }
-
-            effects = self._get_effects(kle, relevant)
+            effects = self._get_effects(kle)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 if from_date is None and to_date is None:
@@ -779,12 +747,7 @@ class LoraCache:
             uuid = relate['id']
             related[uuid] = []
 
-            relevant = {
-                'relationer': ('tilknyttedeenheder',),
-                'attributter': ()
-            }
-
-            effects = self._get_effects(relate, relevant)
+            effects = self._get_effects(relate)
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 if from_date is None and to_date is None:
@@ -814,18 +777,14 @@ class LoraCache:
         for manager in tqdm(manager_list, desc="Processing manager", unit="manager"):
             uuid = manager['id']
             managers[uuid] = []
-            relevant = {
-                'relationer': ('opgaver', 'tilknyttedeenheder', 'tilknyttedebrugere',
-                               'organisatoriskfunktionstype')
-            }
 
             if self.full_history:
                 effects = lora_utils.get_effects(manager['registreringer'][0],
-                                                 relevant=relevant,
+                                                 relevant=self.relevant,
                                                  additional=self.additional)
             else:
                 effects = lora_utils.get_effects(manager['registreringer'][0],
-                                                 relevant=relevant,
+                                                 relevant=self.relevant,
                                                  additional=self.additional)
 
             for effect in effects:
