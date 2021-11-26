@@ -138,6 +138,7 @@ class LoraCache:
         logger.debug('Start reading {}, params: {}, at t={}'.format(url, params, t))
         results_pr_request = 5000
         params['foersteresultat'] = 0
+        params['konsolider'] = True
 
         # Default, this can be overwritten in the lines below
         now = datetime.datetime.today()
