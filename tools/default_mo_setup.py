@@ -1,12 +1,17 @@
+import logging
+
 import constants
 from os2mo_data_import import ImportHelper
 from mox_helpers import mox_util
 from ra_utils.load_settings import load_settings
 from integrations.opus import opus_helpers
 
+logger = logging.getLogger(__name__)
+
 
 def create_new_root_and_it(settings=None) -> None:
     """Setup all necessary classes etc to perform opus-import."""
+    logger.warning("'create_new_root_and_it' is deprecated. Use os2mo-init instead.")
     settings = settings or load_settings()
     mox_base = settings.get("mox.base", "http://localhost:8080")
     mora_base = settings.get("mora.base", "http://localhost:5000")
@@ -40,8 +45,10 @@ def create_new_root_and_it(settings=None) -> None:
     # Perfom setup of root unit and it systems.
     os2mo.import_all()
 
+
 def ensure_default_classes():
     """Ensures the defined set of default classes exists in lora."""
+    logger.warning("'ensure_default_classes' is deprecated. Use os2mo-init instead.")
     default_classes = [
         {
             "klasse": "primary",

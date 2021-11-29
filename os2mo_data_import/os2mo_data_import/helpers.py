@@ -334,7 +334,7 @@ class ImportHelper:
         :param str identifier: A user defined identifier
         :param kwargs kwargs: :class:`os2mo_data_import.mox_data_types.Facet`
         """
-
+        logger.warning("'add_facet' is deprecated. Use os2mo-init instead.")
         if identifier in self.facet_objects:
             raise ReferenceError("Unique constraint - Facet identifier exists")
 
@@ -548,7 +548,9 @@ class ImportHelper:
 
         :param list facet_defaults: Default list of Facet types
         """
-
+        logger.warning(
+            "'create_default_facet_types' is deprecated. Use os2mo-init instead."
+        )
         for user_key in facet_defaults:
 
             self.add_facet(
