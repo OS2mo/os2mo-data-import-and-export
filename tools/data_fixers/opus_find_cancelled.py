@@ -17,8 +17,9 @@ def find_cancelled(dry_run):
         _, _, units, employees = opus_helpers.file_diff(
             dumps[date1], dumps[date2], disable_tqdm=True
         )
+        employees, _ = opus_helpers.split_employees_leaves(employees)
         # set enddate to filedate for cancelled employees
-        employees = opus_helpers.include_cancelled(dumps[date2], [], employees)
+        employees = opus_helpers.include_cancelled(dumps[date2], [], list(employees))
         if units or employees:
             if dry_run:
                 click.echo(
