@@ -112,6 +112,9 @@ For hvert ad angives
    som en liste i json-filen.
  * ``method``: Metode til autentificering - enten ntlm eller kerberos. Hvis denne ikke er angivet anvendes kerberos.
  * ``servers`` - domain controllere for denne ad.
+ * ``pseudo_cprs``: Liste af ekstra startværdier for cpr-numre. Bruges til at læse AD brugere med cprnummer 
+    der starter med et tal der ikke er mellem 01 og 31 - Fiktive/systembrugere)
+
 
 
 Test af opsætningen
