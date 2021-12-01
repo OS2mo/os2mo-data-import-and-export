@@ -34,9 +34,7 @@ class test_opus_helpers(TestCase):
         self.assertEqual(file_diffs["employees"], [])
 
     def test_file_diff(self):
-        file_diffs = opus_helpers.file_diff(
-            testfile1, testfile2, disable_tqdm=True
-        )
+        file_diffs = opus_helpers.file_diff(testfile1, testfile2, disable_tqdm=True)
         self.assertNotEqual(file_diffs["units"], [])
         self.assertNotEqual(file_diffs["employees"], [])
 
@@ -81,7 +79,7 @@ class test_opus_helpers(TestCase):
 
     @parameterized.expand(
         [
-            ([], [3, 0, 3, 1], False),
+            ([], [3, 0, 4, 1], False),
             (["1"], [0, 3, 0, 1], False),
             # Skip reading employees
             ([], [3, 0, 0, 0], True),
@@ -110,6 +108,12 @@ class test_opus_helpers(TestCase):
         org2[2]["parentOrgUnit"] = "CHANGED!"
         diffs = opus_helpers.find_changes(before=org1, after=org2, disable_tqdm=True)
         self.assertEqual(diffs, [org2[2]])
+
+    def test_find_cancelled(self):
+        file_diffs = opus_helpers.file_diff(testfile1, testfile2, disable_tqdm=True)
+        assert (
+            len(file_diffs["cancelled_employees"]) == 1
+        ), "Expected to find 1 cancelled employee"
 
 
 if __name__ == "__main__":

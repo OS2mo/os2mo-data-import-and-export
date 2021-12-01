@@ -125,5 +125,29 @@
   <numerator>1 </numerator>
   <denominator>1 </denominator>
  </employee>
+     <employee id="1006" client="813" lastChanged="2020-01-19">
+  <entryDate/>
+  <leaveDate/>
+  <cpr suppId="0">0201010000</cpr>
+  <firstName>Fornavn2</firstName>
+  <lastName>Efteravn3</lastName>
+  <address>Testvej 11</address>
+  <postalCode>9900</postalCode>
+  <city>Frederikshavn</city>
+  <country>DK</country>
+  <workPhone/>
+  <workContract>08</workContract>
+  <workContractText>Annulleret</workContractText>
+  <positionId>500</positionId>
+  <position>Annulleret</position>
+  <positionShort>Annulleret</positionShort>
+  <isManager>false</isManager>
+  <superiorLevel>0</superiorLevel>
+  <subordinateLevel>00</subordinateLevel>
+  <orgUnit>3</orgUnit>
+  <payGradeText>TEST.</payGradeText>
+  <numerator>1 </numerator>
+  <denominator>1 </denominator>
+ </employee>
   <employee id="999" client="813" action="leave"/>
 </kmd>

@@ -107,7 +107,7 @@ class Opus_diff_import_tester(unittest.TestCase):
         self.file1 = Path.cwd() / "integrations/opus/tests/ZLPE20200101_delta.xml"
         self.file2 = Path.cwd() / "integrations/opus/tests/ZLPE20200102_delta.xml"
         self.expected_unit_count = 3
-        self.expected_employee_count = 2
+        self.expected_employee_count = 3
         self.expected_terminations = 1
 
         filter_ids = []
