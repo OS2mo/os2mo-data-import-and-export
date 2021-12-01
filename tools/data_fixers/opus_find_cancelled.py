@@ -14,21 +14,26 @@ def find_cancelled(dry_run):
     for date1, date2 in tqdm(
         pairwise(sorted(dumps)), total=len(dumps) - 1, unit="file-pairs"
     ):
-        _, _, units, employees = opus_helpers.file_diff(
+        file_diffs = opus_helpers.file_diff(
             dumps[date1], dumps[date2], disable_tqdm=True
         )
-        employees, _ = opus_helpers.split_employees_leaves(employees)
+        units = file_diffs["units"]
+        employees, _ = opus_helpers.split_employees_leaves(
+            file_diffs["cancelled_employees"]
+        )
         # set enddate to filedate for cancelled employees
         employees = opus_helpers.include_cancelled(dumps[date2], [], list(employees))
         if units or employees:
+            msg = f"Found {len(units)} units and {len(employees)} employees wich were cancelled on {date2}"
             if dry_run:
-                click.echo(
-                    f"Found {len(units)} units and {len(employees)} employees wich were cancelled on {date2}"
-                )
+                click.echo(msg + "(Dry-run)")
                 continue
+            click.echo(msg + ". Terminating now.")
             diff = OpusDiffImport(date2, None, {}, filter_ids=filter_ids)
             for employee in employees:
+                # Updates each employee with their leave-date overwritten, so that their engagement will be terminated.
                 diff.update_employee(employee)
+            # Handles cancelled units as filtered, wich means terminates them from the date of the file.
             diff.handle_filtered_units(units)
 
 
@@ -45,9 +50,9 @@ def cli(dry_run):
     """Find Opus units that were cancelled from opus.
 
     This tool runs through all opus files pairwise and looks for cancelled objects -
-    Objects that exist in one file, but not the next. 
+    Objects that exist in one file, but not the next.
     Org_units are terminated by treating them as filtered and employees have their
-    "leaveDate" set to the date of the file. 
+    "leaveDate" set to the date of the file.
     The same happens during regular import now, this script cleans up from earlier versions
     """
     find_cancelled(dry_run)

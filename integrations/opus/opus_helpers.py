@@ -30,7 +30,6 @@ from integrations.opus.opus_exceptions import ImporterrunNotCompleted
 from integrations.opus.opus_exceptions import RedundantForceException
 from integrations.opus.opus_exceptions import RunDBInitException
 from integrations.opus.opus_file_reader import get_opus_filereader
-# from integrations.opus.opus_exceptions import NoNewerDumpAvailable
 
 SETTINGS = load_settings()
 START_DATE = datetime.datetime(2019, 1, 1, 0, 0)
@@ -236,7 +235,12 @@ def file_diff(
         employees = find_changes(employees1, employees2, disable_tqdm=disable_tqdm)
         cancelled_employees = find_missing(employees1, employees2)
 
-    return units, employees, cancelled_units, cancelled_employees
+    return {
+        "units": units,
+        "employees": employees,
+        "cancelled_units": cancelled_units,
+        "cancelled_employees": cancelled_employees,
+    }
 
 
 def compare_employees(original, new, force=False):
@@ -411,8 +415,9 @@ def read_cpr(employee: OrderedDict) -> str:
 
 
 def find_all_filtered_ids(inputfile, filter_ids):
-    all_units, _, cancelled_units, _ = file_diff(None, inputfile)
-    all_units.extend(cancelled_units)
+    file_diffs = file_diff(None, inputfile)
+    all_units = file_diffs["units"]
+    all_units.extend(file_diffs["cancelled_units"])
     all_filtered_units, _ = filter_units(all_units, filter_ids)
     return set(map(itemgetter("@id"), all_filtered_units))
 
@@ -443,12 +448,15 @@ def read_and_transform_data(
     """Gets the diff of two files and transporms the data based on filter_ids
     Returns the active units, filtered units, active employees which are not in a filtered unit and employees which are terminated
     """
-    units, employees, cancelled_units, cancelled_employees = file_diff(
+    file_diffs = file_diff(
         inputfile1, inputfile2, disable_tqdm=disable_tqdm, skip_employees=skip_employees
     )
-    employees = include_cancelled(inputfile2, employees, cancelled_employees)
+
+    employees = include_cancelled(
+        inputfile2, file_diffs["employees"], file_diffs["cancelled_employees"]
+    )
     all_filtered_ids = find_all_filtered_ids(inputfile2, filter_ids)
-    filtered_units, units = filter_units(units, filter_ids)
+    filtered_units, units = filter_units(file_diffs["units"], filter_ids)
     employees, terminated_employees = split_employees_leaves(employees)
     employees = filter_employees(employees, all_filtered_ids)
     return (

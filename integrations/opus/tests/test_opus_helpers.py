@@ -29,16 +29,16 @@ class test_opus_helpers(TestCase):
         ]
     )
     def test_file_diff_same(self, file):
-        units, employees, _, _ = opus_helpers.file_diff(file, file, disable_tqdm=True)
-        self.assertEqual(units, [])
-        self.assertEqual(employees, [])
+        file_diffs = opus_helpers.file_diff(file, file, disable_tqdm=True)
+        self.assertEqual(file_diffs["units"], [])
+        self.assertEqual(file_diffs["employees"], [])
 
     def test_file_diff(self):
-        units, employees, _, _ = opus_helpers.file_diff(
+        file_diffs = opus_helpers.file_diff(
             testfile1, testfile2, disable_tqdm=True
         )
-        self.assertNotEqual(units, [])
-        self.assertNotEqual(employees, [])
+        self.assertNotEqual(file_diffs["units"], [])
+        self.assertNotEqual(file_diffs["employees"], [])
 
     @parameterized.expand(
         [
@@ -73,8 +73,8 @@ class test_opus_helpers(TestCase):
         ]
     )
     def test_split_employees_active(self, inputfile, expected):
-        _, employees, _, _ = opus_helpers.file_diff(None, inputfile, disable_tqdm=True)
-        emplyees, leaves = opus_helpers.split_employees_leaves(employees)
+        file_diffs = opus_helpers.file_diff(None, inputfile, disable_tqdm=True)
+        employees, leaves = opus_helpers.split_employees_leaves(file_diffs["employees"])
         employees = list(employees)
         leaves = list(leaves)
         self.assertEqual(len(leaves), expected)
