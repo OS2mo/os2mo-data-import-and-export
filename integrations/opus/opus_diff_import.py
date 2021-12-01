@@ -795,28 +795,32 @@ class OpusDiffImport(object):
                         org_funk_info["manager"], detail_type="manager"
                     )
 
+    def find_unterminated_filtered_units(self, units):
+        """Check if units are in MO."""
+        ids = map(itemgetter("@id"), units)
+        uuids = map(opus_helpers.generate_uuid, ids)
+        uuid_strs = map(str, uuids)
+        mo_units = map(self.helper.read_ou, uuid_strs)
+        # Filter those that currently have a MO uuid - which means are not terminated yet.
+        mo_units = filter(lambda unit: unit.get("uuid"), mo_units)
+        return mo_units
+
     def handle_filtered_units(self, units, terminate=True):
         """Rules for handling units that are not imported from opus.
 
         If a unit is filtered from the Opus file it means it cannot be deleted in Opus, but should not appear in MO.
         Any units that exists in MO, but are later moved in Opus to be below one of the filtered units should be terminated in MO.
         """
-        units = tqdm(units, desc="Terminating filtered units", disable=not terminate)
-        ids = map(itemgetter("@id"), units)
-        uuids = map(opus_helpers.generate_uuid, ids)
-        uuid_strs = map(str, uuids)
-        mo_units = map(self.helper.read_ou, uuid_strs)
-        mo_units = filter(lambda unit: unit.get("uuid"), mo_units)
         if terminate:
-            for mo_unit in mo_units:
+            for mo_unit in units:
                 self.terminate_detail(
                     mo_unit["uuid"], detail_type="org_unit", end_date=self.xml_date
                 )
         else:
-            mo_units = list(mo_units)
-            if mo_units:
+            units = list(units)
+            if units:
                 print("There are units that should have been terminated:")
-                print(list(map(itemgetter("uuid"), mo_units)))
+                print(list(map(itemgetter("uuid"), units)))
 
     def start_import(self, units, employees, terminated_employees):
         """
@@ -885,6 +889,8 @@ def import_one(
         filter_ids=filter_ids,
     )
     diff.start_import(units, employees, terminated_employees)
+    filtered_units = self.find_unterminated_filtered_units(filtered_units)
+
     diff.handle_filtered_units(filtered_units)
     opus_helpers.local_db_insert((xml_date, "Diff update ended: {}"))
     print()

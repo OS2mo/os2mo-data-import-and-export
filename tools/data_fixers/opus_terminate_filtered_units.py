@@ -12,7 +12,9 @@ def terminate_filtered_units(terminate):
     file_diffs = opus_helpers.file_diff(None, dumps[latest_date])
     filtered_units, _ = opus_helpers.filter_units(file_diffs["units"], filter_ids)
     diff = OpusDiffImport(latest_date, ad_reader=None, employee_mapping={})
-    diff.handle_filtered_units(filtered_units, terminate=terminate)
+    mo_units = list(diff.find_unterminated_filtered_units(filtered_units))
+    diff.handle_filtered_units(mo_units, terminate=terminate)
+    return mo_units
 
 
 @click.command()
