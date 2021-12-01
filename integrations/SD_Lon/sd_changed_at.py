@@ -1521,5 +1521,24 @@ def import_single_user(cpr: str, from_date: str, dry_run: bool):
     sd_updater.update_all_employments(cpr, dry_run=dry_run)
 
 
+@cli.command()
+@click.option(
+    "--from-date",
+    type=click.STRING,
+    required=True,
+    default=load_setting("integrations.SD_Lon.global_from_date"),
+    help="Global import from-date",
+)
+@click.option(
+    "--dry-run", is_flag=True, default=False, help="Dry-run making no actual changes."
+)
+def import_state(from_date: str, dry_run: bool):
+    """Import engagement history for all users."""
+    parsed_from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
+    sd_updater = ChangeAtSD(parsed_from_date, None)
+    sd_updater.update_changed_persons(dry_run=dry_run)
+    sd_updater.update_all_employments(dry_run=dry_run)
+
+
 if __name__ == "__main__":
     cli()
