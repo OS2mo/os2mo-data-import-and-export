@@ -1,14 +1,12 @@
-import json
 import logging
-from collections import OrderedDict
-from datetime import datetime, timedelta
+from datetime import datetime
 from operator import itemgetter
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict
+from typing import List
+from typing import Optional
 
-import click
 import requests
-import xmltodict
 from mox_helpers import mox_util
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
@@ -19,14 +17,11 @@ import constants
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.calculate_primary.opus import OPUSPrimaryEngagementUpdater
-from integrations.opus import opus_helpers, payloads
-from integrations.opus.opus_exceptions import (
-    EmploymentIdentifierNotUnique,
-    ImporterrunNotCompleted,
-    RunDBInitException,
-    UnknownOpusUnit,
-)
-from os2mo_data_import import ImportHelper
+from integrations.opus import opus_helpers
+from integrations.opus import payloads
+from integrations.opus.opus_exceptions import EmploymentIdentifierNotUnique
+from integrations.opus.opus_exceptions import RunDBInitException
+from integrations.opus.opus_exceptions import UnknownOpusUnit
 
 logger = logging.getLogger("opusDiff")
 
@@ -148,7 +143,6 @@ class OpusDiffImport(object):
         return data
 
     def _find_engagement(self, bvn, funktionsnavn, present=False):
-        info = {}
         resource = "/organisation/organisationfunktion?bvn={}&funktionsnavn={}".format(
             bvn, funktionsnavn
         )
@@ -477,7 +471,6 @@ class OpusDiffImport(object):
         assert response.status_code == 201
 
     def create_user(self, employee, uuid=None):
-        cpr = opus_helpers.read_cpr(employee)
         payload = payloads.create_user(employee, self.org_uuid, uuid)
 
         logger.info("Create user payload: {}".format(payload))
@@ -822,7 +815,7 @@ class OpusDiffImport(object):
         else:
             mo_units = list(mo_units)
             if mo_units:
-                print(f"There are units that should have been terminated:")
+                print("There are units that should have been terminated:")
                 print(list(map(itemgetter("uuid"), mo_units)))
 
     def start_import(self, units, employees, terminated_employees):
@@ -884,10 +877,7 @@ def import_one(
         filtered_units,
         employees,
         terminated_employees,
-    ) = opus_helpers.read_and_transform_data(
-        latest_path, xml_path, filter_ids, skip_employees=skip_employees
-    )
-
+    ) = opus_helpers.read_and_transform_data(latest_path, xml_path, filter_ids)
     opus_helpers.local_db_insert((xml_date, "Running diff update since {}"))
     diff = OpusDiffImport(
         xml_date,

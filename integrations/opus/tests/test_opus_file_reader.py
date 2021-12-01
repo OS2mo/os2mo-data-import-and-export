@@ -4,7 +4,8 @@ import unittest
 from hypothesis import given
 from hypothesis.strategies import text
 
-from integrations.opus.opus_file_reader import LocalOpusReader, get_opus_filereader
+from integrations.opus.opus_file_reader import get_opus_filereader
+from integrations.opus.opus_file_reader import LocalOpusReader
 
 
 class OpusFileReader_test(unittest.TestCase):
