@@ -1533,7 +1533,7 @@ def import_single_user(cpr: str, from_date: str, dry_run: bool):
     "--dry-run", is_flag=True, default=False, help="Dry-run making no actual changes."
 )
 def import_state(from_date: str, dry_run: bool):
-    """Import a single user into MO."""
+    """Import engagement history for all users."""
     parsed_from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
     sd_updater = ChangeAtSD(parsed_from_date, None)
     sd_updater.update_changed_persons(dry_run=dry_run)
