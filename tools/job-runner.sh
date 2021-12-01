@@ -290,6 +290,9 @@ exports_mox_stsorgsync(){
 
 exports_cpr_uuid(){
     echo running exports_cpr_uuid
+    BACK_UP_AND_TRUNCATE+=(
+        "${DIPEXAR}/cpr_uuid_export.log"
+    )
     (
         SETTING_PREFIX="cpr.uuid" source ${DIPEXAR}/tools/prefixed_settings.sh
         ${VENV}/bin/python3 exporters/cpr_uuid.py ${CPR_UUID_FLAGS}
