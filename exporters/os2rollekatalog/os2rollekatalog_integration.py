@@ -117,7 +117,8 @@ def get_org_units(
     mapping_file_path: str,
 ) -> Dict[str, Dict[str, Any]]:
     org = mh.read_organisation()
-    org_units = mh.read_ou_root(org, mo_root_org_unit)
+    search_root = mo_root_org_unit if ou_filter else None
+    org_units = mh.read_ou_root(org, search_root)
 
     converted_org_units = {}
     for org_unit in org_units:
@@ -264,15 +265,14 @@ def get_users(
         # read positions first to filter any persons with engagements
         # in organisations not in org_unit_uuids
         positions = get_employee_positions(employee_uuid, mh)
-        if ou_filter:
-            positions = list(
-                filter(
-                    lambda position: position["orgUnitUuid"] in org_unit_uuids,
-                    positions,
-                )
+        positions = list(
+            filter(
+                lambda position: position["orgUnitUuid"] in org_unit_uuids,
+                positions,
             )
-            if not positions:
-                continue
+        )
+        if not positions:
+            continue
 
         def get_employee_name(employee: dict) -> str:
             name = employee["name"]
