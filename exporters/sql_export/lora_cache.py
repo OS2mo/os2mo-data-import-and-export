@@ -826,9 +826,15 @@ class LoraCache:
                                                  relevant=relevant,
                                                  additional=self.additional)
             else:
+                # Yes, `relevant` and `additional` *appear to be* switched
+                # around by mistake in this method call! However, the code
+                # seems to be deliberate - the data in `effects` cannot be
+                # processed by `calculate_derived_unit_data` if the code is
+                # changed to `relevant=relevant, additional=self.additional`.
+                # TODO: Add unittest which captures this surprising behavior.
                 effects = lora_utils.get_effects(manager['registreringer'][0],
-                                                 relevant=relevant,
-                                                 additional=self.additional)
+                                                 relevant=self.additional,
+                                                 additional=relevant)
 
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
