@@ -1,6 +1,7 @@
 import click
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import OpusDiffImport
+from integrations.opus.opus_exceptions import UnknownOpusUnit
 from more_itertools import pairwise
 from ra_utils.load_settings import load_settings
 from tqdm import tqdm
@@ -32,9 +33,14 @@ def find_cancelled(dry_run):
             diff = OpusDiffImport(date2, None, {}, filter_ids=filter_ids)
             for employee in employees:
                 # Updates each employee with their leave-date overwritten, so that their engagement will be terminated.
-                diff.update_employee(employee)
+                try:
+                    diff.update_employee(employee)
+                except UnknownOpusUnit:
+                    # The unit might be terminated by now, since we're looking through older files. No problem, carry on.
+                    continue
             # Handles cancelled units as filtered, wich means terminates them from the date of the file.
-            diff.handle_filtered_units(units)
+            mo_units = diff.find_unterminated_filtered_units(units)
+            diff.handle_filtered_units(mo_units)
 
 
 @click.command()
