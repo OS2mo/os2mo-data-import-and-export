@@ -307,7 +307,7 @@ class AdMoSync(object):
             payload["visibility"] = {"uuid": self.visibility[klasse[1]]}
         logger.debug("Create payload: {}".format(payload))
         response = self.helper._mo_post("details/create", payload)
-        logger.debug("Response: {}".format(response))
+        logger.debug("Response: {}".format(response.text))
 
     def _edit_address(self, address_uuid, value, klasse, validity=VALIDITY):
         """Edit an exising address to a new value.

@@ -84,6 +84,8 @@ def _read_primary_ad_settings(top_settings, index=0):
     primary_settings["caseless_samname"] = index_settings.get("caseless_samname", True)
     primary_settings["sam_filter"] = index_settings.get("sam_filter", "")
     primary_settings["cpr_separator"] = index_settings.get("cpr_separator", "")
+    primary_settings["pseudo_cprs"] = index_settings.get("pseudo_cprs", [])
+
     primary_settings["method"] = index_settings.get("method", "kerberos")
 
     primary_settings["ad_mo_sync_mapping"] = index_settings.get(

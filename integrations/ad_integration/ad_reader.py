@@ -121,7 +121,9 @@ class ADParameterReader(AD):
         logger.info("Caching all users")
         t = time.time()
         return_value = []
-        date_range = range(1, 32)
+        date_range = list(range(1, 32))
+        if pseudo_cprs := self.all_settings["primary"].get("pseudo_cprs"):
+            date_range.extend(pseudo_cprs)
         if print_progress:
             date_range = tqdm(date_range, desc="Fetching AD accounts")
         for i in date_range:
