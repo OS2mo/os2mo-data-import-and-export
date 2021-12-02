@@ -11,7 +11,7 @@ def check_duplicate_cpr(mora_base: str) -> list:
 
     helper = MoraHelper(hostname=mora_base)
     users = helper.read_all_users()
-    # TODO: This fails if an employee has no cpr_no
+    users = filter(lambda u: u.get("cpr_no"), users)
     cprs = dict(map(itemgetter("uuid", "cpr_no"), users))
     duplicates = [i for i, cnt in Counter(cprs.values()).items() if cnt > 1]
     duplicate_uuids = dict(filter(lambda x: x[1] in duplicates, cprs.items()))
