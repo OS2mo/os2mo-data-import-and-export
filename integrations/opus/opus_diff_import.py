@@ -889,7 +889,7 @@ def import_one(
         filter_ids=filter_ids,
     )
     diff.start_import(units, employees, terminated_employees)
-    filtered_units = self.find_unterminated_filtered_units(filtered_units)
+    filtered_units = diff.find_unterminated_filtered_units(filtered_units)
 
     diff.handle_filtered_units(filtered_units)
     opus_helpers.local_db_insert((xml_date, "Diff update ended: {}"))

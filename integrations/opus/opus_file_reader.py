@@ -35,10 +35,6 @@ class OpusReaderInterface(ABC):
         return self.read_file(all_files[latest_date])
 
 
-def retry_on_SMBerror(exc):
-    return isinstance(exc, NotConnectedError)
-
-
 class GcloudOpusReader(OpusReaderInterface):
     def __init__(self, settings):
         settings = settings
@@ -59,7 +55,6 @@ class GcloudOpusReader(OpusReaderInterface):
 retry_args = {
     "stop_max_attempt_number": 7,
     "wait_fixed": 2000,
-    "retry_on_exception": retry_on_SMBerror,
 }
 
 
