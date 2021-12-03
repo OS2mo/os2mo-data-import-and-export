@@ -9,7 +9,6 @@ import logging
 from operator import itemgetter
 from typing import Any
 from typing import Dict
-from typing import List
 from typing import Optional
 
 import click
@@ -22,10 +21,10 @@ from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
+from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sd_common import generate_uuid
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
-from integrations.SD_Lon.sd_common import ensure_list
 from os2mo_data_import import ImportHelper
 
 
@@ -433,10 +432,11 @@ class SdImport(object):
         if not isinstance(passive_people["Person"], list):
             passive_people["Person"] = [passive_people["Person"]]
 
-        cprs = set(map(
-            itemgetter("PersonCivilRegistrationIdentifier"),
-            active_people["Person"]
-        ))
+        cprs = set(
+            map(
+                itemgetter("PersonCivilRegistrationIdentifier"), active_people["Person"]
+            )
+        )
         # Collect all people, prefering their active variants
         # TODO: Consider doing this with a dict keyed by cpr number
         people = active_people["Person"]
