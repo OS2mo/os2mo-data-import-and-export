@@ -945,6 +945,8 @@ class ADWriter(AD):
             mo_values, dry_run=dry_run
         )
 
+        self._check_if_ad_user_exists(sam_account_name, mo_values["cpr"])
+
         ps_script = self._get_create_user_command(mo_values, sam_account_name)
 
         response = self._run_ps_script(ps_script)
@@ -971,15 +973,6 @@ class ADWriter(AD):
         return self.name_creator.create_username(all_names, dry_run=dry_run)[0]
 
     def _get_create_user_command(self, mo_values, sam_account_name):
-        existing_sam = self.get_from_ad(user=sam_account_name)
-        existing_cpr = self.get_from_ad(cpr=mo_values["cpr"])
-        if existing_sam:
-            logger.error("SamAccount already in use: {}".format(sam_account_name))
-            raise SamAccountNameNotUnique(sam_account_name)
-        if existing_cpr:
-            logger.error("cpr already in use: {}".format(mo_values["cpr"]))
-            raise CprNotNotUnique(mo_values["cpr"])
-
         create_user_string = template_powershell(
             context={
                 "ad_values": {},
@@ -1006,6 +999,16 @@ class ADWriter(AD):
         )
 
         return ps_script
+
+    def _check_if_ad_user_exists(self, sam_account_name, cpr):
+        existing_sam = self.get_from_ad(user=sam_account_name)
+        existing_cpr = self.get_from_ad(cpr=cpr)
+        if existing_sam:
+            logger.error("SamAccount already in use: {}".format(sam_account_name))
+            raise SamAccountNameNotUnique(sam_account_name)
+        if existing_cpr:
+            logger.error("cpr already in use: {}".format(cpr))
+            raise CprNotNotUnique(cpr)
 
     def add_ad_to_user_it_systems(self, username):
         # TODO: We need a function to write the SamAccount to the user's
