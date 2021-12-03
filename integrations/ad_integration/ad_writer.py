@@ -342,7 +342,6 @@ class MORESTSource(MODataSource):
         itsystems = self.helper.get_e_itsystems(uuid)
 
         def to_lora_itsystem(it_system):
-            print(it_system)
             return it_system["itsystem"]["uuid"], {
                 "uuid": it_system["uuid"],
                 "user": it_system["person"]["uuid"],
