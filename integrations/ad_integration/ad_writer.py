@@ -722,6 +722,9 @@ class ADWriter(AD):
     def _rename_ad_user(self, user_sam, new_name):
         logger.info("Rename user: %s", user_sam)
         # Todo: This code is a duplicate of code found elsewhere
+        # Todo: This code is buggy - it uses a "stringified tuple" as the new
+        # AD username. E.g. the AD user is renamed to
+        # `"(\"Firstname\", \"Lastname\")"`.
         rename_user_template = ad_templates.rename_user_template
         rename_user_string = rename_user_template.format(
             user_sam=user_sam,
