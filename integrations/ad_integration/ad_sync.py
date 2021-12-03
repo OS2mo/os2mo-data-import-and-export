@@ -337,7 +337,7 @@ class AdMoSync(object):
         response = self.helper._mo_post("details/edit", payload)
         logger.debug("Response: {}".format(response.text))
 
-    def _edit_engagement(self, uuid, ad_object):
+    def _read_user_engagement(self, uuid):
         def _make_exclude_function(fieldspec):
             """Given a callable `fieldspec`, return a function which will
             return True if the date found by `fieldspec` is before today, and
@@ -375,7 +375,6 @@ class AdMoSync(object):
             # will not be updated until the first run after that row has become
             # current. To fix this, we will need to ad option to LoRa cache to be
             # able to return entire object validity (poc-code exists).
-
         else:
             # Read user's current engagements, e.g. exclude engagements that
             # ended in the past.
@@ -398,6 +397,12 @@ class AdMoSync(object):
             logger.warn(f"More than one primary engagment for user: {uuid} - skipping")
             engagement = None
 
+        return engagement
+
+    def _edit_engagement(self, uuid, ad_object):
+        if "engagements" not in self.mapping:
+            return
+        engagement = self._read_user_engagement(uuid)
         if engagement:
             to_date = (
                 engagement["to_date"]
@@ -628,6 +633,7 @@ class AdMoSync(object):
     def _terminate_single_user(self, uuid, ad_object):
         self._finalize_it_system(uuid)
         self._finalize_user_addresses(uuid, ad_object)
+        self._edit_engagement(uuid, {})
 
     def _update_single_user(
         self,
