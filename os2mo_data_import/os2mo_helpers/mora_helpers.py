@@ -680,7 +680,9 @@ class MoraHelper:
         :param root: The UUID of an optional root node
         :return: A list of all org units bounded by the root node
         """
-        url = "o/{}/ou/?root={}".format(org, root)
+        url = f"o/{org}/ou/"
+        if root:
+            url +=f"?root={root}"
         org_units = self._mo_lookup(None, url)["items"]
         return org_units
 
