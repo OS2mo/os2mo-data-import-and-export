@@ -5,6 +5,7 @@ from unittest import TestCase
 from freezegun import freeze_time
 from jinja2.exceptions import UndefinedError
 from more_itertools import first_true
+from os2mo_helpers.mora_helpers import MoraHelper
 from parameterized import parameterized
 from ra_utils.lazy_dict import LazyDict
 
@@ -864,7 +865,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
         uuid = "some_uuid_here"
 
         def get_mo_values(firstname, surname, nickname_firstname, nickname_surname):
-            self.user = {
+            user = {
                 "uuid": "some_uuid_here",
                 "navn": "some_name some_lastname",
                 "efternavn": surname,
@@ -874,15 +875,13 @@ class TestADWriter(TestCase, TestADWriterMixin):
                 "kaldenavn_efternavn": nickname_surname,
                 "cpr": "some_cpr",
             }
-            self.lc = AttrDict(
+            mock_lora_cache = AttrDict(
                 {
-                    "users": {
-                        self.user["uuid"]: [self.user],
-                    },
+                    "users": {user["uuid"]: [user]},
                     "engagements": {
                         "engagement_uuid": [
                             {
-                                "user": self.user["uuid"],
+                                "user": user["uuid"],
                                 "primary_boolean": True,
                                 "user_key": "some_userkey",
                                 "job_function": "job_function_title_uuid",
@@ -923,12 +922,12 @@ class TestADWriter(TestCase, TestADWriterMixin):
                     },
                 }
             )
-            self.lc_historic = self.lc
-            self.ad_writer.lc = self.lc
-            self.ad_writer.lc_historic = self.lc_historic
+            self.ad_writer.helper = mock.MagicMock(spec=MoraHelper)
+            self.ad_writer.lc = mock_lora_cache
+            self.ad_writer.lc_historic = mock_lora_cache
             self.ad_writer.datasource = LoraCacheSource(
-                self.lc,
-                self.lc_historic,
+                mock_lora_cache,  # lc
+                mock_lora_cache,  # lc_historic
                 MockMORESTSource(from_date=None, to_date=None),
             )
             mo_values = self.ad_writer._read_ad_information_from_mo(uuid)

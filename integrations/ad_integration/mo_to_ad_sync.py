@@ -144,7 +144,11 @@ def run_mo_to_ad_sync(
     type=click.STRING,
 )
 @click.option("--ignore-occupied-names", is_flag=True, default=False)
-@click.option("--preview-command-for-uuid", type=click.STRING)
+@click.option(
+    "--preview-command-for-uuid",
+    help="Given a MO user UUID, preview the PowerShell command(s) to run",
+    type=click.STRING,
+)
 def main(
     lora_speedup: bool,
     mo_uuid_field: str,
