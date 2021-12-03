@@ -176,7 +176,8 @@ def main(
         commands = writer._preview_sync_command(
             preview_command_for_uuid, sync_username, ad_dump=ad_dump
         )
-        print(commands)
+        for cmd in commands:
+            click.echo_via_pager(cmd)
         return
 
     run_mo_to_ad_sync(
