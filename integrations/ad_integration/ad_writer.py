@@ -787,14 +787,25 @@ class ADWriter(AD):
         mo_values = self.read_ad_information_from_mo(
             mo_uuid, ad_dump=ad_dump, read_manager=sync_manager
         )
-        ad_values = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)
-        user_sam = self._get_sam_for_ad_user(ad_values)
-        sync_cmd = self._get_sync_user_command(ad_values, mo_values, user_sam)
-        mismatch = self._sync_compare(mo_values, ad_dump)
-        if "name" in mismatch:
-            rename_cmd = self._get_rename_ad_user_command(user_sam, mismatch["name"][1])
+
+        try:
+            ad_values = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)
+        except CprNotFoundInADException:
+            ad_values = {}
         else:
-            rename_cmd = None
+            user_sam = self._get_sam_for_ad_user(ad_values)
+
+        sync_cmd = self._get_sync_user_command(ad_values, mo_values, user_sam)
+
+        try:
+            mismatch = self._sync_compare(mo_values, ad_dump)
+        except CprNotFoundInADException:
+            rename_cmd = self._get_rename_ad_user_command(user_sam, "not the new name")
+        else:
+            if "name" in mismatch:
+                new_name = mismatch["name"][1]
+                rename_cmd = self._get_rename_ad_user_command(user_sam, new_name)
+
         return sync_cmd, rename_cmd
 
     def _sync_compare(self, mo_values, ad_dump):
