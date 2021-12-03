@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from typing import Dict
 from typing import Optional
 
@@ -143,12 +144,14 @@ def run_mo_to_ad_sync(
     type=click.STRING,
 )
 @click.option("--ignore-occupied-names", is_flag=True, default=False)
+@click.option("--preview-command-for-uuid", type=click.STRING)
 def main(
     lora_speedup: bool,
     mo_uuid_field: str,
     sync_cpr: Optional[str],
     sync_username: Optional[str],
     ignore_occupied_names: bool,
+    preview_command_for_uuid: Optional[uuid.UUID],
 ):
     start_logging(LOG_FILE)
 
@@ -163,6 +166,14 @@ def main(
         # TODO: We should support on-demand name generation without pre-seed.
         skip_occupied_names=ignore_occupied_names,
     )
+
+    if preview_command_for_uuid and (sync_cpr or sync_username):
+        ad_dump = [reader.read_user(user=sync_username, cpr=sync_cpr)]
+        commands = writer._preview_sync_command(
+            preview_command_for_uuid, sync_username, ad_dump=ad_dump
+        )
+        print(commands)
+        return
 
     run_mo_to_ad_sync(
         reader,

@@ -747,6 +747,32 @@ class ADWriter(AD):
     def _render_field_template(self, context, template):
         return Template(template.strip('"')).render(**context)
 
+    def _preview_sync_command(self, mo_uuid, user_sam, ad_dump=None, sync_manager=True):
+        mo_values = self.read_ad_information_from_mo(
+            mo_uuid, ad_dump=ad_dump, read_manager=sync_manager
+        )
+
+        # Get 'rename' PS script
+        rename_user_string = ad_templates.rename_user_template.format(
+            user_sam=user_sam,
+            new_name=mo_values["name"],
+        )
+        rename_user_string = self.remove_redundant(rename_user_string)
+
+        # Get 'edit' PS script
+        edit_user_string = template_powershell(
+            cmd="Set-ADUser",
+            context={
+                "ad_values": {},
+                "mo_values": mo_values,
+                "user_sam": user_sam,
+            },
+            settings=self.all_settings,
+        )
+        edit_user_string = self.remove_redundant(edit_user_string)
+
+        return rename_user_string, edit_user_string
+
     def _sync_compare(self, mo_values, ad_dump):
         ad_user = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)
         user_sam = self._get_sam_for_ad_user(ad_user)
