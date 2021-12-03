@@ -15,6 +15,7 @@ import click
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from jinja2 import Template
+from more_itertools import first
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.lazy_dict import LazyDict
@@ -286,7 +287,7 @@ class MORESTSource(MODataSource):
         return mo_user
 
     def get_email_address(self, uuid):
-        mail_dict = self.helper.get_e_address(uuid, scope="EMAIL")
+        mail_dict = first(self.helper.get_e_addresses(uuid, scope="EMAIL"))
         return dict_subset(mail_dict, ["uuid", "value"])
 
     def find_primary_engagement(self, uuid):
@@ -687,6 +688,16 @@ class ADWriter(AD):
                 ),
                 "read_manager": LazyEvalDerived(
                     lambda _manager_uuid: bool(_manager_uuid)
+                ),
+                # Employee addresses
+                "_employee_addresses": LazyEvalDerived(
+                    lambda uuid: self.helper.read_user_address(uuid)
+                ),
+                "employee_email": LazyEvalDerived(
+                    lambda _employee_addresses: _employee_addresses.get("E-mail"),
+                ),
+                "employee_phone": LazyEvalDerived(
+                    lambda _employee_addresses: _employee_addresses.get("Telefon"),
                 ),
                 # IT systems
                 "it_systems": LazyEvalDerived(
