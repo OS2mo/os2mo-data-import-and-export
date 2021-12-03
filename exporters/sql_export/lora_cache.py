@@ -812,6 +812,12 @@ class LoraCache:
         url = '/organisation/organisationfunktion'
         manager_list = self._perform_lora_lookup(url, params, unit="manager")
 
+        def get_rel_uuid_or_none(manager_uuid, rel, item_name):
+            try:
+                return rel[item_name][0]["uuid"]
+            except IndexError:
+                logger.error("empty rel[%r] (manager uuid=%r)", item_name, manager_uuid)
+
         managers = {}
         for manager in tqdm(manager_list, desc="Processing manager", unit="manager"):
             uuid = manager['id']
@@ -839,12 +845,13 @@ class LoraCache:
             for effect in effects:
                 from_date, to_date = self._from_to_from_effect(effect)
                 rel = effect[2]['relationer']
-                try:
-                    user_uuid = rel['tilknyttedebrugere'][0]['uuid']
-                except:
-                    user_uuid = None
-                unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
-                manager_type = rel['organisatoriskfunktionstype'][0]['uuid']
+
+                user_uuid = get_rel_uuid_or_none(uuid, rel, "tilknyttedebrugere")
+                unit_uuid = get_rel_uuid_or_none(uuid, rel, "tilknyttedeenheder")
+                manager_type = get_rel_uuid_or_none(
+                    uuid, rel, "organisatoriskfunktionstype"
+                )
+
                 manager_level = None  # populated in loop over "opgaver" below
                 manager_responsibility = []
 
@@ -866,6 +873,7 @@ class LoraCache:
                         'to_date': to_date
                     }
                 )
+
         return managers
 
     def calculate_primary_engagements(self):

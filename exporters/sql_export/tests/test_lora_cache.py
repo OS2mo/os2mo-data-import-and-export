@@ -42,31 +42,58 @@ class TestPerformLoraLookup(TestCase):
 
 
 class TestCacheLoraManagers(TestCase):
-    def test_handles_empty_opgaver_rel(self):
-        # Regression test for #47456
+    _manager_uuid = "manager-uuid"
+    _opgave_uuid = "opgave-uuid"
 
+    def test_handles_empty_opgaver_rel(self):
+        # Regression test for #47456, problem 1 (UnboundLocalError)
+        managers = self._get_results({"opgaver": []})
+        self.assertIsNone(managers[self._manager_uuid][0]["manager_level"])
+
+    def test_handles_empty_rels(self):
+        # Regression test for #47456, problem 2 (IndexError)
+        managers = self._get_results(
+            {
+                "tilknyttedebrugere": [],
+                "tilknyttedeenheder": [],
+                "organisatoriskfunktionstype": [],
+                "opgaver": [{"objekttype": "lederniveau", "uuid": self._opgave_uuid}],
+            }
+        )
+        self.assertIsNotNone(managers[self._manager_uuid][0]["manager_level"])
+        self.assertIsNone(managers[self._manager_uuid][0]["user"])
+        self.assertIsNone(managers[self._manager_uuid][0]["unit"])
+        self.assertIsNone(managers[self._manager_uuid][0]["manager_type"])
+
+    def _get_results(self, relations):
         instance = _TestableLoraCacheMockedLookup(
             # Return enough of the actual LoRa response to make
             # `_cache_lora_managers` continue to offending code. As we patch
             # `lora_utils.get_effects`, we don't need to provide actual data in
             # "registreringer".
-            [{"id": "manager_uuid", "registreringer": [None]}]
+            [{"id": self._manager_uuid, "registreringer": [None]}]
         )
 
         # Mock return value of `lora_utils.get_effects`
+        default_list = [{"uuid": "uuid"}]
         effect = (
             datetime(2020, 1, 1),
             datetime(2021, 1, 1),
             {
                 "relationer": {
-                    "tilknyttedeenheder": [{"uuid": "uuid"}],
-                    "organisatoriskfunktionstype": [{"uuid": "uuid"}],
-                    "opgaver": [],
+                    "tilknyttedebrugere": relations.get(
+                        "tilknyttedebrugere", default_list
+                    ),
+                    "tilknyttedeenheder": relations.get(
+                        "tilknyttedeenheder", default_list
+                    ),
+                    "organisatoriskfunktionstype": relations.get(
+                        "organisatoriskfunktionstype", default_list
+                    ),
+                    "opgaver": relations.get("opgaver", default_list),
                 }
             },
         )
 
         with mock.patch("lora_utils.get_effects", return_value=[effect]):
-            managers = instance._cache_lora_managers()
-            self.assertIn("manager_uuid", managers)
-            self.assertIsNone(managers["manager_uuid"][0]["manager_level"])
+            return instance._cache_lora_managers()
