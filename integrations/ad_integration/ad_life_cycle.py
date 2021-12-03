@@ -491,10 +491,11 @@ def ad_life_cycle(
     )
 
     if preview_command_for_uuid:
-        create_cmd, _ = sync.ad_writer._preview_create_command(
+        commands = sync.ad_writer._preview_create_command(
             preview_command_for_uuid, ad_dump=None, create_manager=False
         )
-        print(create_cmd)
+        for cmd in commands:
+            click.echo_via_pager(cmd)
         return
 
     if not any([create_ad_accounts, disable_ad_accounts]):
