@@ -199,20 +199,23 @@ class MoraHelper:
         org_id = self._mo_lookup(uuid=None, url="o/")
         return org_id[0]["uuid"]
 
-    def read_all_users(self, limit=None) -> List[dict]:
+    def read_all_users(self, limit: int = 10_000) -> List[dict]:
         """Return a list of all employees in MO.
 
-        :param limit: If set, only less large sub-set wll be retrived,
-        mainly usefull for testing.
+        :param limit: Size of pagination groups. Set to 0 to skip pagination and fetch all users in one request.
         :return: List af all employees.
         """
-        logger.info("Read all MO users")
         org = self.read_organisation()
-        limit = limit or 0
-        employee_list = self._mo_lookup(org, "o/{}/e/?limit=" + str(limit))
-        employees = employee_list["items"]
-        logger.info("Done reading all MO users")
-        return employees
+        start = 0
+        total = 1
+        all_employees = []
+        while start < total:
+            employee_list = self._mo_lookup(org, "o/{}/e/?limit=" + str(limit)+ "&start=" + str(start))
+            all_employees.extend(employee_list["items"])
+            start = employee_list['offset'] + limit
+            total = employee_list['total']
+        return all_employees
+
 
     def read_it_systems(self):
         """Read all it systems
