@@ -845,6 +845,7 @@ class LoraCache:
                     user_uuid = None
                 unit_uuid = rel['tilknyttedeenheder'][0]['uuid']
                 manager_type = rel['organisatoriskfunktionstype'][0]['uuid']
+                manager_level = None  # populated in loop over "opgaver" below
                 manager_responsibility = []
 
                 for opgave in rel['opgaver']:

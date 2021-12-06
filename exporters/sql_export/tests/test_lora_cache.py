@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest import mock
 from unittest import TestCase
 
@@ -10,6 +11,15 @@ class _TestableLoraCache(LoraCache):
 
     def _read_org_uuid(self):
         return "not-a-mo-org-uuid"
+
+
+class _TestableLoraCacheMockedLookup(_TestableLoraCache):
+    def __init__(self, lookup_response):
+        super().__init__()
+        self._lookup_response = lookup_response
+
+    def _perform_lora_lookup(self, url, params, **kwargs):
+        return self._lookup_response
 
 
 class _SpecificException(Exception):
@@ -29,3 +39,34 @@ class TestPerformLoraLookup(TestCase):
                 instance._perform_lora_lookup("not-an-url", {})
             _get.assert_called()
             self.assertEqual(_get.call_count, num_retries)
+
+
+class TestCacheLoraManagers(TestCase):
+    def test_handles_empty_opgaver_rel(self):
+        # Regression test for #47456
+
+        instance = _TestableLoraCacheMockedLookup(
+            # Return enough of the actual LoRa response to make
+            # `_cache_lora_managers` continue to offending code. As we patch
+            # `lora_utils.get_effects`, we don't need to provide actual data in
+            # "registreringer".
+            [{"id": "manager_uuid", "registreringer": [None]}]
+        )
+
+        # Mock return value of `lora_utils.get_effects`
+        effect = (
+            datetime(2020, 1, 1),
+            datetime(2021, 1, 1),
+            {
+                "relationer": {
+                    "tilknyttedeenheder": [{"uuid": "uuid"}],
+                    "organisatoriskfunktionstype": [{"uuid": "uuid"}],
+                    "opgaver": [],
+                }
+            },
+        )
+
+        with mock.patch("lora_utils.get_effects", return_value=[effect]):
+            managers = instance._cache_lora_managers()
+            self.assertIn("manager_uuid", managers)
+            self.assertIsNone(managers["manager_uuid"][0]["manager_level"])
