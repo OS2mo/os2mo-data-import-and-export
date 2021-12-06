@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import click
 import fs
 from google.cloud import storage
 from more_itertools import one
@@ -100,6 +101,44 @@ def get_opus_filereader(settings: Optional[Dict] = None) -> OpusReaderInterface:
     return LocalOpusReader(settings)
 
 
-if __name__ == "__main__":
+@click.group()
+def cli():
+    """CLI for reading opus-files"""
+    pass
+
+
+@cli.command()
+def read_last():
+    """Read latest opus-file"""
     ofr = get_opus_filereader()
-    print(ofr.list_opus_files())
+    click.echo(ofr.read_latest())
+
+
+@cli.command()
+def list_files():
+    """Show dates of all opus-files"""
+    ofr = get_opus_filereader()
+    dumps = ofr.list_opus_files()
+    dates = sorted(dumps.keys())
+    for date in dates:
+        click.echo(date)
+
+
+@cli.command()
+@click.option("--date", prompt=None, type=click.DateTime())
+def read_file(date):
+    """Read opus-file from specific date. If no date is supplied show all available dates"""
+    ofr = get_opus_filereader()
+    dumps = ofr.list_opus_files()
+
+    if not date:
+        dates = sorted(dumps.keys())
+        for date in dates:
+            click.echo(date)
+        click.echo(f'Choose from above and provide as parameter, eg. --date="{date}"')
+    else:
+        click.echo(ofr.read_file(dumps[date]))
+
+
+if __name__ == "__main__":
+    cli()
