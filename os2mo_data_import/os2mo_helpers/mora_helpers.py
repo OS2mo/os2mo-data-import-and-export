@@ -210,7 +210,7 @@ class MoraHelper:
         total = 1
         all_employees = []
         while start < total:
-            employee_list = self._mo_lookup(org, "o/{}/e/?limit=" + str(limit)+ "&start=" + str(start))
+            employee_list = self._mo_lookup(org, f"o/{{}}/e/?limit={limit}&start={start}")
             all_employees.extend(employee_list["items"])
             start = employee_list['offset'] + limit
             total = employee_list['total']
