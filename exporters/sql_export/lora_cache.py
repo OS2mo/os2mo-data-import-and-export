@@ -433,13 +433,15 @@ class LoraCache:
                     skip_len = len('urn:text:')
                     value = urllib.parse.unquote(value_raw[skip_len:])
                 elif address_type == 'MULTIFIELD_TEXT':
+                    # This address type has more than one field
                     value_raw1 = relationer['adresser'][1]['urn']
                     scope = 'Multifield_text'
                     r1 = re.compile("urn:multifield_text:(.*)")
                     r2 = re.compile("urn:multifield_text2:(.*)")
-                    
+                    # Ensure correct order so that "text" is before "text2" 
                     value1 = r1.findall(value_raw) or r1.findall(value_raw1)
                     value2 = r2.findall(value_raw) or r2.findall(value_raw1)
+                    # Both fields are put into one field in loracache as they are shown in MO
                     value = f"{one(value1)} :: {one(value1)}"
                     value = urllib.parse.unquote(value)
                 elif address_type == 'DAR':
