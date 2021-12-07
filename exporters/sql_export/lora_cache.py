@@ -450,8 +450,6 @@ class LoraCache:
                     dar_uuid = value_raw[skip_len:]
                     value = None
                     
-
-
                     if self.dar_map is not None:
                         self.dar_map[dar_uuid].append(uuid)
                 else:
