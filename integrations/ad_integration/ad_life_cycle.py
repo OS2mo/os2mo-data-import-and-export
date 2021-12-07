@@ -170,13 +170,34 @@ class AdLifeCycle:
             return False
 
         logger.debug("Primary found, now find org unit location")
-        unit = self.lc.units[eng_org_unit_uuid][0]
-        while True:
+
+        try:
+            unit = self.lc.units[eng_org_unit_uuid][0]
+        except KeyError:
+            logger.warning(
+                "cannot find unit %r (user=%r)", eng_org_unit_uuid, user["uuid"]
+            )
+            return False
+
+        # Walk up the organisation unit tree, starting at `unit["parent"]`.
+        # Stop when we find an allowed root node, or if we encounter a node
+        # without a parent (must be root?)
+        looking = True
+        while looking:
             if unit["uuid"] in self.roots:
                 return True
             if unit["parent"] is None:
                 return False
-            unit = self.lc.units[unit["parent"]][0]
+
+            if unit["parent"] in self.lc.units:
+                unit = self.lc.units[unit["parent"]][0]
+            else:
+                logger.warning(
+                    "cannot find parent unit %r (user=%r)", unit["parent"], user["uuid"]
+                )
+                looking = False
+
+        return False
 
     def _gen_filtered_employees(
         self, in_filters: Optional[List[FilterFunction]] = None

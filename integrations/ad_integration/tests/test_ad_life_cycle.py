@@ -17,20 +17,98 @@ from .mocks import MockLoraCacheExtended
 from .test_utils import TestADWriterMixin
 
 
-def default_find_primary_engagement(mo_user_uuid):
-    """Mock implementation of `MODataSource.find_primary_engagement`"""
-    return (
-        None,  # = employment_number
-        None,  # = title
-        MO_ROOT_ORG_UNIT_UUID,  # = eng_org_unit_uuid
-        None,  # = eng_uuid
-    )
+MO_CHILD_ORG_UNIT_UUID = uuid4()
+
+
+def mock_find_primary_engagement(eng_org_unit_uuid):
+    """Return mock implementation of `MODataSource.find_primary_engagement`"""
+
+    def mock(mo_user_uuid):
+        return (
+            None,  # = employment_number
+            None,  # = title
+            eng_org_unit_uuid,
+            None,  # = eng_uuid
+        )
+
+    return mock
 
 
 class MockLoraCacheEmptyEmployee(MockLoraCacheExtended):
     @property
     def users(self):
         return {self._mo_values["uuid"]: []}
+
+
+class MockLoraCacheEmptyUnit(MockLoraCacheExtended):
+    """Mock a LoraCache where there are no organisational units"""
+
+    @property
+    def units(self):
+        return {}
+
+
+class MockLoraCacheDanglingParentUnit(MockLoraCacheExtended):
+    """Mock a LoraCache where organisational unit we look for has an unknown
+    parent organisational unit UUID.
+    """
+
+    @property
+    def units(self):
+        return {
+            MO_CHILD_ORG_UNIT_UUID: [
+                {
+                    "uuid": MO_CHILD_ORG_UNIT_UUID,
+                    "parent": uuid4(),
+                }
+            ],
+        }
+
+
+class MockLoraCacheParentChildUnit(MockLoraCacheExtended):
+    """Mock a LoraCache where a child unit points correctly to its parent unit
+    (which is also the root unit in this case.)
+    """
+
+    @property
+    def units(self):
+        return {
+            MO_ROOT_ORG_UNIT_UUID: [
+                {
+                    "uuid": MO_ROOT_ORG_UNIT_UUID,
+                    "parent": None,
+                }
+            ],
+            MO_CHILD_ORG_UNIT_UUID: [
+                {
+                    "uuid": MO_CHILD_ORG_UNIT_UUID,
+                    "parent": MO_ROOT_ORG_UNIT_UUID,
+                }
+            ],
+        }
+
+
+class MockLoraCacheParentUnitUnset(MockLoraCacheExtended):
+    """Mock a LoraCache where a child unit does not point correctly to its
+    parent unit, due to its 'parent' key being None.
+    """
+
+    @property
+    def units(self):
+        return {
+            MO_ROOT_ORG_UNIT_UUID: [
+                {
+                    "uuid": MO_ROOT_ORG_UNIT_UUID,
+                    "parent": None,
+                }
+            ],
+            MO_CHILD_ORG_UNIT_UUID: [
+                {
+                    "uuid": MO_CHILD_ORG_UNIT_UUID,
+                    "parent": None,
+                }
+            ],
+        }
 
 
 class TestAdLifeCycle(TestCase, TestADWriterMixin):
@@ -318,6 +396,56 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
         self._get_instance(reader=reader, skip_occupied_names_check=True)
         reader.cache_all.assert_not_called()
 
+    @parameterized.expand(
+        [
+            # Case 1: we look for the root unit and find it.
+            (
+                mock_find_primary_engagement(MO_ROOT_ORG_UNIT_UUID),
+                MockLoraCacheExtended,
+                True,
+            ),
+            # Case 2: we look for a child of the root unit, and find it.
+            (
+                mock_find_primary_engagement(MO_CHILD_ORG_UNIT_UUID),
+                MockLoraCacheParentChildUnit,
+                True,
+            ),
+            # Case 3: we look for the root unit, but there are no units at all.
+            (
+                mock_find_primary_engagement(MO_ROOT_ORG_UNIT_UUID),
+                MockLoraCacheEmptyUnit,
+                False,
+            ),
+            # Case 4: we look for a child unit, but the parent-child relation
+            # is 'broken', and we can not follow the relationship up to the
+            # root node.
+            (
+                mock_find_primary_engagement(MO_CHILD_ORG_UNIT_UUID),
+                MockLoraCacheDanglingParentUnit,
+                False,
+            ),
+            # Case 5: we look for a child unit, but the child node has an unset
+            # parent node reference, and we cannot find the root unit.
+            (
+                mock_find_primary_engagement(MO_CHILD_ORG_UNIT_UUID),
+                MockLoraCacheParentUnitUnset,
+                False,
+            ),
+        ]
+    )
+    def test_find_user_unit_tree(
+        self,
+        find_primary_engagement: Callable,
+        mock_lora_cache_class: Callable,
+        expected_result: bool,
+    ):
+        instance = self._get_instance(
+            find_primary_engagement=find_primary_engagement,
+            mock_lora_cache_class=mock_lora_cache_class,
+        )
+        result = instance._find_user_unit_tree(({"uuid": uuid4()}, {}))
+        self.assertEqual(result, expected_result)
+
     def _get_instance(
         self,
         reader=None,
@@ -340,7 +468,8 @@ class TestAdLifeCycle(TestCase, TestADWriterMixin):
 
         # Replace `find_primary_engagement` with our mocked version
         self.ad_writer.datasource.find_primary_engagement = (
-            find_primary_engagement or default_find_primary_engagement
+            find_primary_engagement
+            or mock_find_primary_engagement(MO_ROOT_ORG_UNIT_UUID)
         )
 
         load_settings_mock = mock.patch.object(
