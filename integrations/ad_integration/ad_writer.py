@@ -1034,10 +1034,27 @@ class ADWriter(AD):
             self._build_user_credential()
             + create_user_string
             + server_string
-            + self._ps_boiler_plate()["path"]
+            + self._get_new_ad_user_path_argument()
         )
 
         return ps_script
+
+    def _check_if_ad_user_exists(self, sam_account_name, cpr):
+        existing_sam = self.get_from_ad(user=sam_account_name)
+        existing_cpr = self.get_from_ad(cpr=cpr)
+        if existing_sam:
+            logger.error("SamAccount already in use: {}".format(sam_account_name))
+            raise SamAccountNameNotUnique(sam_account_name)
+        if existing_cpr:
+            logger.error("cpr already in use: {}".format(cpr))
+            raise CprNotNotUnique(cpr)
+
+    def _get_new_ad_user_path_argument(self):
+        primary = self._get_setting()
+        primary_write = self._get_write_setting()
+        path = primary_write.get("new_ad_user_path", primary["search_base"])
+        path_argument = f' -Path "{path}"'
+        return path_argument
 
     def _check_if_ad_user_exists(self, sam_account_name, cpr):
         existing_sam = self.get_from_ad(user=sam_account_name)
