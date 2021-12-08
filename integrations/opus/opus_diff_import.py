@@ -128,7 +128,7 @@ class OpusDiffImport(object):
         assert response.status_code in (200, 400, 404)
         if response.status_code == 400:
             # Check actual response
-            assert response.text.find("not give raise to a new registration") > 0
+            assert response.text.find("not give raise to a new registration") > 0, response.text
             logger.debug("Requst had no effect")
         return None
 
@@ -869,7 +869,7 @@ def import_one(
     latest_date: Optional[datetime],
     dumps: Dict,
     filter_ids: Optional[List],
-    skip_employees: bool = False,
+    opus_id: Optional[int] = None,
 ):
     """Import one file at the date xml_date."""
     msg = "Start update: File: {}, update since: {}"
@@ -892,6 +892,11 @@ def import_one(
         ad_reader=ad_reader,
         filter_ids=filter_ids,
     )
+    if opus_id:
+        units = filter(lambda u: int(u.get('@id')) == opus_id, units)
+        filtered_units = filter(lambda u: int(u.get('@id')) == opus_id, filtered_units)
+        employees = filter(lambda e: int(e.get('@id')) == opus_id, employees)
+        terminated_employees = filter(lambda e: int(e.get('@id')) == opus_id, terminated_employees)
     diff.start_import(units, employees, terminated_employees)
     filtered_units = diff.find_unterminated_filtered_units(filtered_units)
 
@@ -918,7 +923,7 @@ def start_opus_diff(ad_reader=None):
     xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
 
     while xml_date:
-        import_one(ad_reader, xml_date, latest_date, dumps, filter_ids, skip_employees)
+        import_one(ad_reader, xml_date, latest_date, dumps, filter_ids, opus_id=None)
         # Check if there are more files to import
         xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
         logger.info("Ended update")

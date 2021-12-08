@@ -74,7 +74,7 @@ def prepare_re_import(
     ensure_default_classes()
 
 
-def import_opus(ad_reader=None, import_all: bool = False, import_last=False) -> None:
+def import_opus(ad_reader=None, import_all: bool = False, import_last=False, opus_id=None) -> None:
     """Import one or all files from opus even if no previous files have been imported"""
     settings = load_settings()
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
@@ -92,7 +92,7 @@ def import_opus(ad_reader=None, import_all: bool = False, import_last=False) -> 
     export_dates = prepend(None, export_dates)
     date_pairs = pairwise(export_dates)
     for date1, date2 in date_pairs:
-        import_one(ad_reader, date2, date1, dumps, filter_ids, skip_employees=skip_employees)
+        import_one(ad_reader, date2, date1, dumps, filter_ids, opus_id=opus_id)
 
 
 @click.command()
@@ -127,6 +127,7 @@ def import_opus(ad_reader=None, import_all: bool = False, import_last=False) -> 
 )
 @click.option("--new-rundb", is_flag=True, help="Initialize new run-db")
 @click.option("--use-ad", is_flag=True, help="Read from AD")
+@click.option("--opus-id", type=int, help="Only sync this id", required=False)
 def clear_and_reload(
     import_all: bool,
     import_last: bool,
@@ -135,6 +136,7 @@ def clear_and_reload(
     new_rundb: bool,
     use_ad: bool,
     connections: int,
+    opus_id: Optional[int],
 ) -> None:
     """Tool for reimporting opus files.
 
@@ -163,7 +165,7 @@ def clear_and_reload(
     if use_ad:
         AD = ad_reader.ADParameterReader()
         AD.cache_all(print_progress=True)
-    import_opus(ad_reader=AD, import_all=import_all, import_last=import_last)
+    import_opus(ad_reader=AD, import_all=import_all, import_last=import_last, opus_id=opus_id)
 
 
 if __name__ == "__main__":
