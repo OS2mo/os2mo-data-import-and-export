@@ -386,3 +386,60 @@ def test_create_ou_tree(
         assert sub_department2_address.date_to is None
         assert sub_department2_address.value == "sub_department_2@example.org"
         assert sub_department2_address.type_ref == "EmailUnit"
+
+
+@patch("integrations.SD_Lon.sd_importer.uuid.uuid4")
+def test_set_engagement_on_leave(mock_uuid4):
+
+    # Arrange
+
+    mock_uuid4.return_value = "00000000-0000-0000-0000-000000000000"
+    sd = get_sd_importer(
+        override_settings={
+            "integrations.SD_Lon.monthly_hourly_divide": 9000,
+            "integrations.SD_Lon.job_function": "EmploymentName",
+            "integrations.SD_Lon.import.too_deep": [],
+        }
+    )
+    sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit"})
+
+    cpr_no = "0101709999"
+    sd.importer.add_employee(
+        name=("given_name", "sur_name"),
+        identifier=cpr_no,
+        cpr_no=cpr_no,
+        user_key="employee_user_key",
+        uuid="employee_uuid",
+    )
+
+    # Act
+
+    # Create an employee on leave (SD EmploymentStatusCode = 3)
+    sd.create_employee(
+        {
+            "PersonCivilRegistrationIdentifier": cpr_no,
+            "Employment": [
+                {
+                    "Profession": {"JobPositionIdentifier": "job_id_123"},
+                    "EmploymentStatus": {
+                        "EmploymentStatusCode": "3",
+                        "ActivationDate": "1970-01-01",
+                        "DeactivationDate": "9999-12-31",
+                    },
+                    "EmploymentIdentifier": "TEST123",
+                    "WorkingTime": {"OccupationRate": 1},
+                    "EmploymentDepartment": {
+                        "DepartmentUUIDIdentifier": "org_unit_uuid",
+                    },
+                }
+            ],
+        }
+    )
+
+    # Assert
+
+    details = sd.importer.employee_details[cpr_no]
+    engagement, association, leave = details
+
+    assert engagement.uuid == "00000000-0000-0000-0000-000000000000"
+    assert leave.engagement_uuid == "00000000-0000-0000-0000-000000000000"
