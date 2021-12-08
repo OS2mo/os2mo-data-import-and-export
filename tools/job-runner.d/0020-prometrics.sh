@@ -26,12 +26,13 @@ prometrics-git(){
         local_changes=1
     fi
     
+    git_version=$(git describe --tags)
     git_sha=$(git log --pretty=format:"%h" -n 1)
     BRANCH=$(git rev-parse --abbrev-ref HEAD)
     BRANCH=$(echo -n "$BRANCH" | base64)
 
     [ -z "${CRON_LOG_PROM_API}" ] && return 0
-    cat <<EOF | curl -m 2 -sS --data-binary @- "${CRON_LOG_PROM_API}/git/git_hash/${git_sha}/branch@base64/${BRANCH}/local_changes/${local_changes}"
+    cat <<EOF | curl -m 2 -sS --data-binary @- "${CRON_LOG_PROM_API}/git/git_hash/${git_sha}/branch@base64/${BRANCH}/local_changes/${local_changes}/git_version/${git_version}"
     # TYPE git_info gauge
     # HELP git_info A metric with a timestamp to sort by, labeled by git_hash, branch and local_changes
     git_info $(date +%s)
