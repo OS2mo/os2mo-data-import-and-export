@@ -108,7 +108,11 @@ class LoraCache:
         :return: from_date and to_date. To date can be None, which should be
         interpreted as an infinite validity. In non-historic exports, both values
         can be None, meaning that this row is not the actual-state value.
+        >>> lc=LoraCache(resolve_dar=False)
+        >>> lc._from_to_from_effect([datetime.datetime(2020, 1, 1), datetime.datetime(2022, 1, 2)])
+        ('2020-01-01', '2022-01-01')
         """
+        
         dt_from = dateutil.parser.isoparse(str(effect[0]))
         dt_from = dt_from.astimezone(DEFAULT_TIMEZONE)
         from_date = dt_from.date().isoformat()
@@ -439,10 +443,10 @@ class LoraCache:
                     r1 = re.compile("urn:multifield_text:(.*)")
                     r2 = re.compile("urn:multifield_text2:(.*)")
                     # Ensure correct order so that "text" is before "text2" 
-                    value1 = r1.findall(value_raw) or r1.findall(value_raw1)
-                    value2 = r2.findall(value_raw) or r2.findall(value_raw1)
+                    value1 = one(r1.findall(value_raw) or r1.findall(value_raw1))
+                    value2 = one(r2.findall(value_raw) or r2.findall(value_raw1))
                     # Both fields are put into one field in loracache as they are shown in MO
-                    value = f"{one(value1)} :: {one(value1)}"
+                    value = f"{value1} :: {value2}"
                     value = urllib.parse.unquote(value)
                 elif address_type == 'DAR':
                     scope = 'DAR'
