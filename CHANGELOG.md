@@ -5,3 +5,8 @@ SPDX-License-Identifier: MPL-2.0
 
 CHANGELOG
 =========
+
+2.0.0 - 2021-12-08
+------------------
+
+[#46715] Implement automatic versioning through autopub
