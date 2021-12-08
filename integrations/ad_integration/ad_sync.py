@@ -225,7 +225,7 @@ class AdMoSync(object):
         return employees
 
     def _read_itconnections_raw(self, uuid, it_system_uuid=None):
-        logger.debug("Read it-system for user")
+        logger.debug(f"Read it-system for user {uuid}")
         if self.lc:
             itconnections = map(itemgetter(0), self.lc.it_connections.values())
             itconnections = filter(lambda it: it["user"] == uuid, itconnections)
@@ -372,13 +372,7 @@ class AdMoSync(object):
             # will not be updated until the first run after that row has become
             # current. To fix this, we will need to ad option to LoRa cache to be
             # able to return entire object validity (poc-code exists).
-            engagement = only(engagements)
-            if engagement:
-                validity = {
-                    "from": VALIDITY["from"],  # today
-                    "to": engagement["to_date"],
-                }
-                self._edit_engagement_post_to_mo(uuid, ad_object, engagement, validity)
+
         else:
             # Read user's current engagements, e.g. exclude engagements that
             # ended in the past.
@@ -394,13 +388,24 @@ class AdMoSync(object):
                 _make_exclude_function(lambda eng: eng["validity"]["from"]),
                 list(engagements),
             )
+
+        try:
             engagement = only(engagements)
-            if engagement:
-                validity = {
-                    "from": VALIDITY["from"],  # today
-                    "to": engagement.get("validity", {}).get("to"),
-                }
-                self._edit_engagement_post_to_mo(uuid, ad_object, engagement, validity)
+        except ValueError:
+            logger.warn(f"More than one primary engagment for user: {uuid} - skipping")
+            engagement = None
+
+        if engagement:
+            to_date = (
+                engagement["to_date"]
+                if self.lc
+                else engagement.get("validity", {}).get("to")
+            )
+            validity = {
+                "from": VALIDITY["from"],  # today
+                "to": to_date,
+            }
+            self._edit_engagement_post_to_mo(uuid, ad_object, engagement, validity)
 
     def _edit_engagement_post_to_mo(self, uuid, ad_object, mo_engagement, validity):
         # Populate `mo_data` with a value for each mapped field whose value has
