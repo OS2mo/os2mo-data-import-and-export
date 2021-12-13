@@ -17,7 +17,8 @@ git-username = "MagentaBot"
 git-email = "info@magenta.dk"
 
 [build-system]
-requires = []
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
 
 [tool.flake8]
 max-line-length = 100
