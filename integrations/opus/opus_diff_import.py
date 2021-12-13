@@ -205,7 +205,9 @@ class OpusDiffImport(object):
 
     def _condense_employee_opus_addresses(self, employee):
         opus_addresses = {}
-        if "email" in employee:
+        if "email" in employee and not self.settings.get(
+            "integrations.opus.skip_employee_email", False
+        ):
             opus_addresses["email"] = employee["email"]
 
         opus_addresses["phone"] = None
@@ -351,8 +353,10 @@ class OpusDiffImport(object):
 
         unit_type, _ = mox_util.ensure_class_in_lora("org_unit_type", org_type)
         from_date = unit.get("startDate", "01-01-1900")
+        unit_user_key = self.settings.get("integrations.opus.unit_user_key", "@id")
         unit_args = {
             "unit": unit,
+            "unit_user_key": unit[unit_user_key],
             "unit_uuid": str(calculated_uuid),
             "unit_type": unit_type,
             "parent": str(parent_uuid),
