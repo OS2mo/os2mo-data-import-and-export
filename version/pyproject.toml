@@ -19,8 +19,3 @@ git-email = "info@magenta.dk"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.flake8]
-max-line-length = 100
-extend-ignore = "E203, E501"
-statistics = "true"
