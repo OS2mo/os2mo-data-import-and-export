@@ -1,3 +1,5 @@
+from gql import gql
+import asyncio
 import json
 import os
 import time
@@ -23,6 +25,7 @@ from typing import Optional
 from retrying import retry
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.dar_helper import dar_helper
+from raclients.graph.client import GraphQLClient
 
 logger = logging.getLogger("LoraCache")
 
@@ -62,6 +65,14 @@ class LoraCache:
         self.full_history = full_history
         self.skip_past = skip_past
         self.org_uuid = self._read_org_uuid()
+
+        self.client = GraphQLClient(
+            url=f"{self.settings['mora.base']}/graphql",
+            client_id=self.settings["crontab.CLIENT_ID"],
+            client_secret=self.settings["crontab.CLIENT_SECRET"],
+            auth_realm="mo",
+            auth_server=self.settings["crontab.AUTH_SERVER"],
+            )
 
     def _load_settings(self):
         return load_settings()
@@ -315,6 +326,41 @@ class LoraCache:
                     }
                 )
         return users
+
+    async def _cache_lora_units_gql(self, session):
+        query = gql(
+                        """
+                        query MOQuery {
+                            org_units{
+                                uuid,
+                                name,
+                                user_key,
+                                parent {
+                                    uuid
+                                    },
+                                org_unit_level_uuid,
+                                unit_type_uuid
+                             }
+                            }
+
+                        """
+                    )
+        response = await session.execute(query)
+        units = {}
+        for unit in response['org_units']:
+
+            units[unit['uuid']] = {
+                        'uuid': unit['uuid'],
+                        'user_key': unit['user_key'],
+                        'name': unit['name'],
+                        'unit_type': unit['unit_type_uuid'],
+                        'level': unit['org_unit_level_uuid'],
+                        'parent': unit['parent'],
+                        # 'from_date': from_date,
+                        # 'to_date': to_date
+                    }
+                
+        return unit 
 
     def _cache_lora_units(self):
         params = {'bvn': '%'}
@@ -1125,77 +1171,77 @@ class LoraCache:
         msg = 'Kørselstid: {:.1f}s, {} elementer, {:.0f}/s'
 
         # Here we should activate read-only mode
-        def read_facets():
+        def read_facets(session):
             logger.info('Læs facetter')
             self.facets = self._cache_lora_facets()
             return self.facets
 
-        def read_classes():
+        def read_classes(session):
             logger.info('Læs klasser')
             self.classes = self._cache_lora_classes()
             return self.classes
 
-        def read_users():
+        def read_users(session):
             logger.info('Læs brugere')
             self.users = self._cache_lora_users()
             return self.users
 
-        def read_units():
+        def read_units(session):
             logger.info('Læs enheder')
-            self.units = self._cache_lora_units()
+            self.units = self._cache_lora_units_gql()
             return self.units
 
-        def read_addresses():
+        def read_addresses(session):
             logger.info('Læs adresser:')
             self.addresses = self._cache_lora_address()
             return self.addresses
 
-        def read_engagements():
+        def read_engagements(session):
             logger.info('Læs engagementer')
             self.engagements = self._cache_lora_engagements()
             return self.engagements
 
-        def read_managers():
+        def read_managers(session):
             logger.info('Læs ledere')
             self.managers = self._cache_lora_managers()
             return self.managers
 
-        def read_associations():
+        def read_associations(session):
             logger.info('Læs tilknytninger')
             self.associations = self._cache_lora_associations()
             return self.associations
 
-        def read_leaves():
+        def read_leaves(session):
             logger.info('Læs orlover')
             self.leaves = self._cache_lora_leaves()
             return self.leaves
 
-        def read_roles():
+        def read_roles(session):
             logger.info('Læs roller')
             self.roles = self._cache_lora_roles()
             return self.roles
 
-        def read_itsystems():
+        def read_itsystems(session):
             logger.info('Læs itsystem')
             self.itsystems = self._cache_lora_itsystems()
             return self.itsystems
 
-        def read_it_connections():
+        def read_it_connections(session):
             logger.info('Læs it kobling')
             self.it_connections = self._cache_lora_it_connections()
             return self.it_connections
 
-        def read_kles():
+        def read_kles(session):
             logger.info('Læs kles')
             self.kles = self._cache_lora_kles()
             return self.kles
 
-        def read_related():
+        def read_related(session):
             logger.info('Læs enhedssammenkobling')
             self.related = self._cache_lora_related()
             return self.related
 
-        def read_dar():
+        def read_dar(session):
             logger.info('Læs dar')
             self.dar_cache = self._cache_dar()
             #with open(cache_file, 'wb') as f:
@@ -1218,12 +1264,12 @@ class LoraCache:
         tasks.append((read_kles, kles_file))
         tasks.append((read_related, related_file))
         tasks.append((read_dar, None))
-
-        for task, filename in tqdm(tasks, desc="LoraCache", unit="task"):
-            data = task()
-            if filename:
-                with open(filename, 'wb') as f:
-                    pickle.dump(data, f, PICKLE_PROTOCOL)
+        async with self.client as session:
+            for task, filename in tqdm(tasks, desc="LoraCache", unit="task"):
+                data = task(session)
+                if filename:
+                    with open(filename, 'wb') as f:
+                        pickle.dump(data, f, PICKLE_PROTOCOL)
 
         # Here we should de-activate read-only mode
 
