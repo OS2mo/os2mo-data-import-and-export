@@ -134,6 +134,9 @@ class LoraCache:
         :param skip_history: Force a validity of today, even if self.full_history
         is true.
         """
+        # Copy to avoid modifying on retry
+        params = params.copy()
+
         t = time.time()
         logger.debug('Start reading {}, params: {}, at t={}'.format(url, params, t))
         results_pr_request = 5000
