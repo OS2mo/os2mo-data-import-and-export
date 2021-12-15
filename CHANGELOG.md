@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.0.3 - 2021-12-15
+------------------
+
+[#47581] LoRa cache fix params retrying
+
 2.0.2 - 2021-12-08
 ------------------
 
