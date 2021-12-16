@@ -327,7 +327,7 @@ class LoraCache:
                 )
         return users
 
-    async def _cache_lora_units_gql(self, session):
+    async def _cache_lora_units_gql(self):
         query = gql(
                         """
                         query MOQuery {
@@ -350,7 +350,7 @@ class LoraCache:
 
                         """
                     )
-        response = await session.execute(query)
+        response = await self.session.execute(query)
         units = {unit["uuid"]:[] for unit in response['org_units']}
         for unit in response['org_units']:
             units[unit['uuid']].append({
@@ -1175,77 +1175,77 @@ class LoraCache:
         msg = 'Kørselstid: {:.1f}s, {} elementer, {:.0f}/s'
 
         # Here we should activate read-only mode
-        def read_facets(session):
+        def read_facets():
             logger.info('Læs facetter')
             self.facets = self._cache_lora_facets()
             return self.facets
 
-        def read_classes(session):
+        def read_classes():
             logger.info('Læs klasser')
             self.classes = self._cache_lora_classes()
             return self.classes
 
-        def read_users(session):
+        def read_users():
             logger.info('Læs brugere')
             self.users = self._cache_lora_users()
             return self.users
 
-        def read_units(session):
+        def read_units():
             logger.info('Læs enheder')
             self.units = self._cache_lora_units_gql()
             return self.units
 
-        def read_addresses(session):
+        def read_addresses():
             logger.info('Læs adresser:')
             self.addresses = self._cache_lora_address()
             return self.addresses
 
-        def read_engagements(session):
+        def read_engagements():
             logger.info('Læs engagementer')
             self.engagements = self._cache_lora_engagements()
             return self.engagements
 
-        def read_managers(session):
+        def read_managers():
             logger.info('Læs ledere')
             self.managers = self._cache_lora_managers()
             return self.managers
 
-        def read_associations(session):
+        def read_associations():
             logger.info('Læs tilknytninger')
             self.associations = self._cache_lora_associations()
             return self.associations
 
-        def read_leaves(session):
+        def read_leaves():
             logger.info('Læs orlover')
             self.leaves = self._cache_lora_leaves()
             return self.leaves
 
-        def read_roles(session):
+        def read_roles():
             logger.info('Læs roller')
             self.roles = self._cache_lora_roles()
             return self.roles
 
-        def read_itsystems(session):
+        def read_itsystems():
             logger.info('Læs itsystem')
             self.itsystems = self._cache_lora_itsystems()
             return self.itsystems
 
-        def read_it_connections(session):
+        def read_it_connections():
             logger.info('Læs it kobling')
             self.it_connections = self._cache_lora_it_connections()
             return self.it_connections
 
-        def read_kles(session):
+        def read_kles():
             logger.info('Læs kles')
             self.kles = self._cache_lora_kles()
             return self.kles
 
-        def read_related(session):
+        def read_related():
             logger.info('Læs enhedssammenkobling')
             self.related = self._cache_lora_related()
             return self.related
 
-        def read_dar(session):
+        def read_dar():
             logger.info('Læs dar')
             self.dar_cache = self._cache_dar()
             #with open(cache_file, 'wb') as f:
@@ -1268,9 +1268,9 @@ class LoraCache:
         tasks.append((read_kles, kles_file))
         tasks.append((read_related, related_file))
         tasks.append((read_dar, None))
-        async with self.client as session:
+        async with self.client as self.session:
             for task, filename in tqdm(tasks, desc="LoraCache", unit="task"):
-                data = task(session)
+                data = task()
                 if filename:
                     with open(filename, 'wb') as f:
                         pickle.dump(data, f, PICKLE_PROTOCOL)
