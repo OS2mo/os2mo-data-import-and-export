@@ -1,18 +1,18 @@
 import asyncio
-from ..lora_cache import LoraCache
+
 import pydantic
+import pytest
 
+from ..lora_cache import LoraCache
+
+
+@pytest.mark.asyncio
 async def test_units():
-    lc = LoraCache(
-        full_history=False,
-        skip_past=True,
-        resolve_dar=False
-        )
-    old = lc._cache_lora_units()
 
+    lc = LoraCache(full_history=False, skip_past=False, resolve_dar=False)
+    old = lc._cache_lora_units()
     async with lc.client as session:
         new = await lc._cache_lora_units_gql(session)
-    assert new == old, new     
-
-asyncio.run(test_units())
-
+    assert new.keys() == old.keys(), "Some uuids are missing"
+    for uuid in new:
+        assert new[uuid] == old[uuid]

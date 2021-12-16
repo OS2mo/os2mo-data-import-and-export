@@ -339,28 +339,32 @@ class LoraCache:
                                     uuid
                                     },
                                 org_unit_level_uuid,
-                                unit_type_uuid
+                                unit_type_uuid,
+                                validity
+                                {
+                                    to,
+                                    from
+                                }
                              }
                             }
 
                         """
                     )
         response = await session.execute(query)
-        units = {}
+        units = {unit["uuid"]:[] for unit in response['org_units']}
         for unit in response['org_units']:
-
-            units[unit['uuid']] = {
+            units[unit['uuid']].append({
                         'uuid': unit['uuid'],
                         'user_key': unit['user_key'],
                         'name': unit['name'],
                         'unit_type': unit['unit_type_uuid'],
                         'level': unit['org_unit_level_uuid'],
-                        'parent': unit['parent'],
-                        # 'from_date': from_date,
-                        # 'to_date': to_date
-                    }
+                        'parent': unit['parent']['uuid'] if unit['parent'] else None,
+                        'from_date': unit['validity']['from'][:10],
+                        'to_date': unit['validity']['to'] 
+                    })
                 
-        return unit 
+        return units
 
     def _cache_lora_units(self):
         params = {'bvn': '%'}
