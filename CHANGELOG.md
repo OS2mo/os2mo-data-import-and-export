@@ -6,6 +6,13 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.1.0 - 2021-12-16
+------------------
+
+[#47571] Fix update-dipex.sh error by adjusting build-system in pyproject.toml
+
+[#47267] New featureflags for customizing opus-import
+
 2.0.3 - 2021-12-15
 ------------------
 
