@@ -138,6 +138,7 @@ class Test_sd_changed_at(DipexTestCase):
                 "cpr_no": cpr,
                 "org": {"uuid": org_uuid},
                 "uuid": user_uuid,
+                "user_key": user_uuid,
             },
         )
 

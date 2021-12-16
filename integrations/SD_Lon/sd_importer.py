@@ -6,9 +6,9 @@
 #
 import datetime
 import logging
+from operator import itemgetter
 from typing import Any
 from typing import Dict
-from typing import List
 from typing import Optional
 
 import click
@@ -21,8 +21,10 @@ from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
+from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sd_common import generate_uuid
 from integrations.SD_Lon.sd_common import sd_lookup
+from integrations.SD_Lon.sd_common import skip_fictional_users
 from os2mo_data_import import ImportHelper
 
 
@@ -60,8 +62,6 @@ class SdImport(object):
         self.settings = settings or load_settings()
 
         self.base_url = "https://service.sd.dk/sdws/"
-        # List of CPR numbers for users with multiple employments
-        self.double_employment: List[str] = []
         self.address_errors: Dict[str, Dict] = {}
         self.manager_rows = manager_rows
 
@@ -186,7 +186,7 @@ class SdImport(object):
                 self._add_klasse(klasse_id, klasse, facet, scope)
 
     def _update_ad_map(self, cpr):
-        logger.debug("Update cpr{}".format(cpr))
+        logger.debug("_update_ad_map called")
         self.ad_people[cpr] = {}
         if self.ad_reader:
             response = self.ad_reader.read_user(cpr=cpr, cache_only=True)
@@ -237,15 +237,14 @@ class SdImport(object):
 
     def _check_subtree(self, department, sub_tree):
         """Check if a department is member of given sub-tree"""
-        in_sub_tree = False
         while "DepartmentReference" in department:
             department = department["DepartmentReference"]
             dep_uuid = department["DepartmentUUIDIdentifier"]
             if self.org_id_prefix:
                 dep_uuid = generate_uuid(dep_uuid, self.org_id_prefix)
             if dep_uuid == sub_tree:
-                in_sub_tree = True
-        return in_sub_tree
+                return True
+        return False
 
     def _add_sd_department(
         self, department, contains_subunits=False, sub_tree=None, super_unit=None
@@ -433,22 +432,24 @@ class SdImport(object):
         if not isinstance(passive_people["Person"], list):
             passive_people["Person"] = [passive_people["Person"]]
 
+        cprs = set(
+            map(
+                itemgetter("PersonCivilRegistrationIdentifier"), active_people["Person"]
+            )
+        )
+        # Collect all people, prefering their active variants
+        # TODO: Consider doing this with a dict keyed by cpr number
         people = active_people["Person"]
-
-        cprs = []
-        for person in active_people["Person"]:
-            cprs.append(person["PersonCivilRegistrationIdentifier"])
         for person in passive_people["Person"]:
-            if not person["PersonCivilRegistrationIdentifier"] in cprs:
+            cpr = person["PersonCivilRegistrationIdentifier"]
+            if cpr not in cprs:
                 people.append(person)
 
+        people = filter(skip_fictional_users, people)
+
+        # TODO: Almost identitcal code exists in sd_changed_at's update_changed_persons
         for person in people:
             cpr = person["PersonCivilRegistrationIdentifier"]
-            logger.info("Importing {}".format(cpr))
-            if cpr[-4:] == "0000":
-                logger.warning("Skipping fictional user: {}".format(cpr))
-                continue
-
             self._update_ad_map(cpr)
 
             given_name = person.get("PersonGivenName", "")
@@ -538,49 +539,17 @@ class SdImport(object):
         self._create_employees(passive_people, skip_manager=True)
 
     def _create_employees(self, persons, skip_manager=False):
-        for person in persons["Person"]:
+        people = persons["Person"]
+        people = filter(skip_fictional_users, people)
+        for person in people:
             self.create_employee(person, skip_manager=skip_manager)
 
     def create_employee(self, person, skip_manager=False):
         logger.debug("Person object to create: {}".format(person))
         cpr = person["PersonCivilRegistrationIdentifier"]
-        if cpr[-4:] == "0000":
-            logger.warning("Skipping fictional user: {}".format(cpr))
-            return
 
-        employments = person["Employment"]
-        if not isinstance(employments, list):
-            employments = [employments]
+        employments = ensure_list(person["Employment"])
 
-        max_rate = -1
-        min_id = 999999
-        for employment in employments:
-            job_position_id = employment["Profession"]["JobPositionIdentifier"]
-            if job_position_id in self.skip_job_functions:
-                logger.info("Skipping {} due to job_pos_id".format(employment))
-                continue
-
-            status = EmploymentStatus(
-                employment["EmploymentStatus"]["EmploymentStatusCode"]
-            )
-            if status == EmploymentStatus.Orlov:
-                # Orlov
-                pass
-            if status in EmploymentStatus.let_go():
-                # Fratrådt eller pensioneret.
-                continue
-
-            employment_id = calc_employment_id(employment)
-            occupation_rate = float(employment["WorkingTime"]["OccupationRate"])
-
-            if occupation_rate == max_rate:
-                if employment_id["value"] < min_id:
-                    min_id = employment_id["value"]
-            if occupation_rate > max_rate:
-                max_rate = occupation_rate
-                min_id = employment_id["value"]
-
-        exactly_one_primary = False
         for employment in employments:
             status = EmploymentStatus(
                 employment["EmploymentStatus"]["EmploymentStatusCode"]
@@ -597,6 +566,7 @@ class SdImport(object):
 
             employment_id = calc_employment_id(employment)
 
+            # TODO: Identital code to this exists in sd_changed_at
             split = self.settings["integrations.SD_Lon.monthly_hourly_divide"]
             if employment_id["value"] < split:
                 engagement_type_ref = "månedsløn"
@@ -609,15 +579,9 @@ class SdImport(object):
                 )
                 logger.info("Non-nummeric id. Job pos id: {}".format(job_position_id))
 
-            if occupation_rate == max_rate and employment_id["value"] == min_id:
-                assert exactly_one_primary is False, "More than one primary found"
-                primary_type_ref = "Ansat"
-                exactly_one_primary = True
-            else:
-                primary_type_ref = "non-primary"
-
+            primary_type_ref = "non-primary"
+            # If status 0, uncondtionally override
             if status == EmploymentStatus.AnsatUdenLoen:
-                # If status 0, uncondtionally override
                 primary_type_ref = "status0"
 
             job_function_type = self.settings["integrations.SD_Lon.job_function"]
@@ -666,59 +630,50 @@ class SdImport(object):
                 )
             )
 
+            original_unit = unit
+            # Remove this to remove any sign of the employee from the
+            # lowest levels of the org
+            if self.create_associations:
+                self.importer.add_association(
+                    employee=cpr,
+                    user_key=employment_id["id"],
+                    organisation_unit=original_unit,
+                    association_type_ref="SD-medarbejder",
+                    date_from=date_from,
+                    date_to=date_to,
+                )
+
             # Employees are not allowed to be in these units (allthough
             # we do make an association). We must instead find the lowest
             # higher level to put she or he.
             too_deep = self.settings["integrations.SD_Lon.import.too_deep"]
-            original_unit = unit
             while self.nodes[unit].name in too_deep:
                 unit = self.nodes[unit].parent.uuid
-            try:
-                # In a distant future, an employment id will be re-used and
-                # then a more refined version of this code will be needed.
-                # engagement_uuid = generate_uuid(employment_id['id'],
-                #                                 self.org_id_prefix,
-                #                                 self.org_name)
 
-                ext_field = self.settings.get("integrations.SD_Lon.employment_field")
-                if ext_field is not None:
-                    extention = {ext_field: job_name}
-                else:
-                    extention = {}
+            ext_field = self.settings.get("integrations.SD_Lon.employment_field")
+            extention = {}
+            if ext_field is not None:
+                extention[ext_field] = job_name
 
-                self.importer.add_engagement(
+            self.importer.add_engagement(
+                employee=cpr,
+                user_key=employment_id["id"],
+                organisation_unit=unit,
+                job_function_ref=job_func_ref,
+                fraction=int(occupation_rate * 1000000),
+                primary_ref=primary_type_ref,
+                engagement_type_ref=engagement_type_ref,
+                date_from=date_from,
+                date_to=date_to,
+                **extention,
+            )
+            if status == EmploymentStatus.Orlov:
+                self.importer.add_leave(
                     employee=cpr,
-                    # uuid=engagement_uuid,
-                    user_key=employment_id["id"],
-                    organisation_unit=unit,
-                    job_function_ref=job_func_ref,
-                    fraction=int(occupation_rate * 1000000),
-                    primary_ref=primary_type_ref,
-                    engagement_type_ref=engagement_type_ref,
+                    leave_type_ref="Orlov",
                     date_from=date_from,
                     date_to=date_to,
-                    **extention,
                 )
-                # Remove this to remove any sign of the employee from the
-                # lowest levels of the org
-                if self.create_associations:
-                    self.importer.add_association(
-                        employee=cpr,
-                        user_key=employment_id["id"],
-                        organisation_unit=original_unit,
-                        association_type_ref="SD-medarbejder",
-                        date_from=date_from,
-                        date_to=date_to,
-                    )
-                if status == EmploymentStatus.Orlov:
-                    self.importer.add_leave(
-                        employee=cpr,
-                        leave_type_ref="Orlov",
-                        date_from=date_from,
-                        date_to=date_to,
-                    )
-            except AssertionError:
-                self.double_employment.append(cpr)
 
             # If we do not have a list of managers, we take the manager,
             # information from the job_function_code.
@@ -759,13 +714,6 @@ class SdImport(object):
                         date_from="1930-01-01",
                         date_to=None,
                     )
-
-        # This assertment really should hold...
-        # assert(exactly_one_primary is True)
-        if exactly_one_primary is not True:
-            pass
-            # print()
-            # print('More than one primary: {}'.format(employments))
 
 
 @click.group()

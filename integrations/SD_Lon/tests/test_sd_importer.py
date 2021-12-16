@@ -202,7 +202,7 @@ def test_create_employee(create_associations: bool):
     if create_associations:
         # We expect one engagement, and one association
         assert len(details) == 2
-        engagement, association = details
+        association, engagement = details
 
         assert association.type_id == "association"
         assert association.date_from == "1970-01-01"
@@ -220,7 +220,7 @@ def test_create_employee(create_associations: bool):
     assert engagement.date_to is None
     assert engagement.user_key == "TEST123"
     assert engagement.fraction == 1000000
-    assert engagement.primary_ref == "Ansat"
+    assert engagement.primary_ref == "non-primary"
     assert engagement.org_unit_ref == "org_unit_uuid"
     assert engagement.type_ref == "engagement_typejob_id_123"
     assert engagement.job_function_ref == "job_id_123"
