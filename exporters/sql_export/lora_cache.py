@@ -139,7 +139,7 @@ class LoraCache:
 
         t = time.time()
         logger.debug('Start reading {}, params: {}, at t={}'.format(url, params, t))
-        results_pr_request = 5000
+        results_pr_request = 1000
         params['foersteresultat'] = 0
         params['konsolider'] = True
 
