@@ -389,6 +389,7 @@ class ChangeAtSD:
         ) -> str:
             model = Employee(
                 uuid=uuid,
+                user_key=uuid,
                 givenname=given_name,
                 surname=sur_name,
                 cpr_no=cpr,
