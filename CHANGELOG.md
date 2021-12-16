@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.1.1 - 2021-12-16
+------------------
+
+[#47581] Decrease LoRaCache results per page from 5000 to 1000 to avoid LoRa database timeout
+
 2.1.0 - 2021-12-16
 ------------------
 
