@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.1.2 - 2021-12-17
+------------------
+
+[#47457] Catch and log when a managerrole has no person attached.
+
 2.1.1 - 2021-12-16
 ------------------
 
