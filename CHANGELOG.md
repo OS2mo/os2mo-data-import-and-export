@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.2.0 - 2021-12-17
+------------------
+
+[#47581] Add support for cached LoRaCache
+
 2.1.3 - 2021-12-17
 ------------------
 
