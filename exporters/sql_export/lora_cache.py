@@ -820,6 +820,9 @@ class LoraCache:
                 return rel[item_name][0]["uuid"]
             except IndexError:
                 logger.error("empty rel[%r] (manager uuid=%r)", item_name, manager_uuid)
+            except KeyError:
+                logger.error("empty person uuid (manager uuid=%r)",  manager_uuid)
+
 
         managers = {}
         for manager in tqdm(manager_list, desc="Processing manager", unit="manager"):
