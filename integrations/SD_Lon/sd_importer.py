@@ -6,6 +6,7 @@
 #
 import datetime
 import logging
+import uuid
 from operator import itemgetter
 from typing import Any
 from typing import Dict
@@ -655,8 +656,13 @@ class SdImport(object):
             if ext_field is not None:
                 extention[ext_field] = job_name
 
+            # Generate UUID for engagement here since we need this UUID when/if
+            # creating a leave below
+            engagement_uuid = uuid.uuid4()
+
             self.importer.add_engagement(
                 employee=cpr,
+                uuid=engagement_uuid,
                 user_key=employment_id["id"],
                 organisation_unit=unit,
                 job_function_ref=job_func_ref,
@@ -670,6 +676,7 @@ class SdImport(object):
             if status == EmploymentStatus.Orlov:
                 self.importer.add_leave(
                     employee=cpr,
+                    engagement_uuid=engagement_uuid,
                     leave_type_ref="Orlov",
                     date_from=date_from,
                     date_to=date_to,

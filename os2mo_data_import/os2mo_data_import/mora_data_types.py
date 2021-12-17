@@ -491,12 +491,13 @@ class LeaveType(MoType):
     :param str date_to: End date e.g. "1982-01-01"
     """
 
-    def __init__(self, leave_type_ref, date_from, date_to=None, uuid=None):
+    def __init__(self, leave_type_ref, engagement_uuid, date_from, date_to=None, uuid=None):
         super().__init__()
 
         self.type_id = "leave"
 
         self.uuid = uuid
+        self.engagement_uuid = engagement_uuid
 
         self.type_ref = leave_type_ref
         self.type_ref_uuid = None
@@ -514,9 +515,8 @@ class LeaveType(MoType):
         """
 
         self.payload = {
-            "leave_type": {
-                "uuid": self.type_ref_uuid
-            }
+            "leave_type": {"uuid": self.type_ref_uuid},
+            "engagement": {"uuid": self.engagement_uuid}
         }
 
         return self._build_payload()
