@@ -453,6 +453,18 @@ exports_lc_for_jobs_db(){
     return $STATUS
 }
 
+exports_cache_loracache() {
+    echo "Building cached LoRaCache"
+    rm -f "${DIPEXAR}/tmp/!(*_historic).p"  # delete old non-historic pickle files
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lora_cache.py --no-historic --resolve-dar
+}
+
+exports_historic_cache_loracache() {
+    echo "Building historic cached LoRaCache"
+    rm -f "${DIPEXAR}/tmp/*_historic.p"  # delete old pickle files
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lora_cache.py --historic --resolve-dar
+}
+
 exports_dummy(){
     echo "Running exports_dummy"
 }
@@ -570,6 +582,14 @@ exports(){
     [ "${IMPORTS_OK}" == "false" ] \
         && echo ERROR: imports are in error - skipping exports \
         && return 1 # exports depend on imports
+
+    if [ "${RUN_CACHE_LORACACHE}" == "true" ]; then
+        run-job exports_cache_loracache || return 2
+    fi
+
+    if [ "${RUN_CACHE_HISTORIC_LORACACHE}" == "true" ]; then
+        run-job exports_historic_cache_loracache || return 2
+    fi
 
     if [ "${RUN_LC_FOR_JOBS_DB_EXPORT}" == "true" ]; then
         run-job exports_lc_for_jobs_db || return 2

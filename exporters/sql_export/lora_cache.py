@@ -1,4 +1,5 @@
 import json
+import os
 import time
 import pickle
 import urllib
@@ -1036,13 +1037,16 @@ class LoraCache:
         logger.info('Total dar: {}, no-hit: {}'.format(total_dar, total_missing))
         return dar_cache
 
-    def populate_cache(self, dry_run=False, skip_associations=False):
+    def populate_cache(self, dry_run=None, skip_associations=False):
         """
         Perform the actual data import.
         :param skip_associations: If associations are not needed, they can be
         skipped for increased performance.
         :param dry_run: For testing purposes it is possible to read from cache.
         """
+        if dry_run is None:
+            dry_run = os.environ.get("USE_CACHED_LORACACHE", False)
+
         # Ensure that tmp/ exists
         Path("tmp/").mkdir(exist_ok=True)
 
