@@ -16,6 +16,8 @@
     "crontab.RUN_KLE_ONLINE": false,
     "crontab.RUN_OPGAVEFORDELER": false,
     "crontab.RUN_AAK_LOS": false,
+    "crontab.RUN_CACHE_LORACACHE": false,
+    "crontab.RUN_CACHE_HISTORIC_LORACACHE": false,
     "crontab.RUN_ACTUAL_STATE_EXPORT": false,
     "crontab.RUN_HISTORIC_SQL_EXPORT": false,
     "crontab.RUN_EXPORTS_AD_LIFE_CYCLE": false,
@@ -30,6 +32,7 @@
     "crontab.BACKUP_SAVE_DAYS": "60",
     "crontab.SNAPSHOT_LORA":"tmp/db-snapshot.sql",
     "crontab.OS2MO_COMPOSE_YML":"tmp/to/os2mo/docker-compose.yml",
+    "crontab.USE_CACHED_LORACACHE": false,
 
     "mox.base": "http://localhost:8080",
     "mora.admin_top_unit": "angiver roden af det organisatoriske træ, der skal overføres(emus/os2sync)",

@@ -198,7 +198,7 @@ def _find_manager_email(manager, mora_helper: MoraHelper):
     return email
 
 
-def main(speedup, dry_run=False):
+def main(speedup, dry_run=None):
     logger.info('Starting export')
 
     mora_base = SETTINGS['mora.base']
@@ -241,7 +241,7 @@ def main(speedup, dry_run=False):
 @click.option(
     '--lora/--mo', 'backend', required=True, default=None, help='Choose backend',
 )
-@click.option('--read-from-cache', is_flag=True)
+@click.option('--read-from-cache', is_flag=True, envvar="USE_CACHED_LORACACHE")
 def cli(**args):
     logger.info('Starting with args: %r', args)
     if args['backend']:

@@ -36,7 +36,7 @@ FilterFunction = Callable[[Tuple[Dict, Dict]], bool]
 
 class AdLifeCycle:
     def __init__(
-        self, use_cached_mo: bool = False, skip_occupied_names_check: bool = False
+        self, read_from_cache: bool = True, skip_occupied_names_check: bool = False
     ) -> None:
         logger.info("AD Sync Started")
         self._settings = load_settings()
@@ -64,7 +64,7 @@ class AdLifeCycle:
         # This is a potentially slow step (since it may read LoraCache)
         print("Retrive LoRa dump")
         with catchtime() as t:
-            self.lc, self.lc_historic = self._update_lora_cache(dry_run=use_cached_mo)
+            self.lc, self.lc_historic = self._update_lora_cache(dry_run=read_from_cache)
         print("Done with LoRa caching: {}".format(t()))
 
         # Create a set of users with engagements for faster filtering
@@ -126,7 +126,7 @@ class AdLifeCycle:
 
         return decorator
 
-    def _update_lora_cache(self, dry_run: bool = False) -> Tuple[LoraCache, LoraCache]:
+    def _update_lora_cache(self, dry_run: bool = True) -> Tuple[LoraCache, LoraCache]:
         """
         Read all information from AD and LoRa.
         :param dry_run: If True, LoRa dump will be read from cache.
@@ -451,13 +451,7 @@ def write_stats(stats: Dict[str, Any]) -> None:
     help="Dry-run without changes.",
     type=click.BOOL,
 )
-@click.option(
-    "--use-cached-mo",
-    default=False,
-    is_flag=True,
-    help="Use cached LoRa data, if false cache is refreshed.",
-    type=click.BOOL,
-)
+@click.option("--read-from-cache", is_flag=True, envvar="USE_CACHED_LORACACHE")
 @click.option(
     "--skip-occupied-names-check",
     default=False,
@@ -469,7 +463,7 @@ def ad_life_cycle(
     create_ad_accounts: bool,
     disable_ad_accounts: bool,
     dry_run: bool,
-    use_cached_mo: bool,
+    read_from_cache: bool,
     skip_occupied_names_check: bool,
 ) -> None:
     """Create or disable users."""
@@ -479,7 +473,7 @@ def ad_life_cycle(
                 "create_ad_accounts": create_ad_accounts,
                 "disable_ad_accounts": disable_ad_accounts,
                 "dry_run": dry_run,
-                "use_cached_mo": use_cached_mo,
+                "read_from_cache": read_from_cache,
             }
         )
     )
@@ -490,7 +484,7 @@ def ad_life_cycle(
         )
 
     sync = AdLifeCycle(
-        use_cached_mo=use_cached_mo,
+        read_from_cache=read_from_cache,
         skip_occupied_names_check=skip_occupied_names_check,
     )
 

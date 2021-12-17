@@ -202,7 +202,7 @@ class AdMoSync(object):
         if lora_speedup:
             print("Retrieve LoRa dump")
             lc = LoraCache(resolve_dar=False, full_history=False)
-            lc.populate_cache(dry_run=False, skip_associations=True)
+            lc.populate_cache(skip_associations=True)
             # skip reading lora - not for prod
             # lc.populate_cache(dry_run=True, skip_associations=True)
             lc.calculate_primary_engagements()
