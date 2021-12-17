@@ -452,7 +452,7 @@ class ChangeAtSD:
                 continue
             uuid = mo_person["uuid"]
 
-            upsert_employee(uuid, given_name, surname, sd_person.cpr)
+            upsert_employee(str(uuid), given_name, surname, sd_person.cpr)
 
         # Create new SD persons in MO
         for sd_person, _ in new_pairs:
@@ -477,7 +477,7 @@ class ChangeAtSD:
                     "User not in MO, UUID list or AD, assigning UUID: {}".format(uuid)
                 )
 
-            return_uuid = upsert_employee(uuid, given_name, surname, sd_person.cpr)
+            return_uuid = upsert_employee(str(uuid), given_name, surname, sd_person.cpr)
 
             if sam_account_name:
                 # Create an IT system for the person If the person is found in the AD
