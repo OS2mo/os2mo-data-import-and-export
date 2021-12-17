@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.1.3 - 2021-12-17
+------------------
+
+[#44668] Associate leave with engagement during SD import
+
 2.1.2 - 2021-12-17
 ------------------
 
