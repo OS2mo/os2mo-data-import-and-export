@@ -439,7 +439,7 @@ def test_set_engagement_on_leave(mock_uuid4):
     # Assert
 
     details = sd.importer.employee_details[cpr_no]
-    engagement, association, leave = details
+    association, engagement, leave = details
 
     assert engagement.uuid == "00000000-0000-0000-0000-000000000000"
     assert leave.engagement_uuid == "00000000-0000-0000-0000-000000000000"
