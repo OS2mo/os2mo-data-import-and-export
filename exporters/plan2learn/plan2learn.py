@@ -537,7 +537,7 @@ def export_leder(mh, nodes, filename, eksporterede_afdelinger, lc=None):
     mh._write_csv(fieldnames, rows, filename)
 
 
-def main(speedup, dry_run=False):
+def main(speedup, dry_run=None):
     t = time.time()
 
     mh = MoraHelper(hostname=SETTINGS['mora.base'], export_ansi=False)
@@ -607,7 +607,7 @@ def main(speedup, dry_run=False):
 @click.option(
     '--lora/--mo', 'backend', required=True, default=None, help='Choose backend',
 )
-@click.option('--read-from-cache', is_flag=True)
+@click.option('--read-from-cache', is_flag=True, envvar="USE_CACHED_LORACACHE")
 def cli(**args):
     logger.info('Starting with args: %r', args)
     if args['backend']:

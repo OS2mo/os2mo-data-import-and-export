@@ -56,7 +56,7 @@ def sql_export(resolve_dar):
     }
 
     sql_export = SqlExport(force_sqlite=True, historic=False, settings=settings)
-    sql_export.perform_export(resolve_dar=resolve_dar, use_pickle=None)
+    sql_export.perform_export(resolve_dar=resolve_dar)
 
 
 if __name__ == "__main__":

@@ -1231,7 +1231,7 @@ def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
     # Full history does not calculate derived data, we must
     # fetch both kinds.
     lc = LoraCache(resolve_dar=False, full_history=False)
-    lc.populate_cache(dry_run=False, skip_associations=True)
+    lc.populate_cache(skip_associations=True)
     lc.calculate_derived_unit_data()
     lc.calculate_primary_engagements()
 
@@ -1239,7 +1239,7 @@ def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
     # This is now fixed in a different branch, remember to update when
     # merged.
     lc_historic = LoraCache(resolve_dar=False, full_history=True, skip_past=False)
-    lc_historic.populate_cache(dry_run=False, skip_associations=True)
+    lc_historic.populate_cache(skip_associations=True)
     # Here we should de-activate read-only mode
     return lc, lc_historic
 
@@ -1247,13 +1247,14 @@ def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
 @click.command()
 @click.option("--historic/--no-historic", default=True, help="Do full historic export")
 @click.option("--resolve-dar/--no-resolve-dar", default=False, help="Resolve DAR addresses")
-def cli(historic, resolve_dar):
+@click.option('--read-from-cache', is_flag=True, envvar="USE_CACHED_LORACACHE")
+def cli(historic, resolve_dar, read_from_cache):
     lc = LoraCache(
         full_history=historic,
         skip_past=True,
         resolve_dar=resolve_dar
     )
-    lc.populate_cache(dry_run=False)
+    lc.populate_cache(dry_run=read_from_cache)
 
     logger.info('Now calcualate derived data')
     lc.calculate_derived_unit_data()

@@ -54,7 +54,7 @@ class SqlExport:
             lc.calculate_primary_engagements()
         return lc
 
-    def perform_export(self, resolve_dar=True, use_pickle=False):
+    def perform_export(self, resolve_dar=True, use_pickle=None):
         def timestamp():
             return datetime.datetime.now()
 
@@ -510,7 +510,7 @@ class SqlExport:
 @click.command(help="SQL export")
 @click.option('--resolve-dar', is_flag=True)
 @click.option('--historic', is_flag=True)
-@click.option('--use-pickle', is_flag=True)
+@click.option('--read-from-cache', is_flag=True, envvar="USE_CACHED_LORACACHE")
 @click.option('--force-sqlite', is_flag=True)
 def cli(**args):
     """
@@ -527,7 +527,7 @@ def cli(**args):
     )
     sql_export.perform_export(
         resolve_dar=args['resolve_dar'],
-        use_pickle=args['use_pickle'],
+        use_pickle=args['read_from_cache'],
     )
     sql_export.swap_tables()
     logger.info('*SQL export ended*')

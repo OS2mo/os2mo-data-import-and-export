@@ -82,21 +82,21 @@ def kill_addresses(mh, lc):
                      response.text, addr[0]["user"]))
 
 
-def main(use_pickle):
+def main(read_from_cache):
     # fortiden er termineret i forvejen
     # ad_sync kan ikke lave fremtidige, derfor ingen historik i cache
     mh = MoraHelper(hostname=SETTINGS["mora.base"])
     lc = LoraCache(resolve_dar=False, full_history=False)
-    lc.populate_cache(dry_run=use_pickle, skip_associations=True)
+    lc.populate_cache(dry_run=read_from_cache, skip_associations=True)
     kill_addresses(mh, lc)
     kill_it_connections(mh, lc)
 
 
 @click.command()
-@click.option('--use-pickle', is_flag=True, default=False)
+@click.option('--read-from-cache', is_flag=True, envvar="USE_CACHED_LORACACHE")
 def cli(**args):
     logger.info('Starting with args: %r', args)
-    main(use_pickle=args['use_pickle'])
+    main(read_from_cache=args['read_from_cache'])
 
 
 if __name__ == '__main__':
