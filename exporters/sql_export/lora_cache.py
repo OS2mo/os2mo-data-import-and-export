@@ -335,28 +335,20 @@ class LoraCache:
         return users
 
     async def _cache_lora_units_gql(self):
-        query = gql(
-                        """
-                        query MOQuery {
-                            org_units{
-                                uuid,
-                                name,
-                                user_key,
-                                parent {
-                                    uuid
-                                    },
-                                org_unit_level_uuid,
-                                unit_type_uuid,
-                                validity
-                                {
-                                    to,
-                                    from
-                                }
-                             }
-                            }
-
-                        """
-                    )
+        query = gql("""
+            query MOQuery {
+                org_units{
+                    uuid,
+                    name,
+                    user_key,
+                    parent {uuid},
+                    org_unit_level_uuid,
+                    unit_type_uuid,
+                    validity {to,from}
+                    }
+                }
+                """
+            )
         response = await self.session.execute(query)
         units = {unit["uuid"]:[] for unit in response['org_units']}
         for unit in response['org_units']:
