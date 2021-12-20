@@ -26,6 +26,7 @@ from retrying import retry
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.dar_helper import dar_helper
 from raclients.graph.client import GraphQLClient
+from ra_utils.async_to_sync import async_to_sync
 
 logger = logging.getLogger("LoraCache")
 
@@ -73,6 +74,12 @@ class LoraCache:
             auth_realm="mo",
             auth_server=self.settings["crontab.AUTH_SERVER"],
             )
+            
+    @staticmethod
+    def _format_optional_datetime_string(timestamp: str, fmt: str = "%Y-%m-%d"):
+        if timestamp is None:
+            return None
+        return datetime.datetime.fromisoformat(timestamp).strftime(fmt)
 
     def _load_settings(self):
         return load_settings()
@@ -360,8 +367,8 @@ class LoraCache:
                         'unit_type': unit['unit_type_uuid'],
                         'level': unit['org_unit_level_uuid'],
                         'parent': unit['parent']['uuid'] if unit['parent'] else None,
-                        'from_date': unit['validity']['from'][:10],
-                        'to_date': unit['validity']['to'] 
+                        'from_date': self._format_optional_datetime_string(unit['validity']['from']),
+                        'to_date': self._format_optional_datetime_string(unit['validity']['to']) 
                     })
                 
         return units
@@ -1091,7 +1098,8 @@ class LoraCache:
         logger.info('Total dar: {}, no-hit: {}'.format(total_dar, total_missing))
         return dar_cache
 
-    def populate_cache(self, dry_run=None, skip_associations=False):
+    @async_to_sync
+    async def populate_cache(self, dry_run=None, skip_associations=False):
         """
         Perform the actual data import.
         :param skip_associations: If associations are not needed, they can be
@@ -1192,7 +1200,10 @@ class LoraCache:
 
         def read_units():
             logger.info('Læs enheder')
-            self.units = self._cache_lora_units_gql()
+            if self.settings.get("loracache-graphql") and not self.full_history:
+                self.units = self._cache_lora_units_gql()
+            else:
+                self.units = self._cache_lora_units()
             return self.units
 
         def read_addresses():
