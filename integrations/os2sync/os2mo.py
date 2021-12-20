@@ -12,7 +12,7 @@ from typing import List
 from typing import Optional
 from typing import Union
 from uuid import UUID
-
+from operator import itemgetter
 import requests
 from more_itertools import first
 from more_itertools import one
@@ -138,12 +138,19 @@ def has_kle():
         return False
 
 
-def user_uuids(**kwargs):
-    return [
-        e["uuid"]
-        for e in os2mo_get("{BASE}/o/{ORG}/e/", limit=9999999, **kwargs).json()["items"]
-    ]
-
+def user_uuids(limit: int = 1000,**kwargs):
+    
+    start = 0
+    total = 1
+    all_employees = set()
+    while start < total:
+        employee_list = os2mo_get("{BASE}/o/{ORG}/e/", limit=limit, start=start, **kwargs).json()
+        all_employees = all_employees.union(set(map(itemgetter("uuid"), employee_list["items"])))
+    
+        start = employee_list['offset'] + limit
+        total = employee_list['total']
+    return all_employees
+ 
 
 def addresses_to_user(user, addresses):
     # TODO: This looks like bucketing (more_itertools.bucket)
