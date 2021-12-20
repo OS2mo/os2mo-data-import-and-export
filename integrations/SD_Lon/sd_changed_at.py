@@ -1050,6 +1050,9 @@ class ChangeAtSD:
             data.update(extention)
             payload = sd_payloads.engagement(data, mo_eng)
             logger.debug("Update profession payload: {}".format(payload))
+
+            # if stillingskode < 9000 => terminate i stedet for edit
+
             response = self.helper._mo_post("details/edit", payload)
             mora_assert(response)
 
@@ -1085,19 +1088,18 @@ class ChangeAtSD:
         response = self.helper._mo_post("details/edit", payload)
         mora_assert(response)
 
-    def edit_engagement(self, engagement, person_uuid, validity=None):
+    def edit_engagement(self, engagement, person_uuid):
         """
         Edit an engagement
         """
         job_id, engagement_info = engagement_components(engagement)
 
         mo_eng = self._find_engagement(job_id, person_uuid)
-        if not mo_eng:
-            # Should have been created at an earlier status-code
-            logger.error("Engagement {} has never existed!".format(job_id))
-            return
 
-        validity = validity or mo_eng["validity"]
+        # TODO: fix #42696
+
+        if not mo_eng:
+            return
 
         self._edit_engagement_department(engagement, mo_eng, person_uuid)
         self._edit_engagement_profession(engagement, mo_eng)
@@ -1189,8 +1191,7 @@ class ChangeAtSD:
                     self._set_non_primary(status, mo_eng)
                     self._refresh_mo_engagements(person_uuid)
 
-                    validity = self._validity(status)
-                    self.edit_engagement(sd_employment, person_uuid, validity)
+                    self.edit_engagement(sd_employment, person_uuid)
                 else:
                     logger.info("Status 1: Create new engagement")
                     self.create_new_engagement(sd_employment, status, cpr, person_uuid)
