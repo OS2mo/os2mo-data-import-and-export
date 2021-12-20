@@ -12,7 +12,7 @@ from typing import List
 from typing import Optional
 from typing import Union
 from uuid import UUID
-
+from operator import itemgetter
 import requests
 from more_itertools import first
 from more_itertools import one
@@ -137,12 +137,6 @@ def has_kle():
     except requests.exceptions.HTTPError:
         return False
 
-
-def user_uuids(**kwargs):
-    return [
-        e["uuid"]
-        for e in os2mo_get("{BASE}/o/{ORG}/e/", limit=9999999, **kwargs).json()["items"]
-    ]
 
 
 def addresses_to_user(user, addresses):

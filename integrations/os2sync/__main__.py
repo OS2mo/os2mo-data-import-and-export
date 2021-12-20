@@ -10,7 +10,10 @@ import json
 import logging
 import pathlib
 from functools import partial
+from operator import itemgetter
 
+from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.load_settings import load_setting
 from tqdm import tqdm
 
 from integrations.os2sync import config
@@ -18,7 +21,9 @@ from integrations.os2sync import lcdb_os2mo
 from integrations.os2sync import os2mo
 from integrations.os2sync import os2sync
 
+
 logger = None  # set in main()
+helper = MoraHelper(load_setting("mora.base")())
 
 
 def log_mox_config(settings):
@@ -96,10 +101,12 @@ def sync_os2sync_users(settings, allowed_unitids, counter, prev_date):
     logger.info(
         "sync_os2sync_users getting " "users from os2mo from previous xfer date"
     )
-    os2mo_uuids_past = set(os2mo.user_uuids(at=prev_date))
+    os2mo_uuids_past = helper.read_all_users(at=prev_date)
+    os2mo_uuids_past = set(map(itemgetter("uuid"), os2mo_uuids_past))
 
     logger.info("sync_os2sync_users getting list of users from os2mo")
-    os2mo_uuids_present = set(os2mo.user_uuids())
+    os2mo_uuids_present = helper.read_all_users()
+    os2mo_uuids_present = set(map(itemgetter("uuid"), os2mo_uuids_present))
 
     counter["Medarbejdere fundet i OS2Mo"] = len(os2mo_uuids_present)
     counter["Medarbejdere tidligere"] = len(os2mo_uuids_past)
