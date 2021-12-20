@@ -4,7 +4,7 @@ from ra_utils.load_settings import load_setting
 from integrations.opus.clear_and_import_opus import import_opus
 from tools.data_fixers.remove_user_from_lora import delete_object_and_orgfuncs
 
-
+#TODO: Would be nice to be able to drop object-type and to make it able to reimport based on cpr or uuid also.
 @click.command()
 @click.option("--mox-base", default=load_setting("mox.base"))
 @click.option("--delete-uuid", type=click.UUID)

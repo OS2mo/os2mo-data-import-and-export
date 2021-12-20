@@ -885,18 +885,13 @@ def import_one(
         filtered_units,
         employees,
         terminated_employees,
-    ) = opus_helpers.read_and_transform_data(latest_path, xml_path, filter_ids)
+    ) = opus_helpers.read_and_transform_data(latest_path, xml_path, filter_ids, opus_id=opus_id)
     opus_helpers.local_db_insert((xml_date, "Running diff update since {}"))
     diff = OpusDiffImport(
         xml_date,
         ad_reader=ad_reader,
         filter_ids=filter_ids,
     )
-    if opus_id:
-        units = filter(lambda u: int(u.get('@id')) == opus_id, units)
-        filtered_units = filter(lambda u: int(u.get('@id')) == opus_id, filtered_units)
-        employees = filter(lambda e: int(e.get('@id')) == opus_id, employees)
-        terminated_employees = filter(lambda e: int(e.get('@id')) == opus_id, terminated_employees)
     diff.start_import(units, employees, terminated_employees)
     filtered_units = diff.find_unterminated_filtered_units(filtered_units)
 
