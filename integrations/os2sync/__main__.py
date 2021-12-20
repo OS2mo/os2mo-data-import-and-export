@@ -17,9 +17,12 @@ from integrations.os2sync import config
 from integrations.os2sync import lcdb_os2mo
 from integrations.os2sync import os2mo
 from integrations.os2sync import os2sync
+from os2mo_helpers.mora_helpers import MoraHelper
+from operator import itemgetter
+
 
 logger = None  # set in main()
-
+helper = MoraHelper()
 
 def log_mox_config(settings):
     """It is imperative for log-forensics to have as
@@ -96,10 +99,12 @@ def sync_os2sync_users(settings, allowed_unitids, counter, prev_date):
     logger.info(
         "sync_os2sync_users getting " "users from os2mo from previous xfer date"
     )
-    os2mo_uuids_past = os2mo.user_uuids(at=prev_date)
+    os2mo_uuids_past = helper.read_all_users(at=prev_date)
+    os2mo_uuids_past = set(map(itemgetter("uuid"), os2mo_uuids_past))
 
     logger.info("sync_os2sync_users getting list of users from os2mo")
-    os2mo_uuids_present = os2mo.user_uuids()
+    os2mo_uuids_present = helper.read_all_users()
+    os2mo_uuids_present = set(map(itemgetter("uuid"), os2mo_uuids_present))
 
     counter["Medarbejdere fundet i OS2Mo"] = len(os2mo_uuids_present)
     counter["Medarbejdere tidligere"] = len(os2mo_uuids_past)

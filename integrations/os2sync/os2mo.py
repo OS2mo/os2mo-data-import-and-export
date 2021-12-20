@@ -138,19 +138,6 @@ def has_kle():
         return False
 
 
-def user_uuids(limit: int = 1000,**kwargs):
-    
-    start = 0
-    total = 1
-    all_employees = set()
-    while start < total:
-        employee_list = os2mo_get("{BASE}/o/{ORG}/e/", limit=limit, start=start, **kwargs).json()
-        all_employees = all_employees.union(set(map(itemgetter("uuid"), employee_list["items"])))
-    
-        start = employee_list['offset'] + limit
-        total = employee_list['total']
-    return all_employees
- 
 
 def addresses_to_user(user, addresses):
     # TODO: This looks like bucketing (more_itertools.bucket)
