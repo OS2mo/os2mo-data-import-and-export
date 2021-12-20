@@ -2,12 +2,14 @@ from datetime import datetime
 from unittest import mock
 from unittest import TestCase
 
-from hypothesis import assume
 from hypothesis import given
 from hypothesis import strategies
 from parameterized import parameterized
 
 from ..lora_cache import LoraCache
+
+# Some tests can't handle '\n', though the program can.
+st_text = strategies.text().filter(lambda x: "\n" not in x)
 
 
 class _TestableLoraCache(LoraCache):
@@ -131,11 +133,8 @@ class TestCacheLoraAddress(TestCase):
 
         self.assertEqual(address[self._address_uuid][0]["value"], value)
 
-    @given(strategies.text(), strategies.text())
+    @given(st_text, st_text)
     def test_address_multifield(self, value1, value2):
-        # Tests can't handle '\n', though the program can.
-        assume("\n" not in value1)
-        assume("\n" not in value2)
         address = self._get_results(
             {
                 "tilknyttedebrugere": [{"uuid": self._bruger_uuid}],
