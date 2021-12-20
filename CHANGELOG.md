@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.2.1 - 2021-12-20
+------------------
+
+[#47632] OS2sync uses paginated calls to avoid timeouts
+
 2.2.0 - 2021-12-17
 ------------------
 
