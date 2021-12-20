@@ -10,19 +10,21 @@ import json
 import logging
 import pathlib
 from functools import partial
+from operator import itemgetter
 
+from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.load_settings import load_setting
 from tqdm import tqdm
 
 from integrations.os2sync import config
 from integrations.os2sync import lcdb_os2mo
 from integrations.os2sync import os2mo
 from integrations.os2sync import os2sync
-from os2mo_helpers.mora_helpers import MoraHelper
-from operator import itemgetter
 
 
 logger = None  # set in main()
-helper = MoraHelper()
+helper = MoraHelper(load_setting("mora.base")())
+
 
 def log_mox_config(settings):
     """It is imperative for log-forensics to have as
