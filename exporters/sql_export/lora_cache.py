@@ -19,6 +19,7 @@ from tqdm import tqdm
 import click
 from more_itertools import bucket
 from ra_utils.load_settings import load_settings
+from typing import Optional
 from retrying import retry
 from os2mo_helpers.mora_helpers import MoraHelper
 from integrations.dar_helper import dar_helper
@@ -31,6 +32,16 @@ PICKLE_PROTOCOL = pickle.DEFAULT_PROTOCOL
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = 'lora_cache.log'
+
+def get_rel_uuid_or_none(uuid, rel, item_name) -> Optional[str]:
+    """Read uuid from rel. Log if it doesn't exist"""
+    try:
+        return rel[item_name][0]["uuid"]
+    except IndexError:
+        logger.error(f"Empty rel['{item_name}'] ({uuid=}), was {rel}")
+    except KeyError:
+        logger.info(f"No {item_name} found for {uuid=}, was {rel}")
+    return None
 
 
 class LoraCache:
@@ -586,7 +597,7 @@ class LoraCache:
                 user_key = (attr['organisationfunktionegenskaber'][0]
                             ['brugervendtnoegle'])
                 association_type = rel['organisatoriskfunktionstype'][0]['uuid']
-                user_uuid = rel['tilknyttedebrugere'][0]['uuid']
+                user_uuid = get_rel_uuid_or_none(uuid, rel, "tilknyttedebrugere")
 
                 associations[uuid].append(
                      {
@@ -816,14 +827,7 @@ class LoraCache:
         url = '/organisation/organisationfunktion'
         manager_list = self._perform_lora_lookup(url, params, unit="manager")
 
-        def get_rel_uuid_or_none(manager_uuid, rel, item_name):
-            try:
-                return rel[item_name][0]["uuid"]
-            except IndexError:
-                logger.error("empty rel[%r] (manager uuid=%r)", item_name, manager_uuid)
-            except KeyError:
-                logger.error("empty person uuid (manager uuid=%r)",  manager_uuid)
-
+        
 
         managers = {}
         for manager in tqdm(manager_list, desc="Processing manager", unit="manager"):
