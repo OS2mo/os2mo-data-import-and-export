@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.2.4 - 2021-12-21
+------------------
+
+[#47646] Fix OS2sync LoRa cache crashing because of missing "is_primary" field
+
 2.2.3 - 2021-12-21
 ------------------
 
