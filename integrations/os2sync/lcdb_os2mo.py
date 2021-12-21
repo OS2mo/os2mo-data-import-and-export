@@ -133,6 +133,7 @@ def get_sts_user(session, uuid, allowed_unitids):
                 "uuid": lc_engagement.uuid,
                 "org_unit": {"uuid": lc_engagement.enhed_uuid},
                 "job_function": {"name": lc_engagement.stillingsbetegnelse_titel},
+                "is_primary": lc_engagement.primær_boolean,
             }
         )
 
