@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.2.2 - 2021-12-21
+------------------
+
+[#47622] Loracache allow vacant association
+
 2.2.1 - 2021-12-20
 ------------------
 
