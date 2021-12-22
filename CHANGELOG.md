@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.3.0 - 2021-12-22
+------------------
+
+[#47488] Add script to remove duplicate registrations from user tables
+
 2.2.5 - 2021-12-22
 ------------------
 
