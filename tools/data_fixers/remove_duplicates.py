@@ -20,6 +20,7 @@ def get_connection(
     """
     Establish connection to mox-db.
     """
+    print("Connecting to the database")
     return connect(
         user=user,
         dbname=dbname,
@@ -29,10 +30,75 @@ def get_connection(
     )
 
 
+def create_indexes(connector: connection) -> None:
+    """
+    These indexes are required to run the script in a time resembling polynomial.
+    """
+    print("Creating indexes")
+    cursor = connector.cursor()
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS bruger_attr_egenskaber_bruger_registrering_id_index
+        ON bruger_attr_egenskaber (bruger_registrering_id);
+        CREATE INDEX IF NOT EXISTS bruger_attr_udvidelser_bruger_registrering_id_index
+        ON bruger_attr_udvidelser (bruger_registrering_id);
+        CREATE INDEX IF NOT EXISTS bruger_tils_gyldighed_bruger_registrering_id_index
+        ON bruger_tils_gyldighed (bruger_registrering_id);
+        CREATE INDEX IF NOT EXISTS bruger_relation_bruger_registrering_id_index
+        ON bruger_relation (bruger_registrering_id);
+        """
+    )
+
+
+def delete_indexes(connector: connection) -> None:
+    """
+    Dropping these unused indexes dramatically speeds up execution.
+    """
+    print("Dropping useless indexes")
+    cursor = connector.cursor()
+    cursor.execute(
+        """
+        DROP INDEX IF EXISTS bruger_attr_egenskaber_idx_virkning_notetekst;
+        DROP INDEX IF EXISTS bruger_attr_egenskaber_idx_brugervendtnoegle;
+        DROP INDEX IF EXISTS bruger_attr_egenskaber_idx_brugernavn;
+        DROP INDEX IF EXISTS bruger_attr_egenskaber_idx_brugertype;
+        DROP INDEX IF EXISTS bruger_attr_egenskaber_idx_integrationsdata;
+        DROP INDEX IF EXISTS bruger_attr_egenskaber_idx_virkning_aktoerref;
+        DROP INDEX IF EXISTS bruger_attr_egenskaber_pat_virkning_notetekst;
+        DROP INDEX IF EXISTS bruger_attr_egenskaber_idx_virkning_aktoertypekode;
+        DROP INDEX IF EXISTS bruger_attr_udvidelser_idx_kaldenavn_fornavn;
+        DROP INDEX IF EXISTS bruger_attr_udvidelser_idx_fornavn;
+        DROP INDEX IF EXISTS bruger_attr_udvidelser_idx_efternavn;
+        DROP INDEX IF EXISTS bruger_attr_udvidelser_idx_kaldenavn_efternavn;
+        DROP INDEX IF EXISTS bruger_attr_udvidelser_idx_seniority;
+        DROP INDEX IF EXISTS bruger_attr_udvidelser_idx_virkning_aktoerref;
+        DROP INDEX IF EXISTS bruger_attr_udvidelser_idx_virkning_aktoertypekode;
+        DROP INDEX IF EXISTS bruger_attr_udvidelser_idx_virkning_notetekst;
+        DROP INDEX IF EXISTS bruger_attr_udvidelser_pat_virkning_notetekst;
+        DROP INDEX IF EXISTS bruger_registrering_idx_livscykluskode;
+        DROP INDEX IF EXISTS bruger_registrering_idx_brugerref;
+        DROP INDEX IF EXISTS bruger_registrering_idx_note;
+        DROP INDEX IF EXISTS bruger_registrering_pat_note;
+        DROP INDEX IF EXISTS bruger_relation_idx_rel_maal_uuid;
+        DROP INDEX IF EXISTS bruger_relation_idx_rel_maal_urn_isolated;
+        DROP INDEX IF EXISTS bruger_relation_idx_rel_maal_obj_uuid;
+        DROP INDEX IF EXISTS bruger_relation_idx_rel_maal_obj_urn;
+        DROP INDEX IF EXISTS bruger_relation_idx_rel_maal_uuid_isolated;
+        DROP INDEX IF EXISTS bruger_relation_idx_virkning_aktoertypekode;
+        DROP INDEX IF EXISTS bruger_relation_idx_virkning_notetekst;
+        DROP INDEX IF EXISTS bruger_relation_pat_virkning_notetekst;
+        DROP INDEX IF EXISTS bruger_relation_idx_virkning_aktoerref;
+        DROP INDEX IF EXISTS bruger_tils_gyldighed_idx_gyldighed;
+        DROP INDEX IF EXISTS bruger_tils_gyldighed_idx_virkning_aktoerref;
+        """
+    )
+
+
 def get_unique_bruger_registrering(connector: connection) -> List[int]:
     """
     Fetch all bruger_registration IDs.
     """
+    print("Getting bruger_registration IDs")
     cursor = connector.cursor()
     cursor.execute(
         """
@@ -164,7 +230,10 @@ def run(db_user: str, db_name: str, db_host: str, db_password: str, db_port: int
         password=db_password,
         port=db_port,
     )
+    delete_indexes(connector)
+    create_indexes(connector)
     for table, equivalence_keys in table_and_equivalence_keys.items():
+        print("Removing duplicates for", table)
         for bruger_registrering_id in tqdm(get_unique_bruger_registrering(connector)):
             bruger_attr_rows = get_table_for_registrering(
                 connector=connector,
