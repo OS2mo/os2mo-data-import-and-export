@@ -143,7 +143,7 @@ def parser(target_file: Path, opus_id: Optional[int] = None) -> Tuple[List, List
     data = data["kmd"]
     units = data.get("orgUnit", [])
     employees = data.get("employee", [])
-    if opus_id:
+    if opus_id is not None:
         employees = list(filter(lambda x: int(x["@id"]) == opus_id, employees))
         units = list(filter(lambda x: int(x["@id"]) == opus_id, units))
     return units, employees
