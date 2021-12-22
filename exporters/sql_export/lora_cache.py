@@ -1251,7 +1251,7 @@ def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
 @click.command()
 @click.option("--historic/--no-historic", default=True, help="Do full historic export")
 @click.option("--resolve-dar/--no-resolve-dar", default=False, help="Resolve DAR addresses")
-@click.option('--read-from-cache', is_flag=True, envvar="USE_CACHED_LORACACHE")
+@click.option('--read-from-cache', is_flag=True)
 def cli(historic, resolve_dar, read_from_cache):
     lc = LoraCache(
         full_history=historic,
