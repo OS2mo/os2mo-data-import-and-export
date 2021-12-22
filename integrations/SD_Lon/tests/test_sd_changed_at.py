@@ -14,9 +14,9 @@ from parameterized import parameterized
 from ra_utils.attrdict import attrdict
 from ra_utils.generate_uuid import uuid_generator
 
+from .fixtures import get_employment_fixture
 from .fixtures import get_sd_person_fixture
 from .fixtures import read_employment_fixture
-from .fixtures import get_employment_fixture
 from integrations.SD_Lon.convert import sd_to_mo_termination_date
 from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
@@ -777,7 +777,7 @@ class Test_sd_changed_at(DipexTestCase):
     @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
     @patch("integrations.SD_Lon.sd_changed_at.sd_lookup")
     def test_edit_engagement_job_position_id_set_to_value_over_9000(
-            self, mock_sd_lookup, mock_sd_lookup_settings
+        self, mock_sd_lookup, mock_sd_lookup_settings
     ):
         """
         If an employment exists in MO but with no engagement (e.g. which happens
@@ -790,11 +790,16 @@ class Test_sd_changed_at(DipexTestCase):
 
         # Arrange
 
-        sd_updater = setup_sd_changed_at({
-            "integrations.SD_Lon.monthly_hourly_divide": 80000,
-            "integrations.SD_Lon.no_salary_minimum_id": 9000,
-            "integrations.SD_Lon.import.too_deep": ["Afdelings-niveau", "NY1-niveau"]
-        })
+        sd_updater = setup_sd_changed_at(
+            {
+                "integrations.SD_Lon.monthly_hourly_divide": 80000,
+                "integrations.SD_Lon.no_salary_minimum_id": 9000,
+                "integrations.SD_Lon.import.too_deep": [
+                    "Afdelings-niveau",
+                    "NY1-niveau",
+                ],
+            }
+        )
 
         sd_updater.engagement_types = {
             "månedsløn": "monthly pay",
@@ -827,7 +832,8 @@ class Test_sd_changed_at(DipexTestCase):
 
         # Mock the call in sd_updater.read_employment_at(...)
         mock_sd_lookup.return_value = get_employment_fixture(
-            1234561234, "emp_id", "dep_id", "dep_uuid", "9002", "job_title")
+            1234561234, "emp_id", "dep_id", "dep_uuid", "9002", "job_title"
+        )
 
         mock_apply_NY_logic = MagicMock()
         sd_updater.apply_NY_logic = mock_apply_NY_logic
@@ -850,14 +856,17 @@ class Test_sd_changed_at(DipexTestCase):
 
         # Assert
 
-        _mo_post.assert_called_once_with("details/create", {
-            'engagement_type': {'uuid': 'new_class_uuid'},
-            'fraction': 0,
-            'job_function': {'uuid': 'new_class_uuid'},
-            'org_unit': {'uuid': 'org_unit_uuid'},
-            'person': {'uuid': 'person_uuid'},
-            'primary': {'uuid': 'primary_uuid'},
-            'type': 'engagement',
-            'user_key': 'emp_id',
-            'validity': {'from': '2020-11-10', 'to': '2021-02-09'}
-        })
+        _mo_post.assert_called_once_with(
+            "details/create",
+            {
+                "engagement_type": {"uuid": "new_class_uuid"},
+                "fraction": 0,
+                "job_function": {"uuid": "new_class_uuid"},
+                "org_unit": {"uuid": "org_unit_uuid"},
+                "person": {"uuid": "person_uuid"},
+                "primary": {"uuid": "primary_uuid"},
+                "type": "engagement",
+                "user_key": "emp_id",
+                "validity": {"from": "2020-11-10", "to": "2021-02-09"},
+            },
+        )

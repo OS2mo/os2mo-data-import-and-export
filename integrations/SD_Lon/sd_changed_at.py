@@ -44,6 +44,9 @@ from integrations.rundb.db_overview import DBOverview
 from integrations.SD_Lon import exceptions
 from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.convert import sd_to_mo_termination_date
+from integrations.SD_Lon.engagement import create_engagement
+from integrations.SD_Lon.engagement import engagement_components
+from integrations.SD_Lon.engagement import update_existing_engagement
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.models import SDBasePerson
 from integrations.SD_Lon.sd_common import calc_employment_id
@@ -54,9 +57,6 @@ from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
 from integrations.SD_Lon.sync_job_id import JobIdSync
-from integrations.SD_Lon.engagement import engagement_components
-from integrations.SD_Lon.engagement import create_engagement
-from integrations.SD_Lon.engagement import update_existing_engagement
 
 # from integrations.SD_Lon.sd_common import generate_uuid
 
@@ -1091,9 +1091,9 @@ class ChangeAtSD:
         mo_eng = self._find_engagement(employment_id, person_uuid)
 
         if (
-            no_salary_minimum is not None and
-            not mo_eng and
-            job_pos_id > no_salary_minimum
+            no_salary_minimum is not None
+            and not mo_eng
+            and job_pos_id > no_salary_minimum
         ):
             create_engagement(self, employment_id, person_uuid)
             return

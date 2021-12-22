@@ -571,7 +571,7 @@ def get_organisation_fixture(
 
 
 def get_employment_fixture(
-        cpr, employment_id, department_id, department_uuid, job_pos_id, job_title
+    cpr, employment_id, department_id, department_uuid, job_pos_id, job_title
 ):
     """
     Get the OrderedDict returned when sd_common.sd_lookup is called for the
@@ -634,7 +634,7 @@ def get_employment_fixture(
                             ),
                         ),
                     ]
-                )
+                ),
             )
         ]
     )
