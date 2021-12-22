@@ -1098,7 +1098,6 @@ class ChangeAtSD:
             create_engagement(self, employment_id, person_uuid)
             return
 
-        # Not sure if this is necessary any longer...
         if not mo_eng:
             # Should have been created at an earlier status-code
             logger.error("Engagement {} has never existed!".format(employment_id))
