@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.4.0 - 2021-12-22
+------------------
+
+[#47488] Add 'vacuum' command to remove_duplicates tool
+
 2.3.0 - 2021-12-22
 ------------------
 
