@@ -6,6 +6,8 @@ from typing import Sequence
 from typing import Tuple
 
 import click
+import psycopg2
+from click import Context
 from more_itertools import one
 from more_itertools import pairwise
 from psycopg2 import connect
@@ -98,12 +100,11 @@ def get_unique_bruger_registrering(connector: connection) -> List[int]:
     """
     Fetch all bruger_registration IDs.
     """
-    print("Getting bruger_registration IDs")
     cursor = connector.cursor()
     cursor.execute(
         """
         SELECT id
-        FROM bruger_registrering
+        FROM bruger_registrering;
         """
     )
     rows = cursor.fetchall()
@@ -126,7 +127,7 @@ def get_table_for_registrering(
         SELECT id, {", ".join(equivalence_keys)}, (virkning).TimePeriod as virkning
         FROM {table}
         WHERE bruger_registrering_id = %(registrering_id)s
-        ORDER BY virkning
+        ORDER BY virkning;
         """,
         {"registrering_id": registrering_id},
     )
@@ -175,7 +176,7 @@ def effectuate_table(
         cursor.execute(
             f"""
             DELETE FROM {table}
-            {delete_statement}
+            {delete_statement};
             """,
         )
     for id, virkning in update_rows.items():
@@ -190,6 +191,25 @@ def effectuate_table(
             {"id": id, "virkning": virkning},
         )
     cursor.execute("COMMIT")
+
+
+def vacuum_database(connector: connection) -> None:
+    """
+    Vacuum the database, reclaiming disk space and allowing the query optimiser to work
+    on the new state of the database.
+    Requires enough disk space to write a copy of the database tables.
+    """
+    print("Vacuuming")
+    print("This will take a while..")
+    original_isolation_level = connector.isolation_level
+    connector.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+    cursor = connector.cursor()
+    cursor.execute(
+        """
+        VACUUM FULL ANALYZE;
+        """
+    )
+    connector.set_isolation_level(original_isolation_level)
 
 
 table_and_equivalence_keys = {
@@ -216,13 +236,25 @@ table_and_equivalence_keys = {
 }
 
 
-@click.command()
+@click.group(invoke_without_command=True)
 @click.option("--db-user", required=True)
 @click.option("--db-name", required=True)
 @click.option("--db-host", required=True)
 @click.option("--db-password", required=True)
 @click.option("--db-port", type=int, required=True)
-def run(db_user: str, db_name: str, db_host: str, db_password: str, db_port: int):
+@click.pass_context
+def cli(
+    ctx: Context,
+    db_user: str,
+    db_name: str,
+    db_host: str,
+    db_password: str,
+    db_port: int,
+):
+    # ensure that ctx.obj exists and is a dict (in case `cli()` is called by means other
+    # than the `if __name__ == "__main__"` block below).
+    ctx.ensure_object(dict)
+
     connector = get_connection(
         user=db_user,
         dbname=db_name,
@@ -230,6 +262,11 @@ def run(db_user: str, db_name: str, db_host: str, db_password: str, db_port: int
         password=db_password,
         port=db_port,
     )
+    ctx.obj["connector"] = connector
+
+    if ctx.invoked_subcommand is not None:
+        return
+
     delete_indexes(connector)
     create_indexes(connector)
     for table, equivalence_keys in table_and_equivalence_keys.items():
@@ -253,5 +290,12 @@ def run(db_user: str, db_name: str, db_host: str, db_password: str, db_port: int
             )
 
 
+@cli.command()
+@click.pass_context
+def vacuum(ctx: Context):
+    connector = ctx.obj["connector"]
+    vacuum_database(connector=connector)
+
+
 if __name__ == "__main__":
-    run()
+    cli(obj={})
