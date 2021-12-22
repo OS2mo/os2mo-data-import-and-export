@@ -54,6 +54,9 @@ from integrations.SD_Lon.sd_common import primary_types
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
 from integrations.SD_Lon.sync_job_id import JobIdSync
+from integrations.SD_Lon.engagement import engagement_components
+from integrations.SD_Lon.engagement import create_engagement
+from integrations.SD_Lon.engagement import update_existing_engagement
 
 # from integrations.SD_Lon.sd_common import generate_uuid
 
@@ -86,17 +89,6 @@ def setup_logging():
 
 
 # TODO: SHOULD WE IMPLEMENT PREDICTABLE ENGAGEMENT UUIDS ALSO IN THIS CODE?!?
-
-
-def engagement_components(engagement_info) -> Tuple[str, Dict[str, List[Any]]]:
-    job_id = engagement_info["EmploymentIdentifier"]
-
-    return job_id, {
-        "status_list": ensure_list(engagement_info.get("EmploymentStatus", [])),
-        "professions": ensure_list(engagement_info.get("Profession", [])),
-        "departments": ensure_list(engagement_info.get("EmploymentDepartment", [])),
-        "working_time": ensure_list(engagement_info.get("WorkingTime", [])),
-    }
 
 
 class ChangeAtSD:
@@ -695,7 +687,7 @@ class ChangeAtSD:
         else:
             logger.info("No new Association is needed")
 
-    def apply_NY_logic(self, org_unit, job_id, validity, person_uuid):
+    def apply_NY_logic(self, org_unit, job_id, validity, person_uuid) -> str:
         msg = "Apply NY logic for job: {}, unit: {}, validity: {}"
         logger.debug(msg.format(job_id, org_unit, validity))
         too_deep = self.settings["integrations.SD_Lon.import.too_deep"]
@@ -720,7 +712,7 @@ class ChangeAtSD:
 
         return org_unit
 
-    def read_employment_at(self, EmploymentIdentifier, EffectiveDate):
+    def read_employment_at(self, EmploymentIdentifier, EffectiveDate) -> OrderedDict:
         url = "GetEmployment20111201"
         params = {
             "EmploymentIdentifier": EmploymentIdentifier,
@@ -746,7 +738,6 @@ class ChangeAtSD:
         # beware - name engagement_info used for engagement in engagement_components
         user_key, engagement_info = engagement_components(engagement)
         if not engagement_info["departments"] or not engagement_info["professions"]:
-
             # I am looking into the possibility that creating AND finishing
             # an engagement in the past gives the problem that the engagement
             # is reported to this function without the components needed to create
@@ -850,7 +841,6 @@ class ChangeAtSD:
             validity=validity,
             **extension,
         )
-
         response = self.helper._mo_post("details/create", payload)
         assert response.status_code == 201
 
@@ -915,7 +905,7 @@ class ChangeAtSD:
 
         return True
 
-    def _edit_engagement_department(self, engagement, mo_eng, person_uuid):
+    def edit_engagement_department(self, engagement, mo_eng, person_uuid):
         job_id, engagement_info = engagement_components(engagement)
         for department in engagement_info["departments"]:
             logger.info("Change department of engagement {}:".format(job_id))
@@ -999,7 +989,7 @@ class ChangeAtSD:
         logger.info("Non-nummeric id. Job pos id: {}".format(job_position))
         return self._fetch_engagement_type(job_position)
 
-    def _edit_engagement_type(self, engagement, mo_eng):
+    def edit_engagement_type(self, engagement, mo_eng):
         job_id, engagement_info = engagement_components(engagement)
         for profession_info in engagement_info["professions"]:
             logger.info("Change engagement type of engagement {}".format(job_id))
@@ -1020,7 +1010,7 @@ class ChangeAtSD:
             response = self.helper._mo_post("details/edit", payload)
             mora_assert(response)
 
-    def _edit_engagement_profession(self, engagement, mo_eng):
+    def edit_engagement_profession(self, engagement, mo_eng):
         job_id, engagement_info = engagement_components(engagement)
         for profession_info in engagement_info["professions"]:
             logger.info("Change profession of engagement {}".format(job_id))
@@ -1056,7 +1046,7 @@ class ChangeAtSD:
             response = self.helper._mo_post("details/edit", payload)
             mora_assert(response)
 
-    def _edit_engagement_worktime(self, engagement, mo_eng):
+    def edit_engagement_worktime(self, engagement, mo_eng):
         job_id, engagement_info = engagement_components(engagement)
         for worktime_info in engagement_info["working_time"]:
             logger.info("Change working time of engagement {}".format(job_id))
@@ -1092,19 +1082,29 @@ class ChangeAtSD:
         """
         Edit an engagement
         """
-        job_id, engagement_info = engagement_components(engagement)
+        employment_id, engagement_info = engagement_components(engagement)
+        job_pos_id = int(one(engagement_info["professions"])["JobPositionIdentifier"])
+        no_salary_minimum = self.settings.get(
+            "integrations.SD_Lon.no_salary_minimum_id", None
+        )
 
-        mo_eng = self._find_engagement(job_id, person_uuid)
+        mo_eng = self._find_engagement(employment_id, person_uuid)
 
-        # TODO: fix #42696
-
-        if not mo_eng:
+        if (
+            no_salary_minimum is not None and
+            not mo_eng and
+            job_pos_id > no_salary_minimum
+        ):
+            create_engagement(self, employment_id, person_uuid)
             return
 
-        self._edit_engagement_department(engagement, mo_eng, person_uuid)
-        self._edit_engagement_profession(engagement, mo_eng)
-        self._edit_engagement_type(engagement, mo_eng)
-        self._edit_engagement_worktime(engagement, mo_eng)
+        # Not sure if this is necessary any longer...
+        if not mo_eng:
+            # Should have been created at an earlier status-code
+            logger.error("Engagement {} has never existed!".format(employment_id))
+            return
+
+        update_existing_engagement(self, mo_eng, engagement, person_uuid)
 
     def _handle_employment_status_changes(
         self, cpr: str, sd_employment: OrderedDict, person_uuid: str

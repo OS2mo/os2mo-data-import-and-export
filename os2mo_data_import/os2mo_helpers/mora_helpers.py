@@ -226,7 +226,7 @@ class MoraHelper:
         it_systems = self._mo_lookup(org_id, url="o/{}/it/")
         return it_systems
 
-    def read_ou(self, uuid, at=None, use_cache=None):
+    def read_ou(self, uuid, at=None, use_cache=None) -> Dict:
         """Return a dict with the data available about an OU.
 
         :param uuid: The UUID of the OU

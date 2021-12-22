@@ -568,3 +568,73 @@ def get_organisation_fixture(
         """
         }
     )
+
+
+def get_employment_fixture(
+        cpr, employment_id, department_id, department_uuid, job_pos_id, job_title
+):
+    """
+    Get the OrderedDict returned when sd_common.sd_lookup is called for the
+    SD endpoint GetEmployment20111201.
+    """
+
+    return OrderedDict(
+        [
+            (
+                "Person",
+                OrderedDict(
+                    [
+                        ("PersonCivilRegistrationIdentifier", cpr),
+                        (
+                            "Employment",
+                            OrderedDict(
+                                [
+                                    ("EmploymentIdentifier", employment_id),
+                                    ("EmploymentDate", "2020-11-10"),
+                                    (
+                                        "EmploymentDepartment",
+                                        OrderedDict(
+                                            [
+                                                ("@changedAtDate", "2020-11-10"),
+                                                ("ActivationDate", "2020-11-10"),
+                                                ("DeactivationDate", "9999-12-31"),
+                                                ("DepartmentIdentifier", department_id),
+                                                (
+                                                    "DepartmentUUIDIdentifier",
+                                                    department_uuid,
+                                                ),
+                                            ]
+                                        ),
+                                    ),
+                                    (
+                                        "Profession",
+                                        OrderedDict(
+                                            [
+                                                ("@changedAtDate", "2020-11-10"),
+                                                ("ActivationDate", "2020-11-10"),
+                                                ("DeactivationDate", "9999-12-31"),
+                                                ("JobPositionIdentifier", job_pos_id),
+                                                ("EmploymentName", job_title),
+                                                ("AppointmentCode", "0"),
+                                            ]
+                                        ),
+                                    ),
+                                    (
+                                        "EmploymentStatus",
+                                        OrderedDict(
+                                            [
+                                                ("@changedAtDate", "2020-11-10"),
+                                                ("ActivationDate", "2020-11-10"),
+                                                ("DeactivationDate", "2021-02-09"),
+                                                ("EmploymentStatusCode", "1"),
+                                            ]
+                                        ),
+                                    ),
+                                ]
+                            ),
+                        ),
+                    ]
+                )
+            )
+        ]
+    )
