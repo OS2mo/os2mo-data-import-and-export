@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.2.5 - 2021-12-22
+------------------
+
+[#47581] Do not read 'USE_CACHED_LORACACHE' environment variable when using the LoRaCache CLI
+
 2.2.4 - 2021-12-21
 ------------------
 
