@@ -22,7 +22,9 @@ from functools import partial
 from pprint import pprint
 
 from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
-from exporters.sql_export.sql_table_defs import Enhed, ItForbindelse, Klasse
+from exporters.sql_export.sql_table_defs import Enhed
+from exporters.sql_export.sql_table_defs import ItForbindelse
+from exporters.sql_export.sql_table_defs import Klasse
 from integrations.opus import payloads
 from os2mo_helpers.mora_helpers import MoraHelper
 from sqlalchemy.orm import sessionmaker

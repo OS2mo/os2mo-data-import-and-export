@@ -21,10 +21,12 @@ import pathlib
 from pprint import pprint
 
 from exporters.sql_export.lc_for_jobs_db import get_engine  # noqa
-from exporters.sql_export.sql_table_defs import Adresse, ItForbindelse
+from exporters.sql_export.sql_table_defs import Adresse
+from exporters.sql_export.sql_table_defs import ItForbindelse
 from integrations.opus import payloads
 from os2mo_helpers.mora_helpers import MoraHelper
-from sqlalchemy import and_, or_
+from sqlalchemy import and_
+from sqlalchemy import or_
 from sqlalchemy.orm import sessionmaker
 
 settings = json.loads((pathlib.Path(".") / "settings/settings.json").read_text())

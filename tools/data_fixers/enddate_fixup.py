@@ -1,9 +1,14 @@
 """Script to fixup issues relating to engagement end-dates around 9999-12-30."""
 
 import json
-from datetime import date, datetime
+from datetime import date
+from datetime import datetime
 from operator import itemgetter
-from typing import Any, Dict, Iterator, List, Tuple
+from typing import Any
+from typing import Dict
+from typing import Iterator
+from typing import List
+from typing import Tuple
 from uuid import UUID
 
 import click

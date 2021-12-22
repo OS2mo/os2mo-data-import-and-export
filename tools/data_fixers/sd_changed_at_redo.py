@@ -8,7 +8,8 @@
 import datetime
 import sys
 
-from integrations.SD_Lon.sd_changed_at import SETTINGS, ChangeAtSD
+from integrations.SD_Lon.sd_changed_at import SETTINGS
+from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 from integrations.SD_Lon.sd_common import sd_lookup
 
 

@@ -1,19 +1,24 @@
 from datetime import date
 from functools import partial
 from operator import itemgetter
-from typing import List, Optional, Tuple
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 import click
 import httpx
 from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
-from integrations.SD_Lon.sd_common import (
-    EmploymentStatus,
-    mora_assert,
-    primary_types,
-    sd_lookup,
-)
-from more_itertools import consume, flatten, one, only, side_effect, unzip
+from integrations.SD_Lon.sd_common import EmploymentStatus
+from integrations.SD_Lon.sd_common import mora_assert
+from integrations.SD_Lon.sd_common import primary_types
+from integrations.SD_Lon.sd_common import sd_lookup
+from more_itertools import consume
+from more_itertools import flatten
+from more_itertools import one
+from more_itertools import only
+from more_itertools import side_effect
+from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.apply import apply
 from ra_utils.load_settings import load_setting

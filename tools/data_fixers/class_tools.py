@@ -2,13 +2,19 @@ import json
 import urllib.parse
 from collections import defaultdict
 from operator import itemgetter
-from typing import Dict, List, Set, Tuple
-from uuid import UUID, uuid4
+from typing import Dict
+from typing import List
+from typing import Set
+from typing import Tuple
+from uuid import UUID
+from uuid import uuid4
 
 import click
 import jmespath
 import requests
-from more_itertools import one, only, unzip
+from more_itertools import one
+from more_itertools import only
+from more_itertools import unzip
 from ra_utils.load_settings import load_settings
 from ra_utils.transpose_dict import transpose_dict
 from tqdm import tqdm
