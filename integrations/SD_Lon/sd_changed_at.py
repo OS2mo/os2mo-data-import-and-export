@@ -1041,7 +1041,7 @@ class ChangeAtSD:
             payload = sd_payloads.engagement(data, mo_eng)
             logger.debug("Update profession payload: {}".format(payload))
 
-            # if stillingskode < 9000 => terminate i stedet for edit
+            # TODO: if stillingskode < 9000 => terminate i stedet for edit
 
             response = self.helper._mo_post("details/edit", payload)
             mora_assert(response)
