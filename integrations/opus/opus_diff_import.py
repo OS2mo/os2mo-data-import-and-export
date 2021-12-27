@@ -7,6 +7,7 @@ from typing import List
 from typing import Optional
 
 import requests
+from more_itertools import only
 from mox_helpers import mox_util
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
@@ -494,7 +495,8 @@ class OpusDiffImport(object):
         current = self.helper.get_e_itsystems(
             person_uuid, it_system_uuid=it_system_uuid
         )
-        # TODO: Edit it system if value has changed.
+        current = only(current, default={})
+
         if not current:
             payload = payloads.connect_it_system_to_user(
                 username,
@@ -505,7 +507,17 @@ class OpusDiffImport(object):
             logger.debug(f"{it_system} account payload: {payload}")
             response = self.helper._mo_post("details/create", payload)
             assert response.status_code == 201
-            logger.info(f"Added {it_system} info to {person_uuid}")
+            logger.info(f"Added {it_system} info for {person_uuid}")
+        elif current.get("user_key") != username:
+            payload = payloads.edit_it_system_username(
+                current["uuid"],
+                username,
+                self.xml_date.strftime("%Y-%m-%d"),
+            )
+            logger.debug(f"{it_system} account payload: {payload}")
+            response = self.helper._mo_post("details/edit", payload)
+            response.raise_for_status()
+            logger.info(f"Changed {it_system} info for {person_uuid}")
 
     def _to_datetime(self, item):
         if item is None:

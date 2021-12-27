@@ -1,7 +1,7 @@
 # from collections import OrderedDict
+from uuid import UUID
 
 from integrations.opus import opus_helpers
-from uuid import UUID
 
 
 def create_user(employee, org_uuid, uuid=None):
@@ -107,6 +107,18 @@ def connect_it_system_to_user(username, it_system, person_uuid, from_date):
         "itsystem": {"uuid": it_system},
         "person": {"uuid": person_uuid},
         "validity": {"from": from_date, "to": None},
+    }
+    return payload
+
+
+def edit_it_system_username(uuid, username, from_date):
+    payload = {
+        "type": "it",
+        "uuid": uuid,
+        "data": {
+            "user_key": username,
+            "validity": {"from": from_date, "to": None},
+        },
     }
     return payload
 
