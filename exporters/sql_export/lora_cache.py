@@ -18,7 +18,7 @@ from tqdm import tqdm
 
 import click
 import re
-from more_itertools import bucket, one
+from more_itertools import bucket
 from ra_utils.load_settings import load_settings
 from typing import Optional
 from retrying import retry
@@ -443,10 +443,10 @@ class LoraCache:
                     r1 = re.compile("urn:multifield_text:(.*)")
                     r2 = re.compile("urn:multifield_text2:(.*)")
                     # Ensure correct order so that "text" is before "text2" 
-                    value1 = one(r1.findall(value_raw) or r1.findall(value_raw1))
-                    value2 = one(r2.findall(value_raw) or r2.findall(value_raw1))
+                    value1 = r1.match(value_raw) or r1.match(value_raw1)
+                    value2 = r2.match(value_raw) or r2.match(value_raw1)
                     # Both fields are put into one field in loracache as they are shown in MO
-                    value = f"{value1} :: {value2}"
+                    value = f"{value1.group(1)} :: {value2.group(1)}"
                     value = urllib.parse.unquote(value)
                 elif address_type == 'DAR':
                     scope = 'DAR'
