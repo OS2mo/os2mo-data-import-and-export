@@ -5,8 +5,9 @@ from ra_utils.load_settings import load_setting
 
 def delete_object_and_orgfuncs(user_uuid, mox_base, object_type):
     assert object_type in ("bruger", "organisationenhed")
+    rel = "tilknyttedebrugere" if object_type == "bruger" else "tilknyttedeenheder"
     response = httpx.get(
-        f"{mox_base}/organisation/organisationfunktion?vilkaarligrel={user_uuid}"
+        f"{mox_base}/organisation/organisationfunktion?{rel}={user_uuid}"
     )
     response.raise_for_status()
     org_funcs = response.json()["results"][0]
