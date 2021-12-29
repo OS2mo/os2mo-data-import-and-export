@@ -64,7 +64,10 @@ class CompareEndDate(ADParameterReader):
                 mo_engagements = self.get_mo_engagements(mo_user_uuid)
                 if mo_engagements:
                     if not any([eng["to"] is None for eng in mo_engagements]):
-                        users[mo_user_uuid] = end_date
+                        users[mo_user_uuid] = {
+                            "cn": cn,
+                            "mo_engagements": mo_engagements,
+                        }
         return users
 
 
@@ -83,8 +86,8 @@ class UpdateEndDate(AD):
         return candidates[0]
 
     def get_changes(self, users):
-        for uuid, doc in users:
-            end_date = self.get_correct_end_date(doc)
+        for uuid, doc in users.items():
+            end_date = self.get_correct_end_date(doc["mo_engagements"])
             yield uuid, end_date
 
     def get_update_cmd(self, uuid, end_date):
