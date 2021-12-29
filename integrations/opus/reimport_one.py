@@ -1,4 +1,5 @@
 import click
+from more_itertools import first
 from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
@@ -10,11 +11,12 @@ from tools.data_fixers.remove_from_lora import delete_object_and_orgfuncs
 
 
 def find_type(opus_id, full_history):
+    """Check if the object with the given id is a unit or an employee."""
     dumps = get_opus_filereader().list_opus_files()
-    # Default is to read only from latest file
-    opus_files = [max(dumps)]
-    if full_history:
-        opus_files = sorted(dumps, reverse=True)
+    # Search in newest file first
+    opus_files = sorted(dumps, reverse=True)
+    if not full_history:
+        opus_files = [first(opus_files)]
     for f in opus_files:
         org, emp = opus_helpers.parser(dumps[f], opus_id=opus_id)
         if org:
@@ -22,8 +24,7 @@ def find_type(opus_id, full_history):
         elif emp:
             return "bruger", only(emp)
 
-    # No object was found
-    return None, None
+    raise ValueError(f"No object with {opus_id=} was found.")
 
 
 @click.command()
@@ -40,7 +41,6 @@ def cli(mox_base, mora_base, delete, full_history, opus_id, dry_run):
     """
     helper = MoraHelper(hostname=mora_base)
     object_type, obj = find_type(opus_id, full_history)
-    assert obj, f"No object with {opus_id=} found"
     if object_type == "bruger":
         cpr = opus_helpers.read_cpr(obj)
         uuid = helper.read_user(user_cpr=cpr)["uuid"]
