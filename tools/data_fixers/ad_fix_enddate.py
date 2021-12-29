@@ -1,40 +1,43 @@
-import json
-import re
 from datetime import datetime
+
+import click
+from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.load_settings import load_setting
 
 from integrations.ad_integration.ad_common import AD
 from integrations.ad_integration.ad_reader import ADParameterReader
-from os2mo_helpers.mora_helpers import MoraHelper
 
 
 class CompareEndDate(ADParameterReader):
-    def __init__(self):
+    def __init__(self, enddate_field, uuid_field):
         super().__init__()
         self.helper = MoraHelper(
             hostname=self.all_settings["global"]["mora.base"], use_cache=False
         )
+        self.enddate_field = enddate_field
+        self.uuid_field = uuid_field
+        self.cpr_field = self.all_settings["primary"]["cpr_field"]
 
     def scan_ad(self):
-        # Find all AD users whose end date (= "extensionAttribute9") is in the
-        # year 9999.
+        # Find all AD users whose end date is in the year 9999.
         # This does not in itself indicate an error, as users with current or
         # future engagements without an end date will have an AD end date of
         # 9999-12-31.
         bp = self._ps_boiler_plate()
         cmd = (
             self._build_user_credential()
-            + "Get-ADUser -Filter 'extensionattribute9 -like \"9999-*\"'"
+            + f"Get-ADUser -Filter '{self.enddate_field} -like \"9999-*\"'"
             + bp["complete"]
-            + " -Properties cn,hkstsuuid,extensionattribute9"
+            + f" -Properties cn,{self.uuid_field},{self.enddate_field}"
             + " | ConvertTo-Json"
         )
         return map(
             lambda ad_user: (
                 ad_user["CN"],
-                ad_user["extensionattribute9"],
-                ad_user.get("hkstsuuid"),
+                ad_user[self.enddate_field],
+                ad_user.get(self.uuid_field),
             ),
-            self._run_ps_script(cmd)
+            self._run_ps_script(cmd),
         )
 
     def get_mo_engagements(self, mo_user_uuid):
@@ -45,7 +48,10 @@ class CompareEndDate(ADParameterReader):
                 "is_primary": eng["is_primary"],
             }
             for eng in self.helper.read_user_engagement(
-                mo_user_uuid, calculate_primary=True, read_all=True, skip_past=False,
+                mo_user_uuid,
+                calculate_primary=True,
+                read_all=True,
+                skip_past=False,
             )
         ]
 
@@ -63,6 +69,10 @@ class CompareEndDate(ADParameterReader):
 
 
 class UpdateEndDate(AD):
+    def __init__(self, enddate_field, uuid_field, cpr_field):
+        self.enddate_field = enddate_field
+        self.uuid_field = uuid_field
+        self.cpr_field = cpr_field
 
     def get_correct_end_date(self, doc):
         candidates = sorted(
@@ -79,13 +89,15 @@ class UpdateEndDate(AD):
 
     def get_update_cmd(self, uuid, end_date):
         cmd_f = """
-        Get-ADUser %(complete)s -Filter 'hkstsuuid -eq "%(uuid)s"' |
-        Set-ADUser %(credentials)s -Replace @{extensionattribute9="%(end_date)s"} |
+        Get-ADUser %(complete)s -Filter '%(uuid_field)s -eq "%(uuid)s"' |
+        Set-ADUser %(credentials)s -Replace @{%(enddate_field)s="%(end_date)s"} |
         ConvertTo-Json
         """
         cmd = cmd_f % dict(
             uuid=uuid,
             end_date=end_date,
+            enddate_field=self.enddate_field,
+            uuid_field=self.uuid_field,
             complete=self._ps_boiler_plate()["complete"],
             credentials=self._ps_boiler_plate()["credentials"],
         )
@@ -95,20 +107,35 @@ class UpdateEndDate(AD):
         return self._run_ps_script("%s\n%s" % (self._build_user_credential(), cmd))
 
 
-if __name__ == "__main__":
+@click.command()
+@click.option(
+    "--enddate-field",
+    default=load_setting("integrations.ad_writer.fixup_enddate_field"),
+)
+@click.option("--uuid-field", default=load_setting("integrations.ad.write.uuid_field"))
+@click.option("--dry-run", is_flag=True)
+def cli(enddate_field, uuid_field, dry_run):
+    """Fix enddates of terminated users.
+    AD-writer does not support writing enddate of a terminated employee,
+    this script finds and corrects the enddate in AD of terminated engagements.
+    """
 
-    c = CompareEndDate()
+    c = CompareEndDate(enddate_field, uuid_field)
     users = c.compare_mo()
-    u = UpdateEndDate()
+    u = UpdateEndDate(enddate_field, uuid_field, c.cpr_field)
 
     for uuid, end_date in u.get_changes(users):
         cmd = u.get_update_cmd(uuid, end_date)
-        print("Command to run: ")
-        print(cmd)
-        choice = input("Type 'Y' to run command, or any other key to skip this user: ")
-        if choice.lower() == "y":
-            # result = u.run(cmd)
+        if dry_run:
+            print("Command to run: ")
+            print(cmd)
+        else:
+            result = u.run(cmd)
             print("Result: %r" % result)
         print()
 
     print("All done")
+
+
+if __name__ == "__main__":
+    cli()
