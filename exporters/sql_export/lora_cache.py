@@ -17,6 +17,7 @@ from typing import Tuple
 from tqdm import tqdm
 
 import click
+import re
 from more_itertools import bucket
 from ra_utils.load_settings import load_settings
 from typing import Optional
@@ -107,7 +108,11 @@ class LoraCache:
         :return: from_date and to_date. To date can be None, which should be
         interpreted as an infinite validity. In non-historic exports, both values
         can be None, meaning that this row is not the actual-state value.
+        >>> lc=LoraCache(resolve_dar=False)
+        >>> lc._from_to_from_effect([datetime.datetime(2020, 1, 1), datetime.datetime(2022, 1, 2)])
+        ('2020-01-01', '2022-01-01')
         """
+        
         dt_from = dateutil.parser.isoparse(str(effect[0]))
         dt_from = dt_from.astimezone(DEFAULT_TIMEZONE)
         from_date = dt_from.date().isoformat()
@@ -431,12 +436,24 @@ class LoraCache:
                     scope = 'Text'
                     skip_len = len('urn:text:')
                     value = urllib.parse.unquote(value_raw[skip_len:])
+                elif address_type == 'MULTIFIELD_TEXT':
+                    # This address type has more than one field
+                    value_raw1 = relationer['adresser'][1]['urn']
+                    scope = 'Multifield_text'
+                    r1 = re.compile("urn:multifield_text:(.*)")
+                    r2 = re.compile("urn:multifield_text2:(.*)")
+                    # Ensure correct order so that "text" is before "text2" 
+                    value1 = r1.match(value_raw) or r1.match(value_raw1)
+                    value2 = r2.match(value_raw) or r2.match(value_raw1)
+                    # Both fields are put into one field in loracache as they are shown in MO
+                    value = f"{value1.group(1)} :: {value2.group(1)}"
+                    value = urllib.parse.unquote(value)
                 elif address_type == 'DAR':
                     scope = 'DAR'
                     skip_len = len('urn:dar:')
                     dar_uuid = value_raw[skip_len:]
                     value = None
-
+                    
                     if self.dar_map is not None:
                         self.dar_map[dar_uuid].append(uuid)
                 else:

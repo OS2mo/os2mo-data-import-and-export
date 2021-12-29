@@ -2,7 +2,14 @@ from datetime import datetime
 from unittest import mock
 from unittest import TestCase
 
+from hypothesis import given
+from hypothesis import strategies
+from parameterized import parameterized
+
 from ..lora_cache import LoraCache
+
+# Some tests can't handle '\n', though the program can.
+st_text = strategies.text().filter(lambda x: "\n" not in x)
 
 
 class _TestableLoraCache(LoraCache):
@@ -97,3 +104,88 @@ class TestCacheLoraManagers(TestCase):
 
         with mock.patch("lora_utils.get_effects", return_value=[effect]):
             return instance._cache_lora_managers()
+
+
+class TestCacheLoraAddress(TestCase):
+    _address_uuid = "address-uuid"
+    _bruger_uuid = "bruger-uuid"
+
+    @parameterized.expand(
+        [
+            ("urn:mailto:", "EMAIL"),
+            ("urn:magenta.dk:www:", "WWW"),
+            ("urn:magenta.dk:telefon:", "PHONE"),
+            ("urn:dk:cvr:produktionsenhed:", "PNUMBER"),
+            ("urn:magenta.dk:ean:", "EAN"),
+            ("urn:text:", "TEXT"),
+        ]
+    )
+    @given(strategies.text())
+    def test_get_address(self, urn, scope, value):
+        address = self._get_results(
+            {
+                "tilknyttedebrugere": [{"uuid": self._bruger_uuid}],
+                "tilknyttedeenheder": [],
+                "organisatoriskfunktionstype": [{"uuid": "type_uuid"}],
+                "adresser": [{"urn": f"{urn}{value}", "objekttype": scope}],
+            }
+        )
+
+        self.assertEqual(address[self._address_uuid][0]["value"], value)
+
+    @given(st_text, st_text)
+    def test_address_multifield(self, value1, value2):
+        address = self._get_results(
+            {
+                "tilknyttedebrugere": [{"uuid": self._bruger_uuid}],
+                "tilknyttedeenheder": [],
+                "organisatoriskfunktionstype": [{"uuid": "type_uuid"}],
+                "adresser": [
+                    {
+                        "urn": f"urn:multifield_text:{value1}",
+                        "objekttype": "MULTIFIELD_TEXT",
+                    },
+                    {
+                        "urn": f"urn:multifield_text2:{value2}",
+                        "objekttype": "MULTIFIELD_TEXT",
+                    },
+                ],
+            }
+        )
+        expected = f"{value1} :: {value2}"
+        self.assertEqual(address[self._address_uuid][0]["value"], expected)
+
+    def _get_results(self, relations):
+        instance = _TestableLoraCacheMockedLookup(
+            # Return enough of the actual LoRa response to make
+            # `_cache_lora_managers` continue to offending code. As we patch
+            # `lora_utils.get_effects`, we don't need to provide actual data in
+            # "registreringer".
+            [{"id": self._address_uuid, "registreringer": [None]}]
+        )
+
+        # Mock return value of `lora_utils.get_effects`
+        default_list = [{"uuid": "uuid"}]
+        effect = (
+            datetime(2020, 1, 1),
+            datetime(
+                5027, 1, 1
+            ),  # todate must be in the future, this should be safe ;)
+            {
+                "relationer": {
+                    "tilknyttedebrugere": relations.get(
+                        "tilknyttedebrugere", default_list
+                    ),
+                    "tilknyttedeenheder": relations.get(
+                        "tilknyttedeenheder", default_list
+                    ),
+                    "organisatoriskfunktionstype": relations.get(
+                        "organisatoriskfunktionstype", default_list
+                    ),
+                    "adresser": relations.get("adresser", default_list),
+                }
+            },
+        )
+
+        with mock.patch("lora_utils.get_effects", return_value=[effect]):
+            return instance._cache_lora_address()
