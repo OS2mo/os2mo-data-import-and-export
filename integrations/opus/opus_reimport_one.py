@@ -18,13 +18,20 @@ def find_type(opus_id, full_history):
     if not full_history:
         opus_files = [first(opus_files)]
     for f in opus_files:
-        org, emp = opus_helpers.parser(dumps[f], opus_id=opus_id)
-        if org:
-            return "organisationenhed", only(org)
-        elif emp:
-            return "bruger", only(emp)
+        units, employees = opus_helpers.parser(dumps[f], opus_id=opus_id)
+        employees, terminated_employees = opus_helpers.split_employees_leaves(employees)
+        employees = list(employees)
+        if units:
+            return "organisationenhed", only(units)
+        elif employees:
+            return "bruger", only(employees)
 
-    raise ValueError(f"No object with {opus_id=} was found.")
+    terminated_employees = list(terminated_employees)
+    if terminated_employees:
+        msg = "Employee was terminated, try --full-history"
+    else:
+        msg = f"No object with {opus_id=} was found."
+    raise ValueError(msg)
 
 
 @click.command()
@@ -43,11 +50,12 @@ def cli(mox_base, mora_base, delete, full_history, opus_id, dry_run):
     object_type, obj = find_type(opus_id, full_history)
     if object_type == "bruger":
         cpr = opus_helpers.read_cpr(obj)
-        uuid = helper.read_user(user_cpr=cpr)["uuid"]
+        user = helper.read_user(user_cpr=cpr)
+        uuid = user["uuid"] if user else None
     else:
         uuid = opus_helpers.generate_uuid(obj["@id"])
 
-    if delete and not dry_run:
+    if delete and uuid and not dry_run:
         delete_object_and_orgfuncs(uuid, mox_base, object_type)
     if dry_run:
         click.echo(

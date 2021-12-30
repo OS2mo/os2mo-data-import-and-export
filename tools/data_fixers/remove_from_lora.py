@@ -20,16 +20,16 @@ def delete_object_and_orgfuncs(user_uuid, mox_base, object_type):
 
 
 @click.command()
-@click.option("--user-uuid", type=click.UUID, required=True)
+@click.option("--uuid", type=click.UUID, required=True)
 @click.option("--mox-base", default=load_setting("mox.base"))
 @click.option(
     "--object-type",
     type=click.Choice(["user", "org_unit"], case_sensitive=False),
     required=True,
 )
-def cli(user_uuid, mox_base, object_type):
+def cli(uuid, mox_base, object_type):
     delete_object_and_orgfuncs(
-        user_uuid, mox_base, "bruger" if object_type == "user" else "organisationsenhed"
+        uuid, mox_base, "bruger" if object_type == "user" else "organisationsenhed"
     )
 
 
