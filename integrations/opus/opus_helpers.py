@@ -135,7 +135,7 @@ def generate_uuid(value):
     return value_uuid
 
 
-def parser(target_file: Path) -> Tuple[List, List]:
+def parser(target_file: Path, opus_id: Optional[int] = None) -> Tuple[List, List]:
     """Read an opus file and return units and employees"""
     text_input = get_opus_filereader().read_file(target_file)
 
@@ -143,6 +143,9 @@ def parser(target_file: Path) -> Tuple[List, List]:
     data = data["kmd"]
     units = data.get("orgUnit", [])
     employees = data.get("employee", [])
+    if opus_id is not None:
+        employees = list(filter(lambda x: int(x["@id"]) == opus_id, employees))
+        units = list(filter(lambda x: int(x["@id"]) == opus_id, units))
     return units, employees
 
 
@@ -218,22 +221,19 @@ def find_missing(before: Dict, after: Dict) -> List[Dict]:
 
 
 def file_diff(
-    file1: Optional[Path], file2: Path, disable_tqdm: bool = True, skip_employees=False
+    file1: Optional[Path], file2: Path, disable_tqdm: bool = True, opus_id: Optional[int] = None
 ):
     """Compares two files and returns all units and employees that have been changed."""
     units1 = employees1 = {}
     if file1:
-        units1, employees1 = parser(file1)
-    units2, employees2 = parser(file2)
+        units1, employees1 = parser(file1, opus_id=opus_id)
+    units2, employees2 = parser(file2, opus_id=opus_id)
 
     units = find_changes(units1, units2, disable_tqdm=disable_tqdm)
     cancelled_units = find_missing(units1, units2)
 
-    employees = []
-    cancelled_employees = []
-    if not skip_employees:
-        employees = find_changes(employees1, employees2, disable_tqdm=disable_tqdm)
-        cancelled_employees = find_missing(employees1, employees2)
+    employees = find_changes(employees1, employees2, disable_tqdm=disable_tqdm)
+    cancelled_employees = find_missing(employees1, employees2)
 
     return {
         "units": units,
@@ -443,13 +443,13 @@ def read_and_transform_data(
     inputfile2: Path,
     filter_ids: List[Optional[str]],
     disable_tqdm=False,
-    skip_employees: bool = False,
+    opus_id: Optional[int] = None,
 ) -> Tuple[Iterable, Iterable, Iterable, Iterable]:
     """Gets the diff of two files and transporms the data based on filter_ids
     Returns the active units, filtered units, active employees which are not in a filtered unit and employees which are terminated
     """
     file_diffs = file_diff(
-        inputfile1, inputfile2, disable_tqdm=disable_tqdm, skip_employees=skip_employees
+        inputfile1, inputfile2, disable_tqdm=disable_tqdm, opus_id=opus_id
     )
 
     employees = include_cancelled(

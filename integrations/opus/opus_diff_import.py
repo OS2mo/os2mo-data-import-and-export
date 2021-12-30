@@ -128,7 +128,7 @@ class OpusDiffImport(object):
         assert response.status_code in (200, 400, 404)
         if response.status_code == 400:
             # Check actual response
-            assert response.text.find("not give raise to a new registration") > 0
+            assert response.text.find("not give raise to a new registration") > 0, response.text
             logger.debug("Requst had no effect")
         return None
 
@@ -869,7 +869,7 @@ def import_one(
     latest_date: Optional[datetime],
     dumps: Dict,
     filter_ids: Optional[List],
-    skip_employees: bool = False,
+    opus_id: Optional[int] = None,
 ):
     """Import one file at the date xml_date."""
     msg = "Start update: File: {}, update since: {}"
@@ -885,7 +885,7 @@ def import_one(
         filtered_units,
         employees,
         terminated_employees,
-    ) = opus_helpers.read_and_transform_data(latest_path, xml_path, filter_ids)
+    ) = opus_helpers.read_and_transform_data(latest_path, xml_path, filter_ids, opus_id=opus_id)
     opus_helpers.local_db_insert((xml_date, "Running diff update since {}"))
     diff = OpusDiffImport(
         xml_date,
@@ -918,7 +918,7 @@ def start_opus_diff(ad_reader=None):
     xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
 
     while xml_date:
-        import_one(ad_reader, xml_date, latest_date, dumps, filter_ids, skip_employees)
+        import_one(ad_reader, xml_date, latest_date, dumps, filter_ids, opus_id=None)
         # Check if there are more files to import
         xml_date, latest_date = opus_helpers.next_xml_file(run_db, dumps)
         logger.info("Ended update")
