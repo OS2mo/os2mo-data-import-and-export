@@ -242,6 +242,7 @@ class ChangeAtSD:
 
         params = {
             "ActivationDate": from_date.strftime("%d.%m.%Y"),
+            "ActivationTime": from_date.strftime("%H:%M"),
             "DepartmentIndicator": "true",
             "EmploymentStatusIndicator": "true",
             "ProfessionIndicator": "true",
@@ -269,6 +270,7 @@ class ChangeAtSD:
             params.update(
                 {
                     "DeactivationDate": to_date.strftime("%d.%m.%Y"),
+                    "DeactivationTime": to_date.strftime("%H:%M"),
                     "StatusActiveIndicator": "true",
                     "StatusPassiveIndicator": "true",
                 }
@@ -297,18 +299,20 @@ class ChangeAtSD:
             List of SD Løn persons changed between the two dates
         """
 
-        deactivate_date = "31.12.9999"
-        if to_date:
-            deactivate_date = to_date.strftime("%d.%m.%Y")
         params = {
             "ActivationDate": from_date.strftime("%d.%m.%Y"),
-            "DeactivationDate": deactivate_date,
+            "ActivationTime": from_date.strftime("%H:%M"),
+            "DeactivationDate": "31.12.9999",
             "StatusActiveIndicator": "true",
             "StatusPassiveIndicator": "true",
             "ContactInformationIndicator": "false",
             "PostalAddressIndicator": "false"
             # TODO: Er der kunder, som vil udlæse adresse-information?
         }
+        if to_date:
+            params["DeactivationDate"] = to_date.strftime("%d.%m.%Y")
+            params["DeactivationTime"] = to_date.strftime("%H:%M")
+
         url = "GetPersonChangedAtDate20111201"
         response = sd_lookup(url, params=params)
         persons_changed = ensure_list(response.get("Person", []))
@@ -1149,6 +1153,7 @@ class ChangeAtSD:
                     ('EmploymentDepartment', OrderedDict([
                         ('@changedAtDate', '2020-11-10'),
                         ('ActivationDate', '2020-11-10'),
+                        ('ActivationTime', '06:00'),
                         ('DeactivationDate', '9999-12-31'),
                         ('DepartmentIdentifier', 'department_id'),
                         ('DepartmentUUIDIdentifier', 'department_uuid')
@@ -1156,6 +1161,7 @@ class ChangeAtSD:
                     ('Profession', OrderedDict([
                         ('@changedAtDate', '2020-11-10'),
                         ('ActivationDate', '2020-11-10'),
+                        ('ActivationTime', '06:00'),
                         ('DeactivationDate', '9999-12-31'),
                         ('JobPositionIdentifier', '1'),
                         ('EmploymentName', 'chief'),
@@ -1165,12 +1171,14 @@ class ChangeAtSD:
                         OrderedDict([
                             ('@changedAtDate', '2020-11-10'),
                             ('ActivationDate', '2020-11-10'),
+                            ('ActivationTime', '06:00'),
                             ('DeactivationDate', '2021-02-09'),
                             ('EmploymentStatusCode', '1')
                         ]),
                         OrderedDict([
                             ('@changedAtDate', '2020-11-10'),
                             ('ActivationDate', '2021-02-10'),
+                            ('ActivationTime', '06:00'),
                             ('DeactivationDate', '9999-12-31'),
                             ('EmploymentStatusCode', '8')
                         ])
@@ -1484,7 +1492,11 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: str):
             logging.error("Previous ChangedAt run did not return!")
             raise click.ClickException("Previous ChangedAt run did not return!")
 
-    dates = gen_date_pairs(parsed_from_date)
+    # Iterate over pairs of dates unless running more than once per day
+    if (datetime.datetime.now() - parsed_from_date).seconds / 60 / 60 >= 24:
+        dates = gen_date_pairs(parsed_from_date)
+    else:
+        dates = pairwise([parsed_from_date, datetime.datetime.now()])
 
     # Update changes one day at a time
     for parsed_from_date, parsed_to_date in dates:
