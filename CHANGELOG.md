@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.5.0 - 2021-12-30
+------------------
+
+[#47241] Add script to reimport users or units from opus.
+
 2.4.0 - 2021-12-22
 ------------------
 
