@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.5.1 - 2022-01-03
+------------------
+
+[#47247] Fixes for opus reimport script
+
 2.5.0 - 2021-12-30
 ------------------
 
