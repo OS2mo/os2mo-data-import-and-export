@@ -4,6 +4,7 @@ from more_itertools import only
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
 
+from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus.clear_and_import_opus import import_opus
 from integrations.opus.opus_file_reader import get_opus_filereader
@@ -40,8 +41,9 @@ def find_type(opus_id, full_history):
 @click.option("--delete", is_flag=True)
 @click.option("--full-history", is_flag=True)
 @click.option("--opus-id", type=int, required=True)
+@click.option("--use-ad", is_flag=True, help="Read from AD")
 @click.option("--dry-run", is_flag=True)
-def cli(mox_base, mora_base, delete, full_history, opus_id, dry_run):
+def cli(mox_base, mora_base, delete, full_history, opus_id, use_ad, dry_run):
     """Reimport object from opus with given opus-ID to MO
     Optionally deletes the object and all related orgfuncs directly from Lora.
     Defaults to reading latest file only, but supports reading full history
@@ -62,8 +64,9 @@ def cli(mox_base, mora_base, delete, full_history, opus_id, dry_run):
             f"Dry-run: {'Delete and reimport' if delete else 'Reimport'} '{object_type}' with {uuid=}"
         )
     else:
+        AD = ad_reader.ADParameterReader() if use_ad else None
         import_opus(
-            ad_reader=None,
+            ad_reader=AD,
             import_all=full_history,
             import_last=not full_history,
             opus_id=opus_id,
