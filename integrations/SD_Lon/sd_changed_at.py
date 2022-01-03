@@ -10,7 +10,6 @@ from typing import Any
 from typing import Callable
 from typing import cast
 from typing import Dict
-from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import OrderedDict
@@ -21,7 +20,6 @@ from uuid import UUID
 from uuid import uuid4
 
 import click
-import pandas as pd
 import requests
 from fastapi.encoders import jsonable_encoder
 from more_itertools import last
@@ -1379,51 +1377,6 @@ def initialize_changed_at(from_date, run_db, force=False):
     _local_db_insert((from_date, from_date, "Initial import: {}"))
 
 
-def gen_date_pairs(
-    from_date: datetime.datetime,
-) -> Iterator[Tuple[datetime.datetime, datetime.datetime]]:
-    """
-    Get iterator capable of generating af sequence of datetime pairs
-    incrementing one day at a time. The latter date in a pair is
-    advanced by exactly one day compared to the former date in the pair.
-
-    Args:
-        from_date: the start date
-
-    Yields:
-        The next date pair in the sequence of pairs
-
-    Example:
-        If called on 2021-10-04:
-        >>> print([pair for pair in gen_date_pairs(datetime.datetime(2021,10,1))])
-        [
-            (
-                datetime.datetime(2021, 10, 1, 0, 0),
-                datetime.datetime(2021, 10, 2, 0, 0)
-            ),
-            (
-                datetime.datetime(2021, 10, 2, 0, 0),
-                datetime.datetime(2021, 10, 3, 0, 0)
-            ),
-            (
-                datetime.datetime(2021, 10, 3, 0, 0),
-                datetime.datetime(2021, 10, 4, 0, 0)
-            )
-        ]
-    """
-
-    def generate_date_tuples(from_date, to_date):
-        date_range = pd.date_range(from_date, to_date)
-        mapped_dates = map(lambda date: date.to_pydatetime(), date_range)
-        return pairwise(mapped_dates)
-
-    to_date = datetime.date.today()
-    if from_date.date() >= to_date:
-        return iter(())
-    dates = generate_date_tuples(from_date, to_date)
-    return dates
-
-
 @click.group()
 def cli():
     pass
@@ -1453,12 +1406,12 @@ def cli():
 )
 @click.option(
     "--from-date",
-    type=click.STRING,
+    type=click.DateTime(),
     required=True,
     default=load_setting("integrations.SD_Lon.global_from_date"),
     help="Global import from-date, only used if init is True",
 )
-def changed_at(init: bool, force: bool, one_day: bool, from_date: str):
+def changed_at(init: bool, force: bool, one_day: bool, from_date: datetime.datetime):
     """Tool to delta synchronize with MO with SD."""
     setup_logging()
 
@@ -1471,20 +1424,19 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: str):
     if init:
         run_db = pathlib.Path(run_db)
 
-        parsed_from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
-        initialize_changed_at(parsed_from_date, run_db, force=True)
+        initialize_changed_at(from_date, run_db, force=True)
         exit()
 
     db_overview = DBOverview(run_db)
     # To date from last entries, becomes from_date for current entry
-    parsed_from_date, status = cast(
+    from_date, status = cast(
         Tuple[datetime.datetime, str], db_overview._read_last_line("to_date", "status")
     )
 
     if "Running" in status:
         if force:
             db_overview.delete_last_row()
-            parsed_from_date, status = cast(
+            from_date, status = cast(
                 Tuple[datetime.datetime, str],
                 db_overview._read_last_line("to_date", "status"),
             )
@@ -1492,27 +1444,21 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: str):
             logging.error("Previous ChangedAt run did not return!")
             raise click.ClickException("Previous ChangedAt run did not return!")
 
-    # Iterate over pairs of dates unless running more than once per day
-    if (datetime.datetime.now() - parsed_from_date).seconds / 60 / 60 >= 24:
-        dates = gen_date_pairs(parsed_from_date)
-    else:
-        dates = pairwise([parsed_from_date, datetime.datetime.now()])
+    to_date = datetime.datetime.now()
 
-    # Update changes one day at a time
-    for parsed_from_date, parsed_to_date in dates:
-        logger.info("Importing {} to {}".format(parsed_from_date, parsed_to_date))
-        _local_db_insert((parsed_from_date, parsed_to_date, "Running since {}"))
+    logger.info("Importing {} to {}".format(from_date, to_date))
+    _local_db_insert((from_date, to_date, "Running since {}"))
 
-        logger.info("Start ChangedAt module")
-        sd_updater = ChangeAtSD(parsed_from_date, parsed_to_date)
+    logger.info("Start ChangedAt module")
+    sd_updater = ChangeAtSD(from_date, to_date)
 
-        logger.info("Update changed persons")
-        sd_updater.update_changed_persons()
+    logger.info("Update changed persons")
+    sd_updater.update_changed_persons()
 
-        logger.info("Update all employments")
-        sd_updater.update_all_employments()
+    logger.info("Update all employments")
+    sd_updater.update_all_employments()
 
-        _local_db_insert((parsed_from_date, parsed_to_date, "Update finished: {}"))
+    _local_db_insert((from_date, to_date, "Update finished: {}"))
 
     logger.info("Program stopped.")
 

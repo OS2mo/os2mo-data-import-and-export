@@ -1,7 +1,6 @@
 import uuid
 from collections import OrderedDict
 from datetime import date
-from datetime import datetime
 from datetime import timedelta
 from unittest.mock import call
 from unittest.mock import MagicMock
@@ -20,7 +19,6 @@ from .fixtures import read_employment_fixture
 from integrations.SD_Lon.convert import sd_to_mo_termination_date
 from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
-from integrations.SD_Lon.sd_changed_at import gen_date_pairs
 from test_case import DipexTestCase
 
 
@@ -55,7 +53,7 @@ class ChangeAtSDTest(ChangeAtSD):
         return self.morahelper_mock
 
 
-def setup_sd_changed_at(updates=None):
+def setup_sd_changed_at(updates=None, hours=24):
     # TODO: remove integrations.SD_Lon.terminate_engagement_with_to_only
     settings = {
         "integrations.SD_Lon.job_function": "JobPositionIdentifier",
@@ -71,7 +69,9 @@ def setup_sd_changed_at(updates=None):
     today = date.today()
     start_date = today
 
-    sd_updater = ChangeAtSDTest(start_date, start_date + timedelta(days=1), settings)
+    sd_updater = ChangeAtSDTest(
+        start_date, start_date + timedelta(hours=hours), settings
+    )
 
     return sd_updater
 
@@ -565,32 +565,6 @@ class Test_sd_changed_at(DipexTestCase):
         )
         sd_updater._create_engagement_type.assert_not_called()
         sd_updater._create_professions.assert_called_once()
-
-    @given(from_date=st.dates(date(1970, 1, 1), date(2060, 1, 1)))
-    @example(from_date=date.today())
-    def test_date_tuples(self, from_date):
-        def num_days_between(start, end):
-            delta = end - start
-            return delta.days
-
-        today = date.today()
-        if from_date >= today:
-            # Cannot synchronize into the future
-            num_expected_intervals = 0
-        else:
-            num_expected_intervals = num_days_between(from_date, today)
-
-        # Construct datetime at from_date midnight
-        from_datetime = datetime.combine(from_date, datetime.min.time())
-
-        dates = list(gen_date_pairs(from_datetime))
-        self.assertEqual(len(dates), num_expected_intervals)
-        # We always expect intervals to be exactly one day long
-        for from_date, to_date in dates:
-            between = num_days_between(from_date, to_date)
-            self.assertEqual(type(from_date), datetime)
-            self.assertEqual(type(to_date), datetime)
-            self.assertEqual(between, 1)
 
     @given(
         job_function=st.text(),
