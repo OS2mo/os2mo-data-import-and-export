@@ -14,6 +14,7 @@ from parameterized import parameterized
 from ra_utils.attrdict import attrdict
 from ra_utils.generate_uuid import uuid_generator
 
+from .fixtures import get_employment_fixture
 from .fixtures import get_sd_person_fixture
 from .fixtures import read_employment_fixture
 from integrations.SD_Lon.convert import sd_to_mo_termination_date
@@ -771,4 +772,101 @@ class Test_sd_changed_at(DipexTestCase):
                     },
                 ),
             ]
+        )
+
+    @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
+    @patch("integrations.SD_Lon.sd_changed_at.sd_lookup")
+    def test_edit_engagement_job_position_id_set_to_value_over_9000(
+        self, mock_sd_lookup, mock_sd_lookup_settings
+    ):
+        """
+        If an employment exists in MO but with no engagement (e.g. which happens
+        when the MO employment was created with an SD payload having a
+        JobPositionIdentifier < 9000) and we receive an SD change payload, where
+        the JobPositionIdentifier is set to a value greater than 9000, then we
+        must ensure that an engagement is create for the corresponding employee
+        in MO.
+        """
+
+        # Arrange
+
+        sd_updater = setup_sd_changed_at(
+            {
+                "integrations.SD_Lon.monthly_hourly_divide": 80000,
+                "integrations.SD_Lon.no_salary_minimum_id": 9000,
+                "integrations.SD_Lon.import.too_deep": [
+                    "Afdelings-niveau",
+                    "NY1-niveau",
+                ],
+            }
+        )
+
+        sd_updater.engagement_types = {
+            "månedsløn": "monthly pay",
+            "timeløn": "hourly pay",
+        }
+
+        engagement = OrderedDict(
+            [
+                ("EmploymentIdentifier", "DEERE"),
+                (
+                    "Profession",
+                    OrderedDict(
+                        [
+                            ("@changedAtDate", "2021-12-20"),
+                            ("ActivationDate", "2021-12-19"),
+                            ("DeactivationDate", "9999-12-31"),
+                            ("JobPositionIdentifier", "9002"),
+                            ("EmploymentName", "dummy"),
+                            ("AppointmentCode", "0"),
+                        ]
+                    ),
+                ),
+            ]
+        )
+        mock_sd_lookup_settings.return_value = ("", "", "")
+
+        mora_helper = sd_updater.morahelper_mock
+        _mo_lookup = mora_helper._mo_lookup
+        _mo_lookup.return_value = []
+
+        # Mock the call in sd_updater.read_employment_at(...)
+        mock_sd_lookup.return_value = get_employment_fixture(
+            1234561234, "emp_id", "dep_id", "dep_uuid", "9002", "job_title"
+        )
+
+        mock_apply_NY_logic = MagicMock()
+        sd_updater.apply_NY_logic = mock_apply_NY_logic
+        mock_apply_NY_logic.return_value = "org_unit_uuid"
+
+        primary_types = sd_updater.primary_types_mock
+        __getitem__ = primary_types.__getitem__
+        __getitem__.return_value = "primary_uuid"
+
+        _mo_post = mora_helper._mo_post
+        _mo_post.return_value = attrdict(
+            {
+                "status_code": 201,
+            }
+        )
+
+        # Act
+
+        sd_updater.edit_engagement(engagement, "person_uuid")
+
+        # Assert
+
+        _mo_post.assert_called_once_with(
+            "details/create",
+            {
+                "engagement_type": {"uuid": "new_class_uuid"},
+                "fraction": 0,
+                "job_function": {"uuid": "new_class_uuid"},
+                "org_unit": {"uuid": "org_unit_uuid"},
+                "person": {"uuid": "person_uuid"},
+                "primary": {"uuid": "primary_uuid"},
+                "type": "engagement",
+                "user_key": "emp_id",
+                "validity": {"from": "2020-11-10", "to": "2021-02-09"},
+            },
         )
