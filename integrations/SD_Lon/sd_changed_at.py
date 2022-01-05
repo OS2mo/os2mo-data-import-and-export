@@ -1015,36 +1015,53 @@ class ChangeAtSD:
         for profession_info in engagement_info["professions"]:
             logger.info("Change profession of engagement {}".format(job_id))
             job_position = profession_info["JobPositionIdentifier"]
-            emp_name = profession_info["JobPositionIdentifier"]
-            if "EmploymentName" in profession_info:
-                emp_name = profession_info["EmploymentName"]
-            validity = self._validity(
-                profession_info, mo_eng["validity"]["to"], cut=True
+
+            # The variability handling introduced in the following lines
+            # (based on the value of job_position) is not optimal, i.e.
+            # a parametric if-switch is used, where a strategy pattern would
+            # be more appropriate. However, due to all the hard couplings in
+            # the code, a strategy pattern is not feasible for now. Let's
+            # leave it as is until the whole SD code base is rewritten
+
+            no_salary_minimum = self.settings.get(
+                "integrations.SD_Lon.no_salary_minimum_id", None
             )
-            if validity is None:
-                continue
+            if no_salary_minimum and int(job_position) < no_salary_minimum:
+                sd_from_date = profession_info["ActivationDate"]
+                sd_to_date = profession_info["DeactivationDate"]
+                self._terminate_engagement(
+                    mo_eng["user_key"],
+                    mo_eng["person"]["uuid"],
+                    sd_to_mo_termination_date(sd_from_date),
+                    sd_to_mo_termination_date(sd_to_date)
+                )
+            else:
+                emp_name = profession_info.get("EmploymentName", job_position)
+                validity = self._validity(
+                    profession_info, mo_eng["validity"]["to"], cut=True
+                )
+                if validity is None:
+                    continue
 
-            job_function = emp_name
-            if self.use_jpi:
-                job_function = job_position
-            logger.debug("Employment name: {}".format(job_function))
+                job_function = emp_name
+                if self.use_jpi:
+                    job_function = job_position
+                logger.debug("Employment name: {}".format(job_function))
 
-            ext_field = self.settings.get("integrations.SD_Lon.employment_field")
-            extention = {}
-            if ext_field is not None:
-                extention = {ext_field: emp_name}
+                ext_field = self.settings.get("integrations.SD_Lon.employment_field")
+                extention = {}
+                if ext_field is not None:
+                    extention = {ext_field: emp_name}
 
-            job_function_uuid = self._fetch_professions(job_function, job_position)
+                job_function_uuid = self._fetch_professions(job_function, job_position)
 
-            data = {"job_function": {"uuid": job_function_uuid}, "validity": validity}
-            data.update(extention)
-            payload = sd_payloads.engagement(data, mo_eng)
-            logger.debug("Update profession payload: {}".format(payload))
+                data = {"job_function": {"uuid": job_function_uuid}, "validity": validity}
+                data.update(extention)
+                payload = sd_payloads.engagement(data, mo_eng)
+                logger.debug("Update profession payload: {}".format(payload))
 
-            # TODO: if stillingskode < 9000 => terminate i stedet for edit
-
-            response = self.helper._mo_post("details/edit", payload)
-            mora_assert(response)
+                response = self.helper._mo_post("details/edit", payload)
+                mora_assert(response)
 
     def edit_engagement_worktime(self, engagement, mo_eng):
         job_id, engagement_info = engagement_components(engagement)
