@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.5.2 - 2022-01-05
+------------------
+
+[#47734] Fix LoRaCache not properly exporting historic data when called from the CLI
+
 2.5.1 - 2022-01-03
 ------------------
 
