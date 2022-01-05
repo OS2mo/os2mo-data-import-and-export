@@ -1272,7 +1272,7 @@ def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
 def cli(historic, resolve_dar, read_from_cache):
     lc = LoraCache(
         full_history=historic,
-        skip_past=True,
+        skip_past=not historic,
         resolve_dar=resolve_dar
     )
     lc.populate_cache(dry_run=read_from_cache)
