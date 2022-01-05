@@ -19,7 +19,18 @@ from .fixtures import read_employment_fixture
 from integrations.SD_Lon.convert import sd_to_mo_termination_date
 from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
+from integrations.SD_Lon.sd_changed_at import get_from_date
 from test_case import DipexTestCase
+
+
+@given(test_from_date=st.datetimes())
+def test_getfrom_date(test_from_date):
+    with patch(
+        "integrations.rundb.db_overview.DBOverview._read_last_line",
+        return_value=((test_from_date, "Dummystatus")),
+    ):
+        from_date = get_from_date("test", force=False)
+        assert from_date == test_from_date
 
 
 class ChangeAtSDTest(ChangeAtSD):

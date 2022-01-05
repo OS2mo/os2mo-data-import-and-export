@@ -1377,6 +1377,25 @@ def initialize_changed_at(from_date, run_db, force=False):
     _local_db_insert((from_date, from_date, "Initial import: {}"))
 
 
+def get_from_date(run_db, force: bool = False) -> datetime.datetime:
+    db_overview = DBOverview(run_db)
+    # To date from last entries, becomes from_date for current entry
+    from_date, status = cast(
+        Tuple[datetime.datetime, str], db_overview._read_last_line("to_date", "status")
+    )
+    if "Running" in status:
+        if force:
+            db_overview.delete_last_row()
+            from_date, status = cast(
+                Tuple[datetime.datetime, str],
+                db_overview._read_last_line("to_date", "status"),
+            )
+        else:
+            logging.error("Previous ChangedAt run did not return!")
+            raise click.ClickException("Previous ChangedAt run did not return!")
+    return from_date
+
+
 @click.group()
 def cli():
     pass
@@ -1426,24 +1445,7 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: datetime.datet
 
         initialize_changed_at(from_date, run_db, force=True)
         exit()
-
-    db_overview = DBOverview(run_db)
-    # To date from last entries, becomes from_date for current entry
-    from_date, status = cast(
-        Tuple[datetime.datetime, str], db_overview._read_last_line("to_date", "status")
-    )
-
-    if "Running" in status:
-        if force:
-            db_overview.delete_last_row()
-            from_date, status = cast(
-                Tuple[datetime.datetime, str],
-                db_overview._read_last_line("to_date", "status"),
-            )
-        else:
-            logging.error("Previous ChangedAt run did not return!")
-            raise click.ClickException("Previous ChangedAt run did not return!")
-
+    from_date = get_from_date(run_db, force=force)
     to_date = datetime.datetime.now()
 
     logger.info("Importing {} to {}".format(from_date, to_date))
@@ -1472,7 +1474,7 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: datetime.datet
 )
 @click.option(
     "--from-date",
-    type=click.STRING,
+    type=click.DateTime(),
     required=True,
     default=load_setting("integrations.SD_Lon.global_from_date"),
     help="Global import from-date",
@@ -1480,10 +1482,9 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: datetime.datet
 @click.option(
     "--dry-run", is_flag=True, default=False, help="Dry-run making no actual changes."
 )
-def import_single_user(cpr: str, from_date: str, dry_run: bool):
+def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
     """Import a single user into MO."""
-    parsed_from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
-    sd_updater = ChangeAtSD(parsed_from_date, None)
+    sd_updater = ChangeAtSD(from_date, None)
     sd_updater.update_changed_persons(cpr, dry_run=dry_run)
     sd_updater.update_all_employments(cpr, dry_run=dry_run)
 
@@ -1491,7 +1492,7 @@ def import_single_user(cpr: str, from_date: str, dry_run: bool):
 @cli.command()
 @click.option(
     "--from-date",
-    type=click.STRING,
+    type=click.DateTime(),
     required=True,
     default=load_setting("integrations.SD_Lon.global_from_date"),
     help="Global import from-date",
@@ -1499,10 +1500,9 @@ def import_single_user(cpr: str, from_date: str, dry_run: bool):
 @click.option(
     "--dry-run", is_flag=True, default=False, help="Dry-run making no actual changes."
 )
-def import_state(from_date: str, dry_run: bool):
+def import_state(from_date: datetime.datetime, dry_run: bool):
     """Import engagement history for all users."""
-    parsed_from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
-    sd_updater = ChangeAtSD(parsed_from_date, None)
+    sd_updater = ChangeAtSD(from_date, None)
     sd_updater.update_changed_persons(dry_run=dry_run)
     sd_updater.update_all_employments(dry_run=dry_run)
 
