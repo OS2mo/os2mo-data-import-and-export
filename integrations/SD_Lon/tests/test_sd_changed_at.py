@@ -1,4 +1,3 @@
-import unittest
 import uuid
 from collections import OrderedDict
 from datetime import date
@@ -874,7 +873,6 @@ class Test_sd_changed_at(DipexTestCase):
             },
         )
 
-    #@parameterized.expand([("2021-10-15", "2021-10-14"), ("9999-12-31", None)])
     @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
     def test_edit_engagement_profession_job_position_id_set_to_value_below_9000(
         self, mock_sd_lookup_settings
@@ -918,12 +916,7 @@ class Test_sd_changed_at(DipexTestCase):
             ]
         )
 
-        mo_eng = {
-            "user_key": "12345",
-            "person": {
-                "uuid": "person_uuid"
-            }
-        }
+        mo_eng = {"user_key": "12345", "person": {"uuid": "person_uuid"}}
 
         mock_sd_lookup_settings.return_value = ("", "", "")
 
@@ -939,8 +932,5 @@ class Test_sd_changed_at(DipexTestCase):
         # Assert
 
         mock_terminate_engagement.assert_called_once_with(
-            "12345",
-            "person_uuid",
-            "2021-12-18",
-            None
+            "12345", "person_uuid", "2021-12-18", None
         )

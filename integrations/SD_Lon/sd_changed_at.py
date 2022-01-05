@@ -1033,7 +1033,7 @@ class ChangeAtSD:
                     mo_eng["user_key"],
                     mo_eng["person"]["uuid"],
                     sd_to_mo_termination_date(sd_from_date),
-                    sd_to_mo_termination_date(sd_to_date)
+                    sd_to_mo_termination_date(sd_to_date),
                 )
             else:
                 emp_name = profession_info.get("EmploymentName", job_position)
@@ -1055,7 +1055,10 @@ class ChangeAtSD:
 
                 job_function_uuid = self._fetch_professions(job_function, job_position)
 
-                data = {"job_function": {"uuid": job_function_uuid}, "validity": validity}
+                data = {
+                    "job_function": {"uuid": job_function_uuid},
+                    "validity": validity,
+                }
                 data.update(extention)
                 payload = sd_payloads.engagement(data, mo_eng)
                 logger.debug("Update profession payload: {}".format(payload))
