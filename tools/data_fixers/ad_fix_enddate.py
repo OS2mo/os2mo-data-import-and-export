@@ -1,10 +1,12 @@
 from datetime import datetime
 
 import click
-from integrations.ad_integration.ad_common import AD
-from integrations.ad_integration.ad_reader import ADParameterReader
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
+from tqdm import tqdm
+
+from integrations.ad_integration.ad_common import AD
+from integrations.ad_integration.ad_reader import ADParameterReader
 
 
 class CompareEndDate(ADParameterReader):
@@ -56,9 +58,12 @@ class CompareEndDate(ADParameterReader):
 
     def compare_mo(self):
         # Compare AD users to MO users
-        ad_hits = self.scan_ad()
+        print("Find users from AD")
+        ad_hits = list(self.scan_ad())
+
+        print("Check MO engagements")
         users = {}
-        for cn, end_date, mo_user_uuid in ad_hits:
+        for cn, end_date, mo_user_uuid in tqdm(ad_hits, unit="user"):
             if mo_user_uuid:
                 mo_engagements = self.get_mo_engagements(mo_user_uuid)
                 if mo_engagements:
