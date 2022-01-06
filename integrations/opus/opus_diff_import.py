@@ -132,7 +132,7 @@ class OpusDiffImport(object):
             assert (
                 "not give raise to a new registration" in response.text
             ), response.text
-            logger.debug("Requst had no effect")
+            logger.info("Requst had no effect")
         return None
 
     def _get_organisationfunktion(self, lora_uuid):
