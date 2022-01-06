@@ -888,6 +888,7 @@ def import_one(
     dumps: Dict,
     filter_ids: Optional[List],
     opus_id: Optional[int] = None,
+    rundb_write=True,
 ):
     """Import one file at the date xml_date."""
     msg = "Start update: File: {}, update since: {}"
@@ -906,7 +907,9 @@ def import_one(
     ) = opus_helpers.read_and_transform_data(
         latest_path, xml_path, filter_ids, opus_id=opus_id
     )
-    opus_helpers.local_db_insert((xml_date, "Running diff update since {}"))
+    if rundb_write:
+        opus_helpers.local_db_insert((xml_date, "Running diff update since {}"))
+
     diff = OpusDiffImport(
         xml_date,
         ad_reader=ad_reader,
@@ -916,7 +919,8 @@ def import_one(
     filtered_units = diff.find_unterminated_filtered_units(filtered_units)
 
     diff.handle_filtered_units(filtered_units)
-    opus_helpers.local_db_insert((xml_date, "Diff update ended: {}"))
+    if rundb_write:
+        opus_helpers.local_db_insert((xml_date, "Diff update ended: {}"))
     print()
 
 
