@@ -130,7 +130,7 @@ class OpusDiffImport(object):
         if response.status_code == 400:
             # Check actual response
             assert (
-                response.text.find("not give raise to a new registration") > 0
+                "not give raise to a new registration" in response.text
             ), response.text
             logger.debug("Requst had no effect")
         return None

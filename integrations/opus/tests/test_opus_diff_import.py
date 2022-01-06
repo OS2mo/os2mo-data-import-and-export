@@ -304,7 +304,7 @@ class Opus_diff_import_tester(unittest.TestCase):
                 "validity": {"to": date},
             }
         with patch("integrations.opus.opus_diff_import.OpusDiffImport._assert"):
-            diff.morahelper_mock._mo_post.assert_called_with(change_type, expected)
+            diff.morahelper_mock._mo_post.assert_called_once_with(change_type, expected)
 
 
 if __name__ == "__main__":
