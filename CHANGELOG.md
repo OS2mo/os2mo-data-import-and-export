@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.5.3 - 2022-01-06
+------------------
+
+[#47656] Add handeling of changing/terminating IT-system accounts to Opus-diff-import
+
 2.5.2 - 2022-01-05
 ------------------
 
