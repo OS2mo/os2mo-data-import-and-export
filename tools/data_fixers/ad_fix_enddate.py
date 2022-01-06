@@ -1,11 +1,10 @@
 from datetime import datetime
 
 import click
-from os2mo_helpers.mora_helpers import MoraHelper
-from ra_utils.load_settings import load_setting
-
 from integrations.ad_integration.ad_common import AD
 from integrations.ad_integration.ad_reader import ADParameterReader
+from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.load_settings import load_setting
 
 
 class CompareEndDate(ADParameterReader):
