@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.5.4 - 2022-01-06
+------------------
+
+[#xxxxx] Fixes a bug where opus reimport script writes to rundb
+
 2.5.3 - 2022-01-06
 ------------------
 
