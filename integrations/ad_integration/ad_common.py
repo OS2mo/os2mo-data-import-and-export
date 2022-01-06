@@ -134,13 +134,10 @@ class AD:
     def __init__(self, all_settings=None, index=0, **kwargs):
         self.all_settings = all_settings
         if self.all_settings is None:
-            self.all_settings = self._get_settings(index=index)
+            self.all_settings = read_settings(index=index)
         self.session = self._create_session()
         self.retry_exceptions = self._get_retry_exceptions()
         self.results = {}
-
-    def _get_settings(self, index=0):
-        return read_settings(index=index)
 
     def _get_retry_exceptions(self):
         """Tuple of exceptions which should trigger retrying create_session."""

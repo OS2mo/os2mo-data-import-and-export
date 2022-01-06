@@ -77,6 +77,7 @@ class CompareEndDate(ADParameterReader):
 
 class UpdateEndDate(AD):
     def __init__(self, enddate_field, uuid_field, cpr_field):
+        super().__init__()
         self.enddate_field = enddate_field
         self.uuid_field = uuid_field
         self.cpr_field = cpr_field

@@ -34,18 +34,19 @@ test_settings = {
 )
 @patch("integrations.ad_integration.ad_common.AD._create_session")
 @patch(
-    "integrations.ad_integration.ad_common.AD._get_settings", return_value=test_settings
+    "integrations.ad_integration.read_ad_conf_settings.read_settings", return_value=test_settings
 )
 @patch(
     "integrations.ad_integration.ad_common.AD._get_setting",
     return_value=test_settings["primary"],
 )
 def test_ad_enddate_fixer(
+    mock_setting,
+    mock_settings,
     mock_ps_script,
     mock_read_user_engagements,
     mock_session,
-    mock_settings,
-    mock_setting,
+    
 ):
     """Tests that user with no enddate in AD, but enddate in MO
     returns a ps-command to update AD.
