@@ -70,6 +70,7 @@ def cli(mox_base, mora_base, delete, full_history, opus_id, use_ad, dry_run):
             import_all=full_history,
             import_last=not full_history,
             opus_id=opus_id,
+            rundb_write=False,
         )
 
 

@@ -7,8 +7,13 @@ from typing import Optional
 
 import click
 import requests
-from click_option_group import MutuallyExclusiveOptionGroup, optgroup
-from more_itertools import first, flatten, pairwise, partition, prepend
+from click_option_group import MutuallyExclusiveOptionGroup
+from click_option_group import optgroup
+from more_itertools import first
+from more_itertools import flatten
+from more_itertools import pairwise
+from more_itertools import partition
+from more_itertools import prepend
 from ra_utils.load_settings import load_settings
 from tqdm import tqdm
 
@@ -17,7 +22,8 @@ from integrations.ad_integration import ad_reader
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import import_one
 from tools.data_fixers.class_tools import find_duplicates_classes
-from tools.default_mo_setup import create_new_root_and_it, ensure_default_classes
+from tools.default_mo_setup import create_new_root_and_it
+from tools.default_mo_setup import ensure_default_classes
 from tools.subtreedeleter import subtreedeleter_helper
 
 
@@ -74,7 +80,13 @@ def prepare_re_import(
     ensure_default_classes()
 
 
-def import_opus(ad_reader=None, import_all: bool = False, import_last=False, opus_id=None) -> None:
+def import_opus(
+    ad_reader=None,
+    import_all: bool = False,
+    import_last=False,
+    opus_id=None,
+    rundb_write: bool = True,
+) -> None:
     """Import one or all files from opus even if no previous files have been imported"""
     settings = load_settings()
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
@@ -82,7 +94,7 @@ def import_opus(ad_reader=None, import_all: bool = False, import_last=False, opu
     dumps = opus_helpers.read_available_dumps()
 
     all_dates = dumps.keys()
-    #Default is read first file only
+    # Default is read first file only
     export_dates = [min(all_dates)]
     if import_last:
         export_dates = [max(all_dates)]
@@ -92,7 +104,15 @@ def import_opus(ad_reader=None, import_all: bool = False, import_last=False, opu
     export_dates = prepend(None, export_dates)
     date_pairs = pairwise(export_dates)
     for date1, date2 in date_pairs:
-        import_one(ad_reader, date2, date1, dumps, filter_ids, opus_id=opus_id)
+        import_one(
+            ad_reader,
+            date2,
+            date1,
+            dumps,
+            filter_ids,
+            opus_id=opus_id,
+            rundb_write=rundb_write,
+        )
 
 
 @click.command()
