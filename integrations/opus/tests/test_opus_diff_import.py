@@ -279,7 +279,7 @@ class Opus_diff_import_tester(unittest.TestCase):
             if current_username
             else None
         ]
-        diff.connect_it_system(new_username, "Opus", {}, "dummyuuid")
+
         if change_type == "details/edit":
             expected = {
                 "type": "it",
@@ -299,12 +299,14 @@ class Opus_diff_import_tester(unittest.TestCase):
             }
         elif change_type == "details/terminate":
             expected = {
-                "type": "it-system",
+                "type": "it",
                 "uuid": "dummyuuid",
                 "validity": {"to": date},
             }
-        with patch("integrations.opus.opus_diff_import.OpusDiffImport._assert"):
-            diff.morahelper_mock._mo_post.assert_called_once_with(change_type, expected)
+            diff.morahelper_mock._mo_post.return_value.status_code = 200
+
+        diff.connect_it_system(new_username, "Opus", {}, "dummyuuid")
+        diff.morahelper_mock._mo_post.assert_called_once_with(change_type, expected)
 
 
 if __name__ == "__main__":

@@ -512,7 +512,7 @@ class OpusDiffImport(object):
             logger.info(f"Added {it_system} info for {person_uuid}")
         # Deleted it-system account
         elif not username:
-            self.terminate_detail(current["uuid"], detail_type="it-system")
+            self.terminate_detail(current["uuid"], detail_type="it")
             logger.info(f"No {it_system} info for {person_uuid} any longer")
         # Changed account name. Only supports one account pr it-system
         elif current.get("user_key") != username:
@@ -783,7 +783,7 @@ class OpusDiffImport(object):
         logger.debug("Terminate payload: {}".format(payload))
         response = self.helper._mo_post("details/terminate", payload)
         logger.debug("Terminate response: {}".format(response.text))
-        # self._assert(response)
+        self._assert(response)
 
     def import_single_employment(self, employee):
         # logger.info('Update  employment {} from {}'.format(employment, xml_file))
