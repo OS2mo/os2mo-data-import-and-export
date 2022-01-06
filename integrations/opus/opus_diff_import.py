@@ -7,6 +7,7 @@ from typing import List
 from typing import Optional
 
 import requests
+from more_itertools import only
 from mox_helpers import mox_util
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
@@ -128,8 +129,10 @@ class OpusDiffImport(object):
         assert response.status_code in (200, 400, 404)
         if response.status_code == 400:
             # Check actual response
-            assert response.text.find("not give raise to a new registration") > 0, response.text
-            logger.debug("Requst had no effect")
+            assert (
+                "not give raise to a new registration" in response.text
+            ), response.text
+            logger.info("Requst had no effect")
         return None
 
     def _get_organisationfunktion(self, lora_uuid):
@@ -494,7 +497,8 @@ class OpusDiffImport(object):
         current = self.helper.get_e_itsystems(
             person_uuid, it_system_uuid=it_system_uuid
         )
-        # TODO: Edit it system if value has changed.
+        current = only(current, default={})
+        # New it-system account
         if not current:
             payload = payloads.connect_it_system_to_user(
                 username,
@@ -505,7 +509,22 @@ class OpusDiffImport(object):
             logger.debug(f"{it_system} account payload: {payload}")
             response = self.helper._mo_post("details/create", payload)
             assert response.status_code == 201
-            logger.info(f"Added {it_system} info to {person_uuid}")
+            logger.info(f"Added {it_system} info for {person_uuid}")
+        # Deleted it-system account
+        elif not username:
+            self.terminate_detail(current["uuid"], detail_type="it")
+            logger.info(f"No {it_system} info for {person_uuid} any longer")
+        # Changed account name. Only supports one account pr it-system
+        elif current.get("user_key") != username:
+            payload = payloads.edit_it_system_username(
+                current["uuid"],
+                username,
+                self.xml_date.strftime("%Y-%m-%d"),
+            )
+            logger.debug(f"{it_system} account payload: {payload}")
+            response = self.helper._mo_post("details/edit", payload)
+            response.raise_for_status()
+            logger.info(f"Changed {it_system} info for {person_uuid}")
 
     def _to_datetime(self, item):
         if item is None:
@@ -715,13 +734,12 @@ class OpusDiffImport(object):
                 logger.info(msg.format(cpr, employee_mo_uuid))
 
         # Add it-systems
-        if employee.get("userId"):
-            self.connect_it_system(
-                employee["userId"], constants.Opus_it_system, employee, employee_mo_uuid
-            )
+        self.connect_it_system(
+            employee.get("userId"), constants.Opus_it_system, employee, employee_mo_uuid
+        )
 
-        sam_account = ad_info.get("SamAccountName")
-        if sam_account:
+        if self.ad_reader is not None:
+            sam_account = ad_info.get("SamAccountName")
             self.connect_it_system(
                 sam_account, constants.AD_it_system, employee, employee_mo_uuid
             )
@@ -885,7 +903,9 @@ def import_one(
         filtered_units,
         employees,
         terminated_employees,
-    ) = opus_helpers.read_and_transform_data(latest_path, xml_path, filter_ids, opus_id=opus_id)
+    ) = opus_helpers.read_and_transform_data(
+        latest_path, xml_path, filter_ids, opus_id=opus_id
+    )
     opus_helpers.local_db_insert((xml_date, "Running diff update since {}"))
     diff = OpusDiffImport(
         xml_date,
