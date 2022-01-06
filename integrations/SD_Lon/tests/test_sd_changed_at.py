@@ -776,7 +776,7 @@ class Test_sd_changed_at(DipexTestCase):
 
     @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
     @patch("integrations.SD_Lon.sd_changed_at.sd_lookup")
-    def test_edit_engagement_job_position_id_set_to_value_over_9000(
+    def test_edit_engagement_job_position_id_set_to_value_above_9000(
         self, mock_sd_lookup, mock_sd_lookup_settings
     ):
         """
@@ -826,6 +826,8 @@ class Test_sd_changed_at(DipexTestCase):
         )
         mock_sd_lookup_settings.return_value = ("", "", "")
 
+        # Necessary for the _find_engagement call in edit_engagement
+        # Mock the call to arrange that no engagements are found for the user
         mora_helper = sd_updater.morahelper_mock
         _mo_lookup = mora_helper._mo_lookup
         _mo_lookup.return_value = []
@@ -869,4 +871,66 @@ class Test_sd_changed_at(DipexTestCase):
                 "user_key": "emp_id",
                 "validity": {"from": "2020-11-10", "to": "2021-02-09"},
             },
+        )
+
+    @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
+    def test_edit_engagement_profession_job_position_id_set_to_value_below_9000(
+        self, mock_sd_lookup_settings
+    ):
+        """
+        If an employment exists in MO WITH an engagement and we receive an
+        SD change payload, where the JobPositionIdentifier is set to a value
+        less than 9000, then we must ensure that an engagement is terminated
+        for the corresponding employee in MO.
+        """
+
+        # Arrange
+
+        sd_updater = setup_sd_changed_at(
+            {
+                "integrations.SD_Lon.monthly_hourly_divide": 80000,
+                "integrations.SD_Lon.no_salary_minimum_id": 9000,
+                "integrations.SD_Lon.import.too_deep": [
+                    "Afdelings-niveau",
+                    "NY1-niveau",
+                ],
+            }
+        )
+
+        engagement = OrderedDict(
+            [
+                ("EmploymentIdentifier", "DEERE"),
+                (
+                    "Profession",
+                    OrderedDict(
+                        [
+                            ("@changedAtDate", "2021-12-20"),
+                            ("ActivationDate", "2021-12-19"),
+                            ("DeactivationDate", "9999-12-31"),
+                            ("JobPositionIdentifier", "8000"),
+                            ("EmploymentName", "dummy"),
+                            ("AppointmentCode", "0"),
+                        ]
+                    ),
+                ),
+            ]
+        )
+
+        mo_eng = {"user_key": "12345", "person": {"uuid": "person_uuid"}}
+
+        mock_sd_lookup_settings.return_value = ("", "", "")
+
+        # Mock the terminate engagement call
+        mock_terminate_engagement = MagicMock()
+        sd_updater._terminate_engagement = mock_terminate_engagement
+        mock_terminate_engagement.return_value = True
+
+        # Act
+
+        sd_updater.edit_engagement_profession(engagement, mo_eng)
+
+        # Assert
+
+        mock_terminate_engagement.assert_called_once_with(
+            "12345", "person_uuid", "2021-12-18", None
         )
