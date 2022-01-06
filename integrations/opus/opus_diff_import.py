@@ -129,7 +129,9 @@ class OpusDiffImport(object):
         assert response.status_code in (200, 400, 404)
         if response.status_code == 400:
             # Check actual response
-            assert response.text.find("not give raise to a new registration") > 0, response.text
+            assert (
+                response.text.find("not give raise to a new registration") > 0
+            ), response.text
             logger.debug("Requst had no effect")
         return None
 
@@ -496,7 +498,7 @@ class OpusDiffImport(object):
             person_uuid, it_system_uuid=it_system_uuid
         )
         current = only(current, default={})
-
+        # New it-system account
         if not current:
             payload = payloads.connect_it_system_to_user(
                 username,
@@ -508,6 +510,11 @@ class OpusDiffImport(object):
             response = self.helper._mo_post("details/create", payload)
             assert response.status_code == 201
             logger.info(f"Added {it_system} info for {person_uuid}")
+        # Deleted it-system account
+        elif not username:
+            self.terminate_detail(current["uuid"], detail_type="it-system")
+            logger.info(f"No {it_system} info for {person_uuid} any longer")
+        # Changed account name. Only supports one account pr it-system
         elif current.get("user_key") != username:
             payload = payloads.edit_it_system_username(
                 current["uuid"],
@@ -727,13 +734,12 @@ class OpusDiffImport(object):
                 logger.info(msg.format(cpr, employee_mo_uuid))
 
         # Add it-systems
-        if employee.get("userId"):
-            self.connect_it_system(
-                employee["userId"], constants.Opus_it_system, employee, employee_mo_uuid
-            )
+        self.connect_it_system(
+            employee.get("userId"), constants.Opus_it_system, employee, employee_mo_uuid
+        )
 
-        sam_account = ad_info.get("SamAccountName")
-        if sam_account:
+        if self.ad_reader is not None:
+            sam_account = ad_info.get("SamAccountName")
             self.connect_it_system(
                 sam_account, constants.AD_it_system, employee, employee_mo_uuid
             )
@@ -777,7 +783,7 @@ class OpusDiffImport(object):
         logger.debug("Terminate payload: {}".format(payload))
         response = self.helper._mo_post("details/terminate", payload)
         logger.debug("Terminate response: {}".format(response.text))
-        self._assert(response)
+        # self._assert(response)
 
     def import_single_employment(self, employee):
         # logger.info('Update  employment {} from {}'.format(employment, xml_file))
@@ -897,7 +903,9 @@ def import_one(
         filtered_units,
         employees,
         terminated_employees,
-    ) = opus_helpers.read_and_transform_data(latest_path, xml_path, filter_ids, opus_id=opus_id)
+    ) = opus_helpers.read_and_transform_data(
+        latest_path, xml_path, filter_ids, opus_id=opus_id
+    )
     opus_helpers.local_db_insert((xml_date, "Running diff update since {}"))
     diff = OpusDiffImport(
         xml_date,

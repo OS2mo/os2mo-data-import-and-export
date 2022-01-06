@@ -8,6 +8,7 @@ from hypothesis import given
 from hypothesis.strategies import datetimes
 from hypothesis.strategies import text
 from hypothesis.strategies import uuids
+from parameterized import parameterized
 
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import OpusDiffImport
@@ -192,6 +193,7 @@ class Opus_diff_import_tester(unittest.TestCase):
     def test_update_employee(self, dawa_helper_mock, classes_mock, xml_date):
         self.assertIsInstance(xml_date, datetime)
         diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
+        diff.it_systems = {"Opus": "Opus_uuid"}
         diff.updater.primary_types = {"non_primary": "test"}
         diff.updater.set_current_person = MagicMock()
         diff.updater.recalculate_primary = MagicMock()
@@ -246,6 +248,63 @@ class Opus_diff_import_tester(unittest.TestCase):
                 "visibility": {"uuid": str(visibility)},
             },
         )
+
+    @parameterized.expand(
+        [
+            (None, "Username", "details/create"),
+            ("Username", "new_username", "details/edit"),
+            ("new_username", None, "details/terminate"),
+        ]
+    )
+    @patch("integrations.dawa_helper.dawa_lookup")
+    @patch(
+        "mox_helpers.mox_util.ensure_class_in_lora",
+        return_value=(MagicMock(), MagicMock()),
+    )
+    @given(datetimes())
+    def test_update_username(
+        self,
+        current_username,
+        new_username,
+        change_type,
+        classes_mock,
+        dawa_helper_mock,
+        xml_date,
+    ):
+        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
+        date = xml_date.strftime("%Y-%m-%d")
+        diff.it_systems = {"Opus": "Opus_uuid"}
+        diff.morahelper_mock.get_e_itsystems.return_value = [
+            {"user_key": current_username, "uuid": "dummyuuid"}
+            if current_username
+            else None
+        ]
+        diff.connect_it_system(new_username, "Opus", {}, "dummyuuid")
+        if change_type == "details/edit":
+            expected = {
+                "type": "it",
+                "uuid": "dummyuuid",
+                "data": {
+                    "user_key": new_username,
+                    "validity": {"from": date, "to": None},
+                },
+            }
+        elif change_type == "details/create":
+            expected = {
+                "type": "it",
+                "user_key": new_username,
+                "itsystem": {"uuid": "Opus_uuid"},
+                "person": {"uuid": "dummyuuid"},
+                "validity": {"from": date, "to": None},
+            }
+        elif change_type == "details/terminate":
+            expected = {
+                "type": "it-system",
+                "uuid": "dummyuuid",
+                "validity": {"to": date},
+            }
+        with patch("integrations.opus.opus_diff_import.OpusDiffImport._assert"):
+            diff.morahelper_mock._mo_post.assert_called_with(change_type, expected)
 
 
 if __name__ == "__main__":
