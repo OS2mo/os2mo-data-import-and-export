@@ -11,6 +11,7 @@ from ra_utils.load_settings import load_settings
 from tqdm import tqdm
 
 from .ad_common import AD
+from .ad_common import CommandFailure
 from .ad_exceptions import ImproperlyConfigured
 from .ad_logger import start_logging
 from .ad_reader import ADParameterReader
@@ -38,6 +39,7 @@ class SyncMoUuidToAd(AD):
             "user_not_in_mo": 0,
             "already_ok": 0,
             "updated": 0,
+            "failed": 0,
         }
 
     def perform_sync(self, ad_users, mo_users):
@@ -131,13 +133,19 @@ class SyncMoUuidToAd(AD):
 
         # Actually fire the powershell scripts, and trigger side-effects
         for ps_script in users:
-            response = self._run_ps_script(ps_script)
-            logger.debug("Response: {}".format(response))
-            if response:
-                msg = "Unexpected response: {}".format(response)
-                logger.exception(msg)
-                raise Exception(msg)
-            self.stats["updated"] += 1
+            try:
+                response = self._run_ps_script(ps_script)
+            except CommandFailure:
+                logger.exception("Failure when executing:\n%r", ps_script)
+                self.stats["failed"] += 1
+            else:
+                logger.debug("Response: %r", response)
+                if response:
+                    logger.exception("Unexpected response: %r", response)
+                    self.stats["failed"] += 1
+                else:
+                    self.stats["updated"] += 1
+
         print(self.stats)
         logger.info(self.stats)
 
@@ -201,7 +209,7 @@ class SyncMoUuidToAd(AD):
         ):
             msg = "'uuid_field' %r not in 'properties' of any AD"
             logger.warning(msg, ad_uuid_field)
-            raise ImproperlyConfigured(msg % (ad_uuid_field))
+            raise ImproperlyConfigured(msg % ad_uuid_field)
 
     def _get_mora_helper(self):
         return MoraHelper(

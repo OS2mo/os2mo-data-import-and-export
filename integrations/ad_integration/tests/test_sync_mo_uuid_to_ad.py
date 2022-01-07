@@ -42,6 +42,24 @@ class _SyncMoUuidToAd(sync_mo_uuid_to_ad.SyncMoUuidToAd):
         self._scripts.append(ps_script)
 
 
+class _FailingSyncMoUuidToAd(_SyncMoUuidToAd):
+    """Testable subclass of `SyncMoUuidToAd` which fails in `_run_ps_script`"""
+
+    def _run_ps_script(self, ps_script):
+        super()._run_ps_script(ps_script)
+        raise ad_common.CommandFailure("oops")
+
+
+class _UnexpectedResponseSyncMoUuidToAd(_SyncMoUuidToAd):
+    """Testable subclass of `SyncMoUuidToAd` which returns an unexpected
+    response (that is, not None) in `_run_ps_script`.
+    """
+
+    def _run_ps_script(self, ps_script):
+        super()._run_ps_script(ps_script)
+        return object()
+
+
 # Based on this example:
 # https://docs.pytest.org/en/stable/example/parametrize.html#parametrizing-conditional-raising
 
@@ -68,12 +86,11 @@ def does_not_raise():
 )
 def test_invalid_configuration(example_input, expectation):
     with expectation:
-        TestSyncMoUuidToAd()._get_instance(
-            {
-                "integrations.ad.write.uuid_field": "foo",
-                "integrations.ad": example_input,
-            }
-        )
+        settings = {
+            "integrations.ad.write.uuid_field": "foo",
+            "integrations.ad": example_input,
+        }
+        TestSyncMoUuidToAd()._get_instance(settings=settings)
 
 
 class TestSyncMoUuidToAd(TestCase):
@@ -102,7 +119,27 @@ class TestSyncMoUuidToAd(TestCase):
         instance.sync_all()
         self._assert_script_contents_ok(instance)
 
-    def _get_instance(self, settings=None, reader=None):
+    @parameterized.expand(
+        [
+            (_FailingSyncMoUuidToAd, "CommandFailure: oops"),
+            (_UnexpectedResponseSyncMoUuidToAd, "Unexpected response: "),
+        ]
+    )
+    def test_sync_all_handles_command_failure(
+        self, test_class: _SyncMoUuidToAd, expected_log_content: str
+    ):
+        instance = self._get_instance(cls=test_class)
+        with self.assertLogs("MoUuidAdSync", "ERROR") as logged:
+            instance.sync_all()
+            # Assert that we log the expected line
+            logged_output = logged.output  # type: ignore
+            self.assertEqual(len(logged_output), 1)
+            self.assertIn(expected_log_content, logged_output[0])
+            # Assert that we update stats correctly
+            self.assertEqual(instance.stats["failed"], 1)
+            self.assertEqual(instance.stats["updated"], 0)
+
+    def _get_instance(self, cls=_SyncMoUuidToAd, settings=None, reader=None):
         _settings = {
             "integrations.ad.write.uuid_field": AD_UUID_FIELD,
             "integrations.ad": [{"properties": [AD_UUID_FIELD]}],
@@ -136,9 +173,7 @@ class TestSyncMoUuidToAd(TestCase):
         with read_settings_mock:
             with load_settings_mock:
                 with reader_mock:
-                    instance = _SyncMoUuidToAd(
-                        ad_cpr_no=reader.read_user()["extensionAttribute1"]
-                    )
+                    instance = cls(ad_cpr_no=reader.read_user()["extensionAttribute1"])
                     return instance
 
     def _assert_script_contents_ok(self, instance):
