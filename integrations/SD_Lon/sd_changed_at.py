@@ -1103,7 +1103,18 @@ class ChangeAtSD:
         Edit an engagement
         """
         employment_id, engagement_info = engagement_components(engagement)
-        job_pos_id = int(one(engagement_info["professions"])["JobPositionIdentifier"])
+
+        try:
+            job_pos = one(engagement_info["professions"])["JobPositionIdentifier"]
+        except ValueError:  # too few items in iterable
+            logger.error(
+                "no professions found for %r (engagement_info=%r)",
+                person_uuid,
+                engagement_info,
+            )
+            return
+
+        job_pos_id = int(job_pos)
         no_salary_minimum = self.settings.get(
             "integrations.SD_Lon.no_salary_minimum_id", None
         )
