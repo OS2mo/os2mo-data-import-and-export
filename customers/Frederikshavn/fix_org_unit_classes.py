@@ -1,7 +1,7 @@
 from itertools import groupby
 
 import click
-import httpx
+import requests
 from more_itertools import only
 from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -55,7 +55,7 @@ def cli(mox_base: str, mora_base: str, dry_run: bool):
         )
         return
 
-    session = httpx.Client()
+    session = requests.session()
     
     for no_scope, scope in tqdm(split_classes, desc="Moving relations to one class"):
         old_uuid = no_scope["uuid"]
