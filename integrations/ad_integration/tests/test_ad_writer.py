@@ -1054,3 +1054,24 @@ class TestADWriter(TestCase, TestADWriterMixin):
             mock_mo_user, "sam_account_name"
         )
         self.assertRegex(ps_script, f'.* -Path "{expected_path_argument}"$')
+
+    def test_other_attributes_skip_empty(self):
+        # Configure template which tries to write `mo_values['foobar']` to the
+        # 'fooBar' AD field.
+        self._setup_adwriter(
+            early_transform_settings=self._add_to_template_to_ad_fields(
+                "fooBar",
+                "{{ mo_values['foobar'] }}",
+            ),
+        )
+
+        # Build `mo_values` containing an *empty* 'foobar' key
+        mo_values = self._prepare_mo_values(
+            mo_values_transformer=mo_modifier({"foobar": None})
+        )
+
+        # Render "New-ADUser" command using `mo_values`
+        ps_script = self.ad_writer._get_create_user_command(mo_values, "sam")
+
+        # Assert the command does not try to set "fooBar"="None"
+        self.assertNotIn('"fooBar"="None"', ps_script)

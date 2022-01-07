@@ -1,3 +1,6 @@
+from typing import Any
+from typing import Dict
+
 from jinja2 import Environment
 from jinja2 import StrictUndefined
 from jinja2 import Template
@@ -326,6 +329,26 @@ def filter_illegal(cmd, parameters, other_attributes):
     return parameters, other_attributes
 
 
+def filter_empty_values(
+    attrs: Dict[str, str], context: Dict[str, Any]
+) -> Dict[str, str]:
+    """Remove key/template pairs from `attrs` if the template renders the value
+    "\"None\"".
+    """
+    to_remove = set()
+
+    for name, template_code in attrs.items():
+        template = load_jinja_template(template_code)
+        value = template.render(**context)
+        if value == '"None"':
+            to_remove.add(name)
+
+    for attribute_name in to_remove:
+        del attrs[attribute_name]
+
+    return attrs
+
+
 def load_jinja_template(source: str) -> Template:
     """Load Jinja template in the string `source` and return a `Template`
     instance.
@@ -334,7 +357,7 @@ def load_jinja_template(source: str) -> Template:
     return environment.from_string(source)
 
 
-def prepare_template(cmd, settings, jinja_map=None):
+def prepare_template(cmd, settings, context, jinja_map=None):
     """Build a complete powershell command template.
 
     Args:
@@ -360,6 +383,8 @@ def prepare_template(cmd, settings, jinja_map=None):
         )
     )
 
+    other_attributes = filter_empty_values(other_attributes, context)
+
     # Generate our combined template, by rendering our command template using
     # the field templates templates.
     combined_template = command_template.render(
@@ -381,7 +406,7 @@ def template_powershell(context, settings, cmd="New-ADUser", jinja_map=None):
         str: An executable powershell script.
     """
     # Acquire the full template, templated itself with all field templates
-    full_template = prepare_template(cmd, settings)
+    full_template = prepare_template(cmd, settings, context)
 
     # Render the final template using the context
     final_template = load_jinja_template(full_template)
