@@ -9,7 +9,7 @@ from ra_utils.load_settings import load_setting
 from tqdm import tqdm
 
 from tools.data_fixers.class_tools import delete_class
-from tools.data_fixers.class_tools import move_class
+from tools.data_fixers.class_tools import move_class_helper
 
 
 def split(group):
@@ -24,11 +24,6 @@ def is_duplicate(classes):
     return no_scope and scope
 
 
-def perform_move_class(classes):
-    no_scope, scope = classes
-    old_uuid = no_scope["uuid"]
-    move_class(old_uuid=old_uuid, new_uuid=scope["uuid"])
-    return old_uuid
 
 
 @click.command()
@@ -61,11 +56,12 @@ def cli(mox_base: str, mora_base: str, dry_run: bool):
         return
 
     session = httpx.Client()
-    split_classes = tqdm(split_classes, desc="Moving relations to one class")
-    old_uuids = map(perform_move_class, split_classes)
-
-    for uuid in tqdm(old_uuids, desc="deleting old classes"):
-        delete_class(session=session, base="http://localhost:8080/", uuid=uuid)
+    
+    for no_scope, scope in tqdm(split_classes, desc="Moving relations to one class"):
+        old_uuid = no_scope["uuid"]
+        move_class_helper(old_uuid=old_uuid, new_uuid=scope["uuid"], copy=False, mox_base=mox_base)
+    
+        delete_class(session=session, base=mox_base, uuid=old_uuid)
 
 
 if __name__ == "__main__":

@@ -210,6 +210,15 @@ def remove_dup_classes(delete: bool, mox_base: click.STRING):
             delete_class(session, mox_base, uuid)
 
 
+def move_class_helper(
+    old_uuid: click.UUID, new_uuid: click.UUID, copy: bool, mox_base: str
+):
+    session = requests.Session()
+    rel = check_relations(session, mox_base, old_uuid)
+    for payload in tqdm(rel, desc="Changing class for objects"):
+        switch_class(session, mox_base, payload, new_uuid, {old_uuid}, copy=copy)
+
+
 @cli.command()
 @click.option(
     "--old-uuid",
@@ -238,10 +247,9 @@ def move_class(old_uuid: click.UUID, new_uuid: click.UUID, copy: bool, mox_base:
     """Switches class, or copies to a new class for all objects using this class given two UUIDs.
     if --copy is supplied a new UUID will be generated for each object so that no objects are moved, only copied.
     """
-    session = requests.Session()
-    rel = check_relations(session, mox_base, old_uuid)
-    for payload in tqdm(rel, desc="Changing class for objects"):
-        switch_class(session, mox_base, payload, new_uuid, {old_uuid}, copy=copy)
+    move_class_helper(
+        old_uuid=old_uuid, new_uuid=new_uuid, copy=copy, mox_base=mox_base
+    )
 
 
 if __name__ == "__main__":
