@@ -250,7 +250,8 @@ class Opus_diff_import_tester(unittest.TestCase):
         )
 
     @parameterized.expand(
-        [
+        [   
+            (None, None, None),
             (None, "Username", "details/create"),
             ("Username", "new_username", "details/edit"),
             ("new_username", None, "details/terminate"),
@@ -304,9 +305,15 @@ class Opus_diff_import_tester(unittest.TestCase):
                 "validity": {"to": date},
             }
             diff.morahelper_mock._mo_post.return_value.status_code = 200
+        
+        if change_type:
+            diff.connect_it_system(new_username, "Opus", {}, "dummyuuid")
+            diff.morahelper_mock._mo_post.assert_called_once_with(change_type, expected)
+        else:
+            diff.connect_it_system(new_username, "Opus", {}, "dummyuuid")
+            diff.morahelper_mock._mo_post.assert_not_called()
 
-        diff.connect_it_system(new_username, "Opus", {}, "dummyuuid")
-        diff.morahelper_mock._mo_post.assert_called_once_with(change_type, expected)
+
 
 
 if __name__ == "__main__":
