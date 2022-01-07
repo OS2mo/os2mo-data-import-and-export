@@ -412,7 +412,7 @@ def template_powershell(
         context: dictionary used for jinja templating context.
         settings: dictionary containing settings from settings.json
         cmd: command to generate template for. Defaults to 'New-ADUser'.
-        jinja_map: dictionary from ad field names to jinja template strings.
+        environment: Jinja template environment
 
     Returns:
         str: An executable powershell script.
