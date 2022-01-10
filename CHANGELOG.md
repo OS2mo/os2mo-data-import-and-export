@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.5.6 - 2022-01-10
+------------------
+
+[#47856] Add retry to OS2phonebook export
+
 2.5.5 - 2022-01-10
 ------------------
 
