@@ -498,6 +498,8 @@ class OpusDiffImport(object):
             person_uuid, it_system_uuid=it_system_uuid
         )
         current = only(current, default={})
+        if not (username or current):
+            return
         # New it-system account
         if not current:
             payload = payloads.connect_it_system_to_user(
