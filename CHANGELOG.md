@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.5.5 - 2022-01-10
+------------------
+
+[#47656] Fix bug that would create it-systems with random uuid usernames during opus-import
+
 2.5.4 - 2022-01-06
 ------------------
 
