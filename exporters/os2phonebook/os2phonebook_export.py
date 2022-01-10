@@ -10,6 +10,7 @@ from operator import attrgetter
 import click
 from aiohttp import BasicAuth, ClientSession, TCPConnector
 from more_itertools import side_effect
+from retrying import retry
 
 from exporters.sql_export.lc_for_jobs_db import get_engine
 from exporters.sql_export.sql_table_defs import (
@@ -44,7 +45,7 @@ class elapsedtime(object):
             time.sleep(1)
 
         >>> sleep took 1.001 seconds ( 0.001 seconds)
-    
+
     Args:
         operation (str): Informal name given to the operation.
         rounding (int): Number of decimal seconds to include in output.
@@ -530,6 +531,7 @@ async def transfer_json():
     )
     basic_auth = BasicAuth(username, password)
 
+    @retry(stop_max_attempt_number=7)
     async def push_updates(url, payload):
         async with aiohttp_session.post(
             base_url + url, json=payload, auth=basic_auth
