@@ -396,19 +396,11 @@ class AD:
             ps_template = "Get-ADUser -Filter '{field} {operator} \"{val}\"'"
             get_command = ps_template.format(field=field, operator=operator, val=val)
 
-        server_string = ""
-        if server is not None:
-            server_string = " -Server {}".format(server)
-        elif self.all_settings["global"].get("servers"):
-            server_string = " -Server {}".format(
-                random.choice(self.all_settings["global"]["servers"])
-            )
-
         ps_script = (
             self._ps_boiler_plate()["encoding"]
             + self._build_user_credential()
             + get_command
-            + server_string
+            + self._get_server_argument()
             + bp["complete"]
             + self._properties()
             + " | ConvertTo-Json"
@@ -425,3 +417,13 @@ class AD:
                 return_val = response
 
         return return_val
+
+    def _get_server_argument(self, server: str = None) -> str:
+        server_string = ""
+        if server is not None:
+            server_string = " -Server {}".format(server)
+        elif self.all_settings["global"].get("servers"):
+            server_string = " -Server {}".format(
+                random.choice(self.all_settings["global"]["servers"])
+            )
+        return server_string

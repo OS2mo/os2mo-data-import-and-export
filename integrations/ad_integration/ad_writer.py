@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
 import logging
-import random
 import re
 import time
 from abc import ABC
@@ -744,12 +743,11 @@ class ADWriter(AD):
             new_name=new_name,
         )
         rename_user_string = self.remove_redundant(rename_user_string)
-        server_string = ""
-        if self.all_settings["global"].get("servers") is not None:
-            server_string = " -Server {} ".format(
-                random.choice(self.all_settings["global"]["servers"])
-            )
-        ps_script = self._build_user_credential() + rename_user_string + server_string
+        ps_script = (
+            self._build_user_credential()
+            + rename_user_string
+            + self._get_server_argument()
+        )
         return ps_script
 
     def _cf(self, ad_field, value, ad):
@@ -923,18 +921,16 @@ class ADWriter(AD):
                 "mo_values": mo_values,
                 "user_sam": user_sam,
                 "sync_timestamp": str(datetime.now()),
+                "_server_argument": self._get_server_argument(),
             },
             settings=self.all_settings,
         )
         edit_user_string = self.remove_redundant(edit_user_string)
-
-        server_string = ""
-        if self.all_settings["global"].get("servers") is not None:
-            server_string = " -Server {} ".format(
-                random.choice(self.all_settings["global"]["servers"])
-            )
-
-        ps_script = self._build_user_credential() + edit_user_string + server_string
+        ps_script = (
+            self._build_user_credential()
+            + edit_user_string
+            + self._get_server_argument()
+        )
         return ps_script
 
     def create_user(self, mo_uuid, create_manager, dry_run=False):
@@ -994,21 +990,12 @@ class ADWriter(AD):
             settings=self.all_settings,
         )
         create_user_string = self.remove_redundant(create_user_string)
-
-        # Should this go to self._ps_boiler_plate()?
-        server_string = ""
-        if self.all_settings["global"].get("servers"):
-            server_string = " -Server {} ".format(
-                random.choice(self.all_settings["global"]["servers"])
-            )
-
         ps_script = (
             self._build_user_credential()
             + create_user_string
-            + server_string
+            + self._get_server_argument()
             + self._get_new_ad_user_path_argument()
         )
-
         return ps_script
 
     def _get_new_ad_user_path_argument(self):

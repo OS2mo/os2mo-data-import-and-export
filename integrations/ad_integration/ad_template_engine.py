@@ -172,6 +172,7 @@ cmdlet_templates = {
     "Set-ADUser": """
         Get-ADUser
           -Filter 'SamAccountName -eq {{ parameters['SamAccountName'] }}'
+          {%- if _server_argument -%}{{ _server_argument }}{%- endif %}
           -Credential {{ parameters['Credential'] }} |
         Set-ADUser
         {%- for parameter, value in parameters.items() %}
@@ -388,7 +389,9 @@ def prepare_template(cmd, settings, context, jinja_map=None):
     # Generate our combined template, by rendering our command template using
     # the field templates templates.
     combined_template = command_template.render(
-        parameters=parameters, other_attributes=other_attributes
+        parameters=parameters,
+        other_attributes=other_attributes,
+        _server_argument=context.get("_server_argument", None),
     )
     return combined_template
 
