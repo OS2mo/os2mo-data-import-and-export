@@ -59,7 +59,7 @@ def cli(mox_base: str, mora_base: str, dry_run: bool):
     
     for no_scope, scope in tqdm(split_classes, desc="Moving relations to one class"):
         old_uuid = no_scope["uuid"]
-        move_class_helper(old_uuid=old_uuid, new_uuid=scope["uuid"], copy=False, mox_base=mox_base)
+        move_class_helper(old_uuid=old_uuid, new_uuid=scope["uuid"], copy=False, mox_base=mox_base, relation_type='organisation/organisationenhed')
     
         delete_class(session=session, base=mox_base, uuid=old_uuid)
 

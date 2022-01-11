@@ -26,14 +26,14 @@ jms_title = jmespath.compile("registreringer[0].attributter.klasseegenskaber[0].
 jms_facet = jmespath.compile("registreringer[0].relationer.facet[0].uuid")
 
 
-def check_relations(session, base: str, uuid: UUID) -> List[dict]:
+def check_relations(session, base: str, uuid: UUID, relation_type: str = "organisation/organisationfunktion") -> List[dict]:
     """Find all objects related to the class with the given uuid.
 
     Returns a list of objects, or an empty list if no objects related to the given uuid are found.
     """
     r = session.get(
         base
-        + f"/organisation/organisationfunktion?vilkaarligrel={str(uuid)}&list=true&virkningfra=-infinity"
+        + f"/{relation_type}?vilkaarligrel={str(uuid)}&list=true&virkningfra=-infinity"
     )
     r.raise_for_status()
     res = r.json()["results"]
@@ -53,6 +53,7 @@ def switch_class(
     new_uuid: UUID,
     uuid_set: Set[str],
     copy: bool = False,
+    relation_type: str = "organisation/organisationfunktion"
 ) -> None:
     """Switch an objects related class.
 
@@ -76,7 +77,7 @@ def switch_class(
         object_uuid = uuid4()
 
     r = session.put(
-        base + f"/organisation/organisationfunktion/{str(object_uuid)}", json=payload
+        base + f"/{relation_type}/{str(object_uuid)}", json=payload
     )
     r.raise_for_status()
 
@@ -211,12 +212,12 @@ def remove_dup_classes(delete: bool, mox_base: click.STRING):
 
 
 def move_class_helper(
-    old_uuid: click.UUID, new_uuid: click.UUID, copy: bool, mox_base: str
+    old_uuid: click.UUID, new_uuid: click.UUID, copy: bool, mox_base: str, relation_type: str = "organisation/organisationfunktion"
 ):
     session = requests.Session()
-    rel = check_relations(session, mox_base, old_uuid)
+    rel = check_relations(session, mox_base, old_uuid, relation_type=relation_type)
     for payload in tqdm(rel, desc="Changing class for objects"):
-        switch_class(session, mox_base, payload, new_uuid, {old_uuid}, copy=copy)
+        switch_class(session, mox_base, payload, new_uuid, {old_uuid}, copy=copy, relation_type=relation_type)
 
 
 @cli.command()
