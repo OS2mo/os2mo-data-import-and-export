@@ -785,6 +785,7 @@ def full_import(org_only: bool, mora_base: str, mox_base: str):
         sd.create_employees()
 
     importer.import_all()
+    print("IMPORT DONE")
 
 
 if __name__ == "__main__":
