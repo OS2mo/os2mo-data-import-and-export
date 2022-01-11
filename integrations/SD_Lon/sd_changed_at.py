@@ -26,6 +26,7 @@ import requests
 from fastapi.encoders import jsonable_encoder
 from more_itertools import last
 from more_itertools import one
+from more_itertools import only
 from more_itertools import pairwise
 from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -1103,38 +1104,27 @@ class ChangeAtSD:
         Edit an engagement
         """
         employment_id, engagement_info = engagement_components(engagement)
-
-        try:
-            job_pos = one(engagement_info["professions"])["JobPositionIdentifier"]
-        except ValueError:  # too few items in iterable
-            logger.error(
-                "no professions found for %r (engagement_info=%r)",
-                person_uuid,
-                engagement_info,
-            )
-            return
-
-        job_pos_id = int(job_pos)
-        no_salary_minimum = self.settings.get(
-            "integrations.SD_Lon.no_salary_minimum_id", None
-        )
-
         mo_eng = self._find_engagement(employment_id, person_uuid)
+        if mo_eng is None:
+            # Only create MO engagement if SD job position allows it
+            if self._job_position_is_above_minimum_salary(engagement_info):
+                create_engagement(self, employment_id, person_uuid)
+        else:
+            update_existing_engagement(self, mo_eng, engagement, person_uuid)
 
-        if (
-            no_salary_minimum is not None
-            and not mo_eng
-            and job_pos_id > no_salary_minimum
-        ):
-            create_engagement(self, employment_id, person_uuid)
-            return
-
-        if not mo_eng:
-            # Should have been created at an earlier status-code
-            logger.error("Engagement {} has never existed!".format(employment_id))
-            return
-
-        update_existing_engagement(self, mo_eng, engagement, person_uuid)
+    def _job_position_is_above_minimum_salary(self, engagement_info: dict):
+        profession = only(engagement_info["professions"])
+        if profession is not None:
+            # Assume `profession` contains a `JobPositionIdentifier` which can
+            # read as an integer.
+            job_pos_id = int(profession["JobPositionIdentifier"])
+            no_salary_minimum = self.settings.get(
+                "integrations.SD_Lon.no_salary_minimum_id", None
+            )
+            is_above = no_salary_minimum is not None and job_pos_id > no_salary_minimum
+            return is_above
+        else:
+            return False
 
     def _handle_employment_status_changes(
         self, cpr: str, sd_employment: OrderedDict, person_uuid: str

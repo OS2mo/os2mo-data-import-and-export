@@ -935,13 +935,14 @@ class Test_sd_changed_at(DipexTestCase):
             "12345", "person_uuid", "2021-12-18", None
         )
 
-    @patch("integrations.SD_Lon.engagement.update_existing_engagement")
+    @patch("integrations.SD_Lon.sd_changed_at.update_existing_engagement")
     def test_edit_engagement_handles_empty_professions_list(self, mock_update):
         """Handle an empty `professions` list in the engagement returned by SD"""
         # This is a regression test for #47799
 
         # Arrange
         sd_updater = setup_sd_changed_at()
+        sd_updater._find_engagement = lambda *args: ["mo-eng"]
         engagement = OrderedDict(
             [
                 ("EmploymentIdentifier", "DEERE"),
@@ -953,4 +954,4 @@ class Test_sd_changed_at(DipexTestCase):
         sd_updater.edit_engagement(engagement, "person_uuid")
 
         # Assert
-        mock_update.assert_not_called()
+        mock_update.assert_called_once()
