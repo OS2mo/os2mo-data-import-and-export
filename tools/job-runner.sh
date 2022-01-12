@@ -649,8 +649,8 @@ exports(){
         run-job exports_mo_to_ad_sync || return 2
     fi
     
-    if [ "${RUN_EXPORTS_AD_ENDDATE_FIXER}" == "true" ]; then
-        run-job exports_AD_enddate_fixer || return 2
+    if [ "${RUN_AD_ENDDATE_FIXER}" == "true" ]; then
+        run-job exports_ad_enddate_fixer || return 2
     fi
 
     if [ "${RUN_MOX_ROLLE}" == "true" ]; then
