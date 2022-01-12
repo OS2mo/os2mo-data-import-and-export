@@ -33,16 +33,8 @@ test_settings = {
     ],
 )
 @patch("integrations.ad_integration.ad_common.AD._create_session")
-@patch(
-    "integrations.ad_integration.read_ad_conf_settings.read_settings", return_value=test_settings
-)
-@patch(
-    "integrations.ad_integration.ad_common.AD._get_setting",
-    return_value=test_settings["primary"],
-)
+
 def test_ad_enddate_fixer(
-    mock_setting,
-    mock_settings,
     mock_ps_script,
     mock_read_user_engagements,
     mock_session,
@@ -51,7 +43,7 @@ def test_ad_enddate_fixer(
     """Tests that user with no enddate in AD, but enddate in MO
     returns a ps-command to update AD.
     """
-    c = CompareEndDate(enddate_field, uuid_field)
+    c = CompareEndDate(enddate_field, uuid_field, test_settings)
     users = c.compare_mo()
     read_ps = f"""
         $User = "username"
@@ -63,7 +55,7 @@ def test_ad_enddate_fixer(
     assert list(users.keys()) == [testuuid]
     assert users[testuuid]["cn"] == "TestCN"
 
-    u = UpdateEndDate(enddate_field, uuid_field, c.cpr_field)
+    u = UpdateEndDate(enddate_field, uuid_field, c.cpr_field, settings=test_settings)
 
     for uuid, end_date in u.get_changes(users):
         cmd = u.get_update_cmd(uuid, end_date)

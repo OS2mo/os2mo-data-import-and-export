@@ -1,17 +1,16 @@
 from datetime import datetime
 
 import click
+from integrations.ad_integration.ad_common import AD
+from integrations.ad_integration.ad_reader import ADParameterReader
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
 from tqdm import tqdm
 
-from integrations.ad_integration.ad_common import AD
-from integrations.ad_integration.ad_reader import ADParameterReader
-
 
 class CompareEndDate(ADParameterReader):
-    def __init__(self, enddate_field, uuid_field):
-        super().__init__()
+    def __init__(self, enddate_field, uuid_field, settings=None):
+        super().__init__(all_settings=settings)
         self.helper = MoraHelper(
             hostname=self.all_settings["global"]["mora.base"], use_cache=False
         )
@@ -76,8 +75,8 @@ class CompareEndDate(ADParameterReader):
 
 
 class UpdateEndDate(AD):
-    def __init__(self, enddate_field, uuid_field, cpr_field):
-        super().__init__()
+    def __init__(self, enddate_field, uuid_field, cpr_field, settings=None):
+        super().__init__(all_settings=settings)
         self.enddate_field = enddate_field
         self.uuid_field = uuid_field
         self.cpr_field = cpr_field
