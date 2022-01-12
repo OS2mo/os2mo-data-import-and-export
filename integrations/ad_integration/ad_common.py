@@ -161,8 +161,8 @@ class AD:
         if all_settings["primary"]["method"] == "ntlm":
             session = generate_ntlm_session(
                 all_settings["global"]["winrm_host"],
-                all_settings["primary"]["system_user"],
-                all_settings["primary"]["password"],
+                all_settings["global"]["system_user"],
+                all_settings["global"]["password"],
             )
         elif all_settings["primary"]["method"] == "kerberos":
             session = generate_kerberos_session(
