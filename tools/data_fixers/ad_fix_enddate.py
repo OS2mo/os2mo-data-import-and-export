@@ -130,16 +130,17 @@ def cli(enddate_field, uuid_field, dry_run):
     c = CompareEndDate(enddate_field, uuid_field)
     users = c.compare_mo()
     u = UpdateEndDate(enddate_field, uuid_field, c.cpr_field)
+    users = u.get_changes(users)
 
-    for uuid, end_date in u.get_changes(users):
+    for uuid, end_date in tqdm(users, unit="user", desc="Changing enddate in AD"):
         cmd = u.get_update_cmd(uuid, end_date)
         if dry_run:
             print("Command to run: ")
             print(cmd)
         else:
             result = u.run(cmd)
-            print("Result: %r" % result)
-        print()
+            if result:
+                print("Result: %r" % result)
 
     print("All done")
 
