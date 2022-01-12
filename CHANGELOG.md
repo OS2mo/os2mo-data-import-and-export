@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.7.0 - 2022-01-12
+------------------
+
+[#47623] Add new dipex-job exports_ad_enddate_fixer write enddates of terminated users to AD.
+
 2.6.2 - 2022-01-12
 ------------------
 
