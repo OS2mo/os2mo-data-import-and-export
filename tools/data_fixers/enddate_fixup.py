@@ -1,5 +1,4 @@
 """Script to fixup issues relating to engagement end-dates around 9999-12-30."""
-
 import json
 from datetime import date
 from datetime import datetime
