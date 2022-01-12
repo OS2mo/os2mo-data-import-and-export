@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.6.2 - 2022-01-12
+------------------
+
+[#47755] Fix NTLM to always use first set of credentials for the winrm connections
+
 2.6.1 - 2022-01-12
 ------------------
 
