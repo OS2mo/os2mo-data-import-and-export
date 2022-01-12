@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.6.1 - 2022-01-12
+------------------
+
+[#47911] Fix UUID to string bug
+
 2.6.0 - 2022-01-12
 ------------------
 
