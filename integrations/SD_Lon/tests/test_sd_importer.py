@@ -393,7 +393,7 @@ def test_set_engagement_on_leave(mock_uuid4):
 
     # Arrange
 
-    mock_uuid4.return_value = "00000000-0000-0000-0000-000000000000"
+    mock_uuid4.return_value = UUID("00000000-0000-0000-0000-000000000000")
     sd = get_sd_importer(
         override_settings={
             "integrations.SD_Lon.monthly_hourly_divide": 9000,

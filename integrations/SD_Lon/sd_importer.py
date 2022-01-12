@@ -658,7 +658,7 @@ class SdImport(object):
 
             # Generate UUID for engagement here since we need this UUID when/if
             # creating a leave below
-            engagement_uuid = uuid.uuid4()
+            engagement_uuid = str(uuid.uuid4())
 
             self.importer.add_engagement(
                 employee=cpr,
