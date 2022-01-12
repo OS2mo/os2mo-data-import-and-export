@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.6.0 - 2022-01-12
+------------------
+
+[#46874] Added default calculate primary function
+
 2.5.6 - 2022-01-10
 ------------------
 
