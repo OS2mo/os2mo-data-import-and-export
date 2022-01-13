@@ -45,6 +45,7 @@ def cli(mox_base: str, mora_base: str, dry_run: bool):
     helper = MoraHelper(hostname=mora_base)
 
     org_unit_types, _ = helper.read_classes_in_facet("org_unit_type")
+    org_unit_types=sorted(org_unit_types, key=lambda x: x['name'])
     groups = groupby(org_unit_types, key=lambda x: x["name"])
 
     split_classes = map(split, groups)
