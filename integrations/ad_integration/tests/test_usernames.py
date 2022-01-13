@@ -1,7 +1,14 @@
 import unittest
+from unittest import mock
+
+from hypothesis import given
+from hypothesis import settings
+from hypothesis import strategies as st
 
 from ..user_names import _name_fixer
+from ..user_names import CreateUserNamePermutation
 from ..user_names import CreateUserNames
+from ..user_names import DisallowedUsernameSet
 from .name_simulator import create_name
 
 # PIMJE is missing in specification documen
@@ -652,3 +659,84 @@ class TestUsernameCreation(unittest.TestCase):
         fixed_name = _name_fixer(name)
         expected_name = ["Anders", "abzaoa", "Andersen"]
         self.assertTrue(fixed_name == expected_name)
+
+
+CONSONANTS = st.characters(
+    whitelist_characters="bcdfghjklmnpqrstvwxz",
+    whitelist_categories=(),
+)
+
+
+class TestCreateUserNamePermutation(unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        self.instance = CreateUserNamePermutation()
+
+    @settings(max_examples=1000, deadline=None)
+    @given(st.lists(st.text(min_size=3, alphabet=CONSONANTS), min_size=1))
+    def test_valid_input(self, name):
+        # If `name` has at least one item, each item being a string of at least
+        # 3 consonants, we should be able to create a username.
+        self.instance.create_username(name)
+
+    @given(
+        st.lists(st.text(max_size=2, alphabet=CONSONANTS), max_size=1)
+        | st.lists(st.text(), max_size=0),
+    )
+    def test_fails_on_too_little_input(self, name):
+        # In this test, either `name` has one item, but that item is shorter
+        # than the required three consonants. Or, `name` is an empty list.
+        with self.assertRaises(RuntimeError):
+            self.instance.create_username(name)
+
+    def test_suffix_and_permutation_index_increments(self):
+        name = ["B", "C", "D"]
+        expected_permutations = ("bcd", "bdc", "cbd", "cdb", "dbc", "dcb")
+        for expected_permutation in expected_permutations:
+            for expected_suffix in range(1, 10):
+                username, unused = self.instance.create_username(name)
+                self.assertEqual(
+                    username,
+                    "%s%d" % (expected_permutation, expected_suffix),
+                )
+
+    def test_skips_names_already_taken(self):
+        name = ["Lille", "Claus", "Her"]
+        self.instance.set_occupied_names({"lch1", "lch4"})
+        for expected_username in ("lch2", "lch3", "lch5"):
+            username, unused = self.instance.create_username(name)
+            self.assertEqual(username, expected_username)
+
+
+class TestDisallowedUsernameSet(unittest.TestCase):
+    csv_path = "some/fs/path"
+    csv_lines = [
+        "%s,foo" % DisallowedUsernameSet._column_name,
+        "abcd1234,",
+        "efgh5678",
+    ]
+
+    def test_can_read_csv(self):
+        instance = self._get_instance()
+        instance._mock_open.assert_called_once_with(
+            self.csv_path,
+            "r",
+            encoding=DisallowedUsernameSet._encoding,
+        )
+        self.assertEqual(instance._usernames, {"abcd1234", "efgh5678"})
+
+    def test_contains(self):
+        instance = self._get_instance()
+        self.assertIn("abcd1234", instance)
+        self.assertNotIn("abc123", instance)
+
+    def test_iter(self):
+        instance = self._get_instance()
+        self.assertSetEqual(instance._usernames, set(instance))
+
+    def _get_instance(self):
+        with mock.patch("io.open") as mock_open:
+            mock_open.return_value.__enter__.return_value = self.csv_lines
+            instance = DisallowedUsernameSet(self.csv_path)
+            instance._mock_open = mock_open
+            return instance

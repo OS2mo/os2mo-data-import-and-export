@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import csv
+import io
 import random
+import string
 from operator import itemgetter
 from typing import Optional
 
 import click
+from more_itertools import interleave_longest
+from more_itertools import nth_permutation
 
 from .ad_reader import ADParameterReader
 from .username_rules import method_2
@@ -138,7 +143,7 @@ class CreateUserNames(object):
 
     def set_occupied_names(self, occupied_names_in: Optional[set] = None) -> None:
         occupied_names: set = occupied_names_in or set()
-        self.occupied_names = occupied_names
+        self.occupied_names = set(occupied_names)
 
     def populate_occupied_names(self, **kwargs):
         """
@@ -183,7 +188,7 @@ class CreateUserNames(object):
         name = _name_fixer(name)
 
         for permutation_counter in range(2, 10):
-            for prioritation in range(0, 6):
+            for prioritation in range(0, len(self.combinations)):
                 if final_user_name != "":
                     break
                 i = 0
@@ -266,6 +271,81 @@ class CreateUserNames(object):
                 user_count += 1
             print(user_count)
             print("------")
+
+
+class CreateUserNamePermutation(CreateUserNames):
+    def __init__(self, occupied_names: Optional[set] = None):
+        super().__init__(occupied_names=occupied_names)
+        self.length = 3
+        self.allowed_chars = "".join(set(string.ascii_lowercase) - set("aeiouy"))
+
+    def create_username(self, name: list, dry_run=False) -> tuple:
+        name_cleaned = self._remove_unwanted_letters(name)
+        feed = list(interleave_longest(*name_cleaned))
+
+        suffix = 1
+        permutation_index = 0
+        new_username = None
+
+        while True:
+            try:
+                letters = self._create_permutation(feed, permutation_index)
+            except ValueError as exc:
+                raise RuntimeError(
+                    "could not generate permutation of username %r "
+                    "(permutation_index=%d, feed=%r)" % (name, permutation_index, feed)
+                ) from exc
+            except IndexError:
+                # Stop if no more permutations are possible
+                break
+            else:
+                new_username = "%s%d" % (letters, suffix)
+                if self.username_is_available(new_username):
+                    # An unused username was found, add it to the list of
+                    # occupied names and return.
+                    self.occupied_names.add(new_username)
+                    break
+                else:
+                    # We are still looking for an available username. Bump the
+                    # `suffix` variable until it reaches 10.
+                    suffix += 1
+                    if suffix > 9:
+                        # Reset the `suffix` back to 1, and go to the next
+                        # permutation.
+                        suffix = 1
+                        permutation_index += 1
+
+        return new_username, object()
+
+    def username_is_available(self, username):
+        return username not in self.occupied_names
+
+    def _create_permutation(self, feed, index=0):
+        permutation = nth_permutation(feed, r=self.length, index=index)
+        username = "".join(permutation).lower()
+        return username
+
+    def _remove_unwanted_letters(self, name: list):
+        return [
+            "".join(char for char in name_part if char.lower() in self.allowed_chars)
+            for name_part in name
+        ]
+
+
+class DisallowedUsernameSet:
+    _encoding = "utf-8-sig"
+    _column_name = "Brugernavn"
+
+    def __init__(self, path):
+        with io.open(path, "r", encoding=self._encoding) as stream:
+            reader = csv.DictReader(stream)
+            self._usernames = set(row[self._column_name] for row in reader)
+
+    def __contains__(self, username: str) -> bool:
+        return username in self._usernames
+
+    def __iter__(self):
+        return iter(self._usernames)
 
 
 @click.command(help="User name creator")
