@@ -3,13 +3,13 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
 import datetime
-import json
 import logging
 import pathlib
 import time
 
 import click
 from os2mo_helpers.mora_helpers import MoraHelper
+from ra_utils.load_settings import load_settings
 
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.priority_by_class import lc_choose_public_address
@@ -35,14 +35,11 @@ class ViborgEksterne:
     ]
 
     def __init__(self):
-        self.settings = self._read_settings()
+        self._load_settings()
         self._configure_logging()
 
-    def _read_settings(self):
-        cfg_file = pathlib.Path.cwd() / "settings" / "settings.json"
-        if not cfg_file.is_file():
-            raise Exception("No setting file")
-        return json.loads(cfg_file.read_text())
+    def _load_settings(self):
+        self.settings = load_settings()
 
     def _configure_logging(self):
         for name in logging.root.manager.loggerDict:

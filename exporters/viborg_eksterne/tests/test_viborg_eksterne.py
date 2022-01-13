@@ -94,8 +94,8 @@ class MockLoraCacheHistoric(MockLoRaCache):
 
 
 class TestableViborgEksterne(ViborgEksterne):
-    def _read_settings(self):
-        return {
+    def _load_settings(self):
+        self.settings = {
             "exporters.plan2learn.allowed_engagement_types": [],
         }
 
