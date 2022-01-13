@@ -15,7 +15,7 @@ from tools.data_fixers.class_tools import move_class_helper
 def split(group):
     name, classes = group
     classes = list(classes)
-    no_scope, scope = partition(lambda x: x.get("owner") and x.get("scope"), classes)
+    no_scope, scope = partition(lambda x: x["name"] != x["user_key"], classes)
     return only(no_scope), only(scope)
 
 
