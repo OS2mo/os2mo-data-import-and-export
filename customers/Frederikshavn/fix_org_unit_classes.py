@@ -24,8 +24,6 @@ def is_duplicate(classes):
     return no_scope and scope
 
 
-
-
 @click.command()
 @click.option(
     "--mox-base",
@@ -45,7 +43,7 @@ def cli(mox_base: str, mora_base: str, dry_run: bool):
     helper = MoraHelper(hostname=mora_base)
 
     org_unit_types, _ = helper.read_classes_in_facet("org_unit_type")
-    org_unit_types=sorted(org_unit_types, key=lambda x: x['name'])
+    org_unit_types = sorted(org_unit_types, key=lambda x: x["name"])
     groups = groupby(org_unit_types, key=lambda x: x["name"])
 
     split_classes = map(split, groups)
@@ -57,11 +55,17 @@ def cli(mox_base: str, mora_base: str, dry_run: bool):
         return
 
     session = requests.session()
-    
+
     for no_scope, scope in tqdm(split_classes, desc="Moving relations to one class"):
         old_uuid = no_scope["uuid"]
-        move_class_helper(old_uuid=old_uuid, new_uuid=scope["uuid"], copy=False, mox_base=mox_base, relation_type='organisation/organisationenhed')
-    
+        move_class_helper(
+            old_uuid=old_uuid,
+            new_uuid=scope["uuid"],
+            copy=False,
+            mox_base=mox_base,
+            relation_type="organisation/organisationenhed",
+        )
+
         delete_class(session=session, base=mox_base, uuid=old_uuid)
 
 
