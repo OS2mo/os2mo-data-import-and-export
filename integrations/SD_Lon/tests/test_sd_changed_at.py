@@ -27,10 +27,21 @@ from test_case import DipexTestCase
 def test_getfrom_date(test_from_date):
     with patch(
         "integrations.rundb.db_overview.DBOverview._read_last_line",
-        return_value=((test_from_date, "Dummystatus")),
+        return_value=((test_from_date, "Update ended at ---")),
     ):
         from_date = get_from_date("test", force=False)
         assert from_date == test_from_date
+
+@given(test_from_date=st.datetimes())
+@patch("integrations.rundb.db_overview.DBOverview.delete_last_row")
+def test_getfrom_date_force(delete_mock, test_from_date):
+    with patch(
+        "integrations.rundb.db_overview.DBOverview._read_last_line",
+        return_value=((test_from_date, "Running")),
+    ):
+        from_date = get_from_date("test", force=True)
+        delete_mock.assert_called_once()
+        
 
 
 class ChangeAtSDTest(ChangeAtSD):
