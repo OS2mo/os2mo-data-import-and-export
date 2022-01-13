@@ -2,14 +2,12 @@ from itertools import groupby
 
 import click
 import requests
-from more_itertools import only
-from more_itertools import partition
+from more_itertools import only, partition
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
 from tqdm import tqdm
 
-from tools.data_fixers.class_tools import delete_class
-from tools.data_fixers.class_tools import move_class_helper
+from tools.data_fixers.class_tools import delete_class, move_class_helper
 
 
 def split(group):
