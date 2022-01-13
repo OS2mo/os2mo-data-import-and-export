@@ -1114,17 +1114,16 @@ class ChangeAtSD:
 
     def _job_position_is_above_minimum_salary(self, engagement_info: dict):
         profession = only(engagement_info["professions"])
-        if profession is not None:
-            # Assume `profession` contains a `JobPositionIdentifier` which can
-            # read as an integer.
-            job_pos_id = int(profession["JobPositionIdentifier"])
-            no_salary_minimum = self.settings.get(
-                "integrations.SD_Lon.no_salary_minimum_id", None
-            )
-            is_above = no_salary_minimum is not None and job_pos_id > no_salary_minimum
-            return is_above
-        else:
+        if profession is None:
             return False
+        # Assume `profession` contains a `JobPositionIdentifier` which can
+        # read as an integer.
+        job_pos_id = int(profession["JobPositionIdentifier"])
+        no_salary_minimum = self.settings.get(
+            "integrations.SD_Lon.no_salary_minimum_id", None
+        )
+        is_above = no_salary_minimum is not None and job_pos_id > no_salary_minimum
+        return is_above
 
     def _handle_employment_status_changes(
         self, cpr: str, sd_employment: OrderedDict, person_uuid: str
