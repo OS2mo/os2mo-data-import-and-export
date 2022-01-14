@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.7.1 - 2022-01-14
+------------------
+
+[#47734] Add job for RUN_CACHE_HISTORIC_SKIP_PAST_LORACACHE 🥲
+
 2.7.0 - 2022-01-12
 ------------------
 
