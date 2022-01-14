@@ -1128,20 +1128,36 @@ class LoraCache:
         Path("tmp/").mkdir(exist_ok=True)
 
         if self.full_history:
-            facets_file = "tmp/facets_historic.p"
-            classes_file = "tmp/classes_historic.p"
-            users_file = "tmp/users_historic.p"
-            units_file = "tmp/units_historic.p"
-            addresses_file = "tmp/addresses_historic.p"
-            engagements_file = "tmp/engagements_historic.p"
-            managers_file = "tmp/managers_historic.p"
-            associations_file = "tmp/associations_historic.p"
-            leaves_file = "tmp/leaves_historic.p"
-            roles_file = "tmp/roles_historic.p"
-            itsystems_file = "tmp/itsystems_historic.p"
-            it_connections_file = "tmp/it_connections_historic.p"
-            kles_file = "tmp/kles_historic.p"
-            related_file = "tmp/related_historic.p"
+            if self.skip_past:
+                facets_file = "tmp/facets_historic_skip_past.p"
+                classes_file = "tmp/classes_historic_skip_past.p"
+                users_file = "tmp/users_historic_skip_past.p"
+                units_file = "tmp/units_historic_skip_past.p"
+                addresses_file = "tmp/addresses_historic_skip_past.p"
+                engagements_file = "tmp/engagements_historic_skip_past.p"
+                managers_file = "tmp/managers_historic_skip_past.p"
+                associations_file = "tmp/associations_historic_skip_past.p"
+                leaves_file = "tmp/leaves_historic_skip_past.p"
+                roles_file = "tmp/roles_historic_skip_past.p"
+                itsystems_file = "tmp/itsystems_historic_skip_past.p"
+                it_connections_file = "tmp/it_connections_historic_skip_past.p"
+                kles_file = "tmp/kles_historic_skip_past.p"
+                related_file = "tmp/related_historic_skip_past.p"
+            else:
+                facets_file = "tmp/facets_historic.p"
+                classes_file = "tmp/classes_historic.p"
+                users_file = "tmp/users_historic.p"
+                units_file = "tmp/units_historic.p"
+                addresses_file = "tmp/addresses_historic.p"
+                engagements_file = "tmp/engagements_historic.p"
+                managers_file = "tmp/managers_historic.p"
+                associations_file = "tmp/associations_historic.p"
+                leaves_file = "tmp/leaves_historic.p"
+                roles_file = "tmp/roles_historic.p"
+                itsystems_file = "tmp/itsystems_historic.p"
+                it_connections_file = "tmp/it_connections_historic.p"
+                kles_file = "tmp/kles_historic.p"
+                related_file = "tmp/related_historic.p"
         else:
             facets_file = "tmp/facets.p"
             classes_file = "tmp/classes.p"
@@ -1323,13 +1339,16 @@ def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
 
 @click.command()
 @click.option("--historic/--no-historic", default=True, help="Do full historic export")
+@click.option("--skip-past", default=False, help="Skip past in historic export")
 @click.option(
     "--resolve-dar/--no-resolve-dar", default=False, help="Resolve DAR addresses"
 )
 @click.option("--read-from-cache", is_flag=True)
-def cli(historic, resolve_dar, read_from_cache):
+def cli(historic, skip_past, resolve_dar, read_from_cache):
     lc = LoraCache(
-        full_history=historic, skip_past=not historic, resolve_dar=resolve_dar
+        full_history=historic,
+        skip_past=skip_past,
+        resolve_dar=resolve_dar,
     )
     lc.populate_cache(dry_run=read_from_cache)
 

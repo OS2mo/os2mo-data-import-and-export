@@ -465,9 +465,15 @@ exports_cache_loracache() {
 }
 
 exports_historic_cache_loracache() {
-    echo "Building historic cached LoRaCache"
+    echo "Building full historic cached LoRaCache"
     rm -f "${DIPEXAR}/tmp/*_historic.p"  # delete old pickle files
     ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lora_cache.py --historic --resolve-dar
+}
+
+exports_historic_skip_past_cache_loracache() {
+    echo "Building historic WITHOUT past cached LoRaCache"
+    rm -f "${DIPEXAR}/tmp/*_historic_skip_past.p"  # delete old pickle files
+    ${VENV}/bin/python3 ${DIPEXAR}/exporters/sql_export/lora_cache.py --historic --skip-past --resolve-dar
 }
 
 exports_dummy(){
@@ -594,6 +600,10 @@ exports(){
 
     if [ "${RUN_CACHE_HISTORIC_LORACACHE}" == "true" ]; then
         run-job exports_historic_cache_loracache || return 2
+    fi
+
+    if [ "${RUN_CACHE_HISTORIC_SKIP_PAST_LORACACHE}" == "true" ]; then
+        run-job exports_historic_skip_past_cache_loracache || return 2
     fi
 
     if [ "${RUN_LC_FOR_JOBS_DB_EXPORT}" == "true" ]; then
