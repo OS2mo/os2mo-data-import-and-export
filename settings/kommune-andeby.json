@@ -18,6 +18,7 @@
     "crontab.RUN_AAK_LOS": false,
     "crontab.RUN_CACHE_LORACACHE": false,
     "crontab.RUN_CACHE_HISTORIC_LORACACHE": false,
+    "crontab.RUN_CACHE_HISTORIC_SKIP_PAST_LORACACHE": false,
     "crontab.RUN_ACTUAL_STATE_EXPORT": false,
     "crontab.RUN_HISTORIC_SQL_EXPORT": false,
     "crontab.RUN_EXPORTS_AD_LIFE_CYCLE": false,
