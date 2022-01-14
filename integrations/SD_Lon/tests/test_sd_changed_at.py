@@ -198,6 +198,13 @@ class Test_sd_changed_at(DipexTestCase):
         sd_updater = setup_sd_changed_at()
         result = sd_updater.read_employment_changed(from_date=from_date)
         self.assertEqual(result, expected_read_employment_result)
+        sd_request.assert_called_once()
+        url, params, _ = sd_request.call_args[0]
+        self.assertEqual(
+            url, "https://service.sd.dk/sdws/GetEmploymentChangedAtDate20111201"
+        )
+        self.assertEqual(params["ActivationDate"], from_date.strftime("%d.%m.%Y"))
+        self.assertEqual(params["ActivationTime"], from_date.strftime("%H:%M"))
 
     @given(status=st.sampled_from(["1", "S"]))
     def test_update_all_employments(self, status):
