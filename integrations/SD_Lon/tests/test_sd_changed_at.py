@@ -791,7 +791,7 @@ class Test_sd_changed_at(DipexTestCase):
         )
 
     @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
-    @patch("integrations.SD_Lon.sd_changed_at.sd_lookup")
+    @patch("integrations.SD_Lon.sd_common.sd_lookup")
     def test_edit_engagement_job_position_id_set_to_value_above_9000(
         self, mock_sd_lookup, mock_sd_lookup_settings
     ):

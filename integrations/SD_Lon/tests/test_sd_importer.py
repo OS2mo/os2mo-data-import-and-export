@@ -137,6 +137,7 @@ def test_create_employee(create_associations: bool):
             "Employment": [
                 {
                     "Profession": {"JobPositionIdentifier": "job_id_123"},
+                    "AnniversaryDate": "2004-08-15",
                     "EmploymentStatus": {
                         "EmploymentStatusCode": "1",
                         "ActivationDate": "1970-01-01",
@@ -420,6 +421,7 @@ def test_set_engagement_on_leave(mock_uuid4):
             "PersonCivilRegistrationIdentifier": cpr_no,
             "Employment": [
                 {
+                    "AnniversaryDate": "2004-08-15",
                     "Profession": {"JobPositionIdentifier": "job_id_123"},
                     "EmploymentStatus": {
                         "EmploymentStatusCode": "3",

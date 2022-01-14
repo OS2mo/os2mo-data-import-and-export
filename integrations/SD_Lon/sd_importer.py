@@ -8,7 +8,7 @@ import datetime
 import logging
 import uuid
 from operator import itemgetter
-from typing import Any
+from typing import Any, Tuple
 from typing import Dict
 from typing import Optional
 
@@ -26,6 +26,7 @@ from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sd_common import generate_uuid
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
+from integrations.SD_Lon.sd_common import read_employment_at
 from os2mo_data_import import ImportHelper
 
 
@@ -512,36 +513,34 @@ class SdImport(object):
             )
         self.nodes = self._create_org_tree_structure()
 
-    def create_employees(self):
-        params = {
-            "StatusActiveIndicator": "true",
-            "StatusPassiveIndicator": "false",
-            "DepartmentIndicator": "true",
-            "EmploymentStatusIndicator": "true",
-            "ProfessionIndicator": "true",
-            "WorkingTimeIndicator": "true",
-            "UUIDIndicator": "true",
-            "SalaryAgreementIndicator": "false",
-            "SalaryCodeGroupIndicator": "false",
-            "EffectiveDate": self.import_date,
-        }
-        logger.info("Create employees")
-        active_people = sd_lookup("GetEmployment20111201", params)
-        if not isinstance(active_people["Person"], list):
-            active_people["Person"] = [active_people["Person"]]
+    def get_sd_employments(self):
+        logger.info("Getting SD employments...")
 
-        params["StatusActiveIndicator"] = False
-        params["StatusPassiveIndicator"] = True
-        passive_people = sd_lookup("GetEmployment20111201", params)
-        if not isinstance(passive_people["Person"], list):
-            passive_people["Person"] = [passive_people["Person"]]
+        active_people = ensure_list(
+            read_employment_at(
+                datetime.datetime.strptime(self.import_date, "%d.%m.%Y").date(),
+                status_passive_indicator=False
+            )
+        )
+
+        passive_people = ensure_list(
+            read_employment_at(
+                datetime.datetime.strptime(self.import_date, "%d.%m.%Y").date(),
+                status_active_indicator=False,
+                status_passive_indicator=True
+            )
+        )
+
+        return active_people, passive_people
+
+    def create_employees(self, active_people, passive_people):
+        logger.info("Create employees")
 
         self._create_employees(active_people)
         self._create_employees(passive_people, skip_manager=True)
 
     def _create_employees(self, persons, skip_manager=False):
-        people = persons["Person"]
-        people = filter(skip_fictional_users, people)
+        people = filter(skip_fictional_users, persons)
         for person in people:
             self.create_employee(person, skip_manager=skip_manager)
 
@@ -782,7 +781,8 @@ def full_import(org_only: bool, mora_base: str, mox_base: str):
 
     sd.create_ou_tree(create_orphan_container=False, sub_tree=None, super_unit=None)
     if not org_only:
-        sd.create_employees()
+        active_people, passive_people = sd.get_sd_employments()
+        sd.create_employees(active_people, passive_people)
 
     importer.import_all()
     print("IMPORT DONE")

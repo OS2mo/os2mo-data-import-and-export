@@ -144,6 +144,7 @@ def read_employment_fixture(
                     ('Employment', OrderedDict([
                         ('EmploymentIdentifier', '12345'),
                         ('EmploymentDate', '2020-11-10'),
+                        ('AnniversaryDate', '2004-08-15'),
                         ('EmploymentDepartment', OrderedDict([
                             ('@changedAtDate', '2020-11-10'),
                             ('ActivationDate', '2020-11-10'),
@@ -205,6 +206,7 @@ def read_employment_fixture(
             <Employment>
                 <EmploymentIdentifier>{employment_id}</EmploymentIdentifier>
                 <EmploymentDate>2020-11-10</EmploymentDate>
+                <AnniversaryDate>2004-08-15</AnniversaryDate>
                 <EmploymentDepartment changedAtDate="2020-11-10">
                     <ActivationDate>2020-11-10</ActivationDate>
                     <DeactivationDate>9999-12-31</DeactivationDate>
@@ -240,6 +242,7 @@ def read_employment_fixture(
                     [
                         ("EmploymentIdentifier", employment_id),
                         ("EmploymentDate", "2020-11-10"),
+                        ("AnniversaryDate", "2004-08-15"),
                         (
                             "EmploymentDepartment",
                             OrderedDict(
@@ -591,6 +594,7 @@ def get_employment_fixture(
                                 [
                                     ("EmploymentIdentifier", employment_id),
                                     ("EmploymentDate", "2020-11-10"),
+                                    ("AnniversaryDate", "2004-08-15"),
                                     (
                                         "EmploymentDepartment",
                                         OrderedDict(

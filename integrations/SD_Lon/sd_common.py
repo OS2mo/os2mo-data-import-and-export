@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import logging
 import pickle
@@ -309,3 +310,29 @@ def ensure_list(element):
     if not isinstance(element, list):
         return [element]
     return element
+
+
+# We will get to the Pydantic models later...
+def read_employment_at(
+    effective_date: datetime.date, employment_id=None,
+    status_active_indicator=True, status_passive_indicator=True
+) -> OrderedDict:
+    url = "GetEmployment20111201"
+    params = {
+        "EffectiveDate": effective_date.strftime("%d.%m.%Y"),
+        "StatusActiveIndicator": str(status_active_indicator).lower(),
+        "StatusPassiveIndicator": str(status_passive_indicator).lower(),
+        "DepartmentIndicator": "true",
+        "EmploymentStatusIndicator": "true",
+        "ProfessionIndicator": "true",
+        "WorkingTimeIndicator": "true",
+        "UUIDIndicator": "true",
+        "SalaryAgreementIndicator": "false",
+        "SalaryCodeGroupIndicator": "false",
+    }
+
+    if employment_id:
+        params.update({"EmploymentIdentifier": employment_id})
+
+    response = sd_lookup(url, params=params)
+    return response["Person"]
