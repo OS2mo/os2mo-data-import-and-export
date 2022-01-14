@@ -1332,6 +1332,8 @@ class ChangeAtSD:
             # Re-calculate primary after all updates for user has been performed.
             recalculate_users.add(person_uuid)
 
+        logger.info("Beginning recalculation of all users...")
+
         for user_uuid in recalculate_users:
             if dry_run:
                 print("Dry-run: recalculate_user", user_uuid)
