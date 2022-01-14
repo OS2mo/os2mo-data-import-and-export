@@ -6,7 +6,9 @@ from unittest.mock import call
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import click
 import hypothesis.strategies as st
+import pytest
 from hypothesis import example
 from hypothesis import given
 from parameterized import parameterized
@@ -25,6 +27,7 @@ from test_case import DipexTestCase
 
 @given(test_from_date=st.datetimes())
 def test_getfrom_date(test_from_date):
+    """Test reading latest date from rundb"""
     with patch(
         "integrations.rundb.db_overview.DBOverview._read_last_line",
         return_value=((test_from_date, "Update ended at ---")),
@@ -32,16 +35,28 @@ def test_getfrom_date(test_from_date):
         from_date = get_from_date("test", force=False)
         assert from_date == test_from_date
 
+
 @given(test_from_date=st.datetimes())
-@patch("integrations.rundb.db_overview.DBOverview.delete_last_row")
-def test_getfrom_date_force(delete_mock, test_from_date):
+def test_getfrom_date_running(test_from_date):
+    """Test raising error if last import didn't finish"""
     with patch(
         "integrations.rundb.db_overview.DBOverview._read_last_line",
         return_value=((test_from_date, "Running")),
     ):
-        from_date = get_from_date("test", force=True)
+        with pytest.raises(click.ClickException):
+            get_from_date("test", force=False)
+
+
+@given(test_from_date=st.datetimes())
+@patch("integrations.rundb.db_overview.DBOverview.delete_last_row")
+def test_getfrom_date_force(delete_mock, test_from_date):
+    """Test reading though last import didn't finish using force=True"""
+    with patch(
+        "integrations.rundb.db_overview.DBOverview._read_last_line",
+        return_value=((test_from_date, "Running")),
+    ):
+        get_from_date("test", force=True)
         delete_mock.assert_called_once()
-        
 
 
 class ChangeAtSDTest(ChangeAtSD):
@@ -165,10 +180,10 @@ class Test_sd_changed_at(DipexTestCase):
             },
         )
 
-    @given(status=st.sampled_from(["1", "S"]))
+    @given(status=st.sampled_from(["1", "S"]), from_date=st.datetimes())
     @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
     @patch("integrations.SD_Lon.sd_common._sd_request")
-    def test_read_employment_changed(self, sd_request, sd_settings, status):
+    def test_read_employment_changed(self, sd_request, sd_settings, status, from_date):
         sd_settings.return_value = ("", "", "")
 
         sd_reply, expected_read_employment_result = read_employment_fixture(
@@ -181,7 +196,7 @@ class Test_sd_changed_at(DipexTestCase):
 
         sd_request.return_value = sd_reply
         sd_updater = setup_sd_changed_at()
-        result = sd_updater.read_employment_changed()
+        result = sd_updater.read_employment_changed(from_date=from_date)
         self.assertEqual(result, expected_read_employment_result)
 
     @given(status=st.sampled_from(["1", "S"]))
