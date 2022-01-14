@@ -1339,7 +1339,9 @@ def fetch_loracache() -> Tuple[LoraCache, LoraCache]:
 
 @click.command()
 @click.option("--historic/--no-historic", default=True, help="Do full historic export")
-@click.option("--skip-past", default=False, help="Skip past in historic export")
+@click.option(
+    "--skip-past", is_flag=True, default=False, help="Skip past in historic export"
+)
 @click.option(
     "--resolve-dar/--no-resolve-dar", default=False, help="Resolve DAR addresses"
 )
