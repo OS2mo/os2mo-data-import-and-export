@@ -180,10 +180,15 @@ class Test_sd_changed_at(DipexTestCase):
             },
         )
 
-    @given(status=st.sampled_from(["1", "S"]), from_date=st.datetimes())
+    @given(status=st.sampled_from(["1", "S"]))
     @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
     @patch("integrations.SD_Lon.sd_common._sd_request")
-    def test_read_employment_changed(self, sd_request, sd_settings, status, from_date):
+    def test_read_employment_changed(
+        self,
+        sd_request,
+        sd_settings,
+        status,
+    ):
         sd_settings.return_value = ("", "", "")
 
         sd_reply, expected_read_employment_result = read_employment_fixture(
@@ -196,15 +201,8 @@ class Test_sd_changed_at(DipexTestCase):
 
         sd_request.return_value = sd_reply
         sd_updater = setup_sd_changed_at()
-        result = sd_updater.read_employment_changed(from_date=from_date)
+        result = sd_updater.read_employment_changed()
         self.assertEqual(result, expected_read_employment_result)
-        sd_request.assert_called_once()
-        url, params, _ = sd_request.call_args[0]
-        self.assertEqual(
-            url, "https://service.sd.dk/sdws/GetEmploymentChangedAtDate20111201"
-        )
-        self.assertEqual(params["ActivationDate"], from_date.strftime("%d.%m.%Y"))
-        self.assertEqual(params["ActivationTime"], from_date.strftime("%H:%M"))
 
     @given(status=st.sampled_from(["1", "S"]))
     def test_update_all_employments(self, status):
@@ -973,3 +971,63 @@ class Test_sd_changed_at(DipexTestCase):
 
         # Assert
         mock_update.assert_called_once()
+
+    @given(
+        status=st.sampled_from(["1", "S"]),
+        from_date=st.datetimes(),
+        to_date=st.datetimes() | st.none(),
+    )
+    @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
+    @patch("integrations.SD_Lon.sd_changed_at.sd_lookup")
+    def test_timestamps_read_employment_changed(
+        self,
+        mock_sd_lookup,
+        sd_settings,
+        status,
+        from_date,
+        to_date,
+    ):
+        """Test that calls contain correct ActivationDate and ActivationTime"""
+        sd_settings.return_value = ("", "", "")
+
+        sd_updater = setup_sd_changed_at()
+        sd_updater.read_employment_changed(from_date=from_date, to_date=to_date)
+        expected_url = "GetEmploymentChangedAtDate20111201"
+        url = mock_sd_lookup.call_args.args[0]
+        params = mock_sd_lookup.call_args.kwargs["params"]
+        self.assertEqual(url, expected_url)
+        self.assertEqual(params["ActivationDate"], from_date.strftime("%d.%m.%Y"))
+        self.assertEqual(params["ActivationTime"], from_date.strftime("%H:%M"))
+        if to_date:
+            self.assertEqual(params["DeactivationDate"], to_date.strftime("%d.%m.%Y"))
+            self.assertEqual(params["DeactivationTime"], to_date.strftime("%H:%M"))
+
+    @given(
+        status=st.sampled_from(["1", "S"]),
+        from_date=st.datetimes(),
+        to_date=st.datetimes() | st.none(),
+    )
+    @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
+    @patch("integrations.SD_Lon.sd_changed_at.sd_lookup")
+    def test_timestamps_get_sd_persons_changed(
+        self,
+        mock_sd_lookup,
+        sd_settings,
+        status,
+        from_date,
+        to_date,
+    ):
+        """Test that calls contain correct ActivationDate and ActivationTime"""
+        sd_settings.return_value = ("", "", "")
+
+        sd_updater = setup_sd_changed_at()
+        sd_updater.get_sd_persons_changed(from_date=from_date, to_date=to_date)
+        expected_url = "GetPersonChangedAtDate20111201"
+        url = mock_sd_lookup.call_args.args[0]
+        params = mock_sd_lookup.call_args.kwargs["params"]
+        self.assertEqual(url, expected_url)
+        self.assertEqual(params["ActivationDate"], from_date.strftime("%d.%m.%Y"))
+        self.assertEqual(params["ActivationTime"], from_date.strftime("%H:%M"))
+        if to_date:
+            self.assertEqual(params["DeactivationDate"], to_date.strftime("%d.%m.%Y"))
+            self.assertEqual(params["DeactivationTime"], to_date.strftime("%H:%M"))

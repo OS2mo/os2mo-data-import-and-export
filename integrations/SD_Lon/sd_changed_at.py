@@ -25,7 +25,6 @@ from fastapi.encoders import jsonable_encoder
 from more_itertools import last
 from more_itertools import one
 from more_itertools import only
-from more_itertools import pairwise
 from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
@@ -280,7 +279,7 @@ class ChangeAtSD:
                     "DeactivationDate": "31.12.9999",
                 }
             )
-        response = sd_lookup(url, params)
+        response = sd_lookup(url, params=params)
 
         employment_response = ensure_list(response.get("Person", []))
 
