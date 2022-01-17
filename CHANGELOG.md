@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.8.0 - 2022-01-17
+------------------
+
+[#47960] Introduce continuous deployment to Flux
+
 2.7.2 - 2022-01-14
 ------------------
 
