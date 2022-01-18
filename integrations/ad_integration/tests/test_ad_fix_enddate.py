@@ -1,8 +1,8 @@
 from unittest.mock import patch
 from uuid import uuid4
 
-from tools.data_fixers.ad_fix_enddate import CompareEndDate
-from tools.data_fixers.ad_fix_enddate import UpdateEndDate
+from ..ad_fix_enddate import CompareEndDate
+from ..ad_fix_enddate import UpdateEndDate
 
 # setup test variables and settings:
 enddate_field = "enddate_field"
@@ -33,12 +33,10 @@ test_settings = {
     ],
 )
 @patch("integrations.ad_integration.ad_common.AD._create_session")
-
 def test_ad_enddate_fixer(
     mock_ps_script,
     mock_read_user_engagements,
     mock_session,
-    
 ):
     """Tests that user with no enddate in AD, but enddate in MO
     returns a ps-command to update AD.
