@@ -221,6 +221,12 @@ def move_class_helper(
     mox_base: str,
     relation_type: str = "organisation/organisationfunktion",
 ):
+    """Moves (or copies) objects from one class to another.
+
+    Reads all object of a given relation_type (default is organisationfunktion)
+    and replaces the given 'old_uuid' with a new uuid of a different class.
+    Able to copy to new relation instead of moving.
+    """
     session = requests.Session()
     rel = check_relations(session, mox_base, old_uuid, relation_type=relation_type)
     for payload in tqdm(rel, desc="Changing class for objects"):

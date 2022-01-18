@@ -1,3 +1,5 @@
+# Script for fixing duplicated org_unit_types.
+# https://redmine.magenta-aps.dk/issues/46261
 from itertools import groupby
 
 import click
