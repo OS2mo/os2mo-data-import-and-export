@@ -15,6 +15,7 @@ import click
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from jinja2 import Environment
+from jinja2 import StrictUndefined
 from more_itertools import first
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -378,6 +379,8 @@ class ADWriter(AD):
         )
 
         self._init_name_creator()
+
+        self._environment = self._get_jinja_environment()
 
     def _init_name_creator(self):
         self.name_creator = UserNameGen.get_implementation()
@@ -758,7 +761,7 @@ class ADWriter(AD):
             mismatch = {ad_field: (ad.get(ad_field), value)}
         return mismatch
 
-    def _render_field_template(self, context, template):
+    def _get_jinja_environment(self):
         def first_address_of_type(value, address_type_uuid):
             return first(
                 addr["value"]
@@ -766,9 +769,12 @@ class ADWriter(AD):
                 if addr["address_type"]["uuid"] == address_type_uuid
             )
 
-        environment = Environment()
+        environment = Environment(undefined=StrictUndefined)
         environment.filters["first_address_of_type"] = first_address_of_type
-        template = environment.from_string(template.strip('"'))
+        return environment
+
+    def _render_field_template(self, context, template):
+        template = self._environment.from_string(template.strip('"'))
         return template.render(**context)
 
     def _preview_create_command(self, mo_uuid, ad_dump=None, create_manager=True):
@@ -997,6 +1003,7 @@ class ADWriter(AD):
                 "sync_timestamp": str(datetime.now()),
             },
             settings=self.all_settings,
+            environment=self._environment,
         )
         create_user_string = self.remove_redundant(create_user_string)
 
