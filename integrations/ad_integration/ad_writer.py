@@ -29,12 +29,11 @@ from .ad_exceptions import EngagementDatesError
 from .ad_exceptions import NoActiveEngagementsException
 from .ad_exceptions import NoPrimaryEngagementException
 from .ad_exceptions import ReplicationFailedException
-from .ad_exceptions import SamAccountNameNotUnique
 from .ad_exceptions import UserNotFoundException
 from .ad_logger import start_logging
 from .ad_template_engine import prepare_field_templates
 from .ad_template_engine import template_powershell
-from .user_names import CreateUserNames
+from .user_names import UserNameGen
 from .utils import dict_exclude
 from .utils import dict_map
 from .utils import dict_subset
@@ -356,11 +355,10 @@ class MORESTSource(MODataSource):
 
 
 class ADWriter(AD):
-    def __init__(self, lc=None, lc_historic=None, occupied_names=None, **kwargs):
+    def __init__(self, lc=None, lc_historic=None, **kwargs):
         super().__init__(**kwargs)
-        self.opts = dict(**kwargs)
-
         self.settings = self.all_settings
+        self.skip_occupied_names = kwargs.get("skip_occupied_names", False)
 
         # Setup datasource for getting MO data.
         # TODO: Create a factory instead of this hackery?
@@ -378,13 +376,13 @@ class ADWriter(AD):
             hostname=self.settings["global"]["mora.base"], use_cache=False
         )
 
-        self._init_name_creator(occupied_names)
+        self._init_name_creator()
 
-    def _init_name_creator(self, occupied_names):
-        self.name_creator = CreateUserNames(occupied_names)
-        if occupied_names is None:
+    def _init_name_creator(self):
+        self.name_creator = UserNameGen.get_implementation()
+        if not self.skip_occupied_names:
             logger.info("Reading occupied names")
-            self.name_creator.populate_occupied_names(**self.opts)
+            self.name_creator.load_occupied_names()
         logger.info("Done reading occupied names")
 
     def _get_write_setting(self):
@@ -882,18 +880,7 @@ class ADWriter(AD):
             raise NoPrimaryEngagementException
 
         all_names = mo_values["name"][0].split(" ") + [mo_values["name"][1]]
-        sam_account_name = self.name_creator.create_username(
-            all_names, dry_run=dry_run
-        )[0]
-
-        existing_sam = self.get_from_ad(user=sam_account_name)
-        existing_cpr = self.get_from_ad(cpr=mo_values["cpr"])
-        if existing_sam:
-            logger.error("SamAccount already in use: {}".format(sam_account_name))
-            raise SamAccountNameNotUnique(sam_account_name)
-        if existing_cpr:
-            logger.error("cpr already in use: {}".format(mo_values["cpr"]))
-            raise CprNotNotUnique(mo_values["cpr"])
+        sam_account_name = self.name_creator.create_username(all_names, dry_run=dry_run)
 
         create_user_string = template_powershell(
             context={
@@ -1039,7 +1026,7 @@ def cli(**args):
     Command line interface for the AD writer class.
     """
 
-    ad_writer = ADWriter(occupied_names=[] if args["ignore_occupied_names"] else None)
+    ad_writer = ADWriter(skip_occupied_names=args["ignore_occupied_names"])
 
     if args.get("create_user_with_manager"):
         print("Create_user_with_manager:")

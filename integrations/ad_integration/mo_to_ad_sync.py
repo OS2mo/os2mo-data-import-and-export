@@ -161,7 +161,7 @@ def main(
         # XXX: occupied_names should not be an empty array, but it takes
         # forever to initialize, essentially reading all of AD.
         # TODO: We should support on-demand name generation without pre-seed.
-        occupied_names=[] if ignore_occupied_names else None,
+        skip_occupied_names=ignore_occupied_names,
     )
 
     run_mo_to_ad_sync(
