@@ -12,6 +12,7 @@ from typing import Dict
 from typing import List
 from typing import Optional
 from typing import OrderedDict
+from typing import Union
 
 import requests
 import xmltodict
@@ -314,9 +315,11 @@ def ensure_list(element):
 
 # We will get to the Pydantic models later...
 def read_employment_at(
-    effective_date: datetime.date, employment_id=None,
-    status_active_indicator=True, status_passive_indicator=True
-) -> OrderedDict:
+    effective_date: datetime.date,
+    employment_id: Optional[str] = None,
+    status_active_indicator: bool = True,
+    status_passive_indicator: bool = True,
+) -> Union[OrderedDict, List[OrderedDict]]:
     url = "GetEmployment20111201"
     params = {
         "EffectiveDate": effective_date.strftime("%d.%m.%Y"),

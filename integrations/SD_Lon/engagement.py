@@ -33,9 +33,12 @@ def create_engagement(sd_updater, employment_id, person_uuid) -> None:
     sd_employment_payload = read_employment_at(
         datetime.now().date(), employment_id=employment_id
     )
+
+    assert not isinstance(sd_employment_payload, list)
+
     cpr = sd_employment_payload["PersonCivilRegistrationIdentifier"]
     sd_employment = sd_employment_payload.get("Employment")
-    status = sd_employment.get("EmploymentStatus")
+    status = sd_employment.get("EmploymentStatus")  # type: ignore
 
     # Is it possible that sd_employment or status is None?...
     assert sd_employment

@@ -52,9 +52,9 @@ from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
+from integrations.SD_Lon.sd_common import read_employment_at
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
-from integrations.SD_Lon.sd_common import read_employment_at
 from integrations.SD_Lon.sync_job_id import JobIdSync
 
 # from integrations.SD_Lon.sd_common import generate_uuid
@@ -736,7 +736,9 @@ class ChangeAtSD:
 
             activation_date_info = read_employment_at(
                 employment_id=engagement["EmploymentIdentifier"],
-                effective_date=datetime.datetime.strptime(status["ActivationDate"], "%Y-%m-%d").date(),
+                effective_date=datetime.datetime.strptime(
+                    status["ActivationDate"], "%Y-%m-%d"
+                ).date(),
             )
 
             # at least check the cpr

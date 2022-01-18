@@ -8,7 +8,7 @@ import datetime
 import logging
 import uuid
 from operator import itemgetter
-from typing import Any, Tuple
+from typing import Any
 from typing import Dict
 from typing import Optional
 
@@ -20,13 +20,14 @@ from ra_utils.load_settings import load_settings
 
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
+from integrations.SD_Lon.convert import sd_to_mo_termination_date
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sd_common import generate_uuid
+from integrations.SD_Lon.sd_common import read_employment_at
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
-from integrations.SD_Lon.sd_common import read_employment_at
 from os2mo_data_import import ImportHelper
 
 
@@ -93,6 +94,12 @@ class SdImport(object):
             "integrations.SD_Lon.sd_importer.create_email_addresses", True
         )
 
+        # Whether to create historic engagements (see more detail comment
+        # regarding this feature further down)
+        self.create_historic_engagements = self.settings.get(
+            "integrations.SD_Lon.sd_importer_create_historic_engagements", False
+        )
+
         # CPR indexed dictionary of AD users
         self.ad_people: Dict[str, Dict] = {}
         self.employee_forced_uuids = employee_mapping
@@ -143,6 +150,7 @@ class SdImport(object):
             "engagement_type": [
                 ("månedsløn", "Medarbejder (månedsløn)"),
                 ("timeløn", "Medarbejder (timeløn)"),
+                ("historisk", "Historisk ansættelse"),
             ],
             "primary_type": [
                 ("Ansat", "Ansat", "3000"),
@@ -513,28 +521,29 @@ class SdImport(object):
             )
         self.nodes = self._create_org_tree_structure()
 
-    def get_sd_employments(self):
-        logger.info("Getting SD employments...")
+    def create_employees(self):
+        logger.info("Create employees")
+
+        effective_date = datetime.datetime.strptime(self.import_date, "%d.%m.%Y").date()
 
         active_people = ensure_list(
             read_employment_at(
-                datetime.datetime.strptime(self.import_date, "%d.%m.%Y").date(),
-                status_passive_indicator=False
+                effective_date,
+                status_passive_indicator=False,
             )
         )
 
         passive_people = ensure_list(
             read_employment_at(
-                datetime.datetime.strptime(self.import_date, "%d.%m.%Y").date(),
+                effective_date,
                 status_active_indicator=False,
-                status_passive_indicator=True
+                status_passive_indicator=True,
             )
         )
 
-        return active_people, passive_people
-
-    def create_employees(self, active_people, passive_people):
-        logger.info("Create employees")
+        # TODO: condense the two calls above into one and then create the variables
+        # active_people and pasive_people by using the partition function from
+        # more_itertools
 
         self._create_employees(active_people)
         self._create_employees(passive_people, skip_manager=True)
@@ -577,7 +586,7 @@ class SdImport(object):
                 self._add_klasse(
                     engagement_type_ref, job_position_id, "engagement_type"
                 )
-                logger.info("Non-nummeric id. Job pos id: {}".format(job_position_id))
+                logger.info("Non-numeric id. Job pos id: {}".format(job_position_id))
 
             primary_type_ref = "non-primary"
             # If status 0, uncondtionally override
@@ -618,15 +627,14 @@ class SdImport(object):
             if date_from > date_to:
                 date_from = date_to
 
-            date_from = datetime.datetime.strftime(date_from, "%Y-%m-%d")
+            date_from_str = datetime.datetime.strftime(date_from, "%Y-%m-%d")
+            date_to_str = datetime.datetime.strftime(date_to, "%Y-%m-%d")
             if date_to == datetime.datetime(9999, 12, 31, 0, 0):
-                date_to = None
-            else:
-                date_to = datetime.datetime.strftime(date_to, "%Y-%m-%d")
+                date_to_str = None
 
             logger.info(
                 "Validty for {}: from: {}, to: {}".format(
-                    employment_id["id"], date_from, date_to
+                    employment_id["id"], date_from_str, date_to_str
                 )
             )
 
@@ -639,8 +647,8 @@ class SdImport(object):
                     user_key=employment_id["id"],
                     organisation_unit=original_unit,
                     association_type_ref="SD-medarbejder",
-                    date_from=date_from,
-                    date_to=date_to,
+                    date_from=date_from_str,
+                    date_to=date_to_str,
                 )
 
             # Employees are not allowed to be in these units (allthough
@@ -668,8 +676,8 @@ class SdImport(object):
                 fraction=int(occupation_rate * 1000000),
                 primary_ref=primary_type_ref,
                 engagement_type_ref=engagement_type_ref,
-                date_from=date_from,
-                date_to=date_to,
+                date_from=date_from_str,
+                date_to=date_to_str,
                 **extention,
             )
             if status == EmploymentStatus.Orlov:
@@ -677,9 +685,35 @@ class SdImport(object):
                     employee=cpr,
                     engagement_uuid=engagement_uuid,
                     leave_type_ref="Orlov",
-                    date_from=date_from,
-                    date_to=date_to,
+                    date_from=date_from_str,
+                    date_to=date_to_str,
                 )
+
+            if self.create_historic_engagements:
+                # Add historic engagement. On import time we do not keep track of all
+                # previous engagements, but we will instead create a "historic" dummy
+                # engagement ranging from the engagement anniversary date to the start
+                # of the engagement created above. In this way the total seniority of
+                # the employee (for the given engagement) will apparent
+
+                anniversary_date = datetime.datetime.strptime(
+                    employment["AnniversaryDate"], "%Y-%m-%d"
+                )
+
+                if anniversary_date < date_from:
+                    self.importer.add_engagement(
+                        employee=cpr,
+                        uuid=str(uuid.uuid4()),
+                        user_key=employment_id["id"],
+                        organisation_unit=unit,
+                        job_function_ref=job_func_ref,
+                        # fraction=int(occupation_rate * 1000000),
+                        # primary_ref=primary_type_ref,
+                        engagement_type_ref="historisk",
+                        date_from=employment["AnniversaryDate"],
+                        date_to=sd_to_mo_termination_date(date_from_str),
+                        # **extention,
+                    )
 
             # If we do not have a list of managers, we take the manager,
             # information from the job_function_code.
@@ -694,8 +728,8 @@ class SdImport(object):
                         address_uuid=None,  # Manager address is not used
                         manager_type_ref="leder_type",
                         responsibility_list=["Lederansvar"],
-                        date_from=date_from,
-                        date_to=date_to,
+                        date_from=date_from_str,
+                        date_to=date_to_str,
                     )
 
         if self.manager_rows and (not skip_manager):
@@ -781,8 +815,7 @@ def full_import(org_only: bool, mora_base: str, mox_base: str):
 
     sd.create_ou_tree(create_orphan_container=False, sub_tree=None, super_unit=None)
     if not org_only:
-        active_people, passive_people = sd.get_sd_employments()
-        sd.create_employees(active_people, passive_people)
+        sd.create_employees()
 
     importer.import_all()
     print("IMPORT DONE")
