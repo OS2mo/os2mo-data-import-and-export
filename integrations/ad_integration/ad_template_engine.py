@@ -334,7 +334,9 @@ def filter_illegal(cmd, parameters, other_attributes):
 
 
 def filter_empty_values(
-    attrs: Dict[str, str], context: Dict[str, Any]
+    environment: Environment,
+    attrs: Dict[str, str],
+    context: Dict[str, Any],
 ) -> Dict[str, str]:
     """Remove key/template pairs from `attrs` if the template renders the value
     "\"None\"".
@@ -342,7 +344,7 @@ def filter_empty_values(
     to_remove = set()
 
     for name, template_code in attrs.items():
-        template = load_jinja_template(template_code)
+        template = load_jinja_template(environment, template_code)
         value = template.render(**context)
         if value == '"None"':
             to_remove.add(name)
@@ -353,21 +355,20 @@ def filter_empty_values(
     return attrs
 
 
-def load_jinja_template(source: str) -> Template:
+def load_jinja_template(environment: Environment, source: str) -> Template:
     """Load Jinja template in the string `source` and return a `Template`
     instance.
     """
-    environment = Environment(undefined=StrictUndefined)
     return environment.from_string(source)
 
 
-def prepare_template(cmd, settings, context, jinja_map=None):
+def prepare_template(environment: Environment, cmd, settings, context):
     """Build a complete powershell command template.
 
     Args:
+        environment: Jinja2 `Environment` instance
         cmd: command to generate template for.
         settings: dictionary containing settings from settings.json
-        jinja_map: dictionary from ad field names to jinja template strings.
 
     Returns:
         str: A jinja template string produced by templating the command
@@ -379,7 +380,9 @@ def prepare_template(cmd, settings, context, jinja_map=None):
         raise ValueError(
             "prepare_template cmd must be one of: " + ",".join(cmd_options)
         )
-    command_template = load_jinja_template(cmdlet_templates[cmd])
+
+    command_template = load_jinja_template(environment, cmdlet_templates[cmd])
+
     parameters, other_attributes = filter_illegal(
         cmd,
         *partition_templates(
@@ -387,7 +390,7 @@ def prepare_template(cmd, settings, context, jinja_map=None):
         )
     )
 
-    other_attributes = filter_empty_values(other_attributes, context)
+    other_attributes = filter_empty_values(environment, other_attributes, context)
 
     # Generate our combined template, by rendering our command template using
     # the field templates templates.
@@ -399,7 +402,12 @@ def prepare_template(cmd, settings, context, jinja_map=None):
     return combined_template
 
 
-def template_powershell(context, settings, cmd="New-ADUser", jinja_map=None):
+def template_powershell(
+    context,
+    settings,
+    cmd: str = "New-ADUser",
+    environment: Environment = Environment(undefined=StrictUndefined),
+) -> str:
     """Build a complete powershell command.
 
     Args:
@@ -412,8 +420,8 @@ def template_powershell(context, settings, cmd="New-ADUser", jinja_map=None):
         str: An executable powershell script.
     """
     # Acquire the full template, templated itself with all field templates
-    full_template = prepare_template(cmd, settings, context)
+    full_template = prepare_template(environment, cmd, settings, context)
 
     # Render the final template using the context
-    final_template = load_jinja_template(full_template)
+    final_template = load_jinja_template(environment, full_template)
     return final_template.render(**context)
