@@ -10,7 +10,6 @@ from typing import Any
 from typing import Callable
 from typing import cast
 from typing import Dict
-from typing import Iterator
 from typing import List
 from typing import Optional
 from typing import OrderedDict
@@ -21,13 +20,11 @@ from uuid import UUID
 from uuid import uuid4
 
 import click
-import pandas as pd
 import requests
 from fastapi.encoders import jsonable_encoder
 from more_itertools import last
 from more_itertools import one
 from more_itertools import only
-from more_itertools import pairwise
 from more_itertools import partition
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
@@ -242,6 +239,7 @@ class ChangeAtSD:
 
         params = {
             "ActivationDate": from_date.strftime("%d.%m.%Y"),
+            "ActivationTime": from_date.strftime("%H:%M"),
             "DepartmentIndicator": "true",
             "EmploymentStatusIndicator": "true",
             "ProfessionIndicator": "true",
@@ -269,6 +267,7 @@ class ChangeAtSD:
             params.update(
                 {
                     "DeactivationDate": to_date.strftime("%d.%m.%Y"),
+                    "DeactivationTime": to_date.strftime("%H:%M"),
                     "StatusActiveIndicator": "true",
                     "StatusPassiveIndicator": "true",
                 }
@@ -280,7 +279,7 @@ class ChangeAtSD:
                     "DeactivationDate": "31.12.9999",
                 }
             )
-        response = sd_lookup(url, params)
+        response = sd_lookup(url, params=params)
 
         employment_response = ensure_list(response.get("Person", []))
 
@@ -297,18 +296,20 @@ class ChangeAtSD:
             List of SD Løn persons changed between the two dates
         """
 
-        deactivate_date = "31.12.9999"
-        if to_date:
-            deactivate_date = to_date.strftime("%d.%m.%Y")
         params = {
             "ActivationDate": from_date.strftime("%d.%m.%Y"),
-            "DeactivationDate": deactivate_date,
+            "ActivationTime": from_date.strftime("%H:%M"),
+            "DeactivationDate": "31.12.9999",
             "StatusActiveIndicator": "true",
             "StatusPassiveIndicator": "true",
             "ContactInformationIndicator": "false",
             "PostalAddressIndicator": "false"
             # TODO: Er der kunder, som vil udlæse adresse-information?
         }
+        if to_date:
+            params["DeactivationDate"] = to_date.strftime("%d.%m.%Y")
+            params["DeactivationTime"] = to_date.strftime("%H:%M")
+
         url = "GetPersonChangedAtDate20111201"
         response = sd_lookup(url, params=params)
         persons_changed = ensure_list(response.get("Person", []))
@@ -1149,6 +1150,7 @@ class ChangeAtSD:
                     ('EmploymentDepartment', OrderedDict([
                         ('@changedAtDate', '2020-11-10'),
                         ('ActivationDate', '2020-11-10'),
+                        ('ActivationTime', '06:00'),
                         ('DeactivationDate', '9999-12-31'),
                         ('DepartmentIdentifier', 'department_id'),
                         ('DepartmentUUIDIdentifier', 'department_uuid')
@@ -1156,6 +1158,7 @@ class ChangeAtSD:
                     ('Profession', OrderedDict([
                         ('@changedAtDate', '2020-11-10'),
                         ('ActivationDate', '2020-11-10'),
+                        ('ActivationTime', '06:00'),
                         ('DeactivationDate', '9999-12-31'),
                         ('JobPositionIdentifier', '1'),
                         ('EmploymentName', 'chief'),
@@ -1165,12 +1168,14 @@ class ChangeAtSD:
                         OrderedDict([
                             ('@changedAtDate', '2020-11-10'),
                             ('ActivationDate', '2020-11-10'),
+                            ('ActivationTime', '06:00'),
                             ('DeactivationDate', '2021-02-09'),
                             ('EmploymentStatusCode', '1')
                         ]),
                         OrderedDict([
                             ('@changedAtDate', '2020-11-10'),
                             ('ActivationDate', '2021-02-10'),
+                            ('ActivationTime', '06:00'),
                             ('DeactivationDate', '9999-12-31'),
                             ('EmploymentStatusCode', '8')
                         ])
@@ -1371,49 +1376,23 @@ def initialize_changed_at(from_date, run_db, force=False):
     _local_db_insert((from_date, from_date, "Initial import: {}"))
 
 
-def gen_date_pairs(
-    from_date: datetime.datetime,
-) -> Iterator[Tuple[datetime.datetime, datetime.datetime]]:
-    """
-    Get iterator capable of generating af sequence of datetime pairs
-    incrementing one day at a time. The latter date in a pair is
-    advanced by exactly one day compared to the former date in the pair.
-
-    Args:
-        from_date: the start date
-
-    Yields:
-        The next date pair in the sequence of pairs
-
-    Example:
-        If called on 2021-10-04:
-        >>> print([pair for pair in gen_date_pairs(datetime.datetime(2021,10,1))])
-        [
-            (
-                datetime.datetime(2021, 10, 1, 0, 0),
-                datetime.datetime(2021, 10, 2, 0, 0)
-            ),
-            (
-                datetime.datetime(2021, 10, 2, 0, 0),
-                datetime.datetime(2021, 10, 3, 0, 0)
-            ),
-            (
-                datetime.datetime(2021, 10, 3, 0, 0),
-                datetime.datetime(2021, 10, 4, 0, 0)
+def get_from_date(run_db, force: bool = False) -> datetime.datetime:
+    db_overview = DBOverview(run_db)
+    # To date from last entries, becomes from_date for current entry
+    from_date, status = cast(
+        Tuple[datetime.datetime, str], db_overview._read_last_line("to_date", "status")
+    )
+    if "Running" in status:
+        if force:
+            db_overview.delete_last_row()
+            from_date, status = cast(
+                Tuple[datetime.datetime, str],
+                db_overview._read_last_line("to_date", "status"),
             )
-        ]
-    """
-
-    def generate_date_tuples(from_date, to_date):
-        date_range = pd.date_range(from_date, to_date)
-        mapped_dates = map(lambda date: date.to_pydatetime(), date_range)
-        return pairwise(mapped_dates)
-
-    to_date = datetime.date.today()
-    if from_date.date() >= to_date:
-        return iter(())
-    dates = generate_date_tuples(from_date, to_date)
-    return dates
+        else:
+            logging.error("Previous ChangedAt run did not return!")
+            raise click.ClickException("Previous ChangedAt run did not return!")
+    return from_date
 
 
 @click.group()
@@ -1445,12 +1424,12 @@ def cli():
 )
 @click.option(
     "--from-date",
-    type=click.STRING,
+    type=click.DateTime(),
     required=True,
     default=load_setting("integrations.SD_Lon.global_from_date"),
     help="Global import from-date, only used if init is True",
 )
-def changed_at(init: bool, force: bool, one_day: bool, from_date: str):
+def changed_at(init: bool, force: bool, one_day: bool, from_date: datetime.datetime):
     """Tool to delta synchronize with MO with SD."""
     setup_logging()
 
@@ -1463,44 +1442,24 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: str):
     if init:
         run_db = pathlib.Path(run_db)
 
-        parsed_from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
-        initialize_changed_at(parsed_from_date, run_db, force=True)
+        initialize_changed_at(from_date, run_db, force=True)
         exit()
+    from_date = get_from_date(run_db, force=force)
+    to_date = datetime.datetime.now()
 
-    db_overview = DBOverview(run_db)
-    # To date from last entries, becomes from_date for current entry
-    parsed_from_date, status = cast(
-        Tuple[datetime.datetime, str], db_overview._read_last_line("to_date", "status")
-    )
+    logger.info("Importing {} to {}".format(from_date, to_date))
+    _local_db_insert((from_date, to_date, "Running since {}"))
 
-    if "Running" in status:
-        if force:
-            db_overview.delete_last_row()
-            parsed_from_date, status = cast(
-                Tuple[datetime.datetime, str],
-                db_overview._read_last_line("to_date", "status"),
-            )
-        else:
-            logging.error("Previous ChangedAt run did not return!")
-            raise click.ClickException("Previous ChangedAt run did not return!")
+    logger.info("Start ChangedAt module")
+    sd_updater = ChangeAtSD(from_date, to_date)
 
-    dates = gen_date_pairs(parsed_from_date)
+    logger.info("Update changed persons")
+    sd_updater.update_changed_persons()
 
-    # Update changes one day at a time
-    for parsed_from_date, parsed_to_date in dates:
-        logger.info("Importing {} to {}".format(parsed_from_date, parsed_to_date))
-        _local_db_insert((parsed_from_date, parsed_to_date, "Running since {}"))
+    logger.info("Update all employments")
+    sd_updater.update_all_employments()
 
-        logger.info("Start ChangedAt module")
-        sd_updater = ChangeAtSD(parsed_from_date, parsed_to_date)
-
-        logger.info("Update changed persons")
-        sd_updater.update_changed_persons()
-
-        logger.info("Update all employments")
-        sd_updater.update_all_employments()
-
-        _local_db_insert((parsed_from_date, parsed_to_date, "Update finished: {}"))
+    _local_db_insert((from_date, to_date, "Update finished: {}"))
 
     logger.info("Program stopped.")
 
@@ -1514,7 +1473,7 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: str):
 )
 @click.option(
     "--from-date",
-    type=click.STRING,
+    type=click.DateTime(),
     required=True,
     default=load_setting("integrations.SD_Lon.global_from_date"),
     help="Global import from-date",
@@ -1522,10 +1481,9 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: str):
 @click.option(
     "--dry-run", is_flag=True, default=False, help="Dry-run making no actual changes."
 )
-def import_single_user(cpr: str, from_date: str, dry_run: bool):
+def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
     """Import a single user into MO."""
-    parsed_from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
-    sd_updater = ChangeAtSD(parsed_from_date, None)
+    sd_updater = ChangeAtSD(from_date, None)
     sd_updater.update_changed_persons(cpr, dry_run=dry_run)
     sd_updater.update_all_employments(cpr, dry_run=dry_run)
 
@@ -1533,7 +1491,7 @@ def import_single_user(cpr: str, from_date: str, dry_run: bool):
 @cli.command()
 @click.option(
     "--from-date",
-    type=click.STRING,
+    type=click.DateTime(),
     required=True,
     default=load_setting("integrations.SD_Lon.global_from_date"),
     help="Global import from-date",
@@ -1541,10 +1499,9 @@ def import_single_user(cpr: str, from_date: str, dry_run: bool):
 @click.option(
     "--dry-run", is_flag=True, default=False, help="Dry-run making no actual changes."
 )
-def import_state(from_date: str, dry_run: bool):
+def import_state(from_date: datetime.datetime, dry_run: bool):
     """Import engagement history for all users."""
-    parsed_from_date = datetime.datetime.strptime(from_date, "%Y-%m-%d")
-    sd_updater = ChangeAtSD(parsed_from_date, None)
+    sd_updater = ChangeAtSD(from_date, None)
     sd_updater.update_changed_persons(dry_run=dry_run)
     sd_updater.update_all_employments(dry_run=dry_run)
 

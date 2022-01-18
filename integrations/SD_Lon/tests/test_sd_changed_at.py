@@ -1,13 +1,14 @@
 import uuid
 from collections import OrderedDict
 from datetime import date
-from datetime import datetime
 from datetime import timedelta
 from unittest.mock import call
 from unittest.mock import MagicMock
 from unittest.mock import patch
 
+import click
 import hypothesis.strategies as st
+import pytest
 from hypothesis import example
 from hypothesis import given
 from parameterized import parameterized
@@ -20,8 +21,42 @@ from .fixtures import read_employment_fixture
 from integrations.SD_Lon.convert import sd_to_mo_termination_date
 from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
-from integrations.SD_Lon.sd_changed_at import gen_date_pairs
+from integrations.SD_Lon.sd_changed_at import get_from_date
 from test_case import DipexTestCase
+
+
+@given(test_from_date=st.datetimes())
+def test_getfrom_date(test_from_date):
+    """Test reading latest date from rundb"""
+    with patch(
+        "integrations.rundb.db_overview.DBOverview._read_last_line",
+        return_value=((test_from_date, "Update ended at ---")),
+    ):
+        from_date = get_from_date("test", force=False)
+        assert from_date == test_from_date
+
+
+@given(test_from_date=st.datetimes())
+def test_getfrom_date_running(test_from_date):
+    """Test raising error if last import didn't finish"""
+    with patch(
+        "integrations.rundb.db_overview.DBOverview._read_last_line",
+        return_value=((test_from_date, "Running")),
+    ):
+        with pytest.raises(click.ClickException):
+            get_from_date("test", force=False)
+
+
+@given(test_from_date=st.datetimes())
+@patch("integrations.rundb.db_overview.DBOverview.delete_last_row")
+def test_getfrom_date_force(delete_mock, test_from_date):
+    """Test reading though last import didn't finish using force=True"""
+    with patch(
+        "integrations.rundb.db_overview.DBOverview._read_last_line",
+        return_value=((test_from_date, "Running")),
+    ):
+        get_from_date("test", force=True)
+        delete_mock.assert_called_once()
 
 
 class ChangeAtSDTest(ChangeAtSD):
@@ -55,7 +90,7 @@ class ChangeAtSDTest(ChangeAtSD):
         return self.morahelper_mock
 
 
-def setup_sd_changed_at(updates=None):
+def setup_sd_changed_at(updates=None, hours=24):
     # TODO: remove integrations.SD_Lon.terminate_engagement_with_to_only
     settings = {
         "integrations.SD_Lon.job_function": "JobPositionIdentifier",
@@ -71,7 +106,9 @@ def setup_sd_changed_at(updates=None):
     today = date.today()
     start_date = today
 
-    sd_updater = ChangeAtSDTest(start_date, start_date + timedelta(days=1), settings)
+    sd_updater = ChangeAtSDTest(
+        start_date, start_date + timedelta(hours=hours), settings
+    )
 
     return sd_updater
 
@@ -146,7 +183,12 @@ class Test_sd_changed_at(DipexTestCase):
     @given(status=st.sampled_from(["1", "S"]))
     @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
     @patch("integrations.SD_Lon.sd_common._sd_request")
-    def test_read_employment_changed(self, sd_request, sd_settings, status):
+    def test_read_employment_changed(
+        self,
+        sd_request,
+        sd_settings,
+        status,
+    ):
         sd_settings.return_value = ("", "", "")
 
         sd_reply, expected_read_employment_result = read_employment_fixture(
@@ -566,32 +608,6 @@ class Test_sd_changed_at(DipexTestCase):
         sd_updater._create_engagement_type.assert_not_called()
         sd_updater._create_professions.assert_called_once()
 
-    @given(from_date=st.dates(date(1970, 1, 1), date(2060, 1, 1)))
-    @example(from_date=date.today())
-    def test_date_tuples(self, from_date):
-        def num_days_between(start, end):
-            delta = end - start
-            return delta.days
-
-        today = date.today()
-        if from_date >= today:
-            # Cannot synchronize into the future
-            num_expected_intervals = 0
-        else:
-            num_expected_intervals = num_days_between(from_date, today)
-
-        # Construct datetime at from_date midnight
-        from_datetime = datetime.combine(from_date, datetime.min.time())
-
-        dates = list(gen_date_pairs(from_datetime))
-        self.assertEqual(len(dates), num_expected_intervals)
-        # We always expect intervals to be exactly one day long
-        for from_date, to_date in dates:
-            between = num_days_between(from_date, to_date)
-            self.assertEqual(type(from_date), datetime)
-            self.assertEqual(type(to_date), datetime)
-            self.assertEqual(between, 1)
-
     @given(
         job_function=st.text(),
         exception=st.just(JobfunctionSettingsIsWrongException),
@@ -955,3 +971,63 @@ class Test_sd_changed_at(DipexTestCase):
 
         # Assert
         mock_update.assert_called_once()
+
+    @given(
+        status=st.sampled_from(["1", "S"]),
+        from_date=st.datetimes(),
+        to_date=st.datetimes() | st.none(),
+    )
+    @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
+    @patch("integrations.SD_Lon.sd_changed_at.sd_lookup")
+    def test_timestamps_read_employment_changed(
+        self,
+        mock_sd_lookup,
+        sd_settings,
+        status,
+        from_date,
+        to_date,
+    ):
+        """Test that calls contain correct ActivationDate and ActivationTime"""
+        sd_settings.return_value = ("", "", "")
+
+        sd_updater = setup_sd_changed_at()
+        sd_updater.read_employment_changed(from_date=from_date, to_date=to_date)
+        expected_url = "GetEmploymentChangedAtDate20111201"
+        url = mock_sd_lookup.call_args.args[0]
+        params = mock_sd_lookup.call_args.kwargs["params"]
+        self.assertEqual(url, expected_url)
+        self.assertEqual(params["ActivationDate"], from_date.strftime("%d.%m.%Y"))
+        self.assertEqual(params["ActivationTime"], from_date.strftime("%H:%M"))
+        if to_date:
+            self.assertEqual(params["DeactivationDate"], to_date.strftime("%d.%m.%Y"))
+            self.assertEqual(params["DeactivationTime"], to_date.strftime("%H:%M"))
+
+    @given(
+        status=st.sampled_from(["1", "S"]),
+        from_date=st.datetimes(),
+        to_date=st.datetimes() | st.none(),
+    )
+    @patch("integrations.SD_Lon.sd_common.sd_lookup_settings")
+    @patch("integrations.SD_Lon.sd_changed_at.sd_lookup")
+    def test_timestamps_get_sd_persons_changed(
+        self,
+        mock_sd_lookup,
+        sd_settings,
+        status,
+        from_date,
+        to_date,
+    ):
+        """Test that calls contain correct ActivationDate and ActivationTime"""
+        sd_settings.return_value = ("", "", "")
+
+        sd_updater = setup_sd_changed_at()
+        sd_updater.get_sd_persons_changed(from_date=from_date, to_date=to_date)
+        expected_url = "GetPersonChangedAtDate20111201"
+        url = mock_sd_lookup.call_args.args[0]
+        params = mock_sd_lookup.call_args.kwargs["params"]
+        self.assertEqual(url, expected_url)
+        self.assertEqual(params["ActivationDate"], from_date.strftime("%d.%m.%Y"))
+        self.assertEqual(params["ActivationTime"], from_date.strftime("%H:%M"))
+        if to_date:
+            self.assertEqual(params["DeactivationDate"], to_date.strftime("%d.%m.%Y"))
+            self.assertEqual(params["DeactivationTime"], to_date.strftime("%H:%M"))
