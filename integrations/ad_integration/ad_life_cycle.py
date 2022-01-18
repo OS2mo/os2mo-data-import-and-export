@@ -10,7 +10,6 @@ from typing import Dict
 from typing import Iterator
 from typing import List
 from typing import Optional
-from typing import Set
 from typing import Tuple
 
 import click
@@ -40,7 +39,7 @@ class AdLifeCycle:
         self, read_from_cache: bool = True, skip_occupied_names_check: bool = False
     ) -> None:
         logger.info("AD Sync Started")
-        self._settings = load_settings()
+        self._settings = self._load_settings()
 
         self.roots = self._settings["integrations.ad.write.create_user_trees"]
 
@@ -49,18 +48,7 @@ class AdLifeCycle:
         self.create_filters = self._load_jinja_filters("create_filters")
         self.disable_filters = self._load_jinja_filters("disable_filters")
 
-        self.ad_reader = ADParameterReader()
-
-        occupied_names: Set[str] = set()
-        if skip_occupied_names_check:
-            print("Skipping reading of occupied user names")
-        else:
-            # This is a slow step (since ADReader reads all users)
-            print("Retrieve AD dump")
-            with catchtime() as t:
-                all_users: List[Dict] = self.ad_reader.cache_all(print_progress=True)
-                occupied_names = set(map(itemgetter("SamAccountName"), all_users))
-            print("Done with AD caching: {}".format(t()))
+        self.ad_reader = self._get_adreader()
 
         # This is a potentially slow step (since it may read LoraCache)
         print("Retrive LoRa dump")
@@ -72,15 +60,19 @@ class AdLifeCycle:
         engagements = self.lc_historic.engagements.values()
         self.users_with_engagements = set(map(lambda eng: eng[0]["user"], engagements))
 
-        # This is a slow step (since ADWriter reads all SAM names in __init__)
         print("Retrieve AD Writer name list")
         with catchtime() as t:
-            self.ad_writer = ADWriter(
-                lc=self.lc, lc_historic=self.lc_historic, occupied_names=occupied_names
+            self.ad_writer = self._get_adwriter(
+                lc=self.lc,
+                lc_historic=self.lc_historic,
+                skip_occupied_names=skip_occupied_names_check,
             )
         print("Done with AD Writer init: {}".format(t()))
 
         logger.debug("__init__() done")
+
+    def _load_settings(self):
+        return load_settings()
 
     def _load_jinja_filters(self, source: str) -> List[Callable]:
         seeded_create_filters = partial(
@@ -94,6 +86,12 @@ class AdLifeCycle:
             self.log_skipped(f"{source}_num_{num}")(filter_func)
             for num, filter_func in enumerate(seeded_create_filters(filter_templates))
         ]
+
+    def _get_adreader(self):
+        return ADParameterReader()
+
+    def _get_adwriter(self, **kwargs):
+        return ADWriter(**kwargs)
 
     def log_skipped(self, filtername):
         """Return decorated version of a filter function taking a single
