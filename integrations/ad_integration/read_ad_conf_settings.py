@@ -172,7 +172,11 @@ def _read_primary_write_information(top_settings):
     for ad_settings in top_settings["integrations.ad"]:
         properties = ad_settings.get("properties")
         missing_properties = list(
-            filter(lambda ad_field: ad_field not in properties, ad_field_names)
+            filter(
+                lambda ad_field: ad_field.lower() != ""
+                and ad_field.lower() not in [p.lower() for p in properties],
+                ad_field_names,
+            )
         )
         if missing_properties:
             msg = "Missing AD field names in properties: %r"

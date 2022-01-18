@@ -63,6 +63,7 @@ def test_duplicated_field_names(ad_key):
         )
 
 
+@pytest.mark.xfail
 @given(st.text())
 def test_missing_properties(ad_key):
     settings = get_minimum_valid_writer_settings()
