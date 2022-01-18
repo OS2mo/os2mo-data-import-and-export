@@ -4,6 +4,7 @@ from typing import Dict
 from jinja2 import Environment
 from jinja2 import StrictUndefined
 from jinja2 import Template
+from more_itertools import first
 
 from .utils import dict_map
 from .utils import dict_partition
@@ -353,11 +354,20 @@ def filter_empty_values(
     return attrs
 
 
+def first_address_of_type(value, address_type_uuid):
+    return first(
+        addr["value"]
+        for addr in value
+        if addr["address_type"]["uuid"] == address_type_uuid
+    )
+
+
 def load_jinja_template(source: str) -> Template:
     """Load Jinja template in the string `source` and return a `Template`
     instance.
     """
     environment = Environment(undefined=StrictUndefined)
+    environment.filters["first_address_of_type"] = first_address_of_type
     return environment.from_string(source)
 
 
