@@ -44,7 +44,7 @@ def get_engagement_updater(integration):
 @click.command()
 @click.option(
     "--integration",
-    type=click.Choice(["SD", "OPUS"], case_sensitive=False),
+    type=click.Choice(["DEFAULT", "SD", "OPUS"], case_sensitive=False),
     required=True,
     help="Integration to use",
 )
