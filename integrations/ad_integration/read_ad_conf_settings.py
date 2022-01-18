@@ -179,8 +179,8 @@ def _read_primary_write_information(top_settings):
         properties = ad_settings.get("properties")
         missing_properties = list(
             filter(
-                lambda ad_field: ad_field.lower()
-                not in [p.lower() for p in properties],
+                lambda ad_field: ad_field.lower() != ""
+                and ad_field.lower() not in [p.lower() for p in properties],
                 ad_field_names,
             )
         )
