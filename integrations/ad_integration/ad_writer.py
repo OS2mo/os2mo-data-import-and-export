@@ -13,7 +13,7 @@ from operator import itemgetter
 import click
 from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
-from jinja2 import Template
+from jinja2 import Environment
 from more_itertools import first
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -757,7 +757,17 @@ class ADWriter(AD):
         return mismatch
 
     def _render_field_template(self, context, template):
-        return Template(template.strip('"')).render(**context)
+        def first_address_of_type(value, address_type_uuid):
+            return first(
+                addr["value"]
+                for addr in value
+                if addr["address_type"]["uuid"] == address_type_uuid
+            )
+
+        environment = Environment()
+        environment.filters["first_address_of_type"] = first_address_of_type
+        template = environment.from_string(template.strip('"'))
+        return template.render(**context)
 
     def _preview_create_command(self, mo_uuid, ad_dump=None, create_manager=True):
         mo_values = self.read_ad_information_from_mo(
