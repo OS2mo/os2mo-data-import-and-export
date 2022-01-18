@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.9.0 - 2022-01-18
+------------------
+
+[#41612] SD_changed_at uses datetimes to allow running over any timespan, eg. several days or multiple times a day.
+
 2.8.0 - 2022-01-17
 ------------------
 
