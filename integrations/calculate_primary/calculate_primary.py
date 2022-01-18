@@ -27,7 +27,7 @@ def setup_logging():
 
 def get_engagement_updater(integration):
     if integration == "DEFAULT":
-        from integrations.calculate_primary.sd import DefaultPrimaryEngagementUpdater
+        from integrations.calculate_primary.default import DefaultPrimaryEngagementUpdater
 
         return DefaultPrimaryEngagementUpdater
     if integration == "SD":
