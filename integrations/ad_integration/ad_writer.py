@@ -802,8 +802,9 @@ class ADWriter(AD):
             if "name" in mismatch:
                 new_name = mismatch["name"][1]
                 rename_cmd = self._get_rename_ad_user_command(user_sam, new_name)
+                return sync_cmd, rename_cmd
 
-        return sync_cmd, rename_cmd
+        return sync_cmd, ""
 
     def _sync_compare(self, mo_values, ad_dump):
         ad_user = self._find_ad_user(mo_values["cpr"], ad_dump=ad_dump)
