@@ -298,13 +298,13 @@ async def ensure_class_value_helper(
         owner = klasse.get("relationer").get("ejer")
         changed = False
         if not owner:
-           changed = True
+            changed = True
         else:
-           try:
-              old_owner = owner[0].get("uuid")
-              changed = old_owner != new_value
-           except IndexError:
-              changed = True
+            try:
+                old_owner = owner[0].get("uuid")
+                changed = old_owner != new_value
+            except IndexError:
+                changed = True
 
         if changed:
             klasse["relationer"]["ejer"] = [
