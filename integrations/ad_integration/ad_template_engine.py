@@ -211,9 +211,12 @@ def prepare_settings_based_field_templates(jinja_map, cmd, settings):
 
     write_settings = _get_setting_type(settings, "primary_write")
     primary_settings = _get_setting_type(settings, "primary")
-    jinja_map[
-        write_settings["level2orgunit_field"]
-    ] = "{{ mo_values['level2orgunit'] }}"
+
+    if write_settings.get("level2orgunit_field"):
+        jinja_map[
+            write_settings["level2orgunit_field"]
+        ] = "{{ mo_values['level2orgunit'] }}"
+
     jinja_map[write_settings["org_field"]] = "{{ mo_values['location'] }}"
 
     # Local fields for MO->AD sync'ing
