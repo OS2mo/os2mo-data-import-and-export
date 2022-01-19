@@ -357,7 +357,7 @@ exports_mo_to_ad_sync(){
 
 exports_ad_enddate_fixer(){
     echo "Fixing enddates in AD of terminated engagements"
-    ${VENV}/bin/python3 tools/data_fixers/ad_fix_enddate.py 
+    ${VENV}/bin/python3 -m integrations.ad_integration.ad_fix_enddate
 }
 
 exports_plan2learn(){

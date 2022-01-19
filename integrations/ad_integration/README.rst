@@ -505,6 +505,7 @@ rådighed i dag:
    * - ``end_date``
      - Slutdato for aktuelle engagement i MO.
        Hvis en ansættelse ikke har nogen kendt slutdato, angives 9999-12-31.
+       For at få skrevet afsluttede engagementers slutdato anvendes jobbet `ad_fix_enddate`.
    * - ``name``
      - Brugerens navn, opdelt i fornavn og efternavn. Fornavn kan fx tilgås via
        ``mo_values['name'][0]``, og efternavn via ``mo_values['name'][1]``.
@@ -918,6 +919,23 @@ De forskellige muligheder gennemgås her en ad gangen:
 
    Udfylder brugerens ``manager`` felt med et link til AD kontoen der hører til
    ManagerSAM.
+
+
+ad_fix_enddate.py
++++++++++++++++++
+Hvis ad_writer skal skrive `end_date` kan dette job være nødvendigt at sætte op også fordi
+ad_writer ikke læser engagementer i MO i fortiden. Dette job tjekker alle engagementer i AD
+som har slutdatoen 9999-12-31 i AD og tjekker deres slutdato i MO. Hvis engagementet allerede 
+er afsluttet i MO opdateres det i AD.
+
+For at sætte det som en del af job-runneren sættes:
+
+* ``crontab.RUN_AD_ENDDATE_FIXER``: Sættes til `true` for at køre det som en del af de daglige jobs.
+* ``integrations.ad_writer.fixup_enddate_field``: Det felt i AD som slutdatoen skrives i.
+* ``integrations.ad.write.uuid_field``: Feltet i AD som indeholder brugeres MO uuid.
+
+
+
 
 
 ad_life_cycle.py
