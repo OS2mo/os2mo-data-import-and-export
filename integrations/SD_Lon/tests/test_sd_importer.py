@@ -87,8 +87,8 @@ def get_sd_importer(
     assert sd.importer.klassifikation[1].date_to == "infinity"
     assert sd.importer.klassifikation[1].integration_data == {}
 
-    # 28 classes exist hardcoded within sd_importer.py
-    assert len(sd.importer.klasse_objects) == 28
+    # 29 classes exist hardcoded within sd_importer.py
+    assert len(sd.importer.klasse_objects) == 29
 
     # 18 facets in os2mo_data_import/defaults.py
     assert len(sd.importer.facet_objects) == 18
@@ -137,6 +137,7 @@ def test_create_employee(create_associations: bool):
             "Employment": [
                 {
                     "Profession": {"JobPositionIdentifier": "job_id_123"},
+                    "AnniversaryDate": "2004-08-15",
                     "EmploymentStatus": {
                         "EmploymentStatusCode": "1",
                         "ActivationDate": "1970-01-01",
@@ -420,6 +421,7 @@ def test_set_engagement_on_leave(mock_uuid4):
             "PersonCivilRegistrationIdentifier": cpr_no,
             "Employment": [
                 {
+                    "AnniversaryDate": "2004-08-15",
                     "Profession": {"JobPositionIdentifier": "job_id_123"},
                     "EmploymentStatus": {
                         "EmploymentStatusCode": "3",
@@ -443,3 +445,184 @@ def test_set_engagement_on_leave(mock_uuid4):
 
     assert engagement.uuid == "00000000-0000-0000-0000-000000000000"
     assert leave.engagement_uuid == "00000000-0000-0000-0000-000000000000"
+
+
+@patch("integrations.SD_Lon.sd_importer.uuid.uuid4")
+def test_historic_engagement_when_anniversary_before_employment_from_date(mock_uuid4):
+
+    # Arrange
+
+    mock_uuid4.return_value = UUID("00000000-0000-0000-0000-000000000000")
+    sd = get_sd_importer(
+        override_settings={
+            "integrations.SD_Lon.monthly_hourly_divide": 9000,
+            "integrations.SD_Lon.job_function": "EmploymentName",
+            "integrations.SD_Lon.import.too_deep": [],
+            "integrations.SD_Lon.sd_importer_create_historic_engagements": True,
+        }
+    )
+    sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit"})
+
+    cpr_no = "0101709999"
+    sd.importer.add_employee(
+        name=("given_name", "sur_name"),
+        identifier=cpr_no,
+        cpr_no=cpr_no,
+        user_key="employee_user_key",
+        uuid="employee_uuid",
+    )
+
+    # Act
+
+    # Create an employee
+    sd.create_employee(
+        {
+            "PersonCivilRegistrationIdentifier": cpr_no,
+            "Employment": [
+                {
+                    "AnniversaryDate": "1969-01-01",
+                    "Profession": {"JobPositionIdentifier": "job_id_123"},
+                    "EmploymentStatus": {
+                        "EmploymentStatusCode": "1",
+                        "ActivationDate": "1970-01-01",
+                        "DeactivationDate": "9999-12-31",
+                    },
+                    "EmploymentIdentifier": "TEST123",
+                    "WorkingTime": {"OccupationRate": 1},
+                    "EmploymentDepartment": {
+                        "DepartmentUUIDIdentifier": "org_unit_uuid",
+                    },
+                }
+            ],
+        }
+    )
+
+    # Assert
+
+    details = sd.importer.employee_details[cpr_no]
+    association, normal_engagement, historic_engagement = details
+
+    assert historic_engagement.type_id == "engagement"
+    assert historic_engagement.date_from == "1969-01-01"
+    assert historic_engagement.date_to == "1969-12-31"
+    assert historic_engagement.uuid == "00000000-0000-0000-0000-000000000000"
+    assert historic_engagement.job_function_ref == "job_id_123"
+    assert historic_engagement.type_ref == "historisk"
+
+
+@patch("integrations.SD_Lon.sd_importer.ImportHelper.add_engagement")
+def test_no_historic_engagement_when_anniversary_same_as_employment_from_date(
+    mock_add_engagement,
+):
+
+    # Arrange
+
+    sd = get_sd_importer(
+        override_settings={
+            "integrations.SD_Lon.monthly_hourly_divide": 9000,
+            "integrations.SD_Lon.job_function": "EmploymentName",
+            "integrations.SD_Lon.import.too_deep": [],
+            "integrations.SD_Lon.sd_importer_create_historic_engagements": True,
+        }
+    )
+    sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit"})
+
+    cpr_no = "0101709999"
+    sd.importer.add_employee(
+        name=("given_name", "sur_name"),
+        identifier=cpr_no,
+        cpr_no=cpr_no,
+        user_key="employee_user_key",
+        uuid="employee_uuid",
+    )
+
+    # Act
+
+    # Create an employee
+    sd.create_employee(
+        {
+            "PersonCivilRegistrationIdentifier": cpr_no,
+            "Employment": [
+                {
+                    "AnniversaryDate": "1970-01-01",
+                    "Profession": {"JobPositionIdentifier": "job_id_123"},
+                    "EmploymentStatus": {
+                        "EmploymentStatusCode": "1",
+                        "ActivationDate": "1970-01-01",
+                        "DeactivationDate": "9999-12-31",
+                    },
+                    "EmploymentIdentifier": "TEST123",
+                    "WorkingTime": {"OccupationRate": 1},
+                    "EmploymentDepartment": {
+                        "DepartmentUUIDIdentifier": "org_unit_uuid",
+                    },
+                }
+            ],
+        }
+    )
+
+    # Assert
+
+    mock_add_engagement.assert_called_once()
+
+    kwargs = mock_add_engagement.call_args.kwargs
+    assert kwargs["date_from"] == "1970-01-01"
+    assert kwargs["date_to"] is None
+
+
+@patch("integrations.SD_Lon.sd_importer.ImportHelper.add_engagement")
+def test_no_historic_engagement_when_feature_disabled(mock_add_engagement):
+
+    # Arrange
+
+    # Note that the historic engagement feature is disabled per default
+    sd = get_sd_importer(
+        override_settings={
+            "integrations.SD_Lon.monthly_hourly_divide": 9000,
+            "integrations.SD_Lon.job_function": "EmploymentName",
+            "integrations.SD_Lon.import.too_deep": [],
+        }
+    )
+    sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit"})
+
+    cpr_no = "0101709999"
+    sd.importer.add_employee(
+        name=("given_name", "sur_name"),
+        identifier=cpr_no,
+        cpr_no=cpr_no,
+        user_key="employee_user_key",
+        uuid="employee_uuid",
+    )
+
+    # Act
+
+    # Create an employee
+    sd.create_employee(
+        {
+            "PersonCivilRegistrationIdentifier": cpr_no,
+            "Employment": [
+                {
+                    "AnniversaryDate": "1969-01-01",
+                    "Profession": {"JobPositionIdentifier": "job_id_123"},
+                    "EmploymentStatus": {
+                        "EmploymentStatusCode": "1",
+                        "ActivationDate": "1970-01-01",
+                        "DeactivationDate": "9999-12-31",
+                    },
+                    "EmploymentIdentifier": "TEST123",
+                    "WorkingTime": {"OccupationRate": 1},
+                    "EmploymentDepartment": {
+                        "DepartmentUUIDIdentifier": "org_unit_uuid",
+                    },
+                }
+            ],
+        }
+    )
+
+    # Assert
+
+    mock_add_engagement.assert_called_once()
+
+    kwargs = mock_add_engagement.call_args.kwargs
+    assert kwargs["date_from"] == "1970-01-01"
+    assert kwargs["date_to"] is None

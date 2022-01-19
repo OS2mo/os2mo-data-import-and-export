@@ -5,6 +5,7 @@ from typing import List
 from typing import Tuple
 
 from integrations.SD_Lon.sd_common import ensure_list
+from integrations.SD_Lon.sd_common import read_employment_at
 
 
 def engagement_components(engagement_info) -> Tuple[str, Dict[str, List[Any]]]:
@@ -29,10 +30,15 @@ def update_existing_engagement(
 
 def create_engagement(sd_updater, employment_id, person_uuid) -> None:
     # Call SD to get SD employment
-    sd_employment_payload = sd_updater.read_employment_at(employment_id, datetime.now())
+    sd_employment_payload = read_employment_at(
+        datetime.now().date(), employment_id=employment_id
+    )
+
+    assert not isinstance(sd_employment_payload, list)
+
     cpr = sd_employment_payload["PersonCivilRegistrationIdentifier"]
     sd_employment = sd_employment_payload.get("Employment")
-    status = sd_employment.get("EmploymentStatus")
+    status = sd_employment.get("EmploymentStatus")  # type: ignore
 
     # Is it possible that sd_employment or status is None?...
     assert sd_employment

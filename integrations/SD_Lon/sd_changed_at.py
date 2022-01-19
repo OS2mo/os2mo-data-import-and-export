@@ -52,6 +52,7 @@ from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sd_common import mora_assert
 from integrations.SD_Lon.sd_common import primary_types
+from integrations.SD_Lon.sd_common import read_employment_at
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
 from integrations.SD_Lon.sync_job_id import JobIdSync
@@ -714,24 +715,6 @@ class ChangeAtSD:
 
         return org_unit
 
-    def read_employment_at(self, EmploymentIdentifier, EffectiveDate) -> OrderedDict:
-        url = "GetEmployment20111201"
-        params = {
-            "EmploymentIdentifier": EmploymentIdentifier,
-            "EffectiveDate": EffectiveDate.strftime("%d.%m.%Y"),
-            "StatusActiveIndicator": "true",
-            "StatusPassiveIndicator": "true",
-            "DepartmentIndicator": "true",
-            "EmploymentStatusIndicator": "true",
-            "ProfessionIndicator": "true",
-            "WorkingTimeIndicator": "true",
-            "UUIDIndicator": "true",
-            "SalaryAgreementIndicator": "false",
-            "SalaryCodeGroupIndicator": "false",
-        }
-        response = sd_lookup(url, params=params)
-        return response["Person"]
-
     def create_new_engagement(self, engagement, status, cpr, person_uuid):
         """
         Create a new engagement
@@ -751,9 +734,11 @@ class ChangeAtSD:
             # use a local engagement copy so we don't spill into the rest of the program
             engagement = dict(engagement)
 
-            activation_date_info = self.read_employment_at(
-                engagement["EmploymentIdentifier"],
-                datetime.datetime.strptime(status["ActivationDate"], "%Y-%m-%d").date(),
+            activation_date_info = read_employment_at(
+                employment_id=engagement["EmploymentIdentifier"],
+                effective_date=datetime.datetime.strptime(
+                    status["ActivationDate"], "%Y-%m-%d"
+                ).date(),
             )
 
             # at least check the cpr
@@ -1331,6 +1316,8 @@ class ChangeAtSD:
                 self._update_user_employments(cpr, sd_employments, person_uuid)
             # Re-calculate primary after all updates for user has been performed.
             recalculate_users.add(person_uuid)
+
+        logger.info("Beginning recalculation of all users...")
 
         for user_uuid in recalculate_users:
             if dry_run:
