@@ -26,14 +26,19 @@ jms_title = jmespath.compile("registreringer[0].attributter.klasseegenskaber[0].
 jms_facet = jmespath.compile("registreringer[0].relationer.facet[0].uuid")
 
 
-def check_relations(session, base: str, uuid: UUID) -> List[dict]:
+def check_relations(
+    session,
+    base: str,
+    uuid: UUID,
+    relation_type: str = "organisation/organisationfunktion",
+) -> List[dict]:
     """Find all objects related to the class with the given uuid.
 
     Returns a list of objects, or an empty list if no objects related to the given uuid are found.
     """
     r = session.get(
         base
-        + f"/organisation/organisationfunktion?vilkaarligrel={str(uuid)}&list=true&virkningfra=-infinity"
+        + f"/{relation_type}?vilkaarligrel={str(uuid)}&list=true&virkningfra=-infinity"
     )
     r.raise_for_status()
     res = r.json()["results"]
@@ -53,6 +58,7 @@ def switch_class(
     new_uuid: UUID,
     uuid_set: Set[str],
     copy: bool = False,
+    relation_type: str = "organisation/organisationfunktion",
 ) -> None:
     """Switch an objects related class.
 
@@ -75,9 +81,7 @@ def switch_class(
     if copy:
         object_uuid = uuid4()
 
-    r = session.put(
-        base + f"/organisation/organisationfunktion/{str(object_uuid)}", json=payload
-    )
+    r = session.put(base + f"/{relation_type}/{str(object_uuid)}", json=payload)
     r.raise_for_status()
 
 
@@ -210,6 +214,33 @@ def remove_dup_classes(delete: bool, mox_base: click.STRING):
             delete_class(session, mox_base, uuid)
 
 
+def move_class_helper(
+    old_uuid: click.UUID,
+    new_uuid: click.UUID,
+    copy: bool,
+    mox_base: str,
+    relation_type: str = "organisation/organisationfunktion",
+):
+    """Moves (or copies) objects from one class to another.
+
+    Reads all object of a given relation_type (default is organisationfunktion)
+    and replaces the given 'old_uuid' with a new uuid of a different class.
+    Able to copy to new relation instead of moving.
+    """
+    session = requests.Session()
+    rel = check_relations(session, mox_base, old_uuid, relation_type=relation_type)
+    for payload in tqdm(rel, desc="Changing class for objects"):
+        switch_class(
+            session,
+            mox_base,
+            payload,
+            new_uuid,
+            {old_uuid},
+            copy=copy,
+            relation_type=relation_type,
+        )
+
+
 @cli.command()
 @click.option(
     "--old-uuid",
@@ -238,10 +269,9 @@ def move_class(old_uuid: click.UUID, new_uuid: click.UUID, copy: bool, mox_base:
     """Switches class, or copies to a new class for all objects using this class given two UUIDs.
     if --copy is supplied a new UUID will be generated for each object so that no objects are moved, only copied.
     """
-    session = requests.Session()
-    rel = check_relations(session, mox_base, old_uuid)
-    for payload in tqdm(rel, desc="Changing class for objects"):
-        switch_class(session, mox_base, payload, new_uuid, {old_uuid}, copy=copy)
+    move_class_helper(
+        old_uuid=old_uuid, new_uuid=new_uuid, copy=copy, mox_base=mox_base
+    )
 
 
 if __name__ == "__main__":

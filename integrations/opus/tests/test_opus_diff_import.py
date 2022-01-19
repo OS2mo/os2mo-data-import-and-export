@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 from unittest.mock import patch
 
 from hypothesis import given
+from uuid import uuid4
 from hypothesis.strategies import datetimes
 from hypothesis.strategies import text
 from hypothesis.strategies import uuids
@@ -24,7 +25,7 @@ class OpusDiffImportTestbase(OpusDiffImport):
         self.morahelper_mock = MagicMock()
         self.morahelper_mock.read_organisation.return_value = "org_uuid"
         self.morahelper_mock._mo_post.return_value.status_code = 201
-        self._add_klasse_to_lora = MagicMock()
+        self.morahelper_mock.ensure_class_in_facet.return_code = uuid4()
         mock_primary.primary_types = {"non_primary": "test"}
 
         super().__init__(latest_date, *args, **kwargs)
@@ -160,24 +161,21 @@ class Opus_diff_import_tester(unittest.TestCase):
         )
 
     @patch("integrations.dawa_helper.dawa_lookup")
-    @patch(
-        "mox_helpers.mox_util.ensure_class_in_lora",
-        return_value=(MagicMock(), MagicMock()),
-    )
     @given(datetimes())
-    def test_update_unit(self, classes_mock, dawa_helper_mock, xml_date):
+    def test_update_unit(self, dawa_helper_mock, xml_date):
         self.assertIsInstance(xml_date, datetime)
         diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
         for unit in self.units:
             diff.update_unit(unit)
             calculated_uuid = opus_helpers.generate_uuid(unit["@id"])
-            add_type_uuid, _ = classes_mock()
             diff.helper._mo_post.assert_called_with(
                 "details/create",
                 {
                     "type": "address",
                     "value": dawa_helper_mock(),
-                    "address_type": {"uuid": add_type_uuid},
+                    "address_type": {
+                        "uuid": str(diff.morahelper_mock.ensure_class_in_facet())
+                    },
                     "validity": {"from": xml_date.strftime("%Y-%m-%d"), "to": None},
                     "org_unit": {"uuid": str(calculated_uuid)},
                     "visibility": None,
@@ -185,12 +183,8 @@ class Opus_diff_import_tester(unittest.TestCase):
             )
 
     @patch("integrations.dawa_helper.dawa_lookup")
-    @patch(
-        "mox_helpers.mox_util.ensure_class_in_lora",
-        return_value=(MagicMock(), MagicMock()),
-    )
     @given(datetimes())
-    def test_update_employee(self, dawa_helper_mock, classes_mock, xml_date):
+    def test_update_employee(self, dawa_helper_mock, xml_date):
         self.assertIsInstance(xml_date, datetime)
         diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
         diff.it_systems = {"Opus": "Opus_uuid"}
@@ -250,7 +244,7 @@ class Opus_diff_import_tester(unittest.TestCase):
         )
 
     @parameterized.expand(
-        [   
+        [
             (None, None, None),
             (None, "Username", "details/create"),
             ("Username", "new_username", "details/edit"),
@@ -258,17 +252,12 @@ class Opus_diff_import_tester(unittest.TestCase):
         ]
     )
     @patch("integrations.dawa_helper.dawa_lookup")
-    @patch(
-        "mox_helpers.mox_util.ensure_class_in_lora",
-        return_value=(MagicMock(), MagicMock()),
-    )
     @given(datetimes())
     def test_update_username(
         self,
         current_username,
         new_username,
         change_type,
-        classes_mock,
         dawa_helper_mock,
         xml_date,
     ):
@@ -305,14 +294,12 @@ class Opus_diff_import_tester(unittest.TestCase):
                 "validity": {"to": date},
             }
             diff.morahelper_mock._mo_post.return_value.status_code = 200
-        
+
         diff.connect_it_system(new_username, "Opus", {}, "dummyuuid")
         if change_type:
             diff.morahelper_mock._mo_post.assert_called_once_with(change_type, expected)
         else:
             diff.morahelper_mock._mo_post.assert_not_called()
-
-
 
 
 if __name__ == "__main__":
