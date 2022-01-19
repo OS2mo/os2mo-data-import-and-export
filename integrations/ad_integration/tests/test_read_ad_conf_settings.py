@@ -63,7 +63,7 @@ def test_duplicated_field_names(ad_key):
         )
 
 
-@given(st.text())
+@given(st.text(min_size=1))
 def test_missing_properties(ad_key):
     settings = get_minimum_valid_writer_settings()
     settings["integrations.ad_writer.template_to_ad_fields"] = {ad_key: "c"}
