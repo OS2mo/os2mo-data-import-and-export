@@ -15,6 +15,7 @@ from click_option_group import optgroup
 from click_option_group import RequiredMutuallyExclusiveOptionGroup
 from jinja2 import Environment
 from jinja2 import StrictUndefined
+from jinja2 import Undefined
 from more_itertools import first
 from more_itertools import unzip
 from os2mo_helpers.mora_helpers import MoraHelper
@@ -772,7 +773,8 @@ class ADWriter(AD):
         return environment
 
     def _render_field_template(self, context, template):
-        template = self._environment.from_string(template.strip('"'))
+        env = self._environment.overlay(undefined=Undefined)
+        template = env.from_string(template.strip('"'))
         return template.render(**context)
 
     def _preview_create_command(self, mo_uuid, ad_dump=None, create_manager=True):
