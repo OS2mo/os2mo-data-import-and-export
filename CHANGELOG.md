@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.9.1 - 2022-01-19
+------------------
+
+[#47241] Move ad-script and add documentation
+
 2.9.0 - 2022-01-18
 ------------------
 
