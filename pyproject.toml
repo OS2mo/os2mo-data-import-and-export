@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "DIPEX"
-version = "2.9.1"
+version = "2.10.0"
 authors = ["Magenta ApS <info@magenta.dk>"]
 description = "OS2mo-data-import-and-export"
 license = "MPL-2.0"

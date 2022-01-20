@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.10.0 - 2022-01-20
+-------------------
+
+[#48050] Fix engagement termination date bug
+
 2.9.1 - 2022-01-19
 ------------------
 
