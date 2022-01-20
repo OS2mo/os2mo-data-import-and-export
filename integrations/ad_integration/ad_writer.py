@@ -763,9 +763,12 @@ class ADWriter(AD):
     def _get_jinja_environment(self):
         def first_address_of_type(value, address_type_uuid):
             return first(
-                addr["value"]
-                for addr in value
-                if addr["address_type"]["uuid"] == address_type_uuid
+                (
+                    addr["value"]
+                    for addr in value
+                    if addr["address_type"]["uuid"] == address_type_uuid
+                ),
+                None,
             )
 
         environment = Environment(undefined=StrictUndefined)
@@ -917,7 +920,7 @@ class ADWriter(AD):
         response = self._run_ps_script(ps_script)
         logger.debug("Response from sync: {}".format(response))
 
-        if sync_manager and "manager" in mismatch:
+        if sync_manager and ("manager" in mismatch) and mo_values["manager_sam"]:
             logger.info("Add manager")
             self.add_manager_to_user(
                 user_sam=user_sam, manager_sam=mo_values["manager_sam"]
