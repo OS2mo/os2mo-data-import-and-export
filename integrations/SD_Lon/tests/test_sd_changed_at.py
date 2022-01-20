@@ -18,7 +18,6 @@ from ra_utils.generate_uuid import uuid_generator
 from .fixtures import get_employment_fixture
 from .fixtures import get_sd_person_fixture
 from .fixtures import read_employment_fixture
-from integrations.SD_Lon.convert import sd_to_mo_termination_date
 from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 from integrations.SD_Lon.sd_changed_at import get_from_date
@@ -247,7 +246,7 @@ class Test_sd_changed_at(DipexTestCase):
             sd_updater._terminate_engagement.assert_called_with(
                 user_key=employment_id,
                 person_uuid="user_uuid",
-                from_date=sd_to_mo_termination_date(status["ActivationDate"]),
+                from_date=status["ActivationDate"],
             )
 
     @parameterized.expand(
@@ -442,7 +441,7 @@ class Test_sd_changed_at(DipexTestCase):
             {
                 "type": "engagement",
                 "uuid": "mo_engagement_uuid",
-                "validity": {"from": "2021-02-09", "to": mo_termination_to_date},
+                "validity": {"from": "2021-02-10", "to": mo_termination_to_date},
             },
         )
 
@@ -482,7 +481,7 @@ class Test_sd_changed_at(DipexTestCase):
             {
                 "type": "engagement",
                 "uuid": "mo_engagement_uuid",
-                "validity": {"from": "2020-10-31", "to": None},
+                "validity": {"from": "2020-11-01", "to": None},
             },
         )
 
@@ -600,7 +599,7 @@ class Test_sd_changed_at(DipexTestCase):
                     {
                         "type": "engagement",
                         "uuid": "mo_engagement_uuid",
-                        "validity": {"from": "2021-02-09", "to": None},
+                        "validity": {"from": "2021-02-10", "to": None},
                     },
                 ),
             ]
@@ -948,7 +947,7 @@ class Test_sd_changed_at(DipexTestCase):
         # Assert
 
         mock_terminate_engagement.assert_called_once_with(
-            "12345", "person_uuid", "2021-12-18", None
+            "12345", "person_uuid", "2021-12-19", None
         )
 
     @patch("integrations.SD_Lon.sd_changed_at.update_existing_engagement")
