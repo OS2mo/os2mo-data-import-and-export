@@ -765,9 +765,12 @@ class ADWriter(AD):
     def _get_jinja_environment(self):
         def first_address_of_type(value, address_type_uuid):
             return first(
-                addr["value"]
-                for addr in value
-                if addr["address_type"]["uuid"] == address_type_uuid
+                (
+                    addr["value"]
+                    for addr in value
+                    if addr["address_type"]["uuid"] == address_type_uuid
+                ),
+                None,
             )
 
         environment = Environment(undefined=StrictUndefined)
