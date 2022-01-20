@@ -542,7 +542,7 @@ class SdImport(object):
         )
 
         # TODO: condense the two calls above into one and then create the variables
-        # active_people and pasive_people by using the partition function from
+        # active_people and passive_people by using the partition function from
         # more_itertools
 
         self._create_employees(active_people)

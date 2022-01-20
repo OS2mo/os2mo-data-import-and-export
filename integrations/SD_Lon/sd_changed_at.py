@@ -844,7 +844,7 @@ class ChangeAtSD:
         self,
         user_key: str,
         person_uuid: str,  # TODO: change type to UUID
-        from_date: Optional[str],  # TODO: Introduce MO date version
+        from_date: str,  # TODO: Introduce MO date version
         to_date: Optional[str] = None,
     ) -> bool:
         """
@@ -874,7 +874,7 @@ class ChangeAtSD:
 
         validity = {"from": from_date, "to": to_date}
         if self.terminate_engagement_with_to_only:
-            validity = {"to": from_date}
+            validity = {"to": sd_to_mo_termination_date(from_date)}
 
         # TODO: use/create termination object from RA Models
         payload = {
@@ -1019,7 +1019,7 @@ class ChangeAtSD:
                 self._terminate_engagement(
                     mo_eng["user_key"],
                     mo_eng["person"]["uuid"],
-                    sd_to_mo_termination_date(sd_from_date),
+                    sd_from_date,
                     sd_to_mo_termination_date(sd_to_date),
                 )
             else:
@@ -1171,7 +1171,7 @@ class ChangeAtSD:
 
         skip = False
         # The EmploymentStatusCode can take a number of magical values.
-        # that must be handled seperately.
+        # that must be handled separately.
         employment_id, eng = engagement_components(sd_employment)
         for status in eng["status_list"]:
             logger.info("Status is: {}".format(status))
@@ -1219,7 +1219,7 @@ class ChangeAtSD:
                 success = self._terminate_engagement(
                     user_key=employment_id,
                     person_uuid=person_uuid,
-                    from_date=sd_to_mo_termination_date(sd_from_date),
+                    from_date=sd_from_date,
                     to_date=sd_to_mo_termination_date(sd_to_date),
                 )
                 if not success:
@@ -1250,7 +1250,7 @@ class ChangeAtSD:
                         self._terminate_engagement(
                             user_key=employment_id,
                             person_uuid=person_uuid,
-                            from_date=sd_to_mo_termination_date(sd_from_date),
+                            from_date=sd_from_date,
                         )
                 skip = True
         return skip
@@ -1487,7 +1487,7 @@ def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
     "--dry-run", is_flag=True, default=False, help="Dry-run making no actual changes."
 )
 def import_state(from_date: datetime.datetime, dry_run: bool):
-    """Import engagement history for all users."""
+    """Import engagement changes for all users."""
     sd_updater = ChangeAtSD(from_date, None)
     sd_updater.update_changed_persons(dry_run=dry_run)
     sd_updater.update_all_employments(dry_run=dry_run)
