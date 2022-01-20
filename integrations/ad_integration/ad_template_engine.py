@@ -11,7 +11,7 @@ from .utils import duplicates
 from .utils import lower_list
 
 # Parameters that should not be quoted
-no_quote_list = ["Credential"]
+no_quote_list = ["Credential", "Enabled", "AccountPassword"]
 
 
 cmdlet_parameters = {
@@ -346,7 +346,7 @@ def filter_empty_values(
     for name, template_code in attrs.items():
         template = load_jinja_template(environment, template_code)
         value = template.render(**context)
-        if value == '"None"':
+        if value in ('"None"', ""):
             to_remove.add(name)
 
     for attribute_name in to_remove:
@@ -390,6 +390,7 @@ def prepare_template(environment: Environment, cmd, settings, context):
         )
     )
 
+    parameters = filter_empty_values(environment, parameters, context)
     other_attributes = filter_empty_values(environment, other_attributes, context)
 
     # Generate our combined template, by rendering our command template using
