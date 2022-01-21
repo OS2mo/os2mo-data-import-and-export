@@ -1,16 +1,6 @@
 FROM python:3
 
-RUN apt-get update && \
-    apt-get -y install --no-install-recommends \
-    unixodbc-dev \
-    freetds-dev \
-    unixodbc \
-    tdsodbc \
-    libkrb5-dev \
-    libmariadb-dev \
-    vim \
-    jq \
-    && apt-get clean
+RUN apt-get update && apt-get -y install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev vim jq
 
 WORKDIR /code
 COPY ./reports/requirements ./reports/requirements
@@ -40,10 +30,12 @@ RUN pip install -r requirements.txt
 COPY ./os2mo_data_import ./os2mo_data_import
 RUN pip install -e ./os2mo_data_import
 
+
 ENV PYTHONUNBUFFERED=1 \
     CUSTOMER_SETTINGS=/code/settings/settings.json \
     PYTHONPATH="${PYTHONPATH}:/code"
 
 COPY . .
+RUN pip install -e ./
 
-CMD ["python", "./metacli.py"]
+CMD metacli
