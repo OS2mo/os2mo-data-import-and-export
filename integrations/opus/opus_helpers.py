@@ -56,7 +56,7 @@ def read_available_dumps() -> Dict[datetime.datetime, str]:
 
 def local_db_insert(insert_tuple):
     conn = sqlite3.connect(
-        SETTINGS["integrations.opus.import.run_db"],
+        "/opt/dipex/run_db.sqlite",
         detect_types=sqlite3.PARSE_DECLTYPES,
     )
     c = conn.cursor()
@@ -83,7 +83,7 @@ def initialize_db(run_db):
 
 def next_xml_file(run_db, dumps) -> Tuple[datetime.date, datetime.date]:
     conn = sqlite3.connect(
-        SETTINGS["integrations.opus.import.run_db"],
+        "/opt/dipex/run_db.sqlite",
         detect_types=sqlite3.PARSE_DECLTYPES,
     )
     c = conn.cursor()

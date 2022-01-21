@@ -934,7 +934,7 @@ def start_opus_diff(ad_reader=None):
     SETTINGS = load_settings()
 
     dumps = opus_helpers.read_available_dumps()
-    run_db = Path(SETTINGS["integrations.opus.import.run_db"])
+    run_db = Path("/opt/dipex/run_db.sqlite")
     filter_ids = SETTINGS.get("integrations.opus.units.filter_ids", [])
     skip_employees = SETTINGS.get("integrations.opus.skip_employees", False)
 
