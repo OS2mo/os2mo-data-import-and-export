@@ -84,7 +84,7 @@ class LocalOpusReader(OpusReaderInterface):
         self.settings = settings
 
     def list_opus_files(self) -> Dict[datetime.datetime, Path]:
-        dump_path = Path(self.settings["integrations.opus.import.xml_path"])
+        dump_path = Path("/opt/opus/")
         return self.map_dates(dump_path.glob("*.xml"))
 
     def read_file(self, filename) -> str:

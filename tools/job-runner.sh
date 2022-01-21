@@ -15,12 +15,7 @@ export LC_ALL="C.UTF-8"
 
 #Get variables for Docker - see .env.sample
 source .env
-export DOCKER_TAG=${DOCKER_TAG:=dev}
-export DIPEX_DOCKER_IMAGE=${DIPEX_DOCKER_IMAGE:=magentaaps/dipex}
-docker pull "${DIPEX_DOCKER_IMAGE}:${DOCKER_TAG}"
 export CUSTOMER_FOLDER=${CUSTOMER_FOLDER:=customer}
-
-export OS2MO_NETWORK=${OS2MO_NETWORK:=os2molan}
 
 cd ${DIPEXAR}
 source ${DIPEXAR}/tools/prefixed_settings.sh
@@ -76,13 +71,24 @@ declare -a BACK_UP_AFTER_JOBS=(
     $([ -f "${DIPEXAR}/settings/cpr_uuid_map.csv" ] && echo "${DIPEXAR}/settings/cpr_uuid_map.csv")
 )
 run_job_in_docker(){
-    docker run --rm \
-    --network ${OS2MO_NETWORK} \
+    export DOCKER_TAG=${DOCKER_TAG:=latest}
+    export DIPEX_DOCKER_IMAGE=${DIPEX_DOCKER_IMAGE:=magentaaps/dipex}
+    if [[ "$DIPEX_DOCKER_IMAGE" == "magentaaps/dipex" ]]; then
+        docker pull "${DIPEX_DOCKER_IMAGE}:${DOCKER_TAG}"
+    else
+        docker build -t ${DIPEX_DOCKER_IMAGE} -f docker/Dockerfile .
+    fi
+
+    RUNDB_MOUNT=${RUN_DB:+"-v $RUN_DB:/opt/dipex/run_db.sqlite"}
+    OPUS_MOUNT=${OPUS_FOLDER:+"-v $OPUS_FOLDER:/opt/opus/"}
+    echo $RUNDB_MOUNT
+    docker run --rm -it \
+    --network ${OS2MO_NETWORK:=host} \
     -v ${DIPEXAR}/settings/settings.json:/code/settings/settings.json \
     -v ${DIPEXAR}/settings:/code/settings \
-    -v ${CUSTOMER_FOLDER}:/opt/customer \
-    -v ${RUN_DB}:/opt/dipex/run_db.sqlite \
-    -e SAML_TOKEN=${SAML_TOKEN} \
+    $OPUS_MOUNT \
+    $RUNDB_MOUNT \
+    -env-file=.env \
     ${DIPEX_DOCKER_IMAGE}:${DOCKER_TAG} "$@"
 }
 
