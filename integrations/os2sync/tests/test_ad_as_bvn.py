@@ -1,6 +1,6 @@
 import unittest
 from copy import deepcopy
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from unittest.mock import patch
 
 from integrations.os2sync.os2mo import config, get_sts_user, try_get_ad_user_key
@@ -259,7 +259,7 @@ class MockResponse:
         return deepcopy(self.value)
 
 
-def patched_session_get(url: str, params: Dict[Any, Any] = None, **kwargs):
+def patched_session_get(url: str, params: Optional[Dict[Any, Any]] = None, **kwargs):
     if params:
         raise ValueError('unexpected params: {}'.format(params))
     if kwargs:
