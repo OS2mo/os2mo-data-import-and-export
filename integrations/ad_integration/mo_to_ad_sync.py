@@ -29,10 +29,17 @@ def run_mo_to_ad_sync(
     mo_uuid_field: str,
     sync_cpr: Optional[str] = None,
     sync_username: Optional[str] = None,
+    sync_usernames_in_file: Optional[str] = None,
 ):
     if sync_cpr or sync_username:
         print("Warning: --sync-cpr/--sync-username is for testing only")
         all_users = [reader.read_user(user=sync_username, cpr=sync_cpr)]
+    elif sync_usernames_in_file:
+        with open(sync_usernames_in_file) as inputfile:
+            usernames = [username.strip() for username in inputfile]
+            for username in usernames:
+                reader.read_user(user=username)
+            all_users = reader.results.values()
     else:
         all_users = reader.read_it_all(print_progress=True)
 
@@ -143,6 +150,11 @@ def run_mo_to_ad_sync(
     help="Synchronize the specified user instead of all users",
     type=click.STRING,
 )
+@click.option(
+    "--sync-usernames-in-file",
+    help="Synchronize the users specified by in file, instead of all users",
+    type=click.STRING,
+)
 @click.option("--ignore-occupied-names", is_flag=True, default=False)
 @click.option(
     "--preview-command-for-uuid",
@@ -154,6 +166,7 @@ def main(
     mo_uuid_field: str,
     sync_cpr: Optional[str],
     sync_username: Optional[str],
+    sync_usernames_in_file: Optional[str],
     ignore_occupied_names: bool,
     preview_command_for_uuid: Optional[uuid.UUID],
 ):
@@ -186,6 +199,7 @@ def main(
         mo_uuid_field,
         sync_cpr=sync_cpr,
         sync_username=sync_username,
+        sync_usernames_in_file=sync_usernames_in_file,
     )
 
 
