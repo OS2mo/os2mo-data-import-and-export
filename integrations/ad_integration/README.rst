@@ -565,6 +565,9 @@ den dato, hvor brugerens engagement i enheden begynder. Hvis der køres en synkr
 til et AD inden denne dato, vil felterne være tomme, da engagementet ikke er begyndt
 endnu.
 
+Udover ovenstående felter er ``sync_timestamp` til rådighed. Hvis denne sættes i feltmapningen
+vil ad_writer udfylde feltet med tidsstemplet for hvornår en bruger sidst blev synkroniseret fra MO.
+
 Synkroniseringen til AD foretages i henhold til en lokal feltmapning, som eksempelvis
 kan se ud som dette:
 
@@ -648,6 +651,7 @@ til også at udfylde postnummer, afdeling, gadenavn og en `extension attribute` 
     "department": "{{ mo_values['unit_user_key'] }}",
     "streetName": "{{ mo_values['unit_streetname'].split(' ')[0] }}",
     "extensionAttribute3": "{{ mo_values['unit_public_email']|default('all@afdeling.dk') }}",
+    "extensionAttribute4": "{{ sync_timestamp }}"
   }
 
 Det er værd at bemærke, at begge konfigurationsmuligheder (`mo_to_ad_fields` og
