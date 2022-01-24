@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.10.1 - 2022-01-24
+-------------------
+
+[#48067] Fix BC anniversary date problem
+
 2.10.0 - 2022-01-20
 -------------------
 
