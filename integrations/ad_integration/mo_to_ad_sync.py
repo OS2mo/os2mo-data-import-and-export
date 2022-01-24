@@ -1,10 +1,12 @@
 import json
 import logging
 import uuid
+from operator import itemgetter
 from typing import Dict
 from typing import Optional
 
 import click
+from more_itertools import unique_everseen
 from ra_utils.load_settings import load_settings
 from tqdm import tqdm
 
@@ -39,7 +41,10 @@ def run_mo_to_ad_sync(
             usernames = [username.strip() for username in inputfile]
             for username in usernames:
                 reader.read_user(user=username)
-            all_users = reader.results.values()
+            all_users = unique_everseen(
+                reader.results.values(),
+                key=itemgetter(mo_uuid_field),
+            )
     else:
         all_users = reader.read_it_all(print_progress=True)
 
