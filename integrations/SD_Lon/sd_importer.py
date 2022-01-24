@@ -700,7 +700,15 @@ class SdImport(object):
                     employment["AnniversaryDate"], "%Y-%m-%d"
                 )
 
-                if anniversary_date < date_from:
+                # TODO: add tests !!!
+
+                assert (
+                    anniversary_date <= date_from
+                ), "Anniversary date greater than from date!"
+
+                # TODO: add tests !!!
+
+                if datetime.datetime(1800, 1, 1) < anniversary_date < date_from:
                     self.importer.add_engagement(
                         employee=cpr,
                         uuid=str(uuid.uuid4()),

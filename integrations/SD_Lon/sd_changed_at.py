@@ -1488,6 +1488,7 @@ def import_single_user(cpr: str, from_date: datetime.datetime, dry_run: bool):
 )
 def import_state(from_date: datetime.datetime, dry_run: bool):
     """Import engagement changes for all users."""
+    setup_logging()
     sd_updater = ChangeAtSD(from_date, None)
     sd_updater.update_changed_persons(dry_run=dry_run)
     sd_updater.update_all_employments(dry_run=dry_run)
