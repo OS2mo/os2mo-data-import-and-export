@@ -23,18 +23,23 @@ from exporters.utils.priority_by_class import choose_public_address
 from integrations.os2sync import config
 from integrations.os2sync.templates import Person
 from integrations.os2sync.templates import User
+from ra_utils.headers import TokenSettings
 
 settings = config.settings
 logger = logging.getLogger(config.loggername)
 
-session = requests.Session()
-session.verify = settings["OS2MO_CA_BUNDLE"]
-session.headers = {
-    "User-Agent": "os2mo-data-import-and-export",
-}
 
-if settings["OS2MO_SAML_TOKEN"] is not None:
-    session.headers["SESSION"] = settings["OS2MO_SAML_TOKEN"]
+@lru_cache
+def get_mo_session():
+    session = requests.Session()
+    session.verify = settings.get("ca_verify_os2mo")
+    session.headers = {
+        "User-Agent": "os2mo-data-import-and-export",
+    }
+    session_headers = TokenSettings().get_headers()
+    if session_headers:
+        session.headers.update(session_headers)
+    return session
 
 TRUNCATE_LENGTH = max(36, int(settings.get("OS2SYNC_TRUNCATE", 200)))
 
@@ -120,6 +125,7 @@ def os2mo_url(url):
 def os2mo_get(url, **params):
     url = os2mo_url(url)
     try:
+        session = get_mo_session()
         r = session.get(url, params=params)
         r.raise_for_status()
         return r
