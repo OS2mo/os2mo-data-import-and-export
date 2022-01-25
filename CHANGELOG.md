@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.10.2 - 2022-01-25
+-------------------
+
+[#48083] Makes os2sync integration able to use keycloak authentication.
+
 2.10.1 - 2022-01-24
 -------------------
 
