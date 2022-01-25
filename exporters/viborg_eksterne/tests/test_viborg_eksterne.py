@@ -14,6 +14,8 @@ class MockLoRaCache:
 
     _org_unit_uuid = "org-unit-uuid"
     _org_unit_name = "Enhedsnavn"
+    _org_unit_user_key = "Enhedsnr"
+    _org_unit_type = "Enhedstype"
 
     _engagement_uuid = "engagement-uuid"
     _engagement_user_key = "engagement-user-key"
@@ -121,6 +123,8 @@ class TestExportEngagement(TestCase):
                 {
                     "OrganisationsenhedUUID": MockLoRaCache._org_unit_uuid,
                     "Organisationsenhed": MockLoRaCache._org_unit_name,
+                    "Enhedsnr": MockLoRaCache._org_unit_user_key,
+                    "Enhedstype": MockLoRaCache._org_unit_type,
                     "Ledernavn": MockLoRaCache._manager_name,
                     "Lederemail": MockLoRaCache._address_value,
                     "Tjenestenummer": MockLoRaCache._engagement_user_key,
