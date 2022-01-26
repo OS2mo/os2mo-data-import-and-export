@@ -1080,7 +1080,30 @@ class TestADWriter(TestCase, TestADWriterMixin):
         self.assertNotIn('"fooBar"="None"', ps_script)
 
 
-class TestInitNameCreator(TestCase):
+class _TestADWriterMixin:
+    def _prepare_adwriter(self, **kwargs):
+        # Mock enough of `ADWriter` dependencies to allow it to instantiate in
+        # a test.
+
+        all_settings = {"primary": {"method": "ntlm"}, "global": mock.MagicMock()}
+        path_prefix = "integrations.ad_integration"
+        with mock.patch(
+            f"{path_prefix}.ad_common.read_settings",
+            return_value=all_settings,
+        ):
+            with mock.patch(
+                f"{path_prefix}.ad_writer.ADWriter._create_session",
+                return_value=mock.MagicMock(),
+            ):
+                with mock.patch(f"{path_prefix}.ad_writer.MORESTSource"):
+                    with mock.patch(
+                        f"{path_prefix}.user_names.ADParameterReader",
+                        return_value=MockADParameterReader(),
+                    ):
+                        return ADWriter(**kwargs)
+
+
+class TestInitNameCreator(TestCase, _TestADWriterMixin):
     """Test `ADWriter._init_name_creator`.
 
     In this test, we instantiate the 'real' `ADWriter` rather than the
@@ -1114,23 +1137,16 @@ class TestInitNameCreator(TestCase):
         self.assertSetEqual(ad_writer.name_creator.occupied_names, set())
         self.assertEqual(len(ad_writer.name_creator._loaded_occupied_name_sets), 0)
 
-    def _prepare_adwriter(self, **kwargs):
-        # Mock enough of `ADWriter` dependencies to allow it to instantiate in
-        # a test.
 
-        all_settings = {"primary": {"method": "ntlm"}, "global": mock.MagicMock()}
-        path_prefix = "integrations.ad_integration"
-        with mock.patch(
-            f"{path_prefix}.ad_common.read_settings",
-            return_value=all_settings,
-        ):
-            with mock.patch(
-                f"{path_prefix}.ad_writer.ADWriter._create_session",
-                return_value=mock.MagicMock(),
-            ):
-                with mock.patch(f"{path_prefix}.ad_writer.MORESTSource"):
-                    with mock.patch(
-                        f"{path_prefix}.user_names.ADParameterReader",
-                        return_value=MockADParameterReader(),
-                    ):
-                        return ADWriter(**kwargs)
+class TestSyncCompare(TestCase, _TestADWriterMixin):
+    def test_cf_converts_ad_list(self):
+        # Arrange
+        mo_value = "mo_value"
+        ad_list_element = "ad_list_element"
+        ad_user = {"ad_field_name": [ad_list_element]}
+        ad_writer = self._prepare_adwriter()
+        # Act
+        mismatch = ad_writer._cf("ad_field_name", mo_value, ad_user)
+        # Assert
+        self.assertIn("ad_field_name", mismatch)
+        self.assertEqual(mismatch["ad_field_name"], (ad_list_element, mo_value))

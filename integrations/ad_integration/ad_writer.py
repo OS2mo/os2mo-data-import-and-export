@@ -747,17 +747,24 @@ class ADWriter(AD):
         )
         return ps_script
 
-    def _cf(self, ad_field, value, ad):
+    def _cf(self, ad_field, value, ad_user):
         logger.info("Check AD field: {}".format(ad_field))
         mismatch = {}
+        ad_field_value = ad_user.get(ad_field)
+
         if value is None:
             msg = "Value for {} is None-type replace to string None"
             logger.debug(msg.format(ad_field))
             value = "None"
-        if ad.get(ad_field) != value:
-            msg = "{}: AD value: {}, does not match MO value: {}"
-            logger.info(msg.format(ad_field, ad.get(ad_field), value))
-            mismatch = {ad_field: (ad.get(ad_field), value)}
+
+        if isinstance(ad_field_value, list) and len(ad_field_value) == 1:
+            ad_field_value = ad_field_value[0]
+
+        if ad_field_value != value:
+            msg = "%r: AD value %r does not match MO value %r"
+            logger.info(msg, ad_field, ad_field_value, value)
+            mismatch = {ad_field: (ad_field_value, value)}
+
         return mismatch
 
     def _get_jinja_environment(self):
