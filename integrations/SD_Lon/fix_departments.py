@@ -359,6 +359,10 @@ class FixDepartments(object):
                     continue
 
                 mo_person = self.helper.read_user(user_cpr=cpr, org_uuid=self.org_uuid)
+                if mo_person is None:
+                    msg = "MO person is None for job_id: {}"
+                    logger.warning(msg.format(job_id))
+                    continue
 
                 mo_engagements = self.helper.read_user_engagement(
                     mo_person["uuid"], read_all=True, only_primary=True, skip_past=True
@@ -367,6 +371,10 @@ class FixDepartments(object):
                 # Find the uuid of the relevant engagement and update all current and
                 # future rows.
                 mo_engagement = self._find_engagement(mo_engagements, job_id)
+                if mo_engagement is None:
+                    msg = "MO engagement is None for job_id: {}, user_uuid: {}"
+                    logger.warning(msg.format(job_id, user_uuid))
+                    continue
                 for eng in mo_engagements:
                     if not eng["uuid"] == mo_engagement["uuid"]:
                         # This engagement is not relevant for this unit
