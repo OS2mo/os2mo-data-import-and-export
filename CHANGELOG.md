@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.11.0 - 2022-01-26
+-------------------
+
+[#46166] Adds timestamp as a field available for AD_writer
+
 2.10.2 - 2022-01-25
 -------------------
 
