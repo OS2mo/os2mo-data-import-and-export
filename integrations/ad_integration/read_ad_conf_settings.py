@@ -160,10 +160,13 @@ def _read_primary_write_information(top_settings):
     # Check for illegal configuration of AD Write.
     mo_to_ad_fields = conf["mo_to_ad_fields"]
     template_to_ad_fields = conf["template_to_ad_fields"]
+    other_ad_field_names = [conf["org_field"], conf["uuid_field"]]
+    if conf.get("level2orgunit_field"):
+        other_ad_field_names.append(conf["level2orgunit_field"])
     ad_field_names = (
         list(mo_to_ad_fields.values())
         + list(template_to_ad_fields.keys())
-        + [conf["org_field"], conf["level2orgunit_field"], conf["uuid_field"]]
+        + other_ad_field_names
     )
     # Conflicts are case-insensitive
     ad_field_names = list(map(lambda ad_field: ad_field.lower(), ad_field_names))
