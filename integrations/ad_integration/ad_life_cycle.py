@@ -130,12 +130,12 @@ class AdLifeCycle:
         Read all information from AD and LoRa.
         :param dry_run: If True, LoRa dump will be read from cache.
         """
-        lc = LoraCache(resolve_dar=False, full_history=False)
+        lc = LoraCache(resolve_dar=True, full_history=False)
         lc.populate_cache(dry_run=dry_run, skip_associations=True)
         lc.calculate_derived_unit_data()
         lc.calculate_primary_engagements()
 
-        lc_historic = LoraCache(resolve_dar=False, full_history=True, skip_past=True)
+        lc_historic = LoraCache(resolve_dar=True, full_history=True, skip_past=True)
         lc_historic.populate_cache(dry_run=dry_run, skip_associations=True)
 
         return lc, lc_historic
