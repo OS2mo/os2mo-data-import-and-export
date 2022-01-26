@@ -1,4 +1,5 @@
 import copy
+from datetime import datetime
 from unittest import mock
 from unittest import TestCase
 
@@ -195,6 +196,18 @@ class TestADWriter(TestCase, TestADWriterMixin):
                 None,
                 '"unit_user_key"="Musik";',
             ],
+            # Test with timestamp as added template_field
+            [
+                dict_modifier(
+                    {
+                        "integrations.ad_writer.template_to_ad_fields": {
+                            "extensionAttribute21": "{{ sync_timestamp }}",
+                        }
+                    }
+                ),
+                None,
+                f'"extensionAttribute21"="{str(datetime.now())}";',
+            ],
             # Field lookup and processing
             [
                 dict_modifier(
@@ -289,6 +302,11 @@ class TestADWriter(TestCase, TestADWriterMixin):
         create_user_ps = self._get_script_contents(index=2)
 
         mo_values = self.ad_writer.read_ad_information_from_mo(uuid)
+
+        if "extensionAttribute21" in expected:
+            # When checking datetime we need to drop the seconds before comparing
+            expected = expected[:-11]
+
         expected_content = [
             "New-ADUser",
             '-Name "'
