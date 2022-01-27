@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.12.0 - 2022-01-27
+-------------------
+
+[#48136] Adds new columns to "Viborg eksterne" report. Deprecate MO version and support only loracache version of the script.
+
 2.11.0 - 2022-01-26
 -------------------
 
