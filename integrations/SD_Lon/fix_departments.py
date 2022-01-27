@@ -373,7 +373,7 @@ class FixDepartments(object):
                 mo_engagement = self._find_engagement(mo_engagements, job_id)
                 if mo_engagement is None:
                     msg = "MO engagement is None for job_id: {}, user_uuid: {}"
-                    logger.warning(msg.format(job_id, user_uuid))
+                    logger.warning(msg.format(job_id, mo_person["uuid"]))
                     continue
                 for eng in mo_engagements:
                     if not eng["uuid"] == mo_engagement["uuid"]:
