@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.12.1 - 2022-01-27
+-------------------
+
+[#48202] Handle Nones within fix_department.py
+
 2.12.0 - 2022-01-27
 -------------------
 
