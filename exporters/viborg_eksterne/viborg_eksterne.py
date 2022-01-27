@@ -10,6 +10,7 @@ import time
 import click
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_settings
+from ra_utils.deprecation import deprecated
 
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.utils.priority_by_class import lc_choose_public_address
@@ -25,6 +26,8 @@ class ViborgEksterne:
     fieldnames = [
         "OrganisationsenhedUUID",
         "Organisationsenhed",
+        "Enhedsnr",
+        "Enhedstype",
         "Ledernavn",
         "Lederemail",
         "Tjenestenummer",
@@ -133,6 +136,9 @@ class ViborgEksterne:
 
             org_unit_uuid = engv["unit"]
             org_unit_name = lc.units[org_unit_uuid][0]["name"]
+            org_unit_user_key = lc.units[org_unit_uuid][0]["user_key"]
+            org_unit_type_uuid = lc.units[org_unit_uuid][0]["unit_type"]
+            org_unit_type = lc.classes[org_unit_type_uuid]["title"]
             manager = lc.units[org_unit_uuid][0]["acting_manager_uuid"]
 
             if manager:
@@ -171,6 +177,8 @@ class ViborgEksterne:
             row = {
                 "OrganisationsenhedUUID": org_unit_uuid,
                 "Organisationsenhed": org_unit_name,
+                "Enhedsnr": org_unit_user_key,
+                "Enhedstype": org_unit_type,
                 "Ledernavn": manager_name,
                 "Lederemail": manager_email,
                 "Tjenestenummer": engv["user_key"],
@@ -183,6 +191,7 @@ class ViborgEksterne:
 
             yield row
 
+    @deprecated
     def _gen_from_mo(self, employee, mh):
         full_employee = mh.read_user(employee["uuid"])
         engagements = mh.read_user_engagement(
@@ -212,6 +221,8 @@ class ViborgEksterne:
             row = {
                 "OrganisationsenhedUUID": org_unit_uuid,
                 "Organisationsenhed": eng["org_unit"]["name"],
+                "Enhedsnr": "Enhedsnr",
+                "Enhedstype": "Enhedstype",
                 "Ledernavn": manager_name,
                 "Lederemail": manager_email,
                 "Tjenestenummer": eng["user_key"],
@@ -252,23 +263,10 @@ def main(speedup, dry_run=None):
 
 
 @click.command()
-@click.option(
-    "--lora/--mo",
-    "backend",
-    required=True,
-    default=None,
-    help="Choose backend",
-)
 @click.option("--read-from-cache", is_flag=True, envvar="USE_CACHED_LORACACHE")
 def cli(**args):
     logger.info("Starting with args: %r", args)
-    if args["backend"]:
-        # True -> use LoRa
-        main(speedup=True, dry_run=args["read_from_cache"])
-    else:
-        # False -> use MO
-        main(speedup=False)
-
+    main(speedup=True, dry_run=args["read_from_cache"])
 
 if __name__ == "__main__":
     cli()

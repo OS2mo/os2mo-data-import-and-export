@@ -312,7 +312,7 @@ exports_viborg_emus(){
 
 exports_viborg_eksterne(){
     echo "running viborgs eksterne"
-    ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py --lora|| exit 1
+    ${VENV}/bin/python3 exporters/viborg_eksterne/viborg_eksterne.py || exit 1
     (
         SETTING_PREFIX="mora.folder" source ${DIPEXAR}/tools/prefixed_settings.sh
         SETTING_PREFIX="integrations.ad" source ${DIPEXAR}/tools/prefixed_settings.sh
