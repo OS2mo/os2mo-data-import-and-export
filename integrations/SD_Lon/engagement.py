@@ -20,7 +20,7 @@ def engagement_components(engagement_info) -> Tuple[str, Dict[str, List[Any]]]:
     }
 
 
-def get_from_date(
+def get_employment_from_date(
     employment: OrderedDict,
     employment_date_as_engagement_start_date: bool
 ) -> datetime:

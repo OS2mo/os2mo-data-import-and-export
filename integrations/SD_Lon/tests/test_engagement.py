@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 from parameterized import parameterized
 
-from integrations.SD_Lon.engagement import get_from_date
+from integrations.SD_Lon.engagement import get_employment_from_date
 
 employment = OrderedDict([
     ('EmploymentDate', '2011-11-11'),
@@ -20,5 +20,5 @@ employment = OrderedDict([
     ]
 )
 def test_get_from_date(use_activation_date, date):
-    from_date = get_from_date(employment, use_activation_date)
+    from_date = get_employment_from_date(employment, use_activation_date)
     assert from_date == date
