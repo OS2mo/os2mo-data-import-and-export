@@ -607,9 +607,7 @@ class SdImport(object):
                     employment["EmploymentStatus"]["DeactivationDate"], "%Y-%m-%d"
                 )
 
-            # TODO: replace this with an assert (will be done in an MR shortly)
-            if date_from > date_to:
-                date_from = date_to
+            assert date_from <= date_to, "date_from > date_to for employment!"
 
             date_from_str = datetime.datetime.strftime(date_from, "%Y-%m-%d")
             date_to_str = datetime.datetime.strftime(date_to, "%Y-%m-%d")
