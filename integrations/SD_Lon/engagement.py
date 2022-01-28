@@ -24,6 +24,10 @@ def get_employment_from_date(
     employment: OrderedDict,
     employment_date_as_engagement_start_date: bool
 ) -> datetime:
+
+    # Make sure we do not have multiple EmploymentStatuses
+    assert isinstance(employment["EmploymentStatus"], OrderedDict)
+    
     date = employment["EmploymentStatus"]["ActivationDate"]
     if employment_date_as_engagement_start_date:
         date = employment["EmploymentDate"]
