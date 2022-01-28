@@ -89,6 +89,13 @@ class SdImport(object):
             "integrations.SD_Lon.sd_importer.create_email_addresses", True
         )
 
+        # Whether to use <Employment><EmploymentDate> as engagement start date instead
+        # of <Employment><EmploymentStatus><ActivationDate>.
+        self.employment_date_as_engagement_start_date = self.settings.get(
+            "integrations.SD_Lon.sd_importer.employment_date_as_engagement_start_date",
+            False
+        )
+
         # CPR indexed dictionary of AD users
         self.ad_people: Dict[str, Dict] = {}
         self.employee_forced_uuids = employee_mapping
