@@ -28,7 +28,7 @@ from integrations.SD_Lon.sd_common import read_employment_at
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
 from os2mo_data_import import ImportHelper
-
+from integrations.SD_Lon.engagement import get_from_date
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_initial_import.log"
@@ -600,8 +600,8 @@ class SdImport(object):
                 )
                 date_to = date_to - datetime.timedelta(days=1)
             else:
-                date_from = datetime.datetime.strptime(
-                    employment["EmploymentStatus"]["ActivationDate"], "%Y-%m-%d"
+                date_from = get_from_date(
+                    employment, self.employment_date_as_engagement_start_date
                 )
                 date_to = datetime.datetime.strptime(
                     employment["EmploymentStatus"]["DeactivationDate"], "%Y-%m-%d"
