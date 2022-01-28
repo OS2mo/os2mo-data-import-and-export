@@ -1,6 +1,8 @@
 from datetime import datetime
 from collections import OrderedDict
 
+from parameterized import parameterized
+
 from integrations.SD_Lon.engagement import get_from_date
 
 employment = OrderedDict([
@@ -11,12 +13,12 @@ employment = OrderedDict([
 ])
 
 
-def test_return_activation_date():
-    from_date = get_from_date(employment, False)
-    assert from_date == datetime(2022, 2, 22)
-
-
-def test_return_employment_date():
-    from_date = get_from_date(employment, True)
-    assert from_date == datetime(2011, 11, 11)
-
+@parameterized.expand(
+    [
+        (False, datetime(2022, 2, 22)),
+        (True, datetime(2011, 11, 11))
+    ]
+)
+def test_get_from_date(use_activation_date, date):
+    from_date = get_from_date(employment, use_activation_date)
+    assert from_date == date
