@@ -5,13 +5,6 @@ from parameterized import parameterized
 
 from integrations.SD_Lon.engagement import get_employment_from_date
 
-employment = OrderedDict([
-    ('EmploymentDate', '2011-11-11'),
-    ('EmploymentStatus', OrderedDict([
-        ('ActivationDate', '2022-02-22')]
-    ))
-])
-
 
 @parameterized.expand(
     [
@@ -20,5 +13,13 @@ employment = OrderedDict([
     ]
 )
 def test_get_from_date(use_activation_date, date):
+    employment = OrderedDict([
+        ('EmploymentDate', '2011-11-11'),
+        ('EmploymentStatus', OrderedDict([
+            ('ActivationDate', '2022-02-22')]
+        ))
+    ])
+
     from_date = get_employment_from_date(employment, use_activation_date)
+
     assert from_date == date
