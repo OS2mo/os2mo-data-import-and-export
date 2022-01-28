@@ -31,6 +31,7 @@ from os2mo_data_import import ImportHelper
 from integrations.SD_Lon.date_utils import get_employment_from_date
 from integrations.SD_Lon.date_utils import parse_date
 from integrations.SD_Lon.date_utils import format_date
+from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_initial_import.log"
@@ -596,9 +597,10 @@ class SdImport(object):
             if status in EmploymentStatus.let_go():
                 date_from = parse_date(employment["EmploymentDate"])
                 date_to = parse_date(
-                    employment["EmploymentStatus"]["ActivationDate"]
+                    sd_to_mo_termination_date(
+                        employment["EmploymentStatus"]["ActivationDate"]
+                    )
                 )
-                date_to = date_to - datetime.timedelta(days=1)
             else:
                 date_from = get_employment_from_date(
                     employment, self.employment_date_as_engagement_start_date
@@ -667,7 +669,7 @@ class SdImport(object):
                     employee=cpr,
                     engagement_uuid=engagement_uuid,
                     leave_type_ref="Orlov",
-                    date_from=date_from_str,
+                    date_from=employment["EmploymentStatus"]["ActivationDate"],
                     date_to=date_to_str,
                 )
 
