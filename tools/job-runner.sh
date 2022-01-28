@@ -519,9 +519,6 @@ prometrics-git
 
 # imports are typically interdependent: -e
 imports(){
-    [ "${BACKUP_OK}" == "false" ] \
-        && echo ERROR: backup is in error - skipping imports \
-        && return 1 # imports depend on backup
 
     if [ "${RUN_MOX_DB_CLEAR}" == "true" ]; then
         run-job imports_mox_db_clear || return 2
@@ -823,81 +820,6 @@ show_status(){
 
 if [ "${JOB_RUNNER_MODE}" == "running" -a "$#" == "0" ]; then
     (
-        # Dette er den sektion, der kaldes fra CRON (ingen argumenter)
-
-        if [ ! -n "${CRON_LOG_JSON_SINK}" ]; then
-            REASON="WARNING: crontab.CRON_LOG_JSON_SINK not specified - no json logging"
-            echo ${REASON}
-        fi
-
-        if [ ! -d "${VENV}" ]; then
-            REASON="FATAL: python env not found"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
-            exit 2 # error
-        fi
-
-        if [ ! -n "${SVC_USER}" ]; then
-            REASON="WARNING: Service user not specified"
-            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-            echo ${REASON}
-        fi
-
-        if [ ! -n "${SVC_KEYTAB}" ]; then
-            REASON="WARNING: Service keytab not specified"
-            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-            echo ${REASON}
-        fi
-
-        if [ -n "${SVC_KEYTAB}" -a ! -f "${SVC_KEYTAB}" ]; then
-            REASON="FATAL: Service keytab not found"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
-            exit 2
-        fi
-
-        if [ ! -n "${CRON_LOG_FILE}" ]; then
-            REASON="FATAL: Cron log file not specified"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
-            exit 2
-        fi
-
-        if [ ! -n "${CRON_BACKUP}" ]; then
-            REASON="FATAL: Backup directory not specified"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
-            exit 2
-        fi
-
-        if [ ! -d "${CRON_BACKUP}" ]; then
-            REASON="FATAL: Backup directory non existing"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
-            exit 2
-        fi
-
-        if [[ ${RUN_DB_BACKUP} == "true" ]] && [[ ! -f "${SNAPSHOT_LORA}" ]]; then
-            REASON="FATAL: Database snapshot does not exist"
-            run-job-log job job-runner pre-check ! job-status failed ! reason $REASON
-            echo ${REASON}
-            exit 2
-        fi
-        if [ -n "${SVC_USER}" -a -n "${SVC_KEYTAB}" ]; then
-
-            [ -r "${SVC_KEYTAB}" ] || echo WARNING: cannot read keytab
-
-            kinit ${SVC_USER} -k -t ${SVC_KEYTAB} || (
-                REASON="WARNING: not able to refresh kerberos auth - authentication failure"
-                run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-                echo ${REASON}
-            )
-        else
-            REASON="WARNING: not able to refresh kerberos auth - username or keytab missing"
-            run-job-log job job-runner pre-check ! job-status warning ! reason $REASON
-            echo ${REASON}
-        fi
-
         # Vi sletter lora-cache-picklefiler og andet inden vi kører cronjobbet
         rm tmp/*.p 2>/dev/null || :
 

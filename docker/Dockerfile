@@ -36,5 +36,6 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH="${PYTHONPATH}:/code"
 
 COPY . .
+RUN pip install -e .
 
-CMD ["python", "./metacli.py"]
+CMD ["metacli"]

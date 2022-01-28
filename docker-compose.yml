@@ -7,19 +7,15 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    command: ["sleep", "infinity"]
     environment:
       CLIENT_ID: "dipex"
-      AUTH_SERVER: "http://keycloak:8080/auth"
+      AUTH_SERVER: "http://localhost:8081/auth"
       CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
-      MORA_BASE: "http://mo:80"
-    networks:
-      - os2mo
+    network_mode: "host"
     volumes:
-      - runs:/opt/dipex
+      - ../backups:/opt/dipex/backups
+      - ./settings:/code/settings
+      - ${OPUS_FOLDER}:${OPUS_FOLDER}
+      - ../run_db.sqlite:/run_db.sqlite
       - .:/code/
-networks:
-  os2mo:
-    name: os2mo_default
-volumes:
-  runs:
+
