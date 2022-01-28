@@ -29,6 +29,8 @@ from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
 from os2mo_data_import import ImportHelper
 from integrations.SD_Lon.date_utils import get_employment_from_date
+from integrations.SD_Lon.date_utils import parse_date
+from integrations.SD_Lon.date_utils import format_date
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_initial_import.log"
@@ -37,8 +39,8 @@ logger = logging.getLogger("sdImport")
 
 
 def get_import_date(settings):
-    import_date_from = datetime.datetime.strptime(
-        settings["integrations.SD_Lon.global_from_date"], "%Y-%m-%d"
+    import_date_from = parse_date(
+        settings["integrations.SD_Lon.global_from_date"]
     )
     import_date = import_date_from.strftime("%d.%m.%Y")
     return import_date
@@ -592,25 +594,23 @@ class SdImport(object):
             unit = emp_dep["DepartmentUUIDIdentifier"]
 
             if status in EmploymentStatus.let_go():
-                date_from = datetime.datetime.strptime(
-                    employment["EmploymentDate"], "%Y-%m-%d"
-                )
-                date_to = datetime.datetime.strptime(
-                    employment["EmploymentStatus"]["ActivationDate"], "%Y-%m-%d"
+                date_from = parse_date(employment["EmploymentDate"])
+                date_to = parse_date(
+                    employment["EmploymentStatus"]["ActivationDate"]
                 )
                 date_to = date_to - datetime.timedelta(days=1)
             else:
                 date_from = get_employment_from_date(
                     employment, self.employment_date_as_engagement_start_date
                 )
-                date_to = datetime.datetime.strptime(
-                    employment["EmploymentStatus"]["DeactivationDate"], "%Y-%m-%d"
+                date_to = parse_date(
+                    employment["EmploymentStatus"]["DeactivationDate"]
                 )
 
             assert date_from <= date_to, "date_from > date_to for employment!"
 
-            date_from_str = datetime.datetime.strftime(date_from, "%Y-%m-%d")
-            date_to_str = datetime.datetime.strftime(date_to, "%Y-%m-%d")
+            date_from_str = format_date(date_from)
+            date_to_str = format_date(date_to)
             if date_to == datetime.datetime(9999, 12, 31, 0, 0):
                 date_to_str = None
 

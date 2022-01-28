@@ -1,4 +1,5 @@
-import datetime
+from datetime import datetime
+from datetime import timedelta
 import re
 from typing import Dict
 from typing import Optional
@@ -11,17 +12,25 @@ MO_INFINITY = None
 SD_INFINITY: str = "9999-12-31"
 
 
+def format_date(date: datetime) -> str:
+    return date.strftime("%Y-%m-%d")
+
+
+def parse_date(date_str: str) -> datetime:
+    return datetime.strptime(date_str, "%Y-%m-%d")
+
+
 def get_employment_from_date(
     employment: Dict,
     employment_date_as_engagement_start_date: bool
-) -> datetime.datetime:
+) -> datetime:
     # Make sure we do not have multiple EmploymentStatuses
     assert isinstance(employment["EmploymentStatus"], Dict)
 
     date = employment["EmploymentStatus"]["ActivationDate"]
     if employment_date_as_engagement_start_date:
         date = employment["EmploymentDate"]
-    return datetime.datetime.strptime(date, "%Y-%m-%d")
+    return parse_date(date)
 
 # TODO: Create "MoValidity" and "SdValidity" classes based on the RA Models
 #  "Validity" class and use these as input to the function below
@@ -50,7 +59,7 @@ def sd_to_mo_termination_date(sd_date: str) -> Optional[str]:
 
     # In MO, the termination date is the last day of work,
     # in SD it is the first day of non-work.
-    _sd_date = datetime.datetime.strptime(sd_date, "%Y-%m-%d")
-    mo_date = _sd_date - datetime.timedelta(days=1)
+    _sd_date = parse_date(sd_date)
+    mo_date = _sd_date - timedelta(days=1)
 
-    return mo_date.strftime("%Y-%m-%d")
+    return format_date(mo_date)
