@@ -20,7 +20,6 @@ from ra_utils.load_settings import load_settings
 
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
-from integrations.SD_Lon.convert import sd_to_mo_termination_date
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import ensure_list
@@ -54,19 +53,15 @@ class SdImport(object):
         ad_info=None,
         org_only=False,
         org_id_prefix=None,
-        manager_rows=None,
-        super_unit=None,
         employee_mapping=None,
         settings: Optional[Dict[str, Any]] = None,
     ):
-        manager_rows = manager_rows or []
         employee_mapping = employee_mapping or {}
 
         self.settings = settings or load_settings()
 
         self.base_url = "https://service.sd.dk/sdws/"
         self.address_errors: Dict[str, Dict] = {}
-        self.manager_rows = manager_rows
 
         self.importer = importer
 
@@ -94,12 +89,6 @@ class SdImport(object):
             "integrations.SD_Lon.sd_importer.create_email_addresses", True
         )
 
-        # Whether to create historic engagements (see more detail comment
-        # regarding this feature further down)
-        self.create_historic_engagements = self.settings.get(
-            "integrations.SD_Lon.sd_importer_create_historic_engagements", False
-        )
-
         # CPR indexed dictionary of AD users
         self.ad_people: Dict[str, Dict] = {}
         self.employee_forced_uuids = employee_mapping
@@ -117,9 +106,9 @@ class SdImport(object):
 
         self.info = self._read_department_info()
 
-        self._add_classes(manager_rows)
+        self._add_classes()
 
-    def _add_classes(self, manager_rows):
+    def _add_classes(self):
         # Format is facet -> list of entries
         # Entries are tuples on the format '(klasse_id, klasse, scope)'
         classes = {
@@ -176,15 +165,6 @@ class SdImport(object):
                 ("Lederansvar", "Lederansvar"),
             ],
         }
-
-        # If specified manager_rows override default one
-        if self.manager_rows:
-
-            def transform_row(row):
-                resp = row.get("ansvar")
-                return resp, resp
-
-            classes["responsibilty"] = list(map(transform_row, self.manager_rows))
 
         for facet, klasses in classes.items():
             for klass in klasses:
@@ -319,10 +299,6 @@ class SdImport(object):
                 date_to=None,
                 parent_ref=parent_uuid,
             )
-
-            for row in self.manager_rows:
-                if row["afdeling"].upper() == user_key.upper():
-                    row["uuid"] = unit_id
 
         def import_email_addresses(info: Dict[str, Any]) -> None:
             if "ContactInformation" not in info:
@@ -624,6 +600,7 @@ class SdImport(object):
                     employment["EmploymentStatus"]["DeactivationDate"], "%Y-%m-%d"
                 )
 
+            # TODO: replace this with an assert (will be done in an MR shortly)
             if date_from > date_to:
                 date_from = date_to
 
@@ -689,79 +666,19 @@ class SdImport(object):
                     date_to=date_to_str,
                 )
 
-            if self.create_historic_engagements:
-                # Add historic engagement. On import time we do not keep track of all
-                # previous engagements, but we will instead create a "historic" dummy
-                # engagement ranging from the engagement anniversary date to the start
-                # of the engagement created above. In this way the total seniority of
-                # the employee (for the given engagement) will apparent
-
-                anniversary_date = datetime.datetime.strptime(
-                    employment["AnniversaryDate"], "%Y-%m-%d"
+            # These job functions will normally (but necessarily)
+            #  correlate to a manager position
+            if job_position_id in ["1040", "1035", "1030"]:
+                self.importer.add_manager(
+                    employee=cpr,
+                    organisation_unit=unit,
+                    manager_level_ref="manager_" + job_position_id,
+                    address_uuid=None,  # Manager address is not used
+                    manager_type_ref="leder_type",
+                    responsibility_list=["Lederansvar"],
+                    date_from=date_from_str,
+                    date_to=date_to_str,
                 )
-
-                # TODO: add tests !!!
-
-                assert (
-                    anniversary_date <= date_from
-                ), "Anniversary date greater than from date!"
-
-                # TODO: add tests !!!
-
-                if datetime.datetime(1800, 1, 1) < anniversary_date < date_from:
-                    self.importer.add_engagement(
-                        employee=cpr,
-                        uuid=str(uuid.uuid4()),
-                        user_key=employment_id["id"],
-                        organisation_unit=unit,
-                        job_function_ref=job_func_ref,
-                        # fraction=int(occupation_rate * 1000000),
-                        # primary_ref=primary_type_ref,
-                        engagement_type_ref="historisk",
-                        date_from=employment["AnniversaryDate"],
-                        date_to=sd_to_mo_termination_date(date_from_str),
-                        # **extention,
-                    )
-
-            # If we do not have a list of managers, we take the manager,
-            # information from the job_function_code.
-            if not self.manager_rows:
-                # These job functions will normally (but necessarily)
-                #  correlate to a manager position
-                if job_position_id in ["1040", "1035", "1030"]:
-                    self.importer.add_manager(
-                        employee=cpr,
-                        organisation_unit=unit,
-                        manager_level_ref="manager_" + job_position_id,
-                        address_uuid=None,  # Manager address is not used
-                        manager_type_ref="leder_type",
-                        responsibility_list=["Lederansvar"],
-                        date_from=date_from_str,
-                        date_to=date_to_str,
-                    )
-
-        if self.manager_rows and (not skip_manager):
-            for row in self.manager_rows:
-                if row["cpr"] == cpr:
-                    if "uuid" not in row:
-                        logger.warning("NO UNIT: {}".format(row["afdeling"]))
-                        continue
-                    if job_position_id in ["1040", "1035", "1030"]:
-                        manager_level = "manager_" + job_position_id
-                    else:
-                        manager_level = "manager_1040"
-
-                    logger.info("Manager {} to {}".format(cpr, row["afdeling"]))
-
-                    self.importer.add_manager(
-                        employee=cpr,
-                        organisation_unit=row["uuid"],
-                        manager_level_ref=manager_level,
-                        manager_type_ref="leder_type",
-                        responsibility_list=[row["ansvar"]],
-                        date_from="1930-01-01",
-                        date_to=None,
-                    )
 
 
 @click.group()
@@ -819,7 +736,7 @@ def full_import(org_only: bool, mora_base: str, mox_base: str):
         store_integration_data=False,
         seperate_names=True,
     )
-    sd = SdImport(importer, org_only=org_only, ad_info=None, manager_rows=None)
+    sd = SdImport(importer, org_only=org_only, ad_info=None)
 
     sd.create_ou_tree(create_orphan_container=False, sub_tree=None, super_unit=None)
     if not org_only:
