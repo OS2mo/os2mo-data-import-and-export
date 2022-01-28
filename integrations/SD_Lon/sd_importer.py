@@ -28,7 +28,7 @@ from integrations.SD_Lon.sd_common import read_employment_at
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
 from os2mo_data_import import ImportHelper
-from integrations.SD_Lon.engagement import get_employment_from_date
+from integrations.SD_Lon.date_utils import get_employment_from_date
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_initial_import.log"

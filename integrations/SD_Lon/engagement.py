@@ -3,7 +3,6 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Tuple
-from typing import OrderedDict
 
 from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sd_common import read_employment_at
@@ -18,20 +17,6 @@ def engagement_components(engagement_info) -> Tuple[str, Dict[str, List[Any]]]:
         "departments": ensure_list(engagement_info.get("EmploymentDepartment", [])),
         "working_time": ensure_list(engagement_info.get("WorkingTime", [])),
     }
-
-
-def get_employment_from_date(
-    employment: OrderedDict,
-    employment_date_as_engagement_start_date: bool
-) -> datetime:
-
-    # Make sure we do not have multiple EmploymentStatuses
-    assert isinstance(employment["EmploymentStatus"], OrderedDict)
-    
-    date = employment["EmploymentStatus"]["ActivationDate"]
-    if employment_date_as_engagement_start_date:
-        date = employment["EmploymentDate"]
-    return datetime.strptime(date, "%Y-%m-%d")
 
 
 def update_existing_engagement(
