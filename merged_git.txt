@@ -1,2 +1,2 @@
 git+https://github.com/magenta-aps/spsftp.git
-git+https://github.com/magenta-aps/lora-utils.git@master#egg=lora_utils
+git+https://github.com/magenta-aps/lora-utils.git

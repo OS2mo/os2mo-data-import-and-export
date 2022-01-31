@@ -1,34 +1,21 @@
-FROM python:3
+FROM python:3.9
 
 RUN apt-get update && apt-get -y install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev
 
 # A few convenience packages
 RUN apt-get -y install vim jq less screen
 
-WORKDIR /code
-COPY ./reports/requirements ./reports/requirements
-COPY ./integrations/requirements ./integrations/requirements
-COPY ./integrations/calculate_primary/requirements ./integrations/calculate_primary/requirements
-COPY ./exporters/sql_export/requirements.txt ./exporters/sql_export/requirements.txt
-COPY ./exporters/sql_export/tests/requirements.txt ./exporters/sql_export/tests/requirements.txt
-COPY ./exporters/utils/requirements.txt ./exporters/utils/requirements.txt
-COPY ./exporters/requirements.txt ./exporters/requirements.txt
-COPY ./exporters/os2rollekatalog/requirements.txt ./exporters/os2rollekatalog/requirements.txt
-COPY ./exporters/os2phonebook/requirements.txt ./exporters/os2phonebook/requirements.txt
-COPY ./exporters/emus/requirements.txt ./exporters/emus/requirements.txt
-COPY ./integrations/calculate_primary/requirements.txt ./integrations/calculate_primary/requirements.txt
-COPY ./integrations/requirements.txt ./integrations/requirements.txt
-COPY ./integrations/SD_Lon/requirements.txt ./integrations/SD_Lon/requirements.txt
-COPY ./integrations/opus/org_tree_print/requirements.txt ./integrations/opus/org_tree_print/requirements.txt
-COPY ./integrations/dar_helper/requirements.txt ./integrations/dar_helper/requirements.txt
-COPY ./requirements.txt ./requirements.txt
-COPY ./os2mo_data_import/os2mo_helpers/requirements.txt ./os2mo_data_import/os2mo_helpers/requirements.txt
-COPY ./os2mo_data_import/requirements.txt ./os2mo_data_import/requirements.txt
-COPY ./os2mo_data_import/mox_helpers/requirements.txt ./os2mo_data_import/mox_helpers/requirements.txt
-COPY ./tools/requirements.txt ./tools/requirements.txt
-COPY ./tools/check_connectivity/requirements.txt ./tools/check_connectivity/requirements.txt
+# Enviroment variables for poetry
+ENV PIP_DISABLE_PIP_VERSION_CHECK=on \
+    PYTHONPATH=/app:/app/backend \
+    POETRY_VERSION="1.1.8" \
+    POETRY_VIRTUALENVS_CREATE=false
 
-RUN pip install -r requirements.txt
+# Install requirements
+RUN pip3 install --no-cache-dir poetry==${POETRY_VERSION}
+COPY poetry.lock pyproject.toml /code/
+WORKDIR /code
+RUN poetry install --no-interaction
 
 COPY ./os2mo_data_import ./os2mo_data_import
 RUN pip install -e ./os2mo_data_import
