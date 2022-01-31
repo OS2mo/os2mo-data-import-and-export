@@ -97,7 +97,7 @@ Lint AD Integration:
   extends: .lint-python
   script:
     - cd integrations/ad_integration/
-    - pip install mypy pre-commit types-Jinja2 types-click types-requests
+    - pip install mypy pre-commit types-Jinja2 types-click types-requests types-freezegun
     - pre-commit run --files tests/*.py *.py
 
 Lint Calculate Primary:

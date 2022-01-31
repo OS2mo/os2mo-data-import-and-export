@@ -5,3 +5,5 @@ pytest
 alchemy_mock
 mimesis
 pytest-aioresponses
+freezegun
+types-freezegun
