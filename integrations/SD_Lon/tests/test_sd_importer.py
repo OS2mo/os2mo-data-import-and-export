@@ -448,3 +448,63 @@ def test_set_engagement_on_leave(mock_uuid4):
 def test_employment_date_as_engagement_start_date_disabled_per_default():
     sd = get_sd_importer()
     assert sd.employment_date_as_engagement_start_date is False
+
+
+@patch("integrations.SD_Lon.sd_importer.ImportHelper.add_engagement")
+def test_no_historic_engagement_when_anniversary_same_as_employment_from_date(
+    mock_add_engagement,
+):
+
+    # Arrange
+
+    sd = get_sd_importer(
+        override_settings={
+            "integrations.SD_Lon.monthly_hourly_divide": 9000,
+            "integrations.SD_Lon.job_function": "EmploymentName",
+            "integrations.SD_Lon.import.too_deep": [],
+            "integrations.SD_Lon.sd_importer.employment_date_as_engagement_start_date": True,
+        }
+    )
+    sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit"})
+
+    cpr_no = "0101709999"
+    sd.importer.add_employee(
+        name=("given_name", "sur_name"),
+        identifier=cpr_no,
+        cpr_no=cpr_no,
+        user_key="employee_user_key",
+        uuid="employee_uuid",
+    )
+
+    # Act
+
+    # Create an employee
+    sd.create_employee(
+        {
+            "PersonCivilRegistrationIdentifier": cpr_no,
+            "Employment": [
+                {
+                    "EmploymentDate": "2022-01-15",
+                    "Profession": {"JobPositionIdentifier": "job_id_123"},
+                    "EmploymentStatus": {
+                        "EmploymentStatusCode": "1",
+                        "ActivationDate": "1970-01-01",
+                        "DeactivationDate": "9999-12-31",
+                    },
+                    "EmploymentIdentifier": "TEST123",
+                    "WorkingTime": {"OccupationRate": 1},
+                    "EmploymentDepartment": {
+                        "DepartmentUUIDIdentifier": "org_unit_uuid",
+                    },
+                }
+            ],
+        }
+    )
+
+    # Assert
+
+    mock_add_engagement.assert_called_once()
+
+    kwargs = mock_add_engagement.call_args.kwargs
+    assert kwargs["date_from"] == "2022-01-15"
+    assert kwargs["date_to"] is None
