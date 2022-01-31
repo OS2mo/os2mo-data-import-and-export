@@ -596,11 +596,10 @@ class SdImport(object):
 
             if status in EmploymentStatus.let_go():
                 date_from = parse_date(employment["EmploymentDate"])
-                date_to = parse_date(
-                    sd_to_mo_termination_date(
-                        employment["EmploymentStatus"]["ActivationDate"]
-                    )
+                termination_date = sd_to_mo_termination_date(
+                    employment["EmploymentStatus"]["ActivationDate"]
                 )
+                date_to = parse_date(termination_date)
             else:
                 date_from = get_employment_from_date(
                     employment, self.employment_date_as_engagement_start_date
