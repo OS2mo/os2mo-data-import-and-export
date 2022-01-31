@@ -148,10 +148,17 @@ class MockUnknownCPRADParameterReader(MockADParameterReader):
 class MockMoraHelper(MoraHelper):
     def __init__(self, cpr):
         self._mo_user = {"cpr_no": cpr, "uuid": MO_UUID}
+        self._read_user_calls = []
         super().__init__()
 
     def read_organisation(self):
         return "not-a-org-uuid"
+
+    def read_user(self, user_cpr=None, **kwargs):
+        self._read_user_calls.append(user_cpr)
+        if user_cpr == UNKNOWN_CPR_NO:
+            return None
+        return self._mo_user
 
     def read_all_users(self):
         return [self._mo_user]
