@@ -150,8 +150,10 @@ class SyncMoUuidToAd(AD):
             raise Exception(msg)
 
         print("Fetch MO User")
-        mo_uuid = self._search_mo_cpr(cprno)
-        if not mo_uuid:
+        mo_user = self.helper.read_user(user_cpr=cprno, org_uuid=self.org_uuid)
+        try:
+            mo_uuid = mo_user["uuid"]
+        except (KeyError, TypeError):
             msg = "MO User not found"
             logger.exception(msg)
             raise Exception(msg)
@@ -179,18 +181,6 @@ class SyncMoUuidToAd(AD):
 
         print("Starting Sync")
         self.perform_sync(ad_users, mo_users)
-
-    def _search_mo_cpr(self, cpr):
-        # Todo, add this to MoraHelper.
-        # skriv om til at bruge cachen
-        user = {"items": []}
-        if cpr is not None:
-            user = self.helper._mo_lookup(self.org_uuid, "o/{}/e?query=" + cpr)
-        if not len(user["items"]) == 1:
-            uuid = None
-        else:
-            uuid = user["items"][0]["uuid"]
-        return uuid
 
     def _check_ad_uuid_field_is_configured(self):
         # Check configuration

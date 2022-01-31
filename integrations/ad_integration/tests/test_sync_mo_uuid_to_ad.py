@@ -27,11 +27,6 @@ class _SyncMoUuidToAd(sync_mo_uuid_to_ad.SyncMoUuidToAd):
     def _get_mora_helper(self):
         return MockMoraHelper(self._ad_cpr_no)
 
-    def _search_mo_cpr(self, cpr):
-        if cpr == UNKNOWN_CPR_NO:
-            return None
-        return MO_UUID
-
     def _create_session(self):
         return mock.MagicMock()
 
@@ -97,6 +92,14 @@ class TestSyncMoUuidToAd(TestCase):
         with self.assertRaisesRegex(Exception, expected_message):
             instance.sync_one(UNKNOWN_CPR_NO)
 
+    def test_sync_one_uses_morahelper(self):
+        cpr_no = "mo-cpr-no"
+        instance = self._get_instance()
+        instance.sync_one(cpr_no)
+        # Assert that our mocked `MoraHelper` recorded one call to `read_user`
+        # with the expected CPR as its only argument.
+        self.assertListEqual(instance.helper._read_user_calls, [cpr_no])
+
     def test_sync_all(self):
         instance = self._get_instance()
         instance.sync_all()
@@ -133,12 +136,12 @@ class TestSyncMoUuidToAd(TestCase):
             new=lambda: reader,
         )
 
+        ad_cpr_no = reader.read_user()["extensionAttribute1"]
+
         with read_settings_mock:
             with load_settings_mock:
                 with reader_mock:
-                    instance = _SyncMoUuidToAd(
-                        ad_cpr_no=reader.read_user()["extensionAttribute1"]
-                    )
+                    instance = _SyncMoUuidToAd(ad_cpr_no)
                     return instance
 
     def _assert_script_contents_ok(self, instance):
