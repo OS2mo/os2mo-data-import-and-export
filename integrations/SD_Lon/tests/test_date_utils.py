@@ -1,8 +1,7 @@
-import pytest
-
-from datetime import datetime
 from collections import OrderedDict
+from datetime import datetime
 
+import pytest
 from parameterized import parameterized
 
 from integrations.SD_Lon.date_utils import get_employment_from_date
@@ -33,19 +32,14 @@ class TestSdToMoTerminationDate:
         assert "2021-01-29" == sd_to_mo_termination_date("2021-01-30")
 
 
-@parameterized.expand(
-    [
-        (False, datetime(2022, 2, 22)),
-        (True, datetime(2011, 11, 11))
-    ]
-)
+@parameterized.expand([(False, datetime(2022, 2, 22)), (True, datetime(2011, 11, 11))])
 def test_get_from_date(use_activation_date, date):
-    employment = OrderedDict([
-        ('EmploymentDate', '2011-11-11'),
-        ('EmploymentStatus', OrderedDict([
-            ('ActivationDate', '2022-02-22')]
-        ))
-    ])
+    employment = OrderedDict(
+        [
+            ("EmploymentDate", "2011-11-11"),
+            ("EmploymentStatus", OrderedDict([("ActivationDate", "2022-02-22")])),
+        ]
+    )
 
     from_date = get_employment_from_date(employment, use_activation_date)
 

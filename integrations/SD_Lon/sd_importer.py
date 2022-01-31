@@ -20,6 +20,10 @@ from ra_utils.load_settings import load_settings
 
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
+from integrations.SD_Lon.date_utils import format_date
+from integrations.SD_Lon.date_utils import get_employment_from_date
+from integrations.SD_Lon.date_utils import parse_date
+from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import ensure_list
@@ -28,10 +32,6 @@ from integrations.SD_Lon.sd_common import read_employment_at
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
 from os2mo_data_import import ImportHelper
-from integrations.SD_Lon.date_utils import get_employment_from_date
-from integrations.SD_Lon.date_utils import parse_date
-from integrations.SD_Lon.date_utils import format_date
-from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
 
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_initial_import.log"
@@ -40,9 +40,7 @@ logger = logging.getLogger("sdImport")
 
 
 def get_import_date(settings):
-    import_date_from = parse_date(
-        settings["integrations.SD_Lon.global_from_date"]
-    )
+    import_date_from = parse_date(settings["integrations.SD_Lon.global_from_date"])
     import_date = import_date_from.strftime("%d.%m.%Y")
     return import_date
 
@@ -96,7 +94,7 @@ class SdImport(object):
         # of <Employment><EmploymentStatus><ActivationDate>.
         self.employment_date_as_engagement_start_date = self.settings.get(
             "integrations.SD_Lon.sd_importer.employment_date_as_engagement_start_date",
-            False
+            False,
         )
 
         # CPR indexed dictionary of AD users
@@ -604,9 +602,7 @@ class SdImport(object):
                 date_from = get_employment_from_date(
                     employment, self.employment_date_as_engagement_start_date
                 )
-                date_to = parse_date(
-                    employment["EmploymentStatus"]["DeactivationDate"]
-                )
+                date_to = parse_date(employment["EmploymentStatus"]["DeactivationDate"])
 
             assert date_from <= date_to, "date_from > date_to for employment!"
 

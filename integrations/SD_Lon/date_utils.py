@@ -1,6 +1,6 @@
+import re
 from datetime import datetime
 from datetime import timedelta
-import re
 from typing import Dict
 from typing import Optional
 
@@ -21,8 +21,7 @@ def parse_date(date_str: str) -> datetime:
 
 
 def get_employment_from_date(
-    employment: Dict,
-    employment_date_as_engagement_start_date: bool
+    employment: Dict, employment_date_as_engagement_start_date: bool
 ) -> datetime:
     # Make sure we do not have multiple EmploymentStatuses
     assert isinstance(employment["EmploymentStatus"], Dict)
@@ -31,6 +30,7 @@ def get_employment_from_date(
     if employment_date_as_engagement_start_date:
         date = employment["EmploymentDate"]
     return parse_date(date)
+
 
 # TODO: Create "MoValidity" and "SdValidity" classes based on the RA Models
 #  "Validity" class and use these as input to the function below
