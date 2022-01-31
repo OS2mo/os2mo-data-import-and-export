@@ -1,8 +1,8 @@
 import copy
-from datetime import datetime
 from unittest import mock
 from unittest import TestCase
 
+from freezegun import freeze_time
 from jinja2.exceptions import UndefinedError
 from more_itertools import first_true
 from parameterized import parameterized
@@ -23,6 +23,8 @@ from .test_utils import TestADWriterMixin
 
 JOB_TITLE_AD_FIELD_NAME = "titel"
 JOB_TITLE_TEMPLATE = "{{ ad_values.get('titel') or mo_values['title'] }}"
+
+_SYNC_TIMESTAMP = "2020-01-01 12:30:00"
 
 
 class TestADWriter(TestCase, TestADWriterMixin):
@@ -206,7 +208,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
                     }
                 ),
                 None,
-                f'"extensionAttribute21"="{str(datetime.now())}";',
+                f'"extensionAttribute21"="{_SYNC_TIMESTAMP}";',
             ],
             # Field lookup and processing
             [
@@ -275,6 +277,7 @@ class TestADWriter(TestCase, TestADWriterMixin):
             ],
         ]
     )
+    @freeze_time(_SYNC_TIMESTAMP)
     def test_user_create_custom_fields(
         self, settings_transformer, mo_transformer, expected
     ):
