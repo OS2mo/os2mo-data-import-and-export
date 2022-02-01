@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.13.0 - 2022-02-01
+-------------------
+
+[#48243] Flag to choose SD engagement start date during import
+
 2.12.1 - 2022-01-27
 -------------------
 
