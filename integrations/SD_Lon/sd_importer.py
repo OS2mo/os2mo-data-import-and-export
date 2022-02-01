@@ -20,6 +20,10 @@ from ra_utils.load_settings import load_settings
 
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
+from integrations.SD_Lon.date_utils import format_date
+from integrations.SD_Lon.date_utils import get_employment_from_date
+from integrations.SD_Lon.date_utils import parse_date
+from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import ensure_list
@@ -29,7 +33,6 @@ from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
 from os2mo_data_import import ImportHelper
 
-
 LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_initial_import.log"
 
@@ -37,9 +40,7 @@ logger = logging.getLogger("sdImport")
 
 
 def get_import_date(settings):
-    import_date_from = datetime.datetime.strptime(
-        settings["integrations.SD_Lon.global_from_date"], "%Y-%m-%d"
-    )
+    import_date_from = parse_date(settings["integrations.SD_Lon.global_from_date"])
     import_date = import_date_from.strftime("%d.%m.%Y")
     return import_date
 
@@ -87,6 +88,13 @@ class SdImport(object):
         # Whether to import email addresses for organisations
         self.create_email_addresses = self.settings.get(
             "integrations.SD_Lon.sd_importer.create_email_addresses", True
+        )
+
+        # Whether to use <Employment><EmploymentDate> as engagement start date instead
+        # of <Employment><EmploymentStatus><ActivationDate>.
+        self.employment_date_as_engagement_start_date = self.settings.get(
+            "integrations.SD_Lon.sd_importer.employment_date_as_engagement_start_date",
+            False,
         )
 
         # CPR indexed dictionary of AD users
@@ -585,27 +593,21 @@ class SdImport(object):
             unit = emp_dep["DepartmentUUIDIdentifier"]
 
             if status in EmploymentStatus.let_go():
-                date_from = datetime.datetime.strptime(
-                    employment["EmploymentDate"], "%Y-%m-%d"
+                date_from = parse_date(employment["EmploymentDate"])
+                termination_date = sd_to_mo_termination_date(
+                    employment["EmploymentStatus"]["ActivationDate"]
                 )
-                date_to = datetime.datetime.strptime(
-                    employment["EmploymentStatus"]["ActivationDate"], "%Y-%m-%d"
-                )
-                date_to = date_to - datetime.timedelta(days=1)
+                date_to = parse_date(termination_date)
             else:
-                date_from = datetime.datetime.strptime(
-                    employment["EmploymentStatus"]["ActivationDate"], "%Y-%m-%d"
+                date_from = get_employment_from_date(
+                    employment, self.employment_date_as_engagement_start_date
                 )
-                date_to = datetime.datetime.strptime(
-                    employment["EmploymentStatus"]["DeactivationDate"], "%Y-%m-%d"
-                )
+                date_to = parse_date(employment["EmploymentStatus"]["DeactivationDate"])
 
-            # TODO: replace this with an assert (will be done in an MR shortly)
-            if date_from > date_to:
-                date_from = date_to
+            assert date_from <= date_to, "date_from > date_to for employment!"
 
-            date_from_str = datetime.datetime.strftime(date_from, "%Y-%m-%d")
-            date_to_str = datetime.datetime.strftime(date_to, "%Y-%m-%d")
+            date_from_str = format_date(date_from)
+            date_to_str = format_date(date_to)
             if date_to == datetime.datetime(9999, 12, 31, 0, 0):
                 date_to_str = None
 
@@ -662,7 +664,7 @@ class SdImport(object):
                     employee=cpr,
                     engagement_uuid=engagement_uuid,
                     leave_type_ref="Orlov",
-                    date_from=date_from_str,
+                    date_from=employment["EmploymentStatus"]["ActivationDate"],
                     date_to=date_to_str,
                 )
 

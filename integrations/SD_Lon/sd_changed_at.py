@@ -41,7 +41,7 @@ from integrations.calculate_primary.sd import SDPrimaryEngagementUpdater
 from integrations.rundb.db_overview import DBOverview
 from integrations.SD_Lon import exceptions
 from integrations.SD_Lon import sd_payloads
-from integrations.SD_Lon.convert import sd_to_mo_termination_date
+from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
 from integrations.SD_Lon.engagement import create_engagement
 from integrations.SD_Lon.engagement import engagement_components
 from integrations.SD_Lon.engagement import update_existing_engagement
