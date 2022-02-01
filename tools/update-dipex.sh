@@ -4,10 +4,9 @@
 # installing/upgrading all dependencies
 
 export DIPEXAR=${DIPEXAR:=$(cd $(dirname $0); pwd )/..}
-export VENV=${VENV:=${DIPEXAR}/venv}
+export VENV=${VENV:=${DIPEXAR}/.venv}
 cd ${DIPEXAR}
 
-[ -d venv ] || python3 -m venv venv
 [ -d ../backup ] || mkdir ../backup
 [ -d ./tmp ] || mkdir ./tmp
 
@@ -31,17 +30,11 @@ find .git/hooks -type l -exec rm {} \; && find .githooks -type f -exec ln -sf ..
 #
 # You might also need:
 # $ pip install --upgrade cython
+export POETRY_VIRTUALENVS_CREATE=true
+export POETRY_VIRTUALENVS_IN_PROJECT=true
+poetry install --no-interaction
+source .venv/bin/activate
 
-venv/bin/pip install pip --upgrade
-find . -name 'requirements.txt' | grep -v venv/ | while read REQFILE
-do
-    echo installing ${REQFILE}
-    venv/bin/pip install -r $REQFILE --upgrade
-done
-venv/bin/pip install -r ./integrations/requirements/common.txt
-venv/bin/pip install -r ./integrations/requirements/test.txt
-venv/bin/pip install ./os2mo_data_import --upgrade
+pip install ./os2mo_data_import --upgrade
 
-# Install 'metacli' into venv
-source venv/bin/activate
-venv/bin/pip install --editable .
+pip install --editable .
