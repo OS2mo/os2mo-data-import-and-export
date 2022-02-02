@@ -4,7 +4,8 @@ from datetime import datetime
 import pytest
 from parameterized import parameterized
 
-from integrations.SD_Lon.date_utils import get_employment_from_date
+from integrations.SD_Lon.date_utils import _get_employment_from_date
+from integrations.SD_Lon.date_utils import get_employment_dates
 from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
 
 
@@ -41,6 +42,58 @@ def test_get_from_date(use_activation_date, date):
         ]
     )
 
-    from_date = get_employment_from_date(employment, use_activation_date)
+    from_date = _get_employment_from_date(employment, use_activation_date)
 
     assert from_date == date
+
+
+@parameterized.expand(
+    [
+        ("1960-01-01", "1970-01-01", datetime(1960, 1, 1)),
+        ("1970-01-01", "1960-01-01", datetime(1960, 1, 1)),
+        ("1970-01-01", "1970-01-01", datetime(1970, 1, 1)),
+    ]
+)
+def test_get_employment_from_date_when_status_is_leave(
+    emp_date,
+    act_date,
+    exp_date,
+):
+    employment = {
+        "EmploymentDate": emp_date,
+        "AnniversaryDate": "2004-08-15",
+        "EmploymentStatus": {
+            "EmploymentStatusCode": "3",
+            "ActivationDate": act_date,
+            "DeactivationDate": "9999-12-31",
+        },
+    }
+
+    date_from, date_to = get_employment_dates(employment, False)
+
+    assert date_from == exp_date
+
+
+@parameterized.expand(
+    [
+        ("1960-01-01", datetime(1960, 1, 1)),
+        ("1970-01-01", datetime(1970, 1, 1)),
+    ]
+)
+def test_get_employment_to_date_when_status_is_leave(
+    deactivation_date,
+    exp_date,
+):
+    employment = {
+        "EmploymentDate": "1970-01-01",
+        "AnniversaryDate": "2004-08-15",
+        "EmploymentStatus": {
+            "EmploymentStatusCode": "3",
+            "ActivationDate": "1975-01-01",
+            "DeactivationDate": deactivation_date,
+        },
+    }
+
+    date_from, date_to = get_employment_dates(employment, False)
+
+    assert date_to == exp_date

@@ -1,8 +1,12 @@
+import logging
 import re
 from datetime import datetime
 from datetime import timedelta
 from typing import Dict
 from typing import Optional
+from typing import Tuple
+
+from integrations.SD_Lon.sd_common import EmploymentStatus
 
 # TODO: move constants elsewhere
 # TODO: set back to "infinity" when MO can handle this
@@ -10,6 +14,8 @@ from typing import Optional
 
 MO_INFINITY = None
 SD_INFINITY: str = "9999-12-31"
+
+logger = logging.getLogger("sdImport")
 
 
 def format_date(date: datetime) -> str:
@@ -20,7 +26,7 @@ def parse_date(date_str: str) -> datetime:
     return datetime.strptime(date_str, "%Y-%m-%d")
 
 
-def get_employment_from_date(
+def _get_employment_from_date(
     employment: Dict, employment_date_as_engagement_start_date: bool
 ) -> datetime:
     # Make sure we do not have multiple EmploymentStatuses
@@ -30,6 +36,47 @@ def get_employment_from_date(
     if employment_date_as_engagement_start_date:
         date = employment["EmploymentDate"]
     return parse_date(date)
+
+
+def get_employment_dates(
+    employment: Dict, employment_date_as_engagement_start_date: bool
+) -> Tuple[datetime, datetime]:
+    """
+    Get the "from" and "to" date from the SD employment
+
+    Args:
+        employment: The SD employment
+        employment_date_as_engagement_start_date: Use EmploymentDate as
+            start engagement start date if True and use the activation date
+            if False.
+
+    Returns:
+        Tuple containing the "from" and "to" dates.
+    """
+
+    status = EmploymentStatus(employment["EmploymentStatus"]["EmploymentStatusCode"])
+
+    if status in EmploymentStatus.let_go():
+        date_from = parse_date(employment["EmploymentDate"])
+        termination_date = str(
+            sd_to_mo_termination_date(employment["EmploymentStatus"]["ActivationDate"])
+        )
+        date_to = parse_date(termination_date)
+    elif status == EmploymentStatus.Orlov:
+        # We have seen examples where a leave begins BEFORE the SD
+        # EmploymentDate which will cause the "assert" below to break
+        # (see https://redmine.magenta-aps.dk/issues/48067#note-20)
+        employment_date = _get_employment_from_date(employment, True)
+        leave_activation_date = _get_employment_from_date(employment, False)
+        date_from = min(employment_date, leave_activation_date)
+        date_to = parse_date(employment["EmploymentStatus"]["DeactivationDate"])
+    else:
+        date_from = _get_employment_from_date(
+            employment, employment_date_as_engagement_start_date
+        )
+        date_to = parse_date(employment["EmploymentStatus"]["DeactivationDate"])
+
+    return date_from, date_to
 
 
 # TODO: Create "MoValidity" and "SdValidity" classes based on the RA Models
