@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.14.0 - 2022-02-02
+-------------------
+
+[#48375] Handle inconsistent leave start date
+
 2.13.0 - 2022-02-01
 -------------------
 
