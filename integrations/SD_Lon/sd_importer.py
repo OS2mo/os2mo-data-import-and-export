@@ -21,9 +21,8 @@ from ra_utils.load_settings import load_settings
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
 from integrations.SD_Lon.date_utils import format_date
-from integrations.SD_Lon.date_utils import get_employment_from_date
+from integrations.SD_Lon.date_utils import get_employment_dates
 from integrations.SD_Lon.date_utils import parse_date
-from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import ensure_list
@@ -592,19 +591,9 @@ class SdImport(object):
             emp_dep = employment["EmploymentDepartment"]
             unit = emp_dep["DepartmentUUIDIdentifier"]
 
-            if status in EmploymentStatus.let_go():
-                date_from = parse_date(employment["EmploymentDate"])
-                termination_date = sd_to_mo_termination_date(
-                    employment["EmploymentStatus"]["ActivationDate"]
-                )
-                date_to = parse_date(termination_date)
-            else:
-                date_from = get_employment_from_date(
-                    employment, self.employment_date_as_engagement_start_date
-                )
-                date_to = parse_date(employment["EmploymentStatus"]["DeactivationDate"])
-
-            assert date_from <= date_to, "date_from > date_to for employment!"
+            date_from, date_to = get_employment_dates(
+                employment, self.employment_date_as_engagement_start_date
+            )
 
             date_from_str = format_date(date_from)
             date_to_str = format_date(date_to)
@@ -616,6 +605,8 @@ class SdImport(object):
                     employment_id["id"], date_from_str, date_to_str
                 )
             )
+
+            assert date_from <= date_to, "date_from > date_to for employment!"
 
             original_unit = unit
             # Remove this to remove any sign of the employee from the

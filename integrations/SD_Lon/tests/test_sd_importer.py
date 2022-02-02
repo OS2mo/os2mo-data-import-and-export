@@ -419,6 +419,7 @@ def test_set_engagement_on_leave(mock_uuid4):
             "PersonCivilRegistrationIdentifier": cpr_no,
             "Employment": [
                 {
+                    "EmploymentDate": "1960-01-01",
                     "AnniversaryDate": "2004-08-15",
                     "Profession": {"JobPositionIdentifier": "job_id_123"},
                     "EmploymentStatus": {
