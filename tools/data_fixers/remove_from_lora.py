@@ -17,8 +17,13 @@ def delete_object_and_orgfuncs(
         r = httpx.delete(f"{mox_base}/organisation/organisationfunktion/{uuid}")
         r.raise_for_status()
 
-    r = httpx.delete(f"{mox_base}/organisation/{object_type}/{uuid}")
-    r.raise_for_status()
+    try:
+        r = httpx.delete(f"{mox_base}/organisation/{object_type}/{uuid}")
+        r.raise_for_status()
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            return
+        raise e
 
 
 @click.command()

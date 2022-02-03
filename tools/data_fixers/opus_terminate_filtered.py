@@ -35,7 +35,7 @@ def terminate_filtered_employees(dry_run):
         filter(lambda emp: emp.get("orgUnit") in all_ids, file_diffs["employees"])
     )
     diff = OpusDiffImport(latest_date, ad_reader=None, employee_mapping={})
-    #Check if any engagements exist that should have been filtered
+    # Check if any engagements exist that should have been filtered
     eng_info = [
         diff._find_engagement(e["@id"], "Engagement", present=False)
         for e in filtered_employees
@@ -51,13 +51,10 @@ def terminate_filtered_employees(dry_run):
         r = httpx.delete(f"{mox_base}/organisation/organisationfunktion/{eng_uuid}")
         r.raise_for_status()
 
-    #Check users in MO - if no engagements are left then delete the user and all details to it.
+    # Check users in MO - if no engagements are left then delete the user and all details to it.
     user_cprs = set(map(opus_helpers.read_cpr, filtered_employees))
-    users = [
-        diff.helper.read_user(user_cpr=cpr)
-        for cpr in user_cprs
-        if diff.helper.read_user(user_cpr=cpr)
-    ]
+    users = [diff.helper.read_user(user_cpr=cpr) for cpr in user_cprs]
+    users = filter(lambda x: x, users)
     user_uuids = set(map(itemgetter("uuid"), users))
 
     eng = list(map(diff.helper.read_user_engagements, user_uuids))
