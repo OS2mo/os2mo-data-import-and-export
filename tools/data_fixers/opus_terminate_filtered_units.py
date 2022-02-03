@@ -1,20 +1,29 @@
 import click
 from integrations.opus import opus_helpers
 from integrations.opus.opus_diff_import import OpusDiffImport
+from integrations.opus.opus_file_reader import get_opus_filereader
 from ra_utils.load_settings import load_settings
 
 
 def terminate_filtered_units(terminate):
     settings = load_settings()
     filter_ids = settings.get("integrations.opus.units.filter_ids", [])
-    dumps = opus_helpers.read_available_dumps()
-    latest_date = max(dumps.keys())
-    file_diffs = opus_helpers.file_diff(None, dumps[latest_date])
+    latest_date, opus_dump = opus_helpers.get_latest_dump()
+    file_diffs = opus_helpers.file_diff(None, opus_dump)
     filtered_units, _ = opus_helpers.filter_units(file_diffs["units"], filter_ids)
     diff = OpusDiffImport(latest_date, ad_reader=None, employee_mapping={})
     mo_units = list(diff.find_unterminated_filtered_units(filtered_units))
     diff.handle_filtered_units(mo_units, terminate=terminate)
     return mo_units
+
+def terminate_filtered_employees(terminate):
+    settings = load_settings()
+    filter_ids = settings.get("integrations.opus.units.filter_ids", [])
+    latest_date, opus_dump = opus_helpers.get_latest_dump()
+    file_diffs = opus_helpers.file_diff(None, opus_dump)
+    all_ids = opus_helpers.find_all_filtered_ids(opus_dump, filter_ids)
+    filtered_employees = list(filter(lambda emp: emp.get("orgUnit") in all_ids, file_diffs["employees"]))
+    print(filtered_employees)
 
 
 @click.command()
@@ -32,7 +41,8 @@ def cli(delete):
     This tool terminates any unit from Opus that has been filtered. This can be usefull when a new unit is added to the filter
     or if a unit has been moved below a filterd unit in Opus before this functionallity existed
     """
-    terminate_filtered_units(delete)
+    # terminate_filtered_units(delete)
+    terminate_filtered_employees(delete)
 
 
 if __name__ == "__main__":

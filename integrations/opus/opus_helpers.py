@@ -53,6 +53,10 @@ def read_available_dumps() -> Dict[datetime.datetime, str]:
     assert len(dumps) > 0, "No Opus files found!"
     return dumps
 
+def get_latest_dump():
+    dumps = read_available_dumps()
+    latest_date = max(dumps.keys())
+    return latest_date, dumps[latest_date]
 
 def local_db_insert(insert_tuple):
     conn = sqlite3.connect(
