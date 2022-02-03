@@ -13,17 +13,14 @@ def delete_object_and_orgfuncs(
     org_funcs = response.json()["results"][0]
     if dry_run:
         return org_funcs
-    for uuid in org_funcs:
-        r = httpx.delete(f"{mox_base}/organisation/organisationfunktion/{uuid}")
+    for org_func_uuid in org_funcs:
+        r = httpx.delete(
+            f"{mox_base}/organisation/organisationfunktion/{org_func_uuid}"
+        )
         r.raise_for_status()
 
-    try:
-        r = httpx.delete(f"{mox_base}/organisation/{object_type}/{uuid}")
-        r.raise_for_status()
-    except httpx.HTTPStatusError as e:
-        if e.response.status_code == 404:
-            return
-        raise e
+    r = httpx.delete(f"{mox_base}/organisation/{object_type}/{uuid}")
+    r.raise_for_status()
 
 
 @click.command()
