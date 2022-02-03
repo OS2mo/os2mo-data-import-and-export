@@ -509,6 +509,7 @@ class SdImport(object):
 
         effective_date = datetime.datetime.strptime(self.import_date, "%d.%m.%Y").date()
 
+        logger.info("Get active people from SD...")
         active_people = ensure_list(
             read_employment_at(
                 effective_date,
@@ -516,6 +517,7 @@ class SdImport(object):
             )
         )
 
+        logger.info("Get passive people from SD...")
         passive_people = ensure_list(
             read_employment_at(
                 effective_date,
@@ -528,7 +530,10 @@ class SdImport(object):
         # active_people and passive_people by using the partition function from
         # more_itertools
 
+        logger.info("Create employees from active SD employees...")
         self._create_employees(active_people)
+
+        logger.info("Create employees from passive SD employees...")
         self._create_employees(passive_people, skip_manager=True)
 
     def _create_employees(self, persons, skip_manager=False):
@@ -537,9 +542,10 @@ class SdImport(object):
             self.create_employee(person, skip_manager=skip_manager)
 
     def create_employee(self, person, skip_manager=False):
+        logger.debug(79 * "-")
         logger.debug("Person object to create: {}".format(person))
-        cpr = person["PersonCivilRegistrationIdentifier"]
 
+        cpr = person["PersonCivilRegistrationIdentifier"]
         employments = ensure_list(person["Employment"])
 
         for employment in employments:
@@ -600,13 +606,15 @@ class SdImport(object):
             if date_to == datetime.datetime(9999, 12, 31, 0, 0):
                 date_to_str = None
 
+            sd_employment_id = employment_id["id"]
             logger.info(
-                "Validty for {}: from: {}, to: {}".format(
-                    employment_id["id"], date_from_str, date_to_str
-                )
+                f"Validty for {sd_employment_id}: from: {date_from_str}, "
+                f"to: {date_to_str}"
             )
 
-            assert date_from <= date_to, "date_from > date_to for employment!"
+            if date_to <= date_from:
+                logger.warning(f"Skip creating employment for id: {sd_employment_id}")
+                continue
 
             original_unit = unit
             # Remove this to remove any sign of the employee from the
