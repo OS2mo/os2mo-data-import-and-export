@@ -446,11 +446,6 @@ def test_set_engagement_on_leave(mock_uuid4):
     assert leave.engagement_uuid == "00000000-0000-0000-0000-000000000000"
 
 
-def test_employment_date_as_engagement_start_date_disabled_per_default():
-    sd = get_sd_importer()
-    assert sd.employment_date_as_engagement_start_date is False
-
-
 @patch("integrations.SD_Lon.sd_importer.ImportHelper.add_engagement")
 def test_no_historic_engagement_when_anniversary_same_as_employment_from_date(
     mock_add_engagement,

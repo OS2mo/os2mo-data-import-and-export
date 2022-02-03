@@ -37,7 +37,7 @@ def json_file_settings(settings: BaseSettings):
 
 class Settings(BaseSettings):
     mora_base: AnyHttpUrl = "http://mo-service:5000"
-    sd_importer_employment_date_as_engagement_start_date: bool
+    sd_importer_employment_date_as_engagement_start_date: bool = False
 
     class Config:
         # TODO: change this to "ignore" for "forbid"

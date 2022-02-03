@@ -20,6 +20,7 @@ from ra_utils.load_settings import load_settings
 
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
+from integrations.SD_Lon.config import settings as poc_settings
 from integrations.SD_Lon.date_utils import format_date
 from integrations.SD_Lon.date_utils import get_employment_dates
 from integrations.SD_Lon.date_utils import parse_date
@@ -44,7 +45,7 @@ def get_import_date(settings):
     return import_date
 
 
-class SdImport(object):
+class SdImport:
     # XXX: This does really expensive calls against SD in __init__, caution!
 
     def __init__(
@@ -91,10 +92,10 @@ class SdImport(object):
 
         # Whether to use <Employment><EmploymentDate> as engagement start date instead
         # of <Employment><EmploymentStatus><ActivationDate>.
-        self.employment_date_as_engagement_start_date = self.settings.get(
-            "integrations.SD_Lon.sd_importer.employment_date_as_engagement_start_date",
-            False,
-        )
+        # self.employment_date_as_engagement_start_date = self.settings.get(
+        #     "integrations.SD_Lon.sd_importer.employment_date_as_engagement_start_date",
+        #     False,
+        # )
 
         # CPR indexed dictionary of AD users
         self.ad_people: Dict[str, Dict] = {}
@@ -598,7 +599,8 @@ class SdImport(object):
             unit = emp_dep["DepartmentUUIDIdentifier"]
 
             date_from, date_to = get_employment_dates(
-                employment, self.employment_date_as_engagement_start_date
+                employment,
+                poc_settings.sd_importer_employment_date_as_engagement_start_date
             )
 
             date_from_str = format_date(date_from)
