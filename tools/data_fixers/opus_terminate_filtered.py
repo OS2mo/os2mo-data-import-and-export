@@ -2,11 +2,11 @@ from operator import itemgetter
 
 import click
 import httpx
+from integrations.opus import opus_helpers
+from integrations.opus.opus_diff_import import OpusDiffImport
 from ra_utils.load_settings import load_settings
 from tqdm import tqdm
 
-from integrations.opus import opus_helpers
-from integrations.opus.opus_diff_import import OpusDiffImport
 from tools.data_fixers.remove_from_lora import delete_object_and_orgfuncs
 
 
@@ -43,7 +43,7 @@ def terminate_filtered_employees(dry_run):
         print(
             f"There are {len(eng_info)} engagements that should have been terminated."
         )
-        return
+        return len(eng_info)
 
     for eng_uuid in tqdm(eng_info, desc="Deleting filtered engagements"):
         r = httpx.delete(f"{mox_base}/organisation/organisationfunktion/{eng_uuid}")
