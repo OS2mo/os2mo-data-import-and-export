@@ -3,7 +3,7 @@ import requests
 from ra_utils.load_settings import load_settings
 from tools.data_fixers.find_duplicate_users import check_duplicate_cpr
 from tools.data_fixers.class_tools import find_duplicates_classes
-from tools.data_fixers.opus_terminate_filtered_units import (
+from tools.data_fixers.opus_terminate_filtered import (
     terminate_filtered_units,
     terminate_filtered_employees
 )
@@ -29,7 +29,7 @@ def main():
         assert not unfiltered_units, f"Found {len(unfiltered_units)} unit(s) that should have been filtered: {[u['name'] for u in unfiltered_units]}"
 
         unfiltered_employees = terminate_filtered_employees(dry_run=True)
-        asser unfiltered_employees == 0, f"Found {unfiltered_employees} engagements that should have been filtered"
+        assert unfiltered_employees == 0, f"Found {unfiltered_employees} engagements that should have been filtered"
 
 
 

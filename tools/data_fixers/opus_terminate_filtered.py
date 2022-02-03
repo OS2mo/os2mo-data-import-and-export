@@ -28,12 +28,14 @@ def terminate_filtered_employees(dry_run):
     mox_base = settings.get("mox.base", "localhost:8080")
     latest_date, opus_dump = opus_helpers.get_latest_dump()
     file_diffs = opus_helpers.file_diff(None, opus_dump)
+    # Get every id of filtered units
     all_ids = opus_helpers.find_all_filtered_ids(opus_dump, filter_ids)
+    # find all engagements to a filtered unit in latest opus-file
     filtered_employees = list(
         filter(lambda emp: emp.get("orgUnit") in all_ids, file_diffs["employees"])
     )
     diff = OpusDiffImport(latest_date, ad_reader=None, employee_mapping={})
-
+    #Check if any engagements exist that should have been filtered
     eng_info = [
         diff._find_engagement(e["@id"], "Engagement", present=False)
         for e in filtered_employees
@@ -49,13 +51,14 @@ def terminate_filtered_employees(dry_run):
         r = httpx.delete(f"{mox_base}/organisation/organisationfunktion/{eng_uuid}")
         r.raise_for_status()
 
+    #Check users in MO - if no engagements are left then delete the user and all details to it.
     user_cprs = set(map(opus_helpers.read_cpr, filtered_employees))
     users = [
         diff.helper.read_user(user_cpr=cpr)
         for cpr in user_cprs
         if diff.helper.read_user(user_cpr=cpr)
     ]
-    user_uuids = list(map(itemgetter("uuid"), users))
+    user_uuids = set(map(itemgetter("uuid"), users))
 
     eng = list(map(diff.helper.read_user_engagements, user_uuids))
     eng_uuid = dict(zip(user_uuids, eng))
@@ -77,7 +80,7 @@ def terminate_filtered_employees(dry_run):
 def cli(dry_run):
     """Terminate Opus units that are filtered.
 
-    This tool terminates any unit and employee from Opus that has been filtered. This can be usefull when a new unit is added to the filter
+    This tool terminates any unit and employee from Opus that has been filtered. This can be usefull when a new unit is added to the filter.
     """
     terminate_filtered_units(dry_run)
     terminate_filtered_employees(dry_run)
