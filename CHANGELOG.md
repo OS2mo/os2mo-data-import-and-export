@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.15.0 - 2022-02-04
+-------------------
+
+[#48132] Add check for users and engagements that should have been filtered from opus-import and a script to remove them.
+
 2.14.0 - 2022-02-02
 -------------------
 
