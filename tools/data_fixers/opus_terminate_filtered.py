@@ -45,7 +45,7 @@ def terminate_filtered_employees(dry_run):
         print(
             f"There are {len(eng_info)} engagements that should have been terminated."
         )
-        return len(eng_info)
+        return eng_info
 
     for eng_uuid in tqdm(eng_info, desc="Deleting filtered engagements"):
         r = httpx.delete(f"{mox_base}/organisation/organisationfunktion/{eng_uuid}")

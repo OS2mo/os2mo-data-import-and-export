@@ -29,7 +29,7 @@ def main():
         assert not unfiltered_units, f"Found {len(unfiltered_units)} unit(s) that should have been filtered: {[u['name'] for u in unfiltered_units]}"
 
         unfiltered_employees = terminate_filtered_employees(dry_run=True)
-        assert unfiltered_employees == 0, f"Found {unfiltered_employees} engagements that should have been filtered"
+        assert not unfiltered_employees, f"Found {len(unfiltered_employees)} engagements that should have been filtered"
 
 
 
