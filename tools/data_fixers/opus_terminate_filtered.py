@@ -57,9 +57,12 @@ def terminate_filtered_employees(dry_run):
     users = filter(lambda x: x, users)
     user_uuids = set(map(itemgetter("uuid"), users))
 
-    eng = list(map(diff.helper.read_user_engagements, user_uuids))
-    eng_uuid = dict(zip(user_uuids, eng))
-    delete_users = dict(filter(lambda x: x[1] == [], eng_uuid.items()))
+    user_engagements = {
+        user_uuid: diff.helper.read_user_engagements(user_uuid, read_all=True)
+        for user_uuid in user_uuids
+    }
+
+    delete_users = dict(filter(lambda x: x[1] == [], user_engagements.items()))
     for user_uuid in tqdm(
         delete_users, desc="Deleting users with no other engagements"
     ):
