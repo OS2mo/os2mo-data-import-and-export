@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.15.1 - 2022-02-07
+-------------------
+
+[#48132] Patch for opus_terminate_filtered script, so it won't delete users with unfiltered engagements in the past or future.
+
 2.15.0 - 2022-02-04
 -------------------
 
