@@ -14,6 +14,7 @@ from pydantic import conint
 from pydantic import Extra
 from pydantic import Field
 from pydantic import PositiveInt
+from pydantic import SecretStr
 from integrations.SD_Lon.models import JobFunction
 from ra_utils.load_settings import load_settings
 
@@ -67,7 +68,7 @@ class Settings(BaseSettings):
     sd_institution_identifier: str
     sd_job_function: JobFunction
     sd_monthly_hourly_divide: PositiveInt
-    sd_password: str
+    sd_password: SecretStr
     sd_skip_employment_types: List[str] = []
     sd_terminate_engagement_with_to_only: bool = True
     sd_use_ad_integration: bool = False

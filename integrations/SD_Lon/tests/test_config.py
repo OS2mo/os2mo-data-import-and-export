@@ -32,7 +32,7 @@ DEFAULT_EXPECTED_SETTINGS = {
     "sd_job_function": "EmploymentName",
     "sd_monthly_hourly_divide": 50000,
     "sd_user": "user",
-    "sd_password": "password",
+    "sd_password": "**********",
     "municipality_code": 740,
     "municipality_name": "Kolding Kommune",
     "mora_base": "http://mo-service:5000",
@@ -113,10 +113,10 @@ def test_set_defaults(mock_load_settings):
 
     # Act
     get_settings.cache_clear()
-    settings = get_settings()
+    settings_input = get_settings()
 
     # Assert
-    assert json.loads(settings.json()) == DEFAULT_EXPECTED_SETTINGS
+    assert json.loads(settings_input.json()) == DEFAULT_EXPECTED_SETTINGS
 
 
 def test_forbid_extra_settings():
