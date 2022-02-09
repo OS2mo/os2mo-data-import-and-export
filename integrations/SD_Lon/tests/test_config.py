@@ -20,8 +20,7 @@ DEFAULT_MOCK_SETTINGS = {
     "integrations.SD_Lon.monthly_hourly_divide": 50000,
     "integrations.SD_Lon.sd_user": "user",
     "integrations.SD_Lon.sd_password": "password",
-    "municipality.code": "740",
-    "municipality.cvr": 29189641,
+    "municipality.code": 740,
     "municipality.name": "Kolding Kommune",
 }
 
@@ -34,8 +33,7 @@ DEFAULT_EXPECTED_SETTINGS = {
     "sd_monthly_hourly_divide": 50000,
     "sd_user": "user",
     "sd_password": "password",
-    "municipality_code": "740",
-    "municipality_cvr": 29189641,
+    "municipality_code": 740,
     "municipality_name": "Kolding Kommune",
     "mora_base": "http://mo-service:5000",
     "mox_base": "http://mox-service:8080",
@@ -57,8 +55,7 @@ DEFAULT_FILTERED_JSON_SETTINGS = {
     "sd_monthly_hourly_divide": 50000,
     "sd_user": "user",
     "sd_password": "password",
-    "municipality_code": "740",
-    "municipality_cvr": 29189641,
+    "municipality_code": 740,
     "municipality_name": "Kolding Kommune",
 }
 
@@ -127,7 +124,6 @@ def test_forbid_extra_settings():
         Settings(
             municipality_name="name",
             municipality_code="code",
-            municipality_cvr=12345678,
             sd_global_from_date="1970-01-01",
             sd_employment_field="extension_1",
             sd_import_run_db="run_db.sqlite",
@@ -168,7 +164,8 @@ def test_override_default(mock_load_settings):
     [
         ("mora_base", "Not a URL"),
         ("mox_base", "Not a URL"),
-        ("municipality_cvr", -1),
+        ("municipality_code", 98),
+        ("municipality_code", 1000),
         ("sd_global_from_date", "Invalid string"),
         ("sd_monthly_hourly_divide", -1),
     ]

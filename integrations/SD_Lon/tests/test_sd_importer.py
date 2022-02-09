@@ -40,7 +40,7 @@ class SdImportTest(SdImport):
 
 def get_sd_importer(
     municipality_name: str = "Andeby Kommune",
-    municipality_code: str = "11223344",
+    municipality_code: int = 100,
     org_only: bool = False,
     override_settings: Optional[Dict[str, Any]] = None,
 ) -> SdImportTest:
@@ -60,7 +60,6 @@ def get_sd_importer(
     settings_dict = {
         "municipality_name": municipality_name,
         "municipality_code": municipality_code,
-        "municipality_cvr": 12345678,
         "sd_global_from_date": "1970-01-01",
         "sd_employment_field": "extension_1",
         "sd_import_run_db": "run_db.sqlite",
@@ -88,7 +87,7 @@ def get_sd_importer(
     assert sd.importer.organisation[1].uuid is None
     assert sd.importer.organisation[1].name == municipality_name
     assert sd.importer.organisation[1].user_key == municipality_name
-    assert sd.importer.organisation[1].municipality_code == municipality_code
+    assert sd.importer.organisation[1].municipality_code == str(municipality_code)
     assert sd.importer.organisation[1].date_from == "1930-01-01"
     assert sd.importer.organisation[1].date_to == "infinity"
     assert sd.importer.organisation[1].integration_data == {}
@@ -120,8 +119,8 @@ def get_sd_importer(
     return sd
 
 
-@given(st.text(), st.text(), st.booleans())
-def test_instantiation(municipality_name: str, municipality_code: str, org_only: bool):
+@given(st.text(), st.integers(min_value=100, max_value=999), st.booleans())
+def test_instantiation(municipality_name: str, municipality_code: int, org_only: bool):
     get_sd_importer(municipality_name, municipality_code, org_only)
 
 

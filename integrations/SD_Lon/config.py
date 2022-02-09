@@ -9,6 +9,7 @@ from typing import List
 
 from pydantic import AnyHttpUrl
 from pydantic import BaseSettings
+from pydantic import conint
 from pydantic import Extra
 from pydantic import Field
 from pydantic import PositiveInt
@@ -54,8 +55,7 @@ class Settings(BaseSettings):
 
     mora_base: AnyHttpUrl = Field("http://mo-service:5000")
     mox_base: AnyHttpUrl = Field("http://mox-service:8080")
-    municipality_code: str
-    municipality_cvr: PositiveInt
+    municipality_code: conint(ge=100, le=999)
     municipality_name: str
     sd_employment_field: str
     sd_global_from_date: str = Field(regex=DATE_REGEX_STR)
