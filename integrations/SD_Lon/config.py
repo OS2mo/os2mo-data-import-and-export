@@ -39,6 +39,12 @@ def json_file_settings(settings: BaseSettings) -> Dict[str, Any]:
         key.replace(".", "_"): value for key, value in json_settings.items()
     }
 
+    # Remove settings forbidden according to the Settings model
+    properties = Settings.schema()["properties"].keys()
+    json_settings = {
+        key: value for key, value in json_settings.items() if key in properties
+    }
+
     return json_settings
 
 
@@ -68,7 +74,7 @@ class Settings(BaseSettings):
     sd_user: str
 
     class Config:
-        extra = Extra.ignore
+        extra = Extra.forbid
 
         @classmethod
         def customise_sources(

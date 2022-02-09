@@ -48,6 +48,20 @@ DEFAULT_EXPECTED_SETTINGS = {
     "sd_use_ad_integration": False,
 }
 
+DEFAULT_FILTERED_JSON_SETTINGS = {
+    "sd_employment_field": "extension_1",
+    "sd_global_from_date": "2022-01-09",
+    "sd_import_run_db": "run_db.sqlite",
+    "sd_institution_identifier": "XYZ",
+    "sd_job_function": "EmploymentName",
+    "sd_monthly_hourly_divide": 50000,
+    "sd_user": "user",
+    "sd_password": "password",
+    "municipality_code": "740",
+    "municipality_cvr": 29189641,
+    "municipality_name": "Kolding Kommune",
+}
+
 
 @pytest.fixture
 def mock_env_and_json(monkeypatch):
@@ -66,19 +80,21 @@ def test_json_file_settings(mock_load_settings):
     settings = json_file_settings(BaseSettings())
 
     # Assert
-    assert settings == {
-        "sd_employment_field": "extension_1",
-        "sd_global_from_date": "2022-01-09",
-        "sd_import_run_db": "run_db.sqlite",
-        "sd_institution_identifier": "XYZ",
-        "sd_job_function": "EmploymentName",
-        "sd_monthly_hourly_divide": 50000,
-        "sd_user": "user",
-        "sd_password": "password",
-        "municipality_code": "740",
-        "municipality_cvr": 29189641,
-        "municipality_name": "Kolding Kommune",
-    }
+    assert settings == DEFAULT_FILTERED_JSON_SETTINGS
+
+
+@patch("integrations.SD_Lon.config.load_settings")
+def test_json_file_settings_remove_unknown_settings(mock_load_settings):
+    # Arrange
+    mock_settings = deepcopy(DEFAULT_MOCK_SETTINGS)
+    mock_settings.update({"unknown": "property"})
+    mock_load_settings.return_value = mock_settings
+
+    # Act
+    settings = json_file_settings(BaseSettings())
+
+    # Assert
+    assert settings == DEFAULT_FILTERED_JSON_SETTINGS
 
 
 @patch("integrations.SD_Lon.config.load_settings")
@@ -94,11 +110,9 @@ def test_empty_dict_on_file_not_found_error(mock_load_settings):
 
 
 @patch("integrations.SD_Lon.config.load_settings")
-def test_extra_settings_ignored_and_defaults_set(mock_load_settings):
+def test_set_defaults(mock_load_settings):
     # Arrange
-    mock_settings = deepcopy(DEFAULT_MOCK_SETTINGS)
-    mock_settings.update({"unknown": "setting"})
-    mock_load_settings.return_value = mock_settings
+    mock_load_settings.return_value = DEFAULT_MOCK_SETTINGS
 
     # Act
     get_settings.cache_clear()
@@ -106,6 +120,24 @@ def test_extra_settings_ignored_and_defaults_set(mock_load_settings):
 
     # Assert
     assert json.loads(settings.json()) == DEFAULT_EXPECTED_SETTINGS
+
+
+def test_forbid_extra_settings():
+    with pytest.raises(ValidationError):
+        Settings(
+            municipality_name="name",
+            municipality_code="code",
+            municipality_cvr=12345678,
+            sd_global_from_date="1970-01-01",
+            sd_employment_field="extension_1",
+            sd_import_run_db="run_db.sqlite",
+            sd_institution_identifier="XY",
+            sd_job_function="EmploymentName",
+            sd_monthly_hourly_divide=9000,
+            sd_password="secret",
+            sd_user="user",
+            forbidden="property"
+        )
 
 
 def test_env_settings_takes_precedence(mock_env_and_json):
