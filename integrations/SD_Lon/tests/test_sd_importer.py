@@ -450,3 +450,8 @@ def test_set_engagement_on_leave(mock_uuid4):
 
     assert engagement.uuid == "00000000-0000-0000-0000-000000000000"
     assert leave.engagement_uuid == "00000000-0000-0000-0000-000000000000"
+
+
+def test_employment_date_as_engagement_start_date_disabled_per_default():
+    sd = get_sd_importer()
+    assert sd.employment_date_as_engagement_start_date is False
