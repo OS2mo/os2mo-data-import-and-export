@@ -4,15 +4,24 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+from functools import lru_cache
+from typing import List
+
+from pydantic import AnyHttpUrl
 from pydantic import BaseSettings
 from pydantic import Extra
-from pydantic import AnyHttpUrl
-
+from pydantic import Field
+from pydantic import PositiveInt
 from ra_utils.load_settings import load_settings
+
+from integrations.SD_Lon.date_utils import DATE_REGEX_STR
 
 
 def json_file_settings(settings: BaseSettings):
-    json_settings = load_settings()
+    try:
+        json_settings = load_settings()
+    except FileNotFoundError:
+        return dict()
 
     # Remove the "integrations.SD_Lon." part of the key name
     json_settings = {
@@ -22,33 +31,51 @@ def json_file_settings(settings: BaseSettings):
 
     # Remove any double "sd_sd_" in the keys
     json_settings = {
-        key.replace("sd_sd_", "sd_"): value
-        for key, value in json_settings.items()
+        key.replace("sd_sd_", "sd_"): value for key, value in json_settings.items()
     }
 
     # Replace dots with underscores to be Pydantic compliant
     json_settings = {
-        key.replace(".", "_"): value
-        for key, value in json_settings.items()
+        key.replace(".", "_"): value for key, value in json_settings.items()
     }
 
     return json_settings
 
 
 class Settings(BaseSettings):
-    mora_base: AnyHttpUrl = "http://mo-service:5000"
+
+    # Should the strings below be optional?
+
+    mora_base: AnyHttpUrl = "http://mo-service:5000"  # type: ignore
+    mox_base: AnyHttpUrl = "http://mox-service:8080"  # type: ignore
+    municipality_code: str
+    municipality_cvr: PositiveInt
+    municipality_name: str
+    sd_employment_field: str
+    sd_global_from_date: str = Field(regex=DATE_REGEX_STR)
+    sd_import_run_db: str
+    sd_import_too_deep: List[str] = []
+    sd_importer_create_associations: bool = True
+    sd_importer_create_email_addresses: bool = True
     sd_importer_employment_date_as_engagement_start_date: bool = False
+    sd_institution_identifier: str
+    sd_job_function: str
+    sd_monthly_hourly_divide: PositiveInt
+    sd_password: str
+    sd_skip_employment_types: List[str] = []
+    sd_terminate_engagement_with_to_only: bool = True
+    sd_use_ad_integration: bool = False
+    sd_user: str
 
     class Config:
-        # TODO: change this to "ignore" for "forbid"
-        extra = Extra.allow
+        extra = Extra.ignore
 
         @classmethod
         def customise_sources(
-                cls,
-                init_settings,
-                env_settings,
-                file_secret_settings,
+            cls,
+            init_settings,
+            env_settings,
+            file_secret_settings,
         ):
             return (
                 init_settings,
@@ -58,4 +85,6 @@ class Settings(BaseSettings):
             )
 
 
-settings = Settings()
+@lru_cache()
+def get_settings(*args, **kwargs) -> Settings:
+    return Settings(*args, **kwargs)
