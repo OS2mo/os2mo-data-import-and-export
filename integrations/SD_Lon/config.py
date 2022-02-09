@@ -17,7 +17,7 @@ from ra_utils.load_settings import load_settings
 from integrations.SD_Lon.date_utils import DATE_REGEX_STR
 
 
-def json_file_settings(settings: BaseSettings):
+def json_file_settings(settings: BaseSettings) -> Dict[str, Any]:
     try:
         json_settings = load_settings()
     except FileNotFoundError:
