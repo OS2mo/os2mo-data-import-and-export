@@ -15,8 +15,9 @@ from pydantic import Extra
 from pydantic import Field
 from pydantic import PositiveInt
 from pydantic import SecretStr
-from integrations.SD_Lon.models import JobFunction
 from ra_utils.load_settings import load_settings
+
+from integrations.SD_Lon.models import JobFunction
 
 
 def json_file_settings(settings: BaseSettings) -> Dict[str, Any]:
@@ -56,7 +57,7 @@ class Settings(BaseSettings):
 
     mora_base: AnyHttpUrl = Field("http://mo-service:5000")
     mox_base: AnyHttpUrl = Field("http://mox-service:8080")
-    municipality_code: conint(ge=100, le=999)
+    municipality_code: conint(ge=100, le=999)  # type: ignore
     municipality_name: str
     sd_employment_field: str
     sd_global_from_date: date

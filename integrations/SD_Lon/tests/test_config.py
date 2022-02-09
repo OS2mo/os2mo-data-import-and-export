@@ -132,7 +132,7 @@ def test_forbid_extra_settings():
             sd_monthly_hourly_divide=9000,
             sd_password="secret",
             sd_user="user",
-            forbidden="property"
+            forbidden="property",
         )
 
 
