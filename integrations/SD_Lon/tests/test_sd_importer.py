@@ -15,6 +15,7 @@ from ra_utils.attrdict import attrdict
 from .fixtures import get_department_fixture
 from .fixtures import get_organisation_fixture
 from integrations.SD_Lon.config import Settings
+from integrations.SD_Lon.sd_importer import SdImport
 from os2mo_data_import import ImportHelper
 
 
@@ -23,27 +24,26 @@ def mock_json(monkeypatch):
     monkeypatch.setattr("integrations.SD_Lon.config.load_settings", lambda: dict())
 
 
+class SdImportTest(SdImport):
+    def __init__(self, *args, **kwargs):
+        self.add_people_mock = MagicMock()
+        self.read_department_info_mock = MagicMock()
+
+        self.orig_add_people = self.add_people
+        self.orig_read_department_info = self._read_department_info
+
+        self.add_people = self.add_people_mock
+        self._read_department_info = self.read_department_info_mock
+
+        super().__init__(*args, **kwargs)
+
+
 def get_sd_importer(
     municipality_name: str = "Andeby Kommune",
     municipality_code: str = "11223344",
     org_only: bool = False,
     override_settings: Optional[Dict[str, Any]] = None,
-):
-    from integrations.SD_Lon.sd_importer import SdImport
-
-    class SdImportTest(SdImport):
-        def __init__(self, *args, **kwargs):
-            self.add_people_mock = MagicMock()
-            self.read_department_info_mock = MagicMock()
-
-            self.orig_add_people = self.add_people
-            self.orig_read_department_info = self._read_department_info
-
-            self.add_people = self.add_people_mock
-            self._read_department_info = self.read_department_info_mock
-
-            super().__init__(*args, **kwargs)
-
+) -> SdImportTest:
     override_settings = override_settings or {}
 
     mora_base = "http://mora/"
