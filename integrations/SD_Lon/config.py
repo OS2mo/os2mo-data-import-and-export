@@ -52,8 +52,8 @@ class Settings(BaseSettings):
 
     # Should the strings below be optional?
 
-    mora_base: AnyHttpUrl = "http://mo-service:5000"  # type: ignore
-    mox_base: AnyHttpUrl = "http://mox-service:8080"  # type: ignore
+    mora_base: AnyHttpUrl = Field("http://mo-service:5000")
+    mox_base: AnyHttpUrl = Field("http://mox-service:8080")
     municipality_code: str
     municipality_cvr: PositiveInt
     municipality_name: str
