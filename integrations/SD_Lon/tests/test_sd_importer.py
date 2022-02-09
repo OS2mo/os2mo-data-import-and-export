@@ -7,28 +7,20 @@ from uuid import UUID
 from uuid import uuid4
 
 import hypothesis.strategies as st
+import pytest
 from hypothesis import given
 from hypothesis import settings
 from ra_utils.attrdict import attrdict
 
 from .fixtures import get_department_fixture
 from .fixtures import get_organisation_fixture
-from integrations.SD_Lon.sd_importer import SdImport
+from integrations.SD_Lon.config import Settings
 from os2mo_data_import import ImportHelper
 
 
-class SdImportTest(SdImport):
-    def __init__(self, *args, **kwargs):
-        self.add_people_mock = MagicMock()
-        self.read_department_info_mock = MagicMock()
-
-        self.orig_add_people = self.add_people
-        self.orig_read_department_info = self._read_department_info
-
-        self.add_people = self.add_people_mock
-        self._read_department_info = self.read_department_info_mock
-
-        super().__init__(*args, **kwargs)
+@pytest.fixture(autouse=True)
+def mock_json(monkeypatch):
+    monkeypatch.setattr("integrations.SD_Lon.config.load_settings", lambda: dict())
 
 
 def get_sd_importer(
@@ -36,7 +28,22 @@ def get_sd_importer(
     municipality_code: str = "11223344",
     org_only: bool = False,
     override_settings: Optional[Dict[str, Any]] = None,
-) -> SdImportTest:
+):
+    from integrations.SD_Lon.sd_importer import SdImport
+
+    class SdImportTest(SdImport):
+        def __init__(self, *args, **kwargs):
+            self.add_people_mock = MagicMock()
+            self.read_department_info_mock = MagicMock()
+
+            self.orig_add_people = self.add_people
+            self.orig_read_department_info = self._read_department_info
+
+            self.add_people = self.add_people_mock
+            self._read_department_info = self.read_department_info_mock
+
+            super().__init__(*args, **kwargs)
+
     override_settings = override_settings or {}
 
     mora_base = "http://mora/"
@@ -50,13 +57,24 @@ def get_sd_importer(
         seperate_names=True,
     )
 
-    settings = {
-        "municipality.name": municipality_name,
-        "municipality.code": municipality_code,
-        "integrations.SD_Lon.global_from_date": "1970-01-01",
+    settings_dict = {
+        "municipality_name": municipality_name,
+        "municipality_code": municipality_code,
+        "municipality_cvr": 12345678,
+        "sd_global_from_date": "1970-01-01",
+        "sd_employment_field": "extension_1",
+        "sd_import_run_db": "run_db.sqlite",
+        "sd_institution_identifier": "XY",
+        "sd_job_function": "EmploymentName",
+        "sd_monthly_hourly_divide": 9000,
+        "sd_password": "secret",
+        "sd_user": "user",
+        "sd_importer_create_associations": False,
     }
-    settings.update(override_settings)
-    sd = SdImportTest(importer, org_only=org_only, ad_info=None, settings=settings)
+    settings_dict.update(override_settings)
+    settings = Settings.parse_obj(settings_dict)
+
+    sd = SdImportTest(importer, settings=settings, org_only=org_only, ad_info=None)
 
     # add_people should not be called when rg-only
     if org_only:
@@ -111,10 +129,7 @@ def test_instantiation(municipality_name: str, municipality_code: str, org_only:
 def test_create_employee(create_associations: bool):
     sd = get_sd_importer(
         override_settings={
-            "integrations.SD_Lon.monthly_hourly_divide": 9000,
-            "integrations.SD_Lon.job_function": "EmploymentName",
-            "integrations.SD_Lon.import.too_deep": [],
-            "integrations.SD_Lon.sd_importer.create_associations": create_associations,
+            "sd_importer_create_associations": create_associations,
         }
     )
     sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit"})
@@ -238,9 +253,7 @@ def test_create_ou_tree(
 
     sd = get_sd_importer(
         override_settings={
-            "integrations.SD_Lon.sd_importer.create_email_addresses": (
-                create_email_addresses
-            ),
+            "sd_importer_create_email_addresses": create_email_addresses,
         }
     )
     institution_uuid = str(uuid4())
@@ -393,13 +406,7 @@ def test_set_engagement_on_leave(mock_uuid4):
     # Arrange
 
     mock_uuid4.return_value = UUID("00000000-0000-0000-0000-000000000000")
-    sd = get_sd_importer(
-        override_settings={
-            "integrations.SD_Lon.monthly_hourly_divide": 9000,
-            "integrations.SD_Lon.job_function": "EmploymentName",
-            "integrations.SD_Lon.import.too_deep": [],
-        }
-    )
+    sd = get_sd_importer()
     sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit"})
 
     cpr_no = "0101709999"
@@ -440,67 +447,7 @@ def test_set_engagement_on_leave(mock_uuid4):
     # Assert
 
     details = sd.importer.employee_details[cpr_no]
-    association, engagement, leave = details
+    engagement, leave = details
 
     assert engagement.uuid == "00000000-0000-0000-0000-000000000000"
     assert leave.engagement_uuid == "00000000-0000-0000-0000-000000000000"
-
-
-@patch("integrations.SD_Lon.sd_importer.ImportHelper.add_engagement")
-def test_no_historic_engagement_when_anniversary_same_as_employment_from_date(
-    mock_add_engagement,
-):
-
-    # Arrange
-
-    sd = get_sd_importer(
-        override_settings={
-            "integrations.SD_Lon.monthly_hourly_divide": 9000,
-            "integrations.SD_Lon.job_function": "EmploymentName",
-            "integrations.SD_Lon.import.too_deep": [],
-            "integrations.SD_Lon.sd_importer.employment_date_as_engagement_start_date": True,
-        }
-    )
-    sd.nodes["org_unit_uuid"] = attrdict({"name": "org_unit"})
-
-    cpr_no = "0101709999"
-    sd.importer.add_employee(
-        name=("given_name", "sur_name"),
-        identifier=cpr_no,
-        cpr_no=cpr_no,
-        user_key="employee_user_key",
-        uuid="employee_uuid",
-    )
-
-    # Act
-
-    # Create an employee
-    sd.create_employee(
-        {
-            "PersonCivilRegistrationIdentifier": cpr_no,
-            "Employment": [
-                {
-                    "EmploymentDate": "2022-01-15",
-                    "Profession": {"JobPositionIdentifier": "job_id_123"},
-                    "EmploymentStatus": {
-                        "EmploymentStatusCode": "1",
-                        "ActivationDate": "1970-01-01",
-                        "DeactivationDate": "9999-12-31",
-                    },
-                    "EmploymentIdentifier": "TEST123",
-                    "WorkingTime": {"OccupationRate": 1},
-                    "EmploymentDepartment": {
-                        "DepartmentUUIDIdentifier": "org_unit_uuid",
-                    },
-                }
-            ],
-        }
-    )
-
-    # Assert
-
-    mock_add_engagement.assert_called_once()
-
-    kwargs = mock_add_engagement.call_args.kwargs
-    assert kwargs["date_from"] == "2022-01-15"
-    assert kwargs["date_to"] is None
