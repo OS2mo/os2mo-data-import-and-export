@@ -167,6 +167,7 @@ def test_override_default(mock_load_settings):
         ("municipality_code", 98),
         ("municipality_code", 1000),
         ("sd_global_from_date", "Invalid string"),
+        ("sd_job_function", "not allowed"),
         ("sd_monthly_hourly_divide", -1),
     ]
 )
