@@ -4,6 +4,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #
+from datetime import date
 from functools import lru_cache
 from typing import List
 
@@ -14,8 +15,6 @@ from pydantic import Extra
 from pydantic import Field
 from pydantic import PositiveInt
 from ra_utils.load_settings import load_settings
-
-from integrations.SD_Lon.date_utils import DATE_REGEX_STR
 
 
 def json_file_settings(settings: BaseSettings) -> Dict[str, Any]:
@@ -58,7 +57,7 @@ class Settings(BaseSettings):
     municipality_code: conint(ge=100, le=999)
     municipality_name: str
     sd_employment_field: str
-    sd_global_from_date: str = Field(regex=DATE_REGEX_STR)
+    sd_global_from_date: date
     sd_import_run_db: str
     sd_import_too_deep: List[str] = []
     sd_importer_create_associations: bool = True

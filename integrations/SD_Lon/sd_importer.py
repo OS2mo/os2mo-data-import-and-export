@@ -22,7 +22,6 @@ from integrations.SD_Lon.config import get_settings
 from integrations.SD_Lon.config import Settings
 from integrations.SD_Lon.date_utils import format_date
 from integrations.SD_Lon.date_utils import get_employment_dates
-from integrations.SD_Lon.date_utils import parse_date
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import ensure_list
@@ -36,12 +35,6 @@ LOG_LEVEL = logging.DEBUG
 LOG_FILE = "mo_initial_import.log"
 
 logger = logging.getLogger("sdImport")
-
-
-def get_import_date(settings: Settings) -> str:
-    import_date_from = parse_date(settings.sd_global_from_date)
-    import_date = import_date_from.strftime("%d.%m.%Y")
-    return import_date
 
 
 class SdImport:
@@ -75,7 +68,7 @@ class SdImport:
 
         self.org_id_prefix = org_id_prefix
 
-        self.import_date = get_import_date(self.settings)
+        self.import_date = self.settings.sd_global_from_date.strftime("%d.%m.%Y")
         # List of job_functions that should be ignored.
         self.skip_job_functions = self.settings.sd_skip_employment_types
 
