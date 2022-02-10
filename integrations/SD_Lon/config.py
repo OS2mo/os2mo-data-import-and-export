@@ -9,6 +9,7 @@ from functools import lru_cache
 from typing import Any
 from typing import Dict
 from typing import List
+from typing import Optional
 
 from pydantic import AnyHttpUrl
 from pydantic import BaseSettings
@@ -61,7 +62,7 @@ class Settings(BaseSettings):
     mox_base: AnyHttpUrl = Field("http://mox-service:8080")
     municipality_code: conint(ge=100, le=999)  # type: ignore
     municipality_name: str
-    sd_employment_field: str = Field(regex="extension_[0-9]+")
+    sd_employment_field: Optional[str] = Field(default=None, regex="extension_[0-9]+")
     sd_global_from_date: date
     sd_import_run_db: str
     sd_import_too_deep: List[str] = []
