@@ -1,6 +1,9 @@
 FROM python:3
 
-RUN apt-get update && apt-get -y install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev vim jq
+RUN apt-get update && apt-get -y install unixodbc-dev freetds-dev unixodbc tdsodbc libkrb5-dev libmariadb-dev
+
+# A few convenience packages
+RUN apt-get -y install vim jq less screen
 
 WORKDIR /code
 COPY ./reports/requirements ./reports/requirements
