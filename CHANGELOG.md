@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.16.0 - 2022-02-10
+-------------------
+
+[#48067] Log when creating engagement is skipped due to wierd SD data
+
 2.15.1 - 2022-02-07
 -------------------
 
