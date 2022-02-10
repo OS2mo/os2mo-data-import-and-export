@@ -14,6 +14,7 @@ from integrations.SD_Lon.sd_common import EmploymentStatus
 
 MO_INFINITY = None
 SD_INFINITY: str = "9999-12-31"
+DATE_REGEX_STR = "[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[0-1])"
 
 logger = logging.getLogger("sdImport")
 
@@ -98,8 +99,7 @@ def sd_to_mo_termination_date(sd_date: str) -> Optional[str]:
     """
 
     assert isinstance(sd_date, str)
-    date_regex = re.compile("[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[0-1])")
-    assert date_regex.match(sd_date)
+    assert re.compile(DATE_REGEX_STR).match(sd_date)
 
     if sd_date == SD_INFINITY:
         return MO_INFINITY

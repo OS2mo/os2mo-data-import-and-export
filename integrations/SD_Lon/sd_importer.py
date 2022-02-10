@@ -10,19 +10,18 @@ import uuid
 from operator import itemgetter
 from typing import Any
 from typing import Dict
-from typing import Optional
 
 import click
 from anytree import Node
 from os2mo_helpers.mora_helpers import MoraHelper
 from ra_utils.load_settings import load_setting
-from ra_utils.load_settings import load_settings
 
 from integrations import dawa_helper
 from integrations.ad_integration import ad_reader
+from integrations.SD_Lon.config import get_settings
+from integrations.SD_Lon.config import Settings
 from integrations.SD_Lon.date_utils import format_date
 from integrations.SD_Lon.date_utils import get_employment_dates
-from integrations.SD_Lon.date_utils import parse_date
 from integrations.SD_Lon.sd_common import calc_employment_id
 from integrations.SD_Lon.sd_common import EmploymentStatus
 from integrations.SD_Lon.sd_common import ensure_list
@@ -38,62 +37,51 @@ LOG_FILE = "mo_initial_import.log"
 logger = logging.getLogger("sdImport")
 
 
-def get_import_date(settings):
-    import_date_from = parse_date(settings["integrations.SD_Lon.global_from_date"])
-    import_date = import_date_from.strftime("%d.%m.%Y")
-    return import_date
-
-
-class SdImport(object):
+class SdImport:
     # XXX: This does really expensive calls against SD in __init__, caution!
 
     def __init__(
         self,
         importer,
+        settings: Settings,
         ad_info=None,
         org_only=False,
         org_id_prefix=None,
         employee_mapping=None,
-        settings: Optional[Dict[str, Any]] = None,
     ):
         employee_mapping = employee_mapping or {}
 
-        self.settings = settings or load_settings()
+        self.settings = settings
 
         self.base_url = "https://service.sd.dk/sdws/"
         self.address_errors: Dict[str, Dict] = {}
 
         self.importer = importer
 
-        self.org_name = self.settings["municipality.name"]
+        self.org_name = self.settings.municipality_name
 
         self.importer.add_organisation(
             identifier=self.org_name,
             user_key=self.org_name,
-            municipality_code=self.settings["municipality.code"],
+            municipality_code=self.settings.municipality_code,
         )
 
         self.org_id_prefix = org_id_prefix
 
-        self.import_date = get_import_date(self.settings)
+        self.import_date = self.settings.sd_global_from_date.strftime("%d.%m.%Y")
         # List of job_functions that should be ignored.
-        self.skip_job_functions = self.settings.get(
-            "integrations.SD_Lon.skip_employment_types", []
-        )
+        self.skip_job_functions = self.settings.sd_skip_employment_types
+
         # Whether to create SD-medarbejder associations
-        self.create_associations = self.settings.get(
-            "integrations.SD_Lon.sd_importer.create_associations", True
-        )
+        self.create_associations = self.settings.sd_importer_create_associations
+
         # Whether to import email addresses for organisations
-        self.create_email_addresses = self.settings.get(
-            "integrations.SD_Lon.sd_importer.create_email_addresses", True
-        )
+        self.create_email_addresses = self.settings.sd_importer_create_email_addresses
 
         # Whether to use <Employment><EmploymentDate> as engagement start date instead
         # of <Employment><EmploymentStatus><ActivationDate>.
-        self.employment_date_as_engagement_start_date = self.settings.get(
-            "integrations.SD_Lon.sd_importer.employment_date_as_engagement_start_date",
-            False,
+        self.employment_date_as_engagement_start_date = (
+            self.settings.sd_importer_employment_date_as_engagement_start_date
         )
 
         # CPR indexed dictionary of AD users
@@ -565,7 +553,7 @@ class SdImport(object):
             employment_id = calc_employment_id(employment)
 
             # TODO: Identital code to this exists in sd_changed_at
-            split = self.settings["integrations.SD_Lon.monthly_hourly_divide"]
+            split = self.settings.sd_monthly_hourly_divide
             if employment_id["value"] < split:
                 engagement_type_ref = "månedsløn"
             elif (split - 1) < employment_id["value"] < 999999:
@@ -582,7 +570,7 @@ class SdImport(object):
             if status == EmploymentStatus.AnsatUdenLoen:
                 primary_type_ref = "status0"
 
-            job_function_type = self.settings["integrations.SD_Lon.job_function"]
+            job_function_type = self.settings.sd_job_function
             if job_function_type == "EmploymentName":
                 job_func_ref = self._add_klasse(
                     job_name, job_name, "engagement_job_function"
@@ -598,7 +586,8 @@ class SdImport(object):
             unit = emp_dep["DepartmentUUIDIdentifier"]
 
             date_from, date_to = get_employment_dates(
-                employment, self.employment_date_as_engagement_start_date
+                employment,
+                self.settings.sd_importer_employment_date_as_engagement_start_date,
             )
 
             date_from_str = format_date(date_from)
@@ -632,11 +621,11 @@ class SdImport(object):
             # Employees are not allowed to be in these units (allthough
             # we do make an association). We must instead find the lowest
             # higher level to put she or he.
-            too_deep = self.settings["integrations.SD_Lon.import.too_deep"]
+            too_deep = self.settings.sd_import_too_deep
             while self.nodes[unit].name in too_deep:
                 unit = self.nodes[unit].parent.uuid
 
-            ext_field = self.settings.get("integrations.SD_Lon.employment_field")
+            ext_field = self.settings.sd_employment_field
             extention = {}
             if ext_field is not None:
                 extention[ext_field] = job_name
@@ -737,7 +726,7 @@ def full_import(org_only: bool, mora_base: str, mox_base: str):
         store_integration_data=False,
         seperate_names=True,
     )
-    sd = SdImport(importer, org_only=org_only, ad_info=None)
+    sd = SdImport(importer, settings=get_settings(), org_only=org_only, ad_info=None)
 
     sd.create_ou_tree(create_orphan_container=False, sub_tree=None, super_unit=None)
     if not org_only:
