@@ -221,7 +221,7 @@ class AdMoSync(object):
         """
         logger.info("Read all MO users")
         if self.lc:
-            employees = [val[0] for val in self.lc.users.values() if len(val) > 0]
+            employees = list(map(itemgetter(0), self.lc.users.values()))
         else:
             employees = self.helper.read_all_users()
         logger.info("Done reading all MO users")
