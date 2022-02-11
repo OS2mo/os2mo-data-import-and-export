@@ -177,6 +177,9 @@ class AdMoSync(object):
         # Possibly get IT-system directly from LoRa for better performance.
         self.lc = self._setup_lora_cache()
 
+        self._setup_visibilities()
+
+    def _setup_visibilities(self):
         mo_visibilities = self.helper.read_classes_in_facet("visibility")[0]
         self.visibility = {
             "PUBLIC": self.settings["address.visibility.public"],

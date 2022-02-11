@@ -10,14 +10,20 @@ from parameterized import parameterized
 
 from .. import ad_life_cycle
 from ..ad_exceptions import NoPrimaryEngagementException
+from .mocks import MO_CHILD_ORG_UNIT_UUID
 from .mocks import MO_ROOT_ORG_UNIT_UUID
 from .mocks import MockADParameterReader
 from .mocks import MockEmptyADReader
+from .mocks import MockLoraCacheDanglingParentUnit
+from .mocks import MockLoraCacheEmptyEmployee
+from .mocks import MockLoraCacheEmptyUnit
 from .mocks import MockLoraCacheExtended
+from .mocks import MockLoraCacheParentChildUnit
+from .mocks import MockLoraCacheParentUnitUnset
 from .test_utils import TestADWriterMixin
 
 
-MO_CHILD_ORG_UNIT_UUID = uuid4()
+BASE_SETTINGS = {"integrations.ad.write.create_user_trees": [MO_ROOT_ORG_UNIT_UUID]}
 
 
 def mock_find_primary_engagement(eng_org_unit_uuid):
@@ -32,83 +38,6 @@ def mock_find_primary_engagement(eng_org_unit_uuid):
         )
 
     return mock
-
-
-class MockLoraCacheEmptyEmployee(MockLoraCacheExtended):
-    @property
-    def users(self):
-        return {self._mo_values["uuid"]: []}
-
-
-class MockLoraCacheEmptyUnit(MockLoraCacheExtended):
-    """Mock a LoraCache where there are no organisational units"""
-
-    @property
-    def units(self):
-        return {}
-
-
-class MockLoraCacheDanglingParentUnit(MockLoraCacheExtended):
-    """Mock a LoraCache where organisational unit we look for has an unknown
-    parent organisational unit UUID.
-    """
-
-    @property
-    def units(self):
-        return {
-            MO_CHILD_ORG_UNIT_UUID: [
-                {
-                    "uuid": MO_CHILD_ORG_UNIT_UUID,
-                    "parent": uuid4(),
-                }
-            ],
-        }
-
-
-class MockLoraCacheParentChildUnit(MockLoraCacheExtended):
-    """Mock a LoraCache where a child unit points correctly to its parent unit
-    (which is also the root unit in this case.)
-    """
-
-    @property
-    def units(self):
-        return {
-            MO_ROOT_ORG_UNIT_UUID: [
-                {
-                    "uuid": MO_ROOT_ORG_UNIT_UUID,
-                    "parent": None,
-                }
-            ],
-            MO_CHILD_ORG_UNIT_UUID: [
-                {
-                    "uuid": MO_CHILD_ORG_UNIT_UUID,
-                    "parent": MO_ROOT_ORG_UNIT_UUID,
-                }
-            ],
-        }
-
-
-class MockLoraCacheParentUnitUnset(MockLoraCacheExtended):
-    """Mock a LoraCache where a child unit does not point correctly to its
-    parent unit, due to its 'parent' key being None.
-    """
-
-    @property
-    def units(self):
-        return {
-            MO_ROOT_ORG_UNIT_UUID: [
-                {
-                    "uuid": MO_ROOT_ORG_UNIT_UUID,
-                    "parent": None,
-                }
-            ],
-            MO_CHILD_ORG_UNIT_UUID: [
-                {
-                    "uuid": MO_CHILD_ORG_UNIT_UUID,
-                    "parent": None,
-                }
-            ],
-        }
 
 
 class TestAdLifeCycle(TestCase, TestADWriterMixin):
