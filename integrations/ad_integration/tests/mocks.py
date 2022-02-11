@@ -1,4 +1,5 @@
 from unittest.mock import Mock
+from uuid import uuid4
 
 from os2mo_helpers.mora_helpers import MoraHelper
 from winrm import Session
@@ -8,6 +9,7 @@ from ..ad_writer import MORESTSource
 from .test_utils import TestADWriterMixin
 
 MO_ROOT_ORG_UNIT_UUID = "not-a-mo-org-unit-uuid"
+MO_CHILD_ORG_UNIT_UUID = uuid4()
 MO_UUID = "not-a-uuid"
 AD_UUID_FIELD = "uuidField"
 UNKNOWN_CPR_NO = "not-a-cpr-no"
@@ -44,6 +46,13 @@ class MockEmptyADReader(MockADParameterReader):
 
     def cache_all(self, **kwargs):
         return self.read_it_all()
+
+
+class MockUnknownCPRADParameterReader(MockADParameterReader):
+    def read_user(self, cpr=None, **kwargs):
+        if cpr == UNKNOWN_CPR_NO:
+            return None
+        return super().read_user(cpr=cpr, **kwargs)
 
 
 class MockMORESTSource(MORESTSource):
@@ -138,11 +147,81 @@ class MockLoraCacheExtended(MockLoraCache):
         return "not-a-mo-org-uuid"
 
 
-class MockUnknownCPRADParameterReader(MockADParameterReader):
-    def read_user(self, cpr=None, **kwargs):
-        if cpr == UNKNOWN_CPR_NO:
-            return None
-        return super().read_user(cpr=cpr, **kwargs)
+class MockLoraCacheEmptyEmployee(MockLoraCacheExtended):
+    @property
+    def users(self):
+        return {self._mo_values["uuid"]: []}
+
+
+class MockLoraCacheEmptyUnit(MockLoraCacheExtended):
+    """Mock a LoraCache where there are no organisational units"""
+
+    @property
+    def units(self):
+        return {}
+
+
+class MockLoraCacheDanglingParentUnit(MockLoraCacheExtended):
+    """Mock a LoraCache where organisational unit we look for has an unknown
+    parent organisational unit UUID.
+    """
+
+    @property
+    def units(self):
+        return {
+            MO_CHILD_ORG_UNIT_UUID: [
+                {
+                    "uuid": MO_CHILD_ORG_UNIT_UUID,
+                    "parent": uuid4(),
+                }
+            ],
+        }
+
+
+class MockLoraCacheParentChildUnit(MockLoraCacheExtended):
+    """Mock a LoraCache where a child unit points correctly to its parent unit
+    (which is also the root unit in this case.)
+    """
+
+    @property
+    def units(self):
+        return {
+            MO_ROOT_ORG_UNIT_UUID: [
+                {
+                    "uuid": MO_ROOT_ORG_UNIT_UUID,
+                    "parent": None,
+                }
+            ],
+            MO_CHILD_ORG_UNIT_UUID: [
+                {
+                    "uuid": MO_CHILD_ORG_UNIT_UUID,
+                    "parent": MO_ROOT_ORG_UNIT_UUID,
+                }
+            ],
+        }
+
+
+class MockLoraCacheParentUnitUnset(MockLoraCacheExtended):
+    """Mock a LoraCache where a child unit does not point correctly to its
+    parent unit, due to its 'parent' key being None.
+    """
+
+    @property
+    def units(self):
+        return {
+            MO_ROOT_ORG_UNIT_UUID: [
+                {
+                    "uuid": MO_ROOT_ORG_UNIT_UUID,
+                    "parent": None,
+                }
+            ],
+            MO_CHILD_ORG_UNIT_UUID: [
+                {
+                    "uuid": MO_CHILD_ORG_UNIT_UUID,
+                    "parent": None,
+                }
+            ],
+        }
 
 
 class MockMoraHelper(MoraHelper):

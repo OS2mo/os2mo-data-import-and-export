@@ -177,6 +177,9 @@ class AdMoSync(object):
         # Possibly get IT-system directly from LoRa for better performance.
         self.lc = self._setup_lora_cache()
 
+        self._setup_visibilities()
+
+    def _setup_visibilities(self):
         mo_visibilities = self.helper.read_classes_in_facet("visibility")[0]
         self.visibility = {
             "PUBLIC": self.settings["address.visibility.public"],
@@ -218,7 +221,7 @@ class AdMoSync(object):
         """
         logger.info("Read all MO users")
         if self.lc:
-            employees = list(map(itemgetter(0), self.lc.users.values()))
+            employees = [val[0] for val in self.lc.users.values() if len(val) > 0]
         else:
             employees = self.helper.read_all_users()
         logger.info("Done reading all MO users")
