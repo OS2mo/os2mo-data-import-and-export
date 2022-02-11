@@ -611,7 +611,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             self.ad_sync.mo_post_calls,
             [
                 self._get_expected_mo_engagement_edit_call(
-                    extension_2="", validity_from=today
+                    extension_2=None, validity_from=today
                 )
             ],
         )
@@ -641,7 +641,7 @@ class TestADMoSync(TestCase, TestADMoSyncMixin):
             self.ad_sync.mo_post_calls,
             [
                 self._get_expected_mo_engagement_edit_call(
-                    extension_2="",
+                    extension_2=None,
                     validity_from=today_iso(),
                 )
             ],
