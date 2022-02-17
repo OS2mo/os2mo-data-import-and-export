@@ -485,4 +485,12 @@ class MOPrimaryEngagementUpdater(ABC):
                 print("{} has conflicting fixed primaries".format(user_uuid))
             except Exception as exp:
                 print("Exception while processing {}: {}".format(user_uuid, exp))
-        print("Total edits: {}".format(sum(edit_status.values())))
+
+        total_non_edits = 0
+        total_edits = 0
+        for number_of_edits in edit_status.values():
+            if number_of_edits == 0:
+                total_non_edits += 1
+            total_edits += number_of_edits
+        print("Total non-edits: {}".format(total_non_edits))
+        print("Total edits: {}".format(total_edits))
