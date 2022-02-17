@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.18.0 - 2022-02-17
+-------------------
+
+[#46874] Better recalculate reporting
+
 2.17.0 - 2022-02-10
 -------------------
 
