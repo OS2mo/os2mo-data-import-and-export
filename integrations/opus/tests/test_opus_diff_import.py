@@ -3,9 +3,9 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock
 from unittest.mock import patch
+from uuid import uuid4
 
 from hypothesis import given
-from uuid import uuid4
 from hypothesis.strategies import datetimes
 from hypothesis.strategies import text
 from hypothesis.strategies import uuids
@@ -300,6 +300,25 @@ class Opus_diff_import_tester(unittest.TestCase):
             diff.morahelper_mock._mo_post.assert_called_once_with(change_type, expected)
         else:
             diff.morahelper_mock._mo_post.assert_not_called()
+
+    @patch("integrations.dawa_helper.dawa_lookup")
+    @given(datetimes())
+    def test_skip_multiple_usernames(
+        self,
+        dawa_helper_mock,
+        xml_date,
+    ):
+        diff = OpusDiffImportTestbase(xml_date, ad_reader=None, employee_mapping="test")
+        date = xml_date.strftime("%Y-%m-%d")
+        diff.it_systems = {"Opus": "Opus_uuid"}
+        diff.morahelper_mock.get_e_itsystems.return_value = [
+            {"user_key": "username1", "uuid": "dummyuuid"},
+            {"user_key": "username2", "uuid": "dummyuuid"},
+        ]
+        with self.assertLogs() as cm:
+            diff.connect_it_system("new_username", "Opus", {}, "personuuid")
+            diff.morahelper_mock._mo_post.assert_not_called()
+            assert cm.output == ['WARNING:opusImport:Skiped connecting Opus IT system . More than one '"it-system found for person_uuid='personuuid'"]
 
 
 if __name__ == "__main__":

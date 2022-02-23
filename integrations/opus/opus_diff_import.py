@@ -352,9 +352,11 @@ class OpusDiffImport(object):
 
         # Default to "Enhed" as unittype
         org_type_title = unit.get("orgTypeTxt", "Enhed")
-        org_type_bvn = unit.get("orgType", org_type_title) 
+        org_type_bvn = unit.get("orgType", org_type_title)
 
-        unit_type = self.helper.ensure_class_in_facet("org_unit_type", bvn=org_type_bvn, title=org_type_title)
+        unit_type = self.helper.ensure_class_in_facet(
+            "org_unit_type", bvn=org_type_bvn, title=org_type_title
+        )
         from_date = unit.get("startDate", "01-01-1900")
         unit_user_key = self.settings.get("integrations.opus.unit_user_key", "@id")
         unit_args = {
@@ -497,7 +499,14 @@ class OpusDiffImport(object):
         current = self.helper.get_e_itsystems(
             person_uuid, it_system_uuid=it_system_uuid
         )
-        current = only(current, default={})
+        try:
+            current = only(current, default={})
+        except ValueError:
+            logger.warning(
+                f"Skiped connecting {it_system} IT system . More than one it-system found for {person_uuid=}"
+            )
+            return
+
         if not (username or current):
             return
         # New it-system account
@@ -843,10 +852,10 @@ class OpusDiffImport(object):
             return
 
         for mo_unit in units:
-                self.terminate_detail(
-                    mo_unit["uuid"], detail_type="org_unit", end_date=self.xml_date
-                )
-        
+            self.terminate_detail(
+                mo_unit["uuid"], detail_type="org_unit", end_date=self.xml_date
+            )
+
     def start_import(self, units, employees, terminated_employees):
         """
         Start an opus import, run the oldest available dump that
