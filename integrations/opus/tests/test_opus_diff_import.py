@@ -318,7 +318,7 @@ class Opus_diff_import_tester(unittest.TestCase):
         with self.assertLogs() as cm:
             diff.connect_it_system("new_username", "Opus", {}, "personuuid")
             diff.morahelper_mock._mo_post.assert_not_called()
-            assert cm.output == ['WARNING:opusImport:Skiped connecting Opus IT system . More than one '"it-system found for person_uuid='personuuid'"]
+            assert cm.output == ['WARNING:opusImport:Skipped connecting Opus IT system . More than one '"IT system found for person_uuid='personuuid'"]
 
 
 if __name__ == "__main__":

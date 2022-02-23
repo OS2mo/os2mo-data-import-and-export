@@ -503,7 +503,7 @@ class OpusDiffImport(object):
             current = only(current, default={})
         except ValueError:
             logger.warning(
-                f"Skiped connecting {it_system} IT system . More than one it-system found for {person_uuid=}"
+                f"Skipped connecting {it_system} IT system . More than one IT system found for {person_uuid=}"
             )
             return
 
