@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.18.1 - 2022-02-23
+-------------------
+
+[#48809] Skip connecting it-system during Opus import if multiple entries exist in MO.
+
 2.18.0 - 2022-02-17
 -------------------
 
