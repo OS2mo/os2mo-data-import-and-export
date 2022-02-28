@@ -2,9 +2,15 @@ import logging
 import re
 from datetime import datetime
 from datetime import timedelta
+from itertools import chain
+from itertools import takewhile
 from typing import Dict
+from typing import Iterator
 from typing import Optional
 from typing import Tuple
+
+from more_itertools import pairwise
+from more_itertools import tabulate
 
 from integrations.SD_Lon.sd_common import EmploymentStatus
 
@@ -110,3 +116,56 @@ def sd_to_mo_termination_date(sd_date: str) -> Optional[str]:
     mo_date = _sd_date - timedelta(days=1)
 
     return format_date(mo_date)
+
+
+def to_midnight(dt) -> datetime:
+    """Get previous midnight from datetime."""
+    return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def is_midnight(dt) -> bool:
+    """Check if datetime is at midnight."""
+    return dt == to_midnight(dt)
+
+
+def gen_cut_dates(
+    from_datetime: datetime, to_datetime: datetime
+) -> Iterator[datetime]:
+    """Get iterator of cut-dates between from_datetime and to_datetime.
+
+    Args:
+        from_datetime: the start date
+        to_datetime: the end date
+
+    Yields:
+        The from_datetime, then all intermediate midnight datetimes and the to_datetime.
+    """
+    assert from_datetime < to_datetime
+
+    # Tabulate to infinite iterator of midnights starting after from_datetime
+    def midnight_at_offset(offset: int) -> datetime:
+        return to_midnight(from_datetime) + timedelta(days=offset)
+
+    midnights = takewhile(
+        lambda midnight: midnight<to_datetime,
+        tabulate(midnight_at_offset, start=1)
+    )
+    return chain([from_datetime], midnights, [to_datetime])
+
+
+def gen_date_intervals(
+    from_datetime: datetime, to_datetime: datetime
+) -> Iterator[Tuple[datetime, datetime]]:
+    """
+    Get iterator capable of generating a sequence of datetime pairs
+    incrementing one day at a time. The latter date in a pair is
+    advanced by exactly one day compared to the former date in the pair.
+
+    Args:
+        from_datetime: the start date
+        to_datetime: the end date
+
+    Yields:
+        The next date pair in the sequence of pairs
+    """
+    return pairwise(gen_cut_dates(from_datetime, to_datetime))
