@@ -1403,20 +1403,13 @@ def cli():
     help="Ignore previously unfinished runs",
 )
 @click.option(
-    "--one-day",
-    is_flag=True,
-    type=click.BOOL,
-    default=False,
-    help="Only import changes for the next missing day",
-)
-@click.option(
     "--from-date",
     type=click.DateTime(),
     required=True,
     default=load_setting("integrations.SD_Lon.global_from_date"),
     help="Global import from-date, only used if init is True",
 )
-def changed_at(init: bool, force: bool, one_day: bool, from_date: datetime.datetime):
+def changed_at(init: bool, force: bool, from_date: datetime.datetime):
     """Tool to delta synchronize with MO with SD."""
     setup_logging()
 
@@ -1431,24 +1424,26 @@ def changed_at(init: bool, force: bool, one_day: bool, from_date: datetime.datet
 
         initialize_changed_at(from_date, run_db, force=True)
         exit()
+
     from_date = get_from_date(run_db, force=force)
     to_date = datetime.datetime.now()
+    dates = gen_date_intervals(from_date, to_date)
+    for from_date, to_date in dates:
+        logger.info("Importing {} to {}".format(from_date, to_date))
+        _local_db_insert((from_date, to_date, "Running since {}"))
 
-    logger.info("Importing {} to {}".format(from_date, to_date))
-    _local_db_insert((from_date, to_date, "Running since {}"))
+        logger.info("Start ChangedAt module")
+        sd_updater = ChangeAtSD(from_date, to_date)
 
-    logger.info("Start ChangedAt module")
-    sd_updater = ChangeAtSD(from_date, to_date)
+        logger.info("Update changed persons")
+        sd_updater.update_changed_persons()
 
-    logger.info("Update changed persons")
-    sd_updater.update_changed_persons()
+        logger.info("Update all employments")
+        sd_updater.update_all_employments()
 
-    logger.info("Update all employments")
-    sd_updater.update_all_employments()
+        _local_db_insert((from_date, to_date, "Update finished: {}"))
 
-    _local_db_insert((from_date, to_date, "Update finished: {}"))
-
-    logger.info("Program stopped.")
+        logger.info("Program stopped.")
 
 
 @cli.command()
