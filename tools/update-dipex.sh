@@ -3,6 +3,7 @@
 
 export DIPEXAR=${DIPEXAR:=$(cd $(dirname $0); pwd )/..}
 export VENV=${VENV:=${DIPEXAR}/.venv}
+export POETRYPATH=${POETRYPATH:=/home/$(whoami)/.local/bin/poetry}
 cd ${DIPEXAR}
 
 [ -d ../backup ] || mkdir ../backup
@@ -16,7 +17,7 @@ find .git/hooks -type l -exec rm {} \; && find .githooks -type f -exec ln -sf ..
 
 export POETRY_VIRTUALENVS_CREATE=true
 export POETRY_VIRTUALENVS_IN_PROJECT=true
-poetry install --no-interaction
+$POETRYPATH install --no-interaction
 source .venv/bin/activate
 
 pip install ./os2mo_data_import --upgrade
