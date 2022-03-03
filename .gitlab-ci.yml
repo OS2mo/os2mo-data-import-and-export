@@ -37,6 +37,9 @@ include:
   - project: 'labs/salt-automation'
     ref: 'master'
     file: '/gitlab-ci-templates/common/docker-release.v1.yml'
+  - project: "labs/salt-automation"
+    ref: "master"
+    file: "/gitlab-ci-templates/common/config-updater-meta.v1.yml"
 
 # Only run pipeline when pushing a tag or a branch.
 # This is a workaround for a bug causing detached pipelines on MRs
@@ -302,79 +305,19 @@ Test rollekatalog:
 ###############
 
 Release to Dev:
-  stage: deploy
+  extends: .release-to-dev
   needs: ["Release version"]
-  image: alpine
   variables:
-    GIT_STRATEGY: none # We do not need the source code
-  rules:
-    # Matches <version core> from SemVer 2.0.0 BNF grammar. Ex. 2.3.4, but not 2.3.4-rc
-    - if: $CI_COMMIT_TAG =~ /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/
-  tags:
-    - docker
-  script:
-    - apk add git
-    - wget https://github.com/mikefarah/yq/releases/download/v4.12.1/yq_linux_amd64 -O /usr/bin/yq
-    - chmod +x /usr/bin/yq
-    - git config --global user.email "labs@magenta-aps.dk"
-    - git config --global user.name "OS2MO Config Updater"
-    - git clone https://$DEPLOY_USER:$ACCESS_TOKEN@git.magenta.dk/labs/salt-automation.git
-    - cd salt-automation
-    - yq e -i '.spec.values.dipex.image.tag = strenv(CI_COMMIT_TAG)' flux/projects/os2mo/config/dev.yaml
-    - git add flux/projects/os2mo/config/dev.yaml
-    - git commit -m "[cd] Deploy DIPEX $CI_COMMIT_TAG to flux dev servers"
-    - git push
+    ENDPOINT: os2mo/flux/dipex/update-dev
 
 Release to Test:
-  stage: deploy
+  extends: .release-to-test
   needs: []
-  image: alpine
   variables:
-    GIT_STRATEGY: none # We do not need the source code
-  rules:
-    # Only run these on scheduled jobs
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE == "release_to_test"
-      when: on_success
-    - when: never
-  tags:
-    - docker
-  script:
-    - apk add git
-    - wget https://github.com/mikefarah/yq/releases/download/v4.12.1/yq_linux_amd64 -O /usr/bin/yq
-    - chmod +x /usr/bin/yq
-    - git config --global user.email "labs@magenta-aps.dk"
-    - git config --global user.name "OS2MO Config Updater"
-    - git clone https://$DEPLOY_USER:$ACCESS_TOKEN@git.magenta.dk/labs/salt-automation.git
-    - cd salt-automation
-    - export DEV_VERSION=$(yq e '.spec.values.dipex.image.tag' flux/projects/os2mo/config/dev.yaml)
-    - yq e -i '.spec.values.dipex.image.tag = strenv(DEV_VERSION)' flux/projects/os2mo/config/test.yaml
-    - git add flux/projects/os2mo/config/test.yaml
-    - git commit -m "[cd] Deploy DIPEX $DEV_VERSION to flux test servers"
-    - git push
+    ENDPOINT: os2mo/flux/dipex/update-test
 
 Release to Prod:
-  stage: deploy
+  extends: .release-to-prod
   needs: []
-  image: alpine
   variables:
-    GIT_STRATEGY: none # We do not need the source code
-  rules:
-    # Only run these on scheduled jobs
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE == "release_to_prod"
-      when: on_success
-    - when: never
-  tags:
-    - docker
-  script:
-    - apk add git
-    - wget https://github.com/mikefarah/yq/releases/download/v4.12.1/yq_linux_amd64 -O /usr/bin/yq
-    - chmod +x /usr/bin/yq
-    - git config --global user.email "labs@magenta-aps.dk"
-    - git config --global user.name "OS2MO Config Updater"
-    - git clone https://$DEPLOY_USER:$ACCESS_TOKEN@git.magenta.dk/labs/salt-automation.git
-    - cd salt-automation
-    - export TEST_VERSION=$(yq e '.spec.values.dipex.image.tag' flux/projects/os2mo/config/test.yaml)
-    - yq e -i '.spec.values.dipex.image.tag = strenv(TEST_VERSION)' flux/projects/os2mo/config/prod.yaml
-    - git add flux/projects/os2mo/config/prod.yaml
-    - git commit -m "[cd] Deploy DIPEX $TEST_VERSION to flux prod servers"
-    - git push
+    ENDPOINT: os2mo/flux/dipex/update-prod
