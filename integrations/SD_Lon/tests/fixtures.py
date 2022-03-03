@@ -642,3 +642,42 @@ def get_employment_fixture(
             )
         ]
     )
+
+
+def get_read_employment_changed_fixture(
+    cpr: int,
+    employment_id: str,
+    job_pos_id: int,
+    employment_status_code: int
+):
+    return [
+        OrderedDict([
+            ('PersonCivilRegistrationIdentifier', str(cpr)),
+            ('Employment', OrderedDict([
+                ('EmploymentIdentifier', employment_id),
+                ('EmploymentDate', '2020-11-10'),
+                ('AnniversaryDate', '2004-08-15'),
+                ('EmploymentDepartment', OrderedDict([
+                    ('@changedAtDate', '2020-11-10'),
+                    ('ActivationDate', '2020-11-10'),
+                    ('DeactivationDate', '9999-12-31'),
+                    ('DepartmentIdentifier', 'deprtment_id'),
+                    ('DepartmentUUIDIdentifier', 'department_uuid')
+                ])),
+                ('Profession', OrderedDict([
+                    ('@changedAtDate', '2020-11-10'),
+                    ('ActivationDate', '2020-11-10'),
+                    ('DeactivationDate', '9999-12-31'),
+                    ('JobPositionIdentifier', str(job_pos_id)),
+                    ('EmploymentName', 'chief'),
+                    ('AppointmentCode', '0')
+                ])),
+                ('EmploymentStatus', OrderedDict([
+                    ('@changedAtDate', '2020-11-10'),
+                    ('ActivationDate', '2020-11-10'),
+                    ('DeactivationDate', '2021-02-09'),
+                    ('EmploymentStatusCode', str(employment_status_code))
+                ]))
+            ]))
+        ])
+    ]
