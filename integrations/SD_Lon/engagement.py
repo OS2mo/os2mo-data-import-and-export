@@ -53,7 +53,7 @@ def create_engagement(sd_updater, employment_id, person_uuid) -> None:
     sd_updater.create_new_engagement(sd_employment, status, cpr, person_uuid)
 
 
-def is_external(employment_id: str) -> bool:
+def _is_external(employment_id: str) -> bool:
     """
     Check if the SD employee is an external employee. This is the
     case (at least in some municipalities...) if the EmploymentIdentifier
@@ -98,6 +98,6 @@ def is_employment_id_and_no_salary_minimum_consistent(
     if no_salary_minimum is None:
         return True
 
-    if is_external(employment_id):
+    if _is_external(employment_id):
         return job_pos_id >= no_salary_minimum
     return job_pos_id < no_salary_minimum
