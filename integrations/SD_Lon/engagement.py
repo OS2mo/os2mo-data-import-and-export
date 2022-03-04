@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Union, Optional
 from typing import Dict
 from typing import List
 from typing import Tuple
@@ -8,6 +8,7 @@ import re
 from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sd_common import read_employment_at
 
+from typing import OrderedDict
 
 def engagement_components(engagement_info) -> Tuple[str, Dict[str, List[Any]]]:
     employment_id = engagement_info["EmploymentIdentifier"]
@@ -67,3 +68,22 @@ def is_external(employment_id: str) -> bool:
 
     match = re.compile("[0-9]+").match(employment_id)
     return True if match is None else False
+
+
+def is_employment_id_and_no_salary_minimum_consistent(
+    engagement: OrderedDict, no_salary_minimum: Union[int, None]
+) -> bool:
+    employment_id = engagement["EmploymentIdentifier"]
+    profession = engagement.get("Profession")
+    assert profession, "Profession not found in Employment"
+    job_pos_id_str = profession.get("JobPositionIdentifier")
+    assert job_pos_id_str, "JobPositionIdentifier not found in Profession"
+
+    job_pos_id = int(job_pos_id_str)
+
+    if no_salary_minimum is None:
+        return True
+
+    if is_external(employment_id):
+        return job_pos_id >= no_salary_minimum
+    return job_pos_id < no_salary_minimum
