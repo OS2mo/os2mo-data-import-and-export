@@ -646,8 +646,8 @@ def get_employment_fixture(
 
 def get_read_employment_changed_fixture(
     cpr: int = 1234561234,
-    employment_id: str = 12345,
-    employment_date: str = "2020-01-01",
+    employment_id: str = "12345",
+    employment_date: str = "2020s-01-01",
     anniversary_date: str = "2020-01-01",
     employment_department_activation_date: str = "2020-01-01",
     employment_department_deactivation_date: str = "9999-12-31",

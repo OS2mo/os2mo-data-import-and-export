@@ -212,8 +212,8 @@ class Test_sd_changed_at(DipexTestCase):
         who (unintentionally) has a JobPositionIdentifier below
         no_salary_minimum.
 
-        NOTE: an external SD employee has an EmploymentIdentifier starting
-        with a letter (at least in some municipalities)
+        NOTE: an external SD employee has an EmploymentIdentifier containing
+        letters (at least in some municipalities)
         """
 
         sd_updater = setup_sd_changed_at(
@@ -222,7 +222,7 @@ class Test_sd_changed_at(DipexTestCase):
             }
         )
         sd_updater.read_employment_changed = lambda: get_read_employment_changed_fixture(
-            employment_id="Contains letters",
+            employment_id="ABCDE",  # See doc-string above
             job_pos_id=8000
         )
 
@@ -230,6 +230,11 @@ class Test_sd_changed_at(DipexTestCase):
         morahelper.read_user.return_value.__getitem__.return_value = "user_uuid"
 
         sd_updater.create_new_engagement = MagicMock()
+
+        # Act
+        sd_updater.update_all_employments()
+
+        # Assert
         sd_updater.create_new_engagement.assert_not_called()
 
     @given(status=st.sampled_from(["1", "S"]))

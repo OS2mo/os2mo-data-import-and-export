@@ -720,6 +720,7 @@ class ChangeAtSD:
         Create a new engagement
         AD integration handled in check for primary engagement.
         """
+
         # beware - name engagement_info used for engagement in engagement_components
         user_key, engagement_info = engagement_components(engagement)
         if not engagement_info["departments"] or not engagement_info["professions"]:
@@ -1203,6 +1204,7 @@ class ChangeAtSD:
                     self.edit_engagement(sd_employment, person_uuid)
                 else:
                     logger.info("Status 1: Create new engagement")
+                    logger.debug(sd_employment)
                     self.create_new_engagement(sd_employment, status, cpr, person_uuid)
                 skip = True
             elif code == EmploymentStatus.Orlov:
