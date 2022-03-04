@@ -73,6 +73,20 @@ def is_external(employment_id: str) -> bool:
 def is_employment_id_and_no_salary_minimum_consistent(
     engagement: OrderedDict, no_salary_minimum: Union[int, None]
 ) -> bool:
+    """
+    Check that the external SD employees have JobPositionIdentifiers
+    consistent with no_salary_limit
+    (see https://os2web.atlassian.net/browse/MO-245).
+
+    Args:
+        engagement: the SD employment
+        no_salary_minimum: the minimum allowed JobPositionIdentifier
+          for external SD employees.
+
+    Returns:
+        True if the provided values are consistent and False otherwise.
+    """
+
     employment_id = engagement["EmploymentIdentifier"]
     profession = engagement.get("Profession")
     assert profession, "Profession not found in Employment"
