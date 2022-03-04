@@ -3,6 +3,7 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Tuple
+import re
 
 from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sd_common import read_employment_at
@@ -49,3 +50,20 @@ def create_engagement(sd_updater, employment_id, person_uuid) -> None:
 
     # Call MO to create corresponding engagement in MO
     sd_updater.create_new_engagement(sd_employment, status, cpr, person_uuid)
+
+
+def is_external(employment_id: str) -> bool:
+    """
+    Check if the SD employee is an external employee. This is the
+    case (at least in some municipalities...) if the EmploymentIdentifier
+    contains letters.
+
+    Args:
+         employment_id: the SD EmploymentIdentifier
+
+    Returns:
+        True of the employment_id contains letters and False otherwise
+    """
+
+    match = re.compile("[0-9]+").match(employment_id)
+    return True if match is None else False
