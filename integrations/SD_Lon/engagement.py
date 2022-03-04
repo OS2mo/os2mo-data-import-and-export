@@ -1,15 +1,16 @@
-from more_itertools import one
+import re
 from datetime import datetime
-from typing import Any, Union, Optional
+from typing import Any
 from typing import Dict
 from typing import List
+from typing import OrderedDict
 from typing import Tuple
-import re
+from typing import Union
+
+from more_itertools import one
 
 from integrations.SD_Lon.sd_common import ensure_list
 from integrations.SD_Lon.sd_common import read_employment_at
-
-from typing import OrderedDict
 
 
 def engagement_components(engagement_info) -> Tuple[str, Dict[str, List[Any]]]:
@@ -90,7 +91,7 @@ def is_employment_id_and_no_salary_minimum_consistent(
     """
 
     employment_id, eng_components = engagement_components(engagement)
-    profession = one(eng_components.get("professions"))
+    profession = one(eng_components["professions"])
     job_pos_id_str = profession.get("JobPositionIdentifier")
     assert job_pos_id_str, "JobPositionIdentifier not found in Profession"
 

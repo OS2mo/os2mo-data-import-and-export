@@ -44,6 +44,9 @@ from integrations.SD_Lon import sd_payloads
 from integrations.SD_Lon.date_utils import sd_to_mo_termination_date
 from integrations.SD_Lon.engagement import create_engagement
 from integrations.SD_Lon.engagement import engagement_components
+from integrations.SD_Lon.engagement import (
+    is_employment_id_and_no_salary_minimum_consistent,
+)
 from integrations.SD_Lon.engagement import update_existing_engagement
 from integrations.SD_Lon.fix_departments import FixDepartments
 from integrations.SD_Lon.models import SDBasePerson
@@ -56,7 +59,7 @@ from integrations.SD_Lon.sd_common import read_employment_at
 from integrations.SD_Lon.sd_common import sd_lookup
 from integrations.SD_Lon.sd_common import skip_fictional_users
 from integrations.SD_Lon.sync_job_id import JobIdSync
-from integrations.SD_Lon.engagement import is_employment_id_and_no_salary_minimum_consistent
+
 # from integrations.SD_Lon.sd_common import generate_uuid
 
 
@@ -125,7 +128,9 @@ class ChangeAtSD:
 
         # See https://os2web.atlassian.net/browse/MO-245 for more details
         # about no_salary_minimum
-        self.no_salary_minimum = self.settings.get("integrations.SD_Lon.no_salary_minimum_id", None)
+        self.no_salary_minimum = self.settings.get(
+            "integrations.SD_Lon.no_salary_minimum_id", None
+        )
 
         try:
             self.org_uuid = self.helper.read_organisation()
@@ -968,7 +973,10 @@ class ChangeAtSD:
 
         # We should not create engagements (or engagement_types) for engagements
         # with too low of a job_position id compared to no_salary_minimum_id.
-        if self.no_salary_minimum is not None and int(job_position) < self.no_salary_minimum:
+        if (
+            self.no_salary_minimum is not None
+            and int(job_position) < self.no_salary_minimum
+        ):
             message = "No salary employee, with too low job_position id"
             logger.warning(message)
             return None
@@ -1104,7 +1112,9 @@ class ChangeAtSD:
         # Assume `profession` contains a `JobPositionIdentifier` which can
         # read as an integer.
         job_pos_id = int(profession["JobPositionIdentifier"])
-        is_above = self.no_salary_minimum is not None and job_pos_id > self.no_salary_minimum
+        is_above = (
+            self.no_salary_minimum is not None and job_pos_id > self.no_salary_minimum
+        )
         return is_above
 
     def _handle_employment_status_changes(
@@ -1188,7 +1198,9 @@ class ChangeAtSD:
                     if is_employment_id_and_no_salary_minimum_consistent(
                         sd_employment, self.no_salary_minimum
                     ):
-                        self.create_new_engagement(sd_employment, status, cpr, person_uuid)
+                        self.create_new_engagement(
+                            sd_employment, status, cpr, person_uuid
+                        )
                 skip = True
             elif code == EmploymentStatus.AnsatMedLoen:
                 logger.info("Setting {} to status 1".format(employment_id))
@@ -1206,7 +1218,9 @@ class ChangeAtSD:
                     if is_employment_id_and_no_salary_minimum_consistent(
                         sd_employment, self.no_salary_minimum
                     ):
-                        self.create_new_engagement(sd_employment, status, cpr, person_uuid)
+                        self.create_new_engagement(
+                            sd_employment, status, cpr, person_uuid
+                        )
                 skip = True
             elif code == EmploymentStatus.Orlov:
                 mo_eng = self._find_engagement(employment_id, person_uuid)
@@ -1215,7 +1229,9 @@ class ChangeAtSD:
                     if is_employment_id_and_no_salary_minimum_consistent(
                         sd_employment, self.no_salary_minimum
                     ):
-                        self.create_new_engagement(sd_employment, status, cpr, person_uuid)
+                        self.create_new_engagement(
+                            sd_employment, status, cpr, person_uuid
+                        )
                 logger.info("Create a leave for {} ".format(cpr))
                 self.create_leave(status, employment_id, person_uuid)
             elif code in EmploymentStatus.let_go():

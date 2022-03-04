@@ -1,9 +1,12 @@
-from integrations.SD_Lon.engagement import _is_external
-from integrations.SD_Lon.engagement import is_employment_id_and_no_salary_minimum_consistent
-from integrations.SD_Lon.tests.fixtures import get_read_employment_changed_fixture
+import unittest
+
 from parameterized import parameterized
 
-import unittest
+from integrations.SD_Lon.engagement import _is_external
+from integrations.SD_Lon.engagement import (
+    is_employment_id_and_no_salary_minimum_consistent,
+)
+from integrations.SD_Lon.tests.fixtures import get_read_employment_changed_fixture
 
 
 class TestIsExternal(unittest.TestCase):
@@ -33,6 +36,9 @@ class TestIsEmploymentIdAndNoSalaryMinimumConsistent(unittest.TestCase):
             job_pos_id=job_pos_id,
         )[0]["Employment"]
 
-        assert is_employment_id_and_no_salary_minimum_consistent(
-            engagement, no_salary_minimum
-        ) == expected
+        assert (
+            is_employment_id_and_no_salary_minimum_consistent(
+                engagement, no_salary_minimum
+            )
+            == expected
+        )

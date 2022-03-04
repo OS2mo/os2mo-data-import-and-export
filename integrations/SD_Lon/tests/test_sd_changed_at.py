@@ -16,9 +16,9 @@ from ra_utils.attrdict import attrdict
 from ra_utils.generate_uuid import uuid_generator
 
 from .fixtures import get_employment_fixture
+from .fixtures import get_read_employment_changed_fixture
 from .fixtures import get_sd_person_fixture
 from .fixtures import read_employment_fixture
-from .fixtures import get_read_employment_changed_fixture
 from integrations.SD_Lon.exceptions import JobfunctionSettingsIsWrongException
 from integrations.SD_Lon.sd_changed_at import ChangeAtSD
 from integrations.SD_Lon.sd_changed_at import get_from_date
@@ -221,9 +221,10 @@ class Test_sd_changed_at(DipexTestCase):
                 "integrations.SD_Lon.no_salary_minimum_id": 9000,
             }
         )
-        sd_updater.read_employment_changed = lambda: get_read_employment_changed_fixture(
-            employment_id="ABCDE",  # See doc-string above
-            job_pos_id=8000
+        sd_updater.read_employment_changed = (
+            lambda: get_read_employment_changed_fixture(
+                employment_id="ABCDE", job_pos_id=8000  # See doc-string above
+            )
         )
 
         morahelper = sd_updater.morahelper_mock
