@@ -645,37 +645,49 @@ def get_employment_fixture(
 
 
 def get_read_employment_changed_fixture(
-    cpr: int,
-    employment_id: str,
-    job_pos_id: int,
-    employment_status_code: int
+    cpr: int = 1234561234,
+    employment_id: str = 12345,
+    employment_date: str = "2020-01-01",
+    anniversary_date: str = "2020-01-01",
+    employment_department_activation_date: str = "2020-01-01",
+    employment_department_deactivation_date: str = "9999-12-31",
+    department_id: str = "department_id",
+    department_uuid_id: str = "department_uuid",
+    profession_activation_date: str = "2020-01-01",
+    profession_deactivation_date: str = "9999-12-31",
+    job_pos_id: int = 1000,
+    employment_name: str = "Employment name",
+    appointment_code: str = "0",
+    employment_status_activation_date: str = "2020-01-01",
+    employment_status_deactivation_date: str = "9999-12-31",
+    employment_status_code: int = 1,
 ):
     return [
         OrderedDict([
             ('PersonCivilRegistrationIdentifier', str(cpr)),
             ('Employment', OrderedDict([
                 ('EmploymentIdentifier', employment_id),
-                ('EmploymentDate', '2020-11-10'),
-                ('AnniversaryDate', '2004-08-15'),
+                ('EmploymentDate', employment_date),
+                ('AnniversaryDate', anniversary_date),
                 ('EmploymentDepartment', OrderedDict([
                     ('@changedAtDate', '2020-11-10'),
-                    ('ActivationDate', '2020-11-10'),
-                    ('DeactivationDate', '9999-12-31'),
-                    ('DepartmentIdentifier', 'deprtment_id'),
-                    ('DepartmentUUIDIdentifier', 'department_uuid')
+                    ('ActivationDate', employment_department_activation_date),
+                    ('DeactivationDate', employment_department_deactivation_date),
+                    ('DepartmentIdentifier', department_id),
+                    ('DepartmentUUIDIdentifier', department_uuid_id)
                 ])),
                 ('Profession', OrderedDict([
                     ('@changedAtDate', '2020-11-10'),
-                    ('ActivationDate', '2020-11-10'),
-                    ('DeactivationDate', '9999-12-31'),
+                    ('ActivationDate', profession_activation_date),
+                    ('DeactivationDate', profession_deactivation_date),
                     ('JobPositionIdentifier', str(job_pos_id)),
-                    ('EmploymentName', 'chief'),
-                    ('AppointmentCode', '0')
+                    ('EmploymentName', employment_name),
+                    ('AppointmentCode', appointment_code)
                 ])),
                 ('EmploymentStatus', OrderedDict([
                     ('@changedAtDate', '2020-11-10'),
-                    ('ActivationDate', '2020-11-10'),
-                    ('DeactivationDate', '2021-02-09'),
+                    ('ActivationDate', employment_status_activation_date),
+                    ('DeactivationDate', employment_status_deactivation_date),
                     ('EmploymentStatusCode', str(employment_status_code))
                 ]))
             ]))
