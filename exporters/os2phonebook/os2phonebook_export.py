@@ -531,7 +531,7 @@ async def transfer_json():
     )
     basic_auth = BasicAuth(username, password)
 
-    @retry(stop_max_attempt_number=7)
+    @retry(stop_max_attempt_number=20)
     async def push_updates(url, payload):
         async with aiohttp_session.post(
             base_url + url, json=payload, auth=basic_auth
