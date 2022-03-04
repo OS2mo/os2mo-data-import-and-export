@@ -132,6 +132,9 @@ class Tilknytning(Base):
     enhed_uuid = Column(String(36))  # , ForeignKey('enheder.uuid'))
     tilknytningstype_uuid = Column(String(36))  # , ForeignKey('klasser.uuid'))
     tilknytningstype_titel = Column(String(250), nullable=False)
+    stillingsbetegnelse_uuid = Column(String(36), nullable=True)
+    stillingsbetegnelse_titel = Column(String(250), nullable=True)
+    it_forbindelse_uuid = Column(String(36), nullable=True)
     startdato = Column(String(10))
     slutdato = Column(String(10))
 
@@ -166,6 +169,7 @@ class ItForbindelse(Base):
     bruger_uuid = Column(String(36), nullable=True)  # , ForeignKey('brugere.uuid'))
     enhed_uuid = Column(String(36), nullable=True)  # , ForeignKey('enheder.uuid'))
     brugernavn = Column(String(250), nullable=True)
+    primær_boolean = Column(Boolean)
     startdato = Column(String(10))
     slutdato = Column(String(10))
 

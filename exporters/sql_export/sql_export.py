@@ -69,6 +69,10 @@ class SqlExport:
             lc.calculate_primary_engagements()
         return lc
 
+    def _get_db_session(self):
+        Session = sessionmaker(bind=self.engine, autoflush=False)
+        return Session()
+
     def perform_export(self, resolve_dar=True, use_pickle=None):
         def timestamp():
             return datetime.datetime.now()
@@ -78,8 +82,8 @@ class SqlExport:
 
         Base.metadata.drop_all(self.engine, tables=trunc_tables.values())
         Base.metadata.create_all(self.engine)
-        Session = sessionmaker(bind=self.engine, autoflush=False)
-        self.session = Session()
+
+        self.session = self._get_db_session()
 
         query_time = timestamp()
         kvittering = self._add_receipt(query_time)
@@ -94,7 +98,7 @@ class SqlExport:
             self._add_addresses,
             self._add_dar_addresses,
             self._add_engagements,
-            self._add_associactions_leaves_and_roles,
+            self._add_associations,
             self._add_managers,
             self._add_it_systems,
             self._add_kles,
@@ -267,24 +271,25 @@ class SqlExport:
 
                 engagement_type_uuid = engagement_info["engagement_type"]
                 job_function_uuid = engagement_info["job_function"]
+                job_function_class = self.lc.classes.get(
+                    job_function_uuid, {"title": job_function_uuid}
+                )
 
                 sql_engagement = Engagement(
                     uuid=engagement,
                     enhed_uuid=engagement_info["unit"],
                     bruger_uuid=engagement_info["user"],
                     bvn=engagement_info["user_key"],
-                    primærtype_uuid=engagement_info["primary_type"],
-                    stillingsbetegnelse_uuid=engagement_info["job_function"],
                     engagementstype_uuid=engagement_info["engagement_type"],
                     primær_boolean=engagement_info.get("primary_boolean"),
                     arbejdstidsfraktion=engagement_info["fraction"],
                     engagementstype_titel=self.lc.classes.get(
                         engagement_type_uuid, {"title": engagement_type_uuid}
                     )["title"],
-                    stillingsbetegnelse_titel=self.lc.classes.get(
-                        job_function_uuid, {"title": job_function_uuid}
-                    )["title"],
                     primærtype_titel=primærtype_titel,
+                    stillingsbetegnelse_uuid=engagement_info["job_function"],
+                    stillingsbetegnelse_titel=job_function_class["title"],
+                    primærtype_uuid=engagement_info["primary_type"],
                     startdato=engagement_info["from_date"],
                     slutdato=engagement_info["to_date"],
                     **engagement_info["extensions"]
@@ -358,12 +363,14 @@ class SqlExport:
             for result in self.engine.execute("select * from dar_adresser limit 10"):
                 print(result.items())
 
-    def _add_associactions_leaves_and_roles(self, output=False):
-        logger.info("Add associactions leaves and roles")
+    def _add_associations(self, output=False):
+        logger.info("Add associations")
         for association, association_validity in tqdm(
             self.lc.associations.items(), desc="Export association", unit="association"
         ):
             for association_info in association_validity:
+                job_function_uuid = association_info["job_function"]
+                job_function_class = self.lc.classes.get(job_function_uuid)
                 sql_association = Tilknytning(
                     uuid=association,
                     bruger_uuid=association_info["user"],
@@ -375,6 +382,9 @@ class SqlExport:
                     ]["title"],
                     startdato=association_info["from_date"],
                     slutdato=association_info["to_date"],
+                    it_forbindelse_uuid=association_info["it_user"],
+                    stillingsbetegnelse_uuid=job_function_uuid,
+                    stillingsbetegnelse_titel=job_function_class["title"],
                 )
                 self.session.add(sql_association)
             self.session.commit()
@@ -443,6 +453,7 @@ class SqlExport:
                     brugernavn=it_connection_info["username"],
                     startdato=it_connection_info["from_date"],
                     slutdato=it_connection_info["to_date"],
+                    primær_boolean=it_connection_info["primary_type"] is not None,
                 )
                 self.session.add(sql_it_connection)
             self.session.commit()

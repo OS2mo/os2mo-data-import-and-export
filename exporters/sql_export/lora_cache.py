@@ -624,6 +624,8 @@ class LoraCache:
                 "tilknyttedeenheder",
                 "tilknyttedebrugere",
                 "organisatoriskfunktionstype",
+                "tilknyttedefunktioner",
+                "tilknyttedeitsystemer",
             ),
             "attributter": ("organisationfunktionegenskaber",),
         }
@@ -657,6 +659,13 @@ class LoraCache:
                 association_type = rel["organisatoriskfunktionstype"][0]["uuid"]
                 user_uuid = get_rel_uuid_or_none(uuid, rel, "tilknyttedebrugere")
 
+                it_user_uuid = get_rel_uuid_or_none(uuid, rel, "tilknyttedeitsystemer")
+                job_function_uuid = (
+                    get_rel_uuid_or_none(uuid, rel, "tilknyttedefunktioner")
+                    if it_user_uuid
+                    else None
+                )
+
                 associations[uuid].append(
                     {
                         "uuid": uuid,
@@ -664,10 +673,13 @@ class LoraCache:
                         "unit": unit_uuid,
                         "user_key": user_key,
                         "association_type": association_type,
+                        "it_user": it_user_uuid,
+                        "job_function": job_function_uuid,
                         "from_date": from_date,
                         "to_date": to_date,
                     }
                 )
+
         return associations
 
     def _cache_lora_roles(self):
@@ -774,6 +786,7 @@ class LoraCache:
                     "tilknyttedeenheder",
                     "tilknyttedebrugere",
                     "tilknyttedeitsystemer",
+                    "primær",
                 ),
                 "attributter": ("organisationfunktionegenskaber",),
             }
@@ -797,6 +810,8 @@ class LoraCache:
                     user_uuid = rel["tilknyttedebrugere"][0]["uuid"]
                     unit_uuid = None
 
+                primary_type = get_rel_uuid_or_none(uuid, rel, "primær")
+
                 it_connections[uuid].append(
                     {
                         "uuid": uuid,
@@ -804,6 +819,7 @@ class LoraCache:
                         "unit": unit_uuid,
                         "username": user_key,
                         "itsystem": itsystem,
+                        "primary_type": primary_type,
                         "from_date": from_date,
                         "to_date": to_date,
                     }
