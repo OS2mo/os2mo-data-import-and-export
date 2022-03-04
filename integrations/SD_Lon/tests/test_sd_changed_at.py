@@ -204,7 +204,7 @@ class Test_sd_changed_at(DipexTestCase):
         result = sd_updater.read_employment_changed()
         self.assertEqual(result, expected_read_employment_result)
 
-    def test_do_not_create_engagement_for_malformed_external_emp(self):
+    def test_do_not_create_engagement_for_inconsistent_external_emp(self):
         """
         We are testing bullet 4 in
         https://os2web.atlassian.net/browse/MO-245, i.e. that we do not
