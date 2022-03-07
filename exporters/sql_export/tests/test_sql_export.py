@@ -1,15 +1,19 @@
+from collections import ChainMap
 from typing import Any
 from typing import Dict
+from typing import Tuple
 from unittest.mock import MagicMock
 from uuid import uuid4
 
 from alchemy_mock.mocking import UnifiedAlchemyMagicMock
+from more_itertools import one
 from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from exporters.sql_export.lora_cache import LoraCache
 from exporters.sql_export.sql_export import SqlExport
+from exporters.sql_export.sql_table_defs import Base
 from exporters.sql_export.sql_table_defs import ItForbindelse
 from exporters.sql_export.sql_table_defs import Tilknytning
 
@@ -149,11 +153,11 @@ def test_sql_export_tables():
     )
 
 
-def _mk_uuid():
+def _mk_uuid() -> str:
     return str(uuid4())
 
 
-def _mock_lora_class(name):
+def _mock_lora_class(name: str) -> Tuple[Dict, Dict]:
     facet_uuid = _mk_uuid()
     facet = {"user_key": f"{name}_facet"}
     cls_uuid = _mk_uuid()
@@ -166,29 +170,28 @@ def _mock_lora_class(name):
     return {cls_uuid: cls}, {facet_uuid: facet}
 
 
-def _get_cls_uuid(val: dict):
-    return list(val.keys())[0]
+def _get_cls_uuid(cls: dict) -> str:
+    return one(cls.keys())
 
 
-def _get_cls_field(cls: dict, field: str):
-    return list(cls.values())[0][field]
+def _get_cls_field(cls: dict, field: str) -> str:
+    return one(cls.values())[field]
 
 
-def _join_dicts(*dicts: Dict):
-    result = {}
-    for val in dicts:
-        result.update(val)
-    return result
+def _join_dicts(*dicts: dict) -> ChainMap:
+    return ChainMap(*dicts)
 
 
-def _assert_db_session_add(session, cls, **expected):
+def _assert_db_session_add(
+    session: MagicMock, cls: Base, **expected: Dict[str, Any]
+) -> None:
     session_add_calls = [
         call
         for call in session.method_calls
-        if len(call.args) > 0 and isinstance(call.args[0], cls)
+        if len(call.args) > 0 and isinstance(one(call.args), cls)
     ]
     assert len(session_add_calls) == 1
-    model = session_add_calls[0].args[0]
+    model = one(one(session_add_calls).args)
     for name, value in expected.items():
         assert getattr(model, name) == value
 
