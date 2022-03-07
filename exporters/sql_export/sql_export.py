@@ -7,6 +7,8 @@ from alembic.operations import Operations
 from ra_utils.load_settings import load_settings
 from sqlalchemy import create_engine
 from sqlalchemy import Index
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
 
@@ -43,22 +45,28 @@ logger = logging.getLogger("SqlExport")
 class SqlExport:
     def __init__(self, force_sqlite=False, historic=False, settings=None):
         logger.info("Start SQL export")
+        self.force_sqlite = force_sqlite
         self.historic = historic
+        self.settings = settings
+        self.engine = self._get_engine()
+        self.export_cpr = self._get_export_cpr_setting()
 
+    def _get_engine(self) -> Engine:
         database_function = DatabaseFunction.ACTUAL_STATE
-        if historic:
+        if self.historic:
             database_function = DatabaseFunction.ACTUAL_STATE_HISTORIC
         db_string = generate_connection_url(
-            database_function, force_sqlite=force_sqlite, settings=settings
+            database_function, force_sqlite=self.force_sqlite, settings=self.settings
         )
         engine_settings = generate_engine_settings(
-            database_function, force_sqlite=force_sqlite, settings=settings
+            database_function, force_sqlite=self.force_sqlite, settings=self.settings
         )
-        self.engine = create_engine(db_string, **engine_settings)
+        return create_engine(db_string, **engine_settings)
 
-        self.export_cpr = settings.get("exporters.actual_state.export_cpr", True)
+    def _get_export_cpr_setting(self) -> bool:
+        return self.settings.get("exporters.actual_state.export_cpr", True)
 
-    def _get_lora_cache(self, resolve_dar, use_pickle):
+    def _get_lora_cache(self, resolve_dar, use_pickle) -> LoraCache:
         if self.historic:
             lc = LoraCache(resolve_dar=resolve_dar, full_history=True)
             lc.populate_cache(dry_run=use_pickle)
@@ -69,7 +77,7 @@ class SqlExport:
             lc.calculate_primary_engagements()
         return lc
 
-    def _get_db_session(self):
+    def _get_db_session(self) -> Session:
         Session = sessionmaker(bind=self.engine, autoflush=False)
         return Session()
 

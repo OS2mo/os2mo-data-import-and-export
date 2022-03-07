@@ -5,7 +5,10 @@ from uuid import uuid4
 
 from alchemy_mock.mocking import UnifiedAlchemyMagicMock
 from sqlalchemy import inspect
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
 
+from exporters.sql_export.lora_cache import LoraCache
 from exporters.sql_export.sql_export import SqlExport
 from exporters.sql_export.sql_table_defs import ItForbindelse
 from exporters.sql_export.sql_table_defs import Tilknytning
@@ -49,18 +52,20 @@ class FakeLCSqlExport(SqlExport):
 
 
 class _TestableSqlExport(SqlExport):
-    def __init__(self, historic=False, inject_lc=None):
-        # We are deliberately not calling `super(...).__init__(...)` here, as that
-        # would try to read "settings.json", set up an actual database engine, etc.
-        self.historic = historic
+    def __init__(self, inject_lc=None):
+        super().__init__(force_sqlite=False, historic=False, settings={})
         self.inject_lc = inject_lc
-        self.export_cpr = True
-        self.engine = MagicMock()
 
-    def _get_db_session(self):
+    def _get_engine(self) -> Engine:
+        return MagicMock()
+
+    def _get_db_session(self) -> Session:
         return UnifiedAlchemyMagicMock()
 
-    def _get_lora_cache(self, resolve_dar, use_pickle):
+    def _get_export_cpr_setting(self) -> bool:
+        return True
+
+    def _get_lora_cache(self, resolve_dar, use_pickle) -> LoraCache:
         lc = FakeLC()
         if self.inject_lc:
             for key, values in self.inject_lc.items():
