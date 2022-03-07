@@ -6,6 +6,11 @@ SPDX-License-Identifier: MPL-2.0
 CHANGELOG
 =========
 
+2.19.0 - 2022-03-07
+-------------------
+
+[#46715] Use poetry for dependency management
+
 2.18.1 - 2022-02-23
 -------------------
 
