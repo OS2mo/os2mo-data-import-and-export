@@ -226,7 +226,7 @@ class Test_sd_changed_at(DipexTestCase):
 
         sd_updater = setup_sd_changed_at(
             {
-                "integrations.SD_Lon.no_salary_minimum_id": 9000,
+                "sd_no_salary_minimum_id": 9000,
             }
         )
         sd_updater.read_employment_changed = (
